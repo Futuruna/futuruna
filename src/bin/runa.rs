@@ -1073,17 +1073,76 @@ fn write_calculation_xlsx_template(
         .map_err(|error| error.to_string())?;
     write_calculation_xlsx_layout_metadata(&mut workbook, &layout)
         .map_err(|error| error.to_string())?;
-    write_calculation_xlsx_cases(&mut workbook, &layout.root_columns, envelope)
+    let validation_ranges = write_calculation_xlsx_choice_lists(&mut workbook, &layout)
         .map_err(|error| error.to_string())?;
+    write_calculation_xlsx_cases(
+        &mut workbook,
+        &layout.root_columns,
+        envelope,
+        &validation_ranges,
+    )
+    .map_err(|error| error.to_string())?;
     for table in &layout.collection_tables {
         let rows = collection_rows
             .get(&table.path)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        write_calculation_xlsx_collection_sheet(&mut workbook, table, rows)
+        write_calculation_xlsx_collection_sheet(&mut workbook, table, rows, &validation_ranges)
             .map_err(|error| error.to_string())?;
     }
     workbook.save(path).map_err(|error| error.to_string())
+}
+
+type CalculationXlsxValidationRanges = BTreeMap<Vec<String>, String>;
+
+fn write_calculation_xlsx_choice_lists(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    layout: &calculate::CalculationInputLayout,
+) -> Result<CalculationXlsxValidationRanges, rust_xlsxwriter::XlsxError> {
+    let mut validation_ranges = CalculationXlsxValidationRanges::new();
+    for column in layout.root_columns.iter().chain(
+        layout
+            .collection_tables
+            .iter()
+            .flat_map(|table| table.columns.iter()),
+    ) {
+        if !column.choices.is_empty() && !validation_ranges.contains_key(&column.choices) {
+            let name = format!("FuturunaChoices{}", validation_ranges.len() + 1);
+            validation_ranges.insert(column.choices.clone(), name);
+        }
+    }
+
+    let header = calculation_header_format();
+    let mut definitions = Vec::new();
+    {
+        let worksheet = workbook.add_worksheet().set_name("_choices")?;
+        worksheet.write_string_with_format(0, 0, "range", &header)?;
+        worksheet.write_string_with_format(0, 1, "choice", &header)?;
+        let mut row = 1_u32;
+        for (choices, name) in &validation_ranges {
+            let first_choice_row = row;
+            for (index, choice) in choices.iter().enumerate() {
+                if index == 0 {
+                    worksheet.write_string(row, 0, name)?;
+                }
+                worksheet.write_string(row, 1, choice)?;
+                row += 1;
+            }
+            let first_cell = rust_xlsxwriter::row_col_to_cell_absolute(first_choice_row, 1);
+            let last_cell = rust_xlsxwriter::row_col_to_cell_absolute(row - 1, 1);
+            definitions.push((
+                name.clone(),
+                format!("='_choices'!{first_cell}:{last_cell}"),
+            ));
+        }
+        worksheet.set_column_width(0, 28)?;
+        worksheet.set_column_width(1, 48)?;
+        worksheet.set_hidden(true);
+    }
+    for (name, formula) in definitions {
+        workbook.define_name(name, &formula)?;
+    }
+    Ok(validation_ranges)
 }
 
 #[derive(Debug, Clone)]
@@ -1215,6 +1274,7 @@ fn write_calculation_xlsx_cases(
     workbook: &mut rust_xlsxwriter::Workbook,
     columns: &[calculate::CalculationColumn],
     envelope: &calculate::CalculationInputEnvelope,
+    validation_ranges: &CalculationXlsxValidationRanges,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
     let header = calculation_header_format();
     let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
@@ -1225,7 +1285,7 @@ fn write_calculation_xlsx_cases(
         let excel_column = index as u16 + 1;
         worksheet.write_string_with_format(0, excel_column, &column.path, &header)?;
         worksheet.set_column_width(excel_column, calculation_column_width(column))?;
-        add_calculation_xlsx_column_validation(worksheet, excel_column, column)?;
+        add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_column_width(0, 18)?;
     worksheet.set_freeze_panes(1, 1)?;
@@ -1258,12 +1318,16 @@ fn add_calculation_xlsx_column_validation(
     worksheet: &mut rust_xlsxwriter::Worksheet,
     excel_column: u16,
     column: &calculate::CalculationColumn,
+    validation_ranges: &CalculationXlsxValidationRanges,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
     if column.choices.is_empty() {
         return Ok(());
     }
-    let choices: Vec<&str> = column.choices.iter().map(String::as_str).collect();
-    let validation = rust_xlsxwriter::DataValidation::new().allow_list_strings(&choices)?;
+    let range = validation_ranges
+        .get(&column.choices)
+        .expect("choice columns have generated validation ranges");
+    let validation =
+        rust_xlsxwriter::DataValidation::new().allow_list_formula(range.as_str().into());
     worksheet.add_data_validation(1, excel_column, 999, excel_column, &validation)?;
     Ok(())
 }
@@ -1289,6 +1353,7 @@ fn write_calculation_xlsx_collection_sheet(
     workbook: &mut rust_xlsxwriter::Workbook,
     table: &calculate::CalculationCollectionTable,
     rows: &[CalculationXlsxCollectionRow],
+    validation_ranges: &CalculationXlsxValidationRanges,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
     let header = calculation_header_format();
     let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
@@ -1319,7 +1384,7 @@ fn write_calculation_xlsx_collection_sheet(
     for (index, column) in table.columns.iter().enumerate() {
         let excel_column = payload_start + index as u16;
         worksheet.set_column_width(excel_column, calculation_column_width(column))?;
-        add_calculation_xlsx_column_validation(worksheet, excel_column, column)?;
+        add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_freeze_panes(1, payload_start)?;
     worksheet.autofilter(0, 0, 999, headers.len().saturating_sub(1) as u16)?;

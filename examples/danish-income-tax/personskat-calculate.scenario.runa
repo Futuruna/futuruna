@@ -11,11 +11,11 @@ giver samme resultat som den øvrige lønmodtagermodel. Standardvarianterne gør
 særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ----
 
-= personskat_calculate_lønmodtager = LønmodtagerInput(
+= personskat_calculate_lønmodtager = PersonskatLønmodtagerInput(
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 600000,
-    nettokapitalindkomst_kroner = 0,
+    øvrig_nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
@@ -23,14 +23,97 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_input = PersonskatInput(
     lønmodtager = personskat_calculate_lønmodtager,
+    aktieavance = personskat_ingen_aktieavance(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
 
+| personskat_calculate_input_med_aktieavance(aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(
+    lønmodtager = personskat_calculate_lønmodtager,
+    aktieavance = aktieavance,
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_calculate_ordinær_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-ORDINÆR-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsessum_kroner = 10000
+)
+= personskat_calculate_ordinær_afståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    afståelsessum_kroner = 15000,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AktieavanceOrdinærBoligretInput(
+            forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
+            beboelseskrav_opfyldt = Falskt,
+            likvidationsprovenu = Falskt,
+            udloddet_i_endeligt_opløsningsår = Falskt
+        )
+    )
+)
+= personskat_calculate_ordinært_aktieår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [
+        AktieavanceOrdinærHændelsesforløbInput(
+            position_primo = personskat_calculate_ordinær_position,
+            hændelser = [personskat_calculate_ordinær_afståelse]
+        )
+    ],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+    ),
+    gift_og_samlevende_ved_årets_udgang = Falskt
+)
+= personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
+    særlige_aktiver = []
+)))
+= personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [abl19c_kapital_input]
+)))
+= personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [abl19c_hvis17_input]
+)))
+= personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
+    indkomstår = 2026,
+    aktiv = AblMinimumsbevis22,
+    afståelsessum_kroner = 15000,
+    anskaffelsessum_kroner = 10000,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    investeringsklassifikation = AblIngenInvesteringsklassifikation,
+    årets_netto_med_kgl_par14_23_kroner = 5000
+)
+= personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [personskat_calculate_ugyldig_22_input]
+)))
+
 = personskat_calculate_med_årsopgørelse_input = PersonskatInput(
     lønmodtager = personskat_calculate_lønmodtager,
+    aktieavance = personskat_ingen_aktieavance(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = MedÅrsopgørelse(
@@ -57,6 +140,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.personfradrag_kroner == 54100
 | personskat_calculate_samlet_skat: personskat_calculate_resultat -> personskat_calculate_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
+| personskat_calculate_ordinær_aktieavance_afledes: personskat_calculate_ordinær_aktie_resultat -> personskat_calculate_ordinær_aktie_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ordinær_aktie_resultat.aktieavance.aktieindkomst_kroner == 5000 && personskat_calculate_ordinær_aktie_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_19c_kapital_afledes: personskat_calculate_19c_kapital_resultat -> personskat_calculate_19c_kapital_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_kapital_resultat.aktieavance.kapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.nettokapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_19c_personlig_afledes_uden_am: personskat_calculate_19c_personlig_resultat -> personskat_calculate_19c_personlig_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_personlig_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.personlig_indkomst_efter_am_kroner == 559000 && personskat_calculate_19c_personlig_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_ugyldig_abl_kæde_afvises_samlet: personskat_calculate_ugyldig_resultat -> personskat_calculate_ugyldig_resultat.aktieavance.alle_input_gyldige == Falskt && personskat_calculate_ugyldig_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
 | personskat_calculate_årsopgørelse_valgfri: personskat_calculate_resultat -> personskat_calculate_resultat.årsopgørelse == IngenÅrsopgørelse
 | personskat_calculate_årsopgørelse_beregnes: personskat_calculate_med_årsopgørelse_resultat -> match personskat_calculate_med_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
@@ -66,5 +153,9 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_am_bidrag
 ? personskat_calculate_personfradrag
 ? personskat_calculate_samlet_skat
+? personskat_calculate_ordinær_aktieavance_afledes
+? personskat_calculate_19c_kapital_afledes
+? personskat_calculate_19c_personlig_afledes_uden_am
+? personskat_calculate_ugyldig_abl_kæde_afvises_samlet
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes

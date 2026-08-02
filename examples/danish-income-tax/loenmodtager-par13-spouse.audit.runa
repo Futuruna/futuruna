@@ -39,6 +39,7 @@ I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
     skatteår = 2025,
     kommune = København,
     bruttoløn_kroner = 100000,
+    øvrig_personlig_indkomst_kroner = 0,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 150000,
     pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),

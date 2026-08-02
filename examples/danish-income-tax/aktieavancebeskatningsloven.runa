@@ -265,6 +265,9 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner: Heltal, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner: Heltal, udbytter_for_aktier_omfattet_af_par44_kroner: Heltal, ægtefælles_positive_nettobeløb_efter_par13a_kroner: Heltal)
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
 # AktieavanceOrdinærÅrsresultat(input: AktieavanceOrdinærÅrsinput, indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
+# AktieavanceOrdinærHændelsesforløbInput(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse))
+# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
+# AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærHændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
 
 | aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
 | aktieavance_ordinaer_kapitalvægt_normaliser(tæller: Heltal, nævner: Heltal) -> hvis tæller == 0 { AktieavanceOrdinærKapitalvægt(tæller = 0, nævner = 1) } ellers { AktieavanceOrdinærKapitalvægt(tæller = tæller / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner), nævner = nævner / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner)) }
@@ -555,6 +558,33 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 }
 
 | aktieavance_ordinaer_årsresultat(input: AktieavanceOrdinærÅrsinput) -> AktieavanceOrdinærÅrssag(input).resultat()
+
+# AktieavanceOrdinærPersonÅrssag(input: AktieavanceOrdinærPersonÅrsinput) {
+    | hændelsesforløbsresultater() -> map(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| aktieavance_ordinaer_hændelsesforløb(forløb.position_primo, forløb.hændelser))
+    | investeringsbevis_resultater() -> map(input.investeringsbeviser, aktieavance_par13a_investeringsbevis_resultat)
+    | hændelsesforløb_gyldige() -> all(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| resultat.alle_hændelser_gyldige)
+    | investeringsbeviser_gyldige() -> all(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.input_gyldigt && resultat.input.indkomstår == input.indkomstår)
+    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && investeringsbeviser_gyldige()
+    | hændelsesskatteposter() -> flat_map(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultat.hændelsesresultater))
+    | investeringsbevis_skatteposter() -> map(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.skattepost)
+    | skatteposter() -> hvis alle_input_gyldige() { concat(hændelsesskatteposter(), investeringsbevis_skatteposter()) } ellers { [] }
+    | årsinput() -> AktieavanceOrdinærÅrsinput(
+        indkomstår = input.indkomstår,
+        skatteposter = skatteposter(),
+        fremført_tab_efter_par13a_kroner = input.fremført_tab_efter_par13a_kroner,
+        modregningsgrundlag = input.modregningsgrundlag,
+        gift_og_samlevende_ved_årets_udgang = input.gift_og_samlevende_ved_årets_udgang
+    )
+    | resultat() -> AktieavanceOrdinærPersonÅrsresultat(
+        input = input,
+        hændelsesforløbsresultater = hændelsesforløbsresultater(),
+        investeringsbevis_resultater = investeringsbevis_resultater(),
+        alle_input_gyldige = alle_input_gyldige(),
+        årsresultat = aktieavance_ordinaer_årsresultat(årsinput())
+    )
+}
+
+| aktieavance_ordinaer_person_årsresultat(input: AktieavanceOrdinærPersonÅrsinput) -> AktieavanceOrdinærPersonÅrssag(input).resultat()
 --@end:aktieavancebeskatningsloven_ordinaere_aktier--
 
 --@label:aktieavancebeskatningsloven_par25_rettigheder::source:aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30::amendment_source:aktieavancebeskatningsloven_lov1563_par8_stk6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
@@ -1087,6 +1117,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 }
 
 | aktieavancebeskatningslov_sag(input: AktieavancebeskatningslovInput) -> AktieavancebeskatningslovSag(input)
+| aktieavancebeskatningslov_input_gyldigt(input: AktieavancebeskatningslovInput) -> aktieavancebeskatningslov_sag(input).input_gyldigt()
 | aktieavancebeskatningslov_resultat(input: AktieavancebeskatningslovInput) -> aktieavancebeskatningslov_sag(input).resultat()
 | aktieavancebeskatningslov_resultat_fra_ordinaere_aktier(resultat: AktieavanceOrdinærÅrsresultat) -> AktieavancebeskatningslovResultat(
     indkomstår = resultat.indkomstår,

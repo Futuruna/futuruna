@@ -63,6 +63,7 @@ current-year Personskatteloven tax itself doing so.
         skatteår = skatteår,
         kommune = kommune,
         bruttoløn_kroner = bruttoløn_kroner,
+        øvrig_personlig_indkomst_kroner = 0,
         nettokapitalindkomst_kroner = positiv_nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = 0,
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),

@@ -4,8 +4,8 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
 Current focus issue: `td-2d84ec` (in progress)
-Latest implementation slice submitted for review: `td-897d8a`
-Latest approved implementation slice: `td-d2945b`
+Latest implementation slice submitted for review: `td-2d3fb1`
+Latest approved implementation slice: `td-897d8a`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -48,7 +48,26 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskattelovens § 4, stk. 1, nr. 5 b modtager nu
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
+ABL-kildefakta for både ordinære aktiers hændelsesforløb og de særlige
+aktivgrene i §§ 17-22. Grafen afleder Personskattelovens personlige indkomst,
+kapitalindkomst og aktieindkomst fra ABL-resultaterne; en ugyldig kildekæde
+afvises samlet og bevares som et synligt ugyldigt resultat. Personlig indkomst
+fra ABL holdes særskilt fra lønnen, så den når personindkomsten uden at blive
+gjort til AM-bidragspligtig løn eller udløse lønmodtagerfradrag.
+
+Det samme typede input genererer nu et regneark med 57 inputkolonner på
+`cases`-arket og otte relationelle ABL-ark, herunder indlejrede
+hændelseslister. En udfyldt § 17-række med 37.000 kr. i afståelsessum og
+30.000 kr. i anskaffelsessum går gennem XLSX-grænsen og bliver til 7.000 kr. i
+personlig indkomst, mens AM-bidraget fortsat beregnes af lønnen alene.
+Hele beregningsresultatet er identisk med resultatet for de samme kildefakta
+leveret som kanonisk JSON.
+Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
+og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
+tegn for indlejrede valglister ikke for store domæneunioner.
+
+Previous integration: Personskattelovens § 4, stk. 1, nr. 5 b modtager nu
 kildefakta gennem `AktieavanceAktivklassifikationInput` i stedet for en
 kaldervalgt § 19 C-/§ 22-etiket og et løst § 17-modprøveflag. ABL-reglerne
 afleder den effektive aktivklasse og det kontrafaktiske § 17-resultat;
@@ -65,7 +84,7 @@ brugte en regel, funktion, type eller rulescope, som stod senere i samme fil.
 Interpreteren registrerer nu statiske deklarationer før evaluering ligesom
 codegen. Direkte og importerede regressionsprøver fastholder semantikken.
 
-Previous integration: Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 er
+Earlier integration: Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 er
 nu afledte klassifikationer frem for mærkater valgt af kalderen. Den
 gennemsnitlige aktivmasse bygges af direkte aktiver og KGL §§ 29-33-aktivers
 underliggende aktiv. Ejerandelen angives som ejede og samlede kapitalenheder;
@@ -1812,8 +1831,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 77-85% complete as an executable research corpus,
-  and roughly 63-72% complete as a production-grade calculator for
+- Working estimate: roughly 78-86% complete as an executable research corpus,
+  and roughly 65-74% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -2430,6 +2449,19 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
+  kildefakta for ordinære ABL-hændelsesforløb og særlige ABL-aktiver. De
+  juridiske PSL § 4-/§ 4 a-poster afledes internt og bevares i resultatet;
+  kalderen leverer hverken beregnede skatteposter eller indkomstkategorier.
+  Ugyldige ABL-kæder giver ingen skattemæssig virkning og er fortsat synlige
+  som ugyldige. ABL-personlig indkomst er et særskilt domænefelt, så AM-grundlag
+  og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
+- Det genererede Personskat-regneark har nu 76 reachable typedefinitioner,
+  57 typede inputkolonner plus `case_id` og otte relationelle ABL-ark. Et
+  tre-sagers XLSX-roundtrip fastholder den almindelige København-beregning,
+  årsopgørelsen og en kildebaseret § 17-gevinst. Store enum-/variantvalg bruger
+  et skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
+  dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
@@ -2457,23 +2489,17 @@ Review candidates to revisit deliberately, not as broad churn:
   its own current and carried losses, own-gain offset, spouse transfer and
   remaining carry-forward. The focused audit proves a 30.000 kr. ABL/KGL/EBL
   total and rejects a 7.000 kr. future-year result in both backends.
-- `personskat.calculate.runa` now exposes one aggregate
+- `personskat.calculate.runa` exposes one aggregate
   `beregn_personskat(PersonskatInput) -> PersonskatBeregningResultat` boundary.
-  The graph contains the ordinary wage-earner facts plus explicit variants for
-  special tax conditions, § 13 deficit/spouse conditions and an optional
-  Kildeskattelov annual assessment. `runa schema`, JSON/TOML/XLSX templates and
-  `runa call` carry the same source-linked contract. The generated workbook is
-  measured at 28 reachable type definitions and 49 typed input columns plus
-  `case_id`; three enum selectors guard the inactive variant payloads. A
-  two-case XLSX round trip proves both the ordinary 2026 Copenhagen result of
-  208.726 kr. including AM contribution and a selected annual assessment whose
-  1.000 kr. transferred rest tax plus 500 kr. pension-tax charge produces
-  210.226 kr. of rest tax when no preliminary credits are supplied.
-  XLSX schema v3 still creates related child worksheets only for genuine
-  `List`, `Map` or `Set` fields. This aggregate has no collection sheet yet
-  because the source-fact graphs for full § 3/§ 4/§ 4 a composition and the ABL
-  annual collections are not yet connected to `PersonskatInput`; that is a
-  measured corpus-boundary gap, not a hand-authored workbook limitation.
+  The graph contains ordinary wage-earner facts, source-fact ABL annual inputs,
+  explicit variants for special tax conditions and § 13 deficit/spouse
+  conditions, and an optional Kildeskattelov annual assessment. `runa schema`,
+  JSON/TOML/XLSX templates and `runa call` carry the same source-linked
+  contract. XLSX schema v3 creates related child worksheets only for genuine
+  `List`, `Map` or `Set` fields; the ABL collections now prove that behavior in
+  the aggregate itself. Remaining workbook gaps are therefore the remaining
+  source-law branches that have not yet reached `PersonskatInput`, not
+  hand-authored workbook topology.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
@@ -2551,13 +2577,12 @@ Review candidates to revisit deliberately, not as broad churn:
   disposal loss before that calculation. Rank the next dependent
   classification by its impact on Personskatteloven rather than deepening
   exploratory audits.
-- Extend the canonical Personskatteloven `@ calculate` aggregate with the now
-  executable § 3/§ 4/§ 4 a source-fact branches and ABL §§ 19-22 factual input
-  graphs when their surrounding income composition is ready. The first
-  aggregate already reaches ordinary wage facts, special tax/deficit conditions
-  and optional annual settlement. Keep the generated workbook downstream of
-  that graph so scalar cells, enum dropdowns, variant payloads and related
-  collection sheets cannot drift from the executable law.
+- Extend the canonical Personskatteloven `@ calculate` aggregate with the
+  remaining executable § 3/§ 4/§ 4 a source-fact branches. The aggregate
+  already reaches ordinary wage facts, ordinary and special ABL inputs, special
+  tax/deficit conditions and optional annual settlement. Keep the generated
+  workbook downstream of that graph so scalar cells, enum dropdowns, variant
+  payloads and related collection sheets cannot drift from the executable law.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

@@ -29,6 +29,7 @@
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 0,
+    øvrig_personlig_indkomst_kroner = 0,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),

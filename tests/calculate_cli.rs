@@ -295,13 +295,24 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
 
     {
         let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
-        for expected in ["_futuruna", "_tables", "_columns", "cases", "children"] {
+        for expected in [
+            "_futuruna",
+            "_tables",
+            "_columns",
+            "_choices",
+            "cases",
+            "children",
+        ] {
             assert!(
                 workbook.sheet_names().iter().any(|name| name == expected),
                 "missing generated sheet {expected}"
             );
         }
-        assert_workbook_visibility(&workbook, &["_futuruna", "_tables", "_columns"], "cases");
+        assert_workbook_visibility(
+            &workbook,
+            &["_futuruna", "_tables", "_columns", "_choices"],
+            "cases",
+        );
         assert_eq!(
             workbook_headers(&mut workbook, "cases"),
             ["case_id", "monthly_income", "filing_status", "deduction"]
@@ -362,6 +373,58 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
 }
 
 #[test]
+fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    let choices: Vec<String> = (1..=8)
+        .map(|index| format!("ValidationChoiceWithEnoughCharactersNumber{index:02}"))
+        .collect();
+    let source = format!(
+        "# LongChoice = {}\n\
+# LongChoiceInput(choice: LongChoice)\n\
+# LongChoiceResult(choice: LongChoice)\n\
+\n\
+@ calculate\n\
+| calculate_long_choice(input: LongChoiceInput) -> LongChoiceResult(choice = input.choice)\n",
+        choices.join(" | ")
+    );
+    std::fs::write(&source_path, source).expect("write long-choice calculation");
+
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+    assert_workbook_visibility(
+        &workbook,
+        &["_futuruna", "_tables", "_columns", "_choices"],
+        "cases",
+    );
+    let choice_cells: Vec<String> = workbook
+        .worksheet_range("_choices")
+        .expect("choice metadata")
+        .rows()
+        .skip(1)
+        .filter_map(|row| row.get(1))
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(choice_cells, choices);
+
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+}
+
+#[test]
 fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_cases() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/personskat.calculate.runa");
@@ -382,12 +445,17 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
 
     {
         let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
-        assert_workbook_visibility(&workbook, &["_futuruna", "_tables", "_columns"], "cases");
+        assert_workbook_visibility(
+            &workbook,
+            &["_futuruna", "_tables", "_columns", "_choices"],
+            "cases",
+        );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 50);
+        assert_eq!(case_headers.len(), 58);
         for expected in [
+            "aktieavance.ordinært_aktieår.$variant",
             "skatteforhold.$variant",
-            "skatteforhold.SærligeSkatteforhold.forhold.aktieindkomst_kroner",
+            "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
             "underskudsforhold.SærligeUnderskudsforhold.forhold.ægtefælle_skattepligtig_indkomst_kroner",
             "årsopgørelse.$variant",
@@ -398,6 +466,28 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                 "missing typed Personskatteloven input column {expected}"
             );
         }
+        let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
+        for expected in [
+            "aktiv",
+            "par17_modprøve.næringsstatus",
+            "par17_modprøve.erhvervelsesstatus",
+            "investeringsklassifikation.$variant",
+        ] {
+            assert!(
+                special_asset_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing source-level ABL input column {expected}"
+            );
+        }
+
+        let choices = workbook
+            .worksheet_range("_choices")
+            .expect("choice metadata");
+        assert!(choices
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "AblNæringsaktiePar17"));
 
         let metadata = workbook
             .worksheet_range("_columns")
@@ -433,7 +523,7 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                         Data::String("600000".to_string()),
                     ),
                     (
-                        "lønmodtager.nettokapitalindkomst_kroner",
+                        "lønmodtager.øvrig_nettokapitalindkomst_kroner",
                         Data::String("0".to_string()),
                     ),
                     (
@@ -474,6 +564,10 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                         Data::String("StandardSkatteforhold".to_string()),
                     ),
                     (
+                        "aktieavance.ordinært_aktieår.$variant",
+                        Data::String("UdenOrdinærtAktieår".to_string()),
+                    ),
+                    (
                         "underskudsforhold.$variant",
                         Data::String("StandardUnderskudsforhold".to_string()),
                     ),
@@ -488,6 +582,43 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
 
         fill_wage_case(sheets, 1, "personskat-standard-2026");
         fill_wage_case(sheets, 2, "personskat-årsopgørelse-2026");
+        fill_wage_case(sheets, 3, "personskat-abl-personlig-2026");
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-abl-personlig-2026".to_string()),
+            ),
+            ("item_id", Data::String("abl-par17-1".to_string())),
+            ("position", Data::Int(1)),
+            ("indkomstår", Data::Int(2026)),
+            ("aktiv", Data::String("AblNæringsaktiePar17".to_string())),
+            ("afståelsessum_kroner", Data::Int(37_000)),
+            ("anskaffelsessum_kroner", Data::Int(30_000)),
+            (
+                "par17_modprøve.næringsstatus",
+                Data::String("AblPar17UdøverNæringVedKøbOgSalgAfAktier".to_string()),
+            ),
+            (
+                "par17_modprøve.erhvervelsesstatus",
+                Data::String("AblPar17ErhvervetSomLedINæringsvej".to_string()),
+            ),
+            (
+                "koncernintern_konvertibel_eller_tegningsret",
+                Data::Bool(false),
+            ),
+            ("andelsforening_stiftet_før_22_maj_1987", Data::Bool(false)),
+            (
+                "afståelse_sker_for_at_undgå_likvidationsbeskatning",
+                Data::Bool(false),
+            ),
+            (
+                "investeringsklassifikation.$variant",
+                Data::String("AblIngenInvesteringsklassifikation".to_string()),
+            ),
+            ("årets_netto_med_kgl_par14_23_kroner", Data::Int(7_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 1, header, value);
+        }
         set_workbook_cell_by_header(
             sheets,
             "cases",
@@ -581,6 +712,100 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
         .as_array()
         .expect("diagnostics")
         .is_empty());
+
+    let json_input_path = temp_path("json");
+    let json_template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        json_input_path.to_str().expect("JSON input path"),
+    ]);
+    assert!(
+        json_template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&json_template.stderr)
+    );
+    let mut json_input: Value = serde_json::from_slice(
+        &std::fs::read(&json_input_path).expect("read generated Personskat JSON template"),
+    )
+    .expect("Personskat JSON template");
+    json_input["cases"][0]["case_id"] = Value::String("personskat-abl-personlig-2026".into());
+    json_input["cases"][0]["input"] = serde_json::json!({
+        "lønmodtager": {
+            "skatteår": 2026,
+            "kommune": { "$variant": "København" },
+            "bruttoløn_kroner": 600_000,
+            "øvrig_nettokapitalindkomst_kroner": 0,
+            "ligningsmæssige_fradrag_kroner": 0,
+            "pensionsfradrag": {
+                "pensionsalder_status": {
+                    "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
+                },
+                "pbl18_fradragsberettiget_indbetaling_kroner": 0,
+                "pbl19_rate_ophørende_bortseelsesret_efter_am_kroner": 0,
+                "pbl19_øvrige_indbetalinger_efter_am_kroner": 0,
+                "pbl20_indkomstskattepligtig_udbetaling_kroner": 0,
+                "pbl20_udbetaling_status": {
+                    "$variant": "Ll9lIngenPbl20Udbetaling"
+                }
+            },
+            "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },
+            "betaler_kirkeskat": false
+        },
+        "aktieavance": {
+            "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+            "særlige_aktiver": [{
+                "indkomstår": 2026,
+                "aktiv": { "$variant": "AblNæringsaktiePar17" },
+                "afståelsessum_kroner": 37_000,
+                "anskaffelsessum_kroner": 30_000,
+                "par17_modprøve": {
+                    "næringsstatus": {
+                        "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
+                    },
+                    "erhvervelsesstatus": {
+                        "$variant": "AblPar17ErhvervetSomLedINæringsvej"
+                    }
+                },
+                "koncernintern_konvertibel_eller_tegningsret": false,
+                "andelsforening_stiftet_før_22_maj_1987": false,
+                "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
+                "investeringsklassifikation": {
+                    "$variant": "AblIngenInvesteringsklassifikation"
+                },
+                "årets_netto_med_kgl_par14_23_kroner": 7_000
+            }]
+        },
+        "skatteforhold": { "$variant": "StandardSkatteforhold" },
+        "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
+        "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
+    });
+    std::fs::write(
+        &json_input_path,
+        serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
+    )
+    .expect("write Personskat JSON input");
+    let json_output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_input_path.to_str().expect("JSON input path"),
+    ]);
+    std::fs::remove_file(&json_input_path).ok();
+    assert!(
+        json_output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&json_output.stderr),
+        String::from_utf8_lossy(&json_output.stdout)
+    );
+    let json_result = parse_stdout(&json_output);
+    assert_eq!(
+        result["results"][2]["result"],
+        json_result["results"][0]["result"]
+    );
+
     assert_eq!(
         result["results"][0]["result"]["skat"]["samlet_inkl_am_efter_personfradrag_kroner"],
         208_726
@@ -600,6 +825,18 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
     assert_eq!(
         result["results"][1]["result"]["årsopgørelse"]["resultat"]["restskat_kroner"],
         210_226
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["personlig_indkomst_kroner"],
+        7_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["skat"]["øvrig_personlig_indkomst_kroner"],
+        7_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        48_000
     );
 }
 
