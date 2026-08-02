@@ -1057,6 +1057,7 @@ fn write_calculation_xlsx_metadata(
     worksheet.set_column_width(0, 20)?;
     worksheet.set_column_width(1, 72)?;
     worksheet.set_freeze_panes(1, 0)?;
+    worksheet.set_hidden(true);
     Ok(())
 }
 

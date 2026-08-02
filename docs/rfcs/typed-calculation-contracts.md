@@ -145,7 +145,7 @@ cases from being evaluated unless the envelope or schema itself is invalid.
 
 Generated workbooks contain:
 
-- `_futuruna`: adapter schema, entry, contract hash, and encoding metadata;
+- `_futuruna`: hidden adapter schema, entry, contract hash, and encoding metadata;
 - `cases`: one row per case with a required `case_id` column;
 - `_tables`: hidden collection topology, including worksheet names, parent
   paths, attachment paths, collection kinds, and item types;
@@ -153,6 +153,10 @@ Generated workbooks contain:
   requiredness, and choices for each generated input column;
 - one worksheet for every relational collection path;
 - generated output workbooks additionally contain `results` and `diagnostics`.
+
+The first visible worksheet is `cases` for input templates and `results` for
+generated outputs. Machine-only metadata worksheets remain hidden while still
+being validated on every invocation.
 
 Named records are flattened into dotted columns. Primitive values and nullary
 enums use native cells; enum and boolean columns use constrained choices. A

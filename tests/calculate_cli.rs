@@ -1,4 +1,4 @@
-use calamine::{open_workbook_auto, Data, Reader};
+use calamine::{open_workbook_auto, Data, Reader, SheetVisible};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -254,6 +254,7 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
                 "missing generated sheet {expected}"
             );
         }
+        assert_workbook_visibility(&workbook, &["_futuruna", "_tables", "_columns"], "cases");
         assert_eq!(
             workbook_headers(&mut workbook, "cases"),
             ["case_id", "monthly_income", "filing_status", "deduction"]
@@ -292,6 +293,7 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
     );
 
     let mut workbook = open_workbook_auto(&output_path).expect("result workbook");
+    assert_workbook_visibility(&workbook, &["_futuruna"], "results");
     assert!(workbook.sheet_names().iter().any(|name| name == "results"));
     assert!(workbook
         .sheet_names()
@@ -849,6 +851,32 @@ fn workbook_headers(
         .iter()
         .map(ToString::to_string)
         .collect()
+}
+
+fn assert_workbook_visibility(
+    workbook: &calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    hidden_sheets: &[&str],
+    first_visible_sheet: &str,
+) {
+    let metadata = workbook.sheets_metadata();
+    for expected in hidden_sheets {
+        let sheet = metadata
+            .iter()
+            .find(|sheet| sheet.name == *expected)
+            .unwrap_or_else(|| panic!("missing generated sheet {expected}"));
+        assert_eq!(
+            sheet.visible,
+            SheetVisible::Hidden,
+            "machine sheet {expected} should be hidden"
+        );
+    }
+    assert_eq!(
+        metadata
+            .iter()
+            .find(|sheet| sheet.visible == SheetVisible::Visible)
+            .map(|sheet| sheet.name.as_str()),
+        Some(first_visible_sheet)
+    );
 }
 
 fn edit_workbook(path: &Path, edit: impl FnOnce(&mut Vec<(String, Vec<Vec<Data>>)>)) {
