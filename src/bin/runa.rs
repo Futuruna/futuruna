@@ -33248,10 +33248,50 @@ impl RustCodegen {
                 for arm in arms {
                     let prev_local_bindings = self.local_bindings.clone();
                     let prev_var_fir_types = self.var_fir_types.clone();
-                    collect_pattern_names(&arm.pat, &mut self.local_bindings);
+                    let prev_var_use_counts = self.var_use_counts.clone();
+                    let prev_var_consuming_counts = self.var_consuming_counts.clone();
+                    let prev_copy_vars = self.copy_vars.clone();
+                    let mut pattern_names = BTreeSet::new();
+                    collect_pattern_names(&arm.pat, &mut pattern_names);
+                    self.local_bindings.extend(pattern_names.iter().cloned());
                     let mut pattern_types = BTreeMap::new();
                     self.bind_pat_into_type_env(&arm.pat, &scrutinee_ty, &mut pattern_types);
-                    self.var_fir_types.extend(pattern_types);
+                    self.var_fir_types.extend(pattern_types.clone());
+                    let mut arm_var_uses = BTreeMap::new();
+                    let mut arm_consuming_uses = BTreeMap::new();
+                    if let Some(guard) = &arm.guard {
+                        count_var_uses(guard, &mut arm_var_uses);
+                        count_consuming_uses_borrow_aware_for_ownership(
+                            guard,
+                            &mut arm_consuming_uses,
+                            &self.borrow_only_params,
+                            None,
+                            &[],
+                        );
+                    }
+                    count_var_uses(&arm.body, &mut arm_var_uses);
+                    count_consuming_uses_borrow_aware_for_ownership(
+                        &arm.body,
+                        &mut arm_consuming_uses,
+                        &self.borrow_only_params,
+                        None,
+                        &[],
+                    );
+                    for name in &pattern_names {
+                        if let Some(count) = arm_var_uses.get(name).copied() {
+                            self.var_use_counts.insert(name.clone(), count);
+                        } else {
+                            self.var_use_counts.remove(name);
+                        }
+                        if let Some(count) = arm_consuming_uses.get(name).copied() {
+                            self.var_consuming_counts.insert(name.clone(), count);
+                        } else {
+                            self.var_consuming_counts.remove(name);
+                        }
+                        if pattern_types.get(name).is_some_and(Self::fir_ty_is_copy) {
+                            self.copy_vars.insert(name.clone());
+                        }
+                    }
                     let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject);
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
@@ -33307,6 +33347,9 @@ impl RustCodegen {
                     }
                     self.local_bindings = prev_local_bindings;
                     self.var_fir_types = prev_var_fir_types;
+                    self.var_use_counts = prev_var_use_counts;
+                    self.var_consuming_counts = prev_var_consuming_counts;
+                    self.copy_vars = prev_copy_vars;
                 }
                 out.push_str(&format!("{}}}", self.ind()));
                 out
@@ -43905,6 +43948,29 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "41");
+    }
+
+    #[test]
+    fn compiled_rulescope_match_arm_clones_reused_adt_binding() {
+        let source = r#"
+# Usage(business: Int, total: Int)
+# Distribution = Mixed(usage: Usage) | Full
+
+| usage_is_mixed(usage: Usage) -> usage.business < usage.total
+
+# Case(distribution: Distribution, expected: Usage) {
+    | valid() -> match distribution {
+        | Mixed(usage) -> usage_is_mixed(usage) && usage == expected
+        | Full -> False
+    }
+}
+
+= usage = Usage(business = 60, total = 100)
+= case = Case(distribution = Mixed(usage = usage), expected = usage)
+@ print(show(case.valid()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "true");
     }
 
     #[test]

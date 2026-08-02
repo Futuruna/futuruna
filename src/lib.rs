@@ -7597,6 +7597,29 @@ impl Interpreter {
         }
     }
 
+    fn is_runtime_import_statement(stmt: &Stmt) -> bool {
+        matches!(
+            stmt,
+            Stmt::Defn(_)
+                | Stmt::TypeDecl(_)
+                | Stmt::Use(_)
+                | Stmt::Rule(_)
+                | Stmt::Bind(..)
+                | Stmt::Annot(..)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(..)
+                | Stmt::HashImport(..)
+        )
+    }
+
+    fn imported_source_dir(file_path: &str) -> String {
+        std::path::Path::new(file_path)
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string())
+    }
+
     fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
         if let Some(type_name) = self.runtime_type_name(obj_val) {
             if let Some(func_def) = self.impl_methods.get(&(type_name, field.to_string())) {
@@ -8278,8 +8301,8 @@ impl Interpreter {
                 Stmt::Import(path) => {
                     // @ import ./math → load math.runa from same directory
                     // @ import dep/module → resolve via runa.toml dependencies
-                    if let Some(ref dir) = self.source_dir {
-                        let file_path = Self::resolve_import_path_for_source(path, dir);
+                    if let Some(dir) = self.source_dir.clone() {
+                        let file_path = Self::resolve_import_path_for_source(path, &dir);
                         if let Some(file_path) = file_path {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
@@ -8293,10 +8316,15 @@ impl Interpreter {
                                         let mut parser = Parser::new(tokens, &source);
                                         match parser.parse_program() {
                                             Ok(import_stmts) => {
-                                                let defs: Vec<Stmt> = import_stmts.into_iter().filter(|s| {
-                                                    matches!(s, Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Use(_) | Stmt::Rule(_) | Stmt::Bind(..))
-                                                }).collect();
+                                                let defs: Vec<Stmt> = import_stmts
+                                                    .into_iter()
+                                                    .filter(Self::is_runtime_import_statement)
+                                                    .collect();
+                                                let previous_source_dir = self.source_dir.clone();
+                                                self.source_dir =
+                                                    Some(Self::imported_source_dir(&file_path));
                                                 last = self.run_program(&defs, env);
+                                                self.source_dir = previous_source_dir;
                                             }
                                             Err(e) => eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e),
                                         }
@@ -8310,7 +8338,7 @@ impl Interpreter {
                 Stmt::QualifiedImport(mod_name, path) => {
                     // @ import Name from ./module — qualified import (M3b)
                     // Only exported definitions are accessible as Name.function()
-                    if let Some(ref dir) = self.source_dir {
+                    if let Some(dir) = self.source_dir.clone() {
                         let rel = path.trim_start_matches("./");
                         let file_path = format!("{}/{}.runa", dir, rel);
                         let canon = std::fs::canonicalize(&file_path)
@@ -8360,11 +8388,16 @@ impl Interpreter {
                                                 }
                                             }
                                             // Execute all definitions in a child env
-                                            let defs: Vec<Stmt> = import_stmts.into_iter().filter(|s| {
-                                                matches!(s, Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Use(_) | Stmt::Rule(_) | Stmt::Bind(..))
-                                            }).collect();
+                                            let defs: Vec<Stmt> = import_stmts
+                                                .into_iter()
+                                                .filter(Self::is_runtime_import_statement)
+                                                .collect();
                                             let mut mod_env = env.child();
+                                            let previous_source_dir = self.source_dir.clone();
+                                            self.source_dir =
+                                                Some(Self::imported_source_dir(&file_path));
                                             self.run_program(&defs, &mut mod_env);
+                                            self.source_dir = previous_source_dir;
                                             // Filter to only exported bindings
                                             let mut bindings = HashMap::new();
                                             for (k, v) in &mod_env.bindings {
@@ -11705,6 +11738,9 @@ impl Interpreter {
                         )
                     }),
             ),
+            ("==", left @ Value::NamedConstructor(_, _), right @ Value::NamedConstructor(_, _)) => {
+                Value::Bool(values_equal(left, right))
+            }
             ("==", a, b) if values_are_list_like(a) && values_are_list_like(b) => {
                 Value::Bool(values_equal(a, b))
             }
@@ -11948,7 +11984,7 @@ impl Interpreter {
         });
         let result = self
             .try_rule_call_from_rules(method, args, &scoped_env, matching)
-            .unwrap_or(Value::Unit);
+            .unwrap_or(Value::Bool(false));
         self.active_rule_scopes.pop();
         result
     }
@@ -11969,7 +12005,10 @@ impl Interpreter {
         for (name, value) in &frame.bindings {
             scoped_env.set(name.clone(), value.clone());
         }
-        self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
+        Some(
+            self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
+                .unwrap_or(Value::Bool(false)),
+        )
     }
 
     /// Try to evaluate a rule call. Returns Some(value) if a rule with the given
@@ -16771,6 +16810,61 @@ mod tests {
         );
     }
 
+    #[test]
+    fn interpreted_rulescope_boolean_false_remains_a_value() {
+        let source = r#"
+# Decision(blocked: Bool, allowed: Bool)
+
+# Case(flag: Bool) {
+    | blocked() -> flag
+    | allowed() -> blocked() == False
+    | result() -> Decision(blocked = blocked(), allowed = allowed())
+}
+
+| make_case(flag: Bool) -> Case(flag)
+| case_result(flag: Bool) -> make_case(flag).result()
+= decision = case_result(False)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse RuleScope regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("decision").map(ToString::to_string),
+            Some("Decision(blocked: false, allowed: true)".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_named_constructor_equality_is_structural() {
+        let source = r#"
+# Usage(business: Int, total: Int)
+= first = Usage(business = 60, total = 100)
+= second = Usage(total = 100, business = 60)
+= same = first == second
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse named equality regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("same").map(ToString::to_string),
+            Some("true".into())
+        );
+    }
+
     // ── Span ────────────────────────────────────────────────────────
 
     #[test]
@@ -17113,6 +17207,42 @@ mod tests {
             diags
         );
 
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_nested_plain_imports_execute_relative_to_imported_file() {
+        let temp_name = format!(
+            "futuruna_interpreted_nested_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        let module_dir = temp_dir.join("modules");
+        std::fs::create_dir_all(&module_dir).unwrap();
+
+        std::fs::write(module_dir.join("leaf.runa"), "| leaf_value() -> 7\n").unwrap();
+        std::fs::write(
+            module_dir.join("middle.runa"),
+            "@ import ./leaf\n| middle_value() -> leaf_value()\n",
+        )
+        .unwrap();
+
+        let source = "@ import ./modules/middle\n= value = middle_value()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(env.get("value").map(ToString::to_string), Some("7".into()));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
