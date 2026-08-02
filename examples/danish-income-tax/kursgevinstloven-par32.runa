@@ -17,8 +17,13 @@
     identifier = "Den juridiske vejledning C.B.1.8.4.2: tabsfradragsbegrænsning for personer",
     hentet_dato = "2026-07-18"
 )
+= kursgevinstloven_lov1563_par4_par8 = KursgevinstlovPar32KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1563",
+    identifier = "LOV nr. 1563 af 12/12/2023, § 4, nr. 1, og § 8, stk. 1: MTF-udvidelse fra 1. januar 2024",
+    hentet_dato = "2026-07-18"
+)
 
---@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32--
+--@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::amendment_source:kursgevinstloven_lov1563_par4_par8--
 ----
 § 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
 omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten
@@ -63,6 +68,18 @@ Yderligere tab, der ikke er fradraget, fradrages i sælgerens afståelsessum
 henholdsvis tillægges køberens anskaffelsessum på den faste ejendom, som aftalen
 vedrører. Tab kan ikke fremføres, hvis det er fradraget henholdsvis tillagt
 efter 2. pkt.
+
+LOV nr. 1563 af 12/12/2023:
+
+§ 4
+I kursgevinstloven, jf. lovbekendtgørelse nr. 1390 af 29. september 2022,
+foretages følgende ændring:
+
+1. I § 32, stk. 3, 1., 2. og 3. pkt., indsættes efter »reguleret marked«:
+»eller en multilateral handelsfacilitet«.
+
+§ 8
+Stk. 1. Loven træder i kraft den 1. januar 2024.
 ----
 
 --@begin:kursgevinstloven_par32--
@@ -97,11 +114,11 @@ efter 2. pkt.
 | kgl_par32_fast_ejendomstabsaldo_i_alt_kroner(saldo: KursgevinstPar32FastEjendomstabsaldo) -> saldo.sælgertab_kroner + saldo.købertab_kroner
 | kgl_par32_gevinstsaldo_i_alt_kroner(saldo: KursgevinstPar32Gevinstsaldo) -> saldo.øvrige_kontraktgevinster_kroner + saldo.fast_ejendomskontraktgevinster_kroner
 
-| kgl_par32_aktiegrundlag_kvalificerer_til_stk3(grundlag: KursgevinstPar32Aktiegrundlag) -> match grundlag {
+| kgl_par32_aktiegrundlag_kvalificerer_til_stk3(grundlag: KursgevinstPar32Aktiegrundlag, indkomstår: Heltal) -> match grundlag {
     | KglPar32AktiekontraktPåReguleretMarked -> Sandt
-    | KglPar32AktiekontraktPåMultilateralHandelsfacilitet -> Sandt
+    | KglPar32AktiekontraktPåMultilateralHandelsfacilitet -> indkomstår >= 2024
     | KglPar32AktieindekskontraktPåReguleretMarked -> Sandt
-    | KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet -> Sandt
+    | KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet -> indkomstår >= 2024
     | _ -> Falskt
 }
 | kgl_par32_post_gyldig(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> post.resultat.indkomstår == indkomstår && post.resultat.aktiv == KglFinansielKontrakt && post.resultat.omfattet_af_par1 && post.resultat.person_eller_dødsbo_efter_par12
@@ -109,7 +126,7 @@ efter 2. pkt.
 | kgl_par32_post_fast_ejendom(post: KursgevinstPar32Kontraktpost) -> post.relation == KglPar32FastEjendomSælger || post.relation == KglPar32FastEjendomKøber
 | kgl_par32_post_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) { penge_positivt_beløb(post.resultat.kontrakttab_til_par32_årsopgørelse_kroner) } ellers { 0 }
 | kgl_par32_post_direkte_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_direkte_fradragsberettiget(post) { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
-| kgl_par32_post_kan_modregnes_i_aktiegevinster(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> indkomstår >= 2010 && post.relation == KglPar32AlmindeligKontrakt && kgl_par32_aktiegrundlag_kvalificerer_til_stk3(post.aktiegrundlag)
+| kgl_par32_post_kan_modregnes_i_aktiegevinster(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> indkomstår >= 2010 && post.relation == KglPar32AlmindeligKontrakt && kgl_par32_aktiegrundlag_kvalificerer_til_stk3(post.aktiegrundlag, indkomstår)
 | kgl_par32_post_aktiebaseret_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_kan_modregnes_i_aktiegevinster(post, indkomstår) { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
 | kgl_par32_post_almindeligt_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_direkte_fradragsberettiget(post) || kgl_par32_post_fast_ejendom(post) || kgl_par32_post_aktiebaseret_tab_kroner(post, indkomstår) > 0 { 0 } ellers { kgl_par32_post_tab_kroner(post, indkomstår) }
 | kgl_par32_post_sælgertab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis post.relation == KglPar32FastEjendomSælger { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
@@ -251,7 +268,8 @@ efter 2. pkt.
     | KglPar32MaksimalAktiemodregning -> penge_positivt_beløb(tilgængeligt_tab_kroner)
     | KglPar32AktiemodregningOpTil(beløb_kroner) -> penge_mindste_beløb(penge_positivt_beløb(tilgængeligt_tab_kroner), penge_positivt_beløb(beløb_kroner))
 }
-| kgl_par32_aktiegevinstkapacitet_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> hvis resultat.indkomstår == indkomstår { penge_positivt_beløb(resultat.nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner) } ellers { 0 }
+| kgl_par32_aktiegevinstgrundlag_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> hvis resultat.indkomstår == indkomstår { resultat.gevinster_på_reguleret_marked_efter_par12_kroner + hvis indkomstår >= 2024 { resultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner } ellers { 0 } } ellers { 0 }
+| kgl_par32_aktiegevinstkapacitet_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> penge_positivt_beløb(kgl_par32_aktiegevinstgrundlag_kroner(resultat, indkomstår) - penge_positivt_beløb(resultat.årets_tab_efter_par13a_kroner))
 | kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0, ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0)
 | kgl_par32_tomt_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag(), gift_og_samlevende_ved_årets_udgang = Falskt))
 | kgl_par32_ingen_aktiemodregning() -> KursgevinstPar32Aktiemodregningsvalg(omfang = KglPar32IngenAktiemodregning, beløb = KglPar32MaksimalAktiemodregning)

@@ -57,9 +57,12 @@ anvender Aktieavancebeskatningslovens § 13 A-tab først, respekterer et
 udtrykkeligt helt eller delvist modregningsvalg og fører kun en identitets- og
 årsbundet rest videre. Fast-ejendomstab holdes i en særskilt saldo og bliver
 efter modregning til nedsat afståelsessum eller forhøjet anskaffelsessum uden
-fremførsel. Tretten scenarier passerer i både interpreter og kompileret kode,
-herunder to ægtefæller med samtidige tab uden dobbelt anvendelse af
-aktiegevinster og overgangsværnet, der holder tab fra før 2010 ude af senere
+fremførsel. ABL-årsresultatet bevarer nu reguleret marked og MTF som særskilte
+gevinstgrundlag, så virkningen fra 1. januar 2024 i LOV nr. 1563/2023 gælder
+både kontraktens marked og de aktiegevinster, tabet møder. Sytten scenarier passerer
+i både interpreter og kompileret kode, herunder to ægtefæller med samtidige tab
+uden dobbelt anvendelse af aktiegevinster, 2023/2024-grænsen på begge sider af
+MTF-modregningen og overgangsværnet, der holder tab fra før 2010 ude af senere
 aktiegevinster. Den rå Personskattelov § 4-bro viser fortsat et enkelt
 kontrakttab som afventende § 32-årsopgørelse; broen fra det samlede årsresultat
 til kapital- eller personlig indkomst er et åbent efterfølgende korpussnit,
@@ -875,8 +878,11 @@ Current § 4 and § 13 amendment/dependency sources:
     typed annual ledger for stk. 1-5. Its current share-gain dependency is the
     ordinary ABL § 12 annual result. The allocation order, taxpayer election,
     spouse transfer, ABL § 13 A priority, carry continuity, real-estate basis
-    adjustments and the pre-2010 transition are covered by thirteen interpreted
-    and compiled scenarios.
+    adjustments, the pre-2010 transition and both sides of the 2024 MTF
+    transition are covered by seventeen interpreted and compiled scenarios.
+  - MTF amendment and effective date:
+    `https://www.retsinformation.dk/eli/lta/2023/1563`, § 4, nr. 1, and § 8,
+    stk. 1.
   - Official guidance for the explicit full/partial share-offset election and
     loss-priority choice:
     `https://info.skat.dk/data.aspx?oid=1946050`
@@ -1312,8 +1318,10 @@ encoded as a temporal rule on top of the consolidation.
   `kursgevinstloven-par32.scenario.runa` exist and pass interpreted and compiled
   execution. They implement the complete current § 32 annual contract-loss
   ledger, including own and spouse offsets, ABL § 13 A priority, explicit
-  full/partial share-offset elections, dated carry, the pre-2010 transition and
-  real-estate seller/buyer basis adjustments.
+  full/partial share-offset elections, dated carry, the pre-2010 transition,
+  the 2024 MTF transition for both contracts and share gains, and real-estate
+  seller/buyer basis adjustments. Seventeen focused scenarios cover these
+  branches in both runtimes.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
   it covers the ordinary ABL §§ 12-15/23/24/26 nominal-share calculation path
   consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22
