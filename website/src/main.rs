@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu en beregningsegnet §§ 1-49-slice: bl.a. saldoordninger, straksfradrag, skade, ophør, blandet benyttelse, bygninger og installationer, genvundne afskrivninger, tab, nedrivning, genopførelse, særlige ejendomme, succession, forskudsafskrivning, mineralforekomster, lejede lokaler, immaterielle aktiver, kvoter, landboturisme, tilslutningsafgifter, tilskudsbetalte aktiver, kunstnerisk udsmykning, leveringskontrakter og kontantomregnet aktivfordeling. §§ 40 A-40 B bærer daterede kvotelots, FIFO, anskaffelsesgrundlag og afskrivninger som typede forhold. § 40 C afleder saldobevægelser fra betalingsrettigheder, gamle og nye mælkekvoter og sukkerroerettigheder og fører ejendomstab gennem 22 pct. acontoskat, egen og ægtefælles slutskat, kontant udbetaling eller fremførsel. § 40 D føder handelsværdien ved indtræden af dansk skattepligt ind i § 40 C-saldoen og derfra Personskatteloven § 4. §§ 42-44 C føres nu som særskilte typede indtægts-, afskrivnings-, tabs- og fradragsposter gennem Personskatteloven § 3. §§ 45-49 normaliserer overdragelsessummer, andre afståelsesformer, erstatning, gave, arv og skattesuccession. § 40 holder yderens fradrag og modtagerens skattepligtige vederlag adskilt og modellerer LOV 749/2025-overgangen til Ligningsloven § 12 B fra 2026. § 12 B beregner nu også den nye henstand med skat og arbejdsmarkedsbidrag, forholdsmæssige afdrag, rente, misligholdelse, ophør og virksomhedsordningens konto for opsparet overskud. Personskatteloven § 3 modtager de aktuelle afskrivninger, fortjenester, tab og andre fradrag som særskilte typede poster, mens § 35 fortsat peger på de oprindelige indkomstår. §§ 50-52 og ikrafttrædelses-/overgangsreglerne i §§ 54-69 er fortsat åbne Afskrivningslov-afhængigheder; § 53 er ophævet. Det samme gælder fortsat personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningslovens kilde- og regelkorpus dækker nu hele paragrafsekvensen §§ 1-69, inklusive ophævede bestemmelser og historiske overgangsregler. §§ 50-52 håndterer næringsaktiver, forsøgs- og forskningsudgifter samt ansøgningsfrister; §§ 54-62 og 68-69 gør overgangssaldi, ældre afskrivningsgrundlag, miljøinvesteringer, udlejningsregimet og territorial afgrænsning eksekverbare. LOV 615/2026's ejendomskategorier og 2027-virkning er indarbejdet i §§ 40 C og 42. Personskatteloven § 3 modtager afledte fortjenester, afskrivninger, tab og andre fradrag som særskilte typede poster, mens § 35 fortsat peger på de oprindelige indkomstår. Andre Personskattelov-bestemmelser, afhængige love, personfradrag, underskud, delår, skatteloft, indeholdelse og slutopgørelsens yderkanter er fortsat åbne. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3527,6 +3527,8 @@ fn ResearchPersonskatteloven() -> Element {
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/749", "ændringslov nr. 749/2025" }
                         " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2026/615", "ændringslov nr. 615/2026" }
+                        " / "
                         a { href: "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven", "Skatteministeriets 2026-satser" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=2060781", "Skattestyrelsens saldovejledning" }
@@ -3562,6 +3564,10 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://info.skat.dk/data.aspx?oid=1976529", "Skattestyrelsens aktivfordeling efter § 45" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=1976531", "Skattestyrelsens vejledning til §§ 47-49" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=1976532", "Skattestyrelsens vejledning til § 50" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=1976534", "Skattestyrelsens vejledning til § 51" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskatteloven, LOV nr. 149/1922" }
                         " / "

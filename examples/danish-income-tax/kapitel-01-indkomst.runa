@@ -170,8 +170,8 @@ iværksætterkonto
 # Par3Stk2Nr7Resultat(indkomstår: Heltal, hjemmel: Par3Stk2Nr7Hjemmel, henlæggelse_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr8Resultat(indkomstår: Heltal, erhvervsmæssig_befordring: Boolsk, kundeopsøgende_flere_arbejdsgivere: Boolsk, henvises_til_ligningslov9c: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr9Resultat(indkomstår: Heltal, ydelse_omfattet_af_ligningslov8o: Boolsk, dobbeltfradrag_afskåret: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
-# Par3Stk2Nr10Hjemmel = Par3Nr10Afskrivningslov5 | Par3Nr10Afskrivningslov5A | Par3Nr10Afskrivningslov5B | Par3Nr10Afskrivningslov5C | Par3Nr10Afskrivningslov5D5E | Par3Nr10Afskrivningslov6 | Par3Nr10Afskrivningslov6Salg | Par3Nr10Afskrivningslov7 | Par3Nr10Afskrivningslov8 | Par3Nr10Afskrivningslov9 | Par3Nr10Afskrivningslov9EfterfølgendeSalg | Par3Nr10Afskrivningslov11 | Par3Nr10Afskrivningslov12 | Par3Nr10Afskrivningslov13 | Par3Nr10Afskrivningslov17 | Par3Nr10Afskrivningslov18 | Par3Nr10Afskrivningslov21 | Par3Nr10Afskrivningslov22 | Par3Nr10Afskrivningslov23 | Par3Nr10Afskrivningslov24 | Par3Nr10Afskrivningslov25 | Par3Nr10Afskrivningslov26 | Par3Nr10Afskrivningslov27 | Par3Nr10Afskrivningslov32 | Par3Nr10Afskrivningslov34 | Par3Nr10Afskrivningslov38 | Par3Nr10Afskrivningslov39 | Par3Nr10Afskrivningslov40Skatteyder | Par3Nr10Afskrivningslov40Modtager | Par3Nr10Afskrivningslov40A | Par3Nr10Afskrivningslov40B | Par3Nr10Afskrivningslov42År | Par3Nr10Afskrivningslov42Afståelse | Par3Nr10Afskrivningslov43År | Par3Nr10Afskrivningslov43Salg | Par3Nr10Afskrivningslov44 | Par3Nr10Afskrivningslov44AÅr | Par3Nr10Afskrivningslov44AAfståelse | Par3Nr10Afskrivningslov44ASkade | Par3Nr10Afskrivningslov44AGenopførelse | Par3Nr10Afskrivningslov44B | Par3Nr10Afskrivningslov44C | Par3Nr10Statsskattelov6A
-# Par3Stk2Nr10Grundlag = Par3Nr10Al5(resultat: Afskrivningslov5Resultat) | Par3Nr10Al5A(resultat: Afskrivningslov5AResultat) | Par3Nr10Al5B(resultat: Afskrivningslov5BResultat) | Par3Nr10Al5C(resultat: Afskrivningslov5CResultat) | Par3Nr10Al5D5E(resultat: AfskrivningslovForhøjetSaldoResultat) | Par3Nr10Al6(resultat: Afskrivningslov6Resultat) | Par3Nr10Al6Salg(resultat: Afskrivningslov6SalgResultat) | Par3Nr10Al7(resultat: Afskrivningslov7Resultat) | Par3Nr10Al8(resultat: Afskrivningslov8Resultat) | Par3Nr10Al9(resultat: Afskrivningslov9Resultat) | Par3Nr10Al9EfterfølgendeSalg(resultat: Afskrivningslov9EfterfølgendeSalgResultat) | Par3Nr10Al11(resultat: Afskrivningslov11Resultat) | Par3Nr10Al12(resultat: Afskrivningslov12Resultat) | Par3Nr10Al13(resultat: Afskrivningslov13Resultat) | Par3Nr10Al17(resultat: Afskrivningslov17Resultat) | Par3Nr10Al18(resultat: Afskrivningslov18Resultat) | Par3Nr10Al21(resultat: Afskrivningslov21Resultat) | Par3Nr10Al22(resultat: Afskrivningslov22Resultat) | Par3Nr10Al23(resultat: Afskrivningslov23Resultat) | Par3Nr10Al24(resultat: Afskrivningslov24Resultat) | Par3Nr10Al25(resultat: Afskrivningslov25Resultat) | Par3Nr10Al26(resultat: Afskrivningslov26Resultat) | Par3Nr10Al27(resultat: Afskrivningslov27Resultat) | Par3Nr10Al32(resultat: Afskrivningslov32ÅrsResultat) | Par3Nr10Al34(resultat: Afskrivningslov34Resultat) | Par3Nr10Al38(resultat: Afskrivningslov38Resultat) | Par3Nr10Al39(resultat: Afskrivningslov39Resultat) | Par3Nr10Al40Skatteyder(resultat: Afskrivningslov40SkatteyderResultat) | Par3Nr10Al40Modtager(resultat: Afskrivningslov40ModtagerResultat) | Par3Nr10Al40A(resultat: Afskrivningslov40AResultat) | Par3Nr10Al40B(resultat: Afskrivningslov40BResultat) | Par3Nr10Al42År(resultat: Afskrivningslov42ÅrsResultat) | Par3Nr10Al42Afståelse(resultat: Afskrivningslov42AfståelsesResultat) | Par3Nr10Al43År(resultat: Afskrivningslov43ÅrsResultat) | Par3Nr10Al43Salg(resultat: Afskrivningslov43SalgResultat) | Par3Nr10Al44(resultat: Afskrivningslov44Resultat) | Par3Nr10Al44AÅr(resultat: Afskrivningslov44AÅrsResultat) | Par3Nr10Al44AAfståelse(resultat: Afskrivningslov44AAfståelsesResultat) | Par3Nr10Al44ASkade(resultat: Afskrivningslov44ASkadeResultat) | Par3Nr10Al44AGenopførelse(resultat: Afskrivningslov44AGenopførelseResultat) | Par3Nr10Al44B(resultat: Afskrivningslov44BResultat) | Par3Nr10Al44C(resultat: Afskrivningslov44CResultat) | Par3Nr10Sl6A(resultat: Statsskattelov6OrdinærAfskrivningResultat)
+# Par3Stk2Nr10Hjemmel = Par3Nr10Afskrivningslov5 | Par3Nr10Afskrivningslov5A | Par3Nr10Afskrivningslov5B | Par3Nr10Afskrivningslov5C | Par3Nr10Afskrivningslov5D5E | Par3Nr10Afskrivningslov6 | Par3Nr10Afskrivningslov6Salg | Par3Nr10Afskrivningslov7 | Par3Nr10Afskrivningslov8 | Par3Nr10Afskrivningslov9 | Par3Nr10Afskrivningslov9EfterfølgendeSalg | Par3Nr10Afskrivningslov11 | Par3Nr10Afskrivningslov12 | Par3Nr10Afskrivningslov13 | Par3Nr10Afskrivningslov17 | Par3Nr10Afskrivningslov18 | Par3Nr10Afskrivningslov21 | Par3Nr10Afskrivningslov22 | Par3Nr10Afskrivningslov23 | Par3Nr10Afskrivningslov24 | Par3Nr10Afskrivningslov25 | Par3Nr10Afskrivningslov26 | Par3Nr10Afskrivningslov27 | Par3Nr10Afskrivningslov32 | Par3Nr10Afskrivningslov34 | Par3Nr10Afskrivningslov38 | Par3Nr10Afskrivningslov39 | Par3Nr10Afskrivningslov40Skatteyder | Par3Nr10Afskrivningslov40Modtager | Par3Nr10Afskrivningslov40A | Par3Nr10Afskrivningslov40B | Par3Nr10Afskrivningslov42År | Par3Nr10Afskrivningslov42Afståelse | Par3Nr10Afskrivningslov43År | Par3Nr10Afskrivningslov43Salg | Par3Nr10Afskrivningslov44 | Par3Nr10Afskrivningslov44AÅr | Par3Nr10Afskrivningslov44AAfståelse | Par3Nr10Afskrivningslov44ASkade | Par3Nr10Afskrivningslov44AGenopførelse | Par3Nr10Afskrivningslov44B | Par3Nr10Afskrivningslov44C | Par3Nr10Afskrivningslov50 | Par3Nr10Afskrivningslov55 | Par3Nr10Afskrivningslov58 | Par3Nr10Afskrivningslov58A | Par3Nr10Afskrivningslov60 | Par3Nr10Afskrivningslov62Driftsmiddel | Par3Nr10Afskrivningslov62Miljøanlæg | Par3Nr10Statsskattelov6A
+# Par3Stk2Nr10Grundlag = Par3Nr10Al5(resultat: Afskrivningslov5Resultat) | Par3Nr10Al5A(resultat: Afskrivningslov5AResultat) | Par3Nr10Al5B(resultat: Afskrivningslov5BResultat) | Par3Nr10Al5C(resultat: Afskrivningslov5CResultat) | Par3Nr10Al5D5E(resultat: AfskrivningslovForhøjetSaldoResultat) | Par3Nr10Al6(resultat: Afskrivningslov6Resultat) | Par3Nr10Al6Salg(resultat: Afskrivningslov6SalgResultat) | Par3Nr10Al7(resultat: Afskrivningslov7Resultat) | Par3Nr10Al8(resultat: Afskrivningslov8Resultat) | Par3Nr10Al9(resultat: Afskrivningslov9Resultat) | Par3Nr10Al9EfterfølgendeSalg(resultat: Afskrivningslov9EfterfølgendeSalgResultat) | Par3Nr10Al11(resultat: Afskrivningslov11Resultat) | Par3Nr10Al12(resultat: Afskrivningslov12Resultat) | Par3Nr10Al13(resultat: Afskrivningslov13Resultat) | Par3Nr10Al17(resultat: Afskrivningslov17Resultat) | Par3Nr10Al18(resultat: Afskrivningslov18Resultat) | Par3Nr10Al21(resultat: Afskrivningslov21Resultat) | Par3Nr10Al22(resultat: Afskrivningslov22Resultat) | Par3Nr10Al23(resultat: Afskrivningslov23Resultat) | Par3Nr10Al24(resultat: Afskrivningslov24Resultat) | Par3Nr10Al25(resultat: Afskrivningslov25Resultat) | Par3Nr10Al26(resultat: Afskrivningslov26Resultat) | Par3Nr10Al27(resultat: Afskrivningslov27Resultat) | Par3Nr10Al32(resultat: Afskrivningslov32ÅrsResultat) | Par3Nr10Al34(resultat: Afskrivningslov34Resultat) | Par3Nr10Al38(resultat: Afskrivningslov38Resultat) | Par3Nr10Al39(resultat: Afskrivningslov39Resultat) | Par3Nr10Al40Skatteyder(resultat: Afskrivningslov40SkatteyderResultat) | Par3Nr10Al40Modtager(resultat: Afskrivningslov40ModtagerResultat) | Par3Nr10Al40A(resultat: Afskrivningslov40AResultat) | Par3Nr10Al40B(resultat: Afskrivningslov40BResultat) | Par3Nr10Al42År(resultat: Afskrivningslov42ÅrsResultat) | Par3Nr10Al42Afståelse(resultat: Afskrivningslov42AfståelsesResultat) | Par3Nr10Al43År(resultat: Afskrivningslov43ÅrsResultat) | Par3Nr10Al43Salg(resultat: Afskrivningslov43SalgResultat) | Par3Nr10Al44(resultat: Afskrivningslov44Resultat) | Par3Nr10Al44AÅr(resultat: Afskrivningslov44AÅrsResultat) | Par3Nr10Al44AAfståelse(resultat: Afskrivningslov44AAfståelsesResultat) | Par3Nr10Al44ASkade(resultat: Afskrivningslov44ASkadeResultat) | Par3Nr10Al44AGenopførelse(resultat: Afskrivningslov44AGenopførelseResultat) | Par3Nr10Al44B(resultat: Afskrivningslov44BResultat) | Par3Nr10Al44C(resultat: Afskrivningslov44CResultat) | Par3Nr10Al50(resultat: Afskrivningslov50Resultat) | Par3Nr10Al55(resultat: Afskrivningslov55Resultat) | Par3Nr10Al58(resultat: Afskrivningslov58Resultat) | Par3Nr10Al58A(resultat: Afskrivningslov58AResultat) | Par3Nr10Al60(resultat: Afskrivningslov60Resultat) | Par3Nr10Al62Driftsmiddel(resultat: Afskrivningslov62DriftsmiddelSalgResultat) | Par3Nr10Al62Miljøanlæg(resultat: Afskrivningslov62MiljøanlægSalgResultat) | Par3Nr10Sl6A(resultat: Statsskattelov6OrdinærAfskrivningResultat)
 # Par3Stk2Nr10PostResultat(hjemmel: Par3Stk2Nr10Hjemmel, selvstændig_erhvervsdrivende_person: Boolsk, fysisk_person: Boolsk, skattepligtig_indtægtsføring_kroner: Heltal, indtægtsføring_i_personlig_indkomst_kroner: Heltal, skattemæssig_afskrivning_kroner: Heltal, tab_kroner: Heltal, andet_fradrag_kroner: Heltal, brutto_fradrag_efter_kildeloven_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal, afskåret_fordi_ikke_fysisk_person_indtægt_kroner: Heltal)
 # Par3Stk2Nr10Input(grundlagsposter: List(Par3Stk2Nr10Grundlag))
 # Par3Stk2Nr10Resultat(post_resultater: List(Par3Stk2Nr10PostResultat), brutto_indtægtsføringer_efter_afskrivningsloven_kroner: Heltal, indtægtsføring_i_personlig_indkomst_kroner: Heltal, brutto_skattemæssige_afskrivninger_kroner: Heltal, brutto_tab_kroner: Heltal, brutto_andre_fradrag_kroner: Heltal, brutto_fradrag_efter_kildelovene_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal, afskåret_fordi_ikke_fysisk_person_indtægt_kroner: Heltal)
@@ -419,6 +419,13 @@ iværksætterkonto
     | Par3Nr10Al44AGenopførelse(_) -> Par3Nr10Afskrivningslov44AGenopførelse
     | Par3Nr10Al44B(_) -> Par3Nr10Afskrivningslov44B
     | Par3Nr10Al44C(_) -> Par3Nr10Afskrivningslov44C
+    | Par3Nr10Al50(_) -> Par3Nr10Afskrivningslov50
+    | Par3Nr10Al55(_) -> Par3Nr10Afskrivningslov55
+    | Par3Nr10Al58(_) -> Par3Nr10Afskrivningslov58
+    | Par3Nr10Al58A(_) -> Par3Nr10Afskrivningslov58A
+    | Par3Nr10Al60(_) -> Par3Nr10Afskrivningslov60
+    | Par3Nr10Al62Driftsmiddel(_) -> Par3Nr10Afskrivningslov62Driftsmiddel
+    | Par3Nr10Al62Miljøanlæg(_) -> Par3Nr10Afskrivningslov62Miljøanlæg
     | Par3Nr10Sl6A(_) -> Par3Nr10Statsskattelov6A
 }
 | par3_stk2_nr10_selvstændig_person(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
@@ -464,6 +471,13 @@ iværksætterkonto
     | Par3Nr10Al44AGenopførelse(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Al44B(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Al44C(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al50(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al55(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al58(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al58A(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al60(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al62Driftsmiddel(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al62Miljøanlæg(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Sl6A(resultat) -> resultat.skatteyder == Sl6SelvstændigErhvervsdrivendePerson
 }
 | par3_stk2_nr10_fysisk_person(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
@@ -509,6 +523,13 @@ iværksætterkonto
     | Par3Nr10Al44AGenopførelse(resultat) -> resultat.skatteyder != AlSelskabEllerForening
     | Par3Nr10Al44B(resultat) -> resultat.skatteyder != AlSelskabEllerForening
     | Par3Nr10Al44C(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al50(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al55(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al58(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al58A(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al60(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al62Driftsmiddel(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al62Miljøanlæg(resultat) -> resultat.skatteyder != AlSelskabEllerForening
     | Par3Nr10Sl6A(_) -> Sandt
 }
 | par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
@@ -532,6 +553,9 @@ iværksætterkonto
     | Par3Nr10Al44AGenopførelse(resultat) -> resultat.skattepligtigt_overskydende_forskelsbeløb_kroner
     | Par3Nr10Al44B(resultat) -> resultat.skattepligtig_negativ_saldo_i_indkomståret_kroner
     | Par3Nr10Al44C(resultat) -> resultat.skattepligtig_fortjeneste_kroner
+    | Par3Nr10Al50(resultat) -> resultat.skattepligtig_fortjeneste_kroner
+    | Par3Nr10Al62Driftsmiddel(resultat) -> resultat.skattepligtig_indtægtsføring_kroner
+    | Par3Nr10Al62Miljøanlæg(resultat) -> resultat.skattepligtige_genvundne_afskrivninger_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> 0
@@ -555,6 +579,8 @@ iværksætterkonto
     | Par3Nr10Al44(resultat) -> resultat.straksafskrivning_behandles_som_afskrivning_kroner
     | Par3Nr10Al44AÅr(resultat) -> resultat.afskrivning_i_skattepligtig_indkomst_kroner
     | Par3Nr10Al44B(resultat) -> resultat.afskrivning_i_skattepligtig_indkomst_kroner
+    | Par3Nr10Al55(resultat) -> resultat.afskrivning_i_skattepligtig_indkomst_kroner
+    | Par3Nr10Al60(resultat) -> resultat.afskrivning_i_skattepligtig_indkomst_kroner
     | Par3Nr10Sl6A(resultat) -> resultat.ordinær_afskrivning_kroner
     | _ -> 0
 }
@@ -572,6 +598,9 @@ iværksætterkonto
     | Par3Nr10Al42Afståelse(resultat) -> resultat.fradragsberettiget_tab_kroner
     | Par3Nr10Al44AAfståelse(resultat) -> resultat.fradragsberettiget_tab_kroner
     | Par3Nr10Al44C(resultat) -> resultat.fradragsberettiget_tab_kroner
+    | Par3Nr10Al50(resultat) -> resultat.fradragsberettiget_tab_kroner
+    | Par3Nr10Al58(resultat) -> resultat.fradragsberettiget_tab_kroner
+    | Par3Nr10Al62Miljøanlæg(resultat) -> resultat.fradragsberettiget_tab_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_andet_fradrag_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
@@ -588,6 +617,7 @@ iværksætterkonto
     | Par3Nr10Al40A(resultat) -> resultat.fradrag_for_anvendelse_i_produktionen_kroner
     | Par3Nr10Al43Salg(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
     | Par3Nr10Al44ASkade(resultat) -> resultat.fradragsberettiget_værdiforringelse_kroner
+    | Par3Nr10Al58A(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_brutto_fradrag_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag) + par3_stk2_nr10_tab_kroner(grundlag) + par3_stk2_nr10_andet_fradrag_kroner(grundlag)

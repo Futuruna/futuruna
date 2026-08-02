@@ -115,8 +115,8 @@ Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
 Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
-afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
-omfatter §§ 1-49: anskaffelse og benyttelsesændring,
+afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle kilde- og
+regelkorpus omfatter §§ 1-69: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
@@ -176,6 +176,16 @@ kontraktfortjenesten. § 45 modellerer den lovbestemte samlede fordeling på
 driftsmidler og skibe med en typet nøgle; § 49 har tilsvarende en særskilt
 tilstand for skattesuccession, hvor værdiansættelsesreglen ikke anvendes.
 
+§§ 50-69 afslutter den konsoliderede paragrafsekvens. § 50 holder den nominelle
+næringsfortjeneste adskilt fra den kontantomregnede saldodel, mens §§ 51-52
+modellerer forsøgs- og forskningsudgifter før erhvervsstart samt ansøgningsfrist
+og dispensation. § 53 og §§ 63-67 står eksplicit som ophævede. §§ 54-62 og
+68-69 gør ikrafttrædelse, historiske saldi og afskrivningsgrundlag,
+miljøinvesteringer, udlejningsregimet og den territoriale afgrænsning
+eksekverbare. LOV 615/2026 er samtidig lagt oven på konsolideringen: skov- og
+naturejendomme skifter anvendelsesområde i §§ 40 C og 42 fra 2027 gennem én
+fælles, typet ejendomskategori.
+
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
@@ -199,6 +209,7 @@ muligheden for altid at indskyde op til 250.000 kr., fælles kontoloft,
 forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222),
 [ændringslov nr. 749/2025](https://www.retsinformation.dk/eli/lta/2025/749),
+[ændringslov nr. 615/2026](https://www.retsinformation.dk/eli/lta/2026/615),
 [Statsskatteloven, LOV nr. 149/1922](https://www.retsinformation.dk/eli/lta/1922/149),
 [Etableringskontoloven, LBK nr. 1307/2025](https://www.retsinformation.dk/eli/lta/2025/1307),
 [Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven),
@@ -223,6 +234,8 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skattestyrelsens kontantomregning efter § 45](https://info.skat.dk/data.aspx?oid=1976528),
 [Skattestyrelsens aktivfordeling efter § 45](https://info.skat.dk/data.aspx?oid=1976529),
 [Skattestyrelsens vejledning til §§ 47-49](https://info.skat.dk/data.aspx?oid=1976531),
+[Skattestyrelsens vejledning til § 50](https://info.skat.dk/data.aspx?oid=1976532),
+[Skattestyrelsens vejledning til § 51](https://info.skat.dk/data.aspx?oid=1976534),
 [SKM2022.474.SR om CO2-kvoter og afholdt anskaffelsesudgift](https://info.skat.dk/data.aspx?oid=2365032)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
@@ -253,9 +266,20 @@ delafståelser, stk. 12's blandede FIFO, ejendomstabsmodregning, 22 pct.
 acontoskat, succession, ægtefællefradrag, kontant udbetaling og fremførsel til
 senere indkomstår.
 
-Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
-resterende dependency-arbejde omfatter §§ 50-52 og
-ikrafttrædelses-/overgangsreglerne i §§ 54-69; § 53 er ophævet.
+Det fokuserede §§ 50-69-scenarie validerer 23 yderligere forhold i begge
+backends, herunder månedsslutningen i tremånedersfristen, historiske
+satsgrænser, det foregående grundlagsår, overgangssaldi, § 21's tabsafskæring,
+§ 24's genopførelsesværn og LOV 615/2026's 2027-skifte. Et
+særskilt tværlovsscenarie fører afledte Afskrivningslov-resultater gennem
+Personskatteloven § 3 og holder 98.000 kr. indtægt adskilt fra 60.000 kr.
+afskrivning, 80.000 kr. tab og 25.000 kr. andet fradrag.
+
+Afskrivningslovens kilde- og regelkorpus er dermed sammenhængende fra § 1 til
+§ 69, også hvor bestemmelser er ophævede eller kun regulerer historiske
+overgange. Det er ikke det samme som, at hele den danske
+indkomstskattelovgivning er færdig: andre Personskattelov-bestemmelser,
+afhængige love, delår, underskud, skatteloft, indeholdelse og slutopgørelsens
+yderkanter skal fortsat uddybes.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

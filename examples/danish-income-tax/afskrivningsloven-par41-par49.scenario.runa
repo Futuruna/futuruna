@@ -10,9 +10,9 @@
     afholdelsesår = 2025,
     rettighed = Al42Forpagter,
     ombygnings_og_forbedringsudgift_kroner = 100000,
-    eksisterende_bygning_i_landbrugsejendom = Sandt,
+    ejendomskategori = AlLandbrugsejendom,
     værelser_anvendes_til_turistudlejning = Sandt,
-    landbrugsejendommen_er_erhvervsmæssigt_drevet = Sandt,
+    ejendommen_er_erhvervsmæssigt_drevet = Sandt,
     momspligtig_udlejning = Sandt,
     tidligere_afskrivninger = [AfskrivningslovÅrsafskrivning(indkomstår = 2025, afskrivning_kroner = 20000)]
 )
@@ -33,9 +33,9 @@
     afholdelsesår = 2026,
     rettighed = Al42Ejer,
     ombygnings_og_forbedringsudgift_kroner = 16900,
-    eksisterende_bygning_i_landbrugsejendom = Sandt,
+    ejendomskategori = AlLandbrugsejendom,
     værelser_anvendes_til_turistudlejning = Sandt,
-    landbrugsejendommen_er_erhvervsmæssigt_drevet = Sandt,
+    ejendommen_er_erhvervsmæssigt_drevet = Sandt,
     momspligtig_udlejning = Sandt,
     tidligere_afskrivninger = []
 )

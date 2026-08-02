@@ -1,0 +1,438 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+
+-- Fokuserede scenarier for Afskrivningslovens §§ 50-69. Den ordrette
+-- lovtekst og de maskinlæsbare kildeankre står i afskrivningsloven.runa.
+
+= al50_position = Afskrivningslov50Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al50UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib,
+    anskaffelsesår = 2024,
+    nominel_anskaffelsessum_kroner = 100000,
+    kontantomregnet_anskaffelsessum_til_saldo_kroner = 90000,
+    anvendte_afskrivningssatser = [
+        Afskrivningslov50AnvendtAfskrivningssats(indkomstår = 2024, sats_basispoint = 2000),
+        Afskrivningslov50AnvendtAfskrivningssats(indkomstår = 2025, sats_basispoint = 1000)
+    ]
+)
+= al50_salg = afskrivningslov50_resultat(Afskrivningslov50SalgInput(
+    salgsår = 2026,
+    position = al50_position,
+    aktiv_hører_til_skattepligtiges_næringsvej = Sandt,
+    nominel_salgssum_kroner = 80000,
+    saldoværdi_før_salg_kroner = 100000
+))
+= al50_samme_år = afskrivningslov50_resultat(Afskrivningslov50SalgInput(
+    salgsår = 2026,
+    position = Afskrivningslov50Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        aktivart = Al50UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib,
+        anskaffelsesår = 2026,
+        nominel_anskaffelsessum_kroner = 50000,
+        kontantomregnet_anskaffelsessum_til_saldo_kroner = 50000,
+        anvendte_afskrivningssatser = []
+    ),
+    aktiv_hører_til_skattepligtiges_næringsvej = Sandt,
+    nominel_salgssum_kroner = 55000,
+    saldoværdi_før_salg_kroner = 70000
+))
+= al50_før_lovens_virkning = afskrivningslov50_resultat(Afskrivningslov50SalgInput(
+    salgsår = 1998,
+    position = Afskrivningslov50Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        aktivart = Al50AndetAktivOmfattetAfLoven,
+        anskaffelsesår = 1997,
+        nominel_anskaffelsessum_kroner = 50000,
+        kontantomregnet_anskaffelsessum_til_saldo_kroner = 50000,
+        anvendte_afskrivningssatser = []
+    ),
+    aktiv_hører_til_skattepligtiges_næringsvej = Sandt,
+    nominel_salgssum_kroner = 55000,
+    saldoværdi_før_salg_kroner = 0
+))
+
+= al51_aps = afskrivningslov51_resultat(Afskrivningslov51Input(
+    skatteyder = AlSelskabEllerForening,
+    virksomhedsform = Al51Anpartsselskab,
+    aktiv_afskrivningsberettiget_efter_loven = Sandt,
+    aktiv_til_forsøgs_eller_forskningsvirksomhed = Sandt,
+    målrettet_erhvervsvirksomhed_igangsat = Falskt,
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+= al51_person_uden_tilladelse = afskrivningslov51_resultat(Afskrivningslov51Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    virksomhedsform = Al51AndenVirksomhedsform,
+    aktiv_afskrivningsberettiget_efter_loven = Sandt,
+    aktiv_til_forsøgs_eller_forskningsvirksomhed = Sandt,
+    målrettet_erhvervsvirksomhed_igangsat = Falskt,
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+= al51_person_kan_ikke_være_aps = afskrivningslov51_resultat(Afskrivningslov51Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    virksomhedsform = Al51Anpartsselskab,
+    aktiv_afskrivningsberettiget_efter_loven = Sandt,
+    aktiv_til_forsøgs_eller_forskningsvirksomhed = Sandt,
+    målrettet_erhvervsvirksomhed_igangsat = Falskt,
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+
+= al52_på_fristslut = afskrivningslov52_resultat(Afskrivningslov52Input(
+    har_afskrevet_efter_loven = Sandt,
+    oprindelig_afskrivningssats_basispoint = 2000,
+    ændret_afskrivningssats_basispoint = 1500,
+    oplysningsfrist = AfskrivningslovDato(år = 2026, måned = 1, dag = 31),
+    meddelelsesdato = AfskrivningslovDato(år = 2026, måned = 4, dag = 30),
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+= al52_for_sent = afskrivningslov52_resultat(Afskrivningslov52Input(
+    har_afskrevet_efter_loven = Sandt,
+    oprindelig_afskrivningssats_basispoint = 2000,
+    ændret_afskrivningssats_basispoint = 1500,
+    oplysningsfrist = AfskrivningslovDato(år = 2026, måned = 1, dag = 31),
+    meddelelsesdato = AfskrivningslovDato(år = 2026, måned = 5, dag = 1),
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+= al52_for_sent_med_tilladelse = afskrivningslov52_resultat(Afskrivningslov52Input(
+    har_afskrevet_efter_loven = Sandt,
+    oprindelig_afskrivningssats_basispoint = 2000,
+    ændret_afskrivningssats_basispoint = 1500,
+    oplysningsfrist = AfskrivningslovDato(år = 2026, måned = 1, dag = 31),
+    meddelelsesdato = AfskrivningslovDato(år = 2026, måned = 5, dag = 1),
+    tilladelse_fra_told_og_skatteforvaltningen = Sandt
+))
+= al52_før_lovens_virkning = afskrivningslov52_resultat(Afskrivningslov52Input(
+    har_afskrevet_efter_loven = Sandt,
+    oprindelig_afskrivningssats_basispoint = 2000,
+    ændret_afskrivningssats_basispoint = 1500,
+    oplysningsfrist = AfskrivningslovDato(år = 1998, måned = 9, dag = 30),
+    meddelelsesdato = AfskrivningslovDato(år = 1998, måned = 12, dag = 30),
+    tilladelse_fra_told_og_skatteforvaltningen = Falskt
+))
+
+= al54_før_skæring = afskrivningslov54_forskuds_resultat(Afskrivningslov54ForskudsInput(
+    indkomstår = 1999,
+    aktivart = Al54NybygningAnlægEllerInstallation,
+    tilblivelsesgrundlag = Al54BindendeAftale(dato = AfskrivningslovDato(år = 1998, måned = 6, dag = 1)),
+    leverings_eller_færdigfremstillingsår = 1999,
+    afskrivningsberettiget_anskaffelsessum_før_forskudsafskrivninger_kroner = 100000,
+    foretagne_forskudsafskrivninger_kroner = 20000
+))
+= al54_på_skæring = afskrivningslov54_forskuds_resultat(Afskrivningslov54ForskudsInput(
+    indkomstår = 1999,
+    aktivart = Al54NybygningAnlægEllerInstallation,
+    tilblivelsesgrundlag = Al54BindendeAftale(dato = AfskrivningslovDato(år = 1998, måned = 6, dag = 2)),
+    leverings_eller_færdigfremstillingsår = 1999,
+    afskrivningsberettiget_anskaffelsessum_før_forskudsafskrivninger_kroner = 100000,
+    foretagne_forskudsafskrivninger_kroner = 0
+))
+= al54_gammelt_par14 = afskrivningslov54_forskuds_resultat(Afskrivningslov54ForskudsInput(
+    indkomstår = 1999,
+    aktivart = Al54SkibMaskineInventarEllerLignendeDriftsmiddel,
+    tilblivelsesgrundlag = Al54BindendeAftale(dato = AfskrivningslovDato(år = 1998, måned = 12, dag = 31)),
+    leverings_eller_færdigfremstillingsår = 1999,
+    afskrivningsberettiget_anskaffelsessum_før_forskudsafskrivninger_kroner = 200000,
+    foretagne_forskudsafskrivninger_kroner = 30000
+))
+= al54_før_lovens_virkning = afskrivningslov54_forskuds_resultat(Afskrivningslov54ForskudsInput(
+    indkomstår = 1998,
+    aktivart = Al54SkibMaskineInventarEllerLignendeDriftsmiddel,
+    tilblivelsesgrundlag = Al54BindendeAftale(dato = AfskrivningslovDato(år = 1997, måned = 12, dag = 31)),
+    leverings_eller_færdigfremstillingsår = 1998,
+    afskrivningsberettiget_anskaffelsessum_før_forskudsafskrivninger_kroner = 100000,
+    foretagne_forskudsafskrivninger_kroner = 20000
+))
+= al54_par45_valg = afskrivningslov54_par45_resultat(Afskrivningslov54Par45Input(
+    hændelse = Al54Overdragelse(dato = AfskrivningslovDato(år = 1998, måned = 6, dag = 2)),
+    ny_kontantomregningsregel_fører_til_lavere_beskatning = Sandt,
+    vælger_ny_kontantomregningsregel_i_overgangsperioden = Sandt
+))
+= al54_par45_obligatorisk = afskrivningslov54_par45_resultat(Afskrivningslov54Par45Input(
+    hændelse = Al54UdlodningFraDødsbo(dato = AfskrivningslovDato(år = 1999, måned = 1, dag = 1)),
+    ny_kontantomregningsregel_fører_til_lavere_beskatning = Falskt,
+    vælger_ny_kontantomregningsregel_i_overgangsperioden = Falskt
+))
+= al54_par51 = afskrivningslov54_par51_overgang_resultat(Afskrivningslov54Par51OvergangInput(
+    tidligere_indkomstår = 1998,
+    ansøgningsdato = AfskrivningslovDato(år = 2000, måned = 1, dag = 1)
+))
+= al54_par52 = afskrivningslov54_par52_overgang_resultat(AfskrivningslovDato(år = 1999, måned = 1, dag = 1))
+
+= al55_grænse = afskrivningslov55_resultat(Afskrivningslov55Input(
+    indkomstår = 1999,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    bygningskategori = Al55TidligerePar18Stk1LitraA,
+    anskaffelsessum_kroner = 1000000,
+    sum_anvendte_afskrivningsprocenter_basispoint = 6100,
+    valgt_afskrivning_kroner = 40000
+))
+= al55_for_højt = afskrivningslov55_resultat(Afskrivningslov55Input(
+    indkomstår = 2000,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    bygningskategori = Al55TidligerePar18Stk1LitraB,
+    anskaffelsessum_kroner = 1000000,
+    sum_anvendte_afskrivningsprocenter_basispoint = 4100,
+    valgt_afskrivning_kroner = 40001
+))
+
+= al56_resultat = afskrivningslov56_resultat(Afskrivningslov56Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al56Bygning,
+    anskaffelses_eller_udgiftsår = 1989,
+    tidligere_hjemmel = Al56TidligereAfskrivningslovAfsnitIV,
+    historiske_afskrivninger = [
+        Afskrivningslov56HistoriskAfskrivning(indkomstår = 1989, afskrivningsart = Al56OrdinærAfskrivning, beløb_kroner = 10000, pristalsfaktor_basispoint_til_1990 = 12000),
+        Afskrivningslov56HistoriskAfskrivning(indkomstår = 1991, afskrivningsart = Al56OrdinærAfskrivning, beløb_kroner = 5000, pristalsfaktor_basispoint_til_1990 = 10000)
+    ]
+))
+= al57_resultat = afskrivningslov57_resultat(Afskrivningslov57Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    eksisterende_par5_saldo_ved_begyndelsen_af_1999_kroner = 10000,
+    skibes_saldoværdi_ved_udgangen_af_1998_kroner = 20000,
+    dok_og_beddingssaldo_ved_udgangen_af_1998_kroner = 30000
+))
+
+= al58_tab = afskrivningslov58_resultat(Afskrivningslov58SalgInput(
+    afståelsesår = 2026,
+    position = Afskrivningslov58Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, aktivart = Al58SommerEllerFritidsboligForEjeren, anskaffelsesår = 1998, tidligere_hjemmel = Al58TidligerePar29CStk1Til3, uafskrevet_beløb_kroner = 100000),
+    salgssum_kroner = 70000,
+    anvendelse_efter_salg = Al58Beboelse
+))
+= al58_uden_ophør = afskrivningslov58_resultat(Afskrivningslov58SalgInput(
+    afståelsesår = 2026,
+    position = Afskrivningslov58Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, aktivart = Al58BygningEllerFastEjendom, anskaffelsesår = 1997, tidligere_hjemmel = Al58StatsskattelovPar6LitraA, uafskrevet_beløb_kroner = 100000),
+    salgssum_kroner = 70000,
+    anvendelse_efter_salg = Al58FortsatAfskrivningsberettigetFormål
+))
+= al58_før_lovens_virkning = afskrivningslov58_resultat(Afskrivningslov58SalgInput(
+    afståelsesår = 1998,
+    position = Afskrivningslov58Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, aktivart = Al58BygningEllerFastEjendom, anskaffelsesår = 1997, tidligere_hjemmel = Al58TidligerePar29CStk1Til3, uafskrevet_beløb_kroner = 100000),
+    salgssum_kroner = 70000,
+    anvendelse_efter_salg = Al58Beboelse
+))
+
+= al58a_position = Afskrivningslov58APosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anskaffelsesår = 1985,
+    udgiftsår = 1998,
+    første_indkomstår_fuldført_og_taget_i_brug = 1999,
+    afskrivningsberettiget_bygning_eller_installation = Sandt,
+    oprindelig_ombygnings_eller_forbedringsudgift_kroner = 40000,
+    tidligere_fradraget_efter_par58a_kroner = 0,
+    beregningsgrundlag = Al58AForegåendeÅrsAfskrivningsgrundlag(indkomstår = 1998, beløb_kroner = 500000)
+)
+= al58a_fradrag = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 1999,
+    position = al58a_position,
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 25000
+))
+= al58a_disposition = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 1999,
+    position = al58a_position,
+    disposition = Al58ABygningAfhændet,
+    valgt_fradrag_kroner = 0
+))
+= al58a_gentagelse = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 2000,
+    position = al58a_fradrag.position_efter,
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 15000
+))
+= al58a_gentagelse_i_samme_år = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 1999,
+    position = al58a_fradrag.position_efter,
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 15000
+))
+= al58a_historisk_oktober = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 2000,
+    position = Afskrivningslov58APosition(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesår = 1980, udgiftsår = 1998, første_indkomstår_fuldført_og_taget_i_brug = 2000, afskrivningsberettiget_bygning_eller_installation = Sandt, oprindelig_ombygnings_eller_forbedringsudgift_kroner = 10000, tidligere_fradraget_efter_par58a_kroner = 0, beregningsgrundlag = Al58AEjendomsværdiandel(vurderingsdato = AfskrivningslovDato(år = 1997, måned = 10, dag = 1), første_nye_vurdering_foreligger_år = 0, beløb_kroner = 500000)),
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 10000
+))
+= al58a_nyt_januar = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 2023,
+    position = Afskrivningslov58APosition(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesår = 1980, udgiftsår = 1998, første_indkomstår_fuldført_og_taget_i_brug = 2023, afskrivningsberettiget_bygning_eller_installation = Sandt, oprindelig_ombygnings_eller_forbedringsudgift_kroner = 10000, tidligere_fradraget_efter_par58a_kroner = 0, beregningsgrundlag = Al58AHandelsværdiFordiEjendomsværdiIkkeAnsat(vurderingsdato = AfskrivningslovDato(år = 1998, måned = 1, dag = 1), første_nye_vurdering_foreligger_år = 2022, beløb_kroner = 500000)),
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 10000
+))
+= al58a_vurderingsskifteåret_bruger_oktober = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 2022,
+    position = Afskrivningslov58APosition(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesår = 1980, udgiftsår = 1998, første_indkomstår_fuldført_og_taget_i_brug = 2022, afskrivningsberettiget_bygning_eller_installation = Sandt, oprindelig_ombygnings_eller_forbedringsudgift_kroner = 10000, tidligere_fradraget_efter_par58a_kroner = 0, beregningsgrundlag = Al58AEjendomsværdiandel(vurderingsdato = AfskrivningslovDato(år = 1997, måned = 10, dag = 1), første_nye_vurdering_foreligger_år = 2022, beløb_kroner = 500000)),
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 10000
+))
+= al58a_forkert_foregående_grundlagsår = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 1999,
+    position = Afskrivningslov58APosition(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesår = 1985, udgiftsår = 1998, første_indkomstår_fuldført_og_taget_i_brug = 1999, afskrivningsberettiget_bygning_eller_installation = Sandt, oprindelig_ombygnings_eller_forbedringsudgift_kroner = 40000, tidligere_fradraget_efter_par58a_kroner = 0, beregningsgrundlag = Al58AForegåendeÅrsAfskrivningsgrundlag(indkomstår = 1997, beløb_kroner = 500000)),
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 25000
+))
+
+= al59_dræn = afskrivningslov59_resultat(Afskrivningslov59Input(skatteyder = AlSelvstændigErhvervsdrivendePerson, anlægsart = Al59Dræningsanlæg, anskaffelsesår = 1998, tidligere_hjemmel = Al59TidligerePar29S))
+= al59_forkert_hjemmel = afskrivningslov59_resultat(Afskrivningslov59Input(skatteyder = AlSelvstændigErhvervsdrivendePerson, anlægsart = Al59Dræningsanlæg, anskaffelsesår = 1998, tidligere_hjemmel = Al59StatsskattelovPar6LitraA))
+
+= al40_kontrol_uden_indflydelse = Afskrivningslov40Kontrol(
+    overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Falskt,
+    kapitalandel_basispoint = 0,
+    stemmerettigheder_basispoint = 0,
+    ejerandel_basispoint = 0,
+    bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+    ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 0
+)
+= al60_position = Afskrivningslov40Position(
+    grundlag = Al40ErhvervetAktiv(
+        erhverver = AlSelvstændigErhvervsdrivendePerson,
+        aktivart = Al40Patentret,
+        endelig_aftaledato = AfskrivningslovDato(år = 1997, måned = 1, dag = 1),
+        anskaffelsessum_kroner = 100000,
+        beskyttelses_eller_rettighedsperiode_år = 5,
+        goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+        udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+        kontrol = al40_kontrol_uden_indflydelse
+    ),
+    tidligere_foretagne_afskrivninger_og_fradrag_kroner = 20000,
+    forlods_afskrivninger_kroner = 0
+)
+= al60_resultat = afskrivningslov60_resultat(Afskrivningslov60Input(
+    indkomstår = 1999,
+    position = al60_position,
+    historisk_skæringshændelse = Al60AktivErhvervet(dato = AfskrivningslovDato(år = 1997, måned = 1, dag = 1)),
+    rettighed_beskyttet_efter_anden_lovgivning = Sandt,
+    resterende_beskyttelsesperiode_på_aftaletidspunktet_år = 5,
+    goodwill_afskrivningsberettiget_efter_tidligere_ligningslov16f = Falskt,
+    valgt_afskrivning_kroner = 20000
+))
+= al60_før_lovens_virkning = afskrivningslov60_resultat(Afskrivningslov60Input(
+    indkomstår = 1998,
+    position = al60_position,
+    historisk_skæringshændelse = Al60AktivErhvervet(dato = AfskrivningslovDato(år = 1997, måned = 1, dag = 1)),
+    rettighed_beskyttet_efter_anden_lovgivning = Sandt,
+    resterende_beskyttelsesperiode_på_aftaletidspunktet_år = 5,
+    goodwill_afskrivningsberettiget_efter_tidligere_ligningslov16f = Falskt,
+    valgt_afskrivning_kroner = 20000
+))
+= al60_forkert_erhvervelsesdato = afskrivningslov60_resultat(Afskrivningslov60Input(
+    indkomstår = 1999,
+    position = al60_position,
+    historisk_skæringshændelse = Al60AktivErhvervet(dato = AfskrivningslovDato(år = 1996, måned = 12, dag = 31)),
+    rettighed_beskyttet_efter_anden_lovgivning = Sandt,
+    resterende_beskyttelsesperiode_på_aftaletidspunktet_år = 5,
+    goodwill_afskrivningsberettiget_efter_tidligere_ligningslov16f = Falskt,
+    valgt_afskrivning_kroner = 20000
+))
+
+= al61_resultat = afskrivningslov61_resultat(Afskrivningslov61Input(
+    anskaffelsesår = 1998,
+    anskaffelsessummen_skulle_ikke_kontantomregnes_efter_tidligere_regler = Sandt,
+    kontantomregningsinput_efter_par45 = Afskrivningslov45KontantomregningInput(
+        kontant_del_kroner = 20000,
+        gældsposter = [Afskrivningslov45Gældspost(identifikation = "gæld", nominelt_beløb_kroner = 100000, kurs_på_opgørelsestidspunktet_basispoint = 8000, inkonverterbart_lån_for_fiskerfartøj = Falskt, stiftet_eller_overtaget_af_sælger_før_1993_05_19 = Falskt, kurs_ved_stiftelse_eller_overtagelse_basispoint = 8000)],
+        afståelsessituation = Falskt
+    )
+))
+
+= al62_driftsmiddel = afskrivningslov62_driftsmiddel_salg_resultat(Afskrivningslov62DriftsmiddelSalgInput(indkomstår = 2026, skatteyder = AlSelvstændigErhvervsdrivendePerson, straksafskrevet_efter_tidligere_par3a = Sandt, salgssum_kroner = 40000, leveret_i_indkomståret = Sandt, virksomhed_sælges_eller_ophører_i_indkomståret = Falskt))
+= al62_driftsmiddel_ophør = afskrivningslov62_driftsmiddel_salg_resultat(Afskrivningslov62DriftsmiddelSalgInput(indkomstår = 2026, skatteyder = AlSelvstændigErhvervsdrivendePerson, straksafskrevet_efter_tidligere_par3a = Sandt, salgssum_kroner = 40000, leveret_i_indkomståret = Sandt, virksomhed_sælges_eller_ophører_i_indkomståret = Sandt))
+= al62_driftsmiddel_før_lovens_virkning = afskrivningslov62_driftsmiddel_salg_resultat(Afskrivningslov62DriftsmiddelSalgInput(indkomstår = 1998, skatteyder = AlSelvstændigErhvervsdrivendePerson, straksafskrevet_efter_tidligere_par3a = Sandt, salgssum_kroner = 40000, leveret_i_indkomståret = Sandt, virksomhed_sælges_eller_ophører_i_indkomståret = Falskt))
+
+= al62_miljøbygning = AlK3Bygning(resultat = afskrivningslov14_resultat(Afskrivningslov14Input(skatteyder = AlSelvstændigErhvervsdrivendePerson, anvendelse = Al14AndenErhvervsanvendelse, erhvervsmæssigt_benyttet = Sandt, postsortering_med_industrielt_præg = Falskt, tilknytning = Al14IkkeTilknyttet, tilknyttet_art = Al14BygningEllerLokale)))
+= al62_miljøværdi_før_overgang = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al62_miljøbygning,
+    grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner = 100000, straksfradrag_som_ikke_medregnes_kroner = 0, afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 20000, fratrukne_afskrivninger_kroner = 20000)]),
+    par39_historik = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
+))
+= al62_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
+= al62_med_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Sandt, kapitalandel_basispoint = 6000, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
+| al62_par21_input(indkomstår: Heltal, salgssum_kroner: Heltal, par24_finder_anvendelse: Boolsk, kontrol: Afskrivningslov21Kontrol) -> Afskrivningslov21Input(indkomstår = indkomstår, nedskrevet_værdi_resultat = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum_kroner = salgssum_kroner, par24_finder_anvendelse = par24_finder_anvendelse, kontrol = kontrol)
+| al62_miljøinput(indkomstår: Heltal, salgssum_kroner: Heltal, par24_finder_anvendelse: Boolsk, kontrol: Afskrivningslov21Kontrol) -> Afskrivningslov62MiljøanlægSalgInput(straksafskrevet_efter_tidligere_par21a = Sandt, historisk_straksafskrevet_udgift_kroner = 30000, par21_input = al62_par21_input(indkomstår, salgssum_kroner, par24_finder_anvendelse, kontrol))
+= al62_miljøanlæg = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 110000, Falskt, al62_uden_bestemmende_indflydelse))
+= al62_miljøanlæg_tab = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 20000, Falskt, al62_uden_bestemmende_indflydelse))
+= al62_miljøanlæg_kontrolleret_tab = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 20000, Falskt, al62_med_bestemmende_indflydelse))
+= al62_miljøanlæg_par24 = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 110000, Sandt, al62_uden_bestemmende_indflydelse))
+= al62_miljøanlæg_før_lovens_virkning = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(1998, 110000, Falskt, al62_uden_bestemmende_indflydelse))
+
+= al68_overførsel = afskrivningslov68_resultat(Afskrivningslov68Input(
+    indkomstår = 2026,
+    position = Afskrivningslov68Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesdato = AfskrivningslovDato(år = 1988, måned = 12, dag = 31), anskaffet_til_erhvervsmæssig_udlejning = Sandt, hidtil_omfattet_af_tidligere_afsnit_va = Sandt),
+    hændelse = Al68OverførtTilAfskrivningsberettigetBenyttelseEfterKapitel2,
+    handelsværdi_på_overførselstidspunktet_kroner = 75000
+))
+= al68_fortsat = afskrivningslov68_resultat(Afskrivningslov68Input(
+    indkomstår = 2026,
+    position = Afskrivningslov68Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesdato = AfskrivningslovDato(år = 1988, måned = 12, dag = 31), anskaffet_til_erhvervsmæssig_udlejning = Sandt, hidtil_omfattet_af_tidligere_afsnit_va = Sandt),
+    hændelse = Al68FortsatErhvervsmæssigUdlejning,
+    handelsværdi_på_overførselstidspunktet_kroner = 0
+))
+= al68_før_lovens_virkning = afskrivningslov68_resultat(Afskrivningslov68Input(
+    indkomstår = 1998,
+    position = Afskrivningslov68Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesdato = AfskrivningslovDato(år = 1988, måned = 12, dag = 31), anskaffet_til_erhvervsmæssig_udlejning = Sandt, hidtil_omfattet_af_tidligere_afsnit_va = Sandt),
+    hændelse = Al68OverførtTilAfskrivningsberettigetBenyttelseEfterKapitel2,
+    handelsværdi_på_overførselstidspunktet_kroner = 75000
+))
+
+= al42_skov_2027 = afskrivningslov42_års_resultat(Afskrivningslov42ÅrsInput(
+    indkomstår = 2027,
+    position = Afskrivningslov42Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        afholdelsesår = 2027,
+        rettighed = Al42Ejer,
+        ombygnings_og_forbedringsudgift_kroner = 100000,
+        ejendomskategori = AlSkovejendom,
+        værelser_anvendes_til_turistudlejning = Sandt,
+        ejendommen_er_erhvervsmæssigt_drevet = Sandt,
+        momspligtig_udlejning = Sandt,
+        tidligere_afskrivninger = []
+    ),
+    årets_skattepligtige_udlejningsindtægt_kroner = 10000,
+    valg = AlSærligOrdinærAfskrivning(valgt_beløb_kroner = 10000)
+))
+
+| al50_beregner_næring_og_saldodel: al50_salg -> al50_salg.skattepligtig_fortjeneste_kroner == 8000 && al50_salg.beregnet_saldodel_for_aktivet_kroner == 64800 && al50_salg.formindskelse_af_saldoværdi_kroner == 64800 && al50_salg.saldoværdi_efter_salg_kroner == 35200
+| al50_samme_år_rører_ikke_saldoen: al50_samme_år -> al50_samme_år.køb_og_salg_i_samme_indkomstår && al50_samme_år.skattepligtig_fortjeneste_kroner == 5000 && al50_samme_år.formindskelse_af_saldoværdi_kroner == 0 && al50_samme_år.saldoværdi_efter_salg_kroner == 70000 && al50_før_lovens_virkning.position_gyldig == Falskt && al50_før_lovens_virkning.skattepligtig_fortjeneste_kroner == 0
+| al51_selskabsundtagelse_og_tilladelseskrav: al51_aps -> al51_aps.input_gyldigt && al51_aps.tilladelse_påkrævet == Falskt && al51_aps.kan_påbegynde_afskrivning_før_igangsættelse && al51_person_uden_tilladelse.tilladelse_påkrævet && al51_person_uden_tilladelse.kan_påbegynde_afskrivning_før_igangsættelse == Falskt && al51_person_kan_ikke_være_aps.input_gyldigt == Falskt && al51_person_kan_ikke_være_aps.kan_påbegynde_afskrivning_før_igangsættelse == Falskt
+| al52_kalendermånedsfrist: al52_på_fristslut -> al52_på_fristslut.frist_tre_måneder_efter_oplysningsfristen == AfskrivningslovDato(år = 2026, måned = 4, dag = 30) && al52_på_fristslut.rettidig_efter_stk1 && al52_på_fristslut.ændring_tilladt
+| al52_sen_ændring_kræver_tilladelse: al52_for_sent -> al52_for_sent.tilladelse_påkrævet_efter_stk2 && al52_for_sent.ændring_tilladt == Falskt && al52_for_sent_med_tilladelse.ændring_tilladt && al52_før_lovens_virkning.input_gyldigt == Falskt && al52_før_lovens_virkning.ændring_tilladt == Falskt
+| al53_er_ophævet: al52_for_sent -> afskrivningslov53_status() == Al53Ophævet
+| al54_skæringsdato_og_basis: al54_før_skæring -> al54_før_skæring.gammel_par14_eller_afsnit_iva_fortsat_anvendelig && al54_før_skæring.overføres_til_par17 && al54_før_skæring.afskrivningsberettiget_anskaffelsessum_efter_forskudsafskrivninger_kroner == 80000 && al54_på_skæring.forskudsafskrivning_afskåret_efter_stk3 && al54_på_skæring.gammel_par14_eller_afsnit_iva_fortsat_anvendelig == Falskt
+| al54_gammelt_par14_fortsætter: al54_gammelt_par14 -> al54_gammelt_par14.gammel_par14_eller_afsnit_iva_fortsat_anvendelig && al54_gammelt_par14.overføres_til_par5 && al54_gammelt_par14.afskrivningsberettiget_anskaffelsessum_efter_forskudsafskrivninger_kroner == 170000 && al54_før_lovens_virkning.gammel_par14_eller_afsnit_iva_fortsat_anvendelig == Falskt && al54_før_lovens_virkning.overføres_til_par5 == Falskt
+| al54_valg_og_obligatorisk_anvendelse: al54_par45_valg -> al54_par45_valg.valg_gyldigt && al54_par45_valg.par45_stk1_tredje_punktum_anvendes && al54_par45_obligatorisk.obligatorisk_anvendelse_fra_1999 && al54_par45_obligatorisk.par45_stk1_tredje_punktum_anvendes
+| al54_historiske_kompetencer_og_ordlyd: al54_par51 -> al54_par51.told_og_skatteforvaltningen_har_kompetence_efter_par51 && al54_par52.par52_finder_anvendelse && afskrivningslov54_historisk_par18b_ordlyd_gælder(AfskrivningslovDato(år = 1998, måned = 7, dag = 1), AfskrivningslovDato(år = 1999, måned = 3, dag = 31)) && afskrivningslov54_historisk_par18b_ordlyd_gælder(AfskrivningslovDato(år = 1999, måned = 1, dag = 1), AfskrivningslovDato(år = 1999, måned = 3, dag = 31)) && afskrivningslov54_historisk_par18b_ordlyd_gælder(AfskrivningslovDato(år = 1999, måned = 4, dag = 1), AfskrivningslovDato(år = 1999, måned = 3, dag = 31)) == Falskt
+| al55_fire_procent_cap: al55_grænse -> al55_grænse.højeste_afskrivning_efter_par55_kroner == 40000 && al55_grænse.overgangsbegrænsning_overholdt && al55_grænse.afskrivning_i_skattepligtig_indkomst_kroner == 40000 && al55_for_højt.overgangsbegrænsning_overholdt == Falskt && al55_for_højt.afskrivning_i_skattepligtig_indkomst_kroner == 0
+| al56_pristalsregulerer_til_1990: al56_resultat -> al56_resultat.pristalsregulering_efter_stk3 && al56_resultat.nominelle_afskrivninger_til_og_med_1990_kroner == 10000 && al56_resultat.pristalsregulerede_afskrivninger_til_og_med_1990_kroner == 12000 && al56_resultat.samtlige_foretagne_afskrivninger_efter_overgangen_kroner == 17000 && al56_resultat.par21_og_par22_finder_anvendelse
+| al57_samler_åbningssaldoen: al57_resultat -> al57_resultat.samlet_par5_saldo_ved_begyndelsen_af_1999_kroner == 60000
+| al58_tabet_bryder_par26_stk2: al58_tab -> al58_tab.fortsat_afskrivningsret_efter_stk1 && al58_tab.par26_stk2_tilsidesat && al58_tab.fradragsberettiget_tab_kroner == 30000 && al58_uden_ophør.fradragsberettiget_tab_kroner == 0 && al58_før_lovens_virkning.position_gyldig == Falskt && al58_før_lovens_virkning.fradragsberettiget_tab_kroner == 0
+| al58a_fem_procent_og_dispositionsstop: al58a_fradrag -> al58a_fradrag.fradrag_kan_foretages_i_indkomståret && al58a_fradrag.fem_procent_af_beregningsgrundlag_kroner == 25000 && al58a_fradrag.fradrag_i_skattepligtig_indkomst_kroner == 25000 && al58a_fradrag.udgift_som_ikke_indgår_i_afskrivningsgrundlaget_kroner == 25000 && al58a_fradrag.rest_til_afskrivningsgrundlaget_kroner == 15000 && al58a_fradrag.position_efter.tidligere_fradraget_efter_par58a_kroner == 25000 && al58a_disposition.fradrag_afskåret_i_dispositionsåret && al58a_disposition.fradrag_i_skattepligtig_indkomst_kroner == 0 && al58a_gentagelse.fradrag_kan_foretages_i_indkomståret == Falskt && al58a_gentagelse.fradrag_i_skattepligtig_indkomst_kroner == 0 && al58a_gentagelse_i_samme_år.fradrag_kan_foretages_i_indkomståret == Falskt && al58a_gentagelse_i_samme_år.fradrag_i_skattepligtig_indkomst_kroner == 0 && al58a_historisk_oktober.anvender_historisk_seneste_1_oktober && al58a_vurderingsskifteåret_bruger_oktober.anvender_historisk_seneste_1_oktober && al58a_nyt_januar.anvender_seneste_1_januar_efter_ny_vurdering && al58a_forkert_foregående_grundlagsår.position_gyldig == Falskt && al58a_forkert_foregående_grundlagsår.fradrag_i_skattepligtig_indkomst_kroner == 0
+| al59_matchende_historisk_hjemmel: al59_dræn -> al59_dræn.par27_afskærer_ikke_fortsat_afskrivning && al59_forkert_hjemmel.par27_afskærer_ikke_fortsat_afskrivning == Falskt
+| al60_beskyttet_rettighed_fordeles_lineært: al60_resultat -> al60_resultat.skæringshændelse_matcher_grundlaget && al60_resultat.historisk_skæringsdato == AfskrivningslovDato(år = 1997, måned = 1, dag = 1) && al60_resultat.omfattet_af_par60 && al60_resultat.beskyttet_rettighed_med_periode_under_ti_år && al60_resultat.højeste_årlige_afskrivning_kroner == 20000 && al60_resultat.afskrivning_i_skattepligtig_indkomst_kroner == 20000 && al60_resultat.position_efter.tidligere_foretagne_afskrivninger_og_fradrag_kroner == 40000 && al60_før_lovens_virkning.omfattet_af_par60 == Falskt && al60_før_lovens_virkning.afskrivning_i_skattepligtig_indkomst_kroner == 0 && al60_forkert_erhvervelsesdato.skæringshændelse_matcher_grundlaget == Falskt && al60_forkert_erhvervelsesdato.omfattet_af_par60 == Falskt
+| al61_bevarer_nominel_anskaffelsessum: al61_resultat -> al61_resultat.omfattet_af_par61 && al61_resultat.kontantomregning_undladt && al61_resultat.nominel_anskaffelsessum_kroner == 120000 && al61_resultat.kontantomregnet_anskaffelsessum_kroner == 100000 && al61_resultat.anskaffelsessum_efter_overgangsreglen_kroner == 120000
+| al62_fører_gamle_straksafskrivninger_til_salg: al62_driftsmiddel -> al62_driftsmiddel.omfattet_af_par62_stk1 && al62_driftsmiddel.behandles_efter_par6_stk2 && al62_driftsmiddel.skattepligtig_indtægtsføring_kroner == 40000 && al62_driftsmiddel_ophør.behandles_efter_par9 && al62_driftsmiddel_ophør.skattepligtig_indtægtsføring_kroner == 0 && al62_driftsmiddel_før_lovens_virkning.input_gyldigt == Falskt && al62_miljøanlæg.behandles_efter_par21 && al62_miljøanlæg.historisk_udgift_i_afskrivningsgrundlaget_kroner == 0 && al62_miljøanlæg.samlet_sum_af_foretagne_afskrivninger_kroner == 50000 && al62_miljøanlæg.par21_resultat.samlede_maksimalt_mulige_afskrivninger_kroner == 20000 && al62_miljøanlæg.nedskrevet_værdi_kroner == 50000 && al62_miljøanlæg.skattepligtige_genvundne_afskrivninger_kroner == 50000 && al62_miljøanlæg_tab.fradragsberettiget_tab_kroner == 30000 && al62_miljøanlæg_kontrolleret_tab.fradragsberettiget_tab_kroner == 0 && al62_miljøanlæg_kontrolleret_tab.par21_resultat.tab_afskåret_efter_stk5_kroner == 30000 && al62_miljøanlæg_par24.skattepligtige_genvundne_afskrivninger_kroner == 0 && al62_miljøanlæg_før_lovens_virkning.input_gyldigt == Falskt
+| al63_til_al67_er_ophævet: al62_driftsmiddel -> afskrivningslov63_status() == Al63Ophævet && afskrivningslov64_status() == Al64Ophævet && afskrivningslov65_status() == Al65Ophævet && afskrivningslov66_status() == Al66Ophævet && afskrivningslov67_status() == Al67Ophævet
+| al68_overfører_til_handelsværdi: al68_overførsel -> al68_overførsel.overførsel_sidestillet_med_salg_og_køb && al68_overførsel.overført_til_kapitel2 && al68_overførsel.salgssum_kroner == 75000 && al68_overførsel.købesum_kroner == 75000 && al68_fortsat.tidligere_afsnit_va_fortsat_anvendeligt_i_stedet_for_kapitel2_til4 && al68_før_lovens_virkning.position_gyldig == Falskt && al68_før_lovens_virkning.overførsel_sidestillet_med_salg_og_køb == Falskt
+| al69_afgrænser_territoriet: al68_overførsel -> afskrivningslov69_resultat(Al69Danmark).loven_gælder && afskrivningslov69_resultat(Al69Færøerne).loven_gælder == Falskt && afskrivningslov69_resultat(Al69Grønland).loven_gælder == Falskt
+| lov615_udvider_fra_2027: al42_skov_2027 -> afskrivningslov40c_ejendomskategori_omfattet(2026, AlNaturejendom) == Falskt && afskrivningslov40c_ejendomskategori_omfattet(2027, AlNaturejendom) && afskrivningslov42_ejendomskategori_omfattet(2026, AlSkovejendom) == Falskt && afskrivningslov42_ejendomskategori_omfattet(2027, AlSkovejendom) && al42_skov_2027.omfattet_af_par42 && al42_skov_2027.afskrivning_i_skattepligtig_indkomst_kroner == 10000
+
+? al50_beregner_næring_og_saldodel
+? al50_samme_år_rører_ikke_saldoen
+? al51_selskabsundtagelse_og_tilladelseskrav
+? al52_kalendermånedsfrist
+? al52_sen_ændring_kræver_tilladelse
+? al53_er_ophævet
+? al54_skæringsdato_og_basis
+? al54_gammelt_par14_fortsætter
+? al54_valg_og_obligatorisk_anvendelse
+? al54_historiske_kompetencer_og_ordlyd
+? al55_fire_procent_cap
+? al56_pristalsregulerer_til_1990
+? al57_samler_åbningssaldoen
+? al58_tabet_bryder_par26_stk2
+? al58a_fem_procent_og_dispositionsstop
+? al59_matchende_historisk_hjemmel
+? al60_beskyttet_rettighed_fordeles_lineært
+? al61_bevarer_nominel_anskaffelsessum
+? al62_fører_gamle_straksafskrivninger_til_salg
+? al63_til_al67_er_ophævet
+? al68_overfører_til_handelsværdi
+? al69_afgrænser_territoriet
+? lov615_udvider_fra_2027

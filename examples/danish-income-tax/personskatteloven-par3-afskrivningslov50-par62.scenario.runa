@@ -1,0 +1,97 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Afskrivningslovens operative beløb fra §§ 50-62 føres til
+-- Personskattelovens § 3, stk. 2, nr. 10 uden rå beløbsbroer.
+
+= al50_grundposition = Afskrivningslov50Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al50AndetAktivOmfattetAfLoven,
+    anskaffelsesår = 2025,
+    nominel_anskaffelsessum_kroner = 100000,
+    kontantomregnet_anskaffelsessum_til_saldo_kroner = 100000,
+    anvendte_afskrivningssatser = [Afskrivningslov50AnvendtAfskrivningssats(indkomstår = 2025, sats_basispoint = 2000)]
+)
+= al50_fortjeneste = afskrivningslov50_resultat(Afskrivningslov50SalgInput(salgsår = 2026, position = al50_grundposition, aktiv_hører_til_skattepligtiges_næringsvej = Sandt, nominel_salgssum_kroner = 88000, saldoværdi_før_salg_kroner = 100000))
+= al50_tab = afskrivningslov50_resultat(Afskrivningslov50SalgInput(salgsår = 2026, position = al50_grundposition, aktiv_hører_til_skattepligtiges_næringsvej = Sandt, nominel_salgssum_kroner = 60000, saldoværdi_før_salg_kroner = 100000))
+
+= al55_afskrivning = afskrivningslov55_resultat(Afskrivningslov55Input(
+    indkomstår = 1999,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    bygningskategori = Al55TidligerePar18Stk1LitraA,
+    anskaffelsessum_kroner = 1000000,
+    sum_anvendte_afskrivningsprocenter_basispoint = 6100,
+    valgt_afskrivning_kroner = 40000
+))
+
+= al58_salgstab = afskrivningslov58_resultat(Afskrivningslov58SalgInput(
+    afståelsesår = 2026,
+    position = Afskrivningslov58Position(skatteyder = AlSelvstændigErhvervsdrivendePerson, aktivart = Al58BygningEllerFastEjendom, anskaffelsesår = 1998, tidligere_hjemmel = Al58TidligerePar29CStk1Til3, uafskrevet_beløb_kroner = 100000),
+    salgssum_kroner = 70000,
+    anvendelse_efter_salg = Al58IkkeerhvervsmæssigtFormål
+))
+
+= al58a_fradrag = afskrivningslov58a_resultat(Afskrivningslov58AInput(
+    indkomstår = 1999,
+    position = Afskrivningslov58APosition(skatteyder = AlSelvstændigErhvervsdrivendePerson, anskaffelsesår = 1985, udgiftsår = 1998, første_indkomstår_fuldført_og_taget_i_brug = 1999, afskrivningsberettiget_bygning_eller_installation = Sandt, oprindelig_ombygnings_eller_forbedringsudgift_kroner = 40000, tidligere_fradraget_efter_par58a_kroner = 0, beregningsgrundlag = Al58AForegåendeÅrsAfskrivningsgrundlag(indkomstår = 1998, beløb_kroner = 500000)),
+    disposition = Al58AFortsatEjeOgBrug,
+    valgt_fradrag_kroner = 25000
+))
+
+= al60_kontrol = Afskrivningslov40Kontrol(
+    overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Falskt,
+    kapitalandel_basispoint = 0,
+    stemmerettigheder_basispoint = 0,
+    ejerandel_basispoint = 0,
+    bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+    ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 0
+)
+= al60_afskrivning = afskrivningslov60_resultat(Afskrivningslov60Input(
+    indkomstår = 1999,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(erhverver = AlSelvstændigErhvervsdrivendePerson, aktivart = Al40Patentret, endelig_aftaledato = AfskrivningslovDato(år = 1997, måned = 1, dag = 1), anskaffelsessum_kroner = 100000, beskyttelses_eller_rettighedsperiode_år = 5, goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt, udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt, kontrol = al60_kontrol),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 20000,
+        forlods_afskrivninger_kroner = 0
+    ),
+    historisk_skæringshændelse = Al60AktivErhvervet(dato = AfskrivningslovDato(år = 1997, måned = 1, dag = 1)),
+    rettighed_beskyttet_efter_anden_lovgivning = Sandt,
+    resterende_beskyttelsesperiode_på_aftaletidspunktet_år = 5,
+    goodwill_afskrivningsberettiget_efter_tidligere_ligningslov16f = Falskt,
+    valgt_afskrivning_kroner = 20000
+))
+
+= al62_driftsmiddel = afskrivningslov62_driftsmiddel_salg_resultat(Afskrivningslov62DriftsmiddelSalgInput(indkomstår = 2026, skatteyder = AlSelvstændigErhvervsdrivendePerson, straksafskrevet_efter_tidligere_par3a = Sandt, salgssum_kroner = 40000, leveret_i_indkomståret = Sandt, virksomhed_sælges_eller_ophører_i_indkomståret = Falskt))
+= al62_miljøbygning = AlK3Bygning(resultat = afskrivningslov14_resultat(Afskrivningslov14Input(skatteyder = AlSelvstændigErhvervsdrivendePerson, anvendelse = Al14AndenErhvervsanvendelse, erhvervsmæssigt_benyttet = Sandt, postsortering_med_industrielt_præg = Falskt, tilknytning = Al14IkkeTilknyttet, tilknyttet_art = Al14BygningEllerLokale)))
+= al62_miljøværdi_før_overgang = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al62_miljøbygning,
+    grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner = 100000, straksfradrag_som_ikke_medregnes_kroner = 0, afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 20000, fratrukne_afskrivninger_kroner = 20000)]),
+    par39_historik = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
+))
+= al62_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
+| al62_par21_input(salgssum_kroner: Heltal) -> Afskrivningslov21Input(indkomstår = 2026, nedskrevet_værdi_resultat = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum_kroner = salgssum_kroner, par24_finder_anvendelse = Falskt, kontrol = al62_uden_bestemmende_indflydelse)
+| al62_miljøinput(salgssum_kroner: Heltal) -> Afskrivningslov62MiljøanlægSalgInput(straksafskrevet_efter_tidligere_par21a = Sandt, historisk_straksafskrevet_udgift_kroner = 30000, par21_input = al62_par21_input(salgssum_kroner))
+= al62_miljøanlæg_fortjeneste = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(110000))
+= al62_miljøanlæg_tab = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(20000))
+
+= par3_afskrivningslov50_62 = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(grundlagsposter = [
+    Par3Nr10Al50(resultat = al50_fortjeneste),
+    Par3Nr10Al50(resultat = al50_tab),
+    Par3Nr10Al55(resultat = al55_afskrivning),
+    Par3Nr10Al58(resultat = al58_salgstab),
+    Par3Nr10Al58A(resultat = al58a_fradrag),
+    Par3Nr10Al60(resultat = al60_afskrivning),
+    Par3Nr10Al62Driftsmiddel(resultat = al62_driftsmiddel),
+    Par3Nr10Al62Miljøanlæg(resultat = al62_miljøanlæg_fortjeneste),
+    Par3Nr10Al62Miljøanlæg(resultat = al62_miljøanlæg_tab)
+]))
+
+| par3_al50_62_hjemler_er_typede: par3_afskrivningslov50_62 -> par3_stk2_nr10_hjemmel(Par3Nr10Al50(resultat = al50_fortjeneste)) == Par3Nr10Afskrivningslov50 && par3_stk2_nr10_hjemmel(Par3Nr10Al55(resultat = al55_afskrivning)) == Par3Nr10Afskrivningslov55 && par3_stk2_nr10_hjemmel(Par3Nr10Al58(resultat = al58_salgstab)) == Par3Nr10Afskrivningslov58 && par3_stk2_nr10_hjemmel(Par3Nr10Al58A(resultat = al58a_fradrag)) == Par3Nr10Afskrivningslov58A && par3_stk2_nr10_hjemmel(Par3Nr10Al60(resultat = al60_afskrivning)) == Par3Nr10Afskrivningslov60 && par3_stk2_nr10_hjemmel(Par3Nr10Al62Driftsmiddel(resultat = al62_driftsmiddel)) == Par3Nr10Afskrivningslov62Driftsmiddel && par3_stk2_nr10_hjemmel(Par3Nr10Al62Miljøanlæg(resultat = al62_miljøanlæg_fortjeneste)) == Par3Nr10Afskrivningslov62Miljøanlæg
+| par3_al50_62_bevarer_bruttoindtægt: par3_afskrivningslov50_62 -> par3_afskrivningslov50_62.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 98000 && par3_afskrivningslov50_62.indtægtsføring_i_personlig_indkomst_kroner == 98000
+| par3_al50_62_bevarer_fradragsarter: par3_afskrivningslov50_62 -> par3_afskrivningslov50_62.brutto_skattemæssige_afskrivninger_kroner == 60000 && par3_afskrivningslov50_62.brutto_tab_kroner == 80000 && par3_afskrivningslov50_62.brutto_andre_fradrag_kroner == 25000 && par3_afskrivningslov50_62.brutto_fradrag_efter_kildelovene_kroner == 165000 && par3_afskrivningslov50_62.fradrag_i_personlig_indkomst_kroner == 165000
+| par3_al50_62_netter_ikke_posterne: par3_afskrivningslov50_62 -> par3_afskrivningslov50_62.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 98000 && par3_afskrivningslov50_62.brutto_fradrag_efter_kildelovene_kroner == 165000
+
+? par3_al50_62_hjemler_er_typede
+? par3_al50_62_bevarer_bruttoindtægt
+? par3_al50_62_bevarer_fradragsarter
+? par3_al50_62_netter_ikke_posterne

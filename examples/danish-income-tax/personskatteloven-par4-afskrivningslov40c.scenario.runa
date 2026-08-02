@@ -437,19 +437,19 @@
 ]
 = al40c_ejendomstab = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
     indkomstår = 2022,
-    ejendomskategori = Al40CLandbrugsEllerSkovejendom,
+    ejendomskategori = AlLandbrugsejendom,
     fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
     negativ_saldo_historik = al40c_negativ_historik
 ))
 = al40c_andet_ejendomstab = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
     indkomstår = 2022,
-    ejendomskategori = Al40CAndenEjendom,
+    ejendomskategori = AlAndenEjendom,
     fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
     negativ_saldo_historik = al40c_negativ_historik
 ))
 = al40c_dobbelt_historik = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
     indkomstår = 2022,
-    ejendomskategori = Al40CLandbrugsEllerSkovejendom,
+    ejendomskategori = AlSkovejendom,
     fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
     negativ_saldo_historik = [al40c_negativ_historik[0], al40c_negativ_historik[0]]
 ))
