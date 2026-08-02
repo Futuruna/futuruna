@@ -1,0 +1,18 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: true
+-- expect-stdout: false
+-- expect-stdout: true
+-- expect-stdout: false
+--
+-- `contains` is overloaded for strings and lists. A typed list needle must be
+-- borrowed as an element, not dereferenced as though it were a string.
+
+# Tag = Ordinary | Special
+
+| has_tag(tags: List(Tag), tag: Tag) -> contains(tags, tag)
+
+@ print(show(contains("ordinary special", "special")))
+@ print(show(contains("ordinary", "special")))
+@ print(show(has_tag([Ordinary, Special], Special)))
+@ print(show(has_tag([Ordinary], Special)))

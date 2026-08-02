@@ -13633,7 +13633,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("split",        BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()" }),
         ("join",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.join(&*{1})" }),
         ("trim",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().to_string()" }),
-        ("contains",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.contains(&*{1})" }),
+        ("contains",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_contains(&{0}, &{1})" }),
         ("starts_with",  BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.starts_with(&*{1})" }),
         ("ends_with",    BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.ends_with(&*{1})" }),
         ("replace",      BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.replace(&*{1}, &*{2})" }),
@@ -22732,6 +22732,12 @@ impl RustCodegen {
         out.push_str(
             "fn __futuruna_len<T: __FuturunaLen + ?Sized>(v: &T) -> i64 { v.__futuruna_len() }\n",
         );
+        out.push_str("trait __FuturunaContains<N: ?Sized> { fn __futuruna_contains(&self, needle: &N) -> bool; }\n");
+        out.push_str("impl<T: PartialEq> __FuturunaContains<T> for Vec<T> { fn __futuruna_contains(&self, needle: &T) -> bool { self.contains(needle) } }\n");
+        out.push_str("impl<N: AsRef<str> + ?Sized> __FuturunaContains<N> for String { fn __futuruna_contains(&self, needle: &N) -> bool { self.contains(needle.as_ref()) } }\n");
+        out.push_str("impl<N: AsRef<str> + ?Sized> __FuturunaContains<N> for str { fn __futuruna_contains(&self, needle: &N) -> bool { self.contains(needle.as_ref()) } }\n");
+        out.push_str("impl<H: __FuturunaContains<N> + ?Sized, N: ?Sized> __FuturunaContains<N> for &H { fn __futuruna_contains(&self, needle: &N) -> bool { (*self).__futuruna_contains(needle) } }\n");
+        out.push_str("fn __futuruna_contains<H: __FuturunaContains<N> + ?Sized, N: ?Sized>(haystack: &H, needle: &N) -> bool { haystack.__futuruna_contains(needle) }\n");
         out.push_str(
             "fn __futuruna_show_set<T: fmt::Debug>(items: &BTreeMap<String, T>) -> String {\n",
         );

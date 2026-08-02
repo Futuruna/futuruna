@@ -10411,6 +10411,11 @@ impl Interpreter {
                 (Some(Value::Str(s)), Some(Value::Str(sub))) => {
                     Value::Bool(s.contains(sub.as_str()))
                 }
+                (Some(list), Some(needle)) if values_are_list_like(list) => Value::Bool(
+                    list_to_vec(list)
+                        .iter()
+                        .any(|item| values_equal(item, needle)),
+                ),
                 _ => Value::Bool(false),
             },
             "starts_with" => match (args.get(0), args.get(1)) {
@@ -17326,6 +17331,35 @@ mod tests {
         assert_eq!(
             env.get("same").map(ToString::to_string),
             Some("true".into())
+        );
+    }
+
+    #[test]
+    fn interpreted_contains_supports_typed_list_needles() {
+        let source = r#"
+# Tag = Ordinary | Special
+| has_tag(tags: List(Tag), tag: Tag) -> contains(tags, tag)
+= present = has_tag([Ordinary, Special], Special)
+= absent = has_tag([Ordinary], Special)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse typed list contains regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("present").map(ToString::to_string),
+            Some("true".into())
+        );
+        assert_eq!(
+            env.get("absent").map(ToString::to_string),
+            Some("false".into())
         );
     }
 

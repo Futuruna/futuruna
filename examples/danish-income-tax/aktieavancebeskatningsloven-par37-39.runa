@@ -1,0 +1,287 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par23 - 27
+
+= aktieavancebeskatningsloven_lbk1098_par37 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 37",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lbk1098_par38 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 38",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lbk1098_par39 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 39",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par37 = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946389",
+    identifier = "Den juridiske vejledning C.B.2.14.1: tilflytning",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946393",
+    identifier = "Den juridiske vejledning C.B.2.14.2.3: personkredsen for fraflytterskat",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946398",
+    identifier = "Den juridiske vejledning C.B.2.14.2.7: gevinst og tab ved fraflytning",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par39 = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946400",
+    identifier = "Den juridiske vejledning C.B.2.14.2.8.1: henstand med betaling af skatten",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_par37::source:aktieavancebeskatningsloven_lbk1098_par37::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par37::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 37. Aktier, som ikke i forvejen er omfattet af dansk beskatning, anses for
+anskaffet på det faktiske anskaffelsestidspunkt til handelsværdien på
+tilflytningstidspunktet, jf. selskabsskattelovens § 4 A og kildeskattelovens § 9.
+Når et selskab m.v. eller en person efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst indgået mellem Danmark og en fremmed stat,
+Færøerne eller Grønland bliver hjemmehørende i Danmark, sidestilles dette ved
+anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
+----
+
+--@begin:aktieavancebeskatningsloven_par37--
+# AktieavancePar37Indtrædelsesgrund = AblPar37SkattepligtIndtræder | AblPar37TraktathjemstedBliverDanmark | AblPar37IngenIndtrædenAfDanskBeskatning
+# AktieavancePar37Input(faktisk_anskaffelsestidspunkt: AktieavancePar23Dato, hidtidig_anskaffelsessum_kroner: Heltal, handelsværdi_på_tilflytningstidspunktet_kroner: Heltal, i_forvejen_omfattet_af_dansk_beskatning: Boolsk, indtrædelsesgrund: AktieavancePar37Indtrædelsesgrund)
+# AktieavancePar37Resultat(input: AktieavancePar37Input, input_gyldigt: Boolsk, reglen_finder_anvendelse: Boolsk, skattemæssigt_anskaffelsestidspunkt: AktieavancePar23Dato, skattemæssig_anskaffelsessum_kroner: Heltal)
+
+| aktieavance_par37_indtrædelsesgrund_omfattet(grund: AktieavancePar37Indtrædelsesgrund) -> grund == AblPar37SkattepligtIndtræder || grund == AblPar37TraktathjemstedBliverDanmark
+
+# AktieavancePar37Sag(input: AktieavancePar37Input) {
+    | input_gyldigt() -> aktieavance_par23_dato_gyldig(input.faktisk_anskaffelsestidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0
+    | reglen_finder_anvendelse() -> input_gyldigt() && input.i_forvejen_omfattet_af_dansk_beskatning == Falskt && aktieavance_par37_indtrædelsesgrund_omfattet(input.indtrædelsesgrund)
+    | skattemæssigt_anskaffelsestidspunkt() -> input.faktisk_anskaffelsestidspunkt
+    | skattemæssig_anskaffelsessum_kroner() -> input.hidtidig_anskaffelsessum_kroner
+    | exception abl_par37_handelsværdi_som_indgangsværdi skattemæssig_anskaffelsessum_kroner() -> input.handelsværdi_på_tilflytningstidspunktet_kroner under reglen_finder_anvendelse()
+    | resultat() -> AktieavancePar37Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        reglen_finder_anvendelse = reglen_finder_anvendelse(),
+        skattemæssigt_anskaffelsestidspunkt = skattemæssigt_anskaffelsestidspunkt(),
+        skattemæssig_anskaffelsessum_kroner = skattemæssig_anskaffelsessum_kroner()
+    )
+}
+
+| aktieavance_par37_resultat(input: AktieavancePar37Input) -> AktieavancePar37Sag(input).resultat()
+--@end:aktieavancebeskatningsloven_par37--
+
+--@label:aktieavancebeskatningsloven_par38::source:aktieavancebeskatningsloven_lbk1098_par38::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 38. Gevinst og tab på aktier omfattet af reglerne i denne lov betragtes som
+realiseret, hvis gevinsten eller tabet vedrører en aktie, der er omfattet af
+dansk beskatning, og den danske beskatningsret ophører af anden grund end den
+skattepligtiges død, jf. dog stk. 2 og 3. Gevinst og tab på aktier, som ved en
+afståelse 3 år eller mere efter erhvervelsen omfattes af § 44, men som på
+tidspunktet for skattepligtens ophør har været ejet i mindre end 3 år, betragtes
+dog ikke som realiseret efter 1. pkt. Når en person efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst indgået mellem Danmark og en fremmed stat,
+Færøerne eller Grønland bliver hjemmehørende uden for Danmark, sidestilles dette
+ved anvendelse af reglerne i 1. pkt., stk. 2-5, og §§ 39-39 B med ophør af
+skattepligt.
+
+Stk. 2. Reglerne i stk. 1 gælder kun for personer, der på tidspunktet for
+skattepligtens ophør har en beholdning af aktier med en samlet kursværdi på
+100.000 kr. eller mere, medmindre der i beholdningen er andele i et
+medarbejderinvesteringsselskab, hvor der ved indbetalingen er givet
+bortseelsesret, jf. ligningslovens § 7 N, aktier, der er erhvervet efter
+ligningslovens § 7 P, aktier, der er erhvervet ved udnyttelse af en købe- eller
+tegningsret til aktier omfattet af ligningslovens § 7 P, eller aktier med en
+negativ anskaffelsessum.
+
+Stk. 3. Reglerne i stk. 1 gælder kun for personer, der har været skattepligtige
+efter kildeskattelovens § 1 eller § 2 af aktiegevinster i en eller flere perioder
+på i alt mindst 7 år inden for de seneste 10 år før skattepligtsophøret. Reglerne
+i stk. 1 gælder dog også, hvis aktierne er erhvervet fra den skattepligtiges
+ægtefælle og denne opfylder betingelserne i 1. pkt. Endvidere gælder reglerne for
+personer, der ved erhvervelse af aktier efter §§ 34, 35 og 35 A er indtrådt i
+overdragerens skattemæssige stilling, og for aktier, der er erhvervet ved en
+skattefri virksomhedsomdannelse, hvor den personligt ejede virksomhed er
+erhvervet ved succession, for andele i et medarbejderinvesteringsselskab, hvor
+der ved indbetalingen er givet bortseelsesret, jf. ligningslovens § 7 N, samt for
+aktier, der er erhvervet efter ligningslovens § 7 P, aktier, der er erhvervet
+ved udnyttelse af en købe- eller tegningsret til aktier omfattet af
+ligningslovens § 7 P, og personens øvrige aktier i det selskab, hvori der er
+erhvervet aktier efter ligningslovens § 7 P. Betingelserne i 1. pkt. gælder ikke
+for personer, der efter § 39 B har fået nedsat handelsværdien for aktier, der på
+tilflytningstidspunktet fortsat indgik på den beholdningsoversigt, der er nævnt i
+§ 39 A, stk. 1.
+
+Stk. 4. Gevinst og tab, der anses for realiseret efter stk. 1, opgøres efter
+reglerne i §§ 23-29 og 46, dog træder værdien ved skattepligtens ophør i stedet
+for afståelsessummen. For tegningsretter til aktier kan den skattepligtige i
+stedet vælge at opgøre den skattepligtige gevinst som forskellen mellem
+udnyttelseskursen og markedskursen på den pågældende aktie på tidspunktet for
+skattepligtens ophør. Tab, der ved en afståelse kunne have været fradraget efter
+§§ 13-14, 17, 18, 19 B og 19 C, § 20, stk. 2, og §§ 21 og 22, kan dog kun
+fradrages i gevinst på aktier, der anses for realiseret efter stk. 1.
+
+Stk. 5. Der beregnes skat af den samlede nettogevinst opgjort efter stk. 4, der
+anses for realiseret efter stk. 1. Der gives henstand med betaling af den
+beregnede skat efter reglerne i § 39 og § 39 A, i det omfang gevinst eller tab
+ved skattepligtsophøret skal opgøres efter realisationsprincippet.
+----
+
+--@begin:aktieavancebeskatningsloven_par38--
+# AktieavancePar38Ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 | AblPar38TraktathjemstedBliverUdland | AblPar38AndetOphørAfDanskBeskatningsret | AblPar38OphørVedDød | AblPar38DanskBeskatningsretFortsætter
+# AktieavancePar38Tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr | AblPar38UnderSyvÅrIndenForSenesteTiÅr | AblPar38Par39BNedsatHandelsværdiVedTilflytning
+# AktieavancePar38Beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning | AblPar38AktieIkkeOmfattetAfDanskBeskatning
+# AktieavancePar38Par44Status = AblPar38IkkeHistoriskPar44Aktie | AblPar38Par44AktieEjetUnderTreÅrVedOphør | AblPar38Par44AktieEjetMindstTreÅrVedOphør
+# AktieavancePar38Aktieegenskab = AblPar38MedarbejderandelEfterLl7N | AblPar38AktieErhvervetEfterLl7P | AblPar38AktieVedUdnyttelseAfLl7PRet | AblPar38ØvrigAktieISammeSelskabSomLl7P | AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet | AblPar38SuccessionEfterPar34Til35A | AblPar38SkattefriVirksomhedsomdannelseEfterSuccession
+# AktieavancePar38Tabsstatus = AblPar38TabFradragsberettigetEfterStk4 | AblPar38TabIkkeFradragsberettigetVedAfståelse
+# AktieavancePar38Opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner: Heltal) | AblPar38TegningsretValgEfterStk4(antal_rettigheder: Heltal, udnyttelseskurs_pr_aktie_kroner: Heltal, markedskurs_pr_aktie_ved_ophør_kroner: Heltal)
+# AktieavancePar38Aktie(identifikation: Tekst, handelsværdi_ved_ophør_kroner: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, beskatningsstatus: AktieavancePar38Beskatningsstatus, par44_status: AktieavancePar38Par44Status, egenskaber: List(AktieavancePar38Aktieegenskab), opgørelsesgrundlag: AktieavancePar38Opgørelsesgrundlag, tabsstatus: AktieavancePar38Tabsstatus, princip: AktieavancePar23Princip)
+# AktieavancePar38Input(ophørsgrund: AktieavancePar38Ophørsgrund, tilknytning: AktieavancePar38Tilknytning, aktier: List(AktieavancePar38Aktie))
+# AktieavancePar38Resultat(input: AktieavancePar38Input, input_gyldigt: Boolsk, skattepligtsophør_efter_stk1: Boolsk, samlet_kursværdi_efter_stk2_kroner: Heltal, særlig_beholdning_efter_stk2: Boolsk, beholdningskrav_efter_stk2_opfyldt: Boolsk, antal_aktier_omfattet: Heltal, samlede_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, afskårne_tab_kroner: Heltal, samlet_nettogevinst_før_gulv_kroner: Heltal, nettogevinst_til_skatteberegning_efter_stk5_kroner: Heltal, overskydende_tab_kroner: Heltal, realisationsprincippets_gevinster_kroner: Heltal, realisationsprincippets_fradragsberettigede_tab_kroner: Heltal, har_realisationsopgjorte_poster: Boolsk)
+
+| aktieavance_par38_ophør_udløser_stk1(ophørsgrund: AktieavancePar38Ophørsgrund) -> match ophørsgrund { | AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 -> Sandt | AblPar38TraktathjemstedBliverUdland -> Sandt | AblPar38AndetOphørAfDanskBeskatningsret -> Sandt | _ -> Falskt }
+| aktieavance_par38_ophør_kan_give_henstand(ophørsgrund: AktieavancePar38Ophørsgrund) -> ophørsgrund == AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 || ophørsgrund == AblPar38TraktathjemstedBliverUdland
+| aktieavance_par38_har_egenskab(aktie: AktieavancePar38Aktie, egenskab: AktieavancePar38Aktieegenskab) -> contains(aktie.egenskaber, egenskab)
+| aktieavance_par38_stk2_særlig_aktie(aktie: AktieavancePar38Aktie) -> aktie.skattemæssig_anskaffelsessum_kroner < 0 || aktieavance_par38_har_egenskab(aktie, AblPar38MedarbejderandelEfterLl7N) || aktieavance_par38_har_egenskab(aktie, AblPar38AktieErhvervetEfterLl7P) || aktieavance_par38_har_egenskab(aktie, AblPar38AktieVedUdnyttelseAfLl7PRet)
+| aktieavance_par38_stk3_særlig_aktie(aktie: AktieavancePar38Aktie) -> aktieavance_par38_har_egenskab(aktie, AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet) || aktieavance_par38_har_egenskab(aktie, AblPar38SuccessionEfterPar34Til35A) || aktieavance_par38_har_egenskab(aktie, AblPar38SkattefriVirksomhedsomdannelseEfterSuccession) || aktieavance_par38_har_egenskab(aktie, AblPar38MedarbejderandelEfterLl7N) || aktieavance_par38_har_egenskab(aktie, AblPar38AktieErhvervetEfterLl7P) || aktieavance_par38_har_egenskab(aktie, AblPar38AktieVedUdnyttelseAfLl7PRet) || aktieavance_par38_har_egenskab(aktie, AblPar38ØvrigAktieISammeSelskabSomLl7P)
+| aktieavance_par38_opgørelsesgrundlag_gyldigt(grundlag: AktieavancePar38Opgørelsesgrundlag) -> match grundlag { | AblPar38OpgjortEfterPar23Til29Og46(_) -> Sandt | AblPar38TegningsretValgEfterStk4(antal, udnyttelseskurs, markedskurs) -> antal >= 0 && udnyttelseskurs >= 0 && markedskurs >= 0 }
+| aktieavance_par38_opgjort_nettogevinst_kroner(aktie: AktieavancePar38Aktie) -> match aktie.opgørelsesgrundlag { | AblPar38OpgjortEfterPar23Til29Og46(nettogevinst) -> nettogevinst | AblPar38TegningsretValgEfterStk4(antal, udnyttelseskurs, markedskurs) -> antal * (markedskurs - udnyttelseskurs) }
+| aktieavance_par38_aktie_gyldig(aktie: AktieavancePar38Aktie) -> aktie.identifikation != "" && aktie.handelsværdi_ved_ophør_kroner >= 0 && aktieavance_par38_opgørelsesgrundlag_gyldigt(aktie.opgørelsesgrundlag)
+| aktieavance_par38_identifikation_unik(aktier: List(AktieavancePar38Aktie), aktie: AktieavancePar38Aktie) -> foldl(aktier, 0, |antal: Heltal, anden: AktieavancePar38Aktie| antal + hvis anden.identifikation == aktie.identifikation { 1 } ellers { 0 }) == 1
+
+# AktieavancePar38Sag(input: AktieavancePar38Input) {
+    | input_gyldigt() -> foldl(input.aktier, Sandt, |alle: Boolsk, aktie: AktieavancePar38Aktie| alle && aktieavance_par38_aktie_gyldig(aktie) && aktieavance_par38_identifikation_unik(input.aktier, aktie))
+    | skattepligtsophør_efter_stk1() -> input_gyldigt() && aktieavance_par38_ophør_udløser_stk1(input.ophørsgrund)
+    | samlet_kursværdi_efter_stk2_kroner() -> hvis input_gyldigt() { foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + aktie.handelsværdi_ved_ophør_kroner) } ellers { 0 }
+    | særlig_beholdning_efter_stk2() -> input_gyldigt() && foldl(input.aktier, Falskt, |fundet: Boolsk, aktie: AktieavancePar38Aktie| fundet || aktieavance_par38_stk2_særlig_aktie(aktie))
+    | beholdningskrav_efter_stk2_opfyldt() -> input_gyldigt() && (samlet_kursværdi_efter_stk2_kroner() >= 100000 || særlig_beholdning_efter_stk2())
+    | tilknytningskrav_opfyldt_for_aktie(aktie: AktieavancePar38Aktie) -> input.tilknytning == AblPar38MindstSyvÅrIndenForSenesteTiÅr || input.tilknytning == AblPar38Par39BNedsatHandelsværdiVedTilflytning || aktieavance_par38_stk3_særlig_aktie(aktie)
+    | aktie_finder_anvendelse(aktie: AktieavancePar38Aktie) -> skattepligtsophør_efter_stk1() && beholdningskrav_efter_stk2_opfyldt() && aktie.beskatningsstatus == AblPar38AktieOmfattetAfDanskBeskatning && aktie.par44_status != AblPar38Par44AktieEjetUnderTreÅrVedOphør && tilknytningskrav_opfyldt_for_aktie(aktie)
+    | gevinst_for_aktie_kroner(aktie: AktieavancePar38Aktie) -> hvis aktie_finder_anvendelse(aktie) { penge_positivt_beløb(aktieavance_par38_opgjort_nettogevinst_kroner(aktie)) } ellers { 0 }
+    | fradragsberettiget_tab_for_aktie_kroner(aktie: AktieavancePar38Aktie) -> hvis aktie_finder_anvendelse(aktie) && aktie.tabsstatus == AblPar38TabFradragsberettigetEfterStk4 { penge_positivt_beløb(0 - aktieavance_par38_opgjort_nettogevinst_kroner(aktie)) } ellers { 0 }
+    | afskåret_tab_for_aktie_kroner(aktie: AktieavancePar38Aktie) -> hvis aktie_finder_anvendelse(aktie) && aktie.tabsstatus == AblPar38TabIkkeFradragsberettigetVedAfståelse { penge_positivt_beløb(0 - aktieavance_par38_opgjort_nettogevinst_kroner(aktie)) } ellers { 0 }
+    | antal_aktier_omfattet() -> foldl(input.aktier, 0, |antal: Heltal, aktie: AktieavancePar38Aktie| antal + hvis aktie_finder_anvendelse(aktie) { 1 } ellers { 0 })
+    | samlede_gevinster_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + gevinst_for_aktie_kroner(aktie))
+    | fradragsberettigede_tab_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + fradragsberettiget_tab_for_aktie_kroner(aktie))
+    | afskårne_tab_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + afskåret_tab_for_aktie_kroner(aktie))
+    | samlet_nettogevinst_før_gulv_kroner() -> samlede_gevinster_kroner() - fradragsberettigede_tab_kroner()
+    | nettogevinst_til_skatteberegning_efter_stk5_kroner() -> penge_positivt_beløb(samlet_nettogevinst_før_gulv_kroner())
+    | overskydende_tab_kroner() -> penge_positivt_beløb(0 - samlet_nettogevinst_før_gulv_kroner())
+    | realisationsprincippets_gevinster_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + hvis aktie.princip == AblPar23Realisationsprincip { gevinst_for_aktie_kroner(aktie) } ellers { 0 })
+    | realisationsprincippets_fradragsberettigede_tab_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + hvis aktie.princip == AblPar23Realisationsprincip { fradragsberettiget_tab_for_aktie_kroner(aktie) } ellers { 0 })
+    | har_realisationsopgjorte_poster() -> foldl(input.aktier, Falskt, |fundet: Boolsk, aktie: AktieavancePar38Aktie| fundet || aktie_finder_anvendelse(aktie) && aktie.princip == AblPar23Realisationsprincip)
+    | resultat() -> AktieavancePar38Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        skattepligtsophør_efter_stk1 = skattepligtsophør_efter_stk1(),
+        samlet_kursværdi_efter_stk2_kroner = samlet_kursværdi_efter_stk2_kroner(),
+        særlig_beholdning_efter_stk2 = særlig_beholdning_efter_stk2(),
+        beholdningskrav_efter_stk2_opfyldt = beholdningskrav_efter_stk2_opfyldt(),
+        antal_aktier_omfattet = antal_aktier_omfattet(),
+        samlede_gevinster_kroner = samlede_gevinster_kroner(),
+        fradragsberettigede_tab_kroner = fradragsberettigede_tab_kroner(),
+        afskårne_tab_kroner = afskårne_tab_kroner(),
+        samlet_nettogevinst_før_gulv_kroner = samlet_nettogevinst_før_gulv_kroner(),
+        nettogevinst_til_skatteberegning_efter_stk5_kroner = nettogevinst_til_skatteberegning_efter_stk5_kroner(),
+        overskydende_tab_kroner = overskydende_tab_kroner(),
+        realisationsprincippets_gevinster_kroner = realisationsprincippets_gevinster_kroner(),
+        realisationsprincippets_fradragsberettigede_tab_kroner = realisationsprincippets_fradragsberettigede_tab_kroner(),
+        har_realisationsopgjorte_poster = har_realisationsopgjorte_poster()
+    )
+}
+
+| aktieavance_par38_resultat(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).resultat()
+--@end:aktieavancebeskatningsloven_par38--
+
+--@label:aktieavancebeskatningsloven_par39::source:aktieavancebeskatningsloven_lbk1098_par39::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 39. Personer kan få henstand med betaling af den beregnede skat, jf. § 38,
+stk. 5, når betalingen skyldes ophør af skattepligt efter kildeskattelovens § 1,
+eller at personen efter bestemmelserne i en dobbeltbeskatningsoverenskomst er
+blevet hjemmehørende uden for Danmark, jf. § 38, stk. 1, 3. pkt.
+
+Stk. 2. Henstand efter stk. 1 er betinget af, at der ved fraflytning m.v. afgives
+oplysninger til told- og skatteforvaltningen efter skattekontrollovens § 2. Der
+skal indgives en beholdningsoversigt, jf. § 39 A, stk. 1, sammen med oplysningerne
+som nævnt i 1. pkt. Forlænges oplysningsfristen efter skattekontrollovens § 14,
+stk. 1, skal oplysninger og beholdningsoversigt være afgivet inden den nye frist.
+
+Stk. 3. Sker personens fraflytning m.v. til et land, der ikke er omfattet af
+overenskomst af 7. december 1989 mellem de nordiske lande om bistand i
+skattesager eller Rådets direktiv 2010/24/EU af 16. marts 2010, er henstand efter
+stk. 1 endvidere betinget af, at der stilles betryggende sikkerhed. Sikkerheden
+skal stå i passende forhold til henstandsbeløbet og kan stilles i form af aktier,
+obligationer, der er optaget til handel på et reguleret marked, bankgaranti eller
+anden betryggende sikkerhed. Er personens fraflytning sket til et land, der er
+omfattet af den i 1. pkt. nævnte overenskomst eller det i 1. pkt. nævnte
+direktiv, og flytter personen efterfølgende videre til et land, der ikke er
+omfattet af den nævnte overenskomst eller det nævnte direktiv, er fortsat
+henstand betinget af, at der stilles betryggende sikkerhed, jf. 2. pkt. Er
+personens fraflytning sket til et land, der ikke er omfattet af den i 1. pkt.
+nævnte overenskomst eller det i 1. pkt. nævnte direktiv, og flytter personen
+efterfølgende videre til et land, der er omfattet af den nævnte overenskomst
+eller det nævnte direktiv, frigives den stillede sikkerhed efter anmodning.
+
+Stk. 4. Afgives oplysninger efter skattekontrollovens § 2 og beholdningsoversigt,
+jf. stk. 2, ikke rettidigt, bortfalder retten til henstand, og skatten anses for
+forfalden på det tidspunkt, hvor skatten ville være forfalden, hvis der ikke var
+givet henstand. Skatten forrentes med renten efter § 7, stk. 2, i lov om
+opkrævning af skatter og afgifter m.v. med tillæg af 0,4 procentpoint pr.
+påbegyndt måned fra dette tidspunkt.
+
+Stk. 5. Told- og skatteforvaltningen kan se bort fra overskridelse af
+oplysningsfristen efter skattekontrollovens § 10, stk. 2, og § 11, jf. § 13, og
+fristen for afgivelse af beholdningsoversigt som nævnt i stk. 2, jf. stk. 4.
+----
+
+--@begin:aktieavancebeskatningsloven_par39--
+# AktieavancePar39Friststatus = AblPar39RettidigOrdinærFrist | AblPar39RettidigForlængetFrist | AblPar39FristOverskredet | AblPar39FristoverskridelseTilsidesatEfterStk5
+# AktieavancePar39Indberetning(oplysninger_efter_skattekontrollov_par2: AktieavancePar39Friststatus, beholdningsoversigt_efter_par39a: AktieavancePar39Friststatus)
+# AktieavancePar39Bistandsstatus = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv | AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv
+# AktieavancePar39Bopæl(oprindeligt_fraflytningsland: AktieavancePar39Bistandsstatus, aktuelt_land: AktieavancePar39Bistandsstatus, frigivelse_af_sikkerhed_anmodet: Boolsk)
+# AktieavancePar39Sikkerhedsform = AblPar39SikkerhedIAktier | AblPar39SikkerhedIReguleredeObligationer | AblPar39Bankgaranti | AblPar39AndenBetryggendeSikkerhed
+# AktieavancePar39Sikkerhed = AblPar39IngenSikkerhedStillet | AblPar39BetryggendeSikkerhed(form: AktieavancePar39Sikkerhedsform) | AblPar39IkkeBetryggendeSikkerhed
+# AktieavancePar39Input(par38_resultat: AktieavancePar38Resultat, beregnet_skat_for_realisationsopgjorte_poster_kroner: Heltal, indberetning: AktieavancePar39Indberetning, bopæl: AktieavancePar39Bopæl, sikkerhed: AktieavancePar39Sikkerhed)
+# AktieavancePar39Resultat(input: AktieavancePar39Input, input_gyldigt: Boolsk, grundbetingelser_efter_stk1: Boolsk, indberetningsbetingelser_efter_stk2_opfyldt: Boolsk, sikkerhed_påkrævet_efter_stk3: Boolsk, sikkerhedsbetingelse_opfyldt: Boolsk, sikkerhed_frigives_efter_anmodning: Boolsk, henstand_finder_anvendelse: Boolsk, henstandsbeløb_kroner: Heltal, henstandsret_bortfalder_efter_stk4: Boolsk, henstand_afvist_på_grund_af_sikkerhed: Boolsk, skat_forfalder_uden_henstand: Boolsk, opkrævningslovens_rente_skal_anvendes: Boolsk, rentetillæg_basispoint_pr_påbegyndt_måned: Heltal)
+
+| aktieavance_par39_frist_opfyldt(status: AktieavancePar39Friststatus) -> status == AblPar39RettidigOrdinærFrist || status == AblPar39RettidigForlængetFrist || status == AblPar39FristoverskridelseTilsidesatEfterStk5
+| aktieavance_par39_betryggende_sikkerhed(sikkerhed: AktieavancePar39Sikkerhed) -> match sikkerhed { | AblPar39BetryggendeSikkerhed(_) -> Sandt | _ -> Falskt }
+
+# AktieavancePar39Sag(input: AktieavancePar39Input) {
+    | input_gyldigt() -> input.par38_resultat.input_gyldigt && input.beregnet_skat_for_realisationsopgjorte_poster_kroner >= 0
+    | grundbetingelser_efter_stk1() -> input_gyldigt() && aktieavance_par38_ophør_kan_give_henstand(input.par38_resultat.input.ophørsgrund) && input.par38_resultat.nettogevinst_til_skatteberegning_efter_stk5_kroner > 0 && input.par38_resultat.har_realisationsopgjorte_poster && input.beregnet_skat_for_realisationsopgjorte_poster_kroner > 0
+    | indberetningsbetingelser_efter_stk2_opfyldt() -> aktieavance_par39_frist_opfyldt(input.indberetning.oplysninger_efter_skattekontrollov_par2) && aktieavance_par39_frist_opfyldt(input.indberetning.beholdningsoversigt_efter_par39a)
+    | sikkerhed_påkrævet_efter_stk3() -> input.bopæl.aktuelt_land == AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv
+    | sikkerhedsbetingelse_opfyldt() -> sikkerhed_påkrævet_efter_stk3() == Falskt || aktieavance_par39_betryggende_sikkerhed(input.sikkerhed)
+    | sikkerhed_frigives_efter_anmodning() -> input.bopæl.oprindeligt_fraflytningsland == AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv && input.bopæl.aktuelt_land == AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv && input.bopæl.frigivelse_af_sikkerhed_anmodet
+    | henstand_finder_anvendelse() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() && sikkerhedsbetingelse_opfyldt()
+    | henstandsbeløb_kroner() -> 0
+    | exception abl_par39_henstand_med_realisationsopgjort_skat henstandsbeløb_kroner() -> input.beregnet_skat_for_realisationsopgjorte_poster_kroner under henstand_finder_anvendelse()
+    | henstandsret_bortfalder_efter_stk4() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() == Falskt
+    | henstand_afvist_på_grund_af_sikkerhed() -> grundbetingelser_efter_stk1() && indberetningsbetingelser_efter_stk2_opfyldt() && sikkerhedsbetingelse_opfyldt() == Falskt
+    | skat_forfalder_uden_henstand() -> henstandsret_bortfalder_efter_stk4() || henstand_afvist_på_grund_af_sikkerhed()
+    | opkrævningslovens_rente_skal_anvendes() -> henstandsret_bortfalder_efter_stk4()
+    | rentetillæg_basispoint_pr_påbegyndt_måned() -> hvis opkrævningslovens_rente_skal_anvendes() { 40 } ellers { 0 }
+    | resultat() -> AktieavancePar39Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        grundbetingelser_efter_stk1 = grundbetingelser_efter_stk1(),
+        indberetningsbetingelser_efter_stk2_opfyldt = indberetningsbetingelser_efter_stk2_opfyldt(),
+        sikkerhed_påkrævet_efter_stk3 = sikkerhed_påkrævet_efter_stk3(),
+        sikkerhedsbetingelse_opfyldt = sikkerhedsbetingelse_opfyldt(),
+        sikkerhed_frigives_efter_anmodning = sikkerhed_frigives_efter_anmodning(),
+        henstand_finder_anvendelse = henstand_finder_anvendelse(),
+        henstandsbeløb_kroner = henstandsbeløb_kroner(),
+        henstandsret_bortfalder_efter_stk4 = henstandsret_bortfalder_efter_stk4(),
+        henstand_afvist_på_grund_af_sikkerhed = henstand_afvist_på_grund_af_sikkerhed(),
+        skat_forfalder_uden_henstand = skat_forfalder_uden_henstand(),
+        opkrævningslovens_rente_skal_anvendes = opkrævningslovens_rente_skal_anvendes(),
+        rentetillæg_basispoint_pr_påbegyndt_måned = rentetillæg_basispoint_pr_påbegyndt_måned()
+    )
+}
+
+| aktieavance_par39_resultat(input: AktieavancePar39Input) -> AktieavancePar39Sag(input).resultat()
+--@end:aktieavancebeskatningsloven_par39--

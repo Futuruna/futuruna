@@ -1,0 +1,396 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par37 - 39
+
+-- Fokusscenarier for Aktieavancebeskatningsloven §§ 37-39.
+
+= abl_par37_faktisk_dato = AktieavancePar23Dato(år = 2018, måned = 5, dag = 17)
+
+= abl_par37_direkte_indtræden = aktieavance_par37_resultat(input = AktieavancePar37Input(
+    faktisk_anskaffelsestidspunkt = abl_par37_faktisk_dato,
+    hidtidig_anskaffelsessum_kroner = 80000,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 125000,
+    i_forvejen_omfattet_af_dansk_beskatning = Falskt,
+    indtrædelsesgrund = AblPar37SkattepligtIndtræder
+))
+
+= abl_par37_traktatindtræden = aktieavance_par37_resultat(input = AktieavancePar37Input(
+    faktisk_anskaffelsestidspunkt = abl_par37_faktisk_dato,
+    hidtidig_anskaffelsessum_kroner = 90000,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 140000,
+    i_forvejen_omfattet_af_dansk_beskatning = Falskt,
+    indtrædelsesgrund = AblPar37TraktathjemstedBliverDanmark
+))
+
+= abl_par37_allerede_beskattet = aktieavance_par37_resultat(input = AktieavancePar37Input(
+    faktisk_anskaffelsestidspunkt = abl_par37_faktisk_dato,
+    hidtidig_anskaffelsessum_kroner = 90000,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 140000,
+    i_forvejen_omfattet_af_dansk_beskatning = Sandt,
+    indtrædelsesgrund = AblPar37SkattepligtIndtræder
+))
+
+= abl_par38_almindelig_gevinst = AktieavancePar38Aktie(
+    identifikation = "almindelig-gevinst",
+    handelsværdi_ved_ophør_kroner = 130000,
+    skattemæssig_anskaffelsessum_kroner = 80000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 50000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_fradragsberettiget_tab = AktieavancePar38Aktie(
+    identifikation = "fradragsberettiget-tab",
+    handelsværdi_ved_ophør_kroner = 70000,
+    skattemæssig_anskaffelsessum_kroner = 90000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = -20000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_under_beløbsgrænsen = AktieavancePar38Aktie(
+    identifikation = "under-beloebsgraensen",
+    handelsværdi_ved_ophør_kroner = 90000,
+    skattemæssig_anskaffelsessum_kroner = 60000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 30000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_negativ_anskaffelsessum = AktieavancePar38Aktie(
+    identifikation = "negativ-anskaffelsessum",
+    handelsværdi_ved_ophør_kroner = 50000,
+    skattemæssig_anskaffelsessum_kroner = -10000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 60000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_ll7p_aktie = AktieavancePar38Aktie(
+    identifikation = "ll7p-aktie",
+    handelsværdi_ved_ophør_kroner = 60000,
+    skattemæssig_anskaffelsessum_kroner = 20000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [AblPar38AktieErhvervetEfterLl7P],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 40000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_uafhængig_aktie = AktieavancePar38Aktie(
+    identifikation = "uafhaengig-aktie",
+    handelsværdi_ved_ophør_kroner = 60000,
+    skattemæssig_anskaffelsessum_kroner = 40000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_øvrig_aktie_i_ll7p_selskab = AktieavancePar38Aktie(
+    identifikation = "oevrig-aktie-i-ll7p-selskab",
+    handelsværdi_ved_ophør_kroner = 60000,
+    skattemæssig_anskaffelsessum_kroner = 40000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [AblPar38ØvrigAktieISammeSelskabSomLl7P],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_ægtefælleaktie = AktieavancePar38Aktie(
+    identifikation = "aegtefaelleaktie",
+    handelsværdi_ved_ophør_kroner = 120000,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_successionsaktie = AktieavancePar38Aktie(
+    identifikation = "successionsaktie",
+    handelsværdi_ved_ophør_kroner = 120000,
+    skattemæssig_anskaffelsessum_kroner = 90000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [AblPar38SuccessionEfterPar34Til35A],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 30000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_historisk_par44_under_tre_år = AktieavancePar38Aktie(
+    identifikation = "historisk-par44-under-tre-aar",
+    handelsværdi_ved_ophør_kroner = 120000,
+    skattemæssig_anskaffelsessum_kroner = 80000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38Par44AktieEjetUnderTreÅrVedOphør,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 40000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_afskåret_tab = AktieavancePar38Aktie(
+    identifikation = "afskaaret-tab",
+    handelsværdi_ved_ophør_kroner = 70000,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = -30000),
+    tabsstatus = AblPar38TabIkkeFradragsberettigetVedAfståelse,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_tegningsret = AktieavancePar38Aktie(
+    identifikation = "tegningsret",
+    handelsværdi_ved_ophør_kroner = 120000,
+    skattemæssig_anskaffelsessum_kroner = 0,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38TegningsretValgEfterStk4(
+        antal_rettigheder = 100,
+        udnyttelseskurs_pr_aktie_kroner = 500,
+        markedskurs_pr_aktie_ved_ophør_kroner = 700
+    ),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+
+= abl_par38_normal_fraflytning = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_almindelig_gevinst, abl_par38_fradragsberettiget_tab]
+))
+
+= abl_par38_almindelig_beholdning_under_100000 = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_under_beløbsgrænsen]
+))
+
+= abl_par38_negativ_basis_under_100000 = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_negativ_anskaffelsessum]
+))
+
+= abl_par38_under_syv_år_med_ll7p = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_ll7p_aktie, abl_par38_uafhængig_aktie]
+))
+
+= abl_par38_under_syv_år_med_øvrig_selskabsaktie = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_ll7p_aktie, abl_par38_øvrig_aktie_i_ll7p_selskab]
+))
+
+= abl_par38_under_syv_år_med_ægtefælleaktie = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_ægtefælleaktie]
+))
+
+= abl_par38_under_syv_år_med_succession = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_successionsaktie]
+))
+
+= abl_par38_ophør_ved_død = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørVedDød,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_almindelig_gevinst]
+))
+
+= abl_par38_historisk_par44_undtagelse = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_historisk_par44_under_tre_år]
+))
+
+= abl_par38_tab_uden_fradragsret = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_almindelig_gevinst, abl_par38_afskåret_tab]
+))
+
+= abl_par38_tegningsretsvalg = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl_par38_tegningsret]
+))
+
+= abl_par39_rettidig_i_bistandsland = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+
+= abl_par39_betryggende_sikkerhed = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigForlængetFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigForlængetFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39BetryggendeSikkerhed(form = AblPar39Bankgaranti)
+))
+
+= abl_par39_manglende_sikkerhed = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+
+= abl_par39_frist_overskredet = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39FristOverskredet,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+
+= abl_par39_fristoverskridelse_tilsidesat = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39FristoverskridelseTilsidesatEfterStk5,
+        beholdningsoversigt_efter_par39a = AblPar39FristoverskridelseTilsidesatEfterStk5
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+
+= abl_par39_flyttet_til_ikke_bistandsland = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+
+= abl_par39_flyttet_til_bistandsland = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl_par38_normal_fraflytning,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 8000,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Sandt
+    ),
+    sikkerhed = AblPar39BetryggendeSikkerhed(form = AblPar39SikkerhedIAktier)
+))
+
+| scenarie_abl_par37_direkte_indtræden_bruger_handelsværdi: abl_par37_direkte_indtræden -> abl_par37_direkte_indtræden.input_gyldigt && abl_par37_direkte_indtræden.reglen_finder_anvendelse && abl_par37_direkte_indtræden.skattemæssigt_anskaffelsestidspunkt == abl_par37_faktisk_dato && abl_par37_direkte_indtræden.skattemæssig_anskaffelsessum_kroner == 125000
+| scenarie_abl_par37_traktathjemsted_sidestilles_med_indtræden: abl_par37_traktatindtræden -> abl_par37_traktatindtræden.reglen_finder_anvendelse && abl_par37_traktatindtræden.skattemæssig_anskaffelsessum_kroner == 140000
+| scenarie_abl_par37_allerede_beskattet_bevarer_basis: abl_par37_allerede_beskattet -> abl_par37_allerede_beskattet.reglen_finder_anvendelse == Falskt && abl_par37_allerede_beskattet.skattemæssig_anskaffelsessum_kroner == 90000
+| scenarie_abl_par38_normal_fraflytning_nettoopgøres: abl_par38_normal_fraflytning -> abl_par38_normal_fraflytning.input_gyldigt && abl_par38_normal_fraflytning.skattepligtsophør_efter_stk1 && abl_par38_normal_fraflytning.samlet_kursværdi_efter_stk2_kroner == 200000 && abl_par38_normal_fraflytning.antal_aktier_omfattet == 2 && abl_par38_normal_fraflytning.samlede_gevinster_kroner == 50000 && abl_par38_normal_fraflytning.fradragsberettigede_tab_kroner == 20000 && abl_par38_normal_fraflytning.nettogevinst_til_skatteberegning_efter_stk5_kroner == 30000 && abl_par38_normal_fraflytning.har_realisationsopgjorte_poster
+| scenarie_abl_par38_under_beløbsgrænsen_undtages: abl_par38_almindelig_beholdning_under_100000 -> abl_par38_almindelig_beholdning_under_100000.samlet_kursværdi_efter_stk2_kroner == 90000 && abl_par38_almindelig_beholdning_under_100000.særlig_beholdning_efter_stk2 == Falskt && abl_par38_almindelig_beholdning_under_100000.beholdningskrav_efter_stk2_opfyldt == Falskt && abl_par38_almindelig_beholdning_under_100000.antal_aktier_omfattet == 0
+| scenarie_abl_par38_negativ_basis_tilsidesætter_beløbsgrænsen: abl_par38_negativ_basis_under_100000 -> abl_par38_negativ_basis_under_100000.samlet_kursværdi_efter_stk2_kroner == 50000 && abl_par38_negativ_basis_under_100000.særlig_beholdning_efter_stk2 && abl_par38_negativ_basis_under_100000.antal_aktier_omfattet == 1 && abl_par38_negativ_basis_under_100000.nettogevinst_til_skatteberegning_efter_stk5_kroner == 60000
+| scenarie_abl_par38_ll7p_undtagelsen_er_aktiespecifik: abl_par38_under_syv_år_med_ll7p -> abl_par38_under_syv_år_med_ll7p.antal_aktier_omfattet == 1 && abl_par38_under_syv_år_med_ll7p.samlede_gevinster_kroner == 40000
+| scenarie_abl_par38_øvrig_aktie_i_ll7p_selskab_omfattes: abl_par38_under_syv_år_med_øvrig_selskabsaktie -> abl_par38_under_syv_år_med_øvrig_selskabsaktie.antal_aktier_omfattet == 2 && abl_par38_under_syv_år_med_øvrig_selskabsaktie.samlede_gevinster_kroner == 60000
+| scenarie_abl_par38_ægtefælleaktie_opfylder_tilknytningen: abl_par38_under_syv_år_med_ægtefælleaktie -> abl_par38_under_syv_år_med_ægtefælleaktie.antal_aktier_omfattet == 1 && abl_par38_under_syv_år_med_ægtefælleaktie.nettogevinst_til_skatteberegning_efter_stk5_kroner == 20000
+| scenarie_abl_par38_successionsaktie_opfylder_tilknytningen: abl_par38_under_syv_år_med_succession -> abl_par38_under_syv_år_med_succession.antal_aktier_omfattet == 1 && abl_par38_under_syv_år_med_succession.nettogevinst_til_skatteberegning_efter_stk5_kroner == 30000
+| scenarie_abl_par38_død_udløser_ikke_fraflytterskat: abl_par38_ophør_ved_død -> abl_par38_ophør_ved_død.skattepligtsophør_efter_stk1 == Falskt && abl_par38_ophør_ved_død.antal_aktier_omfattet == 0
+| scenarie_abl_par38_historisk_par44_under_tre_år_undtages: abl_par38_historisk_par44_undtagelse -> abl_par38_historisk_par44_undtagelse.beholdningskrav_efter_stk2_opfyldt && abl_par38_historisk_par44_undtagelse.antal_aktier_omfattet == 0
+| scenarie_abl_par38_tab_uden_fradragsret_modregnes_ikke: abl_par38_tab_uden_fradragsret -> abl_par38_tab_uden_fradragsret.samlede_gevinster_kroner == 50000 && abl_par38_tab_uden_fradragsret.fradragsberettigede_tab_kroner == 0 && abl_par38_tab_uden_fradragsret.afskårne_tab_kroner == 30000 && abl_par38_tab_uden_fradragsret.nettogevinst_til_skatteberegning_efter_stk5_kroner == 50000
+| scenarie_abl_par38_tegningsretsvalget_beregnes: abl_par38_tegningsretsvalg -> abl_par38_tegningsretsvalg.antal_aktier_omfattet == 1 && abl_par38_tegningsretsvalg.samlede_gevinster_kroner == 20000 && abl_par38_tegningsretsvalg.nettogevinst_til_skatteberegning_efter_stk5_kroner == 20000
+| scenarie_abl_par39_bistandsland_kræver_ikke_sikkerhed: abl_par39_rettidig_i_bistandsland -> abl_par39_rettidig_i_bistandsland.grundbetingelser_efter_stk1 && abl_par39_rettidig_i_bistandsland.sikkerhed_påkrævet_efter_stk3 == Falskt && abl_par39_rettidig_i_bistandsland.henstand_finder_anvendelse && abl_par39_rettidig_i_bistandsland.henstandsbeløb_kroner == 8000
+| scenarie_abl_par39_ikke_bistandsland_accepterer_betryggende_sikkerhed: abl_par39_betryggende_sikkerhed -> abl_par39_betryggende_sikkerhed.sikkerhed_påkrævet_efter_stk3 && abl_par39_betryggende_sikkerhed.sikkerhedsbetingelse_opfyldt && abl_par39_betryggende_sikkerhed.henstand_finder_anvendelse && abl_par39_betryggende_sikkerhed.henstandsbeløb_kroner == 8000
+| scenarie_abl_par39_manglende_sikkerhed_afviser_henstand: abl_par39_manglende_sikkerhed -> abl_par39_manglende_sikkerhed.sikkerhed_påkrævet_efter_stk3 && abl_par39_manglende_sikkerhed.sikkerhedsbetingelse_opfyldt == Falskt && abl_par39_manglende_sikkerhed.henstand_afvist_på_grund_af_sikkerhed && abl_par39_manglende_sikkerhed.skat_forfalder_uden_henstand
+| scenarie_abl_par39_fristoverskridelse_udløser_rente: abl_par39_frist_overskredet -> abl_par39_frist_overskredet.indberetningsbetingelser_efter_stk2_opfyldt == Falskt && abl_par39_frist_overskredet.henstandsret_bortfalder_efter_stk4 && abl_par39_frist_overskredet.opkrævningslovens_rente_skal_anvendes && abl_par39_frist_overskredet.rentetillæg_basispoint_pr_påbegyndt_måned == 40
+| scenarie_abl_par39_tilsidesat_fristoverskridelse_bevarer_henstand: abl_par39_fristoverskridelse_tilsidesat -> abl_par39_fristoverskridelse_tilsidesat.indberetningsbetingelser_efter_stk2_opfyldt && abl_par39_fristoverskridelse_tilsidesat.henstand_finder_anvendelse && abl_par39_fristoverskridelse_tilsidesat.henstandsret_bortfalder_efter_stk4 == Falskt
+| scenarie_abl_par39_videreflytning_udløser_sikkerhedskrav: abl_par39_flyttet_til_ikke_bistandsland -> abl_par39_flyttet_til_ikke_bistandsland.sikkerhed_påkrævet_efter_stk3 && abl_par39_flyttet_til_ikke_bistandsland.henstand_afvist_på_grund_af_sikkerhed
+| scenarie_abl_par39_videreflytning_frigiver_sikkerhed_efter_anmodning: abl_par39_flyttet_til_bistandsland -> abl_par39_flyttet_til_bistandsland.sikkerhed_påkrævet_efter_stk3 == Falskt && abl_par39_flyttet_til_bistandsland.sikkerhed_frigives_efter_anmodning && abl_par39_flyttet_til_bistandsland.henstand_finder_anvendelse
+
+? scenarie_abl_par37_direkte_indtræden_bruger_handelsværdi
+? scenarie_abl_par37_traktathjemsted_sidestilles_med_indtræden
+? scenarie_abl_par37_allerede_beskattet_bevarer_basis
+? scenarie_abl_par38_normal_fraflytning_nettoopgøres
+? scenarie_abl_par38_under_beløbsgrænsen_undtages
+? scenarie_abl_par38_negativ_basis_tilsidesætter_beløbsgrænsen
+? scenarie_abl_par38_ll7p_undtagelsen_er_aktiespecifik
+? scenarie_abl_par38_øvrig_aktie_i_ll7p_selskab_omfattes
+? scenarie_abl_par38_ægtefælleaktie_opfylder_tilknytningen
+? scenarie_abl_par38_successionsaktie_opfylder_tilknytningen
+? scenarie_abl_par38_død_udløser_ikke_fraflytterskat
+? scenarie_abl_par38_historisk_par44_under_tre_år_undtages
+? scenarie_abl_par38_tab_uden_fradragsret_modregnes_ikke
+? scenarie_abl_par38_tegningsretsvalget_beregnes
+? scenarie_abl_par39_bistandsland_kræver_ikke_sikkerhed
+? scenarie_abl_par39_ikke_bistandsland_accepterer_betryggende_sikkerhed
+? scenarie_abl_par39_manglende_sikkerhed_afviser_henstand
+? scenarie_abl_par39_fristoverskridelse_udløser_rente
+? scenarie_abl_par39_tilsidesat_fristoverskridelse_bevarer_henstand
+? scenarie_abl_par39_videreflytning_udløser_sikkerhedskrav
+? scenarie_abl_par39_videreflytning_frigiver_sikkerhed_efter_anmodning
+
+@ print("Aktieavancebeskatningsloven §§ 37-39: 21 indgangs-, fraflytnings- og henstandsscenarier kontrolleret")

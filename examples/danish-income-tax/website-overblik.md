@@ -62,10 +62,19 @@ N-beholdninger og § 27's anskaffelsessumtillæg eksekverbare. § 33 A beregner
 desuden skattemæssige statusskifter som afståelse og genanskaffelse til
 handelsværdi, sender udfaldet til den udgående status' almindelige regel og
 holder skattefri omstruktureringer samt § 33-undtagelsen synlige. § 24, stk. 3
-bruger dette typede resultat frem for et løst ja/nej-flag. Resultaterne går
-videre gennem den samme ABL/Personskattelov-bro. De fokuserede scenarier dækker
-69 udfald i Aktieavancebeskatningsloven §§ 12-15, §§ 23-27 og § 33 A. Kilden er
-[Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098).
+bruger dette typede resultat frem for et løst ja/nej-flag. §§ 37-39 gør nu også
+tilflytningsværdi, fraflytterskattens 100.000 kr.- og syvårsgrænser, døds- og
+§ 44-undtagelser, gevinst/tab-netting, tegningsretsvalg samt henstandens
+indberetnings- og sikkerhedskrav eksekverbare. Videreflytning mellem bistands- og
+ikke-bistandslande og en for sen beholdningsoversigt er særskilte udfald.
+Resultaterne går videre gennem den samme ABL/Personskattelov-bro. De fokuserede
+scenarier dækker 90 udfald i Aktieavancebeskatningsloven §§ 12-15, §§ 23-27,
+§ 33 A og §§ 37-39. Kilderne er
+[Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
+[vejledningen om tilflytning](https://info.skat.dk/data.aspx?oid=1946389),
+[vejledningen om fraflytterskattens personkreds](https://info.skat.dk/data.aspx?oid=1946393),
+[vejledningen om gevinst og tab ved fraflytning](https://info.skat.dk/data.aspx?oid=1946398)
+og [vejledningen om henstand](https://info.skat.dk/data.aspx?oid=1946400).
 Selskabslovens tilladte kombination af aktier med og uden pålydende værdi
 bevares som særskilte domæneværdier på et dokumenteret fælles
 kapitalandelsgrundlag, så anskaffelsessummen kan fordeles på tværs af begge
