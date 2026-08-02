@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-5c9875`
+Current focus issue: `td-aa14a7`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -49,6 +49,22 @@ Etableringskontomodellen dækker også 60 pct./250.000 kr.-loftet, 5.000
 kr.-minimum, § 29-forskudsafskrivning, kontoformen og beløb, der efter § 4,
 stk. 2 behandles som indskud. Den fokuserede scenario-fil validerer hele
 regelkaskaden og de offentliggjorte 200.000/300.000/800.000 kr.-eksempler.
+
+Afskrivningslovens §§ 11-13 er nu føjet til samme nr. 10-kaskade. Delvist
+erhvervsmæssigt benyttede driftsmidler og skibe bærer en typet årsopgørelse med
+både faktisk benyttelse, beregnet afskrivning og fradraget afskrivning. Dermed
+kan § 11 beregne de særskilte 25/15/7 pct.-forløb og 2026-grænsen på 16.900 kr.,
+mens § 12 genbruger den samme historik til at fordele fortjeneste eller tab ved
+salg. Skattestyrelsens offentliggjorte eksempel med 47.000 erhvervskilometer ud
+af 110.000 og henholdsvis 68.000 kr. i fortjeneste eller 37.000 kr. i tab giver
+29.055 kr. i skattepligtig fortjeneste og 15.809 kr. i fradragsberettiget tab.
+Den juridiske vejlednings særregel for anskaffelse og afhændelse i samme
+indkomstår bruger i stedet det pågældende års erhvervsandel for både fortjeneste
+og tab.
+§ 13 genbruger både benyttelses- og afskrivningshistorikken ved skade,
+reparation og forsikringsoverskud. Fortjenester fødes som særskilte § 3-
+indkomstposter; afskrivninger, tab og andre fradrag fødes fortsat som nr. 10-
+fradragsposter, så indtægt og fradrag ikke skjules i et nettobeløb.
 
 Previous integration: Personskatteloven § 3, stk. 2, nr. 4-5 modtager nu typede
 resultater fra Husdyrbeskatningsloven §§ 2 og 8 og Varelagerloven § 1.
@@ -875,9 +891,9 @@ encoded as a temporal rule on top of the consolidation.
   business tax scheme, § 22 d bankruptcy and permanent-establishment exit,
   succession settlement, and the resulting personal-income amount.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
-  the Afskrivningsloven §§ 1-2, 5, 5 A and 6, stk. 1 dependency slice consumed
-  by Personskatteloven § 3, stk. 2, nr. 10 and the § 40 C dependency consumed
-  by § 4, stk. 1, nr. 16.
+  the Afskrivningsloven §§ 1-2, 5, 5 A, 6, stk. 1 and 11-13 dependency slice
+  consumed by Personskatteloven § 3, stk. 2, nr. 10 and the § 40 C dependency
+  consumed by § 4, stk. 1, nr. 16.
 - `statsskatteloven.runa` exists and checks with `runa check`; it exposes the
   source-bounded ordinary-depreciation fallback under § 6, litra a.
 - `etableringskontoloven.runa` exists and checks with `runa check`; it covers
@@ -1699,10 +1715,10 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-2/5/5 A/6 and Statsskatteloven § 6 slice. The remaining
-  Afskrivningsloven saldoordninger, mixed-use assets, buildings, installations,
-  advance depreciation, intangible assets, recapture and cessation rules must
-  become typed source-law outcomes before nr. 10 can be described as complete.
+  Afskrivningsloven §§ 1-2/5/5 A/6/11-13 and Statsskatteloven § 6 slice. The
+  remaining Afskrivningsloven saldoordninger, buildings, installations, advance
+  depreciation, intangible assets, recapture and cessation rules must become
+  typed source-law outcomes before nr. 10 can be described as complete.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current

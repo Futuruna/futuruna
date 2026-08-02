@@ -107,12 +107,24 @@ Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
 Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
-afskrivning efter Statsskatteloven. Kun resultater for en selvstændig
-erhvervsdrivende person går videre til personlig indkomst. Modellen bruger de
-offentliggjorte 2026-grænser på 36.000 kr. og deler forsøgs- og
+afskrivning efter Statsskatteloven. Den dækker desuden Afskrivningslovens §§
+11-13 om delvist erhvervsmæssigt benyttede driftsmidler og skibe: særskilt
+25/15/7 pct.-afskrivning, 16.900 kr.-grænsen, forholdsmæssig fortjeneste eller
+tab ved salg samt skade, reparation og forsikringsoverskud. Kun fradrag for en
+selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
+skattepligtig fortjeneste for en fysisk person går i stedet videre som en
+særskilt personlig indkomstpost. Modellen bruger de offentliggjorte 2026-
+grænser på 36.000 kr. og deler forsøgs- og
 forskningsudgifter mellem 114 pct. under loftet på 1.088,8 mio. kr. og 110 pct.
 over loftet. Et § 5 A-tab bliver begrænset, ikke bare afvist, hvis den fulde
 saldoformindskelse ellers ville føre under nul.
+
+Den samme typede årsopgørelse bærer både faktisk erhvervsmæssig og samlet
+benyttelse samt beregnet og fradraget afskrivning. Derfor kan § 12 gengive
+Skattestyrelsens salgseksempel: 47.000 erhvervskilometer ud af 110.000 fordeler
+68.000 kr. i fortjeneste til 29.055 kr. skattepligtig fortjeneste og 37.000 kr.
+i tab til 15.809 kr. fradragsberettiget tab. Ved køb og salg i samme indkomstår
+bruger reglerne i stedet årets erhvervsandel for både fortjeneste og tab.
 
 Nr. 11 modtager et samlet resultat fra Etableringskontoloven §§ 1-4. Det holder
 etableringskontoens ligningsmæssige fradrag adskilt fra iværksætterkontoens
@@ -122,13 +134,14 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222),
 [Statsskatteloven, LOV nr. 149/1922](https://www.retsinformation.dk/eli/lta/1922/149),
 [Etableringskontoloven, LBK nr. 1307/2025](https://www.retsinformation.dk/eli/lta/2025/1307),
-[Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven)
+[Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven),
+[Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. De øvrige
-saldoordninger, blandet benyttede aktiver, bygninger, installationer,
-immaterielle aktiver, genvundne afskrivninger og ophør er fortsat udestående
-dependency-arbejde under nr. 10.
+saldoordninger, bygninger, installationer, forskudsafskrivning, immaterielle
+aktiver, genvundne afskrivninger og ophør er fortsat udestående dependency-
+arbejde under nr. 10.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

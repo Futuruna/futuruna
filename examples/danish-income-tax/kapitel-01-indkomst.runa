@@ -170,11 +170,11 @@ iværksætterkonto
 # Par3Stk2Nr7Resultat(indkomstår: Heltal, hjemmel: Par3Stk2Nr7Hjemmel, henlæggelse_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr8Resultat(indkomstår: Heltal, erhvervsmæssig_befordring: Boolsk, kundeopsøgende_flere_arbejdsgivere: Boolsk, henvises_til_ligningslov9c: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr9Resultat(indkomstår: Heltal, ydelse_omfattet_af_ligningslov8o: Boolsk, dobbeltfradrag_afskåret: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
-# Par3Stk2Nr10Hjemmel = Par3Nr10Afskrivningslov5 | Par3Nr10Afskrivningslov5A | Par3Nr10Afskrivningslov6 | Par3Nr10Statsskattelov6A
-# Par3Stk2Nr10Grundlag = Par3Nr10Al5(resultat: Afskrivningslov5Resultat) | Par3Nr10Al5A(resultat: Afskrivningslov5AResultat) | Par3Nr10Al6(resultat: Afskrivningslov6Resultat) | Par3Nr10Sl6A(resultat: Statsskattelov6OrdinærAfskrivningResultat)
-# Par3Stk2Nr10PostResultat(hjemmel: Par3Stk2Nr10Hjemmel, selvstændig_erhvervsdrivende_person: Boolsk, skattemæssig_afskrivning_kroner: Heltal, tab_kroner: Heltal, andet_fradrag_kroner: Heltal, brutto_fradrag_efter_kildeloven_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal)
+# Par3Stk2Nr10Hjemmel = Par3Nr10Afskrivningslov5 | Par3Nr10Afskrivningslov5A | Par3Nr10Afskrivningslov6 | Par3Nr10Afskrivningslov11 | Par3Nr10Afskrivningslov12 | Par3Nr10Afskrivningslov13 | Par3Nr10Statsskattelov6A
+# Par3Stk2Nr10Grundlag = Par3Nr10Al5(resultat: Afskrivningslov5Resultat) | Par3Nr10Al5A(resultat: Afskrivningslov5AResultat) | Par3Nr10Al6(resultat: Afskrivningslov6Resultat) | Par3Nr10Al11(resultat: Afskrivningslov11Resultat) | Par3Nr10Al12(resultat: Afskrivningslov12Resultat) | Par3Nr10Al13(resultat: Afskrivningslov13Resultat) | Par3Nr10Sl6A(resultat: Statsskattelov6OrdinærAfskrivningResultat)
+# Par3Stk2Nr10PostResultat(hjemmel: Par3Stk2Nr10Hjemmel, selvstændig_erhvervsdrivende_person: Boolsk, fysisk_person: Boolsk, skattepligtig_indtægtsføring_kroner: Heltal, indtægtsføring_i_personlig_indkomst_kroner: Heltal, skattemæssig_afskrivning_kroner: Heltal, tab_kroner: Heltal, andet_fradrag_kroner: Heltal, brutto_fradrag_efter_kildeloven_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal, afskåret_fordi_ikke_fysisk_person_indtægt_kroner: Heltal)
 # Par3Stk2Nr10Input(grundlagsposter: List(Par3Stk2Nr10Grundlag))
-# Par3Stk2Nr10Resultat(post_resultater: List(Par3Stk2Nr10PostResultat), brutto_skattemæssige_afskrivninger_kroner: Heltal, brutto_tab_kroner: Heltal, brutto_andre_fradrag_kroner: Heltal, brutto_fradrag_efter_kildelovene_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal)
+# Par3Stk2Nr10Resultat(post_resultater: List(Par3Stk2Nr10PostResultat), brutto_indtægtsføringer_efter_afskrivningsloven_kroner: Heltal, indtægtsføring_i_personlig_indkomst_kroner: Heltal, brutto_skattemæssige_afskrivninger_kroner: Heltal, brutto_tab_kroner: Heltal, brutto_andre_fradrag_kroner: Heltal, brutto_fradrag_efter_kildelovene_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_selvstændig_person_kroner: Heltal, afskåret_fordi_ikke_fysisk_person_indtægt_kroner: Heltal)
 # Par3Stk2Nr11Input(etableringskonto_resultat: EtableringskontoIndskudResultat)
 # Par3Stk2Nr11Resultat(indkomstår: Heltal, person_berettiget: Boolsk, indskudsgrænser_opfyldt: Boolsk, etableringskonto_fradrag_uden_for_personlig_indkomst_kroner: Heltal, iværksætterkonto_fradrag_i_personlig_indkomst_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3UdligningsIndtægtsføringHjemmel = Par3Virksomhedsskattelov22BStk4Stk7Stk8 | Par3Virksomhedsskattelov22DStk2Stk3
@@ -380,25 +380,51 @@ iværksætterkonto
     | Par3Nr10Al5(_) -> Par3Nr10Afskrivningslov5
     | Par3Nr10Al5A(_) -> Par3Nr10Afskrivningslov5A
     | Par3Nr10Al6(_) -> Par3Nr10Afskrivningslov6
+    | Par3Nr10Al11(_) -> Par3Nr10Afskrivningslov11
+    | Par3Nr10Al12(_) -> Par3Nr10Afskrivningslov12
+    | Par3Nr10Al13(_) -> Par3Nr10Afskrivningslov13
     | Par3Nr10Sl6A(_) -> Par3Nr10Statsskattelov6A
 }
 | par3_stk2_nr10_selvstændig_person(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
     | Par3Nr10Al5(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Al5A(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Al6(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al11(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al12(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
+    | Par3Nr10Al13(resultat) -> resultat.skatteyder == AlSelvstændigErhvervsdrivendePerson
     | Par3Nr10Sl6A(resultat) -> resultat.skatteyder == Sl6SelvstændigErhvervsdrivendePerson
 }
+| par3_stk2_nr10_fysisk_person(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
+    | Par3Nr10Al5(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al5A(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al6(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al11(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al12(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Al13(resultat) -> resultat.skatteyder != AlSelskabEllerForening
+    | Par3Nr10Sl6A(_) -> Sandt
+}
+| par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
+    | Par3Nr10Al12(resultat) -> resultat.skattepligtig_fortjeneste_kroner
+    | Par3Nr10Al13(resultat) -> resultat.samlet_skattepligtigt_beløb_kroner
+    | _ -> 0
+}
+| par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> 0
+| exception par3_al_indtægtsføring_fysisk_person par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag) under par3_stk2_nr10_fysisk_person(grundlag)
 | par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
     | Par3Nr10Al5(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr10Al11(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
     | Par3Nr10Sl6A(resultat) -> resultat.ordinær_afskrivning_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_tab_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
     | Par3Nr10Al5A(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr10Al12(resultat) -> resultat.fradragsberettiget_tab_kroner
+    | Par3Nr10Al13(resultat) -> resultat.fradragsberettiget_tab_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_andet_fradrag_kroner(grundlag: Par3Stk2Nr10Grundlag) -> match grundlag {
     | Par3Nr10Al6(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr10Al13(resultat) -> resultat.fradragsberettiget_reparationsoverskud_kroner
     | _ -> 0
 }
 | par3_stk2_nr10_brutto_fradrag_kroner(grundlag: Par3Stk2Nr10Grundlag) -> par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag) + par3_stk2_nr10_tab_kroner(grundlag) + par3_stk2_nr10_andet_fradrag_kroner(grundlag)
@@ -407,34 +433,49 @@ iværksætterkonto
 | par3_stk2_nr10_post_resultat(grundlag: Par3Stk2Nr10Grundlag) -> Par3Stk2Nr10PostResultat(
     hjemmel = par3_stk2_nr10_hjemmel(grundlag),
     selvstændig_erhvervsdrivende_person = par3_stk2_nr10_selvstændig_person(grundlag),
+    fysisk_person = par3_stk2_nr10_fysisk_person(grundlag),
+    skattepligtig_indtægtsføring_kroner = par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag),
+    indtægtsføring_i_personlig_indkomst_kroner = par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag),
     skattemæssig_afskrivning_kroner = par3_stk2_nr10_skattemæssig_afskrivning_kroner(grundlag),
     tab_kroner = par3_stk2_nr10_tab_kroner(grundlag),
     andet_fradrag_kroner = par3_stk2_nr10_andet_fradrag_kroner(grundlag),
     brutto_fradrag_efter_kildeloven_kroner = par3_stk2_nr10_brutto_fradrag_kroner(grundlag),
     fradrag_i_personlig_indkomst_kroner = par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag),
-    afskåret_fordi_ikke_selvstændig_person_kroner = par3_stk2_nr10_brutto_fradrag_kroner(grundlag) - par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag)
+    afskåret_fordi_ikke_selvstændig_person_kroner = par3_stk2_nr10_brutto_fradrag_kroner(grundlag) - par3_stk2_nr10_fradrag_i_personlig_indkomst_kroner(grundlag),
+    afskåret_fordi_ikke_fysisk_person_indtægt_kroner = par3_stk2_nr10_skattepligtig_indtægtsføring_kroner(grundlag) - par3_stk2_nr10_indtægtsføring_i_personlig_indkomst_kroner(grundlag)
 )
 | par3_stk2_nr10_post_resultater(input: Par3Stk2Nr10Input) -> map(input.grundlagsposter, |grundlag: Par3Stk2Nr10Grundlag| par3_stk2_nr10_post_resultat(grundlag))
+| par3_stk2_nr10_sum_brutto_indtægtsføring_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.skattepligtig_indtægtsføring_kroner)
+| par3_stk2_nr10_sum_personlig_indtægtsføring_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.indtægtsføring_i_personlig_indkomst_kroner)
 | par3_stk2_nr10_sum_afskrivninger_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.skattemæssig_afskrivning_kroner)
 | par3_stk2_nr10_sum_tab_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.tab_kroner)
 | par3_stk2_nr10_sum_andre_fradrag_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.andet_fradrag_kroner)
 | par3_stk2_nr10_sum_brutto_fradrag_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.brutto_fradrag_efter_kildeloven_kroner)
 | par3_stk2_nr10_sum_personligt_fradrag_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.fradrag_i_personlig_indkomst_kroner)
 | par3_stk2_nr10_sum_afskåret_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.afskåret_fordi_ikke_selvstændig_person_kroner)
+| par3_stk2_nr10_sum_afskåret_indtægt_kroner(resultater: List(Par3Stk2Nr10PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.afskåret_fordi_ikke_fysisk_person_indtægt_kroner)
 # Par3Stk2Nr10Sag(input: Par3Stk2Nr10Input) {
     | post_resultater() -> par3_stk2_nr10_post_resultater(input)
     | resultat() -> Par3Stk2Nr10Resultat(
         post_resultater = post_resultater(),
+        brutto_indtægtsføringer_efter_afskrivningsloven_kroner = par3_stk2_nr10_sum_brutto_indtægtsføring_kroner(post_resultater()),
+        indtægtsføring_i_personlig_indkomst_kroner = par3_stk2_nr10_sum_personlig_indtægtsføring_kroner(post_resultater()),
         brutto_skattemæssige_afskrivninger_kroner = par3_stk2_nr10_sum_afskrivninger_kroner(post_resultater()),
         brutto_tab_kroner = par3_stk2_nr10_sum_tab_kroner(post_resultater()),
         brutto_andre_fradrag_kroner = par3_stk2_nr10_sum_andre_fradrag_kroner(post_resultater()),
         brutto_fradrag_efter_kildelovene_kroner = par3_stk2_nr10_sum_brutto_fradrag_kroner(post_resultater()),
         fradrag_i_personlig_indkomst_kroner = par3_stk2_nr10_sum_personligt_fradrag_kroner(post_resultater()),
-        afskåret_fordi_ikke_selvstændig_person_kroner = par3_stk2_nr10_sum_afskåret_kroner(post_resultater())
+        afskåret_fordi_ikke_selvstændig_person_kroner = par3_stk2_nr10_sum_afskåret_kroner(post_resultater()),
+        afskåret_fordi_ikke_fysisk_person_indtægt_kroner = par3_stk2_nr10_sum_afskåret_indtægt_kroner(post_resultater())
     )
 }
 | par3_stk2_nr10_sag(input: Par3Stk2Nr10Input) -> Par3Stk2Nr10Sag(input)
 | par3_stk2_nr10_resultat(input: Par3Stk2Nr10Input) -> par3_stk2_nr10_sag(input).resultat()
+| par3_stk2_nr10_indkomstpost(input: Par3Stk2Nr10Input) -> Par3Indkomstpost(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Falskt,
+    beløb_kroner = par3_stk2_nr10_resultat(input).indtægtsføring_i_personlig_indkomst_kroner
+)
 | par3_stk2_nr10_fradragspost(input: Par3Stk2Nr10Input) -> Par3Fradragspost(
     art = AfskrivningerTabFradragSelvstændige,
     stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,

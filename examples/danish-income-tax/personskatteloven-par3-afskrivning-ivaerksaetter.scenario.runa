@@ -185,6 +185,189 @@
     ]
 ))
 
+= al_blandet_60_pct_benyttelse = AfskrivningslovBenyttelse(
+    erhvervsmæssig_benyttelse_enheder = 60000,
+    samlet_benyttelse_enheder = 100000
+)
+
+= al_blandet_60_pct_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = AlMaskine,
+    erhvervsmæssig_anvendelsesandel_basispoint = 6000
+))
+
+= al11_ordinær_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    afskrivningskategori = Al11Par5Stk1,
+    uafskrevet_beløb_primo_kroner = 0,
+    anskaffelsessum_i_året_kroner = 100000,
+    forbedringsudgifter_i_året_kroner = 0,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    valg = Al11OrdinærAfskrivning(sats_basispoint = 2500)
+), al_2026_parametre)
+
+= al11_fuldt_blandet_småaktiv = afskrivningslov11_resultat(Afskrivningslov11Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    afskrivningskategori = Al11Par5Stk1,
+    uafskrevet_beløb_primo_kroner = 16900,
+    anskaffelsessum_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    valg = Al11FuldRestfradrag
+), al_2026_parametre)
+
+= al11_blandet_over_småaktivgrænsen = afskrivningslov11_resultat(Afskrivningslov11Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    afskrivningskategori = Al11Par5Stk1,
+    uafskrevet_beløb_primo_kroner = 16901,
+    anskaffelsessum_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    valg = Al11FuldRestfradrag
+), al_2026_parametre)
+
+= al11_par5c_stk1_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    afskrivningskategori = Al11Par5CStk1,
+    uafskrevet_beløb_primo_kroner = 100000,
+    anskaffelsessum_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    valg = Al11OrdinærAfskrivning(sats_basispoint = 1500)
+), al_2026_parametre)
+
+= al11_par5c_stk2_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    afskrivningskategori = Al11Par5CStk2,
+    uafskrevet_beløb_primo_kroner = 100000,
+    anskaffelsessum_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    valg = Al11OrdinærAfskrivning(sats_basispoint = 700)
+), al_2026_parametre)
+
+= al11_officiel_salgs_historik = [
+    Afskrivningslov11Årsopgørelse(
+        indkomstår = 2023,
+        benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 20000, samlet_benyttelse_enheder = 40000),
+        beregnet_afskrivning_før_erhvervsandel_kroner = 40000,
+        fradraget_afskrivning_kroner = 20000
+    ),
+    Afskrivningslov11Årsopgørelse(
+        indkomstår = 2024,
+        benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 15000, samlet_benyttelse_enheder = 35000),
+        beregnet_afskrivning_før_erhvervsandel_kroner = 30000,
+        fradraget_afskrivning_kroner = 12857
+    ),
+    Afskrivningslov11Årsopgørelse(
+        indkomstår = 2025,
+        benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 12000, samlet_benyttelse_enheder = 35000),
+        beregnet_afskrivning_før_erhvervsandel_kroner = 6800,
+        fradraget_afskrivning_kroner = 2331
+    )
+]
+
+= al12_officiel_fortjeneste = afskrivningslov12_resultat(Afskrivningslov12Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    anskaffelsessum_kroner = 160000,
+    forbedringsudgifter_før_salgsåret_kroner = 0,
+    forbedringsudgifter_i_salgsåret_kroner = 800,
+    salgssum_kroner = 152000,
+    benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser = al11_officiel_salgs_historik)
+))
+
+= al12_officielt_tab = afskrivningslov12_resultat(Afskrivningslov12Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    anskaffelsessum_kroner = 160000,
+    forbedringsudgifter_før_salgsåret_kroner = 0,
+    forbedringsudgifter_i_salgsåret_kroner = 800,
+    salgssum_kroner = 47000,
+    benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser = al11_officiel_salgs_historik)
+))
+
+= al12_samme_år_fortjeneste = afskrivningslov12_resultat(Afskrivningslov12Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    anskaffelsessum_kroner = 100000,
+    forbedringsudgifter_før_salgsåret_kroner = 0,
+    forbedringsudgifter_i_salgsåret_kroner = 0,
+    salgssum_kroner = 120000,
+    benyttelsesgrundlag = Al12SammeIndkomstår(benyttelse = al_blandet_60_pct_benyttelse)
+))
+
+= al12_samme_år_tab = afskrivningslov12_resultat(Afskrivningslov12Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    anskaffelsessum_kroner = 100000,
+    forbedringsudgifter_før_salgsåret_kroner = 0,
+    forbedringsudgifter_i_salgsåret_kroner = 0,
+    salgssum_kroner = 80000,
+    benyttelsesgrundlag = Al12SammeIndkomstår(benyttelse = al_blandet_60_pct_benyttelse)
+))
+
+= al13_reparations_historik = [
+    Afskrivningslov11Årsopgørelse(
+        indkomstår = 2025,
+        benyttelse = al_blandet_60_pct_benyttelse,
+        beregnet_afskrivning_før_erhvervsandel_kroner = 10000,
+        fradraget_afskrivning_kroner = 6000
+    )
+]
+
+= al13_reparationsudgift_over_erstatning = afskrivningslov13_resultat_ved_reparation(Afskrivningslov13ReparationInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    reparationsudgifter_kroner = 20000,
+    forsikrings_eller_erstatningssum_kroner = 8000,
+    tidligere_årsopgørelser = al13_reparations_historik
+))
+
+= al13_erstatning_over_reparationsudgift = afskrivningslov13_resultat_ved_reparation(Afskrivningslov13ReparationInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_blandet_60_pct_maskine,
+    årets_benyttelse = al_blandet_60_pct_benyttelse,
+    reparationsudgifter_kroner = 8000,
+    forsikrings_eller_erstatningssum_kroner = 20000,
+    tidligere_årsopgørelser = al13_reparations_historik
+))
+
+= al13_udgang_ved_skade = afskrivningslov13_resultat_ved_udgang(Afskrivningslov13UdgangInput(
+    par12_resultat = al12_officielt_tab
+))
+
+= par3_nr10_blandet_input = Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al11(resultat = al11_ordinær_blandet),
+        Par3Nr10Al12(resultat = al12_officiel_fortjeneste),
+        Par3Nr10Al12(resultat = al12_officielt_tab),
+        Par3Nr10Al13(resultat = al13_reparationsudgift_over_erstatning)
+    ]
+)
+
+= par3_nr10_blandet_resultat = par3_stk2_nr10_resultat(par3_nr10_blandet_input)
+
+= par3_nr10_blandet_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 100000
+        ),
+        par3_stk2_nr10_indkomstpost(par3_nr10_blandet_input)
+    ],
+    fradragsposter = [
+        par3_stk2_nr10_fradragspost(par3_nr10_blandet_input)
+    ]
+))
+
 = etbl_nettoløn_200000 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
     indkomstår = 2026,
     fase = EtblFørEtablering,
@@ -449,7 +632,18 @@
 | scenarie_al6_skib_ikke_småaktiv_efter_nr2: al6_skib_er_ikke_småaktiv_efter_nr2 -> al6_skib_er_ikke_småaktiv_efter_nr2.småaktiv_betingelse_opfyldt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.valg_gyldigt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al6_forskning_114_og_110_pct: al6_forskning_krydser_2026_loftet -> al6_forskning_krydser_2026_loftet.forskningsudgift_under_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.forskningsudgift_over_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.fradrag_i_skattepligtig_indkomst_kroner == 224000
 | scenarie_sl6_dokumenteret_ordinær_afskrivning: sl6_ordinær_selvstændig -> sl6_ordinær_selvstændig.ordinær_afskrivning_kroner == 12000 && sl6_ordinær_selvstændig.afskrivningsgrundlag_ultimo_kroner == 68000
-| scenarie_par3_nr10_filtrerer_selskab: par3_nr10_samlet -> par3_nr10_samlet.brutto_skattemæssige_afskrivninger_kroner == 77000 && par3_nr10_samlet.brutto_tab_kroner == 30000 && par3_nr10_samlet.brutto_andre_fradrag_kroner == 259000 && par3_nr10_samlet.brutto_fradrag_efter_kildelovene_kroner == 366000 && par3_nr10_samlet.fradrag_i_personlig_indkomst_kroner == 333500 && par3_nr10_samlet.afskåret_fordi_ikke_selvstændig_person_kroner == 32500
+| scenarie_al11_ordinær_blandet_afskrivning: al11_ordinær_blandet -> al11_ordinær_blandet.blandet_benyttet == Sandt && al11_ordinær_blandet.valg_gyldigt == Sandt && al11_ordinær_blandet.beregnet_afskrivning_før_erhvervsandel_kroner == 25000 && al11_ordinær_blandet.fradrag_i_skattepligtig_indkomst_kroner == 15000 && al11_ordinær_blandet.uafskrevet_beløb_ultimo_kroner == 75000
+| scenarie_al11_blandet_småaktivgrænse: al11_fuldt_blandet_småaktiv -> al11_fuldt_blandet_småaktiv.valg_gyldigt == Sandt && al11_fuldt_blandet_småaktiv.fradrag_i_skattepligtig_indkomst_kroner == 10140 && al11_fuldt_blandet_småaktiv.uafskrevet_beløb_ultimo_kroner == 0 && al11_blandet_over_småaktivgrænsen.valg_gyldigt == Falskt && al11_blandet_over_småaktivgrænsen.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al11_par5c_satser: al11_par5c_stk1_blandet -> al11_par5c_stk1_blandet.højeste_sats_basispoint == 1500 && al11_par5c_stk1_blandet.beregnet_afskrivning_før_erhvervsandel_kroner == 15000 && al11_par5c_stk1_blandet.fradrag_i_skattepligtig_indkomst_kroner == 9000 && al11_par5c_stk2_blandet.højeste_sats_basispoint == 700 && al11_par5c_stk2_blandet.beregnet_afskrivning_før_erhvervsandel_kroner == 7000 && al11_par5c_stk2_blandet.fradrag_i_skattepligtig_indkomst_kroner == 4200
+| scenarie_al12_officielt_salg_med_fortjeneste: al12_officiel_fortjeneste -> al12_officiel_fortjeneste.afskrivning_i_salgsåret_afskåret == Sandt && al12_officiel_fortjeneste.beregnede_afskrivninger_før_salgsåret_kroner == 76800 && al12_officiel_fortjeneste.uafskrevet_beløb_primo_i_salgsåret_kroner == 83200 && al12_officiel_fortjeneste.fortjeneste_før_erhvervsandel_kroner == 68000 && al12_officiel_fortjeneste.erhvervsmæssig_benyttelse_enheder == 47000 && al12_officiel_fortjeneste.samlet_benyttelse_enheder == 110000 && al12_officiel_fortjeneste.skattepligtig_fortjeneste_kroner == 29055
+| scenarie_al12_officielt_salg_med_tab: al12_officielt_tab -> al12_officielt_tab.tab_før_erhvervsandel_kroner == 37000 && al12_officielt_tab.fradragsberettiget_tab_kroner == 15809 && al12_officielt_tab.skattepligtig_fortjeneste_kroner == 0
+| scenarie_al12_samme_år_fortjeneste_og_tab: al12_samme_år_fortjeneste -> al12_samme_år_fortjeneste.beregnede_afskrivninger_før_salgsåret_kroner == 0 && al12_samme_år_fortjeneste.skattepligtig_fortjeneste_kroner == 12000 && al12_samme_år_tab.fradragsberettiget_tab_kroner == 12000
+| scenarie_al13_reparationsudgift_over_erstatning: al13_reparationsudgift_over_erstatning -> al13_reparationsudgift_over_erstatning.behandling == Al13RepareresOgFortsætter && al13_reparationsudgift_over_erstatning.afskrivning_i_skadeåret_afskåret == Falskt && al13_reparationsudgift_over_erstatning.fradragsberettiget_reparationsoverskud_kroner == 7200 && al13_reparationsudgift_over_erstatning.samlet_skattepligtigt_beløb_kroner == 0
+| scenarie_al13_erstatning_over_reparationsudgift: al13_erstatning_over_reparationsudgift -> al13_erstatning_over_reparationsudgift.skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner == 7200 && al13_erstatning_over_reparationsudgift.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al13_udgang_behandles_som_salg: al13_udgang_ved_skade -> al13_udgang_ved_skade.behandling == Al13UdgårAfDriften && al13_udgang_ved_skade.afskrivning_i_skadeåret_afskåret == Sandt && al13_udgang_ved_skade.fradragsberettiget_tab_kroner == 15809
+| scenarie_par3_nr10_filtrerer_selskab: par3_nr10_samlet -> par3_nr10_samlet.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 0 && par3_nr10_samlet.indtægtsføring_i_personlig_indkomst_kroner == 0 && par3_nr10_samlet.brutto_skattemæssige_afskrivninger_kroner == 77000 && par3_nr10_samlet.brutto_tab_kroner == 30000 && par3_nr10_samlet.brutto_andre_fradrag_kroner == 259000 && par3_nr10_samlet.brutto_fradrag_efter_kildelovene_kroner == 366000 && par3_nr10_samlet.fradrag_i_personlig_indkomst_kroner == 333500 && par3_nr10_samlet.afskåret_fordi_ikke_selvstændig_person_kroner == 32500
+| scenarie_par3_nr10_blandet_indtægt_og_fradrag: par3_nr10_blandet_resultat -> par3_nr10_blandet_resultat.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 29055 && par3_nr10_blandet_resultat.indtægtsføring_i_personlig_indkomst_kroner == 29055 && par3_nr10_blandet_resultat.brutto_skattemæssige_afskrivninger_kroner == 15000 && par3_nr10_blandet_resultat.brutto_tab_kroner == 15809 && par3_nr10_blandet_resultat.brutto_andre_fradrag_kroner == 7200 && par3_nr10_blandet_resultat.fradrag_i_personlig_indkomst_kroner == 38009
+| scenarie_par3_nr10_blandet_regelkaskade: par3_nr10_blandet_personlig_indkomst -> par3_nr10_blandet_personlig_indkomst.brutto_personlig_indkomst_kroner == 129055 && par3_nr10_blandet_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 38009 && par3_nr10_blandet_personlig_indkomst.netto_personlig_indkomst_kroner == 91046
 | scenarie_etbl_officielle_indskudseksempler: etbl_nettoløn_200000 -> etbl_nettoløn_200000.højeste_indskud_efter_forskudsafskrivning_kroner == 200000 && etbl_nettoløn_200000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 200000 && etbl_nettoløn_300000.højeste_indskud_efter_forskudsafskrivning_kroner == 250000 && etbl_nettoløn_300000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 250000 && etbl_nettoløn_800000.højeste_indskud_efter_forskudsafskrivning_kroner == 480000 && etbl_nettoløn_800000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 480000
 | scenarie_etbl_fordeler_kontotyper: etbl_blandet_fordeling -> etbl_blandet_fordeling.indskudsgrænser_opfyldt == Sandt && etbl_blandet_fordeling.behandlede_indskud_i_alt_kroner == 300000 && etbl_blandet_fordeling.etableringskonto_ligningsmæssigt_fradrag_kroner == 150000 && etbl_blandet_fordeling.iværksætterkonto_personlig_indkomst_fradrag_kroner == 150000 && etbl_blandet_fordeling.behandlede_indskud_uden_fradrag_kroner == 0
 | scenarie_etbl_al29_reducerer_indskudsloft: etbl_al29_reducerer_loftet -> etbl_al29_reducerer_loftet.højeste_indskud_før_forskudsafskrivning_kroner == 300000 && etbl_al29_reducerer_loftet.højeste_indskud_efter_forskudsafskrivning_kroner == 240000 && etbl_al29_reducerer_loftet.iværksætterkonto_personlig_indkomst_fradrag_kroner == 240000
@@ -470,7 +664,18 @@
 ? scenarie_al6_skib_ikke_småaktiv_efter_nr2
 ? scenarie_al6_forskning_114_og_110_pct
 ? scenarie_sl6_dokumenteret_ordinær_afskrivning
+? scenarie_al11_ordinær_blandet_afskrivning
+? scenarie_al11_blandet_småaktivgrænse
+? scenarie_al11_par5c_satser
+? scenarie_al12_officielt_salg_med_fortjeneste
+? scenarie_al12_officielt_salg_med_tab
+? scenarie_al12_samme_år_fortjeneste_og_tab
+? scenarie_al13_reparationsudgift_over_erstatning
+? scenarie_al13_erstatning_over_reparationsudgift
+? scenarie_al13_udgang_behandles_som_salg
 ? scenarie_par3_nr10_filtrerer_selskab
+? scenarie_par3_nr10_blandet_indtægt_og_fradrag
+? scenarie_par3_nr10_blandet_regelkaskade
 ? scenarie_etbl_officielle_indskudseksempler
 ? scenarie_etbl_fordeler_kontotyper
 ? scenarie_etbl_al29_reducerer_indskudsloft

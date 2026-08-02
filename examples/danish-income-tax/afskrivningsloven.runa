@@ -28,6 +28,12 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par11_par13_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2060792",
+    identifier = "Den juridiske vejledning, delvist erhvervsmæssigt benyttede driftsmidler og skibe",
+    hentet_dato = "2026-07-18"
+)
+
 ----
 Officiel XML-metadata for 2025/1222, hentet 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om skattemæssige afskrivninger
@@ -59,7 +65,7 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 ----
 
 --@begin:afskrivningsloven_par1_par2--
-# AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenSkatteyder
+# AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenFysiskPerson
 # AfskrivningslovAktivart = AlMaskine | AlInventar | AlAndetDriftsmiddel | AlSkib | AlSoftware | AlAntikvitetEllerAndetVærdifastAktiv | AlKunstværk
 # AfskrivningslovPar1Par2Input(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal)
 # AfskrivningslovPar1Par2Resultat(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, erhvervsmæssigt_benyttet: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, aktivart_omfattet_af_kapitel2: Boolsk, omfattet_af_kapitel2: Boolsk)
@@ -91,21 +97,26 @@ Skatteministeriets offentliggjorte 2026-satser til afskrivningsloven:
 
 Småsaldigrænse (§ 5): 36.000 kr.
 Småaktivgrænse (§ 6): 36.000 kr.
+Småaktivgrænse for delvist erhvervsmæssigt benyttede aktiver (§ 11):
+16.900 kr.
 Loft over forhøjet afskrivningsgrundlag for udgifter til forsknings- og
 forsøgsvirksomhed (§ 6, stk. 1): 1.088,8 mio. kr.
 ----
 
 --@begin:afskrivningsloven_2026_parametre--
 # AfskrivningslovÅrsparameterKilde = AlSkatteministerietSatser2026
-# AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
+# AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, blandet_småaktivgrænse_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, par5c_stk1_højeste_sats_basispoint: Heltal, par5c_stk2_højeste_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
 
 | afskrivningslov_årsparametre(indkomstår: Heltal) -> AfskrivningslovÅrsparametre(
     indkomstår = indkomstår,
     kilde = AlSkatteministerietSatser2026,
     småsaldigrænse_kroner = 36000,
     småaktivgrænse_kroner = 36000,
+    blandet_småaktivgrænse_kroner = 16900,
     forskningsloft_kroner = 1088800000,
     højeste_ordinære_sats_basispoint = 2500,
+    par5c_stk1_højeste_sats_basispoint = 1500,
+    par5c_stk2_højeste_sats_basispoint = 700,
     forskning_sats_under_loft_basispoint = 11400,
     forskning_sats_over_loft_basispoint = 11000
 ) under indkomstår == 2026
@@ -323,6 +334,242 @@ beløb afrundes opad til nærmeste kronebeløb, der kan deles med 100.000.
     fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov6_fradrag_kroner(input, parametre)
 )
 --@end:afskrivningsloven_par6_stk1--
+
+--@label:afskrivningsloven_par11::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 11. Driftsmidler og skibe, som en skattepligtig benytter både til
+erhvervsmæssige og til private formål, skal afskrives særskilt for hvert
+enkelt driftsmiddel eller skib.
+
+Stk. 2. Afskrivning kan i anskaffelsesåret beregnes med indtil 25 pct. af
+anskaffelsessummen for driftsmidler omfattet af § 5, stk. 1, indtil 15 pct.
+af anskaffelsessummen for driftsmidler og skibe omfattet af § 5 C, stk. 1,
+og indtil 7 pct. af anskaffelsessummen for infrastrukturanlæg omfattet af
+§ 5 C, stk. 2. For hvert af de følgende indkomstår kan afskrivning beregnes
+efter 1. pkt. af det beløb, der henstår uafskrevet ved indkomstårets
+begyndelse. Af den således beregnede afskrivning kan fradrages et beløb,
+der svarer til den erhvervsmæssige benyttelse i det pågældende indkomstår.
+
+Stk. 3. Udgør anskaffelsessummen, eller er den inden afskrivning nedbragt
+til et grundbeløb på 12.300 kr. (2010-niveau) eller derunder, kan det beløb,
+der svarer til den erhvervsmæssige benyttelse, fradrages fuldt ud i den
+skattepligtige indkomst.
+
+Stk. 4. Forbedringsudgifter vedrørende driftsmidler eller skibe som nævnt i
+stk. 1 behandles som anskaffelsessummer og afskrives på samme måde og sammen
+med det driftsmiddel eller skib, som udgiften vedrører.
+
+Stk. 5. For driftsmidler med en anskaffelsessum på et grundbeløb på 12.300
+kr. (2010-niveau) eller derunder, finder § 6, stk. 1, nr. 2, 2.-4. pkt.,
+tilsvarende anvendelse.
+----
+
+--@begin:afskrivningsloven_par11--
+# AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal)
+# Afskrivningslov11Afskrivningskategori = Al11Par5Stk1 | Al11Par5CStk1 | Al11Par5CStk2
+# Afskrivningslov11Valg = Al11IngenAfskrivning | Al11OrdinærAfskrivning(sats_basispoint: Heltal) | Al11FuldRestfradrag
+# Afskrivningslov11Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, afskrivningskategori: Afskrivningslov11Afskrivningskategori, uafskrevet_beløb_primo_kroner: Heltal, anskaffelsessum_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, årets_benyttelse: AfskrivningslovBenyttelse, valg: Afskrivningslov11Valg)
+# Afskrivningslov11Årsopgørelse(indkomstår: Heltal, benyttelse: AfskrivningslovBenyttelse, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
+# Afskrivningslov11Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, afskrivningskategori: Afskrivningslov11Afskrivningskategori, blandet_benyttet: Boolsk, valg: Afskrivningslov11Valg, valg_gyldigt: Boolsk, højeste_sats_basispoint: Heltal, afskrivningsgrundlag_før_årets_afskrivning_kroner: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, uafskrevet_beløb_ultimo_kroner: Heltal, årsopgørelse: Afskrivningslov11Årsopgørelse)
+
+| afskrivningslov_benyttelse_gyldig(benyttelse: AfskrivningslovBenyttelse) -> benyttelse.samlet_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder >= 0 && benyttelse.erhvervsmæssig_benyttelse_enheder <= benyttelse.samlet_benyttelse_enheder
+| afskrivningslov_benyttelse_er_blandet(benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_benyttelse_gyldig(benyttelse) && benyttelse.erhvervsmæssig_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder < benyttelse.samlet_benyttelse_enheder
+| afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse) -> 0
+| exception al_benyttelse_gyldig_andel afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse) -> benyttelse.erhvervsmæssig_benyttelse_enheder * 10000 / benyttelse.samlet_benyttelse_enheder under afskrivningslov_benyttelse_gyldig(benyttelse)
+| afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> 0
+| exception al_positivt_gyldigt_forhold afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> (penge_positivt_beløb(beløb_kroner) * tæller + nævner / 2) / nævner under beløb_kroner > 0 && tæller > 0 && nævner > 0 && tæller <= nævner
+| afskrivningslov_beløb_efter_benyttelse_kroner(beløb_kroner: Heltal, benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, benyttelse.erhvervsmæssig_benyttelse_enheder, benyttelse.samlet_benyttelse_enheder)
+| afskrivningslov11_aktiv_resultat_matcher_benyttelse(input: Afskrivningslov11Input) -> input.aktiv_resultat.erhvervsmæssig_anvendelsesandel_basispoint == afskrivningslov_benyttelse_erhvervsandel_basispoint(input.årets_benyttelse)
+| afskrivningslov11_omfattet(input: Afskrivningslov11Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov11_aktiv_resultat_matcher_benyttelse(input)
+| afskrivningslov11_højeste_sats_basispoint(kategori: Afskrivningslov11Afskrivningskategori, parametre: AfskrivningslovÅrsparametre) -> match kategori {
+    | Al11Par5Stk1 -> parametre.højeste_ordinære_sats_basispoint
+    | Al11Par5CStk1 -> parametre.par5c_stk1_højeste_sats_basispoint
+    | Al11Par5CStk2 -> parametre.par5c_stk2_højeste_sats_basispoint
+}
+| afskrivningslov11_afskrivningsgrundlag_kroner(input: Afskrivningslov11Input) -> penge_positivt_beløb(input.uafskrevet_beløb_primo_kroner) + penge_positivt_beløb(input.anskaffelsessum_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner)
+| afskrivningslov11_valgt_sats_basispoint(valg: Afskrivningslov11Valg) -> match valg {
+    | Al11OrdinærAfskrivning(sats_basispoint) -> penge_positivt_beløb(sats_basispoint)
+    | _ -> 0
+}
+| afskrivningslov11_årsparametre_matcher(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår
+| afskrivningslov11_valg_gyldigt(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al11IngenAfskrivning -> afskrivningslov11_omfattet(input) && afskrivningslov11_årsparametre_matcher(input, parametre)
+    | Al11OrdinærAfskrivning(sats_basispoint) -> afskrivningslov11_omfattet(input) && afskrivningslov11_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= afskrivningslov11_højeste_sats_basispoint(input.afskrivningskategori, parametre)
+    | Al11FuldRestfradrag -> afskrivningslov11_omfattet(input) && afskrivningslov11_årsparametre_matcher(input, parametre) && afskrivningslov11_afskrivningsgrundlag_kroner(input) > 0 && afskrivningslov11_afskrivningsgrundlag_kroner(input) <= parametre.blandet_småaktivgrænse_kroner
+}
+| afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> 0
+| exception al11_ordinær_beregnet_afskrivning afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(afskrivningslov11_afskrivningsgrundlag_kroner(input), afskrivningslov11_valgt_sats_basispoint(input.valg)) under afskrivningslov11_valg_gyldigt(input, parametre) && afskrivningslov11_valgt_sats_basispoint(input.valg) > 0
+| exception al11_fuldt_restfradrag afskrivningslov11_beregnet_afskrivning_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov11_afskrivningsgrundlag_kroner(input) under afskrivningslov11_valg_gyldigt(input, parametre) && input.valg == Al11FuldRestfradrag
+| afskrivningslov11_fradrag_kroner(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov_beløb_efter_benyttelse_kroner(afskrivningslov11_beregnet_afskrivning_kroner(input, parametre), input.årets_benyttelse)
+| afskrivningslov11_årsopgørelse(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov11Årsopgørelse(
+    indkomstår = input.indkomstår,
+    benyttelse = input.årets_benyttelse,
+    beregnet_afskrivning_før_erhvervsandel_kroner = afskrivningslov11_beregnet_afskrivning_kroner(input, parametre),
+    fradraget_afskrivning_kroner = afskrivningslov11_fradrag_kroner(input, parametre)
+)
+| afskrivningslov11_resultat(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov11Resultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    aktivart = input.aktiv_resultat.aktivart,
+    afskrivningskategori = input.afskrivningskategori,
+    blandet_benyttet = afskrivningslov11_omfattet(input),
+    valg = input.valg,
+    valg_gyldigt = afskrivningslov11_valg_gyldigt(input, parametre),
+    højeste_sats_basispoint = afskrivningslov11_højeste_sats_basispoint(input.afskrivningskategori, parametre),
+    afskrivningsgrundlag_før_årets_afskrivning_kroner = afskrivningslov11_afskrivningsgrundlag_kroner(input),
+    beregnet_afskrivning_før_erhvervsandel_kroner = afskrivningslov11_beregnet_afskrivning_kroner(input, parametre),
+    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov11_fradrag_kroner(input, parametre),
+    uafskrevet_beløb_ultimo_kroner = afskrivningslov11_afskrivningsgrundlag_kroner(input) - afskrivningslov11_beregnet_afskrivning_kroner(input, parametre),
+    årsopgørelse = afskrivningslov11_årsopgørelse(input, parametre)
+)
+| afskrivningslov11_årsopgørelse_gyldig(årsopgørelse: Afskrivningslov11Årsopgørelse) -> afskrivningslov_benyttelse_er_blandet(årsopgørelse.benyttelse) && årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner <= årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner
+--@end:afskrivningsloven_par11--
+
+--@label:afskrivningsloven_par12::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+----
+§ 12. Sælges et driftsmiddel eller skib som nævnt i § 11, kan der ikke for
+salgsåret beregnes afskrivning på det solgte driftsmiddel eller skib.
+Fortjeneste eller tab opgøres som forskellen mellem salgssummen og det
+uafskrevne beløb ved salgsårets begyndelse forhøjet med eventuelle
+forbedringsudgifter afholdt i salgsåret. Ved beregningen af det uafskrevne
+beløb ved salgsårets begyndelse fragår de afskrivninger, der er beregnet for
+de enkelte indkomstår. Fortjeneste eller tab medregnes ved opgørelsen af den
+skattepligtige indkomst for salgsåret med så stor en del, som svarer til
+forholdet mellem den erhvervsmæssige benyttelse for indkomstårene forud for
+salgsåret og den samlede benyttelse for disse indkomstår.
+----
+
+--@label:afskrivningsloven_par12::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+----
+Den juridiske vejledning, afsnit "Anskaffelse og afhændelse i samme
+indkomstår":
+
+Hvis et driftsmiddel med blandet benyttelse anskaffes og afhændes inden for
+det samme indkomstår med fortjeneste, skal den del af fortjenesten, der svarer
+til den erhvervsmæssige andel af benyttelsen af driftsmidlet, regnes med ved
+opgørelsen af den skattepligtige indkomst.
+
+Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra.
+----
+
+--@begin:afskrivningsloven_par12--
+# Afskrivningslov12Benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) | Al12SammeIndkomstår(benyttelse: AfskrivningslovBenyttelse)
+# Afskrivningslov12Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsessum_kroner: Heltal, forbedringsudgifter_før_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, benyttelsesgrundlag: Afskrivningslov12Benyttelsesgrundlag)
+# Afskrivningslov12Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, omfattet_af_par12: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, beregnede_afskrivninger_før_salgsåret_kroner: Heltal, uafskrevet_beløb_primo_i_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal, erhvervsmæssig_andel_basispoint: Heltal, fortjeneste_før_erhvervsandel_kroner: Heltal, tab_før_erhvervsandel_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+| afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> match grundlag {
+    | Al12TidligereÅr(årsopgørelser) -> length(årsopgørelser) > 0 && all(årsopgørelser, |årsopgørelse: Afskrivningslov11Årsopgørelse| afskrivningslov11_årsopgørelse_gyldig(årsopgørelse))
+    | Al12SammeIndkomstår(benyttelse) -> afskrivningslov_benyttelse_er_blandet(benyttelse)
+}
+| afskrivningslov12_beregnede_afskrivninger_kroner(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> match grundlag {
+    | Al12TidligereÅr(årsopgørelser) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner)
+    | Al12SammeIndkomstår(_) -> 0
+}
+| afskrivningslov12_erhvervsmæssig_benyttelse_enheder(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> match grundlag {
+    | Al12TidligereÅr(årsopgørelser) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.benyttelse.erhvervsmæssig_benyttelse_enheder)
+    | Al12SammeIndkomstår(benyttelse) -> benyttelse.erhvervsmæssig_benyttelse_enheder
+}
+| afskrivningslov12_samlet_benyttelse_enheder(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> match grundlag {
+    | Al12TidligereÅr(årsopgørelser) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.benyttelse.samlet_benyttelse_enheder)
+    | Al12SammeIndkomstår(benyttelse) -> benyttelse.samlet_benyttelse_enheder
+}
+| afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> 0
+| exception al12_gyldigt_benyttelsesgrundlag afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> afskrivningslov12_erhvervsmæssig_benyttelse_enheder(grundlag) * 10000 / afskrivningslov12_samlet_benyttelse_enheder(grundlag) under afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag)
+| afskrivningslov12_omfattet(input: Afskrivningslov12Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov12_benyttelsesgrundlag_gyldigt(input.benyttelsesgrundlag)
+| afskrivningslov12_uafskrevet_beløb_primo_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) + penge_positivt_beløb(input.forbedringsudgifter_før_salgsåret_kroner) - afskrivningslov12_beregnede_afskrivninger_kroner(input.benyttelsesgrundlag))
+| afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_uafskrevet_beløb_primo_kroner(input) + penge_positivt_beløb(input.forbedringsudgifter_i_salgsåret_kroner)
+| afskrivningslov12_fortjeneste_før_andel_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input))
+| afskrivningslov12_tab_før_andel_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
+| afskrivningslov12_beløb_efter_erhvervsandel_kroner(input: Afskrivningslov12Input, beløb_kroner: Heltal) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, afskrivningslov12_erhvervsmæssig_benyttelse_enheder(input.benyttelsesgrundlag), afskrivningslov12_samlet_benyttelse_enheder(input.benyttelsesgrundlag))
+| afskrivningslov12_skattepligtig_fortjeneste_kroner(input: Afskrivningslov12Input) -> 0
+| exception al12_fortjeneste_efter_erhvervsandel afskrivningslov12_skattepligtig_fortjeneste_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_fortjeneste_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
+| afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input) -> 0
+| exception al12_tab_efter_erhvervsandel afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_tab_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
+| afskrivningslov12_resultat(input: Afskrivningslov12Input) -> Afskrivningslov12Resultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    aktivart = input.aktiv_resultat.aktivart,
+    omfattet_af_par12 = afskrivningslov12_omfattet(input),
+    afskrivning_i_salgsåret_afskåret = afskrivningslov12_omfattet(input),
+    beregnede_afskrivninger_før_salgsåret_kroner = afskrivningslov12_beregnede_afskrivninger_kroner(input.benyttelsesgrundlag),
+    uafskrevet_beløb_primo_i_salgsåret_kroner = afskrivningslov12_uafskrevet_beløb_primo_kroner(input),
+    forbedringsudgifter_i_salgsåret_kroner = penge_positivt_beløb(input.forbedringsudgifter_i_salgsåret_kroner),
+    salgssum_kroner = penge_positivt_beløb(input.salgssum_kroner),
+    erhvervsmæssig_benyttelse_enheder = afskrivningslov12_erhvervsmæssig_benyttelse_enheder(input.benyttelsesgrundlag),
+    samlet_benyttelse_enheder = afskrivningslov12_samlet_benyttelse_enheder(input.benyttelsesgrundlag),
+    erhvervsmæssig_andel_basispoint = afskrivningslov12_erhvervsandel_basispoint(input.benyttelsesgrundlag),
+    fortjeneste_før_erhvervsandel_kroner = afskrivningslov12_fortjeneste_før_andel_kroner(input),
+    tab_før_erhvervsandel_kroner = afskrivningslov12_tab_før_andel_kroner(input),
+    skattepligtig_fortjeneste_kroner = afskrivningslov12_skattepligtig_fortjeneste_kroner(input),
+    fradragsberettiget_tab_kroner = afskrivningslov12_fradragsberettiget_tab_kroner(input)
+)
+--@end:afskrivningsloven_par12--
+
+--@label:afskrivningsloven_par13::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+----
+§ 13. Udgår et driftsmiddel eller skib som nævnt i § 11 af driften på grund
+af en skade, kan der ikke afskrives på driftsmidlet eller skibet i det
+indkomstår, hvori skaden er indtruffet. For dette indkomstår behandles
+driftsmidlet eller skibet, som om det er solgt. Fortjeneste eller tab, jf.
+§ 48, opgøres efter § 12.
+
+Stk. 2. Såfremt der til reparation af et skadelidt driftsmiddel eller skib
+afholdes udgifter, der overstiger en i anledning af skaden udbetalt
+forsikrings- eller erstatningssum, kan den del af det overskydende beløb, der
+svarer til den erhvervsmæssige andel i driftsmidlets eller skibets benyttelse
+i det pågældende indkomstår, fradrages i den skattepligtige indkomst.
+Overstiger forsikrings- eller erstatningssummen reparationsudgifterne, skal en
+så stor del af det overskydende beløb, som svarer til forholdet mellem de for
+tidligere indkomstår foretagne afskrivninger og de samlede beregnede
+afskrivninger på driftsmidlet eller skibet for disse indkomstår, medregnes i
+den skattepligtige indkomst.
+----
+
+--@begin:afskrivningsloven_par13--
+# Afskrivningslov13Behandling = Al13UdgårAfDriften | Al13RepareresOgFortsætter
+# Afskrivningslov13UdgangInput(par12_resultat: Afskrivningslov12Resultat)
+# Afskrivningslov13ReparationInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, årets_benyttelse: AfskrivningslovBenyttelse, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov11Årsopgørelse))
+# Afskrivningslov13Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, behandling: Afskrivningslov13Behandling, omfattet_af_par13: Boolsk, afskrivning_i_skadeåret_afskåret: Boolsk, skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, fradragsberettiget_reparationsoverskud_kroner: Heltal, samlet_skattepligtigt_beløb_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| afskrivningslov13_tidligere_årsopgørelser_gyldige(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> all(årsopgørelser, |årsopgørelse: Afskrivningslov11Årsopgørelse| afskrivningslov11_årsopgørelse_gyldig(årsopgørelse))
+| afskrivningslov13_beregnede_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner)
+| afskrivningslov13_foretagne_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.fradraget_afskrivning_kroner)
+| afskrivningslov13_reparation_omfattet(input: Afskrivningslov13ReparationInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov13_tidligere_årsopgørelser_gyldige(input.tidligere_årsopgørelser)
+| afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> 0
+| exception al13_reparationsudgift_over_erstatning afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> afskrivningslov_beløb_efter_benyttelse_kroner(penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner), input.årets_benyttelse) under afskrivningslov13_reparation_omfattet(input) && input.reparationsudgifter_kroner > input.forsikrings_eller_erstatningssum_kroner
+| afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput) -> 0
+| exception al13_erstatning_over_reparationsudgift afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(
+    penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner - input.reparationsudgifter_kroner),
+    afskrivningslov13_foretagne_afskrivninger_kroner(input.tidligere_årsopgørelser),
+    afskrivningslov13_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser)
+) under afskrivningslov13_reparation_omfattet(input) && input.forsikrings_eller_erstatningssum_kroner > input.reparationsudgifter_kroner
+| afskrivningslov13_resultat_ved_udgang(input: Afskrivningslov13UdgangInput) -> Afskrivningslov13Resultat(
+    indkomstår = input.par12_resultat.indkomstår,
+    skatteyder = input.par12_resultat.skatteyder,
+    aktivart = input.par12_resultat.aktivart,
+    behandling = Al13UdgårAfDriften,
+    omfattet_af_par13 = input.par12_resultat.omfattet_af_par12,
+    afskrivning_i_skadeåret_afskåret = input.par12_resultat.omfattet_af_par12,
+    skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner = input.par12_resultat.skattepligtig_fortjeneste_kroner,
+    fradragsberettiget_tab_kroner = input.par12_resultat.fradragsberettiget_tab_kroner,
+    fradragsberettiget_reparationsoverskud_kroner = 0,
+    samlet_skattepligtigt_beløb_kroner = input.par12_resultat.skattepligtig_fortjeneste_kroner,
+    samlet_fradrag_i_skattepligtig_indkomst_kroner = input.par12_resultat.fradragsberettiget_tab_kroner
+)
+| afskrivningslov13_resultat_ved_reparation(input: Afskrivningslov13ReparationInput) -> Afskrivningslov13Resultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    aktivart = input.aktiv_resultat.aktivart,
+    behandling = Al13RepareresOgFortsætter,
+    omfattet_af_par13 = afskrivningslov13_reparation_omfattet(input),
+    afskrivning_i_skadeåret_afskåret = Falskt,
+    skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner = afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input),
+    fradragsberettiget_tab_kroner = 0,
+    fradragsberettiget_reparationsoverskud_kroner = afskrivningslov13_reparationsoverskud_fradrag_kroner(input),
+    samlet_skattepligtigt_beløb_kroner = afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input),
+    samlet_fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov13_reparationsoverskud_fradrag_kroner(input)
+)
+--@end:afskrivningsloven_par13--
 
 --@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----

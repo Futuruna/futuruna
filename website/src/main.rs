@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt den første beløbskaskade for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen omfatter nu også delvist erhvervsmæssigt benyttede aktiver, salg og skade efter Afskrivningslovens §§ 11-13. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3519,6 +3519,8 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1088", "Varelagerloven, LBK nr. 1088/2025" }
                         " · afskrivning og iværksætterkonto: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1222", "Afskrivningsloven, LBK nr. 1222/2025" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2060792", "Skattestyrelsens vejledning til §§ 11-13" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskatteloven, LOV nr. 149/1922" }
                         " / "
