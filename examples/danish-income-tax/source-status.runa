@@ -3,7 +3,7 @@
 -- Personskatteloven — kildegrundlag og første lovstruktur.
 --
 -- Metadata-refresh check:
--- scripts/refresh-danish-tax-source-status.py --today 20260714 --fail-on-drift
+-- scripts/refresh-danish-tax-source-status.py --today 20260715 --fail-on-drift
 -- Replace --today with the refresh date in YYYYMMDD form.
 -- The script fetches official Retsinformation XML for every Retskilde record
 -- below and reports semantic drift; it does not rewrite the legal model.
@@ -150,6 +150,9 @@
 -- Retsinformation, LBK nr. 1098 af 27/08/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1098
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1098/dan/xml
+-- Retsinformation, LOV nr. 1755 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1755
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1755/dan/xml
 --
 -- Afhængig kilde for § 4, stk. 1, nr. 8 rentekorrektion:
 -- Retsinformation, LBK nr. 1836 af 16/09/2021.
@@ -388,6 +391,13 @@ Status: Valid
 DiesSigni: 2025-08-27
 StartDate: 2025-09-16
 EndDate: 2026-07-01
+
+Officiel XML-metadata for 2025/1755, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af erhvervsvirksomhedsloven, aktieavancebeskatningsloven og forskellige andre love (Ny mulighed for generationsskifte til en medarbejderejevirksomhed og selskabsbeskattede elaktiviteter i andelsselskaber)
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
+EndDate: 2026-07-07
 
 Officiel XML-metadata for 2021/1836, hentet 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om indkomstbeskatning af selvstændige erhvervsdrivende (virksomhedsskatteloven)
@@ -819,6 +829,15 @@ EndDate: 2026-07-01
     metadata_start_yyyymmdd = 20250916,
     metadata_end_yyyymmdd = 20260701
 )
+= aktieavancebeskatningslov_medarbejdereje_aendring_2025_1755 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/1755",
+    år = 2025,
+    nummer = 1755,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20251229,
+    metadata_end_yyyymmdd = 20260707
+)
 = virksomhedsskatteloven_2021_1836 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2021/1836",
     år = 2021,
@@ -875,6 +894,7 @@ EndDate: 2026-07-01
 | kilde_er_ligningsloven(kilde: Retskilde) -> kilde.nummer == 1500 && kilde.år == 2025
 | kilde_er_kursgevinstloven(kilde: Retskilde) -> kilde.nummer == 1176 && kilde.år == 2025
 | kilde_er_aktieavancebeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1098 && kilde.år == 2025
+| kilde_er_aktieavancebeskatningslov_medarbejdereje_aendring(kilde: Retskilde) -> kilde.nummer == 1755 && kilde.år == 2025
 | kilde_er_virksomhedsskatteloven(kilde: Retskilde) -> kilde.nummer == 1836 && kilde.år == 2021
 | kilde_er_ejendomsskatteloven(kilde: Retskilde) -> kilde.nummer == 678 && kilde.år == 2023
 | kilde_er_ejendomsværdiskatteloven(kilde: Retskilde) -> kilde.nummer == 1590 && kilde.år == 2020
@@ -917,7 +937,7 @@ EndDate: 2026-07-01
 = opkrævningslov_aendring_til_aktuel_beregning = kilde_egnet_til_formål(opkrævningslov_aendring_2024_1694, AktuelSkatteberegning) && kilde_egnet_til_formål(opkrævningslov_aendring_2025_1783, AktuelSkatteberegning) && kilde_egnet_til_formål(opkrævningslov_ikraft_2025_1793, AktuelSkatteberegning)
 = ligningslov_til_aktuel_beregning = kilde_egnet_til_formål(ligningsloven_2025_1500, AktuelSkatteberegning) && kilde_egnet_til_formål(ligningslov_og_afskrivningslov_aendring_2025_749, AktuelSkatteberegning)
 = kursgevinstlov_til_aktuel_beregning = kilde_egnet_til_formål(kursgevinstloven_2025_1176, AktuelSkatteberegning)
-= aktieavancebeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(aktieavancebeskatningsloven_2025_1098, AktuelSkatteberegning)
+= aktieavancebeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(aktieavancebeskatningsloven_2025_1098, AktuelSkatteberegning) && kilde_egnet_til_formål(aktieavancebeskatningslov_medarbejdereje_aendring_2025_1755, AktuelSkatteberegning)
 = virksomhedsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(virksomhedsskatteloven_2021_1836, AktuelSkatteberegning)
 = ejendomsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(ejendomsskatteloven_2023_678, AktuelSkatteberegning)
 = ejendomsværdiskattelov_historisk_til_audit = kilde_egnet_til_formål(ejendomsværdiskatteloven_2020_1590, HistoriskAudit)
@@ -935,7 +955,7 @@ EndDate: 2026-07-01
 = kildeskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kildeskatteloven_2024_460) && kilde_hentet_på_statusdato(kildeskattebekendtgørelsen_2025_839) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
 = opkrævning_ligning_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(opkrævningsloven_2024_1040) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2024_1694) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2025_1783) && kilde_hentet_på_statusdato(opkrævningslov_ikraft_2025_1793) && kilde_hentet_på_statusdato(ligningsloven_2025_1500) && kilde_hentet_på_statusdato(ligningslov_og_afskrivningslov_aendring_2025_749)
 = kursgevinstlov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kursgevinstloven_2025_1176)
-= aktieavancebeskatningslov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(aktieavancebeskatningsloven_2025_1098)
+= aktieavancebeskatningslov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(aktieavancebeskatningsloven_2025_1098) && kilde_hentet_på_statusdato(aktieavancebeskatningslov_medarbejdereje_aendring_2025_1755)
 = virksomhedsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsskatteloven_2023_678)
 = ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsværdiskatteloven_2020_1590)
@@ -951,7 +971,7 @@ EndDate: 2026-07-01
 = kildeskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kildeskatteloven_2024_460) && kilde_formelt_gældende_men_metadata_udløbet(kildeskattebekendtgørelsen_2025_839) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
 = opkrævning_ligning_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(opkrævningsloven_2024_1040) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_aendring_2024_1694) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_aendring_2025_1783) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_ikraft_2025_1793) && kilde_formelt_gældende_men_metadata_udløbet(ligningsloven_2025_1500) && kilde_formelt_gældende_men_metadata_udløbet(ligningslov_og_afskrivningslov_aendring_2025_749)
 = kursgevinstlov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kursgevinstloven_2025_1176)
-= aktieavancebeskatningslov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningsloven_2025_1098)
+= aktieavancebeskatningslov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningsloven_2025_1098) && kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningslov_medarbejdereje_aendring_2025_1755)
 = virksomhedsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(ejendomsskatteloven_2023_678)
 = alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet && par3_nr10_nr11_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet

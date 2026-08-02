@@ -146,10 +146,18 @@ omfatter både disse flerhændelsesforløb og et bevis for, at flere fordringer
 hverken kan reservere eller opkræve mere end henstandssaldoen. Satsbaserede
 hændelser er aktuelt afgrænset til de
 kildebundne parameterpakker for 2024-2026; andre år afvises før skatteopslaget.
+§§ 35 G-35 K modellerer særskilt medarbejderejeordningen fra 1. januar 2026.
+Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
+8 pct.-udbyttegrænsen, skattefradrag, betalinger, tvangsafståelser,
+årsoplysninger, sikkerhed og hjemstedsflytninger er typede led i samme
+vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
+saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 131 udfald i
-Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 33 A og §§ 37-40. Kilderne er
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 148 udfald i
+Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 33 A, §§ 35 G-35 K og
+§§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
+[medarbejderejeændringen, LOV nr. 1755/2025](https://www.retsinformation.dk/eli/lta/2025/1755),
 [vejledningen om tilflytning](https://info.skat.dk/data.aspx?oid=1946389),
 [vejledningen om fraflytterskattens personkreds](https://info.skat.dk/data.aspx?oid=1946393),
 [vejledningen om gevinst og tab ved fraflytning](https://info.skat.dk/data.aspx?oid=1946398),

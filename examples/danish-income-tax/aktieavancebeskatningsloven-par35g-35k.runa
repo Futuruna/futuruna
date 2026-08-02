@@ -1,0 +1,562 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven
+@ importer ./selskabsskatteloven
+@ importer ./pengebeloeb
+
+= aktieavancebeskatningsloven_lov1755_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
+    identifier = "LOV nr. 1755 af 29/12/2025, § 2 og § 8: ABL §§ 35 G-35 K med virkning fra 1. januar 2026",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lsf71_par35g_til_par35k = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/202512L00071",
+    identifier = "2025/1 LSF 71, bemærkningerne til ABL §§ 35 G-35 K",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_lov1755_par8_stk1::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k--
+----
+§ 8
+
+Stk. 1. Loven træder i kraft den 1. januar 2026.
+----
+
+--@begin:aktieavancebeskatningsloven_lov1755_par8_stk1--
+| aktieavance_par35g_til_par35k_har_virkning(indkomstår: Heltal) -> indkomstår >= 2026
+--@end:aktieavancebeskatningsloven_lov1755_par8_stk1--
+
+--@label:aktieavancebeskatningsloven_par35g_par35h::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k--
+----
+§ 35 G. Ved overdragelse af aktier fra en fysisk person til en
+medarbejderejevirksomhed, jf. selskabsskattelovens § 1, stk. 1, nr. 2 j, kan
+parterne i overdragelsen anvende reglerne i §§ 35 H-35 K. Det er en betingelse,
+at aktierne opfylder betingelserne i § 34, stk. 1, nr. 3.
+
+Stk. 2. Beslutning om, at parterne ønsker at anvende reglerne i §§ 35 H-35 K,
+skal meddeles told- og skatteforvaltningen inden for fristen for rettidig
+indgivelse af overdragerens oplysninger efter skattekontrollovens § 2 for det
+indkomstår, hvori overdragelsen er sket. Meddelelsen skal være vedlagt en
+beholdningsoversigt og saldo for overdragerskat, jf. § 35 I.
+
+Stk. 3. Ændrer told- og skatteforvaltningen de værdiansættelser, som parterne
+ved overdragelsen har lagt til grund ved beregning af saldo for
+overdragerskatten, kan parterne træffe en ny beslutning om, hvorvidt reglerne i
+§§ 35 H-35 K skal anvendes på overdragelsen. En ny beslutning skal meddeles
+told- og skatteforvaltningen inden 3 måneder efter, at overdrageren har modtaget
+meddelelse om ændringen.
+
+Stk. 4. Stk. 1-3 finder tilsvarende anvendelse ved overdragelse af aktier til
+medarbejderejevirksomheder med hjemsted på Færøerne, i Grønland eller i et land,
+der er medlem af EU eller EØS. Det er en betingelse, at det kan godtgøres, at
+den udenlandske medarbejderejevirksomhed svarer til en
+medarbejderejevirksomhed som defineret i selskabsskattelovens § 1, stk. 1, nr.
+2 j, og at medarbejderejevirksomheden efter Færøernes, Grønlands eller det
+pågældende EU- eller EØS-lands regler lever op til betingelserne i
+erhvervsvirksomhedslovens kapitel 5 c. Endvidere skal
+medarbejderejevirksomheden over for told- og skatteforvaltningen forpligte sig
+til at betale overdragerskatten, jf. § 35 I, og til at afgive årlige oplysninger
+efter § 35 K.
+
+§ 35 H. Gevinst og tab ved overdragelse af aktier medregnes ikke ved opgørelsen
+af overdragerens skattepligtige indkomst. Er den skattemæssige anskaffelsessum
+negativ, medregnes en gevinst svarende til den negative anskaffelsessum dog ved
+opgørelsen af overdragerens skattepligtige indkomst.
+----
+
+--@begin:aktieavancebeskatningsloven_par35g_par35h--
+# AktieavancePar35GHjemsted = AblPar35GDanmark | AblPar35GFærøerne | AblPar35GGrønland | AblPar35GEU | AblPar35GEØS | AblPar35GTredjeland
+# AktieavancePar35GSikkerhedsform = AblPar35GIngenSikkerhed | AblPar35GSikkerhedIAktier | AblPar35GSikkerhedIReguleredeObligationer | AblPar35GBankgaranti | AblPar35GAndenBetryggendeSikkerhed
+# AktieavancePar35GOverdragelsesparti(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesrækkefølge: Heltal, antal: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, handelsværdi_kroner: Heltal)
+# AktieavancePar35GValg(overdragelsesår: Heltal, overdrager_er_fysisk_person: Boolsk, hjemsted: AktieavancePar35GHjemsted, dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j: Boolsk, udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j: Boolsk, udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c: Boolsk, udenlandsk_virksomhed_forpligter_sig_til_overdragerskat: Boolsk, udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger: Boolsk, aktier_opfylder_par34_stk1_nr3: Boolsk, parterne_har_valgt_ordningen: Boolsk, meddelelse_rettidig: Boolsk, beholdningsoversigt_vedlagt: Boolsk, saldo_vedlagt: Boolsk, land_omfattet_af_inddrivelsesbistand: Boolsk, sikkerhedsform: AktieavancePar35GSikkerhedsform, sikkerhed_står_i_passende_forhold: Boolsk, partier: List(AktieavancePar35GOverdragelsesparti))
+# AktieavancePar35GValgResultat(indenlandsk: Boolsk, tilladt_udenlandsk_hjemsted: Boolsk, virksomhedsform_opfyldt: Boolsk, meddelelseskrav_opfyldt: Boolsk, udenlandske_tilsagn_opfyldt: Boolsk, sikkerhed_påkrævet: Boolsk, sikkerhed_opfyldt: Boolsk, kan_anvende_par35h_til_par35k: Boolsk)
+# AktieavancePar35GOmvurderingsvalg(værdiansættelse_ændret_af_skatteforvaltningen: Boolsk, overdrager_har_modtaget_meddelelse: Boolsk, nyt_valg_meddelt_inden_tre_måneder: Boolsk)
+# AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt: Boolsk, kan_træffe_nyt_valg: Boolsk)
+# AktieavancePar35GOverdragelsesresultat(input: AktieavancePar35GValg, valg: AktieavancePar35GValgResultat, partier_gyldige: Boolsk, selskabsskattesats_basispoint: Heltal, umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner: Heltal, gevinst_udeladt_fra_overdragerens_indkomst_kroner: Heltal, tab_udeladt_fra_overdragerens_indkomst_kroner: Heltal, oprindelig_overdragerskat_kroner: Heltal, tilstand: AktieavancePar35ITilstand)
+
+| aktieavance_par35g_hjemsted_indenlandsk(hjemsted: AktieavancePar35GHjemsted) -> hjemsted == AblPar35GDanmark
+| aktieavance_par35g_hjemsted_tilladt_udenlandsk(hjemsted: AktieavancePar35GHjemsted) -> hjemsted == AblPar35GFærøerne || hjemsted == AblPar35GGrønland || hjemsted == AblPar35GEU || hjemsted == AblPar35GEØS
+| aktieavance_par35g_sikkerhedsform_mulig(form: AktieavancePar35GSikkerhedsform) -> form == AblPar35GSikkerhedIAktier || form == AblPar35GSikkerhedIReguleredeObligationer || form == AblPar35GBankgaranti || form == AblPar35GAndenBetryggendeSikkerhed
+| aktieavance_par35g_parti_gyldigt(parti: AktieavancePar35GOverdragelsesparti) -> parti.identifikation != "" && parti.selskabsidentifikation != "" && parti.aktieserie != "" && parti.erhvervelsesrækkefølge > 0 && parti.antal > 0 && parti.handelsværdi_kroner >= 0
+| aktieavance_par35g_parti_identifikation_unik(partier: List(AktieavancePar35GOverdragelsesparti), parti: AktieavancePar35GOverdragelsesparti) -> foldl(partier, 0, |antal: Heltal, andet: AktieavancePar35GOverdragelsesparti| antal + hvis andet.identifikation == parti.identifikation { 1 } ellers { 0 }) == 1
+| aktieavance_par35g_partier_sorteret_fra(partier: List(AktieavancePar35GOverdragelsesparti), forrige_rækkefølge: Heltal) -> hvis length(partier) == 0 { Sandt } ellers { head(partier).erhvervelsesrækkefølge > forrige_rækkefølge && aktieavance_par35g_partier_sorteret_fra(tail(partier), head(partier).erhvervelsesrækkefølge) }
+| aktieavance_par35g_partier_gyldige(partier: List(AktieavancePar35GOverdragelsesparti)) -> length(partier) > 0 && aktieavance_par35g_partier_sorteret_fra(partier, 0) && all(partier, |parti: AktieavancePar35GOverdragelsesparti| aktieavance_par35g_parti_gyldigt(parti) && aktieavance_par35g_parti_identifikation_unik(partier, parti))
+| aktieavance_par35g_samlet_handelsværdi_kroner(partier: List(AktieavancePar35GOverdragelsesparti)) -> foldl(partier, 0, |sum: Heltal, parti: AktieavancePar35GOverdragelsesparti| sum + parti.handelsværdi_kroner)
+| aktieavance_par35g_samlet_anskaffelsessum_mindst_nul_kroner(partier: List(AktieavancePar35GOverdragelsesparti)) -> foldl(partier, 0, |sum: Heltal, parti: AktieavancePar35GOverdragelsesparti| sum + penge_positivt_beløb(parti.skattemæssig_anskaffelsessum_kroner))
+| aktieavance_par35h_umiddelbar_gevinst_kroner(partier: List(AktieavancePar35GOverdragelsesparti)) -> foldl(partier, 0, |sum: Heltal, parti: AktieavancePar35GOverdragelsesparti| sum + penge_positivt_beløb(0 - parti.skattemæssig_anskaffelsessum_kroner))
+| aktieavance_par35h_udeladt_gevinst_kroner(partier: List(AktieavancePar35GOverdragelsesparti)) -> penge_positivt_beløb(aktieavance_par35g_samlet_handelsværdi_kroner(partier) - aktieavance_par35g_samlet_anskaffelsessum_mindst_nul_kroner(partier))
+| aktieavance_par35h_udeladt_tab_kroner(partier: List(AktieavancePar35GOverdragelsesparti)) -> penge_positivt_beløb(aktieavance_par35g_samlet_anskaffelsessum_mindst_nul_kroner(partier) - aktieavance_par35g_samlet_handelsværdi_kroner(partier))
+
+# AktieavancePar35GValgSag(input: AktieavancePar35GValg, oprindelig_overdragerskat_kroner: Heltal) {
+    | indenlandsk() -> aktieavance_par35g_hjemsted_indenlandsk(input.hjemsted)
+    | tilladt_udenlandsk_hjemsted() -> aktieavance_par35g_hjemsted_tilladt_udenlandsk(input.hjemsted)
+    | virksomhedsform_opfyldt() -> hvis indenlandsk() { input.dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j } ellers { tilladt_udenlandsk_hjemsted() && input.udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j && input.udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c }
+    | meddelelseskrav_opfyldt() -> input.parterne_har_valgt_ordningen && input.meddelelse_rettidig && input.beholdningsoversigt_vedlagt && input.saldo_vedlagt
+    | udenlandske_tilsagn_opfyldt() -> indenlandsk() || (input.udenlandsk_virksomhed_forpligter_sig_til_overdragerskat && input.udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger)
+    | sikkerhed_påkrævet() -> tilladt_udenlandsk_hjemsted() && input.land_omfattet_af_inddrivelsesbistand == Falskt && oprindelig_overdragerskat_kroner > 0
+    | sikkerhed_opfyldt() -> sikkerhed_påkrævet() == Falskt || (aktieavance_par35g_sikkerhedsform_mulig(input.sikkerhedsform) && input.sikkerhed_står_i_passende_forhold)
+    | kan_anvende_par35h_til_par35k() -> aktieavance_par35g_til_par35k_har_virkning(input.overdragelsesår) && input.overdrager_er_fysisk_person && input.aktier_opfylder_par34_stk1_nr3 && virksomhedsform_opfyldt() && meddelelseskrav_opfyldt() && udenlandske_tilsagn_opfyldt() && sikkerhed_opfyldt()
+    | resultat() -> AktieavancePar35GValgResultat(
+        indenlandsk = indenlandsk(),
+        tilladt_udenlandsk_hjemsted = tilladt_udenlandsk_hjemsted(),
+        virksomhedsform_opfyldt = virksomhedsform_opfyldt(),
+        meddelelseskrav_opfyldt = meddelelseskrav_opfyldt(),
+        udenlandske_tilsagn_opfyldt = udenlandske_tilsagn_opfyldt(),
+        sikkerhed_påkrævet = sikkerhed_påkrævet(),
+        sikkerhed_opfyldt = sikkerhed_opfyldt(),
+        kan_anvende_par35h_til_par35k = kan_anvende_par35h_til_par35k()
+    )
+}
+
+| aktieavance_par35g_omvurderingsresultat(input: AktieavancePar35GOmvurderingsvalg) -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = input.værdiansættelse_ændret_af_skatteforvaltningen, kan_træffe_nyt_valg = Falskt)
+| exception par35g_omvalg_inden_tre_måneder aktieavance_par35g_omvurderingsresultat(input: AktieavancePar35GOmvurderingsvalg) -> AktieavancePar35GOmvurderingsresultat(omvalg_aktuelt = Sandt, kan_træffe_nyt_valg = Sandt) under input.værdiansættelse_ændret_af_skatteforvaltningen && input.overdrager_har_modtaget_meddelelse && input.nyt_valg_meddelt_inden_tre_måneder
+
+| aktieavance_par35g_til_beholdningsparti(parti: AktieavancePar35GOverdragelsesparti) -> AktieavancePar35IBeholdningsparti(
+    identifikation = parti.identifikation,
+    selskabsidentifikation = parti.selskabsidentifikation,
+    aktieserie = parti.aktieserie,
+    erhvervelsesrækkefølge = parti.erhvervelsesrækkefølge,
+    resterende_antal = parti.antal,
+    resterende_anskaffelsessum_kroner = penge_positivt_beløb(parti.skattemæssig_anskaffelsessum_kroner),
+    resterende_overdragelsesværdi_kroner = parti.handelsværdi_kroner,
+    resterende_fritaget_udbytte_kroner = 0
+)
+
+# AktieavancePar35GOverdragelsesSag(input: AktieavancePar35GValg) {
+    | partier_gyldige() -> aktieavance_par35g_partier_gyldige(input.partier)
+    | selskabsskattesats_basispoint() -> selskabsskattelov_par17_stk1_sats_basispoint(input.overdragelsesår)
+    | umiddelbar_gevinst_kroner() -> aktieavance_par35h_umiddelbar_gevinst_kroner(input.partier)
+    | udeladt_gevinst_kroner() -> aktieavance_par35h_udeladt_gevinst_kroner(input.partier)
+    | udeladt_tab_kroner() -> aktieavance_par35h_udeladt_tab_kroner(input.partier)
+    | oprindelig_overdragerskat_kroner() -> penge_beløb_gange_basispoint_kroner(udeladt_gevinst_kroner(), selskabsskattesats_basispoint())
+    | valg() -> AktieavancePar35GValgSag(input, oprindelig_overdragerskat_kroner()).resultat()
+    | ordning_oprettes() -> partier_gyldige() && valg().kan_anvende_par35h_til_par35k
+    | beholdning() -> hvis ordning_oprettes() { map(input.partier, aktieavance_par35g_til_beholdningsparti) } ellers { [] }
+    | tilstand() -> AktieavancePar35ITilstand(
+        overdragelsesår = input.overdragelsesår,
+        beholdning = beholdning(),
+        oprindelig_overdragelsesværdi_kroner = hvis ordning_oprettes() { aktieavance_par35g_samlet_handelsværdi_kroner(input.partier) } ellers { 0 },
+        overdragerskat_saldo_kroner = hvis ordning_oprettes() { oprindelig_overdragerskat_kroner() } ellers { 0 },
+        forfaldsposter = [],
+        behandlede_udbytteår = [],
+        ordning_aktiv = ordning_oprettes(),
+        hjemsted = input.hjemsted,
+        land_omfattet_af_inddrivelsesbistand = input.land_omfattet_af_inddrivelsesbistand,
+        sikkerhedsform = input.sikkerhedsform,
+        sikkerhed_står_i_passende_forhold = input.sikkerhed_står_i_passende_forhold
+    )
+    | resultat() -> AktieavancePar35GOverdragelsesresultat(
+        input = input,
+        valg = valg(),
+        partier_gyldige = partier_gyldige(),
+        selskabsskattesats_basispoint = selskabsskattesats_basispoint(),
+        umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner = hvis ordning_oprettes() { umiddelbar_gevinst_kroner() } ellers { 0 },
+        gevinst_udeladt_fra_overdragerens_indkomst_kroner = hvis ordning_oprettes() { udeladt_gevinst_kroner() } ellers { 0 },
+        tab_udeladt_fra_overdragerens_indkomst_kroner = hvis ordning_oprettes() { udeladt_tab_kroner() } ellers { 0 },
+        oprindelig_overdragerskat_kroner = hvis ordning_oprettes() { oprindelig_overdragerskat_kroner() } ellers { 0 },
+        tilstand = tilstand()
+    )
+}
+
+| aktieavance_par35g_overdragelsesresultat(input: AktieavancePar35GValg) -> AktieavancePar35GOverdragelsesSag(input).resultat()
+| aktieavance_par35h_personskattelov_resultat(resultat: AktieavancePar35GOverdragelsesresultat) -> AktieavancebeskatningslovResultat(
+    indkomstår = resultat.input.overdragelsesår,
+    effektiv_aktiv = AblOrdinærAktiePar12Til15,
+    bruttogevinst_kroner = resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner,
+    bruttotab_kroner = 0,
+    tab_afskåret_kroner = 0,
+    skattepligtig_gevinst_kroner = resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner,
+    fradragsberettiget_tab_kroner = 0,
+    netto_efter_aktieavancebeskatningsloven_kroner = resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner,
+    medregnes_i_skattepligtig_indkomst = resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner > 0,
+    personskattelov_kategori = AblAktieindkomstEfterPslPar4a
+)
+--@end:aktieavancebeskatningsloven_par35g_par35h--
+
+--@label:aktieavancebeskatningsloven_par35i::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k::rate_source:selskabsskatteloven_lbk279_par17_stk1--
+----
+§ 35 I. Der skal ved overdragelsen etableres en beholdningsoversigt over de
+aktier, der overdrages til medarbejderejevirksomheden. Ved en efterfølgende
+skattefri aktieombytning, fusion eller spaltning skal de aktier, der herved
+erhverves som vederlag, indgå i beholdningsoversigten.
+
+Stk. 2. Ved overdragelsen etableres en saldo for overdragerskatten, der beregnes
+med skattesatsen i selskabsskattelovens § 17, stk. 1, af overdragerens gevinst
+ved overdragelse af aktierne. Som aktiernes anskaffelsessum anvendes
+overdragerens anskaffelsessum, dog mindst 0 kr. Som aktiernes afståelsessum
+anvendes handelsværdien. Overdragerskatten skal betales af
+medarbejderejevirksomheden og forfalder til betaling efter reglerne i stk. 3-8
+og §§ 35 J og 35 K.
+
+Stk. 3. Ved afståelse af aktier, der indgår på beholdningsoversigten, foretages
+der en opgørelse af gevinst eller tab ved afståelsen. Opgørelsen skal ske pr.
+afstået aktie og foretages på grundlag af aktiens anskaffelsessum og
+afståelsessum. Til afståelsessummen tillægges modtagne udbytter af de pågældende
+aktier, som medarbejderejevirksomheden i ejertiden har været fritaget for at
+medregne ved beregning af afdrag på overdragerskatten, jf. stk. 5. Det beløb,
+der følger af stk. 2, 2. pkt., anvendes som aktiens anskaffelsessum. De først
+erhvervede aktier anses for de først afståede.
+
+Stk. 4. Medfører en opgørelse efter stk. 3 en gevinst, forfalder der et beløb
+til betaling, der beregnes som medarbejderejevirksomhedens gevinst ved
+afståelsen ganget med skattesatsen i selskabsskattelovens § 17, stk. 1. I det
+således beregnede beløb gives der fradrag for anden skat, der er betalt af
+gevinsten. For skat betalt til fremmed stat, Færøerne eller Grønland opgøres
+fradrag efter 2. pkt. efter reglerne i ligningslovens § 33, stk. 1. Overstiger
+det beregnede beløb den skat, der er betalt her til landet eller til fremmed
+stat, Færøerne eller Grønland, forfalder det overskydende beløb til betaling.
+
+Stk. 5. Ved modtagelse af udbytter på aktier, jf. ligningslovens § 16 A, der
+indgår på beholdningsoversigten, forfalder der et beløb til betaling, hvis årets
+samlede udbytter på disse aktier overstiger 8 pct. af afståelsessummen opgjort
+efter stk. 2, 3. pkt. Det forfaldne beløb beregnes som den del af årets modtagne
+udbyttebeløb, som overstiger 8 pct. af afståelsessummen opgjort efter stk. 2, 3.
+pkt., ganget med skattesatsen i selskabsskattelovens § 17, stk. 1. I det
+beregnede beløb gives der fradrag for anden skat, der er betalt af udbyttet, og
+fradrag efter reglerne i ligningslovens § 33, stk. 1, for skat betalt til
+fremmed stat, Færøerne eller Grønland. Overstiger det beregnede beløb den skat,
+der er betalt af udbyttet her til landet eller til fremmed stat, Færøerne eller
+Grønland, forfalder det overskydende beløb til betaling.
+
+Stk. 6. Saldoen for overdragerskatten nedsættes med beløb, der betales af
+medarbejderejevirksomheden, herunder eventuelle frivillige indbetalinger.
+
+Stk. 7. Afdrag på saldoen for overdragerskatten betales i henhold til de regler,
+der gælder for betaling af medarbejderejevirksomhedens indkomstskat.
+
+Stk. 8. Ved opløsning af medarbejderejevirksomheden anses aktier erhvervet ved
+en overdragelse omfattet af § 35 G, som fortsat indgår på beholdningsoversigten,
+for afstået på tidspunktet for opløsningen. Gevinst eller tab opgøres efter
+reglerne i stk. 3, og der betales afdrag på saldoen efter reglerne i stk. 4.
+
+Stk. 9. Et uforfaldent beløb på saldoen for overdragerskat bortfalder, når alle
+aktierne på beholdningsoversigten er afstået, uanset at saldoen ikke er nedbragt
+til 0.
+----
+
+--@begin:aktieavancebeskatningsloven_par35i--
+# AktieavancePar35IBeholdningsparti(identifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, erhvervelsesrækkefølge: Heltal, resterende_antal: Heltal, resterende_anskaffelsessum_kroner: Heltal, resterende_overdragelsesværdi_kroner: Heltal, resterende_fritaget_udbytte_kroner: Heltal)
+# AktieavancePar35IForfaldsgrund = AblPar35IForfaldAfståelsesgevinst | AblPar35IForfaldÅrsudbytte | AblPar35IForfaldOpløsning | AblPar35JForfaldPengetank | AblPar35JForfaldEjerskabUnderEnTredjedel | AblPar35JForfaldSelPar1Stk1Nr2j | AblPar35JForfaldVærdinedgangsdisposition | AblPar35KForfaldÅrsoplysninger | AblPar35KForfaldHjemstedsflytning
+# AktieavancePar35IForfaldsfristregel = AblPar35IAfdragEfterIndkomstskatteregler
+# AktieavancePar35IForfaldspost(identifikation: Tekst, indkomstår: Heltal, grund: AktieavancePar35IForfaldsgrund, fristregel: AktieavancePar35IForfaldsfristregel, oprindeligt_beløb_kroner: Heltal, resterende_beløb_kroner: Heltal)
+# AktieavancePar35ITilstand(overdragelsesår: Heltal, beholdning: List(AktieavancePar35IBeholdningsparti), oprindelig_overdragelsesværdi_kroner: Heltal, overdragerskat_saldo_kroner: Heltal, forfaldsposter: List(AktieavancePar35IForfaldspost), behandlede_udbytteår: List(Heltal), ordning_aktiv: Boolsk, hjemsted: AktieavancePar35GHjemsted, land_omfattet_af_inddrivelsesbistand: Boolsk, sikkerhedsform: AktieavancePar35GSikkerhedsform, sikkerhed_står_i_passende_forhold: Boolsk)
+# AktieavancePar35IFifoResultat(resterende_antal_at_henføre: Heltal, gevinst_kroner: Heltal, tab_kroner: Heltal, fritaget_udbytte_tillagt_afståelsessum_kroner: Heltal, resterende_beholdning: List(AktieavancePar35IBeholdningsparti))
+# AktieavancePar35IAfståelsesdata(hændelsesidentifikation: Tekst, selskabsidentifikation: Tekst, aktieserie: Tekst, antal: Heltal, afståelsessum_kroner: Heltal, indkomstår: Heltal, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal)
+# AktieavancePar35IAfståelsesresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IAfståelsesdata, forfaldsgrund: AktieavancePar35IForfaldsgrund, hændelse_gyldig: Boolsk, gevinst_kroner: Heltal, tab_kroner: Heltal, fritaget_udbytte_tillagt_afståelsessum_kroner: Heltal, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, saldobortfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35IUdbyttefordeling(parti_identifikation: Tekst, fritaget_udbytte_kroner: Heltal)
+# AktieavancePar35IÅrsudbytte(hændelsesidentifikation: Tekst, indkomstår: Heltal, samlet_udbytte_kroner: Heltal, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal, fritaget_udbyttefordeling: List(AktieavancePar35IUdbyttefordeling))
+# AktieavancePar35IÅrsudbytteresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IÅrsudbytte, hændelse_gyldig: Boolsk, otte_pct_grænse_kroner: Heltal, fritaget_udbytte_kroner: Heltal, afdragsgrundlag_kroner: Heltal, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35IBetalingsart = AblPar35IBetalingAfForfald(forfaldsidentifikation: Tekst) | AblPar35IFrivilligBetaling
+# AktieavancePar35IBetaling(hændelsesidentifikation: Tekst, beløb_kroner: Heltal, art: AktieavancePar35IBetalingsart)
+# AktieavancePar35IBetalingsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35IBetaling, hændelse_gyldig: Boolsk, saldo_nedskrevet_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35IOmstruktureringsresultat(tilstand_før: AktieavancePar35ITilstand, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti), hændelse_gyldig: Boolsk, tilstand_efter: AktieavancePar35ITilstand)
+
+| aktieavance_par35i_parti_gyldigt(parti: AktieavancePar35IBeholdningsparti) -> parti.identifikation != "" && parti.selskabsidentifikation != "" && parti.aktieserie != "" && parti.erhvervelsesrækkefølge > 0 && parti.resterende_antal > 0 && parti.resterende_anskaffelsessum_kroner >= 0 && parti.resterende_overdragelsesværdi_kroner >= 0 && parti.resterende_fritaget_udbytte_kroner >= 0
+| aktieavance_par35i_parti_identifikation_unik(beholdning: List(AktieavancePar35IBeholdningsparti), parti: AktieavancePar35IBeholdningsparti) -> foldl(beholdning, 0, |antal: Heltal, andet: AktieavancePar35IBeholdningsparti| antal + hvis andet.identifikation == parti.identifikation { 1 } ellers { 0 }) == 1
+| aktieavance_par35i_beholdning_sorteret_fra(beholdning: List(AktieavancePar35IBeholdningsparti), forrige_rækkefølge: Heltal) -> hvis length(beholdning) == 0 { Sandt } ellers { head(beholdning).erhvervelsesrækkefølge > forrige_rækkefølge && aktieavance_par35i_beholdning_sorteret_fra(tail(beholdning), head(beholdning).erhvervelsesrækkefølge) }
+| aktieavance_par35i_beholdning_gyldig(beholdning: List(AktieavancePar35IBeholdningsparti)) -> aktieavance_par35i_beholdning_sorteret_fra(beholdning, 0) && all(beholdning, |parti: AktieavancePar35IBeholdningsparti| aktieavance_par35i_parti_gyldigt(parti) && aktieavance_par35i_parti_identifikation_unik(beholdning, parti))
+| aktieavance_par35i_samlet_anskaffelsessum_kroner(beholdning: List(AktieavancePar35IBeholdningsparti)) -> foldl(beholdning, 0, |sum: Heltal, parti: AktieavancePar35IBeholdningsparti| sum + parti.resterende_anskaffelsessum_kroner)
+| aktieavance_par35i_samlet_overdragelsesværdi_kroner(beholdning: List(AktieavancePar35IBeholdningsparti)) -> foldl(beholdning, 0, |sum: Heltal, parti: AktieavancePar35IBeholdningsparti| sum + parti.resterende_overdragelsesværdi_kroner)
+| aktieavance_par35i_samlet_fritaget_udbytte_kroner(beholdning: List(AktieavancePar35IBeholdningsparti)) -> foldl(beholdning, 0, |sum: Heltal, parti: AktieavancePar35IBeholdningsparti| sum + parti.resterende_fritaget_udbytte_kroner)
+| aktieavance_par35i_forfaldsidentifikation_unik(forfaldsposter: List(AktieavancePar35IForfaldspost), post: AktieavancePar35IForfaldspost) -> foldl(forfaldsposter, 0, |antal: Heltal, anden: AktieavancePar35IForfaldspost| antal + hvis anden.identifikation == post.identifikation { 1 } ellers { 0 }) == 1
+| aktieavance_par35i_reserveret_saldo_kroner(forfaldsposter: List(AktieavancePar35IForfaldspost)) -> foldl(forfaldsposter, 0, |sum: Heltal, post: AktieavancePar35IForfaldspost| sum + post.resterende_beløb_kroner)
+| aktieavance_par35i_disponibel_saldo_kroner(tilstand: AktieavancePar35ITilstand) -> penge_positivt_beløb(tilstand.overdragerskat_saldo_kroner - aktieavance_par35i_reserveret_saldo_kroner(tilstand.forfaldsposter))
+| aktieavance_par35i_udbytteår_unikt(år: List(Heltal), værdi: Heltal) -> foldl(år, 0, |antal: Heltal, andet: Heltal| antal + hvis andet == værdi { 1 } ellers { 0 }) == 1
+| aktieavance_par35i_udbytteår_gyldige(år: List(Heltal)) -> all(år, |værdi: Heltal| værdi > 0 && aktieavance_par35i_udbytteår_unikt(år, værdi))
+| aktieavance_par35i_tilstand_gyldig(tilstand: AktieavancePar35ITilstand) -> aktieavance_par35g_til_par35k_har_virkning(tilstand.overdragelsesår) && aktieavance_par35i_beholdning_gyldig(tilstand.beholdning) && tilstand.oprindelig_overdragelsesværdi_kroner >= 0 && tilstand.overdragerskat_saldo_kroner >= 0 && aktieavance_par35i_reserveret_saldo_kroner(tilstand.forfaldsposter) <= tilstand.overdragerskat_saldo_kroner && all(tilstand.forfaldsposter, |post: AktieavancePar35IForfaldspost| post.identifikation != "" && post.indkomstår >= tilstand.overdragelsesår && post.oprindeligt_beløb_kroner > 0 && post.resterende_beløb_kroner > 0 && post.resterende_beløb_kroner <= post.oprindeligt_beløb_kroner && aktieavance_par35i_forfaldsidentifikation_unik(tilstand.forfaldsposter, post)) && aktieavance_par35i_udbytteår_gyldige(tilstand.behandlede_udbytteår)
+| aktieavance_par35i_fordringsidentifikation_ledig(tilstand: AktieavancePar35ITilstand, identifikation: Tekst) -> identifikation != "" && all(tilstand.forfaldsposter, |post: AktieavancePar35IForfaldspost| post.identifikation != identifikation)
+| aktieavance_par35i_ny_forfaldspost(identifikation: Tekst, indkomstår: Heltal, grund: AktieavancePar35IForfaldsgrund, beløb_kroner: Heltal) -> AktieavancePar35IForfaldspost(identifikation = identifikation, indkomstår = indkomstår, grund = grund, fristregel = AblPar35IAfdragEfterIndkomstskatteregler, oprindeligt_beløb_kroner = beløb_kroner, resterende_beløb_kroner = beløb_kroner)
+| aktieavance_par35i_tilføj_forfaldspost(forfaldsposter: List(AktieavancePar35IForfaldspost), post: AktieavancePar35IForfaldspost) -> hvis post.resterende_beløb_kroner > 0 { concat(forfaldsposter, [post]) } ellers { forfaldsposter }
+| aktieavance_par35i_normaliser_tilstand(tilstand: AktieavancePar35ITilstand) -> AktieavancePar35ITilstand(
+    overdragelsesår = tilstand.overdragelsesår,
+    beholdning = tilstand.beholdning,
+    oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner,
+    overdragerskat_saldo_kroner = hvis length(tilstand.beholdning) == 0 { aktieavance_par35i_reserveret_saldo_kroner(tilstand.forfaldsposter) } ellers { tilstand.overdragerskat_saldo_kroner },
+    forfaldsposter = tilstand.forfaldsposter,
+    behandlede_udbytteår = tilstand.behandlede_udbytteår,
+    ordning_aktiv = tilstand.ordning_aktiv && length(tilstand.beholdning) > 0,
+    hjemsted = tilstand.hjemsted,
+    land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand,
+    sikkerhedsform = tilstand.sikkerhedsform,
+    sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold
+)
+
+# AktieavancePar35IFifoPartiSag(parti: AktieavancePar35IBeholdningsparti, senere_partier: List(AktieavancePar35IBeholdningsparti), selskabsidentifikation: Tekst, aktieserie: Tekst, antal_at_henføre: Heltal, afståelsessum_at_henføre_kroner: Heltal) {
+    | parti_matcher() -> parti.selskabsidentifikation == selskabsidentifikation && parti.aktieserie == aktieserie
+    | antal_fra_partiet() -> hvis parti_matcher() { penge_mindste_beløb(antal_at_henføre, parti.resterende_antal) } ellers { 0 }
+    | anskaffelsessum_fra_partiet_kroner() -> hvis antal_fra_partiet() == 0 { 0 } ellers { hvis antal_fra_partiet() == parti.resterende_antal { parti.resterende_anskaffelsessum_kroner } ellers { parti.resterende_anskaffelsessum_kroner * antal_fra_partiet() / parti.resterende_antal } }
+    | overdragelsesværdi_fra_partiet_kroner() -> hvis antal_fra_partiet() == 0 { 0 } ellers { hvis antal_fra_partiet() == parti.resterende_antal { parti.resterende_overdragelsesværdi_kroner } ellers { parti.resterende_overdragelsesværdi_kroner * antal_fra_partiet() / parti.resterende_antal } }
+    | fritaget_udbytte_fra_partiet_kroner() -> hvis antal_fra_partiet() == 0 { 0 } ellers { hvis antal_fra_partiet() == parti.resterende_antal { parti.resterende_fritaget_udbytte_kroner } ellers { parti.resterende_fritaget_udbytte_kroner * antal_fra_partiet() / parti.resterende_antal } }
+    | afståelsessum_fra_partiet_kroner() -> hvis antal_fra_partiet() == 0 { 0 } ellers { hvis antal_fra_partiet() == antal_at_henføre { afståelsessum_at_henføre_kroner } ellers { afståelsessum_at_henføre_kroner * antal_fra_partiet() / antal_at_henføre } }
+    | gevinst_fra_partiet_kroner() -> penge_positivt_beløb(afståelsessum_fra_partiet_kroner() + fritaget_udbytte_fra_partiet_kroner() - anskaffelsessum_fra_partiet_kroner())
+    | tab_fra_partiet_kroner() -> penge_positivt_beløb(anskaffelsessum_fra_partiet_kroner() - afståelsessum_fra_partiet_kroner() - fritaget_udbytte_fra_partiet_kroner())
+    | parti_efter() -> AktieavancePar35IBeholdningsparti(
+        identifikation = parti.identifikation,
+        selskabsidentifikation = parti.selskabsidentifikation,
+        aktieserie = parti.aktieserie,
+        erhvervelsesrækkefølge = parti.erhvervelsesrækkefølge,
+        resterende_antal = parti.resterende_antal - antal_fra_partiet(),
+        resterende_anskaffelsessum_kroner = parti.resterende_anskaffelsessum_kroner - anskaffelsessum_fra_partiet_kroner(),
+        resterende_overdragelsesværdi_kroner = parti.resterende_overdragelsesværdi_kroner - overdragelsesværdi_fra_partiet_kroner(),
+        resterende_fritaget_udbytte_kroner = parti.resterende_fritaget_udbytte_kroner - fritaget_udbytte_fra_partiet_kroner()
+    )
+    | senere_resultat() -> aktieavance_par35i_fifo_henfør(
+        partier = senere_partier,
+        selskabsidentifikation = selskabsidentifikation,
+        aktieserie = aktieserie,
+        antal_at_henføre = antal_at_henføre - antal_fra_partiet(),
+        afståelsessum_at_henføre_kroner = afståelsessum_at_henføre_kroner - afståelsessum_fra_partiet_kroner()
+    )
+    | resterende_beholdning() -> concat(hvis parti_efter().resterende_antal > 0 { [parti_efter()] } ellers { [] }, senere_resultat().resterende_beholdning)
+    | resultat() -> AktieavancePar35IFifoResultat(
+        resterende_antal_at_henføre = senere_resultat().resterende_antal_at_henføre,
+        gevinst_kroner = gevinst_fra_partiet_kroner() + senere_resultat().gevinst_kroner,
+        tab_kroner = tab_fra_partiet_kroner() + senere_resultat().tab_kroner,
+        fritaget_udbytte_tillagt_afståelsessum_kroner = fritaget_udbytte_fra_partiet_kroner() + senere_resultat().fritaget_udbytte_tillagt_afståelsessum_kroner,
+        resterende_beholdning = resterende_beholdning()
+    )
+}
+
+| aktieavance_par35i_tomt_fifo_resultat(resterende_antal: Heltal, beholdning: List(AktieavancePar35IBeholdningsparti)) -> AktieavancePar35IFifoResultat(resterende_antal_at_henføre = resterende_antal, gevinst_kroner = 0, tab_kroner = 0, fritaget_udbytte_tillagt_afståelsessum_kroner = 0, resterende_beholdning = beholdning)
+| aktieavance_par35i_fifo_henfør(partier: List(AktieavancePar35IBeholdningsparti), selskabsidentifikation: Tekst, aktieserie: Tekst, antal_at_henføre: Heltal, afståelsessum_at_henføre_kroner: Heltal) -> hvis antal_at_henføre <= 0 { aktieavance_par35i_tomt_fifo_resultat(0, partier) } ellers { hvis length(partier) == 0 { aktieavance_par35i_tomt_fifo_resultat(antal_at_henføre, []) } ellers { AktieavancePar35IFifoPartiSag(parti = head(partier), senere_partier = tail(partier), selskabsidentifikation = selskabsidentifikation, aktieserie = aktieserie, antal_at_henføre = antal_at_henføre, afståelsessum_at_henføre_kroner = afståelsessum_at_henføre_kroner).resultat() } }
+
+# AktieavancePar35IAfståelsesSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IAfståelsesdata, forfaldsgrund: AktieavancePar35IForfaldsgrund) {
+    | fifo_resultat() -> aktieavance_par35i_fifo_henfør(partier = tilstand.beholdning, selskabsidentifikation = data.selskabsidentifikation, aktieserie = data.aktieserie, antal_at_henføre = data.antal, afståelsessum_at_henføre_kroner = data.afståelsessum_kroner)
+    | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
+    | beregnet_skat_kroner() -> penge_beløb_gange_basispoint_kroner(fifo_resultat().gevinst_kroner, selskabsskattelov_par17_stk1_sats_basispoint(data.indkomstår))
+    | skattefradrag_kroner() -> penge_mindste_beløb(beregnet_skat_kroner(), data.anden_betalt_skat_kroner + data.godkendt_fradrag_efter_ligningslov_par33_kroner)
+    | muligt_forfald_kroner() -> penge_positivt_beløb(beregnet_skat_kroner() - skattefradrag_kroner())
+    | nyt_forfald_kroner() -> penge_mindste_beløb(aktieavance_par35i_disponibel_saldo_kroner(tilstand), muligt_forfald_kroner())
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && tilstand.ordning_aktiv && data.hændelsesidentifikation != "" && data.selskabsidentifikation != "" && data.aktieserie != "" && data.antal > 0 && data.afståelsessum_kroner >= 0 && data.indkomstår >= tilstand.overdragelsesår && data.anden_betalt_skat_kroner >= 0 && data.godkendt_fradrag_efter_ligningslov_par33_kroner >= 0 && fifo_resultat().resterende_antal_at_henføre == 0 && (nyt_forfald_kroner() == 0 || aktieavance_par35i_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation()))
+    | forfaldspost() -> aktieavance_par35i_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, forfaldsgrund, nyt_forfald_kroner())
+    | tilstand_før_bortfald() -> AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = fifo_resultat().resterende_beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = aktieavance_par35i_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv, hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold)
+    | tilstand_efter() -> hvis hændelse_gyldig() { aktieavance_par35i_normaliser_tilstand(tilstand_før_bortfald()) } ellers { tilstand }
+    | saldobortfald_kroner() -> hvis hændelse_gyldig() { tilstand_før_bortfald().overdragerskat_saldo_kroner - tilstand_efter().overdragerskat_saldo_kroner } ellers { 0 }
+    | resultat() -> AktieavancePar35IAfståelsesresultat(tilstand_før = tilstand, data = data, forfaldsgrund = forfaldsgrund, hændelse_gyldig = hændelse_gyldig(), gevinst_kroner = hvis hændelse_gyldig() { fifo_resultat().gevinst_kroner } ellers { 0 }, tab_kroner = hvis hændelse_gyldig() { fifo_resultat().tab_kroner } ellers { 0 }, fritaget_udbytte_tillagt_afståelsessum_kroner = hvis hændelse_gyldig() { fifo_resultat().fritaget_udbytte_tillagt_afståelsessum_kroner } ellers { 0 }, beregnet_skat_kroner = hvis hændelse_gyldig() { beregnet_skat_kroner() } ellers { 0 }, skattefradrag_kroner = hvis hændelse_gyldig() { skattefradrag_kroner() } ellers { 0 }, nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, saldobortfald_kroner = saldobortfald_kroner(), tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35i_afståelsesresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IAfståelsesdata, forfaldsgrund: AktieavancePar35IForfaldsgrund) -> AktieavancePar35IAfståelsesSag(tilstand, data, forfaldsgrund).resultat()
+| aktieavance_par35i_ordinært_afståelsesresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IAfståelsesdata) -> aktieavance_par35i_afståelsesresultat(tilstand, data, AblPar35IForfaldAfståelsesgevinst)
+
+| aktieavance_par35i_udbyttefordeling_beløb(fordelinger: List(AktieavancePar35IUdbyttefordeling), parti_identifikation: Tekst) -> foldl(fordelinger, 0, |sum: Heltal, fordeling: AktieavancePar35IUdbyttefordeling| sum + hvis fordeling.parti_identifikation == parti_identifikation { fordeling.fritaget_udbytte_kroner } ellers { 0 })
+| aktieavance_par35i_udbyttefordeling_unik(fordelinger: List(AktieavancePar35IUdbyttefordeling), fordeling: AktieavancePar35IUdbyttefordeling) -> foldl(fordelinger, 0, |antal: Heltal, anden: AktieavancePar35IUdbyttefordeling| antal + hvis anden.parti_identifikation == fordeling.parti_identifikation { 1 } ellers { 0 }) == 1
+| aktieavance_par35i_udbyttefordeling_parti_findes(beholdning: List(AktieavancePar35IBeholdningsparti), fordeling: AktieavancePar35IUdbyttefordeling) -> any(beholdning, |parti: AktieavancePar35IBeholdningsparti| parti.identifikation == fordeling.parti_identifikation)
+| aktieavance_par35i_samlet_udbyttefordeling_kroner(fordelinger: List(AktieavancePar35IUdbyttefordeling)) -> foldl(fordelinger, 0, |sum: Heltal, fordeling: AktieavancePar35IUdbyttefordeling| sum + fordeling.fritaget_udbytte_kroner)
+| aktieavance_par35i_parti_efter_udbyttefordeling(parti: AktieavancePar35IBeholdningsparti, fordelinger: List(AktieavancePar35IUdbyttefordeling)) -> AktieavancePar35IBeholdningsparti(identifikation = parti.identifikation, selskabsidentifikation = parti.selskabsidentifikation, aktieserie = parti.aktieserie, erhvervelsesrækkefølge = parti.erhvervelsesrækkefølge, resterende_antal = parti.resterende_antal, resterende_anskaffelsessum_kroner = parti.resterende_anskaffelsessum_kroner, resterende_overdragelsesværdi_kroner = parti.resterende_overdragelsesværdi_kroner, resterende_fritaget_udbytte_kroner = parti.resterende_fritaget_udbytte_kroner + aktieavance_par35i_udbyttefordeling_beløb(fordelinger, parti.identifikation))
+
+# AktieavancePar35IÅrsudbytteSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IÅrsudbytte) {
+    | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
+    | otte_pct_grænse_kroner() -> penge_beløb_gange_basispoint_kroner(tilstand.oprindelig_overdragelsesværdi_kroner, 800)
+    | fritaget_udbytte_kroner() -> penge_mindste_beløb(data.samlet_udbytte_kroner, otte_pct_grænse_kroner())
+    | afdragsgrundlag_kroner() -> penge_positivt_beløb(data.samlet_udbytte_kroner - otte_pct_grænse_kroner())
+    | beregnet_skat_kroner() -> penge_beløb_gange_basispoint_kroner(afdragsgrundlag_kroner(), selskabsskattelov_par17_stk1_sats_basispoint(data.indkomstår))
+    | skattefradrag_kroner() -> penge_mindste_beløb(beregnet_skat_kroner(), data.anden_betalt_skat_kroner + data.godkendt_fradrag_efter_ligningslov_par33_kroner)
+    | muligt_forfald_kroner() -> penge_positivt_beløb(beregnet_skat_kroner() - skattefradrag_kroner())
+    | nyt_forfald_kroner() -> penge_mindste_beløb(aktieavance_par35i_disponibel_saldo_kroner(tilstand), muligt_forfald_kroner())
+    | udbytteår_allerede_behandlet() -> any(tilstand.behandlede_udbytteår, |år: Heltal| år == data.indkomstår)
+    | fordeling_gyldig() -> aktieavance_par35i_samlet_udbyttefordeling_kroner(data.fritaget_udbyttefordeling) == fritaget_udbytte_kroner() && all(data.fritaget_udbyttefordeling, |fordeling: AktieavancePar35IUdbyttefordeling| fordeling.parti_identifikation != "" && fordeling.fritaget_udbytte_kroner >= 0 && aktieavance_par35i_udbyttefordeling_unik(data.fritaget_udbyttefordeling, fordeling) && aktieavance_par35i_udbyttefordeling_parti_findes(tilstand.beholdning, fordeling))
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && tilstand.ordning_aktiv && data.hændelsesidentifikation != "" && data.indkomstår >= tilstand.overdragelsesår && data.samlet_udbytte_kroner >= 0 && data.anden_betalt_skat_kroner >= 0 && data.godkendt_fradrag_efter_ligningslov_par33_kroner >= 0 && udbytteår_allerede_behandlet() == Falskt && fordeling_gyldig() && (nyt_forfald_kroner() == 0 || aktieavance_par35i_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation()))
+    | beholdning_efter() -> map(tilstand.beholdning, |parti: AktieavancePar35IBeholdningsparti| aktieavance_par35i_parti_efter_udbyttefordeling(parti, data.fritaget_udbyttefordeling))
+    | forfaldspost() -> aktieavance_par35i_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar35IForfaldÅrsudbytte, nyt_forfald_kroner())
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = beholdning_efter(), oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = aktieavance_par35i_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), behandlede_udbytteår = concat(tilstand.behandlede_udbytteår, [data.indkomstår]), ordning_aktiv = tilstand.ordning_aktiv, hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold) } ellers { tilstand }
+    | resultat() -> AktieavancePar35IÅrsudbytteresultat(tilstand_før = tilstand, data = data, hændelse_gyldig = hændelse_gyldig(), otte_pct_grænse_kroner = hvis hændelse_gyldig() { otte_pct_grænse_kroner() } ellers { 0 }, fritaget_udbytte_kroner = hvis hændelse_gyldig() { fritaget_udbytte_kroner() } ellers { 0 }, afdragsgrundlag_kroner = hvis hændelse_gyldig() { afdragsgrundlag_kroner() } ellers { 0 }, beregnet_skat_kroner = hvis hændelse_gyldig() { beregnet_skat_kroner() } ellers { 0 }, skattefradrag_kroner = hvis hændelse_gyldig() { skattefradrag_kroner() } ellers { 0 }, nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35i_årsudbytteresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IÅrsudbytte) -> AktieavancePar35IÅrsudbytteSag(tilstand, data).resultat()
+
+| aktieavance_par35i_fordringsantal(tilstand: AktieavancePar35ITilstand, identifikation: Tekst) -> foldl(tilstand.forfaldsposter, 0, |antal: Heltal, post: AktieavancePar35IForfaldspost| antal + hvis post.identifikation == identifikation { 1 } ellers { 0 })
+| aktieavance_par35i_fordringsrest_kroner(tilstand: AktieavancePar35ITilstand, identifikation: Tekst) -> foldl(tilstand.forfaldsposter, 0, |sum: Heltal, post: AktieavancePar35IForfaldspost| sum + hvis post.identifikation == identifikation { post.resterende_beløb_kroner } ellers { 0 })
+| aktieavance_par35i_fordring_efter_betaling(post: AktieavancePar35IForfaldspost, identifikation: Tekst, beløb_kroner: Heltal) -> hvis post.identifikation == identifikation { AktieavancePar35IForfaldspost(identifikation = post.identifikation, indkomstår = post.indkomstår, grund = post.grund, fristregel = post.fristregel, oprindeligt_beløb_kroner = post.oprindeligt_beløb_kroner, resterende_beløb_kroner = post.resterende_beløb_kroner - beløb_kroner) } ellers { post }
+
+# AktieavancePar35IBetalingsSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IBetaling) {
+    | betaling_af_forfald() -> match data.art { | AblPar35IBetalingAfForfald(forfaldsidentifikation) -> Sandt | AblPar35IFrivilligBetaling -> Falskt }
+    | forfaldsidentifikation() -> match data.art { | AblPar35IBetalingAfForfald(forfaldsidentifikation) -> forfaldsidentifikation | AblPar35IFrivilligBetaling -> "" }
+    | forfaldsbetaling_gyldig() -> betaling_af_forfald() && aktieavance_par35i_fordringsantal(tilstand, forfaldsidentifikation()) == 1 && data.beløb_kroner <= aktieavance_par35i_fordringsrest_kroner(tilstand, forfaldsidentifikation())
+    | frivillig_betaling_gyldig() -> betaling_af_forfald() == Falskt && data.beløb_kroner <= aktieavance_par35i_disponibel_saldo_kroner(tilstand)
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && data.beløb_kroner > 0 && data.beløb_kroner <= tilstand.overdragerskat_saldo_kroner && (forfaldsbetaling_gyldig() || frivillig_betaling_gyldig())
+    | forfaldsposter_efter() -> hvis hændelse_gyldig() && betaling_af_forfald() { filter(map(tilstand.forfaldsposter, |post: AktieavancePar35IForfaldspost| aktieavance_par35i_fordring_efter_betaling(post, forfaldsidentifikation(), data.beløb_kroner)), |post: AktieavancePar35IForfaldspost| post.resterende_beløb_kroner > 0) } ellers { tilstand.forfaldsposter }
+    | tilstand_før_normalisering() -> AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = tilstand.beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner - hvis hændelse_gyldig() { data.beløb_kroner } ellers { 0 }, forfaldsposter = forfaldsposter_efter(), behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv, hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold)
+    | tilstand_efter() -> hvis hændelse_gyldig() { aktieavance_par35i_normaliser_tilstand(tilstand_før_normalisering()) } ellers { tilstand }
+    | resultat() -> AktieavancePar35IBetalingsresultat(tilstand_før = tilstand, data = data, hændelse_gyldig = hændelse_gyldig(), saldo_nedskrevet_kroner = hvis hændelse_gyldig() { data.beløb_kroner } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35i_betalingsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35IBetaling) -> AktieavancePar35IBetalingsSag(tilstand, data).resultat()
+
+# AktieavancePar35IOmstruktureringsSag(tilstand: AktieavancePar35ITilstand, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti)) {
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && tilstand.ordning_aktiv && skattefri_med_succession && length(ny_beholdning) > 0 && aktieavance_par35i_beholdning_gyldig(ny_beholdning) && aktieavance_par35i_samlet_anskaffelsessum_kroner(ny_beholdning) == aktieavance_par35i_samlet_anskaffelsessum_kroner(tilstand.beholdning) && aktieavance_par35i_samlet_overdragelsesværdi_kroner(ny_beholdning) == aktieavance_par35i_samlet_overdragelsesværdi_kroner(tilstand.beholdning) && aktieavance_par35i_samlet_fritaget_udbytte_kroner(ny_beholdning) == aktieavance_par35i_samlet_fritaget_udbytte_kroner(tilstand.beholdning)
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = ny_beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = tilstand.forfaldsposter, behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv, hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold) } ellers { tilstand }
+    | resultat() -> AktieavancePar35IOmstruktureringsresultat(tilstand_før = tilstand, skattefri_med_succession = skattefri_med_succession, ny_beholdning = ny_beholdning, hændelse_gyldig = hændelse_gyldig(), tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35i_omstruktureringsresultat(tilstand: AktieavancePar35ITilstand, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti)) -> AktieavancePar35IOmstruktureringsSag(tilstand, skattefri_med_succession, ny_beholdning).resultat()
+--@end:aktieavancebeskatningsloven_par35i--
+
+--@label:aktieavancebeskatningsloven_par35j::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k::rate_source:selskabsskatteloven_lbk279_par17_stk1--
+----
+§ 35 J. Er betingelsen i § 35 G, stk. 1, 2. pkt., for aktier, der indgår på
+beholdningsoversigten efter § 35 I, stk. 1, ikke opfyldt i 5 år regnet fra
+overdragelsen, anses aktierne for afstået til handelsværdien på det tidspunkt,
+hvor betingelsen ikke længere er opfyldt. Vurderingen af, om betingelsen efter
+1. pkt. er opfyldt, opgøres ved udgangen af hvert indkomstår i perioden på 5 år.
+
+Stk. 2. Er betingelsen i erhvervsvirksomhedslovens § 19 m om et ejerskab på mere
+end en tredjedel ikke opfyldt ved udgangen af indkomståret af 2 på hinanden
+følgende indkomstår, anses aktierne for afstået til handelsværdien ved udgangen
+af det første indkomstår, hvor betingelsen første gang ikke var opfyldt. Er
+reglerne i selskabsskattelovens § 1, stk. 1, nr. 2 j, i øvrigt ikke opfyldt,
+skal aktier erhvervet ved en overdragelse omfattet af § 35 G, som fortsat indgår
+på beholdningsoversigten, anses for afstået.
+
+Stk. 3. Ved udlodninger og dispositioner, der ikke er omfattet af § 35 I,
+vedrørende aktier på beholdningsoversigten, hvor udlodningerne eller
+dispositionerne vil kunne påvirke aktiernes kursværdi i nedadgående retning,
+beregnes der skat heraf med skattesatsen i selskabsskattelovens § 17, stk. 1.
+Dette gælder både udlodninger til medarbejderejevirksomheden selv og andre
+udlodninger og dispositioner, der må antages at være i
+medarbejderejevirksomhedens interesse. I den beregnede skat gives der fradrag
+for anden skat, der er betalt af gevinsten, herunder skat betalt til fremmed
+stat, Færøerne eller Grønland efter reglerne i ligningslovens § 33, stk. 1.
+Overstiger den beregnede skat den skat, der er betalt her til landet eller til
+udlandet, forfalder det overskydende beløb til betaling. Saldoen for
+overdragerskatten nedskrives med beløbet, når det er betalt.
+----
+
+--@begin:aktieavancebeskatningsloven_par35j--
+# AktieavancePar35JPengetankkontrol(overdragelsesår: Heltal, kontrolår: Heltal, betingelse_i_par34_stk1_nr3_opfyldt: Boolsk)
+# AktieavancePar35JEjerskabskontrol(forrige_indkomstår: Heltal, ejerskab_over_en_tredjedel_forrige_år: Boolsk, aktuelt_indkomstår: Heltal, ejerskab_over_en_tredjedel_aktuelt_år: Boolsk)
+# AktieavancePar35JTvangsudløsning = AblPar35JPengetank(data: AktieavancePar35JPengetankkontrol) | AblPar35JEjerskabUnderEnTredjedel(data: AktieavancePar35JEjerskabskontrol) | AblPar35JSelPar1Stk1Nr2j(indkomstår: Heltal, betingelser_opfyldt: Boolsk) | AblPar35IOpløsning(indkomstår: Heltal)
+# AktieavancePar35JTvangsresultat(udløsning: AktieavancePar35JTvangsudløsning, anses_for_afstået: Boolsk, afståelsesår: Heltal, forfaldsgrund: AktieavancePar35IForfaldsgrund)
+# AktieavancePar35JTvangsforløbstilstand(tilstand: AktieavancePar35ITilstand, resultater: List(AktieavancePar35IAfståelsesresultat), alle_afståelser_gyldige: Boolsk, samlet_nyt_forfald_kroner: Heltal, samlet_saldobortfald_kroner: Heltal)
+# AktieavancePar35JTvangsafståelsesdata(udløsning: AktieavancePar35JTvangsudløsning, afståelser_til_handelsværdi: List(AktieavancePar35IAfståelsesdata))
+# AktieavancePar35JTvangsafståelsesresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35JTvangsafståelsesdata, tvangsresultat: AktieavancePar35JTvangsresultat, hændelse_gyldig: Boolsk, resultater: List(AktieavancePar35IAfståelsesresultat), samlet_nyt_forfald_kroner: Heltal, samlet_saldobortfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35JVærdinedgangsdisposition(hændelsesidentifikation: Tekst, indkomstår: Heltal, beregningsgrundlag_kroner: Heltal, kan_påvirke_kursværdi_nedad: Boolsk, udlodning_til_medarbejderejevirksomheden: Boolsk, disposition_i_medarbejderejevirksomhedens_interesse: Boolsk, anden_betalt_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal)
+# AktieavancePar35JVærdinedgangsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35JVærdinedgangsdisposition, omfattet: Boolsk, hændelse_gyldig: Boolsk, beregnet_skat_kroner: Heltal, skattefradrag_kroner: Heltal, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+
+| aktieavance_par35j_pengetank_tvang(data: AktieavancePar35JPengetankkontrol) -> aktieavance_par35g_til_par35k_har_virkning(data.overdragelsesår) && data.kontrolår >= data.overdragelsesår && data.kontrolår < data.overdragelsesår + 5 && data.betingelse_i_par34_stk1_nr3_opfyldt == Falskt
+| aktieavance_par35j_ejerskab_tvang(data: AktieavancePar35JEjerskabskontrol) -> aktieavance_par35g_til_par35k_har_virkning(data.forrige_indkomstår) && data.aktuelt_indkomstår == data.forrige_indkomstår + 1 && data.ejerskab_over_en_tredjedel_forrige_år == Falskt && data.ejerskab_over_en_tredjedel_aktuelt_år == Falskt
+| aktieavance_par35j_tvangsresultat(udløsning: AktieavancePar35JTvangsudløsning) -> match udløsning {
+    | AblPar35JPengetank(data) -> AktieavancePar35JTvangsresultat(udløsning = udløsning, anses_for_afstået = aktieavance_par35j_pengetank_tvang(data), afståelsesår = data.kontrolår, forfaldsgrund = AblPar35JForfaldPengetank)
+    | AblPar35JEjerskabUnderEnTredjedel(data) -> AktieavancePar35JTvangsresultat(udløsning = udløsning, anses_for_afstået = aktieavance_par35j_ejerskab_tvang(data), afståelsesår = data.forrige_indkomstår, forfaldsgrund = AblPar35JForfaldEjerskabUnderEnTredjedel)
+    | AblPar35JSelPar1Stk1Nr2j(indkomstår, betingelser_opfyldt) -> AktieavancePar35JTvangsresultat(udløsning = udløsning, anses_for_afstået = aktieavance_par35g_til_par35k_har_virkning(indkomstår) && betingelser_opfyldt == Falskt, afståelsesår = indkomstår, forfaldsgrund = AblPar35JForfaldSelPar1Stk1Nr2j)
+    | AblPar35IOpløsning(indkomstår) -> AktieavancePar35JTvangsresultat(udløsning = udløsning, anses_for_afstået = aktieavance_par35g_til_par35k_har_virkning(indkomstår), afståelsesår = indkomstår, forfaldsgrund = AblPar35IForfaldOpløsning)
+}
+
+# AktieavancePar35JTvangsforløbstrinSag(forløb: AktieavancePar35JTvangsforløbstilstand, data: AktieavancePar35IAfståelsesdata, tvangsresultat: AktieavancePar35JTvangsresultat) {
+    | afståelsesresultat() -> aktieavance_par35i_afståelsesresultat(forløb.tilstand, data, tvangsresultat.forfaldsgrund)
+    | år_gyldigt() -> data.indkomstår == tvangsresultat.afståelsesår
+    | resultat() -> AktieavancePar35JTvangsforløbstilstand(
+        tilstand = hvis år_gyldigt() { afståelsesresultat().tilstand_efter } ellers { forløb.tilstand },
+        resultater = concat(forløb.resultater, [afståelsesresultat()]),
+        alle_afståelser_gyldige = forløb.alle_afståelser_gyldige && år_gyldigt() && afståelsesresultat().hændelse_gyldig,
+        samlet_nyt_forfald_kroner = forløb.samlet_nyt_forfald_kroner + hvis år_gyldigt() { afståelsesresultat().nyt_forfald_kroner } ellers { 0 },
+        samlet_saldobortfald_kroner = forløb.samlet_saldobortfald_kroner + hvis år_gyldigt() { afståelsesresultat().saldobortfald_kroner } ellers { 0 }
+    )
+}
+
+| aktieavance_par35j_tvangsforløbstrin(forløb: AktieavancePar35JTvangsforløbstilstand, data: AktieavancePar35IAfståelsesdata, tvangsresultat: AktieavancePar35JTvangsresultat) -> AktieavancePar35JTvangsforløbstrinSag(forløb, data, tvangsresultat).resultat()
+
+# AktieavancePar35JTvangsafståelsesSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35JTvangsafståelsesdata) {
+    | tvangsresultat() -> aktieavance_par35j_tvangsresultat(data.udløsning)
+    | forløb() -> foldl(data.afståelser_til_handelsværdi, AktieavancePar35JTvangsforløbstilstand(tilstand = tilstand, resultater = [], alle_afståelser_gyldige = aktieavance_par35i_tilstand_gyldig(tilstand), samlet_nyt_forfald_kroner = 0, samlet_saldobortfald_kroner = 0), |forløb: AktieavancePar35JTvangsforløbstilstand, afståelse: AktieavancePar35IAfståelsesdata| aktieavance_par35j_tvangsforløbstrin(forløb, afståelse, tvangsresultat()))
+    | hændelse_gyldig() -> tvangsresultat().anses_for_afstået && length(data.afståelser_til_handelsværdi) > 0 && forløb().alle_afståelser_gyldige && length(forløb().tilstand.beholdning) == 0
+    | tilstand_efter() -> hvis hændelse_gyldig() { forløb().tilstand } ellers { tilstand }
+    | resultat() -> AktieavancePar35JTvangsafståelsesresultat(tilstand_før = tilstand, data = data, tvangsresultat = tvangsresultat(), hændelse_gyldig = hændelse_gyldig(), resultater = forløb().resultater, samlet_nyt_forfald_kroner = hvis hændelse_gyldig() { forløb().samlet_nyt_forfald_kroner } ellers { 0 }, samlet_saldobortfald_kroner = hvis hændelse_gyldig() { forløb().samlet_saldobortfald_kroner } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35j_tvangsafståelsesresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35JTvangsafståelsesdata) -> AktieavancePar35JTvangsafståelsesSag(tilstand, data).resultat()
+
+# AktieavancePar35JVærdinedgangsSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35JVærdinedgangsdisposition) {
+    | omfattet() -> data.kan_påvirke_kursværdi_nedad && (data.udlodning_til_medarbejderejevirksomheden || data.disposition_i_medarbejderejevirksomhedens_interesse)
+    | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
+    | beregnet_skat_kroner() -> hvis omfattet() { penge_beløb_gange_basispoint_kroner(data.beregningsgrundlag_kroner, selskabsskattelov_par17_stk1_sats_basispoint(data.indkomstår)) } ellers { 0 }
+    | skattefradrag_kroner() -> penge_mindste_beløb(beregnet_skat_kroner(), data.anden_betalt_skat_kroner + data.godkendt_fradrag_efter_ligningslov_par33_kroner)
+    | muligt_forfald_kroner() -> penge_positivt_beløb(beregnet_skat_kroner() - skattefradrag_kroner())
+    | nyt_forfald_kroner() -> penge_mindste_beløb(aktieavance_par35i_disponibel_saldo_kroner(tilstand), muligt_forfald_kroner())
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && tilstand.ordning_aktiv && data.hændelsesidentifikation != "" && data.indkomstår >= tilstand.overdragelsesår && data.beregningsgrundlag_kroner >= 0 && data.anden_betalt_skat_kroner >= 0 && data.godkendt_fradrag_efter_ligningslov_par33_kroner >= 0 && (nyt_forfald_kroner() == 0 || aktieavance_par35i_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation()))
+    | forfaldspost() -> aktieavance_par35i_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar35JForfaldVærdinedgangsdisposition, nyt_forfald_kroner())
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = tilstand.beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = aktieavance_par35i_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv, hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold) } ellers { tilstand }
+    | resultat() -> AktieavancePar35JVærdinedgangsresultat(tilstand_før = tilstand, data = data, omfattet = omfattet(), hændelse_gyldig = hændelse_gyldig(), beregnet_skat_kroner = hvis hændelse_gyldig() { beregnet_skat_kroner() } ellers { 0 }, skattefradrag_kroner = hvis hændelse_gyldig() { skattefradrag_kroner() } ellers { 0 }, nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35j_værdinedgangsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35JVærdinedgangsdisposition) -> AktieavancePar35JVærdinedgangsSag(tilstand, data).resultat()
+--@end:aktieavancebeskatningsloven_par35j--
+
+--@label:aktieavancebeskatningsloven_par35k::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k--
+----
+§ 35 K. Medarbejderejevirksomheden skal inden for den frist, der er angivet i
+skattekontrollovens § 12, jf. § 13, indgive en ajourført beholdningsoversigt og
+saldo for overdragerskatten for hvert indkomstår, hvor denne er positiv.
+Samtidig med indgivelsen heraf skal der indgives oplysninger om de forhold, der
+medfører forfald af overdragerskatten efter §§ 35 I og 35 J. Udenlandske
+medarbejderejevirksomheder skal ud over de oplysninger, der er anført i 1. og 2.
+pkt., samtidig indgive oplysning om medarbejderejevirksomhedens adresse på
+indsendelsestidspunktet. Indgives opgørelserne som nævnt i 1.-3. pkt. ikke
+rettidigt, forfalder saldoen for overdragerskatten til betaling. Told- og
+skatteforvaltningen kan se bort fra overskridelse af fristen for indgivelse af
+opgørelserne.
+
+Stk. 2. Har medarbejderejevirksomheden hjemsted i et land, der ikke er omfattet
+af overenskomst af 7. december 1989 mellem de nordiske lande om bistand i
+skattesager eller Rådets direktiv 2010/24/EU af 16. marts 2010 om gensidig
+bistand ved inddrivelse af fordringer i forbindelse med skatter, afgifter og
+andre foranstaltninger, er anvendelse af §§ 35 G-35 J endvidere betinget af, at
+der stilles betryggende sikkerhed for betalingen af overdragerskatten.
+Sikkerheden skal stå i passende forhold til overdragerskatten og kan stilles i
+form af aktier, obligationer, der er optaget til handel på et reguleret marked,
+bankgaranti eller anden betryggende sikkerhed. Flytter
+medarbejderejevirksomheden efterfølgende hjemsted til et land, der er omfattet
+af 1. pkt., frigives den stillede sikkerhed efter anmodning.
+
+Stk. 3. Flytter medarbejderejevirksomheden hjemsted til et land, der ikke er
+omfattet af den overenskomst eller det direktiv, der er nævnt i stk. 2, 1. pkt.,
+forfalder saldoen for overdragerskat til betaling. Dette gælder dog ikke, hvis
+hjemstedet flyttes til et land, der er medlem af EU eller EØS, men dog ikke
+omfattet af den overenskomst eller det direktiv, der er nævnt i stk. 2, 1. pkt.,
+og der stilles betryggende sikkerhed, jf. stk. 2, 2. pkt. Uanset 2. pkt.
+forfalder saldoen for overdragerskat til betaling, når flytning af
+medarbejderejevirksomhedens hjemsted indebærer, at betingelserne i § 35 G, stk.
+4, ikke er opfyldt.
+----
+
+--@begin:aktieavancebeskatningsloven_par35k--
+# AktieavancePar35KÅrsoplysninger(hændelsesidentifikation: Tekst, indkomstår: Heltal, indgivet_rettidigt: Boolsk, fristoverskridelse_tilsidesat_af_skatteforvaltningen: Boolsk, ajourført_beholdningsoversigt_indgivet: Boolsk, ajourført_saldo_indgivet: Boolsk, forfaldsforhold_efter_par35i_og_par35j_indgivet: Boolsk, udenlandsk_adresse_indgivet: Boolsk)
+# AktieavancePar35KÅrsoplysningsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35KÅrsoplysninger, oplysninger_påkrævet: Boolsk, oplysninger_fuldstændige: Boolsk, rettidige_eller_tilsidesat: Boolsk, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35KHjemstedsflytning(hændelsesidentifikation: Tekst, indkomstår: Heltal, nyt_hjemsted: AktieavancePar35GHjemsted, nyt_land_omfattet_af_inddrivelsesbistand: Boolsk, ny_sikkerhedsform: AktieavancePar35GSikkerhedsform, ny_sikkerhed_står_i_passende_forhold: Boolsk, betingelserne_i_par35g_fortsat_opfyldt: Boolsk, frigivelse_af_sikkerhed_anmodet: Boolsk)
+# AktieavancePar35KHjemstedsresultat(tilstand_før: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning, sikkerhed_påkrævet: Boolsk, sikkerhed_opfyldt: Boolsk, sikkerhed_frigives: Boolsk, saldo_forfalder: Boolsk, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, tilstand_efter: AktieavancePar35ITilstand)
+
+| aktieavance_par35k_hjemsted_udenlandsk(hjemsted: AktieavancePar35GHjemsted) -> hjemsted != AblPar35GDanmark
+| aktieavance_par35k_hjemsted_eu_eller_eøs(hjemsted: AktieavancePar35GHjemsted) -> hjemsted == AblPar35GEU || hjemsted == AblPar35GEØS
+
+# AktieavancePar35KÅrsoplysningsSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KÅrsoplysninger) {
+    | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
+    | oplysninger_påkrævet() -> tilstand.overdragerskat_saldo_kroner > 0
+    | oplysninger_fuldstændige() -> data.ajourført_beholdningsoversigt_indgivet && data.ajourført_saldo_indgivet && data.forfaldsforhold_efter_par35i_og_par35j_indgivet && (aktieavance_par35k_hjemsted_udenlandsk(tilstand.hjemsted) == Falskt || data.udenlandsk_adresse_indgivet)
+    | rettidige_eller_tilsidesat() -> oplysninger_fuldstændige() && (data.indgivet_rettidigt || data.fristoverskridelse_tilsidesat_af_skatteforvaltningen)
+    | nyt_forfald_kroner() -> hvis oplysninger_påkrævet() && rettidige_eller_tilsidesat() == Falskt { aktieavance_par35i_disponibel_saldo_kroner(tilstand) } ellers { 0 }
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && data.indkomstår >= tilstand.overdragelsesår && (nyt_forfald_kroner() == 0 || aktieavance_par35i_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation()))
+    | forfaldspost() -> aktieavance_par35i_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar35KForfaldÅrsoplysninger, nyt_forfald_kroner())
+    | ordning_fortsætter() -> oplysninger_påkrævet() == Falskt || rettidige_eller_tilsidesat()
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = tilstand.beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = aktieavance_par35i_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv && ordning_fortsætter(), hjemsted = tilstand.hjemsted, land_omfattet_af_inddrivelsesbistand = tilstand.land_omfattet_af_inddrivelsesbistand, sikkerhedsform = tilstand.sikkerhedsform, sikkerhed_står_i_passende_forhold = tilstand.sikkerhed_står_i_passende_forhold) } ellers { tilstand }
+    | resultat() -> AktieavancePar35KÅrsoplysningsresultat(tilstand_før = tilstand, data = data, oplysninger_påkrævet = oplysninger_påkrævet(), oplysninger_fuldstændige = oplysninger_fuldstændige(), rettidige_eller_tilsidesat = rettidige_eller_tilsidesat(), hændelse_gyldig = hændelse_gyldig(), nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35k_årsoplysningsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KÅrsoplysninger) -> AktieavancePar35KÅrsoplysningsSag(tilstand, data).resultat()
+
+# AktieavancePar35KHjemstedsSag(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning) {
+    | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
+    | sikkerhed_påkrævet() -> data.nyt_land_omfattet_af_inddrivelsesbistand == Falskt && tilstand.overdragerskat_saldo_kroner > 0
+    | sikkerhed_opfyldt() -> sikkerhed_påkrævet() == Falskt || (aktieavance_par35g_sikkerhedsform_mulig(data.ny_sikkerhedsform) && data.ny_sikkerhed_står_i_passende_forhold)
+    | eu_eøs_undtagelse() -> aktieavance_par35k_hjemsted_eu_eller_eøs(data.nyt_hjemsted) && sikkerhed_opfyldt() && data.betingelserne_i_par35g_fortsat_opfyldt
+    | saldo_forfalder() -> data.betingelserne_i_par35g_fortsat_opfyldt == Falskt || (sikkerhed_påkrævet() && eu_eøs_undtagelse() == Falskt)
+    | sikkerhed_frigives() -> tilstand.land_omfattet_af_inddrivelsesbistand == Falskt && aktieavance_par35g_sikkerhedsform_mulig(tilstand.sikkerhedsform) && data.nyt_land_omfattet_af_inddrivelsesbistand && data.frigivelse_af_sikkerhed_anmodet
+    | nyt_forfald_kroner() -> hvis saldo_forfalder() { aktieavance_par35i_disponibel_saldo_kroner(tilstand) } ellers { 0 }
+    | hændelse_gyldig() -> aktieavance_par35i_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && data.indkomstår >= tilstand.overdragelsesår && (data.nyt_hjemsted == AblPar35GDanmark || aktieavance_par35g_hjemsted_tilladt_udenlandsk(data.nyt_hjemsted) || saldo_forfalder()) && (nyt_forfald_kroner() == 0 || aktieavance_par35i_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation()))
+    | forfaldspost() -> aktieavance_par35i_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar35KForfaldHjemstedsflytning, nyt_forfald_kroner())
+    | sikkerhedsform_efter() -> hvis sikkerhed_frigives() { AblPar35GIngenSikkerhed } ellers { hvis data.nyt_land_omfattet_af_inddrivelsesbistand { tilstand.sikkerhedsform } ellers { data.ny_sikkerhedsform } }
+    | sikkerhed_passende_efter() -> hvis sikkerhed_frigives() { Falskt } ellers { hvis data.nyt_land_omfattet_af_inddrivelsesbistand { tilstand.sikkerhed_står_i_passende_forhold } ellers { data.ny_sikkerhed_står_i_passende_forhold } }
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar35ITilstand(overdragelsesår = tilstand.overdragelsesår, beholdning = tilstand.beholdning, oprindelig_overdragelsesværdi_kroner = tilstand.oprindelig_overdragelsesværdi_kroner, overdragerskat_saldo_kroner = tilstand.overdragerskat_saldo_kroner, forfaldsposter = aktieavance_par35i_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), behandlede_udbytteår = tilstand.behandlede_udbytteår, ordning_aktiv = tilstand.ordning_aktiv && saldo_forfalder() == Falskt, hjemsted = data.nyt_hjemsted, land_omfattet_af_inddrivelsesbistand = data.nyt_land_omfattet_af_inddrivelsesbistand, sikkerhedsform = sikkerhedsform_efter(), sikkerhed_står_i_passende_forhold = sikkerhed_passende_efter()) } ellers { tilstand }
+    | resultat() -> AktieavancePar35KHjemstedsresultat(tilstand_før = tilstand, data = data, sikkerhed_påkrævet = sikkerhed_påkrævet(), sikkerhed_opfyldt = sikkerhed_opfyldt(), sikkerhed_frigives = sikkerhed_frigives(), saldo_forfalder = saldo_forfalder(), hændelse_gyldig = hændelse_gyldig(), nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| aktieavance_par35k_hjemstedsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning) -> AktieavancePar35KHjemstedsSag(tilstand, data).resultat()
+--@end:aktieavancebeskatningsloven_par35k--

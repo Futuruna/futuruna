@@ -104,9 +104,10 @@ scenario-fil validerer 31 positive, begrænsende og afskærende udfald i både
 interpreter og kompileret kode.
 
 Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 30,
-stk. 1, § 33 A og §§ 37-40 har nu typede beregningsveje for ordinære
-personaktier, lageropgørelser, aktie- og tegningsretter, statusskifter samt
-indgangs- og fraflytterbeskatning.
+stk. 1, § 33 A, §§ 35 G-35 K og §§ 37-40 har nu typede beregningsveje for
+ordinære personaktier, lageropgørelser, aktie- og tegningsretter,
+medarbejderejeoverdragelser, statusskifter samt indgangs- og
+fraflytterbeskatning.
 Den vedvarende ordinære selskabsposition håndterer aktier med pålydende værdi,
 homogene beholdninger af stykkapitalandele og dokumenterede blandede
 beholdninger med begge kapitalformer.
@@ -183,6 +184,20 @@ samme års, tidligere års og delvist betalte fordringer. Satsbaserede hændelse
 accepterer kun skatteår med en kildebunden national parameterpakke, aktuelt
 2024-2026; andre år afvises før opslaget i Personskatteloven § 8 a.
 
+`aktieavancebeskatningsloven-par35g-35k.runa` gør den nye
+medarbejderejeordning fra 1. januar 2026 eksekverbar som et andet, særskilt
+flerperiodetilstandssystem. Valget kontrollerer fysisk overdrager, § 34-aktier,
+dansk eller tilladt udenlandsk virksomhedsform, meddelelse, tilsagn og
+sikkerhed. Negativ anskaffelsessum beskattes straks, mens den øvrige latente
+gevinst danner en overdragerskattesaldo med selskabsskattelovens § 17-sats.
+Beholdningen bruger FIFO pr. aktieparti; afståelser, årets 8 pct.-udbyttegrænse,
+skattefradrag, forfaldsposter, betalinger og endeligt bortfald bevares som
+adskilte typede hændelser. §§ 35 J-35 K håndterer tvangsafståelser,
+værdinedgangsdispositioner, årsoplysninger, sikkerhed og hjemstedsflytninger.
+De 17 fokusscenarier passerer i både interpreter og kompileret kode, inklusive
+virkningsgrænsen 2025/2026 og et kædet forløb fra 55.000 kr. startsaldo til
+endelig betaling og bortfald.
+
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
 sammenlignelige kapitalandelsgrundlag i domænet og beregner anskaffelser samt
@@ -193,8 +208,8 @@ udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
 De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-9, 17, 19 A-20 A og 22, § 38's fulde afhængige opgørelser efter §§ 23-29 og 46
-samt de resterende medarbejderejerregler. Modulerne modtager juridiske
+9, 17, 19 A-20 A og 22 samt § 38's fulde afhængige opgørelser efter §§ 23-29 og
+46. Modulerne modtager juridiske
 klassifikationer som typede resultater frem for rå sand/falsk-flags forklædt
 som fuld dækning.
 
@@ -743,15 +758,15 @@ Current source-refresh finding:
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-14, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-15, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260714`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260714 --fail-on-drift`
+  does not cover `20260715`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260715 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 41 records with 0 drift and 0 fetch/parse errors.
+  checked 42 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -805,9 +820,9 @@ Current § 3, stk. 2, nr. 2 dependency sources:
 
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
-  - XML and the current official print checked on 2026-07-14. Retsinformation
-    still marks LBK nr. 1500/2025 as current; the print lists amendments through
-    LOV nr. 1775 of 29/12/2025.
+  - XML rechecked on 2026-07-18; the current official print was last checked on
+    2026-07-18. Retsinformation still marks LBK nr. 1500/2025 as current; the
+    print lists amendments through LOV nr. 1775 of 29/12/2025.
   - §§ 8, stk. 1-4, 8 B, 8 K, 8 L, 8 N, 14, 14 F and 30 A now have
     source-linked typed result objects for sales and representation expenses,
     research and raw-material exploration, planting, Landsbyggefonden
@@ -819,9 +834,10 @@ Current § 3, stk. 2, nr. 2 dependency sources:
     non-deduction outcomes.
 - Kildeskatteloven:
   `https://www.retsinformation.dk/eli/lta/2024/460`
-  - XML and the current official print checked on 2026-07-14. Retsinformation
-    still marks LBK nr. 460/2024 as current; the print incorporates amendments
-    through LOV nr. 615 of 30/06/2026, and § 25 A, stk. 3-8 is unchanged.
+  - XML rechecked on 2026-07-18; the current official print was last checked on
+    2026-07-18. Retsinformation still marks LBK nr. 460/2024 as current; the
+    print incorporates amendments through LOV nr. 615 of 30/06/2026, and § 25
+    A, stk. 3-8 is unchanged.
   - § 25 A, stk. 3-8 now supplies the typed spouse-transfer result consumed by
     Personskatteloven: corrected business profit, the 50 pct. limit, the
     § 20-regulated 2010-level cap, the work-effort ceiling, cohabitation,
@@ -899,6 +915,8 @@ Current § 4 and § 13 amendment/dependency sources:
     `https://info.skat.dk/data.aspx?oid=1946050`
 - Aktieavancebeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1098`
+  - Medarbejderejeændringen og dens virkning fra 1. januar 2026:
+    `https://www.retsinformation.dk/eli/lta/2025/1755`, § 2 og § 8, stk. 1.
   - XML status on 2026-07-18: `Valid`
   - §§ 12-15, § 24, stk. 1-2, § 25, § 26, stk. 1-5, and § 30 supply the
     ordinary personal-share and rights paths for homogeneous holdings with or
@@ -935,13 +953,19 @@ Current § 4 and § 13 amendment/dependency sources:
     than its gross balance. Exact current legal text and the relevant
     Skattestyrelsen guidance are connected through three typed meta-comment
     spans.
+  - `aktieavancebeskatningsloven-par35g-35k.runa` implements the election,
+    immediate negative-basis gain, 22% transferor-tax balance, FIFO inventory,
+    8% annual dividend threshold, credits, payments, deemed disposals,
+    value-reducing dispositions, annual reporting, security, residence moves
+    and final lapse. Its 17 focused scenarios pass interpreted and compiled
+    execution. The enacted text, commencement clause and preparatory work are
+    attached through typed meta-comment spans.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
     § 17/§ 19 C-if-§ 17 personal-income reclassification.
-  - Remaining ABL depth includes the remaining dependent classifications and
-    employee-ownership provisions.
+  - Remaining ABL depth includes the remaining dependent classifications.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
@@ -2211,6 +2235,11 @@ Review candidates to revisit deliberately, not as broad churn:
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
   reduction. The multi-period state remains a separate typed module instead of
   being folded into § 39's one-time eligibility decision.
+- Aktieavancebeskatningsloven §§ 35 G-35 K now cover the 2026
+  employee-ownership election and its persistent transferor-tax ledger. The
+  domain keeps inventory lots, unpaid claims, paid reductions, reporting and
+  residence/security state together without passing loose facts down a
+  parameter chain.
 - Close the Personskatteloven implementation gaps before deeper audits.
   § 3, stk. 2, nr. 2 is converted from a raw amount bridge to nine typed
   dependency outcomes, and nr. 3-11 now enter the canonical calculation
@@ -2248,11 +2277,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Preserve the closed § 3, stk. 2, nr. 2-11 boundary while extending missing
   source-backed dependency outcomes. Do not reintroduce generic `{art, beløb}`
   adapters between typed dependency results and the canonical § 3 calculation.
-- Continue Aktieavancebeskatningsloven from the now-executable §§ 37-40 path:
-  complete the remaining dependent classifications and employee-ownership
-  provisions before calling the ABL dependency complete. Mixed nominal/no-par
-  holdings, § 33 A status changes and the modeled exit-tax deferral lifecycle
-  already have source-backed calculation paths.
+- Continue Aktieavancebeskatningsloven from the now-executable §§ 35 G-40
+  paths: complete the remaining dependent classifications before calling the
+  ABL dependency complete. Mixed nominal/no-par holdings, § 33 A status
+  changes, employee-ownership transferor tax and the modeled exit-tax deferral
+  lifecycle already have source-backed calculation paths.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

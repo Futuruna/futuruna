@@ -1,0 +1,397 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par35g - 35k
+
+----
+Fokuserede scenarier for medarbejderejeordningen i
+Aktieavancebeskatningslovens §§ 35 G-35 K. Scenarierne kæder den typede
+overdragerskat gennem flere indkomstår og holder straksbeskatning, uforfalden
+saldo og allerede forfaldne afdrag adskilt.
+----
+
+= par35_scenario_virkning_2025 = aktieavance_par35g_til_par35k_har_virkning(2025)
+= par35_scenario_virkning_2026 = aktieavance_par35g_til_par35k_har_virkning(2026)
+
+= par35_scenario_partier = [
+    AktieavancePar35GOverdragelsesparti(
+        identifikation = "parti-a",
+        selskabsidentifikation = "drift-a",
+        aktieserie = "ordinær",
+        erhvervelsesrækkefølge = 1,
+        antal = 100,
+        skattemæssig_anskaffelsessum_kroner = 100000,
+        handelsværdi_kroner = 200000
+    ),
+    AktieavancePar35GOverdragelsesparti(
+        identifikation = "parti-b",
+        selskabsidentifikation = "drift-a",
+        aktieserie = "ordinær",
+        erhvervelsesrækkefølge = 2,
+        antal = 100,
+        skattemæssig_anskaffelsessum_kroner = 150000,
+        handelsværdi_kroner = 300000
+    )
+]
+
+= par35_scenario_dansk_valg = AktieavancePar35GValg(
+    overdragelsesår = 2026,
+    overdrager_er_fysisk_person = Sandt,
+    hjemsted = AblPar35GDanmark,
+    dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j = Sandt,
+    udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j = Falskt,
+    udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c = Falskt,
+    udenlandsk_virksomhed_forpligter_sig_til_overdragerskat = Falskt,
+    udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger = Falskt,
+    aktier_opfylder_par34_stk1_nr3 = Sandt,
+    parterne_har_valgt_ordningen = Sandt,
+    meddelelse_rettidig = Sandt,
+    beholdningsoversigt_vedlagt = Sandt,
+    saldo_vedlagt = Sandt,
+    land_omfattet_af_inddrivelsesbistand = Sandt,
+    sikkerhedsform = AblPar35GIngenSikkerhed,
+    sikkerhed_står_i_passende_forhold = Falskt,
+    partier = par35_scenario_partier
+)
+= par35_scenario_start = aktieavance_par35g_overdragelsesresultat(par35_scenario_dansk_valg)
+
+= par35_scenario_negativt_valg = AktieavancePar35GValg(
+    overdragelsesår = 2026,
+    overdrager_er_fysisk_person = Sandt,
+    hjemsted = AblPar35GDanmark,
+    dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j = Sandt,
+    udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j = Falskt,
+    udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c = Falskt,
+    udenlandsk_virksomhed_forpligter_sig_til_overdragerskat = Falskt,
+    udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger = Falskt,
+    aktier_opfylder_par34_stk1_nr3 = Sandt,
+    parterne_har_valgt_ordningen = Sandt,
+    meddelelse_rettidig = Sandt,
+    beholdningsoversigt_vedlagt = Sandt,
+    saldo_vedlagt = Sandt,
+    land_omfattet_af_inddrivelsesbistand = Sandt,
+    sikkerhedsform = AblPar35GIngenSikkerhed,
+    sikkerhed_står_i_passende_forhold = Falskt,
+    partier = [
+        AktieavancePar35GOverdragelsesparti(
+            identifikation = "negativt-parti",
+            selskabsidentifikation = "drift-negativ",
+            aktieserie = "ordinær",
+            erhvervelsesrækkefølge = 1,
+            antal = 100,
+            skattemæssig_anskaffelsessum_kroner = -50000,
+            handelsværdi_kroner = 100000
+        )
+    ]
+)
+= par35_scenario_negativt_resultat = aktieavance_par35g_overdragelsesresultat(par35_scenario_negativt_valg)
+= par35_scenario_negativt_psl = aktieavance_par35h_personskattelov_resultat(par35_scenario_negativt_resultat)
+
+= par35_scenario_eu_valg = AktieavancePar35GValg(
+    overdragelsesår = 2026,
+    overdrager_er_fysisk_person = Sandt,
+    hjemsted = AblPar35GEU,
+    dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j = Falskt,
+    udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j = Sandt,
+    udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c = Sandt,
+    udenlandsk_virksomhed_forpligter_sig_til_overdragerskat = Sandt,
+    udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger = Sandt,
+    aktier_opfylder_par34_stk1_nr3 = Sandt,
+    parterne_har_valgt_ordningen = Sandt,
+    meddelelse_rettidig = Sandt,
+    beholdningsoversigt_vedlagt = Sandt,
+    saldo_vedlagt = Sandt,
+    land_omfattet_af_inddrivelsesbistand = Falskt,
+    sikkerhedsform = AblPar35GBankgaranti,
+    sikkerhed_står_i_passende_forhold = Sandt,
+    partier = par35_scenario_partier
+)
+= par35_scenario_eu_start = aktieavance_par35g_overdragelsesresultat(par35_scenario_eu_valg)
+
+= par35_scenario_tredjeland_valg = AktieavancePar35GValg(
+    overdragelsesår = 2026,
+    overdrager_er_fysisk_person = Sandt,
+    hjemsted = AblPar35GTredjeland,
+    dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j = Falskt,
+    udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j = Sandt,
+    udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c = Sandt,
+    udenlandsk_virksomhed_forpligter_sig_til_overdragerskat = Sandt,
+    udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger = Sandt,
+    aktier_opfylder_par34_stk1_nr3 = Sandt,
+    parterne_har_valgt_ordningen = Sandt,
+    meddelelse_rettidig = Sandt,
+    beholdningsoversigt_vedlagt = Sandt,
+    saldo_vedlagt = Sandt,
+    land_omfattet_af_inddrivelsesbistand = Falskt,
+    sikkerhedsform = AblPar35GBankgaranti,
+    sikkerhed_står_i_passende_forhold = Sandt,
+    partier = par35_scenario_partier
+)
+= par35_scenario_tredjeland_start = aktieavance_par35g_overdragelsesresultat(par35_scenario_tredjeland_valg)
+
+= par35_scenario_omvalg_rettidigt = aktieavance_par35g_omvurderingsresultat(AktieavancePar35GOmvurderingsvalg(
+    værdiansættelse_ændret_af_skatteforvaltningen = Sandt,
+    overdrager_har_modtaget_meddelelse = Sandt,
+    nyt_valg_meddelt_inden_tre_måneder = Sandt
+))
+= par35_scenario_omvalg_for_sent = aktieavance_par35g_omvurderingsresultat(AktieavancePar35GOmvurderingsvalg(
+    værdiansættelse_ændret_af_skatteforvaltningen = Sandt,
+    overdrager_har_modtaget_meddelelse = Sandt,
+    nyt_valg_meddelt_inden_tre_måneder = Falskt
+))
+
+= par35_scenario_salg_et = aktieavance_par35i_ordinært_afståelsesresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35IAfståelsesdata(
+        hændelsesidentifikation = "salg-et",
+        selskabsidentifikation = "drift-a",
+        aktieserie = "ordinær",
+        antal = 100,
+        afståelsessum_kroner = 250000,
+        indkomstår = 2027,
+        anden_betalt_skat_kroner = 2000,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 1000
+    )
+)
+= par35_scenario_salg_et_betalt = aktieavance_par35i_betalingsresultat(
+    par35_scenario_salg_et.tilstand_efter,
+    AktieavancePar35IBetaling(
+        hændelsesidentifikation = "betaling-salg-et",
+        beløb_kroner = 30000,
+        art = AblPar35IBetalingAfForfald("salg-et:forfald")
+    )
+)
+= par35_scenario_udbytte = aktieavance_par35i_årsudbytteresultat(
+    par35_scenario_salg_et_betalt.tilstand_efter,
+    AktieavancePar35IÅrsudbytte(
+        hændelsesidentifikation = "udbytte-2028",
+        indkomstår = 2028,
+        samlet_udbytte_kroner = 60000,
+        anden_betalt_skat_kroner = 400,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        fritaget_udbyttefordeling = [
+            AktieavancePar35IUdbyttefordeling(
+                parti_identifikation = "parti-b",
+                fritaget_udbytte_kroner = 40000
+            )
+        ]
+    )
+)
+= par35_scenario_gentaget_udbytte = aktieavance_par35i_årsudbytteresultat(
+    par35_scenario_udbytte.tilstand_efter,
+    AktieavancePar35IÅrsudbytte(
+        hændelsesidentifikation = "udbytte-2028-igen",
+        indkomstår = 2028,
+        samlet_udbytte_kroner = 1000,
+        anden_betalt_skat_kroner = 0,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        fritaget_udbyttefordeling = [
+            AktieavancePar35IUdbyttefordeling(
+                parti_identifikation = "parti-b",
+                fritaget_udbytte_kroner = 1000
+            )
+        ]
+    )
+)
+= par35_scenario_udbytte_betalt = aktieavance_par35i_betalingsresultat(
+    par35_scenario_udbytte.tilstand_efter,
+    AktieavancePar35IBetaling(
+        hændelsesidentifikation = "betaling-udbytte",
+        beløb_kroner = 4000,
+        art = AblPar35IBetalingAfForfald("udbytte-2028:forfald")
+    )
+)
+= par35_scenario_salg_to = aktieavance_par35i_ordinært_afståelsesresultat(
+    par35_scenario_udbytte_betalt.tilstand_efter,
+    AktieavancePar35IAfståelsesdata(
+        hændelsesidentifikation = "salg-to",
+        selskabsidentifikation = "drift-a",
+        aktieserie = "ordinær",
+        antal = 100,
+        afståelsessum_kroner = 150000,
+        indkomstår = 2029,
+        anden_betalt_skat_kroner = 0,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+    )
+)
+= par35_scenario_slutbetaling = aktieavance_par35i_betalingsresultat(
+    par35_scenario_salg_to.tilstand_efter,
+    AktieavancePar35IBetaling(
+        hændelsesidentifikation = "betaling-salg-to",
+        beløb_kroner = 8800,
+        art = AblPar35IBetalingAfForfald("salg-to:forfald")
+    )
+)
+
+= par35_scenario_omstrukturering = aktieavance_par35i_omstruktureringsresultat(
+    par35_scenario_start.tilstand,
+    Sandt,
+    [
+        AktieavancePar35IBeholdningsparti(
+            identifikation = "vederlagsaktier",
+            selskabsidentifikation = "holding-a",
+            aktieserie = "ordinær",
+            erhvervelsesrækkefølge = 1,
+            resterende_antal = 200,
+            resterende_anskaffelsessum_kroner = 250000,
+            resterende_overdragelsesværdi_kroner = 500000,
+            resterende_fritaget_udbytte_kroner = 0
+        )
+    ]
+)
+
+= par35_scenario_pengetank = aktieavance_par35j_tvangsresultat(AblPar35JPengetank(AktieavancePar35JPengetankkontrol(
+    overdragelsesår = 2026,
+    kontrolår = 2029,
+    betingelse_i_par34_stk1_nr3_opfyldt = Falskt
+)))
+= par35_scenario_pengetank_efter_perioden = aktieavance_par35j_tvangsresultat(AblPar35JPengetank(AktieavancePar35JPengetankkontrol(
+    overdragelsesår = 2026,
+    kontrolår = 2031,
+    betingelse_i_par34_stk1_nr3_opfyldt = Falskt
+)))
+= par35_scenario_ejerskab = aktieavance_par35j_tvangsresultat(AblPar35JEjerskabUnderEnTredjedel(AktieavancePar35JEjerskabskontrol(
+    forrige_indkomstår = 2028,
+    ejerskab_over_en_tredjedel_forrige_år = Falskt,
+    aktuelt_indkomstår = 2029,
+    ejerskab_over_en_tredjedel_aktuelt_år = Falskt
+)))
+= par35_scenario_sel_brist = aktieavance_par35j_tvangsresultat(AblPar35JSelPar1Stk1Nr2j(
+    indkomstår = 2028,
+    betingelser_opfyldt = Falskt
+))
+
+= par35_scenario_opløsning = aktieavance_par35j_tvangsafståelsesresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35JTvangsafståelsesdata(
+        udløsning = AblPar35IOpløsning(indkomstår = 2027),
+        afståelser_til_handelsværdi = [
+            AktieavancePar35IAfståelsesdata(
+                hændelsesidentifikation = "opløsning",
+                selskabsidentifikation = "drift-a",
+                aktieserie = "ordinær",
+                antal = 200,
+                afståelsessum_kroner = 530000,
+                indkomstår = 2027,
+                anden_betalt_skat_kroner = 0,
+                godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+            )
+        ]
+    )
+)
+
+= par35_scenario_værdinedgang = aktieavance_par35j_værdinedgangsresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35JVærdinedgangsdisposition(
+        hændelsesidentifikation = "værdinedgang",
+        indkomstår = 2027,
+        beregningsgrundlag_kroner = 100000,
+        kan_påvirke_kursværdi_nedad = Sandt,
+        udlodning_til_medarbejderejevirksomheden = Falskt,
+        disposition_i_medarbejderejevirksomhedens_interesse = Sandt,
+        anden_betalt_skat_kroner = 2000,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+    )
+)
+
+= par35_scenario_årsoplysninger_for_sent = aktieavance_par35k_årsoplysningsresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35KÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-for-sent",
+        indkomstår = 2027,
+        indgivet_rettidigt = Falskt,
+        fristoverskridelse_tilsidesat_af_skatteforvaltningen = Falskt,
+        ajourført_beholdningsoversigt_indgivet = Sandt,
+        ajourført_saldo_indgivet = Sandt,
+        forfaldsforhold_efter_par35i_og_par35j_indgivet = Sandt,
+        udenlandsk_adresse_indgivet = Falskt
+    )
+)
+= par35_scenario_årsoplysninger_tilsidesat = aktieavance_par35k_årsoplysningsresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35KÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-tillsidesat",
+        indkomstår = 2027,
+        indgivet_rettidigt = Falskt,
+        fristoverskridelse_tilsidesat_af_skatteforvaltningen = Sandt,
+        ajourført_beholdningsoversigt_indgivet = Sandt,
+        ajourført_saldo_indgivet = Sandt,
+        forfaldsforhold_efter_par35i_og_par35j_indgivet = Sandt,
+        udenlandsk_adresse_indgivet = Falskt
+    )
+)
+
+= par35_scenario_eu_flytter_til_danmark = aktieavance_par35k_hjemstedsresultat(
+    par35_scenario_eu_start.tilstand,
+    AktieavancePar35KHjemstedsflytning(
+        hændelsesidentifikation = "eu-til-danmark",
+        indkomstår = 2027,
+        nyt_hjemsted = AblPar35GDanmark,
+        nyt_land_omfattet_af_inddrivelsesbistand = Sandt,
+        ny_sikkerhedsform = AblPar35GIngenSikkerhed,
+        ny_sikkerhed_står_i_passende_forhold = Falskt,
+        betingelserne_i_par35g_fortsat_opfyldt = Sandt,
+        frigivelse_af_sikkerhed_anmodet = Sandt
+    )
+)
+= par35_scenario_flytter_til_eøs_uden_bistand = aktieavance_par35k_hjemstedsresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35KHjemstedsflytning(
+        hændelsesidentifikation = "danmark-til-eøs",
+        indkomstår = 2027,
+        nyt_hjemsted = AblPar35GEØS,
+        nyt_land_omfattet_af_inddrivelsesbistand = Falskt,
+        ny_sikkerhedsform = AblPar35GBankgaranti,
+        ny_sikkerhed_står_i_passende_forhold = Sandt,
+        betingelserne_i_par35g_fortsat_opfyldt = Sandt,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    )
+)
+= par35_scenario_flytter_til_færøerne_uden_bistand = aktieavance_par35k_hjemstedsresultat(
+    par35_scenario_start.tilstand,
+    AktieavancePar35KHjemstedsflytning(
+        hændelsesidentifikation = "danmark-til-færøerne",
+        indkomstår = 2027,
+        nyt_hjemsted = AblPar35GFærøerne,
+        nyt_land_omfattet_af_inddrivelsesbistand = Falskt,
+        ny_sikkerhedsform = AblPar35GBankgaranti,
+        ny_sikkerhed_står_i_passende_forhold = Sandt,
+        betingelserne_i_par35g_fortsat_opfyldt = Sandt,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    )
+)
+
+| par35_ikrafttræden: par35_scenario_virkning_2026 -> par35_scenario_virkning_2025 == Falskt && par35_scenario_virkning_2026
+| par35_startsaldo: par35_scenario_start -> par35_scenario_start.valg.kan_anvende_par35h_til_par35k && par35_scenario_start.oprindelig_overdragerskat_kroner == 55000 && length(par35_scenario_start.tilstand.beholdning) == 2
+| par35_negativ_anskaffelsessum: par35_scenario_negativt_resultat -> par35_scenario_negativt_resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner == 50000 && par35_scenario_negativt_resultat.oprindelig_overdragerskat_kroner == 22000 && par35_scenario_negativt_psl.skattepligtig_gevinst_kroner == 50000 && par35_scenario_negativt_psl.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+| par35_udland: par35_scenario_eu_start -> par35_scenario_eu_start.valg.sikkerhed_påkrævet && par35_scenario_eu_start.valg.sikkerhed_opfyldt && par35_scenario_eu_start.valg.kan_anvende_par35h_til_par35k && par35_scenario_tredjeland_start.valg.kan_anvende_par35h_til_par35k == Falskt
+| par35_omvalg: par35_scenario_omvalg_rettidigt -> par35_scenario_omvalg_rettidigt.kan_træffe_nyt_valg && par35_scenario_omvalg_for_sent.kan_træffe_nyt_valg == Falskt
+| par35_fifo_salg: par35_scenario_salg_et -> par35_scenario_salg_et.hændelse_gyldig && par35_scenario_salg_et.gevinst_kroner == 150000 && par35_scenario_salg_et.beregnet_skat_kroner == 33000 && par35_scenario_salg_et.skattefradrag_kroner == 3000 && par35_scenario_salg_et.nyt_forfald_kroner == 30000 && head(par35_scenario_salg_et.tilstand_efter.beholdning).identifikation == "parti-b"
+| par35_salg_betalt: par35_scenario_salg_et_betalt -> par35_scenario_salg_et_betalt.hændelse_gyldig && par35_scenario_salg_et_betalt.tilstand_efter.overdragerskat_saldo_kroner == 25000 && length(par35_scenario_salg_et_betalt.tilstand_efter.forfaldsposter) == 0
+| par35_udbytte: par35_scenario_udbytte -> par35_scenario_udbytte.hændelse_gyldig && par35_scenario_udbytte.otte_pct_grænse_kroner == 40000 && par35_scenario_udbytte.fritaget_udbytte_kroner == 40000 && par35_scenario_udbytte.afdragsgrundlag_kroner == 20000 && par35_scenario_udbytte.nyt_forfald_kroner == 4000 && head(par35_scenario_udbytte.tilstand_efter.beholdning).resterende_fritaget_udbytte_kroner == 40000
+| par35_udbytte_kun_en_gang_pr_år: par35_scenario_gentaget_udbytte -> par35_scenario_gentaget_udbytte.hændelse_gyldig == Falskt
+| par35_slutsalg: par35_scenario_salg_to -> par35_scenario_salg_to.hændelse_gyldig && par35_scenario_salg_to.fritaget_udbytte_tillagt_afståelsessum_kroner == 40000 && par35_scenario_salg_to.gevinst_kroner == 40000 && par35_scenario_salg_to.nyt_forfald_kroner == 8800 && par35_scenario_salg_to.saldobortfald_kroner == 12200 && par35_scenario_salg_to.tilstand_efter.overdragerskat_saldo_kroner == 8800 && length(par35_scenario_salg_to.tilstand_efter.beholdning) == 0
+| par35_slutbetaling: par35_scenario_slutbetaling -> par35_scenario_slutbetaling.hændelse_gyldig && par35_scenario_slutbetaling.tilstand_efter.overdragerskat_saldo_kroner == 0 && length(par35_scenario_slutbetaling.tilstand_efter.forfaldsposter) == 0
+| par35_omstrukturering: par35_scenario_omstrukturering -> par35_scenario_omstrukturering.hændelse_gyldig && head(par35_scenario_omstrukturering.tilstand_efter.beholdning).identifikation == "vederlagsaktier"
+| par35_tvangsgrænser: par35_scenario_pengetank -> par35_scenario_pengetank.anses_for_afstået && par35_scenario_pengetank.afståelsesår == 2029 && par35_scenario_pengetank_efter_perioden.anses_for_afstået == Falskt && par35_scenario_ejerskab.anses_for_afstået && par35_scenario_ejerskab.afståelsesår == 2028 && par35_scenario_sel_brist.anses_for_afstået
+| par35_opløsning: par35_scenario_opløsning -> par35_scenario_opløsning.hændelse_gyldig && par35_scenario_opløsning.samlet_nyt_forfald_kroner == 55000 && length(par35_scenario_opløsning.tilstand_efter.beholdning) == 0
+| par35_værdinedgang: par35_scenario_værdinedgang -> par35_scenario_værdinedgang.omfattet && par35_scenario_værdinedgang.beregnet_skat_kroner == 22000 && par35_scenario_værdinedgang.skattefradrag_kroner == 2000 && par35_scenario_værdinedgang.nyt_forfald_kroner == 20000
+| par35_årsoplysninger: par35_scenario_årsoplysninger_for_sent -> par35_scenario_årsoplysninger_for_sent.nyt_forfald_kroner == 55000 && par35_scenario_årsoplysninger_for_sent.tilstand_efter.ordning_aktiv == Falskt && par35_scenario_årsoplysninger_tilsidesat.nyt_forfald_kroner == 0 && par35_scenario_årsoplysninger_tilsidesat.tilstand_efter.ordning_aktiv
+| par35_hjemstedsflytning: par35_scenario_eu_flytter_til_danmark -> par35_scenario_eu_flytter_til_danmark.sikkerhed_frigives && par35_scenario_eu_flytter_til_danmark.saldo_forfalder == Falskt && par35_scenario_eu_flytter_til_danmark.tilstand_efter.sikkerhedsform == AblPar35GIngenSikkerhed && par35_scenario_flytter_til_eøs_uden_bistand.saldo_forfalder == Falskt && par35_scenario_flytter_til_færøerne_uden_bistand.saldo_forfalder && par35_scenario_flytter_til_færøerne_uden_bistand.nyt_forfald_kroner == 55000
+
+? par35_ikrafttræden
+? par35_startsaldo
+? par35_negativ_anskaffelsessum
+? par35_udland
+? par35_omvalg
+? par35_fifo_salg
+? par35_salg_betalt
+? par35_udbytte
+? par35_udbytte_kun_en_gang_pr_år
+? par35_slutsalg
+? par35_slutbetaling
+? par35_omstrukturering
+? par35_tvangsgrænser
+? par35_opløsning
+? par35_værdinedgang
+? par35_årsoplysninger
+? par35_hjemstedsflytning
