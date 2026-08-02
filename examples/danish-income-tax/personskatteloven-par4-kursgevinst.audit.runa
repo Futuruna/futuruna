@@ -212,8 +212,7 @@
         anskaffelsessum_kroner = 10000,
         afståelsesværdi_kroner = 17000,
         anskaffet_i_indkomståret = Sandt,
-        realiseret_i_indkomståret = Sandt,
-        kontraktgevinster_til_tabsmodregning_kroner = 0
+        realiseret_i_indkomståret = Sandt
     ),
     udøver_fordrings_eller_kontraktnæring = Falskt,
     driver_finansieringsnæring = Falskt,
@@ -236,8 +235,7 @@
         anskaffelsessum_kroner = 20000,
         afståelsesværdi_kroner = 8000,
         anskaffet_i_indkomståret = Sandt,
-        realiseret_i_indkomståret = Sandt,
-        kontraktgevinster_til_tabsmodregning_kroner = 5000
+        realiseret_i_indkomståret = Sandt
     ),
     udøver_fordrings_eller_kontraktnæring = Falskt,
     driver_finansieringsnæring = Falskt,
@@ -275,7 +273,7 @@
 | par4_stk1_nr2_audit_valutagæld_indgår: par4_stk1_nr2_audit_valutagæld -> par4_stk1_nr2_audit_valutagæld.skattepligtige_gevinster_kroner == 3000 && par4_stk1_nr2_audit_valutagæld.kapitalindkomst_kroner == 3000
 | par4_stk1_nr2_audit_gældseftergivelse_indgår: par4_stk1_nr2_audit_gældseftergivelse -> par4_stk1_nr2_audit_gældseftergivelse.skattepligtige_gevinster_kroner == 10000 && par4_stk1_nr2_audit_gældseftergivelse.kapitalindkomst_kroner == 10000
 | par4_stk1_nr2_audit_kontrakt_gevinst_indgår: par4_stk1_nr2_audit_kontrakt_gevinst -> par4_stk1_nr2_audit_kontrakt_gevinst.skattepligtige_gevinster_kroner == 7000 && par4_stk1_nr2_audit_kontrakt_gevinst.kapitalindkomst_kroner == 7000
-| par4_stk1_nr2_audit_kontrakt_tab_begrænses: par4_stk1_nr2_audit_kontrakt_tab -> par4_stk1_nr2_audit_kontrakt_tab.fradragsberettigede_tab_kroner == 5000 && par4_stk1_nr2_audit_kontrakt_tab.tab_afskåret_kroner == 7000 && par4_stk1_nr2_audit_kontrakt_tab.kapitalindkomst_kroner == -5000
+| par4_stk1_nr2_audit_kontrakt_tab_afventer_par32: par4_stk1_nr2_audit_kontrakt_tab -> par4_stk1_nr2_audit_kontrakt_tab.fradragsberettigede_tab_kroner == 0 && par4_stk1_nr2_audit_kontrakt_tab.kontrakttab_til_par32_årsopgørelse_kroner == 12000 && par4_stk1_nr2_audit_kontrakt_tab.tab_afskåret_kroner == 0 && par4_stk1_nr2_audit_kontrakt_tab.kapitalindkomst_kroner == 0
 
 ? par4_stk1_nr2_audit_fordring_gevinst_indgår
 ? par4_stk1_nr2_audit_fordring_tab_fradrages
@@ -287,6 +285,6 @@
 ? par4_stk1_nr2_audit_valutagæld_indgår
 ? par4_stk1_nr2_audit_gældseftergivelse_indgår
 ? par4_stk1_nr2_audit_kontrakt_gevinst_indgår
-? par4_stk1_nr2_audit_kontrakt_tab_begrænses
+? par4_stk1_nr2_audit_kontrakt_tab_afventer_par32
 
 @ print("§4 stk.1 nr.2 Kursgevinstloven first-slice audit: " + vis(par4_stk1_nr2_audit_fordring_gevinst.kapitalindkomst_kroner))

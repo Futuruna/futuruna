@@ -233,7 +233,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceSkattepost(art: AktieavanceSkattepostArt, skattepligtig_gevinst_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, gevinst_i_modregningsgrundlag_efter_par13a_kroner: Heltal)
 # AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner: Heltal, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner: Heltal, udbytter_for_aktier_omfattet_af_par44_kroner: Heltal, ægtefælles_positive_nettobeløb_efter_par13a_kroner: Heltal)
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
-# AktieavanceOrdinærÅrsresultat(indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
+# AktieavanceOrdinærÅrsresultat(indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 
 | aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
 | aktieavance_ordinaer_kapitalvægt_normaliser(tæller: Heltal, nævner: Heltal) -> hvis tæller == 0 { AktieavanceOrdinærKapitalvægt(tæller = 0, nævner = 1) } ellers { AktieavanceOrdinærKapitalvægt(tæller = tæller / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner), nævner = nævner / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner)) }
@@ -453,6 +453,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | tab_afskåret_efter_par14_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.tab_afskåret_efter_par14_kroner)
     | gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.gevinst_i_modregningsgrundlag_efter_par13a_kroner)
     | årets_og_fremførte_tab_efter_par13a_kroner() -> årets_tab_efter_par13a_kroner() + penge_positivt_beløb(input.fremført_tab_efter_par13a_kroner)
+    | nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner() -> penge_positivt_beløb(gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() - årets_tab_efter_par13a_kroner())
     | eget_modregningsgrundlag_efter_par13a_kroner() -> gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() + penge_positivt_beløb(input.modregningsgrundlag.udbytter_for_aktier_med_gevinst_efter_par12_kroner) + penge_positivt_beløb(input.modregningsgrundlag.udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner) + penge_positivt_beløb(input.modregningsgrundlag.udbytter_for_aktier_omfattet_af_par44_kroner)
     | tab_modregnet_i_egne_udbytter_og_gevinster_kroner() -> penge_mindste_beløb(årets_og_fremførte_tab_efter_par13a_kroner(), eget_modregningsgrundlag_efter_par13a_kroner())
     | tab_efter_egen_modregning_kroner() -> årets_og_fremførte_tab_efter_par13a_kroner() - tab_modregnet_i_egne_udbytter_og_gevinster_kroner()
@@ -465,10 +466,13 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | resultat() -> AktieavanceOrdinærÅrsresultat(
         indkomstår = input.indkomstår,
         skattepligtige_gevinster_efter_par12_kroner = skattepligtige_gevinster_efter_par12_kroner(),
+        gevinster_for_aktier_optaget_til_handel_efter_par12_kroner = gevinster_for_aktier_optaget_til_handel_efter_par12_kroner(),
         bruttotab_kroner = bruttotab_kroner(),
         direkte_fradrag_efter_par13_kroner = direkte_fradrag_efter_par13_kroner(),
+        årets_tab_efter_par13a_kroner = årets_tab_efter_par13a_kroner(),
         tab_afskåret_efter_par14_kroner = tab_afskåret_efter_par14_kroner(),
         årets_og_fremførte_tab_efter_par13a_kroner = årets_og_fremførte_tab_efter_par13a_kroner(),
+        nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner = nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner(),
         eget_modregningsgrundlag_efter_par13a_kroner = eget_modregningsgrundlag_efter_par13a_kroner(),
         tab_modregnet_i_egne_udbytter_og_gevinster_kroner = tab_modregnet_i_egne_udbytter_og_gevinster_kroner(),
         tab_overført_til_ægtefælle_kroner = tab_overført_til_ægtefælle_kroner(),

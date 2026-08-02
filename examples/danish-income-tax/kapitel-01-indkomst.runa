@@ -1015,7 +1015,7 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr1Input(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr1Resultat(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_fradrag_kroner: Heltal, ligningslov6a_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr2Input(kursgevinstlov_resultat: KursgevinstlovResultat)
-# Par4Stk1Nr2Resultat(skattepligtige_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, tab_afskåret_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr2Resultat(skattepligtige_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, tab_afskåret_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr3Input(virksomhedsskattelov7_resultat: Virksomhedsskattelov7Resultat, skattekontrollov_oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat)
 # Par4Stk1Nr3Resultat(brutto_kapitalafkast_kroner: Heltal, skattekontrollov_hjemmel: SkattekontrollovOplysningsfristKilde, oplysningsfrist_yyyymmdd: Heltal, overført_til_skattepligtig_inden_oplysningsfrist: Boolsk, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_efter_par23a_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr3aInput(virksomhedsskattelov22a_resultat: Virksomhedsskattelov22AResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat, virksomhedsskattelov22c_resultat: Virksomhedsskattelov22CResultat)
@@ -1115,12 +1115,14 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr2Sag(input: Par4Stk1Nr2Input) {
     | skattepligtige_gevinster_kroner() -> input.kursgevinstlov_resultat.skattepligtig_gevinst_kroner
     | fradragsberettigede_tab_kroner() -> input.kursgevinstlov_resultat.fradragsberettiget_tab_kroner
+    | kontrakttab_til_par32_årsopgørelse_kroner() -> input.kursgevinstlov_resultat.kontrakttab_til_par32_årsopgørelse_kroner
     | tab_afskåret_kroner() -> input.kursgevinstlov_resultat.tab_afskåret_kroner
     | kapitalindkomst_kroner() -> input.kursgevinstlov_resultat.netto_efter_kursgevinstloven_kroner
     | personlig_reklassifikation() -> par4_reklassifikation_fra_kursgevinstlov(input.kursgevinstlov_resultat.personlig_reklassifikation)
     | resultat() -> Par4Stk1Nr2Resultat(
         skattepligtige_gevinster_kroner = skattepligtige_gevinster_kroner(),
         fradragsberettigede_tab_kroner = fradragsberettigede_tab_kroner(),
+        kontrakttab_til_par32_årsopgørelse_kroner = kontrakttab_til_par32_årsopgørelse_kroner(),
         tab_afskåret_kroner = tab_afskåret_kroner(),
         kapitalindkomst_kroner = kapitalindkomst_kroner(),
         personlig_reklassifikation = personlig_reklassifikation()

@@ -50,9 +50,9 @@ og præmieobligationer.
 # KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner: Heltal)
 # KursgevinstlovFordringOpgørelse(tab_status: KursgevinstlovFordringTabStatus, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal)
 # KursgevinstlovGældOpgørelse(gældsart: KursgevinstlovGældsart, værdi_ved_påtagelse_kroner: Heltal, værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, nedskrevet_til_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
-# KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, kontraktgevinster_til_tabsmodregning_kroner: Heltal)
+# KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk)
 # KursgevinstlovInput(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, par1_afgrænsning: KursgevinstlovPar1Afgrænsning, bagatelgrundlag: KursgevinstlovBagatelOpgørelse, fordring: KursgevinstlovFordringOpgørelse, gæld: KursgevinstlovGældOpgørelse, kontrakt: KursgevinstlovKontraktOpgørelse, udøver_fordrings_eller_kontraktnæring: Boolsk, driver_finansieringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk, gæld_vedrører_finansieringsnæring: Boolsk, anvender_lagerprincip_efter_par25: Boolsk)
-# KursgevinstlovResultat(indkomstår: Heltal, aktiv: KursgevinstlovAktiv, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, fremført_kontrakttab_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation)
+# KursgevinstlovResultat(indkomstår: Heltal, aktiv: KursgevinstlovAktiv, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation)
 
 | kgl_tom_fordring() -> KursgevinstlovFordringOpgørelse(
     tab_status = KglFordringTabAlmindelig,
@@ -76,8 +76,7 @@ og præmieobligationer.
     anskaffelsessum_kroner = 0,
     afståelsesværdi_kroner = 0,
     anskaffet_i_indkomståret = Falskt,
-    realiseret_i_indkomståret = Falskt,
-    kontraktgevinster_til_tabsmodregning_kroner = 0
+    realiseret_i_indkomståret = Falskt
 )
 
 | kgl_par1_afgrænsning_omfattet(afgrænsning: KursgevinstlovPar1Afgrænsning) -> afgrænsning == KglPar1Omfattet
@@ -240,18 +239,6 @@ Stk. 5. Uanset reglerne i stk. 1, nr. 7, finder § 29 dog anvendelse for
 skattepligtige, der udøver næring ved køb og salg af fordringer og finansielle
 kontrakter eller driver næringsvirksomhed ved finansiering.
 
-§ 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
-omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten
-indeholder ret eller pligt til at afstå eller erhverve aktier og den
-skattepligtige er omfattet af aktieavancebeskatningslovens § 17 eller kontrakten
-har tilknytning til erhvervsmæssig virksomhed. 2. pkt. gælder ikke tab på
-aftaler vedrørende fast ejendom, jf. stk. 5.
-
-Stk. 2. Tab på en kontrakt som nævnt i stk. 1, 1. pkt., kan fradrages i
-indkomstårets gevinst på kontrakter. Yderligere tab kan fradrages, i det omfang
-tabet ikke overstiger forudgående indkomstårs skattepligtige nettogevinster på
-kontrakter, dog ikke et tidligere indkomstår end 2002.
-
 § 33. Gevinst eller tab på en kontrakt opgøres som forskellen mellem værdien af
 kontrakten ved indkomstårets udløb og værdien ved indkomstårets begyndelse
 (lagerprincippet). Er kontrakten anskaffet i indkomståret, opgøres gevinst eller
@@ -299,15 +286,15 @@ markedsværdien på afviklingsdagen.
     | exception kgl_skattepligtig_bruttogevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktiv_resultat_kroner()) under grundlag_opfyldt() && bagatelgrænse_afskærer() == Falskt
     | bruttotab_kroner() -> 0
     | exception kgl_bruttotab bruttotab_kroner() -> penge_positivt_beløb(0 - aktiv_resultat_kroner()) under grundlag_opfyldt() && bagatelgrænse_afskærer() == Falskt
-    | kontrakt_tab_fradragsloft_kroner() -> penge_positivt_beløb(input.kontrakt.kontraktgevinster_til_tabsmodregning_kroner)
     | fradragsberettiget_tab_kroner() -> bruttotab_kroner()
     | exception kgl_fordring_tab_afskåret fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tab_status)
-    | exception kgl_kontrakt_tab_begrænset fradragsberettiget_tab_kroner() -> penge_mindste_beløb(bruttotab_kroner(), kontrakt_tab_fradragsloft_kroner()) under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
-    | tab_afskåret_kroner() -> bruttotab_kroner() - fradragsberettiget_tab_kroner()
+    | exception kgl_kontrakttab_afventer_par32 fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
+    | tab_afskåret_kroner() -> 0
+    | exception kgl_fordringstab_endeligt_afskåret tab_afskåret_kroner() -> bruttotab_kroner() under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tab_status)
+    | kontrakttab_til_par32_årsopgørelse_kroner() -> 0
+    | exception kgl_kontrakttab_sendes_til_par32 kontrakttab_til_par32_årsopgørelse_kroner() -> bruttotab_kroner() under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
     | skattepligtig_gevinst_kroner() -> bruttogevinst_kroner()
     | netto_efter_kursgevinstloven_kroner() -> skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner()
-    | fremført_kontrakttab_kroner() -> 0
-    | exception kgl_kontrakt_tab_fremføres fremført_kontrakttab_kroner() -> tab_afskåret_kroner() under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
     | personlig_reklassifikation() -> KglIngenPersonligReklassifikation
     | exception kgl_par4_stk3_fordringsnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under fordringsnæring_efter_par13() && input.fordring.tab_status != KglFordringTabPar17Statsskattelov6A
     | exception kgl_par4_stk3_kontraktnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under kontraktnæring_efter_par30_stk5()
@@ -324,9 +311,9 @@ markedsværdien på afviklingsdagen.
         bruttotab_kroner = bruttotab_kroner(),
         tab_afskåret_kroner = tab_afskåret_kroner(),
         fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        kontrakttab_til_par32_årsopgørelse_kroner = kontrakttab_til_par32_årsopgørelse_kroner(),
         skattepligtig_gevinst_kroner = skattepligtig_gevinst_kroner(),
         netto_efter_kursgevinstloven_kroner = netto_efter_kursgevinstloven_kroner(),
-        fremført_kontrakttab_kroner = fremført_kontrakttab_kroner(),
         personlig_reklassifikation = personlig_reklassifikation()
     )
 }

@@ -3,6 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
 @ importer ./kapitel - 02 - statsskat
+@ importer ./kursgevinstloven - par32
 
 -- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
 --
@@ -1243,7 +1244,7 @@ som nævnt i § 10, stk. 1.
 
 = personskatteloven_par13a_kgl_stk_henvisning_advarsel = PersonskattelovPar13aKildeAdvarsel(
     kode = "PSL-PAR13A-KGL-PAR32-STK",
-    besked = "Personskattelovens § 13 a i LBK nr. 1284 af 14/06/2021 henviser til kursgevinstlovens § 32, stk. 3. I kursgevinstlovens LBK nr. 1176 af 19/09/2025 står den almindelige fremførselsregel i § 32, stk. 4, mens stk. 3 regulerer modregning i aktiegevinster. Reglerne bruger derfor KursgevinstlovResultats udtrykkelige fremførte kontrakttab."
+    besked = "Personskattelovens § 13 a i LBK nr. 1284 af 14/06/2021 henviser til kursgevinstlovens § 32, stk. 3. I kursgevinstlovens LBK nr. 1176 af 19/09/2025 står den almindelige fremførselsregel i § 32, stk. 4, mens stk. 3 regulerer modregning i aktiegevinster. Reglerne bruger derfor den udtrykkelige fremførsel fra KursgevinstPar32PersonÅrsresultat."
 )
 
 --@label:personskatteloven_par13a::source:personskatteloven_lbk1284_par13a::dependency_source:kursgevinstloven_lbk1176_par32::warning:personskatteloven_par13a_kgl_stk_henvisning_advarsel--
@@ -1292,7 +1293,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 
 --@begin:personskatteloven_par13a--
 # Par13aAkkordstatus = IngenPar13aAkkord | TvangsakkordIRekonstruktion | Gældssanering | FrivilligAkkord
-# Par13aFremførbartTab = Par13aAktieavanceTab(resultat: AktieavanceOrdinærÅrsresultat) | Par13aKursgevinstTab(resultat: KursgevinstlovResultat) | Par13aEjendomsavanceTab(resultat: EjendomsavancePar6Tabsårsresultat)
+# Par13aFremførbartTab = Par13aAktieavanceTab(resultat: AktieavanceOrdinærÅrsresultat) | Par13aKursgevinstTab(resultat: KursgevinstPar32PersonÅrsresultat) | Par13aEjendomsavanceTab(resultat: EjendomsavancePar6Tabsårsresultat)
 # Par13aFremførbareTabInput(indkomstår: Heltal, poster: List(Par13aFremførbartTab))
 # Par13aFremførbareTabResultat(indkomstår: Heltal, poster: List(Par13aFremførbartTab), aktieavancetab_kroner: Heltal, kursgevinsttab_kroner: Heltal, ejendomsavancetab_kroner: Heltal, fremførbare_tab_i_alt_kroner: Heltal, afvist_fremtidigt_tab_kroner: Heltal)
 # Par13aNedsættelseInput(indkomstår: Heltal, status: Par13aAkkordstatus, gæld_nedsat_kroner: Heltal, frigørelsesindkomst_kroner: Heltal, skyldner_underskud_kroner: Heltal, skyldner_fremførbare_tab: List(Par13aFremførbartTab), skyldner_negativ_aktieskat_kroner: Heltal, ægtefælle_samlevende_driver_virksomhed: Boolsk, ægtefælle_virksomhedsunderskud_før_stk3_kroner: Heltal, ægtefælle_ikke_virksomhedsindtægter_kroner: Heltal, ægtefælle_ikke_virksomhedsudgifter_kroner: Heltal)
@@ -1305,7 +1306,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 }
 | par13a_fremførbart_tab_kroner(post: Par13aFremførbartTab) -> match post {
     | Par13aAktieavanceTab(resultat) -> penge_positivt_beløb(resultat.tab_fremført_til_følgende_indkomstår_kroner)
-    | Par13aKursgevinstTab(resultat) -> penge_positivt_beløb(resultat.fremført_kontrakttab_kroner)
+    | Par13aKursgevinstTab(resultat) -> penge_positivt_beløb(resultat.tab_fremført_til_følgende_indkomstår_kroner)
     | Par13aEjendomsavanceTab(resultat) -> penge_positivt_beløb(resultat.tab_fremført_til_følgende_indkomstår_kroner)
 }
 | par13a_fremførbart_tab_omfattet_i_indkomstår(post: Par13aFremførbartTab, indkomstår: Heltal) -> par13a_fremførbart_tab_indkomstår(post) <= indkomstår

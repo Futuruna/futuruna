@@ -1,0 +1,357 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./kursgevinstloven
+@ importer ./aktieavancebeskatningsloven
+
+# KursgevinstlovPar32KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kursgevinstloven_lbk1176_par32 = KursgevinstlovPar32KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "Kursgevinstloven § 32",
+    hentet_dato = "2026-07-18"
+)
+
+= kursgevinstloven_juridisk_vejledning_par32 = KursgevinstlovPar32KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946050",
+    identifier = "Den juridiske vejledning C.B.1.8.4.2: tabsfradragsbegrænsning for personer",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32--
+----
+§ 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
+omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten
+indeholder ret eller pligt til at afstå eller erhverve aktier og den
+skattepligtige er omfattet af aktieavancebeskatningslovens § 17 eller kontrakten
+har tilknytning til erhvervsmæssig virksomhed. 2. pkt. gælder ikke tab på
+aftaler vedrørende fast ejendom, jf. stk. 5.
+
+Stk. 2. Tab på en kontrakt som nævnt i stk. 1, 1. pkt., kan fradrages i
+indkomstårets gevinst på kontrakter. Yderligere tab kan fradrages, i det omfang
+tabet ikke overstiger forudgående indkomstårs skattepligtige nettogevinster på
+kontrakter, dog ikke et tidligere indkomstår end 2002. Tab, der ikke kan
+fradrages efter 1. eller 2. pkt., kan overføres til fradrag i en eventuel
+ægtefælles nettogevinster i indkomståret på kontrakter. Det er dog en
+betingelse, at ægtefællerne er samlevende ved indkomstårets udgang, jf.
+kildeskattelovens § 4.
+
+Stk. 3. Tab på kontrakter, der ikke kan fradrages efter stk. 2, kan fradrages i
+nettogevinster på aktier optaget til handel på et reguleret marked eller en
+multilateral handelsfacilitet, hvis kontrakten udelukkende indeholder ret eller
+pligt til at afstå eller erhverve aktier eller er baseret på et aktieindeks.
+Det er endvidere en betingelse for fradrag efter 1. pkt., at enten kontrakten,
+de underliggende aktier eller de aktier, der indgår i det indeks, kontrakten er
+baseret på, er optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet. Tab, der ikke kan fradrages efter 1. og 2. pkt., kan overføres
+til fradrag i en eventuel ægtefælles nettogevinster i indkomståret på aktier
+optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet. Det er dog en betingelse, at ægtefællerne er samlevende ved
+indkomstårets udgang, jf. kildeskattelovens § 4. Tab i det pågældende
+indkomstår efter aktieavancebeskatningslovens § 13 A medregnes før tab efter
+1.-4. pkt.
+
+Stk. 4. Tab, der ikke er fradraget efter stk. 2 eller 3, kan fradrages i de
+følgende indkomstårs nettogevinster på kontrakter og derefter i nettogevinster
+på aktier efter reglerne i stk. 2, 2.-4. pkt., og stk. 3. Tab kan kun fremføres
+til et senere indkomstår, hvis det ikke kan rummes i skattepligtig nettogevinst
+på finansielle kontrakter i et tidligere indkomstår.
+
+Stk. 5. Stk. 2 og 4 finder anvendelse på aftaler vedrørende fast ejendom, men
+tabene kan alene fradrages i gevinster på aftaler vedrørende fast ejendom.
+Yderligere tab, der ikke er fradraget, fradrages i sælgerens afståelsessum
+henholdsvis tillægges køberens anskaffelsessum på den faste ejendom, som aftalen
+vedrører. Tab kan ikke fremføres, hvis det er fradraget henholdsvis tillagt
+efter 2. pkt.
+----
+
+--@begin:kursgevinstloven_par32--
+# KursgevinstPar32Kontraktrelation = KglPar32AlmindeligKontrakt | KglPar32AktiekontraktEfterAbl17 | KglPar32ErhvervstilknyttetKontrakt | KglPar32FastEjendomSælger | KglPar32FastEjendomKøber
+# KursgevinstPar32Aktiegrundlag = KglPar32IkkeAktiebaseret | KglPar32AktiekontraktUdenKvalificeretMarked | KglPar32AktiekontraktPåReguleretMarked | KglPar32AktiekontraktPåMultilateralHandelsfacilitet | KglPar32AktieindekskontraktUdenKvalificeretMarked | KglPar32AktieindekskontraktPåReguleretMarked | KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet
+# KursgevinstPar32Kontraktpost(resultat: KursgevinstlovResultat, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag)
+# KursgevinstPar32Tabsprioritet = KglPar32AlmindeligeTabFørst | KglPar32AktiebaseredeTabFørst
+# KursgevinstPar32FastEjendomstabsprioritet = KglPar32SælgertabFørst | KglPar32KøbertabFørst
+# KursgevinstPar32Aktiemodregningsomfang = KglPar32IngenAktiemodregning | KglPar32KunEgneAktiegevinster | KglPar32EgneOgÆgtefællesAktiegevinster
+# KursgevinstPar32Aktiemodregningsbeløb = KglPar32MaksimalAktiemodregning | KglPar32AktiemodregningOpTil(beløb_kroner: Heltal)
+# KursgevinstPar32Aktiemodregningsvalg(omfang: KursgevinstPar32Aktiemodregningsomfang, beløb: KursgevinstPar32Aktiemodregningsbeløb)
+# KursgevinstPar32Tabsaldo(almindelige_tab_kroner: Heltal, aktiebaserede_tab_kroner: Heltal)
+# KursgevinstPar32FastEjendomstabsaldo(sælgertab_kroner: Heltal, købertab_kroner: Heltal)
+# KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner: Heltal, fast_ejendomskontraktgevinster_kroner: Heltal)
+# KursgevinstPar32Tabsmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
+# KursgevinstPar32FastEjendomsmodregningsresultat(sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
+# KursgevinstPar32Kontraktmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinster: KursgevinstPar32Gevinstsaldo)
+# KursgevinstPar32PersonÅrsresultat(identifikation: Tekst, indkomstår: Heltal, input_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_almindelige_tab_kroner: Heltal, årets_aktiebaserede_tab_kroner: Heltal, årets_fast_ejendom_sælgertab_kroner: Heltal, årets_fast_ejendom_købertab_kroner: Heltal, gyldigt_fremførte_almindelige_tab_kroner: Heltal, gyldigt_fremførte_aktiebaserede_tab_kroner: Heltal, årets_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_indkomstårsgevinster_kroner: Heltal, tab_modregnet_i_egne_tidligere_gevinster_kroner: Heltal, tab_overført_til_ægtefælles_kontraktgevinster_kroner: Heltal, ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, tab_overført_til_ægtefælles_aktiegevinster_kroner: Heltal, ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner: Heltal, afståelsessum_nedsat_med_fast_ejendomstab_kroner: Heltal, anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner: Heltal, almindelige_tab_fremført_til_følgende_indkomstår_kroner: Heltal, aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fradragsberettigede_tab_i_egen_kontraktindkomst_kroner: Heltal, netto_kontraktindkomst_efter_par32_kroner: Heltal)
+# KursgevinstPar32Fremførsel = KglPar32IngenFremførsel | KglPar32FremførselFraForrigeIndkomstår(resultat: KursgevinstPar32PersonÅrsresultat)
+# KursgevinstPar32PersonÅrsinput(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), aktieårsresultat: AktieavanceOrdinærÅrsresultat, fremførsel: KursgevinstPar32Fremførsel, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
+# KursgevinstPar32ÆgtefælleparInput(venstre: KursgevinstPar32PersonÅrsinput, højre: KursgevinstPar32PersonÅrsinput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
+# KursgevinstPar32EgenÅrsopgørelsesresultat(input: KursgevinstPar32PersonÅrsinput, kontraktinput_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_tab: KursgevinstPar32Tabsaldo, årets_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gyldigt_fremført_tab: KursgevinstPar32Tabsaldo, årets_gevinster_før_direkte_tab: KursgevinstPar32Gevinstsaldo, årets_gevinster_efter_direkte_tab: KursgevinstPar32Gevinstsaldo, modregning_i_indkomstårets_gevinster: KursgevinstPar32Kontraktmodregningsresultat, modregning_i_tidligere_gevinster: KursgevinstPar32Kontraktmodregningsresultat)
+# KursgevinstPar32Aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, tab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32Tabsaldo, fast_ejendomstab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32FastEjendomstabsaldo, valgt_aktiemodregningsloft_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, aktiebaseret_tab_efter_egne_aktiegevinster_kroner: Heltal, valgt_loft_efter_egne_aktiegevinster_kroner: Heltal, resterende_egen_aktiegevinstkapacitet_kroner: Heltal)
+# KursgevinstPar32ÆgtefælleparResultat(venstre: KursgevinstPar32PersonÅrsresultat, højre: KursgevinstPar32PersonÅrsresultat, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
+
+| kgl_par32_tom_tabsaldo() -> KursgevinstPar32Tabsaldo(almindelige_tab_kroner = 0, aktiebaserede_tab_kroner = 0)
+| kgl_par32_tom_fast_ejendomstabsaldo() -> KursgevinstPar32FastEjendomstabsaldo(sælgertab_kroner = 0, købertab_kroner = 0)
+| kgl_par32_tom_gevinstsaldo() -> KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner = 0, fast_ejendomskontraktgevinster_kroner = 0)
+| kgl_par32_tabsaldo_plus(venstre: KursgevinstPar32Tabsaldo, højre: KursgevinstPar32Tabsaldo) -> KursgevinstPar32Tabsaldo(almindelige_tab_kroner = venstre.almindelige_tab_kroner + højre.almindelige_tab_kroner, aktiebaserede_tab_kroner = venstre.aktiebaserede_tab_kroner + højre.aktiebaserede_tab_kroner)
+| kgl_par32_gevinstsaldo_plus(venstre: KursgevinstPar32Gevinstsaldo, højre: KursgevinstPar32Gevinstsaldo) -> KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner = venstre.øvrige_kontraktgevinster_kroner + højre.øvrige_kontraktgevinster_kroner, fast_ejendomskontraktgevinster_kroner = venstre.fast_ejendomskontraktgevinster_kroner + højre.fast_ejendomskontraktgevinster_kroner)
+| kgl_par32_tabsaldo_i_alt_kroner(saldo: KursgevinstPar32Tabsaldo) -> saldo.almindelige_tab_kroner + saldo.aktiebaserede_tab_kroner
+| kgl_par32_fast_ejendomstabsaldo_i_alt_kroner(saldo: KursgevinstPar32FastEjendomstabsaldo) -> saldo.sælgertab_kroner + saldo.købertab_kroner
+| kgl_par32_gevinstsaldo_i_alt_kroner(saldo: KursgevinstPar32Gevinstsaldo) -> saldo.øvrige_kontraktgevinster_kroner + saldo.fast_ejendomskontraktgevinster_kroner
+
+| kgl_par32_aktiegrundlag_kvalificerer_til_stk3(grundlag: KursgevinstPar32Aktiegrundlag) -> match grundlag {
+    | KglPar32AktiekontraktPåReguleretMarked -> Sandt
+    | KglPar32AktiekontraktPåMultilateralHandelsfacilitet -> Sandt
+    | KglPar32AktieindekskontraktPåReguleretMarked -> Sandt
+    | KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet -> Sandt
+    | _ -> Falskt
+}
+| kgl_par32_post_gyldig(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> post.resultat.indkomstår == indkomstår && post.resultat.aktiv == KglFinansielKontrakt && post.resultat.omfattet_af_par1 && post.resultat.person_eller_dødsbo_efter_par12
+| kgl_par32_post_direkte_fradragsberettiget(post: KursgevinstPar32Kontraktpost) -> post.relation == KglPar32AktiekontraktEfterAbl17 || post.relation == KglPar32ErhvervstilknyttetKontrakt
+| kgl_par32_post_fast_ejendom(post: KursgevinstPar32Kontraktpost) -> post.relation == KglPar32FastEjendomSælger || post.relation == KglPar32FastEjendomKøber
+| kgl_par32_post_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) { penge_positivt_beløb(post.resultat.kontrakttab_til_par32_årsopgørelse_kroner) } ellers { 0 }
+| kgl_par32_post_direkte_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_direkte_fradragsberettiget(post) { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
+| kgl_par32_post_kan_modregnes_i_aktiegevinster(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> indkomstår >= 2010 && post.relation == KglPar32AlmindeligKontrakt && kgl_par32_aktiegrundlag_kvalificerer_til_stk3(post.aktiegrundlag)
+| kgl_par32_post_aktiebaseret_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_kan_modregnes_i_aktiegevinster(post, indkomstår) { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
+| kgl_par32_post_almindeligt_tab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_direkte_fradragsberettiget(post) || kgl_par32_post_fast_ejendom(post) || kgl_par32_post_aktiebaseret_tab_kroner(post, indkomstår) > 0 { 0 } ellers { kgl_par32_post_tab_kroner(post, indkomstår) }
+| kgl_par32_post_sælgertab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis post.relation == KglPar32FastEjendomSælger { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
+| kgl_par32_post_købertab_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis post.relation == KglPar32FastEjendomKøber { kgl_par32_post_tab_kroner(post, indkomstår) } ellers { 0 }
+| kgl_par32_post_øvrig_gevinst_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) && kgl_par32_post_fast_ejendom(post) == Falskt { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) } ellers { 0 }
+| kgl_par32_post_fast_ejendomsgevinst_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) && kgl_par32_post_fast_ejendom(post) { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) } ellers { 0 }
+| kgl_par32_post_afvist_beløb_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) { 0 } ellers { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) + penge_positivt_beløb(post.resultat.kontrakttab_til_par32_årsopgørelse_kroner) }
+
+# KursgevinstPar32TabsmodregningSag(tab: KursgevinstPar32Tabsaldo, gevinstkapacitet_kroner: Heltal, prioritet: KursgevinstPar32Tabsprioritet) {
+    | første_tab_kroner() -> hvis prioritet == KglPar32AlmindeligeTabFørst { tab.almindelige_tab_kroner } ellers { tab.aktiebaserede_tab_kroner }
+    | andet_tab_kroner() -> hvis prioritet == KglPar32AlmindeligeTabFørst { tab.aktiebaserede_tab_kroner } ellers { tab.almindelige_tab_kroner }
+    | første_tab_modregnet_kroner() -> penge_mindste_beløb(penge_positivt_beløb(første_tab_kroner()), penge_positivt_beløb(gevinstkapacitet_kroner))
+    | gevinstkapacitet_efter_første_kroner() -> penge_positivt_beløb(gevinstkapacitet_kroner) - første_tab_modregnet_kroner()
+    | andet_tab_modregnet_kroner() -> penge_mindste_beløb(penge_positivt_beløb(andet_tab_kroner()), gevinstkapacitet_efter_første_kroner())
+    | almindelige_tab_modregnet_kroner() -> hvis prioritet == KglPar32AlmindeligeTabFørst { første_tab_modregnet_kroner() } ellers { andet_tab_modregnet_kroner() }
+    | aktiebaserede_tab_modregnet_kroner() -> hvis prioritet == KglPar32AktiebaseredeTabFørst { første_tab_modregnet_kroner() } ellers { andet_tab_modregnet_kroner() }
+    | resultat() -> KursgevinstPar32Tabsmodregningsresultat(
+        almindelige_tab_modregnet_kroner = almindelige_tab_modregnet_kroner(),
+        aktiebaserede_tab_modregnet_kroner = aktiebaserede_tab_modregnet_kroner(),
+        resterende_tab = KursgevinstPar32Tabsaldo(
+            almindelige_tab_kroner = penge_positivt_beløb(tab.almindelige_tab_kroner) - almindelige_tab_modregnet_kroner(),
+            aktiebaserede_tab_kroner = penge_positivt_beløb(tab.aktiebaserede_tab_kroner) - aktiebaserede_tab_modregnet_kroner()
+        ),
+        resterende_gevinstkapacitet_kroner = gevinstkapacitet_efter_første_kroner() - andet_tab_modregnet_kroner()
+    )
+}
+| kgl_par32_tabsmodregning(tab: KursgevinstPar32Tabsaldo, gevinstkapacitet_kroner: Heltal, prioritet: KursgevinstPar32Tabsprioritet) -> KursgevinstPar32TabsmodregningSag(tab, gevinstkapacitet_kroner, prioritet).resultat()
+
+# KursgevinstPar32FastEjendomsmodregningSag(tab: KursgevinstPar32FastEjendomstabsaldo, gevinstkapacitet_kroner: Heltal, prioritet: KursgevinstPar32FastEjendomstabsprioritet) {
+    | første_tab_kroner() -> hvis prioritet == KglPar32SælgertabFørst { tab.sælgertab_kroner } ellers { tab.købertab_kroner }
+    | andet_tab_kroner() -> hvis prioritet == KglPar32SælgertabFørst { tab.købertab_kroner } ellers { tab.sælgertab_kroner }
+    | første_tab_modregnet_kroner() -> penge_mindste_beløb(penge_positivt_beløb(første_tab_kroner()), penge_positivt_beløb(gevinstkapacitet_kroner))
+    | gevinstkapacitet_efter_første_kroner() -> penge_positivt_beløb(gevinstkapacitet_kroner) - første_tab_modregnet_kroner()
+    | andet_tab_modregnet_kroner() -> penge_mindste_beløb(penge_positivt_beløb(andet_tab_kroner()), gevinstkapacitet_efter_første_kroner())
+    | sælgertab_modregnet_kroner() -> hvis prioritet == KglPar32SælgertabFørst { første_tab_modregnet_kroner() } ellers { andet_tab_modregnet_kroner() }
+    | købertab_modregnet_kroner() -> hvis prioritet == KglPar32KøbertabFørst { første_tab_modregnet_kroner() } ellers { andet_tab_modregnet_kroner() }
+    | resultat() -> KursgevinstPar32FastEjendomsmodregningsresultat(
+        sælgertab_modregnet_kroner = sælgertab_modregnet_kroner(),
+        købertab_modregnet_kroner = købertab_modregnet_kroner(),
+        resterende_tab = KursgevinstPar32FastEjendomstabsaldo(
+            sælgertab_kroner = penge_positivt_beløb(tab.sælgertab_kroner) - sælgertab_modregnet_kroner(),
+            købertab_kroner = penge_positivt_beløb(tab.købertab_kroner) - købertab_modregnet_kroner()
+        ),
+        resterende_gevinstkapacitet_kroner = gevinstkapacitet_efter_første_kroner() - andet_tab_modregnet_kroner()
+    )
+}
+| kgl_par32_fast_ejendomsmodregning(tab: KursgevinstPar32FastEjendomstabsaldo, gevinstkapacitet_kroner: Heltal, prioritet: KursgevinstPar32FastEjendomstabsprioritet) -> KursgevinstPar32FastEjendomsmodregningSag(tab, gevinstkapacitet_kroner, prioritet).resultat()
+
+# KursgevinstPar32KontraktmodregningSag(tab: KursgevinstPar32Tabsaldo, fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gevinster: KursgevinstPar32Gevinstsaldo, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet) {
+    | fast_ejendomsmodregning() -> kgl_par32_fast_ejendomsmodregning(fast_ejendomstab, gevinster.fast_ejendomskontraktgevinster_kroner, fast_ejendomstabsprioritet)
+    | tabsmodregning_i_øvrige_gevinster() -> kgl_par32_tabsmodregning(tab, gevinster.øvrige_kontraktgevinster_kroner, tabsprioritet)
+    | tabsmodregning_i_resterende_fast_ejendomsgevinster() -> kgl_par32_tabsmodregning(tabsmodregning_i_øvrige_gevinster().resterende_tab, fast_ejendomsmodregning().resterende_gevinstkapacitet_kroner, tabsprioritet)
+    | resultat() -> KursgevinstPar32Kontraktmodregningsresultat(
+        almindelige_tab_modregnet_kroner = tabsmodregning_i_øvrige_gevinster().almindelige_tab_modregnet_kroner + tabsmodregning_i_resterende_fast_ejendomsgevinster().almindelige_tab_modregnet_kroner,
+        aktiebaserede_tab_modregnet_kroner = tabsmodregning_i_øvrige_gevinster().aktiebaserede_tab_modregnet_kroner + tabsmodregning_i_resterende_fast_ejendomsgevinster().aktiebaserede_tab_modregnet_kroner,
+        sælgertab_modregnet_kroner = fast_ejendomsmodregning().sælgertab_modregnet_kroner,
+        købertab_modregnet_kroner = fast_ejendomsmodregning().købertab_modregnet_kroner,
+        resterende_tab = tabsmodregning_i_resterende_fast_ejendomsgevinster().resterende_tab,
+        resterende_fast_ejendomstab = fast_ejendomsmodregning().resterende_tab,
+        resterende_gevinster = KursgevinstPar32Gevinstsaldo(
+            øvrige_kontraktgevinster_kroner = tabsmodregning_i_øvrige_gevinster().resterende_gevinstkapacitet_kroner,
+            fast_ejendomskontraktgevinster_kroner = tabsmodregning_i_resterende_fast_ejendomsgevinster().resterende_gevinstkapacitet_kroner
+        )
+    )
+}
+| kgl_par32_kontraktmodregning(tab: KursgevinstPar32Tabsaldo, fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gevinster: KursgevinstPar32Gevinstsaldo, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet) -> KursgevinstPar32KontraktmodregningSag(tab, fast_ejendomstab, gevinster, tabsprioritet, fast_ejendomstabsprioritet).resultat()
+| kgl_par32_ingen_kontraktmodregning(tab: KursgevinstPar32Tabsaldo, fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gevinster: KursgevinstPar32Gevinstsaldo) -> KursgevinstPar32Kontraktmodregningsresultat(almindelige_tab_modregnet_kroner = 0, aktiebaserede_tab_modregnet_kroner = 0, sælgertab_modregnet_kroner = 0, købertab_modregnet_kroner = 0, resterende_tab = tab, resterende_fast_ejendomstab = fast_ejendomstab, resterende_gevinster = gevinster)
+| kgl_par32_samlet_kontraktmodregning_kroner(resultat: KursgevinstPar32Kontraktmodregningsresultat) -> resultat.almindelige_tab_modregnet_kroner + resultat.aktiebaserede_tab_modregnet_kroner + resultat.sælgertab_modregnet_kroner + resultat.købertab_modregnet_kroner
+
+| kgl_par32_fremførsel_gyldig(fremførsel: KursgevinstPar32Fremførsel, identifikation: Tekst, indkomstår: Heltal) -> match fremførsel {
+    | KglPar32IngenFremførsel -> Sandt
+    | KglPar32FremførselFraForrigeIndkomstår(resultat) -> resultat.input_gyldigt && resultat.identifikation == identifikation && resultat.indkomstår + 1 == indkomstår
+}
+| kgl_par32_fremført_tabsaldo(fremførsel: KursgevinstPar32Fremførsel, identifikation: Tekst, indkomstår: Heltal) -> hvis kgl_par32_fremførsel_gyldig(fremførsel, identifikation, indkomstår) { match fremførsel {
+    | KglPar32IngenFremførsel -> kgl_par32_tom_tabsaldo()
+    | KglPar32FremførselFraForrigeIndkomstår(resultat) -> KursgevinstPar32Tabsaldo(almindelige_tab_kroner = resultat.almindelige_tab_fremført_til_følgende_indkomstår_kroner, aktiebaserede_tab_kroner = resultat.aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner)
+} } ellers { kgl_par32_tom_tabsaldo() }
+| kgl_par32_fremført_gevinstsaldo(fremførsel: KursgevinstPar32Fremførsel, identifikation: Tekst, indkomstår: Heltal) -> hvis kgl_par32_fremførsel_gyldig(fremførsel, identifikation, indkomstår) { match fremførsel {
+    | KglPar32IngenFremførsel -> kgl_par32_tom_gevinstsaldo()
+    | KglPar32FremførselFraForrigeIndkomstår(resultat) -> KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner = resultat.øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner, fast_ejendomskontraktgevinster_kroner = resultat.fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner)
+} } ellers { kgl_par32_tom_gevinstsaldo() }
+| kgl_par32_afvist_fremført_tab_kroner(fremførsel: KursgevinstPar32Fremførsel, identifikation: Tekst, indkomstår: Heltal) -> hvis kgl_par32_fremførsel_gyldig(fremførsel, identifikation, indkomstår) { 0 } ellers { match fremførsel {
+    | KglPar32IngenFremførsel -> 0
+    | KglPar32FremførselFraForrigeIndkomstår(resultat) -> resultat.tab_fremført_til_følgende_indkomstår_kroner
+} }
+
+# KursgevinstPar32EgenÅrsopgørelseSag(input: KursgevinstPar32PersonÅrsinput) {
+    | kontraktinput_gyldigt() -> all(input.kontrakter, |post: KursgevinstPar32Kontraktpost| kgl_par32_post_gyldig(post, input.indkomstår))
+    | fremførsel_gyldig() -> kgl_par32_fremførsel_gyldig(input.fremførsel, input.identifikation, input.indkomstår)
+    | afvist_kontraktbeløb_kroner() -> foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_afvist_beløb_kroner(post, input.indkomstår))
+    | afvist_fremført_tab_kroner() -> kgl_par32_afvist_fremført_tab_kroner(input.fremførsel, input.identifikation, input.indkomstår)
+    | direkte_fradragsberettigede_kontrakttab_kroner() -> foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_direkte_tab_kroner(post, input.indkomstår))
+    | årets_tab() -> KursgevinstPar32Tabsaldo(
+        almindelige_tab_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_almindeligt_tab_kroner(post, input.indkomstår)),
+        aktiebaserede_tab_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_aktiebaseret_tab_kroner(post, input.indkomstår))
+    )
+    | årets_fast_ejendomstab() -> KursgevinstPar32FastEjendomstabsaldo(
+        sælgertab_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_sælgertab_kroner(post, input.indkomstår)),
+        købertab_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_købertab_kroner(post, input.indkomstår))
+    )
+    | gyldigt_fremført_tab() -> kgl_par32_fremført_tabsaldo(input.fremførsel, input.identifikation, input.indkomstår)
+    | årets_og_fremførte_tab() -> kgl_par32_tabsaldo_plus(årets_tab(), gyldigt_fremført_tab())
+    | årets_gevinster_før_direkte_tab() -> KursgevinstPar32Gevinstsaldo(
+        øvrige_kontraktgevinster_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_øvrig_gevinst_kroner(post, input.indkomstår)),
+        fast_ejendomskontraktgevinster_kroner = foldl(input.kontrakter, 0, |sum: Heltal, post: KursgevinstPar32Kontraktpost| sum + kgl_par32_post_fast_ejendomsgevinst_kroner(post, input.indkomstår))
+    )
+    | direkte_tab_modregnet_i_øvrige_gevinster_kroner() -> penge_mindste_beløb(direkte_fradragsberettigede_kontrakttab_kroner(), årets_gevinster_før_direkte_tab().øvrige_kontraktgevinster_kroner)
+    | direkte_tab_efter_øvrige_gevinster_kroner() -> direkte_fradragsberettigede_kontrakttab_kroner() - direkte_tab_modregnet_i_øvrige_gevinster_kroner()
+    | direkte_tab_modregnet_i_fast_ejendomsgevinster_kroner() -> penge_mindste_beløb(direkte_tab_efter_øvrige_gevinster_kroner(), årets_gevinster_før_direkte_tab().fast_ejendomskontraktgevinster_kroner)
+    | årets_gevinster_efter_direkte_tab() -> KursgevinstPar32Gevinstsaldo(
+        øvrige_kontraktgevinster_kroner = årets_gevinster_før_direkte_tab().øvrige_kontraktgevinster_kroner - direkte_tab_modregnet_i_øvrige_gevinster_kroner(),
+        fast_ejendomskontraktgevinster_kroner = årets_gevinster_før_direkte_tab().fast_ejendomskontraktgevinster_kroner - direkte_tab_modregnet_i_fast_ejendomsgevinster_kroner()
+    )
+    | modregning_i_indkomstårets_gevinster() -> kgl_par32_kontraktmodregning(årets_og_fremførte_tab(), årets_fast_ejendomstab(), årets_gevinster_efter_direkte_tab(), input.tabsprioritet, input.fast_ejendomstabsprioritet)
+    | tidligere_gevinstsaldo() -> kgl_par32_fremført_gevinstsaldo(input.fremførsel, input.identifikation, input.indkomstår)
+    | modregning_i_tidligere_gevinster() -> kgl_par32_kontraktmodregning(modregning_i_indkomstårets_gevinster().resterende_tab, modregning_i_indkomstårets_gevinster().resterende_fast_ejendomstab, tidligere_gevinstsaldo(), input.tabsprioritet, input.fast_ejendomstabsprioritet)
+    | resultat() -> KursgevinstPar32EgenÅrsopgørelsesresultat(
+        input = input,
+        kontraktinput_gyldigt = kontraktinput_gyldigt(),
+        fremførsel_gyldig = fremførsel_gyldig(),
+        afvist_kontraktbeløb_kroner = afvist_kontraktbeløb_kroner(),
+        afvist_fremført_tab_kroner = afvist_fremført_tab_kroner(),
+        direkte_fradragsberettigede_kontrakttab_kroner = direkte_fradragsberettigede_kontrakttab_kroner(),
+        årets_tab = årets_tab(),
+        årets_fast_ejendomstab = årets_fast_ejendomstab(),
+        gyldigt_fremført_tab = gyldigt_fremført_tab(),
+        årets_gevinster_før_direkte_tab = årets_gevinster_før_direkte_tab(),
+        årets_gevinster_efter_direkte_tab = årets_gevinster_efter_direkte_tab(),
+        modregning_i_indkomstårets_gevinster = modregning_i_indkomstårets_gevinster(),
+        modregning_i_tidligere_gevinster = modregning_i_tidligere_gevinster()
+    )
+}
+| kgl_par32_egen_årsopgørelse(input: KursgevinstPar32PersonÅrsinput) -> KursgevinstPar32EgenÅrsopgørelseSag(input).resultat()
+
+| kgl_par32_ægtefællekontraktmodregning(tab: KursgevinstPar32Tabsaldo, fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, ægtefælles_gevinster: KursgevinstPar32Gevinstsaldo, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, gift_og_samlevende: Boolsk) -> hvis gift_og_samlevende { kgl_par32_kontraktmodregning(tab, fast_ejendomstab, ægtefælles_gevinster, tabsprioritet, fast_ejendomstabsprioritet) } ellers { kgl_par32_ingen_kontraktmodregning(tab, fast_ejendomstab, ægtefælles_gevinster) }
+| kgl_par32_må_modregne_i_egne_aktiegevinster(valg: KursgevinstPar32Aktiemodregningsvalg) -> valg.omfang == KglPar32KunEgneAktiegevinster || valg.omfang == KglPar32EgneOgÆgtefællesAktiegevinster
+| kgl_par32_må_modregne_i_ægtefælles_aktiegevinster(valg: KursgevinstPar32Aktiemodregningsvalg) -> valg.omfang == KglPar32EgneOgÆgtefællesAktiegevinster
+| kgl_par32_valgt_aktiemodregningsloft_kroner(valg: KursgevinstPar32Aktiemodregningsvalg, tilgængeligt_tab_kroner: Heltal) -> match valg.beløb {
+    | KglPar32MaksimalAktiemodregning -> penge_positivt_beløb(tilgængeligt_tab_kroner)
+    | KglPar32AktiemodregningOpTil(beløb_kroner) -> penge_mindste_beløb(penge_positivt_beløb(tilgængeligt_tab_kroner), penge_positivt_beløb(beløb_kroner))
+}
+| kgl_par32_aktiegevinstkapacitet_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> hvis resultat.indkomstår == indkomstår { penge_positivt_beløb(resultat.nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner) } ellers { 0 }
+| kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0, ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0)
+| kgl_par32_tomt_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag(), gift_og_samlevende_ved_årets_udgang = Falskt))
+| kgl_par32_ingen_aktiemodregning() -> KursgevinstPar32Aktiemodregningsvalg(omfang = KglPar32IngenAktiemodregning, beløb = KglPar32MaksimalAktiemodregning)
+
+# KursgevinstPar32AktiemodregningsforberedelseSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat) {
+    | aktiebaseret_tab_til_aktiemodregning_kroner() -> udgående_kontraktmodregning.resterende_tab.aktiebaserede_tab_kroner
+    | valgt_aktiemodregningsloft_kroner() -> kgl_par32_valgt_aktiemodregningsloft_kroner(egen.input.aktiemodregningsvalg, aktiebaseret_tab_til_aktiemodregning_kroner())
+    | egen_aktiegevinstkapacitet_kroner() -> kgl_par32_aktiegevinstkapacitet_kroner(egen.input.aktieårsresultat, egen.input.indkomstår)
+    | tab_modregnet_i_egne_aktiegevinster_kroner() -> hvis kgl_par32_må_modregne_i_egne_aktiegevinster(egen.input.aktiemodregningsvalg) { penge_mindste_beløb(valgt_aktiemodregningsloft_kroner(), egen_aktiegevinstkapacitet_kroner()) } ellers { 0 }
+    | resultat() -> KursgevinstPar32Aktiemodregningsforberedelse(
+        egen = egen,
+        tab_efter_ægtefælles_kontraktgevinster = udgående_kontraktmodregning.resterende_tab,
+        fast_ejendomstab_efter_ægtefælles_kontraktgevinster = udgående_kontraktmodregning.resterende_fast_ejendomstab,
+        valgt_aktiemodregningsloft_kroner = valgt_aktiemodregningsloft_kroner(),
+        tab_modregnet_i_egne_aktiegevinster_kroner = tab_modregnet_i_egne_aktiegevinster_kroner(),
+        aktiebaseret_tab_efter_egne_aktiegevinster_kroner = aktiebaseret_tab_til_aktiemodregning_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner(),
+        valgt_loft_efter_egne_aktiegevinster_kroner = valgt_aktiemodregningsloft_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner(),
+        resterende_egen_aktiegevinstkapacitet_kroner = egen_aktiegevinstkapacitet_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner()
+    )
+}
+| kgl_par32_aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat) -> KursgevinstPar32AktiemodregningsforberedelseSag(egen, udgående_kontraktmodregning).resultat()
+| kgl_par32_aktietab_til_ægtefælle_kroner(egen: KursgevinstPar32Aktiemodregningsforberedelse, ægtefælle: KursgevinstPar32Aktiemodregningsforberedelse, gift_og_samlevende: Boolsk) -> hvis gift_og_samlevende && kgl_par32_må_modregne_i_ægtefælles_aktiegevinster(egen.egen.input.aktiemodregningsvalg) { penge_mindste_beløb(penge_mindste_beløb(egen.aktiebaseret_tab_efter_egne_aktiegevinster_kroner, egen.valgt_loft_efter_egne_aktiegevinster_kroner), ægtefælle.resterende_egen_aktiegevinstkapacitet_kroner) } ellers { 0 }
+
+# KursgevinstPar32EfterÆgtefælleSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, ægtefælle: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, indgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, aktiemodregning: KursgevinstPar32Aktiemodregningsforberedelse, udgående_aktiemodregning_kroner: Heltal, indgående_aktiemodregning_kroner: Heltal) {
+    | almindelige_tab_fremført_til_følgende_indkomstår_kroner() -> aktiemodregning.tab_efter_ægtefælles_kontraktgevinster.almindelige_tab_kroner
+    | aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner() -> aktiemodregning.aktiebaseret_tab_efter_egne_aktiegevinster_kroner - udgående_aktiemodregning_kroner
+    | tab_fremført_til_følgende_indkomstår_kroner() -> almindelige_tab_fremført_til_følgende_indkomstår_kroner() + aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner()
+    | tab_modregnet_i_egne_indkomstårsgevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(egen.modregning_i_indkomstårets_gevinster)
+    | tab_modregnet_i_egne_tidligere_gevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(egen.modregning_i_tidligere_gevinster)
+    | tab_overført_til_ægtefælles_kontraktgevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(udgående_kontraktmodregning)
+    | ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(indgående_kontraktmodregning)
+    | årets_kontraktgevinster_kroner() -> kgl_par32_gevinstsaldo_i_alt_kroner(egen.årets_gevinster_før_direkte_tab)
+    | fradragsberettigede_tab_i_egen_kontraktindkomst_kroner() -> egen.direkte_fradragsberettigede_kontrakttab_kroner + tab_modregnet_i_egne_indkomstårsgevinster_kroner() + tab_modregnet_i_egne_tidligere_gevinster_kroner() + ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner()
+    | netto_kontraktindkomst_efter_par32_kroner() -> årets_kontraktgevinster_kroner() - fradragsberettigede_tab_i_egen_kontraktindkomst_kroner()
+    | indkomstårets_gevinstkapacitet_til_følgende_indkomstår() -> hvis egen.input.indkomstår >= 2002 { indgående_kontraktmodregning.resterende_gevinster } ellers { kgl_par32_tom_gevinstsaldo() }
+    | gevinstkapacitet_til_følgende_indkomstår() -> kgl_par32_gevinstsaldo_plus(egen.modregning_i_tidligere_gevinster.resterende_gevinster, indkomstårets_gevinstkapacitet_til_følgende_indkomstår())
+    | input_gyldigt() -> egen.input.identifikation != "" && egen.input.identifikation != ægtefælle.input.identifikation && egen.kontraktinput_gyldigt && egen.fremførsel_gyldig && egen.input.aktieårsresultat.indkomstår == egen.input.indkomstår && egen.input.indkomstår == ægtefælle.input.indkomstår
+    | resultat() -> KursgevinstPar32PersonÅrsresultat(
+        identifikation = egen.input.identifikation,
+        indkomstår = egen.input.indkomstår,
+        input_gyldigt = input_gyldigt(),
+        fremførsel_gyldig = egen.fremførsel_gyldig,
+        afvist_kontraktbeløb_kroner = egen.afvist_kontraktbeløb_kroner,
+        afvist_fremført_tab_kroner = egen.afvist_fremført_tab_kroner,
+        direkte_fradragsberettigede_kontrakttab_kroner = egen.direkte_fradragsberettigede_kontrakttab_kroner,
+        årets_almindelige_tab_kroner = egen.årets_tab.almindelige_tab_kroner,
+        årets_aktiebaserede_tab_kroner = egen.årets_tab.aktiebaserede_tab_kroner,
+        årets_fast_ejendom_sælgertab_kroner = egen.årets_fast_ejendomstab.sælgertab_kroner,
+        årets_fast_ejendom_købertab_kroner = egen.årets_fast_ejendomstab.købertab_kroner,
+        gyldigt_fremførte_almindelige_tab_kroner = egen.gyldigt_fremført_tab.almindelige_tab_kroner,
+        gyldigt_fremførte_aktiebaserede_tab_kroner = egen.gyldigt_fremført_tab.aktiebaserede_tab_kroner,
+        årets_kontraktgevinster_kroner = årets_kontraktgevinster_kroner(),
+        tab_modregnet_i_egne_indkomstårsgevinster_kroner = tab_modregnet_i_egne_indkomstårsgevinster_kroner(),
+        tab_modregnet_i_egne_tidligere_gevinster_kroner = tab_modregnet_i_egne_tidligere_gevinster_kroner(),
+        tab_overført_til_ægtefælles_kontraktgevinster_kroner = tab_overført_til_ægtefælles_kontraktgevinster_kroner(),
+        ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner = ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner(),
+        tab_modregnet_i_egne_aktiegevinster_kroner = aktiemodregning.tab_modregnet_i_egne_aktiegevinster_kroner,
+        tab_overført_til_ægtefælles_aktiegevinster_kroner = udgående_aktiemodregning_kroner,
+        ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner = indgående_aktiemodregning_kroner,
+        afståelsessum_nedsat_med_fast_ejendomstab_kroner = aktiemodregning.fast_ejendomstab_efter_ægtefælles_kontraktgevinster.sælgertab_kroner,
+        anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner = aktiemodregning.fast_ejendomstab_efter_ægtefælles_kontraktgevinster.købertab_kroner,
+        almindelige_tab_fremført_til_følgende_indkomstår_kroner = almindelige_tab_fremført_til_følgende_indkomstår_kroner(),
+        aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner = aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner(),
+        tab_fremført_til_følgende_indkomstår_kroner = tab_fremført_til_følgende_indkomstår_kroner(),
+        øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner = gevinstkapacitet_til_følgende_indkomstår().øvrige_kontraktgevinster_kroner,
+        fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner = gevinstkapacitet_til_følgende_indkomstår().fast_ejendomskontraktgevinster_kroner,
+        fradragsberettigede_tab_i_egen_kontraktindkomst_kroner = fradragsberettigede_tab_i_egen_kontraktindkomst_kroner(),
+        netto_kontraktindkomst_efter_par32_kroner = netto_kontraktindkomst_efter_par32_kroner()
+    )
+}
+
+# KursgevinstPar32ÆgtefælleparSag(input: KursgevinstPar32ÆgtefælleparInput) {
+    | venstre_egen() -> kgl_par32_egen_årsopgørelse(input.venstre)
+    | højre_egen() -> kgl_par32_egen_årsopgørelse(input.højre)
+    | ægtefæller_kan_overføre() -> input.gift_og_samlevende_ved_indkomstårets_udgang && input.venstre.indkomstår == input.højre.indkomstår && input.venstre.identifikation != "" && input.venstre.identifikation != input.højre.identifikation
+    | venstre_til_højre() -> kgl_par32_ægtefællekontraktmodregning(venstre_egen().modregning_i_tidligere_gevinster.resterende_tab, venstre_egen().modregning_i_tidligere_gevinster.resterende_fast_ejendomstab, højre_egen().modregning_i_indkomstårets_gevinster.resterende_gevinster, input.venstre.tabsprioritet, input.venstre.fast_ejendomstabsprioritet, ægtefæller_kan_overføre())
+    | højre_til_venstre() -> kgl_par32_ægtefællekontraktmodregning(højre_egen().modregning_i_tidligere_gevinster.resterende_tab, højre_egen().modregning_i_tidligere_gevinster.resterende_fast_ejendomstab, venstre_egen().modregning_i_indkomstårets_gevinster.resterende_gevinster, input.højre.tabsprioritet, input.højre.fast_ejendomstabsprioritet, ægtefæller_kan_overføre())
+    | venstre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(venstre_egen(), venstre_til_højre())
+    | højre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(højre_egen(), højre_til_venstre())
+    | venstre_aktietab_til_højre_kroner() -> kgl_par32_aktietab_til_ægtefælle_kroner(venstre_aktieforberedelse(), højre_aktieforberedelse(), ægtefæller_kan_overføre())
+    | højre_aktietab_til_venstre_kroner() -> kgl_par32_aktietab_til_ægtefælle_kroner(højre_aktieforberedelse(), venstre_aktieforberedelse(), ægtefæller_kan_overføre())
+    | venstre_resultat() -> KursgevinstPar32EfterÆgtefælleSag(
+        egen = venstre_egen(),
+        ægtefælle = højre_egen(),
+        udgående_kontraktmodregning = venstre_til_højre(),
+        indgående_kontraktmodregning = højre_til_venstre(),
+        aktiemodregning = venstre_aktieforberedelse(),
+        udgående_aktiemodregning_kroner = venstre_aktietab_til_højre_kroner(),
+        indgående_aktiemodregning_kroner = højre_aktietab_til_venstre_kroner()
+    ).resultat()
+    | højre_resultat() -> KursgevinstPar32EfterÆgtefælleSag(
+        egen = højre_egen(),
+        ægtefælle = venstre_egen(),
+        udgående_kontraktmodregning = højre_til_venstre(),
+        indgående_kontraktmodregning = venstre_til_højre(),
+        aktiemodregning = højre_aktieforberedelse(),
+        udgående_aktiemodregning_kroner = højre_aktietab_til_venstre_kroner(),
+        indgående_aktiemodregning_kroner = venstre_aktietab_til_højre_kroner()
+    ).resultat()
+    | resultat() -> KursgevinstPar32ÆgtefælleparResultat(venstre = venstre_resultat(), højre = højre_resultat(), gift_og_samlevende_ved_indkomstårets_udgang = input.gift_og_samlevende_ved_indkomstårets_udgang)
+}
+| kursgevinst_par32_ægtefællepar_resultat(input: KursgevinstPar32ÆgtefælleparInput) -> KursgevinstPar32ÆgtefælleparSag(input).resultat()
+--@end:kursgevinstloven_par32--

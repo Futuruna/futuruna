@@ -48,6 +48,25 @@ inputtype faktisk indeholder lister, maps eller sæt; den nuværende
 lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
 afgrænsede skatteberegning.
 
+Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
+fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige
+nettogevinster, en samlevende ægtefælles kontraktgevinster og kvalificerede
+ordinære § 12-aktiegevinster. Aktieavancebeskatningslovens § 13 A-tab bruges først, et helt
+eller delvist aktiemodregningsvalg er eksplicit, og kun en identitets- og
+årsbundet rest kan fremføres. Tab på fast-ejendomsaftaler kan kun møde gevinster
+på sådanne aftaler; resten bliver til nedsat afståelsessum for sælgeren eller
+forhøjet anskaffelsessum for køberen. Tab fra før 2010 bevarer samtidig deres
+ældre, snævrere anvendelse og kan ikke senere modregnes i aktiegevinster.
+Tretten scenarier kører ens i interpreter og kompileret kode. Den rå
+Personskattelov § 4-bro markerer fortsat et enkelt
+kontrakttab som afventende årsopgørelsen. Den efterfølgende bro skal bevare hver
+kontraktposts klassifikation som kapital- eller personlig indkomst og er derfor
+ikke skjult i et samlet løst beløb. Kilderne er
+[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176)
+og [Skattestyrelsens juridiske vejledning C.B.1.8.4.2](https://info.skat.dk/data.aspx?oid=1946050).
+De yderligere aktie- og investeringsbevisklasser, som vejledningen tillader,
+udvides i det efterfølgende korpussnit `td-0f81a6`.
+
 Personskatteloven § 13 a er nu også en lukket, typet regelkaskade. Ved
 gældssanering eller akkord kan modellen kun modtage fremførte tab gennem de
 faktiske årsresultater fra Aktieavancebeskatningsloven, Kursgevinstloven eller

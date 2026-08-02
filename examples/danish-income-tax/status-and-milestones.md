@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-2d84ec`
+Current focus issue: `td-db8bc5`
 Latest completed implementation slice: `td-7ed524`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -47,10 +47,29 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 13 a modtager ikke længere et løst
-skyldnertab. En lukket union kan kun bære de faktiske årsresultater fra
-Aktieavancebeskatningsloven § 13 A, Kursgevinstloven § 32 eller
-Ejendomsavancebeskatningsloven § 6. En scoped årssag samler de tre
+Latest integration: Kursgevinstloven § 32 er nu en kildebundet, typet
+årsopgørelse frem for et egnethedsflag leveret af kalderen. Den fordeler årets
+og fremførte kontrakttab i lovens rækkefølge mellem egne gevinster i året,
+egne skattepligtige nettogevinster fra tidligere år, en samlevende ægtefælles
+kontraktgevinster og kvalificerede egne eller ægtefællens ordinære
+§ 12-aktiegevinster. Den
+anvender Aktieavancebeskatningslovens § 13 A-tab først, respekterer et
+udtrykkeligt helt eller delvist modregningsvalg og fører kun en identitets- og
+årsbundet rest videre. Fast-ejendomstab holdes i en særskilt saldo og bliver
+efter modregning til nedsat afståelsessum eller forhøjet anskaffelsessum uden
+fremførsel. Tretten scenarier passerer i både interpreter og kompileret kode,
+herunder to ægtefæller med samtidige tab uden dobbelt anvendelse af
+aktiegevinster og overgangsværnet, der holder tab fra før 2010 ude af senere
+aktiegevinster. Den rå Personskattelov § 4-bro viser fortsat et enkelt
+kontrakttab som afventende § 32-årsopgørelse; broen fra det samlede årsresultat
+til kapital- eller personlig indkomst er et åbent efterfølgende korpussnit,
+fordi klassifikationen skal bevare de enkelte kontraktposters
+reklassifikationsfakta.
+
+Personskatteloven § 13 a modtager ikke længere et løst skyldnertab. En lukket
+union kan kun bære de faktiske årsresultater fra Aktieavancebeskatningsloven
+§ 13 A, Kursgevinstloven § 32 eller Ejendomsavancebeskatningsloven § 6. En
+scoped årssag samler de tre
 fremførselsbeløb særskilt og afviser resultater fra senere indkomstår, før
 gældsnedsættelsen fordeles mellem underskud, tab, negativ aktieskat og en
 samlevende ægtefælles virksomhedsunderskud. Ejendomsavancebeskatningsloven
@@ -852,6 +871,15 @@ Current § 4 and § 13 amendment/dependency sources:
     deductible losses on ordinary personal claims, selected debt cases and basic
     financial contracts, including thresholding, statutory loss blocks, debt
     forgiveness, foreign-currency debt and contract-loss limitation.
+  - `kursgevinstloven-par32.runa` contains the complete current § 32 text and a
+    typed annual ledger for stk. 1-5. Its current share-gain dependency is the
+    ordinary ABL § 12 annual result. The allocation order, taxpayer election,
+    spouse transfer, ABL § 13 A priority, carry continuity, real-estate basis
+    adjustments and the pre-2010 transition are covered by thirteen interpreted
+    and compiled scenarios.
+  - Official guidance for the explicit full/partial share-offset election and
+    loss-priority choice:
+    `https://info.skat.dk/data.aspx?oid=1946050`
 - Aktieavancebeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1098`
   - XML status on 2026-07-18: `Valid`
@@ -1280,6 +1308,12 @@ encoded as a temporal rule on top of the consolidation.
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
+- `kursgevinstloven-par32.runa` and
+  `kursgevinstloven-par32.scenario.runa` exist and pass interpreted and compiled
+  execution. They implement the complete current § 32 annual contract-loss
+  ledger, including own and spouse offsets, ABL § 13 A priority, explicit
+  full/partial share-offset elections, dated carry, the pre-2010 transition and
+  real-estate seller/buyer basis adjustments.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
   it covers the ordinary ABL §§ 12-15/23/24/26 nominal-share calculation path
   consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22
