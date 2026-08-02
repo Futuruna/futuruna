@@ -1,0 +1,15 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: false
+-- expect-stdout: true
+-- expect-stdout: true
+--
+-- Fielded and nullary variants of the same sum type must not compare equal.
+
+# Lease = Fixed(years: Int) | Unlimited
+
+= fixed = Fixed(years = 10)
+
+@ print(show(fixed == Unlimited))
+@ print(show(fixed != Unlimited))
+@ print(show(fixed == Fixed(years = 10)))

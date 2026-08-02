@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-57b300` (under `td-aa14a7`)
+Current focus issue: `td-08b891` (under `td-aa14a7`)
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -38,7 +38,7 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Afskrivningslovens aktuelle beregningsslice omfatter nu
-§§ 1-37. § 3 kræver leveret, driftsbestemt og
+§§ 1-40. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
@@ -77,10 +77,22 @@ grundbeløb og 15/30-pct.-lofter fra historikken; § 33 fordeler
 forskudsafskrivninger på de faktiske aktiver uden at tabe afrundingsresten; og
 §§ 34-36 holder aktuel efterbeskatning, genåbning af tidligere indkomstår,
 dødsbosuccession og myndighedsgodkendt fristforlængelse adskilt. § 37 er bevaret
-som en eksplicit ophævet bestemmelse.
+som en eksplicit ophævet bestemmelse. § 38 bærer ejerens mineralforekomst,
+anskaffelsessummens dokumenterede forekomstdel og tidligere afskrivninger som
+en vedvarende position; årets valg kan ikke overstige hverken den dokumenterede
+værdiforringelse eller restgrundlaget. § 39 modellerer lejeforhold, løbetid,
+opsigelsesrisiko, nærtstående og selskabskontrol, køberet samt § 14-undtagelsen
+som egne domæneobjekter. Den holder årlig afskrivning, nedrivningsfradrag,
+overførsel til en erhvervet bygnings anskaffelsessum og fortjeneste/tab ved
+afståelse adskilt. § 40 skelner tilsvarende mellem erhvervede immaterielle
+aktiver og godtgørelser eller vederlag, mellem yder og modtager og mellem
+årlig afskrivning, 5-pct.-straksfradrag og salg. LOV 749/2025 er kodet som en
+eksplicit overgang: gensidigt bebyrdende aftaler før 2026 bevarer det tidligere
+§ 40, stk. 7-regime, mens aftaler fra 2026 henvises til Ligningsloven § 12 B.
+Den henviste 2026-version af § 12 B er fortsat et særskilt dependency-gap.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
-samt §§ 17-18-, §§ 21-27-, § 32- og § 34-resultaterne og
+samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40-resultaterne og
 holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
 adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
 føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
@@ -95,7 +107,12 @@ den gennemsnitlige erhvervsandel ved nedrivning og en § 3-kaskade, der holder
 vejlednings fire-skibsforløb: 1.200.000 kr. oprindeligt forskudsgrundlag,
 144.000/180.000/13.200 kr. i årlige forskudsafskrivninger, en § 33-fordeling på
 154.643/50.557 kr. og 118.830 kr. i samlet § 34-forhøjelse. Både interpreter og
-kompileret kode kontrollerer samme regelkæde. De eksisterende
+kompileret kode kontrollerer samme regelkæde. Scenariet for §§ 38-40
+kontrollerer desuden 24 kildegrænser og kaskadeudfald i begge backends:
+dokumenteret mineralværdiforringelse, 20-pct.- og lejeperiodelofter,
+nærtståendeafskæring og § 14-undtagelse, tabs- og nedrivningsudfald,
+goodwillgrundlag, korte og lange rettighedsperioder, 5-pct.-grænsen samt
+adskilte yder-/modtagerposter og 2026-overgangen. De eksisterende
 2026-parametre omfatter også 36.000 kr.-grænserne og forskningsfradragets
 114/110 pct.-deling omkring loftet på 1.088,8 mio. kr. § 5 A-modellen begrænser
 et valgt tab forholdsmæssigt, når hele den uafskrevne anskaffelsessum ellers
@@ -710,16 +727,19 @@ Current § 4 and § 13 amendment/dependency sources:
   `https://www.retsinformation.dk/eli/lta/2025/1222`
   - XML status checked on 2026-07-18: `Valid`; the LBK version window ends on
     2026-07-01, so current source posture also includes LOV 749/2025 § 2,
-    effective 2026-01-01. That amendment changes § 40, stk. 7-8, not the
-    modeled §§ 1-37 or § 40 C.
+    effective 2026-01-01. Den ændring og dens virkning for gensidigt
+    bebyrdende aftaler er modelleret som den typede § 40-overgang.
   - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
-    §§ 1-37 with amount-level chapter 2 outcomes, § 17 depreciation, § 18
+    §§ 1-40 with amount-level chapter 2 outcomes, § 17 depreciation, § 18
     immediate deductions, §§ 21-24 recapture, loss, demolition, damage and
     reconstruction outcomes, §§ 25-26 special-property depreciation and
     disposition outcomes, § 27 succession for drainage and irrigation
-    installations, and chapter 4 advance depreciation. Current § 32 deductions
-    and § 34 recapture feed nr. 10; § 35 remains an explicit prior-year
-    reassessment result instead of being misclassified as current income.
+    installations, chapter 4 advance depreciation, mineral-deposit depletion,
+    leased-premises improvements and intangible assets or compensation
+    payments. Current § 32 deductions and § 34 recapture feed nr. 10; § 35
+    remains an explicit prior-year reassessment result instead of being
+    misclassified as current income. § 40 keeps payer deductions, recipient
+    income and disposition outcomes as separate Personskatteloven posts.
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
@@ -1807,9 +1827,11 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-37 and Statsskatteloven § 6 slice. Intangible assets
-  and later recapture/cessation rules must
-  become typed source-law outcomes before nr. 10 can be described as complete.
+  Afskrivningsloven §§ 1-40 and Statsskatteloven § 6 slice. §§ 40 A-40 B,
+  § 40 D and later recapture/cessation rules must become typed source-law
+  outcomes before nr. 10 can be described as complete. Update Ligningsloven
+  § 12 B's 2026 henstandsregime before treating the new § 40 transition as an
+  end-to-end calculation rather than a source-correct route.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current

@@ -108,7 +108,7 @@ Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
 afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
-omfatter §§ 1-24: anskaffelse og benyttelsesændring,
+omfatter §§ 1-40: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
@@ -119,8 +119,17 @@ anskaffelsestidspunkt, 3/4 pct.- og levetidsafskrivning, 5 pct.-straksfradrag,
 herunder ejerens valg af et lavere straksfradrag, delvise bygninger og stopår.
 Den vedvarende § 19-historik bærer hvert særskilt anskaffelsessuminterval og
 dets egen afskrivningsprocent videre til §§ 21-24. Dermed kan samme model
-beregne genvundne afskrivninger og tab ved salg, nedrivnings- og skadefradrag
-samt videreførelse eller senere indtægtsføring ved genopførelse.
+beregne genvundne afskrivninger og tab ved salg, nedrivnings- og skadefradrag,
+samlet forskudsafskrivning fra bestilling til anskaffelse eller efterbeskatning,
+mineralforekomsters dokumenterede værdiforringelse, forbedringer af lejede
+lokaler og immaterielle aktiver samt godtgørelser og vederlag. §§ 38-40 holder
+bl.a. lejeperiode, nærtstående og selskabskontrol, § 14-undtagelsen,
+goodwillgrundlag, rettighedsperioder, 5-pct.-straksfradrag, yder, modtager og
+salg som særskilte juridiske fakta. LOV 749/2025-overgangen er eksplicit:
+aftaler før 2026 kan bevare det tidligere § 40, stk. 7-regime, mens aftaler fra
+2026 henvises til Ligningsloven § 12 B. Den henviste 2026-ordning er endnu ikke
+fuldt beregnet i Ligningsloven-modulet.
+
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
@@ -155,7 +164,10 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skattestyrelsens afskrivningsmetoder til §§ 16-20](https://info.skat.dk/data.aspx?oid=2083987),
 [Skattestyrelsens vejledning til § 21](https://info.skat.dk/data.aspx?oid=2083989),
 [Skattestyrelsens vejledning til § 22](https://info.skat.dk/data.aspx?oid=2083988),
-[Skattestyrelsens vejledning til §§ 23-24](https://info.skat.dk/data.aspx?oid=2083990)
+[Skattestyrelsens vejledning til §§ 23-24](https://info.skat.dk/data.aspx?oid=2083990),
+[Skattestyrelsens vejledning til § 38](https://info.skat.dk/data.aspx?oid=2083993),
+[Skattestyrelsens vejledning til § 39](https://info.skat.dk/data.aspx?oid=2083992),
+[Skattestyrelsens vejledning til § 40](https://info.skat.dk/data.aspx?oid=2083994)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
 Den fokuserede scenario-fil fører 8.000 kr. negativ saldo og 70.000 kr.
@@ -168,9 +180,13 @@ Den fokuserede afståelses- og skadescenario samler 652.500 kr. i genvundne
 afskrivninger og fristindtægt, 100.000 kr. i salgstab og 172.500 kr. i
 nedrivnings- og skadefradrag uden at skjule dem i et nettobeløb.
 
+Den fokuserede §§ 38-40-scenario validerer 24 grænser og kaskadeudfald i både
+interpreter og kompileret kode, herunder forskellen mellem § 40-yderens fradrag
+og modtagerens skattepligtige vederlag.
+
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
-resterende dependency-arbejde under nr. 10 fortsætter med
-forskudsafskrivning, immaterielle aktiver og senere ophørsregler.
+resterende dependency-arbejde under nr. 10 fortsætter med §§ 40 A-40 B,
+§ 40 D og de senere regler om bl.a. anskaffelsessummer, afståelse og ophør.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

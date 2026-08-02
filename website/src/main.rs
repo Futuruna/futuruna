@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu en beregningsegnet §§ 1-37-slice: bl.a. saldoordninger, straksfradrag, skade, ophør, blandet benyttelse, bygninger og installationer, genvundne afskrivninger, tab, nedrivning, genopførelse, særlige ejendomme og succession. Kapitel 4 bærer desuden en vedvarende forskudsafskrivningsposition gennem bestilling, årlige 15/30-pct.-lofter, faktiske anskaffelser, fordeling på aktiver, efterbeskatning, dødsbosuccession og fristforlængelse. Personskatteloven § 3 modtager den aktuelle forskudsafskrivning og § 34-forhøjelse som hver sin typede post, mens § 35 fortsat peger på de oprindelige indkomstår. Det samme gælder fortsat personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu en beregningsegnet §§ 1-40-slice: bl.a. saldoordninger, straksfradrag, skade, ophør, blandet benyttelse, bygninger og installationer, genvundne afskrivninger, tab, nedrivning, genopførelse, særlige ejendomme, succession, forskudsafskrivning, mineralforekomster, lejede lokaler og immaterielle aktiver. § 40 holder yderens fradrag og modtagerens skattepligtige vederlag adskilt og modellerer LOV 749/2025-overgangen til Ligningsloven § 12 B fra 2026. Den henviste 2026-ordning i § 12 B er fortsat et åbent dependency-gap. Personskatteloven § 3 modtager de aktuelle afskrivninger, fortjenester, tab og andre fradrag som særskilte typede poster, mens § 35 fortsat peger på de oprindelige indkomstår. Det samme gælder fortsat personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3535,6 +3535,12 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://info.skat.dk/data.aspx?oid=2083985", "Skattestyrelsens installationsvejledning til § 15" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=2083987", "Skattestyrelsens afskrivningsmetoder til §§ 16-20" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083993", "Skattestyrelsens vejledning til § 38" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083992", "Skattestyrelsens vejledning til § 39" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083994", "Skattestyrelsens vejledning til § 40" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskatteloven, LOV nr. 149/1922" }
                         " / "

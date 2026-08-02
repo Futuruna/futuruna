@@ -11741,6 +11741,17 @@ impl Interpreter {
             ("==", left @ Value::NamedConstructor(_, _), right @ Value::NamedConstructor(_, _)) => {
                 Value::Bool(values_equal(left, right))
             }
+            ("==", left, right)
+                if matches!(
+                    left,
+                    Value::Constructor(_, _) | Value::NamedConstructor(_, _)
+                ) || matches!(
+                    right,
+                    Value::Constructor(_, _) | Value::NamedConstructor(_, _)
+                ) =>
+            {
+                Value::Bool(values_equal(left, right))
+            }
             ("==", a, b) if values_are_list_like(a) && values_are_list_like(b) => {
                 Value::Bool(values_equal(a, b))
             }
@@ -16938,6 +16949,40 @@ mod tests {
 
         interpreter.run_program(&stmts, &mut env);
 
+        assert_eq!(
+            env.get("same").map(ToString::to_string),
+            Some("true".into())
+        );
+    }
+
+    #[test]
+    fn interpreted_sum_equality_distinguishes_fielded_and_nullary_variants() {
+        let source = r#"
+# Lease = Fixed(years: Int) | Unlimited
+= fixed = Fixed(years = 10)
+= different = fixed == Unlimited
+= not_different = fixed != Unlimited
+= same = fixed == Fixed(years = 10)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse sum equality regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("different").map(ToString::to_string),
+            Some("false".into())
+        );
+        assert_eq!(
+            env.get("not_different").map(ToString::to_string),
+            Some("true".into())
+        );
         assert_eq!(
             env.get("same").map(ToString::to_string),
             Some("true".into())

@@ -1,0 +1,415 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Afskrivningsloven §§ 38-40 og overgangen fra det tidligere
+-- § 40, stk. 7. Lovtekst og typede kildeankre ligger i det importerede lovmodul.
+
+= al_andre_par38_position = Afskrivningslov38Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    forekomst = Al38Grus,
+    ejer_af_ejendommen = Sandt,
+    del_af_anskaffelsessummen_henført_til_forekomsten_kroner = 500000,
+    tidligere_foretagne_afskrivninger_kroner = 100000
+)
+= al_andre_par38 = afskrivningslov38_resultat(Afskrivningslov38Input(
+    indkomstår = 2026,
+    position = al_andre_par38_position,
+    dokumenteret_værdiforringelse_som_følge_af_årets_udnyttelse_kroner = 80000,
+    valgt_afskrivning_kroner = 60000
+))
+= al_andre_par38_uden_værdiforringelse = afskrivningslov38_resultat(Afskrivningslov38Input(
+    indkomstår = 2026,
+    position = al_andre_par38_position,
+    dokumenteret_værdiforringelse_som_følge_af_årets_udnyttelse_kroner = 0,
+    valgt_afskrivning_kroner = 0
+))
+
+= al_andre_ingen_kontrol39 = Afskrivningslov39Kontrol(
+    part_kapitalandel_basispoint = 0,
+    part_stemmerettigheder_basispoint = 0,
+    part_ejerandel_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al39IkkeNærtstående,
+    lejemål_mellem_selskaber_eller_mellem_person_og_selskab = Falskt,
+    nærtstående_kapitalandel_basispoint = 0,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_ejerandel_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse = Sandt,
+    køberet_til_lokalerne_afviger_fra_markedsvilkår = Falskt
+)
+= al_andre_nærtstående_uden_opsigelsesrisiko39 = Afskrivningslov39Kontrol(
+    part_kapitalandel_basispoint = 0,
+    part_stemmerettigheder_basispoint = 0,
+    part_ejerandel_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al39Ægtefælle,
+    lejemål_mellem_selskaber_eller_mellem_person_og_selskab = Falskt,
+    nærtstående_kapitalandel_basispoint = 0,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_ejerandel_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse = Falskt,
+    køberet_til_lokalerne_afviger_fra_markedsvilkår = Falskt
+)
+= al_andre_nærtstående_selskabskontrol39 = Afskrivningslov39Kontrol(
+    part_kapitalandel_basispoint = 0,
+    part_stemmerettigheder_basispoint = 0,
+    part_ejerandel_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al39IkkeNærtstående,
+    lejemål_mellem_selskaber_eller_mellem_person_og_selskab = Sandt,
+    nærtstående_kapitalandel_basispoint = 6000,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_ejerandel_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse = Sandt,
+    køberet_til_lokalerne_afviger_fra_markedsvilkår = Falskt
+)
+= al_andre_par14_erhverv = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14AndenErhvervsanvendelse,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+= al_andre_par39_tiårig_position = Afskrivningslov39Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anskaffelses_eller_forbedringsår = 2024,
+    afskrivningsberettigede_udgifter_kroner = 500000,
+    tidligere_foretagne_afskrivninger_kroner = 0,
+    lokaler_anvendes_erhvervsmæssigt = Sandt,
+    lokaler_anvendes_til_andet_end_beboelse = Sandt,
+    lejevilkår = Al39BestemtTidsrum(antal_år = 10),
+    kontrol = al_andre_ingen_kontrol39,
+    par14_status = Al39LokalerIkkeOmfattetAfPar14
+)
+= al_andre_par39_tiårig = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = al_andre_par39_tiårig_position,
+    hændelse = Al39FortsatLejemål,
+    valgt_afskrivning_kroner = 50000
+))
+= al_andre_par39_nærtstående_afskåret = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = Afskrivningslov39Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        anskaffelses_eller_forbedringsår = 2024,
+        afskrivningsberettigede_udgifter_kroner = 500000,
+        tidligere_foretagne_afskrivninger_kroner = 0,
+        lokaler_anvendes_erhvervsmæssigt = Sandt,
+        lokaler_anvendes_til_andet_end_beboelse = Sandt,
+        lejevilkår = Al39LøbendeLejemål,
+        kontrol = al_andre_nærtstående_uden_opsigelsesrisiko39,
+        par14_status = Al39LokalerIkkeOmfattetAfPar14
+    ),
+    hændelse = Al39FortsatLejemål,
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par39_par14_undtagelse = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = Afskrivningslov39Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        anskaffelses_eller_forbedringsår = 2024,
+        afskrivningsberettigede_udgifter_kroner = 500000,
+        tidligere_foretagne_afskrivninger_kroner = 0,
+        lokaler_anvendes_erhvervsmæssigt = Sandt,
+        lokaler_anvendes_til_andet_end_beboelse = Sandt,
+        lejevilkår = Al39LøbendeLejemål,
+        kontrol = al_andre_nærtstående_uden_opsigelsesrisiko39,
+        par14_status = Al39LokalerOmfattetAfPar14(resultat = al_andre_par14_erhverv)
+    ),
+    hændelse = Al39FortsatLejemål,
+    valgt_afskrivning_kroner = 15000
+))
+= al_andre_par39_nærtstående_selskab_afskåret = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = Afskrivningslov39Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        anskaffelses_eller_forbedringsår = 2024,
+        afskrivningsberettigede_udgifter_kroner = 500000,
+        tidligere_foretagne_afskrivninger_kroner = 0,
+        lokaler_anvendes_erhvervsmæssigt = Sandt,
+        lokaler_anvendes_til_andet_end_beboelse = Sandt,
+        lejevilkår = Al39LøbendeLejemål,
+        kontrol = al_andre_nærtstående_selskabskontrol39,
+        par14_status = Al39LokalerIkkeOmfattetAfPar14
+    ),
+    hændelse = Al39FortsatLejemål,
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par39_par14_undtagelse_uden_tabsfradrag = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2027,
+    position = al_andre_par39_par14_undtagelse.position_efter,
+    hændelse = Al39LejemålOphørt(afståelsessum_kroner = 0),
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par39_ophørstab = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = Afskrivningslov39Position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        anskaffelses_eller_forbedringsår = 2024,
+        afskrivningsberettigede_udgifter_kroner = 500000,
+        tidligere_foretagne_afskrivninger_kroner = 100000,
+        lokaler_anvendes_erhvervsmæssigt = Sandt,
+        lokaler_anvendes_til_andet_end_beboelse = Sandt,
+        lejevilkår = Al39LøbendeLejemål,
+        kontrol = al_andre_ingen_kontrol39,
+        par14_status = Al39LokalerIkkeOmfattetAfPar14
+    ),
+    hændelse = Al39LejemålOphørt(afståelsessum_kroner = 50000),
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par39_nedrivning = afskrivningslov39_resultat(Afskrivningslov39Input(
+    indkomstår = 2026,
+    position = al_andre_par39_tiårig_position,
+    hændelse = Al39LokalerNedrevet,
+    valgt_afskrivning_kroner = 0
+))
+
+= al_andre_ingen_kontrol40 = Afskrivningslov40Kontrol(
+    overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Falskt,
+    kapitalandel_basispoint = 0,
+    stemmerettigheder_basispoint = 0,
+    ejerandel_basispoint = 0,
+    bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+    ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 0
+)
+= al_andre_goodwillgrundlag = Al40ErhvervetAktiv(
+    erhverver = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al40Goodwill,
+    endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+    anskaffelsessum_kroner = 700000,
+    beskyttelses_eller_rettighedsperiode_år = 0,
+    goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+    udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+    kontrol = al_andre_ingen_kontrol40
+)
+= al_andre_par40_goodwill = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = al_andre_goodwillgrundlag,
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 100000
+))
+= al_andre_par40_kontrolleret_goodwill = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(
+            erhverver = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = Al40Goodwill,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+            anskaffelsessum_kroner = 1860000,
+            beskyttelses_eller_rettighedsperiode_år = 0,
+            goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+            udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+            kontrol = Afskrivningslov40Kontrol(
+                overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Sandt,
+                kapitalandel_basispoint = 6000,
+                stemmerettigheder_basispoint = 6000,
+                ejerandel_basispoint = 6000,
+                bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+                ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 548824
+            )
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 187310
+))
+= al_andre_par40_treårig_rettighed = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(
+            erhverver = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = Al40AndenLovbeskyttetRettighed,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+            anskaffelsessum_kroner = 300000,
+            beskyttelses_eller_rettighedsperiode_år = 3,
+            goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+            udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+            kontrol = al_andre_ingen_kontrol40
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 100000
+))
+= al_andre_par40_tiårig_kulbrinterettighed = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(
+            erhverver = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = Al40KulbrintebevillingTilladelseEllerRettighed,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+            anskaffelsessum_kroner = 700000,
+            beskyttelses_eller_rettighedsperiode_år = 10,
+            goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+            udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+            kontrol = al_andre_ingen_kontrol40
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 70000
+))
+= al_andre_par40_udelukket_goodwill = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(
+            erhverver = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = Al40Goodwill,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+            anskaffelsessum_kroner = 700000,
+            beskyttelses_eller_rettighedsperiode_år = 0,
+            goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Sandt,
+            udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+            kontrol = al_andre_ingen_kontrol40
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par40_lille_vederlag = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40YdetGodtgørelseEllerVederlag(
+            yder = AlSelvstændigErhvervsdrivendePerson,
+            modtager = AlAndenFysiskPerson,
+            aktivart = Al40KonkurrenceklausulVederlag,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+            ydet_beløb_kroner = 40000,
+            samlede_ydelser_af_stk3_art_i_indkomståret_kroner = 40000,
+            samlet_lønudgift_i_indkomståret_kroner = 1000000
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par40_præcis_fem_procent = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40YdetGodtgørelseEllerVederlag(
+            yder = AlSelvstændigErhvervsdrivendePerson,
+            modtager = AlAndenFysiskPerson,
+            aktivart = Al40KonkurrenceklausulVederlag,
+            endelig_aftaledato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+            ydet_beløb_kroner = 50000,
+            samlede_ydelser_af_stk3_art_i_indkomståret_kroner = 50000,
+            samlet_lønudgift_i_indkomståret_kroner = 1000000
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 0,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40FortsatEjerskabEllerForpligtelse,
+    valgt_afskrivning_kroner = 7142
+))
+= al_andre_par40_salg_fortjeneste = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2027,
+    position = Afskrivningslov40Position(
+        grundlag = al_andre_goodwillgrundlag,
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 100000,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40AktivSolgt(
+        afståelsessum_kroner = 650000,
+        udbytteretsaftale_omfattet_af_ligningslov12b_stk6 = Falskt
+    ),
+    valgt_afskrivning_kroner = 0
+))
+= al_andre_par40_salg_tab = afskrivningslov40_resultat(Afskrivningslov40Input(
+    indkomstår = 2027,
+    position = Afskrivningslov40Position(
+        grundlag = al_andre_goodwillgrundlag,
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 100000,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40AktivSolgt(
+        afståelsessum_kroner = 500000,
+        udbytteretsaftale_omfattet_af_ligningslov12b_stk6 = Falskt
+    ),
+    valgt_afskrivning_kroner = 0
+))
+
+= al_andre_henstand_2025 = afskrivningslov40_henstandsovergang_resultat(Afskrivningslov40HenstandsovergangInput(
+    aftaledato = AfskrivningslovDato(år = 2025, måned = 12, dag = 31),
+    gensidigt_bebyrdende_aftale = Sandt,
+    aktiv_omfattet_af_par40_stk1_eller_stk2 = Sandt,
+    vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 = Sandt
+))
+= al_andre_henstand_2026 = afskrivningslov40_henstandsovergang_resultat(Afskrivningslov40HenstandsovergangInput(
+    aftaledato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+    gensidigt_bebyrdende_aftale = Sandt,
+    aktiv_omfattet_af_par40_stk1_eller_stk2 = Sandt,
+    vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 = Sandt
+))
+
+= al_andre_par3_par38 = par3_stk2_nr10_post_resultat(Par3Nr10Al38(resultat = al_andre_par38))
+= al_andre_par3_par39 = par3_stk2_nr10_post_resultat(Par3Nr10Al39(resultat = al_andre_par39_tiårig))
+= al_andre_par3_par40_skatteyder = par3_stk2_nr10_post_resultat(Par3Nr10Al40Skatteyder(resultat = afskrivningslov40_skatteyder_resultat(al_andre_par40_lille_vederlag)))
+= al_andre_par3_par40_modtager = par3_stk2_nr10_post_resultat(Par3Nr10Al40Modtager(resultat = afskrivningslov40_modtager_resultat(al_andre_par40_lille_vederlag)))
+= al_andre_par3_par40_salg = par3_stk2_nr10_post_resultat(Par3Nr10Al40Skatteyder(resultat = afskrivningslov40_skatteyder_resultat(al_andre_par40_salg_fortjeneste)))
+
+| scenarie_al38_følger_dokumenteret_værdiforringelse: al_andre_par38 -> al_andre_par38.omfattet_af_par38 && al_andre_par38.højeste_afskrivning_kroner == 80000 && al_andre_par38.fradrag_i_skattepligtig_indkomst_kroner == 60000 && al_andre_par38.resterende_afskrivningsgrundlag_kroner == 340000
+| scenarie_al38_uden_værdiforringelse_ingen_afskrivning: al_andre_par38_uden_værdiforringelse -> al_andre_par38_uden_værdiforringelse.højeste_afskrivning_kroner == 0 && al_andre_par38_uden_værdiforringelse.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al39_tiårigt_lejemål_lineært_maksimum: al_andre_par39_tiårig -> al_andre_par39_tiårig.omfattet_af_par39 && al_andre_par39_tiårig.højeste_sats_basispoint == 2000 && al_andre_par39_tiårig.lineært_periodemaksimum_kroner == 50000 && al_andre_par39_tiårig.højeste_afskrivning_kroner == 50000
+| scenarie_al39_nærtstående_uden_opsigelsesrisiko_afskæres: al_andre_par39_nærtstående_afskåret -> al_andre_par39_nærtstående_afskåret.lejemål_omfattet_af_stk2 && al_andre_par39_nærtstående_afskåret.par14_undtagelse_anvendes == Falskt && al_andre_par39_nærtstående_afskåret.afskrivning_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al39_par14_undtagelse_bruger_par17_sats: al_andre_par39_par14_undtagelse -> al_andre_par39_par14_undtagelse.lejemål_omfattet_af_stk2 && al_andre_par39_par14_undtagelse.par14_undtagelse_anvendes && al_andre_par39_par14_undtagelse.højeste_sats_basispoint == 300 && al_andre_par39_par14_undtagelse.afskrivning_i_skattepligtig_indkomst_kroner == 15000
+| scenarie_al39_nærtstående_selskabskontrol_afskæres: al_andre_par39_nærtstående_selskab_afskåret -> al_andre_par39_nærtstående_selskab_afskåret.nærtstående_bestemmende_indflydelse && al_andre_par39_nærtstående_selskab_afskåret.lejemål_omfattet_af_stk2 && al_andre_par39_nærtstående_selskab_afskåret.afskrivning_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al39_par14_undtagelse_giver_ikke_tabsfradrag: al_andre_par39_par14_undtagelse_uden_tabsfradrag -> al_andre_par39_par14_undtagelse_uden_tabsfradrag.par14_undtagelse_anvendes && al_andre_par39_par14_undtagelse_uden_tabsfradrag.fradragsberettiget_tab_kroner == 0
+| scenarie_al39_ophør_udløser_tab_uden_årsafskrivning: al_andre_par39_ophørstab -> al_andre_par39_ophørstab.afskrivning_i_skattepligtig_indkomst_kroner == 0 && al_andre_par39_ophørstab.fradragsberettiget_tab_kroner == 350000
+| scenarie_al39_nedrivning_fradrager_restbeløbet: al_andre_par39_nedrivning -> al_andre_par39_nedrivning.nedrivningsfradrag_kroner == 500000 && al_andre_par39_nedrivning.resterende_afskrivningsgrundlag_kroner == 0
+| scenarie_al40_goodwill_afskrives_over_syv_år: al_andre_par40_goodwill -> al_andre_par40_goodwill.omfattet_af_par40 && al_andre_par40_goodwill.højeste_afskrivning_kroner == 100000 && al_andre_par40_goodwill.årlig_afskrivning_kroner == 100000
+| scenarie_al40_kontrolleret_goodwill_nedsætter_grundlaget: al_andre_par40_kontrolleret_goodwill -> al_andre_par40_kontrolleret_goodwill.bestemmende_indflydelse && al_andre_par40_kontrolleret_goodwill.nedsættelse_af_goodwillgrundlag_kroner == 548824 && al_andre_par40_kontrolleret_goodwill.afskrivningsgrundlag_kroner == 1311176 && al_andre_par40_kontrolleret_goodwill.højeste_afskrivning_kroner == 187310
+| scenarie_al40_kort_rettighed_følger_beskyttelsesperioden: al_andre_par40_treårig_rettighed -> al_andre_par40_treårig_rettighed.højeste_afskrivning_kroner == 100000 && al_andre_par40_treårig_rettighed.årlig_afskrivning_kroner == 100000
+| scenarie_al40_kulbrinterettighed_følger_rettighedsperioden: al_andre_par40_tiårig_kulbrinterettighed -> al_andre_par40_tiårig_kulbrinterettighed.højeste_afskrivning_kroner == 70000 && al_andre_par40_tiårig_kulbrinterettighed.årlig_afskrivning_kroner == 70000
+| scenarie_al40_goodwill_fra_selskabsskattelov3_selskab_udelukkes: al_andre_par40_udelukket_goodwill -> al_andre_par40_udelukket_goodwill.position_gyldig && al_andre_par40_udelukket_goodwill.omfattet_af_par40 == Falskt && al_andre_par40_udelukket_goodwill.årlig_afskrivning_kroner == 0
+| scenarie_al40_under_fem_procent_straksfradrages: al_andre_par40_lille_vederlag -> al_andre_par40_lille_vederlag.straksfradrag_efter_fem_procent_reglen_kroner == 40000 && al_andre_par40_lille_vederlag.årlig_afskrivning_kroner == 0 && al_andre_par40_lille_vederlag.godtgørelse_eller_vederlag_skattepligtigt_hos_modtager_kroner == 40000
+| scenarie_al40_præcis_fem_procent_afskrives: al_andre_par40_præcis_fem_procent -> al_andre_par40_præcis_fem_procent.straksfradrag_efter_fem_procent_reglen_kroner == 0 && al_andre_par40_præcis_fem_procent.højeste_afskrivning_kroner == 7142 && al_andre_par40_præcis_fem_procent.årlig_afskrivning_kroner == 7142
+| scenarie_al40_salg_beskatter_fortjeneste_uden_årsafskrivning: al_andre_par40_salg_fortjeneste -> al_andre_par40_salg_fortjeneste.årlig_afskrivning_kroner == 0 && al_andre_par40_salg_fortjeneste.skattepligtig_fortjeneste_kroner == 50000
+| scenarie_al40_salg_fradrager_tab: al_andre_par40_salg_tab -> al_andre_par40_salg_tab.skattepligtig_fortjeneste_kroner == 0 && al_andre_par40_salg_tab.fradragsberettiget_tab_kroner == 100000
+| scenarie_al40_henstand_før_2026_bevarer_tidligere_stk7: al_andre_henstand_2025 -> al_andre_henstand_2025.tidligere_afskrivningslov40_stk7_fortsætter && al_andre_henstand_2025.regime == Al40TidligereStk7
+| scenarie_al40_henstand_fra_2026_henvises_til_ll12b: al_andre_henstand_2026 -> al_andre_henstand_2026.henvises_til_ligningslov12b_fra_2026 && al_andre_henstand_2026.regime == Al40Ligningslov12BHenstandFra2026
+| scenarie_par3_modtager_al38_afskrivning: al_andre_par3_par38 -> al_andre_par3_par38.hjemmel == Par3Nr10Afskrivningslov38 && al_andre_par3_par38.skattemæssig_afskrivning_kroner == 60000 && al_andre_par3_par38.fradrag_i_personlig_indkomst_kroner == 60000
+| scenarie_par3_modtager_al39_afskrivning: al_andre_par3_par39 -> al_andre_par3_par39.hjemmel == Par3Nr10Afskrivningslov39 && al_andre_par3_par39.skattemæssig_afskrivning_kroner == 50000 && al_andre_par3_par39.fradrag_i_personlig_indkomst_kroner == 50000
+| scenarie_par3_adskiller_al40_yder_og_modtager: al_andre_par3_par40_skatteyder -> al_andre_par3_par40_skatteyder.andet_fradrag_kroner == 40000 && al_andre_par3_par40_skatteyder.skattepligtig_indtægtsføring_kroner == 0 && al_andre_par3_par40_modtager.skattepligtig_indtægtsføring_kroner == 40000 && al_andre_par3_par40_modtager.brutto_fradrag_efter_kildeloven_kroner == 0
+| scenarie_par3_modtager_al40_fortjeneste: al_andre_par3_par40_salg -> al_andre_par3_par40_salg.skattepligtig_indtægtsføring_kroner == 50000 && al_andre_par3_par40_salg.indtægtsføring_i_personlig_indkomst_kroner == 50000
+
+? scenarie_al38_følger_dokumenteret_værdiforringelse
+? scenarie_al38_uden_værdiforringelse_ingen_afskrivning
+? scenarie_al39_tiårigt_lejemål_lineært_maksimum
+? scenarie_al39_nærtstående_uden_opsigelsesrisiko_afskæres
+? scenarie_al39_par14_undtagelse_bruger_par17_sats
+? scenarie_al39_nærtstående_selskabskontrol_afskæres
+? scenarie_al39_par14_undtagelse_giver_ikke_tabsfradrag
+? scenarie_al39_ophør_udløser_tab_uden_årsafskrivning
+? scenarie_al39_nedrivning_fradrager_restbeløbet
+? scenarie_al40_goodwill_afskrives_over_syv_år
+? scenarie_al40_kontrolleret_goodwill_nedsætter_grundlaget
+? scenarie_al40_kort_rettighed_følger_beskyttelsesperioden
+? scenarie_al40_kulbrinterettighed_følger_rettighedsperioden
+? scenarie_al40_goodwill_fra_selskabsskattelov3_selskab_udelukkes
+? scenarie_al40_under_fem_procent_straksfradrages
+? scenarie_al40_præcis_fem_procent_afskrives
+? scenarie_al40_salg_beskatter_fortjeneste_uden_årsafskrivning
+? scenarie_al40_salg_fradrager_tab
+? scenarie_al40_henstand_før_2026_bevarer_tidligere_stk7
+? scenarie_al40_henstand_fra_2026_henvises_til_ll12b
+? scenarie_par3_modtager_al38_afskrivning
+? scenarie_par3_modtager_al39_afskrivning
+? scenarie_par3_adskiller_al40_yder_og_modtager
+? scenarie_par3_modtager_al40_fortjeneste
+
+@ print("Afskrivningsloven §§ 38-40 scenarier: værdiforringelse, lejemål, immaterielle aktiver og overgang kontrolleret")

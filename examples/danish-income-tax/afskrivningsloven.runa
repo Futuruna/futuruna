@@ -6,11 +6,13 @@
 -- Afskrivningsloven -- Personskatteloven §§ 3 og 4-afhængigheder.
 --
 -- Kilde: Retsinformation, LBK nr. 1222 af 13/10/2025, sammenholdt med
--- LOV nr. 749 af 20/06/2025, § 2, med virkning fra 01/01/2026.
+-- LOV nr. 749 af 20/06/2025, § 2 og § 5, stk. 2 og 4, med virkning fra
+-- 01/01/2026.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1222
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1222/dan/xml
 
 # AfskrivningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# AfskrivningslovKorpusAdvarsel(kode: Tekst, besked: Tekst)
 
 = afskrivningsloven_lbk1222 = AfskrivningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1222",
@@ -20,7 +22,7 @@
 
 = afskrivningsloven_lov749 = AfskrivningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/749",
-    identifier = "LOV nr. 749 af 20/06/2025, § 2 og § 5, stk. 2",
+    identifier = "LOV nr. 749 af 20/06/2025, § 2 og § 5, stk. 2 og 4",
     hentet_dato = "2026-07-18"
 )
 
@@ -168,6 +170,35 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par38_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083993",
+    identifier = "Den juridiske vejledning, afskrivning på forekomster af grus, ler, kalk m.v. efter § 38",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par39_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083992",
+    identifier = "Den juridiske vejledning, ombygning, forbedring og indretning af lejede lokaler efter § 39",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par40_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083994",
+    identifier = "Den juridiske vejledning, goodwill og andre immaterielle rettigheder efter § 40",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par40_henstand_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948136",
+    identifier = "Den juridiske vejledning, henstandsordningen for løbende ydelser og 2026-overgangen",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par40_ll12b_2026_dependency_advarsel = AfskrivningslovKorpusAdvarsel(
+    kode = "AL40_LL12B_2026_DEPENDENCY",
+    besked = "Overgangen henviser aftaler fra 2026 til Ligningsloven § 12 B; den henviste 2026-ordning er endnu ikke fuldt beregnet i Ligningsloven-modulet."
+)
+
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -214,9 +245,11 @@ DiesSigni: 2025-10-13
 StartDate: 2025-10-16
 EndDate: 2026-07-01
 
-Den aktuelle kildepostur er LBK 1222/2025 sammenholdt med LOV 749/2025, § 2,
-der fra 1. januar 2026 ophæver § 40, stk. 7, og lader stk. 8 blive stk. 7.
-Ændringen berører ikke de her modellerede §§ 1-20 eller § 40 C.
+Den aktuelle kildepostur er LBK 1222/2025 sammenholdt med LOV 749/2025,
+§ 2 og § 5, stk. 2 og 4, der fra 1. januar 2026 ophæver § 40, stk. 7, lader
+stk. 8 blive stk. 7 og afgrænser overgangen efter aftaledato.
+Ændringen og dens aftaleovergang er modelleret særskilt under § 40; §§ 1-39 og
+§ 40 C berøres ikke.
 ----
 
 --@label:afskrivningsloven_par1_par2::source:afskrivningsloven_lbk1222--
@@ -3656,6 +3689,517 @@ skatteforvaltningens eller andre myndigheders egne forhold.
 
 | afskrivningslov37_status() -> Al37Ophævet
 --@end:afskrivningsloven_par37--
+
+--@label:afskrivningsloven_par38::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par38_juridisk_vejledning--
+----
+§ 38. På ejendomme med forekomster af grus, ler, kalk m.v. kan ejeren afskrive
+den værdiforringelse af ejendommen, der sker som følge af udnyttelsen af disse
+forekomster. Værdiforringelsen udgør den del af anskaffelsessummen, der kan
+henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
+----
+
+--@begin:afskrivningsloven_par38--
+# Afskrivningslov38Forekomst = Al38Grus | Al38Ler | Al38Kalk | Al38Moler | Al38Tørv | Al38Brunkul | Al38AndenJordforekomst
+# Afskrivningslov38Position(skatteyder: AfskrivningslovSkatteyder, forekomst: Afskrivningslov38Forekomst, ejer_af_ejendommen: Boolsk, del_af_anskaffelsessummen_henført_til_forekomsten_kroner: Heltal, tidligere_foretagne_afskrivninger_kroner: Heltal)
+# Afskrivningslov38Input(indkomstår: Heltal, position: Afskrivningslov38Position, dokumenteret_værdiforringelse_som_følge_af_årets_udnyttelse_kroner: Heltal, valgt_afskrivning_kroner: Heltal)
+# Afskrivningslov38Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, forekomst: Afskrivningslov38Forekomst, position_gyldig: Boolsk, omfattet_af_par38: Boolsk, afskrivningsgrundlag_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, dokumenteret_værdiforringelse_i_året_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal, position_efter: Afskrivningslov38Position)
+
+# Afskrivningslov38Sag(input: Afskrivningslov38Input) {
+    | afskrivningsgrundlag_kroner() -> penge_positivt_beløb(input.position.del_af_anskaffelsessummen_henført_til_forekomsten_kroner)
+    | position_gyldig() -> input.position.del_af_anskaffelsessummen_henført_til_forekomsten_kroner > 0 && input.position.tidligere_foretagne_afskrivninger_kroner >= 0 && input.position.tidligere_foretagne_afskrivninger_kroner <= afskrivningsgrundlag_kroner()
+    | omfattet_af_par38() -> position_gyldig() && input.position.ejer_af_ejendommen
+    | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - input.position.tidligere_foretagne_afskrivninger_kroner)
+    | dokumenteret_værdiforringelse_kroner() -> penge_positivt_beløb(input.dokumenteret_værdiforringelse_som_følge_af_årets_udnyttelse_kroner)
+    | højeste_afskrivning_kroner() -> hvis omfattet_af_par38() { penge_mindste_beløb(resterende_før_året_kroner(), dokumenteret_værdiforringelse_kroner()) } ellers { 0 }
+    | valg_gyldigt() -> omfattet_af_par38() && input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner()
+    | fradrag_kroner() -> hvis valg_gyldigt() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | resterende_grundlag_kroner() -> penge_positivt_beløb(resterende_før_året_kroner() - fradrag_kroner())
+    | position_efter() -> Afskrivningslov38Position(
+        skatteyder = input.position.skatteyder,
+        forekomst = input.position.forekomst,
+        ejer_af_ejendommen = input.position.ejer_af_ejendommen,
+        del_af_anskaffelsessummen_henført_til_forekomsten_kroner = afskrivningsgrundlag_kroner(),
+        tidligere_foretagne_afskrivninger_kroner = input.position.tidligere_foretagne_afskrivninger_kroner + fradrag_kroner()
+    )
+    | resultat() -> Afskrivningslov38Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.skatteyder,
+        forekomst = input.position.forekomst,
+        position_gyldig = position_gyldig(),
+        omfattet_af_par38 = omfattet_af_par38(),
+        afskrivningsgrundlag_kroner = afskrivningsgrundlag_kroner(),
+        resterende_afskrivningsgrundlag_før_året_kroner = resterende_før_året_kroner(),
+        dokumenteret_værdiforringelse_i_året_kroner = dokumenteret_værdiforringelse_kroner(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = input.valgt_afskrivning_kroner,
+        valg_gyldigt = valg_gyldigt(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_kroner(),
+        resterende_afskrivningsgrundlag_kroner = resterende_grundlag_kroner(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov38_sag(input: Afskrivningslov38Input) -> Afskrivningslov38Sag(input)
+| afskrivningslov38_resultat(input: Afskrivningslov38Input) -> afskrivningslov38_sag(input).resultat()
+--@end:afskrivningsloven_par38--
+
+--@label:afskrivningsloven_par39::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par39_juridisk_vejledning--
+----
+§ 39. Udgifter til ombygning, forbedring eller indretning af lejede lokaler, der
+anvendes erhvervsmæssigt til andet formål end beboelse, afskrives med indtil 20
+pct. årligt. Hvis lejemålet er indgået for et bestemt tidsrum, kan den årlige
+afskrivning dog ikke overstige et beløb svarende til, at afskrivning sker med
+lige store årlige beløb over lejeperioden. Hvis lejemålet er uopsigeligt fra
+udlejers side i en forud fastsat periode, kan den årlige afskrivning ikke
+overstige et beløb svarende til, at afskrivning sker med lige store årlige
+beløb over uopsigelighedsperioden. Hvis lejemålet er uopsigeligt fra udlejers
+side uden tidsmæssig begrænsning, kan der afskrives med de i § 17 nævnte satser.
+
+Stk. 2. Ved lejemål, hvor der som følge af, at den ene part har en bestemmende
+indflydelse på den anden parts handlemåde eller ved lejemål mellem nærtstående,
+ikke er en reel risiko for opsigelse, kan der ikke afskrives. Endvidere kan der
+ikke afskrives ved lejemål, hvor lejemålet er indgået mellem selskaber eller
+mellem personer og selskaber, i det omfang nærtstående har bestemmende
+indflydelse i det eller de selskaber, der er part i lejemålet. Bestemmende
+indflydelse vil altid foreligge, såfremt en eller flere personer på grund af
+ejerskab eller rådighed over stemmerettigheder direkte eller indirekte ejer
+mere end 50 pct. af aktiekapitalen eller råder over mere end 50 pct. af
+stemmerne i et selskab, der er part i lejemålet. I øvrige tilfælde foreligger
+der bestemmende indflydelse, såfremt der direkte eller indirekte ejes mere end
+50 pct. i ejerandel. Som nærtstående anses den skattepligtiges ægtefælle,
+forældre og bedsteforældre samt børn og børnebørn og disses ægtefæller eller
+dødsboer efter de nævnte personer. Stedbarns- og adoptivforhold sidestilles med
+ægte slægtskabsforhold. Der kan ligeledes ikke afskrives, hvis lejeren er
+tillagt en køberet til de lejede lokaler ved lejeperiodens udløb på vilkår, der
+afviger fra markedsvilkår. Er lokalerne efter deres anvendelse omfattet af § 14,
+kan lejeren dog afskrive med de i § 17 nævnte satser.
+
+Stk. 3. Der kan ikke afskrives i det indkomstår, hvori lejemålet er ophørt.
+
+Stk. 4. I tilfælde af nedrivning, inden udgifterne er afskrevet fuldt ud, kan
+restbeløbet fradrages i nedrivningsåret. Dette gælder dog ikke for lejemål
+omfattet af stk. 2.
+
+Stk. 5. Hvis lejer erhverver den bygning, hvori de lejede lokaler befinder sig,
+kan et uafskrevet restbeløb på udgifter til ombygning af lejede lokaler, der
+ikke indgår i købesummen for bygningen, tillægges anskaffelsessummen for
+bygningen og afskrives sammen med denne med de i § 17 nævnte satser.
+
+Stk. 6. Ved afståelse af lejede lokaler medregnes fortjeneste eller tab på
+ombygnings- og forbedringsudgifter, indretninger m.v. ved opgørelsen af den
+skattepligtige indkomst. Fortjenesten eller tabet opgøres som forskellen mellem
+på den ene side afståelsessummen og på den anden side de afskrivningsberettigede
+udgifter til anskaffelse, forbedring m.v. med fradrag af samtlige foretagne
+afskrivninger.
+----
+
+--@begin:afskrivningsloven_par39--
+# Afskrivningslov39Lejevilkår = Al39LøbendeLejemål | Al39BestemtTidsrum(antal_år: Heltal) | Al39UdlejerUopsigeligFastPeriode(antal_år: Heltal) | Al39UdlejerUopsigeligUdenTidsbegrænsning
+# Afskrivningslov39NærtståendeRelation = Al39IkkeNærtstående | Al39Ægtefælle | Al39ForælderEllerBedsteforælder | Al39BarnEllerBarnebarn | Al39ÆgtefælleTilBarnEllerBarnebarn | Al39DødsboEfterNærtstående | Al39StedbarnsEllerAdoptivforhold
+# Afskrivningslov39Kontrol(part_kapitalandel_basispoint: Heltal, part_stemmerettigheder_basispoint: Heltal, part_ejerandel_basispoint: Heltal, part_anden_bestemmende_indflydelse: Boolsk, relation_mellem_udlejer_og_lejer: Afskrivningslov39NærtståendeRelation, lejemål_mellem_selskaber_eller_mellem_person_og_selskab: Boolsk, nærtstående_kapitalandel_basispoint: Heltal, nærtstående_stemmerettigheder_basispoint: Heltal, nærtstående_ejerandel_basispoint: Heltal, nærtstående_anden_bestemmende_indflydelse: Boolsk, reel_risiko_for_opsigelse: Boolsk, køberet_til_lokalerne_afviger_fra_markedsvilkår: Boolsk)
+# Afskrivningslov39Par14Status = Al39LokalerIkkeOmfattetAfPar14 | Al39LokalerOmfattetAfPar14(resultat: Afskrivningslov14Resultat)
+# Afskrivningslov39Position(skatteyder: AfskrivningslovSkatteyder, anskaffelses_eller_forbedringsår: Heltal, afskrivningsberettigede_udgifter_kroner: Heltal, tidligere_foretagne_afskrivninger_kroner: Heltal, lokaler_anvendes_erhvervsmæssigt: Boolsk, lokaler_anvendes_til_andet_end_beboelse: Boolsk, lejevilkår: Afskrivningslov39Lejevilkår, kontrol: Afskrivningslov39Kontrol, par14_status: Afskrivningslov39Par14Status)
+# Afskrivningslov39Hændelse = Al39FortsatLejemål | Al39LejemålOphørt(afståelsessum_kroner: Heltal) | Al39LokalerNedrevet | Al39LejerErhververBygning(restbeløb_indgår_i_købesummen: Boolsk) | Al39LejedeLokalerAfstået(afståelsessum_kroner: Heltal)
+# Afskrivningslov39Input(indkomstår: Heltal, position: Afskrivningslov39Position, hændelse: Afskrivningslov39Hændelse, valgt_afskrivning_kroner: Heltal)
+# Afskrivningslov39Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov39Hændelse, position_gyldig: Boolsk, omfattet_af_par39: Boolsk, bestemmende_indflydelse: Boolsk, nærtstående_bestemmende_indflydelse: Boolsk, lejemål_omfattet_af_stk2: Boolsk, par14_undtagelse_anvendes: Boolsk, højeste_sats_basispoint: Heltal, lineært_periodemaksimum_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, nedrivningsfradrag_kroner: Heltal, restbeløb_til_bygningens_anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal, position_efter: Afskrivningslov39Position)
+
+| afskrivningslov39_nærtstående(relation: Afskrivningslov39NærtståendeRelation) -> relation != Al39IkkeNærtstående
+| afskrivningslov39_kontrol_gyldig(kontrol: Afskrivningslov39Kontrol) -> kontrol.part_kapitalandel_basispoint >= 0 && kontrol.part_kapitalandel_basispoint <= 10000 && kontrol.part_stemmerettigheder_basispoint >= 0 && kontrol.part_stemmerettigheder_basispoint <= 10000 && kontrol.part_ejerandel_basispoint >= 0 && kontrol.part_ejerandel_basispoint <= 10000 && kontrol.nærtstående_kapitalandel_basispoint >= 0 && kontrol.nærtstående_kapitalandel_basispoint <= 10000 && kontrol.nærtstående_stemmerettigheder_basispoint >= 0 && kontrol.nærtstående_stemmerettigheder_basispoint <= 10000 && kontrol.nærtstående_ejerandel_basispoint >= 0 && kontrol.nærtstående_ejerandel_basispoint <= 10000
+| afskrivningslov39_bestemmende_indflydelse(kontrol: Afskrivningslov39Kontrol) -> kontrol.part_kapitalandel_basispoint > 5000 || kontrol.part_stemmerettigheder_basispoint > 5000 || kontrol.part_ejerandel_basispoint > 5000 || kontrol.part_anden_bestemmende_indflydelse
+| afskrivningslov39_nærtstående_bestemmende_indflydelse(kontrol: Afskrivningslov39Kontrol) -> kontrol.nærtstående_kapitalandel_basispoint > 5000 || kontrol.nærtstående_stemmerettigheder_basispoint > 5000 || kontrol.nærtstående_ejerandel_basispoint > 5000 || kontrol.nærtstående_anden_bestemmende_indflydelse
+| afskrivningslov39_lejemål_omfattet_af_stk2(kontrol: Afskrivningslov39Kontrol) -> ((afskrivningslov39_bestemmende_indflydelse(kontrol) || afskrivningslov39_nærtstående(kontrol.relation_mellem_udlejer_og_lejer)) && kontrol.reel_risiko_for_opsigelse == Falskt) || (kontrol.lejemål_mellem_selskaber_eller_mellem_person_og_selskab && afskrivningslov39_nærtstående_bestemmende_indflydelse(kontrol)) || kontrol.køberet_til_lokalerne_afviger_fra_markedsvilkår
+| afskrivningslov39_par14_resultat(status: Afskrivningslov39Par14Status) -> match status {
+    | Al39LokalerIkkeOmfattetAfPar14 -> Falskt
+    | Al39LokalerOmfattetAfPar14(resultat) -> resultat.omfattet_af_par14
+}
+| afskrivningslov39_par14_skatteyder_matcher(position: Afskrivningslov39Position) -> match position.par14_status {
+    | Al39LokalerIkkeOmfattetAfPar14 -> Sandt
+    | Al39LokalerOmfattetAfPar14(resultat) -> resultat.skatteyder == position.skatteyder
+}
+| afskrivningslov39_lejeperiode_år(lejevilkår: Afskrivningslov39Lejevilkår) -> match lejevilkår {
+    | Al39BestemtTidsrum(antal_år) -> antal_år
+    | Al39UdlejerUopsigeligFastPeriode(antal_år) -> antal_år
+    | _ -> 0
+}
+| afskrivningslov39_par17_sats_basispoint(anskaffelses_eller_forbedringsår: Heltal) -> hvis anskaffelses_eller_forbedringsår > 0 && anskaffelses_eller_forbedringsår < 2023 { 400 } ellers { 300 }
+| afskrivningslov39_afståelsessum_kroner(hændelse: Afskrivningslov39Hændelse) -> match hændelse {
+    | Al39LejemålOphørt(afståelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner)
+    | Al39LejedeLokalerAfstået(afståelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner)
+    | _ -> 0
+}
+| afskrivningslov39_afståelse(hændelse: Afskrivningslov39Hændelse) -> match hændelse {
+    | Al39LejemålOphørt(_) -> Sandt
+    | Al39LejedeLokalerAfstået(_) -> Sandt
+    | _ -> Falskt
+}
+
+# Afskrivningslov39Sag(input: Afskrivningslov39Input) {
+    | afskrivningsgrundlag_kroner() -> penge_positivt_beløb(input.position.afskrivningsberettigede_udgifter_kroner)
+    | position_gyldig() -> input.position.anskaffelses_eller_forbedringsår > 0 && input.position.afskrivningsberettigede_udgifter_kroner > 0 && input.position.tidligere_foretagne_afskrivninger_kroner >= 0 && input.position.tidligere_foretagne_afskrivninger_kroner <= afskrivningsgrundlag_kroner() && afskrivningslov39_kontrol_gyldig(input.position.kontrol) && afskrivningslov39_par14_skatteyder_matcher(input.position) && (afskrivningslov39_lejeperiode_år(input.position.lejevilkår) > 0 || match input.position.lejevilkår { | Al39LøbendeLejemål -> Sandt | Al39UdlejerUopsigeligUdenTidsbegrænsning -> Sandt | _ -> Falskt })
+    | omfattet_af_par39() -> position_gyldig() && input.position.lokaler_anvendes_erhvervsmæssigt && input.position.lokaler_anvendes_til_andet_end_beboelse
+    | stk2_lejemål() -> afskrivningslov39_lejemål_omfattet_af_stk2(input.position.kontrol)
+    | par14_undtagelse() -> stk2_lejemål() && afskrivningslov39_par14_resultat(input.position.par14_status)
+    | afskrivningsberettiget() -> omfattet_af_par39() && (stk2_lejemål() == Falskt || par14_undtagelse())
+    | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - input.position.tidligere_foretagne_afskrivninger_kroner)
+    | bruger_par17_sats() -> par14_undtagelse() || input.position.lejevilkår == Al39UdlejerUopsigeligUdenTidsbegrænsning
+    | højeste_sats_basispoint() -> hvis bruger_par17_sats() { afskrivningslov39_par17_sats_basispoint(input.position.anskaffelses_eller_forbedringsår) } ellers { 2000 }
+    | lineært_periodemaksimum_kroner() -> hvis afskrivningslov39_lejeperiode_år(input.position.lejevilkår) > 0 { afskrivningsgrundlag_kroner() / afskrivningslov39_lejeperiode_år(input.position.lejevilkår) } ellers { 0 }
+    | satsmaksimum_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningsgrundlag_kroner(), højeste_sats_basispoint())
+    | højeste_før_rest_kroner() -> hvis lineært_periodemaksimum_kroner() > 0 { penge_mindste_beløb(satsmaksimum_kroner(), lineært_periodemaksimum_kroner()) } ellers { satsmaksimum_kroner() }
+    | almindelig_årsafskrivning_mulig() -> input.hændelse == Al39FortsatLejemål && afskrivningsberettiget() && input.indkomstår >= input.position.anskaffelses_eller_forbedringsår
+    | højeste_afskrivning_kroner() -> hvis almindelig_årsafskrivning_mulig() { penge_mindste_beløb(resterende_før_året_kroner(), højeste_før_rest_kroner()) } ellers { 0 }
+    | valg_gyldigt() -> hvis almindelig_årsafskrivning_mulig() { input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner() } ellers { position_gyldig() && input.valgt_afskrivning_kroner == 0 }
+    | afskrivning_kroner() -> hvis valg_gyldigt() && almindelig_årsafskrivning_mulig() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | rest_efter_årsafskrivning_kroner() -> penge_positivt_beløb(resterende_før_året_kroner() - afskrivning_kroner())
+    | nedrivningsfradrag_kroner() -> hvis input.hændelse == Al39LokalerNedrevet && omfattet_af_par39() && stk2_lejemål() == Falskt { rest_efter_årsafskrivning_kroner() } ellers { 0 }
+    | rest_til_bygning_kroner() -> match input.hændelse {
+        | Al39LejerErhververBygning(restbeløb_indgår_i_købesummen) -> hvis afskrivningsberettiget() && restbeløb_indgår_i_købesummen == Falskt { rest_efter_årsafskrivning_kroner() } ellers { 0 }
+        | _ -> 0
+    }
+    | afståelsessum_kroner() -> afskrivningslov39_afståelsessum_kroner(input.hændelse)
+    | afståelsesresultat_kroner() -> hvis afskrivningslov39_afståelse(input.hændelse) && afskrivningsberettiget() { afståelsessum_kroner() - rest_efter_årsafskrivning_kroner() } ellers { 0 }
+    | skattepligtig_fortjeneste_kroner() -> penge_positivt_beløb(afståelsesresultat_kroner())
+    | fradragsberettiget_tab_kroner() -> hvis stk2_lejemål() { 0 } ellers { penge_positivt_beløb(0 - afståelsesresultat_kroner()) }
+    | samlet_fradrag_kroner() -> afskrivning_kroner() + nedrivningsfradrag_kroner() + fradragsberettiget_tab_kroner()
+    | resterende_grundlag_kroner() -> hvis input.hændelse == Al39FortsatLejemål { rest_efter_årsafskrivning_kroner() } ellers { 0 }
+    | position_efter() -> Afskrivningslov39Position(
+        skatteyder = input.position.skatteyder,
+        anskaffelses_eller_forbedringsår = input.position.anskaffelses_eller_forbedringsår,
+        afskrivningsberettigede_udgifter_kroner = afskrivningsgrundlag_kroner(),
+        tidligere_foretagne_afskrivninger_kroner = input.position.tidligere_foretagne_afskrivninger_kroner + afskrivning_kroner(),
+        lokaler_anvendes_erhvervsmæssigt = input.position.lokaler_anvendes_erhvervsmæssigt,
+        lokaler_anvendes_til_andet_end_beboelse = input.position.lokaler_anvendes_til_andet_end_beboelse,
+        lejevilkår = input.position.lejevilkår,
+        kontrol = input.position.kontrol,
+        par14_status = input.position.par14_status
+    )
+    | resultat() -> Afskrivningslov39Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.skatteyder,
+        hændelse = input.hændelse,
+        position_gyldig = position_gyldig(),
+        omfattet_af_par39 = omfattet_af_par39(),
+        bestemmende_indflydelse = afskrivningslov39_bestemmende_indflydelse(input.position.kontrol),
+        nærtstående_bestemmende_indflydelse = afskrivningslov39_nærtstående_bestemmende_indflydelse(input.position.kontrol),
+        lejemål_omfattet_af_stk2 = stk2_lejemål(),
+        par14_undtagelse_anvendes = par14_undtagelse(),
+        højeste_sats_basispoint = højeste_sats_basispoint(),
+        lineært_periodemaksimum_kroner = lineært_periodemaksimum_kroner(),
+        resterende_afskrivningsgrundlag_før_året_kroner = resterende_før_året_kroner(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = input.valgt_afskrivning_kroner,
+        valg_gyldigt = valg_gyldigt(),
+        afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(),
+        nedrivningsfradrag_kroner = nedrivningsfradrag_kroner(),
+        restbeløb_til_bygningens_anskaffelsessum_kroner = rest_til_bygning_kroner(),
+        afståelsessum_kroner = afståelsessum_kroner(),
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        samlet_fradrag_i_skattepligtig_indkomst_kroner = samlet_fradrag_kroner(),
+        resterende_afskrivningsgrundlag_kroner = resterende_grundlag_kroner(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov39_sag(input: Afskrivningslov39Input) -> Afskrivningslov39Sag(input)
+| afskrivningslov39_resultat(input: Afskrivningslov39Input) -> afskrivningslov39_sag(input).resultat()
+--@end:afskrivningsloven_par39--
+
+--@label:afskrivningsloven_par40::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par40_juridisk_vejledning--
+----
+§ 40. Ved erhvervelse af goodwill kan erhververen fra og med det indkomstår,
+hvori der er indgået endelig aftale om overdragelsen, afskrive anskaffelsessummen
+i sin skattepligtige indkomst med indtil 1/7 årligt. Det gælder dog ikke
+goodwill, der er erhvervet fra et selskab m.v. omfattet af selskabsskattelovens
+§ 3, stk. 1, nr. 9 eller 18.
+
+Stk. 2. Ved erhvervelse af andre immaterielle aktiver såsom særlig
+fremstillingsmetode eller lignende (knowhow), patentret, forfatter- og
+kunstnerret og ret til mønster eller varemærke eller ved erhvervelse af retten
+ifølge en udbytte-, forpagtnings- eller lejekontrakt kan erhververen fra og med
+det indkomstår, hvori der er indgået endelig aftale om overdragelsen, afskrive
+anskaffelsessummen i sin skattepligtige indkomst med indtil 1/7 årligt.
+Anskaffelsessummen for bevilling, tilladelse eller rettighed til forundersøgelse,
+efterforskning og indvinding af kulbrinter afskrives dog med lige store årlige
+beløb over rettighedsperioden. Er overdragelsen af en udbytteret omfattet af
+ligningslovens § 12 B, stk. 7, kan erhververen ikke afskrive efter 1. pkt. Ved
+erhvervelse af rettigheder, der er beskyttet efter anden lovgivning, og hvor
+beskyttelsesperioden på aftaletidspunktet er mindre end 7 år, erstattes den
+sats, der er nævnt i 1. pkt., med en sats, der svarer til, at
+anskaffelsessummen afskrives med lige store årlige beløb over
+beskyttelsesperioden.
+
+Stk. 3. Godtgørelse i anledning af opgivelse af agentur eller lignende,
+vederlag for påtagelse af indskrænkninger i adgangen til fri erhvervsudøvelse
+(konkurrenceklausuler), når vederlaget ydes én gang for alle, samt vederlag for
+afløsning af pensionstilsagn, der ikke er afdækket i et pensionsinstitut,
+afskrives i yderens skattepligtige indkomst med indtil 1/7 årligt. Udgør ydelser
+af denne art tilsammen mindre end 5 pct. af den samlede lønudgift i yderens
+virksomhed i det pågældende indkomstår, fradrages de dog fuldt ud ved opgørelsen
+af den skattepligtige indkomst for dette indkomstår.
+
+Stk. 4. Der kan ikke foretages afskrivning i det indkomstår, hvori et aktiv som
+nævnt i stk. 1 og 2 sælges eller opgives.
+
+Stk. 5. Ved overdragelse mellem en person og et selskab m.v. eller mellem
+selskaber m.v. indbyrdes, hvor den ene af parterne i overdragelsen på grund af
+aktiebesiddelse, vedtægtsbestemmelse, aftale eller fælles ledelse har
+bestemmende indflydelse på den anden parts handlemåde, nedsættes erhververens
+afskrivningsgrundlag efter stk. 1 med et beløb svarende til den
+ikkeafskrivningsberettigede del af overdragerens anskaffelsessum. Ved
+bestemmende indflydelse på grund af aktiebesiddelse forstås ejerskab eller
+rådighed over stemmerettigheder, således at der direkte eller indirekte ejes
+mere end 50 pct. af aktiekapitalen eller rådes over mere end 50 pct. af
+stemmerne. I øvrige tilfælde foreligger der bestemmende indflydelse ved
+ejerskab, såfremt der direkte eller indirekte ejes mere end 50 pct. i
+ejerandel.
+
+Stk. 6. Ved salg eller opgivelse af aktiver omfattet af stk. 1 og 2 medregnes
+fortjeneste eller tab ved opgørelsen af den skattepligtige indkomst. Fortjeneste
+eller tab opgøres som forskellen mellem afståelsessummen og anskaffelsessummen
+med fradrag for samtlige foretagne afskrivninger, herunder forlods
+afskrivninger. Er aftalen om salg eller opgivelsen af en udbytteret omfattet af
+ligningslovens § 12 B, stk. 6, finder 1. og 2. pkt. ikke anvendelse.
+
+Stk. 7. Told- og skatteforvaltningen giver efter den skattepligtiges begæring
+rentefri henstand med betaling af skatten af fortjenesten efter stk. 6, 1. og 2.
+pkt., såfremt vederlaget udgøres af en løbende ydelse som omfattet af
+ligningslovens § 12 B, stk. 1-5. Udgøres vederlaget for et aktiv omfattet af
+stk. 1 og 2 kun delvis af en sådan løbende ydelse, kan der gives henstand for
+den del af skatten af fortjenesten, som svarer til forholdet mellem den
+kapitaliserede værdi af den løbende ydelse og afståelsessummen for det
+pågældende aktiv. I det indkomstår, hvor fortjenesten medregnes til den
+skattepligtige indkomst, fragår henstandsbeløbet i den slutskat, der indgår ved
+opgørelsen af restskat og overskydende skat efter kildeskattelovens §§ 60-62,
+jf. § 62 A, eller selskabsskattelovens § 29 B, stk. 4 og 5. Der kan i samme
+omfang gives henstand med arbejdsmarkedsbidrag efter §§ 4 og 5 i lov om
+arbejdsmarkedsbidrag. Det er en betingelse for opnåelse af henstand, at
+begæringen indsendes inden udløbet af oplysningsfristen efter
+skattekontrollovens §§ 10-13 for aftaleåret. De modtagne ydelser skal betales
+som afdrag på henstandsbeløbet. Beløbet forfalder til betaling den 1. i måneden
+efter modtagelsen af ydelsen med sidste rettidige betalingsdag den 10. i
+forfaldsmåneden. Betales beløbet ikke rettidigt, skal der betales rente i
+henhold til § 7, stk. 2, i lov om opkrævning af skatter og afgifter m.v. med
+tillæg af 0,4 procentpoint for hver påbegyndt måned fra forfaldsdagen at regne,
+dog mindst 25 kr. Renten kan ikke fratrækkes ved opgørelsen af den
+skattepligtige indkomst. Der betales et rykkergebyr på 65 kr. for
+erindringsskrivelser vedrørende manglende betaling af afdrag på
+henstandsbeløbet. Grov og gentagen misligholdelse af henstandsordningen
+medfører, at det resterende henstandsbeløb forfalder til betaling efter påkrav.
+Er hele henstandsbeløbet ikke betalt senest 7 år efter indgåelsen af
+overdragelsesaftalen, forfalder restbeløbet til betaling ved udløbet af dette
+indkomstår, med sidste rettidige betalingsdag den 10. i den efterfølgende
+måned. Såfremt de løbende ydelser endeligt ophører inden 7 år, uden at
+modtageren fra yderen har opnået et tilstrækkeligt beløb til dækning af
+henstandsbeløbet, frafaldes kravet på det ikke betalte henstandsbeløb. Uanset
+eventuel henstand skal de kommunale andele af skatten af fortjenesten efter stk.
+6, 1. og 2. pkt., afregnes i indkomståret efter reglerne i lov om kommunal
+indkomstskat og statens afregning af grundskyld og dækningsafgift til
+kommunerne.
+
+Stk. 8. Godtgørelser og vederlag omfattet af stk. 3 medregnes ved opgørelsen af
+den skattepligtige indkomst.
+----
+
+--@begin:afskrivningsloven_par40--
+# Afskrivningslov40Aktivart = Al40Goodwill | Al40Knowhow | Al40Patentret | Al40ForfatterEllerKunstnerret | Al40MønsterEllerVaremærkeret | Al40Udbytteret | Al40Forpagtningsret | Al40Lejeret | Al40KulbrintebevillingTilladelseEllerRettighed | Al40AndenLovbeskyttetRettighed | Al40AgenturOpgivelsesgodtgørelse | Al40KonkurrenceklausulVederlag | Al40PensionstilsagnAfløsning
+# Afskrivningslov40Kontrol(overdragelse_mellem_person_og_selskab_eller_mellem_selskaber: Boolsk, kapitalandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, ejerandel_basispoint: Heltal, bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse: Boolsk, ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner: Heltal)
+# Afskrivningslov40Grundlag = Al40ErhvervetAktiv(erhverver: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, endelig_aftaledato: AfskrivningslovDato, anskaffelsessum_kroner: Heltal, beskyttelses_eller_rettighedsperiode_år: Heltal, goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18: Boolsk, udbytteret_omfattet_af_ligningslov12b_stk7: Boolsk, kontrol: Afskrivningslov40Kontrol) | Al40YdetGodtgørelseEllerVederlag(yder: AfskrivningslovSkatteyder, modtager: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, endelig_aftaledato: AfskrivningslovDato, ydet_beløb_kroner: Heltal, samlede_ydelser_af_stk3_art_i_indkomståret_kroner: Heltal, samlet_lønudgift_i_indkomståret_kroner: Heltal)
+# Afskrivningslov40Position(grundlag: Afskrivningslov40Grundlag, tidligere_foretagne_afskrivninger_og_fradrag_kroner: Heltal, forlods_afskrivninger_kroner: Heltal)
+# Afskrivningslov40Hændelse = Al40FortsatEjerskabEllerForpligtelse | Al40AktivSolgt(afståelsessum_kroner: Heltal, udbytteretsaftale_omfattet_af_ligningslov12b_stk6: Boolsk) | Al40AktivOpgivet(afståelsessum_kroner: Heltal, udbytteretsopgivelse_omfattet_af_ligningslov12b_stk6: Boolsk)
+# Afskrivningslov40Input(indkomstår: Heltal, position: Afskrivningslov40Position, hændelse: Afskrivningslov40Hændelse, valgt_afskrivning_kroner: Heltal)
+# Afskrivningslov40Resultat(indkomstår: Heltal, fradragsberettiget_skatteyder: AfskrivningslovSkatteyder, skattepligtig_modtager: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, hændelse: Afskrivningslov40Hændelse, position_gyldig: Boolsk, omfattet_af_par40: Boolsk, bestemmende_indflydelse: Boolsk, oprindelig_anskaffelsessum_eller_ydelse_kroner: Heltal, nedsættelse_af_goodwillgrundlag_kroner: Heltal, afskrivningsgrundlag_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, årlig_afskrivning_kroner: Heltal, straksfradrag_efter_fem_procent_reglen_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, afståelsessum_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, godtgørelse_eller_vederlag_skattepligtigt_hos_modtager_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal, position_efter: Afskrivningslov40Position)
+# Afskrivningslov40SkatteyderResultat(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, årlig_afskrivning_kroner: Heltal, straksfradrag_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+# Afskrivningslov40ModtagerResultat(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov40Aktivart, godtgørelse_eller_vederlag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| afskrivningslov40_stk1_aktiv(aktivart: Afskrivningslov40Aktivart) -> aktivart == Al40Goodwill
+| afskrivningslov40_stk2_aktiv(aktivart: Afskrivningslov40Aktivart) -> aktivart == Al40Knowhow || aktivart == Al40Patentret || aktivart == Al40ForfatterEllerKunstnerret || aktivart == Al40MønsterEllerVaremærkeret || aktivart == Al40Udbytteret || aktivart == Al40Forpagtningsret || aktivart == Al40Lejeret || aktivart == Al40KulbrintebevillingTilladelseEllerRettighed || aktivart == Al40AndenLovbeskyttetRettighed
+| afskrivningslov40_stk3_ydelse(aktivart: Afskrivningslov40Aktivart) -> aktivart == Al40AgenturOpgivelsesgodtgørelse || aktivart == Al40KonkurrenceklausulVederlag || aktivart == Al40PensionstilsagnAfløsning
+| afskrivningslov40_fradragsberettiget_skatteyder(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(erhverver, _, _, _, _, _, _, _) -> erhverver
+    | Al40YdetGodtgørelseEllerVederlag(yder, _, _, _, _, _, _) -> yder
+}
+| afskrivningslov40_modtager(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(erhverver, _, _, _, _, _, _, _) -> erhverver
+    | Al40YdetGodtgørelseEllerVederlag(_, modtager, _, _, _, _, _) -> modtager
+}
+| afskrivningslov40_aktivart(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, aktivart, _, _, _, _, _, _) -> aktivart
+    | Al40YdetGodtgørelseEllerVederlag(_, _, aktivart, _, _, _, _) -> aktivart
+}
+| afskrivningslov40_aftaledato(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, _, dato, _, _, _, _, _) -> dato
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, dato, _, _, _) -> dato
+}
+| afskrivningslov40_oprindeligt_beløb_kroner(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, _, _, anskaffelsessum_kroner, _, _, _, _) -> penge_positivt_beløb(anskaffelsessum_kroner)
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, ydet_beløb_kroner, _, _) -> penge_positivt_beløb(ydet_beløb_kroner)
+}
+| afskrivningslov40_periode_år(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, _, _, _, periode_år, _, _, _) -> periode_år
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, _, _, _) -> 0
+}
+| afskrivningslov40_kontrol_gyldig(kontrol: Afskrivningslov40Kontrol) -> kontrol.kapitalandel_basispoint >= 0 && kontrol.kapitalandel_basispoint <= 10000 && kontrol.stemmerettigheder_basispoint >= 0 && kontrol.stemmerettigheder_basispoint <= 10000 && kontrol.ejerandel_basispoint >= 0 && kontrol.ejerandel_basispoint <= 10000 && kontrol.ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner >= 0
+| afskrivningslov40_bestemmende_indflydelse(kontrol: Afskrivningslov40Kontrol) -> kontrol.overdragelse_mellem_person_og_selskab_eller_mellem_selskaber && (kontrol.kapitalandel_basispoint > 5000 || kontrol.stemmerettigheder_basispoint > 5000 || kontrol.ejerandel_basispoint > 5000 || kontrol.bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse)
+| afskrivningslov40_kontrol(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, _, _, _, _, _, _, kontrol) -> kontrol
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, _, _, _) -> Afskrivningslov40Kontrol(
+        overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Falskt,
+        kapitalandel_basispoint = 0,
+        stemmerettigheder_basispoint = 0,
+        ejerandel_basispoint = 0,
+        bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+        ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 0
+    )
+}
+| afskrivningslov40_goodwill_udelukket(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, Al40Goodwill, _, _, _, erhvervet_fra_udelukket_selskab, _, _) -> erhvervet_fra_udelukket_selskab
+    | _ -> Falskt
+}
+| afskrivningslov40_udbytteret_udelukket(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40ErhvervetAktiv(_, Al40Udbytteret, _, _, _, _, omfattet_af_ll12b_stk7, _) -> omfattet_af_ll12b_stk7
+    | _ -> Falskt
+}
+| afskrivningslov40_stk3_samlede_ydelser_kroner(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, _, samlede_ydelser_kroner, _) -> penge_positivt_beløb(samlede_ydelser_kroner)
+    | _ -> 0
+}
+| afskrivningslov40_stk3_lønudgift_kroner(grundlag: Afskrivningslov40Grundlag) -> match grundlag {
+    | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, _, _, lønudgift_kroner) -> penge_positivt_beløb(lønudgift_kroner)
+    | _ -> 0
+}
+| afskrivningslov40_disposition(hændelse: Afskrivningslov40Hændelse) -> hændelse != Al40FortsatEjerskabEllerForpligtelse
+| afskrivningslov40_afståelsessum_kroner(hændelse: Afskrivningslov40Hændelse) -> match hændelse {
+    | Al40AktivSolgt(afståelsessum_kroner, _) -> penge_positivt_beløb(afståelsessum_kroner)
+    | Al40AktivOpgivet(afståelsessum_kroner, _) -> penge_positivt_beløb(afståelsessum_kroner)
+    | Al40FortsatEjerskabEllerForpligtelse -> 0
+}
+| afskrivningslov40_disposition_omfattet_af_ll12b_stk6(hændelse: Afskrivningslov40Hændelse) -> match hændelse {
+    | Al40AktivSolgt(_, omfattet) -> omfattet
+    | Al40AktivOpgivet(_, omfattet) -> omfattet
+    | Al40FortsatEjerskabEllerForpligtelse -> Falskt
+}
+
+# Afskrivningslov40Sag(input: Afskrivningslov40Input) {
+    | aktivart() -> afskrivningslov40_aktivart(input.position.grundlag)
+    | oprindeligt_beløb_kroner() -> afskrivningslov40_oprindeligt_beløb_kroner(input.position.grundlag)
+    | aftaledato_gyldig() -> afskrivningslov_dato_gyldig(afskrivningslov40_aftaledato(input.position.grundlag))
+    | bestemmende_indflydelse() -> afskrivningslov40_bestemmende_indflydelse(afskrivningslov40_kontrol(input.position.grundlag))
+    | goodwillgrundlag_nedsættelse_kroner() -> hvis afskrivningslov40_stk1_aktiv(aktivart()) && bestemmende_indflydelse() { penge_mindste_beløb(oprindeligt_beløb_kroner(), penge_positivt_beløb(afskrivningslov40_kontrol(input.position.grundlag).ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner)) } ellers { 0 }
+    | afskrivningsgrundlag_kroner() -> penge_positivt_beløb(oprindeligt_beløb_kroner() - goodwillgrundlag_nedsættelse_kroner())
+    | grundlagstype_gyldig() -> match input.position.grundlag {
+        | Al40ErhvervetAktiv(_, aktivart, _, _, periode_år, _, _, _) -> (afskrivningslov40_stk1_aktiv(aktivart) || afskrivningslov40_stk2_aktiv(aktivart)) && hvis aktivart == Al40KulbrintebevillingTilladelseEllerRettighed { periode_år > 0 } ellers { hvis aktivart == Al40AndenLovbeskyttetRettighed { periode_år > 0 } ellers { Sandt } }
+        | Al40YdetGodtgørelseEllerVederlag(_, _, aktivart, _, ydet_beløb_kroner, samlede_ydelser_kroner, _) -> afskrivningslov40_stk3_ydelse(aktivart) && ydet_beløb_kroner > 0 && samlede_ydelser_kroner >= ydet_beløb_kroner
+    }
+    | forlods_afskrivninger_gyldige() -> match input.position.grundlag {
+        | Al40ErhvervetAktiv(_, _, _, _, _, _, _, _) -> input.position.forlods_afskrivninger_kroner >= 0
+        | Al40YdetGodtgørelseEllerVederlag(_, _, _, _, _, _, _) -> input.position.forlods_afskrivninger_kroner == 0
+    }
+    | position_gyldig() -> aftaledato_gyldig() && oprindeligt_beløb_kroner() > 0 && grundlagstype_gyldig() && afskrivningslov40_kontrol_gyldig(afskrivningslov40_kontrol(input.position.grundlag)) && input.position.tidligere_foretagne_afskrivninger_og_fradrag_kroner >= 0 && forlods_afskrivninger_gyldige() && input.position.tidligere_foretagne_afskrivninger_og_fradrag_kroner + input.position.forlods_afskrivninger_kroner <= afskrivningsgrundlag_kroner()
+    | omfattet_af_par40() -> position_gyldig() && afskrivningslov40_goodwill_udelukket(input.position.grundlag) == Falskt && afskrivningslov40_udbytteret_udelukket(input.position.grundlag) == Falskt
+    | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - input.position.tidligere_foretagne_afskrivninger_og_fradrag_kroner - input.position.forlods_afskrivninger_kroner)
+    | fem_procent_grænse_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningslov40_stk3_lønudgift_kroner(input.position.grundlag), 500)
+    | straksfradrag_gælder() -> omfattet_af_par40() && afskrivningslov40_stk3_ydelse(aktivart()) && input.indkomstår == afskrivningslov40_aftaledato(input.position.grundlag).år && afskrivningslov40_stk3_samlede_ydelser_kroner(input.position.grundlag) < fem_procent_grænse_kroner()
+    | lineær_periode_år() -> hvis aktivart() == Al40KulbrintebevillingTilladelseEllerRettighed || (aktivart() == Al40AndenLovbeskyttetRettighed && afskrivningslov40_periode_år(input.position.grundlag) < 7) { afskrivningslov40_periode_år(input.position.grundlag) } ellers { 7 }
+    | årligt_maksimum_før_rest_kroner() -> hvis lineær_periode_år() > 0 { afskrivningsgrundlag_kroner() / lineær_periode_år() } ellers { 0 }
+    | årlig_afskrivning_mulig() -> omfattet_af_par40() && straksfradrag_gælder() == Falskt && input.hændelse == Al40FortsatEjerskabEllerForpligtelse && input.indkomstår >= afskrivningslov40_aftaledato(input.position.grundlag).år
+    | højeste_afskrivning_kroner() -> hvis årlig_afskrivning_mulig() { penge_mindste_beløb(resterende_før_året_kroner(), årligt_maksimum_før_rest_kroner()) } ellers { 0 }
+    | valg_gyldigt() -> hvis årlig_afskrivning_mulig() { input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner() } ellers { position_gyldig() && input.valgt_afskrivning_kroner == 0 }
+    | årlig_afskrivning_kroner() -> hvis valg_gyldigt() && årlig_afskrivning_mulig() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | straksfradrag_kroner() -> hvis straksfradrag_gælder() { resterende_før_året_kroner() } ellers { 0 }
+    | samlet_fradrag_kroner() -> årlig_afskrivning_kroner() + straksfradrag_kroner()
+    | afståelsessum_kroner() -> afskrivningslov40_afståelsessum_kroner(input.hændelse)
+    | afståelsesgrundlag_kroner() -> penge_positivt_beløb(oprindeligt_beløb_kroner() - input.position.tidligere_foretagne_afskrivninger_og_fradrag_kroner - input.position.forlods_afskrivninger_kroner)
+    | disposition_omfattet() -> omfattet_af_par40() && (afskrivningslov40_stk1_aktiv(aktivart()) || afskrivningslov40_stk2_aktiv(aktivart())) && afskrivningslov40_disposition(input.hændelse) && afskrivningslov40_disposition_omfattet_af_ll12b_stk6(input.hændelse) == Falskt
+    | afståelsesresultat_kroner() -> hvis disposition_omfattet() { afståelsessum_kroner() - afståelsesgrundlag_kroner() } ellers { 0 }
+    | skattepligtig_fortjeneste_kroner() -> penge_positivt_beløb(afståelsesresultat_kroner())
+    | fradragsberettiget_tab_kroner() -> penge_positivt_beløb(0 - afståelsesresultat_kroner())
+    | modtager_skattepligtigt_kroner() -> hvis omfattet_af_par40() && afskrivningslov40_stk3_ydelse(aktivart()) && input.indkomstår == afskrivningslov40_aftaledato(input.position.grundlag).år { oprindeligt_beløb_kroner() } ellers { 0 }
+    | resterende_grundlag_kroner() -> hvis input.hændelse == Al40FortsatEjerskabEllerForpligtelse { penge_positivt_beløb(resterende_før_året_kroner() - samlet_fradrag_kroner()) } ellers { 0 }
+    | position_efter() -> Afskrivningslov40Position(
+        grundlag = input.position.grundlag,
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = input.position.tidligere_foretagne_afskrivninger_og_fradrag_kroner + samlet_fradrag_kroner(),
+        forlods_afskrivninger_kroner = input.position.forlods_afskrivninger_kroner
+    )
+    | resultat() -> Afskrivningslov40Resultat(
+        indkomstår = input.indkomstår,
+        fradragsberettiget_skatteyder = afskrivningslov40_fradragsberettiget_skatteyder(input.position.grundlag),
+        skattepligtig_modtager = afskrivningslov40_modtager(input.position.grundlag),
+        aktivart = aktivart(),
+        hændelse = input.hændelse,
+        position_gyldig = position_gyldig(),
+        omfattet_af_par40 = omfattet_af_par40(),
+        bestemmende_indflydelse = bestemmende_indflydelse(),
+        oprindelig_anskaffelsessum_eller_ydelse_kroner = oprindeligt_beløb_kroner(),
+        nedsættelse_af_goodwillgrundlag_kroner = goodwillgrundlag_nedsættelse_kroner(),
+        afskrivningsgrundlag_kroner = afskrivningsgrundlag_kroner(),
+        resterende_afskrivningsgrundlag_før_året_kroner = resterende_før_året_kroner(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = input.valgt_afskrivning_kroner,
+        valg_gyldigt = valg_gyldigt(),
+        årlig_afskrivning_kroner = årlig_afskrivning_kroner(),
+        straksfradrag_efter_fem_procent_reglen_kroner = straksfradrag_kroner(),
+        samlet_fradrag_i_skattepligtig_indkomst_kroner = samlet_fradrag_kroner(),
+        afståelsessum_kroner = afståelsessum_kroner(),
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        godtgørelse_eller_vederlag_skattepligtigt_hos_modtager_kroner = modtager_skattepligtigt_kroner(),
+        resterende_afskrivningsgrundlag_kroner = resterende_grundlag_kroner(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov40_sag(input: Afskrivningslov40Input) -> Afskrivningslov40Sag(input)
+| afskrivningslov40_resultat(input: Afskrivningslov40Input) -> afskrivningslov40_sag(input).resultat()
+| afskrivningslov40_skatteyder_resultat(resultat: Afskrivningslov40Resultat) -> Afskrivningslov40SkatteyderResultat(
+    skatteyder = resultat.fradragsberettiget_skatteyder,
+    aktivart = resultat.aktivart,
+    årlig_afskrivning_kroner = resultat.årlig_afskrivning_kroner,
+    straksfradrag_kroner = resultat.straksfradrag_efter_fem_procent_reglen_kroner,
+    skattepligtig_fortjeneste_kroner = resultat.skattepligtig_fortjeneste_kroner,
+    fradragsberettiget_tab_kroner = resultat.fradragsberettiget_tab_kroner,
+    samlet_fradrag_i_skattepligtig_indkomst_kroner = resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner
+)
+| afskrivningslov40_modtager_resultat(resultat: Afskrivningslov40Resultat) -> Afskrivningslov40ModtagerResultat(
+    skatteyder = resultat.skattepligtig_modtager,
+    aktivart = resultat.aktivart,
+    godtgørelse_eller_vederlag_i_skattepligtig_indkomst_kroner = resultat.godtgørelse_eller_vederlag_skattepligtigt_hos_modtager_kroner
+)
+--@end:afskrivningsloven_par40--
+
+--@label:afskrivningsloven_par40_2026_overgang::amendment_source:afskrivningsloven_lov749::transition_guidance:afskrivningsloven_par40_henstand_juridisk_vejledning::warning:afskrivningsloven_par40_ll12b_2026_dependency_advarsel--
+----
+LOV nr. 749 af 20. juni 2025:
+
+§ 2
+
+I afskrivningsloven, jf. lovbekendtgørelse nr. 242 af 18. februar 2021, som
+ændret bl.a. ved § 4 i lov nr. 679 af 3. juni 2023 og senest ved § 3 i lov nr.
+562 af 27. maj 2025, foretages følgende ændring:
+
+1. § 40, stk. 7, ophæves.
+
+Stk. 8 bliver herefter stk. 7.
+
+§ 5, stk. 2. § 1, nr. 1, 2, 8 og 13-16, og §§ 2-4 træder i kraft den 1. januar
+2026.
+
+§ 5, stk. 4. § 1, nr. 1, 2, 8 og 13-15, og §§ 2 og 3 finder anvendelse for
+gensidigt bebyrdende aftaler om overdragelse af et eller flere aktiver, der er
+indgået den 1. januar 2026 eller senere.
+----
+
+--@begin:afskrivningsloven_par40_2026_overgang--
+# Afskrivningslov40Henstandsregime = Al40TidligereStk7 | Al40Ligningslov12BHenstandFra2026 | Al40IngenHenstandsordning
+# Afskrivningslov40HenstandsovergangInput(aftaledato: AfskrivningslovDato, gensidigt_bebyrdende_aftale: Boolsk, aktiv_omfattet_af_par40_stk1_eller_stk2: Boolsk, vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5: Boolsk)
+# Afskrivningslov40HenstandsovergangResultat(aftaledato_gyldig: Boolsk, aftale_indgået_før_1_januar_2026: Boolsk, tidligere_afskrivningslov40_stk7_fortsætter: Boolsk, henvises_til_ligningslov12b_fra_2026: Boolsk, regime: Afskrivningslov40Henstandsregime)
+
+| afskrivningslov40_aftale_før_2026(dato: AfskrivningslovDato) -> afskrivningslov_dato_gyldig(dato) && afskrivningslov_dato_yyyymmdd(dato) < 20260101
+| afskrivningslov40_henstandsovergang_resultat(input: Afskrivningslov40HenstandsovergangInput) -> Afskrivningslov40HenstandsovergangResultat(
+    aftaledato_gyldig = afskrivningslov_dato_gyldig(input.aftaledato),
+    aftale_indgået_før_1_januar_2026 = afskrivningslov40_aftale_før_2026(input.aftaledato),
+    tidligere_afskrivningslov40_stk7_fortsætter = afskrivningslov40_aftale_før_2026(input.aftaledato) && input.gensidigt_bebyrdende_aftale && input.aktiv_omfattet_af_par40_stk1_eller_stk2 && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5,
+    henvises_til_ligningslov12b_fra_2026 = afskrivningslov_dato_gyldig(input.aftaledato) && afskrivningslov_dato_yyyymmdd(input.aftaledato) >= 20260101 && input.gensidigt_bebyrdende_aftale && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5,
+    regime = hvis afskrivningslov40_aftale_før_2026(input.aftaledato) && input.gensidigt_bebyrdende_aftale && input.aktiv_omfattet_af_par40_stk1_eller_stk2 && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 { Al40TidligereStk7 } ellers { hvis afskrivningslov_dato_gyldig(input.aftaledato) && afskrivningslov_dato_yyyymmdd(input.aftaledato) >= 20260101 && input.gensidigt_bebyrdende_aftale && input.vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 { Al40Ligningslov12BHenstandFra2026 } ellers { Al40IngenHenstandsordning } }
+)
+--@end:afskrivningsloven_par40_2026_overgang--
 
 --@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----
