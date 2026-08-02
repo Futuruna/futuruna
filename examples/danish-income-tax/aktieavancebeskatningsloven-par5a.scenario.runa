@@ -244,6 +244,54 @@
     fremførsel = AblPar9IngenFremførsel,
     principovergange = []
 ))
+= par5a_par9_lager_princip = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P5A-P9-LAGER",
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked
+    ),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par5a_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+))
+= par5a_par9_lagerafståelse = AktieavancePar23LagerAfståelse(
+    afståelsesidentifikation = "DK-P5A-P9-LAGER-AFSTAAELSE-1",
+    skattemæssig_værdi_før_afståelse_kroner = 100000,
+    afståelsessum_kroner = 50000,
+    omfattet_af_ll16b_stk1 = Falskt
+)
+= par5a_par9_lagerårsresultat = aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+    princip_resultat = par5a_par9_lager_princip,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 0,
+    anskaffelsessummer_i_perioden_kroner = 0,
+    afståelser_i_perioden = [par5a_par9_lagerafståelse],
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+))
+= par5a_par9_lagerpost = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat = par5a_par9_lagerårsresultat),
+    par5a_behandling = AblPar5ALagerafståelser(resultater = [
+        AktieavancePar5ALagerafståelsesresultat(
+            afståelsesidentifikation = par5a_par9_lagerafståelse.afståelsesidentifikation,
+            resultat = par5a_par9_tabsresultat
+        )
+    ])
+))
+= par5a_par9_lagerpost_uden_afståelsesbehandling = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat = par5a_par9_lagerårsresultat),
+    par5a_behandling = AblPar5ALagerafståelser(resultater = [])
+))
 = par5a_par9_mismatch_resultat = par5a_scenarie_resultat(Par5AScenarieInput(
     bruttotab_ved_afståelse_kroner = 40000,
     anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
@@ -283,6 +331,32 @@
     ),
     par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_forfalsket_tabsresultat)
 ))
+= par5a_par9_forfalsket_ydre_post = AktieavancePar9PostResultat(
+    input = par5a_par9_tabspost.input,
+    input_gyldigt = par5a_par9_tabspost.input_gyldigt,
+    omfattet_af_par6 = par5a_par9_tabspost.omfattet_af_par6,
+    undtaget_efter_par8 = par5a_par9_tabspost.undtaget_efter_par8,
+    undtaget_efter_par10 = par5a_par9_tabspost.undtaget_efter_par10,
+    omfattet_af_stk1 = par5a_par9_tabspost.omfattet_af_stk1,
+    princip = par5a_par9_tabspost.princip,
+    principgrundlag = par5a_par9_tabspost.principgrundlag,
+    bruttogevinst_kroner = par5a_par9_tabspost.bruttogevinst_kroner,
+    bruttotab_kroner = par5a_par9_tabspost.bruttotab_kroner,
+    tabsreduktion_efter_par5a_kroner = 0,
+    gevinst_efter_par5a_kroner = par5a_par9_tabspost.gevinst_efter_par5a_kroner,
+    tab_efter_par5a_kroner = par5a_par9_tabspost.tab_efter_par5a_kroner,
+    skattepligtig_gevinst_kroner = par5a_par9_tabspost.skattepligtig_gevinst_kroner,
+    direkte_lagerfradrag_efter_stk2_kroner = par5a_par9_tabspost.direkte_lagerfradrag_efter_stk2_kroner,
+    tab_til_modregning_efter_stk3_kroner = par5a_par9_tabspost.tab_til_modregning_efter_stk3_kroner,
+    tab_til_modregning_efter_stk5_kroner = par5a_par9_tabspost.tab_til_modregning_efter_stk5_kroner,
+    tab_afskåret_efter_stk7_kroner = par5a_par9_tabspost.tab_afskåret_efter_stk7_kroner
+)
+= par5a_par9_år_med_forfalsket_ydre_post = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par5a_par9_forfalsket_ydre_post],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
 
 | par5a_stk1_nr1_og_nr2_opgøres_særskilt: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.skattefrie_udbytter_efter_stk1_nr1_kroner == 30000 && par5a_alle_reduktionsled.forøget_lempelse_efter_stk1_nr2_kroner == 5000 && par5a_alle_reduktionsled.reduktionsgrundlag_efter_stk1_kroner == 35000
 | par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.uudnyttede_præferenceudbytter_efter_stk2_kroner == 30000
@@ -299,8 +373,11 @@
 | par5a_tidligt_statusskifte_er_udtrykkeligt_omfattet: par5a_tidligt_statusskifte_omfattet_efter_lov254 -> par5a_tidligt_statusskifte_omfattet_efter_lov254.reglen_finder_anvendelse && par5a_tidligt_statusskifte_omfattet_efter_lov254.tabsreduktion_efter_par5a_kroner == 20000 && par5a_tidligt_statusskifte_omfattet_efter_lov254.fradragsberettiget_tab_efter_par5a_kroner == 30000
 | par5a_par9_post_bruger_reduceret_tab: par5a_par9_tabspost -> par5a_par9_tabspost.input_gyldigt && par5a_par9_tabspost.bruttotab_kroner == 50000 && par5a_par9_tabspost.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_tabspost.tab_efter_par5a_kroner == 30000 && par5a_par9_tabspost.tab_til_modregning_efter_stk3_kroner == 30000
 | par5a_par9_reducerer_før_årets_modregning: par5a_par9_årsresultat -> par5a_par9_årsresultat.årsopgørelse_gyldig && par5a_par9_årsresultat.bruttotab_før_par5a_kroner == 50000 && par5a_par9_årsresultat.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_årsresultat.tab_modregnet_efter_stk3_og_stk4_kroner == 15000 && par5a_par9_årsresultat.tab_fremført_efter_stk4_kroner == 15000 && par5a_par9_årsresultat.aktieavancebeskatningslov_resultat.tab_afskåret_kroner == 20000
+| par5a_par9_lagerafståelse_bruger_tilknyttet_tabsreduktion: par5a_par9_lagerpost -> par5a_par9_lagerpost.input_gyldigt && par5a_par9_lagerpost.bruttotab_kroner == 50000 && par5a_par9_lagerpost.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_lagerpost.direkte_lagerfradrag_efter_stk2_kroner == 30000
+| par5a_par9_lagerafståelse_kan_ikke_udelades_fra_behandlingen: par5a_par9_lagerpost_uden_afståelsesbehandling -> par5a_par9_lagerpost_uden_afståelsesbehandling.input_gyldigt == Falskt && par5a_par9_lagerpost_uden_afståelsesbehandling.direkte_lagerfradrag_efter_stk2_kroner == 0
 | par5a_par9_afviser_et_resultat_for_et_andet_bruttotab: par5a_par9_mismatch_post -> par5a_par9_mismatch_post.input_gyldigt == Falskt && par5a_par9_mismatch_post.tab_til_modregning_efter_stk3_kroner == 0
 | par5a_par9_afviser_forfalskede_resultatfelter: par5a_forfalsket_tabsresultat -> aktieavance_par5a_resultat_gyldigt(par5a_forfalsket_tabsresultat) == Falskt && par5a_par9_forfalsket_post.input_gyldigt == Falskt && par5a_par9_forfalsket_post.tab_til_modregning_efter_stk3_kroner == 0
+| par5a_par9_årsopgørelsen_afviser_forfalsket_post: par5a_par9_forfalsket_ydre_post -> aktieavance_par9_post_resultat_gyldigt(par5a_par9_forfalsket_ydre_post) == Falskt && par5a_par9_år_med_forfalsket_ydre_post.årsopgørelse_gyldig == Falskt && par5a_par9_år_med_forfalsket_ydre_post.netto_efter_par9_kroner == 0
 
 ? par5a_stk1_nr1_og_nr2_opgøres_særskilt
 ? par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter
@@ -317,8 +394,11 @@
 ? par5a_tidligt_statusskifte_er_udtrykkeligt_omfattet
 ? par5a_par9_post_bruger_reduceret_tab
 ? par5a_par9_reducerer_før_årets_modregning
+? par5a_par9_lagerafståelse_bruger_tilknyttet_tabsreduktion
+? par5a_par9_lagerafståelse_kan_ikke_udelades_fra_behandlingen
 ? par5a_par9_afviser_et_resultat_for_et_andet_bruttotab
 ? par5a_par9_afviser_forfalskede_resultatfelter
+? par5a_par9_årsopgørelsen_afviser_forfalsket_post
 
 @ print("ABL § 5 A reduktionsgrundlag: " + vis(par5a_alle_reduktionsled.samlet_reduktionsgrundlag_kroner))
 @ print("ABL § 5 A tab efter § 9-komposition: " + vis(par5a_par9_tabspost.tab_efter_par5a_kroner))

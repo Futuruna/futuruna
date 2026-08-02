@@ -43,8 +43,7 @@
         værdi_primo_kroner = input.værdi_primo_kroner,
         værdi_ultimo_kroner = input.værdi_ultimo_kroner,
         anskaffelsessummer_i_perioden_kroner = 0,
-        afståelsessummer_i_perioden_kroner = 0,
-        afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+        afståelser_i_perioden = [],
         par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
         oplysningsbetingelse_efter_par19d_opfyldt = Sandt
     ))),

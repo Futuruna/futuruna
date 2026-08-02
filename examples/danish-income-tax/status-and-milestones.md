@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-6e23b5` (submitted for review)
-Latest implementation slice submitted for review: `td-6e23b5`
-Latest approved implementation slice: `td-3ee767`
+Current focus issue: `td-d2945b` (submitted for review)
+Latest implementation slice submitted for review: `td-d2945b`
+Latest approved implementation slice: `td-5d9d23`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -83,8 +83,11 @@ endnu uudnyttede præferenceudbytter og de kvalificerede koncernbeløb særskilt
 Reduktionen begrænses til bruttotabet, § 22, stk. 6-undtagelsen bevares, og
 LOV nr. 254/2011's særlige overgang for tidligere statusskifter er
 udtrykkelig. Resultatfelterne integritetskontrolleres mod det genberegnede
-resultat, før § 9 bruger dem. Sytten fokusscenarier passerer i både interpreter
-og kompileret kode.
+resultat, før § 9 bruger dem. Lageropgørelsen bærer nu identificerede
+afståelsesposter med skattemæssig værdi og afståelsessum; § 5 A-oplysninger
+kræves præcis én gang for hver post med et faktisk afståelsestab og ikke for
+gevinstposter eller LL § 16 B-poster. Tyve fokusscenarier passerer i både
+interpreter og kompileret kode.
 
 § 9's typede årsopgørelse for selskabers skattepligtige porteføljeaktier
 forbruger nu § 5 A-resultatet før stk. 2-7. Den bruger § 23's beregnede
@@ -94,8 +97,10 @@ Stk. 2-tab fradrages direkte, mens stk. 3-4- og stk. 5-6-tab føres i to
 særskilte, årsbundne tabsbeholdninger. Typede principskift åbner de fremførte
 tab for lagergevinster og kræver et sammenhængende år, samme aktiv og en
 faktisk post i årsopgørelsen. § 23, stk. 6-valget kontrolleres på tværs af alle
-kvalificerede poster. De eksisterende atten § 9-scenarier passerer fortsat i
-begge backends. Metadataindekset udstiller § 5 A som en opløst
+kvalificerede poster. Afståelsessummer afledes fra de samme typede
+afståelsesposter, og årsopgørelsen genberegner hver § 9-post fra dens input før
+aggregering. De eksisterende atten § 9-scenarier passerer fortsat i begge
+backends. Metadataindekset udstiller § 5 A som en opløst
 `dependency_source`; kun fortolkningsvalget om rækkefølgen mellem samtidige
 tabsbeholdninger består som advarsel.
 
@@ -201,9 +206,10 @@ stk. 3 opgøres særskilt, og både skatteydergrundlag, udbytteart,
 koncernrelationer og personens kontrol over yder og modtager er lukkede
 domænetyper. Reduktionen kan ikke overstige afståelsestabet. Virkningen fra
 24. november 2010, LOV nr. 254/2011's særregel om tidligere statusskifter og
-§ 22, stk. 6-undtagelsen er udtrykkelige udfald. De 17 fokusscenarier passerer
-i begge backends og beviser også kompositionen før § 9's årsmodregning samt
-afvisning af et resultat med forfalskede beregningsfelter.
+§ 22, stk. 6-undtagelsen er udtrykkelige udfald. De 20 fokusscenarier passerer
+i begge backends og beviser også kompositionen før § 9's årsmodregning,
+fuldstændig kobling mellem lagerafståelser og tabsbehandling samt afvisning af
+både indre og ydre resultater med forfalskede beregningsfelter.
 
 `aktieavancebeskatningsloven-par9.runa` gør stk. 1-7 til en typet
 årsopgørelse med poster, § 23-principresultater og vedvarende tabspositioner.
@@ -219,7 +225,8 @@ når begge
 tabsbeholdninger konkurrerer om samme realisationsgevinst; dette er markeret
 som et fortolkningsvalg, ikke skjult som sikker lovtekst. Hver post validerer
 nu sin typede § 5 A-behandling og anvender det reducerede tab før stk. 2-7;
-årsresultatet bevarer både bruttotabet og reduktionen til auditsporet.
+årsresultatet bevarer både bruttotabet og reduktionen til auditsporet og
+genberegner hver post fra dens input før aggregering.
 
 Det importerede `aktieavancebeskatningsloven-par23-27.runa` vælger mellem
 realisations-, lager- og tilladt anden opgørelsesmåde med lovens egne
@@ -227,7 +234,10 @@ undtagelser. Det håndterer det bindende § 23, stk. 2-valg, tvungne
 lagergrene, stk. 6-valget og stk. 7's selskabsspecifikke syvårsperiode på
 eksakte datoer, inklusive 2015-2024-overgangen og omstrukturering. Den årlige
 lageropgørelse korrigerer for køb, salg og LL § 16 B-beløb og føder det
-eksisterende ABL/Personskattelov-resultat. § 23 A's anskaffelsessumsgulv,
+eksisterende ABL/Personskattelov-resultat. Afståelsessummerne afledes nu af
+identificerede afståelsesposter i stedet for løse årsbeløb; den samme liste kan
+derfor blive en relateret tabel i et genereret regneark og kobles entydigt til
+§ 5 A-tabsbehandlingen. § 23 A's anskaffelsessumsgulv,
 § 24's principskift og næringsaktiernes overgang til anlægsbeholdning,
 MTF-rettigheder erhvervet før 2024, § 26's 0-basis, handelsværdiregel og
 adskilte § 7 N-beholdninger samt § 27's daterede anskaffelsessumtillæg er
@@ -1026,9 +1036,10 @@ Current § 4 and § 13 amendment/dependency sources:
   - `aktieavancebeskatningsloven-par5a.runa` contains the exact current § 5 A
     text, the § 22, stk. 6 exclusion and LOV nr. 254/2011 § 14, stk. 5 and 11.
     Its typed result calculates each reduction component, caps the reduction at
-    the disposal loss and feeds § 9 before annual loss use. Seventeen focused
-    scenarios pass interpreted and compiled execution, including rejection of
-    a caller-constructed result whose calculated fields do not match its input.
+    the disposal loss and feeds § 9 before annual loss use. Twenty focused
+    scenarios pass interpreted and compiled execution, including one-to-one
+    lager-disposal treatment and rejection of caller-constructed inner and
+    outer results whose calculated fields do not match their inputs.
   - Original § 5 A amendment and transition:
     `https://www.retsinformation.dk/eli/lta/2011/254`, § 1, nr. 7, and § 14,
     stk. 5 and 11.
@@ -1496,9 +1507,10 @@ encoded as a temporal rule on top of the consolidation.
   treatment, spouse transfer/carry-forward and the § 14/§ 15 conditions.
 - `aktieavancebeskatningsloven-par5a.runa` and
   `aktieavancebeskatningsloven-par5a.scenario.runa` exist and pass interpreted
-  and compiled execution. Seventeen focused scenarios cover every reduction
+  and compiled execution. Twenty focused scenarios cover every reduction
   component, the loss cap, invalid amounts, the § 22, stk. 6 exclusion, both
-  transition branches, forged-result rejection and composition before § 9.
+  transition branches, complete lager-disposal composition, forged-result
+  rejection and composition before § 9.
 - `aktieavancebeskatningsloven-par6-7.runa` and
   `aktieavancebeskatningsloven-par6-7.scenario.runa` exist and pass interpreted
   and compiled execution. Eleven focused scenarios cover both § 6 liability
@@ -2429,7 +2441,10 @@ Review candidates to revisit deliberately, not as broad churn:
   Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
   schema v3 uses related child worksheets only when the domain input actually
   contains `List`, `Map`, or `Set` fields and expands payload-bearing variants
-  into typed discriminator-controlled columns.
+  into typed discriminator-controlled columns. The current generated citizen
+  workbook has 13 input columns plus `case_id` and no child sheet because its
+  reachable input is still the narrow ordinary `LønmodtagerInput`; this is a
+  measured corpus-boundary gap, not a hand-authored workbook limitation.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX

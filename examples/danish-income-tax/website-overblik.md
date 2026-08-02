@@ -153,7 +153,12 @@ koncernbeløb bevares som særskilte, typede led. Reduktionen kan ikke overstige
 afståelsestabet. § 22, stk. 6-undtagelsen, virkningsgrænsen den 24. november
 2010 og særreglen for tidligere statusskifter er udtrykkelige udfald. § 9
 genberegner resultatet fra dets input og afviser forfalskede resultatfelter.
-Sytten scenarier kører ens i interpreter og kompileret kode.
+Ved lagerbeskatning indtastes årets afståelser som identificerede rækker med
+skattemæssig værdi og afståelsessum. En § 5 A-tabsbehandling skal matche hver
+tabsrække præcis én gang, mens gevinst- og LL § 16 B-rækker ikke kræver den.
+Det giver et naturligt relateret ark i den genererede arbejdsbog og afleder
+årets afståelsessummer fra de samme data. Tyve scenarier kører ens i
+interpreter og kompileret kode.
 
 Aktieavancebeskatningslovens § 9 er tilsvarende en typet årsopgørelse for
 selskabers skattepligtige porteføljeaktier. Den bruger § 23's beregnede
@@ -164,7 +169,9 @@ tværs af år. Et principskift kan kun udvide et fremført tabs anvendelse, når
 år, aktiv og den aktuelle post faktisk hænger sammen. § 23, stk. 6-valget skal
 desuden være ens for alle kvalificerede poster. Atten scenarier kører ens i
 begge backends. Hver post anvender det validerede § 5 A-resultat før stk. 2-7
-og bevarer både bruttotab og tabsreduktion i auditsporet. Metadataindekset viser
+og bevarer både bruttotab og tabsreduktion i auditsporet. Årsopgørelsen
+genberegner desuden hver post fra dens input, før posterne summeres.
+Metadataindekset viser
 fortsat, at rækkefølgen mellem to samtidige tabsbeholdninger er et
 fortolkningsvalg.
 
@@ -205,7 +212,7 @@ Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
 vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
 saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 209 udfald i
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 212 udfald i
 Aktieavancebeskatningsloven § 5 A, §§ 6-7, § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
 §§ 35 G-35 K og §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),

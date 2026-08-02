@@ -291,15 +291,23 @@ skattekontrollovens § 2.
 | aktieavance_par23_stk8_værdiinput_gyldigt(input: AktieavancePar23Stk8Værdiinput) -> match input { | AblPar23Stk8Markedskurs(markedskurs, tilbagekøbsværdi) -> markedskurs >= 0 && tilbagekøbsværdi >= 0 | AblPar23Stk8UdenFastlæggeligMarkedskurs(tilbagekøbsværdi) -> tilbagekøbsværdi >= 0 }
 | aktieavance_par23_stk8_skattemæssig_værdi_kroner(input: AktieavancePar23Stk8Værdiinput) -> hvis aktieavance_par23_stk8_værdiinput_gyldigt(input) { match input { | AblPar23Stk8Markedskurs(markedskurs, tilbagekøbsværdi) -> penge_største_beløb(markedskurs, tilbagekøbsværdi) | AblPar23Stk8UdenFastlæggeligMarkedskurs(tilbagekøbsværdi) -> tilbagekøbsværdi } } ellers { 0 }
 
-# AktieavancePar23LagerÅrsinput(princip_resultat: AktieavancePar23PrincipResultat, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessummer_i_perioden_kroner: Heltal, afståelsessummer_i_perioden_kroner: Heltal, afståelsessummer_omfattet_af_ll16b_stk1_kroner: Heltal, par17_modprøve: AktieavancePar17Modprøve, oplysningsbetingelse_efter_par19d_opfyldt: Boolsk)
-# AktieavancePar23LagerÅrsresultat(input: AktieavancePar23LagerÅrsinput, opgørelse_gyldig: Boolsk, afståelsessummer_der_indgår_kroner: Heltal, nettogevinst_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, tab_afskåret_efter_par19d_kroner: Heltal, tab_afskåret_efter_par20a_stk2_kroner: Heltal, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
+# AktieavancePar23LagerAfståelse(afståelsesidentifikation: Tekst, skattemæssig_værdi_før_afståelse_kroner: Heltal, afståelsessum_kroner: Heltal, omfattet_af_ll16b_stk1: Boolsk)
+# AktieavancePar23LagerÅrsinput(princip_resultat: AktieavancePar23PrincipResultat, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessummer_i_perioden_kroner: Heltal, afståelser_i_perioden: List(AktieavancePar23LagerAfståelse), par17_modprøve: AktieavancePar17Modprøve, oplysningsbetingelse_efter_par19d_opfyldt: Boolsk)
+# AktieavancePar23LagerÅrsresultat(input: AktieavancePar23LagerÅrsinput, opgørelse_gyldig: Boolsk, afståelsessummer_i_perioden_kroner: Heltal, afståelsessummer_omfattet_af_ll16b_stk1_kroner: Heltal, afståelsessummer_der_indgår_kroner: Heltal, nettogevinst_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, tab_afskåret_efter_par19d_kroner: Heltal, tab_afskåret_efter_par20a_stk2_kroner: Heltal, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 
 | aktieavance_par23_effektivt_abl_aktiv(aktiv: AktieavancePar23Aktiv, indkomstår: Heltal) -> aktieavance_par23_aktivklassifikation(aktiv, indkomstår).effektivt_abl_aktiv
 | aktieavance_par23_psl_kategori(skattepligtsresultat: AktieavancePar6Par7Resultat, effektivt_aktiv: AktieavancebeskatningslovAktiv, par17_modprøve: AktieavancePar17Modprøve) -> hvis skattepligtsresultat.omfattet_af_par7 == Falskt { AblIkkeMedregnetISlice } ellers { match effektivt_aktiv { | AblNæringsaktiePar17 -> AblPersonligIndkomstEfterPslUndtagelse | AblMinimumsbevis22 -> hvis aktieavance_par17_modprøve_finder_anvendelse(effektivt_aktiv, par17_modprøve) { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblKapitalindkomstEfterPslPar4Nr5 } | AblInvesteringsselskab19B -> hvis aktieavance_par17_modprøve_finder_anvendelse(effektivt_aktiv, par17_modprøve) { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblAktieindkomstEfterPslPar4a } | AblInvesteringsselskab19C -> hvis aktieavance_par17_modprøve_finder_anvendelse(effektivt_aktiv, par17_modprøve) { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblKapitalindkomstEfterPslPar4Nr5 } | AblMinimumsbevis21 -> hvis aktieavance_par17_modprøve_finder_anvendelse(effektivt_aktiv, par17_modprøve) { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblAktieindkomstEfterPslPar4a } | _ -> AblIkkeMedregnetISlice } }
+| aktieavance_par23_lager_afståelse_gyldig(afståelse: AktieavancePar23LagerAfståelse) -> afståelse.afståelsesidentifikation != "" && afståelse.skattemæssig_værdi_før_afståelse_kroner >= 0 && afståelse.afståelsessum_kroner >= 0
+| aktieavance_par23_lager_afståelse_bruttotab_kroner(afståelse: AktieavancePar23LagerAfståelse) -> hvis aktieavance_par23_lager_afståelse_gyldig(afståelse) { penge_positivt_beløb(afståelse.skattemæssig_værdi_før_afståelse_kroner - afståelse.afståelsessum_kroner) } ellers { 0 }
+| aktieavance_par23_lager_afståelser_gyldige(afståelser: List(AktieavancePar23LagerAfståelse)) -> all(afståelser, aktieavance_par23_lager_afståelse_gyldig) && length(distinct(map(afståelser, |afståelse: AktieavancePar23LagerAfståelse| afståelse.afståelsesidentifikation))) == length(afståelser)
+| aktieavance_par23_lager_afståelsessummer_kroner(afståelser: List(AktieavancePar23LagerAfståelse)) -> foldl(afståelser, 0, |sum: Heltal, afståelse: AktieavancePar23LagerAfståelse| sum + afståelse.afståelsessum_kroner)
+| aktieavance_par23_lager_ll16b_afståelsessummer_kroner(afståelser: List(AktieavancePar23LagerAfståelse)) -> foldl(afståelser, 0, |sum: Heltal, afståelse: AktieavancePar23LagerAfståelse| sum + hvis afståelse.omfattet_af_ll16b_stk1 { afståelse.afståelsessum_kroner } ellers { 0 })
 
 # AktieavancePar23LagerÅrssag(input: AktieavancePar23LagerÅrsinput) {
-    | opgørelse_gyldig() -> aktieavance_par23_princip_resultat_gyldigt(input.princip_resultat) && input.princip_resultat.input_gyldig && input.princip_resultat.princip == AblPar23Lagerprincip && input.princip_resultat.valganmodning_gyldig && input.værdi_primo_kroner >= 0 && input.værdi_ultimo_kroner >= 0 && input.anskaffelsessummer_i_perioden_kroner >= 0 && input.afståelsessummer_i_perioden_kroner >= 0 && input.afståelsessummer_omfattet_af_ll16b_stk1_kroner >= 0 && input.afståelsessummer_omfattet_af_ll16b_stk1_kroner <= input.afståelsessummer_i_perioden_kroner
-    | afståelsessummer_der_indgår_kroner() -> hvis opgørelse_gyldig() { input.afståelsessummer_i_perioden_kroner - input.afståelsessummer_omfattet_af_ll16b_stk1_kroner } ellers { 0 }
+    | opgørelse_gyldig() -> aktieavance_par23_princip_resultat_gyldigt(input.princip_resultat) && input.princip_resultat.input_gyldig && input.princip_resultat.princip == AblPar23Lagerprincip && input.princip_resultat.valganmodning_gyldig && input.værdi_primo_kroner >= 0 && input.værdi_ultimo_kroner >= 0 && input.anskaffelsessummer_i_perioden_kroner >= 0 && aktieavance_par23_lager_afståelser_gyldige(input.afståelser_i_perioden)
+    | afståelsessummer_i_perioden_kroner() -> hvis opgørelse_gyldig() { aktieavance_par23_lager_afståelsessummer_kroner(input.afståelser_i_perioden) } ellers { 0 }
+    | afståelsessummer_omfattet_af_ll16b_stk1_kroner() -> hvis opgørelse_gyldig() { aktieavance_par23_lager_ll16b_afståelsessummer_kroner(input.afståelser_i_perioden) } ellers { 0 }
+    | afståelsessummer_der_indgår_kroner() -> afståelsessummer_i_perioden_kroner() - afståelsessummer_omfattet_af_ll16b_stk1_kroner()
     | nettogevinst_kroner() -> hvis opgørelse_gyldig() { input.værdi_ultimo_kroner + afståelsessummer_der_indgår_kroner() - input.værdi_primo_kroner - input.anskaffelsessummer_i_perioden_kroner } ellers { 0 }
     | bruttogevinst_kroner() -> penge_positivt_beløb(nettogevinst_kroner())
     | bruttotab_kroner() -> penge_positivt_beløb(0 - nettogevinst_kroner())
@@ -326,6 +334,8 @@ skattekontrollovens § 2.
     | resultat() -> AktieavancePar23LagerÅrsresultat(
         input = input,
         opgørelse_gyldig = opgørelse_gyldig(),
+        afståelsessummer_i_perioden_kroner = afståelsessummer_i_perioden_kroner(),
+        afståelsessummer_omfattet_af_ll16b_stk1_kroner = afståelsessummer_omfattet_af_ll16b_stk1_kroner(),
         afståelsessummer_der_indgår_kroner = afståelsessummer_der_indgår_kroner(),
         nettogevinst_kroner = nettogevinst_kroner(),
         bruttogevinst_kroner = bruttogevinst_kroner(),
@@ -364,6 +374,7 @@ skattekontrollovens § 2.
 }
 
 | aktieavance_par23a_resultat(input: AktieavancePar23AInput) -> AktieavancePar23ASag(input).resultat()
+| aktieavance_par23a_resultat_gyldigt(resultat: AktieavancePar23AResultat) -> resultat == aktieavance_par23a_resultat(resultat.input)
 --@end:aktieavancebeskatningsloven_par23_og_par23a--
 
 --@label:aktieavancebeskatningsloven_par24::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::warning:aktieavance_par23_til_par27_afhængighedsgrænse--

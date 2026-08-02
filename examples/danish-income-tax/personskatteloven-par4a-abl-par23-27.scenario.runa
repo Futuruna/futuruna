@@ -157,8 +157,20 @@
     værdi_primo_kroner = 100000,
     værdi_ultimo_kroner = 120000,
     anskaffelsessummer_i_perioden_kroner = 30000,
-    afståelsessummer_i_perioden_kroner = 25000,
-    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 5000,
+    afståelser_i_perioden = [
+        AktieavancePar23LagerAfståelse(
+            afståelsesidentifikation = "ABL-P23-19B-ORDINAER",
+            skattemæssig_værdi_før_afståelse_kroner = 20000,
+            afståelsessum_kroner = 20000,
+            omfattet_af_ll16b_stk1 = Falskt
+        ),
+        AktieavancePar23LagerAfståelse(
+            afståelsesidentifikation = "ABL-P23-19B-LL16B",
+            skattemæssig_værdi_før_afståelse_kroner = 5000,
+            afståelsessum_kroner = 5000,
+            omfattet_af_ll16b_stk1 = Sandt
+        )
+    ],
     par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     oplysningsbetingelse_efter_par19d_opfyldt = Sandt
 ))

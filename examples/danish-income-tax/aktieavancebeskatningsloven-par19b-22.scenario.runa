@@ -348,8 +348,7 @@
     værdi_primo_kroner = 10000,
     værdi_ultimo_kroner = 12000,
     anskaffelsessummer_i_perioden_kroner = 0,
-    afståelsessummer_i_perioden_kroner = 0,
-    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+    afståelser_i_perioden = [],
     par17_modprøve = abl_inv_ingen_par17,
     oplysningsbetingelse_efter_par19d_opfyldt = Sandt
 ))
