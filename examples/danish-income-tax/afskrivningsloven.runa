@@ -211,6 +211,54 @@
     besked = "De kendte mælke-, sukker- og betalingsrettighedsordninger udløb senest 31. december 2022. § 40 C er fortsat gældende og omfatter eventuelle fremtidige betalingsrettigheder efter EU-landbrugsstøtteordningen."
 )
 
+= afskrivningsloven_par42_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083996",
+    identifier = "Den juridiske vejledning, turistværelser på landbrugsejendomme efter AL § 42",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par43_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083997",
+    identifier = "Den juridiske vejledning, tilslutningsafgifter efter AL § 43",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par44_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061440",
+    identifier = "Den juridiske vejledning, straksafskrivning af tilskudsbetalte aktiver efter AL § 44",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par44a_par44b_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083999",
+    identifier = "Den juridiske vejledning, kunstnerisk udsmykning efter AL §§ 44 A-44 B",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par44c_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2060796",
+    identifier = "Den juridiske vejledning, salg af kontrakter og ikke færdiggjorte aktiver efter AL § 44 C",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par45_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976528",
+    identifier = "Den juridiske vejledning, kontantomregning efter AL § 45",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par45_fordeling_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976529",
+    identifier = "Den juridiske vejledning, fordeling af overdragelsessummen efter AL § 45",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par47_par49_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976531",
+    identifier = "Den juridiske vejledning, andre afståelser, erstatninger og familieoverdragelser efter AL §§ 47-49",
+    hentet_dato = "2026-07-18"
+)
+
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -4910,3 +4958,804 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 )
 | afskrivningslov40d_til_par40c_resultat(overførsel: Afskrivningslov40DPar40COverførsel) -> afskrivningslov40c_resultat(afskrivningslov40d_til_par40c_input(overførsel))
 --@end:afskrivningsloven_par40d--
+
+--@label:afskrivningsloven_par41::source:afskrivningsloven_lbk1222--
+----
+§ 41. (Ophævet)
+----
+
+--@begin:afskrivningsloven_par41--
+# Afskrivningslov41Status = Al41Ophævet
+
+| afskrivningslov41_status() -> Al41Ophævet
+--@end:afskrivningsloven_par41--
+
+--@label:afskrivningsloven_par42::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par42_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 42. Udgifter afholdt til ombygning og forbedring i eksisterende bygninger i
+landbrugsejendomme af værelser, der anvendes til udlejning til turister, kan
+afskrives med indtil 20 pct. årligt efter stk. 2-5. Afholdes udgiften af en
+forpagter, kan forpagteren afskrive med indtil 20 pct. årligt efter stk. 2-5.
+
+Stk. 2. Udgør udgiften et grundbeløb på 12.300 kr. (2010-niveau) eller
+derunder, kan den skattepligtige vælge at fradrage (straksafskrive) hele
+udgiften i den skattepligtige indkomst i det indkomstår, hvori udgiften
+afholdes.
+
+Stk. 3. Afskrivning kan kun foretages, såfremt udlejningen er afgiftspligtig
+efter merværdiafgiftsloven.
+
+Stk. 4. Afskrivningerne kan ikke overstige årets skattepligtige indtægter fra
+udlejningen.
+
+Stk. 5. Ved afståelse af værelser som nævnt i stk. 1 medregnes fortjeneste
+eller tab på ombygnings- og forbedringsudgifter ved opgørelsen af den
+skattepligtige indkomst. Fortjenesten eller tabet opgøres som forskellen
+mellem på den ene side afståelsessummen og på den anden side de
+afskrivningsberettigede udgifter til ombygning og forbedring med fradrag af
+samtlige foretagne afskrivninger. Som genvundne afskrivninger medregnes højst
+de foretagne afskrivninger, herunder forlods afskrivninger.
+----
+
+--@begin:afskrivningsloven_par42--
+# AfskrivningslovÅrsafskrivning(indkomstår: Heltal, afskrivning_kroner: Heltal)
+# AfskrivningslovSærligtAfskrivningsvalg = AlSærligIngenAfskrivning | AlSærligOrdinærAfskrivning(valgt_beløb_kroner: Heltal) | AlSærligStraksafskrivning
+# Afskrivningslov42Rettighed = Al42Ejer | Al42Forpagter
+# Afskrivningslov42Position(skatteyder: AfskrivningslovSkatteyder, afholdelsesår: Heltal, rettighed: Afskrivningslov42Rettighed, ombygnings_og_forbedringsudgift_kroner: Heltal, eksisterende_bygning_i_landbrugsejendom: Boolsk, værelser_anvendes_til_turistudlejning: Boolsk, landbrugsejendommen_er_erhvervsmæssigt_drevet: Boolsk, momspligtig_udlejning: Boolsk, tidligere_afskrivninger: List(AfskrivningslovÅrsafskrivning))
+# Afskrivningslov42ÅrsInput(indkomstår: Heltal, position: Afskrivningslov42Position, årets_skattepligtige_udlejningsindtægt_kroner: Heltal, valg: AfskrivningslovSærligtAfskrivningsvalg)
+# Afskrivningslov42ÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, rettighed: Afskrivningslov42Rettighed, position_gyldig: Boolsk, omfattet_af_par42: Boolsk, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, reguleret_straksafskrivningsgrænse_kroner: Heltal, højeste_ordinære_afskrivning_før_indtægtsloft_kroner: Heltal, årets_skattepligtige_udlejningsindtægt_kroner: Heltal, højeste_afskrivning_efter_indtægtsloft_kroner: Heltal, valg: AfskrivningslovSærligtAfskrivningsvalg, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, position_efter: Afskrivningslov42Position)
+# Afskrivningslov42AfståelsesInput(indkomstår: Heltal, position: Afskrivningslov42Position, afståelsessum_henført_til_ombygning_og_forbedring_kroner: Heltal, forlods_afskrivninger_kroner: Heltal)
+# Afskrivningslov42AfståelsesResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, omfattet_af_par42_stk5: Boolsk, afståelsessum_kroner: Heltal, samtlige_ordinære_afskrivninger_kroner: Heltal, forlods_afskrivninger_kroner: Heltal, samtlige_foretagne_afskrivninger_kroner: Heltal, nedskrevet_udgift_kroner: Heltal, beregnet_fortjeneste_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, fortjeneste_ud_over_genvundne_afskrivninger_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+| afskrivningslov_årsafskrivning_gyldig(post: AfskrivningslovÅrsafskrivning, første_indkomstår: Heltal, før_indkomstår: Heltal) -> post.indkomstår >= første_indkomstår && post.indkomstår < før_indkomstår && post.afskrivning_kroner > 0
+| afskrivningslov_årsafskrivning_unik(historik: List(AfskrivningslovÅrsafskrivning), post: AfskrivningslovÅrsafskrivning) -> foldl(historik, 0, |antal, anden_post| antal + hvis anden_post.indkomstår == post.indkomstår { 1 } ellers { 0 }) == 1
+| afskrivningslov_årsafskrivninger_gyldige(historik: List(AfskrivningslovÅrsafskrivning), første_indkomstår: Heltal, før_indkomstår: Heltal) -> all(historik, |post: AfskrivningslovÅrsafskrivning| afskrivningslov_årsafskrivning_gyldig(post, første_indkomstår, før_indkomstår) && afskrivningslov_årsafskrivning_unik(historik, post))
+| afskrivningslov_samlede_årsafskrivninger_kroner(historik: List(AfskrivningslovÅrsafskrivning)) -> foldl(historik, 0, |sum, post: AfskrivningslovÅrsafskrivning| sum + penge_positivt_beløb(post.afskrivning_kroner))
+| afskrivningslov_reguleret_12300_grænse_kroner(indkomstår: Heltal) -> hvis indkomstår >= 2009 && indkomstår <= 2026 { par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(grundbeløb_2010_niveau_kroner = 12300, reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår))) } ellers { 0 }
+| afskrivningslov_særligt_valgt_beløb_kroner(valg: AfskrivningslovSærligtAfskrivningsvalg, fuldt_beløb_kroner: Heltal) -> match valg {
+    | AlSærligIngenAfskrivning -> 0
+    | AlSærligOrdinærAfskrivning(valgt_beløb_kroner) -> penge_positivt_beløb(valgt_beløb_kroner)
+    | AlSærligStraksafskrivning -> penge_positivt_beløb(fuldt_beløb_kroner)
+}
+
+# Afskrivningslov42ÅrsSag(input: Afskrivningslov42ÅrsInput) {
+    | position() -> input.position
+    | udgift_kroner() -> penge_positivt_beløb(position().ombygnings_og_forbedringsudgift_kroner)
+    | tidligere_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | historik_gyldig() -> afskrivningslov_årsafskrivninger_gyldige(position().tidligere_afskrivninger, position().afholdelsesår, input.indkomstår) && tidligere_afskrivninger_kroner() <= udgift_kroner()
+    | position_gyldig() -> input.indkomstår >= position().afholdelsesår && position().afholdelsesår > 0 && position().ombygnings_og_forbedringsudgift_kroner > 0 && historik_gyldig()
+    | omfattet_af_par42() -> position_gyldig() && position().eksisterende_bygning_i_landbrugsejendom && position().værelser_anvendes_til_turistudlejning && position().landbrugsejendommen_er_erhvervsmæssigt_drevet && position().momspligtig_udlejning
+    | resterende_afskrivningsgrundlag_kroner() -> hvis position_gyldig() { penge_positivt_beløb(udgift_kroner() - tidligere_afskrivninger_kroner()) } ellers { 0 }
+    | straksafskrivningsgrænse_kroner() -> afskrivningslov_reguleret_12300_grænse_kroner(input.indkomstår)
+    | højeste_ordinære_før_indtægtsloft_kroner() -> penge_mindste_beløb(resterende_afskrivningsgrundlag_kroner(), penge_beløb_gange_basispoint_kroner(udgift_kroner(), 2000))
+    | udlejningsindtægt_kroner() -> penge_positivt_beløb(input.årets_skattepligtige_udlejningsindtægt_kroner)
+    | højeste_efter_indtægtsloft_kroner() -> penge_mindste_beløb(højeste_ordinære_før_indtægtsloft_kroner(), udlejningsindtægt_kroner())
+    | valgt_beløb_kroner() -> afskrivningslov_særligt_valgt_beløb_kroner(input.valg, resterende_afskrivningsgrundlag_kroner())
+    | valg_gyldigt() -> match input.valg {
+        | AlSærligIngenAfskrivning -> omfattet_af_par42()
+        | AlSærligOrdinærAfskrivning(valgt_beløb_kroner) -> omfattet_af_par42() && valgt_beløb_kroner >= 0 && valgt_beløb_kroner <= højeste_efter_indtægtsloft_kroner()
+        | AlSærligStraksafskrivning -> omfattet_af_par42() && input.indkomstår == position().afholdelsesår && udgift_kroner() <= straksafskrivningsgrænse_kroner() && resterende_afskrivningsgrundlag_kroner() == udgift_kroner() && udgift_kroner() <= udlejningsindtægt_kroner()
+    }
+    | afskrivning_kroner() -> hvis valg_gyldigt() { valgt_beløb_kroner() } ellers { 0 }
+    | position_efter() -> hvis afskrivning_kroner() > 0 { Afskrivningslov42Position(skatteyder = position().skatteyder, afholdelsesår = position().afholdelsesår, rettighed = position().rettighed, ombygnings_og_forbedringsudgift_kroner = position().ombygnings_og_forbedringsudgift_kroner, eksisterende_bygning_i_landbrugsejendom = position().eksisterende_bygning_i_landbrugsejendom, værelser_anvendes_til_turistudlejning = position().værelser_anvendes_til_turistudlejning, landbrugsejendommen_er_erhvervsmæssigt_drevet = position().landbrugsejendommen_er_erhvervsmæssigt_drevet, momspligtig_udlejning = position().momspligtig_udlejning, tidligere_afskrivninger = concat(position().tidligere_afskrivninger, [AfskrivningslovÅrsafskrivning(indkomstår = input.indkomstår, afskrivning_kroner = afskrivning_kroner())])) } ellers { position() }
+    | resultat() -> Afskrivningslov42ÅrsResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, rettighed = position().rettighed, position_gyldig = position_gyldig(), omfattet_af_par42 = omfattet_af_par42(), resterende_afskrivningsgrundlag_før_året_kroner = resterende_afskrivningsgrundlag_kroner(), reguleret_straksafskrivningsgrænse_kroner = straksafskrivningsgrænse_kroner(), højeste_ordinære_afskrivning_før_indtægtsloft_kroner = højeste_ordinære_før_indtægtsloft_kroner(), årets_skattepligtige_udlejningsindtægt_kroner = udlejningsindtægt_kroner(), højeste_afskrivning_efter_indtægtsloft_kroner = højeste_efter_indtægtsloft_kroner(), valg = input.valg, valg_gyldigt = valg_gyldigt(), afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(), position_efter = position_efter())
+}
+| afskrivningslov42_års_sag(input: Afskrivningslov42ÅrsInput) -> Afskrivningslov42ÅrsSag(input)
+| afskrivningslov42_års_resultat(input: Afskrivningslov42ÅrsInput) -> afskrivningslov42_års_sag(input).resultat()
+
+# Afskrivningslov42AfståelsesSag(input: Afskrivningslov42AfståelsesInput) {
+    | position() -> input.position
+    | udgift_kroner() -> penge_positivt_beløb(position().ombygnings_og_forbedringsudgift_kroner)
+    | ordinære_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | forlods_afskrivninger_kroner() -> penge_positivt_beløb(input.forlods_afskrivninger_kroner)
+    | samtlige_afskrivninger_kroner() -> ordinære_afskrivninger_kroner() + forlods_afskrivninger_kroner()
+    | position_gyldig() -> input.indkomstår >= position().afholdelsesår && position().afholdelsesår > 0 && position().ombygnings_og_forbedringsudgift_kroner > 0 && afskrivningslov_årsafskrivninger_gyldige(position().tidligere_afskrivninger, position().afholdelsesår, input.indkomstår) && samtlige_afskrivninger_kroner() <= udgift_kroner()
+    | omfattet_af_par42_stk5() -> position_gyldig() && position().eksisterende_bygning_i_landbrugsejendom && position().værelser_anvendes_til_turistudlejning && position().landbrugsejendommen_er_erhvervsmæssigt_drevet
+    | afståelsessum_kroner() -> penge_positivt_beløb(input.afståelsessum_henført_til_ombygning_og_forbedring_kroner)
+    | nedskrevet_udgift_kroner() -> hvis position_gyldig() { penge_positivt_beløb(udgift_kroner() - samtlige_afskrivninger_kroner()) } ellers { 0 }
+    | beregnet_fortjeneste_kroner() -> hvis omfattet_af_par42_stk5() { penge_positivt_beløb(afståelsessum_kroner() - nedskrevet_udgift_kroner()) } ellers { 0 }
+    | genvundne_afskrivninger_kroner() -> penge_mindste_beløb(beregnet_fortjeneste_kroner(), samtlige_afskrivninger_kroner())
+    | fortjeneste_ud_over_genvundne_kroner() -> penge_positivt_beløb(beregnet_fortjeneste_kroner() - genvundne_afskrivninger_kroner())
+    | tab_kroner() -> hvis omfattet_af_par42_stk5() { penge_positivt_beløb(nedskrevet_udgift_kroner() - afståelsessum_kroner()) } ellers { 0 }
+    | resultat() -> Afskrivningslov42AfståelsesResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, position_gyldig = position_gyldig(), omfattet_af_par42_stk5 = omfattet_af_par42_stk5(), afståelsessum_kroner = afståelsessum_kroner(), samtlige_ordinære_afskrivninger_kroner = ordinære_afskrivninger_kroner(), forlods_afskrivninger_kroner = forlods_afskrivninger_kroner(), samtlige_foretagne_afskrivninger_kroner = samtlige_afskrivninger_kroner(), nedskrevet_udgift_kroner = nedskrevet_udgift_kroner(), beregnet_fortjeneste_kroner = beregnet_fortjeneste_kroner(), skattepligtige_genvundne_afskrivninger_kroner = genvundne_afskrivninger_kroner(), fortjeneste_ud_over_genvundne_afskrivninger_kroner = fortjeneste_ud_over_genvundne_kroner(), fradragsberettiget_tab_kroner = tab_kroner())
+}
+| afskrivningslov42_afståelses_sag(input: Afskrivningslov42AfståelsesInput) -> Afskrivningslov42AfståelsesSag(input)
+| afskrivningslov42_afståelses_resultat(input: Afskrivningslov42AfståelsesInput) -> afskrivningslov42_afståelses_sag(input).resultat()
+--@end:afskrivningsloven_par42--
+
+--@label:afskrivningsloven_par43::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par43_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 43. Afgifter, der afholdes i anledning af en virksomheds tilslutning til
+offentligt eller privat ejede anlæg, som har erhvervsmæssig betydning for
+virksomheden, herunder anlæg, der tjener til forebyggelse eller bekæmpelse af
+forurening eller støjulemper, afskrives med indtil 20 pct. årligt.
+
+Stk. 2. Udgør tilslutningsafgiften et grundbeløb på 12.300 kr. (2010-niveau)
+eller derunder, kan den skattepligtige vælge at fradrage (straksafskrive) hele
+afgiften i den skattepligtige indkomst i det indkomstår, hvori afgiften
+afholdes.
+
+Stk. 3. Tilslutningsafgiften anses for afholdt efter stk. 1 og 2, når den er
+forfalden til betaling.
+
+Stk. 4. I tilfælde af, at det aktiv, som er blevet tilsluttet anlægget, sælges,
+inden afgiften er afskrevet fuldt ud, kan den skattepligtige fradrage
+restbeløbet i den skattepligtige indkomst i det indkomstår, hvori salget sker.
+
+Stk. 5. Afgifter, der er afskrevet efter stk. 1 eller 2, medregnes ikke til
+anskaffelsessummen ved opgørelsen af skattepligtig fortjeneste eller tab ved et
+salg, der omfatter tilslutningen til anlægget.
+
+Stk. 6. Anses en del af en afståelsessum som betaling for værdien af
+tilslutning som nævnt i stk. 1 skal denne del medregnes til afståelsessummen for
+det aktiv, der er blevet tilsluttet anlægget, ved opgørelsen af den
+skattepligtige indkomst for det indkomstår, hvori salget finder sted.
+----
+
+--@begin:afskrivningsloven_par43--
+# Afskrivningslov43Position(skatteyder: AfskrivningslovSkatteyder, forfaldsår: Heltal, tilslutningsafgift_kroner: Heltal, engangsudgift: Boolsk, fysisk_tilslutning: Boolsk, offentligt_anlæg_eller_privatanlæg_ejet_af_andre: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, tidligere_afskrivninger: List(AfskrivningslovÅrsafskrivning))
+# Afskrivningslov43ÅrsInput(indkomstår: Heltal, position: Afskrivningslov43Position, valg: AfskrivningslovSærligtAfskrivningsvalg)
+# Afskrivningslov43ÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, omfattet_af_par43: Boolsk, erhvervsmæssigt_afskrivningsgrundlag_kroner: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, reguleret_straksafskrivningsgrænse_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, valg: AfskrivningslovSærligtAfskrivningsvalg, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, position_efter: Afskrivningslov43Position)
+# Afskrivningslov43SalgInput(indkomstår: Heltal, position: Afskrivningslov43Position, tilsluttet_aktiv_solgt: Boolsk, samlet_afståelsessum_for_aktivet_før_tilslutningsværdi_kroner: Heltal, del_af_afståelsessum_henført_til_tilslutningsværdi_kroner: Heltal)
+# Afskrivningslov43SalgResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, tilsluttet_aktiv_solgt: Boolsk, resterende_afskrivningsgrundlag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, afskrevne_tilslutningsafgifter_udelades_fra_aktivets_anskaffelsessum: Boolsk, del_henført_til_tilslutningsværdi_kroner: Heltal, samlet_afståelsessum_for_tilsluttet_aktiv_kroner: Heltal, særskilt_genvundne_afskrivninger_eller_tab_kroner: Heltal)
+
+| afskrivningslov43_erhvervsmæssigt_grundlag_kroner(position: Afskrivningslov43Position) -> penge_beløb_gange_basispoint_afrundet_kroner(penge_positivt_beløb(position.tilslutningsafgift_kroner), position.erhvervsmæssig_anvendelsesandel_basispoint)
+| afskrivningslov43_position_gyldig(position: Afskrivningslov43Position, før_indkomstår: Heltal) -> position.forfaldsår > 0 && position.forfaldsår <= før_indkomstår && position.tilslutningsafgift_kroner > 0 && position.erhvervsmæssig_anvendelsesandel_basispoint > 0 && position.erhvervsmæssig_anvendelsesandel_basispoint <= 10000 && afskrivningslov_årsafskrivninger_gyldige(position.tidligere_afskrivninger, position.forfaldsår, før_indkomstår) && afskrivningslov_samlede_årsafskrivninger_kroner(position.tidligere_afskrivninger) <= afskrivningslov43_erhvervsmæssigt_grundlag_kroner(position)
+| afskrivningslov43_omfattet(position: Afskrivningslov43Position, før_indkomstår: Heltal) -> afskrivningslov43_position_gyldig(position, før_indkomstår) && position.engangsudgift && position.fysisk_tilslutning && position.offentligt_anlæg_eller_privatanlæg_ejet_af_andre
+
+# Afskrivningslov43ÅrsSag(input: Afskrivningslov43ÅrsInput) {
+    | position() -> input.position
+    | position_gyldig() -> afskrivningslov43_position_gyldig(position(), input.indkomstår)
+    | omfattet_af_par43() -> afskrivningslov43_omfattet(position(), input.indkomstår)
+    | grundlag_kroner() -> afskrivningslov43_erhvervsmæssigt_grundlag_kroner(position())
+    | tidligere_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | resterende_kroner() -> hvis position_gyldig() { penge_positivt_beløb(grundlag_kroner() - tidligere_afskrivninger_kroner()) } ellers { 0 }
+    | straksafskrivningsgrænse_kroner() -> afskrivningslov_reguleret_12300_grænse_kroner(input.indkomstår)
+    | højeste_ordinære_kroner() -> penge_mindste_beløb(resterende_kroner(), penge_beløb_gange_basispoint_kroner(grundlag_kroner(), 2000))
+    | valgt_beløb_kroner() -> afskrivningslov_særligt_valgt_beløb_kroner(input.valg, resterende_kroner())
+    | valg_gyldigt() -> match input.valg {
+        | AlSærligIngenAfskrivning -> omfattet_af_par43()
+        | AlSærligOrdinærAfskrivning(valgt_beløb_kroner) -> omfattet_af_par43() && valgt_beløb_kroner >= 0 && valgt_beløb_kroner <= højeste_ordinære_kroner()
+        | AlSærligStraksafskrivning -> omfattet_af_par43() && input.indkomstår == position().forfaldsår && grundlag_kroner() <= straksafskrivningsgrænse_kroner() && resterende_kroner() == grundlag_kroner()
+    }
+    | afskrivning_kroner() -> hvis valg_gyldigt() { valgt_beløb_kroner() } ellers { 0 }
+    | position_efter() -> hvis afskrivning_kroner() > 0 { Afskrivningslov43Position(skatteyder = position().skatteyder, forfaldsår = position().forfaldsår, tilslutningsafgift_kroner = position().tilslutningsafgift_kroner, engangsudgift = position().engangsudgift, fysisk_tilslutning = position().fysisk_tilslutning, offentligt_anlæg_eller_privatanlæg_ejet_af_andre = position().offentligt_anlæg_eller_privatanlæg_ejet_af_andre, erhvervsmæssig_anvendelsesandel_basispoint = position().erhvervsmæssig_anvendelsesandel_basispoint, tidligere_afskrivninger = concat(position().tidligere_afskrivninger, [AfskrivningslovÅrsafskrivning(indkomstår = input.indkomstår, afskrivning_kroner = afskrivning_kroner())])) } ellers { position() }
+    | resultat() -> Afskrivningslov43ÅrsResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, position_gyldig = position_gyldig(), omfattet_af_par43 = omfattet_af_par43(), erhvervsmæssigt_afskrivningsgrundlag_kroner = grundlag_kroner(), resterende_afskrivningsgrundlag_før_året_kroner = resterende_kroner(), reguleret_straksafskrivningsgrænse_kroner = straksafskrivningsgrænse_kroner(), højeste_ordinære_afskrivning_kroner = højeste_ordinære_kroner(), valg = input.valg, valg_gyldigt = valg_gyldigt(), afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(), position_efter = position_efter())
+}
+| afskrivningslov43_års_sag(input: Afskrivningslov43ÅrsInput) -> Afskrivningslov43ÅrsSag(input)
+| afskrivningslov43_års_resultat(input: Afskrivningslov43ÅrsInput) -> afskrivningslov43_års_sag(input).resultat()
+
+# Afskrivningslov43SalgSag(input: Afskrivningslov43SalgInput) {
+    | position() -> input.position
+    | position_gyldig() -> afskrivningslov43_position_gyldig(position(), input.indkomstår)
+    | omfattet_af_par43() -> afskrivningslov43_omfattet(position(), input.indkomstår)
+    | grundlag_kroner() -> afskrivningslov43_erhvervsmæssigt_grundlag_kroner(position())
+    | tidligere_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | resterende_kroner() -> hvis position_gyldig() { penge_positivt_beløb(grundlag_kroner() - tidligere_afskrivninger_kroner()) } ellers { 0 }
+    | salg_omfattet() -> omfattet_af_par43() && input.tilsluttet_aktiv_solgt
+    | fradrag_kroner() -> hvis salg_omfattet() { resterende_kroner() } ellers { 0 }
+    | tilslutningsværdi_kroner() -> penge_positivt_beløb(input.del_af_afståelsessum_henført_til_tilslutningsværdi_kroner)
+    | samlet_afståelsessum_kroner() -> hvis salg_omfattet() { penge_positivt_beløb(input.samlet_afståelsessum_for_aktivet_før_tilslutningsværdi_kroner) + tilslutningsværdi_kroner() } ellers { 0 }
+    | resultat() -> Afskrivningslov43SalgResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, position_gyldig = position_gyldig(), tilsluttet_aktiv_solgt = salg_omfattet(), resterende_afskrivningsgrundlag_kroner = resterende_kroner(), fradrag_i_skattepligtig_indkomst_kroner = fradrag_kroner(), afskrevne_tilslutningsafgifter_udelades_fra_aktivets_anskaffelsessum = salg_omfattet() && tidligere_afskrivninger_kroner() > 0, del_henført_til_tilslutningsværdi_kroner = tilslutningsværdi_kroner(), samlet_afståelsessum_for_tilsluttet_aktiv_kroner = samlet_afståelsessum_kroner(), særskilt_genvundne_afskrivninger_eller_tab_kroner = 0)
+}
+| afskrivningslov43_salg_sag(input: Afskrivningslov43SalgInput) -> Afskrivningslov43SalgSag(input)
+| afskrivningslov43_salg_resultat(input: Afskrivningslov43SalgInput) -> afskrivningslov43_salg_sag(input).resultat()
+--@end:afskrivningsloven_par43--
+
+--@label:afskrivningsloven_par44::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44_juridisk_vejledning--
+----
+§ 44. Reglerne i denne bestemmelse gælder for anskaffelse af
+afskrivningsberettigede aktiver, når udgiften helt eller delvis er betalt ved et
+eller flere af følgende tilskud m.v.:
+
+1) Projekt- og saneringsstøtte, der er ydet af Medienævnet til trykte
+nyhedsmedier og til skrevne internetbaserede nyhedsmedier.
+
+2) Tilskud, der er ydet efter lov om Hav- og Fiskerifonden. Det gælder dog ikke
+tilskud, der er ydet efter lovens bestemmelser om støtte til fiskerfartøjers
+endelige ophør i dansk erhvervsfiskeri.
+
+3) Tilskud, der er ydet efter fiskeriudviklingsloven. Det gælder dog ikke
+tilskud, der er ydet efter lovens bestemmelser om støtte til fiskerfartøjers
+endelige ophør i dansk erhvervsfiskeri.
+
+4) Tilskud fra EU's strukturfonde under målet om regional konkurrenceevne og
+beskæftigelse og under målet om europæisk territorialt samarbejde samt
+tilhørende national medfinansiering.
+
+5) Tilskud, der er ydet efter lov om Landdistriktsfonden.
+
+6) Tilskud, der er ydet efter landdistriktsloven.
+
+7) Tilskud, der er ydet til forbedring af forarbejdningen og afsætningen af
+jordbrugs- og skovbrugsprodukter (strukturprojekter) efter lov om visse
+landdistriktsrelaterede tilskudsordninger m.v.
+
+8) Tilskud, der er ydet til fremme af tilpasningen og udviklingen af
+landdistrikterne (artikel 33-ordningen) efter lov om visse
+landdistriktsrelaterede tilskudsordninger m.v.
+
+Stk. 2. Udgifter til anskaffelse af afskrivningsberettigede aktiver kan uanset
+reglerne i denne lov straksafskrives i den skattepligtige indkomst for
+anskaffelsesåret, i det omfang udgiften er betalt ved tilskud som nævnt i stk.
+1.
+
+Stk. 3. De straksafskrivninger, der er foretaget efter stk. 2, behandles som
+afskrivninger.
+
+Stk. 4. Når der er foretaget straksafskrivning på anskaffelsessummen for et
+aktiv efter stk. 2, kan afskrivning på dette aktiv kun foretages på
+anskaffelsessummen med fradrag af det straksafskrevne beløb.
+----
+
+--@begin:afskrivningsloven_par44--
+# Afskrivningslov44Tilskudskategori = Al44MedienævnetProjektEllerSanering | Al44HavOgFiskerifonden | Al44HavOgFiskerifondenEndeligtFartøjsophør | Al44Fiskeriudviklingsloven | Al44FiskeriudviklingslovenEndeligtFartøjsophør | Al44EuStrukturfondeOgNationalMedfinansiering | Al44Landdistriktsfonden | Al44Landdistriktsloven | Al44JordbrugsOgSkovbrugsStrukturprojekt | Al44Artikel33Landdistriktsordning | Al44AndetTilskud
+# Afskrivningslov44Tilskudsbetaling(kategori: Afskrivningslov44Tilskudskategori, betalt_til_anskaffelsesudgiften_kroner: Heltal)
+# Afskrivningslov44Input(indkomstår: Heltal, anskaffelsesår: Heltal, skatteyder: AfskrivningslovSkatteyder, afskrivningsberettiget_aktiv: Boolsk, anskaffelsesudgift_kroner: Heltal, tilskudsbetalinger: List(Afskrivningslov44Tilskudsbetaling), valgt_straksafskrivning_kroner: Heltal)
+# Afskrivningslov44Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, afskrivningsberettiget_aktiv: Boolsk, kvalificerende_tilskudsbetalinger_kroner: Heltal, højeste_straksafskrivning_kroner: Heltal, valgt_straksafskrivning_kroner: Heltal, valg_gyldigt: Boolsk, straksafskrivning_i_skattepligtig_indkomst_kroner: Heltal, straksafskrivning_behandles_som_afskrivning_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal)
+
+| afskrivningslov44_tilskud_omfattet(kategori: Afskrivningslov44Tilskudskategori) -> match kategori {
+    | Al44MedienævnetProjektEllerSanering -> Sandt
+    | Al44HavOgFiskerifonden -> Sandt
+    | Al44HavOgFiskerifondenEndeligtFartøjsophør -> Falskt
+    | Al44Fiskeriudviklingsloven -> Sandt
+    | Al44FiskeriudviklingslovenEndeligtFartøjsophør -> Falskt
+    | Al44EuStrukturfondeOgNationalMedfinansiering -> Sandt
+    | Al44Landdistriktsfonden -> Sandt
+    | Al44Landdistriktsloven -> Sandt
+    | Al44JordbrugsOgSkovbrugsStrukturprojekt -> Sandt
+    | Al44Artikel33Landdistriktsordning -> Sandt
+    | Al44AndetTilskud -> Falskt
+}
+| afskrivningslov44_tilskudsbetaling_gyldig(betaling: Afskrivningslov44Tilskudsbetaling) -> betaling.betalt_til_anskaffelsesudgiften_kroner >= 0
+| afskrivningslov44_kvalificerende_tilskud_kroner(betalinger: List(Afskrivningslov44Tilskudsbetaling)) -> foldl(betalinger, 0, |sum, betaling: Afskrivningslov44Tilskudsbetaling| sum + hvis afskrivningslov44_tilskud_omfattet(betaling.kategori) { penge_positivt_beløb(betaling.betalt_til_anskaffelsesudgiften_kroner) } ellers { 0 })
+
+# Afskrivningslov44Sag(input: Afskrivningslov44Input) {
+    | anskaffelsesudgift_kroner() -> penge_positivt_beløb(input.anskaffelsesudgift_kroner)
+    | tilskudsbetalinger_gyldige() -> all(input.tilskudsbetalinger, |betaling: Afskrivningslov44Tilskudsbetaling| afskrivningslov44_tilskudsbetaling_gyldig(betaling))
+    | kvalificerende_tilskud_kroner() -> afskrivningslov44_kvalificerende_tilskud_kroner(input.tilskudsbetalinger)
+    | input_gyldigt() -> input.indkomstår == input.anskaffelsesår && input.anskaffelsesår > 0 && input.anskaffelsesudgift_kroner > 0 && tilskudsbetalinger_gyldige()
+    | højeste_straksafskrivning_kroner() -> hvis input_gyldigt() && input.afskrivningsberettiget_aktiv { penge_mindste_beløb(anskaffelsesudgift_kroner(), kvalificerende_tilskud_kroner()) } ellers { 0 }
+    | valg_gyldigt() -> input_gyldigt() && input.afskrivningsberettiget_aktiv && input.valgt_straksafskrivning_kroner >= 0 && input.valgt_straksafskrivning_kroner <= højeste_straksafskrivning_kroner()
+    | straksafskrivning_kroner() -> hvis valg_gyldigt() { input.valgt_straksafskrivning_kroner } ellers { 0 }
+    | resterende_afskrivningsgrundlag_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(anskaffelsesudgift_kroner() - straksafskrivning_kroner()) } ellers { 0 }
+    | resultat() -> Afskrivningslov44Resultat(indkomstår = input.indkomstår, skatteyder = input.skatteyder, input_gyldigt = input_gyldigt(), afskrivningsberettiget_aktiv = input.afskrivningsberettiget_aktiv, kvalificerende_tilskudsbetalinger_kroner = kvalificerende_tilskud_kroner(), højeste_straksafskrivning_kroner = højeste_straksafskrivning_kroner(), valgt_straksafskrivning_kroner = input.valgt_straksafskrivning_kroner, valg_gyldigt = valg_gyldigt(), straksafskrivning_i_skattepligtig_indkomst_kroner = straksafskrivning_kroner(), straksafskrivning_behandles_som_afskrivning_kroner = straksafskrivning_kroner(), resterende_afskrivningsgrundlag_kroner = resterende_afskrivningsgrundlag_kroner())
+}
+| afskrivningslov44_sag(input: Afskrivningslov44Input) -> Afskrivningslov44Sag(input)
+| afskrivningslov44_resultat(input: Afskrivningslov44Input) -> afskrivningslov44_sag(input).resultat()
+--@end:afskrivningsloven_par44--
+
+--@label:afskrivningsloven_par44a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44a_par44b_juridisk_vejledning--
+----
+§ 44 A. Udgifter afholdt til kunstnerisk udsmykning af erhvervsmæssigt
+benyttede bygninger, bortset fra en- eller tofamiliehuse og bortset fra den del
+af en bygning, der anvendes til beboelse, jf. § 14, stk. 2, nr. 4, kan fra og
+med anskaffelsesåret afskrives med indtil 3 pct. årligt af anskaffelsessummen
+for den kunstneriske udsmykning. Hvis den kunstneriske udsmykning er anskaffet
+før den 1. januar 2023, kan afskrivning efter 1. pkt. dog ske med indtil 4 pct.
+årligt af anskaffelsessummen. Det er en betingelse for afskrivningsretten, at
+den kunstneriske udsmykning indføjes i bygningen eller dens nære omgivelser.
+Afskrivningsretten kan ikke udnyttes af skattepligtige, der på købstidspunktet
+er nærtstående til kunstneren, eller af selskaber, som kunstneren selv eller
+kunstnerens nærtstående udøver en bestemmende indflydelse over, jf.
+ligningslovens § 2, stk. 2. Som nærtstående anses ægtefælle, forældre og
+bedsteforældre samt børn og børnebørn og disses ægtefæller eller dødsboer efter
+disse personer. Stedbarns- og adoptivforhold sidestilles med naturligt
+slægtskabsforhold.
+
+Stk. 2. Udgifter til kunstnerisk udsmykning, der kan afskrives efter andre
+bestemmelser i denne lov, kan ikke afskrives efter stk. 1.
+
+Stk. 3. Afskrivning efter stk. 1 kan alene ske for førstegangskøb af original
+billedkunst. I tilfælde af tvivl om, hvorvidt den kunstneriske udsmykning kan
+kvalificeres som kunst, indhenter told- og skatteforvaltningen en vurdering af
+den kunstneriske udsmykning fra Akademiraadet.
+
+Stk. 4. Udgifterne til kunstnerisk udsmykning afskrives særskilt for den enkelte
+kunstneriske udsmykning.
+
+Stk. 5. Såfremt den kunstneriske udsmykning fjernes fra den bygning, den er
+indføjet i eller knytter sig til efter stk. 1, 3. pkt., sidestilles dette med
+salg efter stk. 9.
+
+Stk. 6. Afskrivninger kan ikke foretages i det indkomstår, hvor den
+kunstneriske udsmykning sælges, nedrives eller bortskaffes på anden vis. Ophører
+bygningen, den kunstneriske udsmykning er indføjet i eller knytter sig til efter
+stk. 1, 3. pkt., med udelukkende at være anvendt erhvervsmæssigt, bortfalder
+afskrivningsretten, fra og med det indkomstår, hvor den rent erhvervsmæssige
+benyttelse ophører.
+
+Stk. 7. Hvis der sker en skade på den kunstneriske udsmykning, der ikke kan
+udbedres ved normal vedligeholdelse, reguleres afskrivningen af den kunstneriske
+udsmykning efter reglerne i § 23.
+
+Stk. 8. Såfremt den skattepligtige ved en skade på den kunstneriske udsmykning
+har modtaget en erstatnings- eller forsikringssum og foretager genopførelse af
+den kunstneriske udsmykning anvendes reglerne i § 24, stk. 1-5.
+
+Stk. 9. Fortjeneste eller tab ved salg af den kunstneriske udsmykning medregnes
+i den skattepligtige indkomst for salgsåret efter reglerne i § 21, stk. 2, 1.
+og 2. pkt., og stk. 3 og 5. Nedrivning af bygningen, hvor den kunstneriske
+udsmykning indgår, og ophør med udelukkende erhvervsmæssig anvendelse af
+bygningen samt andre former for ophør af den kunstneriske udsmykning
+sidestilles med salg efter 1. pkt.
+
+Stk. 10. Ved køb af en kunstnerisk udsmykning, der kan afskrives efter stk. 1,
+kan køber afskrive på anskaffelsessummen for den kunstneriske udsmykning efter
+denne bestemmelse, såfremt den kunstneriske udsmykning købes sammen med den
+bygning, den kunstneriske udsmykning er indføjet i eller knytter sig til efter
+stk. 1, 3. pkt.
+----
+
+--@begin:afskrivningsloven_par44a--
+# Afskrivningslov44ABygningsdel = Al44AErhvervsbygning | Al44AEnEllerTofamiliehus | Al44ABeboelsesdel
+# Afskrivningslov44APlacering = Al44AIndføjetIBygningen | Al44AIndføjetINæreOmgivelser | Al44AIkkeIndføjet
+# Afskrivningslov44AAnskaffelsesmåde = Al44AFørstegangskøbAfOriginalBilledkunst | Al44AKøbtSammenMedBygningen | Al44AAndetKøb
+# Afskrivningslov44AKunststatus = Al44AKunstKvalificeret | Al44AKunstGodkendtAfAkademiraadet | Al44AKunstAfvistAfAkademiraadet | Al44AKunstUafklaret
+# Afskrivningslov44APosition(skatteyder: AfskrivningslovSkatteyder, identifikation: Tekst, anskaffelsesår: Heltal, anskaffelsessum_kroner: Heltal, afskrivningsgrundlag_kroner: Heltal, bygningsdel: Afskrivningslov44ABygningsdel, placering: Afskrivningslov44APlacering, anskaffelsesmåde: Afskrivningslov44AAnskaffelsesmåde, kunststatus: Afskrivningslov44AKunststatus, skatteyder_nærtstående_til_kunstneren: Boolsk, kunstner_eller_nærtstående_har_bestemmende_indflydelse: Boolsk, kan_afskrives_efter_anden_bestemmelse: Boolsk, tidligere_afskrivninger: List(AfskrivningslovÅrsafskrivning))
+# Afskrivningslov44AÅrsInput(indkomstår: Heltal, position: Afskrivningslov44APosition, bygningen_udelukkende_erhvervsmæssigt_benyttet_i_året: Boolsk, afståelse_nedrivning_eller_anden_bortskaffelse_i_året: Boolsk, valgt_afskrivning_kroner: Heltal)
+# Afskrivningslov44AÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, identifikation: Tekst, position_gyldig: Boolsk, omfattet_af_par44a: Boolsk, højeste_sats_basispoint: Heltal, resterende_afskrivningsgrundlag_før_året_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, afskrivningsret_bortfaldet_i_året: Boolsk, position_efter: Afskrivningslov44APosition)
+# Afskrivningslov44AAfståelseshændelse = Al44AOrdinærtSalg | Al44AFjernetFraBygningEllerNæreOmgivelser | Al44ABygningNedrevet | Al44AOphørMedUdelukkendeErhvervsmæssigAnvendelse | Al44AAndenBortskaffelse
+# Afskrivningslov44AAfståelsesInput(indkomstår: Heltal, position: Afskrivningslov44APosition, hændelse: Afskrivningslov44AAfståelseshændelse, afståelsessum_eller_handelsværdi_kroner: Heltal, kontrol: Afskrivningslov21Kontrol)
+# Afskrivningslov44AAfståelsesResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, identifikation: Tekst, hændelse: Afskrivningslov44AAfståelseshændelse, position_gyldig: Boolsk, sidestillet_med_salg: Boolsk, afskrivning_i_afståelsesåret_afskåret: Boolsk, afståelsessum_kroner: Heltal, afskrivningsgrundlag_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal, beregnet_fortjeneste_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, beregnet_tab_kroner: Heltal, bestemmende_indflydelse: Boolsk, tab_afskåret_efter_par21_stk5_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+| afskrivningslov44a_bygningsdel_omfattet(bygningsdel: Afskrivningslov44ABygningsdel) -> bygningsdel == Al44AErhvervsbygning
+| afskrivningslov44a_placering_omfattet(placering: Afskrivningslov44APlacering) -> placering == Al44AIndføjetIBygningen || placering == Al44AIndføjetINæreOmgivelser
+| afskrivningslov44a_anskaffelsesmåde_omfattet(måde: Afskrivningslov44AAnskaffelsesmåde) -> måde == Al44AFørstegangskøbAfOriginalBilledkunst || måde == Al44AKøbtSammenMedBygningen
+| afskrivningslov44a_kunst_kvalificeret(status: Afskrivningslov44AKunststatus) -> status == Al44AKunstKvalificeret || status == Al44AKunstGodkendtAfAkademiraadet
+| afskrivningslov44a_højeste_sats_basispoint(anskaffelsesår: Heltal) -> hvis anskaffelsesår < 2023 { 400 } ellers { 300 }
+| afskrivningslov44a_position_gyldig(position: Afskrivningslov44APosition, før_indkomstår: Heltal) -> position.identifikation != "" && position.anskaffelsesår > 0 && position.anskaffelsesår <= før_indkomstår && position.anskaffelsessum_kroner > 0 && position.afskrivningsgrundlag_kroner > 0 && position.afskrivningsgrundlag_kroner <= position.anskaffelsessum_kroner && afskrivningslov_årsafskrivninger_gyldige(position.tidligere_afskrivninger, position.anskaffelsesår, før_indkomstår) && afskrivningslov_samlede_årsafskrivninger_kroner(position.tidligere_afskrivninger) <= position.afskrivningsgrundlag_kroner
+| afskrivningslov44a_omfattet(position: Afskrivningslov44APosition, før_indkomstår: Heltal) -> afskrivningslov44a_position_gyldig(position, før_indkomstår) && afskrivningslov44a_bygningsdel_omfattet(position.bygningsdel) && afskrivningslov44a_placering_omfattet(position.placering) && afskrivningslov44a_anskaffelsesmåde_omfattet(position.anskaffelsesmåde) && afskrivningslov44a_kunst_kvalificeret(position.kunststatus) && position.skatteyder_nærtstående_til_kunstneren == Falskt && position.kunstner_eller_nærtstående_har_bestemmende_indflydelse == Falskt && position.kan_afskrives_efter_anden_bestemmelse == Falskt
+
+# Afskrivningslov44AÅrsSag(input: Afskrivningslov44AÅrsInput) {
+    | position() -> input.position
+    | position_gyldig() -> afskrivningslov44a_position_gyldig(position(), input.indkomstår)
+    | grundbetingelser_opfyldt() -> afskrivningslov44a_omfattet(position(), input.indkomstår)
+    | afskrivningsret_bortfaldet_i_året() -> input.afståelse_nedrivning_eller_anden_bortskaffelse_i_året || input.bygningen_udelukkende_erhvervsmæssigt_benyttet_i_året == Falskt
+    | omfattet_af_par44a() -> grundbetingelser_opfyldt() && afskrivningsret_bortfaldet_i_året() == Falskt
+    | tidligere_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | resterende_kroner() -> hvis position_gyldig() { penge_positivt_beløb(position().afskrivningsgrundlag_kroner - tidligere_afskrivninger_kroner()) } ellers { 0 }
+    | højeste_sats_basispoint() -> afskrivningslov44a_højeste_sats_basispoint(position().anskaffelsesår)
+    | højeste_afskrivning_kroner() -> hvis omfattet_af_par44a() { penge_mindste_beløb(resterende_kroner(), penge_beløb_gange_basispoint_kroner(position().afskrivningsgrundlag_kroner, højeste_sats_basispoint())) } ellers { 0 }
+    | valg_gyldigt() -> omfattet_af_par44a() && input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner()
+    | afskrivning_kroner() -> hvis valg_gyldigt() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | position_efter() -> hvis afskrivning_kroner() > 0 { Afskrivningslov44APosition(skatteyder = position().skatteyder, identifikation = position().identifikation, anskaffelsesår = position().anskaffelsesår, anskaffelsessum_kroner = position().anskaffelsessum_kroner, afskrivningsgrundlag_kroner = position().afskrivningsgrundlag_kroner, bygningsdel = position().bygningsdel, placering = position().placering, anskaffelsesmåde = position().anskaffelsesmåde, kunststatus = position().kunststatus, skatteyder_nærtstående_til_kunstneren = position().skatteyder_nærtstående_til_kunstneren, kunstner_eller_nærtstående_har_bestemmende_indflydelse = position().kunstner_eller_nærtstående_har_bestemmende_indflydelse, kan_afskrives_efter_anden_bestemmelse = position().kan_afskrives_efter_anden_bestemmelse, tidligere_afskrivninger = concat(position().tidligere_afskrivninger, [AfskrivningslovÅrsafskrivning(indkomstår = input.indkomstår, afskrivning_kroner = afskrivning_kroner())])) } ellers { position() }
+    | resultat() -> Afskrivningslov44AÅrsResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, identifikation = position().identifikation, position_gyldig = position_gyldig(), omfattet_af_par44a = omfattet_af_par44a(), højeste_sats_basispoint = højeste_sats_basispoint(), resterende_afskrivningsgrundlag_før_året_kroner = resterende_kroner(), højeste_afskrivning_kroner = højeste_afskrivning_kroner(), valgt_afskrivning_kroner = input.valgt_afskrivning_kroner, valg_gyldigt = valg_gyldigt(), afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(), afskrivningsret_bortfaldet_i_året = afskrivningsret_bortfaldet_i_året(), position_efter = position_efter())
+}
+| afskrivningslov44a_års_sag(input: Afskrivningslov44AÅrsInput) -> Afskrivningslov44AÅrsSag(input)
+| afskrivningslov44a_års_resultat(input: Afskrivningslov44AÅrsInput) -> afskrivningslov44a_års_sag(input).resultat()
+
+# Afskrivningslov44AAfståelsesSag(input: Afskrivningslov44AAfståelsesInput) {
+    | position() -> input.position
+    | position_gyldig() -> afskrivningslov44a_position_gyldig(position(), input.indkomstår)
+    | omfattet_af_par44a() -> afskrivningslov44a_omfattet(position(), input.indkomstår)
+    | afståelsessum_kroner() -> penge_positivt_beløb(input.afståelsessum_eller_handelsværdi_kroner)
+    | foretagne_afskrivninger_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | nedskrevet_værdi_kroner() -> hvis position_gyldig() { penge_positivt_beløb(position().afskrivningsgrundlag_kroner - foretagne_afskrivninger_kroner()) } ellers { 0 }
+    | fortjeneste_kroner() -> hvis omfattet_af_par44a() { penge_positivt_beløb(afståelsessum_kroner() - nedskrevet_værdi_kroner()) } ellers { 0 }
+    | genvundne_afskrivninger_kroner() -> penge_mindste_beløb(fortjeneste_kroner(), foretagne_afskrivninger_kroner())
+    | tab_før_kontrol_kroner() -> hvis omfattet_af_par44a() { penge_positivt_beløb(nedskrevet_værdi_kroner() - afståelsessum_kroner()) } ellers { 0 }
+    | bestemmende_indflydelse() -> afskrivningslov21_bestemmende_indflydelse(input.kontrol)
+    | tab_afskåret_kroner() -> hvis bestemmende_indflydelse() { tab_før_kontrol_kroner() } ellers { 0 }
+    | fradragsberettiget_tab_kroner() -> hvis bestemmende_indflydelse() { 0 } ellers { tab_før_kontrol_kroner() }
+    | resultat() -> Afskrivningslov44AAfståelsesResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, identifikation = position().identifikation, hændelse = input.hændelse, position_gyldig = position_gyldig(), sidestillet_med_salg = omfattet_af_par44a(), afskrivning_i_afståelsesåret_afskåret = omfattet_af_par44a(), afståelsessum_kroner = afståelsessum_kroner(), afskrivningsgrundlag_kroner = position().afskrivningsgrundlag_kroner, samlede_foretagne_afskrivninger_kroner = foretagne_afskrivninger_kroner(), nedskrevet_værdi_kroner = nedskrevet_værdi_kroner(), beregnet_fortjeneste_kroner = fortjeneste_kroner(), skattepligtige_genvundne_afskrivninger_kroner = genvundne_afskrivninger_kroner(), beregnet_tab_kroner = tab_før_kontrol_kroner(), bestemmende_indflydelse = bestemmende_indflydelse(), tab_afskåret_efter_par21_stk5_kroner = tab_afskåret_kroner(), fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner())
+}
+| afskrivningslov44a_afståelses_sag(input: Afskrivningslov44AAfståelsesInput) -> Afskrivningslov44AAfståelsesSag(input)
+| afskrivningslov44a_afståelses_resultat(input: Afskrivningslov44AAfståelsesInput) -> afskrivningslov44a_afståelses_sag(input).resultat()
+
+# Afskrivningslov44ASkadeInput(indkomstår: Heltal, position: Afskrivningslov44APosition, skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse: Boolsk, værdi_umiddelbart_før_skaden_kroner: Heltal, værdi_efter_skaden_kroner: Heltal, udgift_til_udbedring_kroner: Heltal)
+# Afskrivningslov44ASkadeResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, identifikation: Tekst, position_gyldig: Boolsk, par23_finder_anvendelse: Boolsk, værdiforhold_basispoint: Heltal, afskrivningsgrundlag_før_skade_kroner: Heltal, afskrivningsgrundlag_efter_skade_kroner: Heltal, nedskrevet_værdi_før_skade_kroner: Heltal, nedskrevet_værdi_efter_skade_kroner: Heltal, fradragsberettiget_værdiforringelse_kroner: Heltal, udgift_til_udbedring_kroner: Heltal, udbedringsudgift_henvises_til_par18_stk1: Boolsk, position_efter: Afskrivningslov44APosition)
+# Afskrivningslov44AGenopførelseInput(position_før_skade: Afskrivningslov44APosition, par44a_forsikringsafståelse: Afskrivningslov44AAfståelsesResultat, modtaget_erstatnings_eller_forsikringssum_kroner: Heltal, genopførelse_foretages: Boolsk, genopførelsesudgift_kroner: Heltal, skadeår: Heltal, erstatningssum_endeligt_fastsat_år: Heltal, genopførelsesår: Heltal, frist: Afskrivningslov24Frist)
+# Afskrivningslov44AGenopførelseResultat(skatteyder: AfskrivningslovSkatteyder, identifikation: Tekst, forsikringsafståelse_matcher: Boolsk, seneste_genopførelsesår: Heltal, rettidig_genopførelse: Boolsk, par24_stk1_til_stk5_finder_anvendelse: Boolsk, genvundne_afskrivninger_udskudt_kroner: Heltal, forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner: Heltal, forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner: Heltal, forskelsbeløb_anses_som_foretaget_afskrivning_kroner: Heltal, skattepligtigt_overskydende_forskelsbeløb_kroner: Heltal, overskydende_genopførelsesudgift_kroner: Heltal, videreført_afskrivningsgrundlag_kroner: Heltal, videreførte_foretagne_afskrivninger_kroner: Heltal, samlet_afskrivningsgrundlag_efter_genopførelse_kroner: Heltal)
+
+| afskrivningslov44a_skaleret_årsafskrivning(post: AfskrivningslovÅrsafskrivning, værdi_efter_skaden_kroner: Heltal, værdi_før_skaden_kroner: Heltal) -> AfskrivningslovÅrsafskrivning(indkomstår = post.indkomstår, afskrivning_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(post.afskrivning_kroner, værdi_efter_skaden_kroner, værdi_før_skaden_kroner))
+
+# Afskrivningslov44ASkadeSag(input: Afskrivningslov44ASkadeInput) {
+    | position() -> input.position
+    | position_gyldig() -> afskrivningslov44a_position_gyldig(position(), input.indkomstår)
+    | værdier_gyldige() -> input.værdi_umiddelbart_før_skaden_kroner > 0 && input.værdi_efter_skaden_kroner >= 0 && input.værdi_efter_skaden_kroner < input.værdi_umiddelbart_før_skaden_kroner
+    | par23_finder_anvendelse() -> afskrivningslov44a_omfattet(position(), input.indkomstår) && input.skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse && værdier_gyldige()
+    | foretagne_afskrivninger_før_kroner() -> afskrivningslov_samlede_årsafskrivninger_kroner(position().tidligere_afskrivninger)
+    | nedskrevet_værdi_før_kroner() -> hvis position_gyldig() { penge_positivt_beløb(position().afskrivningsgrundlag_kroner - foretagne_afskrivninger_før_kroner()) } ellers { 0 }
+    | værdiforhold_basispoint() -> hvis par23_finder_anvendelse() { input.værdi_efter_skaden_kroner * 10000 / input.værdi_umiddelbart_før_skaden_kroner } ellers { 0 }
+    | afskrivningsgrundlag_efter_kroner() -> hvis par23_finder_anvendelse() { afskrivningslov_beløb_gange_forhold_afrundet_kroner(position().afskrivningsgrundlag_kroner, input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner) } ellers { 0 }
+    | nedskrevet_værdi_efter_kroner() -> hvis par23_finder_anvendelse() { afskrivningslov_beløb_gange_forhold_afrundet_kroner(nedskrevet_værdi_før_kroner(), input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner) } ellers { 0 }
+    | fradragsberettiget_værdiforringelse_kroner() -> hvis par23_finder_anvendelse() { penge_positivt_beløb(nedskrevet_værdi_før_kroner() - nedskrevet_værdi_efter_kroner()) } ellers { 0 }
+    | skaleret_historik() -> hvis par23_finder_anvendelse() { map(position().tidligere_afskrivninger, |post: AfskrivningslovÅrsafskrivning| afskrivningslov44a_skaleret_årsafskrivning(post, input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner)) } ellers { position().tidligere_afskrivninger }
+    | position_efter() -> hvis par23_finder_anvendelse() { Afskrivningslov44APosition(skatteyder = position().skatteyder, identifikation = position().identifikation, anskaffelsesår = position().anskaffelsesår, anskaffelsessum_kroner = position().anskaffelsessum_kroner, afskrivningsgrundlag_kroner = afskrivningsgrundlag_efter_kroner(), bygningsdel = position().bygningsdel, placering = position().placering, anskaffelsesmåde = position().anskaffelsesmåde, kunststatus = position().kunststatus, skatteyder_nærtstående_til_kunstneren = position().skatteyder_nærtstående_til_kunstneren, kunstner_eller_nærtstående_har_bestemmende_indflydelse = position().kunstner_eller_nærtstående_har_bestemmende_indflydelse, kan_afskrives_efter_anden_bestemmelse = position().kan_afskrives_efter_anden_bestemmelse, tidligere_afskrivninger = skaleret_historik()) } ellers { position() }
+    | resultat() -> Afskrivningslov44ASkadeResultat(indkomstår = input.indkomstår, skatteyder = position().skatteyder, identifikation = position().identifikation, position_gyldig = position_gyldig(), par23_finder_anvendelse = par23_finder_anvendelse(), værdiforhold_basispoint = værdiforhold_basispoint(), afskrivningsgrundlag_før_skade_kroner = position().afskrivningsgrundlag_kroner, afskrivningsgrundlag_efter_skade_kroner = afskrivningsgrundlag_efter_kroner(), nedskrevet_værdi_før_skade_kroner = nedskrevet_værdi_før_kroner(), nedskrevet_værdi_efter_skade_kroner = nedskrevet_værdi_efter_kroner(), fradragsberettiget_værdiforringelse_kroner = fradragsberettiget_værdiforringelse_kroner(), udgift_til_udbedring_kroner = penge_positivt_beløb(input.udgift_til_udbedring_kroner), udbedringsudgift_henvises_til_par18_stk1 = par23_finder_anvendelse() && input.udgift_til_udbedring_kroner > 0, position_efter = position_efter())
+}
+| afskrivningslov44a_skade_sag(input: Afskrivningslov44ASkadeInput) -> Afskrivningslov44ASkadeSag(input)
+| afskrivningslov44a_skade_resultat(input: Afskrivningslov44ASkadeInput) -> afskrivningslov44a_skade_sag(input).resultat()
+
+# Afskrivningslov44AGenopførelseSag(input: Afskrivningslov44AGenopførelseInput) {
+    | position() -> input.position_før_skade
+    | afståelse() -> input.par44a_forsikringsafståelse
+    | forsikringssum_kroner() -> penge_positivt_beløb(input.modtaget_erstatnings_eller_forsikringssum_kroner)
+    | genopførelsesudgift_kroner() -> penge_positivt_beløb(input.genopførelsesudgift_kroner)
+    | forsikringsafståelse_matcher() -> afståelse().position_gyldig && afståelse().skatteyder == position().skatteyder && afståelse().identifikation == position().identifikation && afståelse().indkomstår == input.skadeår && afståelse().afståelsessum_kroner == forsikringssum_kroner()
+    | seneste_genopførelsesår() -> match input.frist {
+        | Al24OrdinærFrist -> afskrivningslov24_ordinært_seneste_genopførelsesår(input.skadeår, input.erstatningssum_endeligt_fastsat_år)
+        | Al24ForlængetFrist(seneste_genopførelsesår) -> penge_største_beløb(afskrivningslov24_ordinært_seneste_genopførelsesår(input.skadeår, input.erstatningssum_endeligt_fastsat_år), seneste_genopførelsesår)
+    }
+    | rettidig_genopførelse() -> input.genopførelse_foretages && genopførelsesudgift_kroner() > 0 && input.genopførelsesår >= input.skadeår && input.genopførelsesår <= seneste_genopførelsesår()
+    | par24_finder_anvendelse() -> forsikringsafståelse_matcher() && rettidig_genopførelse()
+    | forskelsbeløb_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(forsikringssum_kroner() - genopførelsesudgift_kroner()) } ellers { 0 }
+    | overskydende_genopførelsesudgift_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(genopførelsesudgift_kroner() - forsikringssum_kroner()) } ellers { 0 }
+    | skattepligtigt_overskydende_forskelsbeløb_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(forskelsbeløb_kroner() - afståelse().nedskrevet_værdi_kroner) } ellers { 0 }
+    | videreført_afskrivningsgrundlag_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(position().afskrivningsgrundlag_kroner - forskelsbeløb_kroner()) } ellers { 0 }
+    | samlet_afskrivningsgrundlag_kroner() -> videreført_afskrivningsgrundlag_kroner() + overskydende_genopførelsesudgift_kroner()
+    | resultat() -> Afskrivningslov44AGenopførelseResultat(skatteyder = position().skatteyder, identifikation = position().identifikation, forsikringsafståelse_matcher = forsikringsafståelse_matcher(), seneste_genopførelsesår = seneste_genopførelsesår(), rettidig_genopførelse = rettidig_genopførelse(), par24_stk1_til_stk5_finder_anvendelse = par24_finder_anvendelse(), genvundne_afskrivninger_udskudt_kroner = hvis par24_finder_anvendelse() { afståelse().skattepligtige_genvundne_afskrivninger_kroner } ellers { 0 }, forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner = forskelsbeløb_kroner(), forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner = forskelsbeløb_kroner(), forskelsbeløb_anses_som_foretaget_afskrivning_kroner = forskelsbeløb_kroner(), skattepligtigt_overskydende_forskelsbeløb_kroner = skattepligtigt_overskydende_forskelsbeløb_kroner(), overskydende_genopførelsesudgift_kroner = overskydende_genopførelsesudgift_kroner(), videreført_afskrivningsgrundlag_kroner = videreført_afskrivningsgrundlag_kroner(), videreførte_foretagne_afskrivninger_kroner = afståelse().samlede_foretagne_afskrivninger_kroner, samlet_afskrivningsgrundlag_efter_genopførelse_kroner = samlet_afskrivningsgrundlag_kroner())
+}
+| afskrivningslov44a_genopførelse_sag(input: Afskrivningslov44AGenopførelseInput) -> Afskrivningslov44AGenopførelseSag(input)
+| afskrivningslov44a_genopførelse_resultat(input: Afskrivningslov44AGenopførelseInput) -> afskrivningslov44a_genopførelse_sag(input).resultat()
+--@end:afskrivningsloven_par44a--
+
+--@label:afskrivningsloven_par44b::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44a_par44b_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 44 B. Udgifter afholdt til kunstnerisk udsmykning, der ophænges eller
+opstilles i erhvervsmæssigt benyttede bygninger, bortset fra en- eller
+tofamiliehuse og bortset fra den del af en bygning, der anvendes til beboelse,
+jf. § 14, stk. 2, nr. 4, kan afskrives efter reglerne i kapitel 2. Dog finder
+reglerne om delvis erhvervsmæssigt benyttede driftsmidler og skibe i §§ 11-13
+ikke anvendelse. Udgifterne skal endvidere afskrives på en særskilt saldo.
+Afskrivningsretten kan ikke udnyttes af skattepligtige, der er nærtstående til
+kunstneren, eller af selskaber, som kunstneren selv eller kunstnerens
+nærtstående udøver en bestemmende indflydelse over, jf. ligningslovens § 2,
+stk. 2. Som nærtstående anses ægtefælle, forældre og bedsteforældre samt børn og
+børnebørn og disses ægtefæller eller dødsboer efter disse personer. Stedbarns-
+og adoptivforhold sidestilles med naturligt slægtskabsforhold.
+
+Stk. 2. Udgifter til kunstnerisk udsmykning, der kan afskrives efter andre
+bestemmelser i denne lov, kan ikke afskrives efter stk. 1.
+
+Stk. 3. Afskrivning efter stk. 1 kan alene ske for førstegangskøb af original
+billedkunst. I tilfælde af tvivl om, hvorvidt den kunstneriske udsmykning kan
+kvalificeres som kunst, indhenter told- og skatteforvaltningen en vurdering af
+den kunstneriske udsmykning fra Akademiraadet.
+
+Stk. 4. Ophører bygningen, hvori den kunstneriske udsmykning er ophængt eller
+opstillet, med at være anvendt erhvervsmæssigt, anses den kunstneriske
+udsmykning for at være solgt.
+----
+
+--@begin:afskrivningsloven_par44b--
+# Afskrivningslov44BHændelse = Al44BOrdinærtIndkomstår | Al44BOrdinærtSalg(salgssum_kroner: Heltal) | Al44BBygningOphørerMedErhvervsmæssigAnvendelse(handelsværdi_kroner: Heltal)
+# Afskrivningslov44BInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, bygningsdel: Afskrivningslov44ABygningsdel, kunststatus: Afskrivningslov44AKunststatus, førstegangskøb_af_original_billedkunst: Boolsk, ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning: Boolsk, skatteyder_nærtstående_til_kunstneren: Boolsk, kunstner_eller_nærtstående_har_bestemmende_indflydelse: Boolsk, kan_afskrives_efter_anden_bestemmelse: Boolsk, særskilt_saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, hændelse: Afskrivningslov44BHændelse, valg: Afskrivningslov5Valg, årsparametre: AfskrivningslovÅrsparametre, negativ_saldo_medregnes_i_indkomståret: Boolsk)
+# Afskrivningslov44BResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par44b: Boolsk, kapitel2_finder_anvendelse: Boolsk, par11_til_par13_finder_ikke_anvendelse: Boolsk, særskilt_saldo: Boolsk, bygningens_erhvervsophør_sidestilles_med_salg: Boolsk, salgssum_eller_handelsværdi_kroner: Heltal, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, afskrivning_i_skattepligtig_indkomst_kroner: Heltal, negativ_saldo_kroner: Heltal, skattepligtig_negativ_saldo_i_indkomståret_kroner: Heltal, negativ_saldo_til_udligning_eller_næste_indkomstår_kroner: Heltal, særskilt_saldoværdi_efter_kroner: Heltal)
+
+| afskrivningslov44b_hændelsessalg_kroner(hændelse: Afskrivningslov44BHændelse) -> match hændelse {
+    | Al44BOrdinærtIndkomstår -> 0
+    | Al44BOrdinærtSalg(salgssum_kroner) -> penge_positivt_beløb(salgssum_kroner)
+    | Al44BBygningOphørerMedErhvervsmæssigAnvendelse(handelsværdi_kroner) -> penge_positivt_beløb(handelsværdi_kroner)
+}
+| afskrivningslov44b_er_bygningsophør(hændelse: Afskrivningslov44BHændelse) -> match hændelse {
+    | Al44BBygningOphørerMedErhvervsmæssigAnvendelse(_) -> Sandt
+    | _ -> Falskt
+}
+
+# Afskrivningslov44BSag(input: Afskrivningslov44BInput) {
+    | årsparametre_matcher() -> input.indkomstår == input.årsparametre.indkomstår
+    | grundbetingelser_opfyldt() -> input.indkomstår > 0 && input.særskilt_saldoværdi_primo_kroner >= 0 && input.anskaffelsessummer_i_året_kroner >= 0 && afskrivningslov44a_bygningsdel_omfattet(input.bygningsdel) && input.ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning && input.førstegangskøb_af_original_billedkunst && afskrivningslov44a_kunst_kvalificeret(input.kunststatus) && input.skatteyder_nærtstående_til_kunstneren == Falskt && input.kunstner_eller_nærtstående_har_bestemmende_indflydelse == Falskt && input.kan_afskrives_efter_anden_bestemmelse == Falskt
+    | omfattet_af_par44b() -> grundbetingelser_opfyldt() && årsparametre_matcher()
+    | salgssum_kroner() -> afskrivningslov44b_hændelsessalg_kroner(input.hændelse)
+    | saldoværdi_før_afskrivning_kroner() -> input.særskilt_saldoværdi_primo_kroner + penge_positivt_beløb(input.anskaffelsessummer_i_året_kroner) - salgssum_kroner()
+    | positiv_saldo_kroner() -> penge_positivt_beløb(saldoværdi_før_afskrivning_kroner())
+    | valgt_sats_basispoint() -> afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg)
+    | valg_gyldigt() -> match input.valg {
+        | Al5IngenAfskrivning -> omfattet_af_par44b()
+        | Al5OrdinærAfskrivning(sats_basispoint) -> omfattet_af_par44b() && sats_basispoint >= 0 && sats_basispoint <= input.årsparametre.højeste_ordinære_sats_basispoint
+        | Al5FuldRestsaldo -> omfattet_af_par44b() && positiv_saldo_kroner() > 0 && positiv_saldo_kroner() <= input.årsparametre.småsaldigrænse_kroner
+    }
+    | afskrivning_kroner() -> 0
+    | exception al44b_kapitel2_ordinær_saldoafskrivning afskrivning_kroner() -> penge_beløb_gange_basispoint_kroner(positiv_saldo_kroner(), valgt_sats_basispoint()) under valg_gyldigt() && valgt_sats_basispoint() > 0
+    | exception al44b_kapitel2_fuld_småsaldofradrag afskrivning_kroner() -> positiv_saldo_kroner() under valg_gyldigt() && input.valg == Al5FuldRestsaldo
+    | negativ_saldo_kroner() -> hvis omfattet_af_par44b() { afskrivningslov_negativt_saldobeløb_kroner(saldoværdi_før_afskrivning_kroner()) } ellers { 0 }
+    | skattepligtig_negativ_saldo_kroner() -> hvis input.negativ_saldo_medregnes_i_indkomståret { negativ_saldo_kroner() } ellers { 0 }
+    | negativ_saldo_til_næste_år_kroner() -> hvis input.negativ_saldo_medregnes_i_indkomståret { 0 } ellers { negativ_saldo_kroner() }
+    | saldo_efter_kroner() -> hvis negativ_saldo_kroner() > 0 { 0 - negativ_saldo_til_næste_år_kroner() } ellers { positiv_saldo_kroner() - afskrivning_kroner() }
+    | resultat() -> Afskrivningslov44BResultat(indkomstår = input.indkomstår, skatteyder = input.skatteyder, omfattet_af_par44b = omfattet_af_par44b(), kapitel2_finder_anvendelse = omfattet_af_par44b(), par11_til_par13_finder_ikke_anvendelse = omfattet_af_par44b(), særskilt_saldo = omfattet_af_par44b(), bygningens_erhvervsophør_sidestilles_med_salg = omfattet_af_par44b() && afskrivningslov44b_er_bygningsophør(input.hændelse), salgssum_eller_handelsværdi_kroner = salgssum_kroner(), saldoværdi_før_afskrivning_kroner = saldoværdi_før_afskrivning_kroner(), afskrivningsberettiget_saldoværdi_kroner = positiv_saldo_kroner(), højeste_ordinære_afskrivning_kroner = penge_beløb_gange_basispoint_kroner(positiv_saldo_kroner(), input.årsparametre.højeste_ordinære_sats_basispoint), valg = input.valg, valg_gyldigt = valg_gyldigt(), afskrivning_i_skattepligtig_indkomst_kroner = afskrivning_kroner(), negativ_saldo_kroner = negativ_saldo_kroner(), skattepligtig_negativ_saldo_i_indkomståret_kroner = skattepligtig_negativ_saldo_kroner(), negativ_saldo_til_udligning_eller_næste_indkomstår_kroner = negativ_saldo_til_næste_år_kroner(), særskilt_saldoværdi_efter_kroner = saldo_efter_kroner())
+}
+| afskrivningslov44b_sag(input: Afskrivningslov44BInput) -> Afskrivningslov44BSag(input)
+| afskrivningslov44b_resultat(input: Afskrivningslov44BInput) -> afskrivningslov44b_sag(input).resultat()
+--@end:afskrivningsloven_par44b--
+
+--@label:afskrivningsloven_par44c::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44c_juridisk_vejledning--
+----
+§ 44 C. Sælges eller opgives retten i henhold til en kontrakt om levering af
+et skib eller et andet driftsmiddel, der udelukkende eller delvis skal benyttes
+erhvervsmæssigt, og hvorpå der, når betingelserne for afskrivning er opfyldt,
+kan afskrives efter kapitel 2, medregnes fortjeneste eller tab herved ved
+opgørelsen af sælgerens skattepligtige indkomst for det indkomstår, hvori
+salget sker. Fortjeneste eller tab opgøres som forskellen mellem
+afståelsessummen for retten i henhold til kontrakten og anskaffelsessummen for
+denne. Fortjeneste eller tab opgøres uden hensyn til eventuel
+forskudsafskrivning på skibet eller driftsmidlet.
+
+Stk. 2. Sælges et skib eller et andet driftsmiddel, der udelukkende eller
+delvis skal benyttes erhvervsmæssigt, og hvorpå der, når betingelserne for
+afskrivning er opfyldt, kan afskrives efter kapitel 2, men som endnu ikke er
+færdiggjort i et sådant omfang, at det kan indgå i driften af sælgerens
+virksomhed, medregnes fortjeneste eller tab ved opgørelsen af sælgerens
+skattepligtige indkomst for det indkomstår, hvori salget sker. Fortjeneste
+eller tab opgøres som forskellen mellem afståelsessummen og anskaffelsessummen
+tillagt udgifter til forbedringer. Fortjeneste eller tab opgøres uden hensyn
+til eventuel forskudsafskrivning på skibet eller driftsmidlet.
+----
+
+--@begin:afskrivningsloven_par44c--
+# Afskrivningslov44CGenstand = Al44CRetEfterLeveringskontrakt | Al44CLeveretMenIkkeDriftsklartAktiv
+# Afskrivningslov44CInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, genstand: Afskrivningslov44CGenstand, skib_eller_andet_driftsmiddel: Boolsk, helt_eller_delvist_erhvervsmæssigt_bestemt: Boolsk, kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt: Boolsk, sælges_eller_opgives_i_indkomståret: Boolsk, leveret_til_igangværende_virksomhed: Boolsk, bestemt_til_at_indgå_i_virksomhedens_drift: Boolsk, færdiggjort_til_at_indgå_i_driften: Boolsk, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, forbedringsudgifter_kroner: Heltal, forskudsafskrivninger_kroner: Heltal)
+# Afskrivningslov44CResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, genstand: Afskrivningslov44CGenstand, input_gyldigt: Boolsk, omfattet_af_par44c: Boolsk, stk2_aktiv_leveret_og_bestemt_men_ikke_driftsklart: Boolsk, afståelsessum_kroner: Heltal, anskaffelsessum_inkl_forbedringer_kroner: Heltal, forskudsafskrivninger_uden_betydning_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+| afskrivningslov44c_stk2_betingelser(input: Afskrivningslov44CInput) -> input.genstand == Al44CLeveretMenIkkeDriftsklartAktiv && input.leveret_til_igangværende_virksomhed && input.bestemt_til_at_indgå_i_virksomhedens_drift && input.færdiggjort_til_at_indgå_i_driften == Falskt
+| afskrivningslov44c_genstandsbetingelser(input: Afskrivningslov44CInput) -> match input.genstand {
+    | Al44CRetEfterLeveringskontrakt -> Sandt
+    | Al44CLeveretMenIkkeDriftsklartAktiv -> afskrivningslov44c_stk2_betingelser(input)
+}
+| afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input: Afskrivningslov44CInput) -> penge_positivt_beløb(input.anskaffelsessum_kroner) + hvis input.genstand == Al44CLeveretMenIkkeDriftsklartAktiv { penge_positivt_beløb(input.forbedringsudgifter_kroner) } ellers { 0 }
+| afskrivningslov44c_omfattet(input: Afskrivningslov44CInput) -> input.indkomstår > 0 && input.skib_eller_andet_driftsmiddel && input.helt_eller_delvist_erhvervsmæssigt_bestemt && input.kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt && input.sælges_eller_opgives_i_indkomståret && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && input.forbedringsudgifter_kroner >= 0 && input.forskudsafskrivninger_kroner >= 0 && afskrivningslov44c_genstandsbetingelser(input)
+| afskrivningslov44c_resultat(input: Afskrivningslov44CInput) -> Afskrivningslov44CResultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.skatteyder,
+    genstand = input.genstand,
+    input_gyldigt = input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && input.forbedringsudgifter_kroner >= 0 && input.forskudsafskrivninger_kroner >= 0,
+    omfattet_af_par44c = afskrivningslov44c_omfattet(input),
+    stk2_aktiv_leveret_og_bestemt_men_ikke_driftsklart = afskrivningslov44c_stk2_betingelser(input),
+    afståelsessum_kroner = penge_positivt_beløb(input.afståelsessum_kroner),
+    anskaffelsessum_inkl_forbedringer_kroner = afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input),
+    forskudsafskrivninger_uden_betydning_kroner = penge_positivt_beløb(input.forskudsafskrivninger_kroner),
+    skattepligtig_fortjeneste_kroner = hvis afskrivningslov44c_omfattet(input) { penge_positivt_beløb(input.afståelsessum_kroner - afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input)) } ellers { 0 },
+    fradragsberettiget_tab_kroner = hvis afskrivningslov44c_omfattet(input) { penge_positivt_beløb(afskrivningslov44c_anskaffelsessum_inkl_forbedringer_kroner(input) - input.afståelsessum_kroner) } ellers { 0 }
+)
+--@end:afskrivningsloven_par44c--
+
+--@label:afskrivningsloven_par45::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par45_juridisk_vejledning::allocation_guidance:afskrivningsloven_par45_fordeling_juridisk_vejledning--
+----
+§ 45. Anskaffelses- og salgssummer samt godtgørelser og vederlag for aktiver
+omfattet af denne lov omregnes til kontantværdi, der beregnes ved, at den
+kontante del af anskaffelsessummen henholdsvis salgssummen lægges sammen med
+kursværdien af aktivets gældsposter. Afskrivninger foretages på grundlag af den
+således omregnede anskaffelsessum m.v. Medmindre kursen på afståelsestidspunktet
+er under 100, omregnes inkonverterbare lån for fiskerfartøjer, der af sælger er
+stiftet eller overtaget før den 19. maj 1993, til kurs 100, såfremt lånet er
+stiftet eller overtaget til en kurs på 100 eller derunder.
+
+Stk. 2. Ved salg af aktiver omfattet af denne lov skal sælger og køber i
+købsaftale, skøde eller på anden skriftlig måde foretage en fordeling af den
+samlede kontantomregnede salgssum på de aktiver, der er omfattet af
+overdragelsen. Fordelingen skal foretages for driftsmidler, bygninger,
+installationer, kunstnerisk udsmykning, goodwill og andre immaterielle aktiver.
+For driftsmidler og skibe foretages fordelingen under ét og for øvrige aktiver
+på hvert enkelt aktiv. Omfatter overdragelsen grund, bolig, kvote,
+betalingsrettighed eller beholdninger, skal fordelingen tillige omfatte disse
+aktiver.
+
+Stk. 3. Såvel den samlede kontantomregnede salgssum som den fordeling på aktiver
+efter stk. 2, som parterne har aftalt, er undergivet told- og
+skatteforvaltningens prøvelse. Afgørelsen er bindende for både sælger og køber.
+
+Stk. 4. Ved enhver ændring af sælgers salgssum for et aktiv som følge af en
+ændret skatteansættelse skal købers anskaffelsessum for det pågældende aktiv
+ændres tilsvarende. Ved enhver ændring af købers anskaffelsessum for et aktiv,
+skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
+----
+
+--@begin:afskrivningsloven_par45--
+# Afskrivningslov45Gældspost(identifikation: Tekst, nominelt_beløb_kroner: Heltal, kurs_på_opgørelsestidspunktet_basispoint: Heltal, inkonverterbart_lån_for_fiskerfartøj: Boolsk, stiftet_eller_overtaget_af_sælger_før_1993_05_19: Boolsk, kurs_ved_stiftelse_eller_overtagelse_basispoint: Heltal)
+# Afskrivningslov45OmregnetGældspost(identifikation: Tekst, nominelt_beløb_kroner: Heltal, oplyst_kurs_basispoint: Heltal, anvendt_kurs_basispoint: Heltal, særregel_kurs_100_anvendt: Boolsk, kursværdi_kroner: Heltal)
+# Afskrivningslov45KontantomregningInput(kontant_del_kroner: Heltal, gældsposter: List(Afskrivningslov45Gældspost), afståelsessituation: Boolsk)
+# Afskrivningslov45KontantomregningResultat(input_gyldigt: Boolsk, kontant_del_kroner: Heltal, gældsposter: List(Afskrivningslov45OmregnetGældspost), samlet_kursværdi_af_gældsposter_kroner: Heltal, kontantomregnet_anskaffelses_eller_salgssum_kroner: Heltal, afskrivningsgrundlag_kroner: Heltal)
+
+| afskrivningslov45_gældspost_gyldig(post: Afskrivningslov45Gældspost) -> post.identifikation != "" && post.nominelt_beløb_kroner >= 0 && post.kurs_på_opgørelsestidspunktet_basispoint > 0 && post.kurs_ved_stiftelse_eller_overtagelse_basispoint > 0
+| afskrivningslov45_gældspost_unik(poster: List(Afskrivningslov45Gældspost), post: Afskrivningslov45Gældspost) -> foldl(poster, 0, |antal, anden_post| antal + hvis anden_post.identifikation == post.identifikation { 1 } ellers { 0 }) == 1
+| afskrivningslov45_fiskerfartøj_kurs100_særregel(input: Afskrivningslov45KontantomregningInput, post: Afskrivningslov45Gældspost) -> input.afståelsessituation && post.inkonverterbart_lån_for_fiskerfartøj && post.stiftet_eller_overtaget_af_sælger_før_1993_05_19 && post.kurs_ved_stiftelse_eller_overtagelse_basispoint <= 10000 && post.kurs_på_opgørelsestidspunktet_basispoint >= 10000
+| afskrivningslov45_anvendt_kurs_basispoint(input: Afskrivningslov45KontantomregningInput, post: Afskrivningslov45Gældspost) -> hvis afskrivningslov45_fiskerfartøj_kurs100_særregel(input, post) { 10000 } ellers { post.kurs_på_opgørelsestidspunktet_basispoint }
+| afskrivningslov45_omregnet_gældspost(input: Afskrivningslov45KontantomregningInput, post: Afskrivningslov45Gældspost) -> Afskrivningslov45OmregnetGældspost(identifikation = post.identifikation, nominelt_beløb_kroner = post.nominelt_beløb_kroner, oplyst_kurs_basispoint = post.kurs_på_opgørelsestidspunktet_basispoint, anvendt_kurs_basispoint = afskrivningslov45_anvendt_kurs_basispoint(input, post), særregel_kurs_100_anvendt = afskrivningslov45_fiskerfartøj_kurs100_særregel(input, post), kursværdi_kroner = penge_beløb_gange_basispoint_afrundet_kroner(post.nominelt_beløb_kroner, afskrivningslov45_anvendt_kurs_basispoint(input, post)))
+| afskrivningslov45_kursværdi_sum_kroner(poster: List(Afskrivningslov45OmregnetGældspost)) -> foldl(poster, 0, |sum, post: Afskrivningslov45OmregnetGældspost| sum + penge_positivt_beløb(post.kursværdi_kroner))
+| afskrivningslov45_kontantomregning_resultat(input: Afskrivningslov45KontantomregningInput) -> Afskrivningslov45KontantomregningResultat(
+    input_gyldigt = input.kontant_del_kroner >= 0 && all(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_gældspost_gyldig(post) && afskrivningslov45_gældspost_unik(input.gældsposter, post)),
+    kontant_del_kroner = penge_positivt_beløb(input.kontant_del_kroner),
+    gældsposter = map(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_omregnet_gældspost(input, post)),
+    samlet_kursværdi_af_gældsposter_kroner = afskrivningslov45_kursværdi_sum_kroner(map(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_omregnet_gældspost(input, post))),
+    kontantomregnet_anskaffelses_eller_salgssum_kroner = hvis input.kontant_del_kroner >= 0 && all(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_gældspost_gyldig(post) && afskrivningslov45_gældspost_unik(input.gældsposter, post)) { input.kontant_del_kroner + afskrivningslov45_kursværdi_sum_kroner(map(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_omregnet_gældspost(input, post))) } ellers { 0 },
+    afskrivningsgrundlag_kroner = hvis input.kontant_del_kroner >= 0 && all(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_gældspost_gyldig(post) && afskrivningslov45_gældspost_unik(input.gældsposter, post)) { input.kontant_del_kroner + afskrivningslov45_kursværdi_sum_kroner(map(input.gældsposter, |post: Afskrivningslov45Gældspost| afskrivningslov45_omregnet_gældspost(input, post))) } ellers { 0 }
+)
+
+# Afskrivningslov45Aktivkategori = Al45DriftsmidlerOgSkibe | Al45Bygning | Al45Installation | Al45KunstneriskUdsmykning | Al45Goodwill | Al45AndetImmaterieltAktiv | Al45Grund | Al45Bolig | Al45Kvote | Al45Betalingsrettighed | Al45Beholdning
+# Afskrivningslov45OverdragetAktiv(kategori: Afskrivningslov45Aktivkategori, identifikation: Tekst)
+# Afskrivningslov45Fordelingsnøgle = Al45DriftsmidlerOgSkibeUnderEt | Al45IndividueltAktiv(identifikation: Tekst)
+# Afskrivningslov45Fordelingspost(kategori: Afskrivningslov45Aktivkategori, nøgle: Afskrivningslov45Fordelingsnøgle, fordelt_kontantværdi_kroner: Heltal)
+# Afskrivningslov45FordelingsInput(kontantomregning: Afskrivningslov45KontantomregningResultat, overdragne_aktiver: List(Afskrivningslov45OverdragetAktiv), fordelingsposter: List(Afskrivningslov45Fordelingspost), skriftligt_aftalt_af_sælger_og_køber: Boolsk)
+# Afskrivningslov45FordelingsResultat(kontantomregning_gyldig: Boolsk, overdragne_aktiver_gyldige: Boolsk, fordelingsposter_gyldige: Boolsk, skriftligt_aftalt_af_sælger_og_køber: Boolsk, driftsmidler_og_skibe_fordelt_under_et: Boolsk, øvrige_aktiver_fordelt_individuelt: Boolsk, fordelt_sum_kroner: Heltal, samlet_kontantomregnet_salgssum_kroner: Heltal, fordeling_gyldig: Boolsk, undergivet_told_og_skatteforvaltningens_prøvelse: Boolsk, bindende_for_sælger_og_køber: Boolsk, fordelingsposter: List(Afskrivningslov45Fordelingspost))
+
+| afskrivningslov45_overdraget_aktiv_unikt(aktiver: List(Afskrivningslov45OverdragetAktiv), aktiv: Afskrivningslov45OverdragetAktiv) -> foldl(aktiver, 0, |antal, andet_aktiv| antal + hvis andet_aktiv.kategori == aktiv.kategori && andet_aktiv.identifikation == aktiv.identifikation { 1 } ellers { 0 }) == 1
+| afskrivningslov45_overdraget_aktiv_gyldigt(aktiver: List(Afskrivningslov45OverdragetAktiv), aktiv: Afskrivningslov45OverdragetAktiv) -> aktiv.identifikation != "" && afskrivningslov45_overdraget_aktiv_unikt(aktiver, aktiv)
+| afskrivningslov45_fordelingsnøgle_gyldig(kategori: Afskrivningslov45Aktivkategori, nøgle: Afskrivningslov45Fordelingsnøgle) -> match nøgle {
+    | Al45DriftsmidlerOgSkibeUnderEt -> kategori == Al45DriftsmidlerOgSkibe
+    | Al45IndividueltAktiv(identifikation) -> kategori != Al45DriftsmidlerOgSkibe && identifikation != ""
+}
+| afskrivningslov45_fordelingspost_unik(poster: List(Afskrivningslov45Fordelingspost), post: Afskrivningslov45Fordelingspost) -> foldl(poster, 0, |antal, anden_post| antal + hvis anden_post.kategori == post.kategori && anden_post.nøgle == post.nøgle { 1 } ellers { 0 }) == 1
+| afskrivningslov45_fordelingspost_grundgyldig(poster: List(Afskrivningslov45Fordelingspost), post: Afskrivningslov45Fordelingspost) -> afskrivningslov45_fordelingsnøgle_gyldig(post.kategori, post.nøgle) && post.fordelt_kontantværdi_kroner >= 0 && afskrivningslov45_fordelingspost_unik(poster, post)
+| afskrivningslov45_antal_aktiver_i_kategori(aktiver: List(Afskrivningslov45OverdragetAktiv), kategori: Afskrivningslov45Aktivkategori) -> foldl(aktiver, 0, |antal, aktiv| antal + hvis aktiv.kategori == kategori { 1 } ellers { 0 })
+| afskrivningslov45_antal_poster_i_kategori(poster: List(Afskrivningslov45Fordelingspost), kategori: Afskrivningslov45Aktivkategori) -> foldl(poster, 0, |antal, post| antal + hvis post.kategori == kategori { 1 } ellers { 0 })
+| afskrivningslov45_post_matcher_aktiv(post: Afskrivningslov45Fordelingspost, aktiv: Afskrivningslov45OverdragetAktiv) -> match post.nøgle {
+    | Al45IndividueltAktiv(identifikation) -> post.kategori == aktiv.kategori && identifikation == aktiv.identifikation
+    | _ -> Falskt
+}
+| afskrivningslov45_antal_poster_for_aktiv(poster: List(Afskrivningslov45Fordelingspost), aktiv: Afskrivningslov45OverdragetAktiv) -> foldl(poster, 0, |antal, post| antal + hvis afskrivningslov45_post_matcher_aktiv(post, aktiv) { 1 } ellers { 0 })
+| afskrivningslov45_driftsmidler_og_skibe_under_et(aktiver: List(Afskrivningslov45OverdragetAktiv), poster: List(Afskrivningslov45Fordelingspost)) -> hvis afskrivningslov45_antal_aktiver_i_kategori(aktiver, Al45DriftsmidlerOgSkibe) > 0 { afskrivningslov45_antal_poster_i_kategori(poster, Al45DriftsmidlerOgSkibe) == 1 && any(poster, |post: Afskrivningslov45Fordelingspost| post.kategori == Al45DriftsmidlerOgSkibe && post.nøgle == Al45DriftsmidlerOgSkibeUnderEt) } ellers { afskrivningslov45_antal_poster_i_kategori(poster, Al45DriftsmidlerOgSkibe) == 0 }
+| afskrivningslov45_øvrige_aktiver_individuelt(aktiver: List(Afskrivningslov45OverdragetAktiv), poster: List(Afskrivningslov45Fordelingspost)) -> all(aktiver, |aktiv: Afskrivningslov45OverdragetAktiv| aktiv.kategori == Al45DriftsmidlerOgSkibe || afskrivningslov45_antal_poster_for_aktiv(poster, aktiv) == 1)
+| afskrivningslov45_post_har_aktiv(aktiver: List(Afskrivningslov45OverdragetAktiv), post: Afskrivningslov45Fordelingspost) -> match post.nøgle {
+    | Al45DriftsmidlerOgSkibeUnderEt -> post.kategori == Al45DriftsmidlerOgSkibe && afskrivningslov45_antal_aktiver_i_kategori(aktiver, Al45DriftsmidlerOgSkibe) > 0
+    | Al45IndividueltAktiv(identifikation) -> any(aktiver, |aktiv: Afskrivningslov45OverdragetAktiv| aktiv.kategori == post.kategori && aktiv.identifikation == identifikation)
+}
+| afskrivningslov45_fordelt_sum_kroner(poster: List(Afskrivningslov45Fordelingspost)) -> foldl(poster, 0, |sum, post: Afskrivningslov45Fordelingspost| sum + penge_positivt_beløb(post.fordelt_kontantværdi_kroner))
+
+# Afskrivningslov45FordelingsSag(input: Afskrivningslov45FordelingsInput) {
+    | overdragne_aktiver_gyldige() -> length(input.overdragne_aktiver) > 0 && all(input.overdragne_aktiver, |aktiv: Afskrivningslov45OverdragetAktiv| afskrivningslov45_overdraget_aktiv_gyldigt(input.overdragne_aktiver, aktiv))
+    | poster_grundgyldige() -> length(input.fordelingsposter) > 0 && all(input.fordelingsposter, |post: Afskrivningslov45Fordelingspost| afskrivningslov45_fordelingspost_grundgyldig(input.fordelingsposter, post) && afskrivningslov45_post_har_aktiv(input.overdragne_aktiver, post))
+    | driftsmidler_og_skibe_under_et() -> afskrivningslov45_driftsmidler_og_skibe_under_et(input.overdragne_aktiver, input.fordelingsposter)
+    | øvrige_aktiver_individuelt() -> afskrivningslov45_øvrige_aktiver_individuelt(input.overdragne_aktiver, input.fordelingsposter)
+    | fordelt_sum_kroner() -> afskrivningslov45_fordelt_sum_kroner(input.fordelingsposter)
+    | fordeling_gyldig() -> input.kontantomregning.input_gyldigt && overdragne_aktiver_gyldige() && poster_grundgyldige() && driftsmidler_og_skibe_under_et() && øvrige_aktiver_individuelt() && input.skriftligt_aftalt_af_sælger_og_køber && fordelt_sum_kroner() == input.kontantomregning.kontantomregnet_anskaffelses_eller_salgssum_kroner
+    | resultat() -> Afskrivningslov45FordelingsResultat(kontantomregning_gyldig = input.kontantomregning.input_gyldigt, overdragne_aktiver_gyldige = overdragne_aktiver_gyldige(), fordelingsposter_gyldige = poster_grundgyldige(), skriftligt_aftalt_af_sælger_og_køber = input.skriftligt_aftalt_af_sælger_og_køber, driftsmidler_og_skibe_fordelt_under_et = driftsmidler_og_skibe_under_et(), øvrige_aktiver_fordelt_individuelt = øvrige_aktiver_individuelt(), fordelt_sum_kroner = fordelt_sum_kroner(), samlet_kontantomregnet_salgssum_kroner = input.kontantomregning.kontantomregnet_anskaffelses_eller_salgssum_kroner, fordeling_gyldig = fordeling_gyldig(), undergivet_told_og_skatteforvaltningens_prøvelse = fordeling_gyldig(), bindende_for_sælger_og_køber = fordeling_gyldig(), fordelingsposter = input.fordelingsposter)
+}
+| afskrivningslov45_fordelings_sag(input: Afskrivningslov45FordelingsInput) -> Afskrivningslov45FordelingsSag(input)
+| afskrivningslov45_fordelings_resultat(input: Afskrivningslov45FordelingsInput) -> afskrivningslov45_fordelings_sag(input).resultat()
+
+# Afskrivningslov45Ansættelsesside = Al45SælgersSalgssum | Al45KøbersAnskaffelsessum
+# Afskrivningslov45AnsættelsesændringInput(kategori: Afskrivningslov45Aktivkategori, identifikation: Tekst, ændret_side: Afskrivningslov45Ansættelsesside, tidligere_beløb_kroner: Heltal, ændret_beløb_kroner: Heltal, ændret_skatteansættelse: Boolsk)
+# Afskrivningslov45AnsættelsesændringResultat(kategori: Afskrivningslov45Aktivkategori, identifikation: Tekst, input_gyldigt: Boolsk, ændret_side: Afskrivningslov45Ansættelsesside, ændring_kroner: Heltal, sælgers_salgssum_efter_kroner: Heltal, købers_anskaffelsessum_efter_kroner: Heltal, korresponderende_ændring_bindende: Boolsk)
+
+| afskrivningslov45_ansættelsesændring_resultat(input: Afskrivningslov45AnsættelsesændringInput) -> Afskrivningslov45AnsættelsesændringResultat(
+    kategori = input.kategori,
+    identifikation = input.identifikation,
+    input_gyldigt = input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse,
+    ændret_side = input.ændret_side,
+    ændring_kroner = hvis input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse { input.ændret_beløb_kroner - input.tidligere_beløb_kroner } ellers { 0 },
+    sælgers_salgssum_efter_kroner = hvis input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse { input.ændret_beløb_kroner } ellers { input.tidligere_beløb_kroner },
+    købers_anskaffelsessum_efter_kroner = hvis input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse { input.ændret_beløb_kroner } ellers { input.tidligere_beløb_kroner },
+    korresponderende_ændring_bindende = input.identifikation != "" && input.tidligere_beløb_kroner >= 0 && input.ændret_beløb_kroner >= 0 && input.ændret_skatteansættelse
+)
+--@end:afskrivningsloven_par45--
+
+--@label:afskrivningsloven_par46::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 46. Grundbeløbene i § 5, stk. 3, § 6, stk. 1, nr. 2, § 10, § 11, stk. 3 og
+5, § 29, stk. 1, nr. 3, § 42, stk. 2, og § 43, stk. 2, reguleres efter
+personskattelovens § 20.
+----
+
+--@begin:afskrivningsloven_par46--
+# Afskrivningslov46Grundbeløb = Al46Par5Stk3 | Al46Par6Stk1Nr2 | Al46Par10 | Al46Par11Stk3 | Al46Par11Stk5 | Al46Par29Stk1Nr3 | Al46Par42Stk2 | Al46Par43Stk2
+# Afskrivningslov46GrundbeløbResultat(indkomstår: Heltal, hjemmel: Afskrivningslov46Grundbeløb, grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal, reguleret_og_oprundet_beløb_kroner: Heltal, reguleret_efter_personskattelovens_par20: Boolsk)
+
+| afskrivningslov46_grundbeløb_2010_niveau_kroner(hjemmel: Afskrivningslov46Grundbeløb) -> match hjemmel {
+    | Al46Par5Stk3 -> 26200
+    | Al46Par6Stk1Nr2 -> 26200
+    | Al46Par10 -> 703400
+    | Al46Par11Stk3 -> 12300
+    | Al46Par11Stk5 -> 12300
+    | Al46Par29Stk1Nr3 -> 1406800
+    | Al46Par42Stk2 -> 12300
+    | Al46Par43Stk2 -> 12300
+}
+| afskrivningslov46_grundbeløb_resultat(indkomstår: Heltal, hjemmel: Afskrivningslov46Grundbeløb) -> Afskrivningslov46GrundbeløbResultat(
+    indkomstår = indkomstår,
+    hjemmel = hjemmel,
+    grundbeløb_2010_niveau_kroner = afskrivningslov46_grundbeløb_2010_niveau_kroner(hjemmel),
+    reguleringstal_tiendedele = hvis indkomstår >= 2009 && indkomstår <= 2026 { par20_reguleringstal_tiendedele(indkomstår) } ellers { 0 },
+    reguleret_og_oprundet_beløb_kroner = hvis indkomstår >= 2009 && indkomstår <= 2026 { par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(grundbeløb_2010_niveau_kroner = afskrivningslov46_grundbeløb_2010_niveau_kroner(hjemmel), reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår))) } ellers { 0 },
+    reguleret_efter_personskattelovens_par20 = indkomstår >= 2009 && indkomstår <= 2026
+)
+--@end:afskrivningsloven_par46--
+
+--@label:afskrivningsloven_par47::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+----
+§ 47. Med salg sidestilles i denne lov andre former for afhændelse og
+afståelse.
+----
+
+--@begin:afskrivningsloven_par47--
+# Afskrivningslov47Afståelsesform = Al47OrdinærtSalg | Al47AndenAfhændelse | Al47AndenAfståelse
+# Afskrivningslov47Resultat(afståelsesform: Afskrivningslov47Afståelsesform, salg_efter_afskrivningsloven: Boolsk)
+
+| afskrivningslov47_resultat(afståelsesform: Afskrivningslov47Afståelsesform) -> Afskrivningslov47Resultat(afståelsesform = afståelsesform, salg_efter_afskrivningsloven = Sandt)
+--@end:afskrivningsloven_par47--
+
+--@label:afskrivningsloven_par48::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+----
+§ 48. Hvor andet ikke er særskilt fastsat, behandles forsikrings- og
+erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
+----
+
+--@begin:afskrivningsloven_par48--
+# Afskrivningslov48Beløbsart = Al48Forsikringssum | Al48Erstatningssum | Al48Ekspropriationserstatning
+# Afskrivningslov48Særregel = Al48IngenSærregel | Al48ReparationEfterPar7 | Al48SkadeOgGenopførelseEfterPar24 | Al48AndenSærregel
+# Afskrivningslov48Input(beløbsart: Afskrivningslov48Beløbsart, beløb_kroner: Heltal, særregel: Afskrivningslov48Særregel)
+# Afskrivningslov48Resultat(input_gyldigt: Boolsk, beløbsart: Afskrivningslov48Beløbsart, særregel: Afskrivningslov48Særregel, behandles_som_salgssum: Boolsk, salgssum_kroner: Heltal, beløb_til_særregel_kroner: Heltal)
+
+| afskrivningslov48_resultat(input: Afskrivningslov48Input) -> Afskrivningslov48Resultat(
+    input_gyldigt = input.beløb_kroner >= 0,
+    beløbsart = input.beløbsart,
+    særregel = input.særregel,
+    behandles_som_salgssum = input.beløb_kroner >= 0 && input.særregel == Al48IngenSærregel,
+    salgssum_kroner = hvis input.beløb_kroner >= 0 && input.særregel == Al48IngenSærregel { input.beløb_kroner } ellers { 0 },
+    beløb_til_særregel_kroner = hvis input.beløb_kroner >= 0 && input.særregel != Al48IngenSærregel { input.beløb_kroner } ellers { 0 }
+)
+--@end:afskrivningsloven_par48--
+
+--@label:afskrivningsloven_par49::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+----
+§ 49. Erhvervelse og afståelse af aktiver ved gave, arv eller arveforskud
+sidestilles i denne lov med køb henholdsvis salg. Som anskaffelsessum eller
+salgssum betragtes i disse tilfælde det beløb, der er lagt til grund ved
+beregningen af gaveafgift, boafgift eller indkomstskat af den pågældende
+erhvervelse. Har denne ikke været afgifts- eller indkomstskattepligtig, eller er
+værdiansættelsen foretaget efter boafgiftslovens § 12 a, betragtes som
+anskaffelsessum eller salgssum det pågældende aktivs handelsværdi på
+overdragelsestidspunktet. Reglerne i 1.-3. pkt. gælder ikke i det omfang,
+erhververen efter skattelovgivningens regler herom indtræder i overdragerens
+skattemæssige stilling.
+----
+
+--@begin:afskrivningsloven_par49--
+# Afskrivningslov49Overdragelsesform = Al49Gave | Al49Arv | Al49Arveforskud
+# Afskrivningslov49Retning = Al49Erhvervelse | Al49Afståelse
+# Afskrivningslov49Værdiansættelse = Al49AfgiftsEllerIndkomstskattegrundlag(beløb_kroner: Heltal) | Al49IkkeAfgiftsEllerIndkomstskattepligtig(handelsværdi_kroner: Heltal) | Al49VærdiansatEfterBoafgiftslovensPar12A(handelsværdi_kroner: Heltal) | Al49IngenVærdiansættelseVedSkattesuccession
+# Afskrivningslov49Succession = Al49IngenSkattesuccession | Al49Skattesuccession(overdragerens_anskaffelsessum_kroner: Heltal, overdragerens_samlede_foretagne_afskrivninger_kroner: Heltal)
+# Afskrivningslov49Input(overdragelsesform: Afskrivningslov49Overdragelsesform, retning: Afskrivningslov49Retning, værdiansættelse: Afskrivningslov49Værdiansættelse, succession: Afskrivningslov49Succession)
+# Afskrivningslov49Resultat(overdragelsesform: Afskrivningslov49Overdragelsesform, retning: Afskrivningslov49Retning, input_gyldigt: Boolsk, skattesuccession: Boolsk, sidestillet_med_køb: Boolsk, sidestillet_med_salg: Boolsk, anvender_afgifts_eller_indkomstskattegrundlag: Boolsk, anvender_handelsværdi: Boolsk, anskaffelsessum_kroner: Heltal, salgssum_kroner: Heltal, videreført_anskaffelsessum_kroner: Heltal, videreførte_foretagne_afskrivninger_kroner: Heltal)
+
+| afskrivningslov49_værdi_kroner(værdiansættelse: Afskrivningslov49Værdiansættelse) -> match værdiansættelse {
+    | Al49AfgiftsEllerIndkomstskattegrundlag(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Al49IkkeAfgiftsEllerIndkomstskattepligtig(handelsværdi_kroner) -> penge_positivt_beløb(handelsværdi_kroner)
+    | Al49VærdiansatEfterBoafgiftslovensPar12A(handelsværdi_kroner) -> penge_positivt_beløb(handelsværdi_kroner)
+    | Al49IngenVærdiansættelseVedSkattesuccession -> 0
+}
+| afskrivningslov49_værdi_gyldig(værdiansættelse: Afskrivningslov49Værdiansættelse) -> match værdiansættelse {
+    | Al49AfgiftsEllerIndkomstskattegrundlag(beløb_kroner) -> beløb_kroner >= 0
+    | Al49IkkeAfgiftsEllerIndkomstskattepligtig(handelsværdi_kroner) -> handelsværdi_kroner >= 0
+    | Al49VærdiansatEfterBoafgiftslovensPar12A(handelsværdi_kroner) -> handelsværdi_kroner >= 0
+    | Al49IngenVærdiansættelseVedSkattesuccession -> Falskt
+}
+| afskrivningslov49_anvender_handelsværdi(værdiansættelse: Afskrivningslov49Værdiansættelse) -> match værdiansættelse {
+    | Al49AfgiftsEllerIndkomstskattegrundlag(_) -> Falskt
+    | Al49IkkeAfgiftsEllerIndkomstskattepligtig(_) -> Sandt
+    | Al49VærdiansatEfterBoafgiftslovensPar12A(_) -> Sandt
+    | Al49IngenVærdiansættelseVedSkattesuccession -> Falskt
+}
+| afskrivningslov49_succession_gyldig(succession: Afskrivningslov49Succession) -> match succession {
+    | Al49IngenSkattesuccession -> Sandt
+    | Al49Skattesuccession(anskaffelsessum_kroner, afskrivninger_kroner) -> anskaffelsessum_kroner >= 0 && afskrivninger_kroner >= 0 && afskrivninger_kroner <= anskaffelsessum_kroner
+}
+| afskrivningslov49_er_succession(succession: Afskrivningslov49Succession) -> match succession {
+    | Al49IngenSkattesuccession -> Falskt
+    | Al49Skattesuccession(_, _) -> Sandt
+}
+| afskrivningslov49_værdiansættelse_matcher_succession(værdiansættelse: Afskrivningslov49Værdiansættelse, succession: Afskrivningslov49Succession) -> hvis afskrivningslov49_er_succession(succession) { værdiansættelse == Al49IngenVærdiansættelseVedSkattesuccession } ellers { afskrivningslov49_værdi_gyldig(værdiansættelse) }
+| afskrivningslov49_videreført_anskaffelsessum_kroner(succession: Afskrivningslov49Succession) -> match succession {
+    | Al49Skattesuccession(anskaffelsessum_kroner, _) -> penge_positivt_beløb(anskaffelsessum_kroner)
+    | _ -> 0
+}
+| afskrivningslov49_videreførte_afskrivninger_kroner(succession: Afskrivningslov49Succession) -> match succession {
+    | Al49Skattesuccession(_, afskrivninger_kroner) -> penge_positivt_beløb(afskrivninger_kroner)
+    | _ -> 0
+}
+| afskrivningslov49_input_gyldigt(input: Afskrivningslov49Input) -> afskrivningslov49_succession_gyldig(input.succession) && afskrivningslov49_værdiansættelse_matcher_succession(input.værdiansættelse, input.succession)
+| afskrivningslov49_resultat(input: Afskrivningslov49Input) -> Afskrivningslov49Resultat(
+    overdragelsesform = input.overdragelsesform,
+    retning = input.retning,
+    input_gyldigt = afskrivningslov49_input_gyldigt(input),
+    skattesuccession = afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession),
+    sidestillet_med_køb = afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && input.retning == Al49Erhvervelse,
+    sidestillet_med_salg = afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && input.retning == Al49Afståelse,
+    anvender_afgifts_eller_indkomstskattegrundlag = afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && afskrivningslov49_anvender_handelsværdi(input.værdiansættelse) == Falskt,
+    anvender_handelsværdi = afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && afskrivningslov49_anvender_handelsværdi(input.værdiansættelse),
+    anskaffelsessum_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && input.retning == Al49Erhvervelse { afskrivningslov49_værdi_kroner(input.værdiansættelse) } ellers { 0 },
+    salgssum_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) == Falskt && input.retning == Al49Afståelse { afskrivningslov49_værdi_kroner(input.værdiansættelse) } ellers { 0 },
+    videreført_anskaffelsessum_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) { afskrivningslov49_videreført_anskaffelsessum_kroner(input.succession) } ellers { 0 },
+    videreførte_foretagne_afskrivninger_kroner = hvis afskrivningslov49_input_gyldigt(input) && afskrivningslov49_er_succession(input.succession) { afskrivningslov49_videreførte_afskrivninger_kroner(input.succession) } ellers { 0 }
+)
+--@end:afskrivningsloven_par49--

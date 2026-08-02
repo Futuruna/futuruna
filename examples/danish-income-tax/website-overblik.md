@@ -108,7 +108,7 @@ Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
 afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
-omfatter §§ 1-40 D: anskaffelse og benyttelsesændring,
+omfatter §§ 1-49: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
@@ -156,6 +156,18 @@ anskaffelsesbevægelse på § 40 C-saldoen. Derfor går § 40 A- og § 40 B-bel�
 gennem Personskatteloven § 3, mens § 40 D kun når kapitalindkomsten gennem
 § 40 C og Personskatteloven § 4.
 
+§§ 41-49 fortsætter med udtrykkeligt ophævet § 41, landboturisme,
+tilslutningsafgifter, tilskudsbetalte aktiver, kunstnerisk udsmykning,
+leveringskontrakter, kontantomregning og fordeling af overdragelsessummer samt
+fælles regler om andre afståelsesformer, erstatning, gave og arv. § 42 holder
+20 pct.-loft, momspligt, udlejningsindtægtsloft og salg adskilt. § 43 fører
+restbeløbet ved salg som et særskilt fradrag uden at konstruere genvundne
+afskrivninger. §§ 44 A-44 B bruger hver sin vedvarende kunstposition, mens §
+44 C lader forskudsafskrivninger være uden betydning for selve
+kontraktfortjenesten. § 45 modellerer den lovbestemte samlede fordeling på
+driftsmidler og skibe med en typet nøgle; § 49 har tilsvarende en særskilt
+tilstand for skattesuccession, hvor værdiansættelsesreglen ikke anvendes.
+
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
@@ -195,6 +207,14 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skattestyrelsens vejledning til § 39](https://info.skat.dk/data.aspx?oid=2083992),
 [Skattestyrelsens vejledning til § 40](https://info.skat.dk/data.aspx?oid=2083994),
 [Skattestyrelsens kvotevejledning til §§ 40 A-40 D](https://info.skat.dk/data.aspx?oid=2083995),
+[Skattestyrelsens vejledning til § 42](https://info.skat.dk/data.aspx?oid=2083996),
+[Skattestyrelsens vejledning til § 43](https://info.skat.dk/data.aspx?oid=2083997),
+[Skattestyrelsens vejledning til § 44](https://info.skat.dk/data.aspx?oid=2061440),
+[Skattestyrelsens vejledning til §§ 44 A-44 B](https://info.skat.dk/data.aspx?oid=2083999),
+[Skattestyrelsens vejledning til § 44 C](https://info.skat.dk/data.aspx?oid=2060796),
+[Skattestyrelsens kontantomregning efter § 45](https://info.skat.dk/data.aspx?oid=1976528),
+[Skattestyrelsens aktivfordeling efter § 45](https://info.skat.dk/data.aspx?oid=1976529),
+[Skattestyrelsens vejledning til §§ 47-49](https://info.skat.dk/data.aspx?oid=1976531),
 [SKM2022.474.SR om CO2-kvoter og afholdt anskaffelsesudgift](https://info.skat.dk/data.aspx?oid=2365032)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
@@ -226,8 +246,8 @@ acontoskat, succession, ægtefællefradrag, kontant udbetaling og fremførsel ti
 senere indkomstår.
 
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
-resterende dependency-arbejde omfatter §§ 41-49 samt de historiske
-overgangsregler om bl.a. anskaffelsessummer, afståelse og ophør.
+resterende dependency-arbejde omfatter §§ 50-52 og
+ikrafttrædelses-/overgangsreglerne i §§ 54-69; § 53 er ophævet.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

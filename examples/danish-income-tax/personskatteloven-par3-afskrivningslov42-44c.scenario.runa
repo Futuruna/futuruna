@@ -1,0 +1,39 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./afskrivningsloven - par41 - par49.scenario
+
+-- Personskatteloven § 3, stk. 2, nr. 10 modtager de typede resultater fra
+-- Afskrivningsloven §§ 42-44 C uden rå beløbsbroer eller nettomodregning.
+
+= par3_afskrivningslov42_44c = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al42År(resultat = al42_indtægtsbegrænset),
+        Par3Nr10Al42Afståelse(resultat = al42_salg),
+        Par3Nr10Al43År(resultat = al43_årsresultat),
+        Par3Nr10Al43Salg(resultat = al43_salg),
+        Par3Nr10Al44(resultat = al44_resultat),
+        Par3Nr10Al44AÅr(resultat = al44a_årsresultat),
+        Par3Nr10Al44AAfståelse(resultat = al44a_salg),
+        Par3Nr10Al44ASkade(resultat = al44a_skade),
+        Par3Nr10Al44AGenopførelse(resultat = al44a_genopførelse),
+        Par3Nr10Al44B(resultat = al44b_årsresultat),
+        Par3Nr10Al44B(resultat = al44b_erhvervsophør),
+        Par3Nr10Al44C(resultat = al44c_kontrakt),
+        Par3Nr10Al44C(resultat = al44c_ikke_færdigt)
+    ]
+))
+
+| par3_al42_44c_indtægter_holdes_adskilt: par3_afskrivningslov42_44c -> par3_afskrivningslov42_44c.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 150000 && par3_afskrivningslov42_44c.indtægtsføring_i_personlig_indkomst_kroner == 150000
+| par3_al42_44c_afskrivninger_holdes_adskilt: par3_afskrivningslov42_44c -> par3_afskrivningslov42_44c.brutto_skattemæssige_afskrivninger_kroner == 109000
+| par3_al42_44c_tab_holdes_adskilt: par3_afskrivningslov42_44c -> par3_afskrivningslov42_44c.brutto_tab_kroner == 10000
+| par3_al42_44c_andre_fradrag_holdes_adskilt: par3_afskrivningslov42_44c -> par3_afskrivningslov42_44c.brutto_andre_fradrag_kroner == 80000
+| par3_al42_44c_fradrag_føres_til_personlig_indkomst: par3_afskrivningslov42_44c -> par3_afskrivningslov42_44c.brutto_fradrag_efter_kildelovene_kroner == 199000 && par3_afskrivningslov42_44c.fradrag_i_personlig_indkomst_kroner == 199000 && par3_afskrivningslov42_44c.afskåret_fordi_ikke_selvstændig_person_kroner == 0
+| par3_al42_44c_hjemler_er_typede: par3_afskrivningslov42_44c -> par3_stk2_nr10_hjemmel(Par3Nr10Al42År(resultat = al42_indtægtsbegrænset)) == Par3Nr10Afskrivningslov42År && par3_stk2_nr10_hjemmel(Par3Nr10Al43Salg(resultat = al43_salg)) == Par3Nr10Afskrivningslov43Salg && par3_stk2_nr10_hjemmel(Par3Nr10Al44AGenopførelse(resultat = al44a_genopførelse)) == Par3Nr10Afskrivningslov44AGenopførelse && par3_stk2_nr10_hjemmel(Par3Nr10Al44C(resultat = al44c_kontrakt)) == Par3Nr10Afskrivningslov44C
+
+? par3_al42_44c_indtægter_holdes_adskilt
+? par3_al42_44c_afskrivninger_holdes_adskilt
+? par3_al42_44c_tab_holdes_adskilt
+? par3_al42_44c_andre_fradrag_holdes_adskilt
+? par3_al42_44c_fradrag_føres_til_personlig_indkomst
+? par3_al42_44c_hjemler_er_typede

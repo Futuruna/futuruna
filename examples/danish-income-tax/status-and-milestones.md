@@ -47,7 +47,7 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Afskrivningslovens aktuelle beregningsslice omfatter nu
-§§ 1-40 D. § 3 kræver leveret, driftsbestemt og
+§§ 1-49. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
@@ -148,14 +148,40 @@ backends: køb og vederlagsfri tildeling, gamle og nye mælkekvoter, delafståel
 den blandede FIFO-grænse, sukkerroerettighedernes to anskaffelsesveje,
 forpagterreglen, udløb, ordinær saldo og ophør samt hele stk. 8-10-kæden ind i
 Kildeskattelovens slutopgørelse. Den gældende § 40 C er dermed modelleret
-stykke for stykke; den samlede Afskrivningslov-afhængighed er fortsat ikke
-færdig, fordi §§ 41-49 og overgangsreglerne står tilbage.
+stykke for stykke.
+
+§ 41 er bevaret som udtrykkeligt ophævet. § 42 bærer en vedvarende position
+for ejerens eller forpagterens ombygnings- og forbedringsudgifter til
+landboturisme med 20 pct.-loft, moms- og erhvervsbetingelser,
+udlejningsindtægtsloft, straksafskrivning og fortjeneste/tab ved afståelse.
+§ 43 holder erhvervsandelen af en fysisk engangstilslutning til et anlæg ejet
+af andre, forfaldstidspunkt, årlige afskrivninger og restfradrag ved salg
+adskilt. § 44 modellerer den lukkede tilskudskreds og dens to undtagelser for
+fiskerfartøjers endelige ophør. §§ 44 A-44 B skelner kunst indføjet i en
+bygning fra kunst, der hænges op eller opstilles, og dækker særskilt
+afskrivningshistorik eller saldo, nærtståendeafskæring, skade, genopførelse,
+ophør og salg. § 44 C opgør fortjeneste eller tab på leveringskontrakter og
+leverede, men endnu ikke driftsklare aktiver uden at blande
+forskudsafskrivninger ind i opgørelsen. §§ 45-49 normaliserer kontantværdi,
+den skriftlige aktivfordeling, regulerede grundbeløb, andre afståelsesformer,
+erstatningssummer og gave/arv/arveforskud. § 45 bruger en typet
+`Al45DriftsmidlerOgSkibeUnderEt`-nøgle i stedet for en strengkonvention, og §
+49 gør det eksplicit, når skattesuccession fortrænger både køb/salg og
+værdiansættelse. De nye lovblokke udstiller 12 typede meta-ankre med rollerne
+`source`, `guidance`, `allocation_guidance` og `parameter_source`; det samlede
+Afskrivningslov-indeks har 65 ankere og ingen metadata-diagnostikker.
+
+Den samlede Afskrivningslov-afhængighed er fortsat ikke færdig: §§ 50-52 og
+ikrafttrædelses-/overgangsreglerne i §§ 54-69 står tilbage; § 53 er ophævet.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
-samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40 B-resultaterne og
+samt §§ 17-18-, §§ 21-27-, § 32-, § 34-, §§ 38-40 B- og §§ 42-44 C-resultaterne og
 holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
 adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
-føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
+føres til personlig indkomst. Det nye §§ 42-44 C-scenarie holder 150.000 kr.
+indtægtsføring, 109.000 kr. afskrivninger, 10.000 kr. tab og 80.000 kr. andre
+fradrag adskilt gennem hele § 3-kaskaden i begge backends. Den fokuserede
+scenario-fil validerer bl.a. et
 samlet kapitel 2-forløb med 78.000 kr. indtægtsføring og 96.000 kr. fradrag.
 Den nye afståelses- og skadescenario holder tilsvarende 652.500 kr. i
 genvundne afskrivninger og fristindtægt adskilt fra 100.000 kr. tab og 172.500
@@ -543,15 +569,15 @@ Current source-refresh finding:
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-12, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-13, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260712`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260712 --fail-on-drift`
+  does not cover `20260713`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260713 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 40 records with 0 drift and 0 fetch/parse errors.
+  checked 41 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -1921,9 +1947,9 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-40 D and Statsskatteloven § 6 slice. The remaining
-  §§ 41-49 and the transitional rules must become typed source-law outcomes
-  before nr. 10 can be described as complete. The § 40
+  Afskrivningsloven §§ 1-49 and Statsskatteloven § 6 slice. The remaining
+  §§ 50-52 and commencement/transitional rules in §§ 54-69 must become typed
+  source-law outcomes before nr. 10 can be described as complete. The § 40
   transition to Ligningsloven § 12 B and the § 40 D route through § 40 C are
   now end-to-end calculation dependencies rather than only source-correct
   routes.

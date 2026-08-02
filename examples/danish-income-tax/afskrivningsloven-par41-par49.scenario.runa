@@ -1,0 +1,316 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+
+-- Fokuserede scenarier for Afskrivningslovens §§ 41-49. Den ordrette
+-- lovtekst og de maskinlæsbare kildeankre står i afskrivningsloven.runa.
+
+= al42_position = Afskrivningslov42Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    afholdelsesår = 2025,
+    rettighed = Al42Forpagter,
+    ombygnings_og_forbedringsudgift_kroner = 100000,
+    eksisterende_bygning_i_landbrugsejendom = Sandt,
+    værelser_anvendes_til_turistudlejning = Sandt,
+    landbrugsejendommen_er_erhvervsmæssigt_drevet = Sandt,
+    momspligtig_udlejning = Sandt,
+    tidligere_afskrivninger = [AfskrivningslovÅrsafskrivning(indkomstår = 2025, afskrivning_kroner = 20000)]
+)
+= al42_indtægtsbegrænset = afskrivningslov42_års_resultat(Afskrivningslov42ÅrsInput(
+    indkomstår = 2026,
+    position = al42_position,
+    årets_skattepligtige_udlejningsindtægt_kroner = 15000,
+    valg = AlSærligOrdinærAfskrivning(valgt_beløb_kroner = 15000)
+))
+= al42_for_højt_valg = afskrivningslov42_års_resultat(Afskrivningslov42ÅrsInput(
+    indkomstår = 2026,
+    position = al42_position,
+    årets_skattepligtige_udlejningsindtægt_kroner = 15000,
+    valg = AlSærligOrdinærAfskrivning(valgt_beløb_kroner = 20000)
+))
+= al42_straks_position = Afskrivningslov42Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    afholdelsesår = 2026,
+    rettighed = Al42Ejer,
+    ombygnings_og_forbedringsudgift_kroner = 16900,
+    eksisterende_bygning_i_landbrugsejendom = Sandt,
+    værelser_anvendes_til_turistudlejning = Sandt,
+    landbrugsejendommen_er_erhvervsmæssigt_drevet = Sandt,
+    momspligtig_udlejning = Sandt,
+    tidligere_afskrivninger = []
+)
+= al42_straks = afskrivningslov42_års_resultat(Afskrivningslov42ÅrsInput(
+    indkomstår = 2026,
+    position = al42_straks_position,
+    årets_skattepligtige_udlejningsindtægt_kroner = 20000,
+    valg = AlSærligStraksafskrivning
+))
+= al42_salg = afskrivningslov42_afståelses_resultat(Afskrivningslov42AfståelsesInput(
+    indkomstår = 2026,
+    position = al42_position,
+    afståelsessum_henført_til_ombygning_og_forbedring_kroner = 90000,
+    forlods_afskrivninger_kroner = 10000
+))
+
+= al43_position = Afskrivningslov43Position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    forfaldsår = 2025,
+    tilslutningsafgift_kroner = 100000,
+    engangsudgift = Sandt,
+    fysisk_tilslutning = Sandt,
+    offentligt_anlæg_eller_privatanlæg_ejet_af_andre = Sandt,
+    erhvervsmæssig_anvendelsesandel_basispoint = 5000,
+    tidligere_afskrivninger = [AfskrivningslovÅrsafskrivning(indkomstår = 2025, afskrivning_kroner = 10000)]
+)
+= al43_årsresultat = afskrivningslov43_års_resultat(Afskrivningslov43ÅrsInput(
+    indkomstår = 2026,
+    position = al43_position,
+    valg = AlSærligOrdinærAfskrivning(valgt_beløb_kroner = 10000)
+))
+= al43_salg = afskrivningslov43_salg_resultat(Afskrivningslov43SalgInput(
+    indkomstår = 2026,
+    position = al43_position,
+    tilsluttet_aktiv_solgt = Sandt,
+    samlet_afståelsessum_for_aktivet_før_tilslutningsværdi_kroner = 900000,
+    del_af_afståelsessum_henført_til_tilslutningsværdi_kroner = 50000
+))
+
+= al44_resultat = afskrivningslov44_resultat(Afskrivningslov44Input(
+    indkomstår = 2026,
+    anskaffelsesår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    afskrivningsberettiget_aktiv = Sandt,
+    anskaffelsesudgift_kroner = 100000,
+    tilskudsbetalinger = [
+        Afskrivningslov44Tilskudsbetaling(kategori = Al44Landdistriktsfonden, betalt_til_anskaffelsesudgiften_kroner = 50000),
+        Afskrivningslov44Tilskudsbetaling(kategori = Al44HavOgFiskerifondenEndeligtFartøjsophør, betalt_til_anskaffelsesudgiften_kroner = 30000)
+    ],
+    valgt_straksafskrivning_kroner = 50000
+))
+
+= al44a_position = Afskrivningslov44APosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    identifikation = "integreret-kunst-1",
+    anskaffelsesår = 2022,
+    anskaffelsessum_kroner = 100000,
+    afskrivningsgrundlag_kroner = 100000,
+    bygningsdel = Al44AErhvervsbygning,
+    placering = Al44AIndføjetIBygningen,
+    anskaffelsesmåde = Al44AFørstegangskøbAfOriginalBilledkunst,
+    kunststatus = Al44AKunstKvalificeret,
+    skatteyder_nærtstående_til_kunstneren = Falskt,
+    kunstner_eller_nærtstående_har_bestemmende_indflydelse = Falskt,
+    kan_afskrives_efter_anden_bestemmelse = Falskt,
+    tidligere_afskrivninger = [AfskrivningslovÅrsafskrivning(indkomstår = 2022, afskrivning_kroner = 20000)]
+)
+= al44a_årsresultat = afskrivningslov44a_års_resultat(Afskrivningslov44AÅrsInput(
+    indkomstår = 2026,
+    position = al44a_position,
+    bygningen_udelukkende_erhvervsmæssigt_benyttet_i_året = Sandt,
+    afståelse_nedrivning_eller_anden_bortskaffelse_i_året = Falskt,
+    valgt_afskrivning_kroner = 4000
+))
+= al44a_salg = afskrivningslov44a_afståelses_resultat(Afskrivningslov44AAfståelsesInput(
+    indkomstår = 2026,
+    position = al44a_position,
+    hændelse = Al44AFjernetFraBygningEllerNæreOmgivelser,
+    afståelsessum_eller_handelsværdi_kroner = 90000,
+    kontrol = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Falskt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
+))
+= al44a_skade = afskrivningslov44a_skade_resultat(Afskrivningslov44ASkadeInput(
+    indkomstår = 2026,
+    position = al44a_position,
+    skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse = Sandt,
+    værdi_umiddelbart_før_skaden_kroner = 100000,
+    værdi_efter_skaden_kroner = 50000,
+    udgift_til_udbedring_kroner = 10000
+))
+= al44a_forsikringsafståelse = afskrivningslov44a_afståelses_resultat(Afskrivningslov44AAfståelsesInput(
+    indkomstår = 2026,
+    position = al44a_position,
+    hændelse = Al44AAndenBortskaffelse,
+    afståelsessum_eller_handelsværdi_kroner = 150000,
+    kontrol = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Falskt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
+))
+= al44a_genopførelse = afskrivningslov44a_genopførelse_resultat(Afskrivningslov44AGenopførelseInput(
+    position_før_skade = al44a_position,
+    par44a_forsikringsafståelse = al44a_forsikringsafståelse,
+    modtaget_erstatnings_eller_forsikringssum_kroner = 150000,
+    genopførelse_foretages = Sandt,
+    genopførelsesudgift_kroner = 20000,
+    skadeår = 2026,
+    erstatningssum_endeligt_fastsat_år = 2026,
+    genopførelsesår = 2027,
+    frist = Al24OrdinærFrist
+))
+
+= al44b_årsresultat = afskrivningslov44b_resultat(Afskrivningslov44BInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    bygningsdel = Al44AErhvervsbygning,
+    kunststatus = Al44AKunstKvalificeret,
+    førstegangskøb_af_original_billedkunst = Sandt,
+    ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning = Sandt,
+    skatteyder_nærtstående_til_kunstneren = Falskt,
+    kunstner_eller_nærtstående_har_bestemmende_indflydelse = Falskt,
+    kan_afskrives_efter_anden_bestemmelse = Falskt,
+    særskilt_saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 20000,
+    hændelse = Al44BOrdinærtIndkomstår,
+    valg = Al5OrdinærAfskrivning(sats_basispoint = 2500),
+    årsparametre = afskrivningslov_årsparametre(2026),
+    negativ_saldo_medregnes_i_indkomståret = Falskt
+))
+= al44b_erhvervsophør = afskrivningslov44b_resultat(Afskrivningslov44BInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    bygningsdel = Al44AErhvervsbygning,
+    kunststatus = Al44AKunstKvalificeret,
+    førstegangskøb_af_original_billedkunst = Sandt,
+    ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning = Sandt,
+    skatteyder_nærtstående_til_kunstneren = Falskt,
+    kunstner_eller_nærtstående_har_bestemmende_indflydelse = Falskt,
+    kan_afskrives_efter_anden_bestemmelse = Falskt,
+    særskilt_saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 0,
+    hændelse = Al44BBygningOphørerMedErhvervsmæssigAnvendelse(handelsværdi_kroner = 150000),
+    valg = Al5IngenAfskrivning,
+    årsparametre = afskrivningslov_årsparametre(2026),
+    negativ_saldo_medregnes_i_indkomståret = Sandt
+))
+
+= al44c_kontrakt = afskrivningslov44c_resultat(Afskrivningslov44CInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    genstand = Al44CRetEfterLeveringskontrakt,
+    skib_eller_andet_driftsmiddel = Sandt,
+    helt_eller_delvist_erhvervsmæssigt_bestemt = Sandt,
+    kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt = Sandt,
+    sælges_eller_opgives_i_indkomståret = Sandt,
+    leveret_til_igangværende_virksomhed = Falskt,
+    bestemt_til_at_indgå_i_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Falskt,
+    afståelsessum_kroner = 120000,
+    anskaffelsessum_kroner = 100000,
+    forbedringsudgifter_kroner = 0,
+    forskudsafskrivninger_kroner = 30000
+))
+= al44c_ikke_færdigt = afskrivningslov44c_resultat(Afskrivningslov44CInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    genstand = Al44CLeveretMenIkkeDriftsklartAktiv,
+    skib_eller_andet_driftsmiddel = Sandt,
+    helt_eller_delvist_erhvervsmæssigt_bestemt = Sandt,
+    kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt = Sandt,
+    sælges_eller_opgives_i_indkomståret = Sandt,
+    leveret_til_igangværende_virksomhed = Sandt,
+    bestemt_til_at_indgå_i_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Falskt,
+    afståelsessum_kroner = 90000,
+    anskaffelsessum_kroner = 80000,
+    forbedringsudgifter_kroner = 20000,
+    forskudsafskrivninger_kroner = 10000
+))
+
+= al45_kontantomregning = afskrivningslov45_kontantomregning_resultat(Afskrivningslov45KontantomregningInput(
+    kontant_del_kroner = 100000,
+    gældsposter = [Afskrivningslov45Gældspost(
+        identifikation = "fiskerilån-1992",
+        nominelt_beløb_kroner = 200000,
+        kurs_på_opgørelsestidspunktet_basispoint = 11000,
+        inkonverterbart_lån_for_fiskerfartøj = Sandt,
+        stiftet_eller_overtaget_af_sælger_før_1993_05_19 = Sandt,
+        kurs_ved_stiftelse_eller_overtagelse_basispoint = 9500
+    )],
+    afståelsessituation = Sandt
+))
+= al45_fordeling = afskrivningslov45_fordelings_resultat(Afskrivningslov45FordelingsInput(
+    kontantomregning = al45_kontantomregning,
+    overdragne_aktiver = [
+        Afskrivningslov45OverdragetAktiv(kategori = Al45DriftsmidlerOgSkibe, identifikation = "skib-1"),
+        Afskrivningslov45OverdragetAktiv(kategori = Al45DriftsmidlerOgSkibe, identifikation = "maskine-1"),
+        Afskrivningslov45OverdragetAktiv(kategori = Al45Goodwill, identifikation = "goodwill-1")
+    ],
+    fordelingsposter = [
+        Afskrivningslov45Fordelingspost(kategori = Al45DriftsmidlerOgSkibe, nøgle = Al45DriftsmidlerOgSkibeUnderEt, fordelt_kontantværdi_kroner = 200000),
+        Afskrivningslov45Fordelingspost(kategori = Al45Goodwill, nøgle = Al45IndividueltAktiv(identifikation = "goodwill-1"), fordelt_kontantværdi_kroner = 100000)
+    ],
+    skriftligt_aftalt_af_sælger_og_køber = Sandt
+))
+= al45_ansættelsesændring = afskrivningslov45_ansættelsesændring_resultat(Afskrivningslov45AnsættelsesændringInput(
+    kategori = Al45Goodwill,
+    identifikation = "goodwill-1",
+    ændret_side = Al45SælgersSalgssum,
+    tidligere_beløb_kroner = 100000,
+    ændret_beløb_kroner = 125000,
+    ændret_skatteansættelse = Sandt
+))
+
+= al46_par42_2026 = afskrivningslov46_grundbeløb_resultat(2026, Al46Par42Stk2)
+= al47_anden_afståelse = afskrivningslov47_resultat(Al47AndenAfståelse)
+= al48_ekspropriation = afskrivningslov48_resultat(Afskrivningslov48Input(beløbsart = Al48Ekspropriationserstatning, beløb_kroner = 750000, særregel = Al48IngenSærregel))
+= al48_genopførelse = afskrivningslov48_resultat(Afskrivningslov48Input(beløbsart = Al48Forsikringssum, beløb_kroner = 500000, særregel = Al48SkadeOgGenopførelseEfterPar24))
+= al49_gavesalg = afskrivningslov49_resultat(Afskrivningslov49Input(
+    overdragelsesform = Al49Gave,
+    retning = Al49Afståelse,
+    værdiansættelse = Al49AfgiftsEllerIndkomstskattegrundlag(beløb_kroner = 600000),
+    succession = Al49IngenSkattesuccession
+))
+= al49_succession = afskrivningslov49_resultat(Afskrivningslov49Input(
+    overdragelsesform = Al49Arv,
+    retning = Al49Erhvervelse,
+    værdiansættelse = Al49IngenVærdiansættelseVedSkattesuccession,
+    succession = Al49Skattesuccession(overdragerens_anskaffelsessum_kroner = 500000, overdragerens_samlede_foretagne_afskrivninger_kroner = 200000)
+))
+
+| al41_er_udtrykkeligt_ophævet: afskrivningslov41_status() -> afskrivningslov41_status() == Al41Ophævet
+| al42_indtægtsloft_anvendes: al42_indtægtsbegrænset -> al42_indtægtsbegrænset.valg_gyldigt && al42_indtægtsbegrænset.højeste_afskrivning_efter_indtægtsloft_kroner == 15000 && al42_indtægtsbegrænset.afskrivning_i_skattepligtig_indkomst_kroner == 15000
+| al42_valg_over_indtægtsloft_afvises: al42_for_højt_valg -> al42_for_højt_valg.valg_gyldigt == Falskt && al42_for_højt_valg.afskrivning_i_skattepligtig_indkomst_kroner == 0
+| al42_2026_grænse_er_16900: al42_straks -> al42_straks.reguleret_straksafskrivningsgrænse_kroner == 16900 && al42_straks.afskrivning_i_skattepligtig_indkomst_kroner == 16900
+| al42_genvinding_begrænses_til_afskrivninger: al42_salg -> al42_salg.nedskrevet_udgift_kroner == 70000 && al42_salg.beregnet_fortjeneste_kroner == 20000 && al42_salg.skattepligtige_genvundne_afskrivninger_kroner == 20000
+| al43_kun_erhvervsandel_afskrives: al43_årsresultat -> al43_årsresultat.erhvervsmæssigt_afskrivningsgrundlag_kroner == 50000 && al43_årsresultat.afskrivning_i_skattepligtig_indkomst_kroner == 10000
+| al43_salg_fradrager_rest_uden_særskilt_genvinding: al43_salg -> al43_salg.fradrag_i_skattepligtig_indkomst_kroner == 40000 && al43_salg.samlet_afståelsessum_for_tilsluttet_aktiv_kroner == 950000 && al43_salg.særskilt_genvundne_afskrivninger_eller_tab_kroner == 0
+| al44_udelukket_fartøjsophør_tæller_ikke: al44_resultat -> al44_resultat.kvalificerende_tilskudsbetalinger_kroner == 50000 && al44_resultat.straksafskrivning_i_skattepligtig_indkomst_kroner == 50000 && al44_resultat.resterende_afskrivningsgrundlag_kroner == 50000
+| al44a_før_2023_har_fire_procent: al44a_årsresultat -> al44a_årsresultat.højeste_sats_basispoint == 400 && al44a_årsresultat.afskrivning_i_skattepligtig_indkomst_kroner == 4000
+| al44a_fjernelse_er_salg: al44a_salg -> al44a_salg.sidestillet_med_salg && al44a_salg.nedskrevet_værdi_kroner == 80000 && al44a_salg.skattepligtige_genvundne_afskrivninger_kroner == 10000
+| al44a_skade_skalerer_halvt: al44a_skade -> al44a_skade.par23_finder_anvendelse && al44a_skade.afskrivningsgrundlag_efter_skade_kroner == 50000 && al44a_skade.nedskrevet_værdi_efter_skade_kroner == 40000 && al44a_skade.fradragsberettiget_værdiforringelse_kroner == 40000
+| al44a_genopførelse_udskyder_genvinding_og_beskatter_overskud: al44a_genopførelse -> al44a_genopførelse.par24_stk1_til_stk5_finder_anvendelse && al44a_genopførelse.genvundne_afskrivninger_udskudt_kroner == 20000 && al44a_genopførelse.skattepligtigt_overskydende_forskelsbeløb_kroner == 50000
+| al44b_særskilt_saldo_følger_kapitel2: al44b_årsresultat -> al44b_årsresultat.særskilt_saldo && al44b_årsresultat.par11_til_par13_finder_ikke_anvendelse && al44b_årsresultat.afskrivning_i_skattepligtig_indkomst_kroner == 30000
+| al44b_erhvervsophør_udløser_salg: al44b_erhvervsophør -> al44b_erhvervsophør.bygningens_erhvervsophør_sidestilles_med_salg && al44b_erhvervsophør.skattepligtig_negativ_saldo_i_indkomståret_kroner == 50000
+| al44c_forskudsafskrivning_ændrer_ikke_fortjenesten: al44c_kontrakt -> al44c_kontrakt.skattepligtig_fortjeneste_kroner == 20000 && al44c_kontrakt.forskudsafskrivninger_uden_betydning_kroner == 30000
+| al44c_ikke_færdigt_aktiv_medregner_forbedringer: al44c_ikke_færdigt -> al44c_ikke_færdigt.stk2_aktiv_leveret_og_bestemt_men_ikke_driftsklart && al44c_ikke_færdigt.anskaffelsessum_inkl_forbedringer_kroner == 100000 && al44c_ikke_færdigt.fradragsberettiget_tab_kroner == 10000
+| al45_fiskerilån_anvender_kurs100: al45_kontantomregning -> al45_kontantomregning.gældsposter[0].særregel_kurs_100_anvendt && al45_kontantomregning.samlet_kursværdi_af_gældsposter_kroner == 200000 && al45_kontantomregning.kontantomregnet_anskaffelses_eller_salgssum_kroner == 300000
+| al45_fordeling_er_udtømmende: al45_fordeling -> al45_fordeling.fordeling_gyldig && al45_fordeling.driftsmidler_og_skibe_fordelt_under_et && al45_fordeling.øvrige_aktiver_fordelt_individuelt
+| al45_korresponderende_ansættelsesændring: al45_ansættelsesændring -> al45_ansættelsesændring.korresponderende_ændring_bindende && al45_ansættelsesændring.ændring_kroner == 25000 && al45_ansættelsesændring.købers_anskaffelsessum_efter_kroner == 125000
+| al46_regulerer_par42_efter_par20: al46_par42_2026 -> al46_par42_2026.reguleret_efter_personskattelovens_par20 && al46_par42_2026.reguleret_og_oprundet_beløb_kroner == 16900
+| al47_anden_afståelse_er_salg: al47_anden_afståelse -> al47_anden_afståelse.salg_efter_afskrivningsloven
+| al48_ekspropriation_er_salgssum: al48_ekspropriation -> al48_ekspropriation.behandles_som_salgssum && al48_ekspropriation.salgssum_kroner == 750000
+| al48_særregel_fortrænger_salg: al48_genopførelse -> al48_genopførelse.behandles_som_salgssum == Falskt && al48_genopførelse.beløb_til_særregel_kroner == 500000
+| al49_gaveafståelse_er_salg: al49_gavesalg -> al49_gavesalg.sidestillet_med_salg && al49_gavesalg.salgssum_kroner == 600000
+| al49_succession_fortrænger_køb: al49_succession -> al49_succession.skattesuccession && al49_succession.sidestillet_med_køb == Falskt && al49_succession.anvender_afgifts_eller_indkomstskattegrundlag == Falskt && al49_succession.anvender_handelsværdi == Falskt && al49_succession.videreført_anskaffelsessum_kroner == 500000 && al49_succession.videreførte_foretagne_afskrivninger_kroner == 200000
+
+? al41_er_udtrykkeligt_ophævet
+? al42_indtægtsloft_anvendes
+? al42_valg_over_indtægtsloft_afvises
+? al42_2026_grænse_er_16900
+? al42_genvinding_begrænses_til_afskrivninger
+? al43_kun_erhvervsandel_afskrives
+? al43_salg_fradrager_rest_uden_særskilt_genvinding
+? al44_udelukket_fartøjsophør_tæller_ikke
+? al44a_før_2023_har_fire_procent
+? al44a_fjernelse_er_salg
+? al44a_skade_skalerer_halvt
+? al44a_genopførelse_udskyder_genvinding_og_beskatter_overskud
+? al44b_særskilt_saldo_følger_kapitel2
+? al44b_erhvervsophør_udløser_salg
+? al44c_forskudsafskrivning_ændrer_ikke_fortjenesten
+? al44c_ikke_færdigt_aktiv_medregner_forbedringer
+? al45_fiskerilån_anvender_kurs100
+? al45_fordeling_er_udtømmende
+? al45_korresponderende_ansættelsesændring
+? al46_regulerer_par42_efter_par20
+? al47_anden_afståelse_er_salg
+? al48_ekspropriation_er_salgssum
+? al48_særregel_fortrænger_salg
+? al49_gaveafståelse_er_salg
+? al49_succession_fortrænger_køb
