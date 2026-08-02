@@ -1403,6 +1403,91 @@ pub struct MetaAttribute {
     pub binding_name: String,
 }
 
+/// A statically resolvable Futuruna value referenced by a meta comment.
+///
+/// The metadata index keeps this structural form so audit tooling does not
+/// need to parse the compatibility-oriented `static_value` rendering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MetaValue {
+    Integer(i64),
+    Float(String),
+    String(String),
+    Character(char),
+    Boolean(bool),
+    Unit,
+    Constructor {
+        name: String,
+        applied: bool,
+        arguments: Vec<MetaValueArgument>,
+    },
+    List(Vec<MetaValue>),
+    Tuple(Vec<MetaValue>),
+    Unary {
+        operator: String,
+        value: Box<MetaValue>,
+    },
+}
+
+impl MetaValue {
+    pub fn to_source(&self) -> String {
+        match self {
+            Self::Integer(value) => value.to_string(),
+            Self::Float(value) => value.clone(),
+            Self::String(value) => format!("{:?}", value),
+            Self::Character(value) => format!("{:?}", value),
+            Self::Boolean(value) => {
+                if *value {
+                    "True".to_string()
+                } else {
+                    "False".to_string()
+                }
+            }
+            Self::Unit => "()".to_string(),
+            Self::Constructor {
+                name,
+                applied,
+                arguments,
+            } => {
+                if !applied {
+                    return name.clone();
+                }
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| match &argument.field {
+                        Some(field) => format!("{} = {}", field, argument.value.to_source()),
+                        None => argument.value.to_source(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({})", name, arguments)
+            }
+            Self::List(items) => {
+                let items = items
+                    .iter()
+                    .map(Self::to_source)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{}]", items)
+            }
+            Self::Tuple(items) => {
+                let items = items
+                    .iter()
+                    .map(Self::to_source)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", items)
+            }
+            Self::Unary { operator, value } => format!("{}{}", operator, value.to_source()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaValueArgument {
+    pub field: Option<String>,
+    pub value: MetaValue,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaComment {
     pub kind: String,
@@ -1420,6 +1505,7 @@ pub struct MetaReference {
     pub binding_name: String,
     pub qualified_type: Option<String>,
     pub static_value: Option<String>,
+    pub static_data: Option<MetaValue>,
     pub definition_line: Option<usize>,
     pub comment_line: usize,
 }
@@ -1756,6 +1842,7 @@ fn meta_anchor_for_comment(
             binding_name: attr.binding_name.clone(),
             qualified_type: None,
             static_value: None,
+            static_data: None,
             definition_line: None,
             comment_line: comment.line,
         })
@@ -1874,13 +1961,14 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
             }
 
             let mut visiting = BTreeSet::new();
-            reference.static_value = render_static_meta_binding(
+            reference.static_data = resolve_static_meta_binding(
                 &reference.binding_name,
                 &value_bindings,
                 &checker.constructors,
                 &mut visiting,
             );
-            if reference.static_value.is_none() {
+            reference.static_value = reference.static_data.as_ref().map(MetaValue::to_source);
+            if reference.static_data.is_none() {
                 index.diagnostics.push(MetaDiagnostic {
                     line: reference.comment_line,
                     message: format!(
@@ -1907,44 +1995,44 @@ fn meta_binding_definition_line(source: &str, name: &str, expr: &Expr) -> usize 
         .unwrap_or(expr_line)
 }
 
-fn render_static_meta_binding(
+fn resolve_static_meta_binding(
     name: &str,
     bindings: &BTreeMap<String, &Expr>,
     constructors: &BTreeMap<String, (String, usize)>,
     visiting: &mut BTreeSet<String>,
-) -> Option<String> {
+) -> Option<MetaValue> {
     if !visiting.insert(name.to_string()) {
         return None;
     }
     let result = bindings
         .get(name)
-        .and_then(|expr| render_static_meta_expr(expr, bindings, constructors, visiting));
+        .and_then(|expr| resolve_static_meta_expr(expr, bindings, constructors, visiting));
     visiting.remove(name);
     result
 }
 
-fn render_static_meta_expr(
+fn resolve_static_meta_expr(
     expr: &Expr,
     bindings: &BTreeMap<String, &Expr>,
     constructors: &BTreeMap<String, (String, usize)>,
     visiting: &mut BTreeSet<String>,
-) -> Option<String> {
+) -> Option<MetaValue> {
     match &expr.kind {
-        ExprKind::Lit(Literal::Int(value)) => Some(value.to_string()),
-        ExprKind::Lit(Literal::Float(value)) => Some(value.to_string()),
-        ExprKind::Lit(Literal::Str(value)) => Some(format!("{:?}", value)),
-        ExprKind::Lit(Literal::Char(value)) => Some(format!("{:?}", value)),
-        ExprKind::Lit(Literal::Bool(value)) => Some(if *value {
-            "True".to_string()
-        } else {
-            "False".to_string()
-        }),
-        ExprKind::Unit => Some("()".to_string()),
+        ExprKind::Lit(Literal::Int(value)) => Some(MetaValue::Integer(*value)),
+        ExprKind::Lit(Literal::Float(value)) => Some(MetaValue::Float(value.to_string())),
+        ExprKind::Lit(Literal::Str(value)) => Some(MetaValue::String(value.clone())),
+        ExprKind::Lit(Literal::Char(value)) => Some(MetaValue::Character(*value)),
+        ExprKind::Lit(Literal::Bool(value)) => Some(MetaValue::Boolean(*value)),
+        ExprKind::Unit => Some(MetaValue::Unit),
         ExprKind::Var(name) => {
             if matches!(constructors.get(name), Some((_, 0))) {
-                Some(name.clone())
+                Some(MetaValue::Constructor {
+                    name: name.clone(),
+                    applied: false,
+                    arguments: Vec::new(),
+                })
             } else {
-                render_static_meta_binding(name, bindings, constructors, visiting)
+                resolve_static_meta_binding(name, bindings, constructors, visiting)
             }
         }
         ExprKind::App(func, args) => {
@@ -1956,40 +2044,50 @@ fn render_static_meta_expr(
                 return None;
             }
 
-            let mut rendered_args = Vec::with_capacity(args.len());
+            let mut resolved_arguments = Vec::with_capacity(args.len());
             for arg in args {
                 if let Some((field, value)) = named_arg_parts(arg) {
-                    let rendered =
-                        render_static_meta_expr(value, bindings, constructors, visiting)?;
-                    rendered_args.push(format!("{} = {}", field, rendered));
+                    resolved_arguments.push(MetaValueArgument {
+                        field: Some(field.to_string()),
+                        value: resolve_static_meta_expr(value, bindings, constructors, visiting)?,
+                    });
                 } else {
-                    rendered_args.push(render_static_meta_expr(
-                        arg,
-                        bindings,
-                        constructors,
-                        visiting,
-                    )?);
+                    resolved_arguments.push(MetaValueArgument {
+                        field: None,
+                        value: resolve_static_meta_expr(arg, bindings, constructors, visiting)?,
+                    });
                 }
             }
-            Some(format!("{}({})", constructor, rendered_args.join(", ")))
+            Some(MetaValue::Constructor {
+                name: constructor.clone(),
+                applied: true,
+                arguments: resolved_arguments,
+            })
         }
         ExprKind::List(items) => {
-            let rendered = items
+            let resolved = items
                 .iter()
-                .map(|item| render_static_meta_expr(item, bindings, constructors, visiting))
+                .map(|item| resolve_static_meta_expr(item, bindings, constructors, visiting))
                 .collect::<Option<Vec<_>>>()?;
-            Some(format!("[{}]", rendered.join(", ")))
+            Some(MetaValue::List(resolved))
         }
         ExprKind::Tuple(items) => {
-            let rendered = items
+            let resolved = items
                 .iter()
-                .map(|item| render_static_meta_expr(item, bindings, constructors, visiting))
+                .map(|item| resolve_static_meta_expr(item, bindings, constructors, visiting))
                 .collect::<Option<Vec<_>>>()?;
-            Some(format!("({})", rendered.join(", ")))
+            Some(MetaValue::Tuple(resolved))
         }
         ExprKind::UnOp(operator, inner) if operator == "-" || operator == "+" => {
-            let rendered = render_static_meta_expr(inner, bindings, constructors, visiting)?;
-            Some(format!("{}{}", operator, rendered))
+            Some(MetaValue::Unary {
+                operator: operator.clone(),
+                value: Box::new(resolve_static_meta_expr(
+                    inner,
+                    bindings,
+                    constructors,
+                    visiting,
+                )?),
+            })
         }
         _ => None,
     }
@@ -2290,6 +2388,23 @@ Raw additions
         assert_eq!(
             warning[0].static_value.as_deref(),
             Some("AuditWarning(code = \"GEOMETRY\", message = \"Review this shape\")")
+        );
+        assert_eq!(
+            warning[0].static_data,
+            Some(MetaValue::Constructor {
+                name: "AuditWarning".to_string(),
+                applied: true,
+                arguments: vec![
+                    MetaValueArgument {
+                        field: Some("code".to_string()),
+                        value: MetaValue::String("GEOMETRY".to_string()),
+                    },
+                    MetaValueArgument {
+                        field: Some("message".to_string()),
+                        value: MetaValue::String("Review this shape".to_string()),
+                    },
+                ],
+            })
         );
         assert!(warning[0].definition_line.is_some());
         assert_eq!(index.anchors_for_label("geometry").len(), 1);

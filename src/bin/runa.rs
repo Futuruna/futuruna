@@ -2025,9 +2025,73 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         "binding": reference.binding_name,
         "type": reference.qualified_type,
         "value": reference.static_value,
+        "data": reference.static_data.as_ref().map(meta_value_json),
         "definition_line": reference.definition_line,
         "comment_line": reference.comment_line,
     })
+}
+
+fn meta_value_json(value: &MetaValue) -> serde_json::Value {
+    match value {
+        MetaValue::Integer(value) => serde_json::json!({
+            "kind": "integer",
+            "value": value,
+        }),
+        MetaValue::Float(value) => serde_json::json!({
+            "kind": "float",
+            "value": value.parse::<f64>().ok(),
+            "source": value,
+        }),
+        MetaValue::String(value) => serde_json::json!({
+            "kind": "string",
+            "value": value,
+        }),
+        MetaValue::Character(value) => serde_json::json!({
+            "kind": "character",
+            "value": value.to_string(),
+        }),
+        MetaValue::Boolean(value) => serde_json::json!({
+            "kind": "boolean",
+            "value": value,
+        }),
+        MetaValue::Unit => serde_json::json!({
+            "kind": "unit",
+        }),
+        MetaValue::Constructor {
+            name,
+            applied,
+            arguments,
+        } => {
+            let arguments = arguments
+                .iter()
+                .map(|argument| {
+                    serde_json::json!({
+                        "field": argument.field,
+                        "value": meta_value_json(&argument.value),
+                    })
+                })
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "kind": "constructor",
+                "name": name,
+                "applied": applied,
+                "arguments": arguments,
+            })
+        }
+        MetaValue::List(items) => serde_json::json!({
+            "kind": "list",
+            "items": items.iter().map(meta_value_json).collect::<Vec<_>>(),
+        }),
+        MetaValue::Tuple(items) => serde_json::json!({
+            "kind": "tuple",
+            "items": items.iter().map(meta_value_json).collect::<Vec<_>>(),
+        }),
+        MetaValue::Unary { operator, value } => serde_json::json!({
+            "kind": "unary",
+            "operator": operator,
+            "value": meta_value_json(value),
+        }),
+    }
 }
 
 fn print_meta_reference(reference: &MetaReference) {

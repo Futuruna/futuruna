@@ -182,10 +182,13 @@ the parser still treats every meta marker as a comment.
 Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 `futuruna.meta.v1` document contains typed references, quoted source anchors,
 linked code spans and their declared types, rules, bindings, and functions, plus
-metadata diagnostics. Expression-level forms such as `match` arms are not span
-symbols. `--type` and `--role` apply to JSON output as well, so a warning sweep
-can use `runa meta --json --role warning file.runa` without parsing presentation
-text.
+metadata diagnostics. Each ground reference retains its Futuruna rendering in
+`value` and exposes a structural `data` tree. Constructors, named arguments,
+lists, tuples, and primitive values are separate nodes, so an audit can inspect
+an `AuditWarning` field or a `SourceInfo` URL without parsing Futuruna display
+text. Expression-level forms such as `match` arms are not span symbols. `--type`
+and `--role` apply to JSON output as well, so a warning sweep can use
+`runa meta --json --role warning file.runa` without parsing presentation text.
 
 Raw-text anchors report `text_begin_marker_line` and `text_end_marker_line` for
 the `----` delimiters. `text_start_line` and `text_end_line` identify only the

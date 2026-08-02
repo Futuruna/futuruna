@@ -8,11 +8,12 @@
 -- expect-stdout: "binding": "primary_shape"
 -- expect-stdout: "binding": "secondary_shape"
 -- expect-stdout: "type": "Shape"
+-- expect-stdout: "data": {
 -- expect-stdout: "text": "Raw additions"
--- expect-stdout: "text_begin_marker_line": 27
--- expect-stdout: "text_end_marker_line": 29
--- expect-stdout: "text_start_line": 28
--- expect-stdout: "text_end_line": 28
+-- expect-stdout: "text_begin_marker_line": 28
+-- expect-stdout: "text_end_marker_line": 30
+-- expect-stdout: "text_start_line": 29
+-- expect-stdout: "text_end_line": 29
 -- expect-stdout: "name": "geometry_fixture"
 -- expect-stdout-not: "role": "warning"
 
