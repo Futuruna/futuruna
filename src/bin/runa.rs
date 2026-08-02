@@ -680,7 +680,7 @@ fn main_inner() {
     }
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v1";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v2";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
 
 fn run_calculation_command(
@@ -1065,101 +1065,448 @@ fn write_calculation_xlsx_template(
     envelope: &calculate::CalculationInputEnvelope,
     path: &str,
 ) -> Result<(), String> {
+    let layout = contract.input_layout();
+    let collection_rows = calculation_xlsx_collection_rows(&layout, envelope)?;
     let mut workbook = rust_xlsxwriter::Workbook::new();
     write_calculation_xlsx_metadata(&mut workbook, CALCULATION_XLSX_INPUT_SCHEMA, contract)
         .map_err(|error| error.to_string())?;
-    let columns = contract.input_columns();
-    write_calculation_xlsx_columns(&mut workbook, &columns).map_err(|error| error.to_string())?;
+    write_calculation_xlsx_layout_metadata(&mut workbook, &layout)
+        .map_err(|error| error.to_string())?;
+    write_calculation_xlsx_cases(&mut workbook, &layout.root_columns, envelope)
+        .map_err(|error| error.to_string())?;
+    for table in &layout.collection_tables {
+        let rows = collection_rows
+            .get(&table.path)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        write_calculation_xlsx_collection_sheet(&mut workbook, table, rows)
+            .map_err(|error| error.to_string())?;
+    }
+    workbook.save(path).map_err(|error| error.to_string())
+}
 
+#[derive(Debug, Clone)]
+struct CalculationXlsxCollectionRow {
+    case_id: String,
+    parent_id: Option<String>,
+    item_id: String,
+    position: Option<u32>,
+    key: Option<String>,
+    value: serde_json::Value,
+}
+
+fn write_calculation_xlsx_layout_metadata(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    layout: &calculate::CalculationInputLayout,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
     let header = calculation_header_format();
-    let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
-    let worksheet = workbook
-        .add_worksheet()
-        .set_name("cases")
-        .map_err(|error| error.to_string())?;
-    worksheet
-        .write_string_with_format(0, 0, "case_id", &header)
-        .map_err(|error| error.to_string())?;
-    for (index, column) in columns.iter().enumerate() {
-        let excel_column = index as u16 + 1;
-        worksheet
-            .write_string_with_format(0, excel_column, &column.path, &header)
-            .map_err(|error| error.to_string())?;
-        worksheet
-            .set_column_width(excel_column, calculation_column_width(column))
-            .map_err(|error| error.to_string())?;
-        if !column.choices.is_empty() {
-            let choices: Vec<&str> = column.choices.iter().map(String::as_str).collect();
-            let validation = rust_xlsxwriter::DataValidation::new()
-                .allow_list_strings(&choices)
-                .map_err(|error| error.to_string())?;
-            worksheet
-                .add_data_validation(1, excel_column, 999, excel_column, &validation)
-                .map_err(|error| error.to_string())?;
+    let tables = workbook.add_worksheet().set_name("_tables")?;
+    for (column, name) in [
+        "path",
+        "sheet",
+        "parent_path",
+        "attach_path",
+        "kind",
+        "item_type",
+        "item_value_column",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        tables.write_string_with_format(0, column as u16, name, &header)?;
+    }
+    for (row, table) in layout.collection_tables.iter().enumerate() {
+        let row = row as u32 + 1;
+        tables.write_string(row, 0, &table.path)?;
+        tables.write_string(row, 1, &table.sheet)?;
+        tables.write_string(row, 2, table.parent_path.as_deref().unwrap_or(""))?;
+        tables.write_string(row, 3, &table.attach_path)?;
+        tables.write_string(row, 4, table.kind.as_str())?;
+        tables.write_string(row, 5, table.item_type.display_name())?;
+        tables.write_boolean(row, 6, table.item_value_column)?;
+    }
+    for (column, width) in [28.0, 24.0, 28.0, 28.0, 12.0, 32.0, 20.0]
+        .into_iter()
+        .enumerate()
+    {
+        tables.set_column_width(column as u16, width)?;
+    }
+    tables.set_hidden(true);
+
+    let columns = workbook.add_worksheet().set_name("_columns")?;
+    for (column, name) in [
+        "sheet",
+        "table_path",
+        "path",
+        "type",
+        "encoding",
+        "required",
+        "choices",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        columns.write_string_with_format(0, column as u16, name, &header)?;
+    }
+    let mut row = 1;
+    for column in &layout.root_columns {
+        write_calculation_xlsx_column_metadata(columns, row, "cases", "", column)?;
+        row += 1;
+    }
+    for table in &layout.collection_tables {
+        for column in &table.columns {
+            write_calculation_xlsx_column_metadata(
+                columns,
+                row,
+                &table.sheet,
+                &table.path,
+                column,
+            )?;
+            row += 1;
         }
     }
-    worksheet
-        .set_column_width(0, 18)
-        .map_err(|error| error.to_string())?;
-    worksheet
-        .set_freeze_panes(1, 1)
-        .map_err(|error| error.to_string())?;
-    worksheet
-        .autofilter(0, 0, 999, columns.len() as u16)
-        .map_err(|error| error.to_string())?;
+    for (column, width) in [24.0, 28.0, 36.0, 32.0, 14.0, 12.0, 48.0]
+        .into_iter()
+        .enumerate()
+    {
+        columns.set_column_width(column as u16, width)?;
+    }
+    columns.set_hidden(true);
+    Ok(())
+}
 
-    if let Some(case) = envelope.cases.first() {
-        worksheet
-            .write_string_with_format(1, 0, &case.case_id, &text_format)
-            .map_err(|error| error.to_string())?;
+fn write_calculation_xlsx_column_metadata(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    row: u32,
+    sheet: &str,
+    table_path: &str,
+    column: &calculate::CalculationColumn,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    worksheet.write_string(row, 0, sheet)?;
+    worksheet.write_string(row, 1, table_path)?;
+    worksheet.write_string(row, 2, &column.path)?;
+    worksheet.write_string(row, 3, column.ty.display_name())?;
+    worksheet.write_string(row, 4, column.encoding.as_str())?;
+    worksheet.write_boolean(row, 5, column.required)?;
+    worksheet.write_string(row, 6, column.choices.join(" | "))?;
+    Ok(())
+}
+
+fn write_calculation_xlsx_cases(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    columns: &[calculate::CalculationColumn],
+    envelope: &calculate::CalculationInputEnvelope,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let header = calculation_header_format();
+    let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
+    let worksheet = workbook.add_worksheet().set_name("cases")?;
+    worksheet.set_active(true);
+    worksheet.write_string_with_format(0, 0, "case_id", &header)?;
+    for (index, column) in columns.iter().enumerate() {
+        let excel_column = index as u16 + 1;
+        worksheet.write_string_with_format(0, excel_column, &column.path, &header)?;
+        worksheet.set_column_width(excel_column, calculation_column_width(column))?;
+        add_calculation_xlsx_column_validation(worksheet, excel_column, column)?;
+    }
+    worksheet.set_column_width(0, 18)?;
+    worksheet.set_freeze_panes(1, 1)?;
+    worksheet.autofilter(0, 0, 999, columns.len() as u16)?;
+
+    for (index, case) in envelope.cases.iter().enumerate() {
+        let row = index as u32 + 1;
+        worksheet.write_string_with_format(row, 0, &case.case_id, &text_format)?;
         for (index, column) in columns.iter().enumerate() {
             let value = calculation_value_at_column_path(&case.input, &column.path)
                 .unwrap_or(&serde_json::Value::Null);
             write_calculation_xlsx_value(
                 worksheet,
-                1,
+                row,
                 index as u16 + 1,
                 column,
                 value,
                 &text_format,
-            )
-            .map_err(|error| error.to_string())?;
+            )?;
         }
     }
-    workbook.save(path).map_err(|error| error.to_string())
+    Ok(())
 }
 
-fn write_calculation_xlsx_columns(
+fn add_calculation_xlsx_column_validation(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    excel_column: u16,
+    column: &calculate::CalculationColumn,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    if column.choices.is_empty() {
+        return Ok(());
+    }
+    let choices: Vec<&str> = column.choices.iter().map(String::as_str).collect();
+    let validation = rust_xlsxwriter::DataValidation::new().allow_list_strings(&choices)?;
+    worksheet.add_data_validation(1, excel_column, 999, excel_column, &validation)?;
+    Ok(())
+}
+
+fn calculation_xlsx_collection_headers(
+    table: &calculate::CalculationCollectionTable,
+) -> Vec<String> {
+    let mut headers = vec!["case_id".to_string()];
+    if table.parent_path.is_some() {
+        headers.push("parent_id".to_string());
+    }
+    headers.push("item_id".to_string());
+    match table.kind {
+        calculate::CalculationCollectionKind::List => headers.push("position".to_string()),
+        calculate::CalculationCollectionKind::Map => headers.push("key".to_string()),
+        calculate::CalculationCollectionKind::Set => {}
+    }
+    headers.extend(table.columns.iter().map(|column| column.path.clone()));
+    headers
+}
+
+fn write_calculation_xlsx_collection_sheet(
     workbook: &mut rust_xlsxwriter::Workbook,
-    columns: &[calculate::CalculationColumn],
+    table: &calculate::CalculationCollectionTable,
+    rows: &[CalculationXlsxCollectionRow],
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
     let header = calculation_header_format();
-    let worksheet = workbook.add_worksheet().set_name("_columns")?;
-    for (column, name) in ["path", "type", "encoding", "required", "choices"]
-        .into_iter()
-        .enumerate()
-    {
+    let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
+    let worksheet = workbook.add_worksheet().set_name(&table.sheet)?;
+    let headers = calculation_xlsx_collection_headers(table);
+    for (column, name) in headers.iter().enumerate() {
         worksheet.write_string_with_format(0, column as u16, name, &header)?;
     }
-    for (row, column) in columns.iter().enumerate() {
-        let row = row as u32 + 1;
-        worksheet.write_string(row, 0, &column.path)?;
-        worksheet.write_string(row, 1, column.ty.display_name())?;
-        worksheet.write_string(row, 2, column.encoding.as_str())?;
-        worksheet.write_boolean(row, 3, column.required)?;
-        worksheet.write_string(row, 4, column.choices.join(" | "))?;
+    worksheet.set_column_width(0, 18)?;
+    let mut payload_start = 1_u16;
+    if table.parent_path.is_some() {
+        worksheet.set_column_width(payload_start, 28)?;
+        payload_start += 1;
     }
-    worksheet.set_column_width(0, 36)?;
-    worksheet.set_column_width(1, 28)?;
-    worksheet.set_column_width(2, 14)?;
-    worksheet.set_column_width(3, 12)?;
-    worksheet.set_column_width(4, 48)?;
-    worksheet.set_hidden(true);
+    worksheet.set_column_width(payload_start, 28)?;
+    payload_start += 1;
+    match table.kind {
+        calculate::CalculationCollectionKind::List => {
+            worksheet.set_column_width(payload_start, 12)?;
+            payload_start += 1;
+        }
+        calculate::CalculationCollectionKind::Map => {
+            worksheet.set_column_width(payload_start, 28)?;
+            payload_start += 1;
+        }
+        calculate::CalculationCollectionKind::Set => {}
+    }
+    for (index, column) in table.columns.iter().enumerate() {
+        let excel_column = payload_start + index as u16;
+        worksheet.set_column_width(excel_column, calculation_column_width(column))?;
+        add_calculation_xlsx_column_validation(worksheet, excel_column, column)?;
+    }
+    worksheet.set_freeze_panes(1, payload_start)?;
+    worksheet.autofilter(0, 0, 999, headers.len().saturating_sub(1) as u16)?;
+
+    for (index, item) in rows.iter().enumerate() {
+        let row = index as u32 + 1;
+        let mut excel_column = 0_u16;
+        worksheet.write_string_with_format(row, excel_column, &item.case_id, &text_format)?;
+        excel_column += 1;
+        if table.parent_path.is_some() {
+            worksheet.write_string_with_format(
+                row,
+                excel_column,
+                item.parent_id.as_deref().unwrap_or(""),
+                &text_format,
+            )?;
+            excel_column += 1;
+        }
+        worksheet.write_string_with_format(row, excel_column, &item.item_id, &text_format)?;
+        excel_column += 1;
+        match table.kind {
+            calculate::CalculationCollectionKind::List => {
+                worksheet.write_number(row, excel_column, item.position.unwrap_or(0) as f64)?;
+                excel_column += 1;
+            }
+            calculate::CalculationCollectionKind::Map => {
+                worksheet.write_string_with_format(
+                    row,
+                    excel_column,
+                    item.key.as_deref().unwrap_or(""),
+                    &text_format,
+                )?;
+                excel_column += 1;
+            }
+            calculate::CalculationCollectionKind::Set => {}
+        }
+        for column in &table.columns {
+            let value = if table.item_value_column && column.path == "value" {
+                &item.value
+            } else {
+                calculation_value_at_column_path(&item.value, &column.path)
+                    .unwrap_or(&serde_json::Value::Null)
+            };
+            write_calculation_xlsx_value(
+                worksheet,
+                row,
+                excel_column,
+                column,
+                value,
+                &text_format,
+            )?;
+            excel_column += 1;
+        }
+    }
+    Ok(())
+}
+
+fn calculation_xlsx_collection_rows(
+    layout: &calculate::CalculationInputLayout,
+    envelope: &calculate::CalculationInputEnvelope,
+) -> Result<BTreeMap<String, Vec<CalculationXlsxCollectionRow>>, String> {
+    let mut rows: BTreeMap<String, Vec<CalculationXlsxCollectionRow>> = layout
+        .collection_tables
+        .iter()
+        .map(|table| (table.path.clone(), Vec::new()))
+        .collect();
+    let mut counters = BTreeMap::new();
+    for case in &envelope.cases {
+        for table in layout
+            .collection_tables
+            .iter()
+            .filter(|table| table.parent_path.is_none())
+        {
+            let value = calculation_value_at_column_path(&case.input, &table.attach_path)
+                .ok_or_else(|| {
+                    format!(
+                        "case `{}` is missing collection `{}`",
+                        case.case_id, table.attach_path
+                    )
+                })?;
+            append_calculation_xlsx_collection_rows(
+                layout,
+                table,
+                &case.case_id,
+                None,
+                value,
+                &mut counters,
+                &mut rows,
+            )?;
+        }
+    }
+    Ok(rows)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_calculation_xlsx_collection_rows(
+    layout: &calculate::CalculationInputLayout,
+    table: &calculate::CalculationCollectionTable,
+    case_id: &str,
+    parent_id: Option<&str>,
+    value: &serde_json::Value,
+    counters: &mut BTreeMap<(String, String), u32>,
+    rows: &mut BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
+) -> Result<(), String> {
+    match table.kind {
+        calculate::CalculationCollectionKind::List | calculate::CalculationCollectionKind::Set => {
+            let items = value.as_array().ok_or_else(|| {
+                format!(
+                    "case `{}` collection `{}` must be an array",
+                    case_id, table.path
+                )
+            })?;
+            for (index, item) in items.iter().enumerate() {
+                append_calculation_xlsx_collection_item(
+                    layout,
+                    table,
+                    case_id,
+                    parent_id,
+                    (table.kind == calculate::CalculationCollectionKind::List)
+                        .then_some(index as u32 + 1),
+                    None,
+                    item,
+                    counters,
+                    rows,
+                )?;
+            }
+        }
+        calculate::CalculationCollectionKind::Map => {
+            let items = value.as_object().ok_or_else(|| {
+                format!(
+                    "case `{}` collection `{}` must be an object",
+                    case_id, table.path
+                )
+            })?;
+            for (key, item) in items {
+                append_calculation_xlsx_collection_item(
+                    layout,
+                    table,
+                    case_id,
+                    parent_id,
+                    None,
+                    Some(key),
+                    item,
+                    counters,
+                    rows,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_calculation_xlsx_collection_item(
+    layout: &calculate::CalculationInputLayout,
+    table: &calculate::CalculationCollectionTable,
+    case_id: &str,
+    parent_id: Option<&str>,
+    position: Option<u32>,
+    key: Option<&str>,
+    value: &serde_json::Value,
+    counters: &mut BTreeMap<(String, String), u32>,
+    rows: &mut BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
+) -> Result<(), String> {
+    let counter = counters
+        .entry((case_id.to_string(), table.path.clone()))
+        .or_default();
+    *counter += 1;
+    let item_id = format!("{}:{}:{}", case_id, table.sheet, counter);
+    rows.get_mut(&table.path)
+        .expect("layout initialized every collection table")
+        .push(CalculationXlsxCollectionRow {
+            case_id: case_id.to_string(),
+            parent_id: parent_id.map(str::to_string),
+            item_id: item_id.clone(),
+            position,
+            key: key.map(str::to_string),
+            value: value.clone(),
+        });
+
+    for child in layout
+        .collection_tables
+        .iter()
+        .filter(|child| child.parent_path.as_deref() == Some(table.path.as_str()))
+    {
+        let child_value = if child.attach_path.is_empty() {
+            value
+        } else {
+            calculation_value_at_column_path(value, &child.attach_path).ok_or_else(|| {
+                format!(
+                    "case `{}` item `{}` is missing collection `{}`",
+                    case_id, item_id, child.attach_path
+                )
+            })?
+        };
+        append_calculation_xlsx_collection_rows(
+            layout,
+            child,
+            case_id,
+            Some(&item_id),
+            child_value,
+            counters,
+            rows,
+        )?;
+    }
     Ok(())
 }
 
 fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
-    match column.encoding {
+    let content_width: f64 = match column.encoding {
         calculate::CalculationColumnEncoding::Integer => 18.0,
         calculate::CalculationColumnEncoding::Float => 16.0,
         calculate::CalculationColumnEncoding::Boolean => 12.0,
@@ -1167,7 +1514,14 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
         calculate::CalculationColumnEncoding::Enum => 24.0,
         calculate::CalculationColumnEncoding::Json => 48.0,
         calculate::CalculationColumnEncoding::String => 28.0,
-    }
+    };
+    let header_width = column.path.chars().count() as f64 + 2.0;
+    let choice_width = column
+        .choices
+        .iter()
+        .map(|choice| choice.chars().count() as f64 + 4.0)
+        .fold(0.0_f64, f64::max);
+    content_width.max(header_width).max(choice_width).min(48.0)
 }
 
 fn calculation_value_at_column_path<'a>(
@@ -1325,6 +1679,24 @@ fn read_calculation_xlsx(
         ));
     }
 
+    let layout = contract.input_layout();
+    let tables_range = workbook
+        .worksheet_range("_tables")
+        .map_err(|error| error.to_string())?;
+    validate_calculation_xlsx_metadata_matrix(
+        "_tables",
+        &tables_range,
+        &calculation_xlsx_expected_tables_metadata(&layout),
+    )?;
+    let columns_range = workbook
+        .worksheet_range("_columns")
+        .map_err(|error| error.to_string())?;
+    validate_calculation_xlsx_metadata_matrix(
+        "_columns",
+        &columns_range,
+        &calculation_xlsx_expected_columns_metadata(&layout),
+    )?;
+
     let cases_range = workbook
         .worksheet_range("cases")
         .map_err(|error| error.to_string())?;
@@ -1333,9 +1705,8 @@ fn read_calculation_xlsx(
         .next()
         .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
     let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
-    let columns = contract.input_columns();
     let expected_headers: Vec<String> = std::iter::once("case_id".to_string())
-        .chain(columns.iter().map(|column| column.path.clone()))
+        .chain(layout.root_columns.iter().map(|column| column.path.clone()))
         .collect();
     if actual_headers != expected_headers {
         return Err(format!(
@@ -1348,6 +1719,7 @@ fn read_calculation_xlsx(
     let mut cases = Vec::new();
     let mut diagnostics = Vec::new();
     let mut seen_ids = BTreeSet::new();
+    let mut invalid_cases = BTreeSet::new();
     for (row_index, row) in rows.enumerate() {
         if row.iter().all(|cell| matches!(cell, Data::Empty)) {
             continue;
@@ -1367,18 +1739,19 @@ fn read_calculation_xlsx(
                 path: format!("cases!A{}", row_index + 2),
                 message: format!("duplicate case_id `{}`", case_id),
             });
+            invalid_cases.insert(case_id);
             continue;
         }
         let mut input = serde_json::Value::Object(serde_json::Map::new());
         let mut row_valid = true;
-        for (index, column) in columns.iter().enumerate() {
+        for (index, column) in layout.root_columns.iter().enumerate() {
             let cell = row.get(index + 1).unwrap_or(&Data::Empty);
             let value = match calculation_json_from_cell(cell, column) {
                 Ok(value) => value,
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
                         case_id: case_id.clone(),
-                        path: column.path.clone(),
+                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 2),
                         message,
                     });
                     row_valid = false;
@@ -1400,6 +1773,278 @@ fn read_calculation_xlsx(
             cases.push(calculate::CalculationInputCase { case_id, input });
         }
     }
+
+    let known_case_ids: BTreeSet<String> = cases.iter().map(|case| case.case_id.clone()).collect();
+    let mut collection_rows = BTreeMap::new();
+    let mut item_ids_by_table: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
+    for table in &layout.collection_tables {
+        let range = workbook
+            .worksheet_range(&table.sheet)
+            .map_err(|error| error.to_string())?;
+        let mut rows = range.rows();
+        let header = rows
+            .next()
+            .ok_or_else(|| format!("`{}` sheet has no header row", table.sheet))?;
+        let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
+        let expected_headers = calculation_xlsx_collection_headers(table);
+        if actual_headers != expected_headers {
+            return Err(format!(
+                "`{}` headers do not match the current contract\n  expected: {}\n  actual:   {}",
+                table.sheet,
+                expected_headers.join(", "),
+                actual_headers.join(", ")
+            ));
+        }
+
+        let mut parsed_rows = Vec::new();
+        let mut seen_item_ids = BTreeSet::new();
+        let mut seen_positions = BTreeSet::new();
+        let mut seen_keys = BTreeSet::new();
+        for (row_index, row) in rows.enumerate() {
+            if row.iter().all(|cell| matches!(cell, Data::Empty)) {
+                continue;
+            }
+            let excel_row = row_index + 2;
+            let case_id = row.first().map(calculation_cell_text).unwrap_or_default();
+            let case_known = known_case_ids.contains(&case_id);
+            let mut row_valid = true;
+            if case_id.trim().is_empty() {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
+                    message: "case_id must not be empty".to_string(),
+                });
+                row_valid = false;
+            } else if !case_known {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
+                    message: format!("unknown case_id `{}`", case_id),
+                });
+                row_valid = false;
+            }
+
+            let mut column_index = 1;
+            let parent_id = if table.parent_path.is_some() {
+                let value = row
+                    .get(column_index)
+                    .map(calculation_cell_text)
+                    .unwrap_or_default();
+                if value.trim().is_empty() {
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id: case_id.clone(),
+                        path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                        message: "parent_id must not be empty".to_string(),
+                    });
+                    row_valid = false;
+                } else if case_known {
+                    let parent_exists = table
+                        .parent_path
+                        .as_ref()
+                        .and_then(|path| item_ids_by_table.get(path))
+                        .is_some_and(|ids| ids.contains(&(case_id.clone(), value.clone())));
+                    if !parent_exists {
+                        diagnostics.push(calculate::CalculationCaseDiagnostic {
+                            case_id: case_id.clone(),
+                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                            message: format!("orphan parent_id `{}`", value),
+                        });
+                        row_valid = false;
+                    }
+                }
+                column_index += 1;
+                Some(value)
+            } else {
+                None
+            };
+
+            let item_id = row
+                .get(column_index)
+                .map(calculation_cell_text)
+                .unwrap_or_default();
+            if item_id.trim().is_empty() {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                    message: "item_id must not be empty".to_string(),
+                });
+                row_valid = false;
+            } else if !seen_item_ids.insert((case_id.clone(), item_id.clone())) {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                    message: format!("duplicate item_id `{}`", item_id),
+                });
+                row_valid = false;
+            }
+            column_index += 1;
+
+            let scope = parent_id.clone().unwrap_or_default();
+            let mut position = None;
+            let mut key = None;
+            match table.kind {
+                calculate::CalculationCollectionKind::List => {
+                    match calculation_xlsx_positive_position(
+                        row.get(column_index).unwrap_or(&Data::Empty),
+                    ) {
+                        Ok(value) => {
+                            if !seen_positions.insert((case_id.clone(), scope.clone(), value)) {
+                                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                                    case_id: case_id.clone(),
+                                    path: calculation_xlsx_cell_path(
+                                        &table.sheet,
+                                        column_index,
+                                        excel_row,
+                                    ),
+                                    message: format!(
+                                        "duplicate list position `{}` for the same parent",
+                                        value
+                                    ),
+                                });
+                                row_valid = false;
+                            }
+                            position = Some(value);
+                        }
+                        Err(message) => {
+                            diagnostics.push(calculate::CalculationCaseDiagnostic {
+                                case_id: case_id.clone(),
+                                path: calculation_xlsx_cell_path(
+                                    &table.sheet,
+                                    column_index,
+                                    excel_row,
+                                ),
+                                message,
+                            });
+                            row_valid = false;
+                        }
+                    }
+                    column_index += 1;
+                }
+                calculate::CalculationCollectionKind::Map => {
+                    let value = row
+                        .get(column_index)
+                        .map(calculation_cell_text)
+                        .unwrap_or_default();
+                    if value.trim().is_empty() {
+                        diagnostics.push(calculate::CalculationCaseDiagnostic {
+                            case_id: case_id.clone(),
+                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                            message: "map key must not be empty".to_string(),
+                        });
+                        row_valid = false;
+                    } else if !seen_keys.insert((case_id.clone(), scope, value.clone())) {
+                        diagnostics.push(calculate::CalculationCaseDiagnostic {
+                            case_id: case_id.clone(),
+                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                            message: format!("duplicate map key `{}` for the same parent", value),
+                        });
+                        row_valid = false;
+                    }
+                    key = Some(value);
+                    column_index += 1;
+                }
+                calculate::CalculationCollectionKind::Set => {}
+            }
+
+            let mut value = if table.item_value_column {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::Object(serde_json::Map::new())
+            };
+            for column in &table.columns {
+                let cell = row.get(column_index).unwrap_or(&Data::Empty);
+                match calculation_json_from_cell(cell, column) {
+                    Ok(parsed) => {
+                        if table.item_value_column && column.path == "value" {
+                            value = parsed;
+                        } else if let Err(error) =
+                            calculate::set_calculation_input_path(&mut value, &column.path, parsed)
+                        {
+                            diagnostics.push(calculate::CalculationCaseDiagnostic {
+                                case_id: case_id.clone(),
+                                path: error.path,
+                                message: error.message,
+                            });
+                            row_valid = false;
+                        }
+                    }
+                    Err(message) => {
+                        diagnostics.push(calculate::CalculationCaseDiagnostic {
+                            case_id: case_id.clone(),
+                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                            message,
+                        });
+                        row_valid = false;
+                    }
+                }
+                column_index += 1;
+            }
+
+            if !row_valid {
+                if case_known {
+                    invalid_cases.insert(case_id);
+                }
+                continue;
+            }
+            item_ids_by_table
+                .entry(table.path.clone())
+                .or_default()
+                .insert((case_id.clone(), item_id.clone()));
+            parsed_rows.push(CalculationXlsxCollectionRow {
+                case_id,
+                parent_id,
+                item_id,
+                position,
+                key,
+                value,
+            });
+        }
+        collection_rows.insert(table.path.clone(), parsed_rows);
+    }
+
+    for case in &mut cases {
+        if invalid_cases.contains(&case.case_id) {
+            continue;
+        }
+        for table in layout
+            .collection_tables
+            .iter()
+            .filter(|table| table.parent_path.is_none())
+        {
+            let collection = match build_calculation_xlsx_collection(
+                &layout,
+                table,
+                &case.case_id,
+                None,
+                &collection_rows,
+            ) {
+                Ok(collection) => collection,
+                Err(message) => {
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id: case.case_id.clone(),
+                        path: table.path.clone(),
+                        message,
+                    });
+                    invalid_cases.insert(case.case_id.clone());
+                    break;
+                }
+            };
+            if let Err(error) = calculate::set_calculation_input_path(
+                &mut case.input,
+                &table.attach_path,
+                collection,
+            ) {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: error.path,
+                    message: error.message,
+                });
+                invalid_cases.insert(case.case_id.clone());
+                break;
+            }
+        }
+    }
+    cases.retain(|case| !invalid_cases.contains(&case.case_id));
     Ok((
         calculate::CalculationInputEnvelope {
             futuruna: calculate::CalculationEnvelopeMetadata {
@@ -1411,6 +2056,196 @@ fn read_calculation_xlsx(
         },
         diagnostics,
     ))
+}
+
+fn calculation_xlsx_expected_tables_metadata(
+    layout: &calculate::CalculationInputLayout,
+) -> Vec<Vec<String>> {
+    let mut rows = vec![vec![
+        "path".to_string(),
+        "sheet".to_string(),
+        "parent_path".to_string(),
+        "attach_path".to_string(),
+        "kind".to_string(),
+        "item_type".to_string(),
+        "item_value_column".to_string(),
+    ]];
+    rows.extend(layout.collection_tables.iter().map(|table| {
+        vec![
+            table.path.clone(),
+            table.sheet.clone(),
+            table.parent_path.clone().unwrap_or_default(),
+            table.attach_path.clone(),
+            table.kind.as_str().to_string(),
+            table.item_type.display_name(),
+            table.item_value_column.to_string(),
+        ]
+    }));
+    rows
+}
+
+fn calculation_xlsx_expected_columns_metadata(
+    layout: &calculate::CalculationInputLayout,
+) -> Vec<Vec<String>> {
+    let mut rows = vec![vec![
+        "sheet".to_string(),
+        "table_path".to_string(),
+        "path".to_string(),
+        "type".to_string(),
+        "encoding".to_string(),
+        "required".to_string(),
+        "choices".to_string(),
+    ]];
+    rows.extend(
+        layout
+            .root_columns
+            .iter()
+            .map(|column| calculation_xlsx_expected_column_row("cases", "", column)),
+    );
+    for table in &layout.collection_tables {
+        rows.extend(
+            table.columns.iter().map(|column| {
+                calculation_xlsx_expected_column_row(&table.sheet, &table.path, column)
+            }),
+        );
+    }
+    rows
+}
+
+fn calculation_xlsx_expected_column_row(
+    sheet: &str,
+    table_path: &str,
+    column: &calculate::CalculationColumn,
+) -> Vec<String> {
+    vec![
+        sheet.to_string(),
+        table_path.to_string(),
+        column.path.clone(),
+        column.ty.display_name(),
+        column.encoding.as_str().to_string(),
+        column.required.to_string(),
+        column.choices.join(" | "),
+    ]
+}
+
+fn validate_calculation_xlsx_metadata_matrix(
+    sheet: &str,
+    range: &calamine::Range<calamine::Data>,
+    expected: &[Vec<String>],
+) -> Result<(), String> {
+    let width = expected.first().map(Vec::len).unwrap_or_default();
+    let actual: Vec<Vec<String>> = range
+        .rows()
+        .map(|row| {
+            (0..width)
+                .map(|column| {
+                    row.get(column)
+                        .map(calculation_cell_text)
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .collect();
+    let has_extra_values = range.rows().any(|row| {
+        row.iter()
+            .skip(width)
+            .any(|cell| !calculation_cell_text(cell).is_empty())
+    });
+    if actual != expected || has_extra_values {
+        return Err(format!(
+            "`{}` metadata does not match the current contract",
+            sheet
+        ));
+    }
+    Ok(())
+}
+
+fn calculation_xlsx_cell_path(sheet: &str, column: usize, row: usize) -> String {
+    let mut index = column + 1;
+    let mut letters = String::new();
+    while index > 0 {
+        let remainder = (index - 1) % 26;
+        letters.insert(0, (b'A' + remainder as u8) as char);
+        index = (index - 1) / 26;
+    }
+    format!("{}!{}{}", sheet, letters, row)
+}
+
+fn calculation_xlsx_positive_position(cell: &calamine::Data) -> Result<u32, String> {
+    use calamine::Data;
+
+    let value = match cell {
+        Data::Int(value) => u32::try_from(*value).ok(),
+        Data::Float(value)
+            if value.is_finite()
+                && value.fract() == 0.0
+                && *value >= 0.0
+                && *value <= u32::MAX as f64 =>
+        {
+            Some(*value as u32)
+        }
+        Data::String(value) => value.trim().parse::<u32>().ok(),
+        _ => None,
+    }
+    .filter(|value| *value > 0)
+    .ok_or_else(|| "position must be a positive exact integer".to_string())?;
+    Ok(value)
+}
+
+fn build_calculation_xlsx_collection(
+    layout: &calculate::CalculationInputLayout,
+    table: &calculate::CalculationCollectionTable,
+    case_id: &str,
+    parent_id: Option<&str>,
+    rows_by_table: &BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
+) -> Result<serde_json::Value, String> {
+    let mut rows: Vec<&CalculationXlsxCollectionRow> = rows_by_table
+        .get(&table.path)
+        .into_iter()
+        .flatten()
+        .filter(|row| row.case_id == case_id && row.parent_id.as_deref() == parent_id)
+        .collect();
+    if table.kind == calculate::CalculationCollectionKind::List {
+        rows.sort_by_key(|row| row.position.unwrap_or_default());
+    }
+
+    let mut values = Vec::new();
+    let mut map = serde_json::Map::new();
+    for row in rows {
+        let mut value = row.value.clone();
+        for child in layout
+            .collection_tables
+            .iter()
+            .filter(|child| child.parent_path.as_deref() == Some(table.path.as_str()))
+        {
+            let collection = build_calculation_xlsx_collection(
+                layout,
+                child,
+                case_id,
+                Some(&row.item_id),
+                rows_by_table,
+            )?;
+            if child.attach_path.is_empty() {
+                value = collection;
+            } else {
+                calculate::set_calculation_input_path(&mut value, &child.attach_path, collection)
+                    .map_err(|error| format!("{}: {}", error.path, error.message))?;
+            }
+        }
+        match table.kind {
+            calculate::CalculationCollectionKind::List
+            | calculate::CalculationCollectionKind::Set => values.push(value),
+            calculate::CalculationCollectionKind::Map => {
+                map.insert(row.key.clone().unwrap_or_default(), value);
+            }
+        }
+    }
+    Ok(match table.kind {
+        calculate::CalculationCollectionKind::List | calculate::CalculationCollectionKind::Set => {
+            serde_json::Value::Array(values)
+        }
+        calculate::CalculationCollectionKind::Map => serde_json::Value::Object(map),
+    })
 }
 
 fn calculation_cell_text(cell: &calamine::Data) -> String {
@@ -1533,6 +2368,7 @@ fn write_calculation_xlsx_output(
         .add_worksheet()
         .set_name("results")
         .map_err(|error| error.to_string())?;
+    results.set_active(true);
     results
         .write_string_with_format(0, 0, "case_id", &header)
         .map_err(|error| error.to_string())?;

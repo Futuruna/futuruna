@@ -46,8 +46,17 @@ runa template model.calculate.runa --format xlsx --output cases.xlsx
 
 JSON is the canonical value model. TOML omits absent optional record fields.
 XLSX flattens nested named records into columns, gives booleans and nullary enums
-constrained choices, and stores lists and complex alternatives as canonical JSON
-cells. Integer template cells are text-formatted so all `i64` values remain exact.
+constrained choices, and puts each `List`, string-keyed `Map`, or `Set` field in
+a separate related worksheet. Integer template cells are text-formatted so all
+`i64` values remain exact.
+
+`cases` contains scalar fields for the named input record. Every collection row
+uses `case_id` and `item_id`; nested collection sheets add `parent_id`. List rows
+use one-based `position`, map rows use `key`, and set rows have neither. Leave a
+collection sheet without matching rows to supply an empty collection. Hidden
+`_tables` and `_columns` sheets record the generated topology and column types;
+do not edit them. Optional composite fields and complex alternatives remain
+canonical JSON cells when they cannot be represented without ambiguity.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes
@@ -67,8 +76,10 @@ a diagnostic. The command exits unsuccessfully when any diagnostics remain.
 
 Calculation workbooks must be `.xlsx`. VBA projects and formulas in the input
 sheet are rejected. Unknown columns, duplicate or empty case identifiers,
+duplicate item identifiers, list positions, or map keys, orphaned parent rows,
 non-exact integers, invalid enum choices, missing required fields, and malformed
-canonical JSON are rejected before their case runs.
+canonical JSON are rejected before their case runs. A bad related row invalidates
+that case while other valid cases still run.
 
 The full format and evolution contract is in
 [Typed calculation contracts](../rfcs/typed-calculation-contracts.md).

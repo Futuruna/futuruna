@@ -147,21 +147,45 @@ Generated workbooks contain:
 
 - `_futuruna`: adapter schema, entry, contract hash, and encoding metadata;
 - `cases`: one row per case with a required `case_id` column;
-- `_columns`: the generated path, type, encoding, requiredness, and choices for
-  each input column;
+- `_tables`: hidden collection topology, including worksheet names, parent
+  paths, attachment paths, collection kinds, and item types;
+- `_columns`: hidden worksheet, table path, value path, type, encoding,
+  requiredness, and choices for each generated input column;
+- one worksheet for every relational collection path;
 - generated output workbooks additionally contain `results` and `diagnostics`.
 
 Named records are flattened into dotted columns. Primitive values and nullary
-enums use native cells; enum and boolean columns use constrained choices. Lists,
-complex alternatives, maps, sets, and other composite leaves use canonical JSON
-in one cell. This is an adapter representation only: cells are reconstructed into
-the canonical value tree and validated against the contract.
+enums use native cells; enum and boolean columns use constrained choices. A
+closed `List(T)`, `Map(String, T)`, or `Set(T)` field is normalized into its own
+worksheet instead of being embedded as JSON in `cases`.
+
+Every collection row has `case_id` and an adapter-local `item_id`. Nested
+collections also have `parent_id`, which references an item in their generated
+parent worksheet for the same case. Lists have a positive, one-based `position`
+that is unique per parent and determines canonical array order. Maps have a
+non-empty `key` that is unique per parent. Sets have neither position nor key;
+their canonical values must still be unique. Empty collections are represented
+by zero matching rows. Item records are flattened into columns on their
+collection worksheet, and collections inside those records become further child
+worksheets.
+
+Complex sum alternatives, recursive leaves, and optional composite leaves retain
+canonical JSON cells. An item in a normalized collection may therefore have a
+`value` JSON column when its item type cannot be flattened safely. JSON remains
+the canonical runtime boundary; the relational worksheets are only an input
+adapter and are rebuilt into the same canonical tree before contract validation.
 
 Inputs must be `.xlsx`, contain the generated metadata, and have the exact
-generated headers. Formula cells, VBA projects, duplicate case identifiers,
-unknown columns, and stale hashes are rejected before invocation. Integer cells
-must be exact `i64` values; floating-point cells are never silently rounded into
-integers.
+generated headers. Formula cells, VBA projects, duplicate case or item
+identifiers, duplicate list positions or map keys, orphaned parent references,
+unknown columns, and stale hashes are rejected before invocation. A malformed
+collection row invalidates its associated case without suppressing unrelated
+valid cases. Integer cells must be exact `i64` values; floating-point cells are
+never silently rounded into integers.
+
+The normalized input workbook schema is
+`futuruna.calculate.xlsx.input.v2`. Version 1 workbooks are rejected rather than
+silently interpreting embedded collection JSON under the new layout.
 
 ## Metadata
 

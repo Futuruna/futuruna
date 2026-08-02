@@ -1,4 +1,4 @@
-use calamine::{open_workbook_auto, Reader};
+use calamine::{open_workbook_auto, Data, Reader};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -217,6 +217,37 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         String::from_utf8_lossy(&template.stderr)
     );
 
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+        for expected in ["_futuruna", "_tables", "_columns", "cases", "children"] {
+            assert!(
+                workbook.sheet_names().iter().any(|name| name == expected),
+                "missing generated sheet {expected}"
+            );
+        }
+        assert_eq!(
+            workbook_headers(&mut workbook, "cases"),
+            ["case_id", "monthly_income", "filing_status", "deduction"]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, "children"),
+            ["case_id", "item_id", "position", "name", "age"]
+        );
+    }
+
+    edit_workbook(&input_path, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 1, Data::String("50000".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 2, Data::String("Married".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 3, Data::String("12000".to_string()));
+        workbook_sheet_mut(sheets, "children").push(vec![
+            Data::String("case-1".to_string()),
+            Data::String("child-1".to_string()),
+            Data::Int(1),
+            Data::String("Ada".to_string()),
+            Data::Int(7),
+        ]);
+    });
+
     let call = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
@@ -246,10 +277,209 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         .get((1, 1))
         .map(ToString::to_string)
         .expect("result JSON")
-        .contains("\"annual_tax\":0"));
+        .contains("\"annual_tax\":117600"));
 
     std::fs::remove_file(&input_path).ok();
     std::fs::remove_file(&output_path).ok();
+}
+
+#[test]
+fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    std::fs::write(
+        &source_path,
+        "# Toy(label: String)\n\
+# Child(name: String, toys: List(Toy))\n\
+# Input(children: List(Child), aliases: List(String), totals: Map(String, Int), flags: Set(Int))\n\
+@ calculate\n\
+> echo(input: Input) -> Input { input }\n",
+    )
+    .expect("write relational calculation");
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    edit_workbook(&input_path, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 0, Data::String("valid".to_string()));
+        workbook_sheet_mut(sheets, "cases").push(vec![Data::String("invalid".to_string())]);
+
+        workbook_sheet_mut(sheets, "children").extend([
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("child-valid".to_string()),
+                Data::Int(1),
+                Data::String("Ada".to_string()),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("child-invalid".to_string()),
+                Data::Int(1),
+                Data::String("Bad".to_string()),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "children_toys").extend([
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("child-valid".to_string()),
+                Data::String("toy-valid".to_string()),
+                Data::Int(1),
+                Data::String("Ball".to_string()),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("missing-parent".to_string()),
+                Data::String("toy-orphan".to_string()),
+                Data::Int(1),
+                Data::String("Orphan".to_string()),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "aliases").extend([
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("alias-valid-2".to_string()),
+                Data::Int(2),
+                Data::String("B".to_string()),
+            ],
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("alias-valid-1".to_string()),
+                Data::Int(1),
+                Data::String("A".to_string()),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("alias-bad-1".to_string()),
+                Data::Int(1),
+                Data::String("B".to_string()),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("alias-bad-2".to_string()),
+                Data::Int(1),
+                Data::String("C".to_string()),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "totals").extend([
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("total-valid".to_string()),
+                Data::String("salary".to_string()),
+                Data::Int(10),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("total-bad-1".to_string()),
+                Data::String("same".to_string()),
+                Data::String("not-an-int".to_string()),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("total-bad-2".to_string()),
+                Data::String("same".to_string()),
+                Data::Int(2),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "flags").extend([
+            vec![
+                Data::String("valid".to_string()),
+                Data::String("flag-valid".to_string()),
+                Data::Int(7),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("flag-duplicate".to_string()),
+                Data::Int(1),
+            ],
+            vec![
+                Data::String("invalid".to_string()),
+                Data::String("flag-duplicate".to_string()),
+                Data::Int(2),
+            ],
+        ]);
+    });
+
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    assert_eq!(result["results"].as_array().expect("results").len(), 1);
+    assert_eq!(result["results"][0]["case_id"], "valid");
+    assert_eq!(result["results"][0]["result"]["children"][0]["name"], "Ada");
+    assert_eq!(
+        result["results"][0]["result"]["children"][0]["toys"][0]["label"],
+        "Ball"
+    );
+    assert_eq!(result["results"][0]["result"]["aliases"][0], "A");
+    assert_eq!(result["results"][0]["result"]["aliases"][1], "B");
+    assert_eq!(result["results"][0]["result"]["totals"]["salary"], 10);
+    assert_eq!(result["results"][0]["result"]["flags"][0], 7);
+    let diagnostics = result["diagnostics"].as_array().expect("diagnostics");
+    for expected in [
+        "orphan parent_id",
+        "duplicate list position",
+        "duplicate map key",
+        "duplicate item_id",
+        "not an exact signed integer",
+    ] {
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic["case_id"] == "invalid"
+                && diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains(expected))
+        }));
+    }
+}
+
+#[test]
+fn xlsx_rejects_tampered_collection_topology() {
+    let fixture = fixture();
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(template.status.success());
+    edit_workbook(&input_path, |sheets| {
+        set_workbook_cell(
+            sheets,
+            "_tables",
+            1,
+            0,
+            Data::String("tampered.children".to_string()),
+        );
+    });
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("`_tables` metadata does not match the current contract"));
 }
 
 #[test]
@@ -481,7 +711,7 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v1"),
+        ("schema", "futuruna.calculate.xlsx.input.v2"),
         ("contract_schema", "futuruna.calculate.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),
@@ -496,15 +726,9 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
 
     let cases = workbook.add_worksheet();
     cases.set_name("cases").unwrap();
-    for (column, header) in [
-        "case_id",
-        "monthly_income",
-        "filing_status",
-        "deduction",
-        "children",
-    ]
-    .into_iter()
-    .enumerate()
+    for (column, header) in ["case_id", "monthly_income", "filing_status", "deduction"]
+        .into_iter()
+        .enumerate()
     {
         cases.write_string(0, column as u16, header).unwrap();
     }
@@ -515,6 +739,107 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
         cases.write_string(1, 1, "0").unwrap();
     }
     cases.write_string(1, 2, "Single").unwrap();
-    cases.write_string(1, 4, "[]").unwrap();
     workbook.save(path).unwrap();
+}
+
+fn workbook_headers(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    sheet: &str,
+) -> Vec<String> {
+    workbook
+        .worksheet_range(sheet)
+        .expect("worksheet")
+        .rows()
+        .next()
+        .expect("header row")
+        .iter()
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn edit_workbook(path: &Path, edit: impl FnOnce(&mut Vec<(String, Vec<Vec<Data>>)>)) {
+    let mut workbook = open_workbook_auto(path).expect("open workbook for editing");
+    let sheet_names = workbook.sheet_names().to_vec();
+    let mut sheets: Vec<(String, Vec<Vec<Data>>)> = sheet_names
+        .into_iter()
+        .map(|name| {
+            let rows = workbook
+                .worksheet_range(&name)
+                .expect("worksheet")
+                .rows()
+                .map(|row| row.to_vec())
+                .collect();
+            (name, rows)
+        })
+        .collect();
+    drop(workbook);
+    edit(&mut sheets);
+
+    let mut workbook = rust_xlsxwriter::Workbook::new();
+    for (name, rows) in sheets {
+        let worksheet = workbook.add_worksheet();
+        worksheet.set_name(&name).expect("sheet name");
+        for (row, cells) in rows.iter().enumerate() {
+            for (column, cell) in cells.iter().enumerate() {
+                write_workbook_data(worksheet, row as u32, column as u16, cell);
+            }
+        }
+    }
+    workbook.save(path).expect("save edited workbook");
+}
+
+fn workbook_sheet_mut<'a>(
+    sheets: &'a mut [(String, Vec<Vec<Data>>)],
+    name: &str,
+) -> &'a mut Vec<Vec<Data>> {
+    &mut sheets
+        .iter_mut()
+        .find(|(sheet, _)| sheet == name)
+        .unwrap_or_else(|| panic!("missing sheet {name}"))
+        .1
+}
+
+fn set_workbook_cell(
+    sheets: &mut [(String, Vec<Vec<Data>>)],
+    sheet: &str,
+    row: usize,
+    column: usize,
+    value: Data,
+) {
+    let rows = workbook_sheet_mut(sheets, sheet);
+    while rows.len() <= row {
+        rows.push(Vec::new());
+    }
+    if rows[row].len() <= column {
+        rows[row].resize(column + 1, Data::Empty);
+    }
+    rows[row][column] = value;
+}
+
+fn write_workbook_data(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    row: u32,
+    column: u16,
+    value: &Data,
+) {
+    match value {
+        Data::Empty => {}
+        Data::String(value) => {
+            worksheet.write_string(row, column, value).unwrap();
+        }
+        Data::Float(value) => {
+            worksheet.write_number(row, column, *value).unwrap();
+        }
+        Data::Int(value) => {
+            worksheet.write_number(row, column, *value as f64).unwrap();
+        }
+        Data::Bool(value) => {
+            worksheet.write_boolean(row, column, *value).unwrap();
+        }
+        value => {
+            worksheet
+                .write_string(row, column, value.to_string())
+                .unwrap();
+        }
+    }
 }

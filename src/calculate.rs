@@ -165,19 +165,21 @@ impl CalculationContract {
         encode_value(value, &self.output, self, &BTreeMap::new(), "$")
     }
 
-    pub fn input_columns(&self) -> Vec<CalculationColumn> {
-        let mut columns = Vec::new();
-        flatten_columns(
+    pub fn input_layout(&self) -> CalculationInputLayout {
+        let mut builder = CalculationLayoutBuilder::new(self);
+        let mut root_columns = Vec::new();
+        builder.flatten_value(
+            "",
             "",
             &self.input,
-            self,
             &BTreeMap::new(),
             true,
+            None,
             &mut BTreeSet::new(),
-            &mut columns,
+            &mut root_columns,
         );
-        if columns.is_empty() {
-            columns.push(CalculationColumn {
+        if root_columns.is_empty() && builder.tables.is_empty() {
+            root_columns.push(CalculationColumn {
                 path: "input".to_string(),
                 ty: self.input.clone(),
                 encoding: CalculationColumnEncoding::Json,
@@ -185,7 +187,21 @@ impl CalculationContract {
                 choices: Vec::new(),
             });
         }
-        columns
+        builder.tables.sort_by(|left, right| {
+            left.path
+                .split('.')
+                .count()
+                .cmp(&right.path.split('.').count())
+                .then_with(|| left.path.cmp(&right.path))
+        });
+        CalculationInputLayout {
+            root_columns,
+            collection_tables: builder.tables,
+        }
+    }
+
+    pub fn input_columns(&self) -> Vec<CalculationColumn> {
+        self.input_layout().root_columns
     }
 }
 
@@ -285,6 +301,51 @@ pub struct CalculationColumn {
     pub encoding: CalculationColumnEncoding,
     pub required: bool,
     pub choices: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationCollectionKind {
+    List,
+    Map,
+    Set,
+}
+
+impl CalculationCollectionKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::List => "list",
+            Self::Map => "map",
+            Self::Set => "set",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationCollectionTable {
+    pub path: String,
+    pub sheet: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_path: Option<String>,
+    pub attach_path: String,
+    pub kind: CalculationCollectionKind,
+    pub item_type: CalculationTypeRef,
+    pub item_value_column: bool,
+    pub columns: Vec<CalculationColumn>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationInputLayout {
+    pub root_columns: Vec<CalculationColumn>,
+    pub collection_tables: Vec<CalculationCollectionTable>,
+}
+
+impl CalculationInputLayout {
+    pub fn table(&self, path: &str) -> Option<&CalculationCollectionTable> {
+        self.collection_tables
+            .iter()
+            .find(|table| table.path == path)
+    }
 }
 
 #[derive(Clone)]
@@ -1863,93 +1924,331 @@ fn field_path(parent: &str, field: &str) -> String {
     }
 }
 
-fn flatten_columns(
-    path: &str,
-    ty: &CalculationTypeRef,
-    contract: &CalculationContract,
-    substitutions: &BTreeMap<String, CalculationTypeRef>,
-    required: bool,
-    active: &mut BTreeSet<String>,
-    columns: &mut Vec<CalculationColumn>,
-) {
-    let resolved = substitute_contract_type(ty, substitutions);
-    match &resolved {
-        CalculationTypeRef::Primitive { name } => columns.push(CalculationColumn {
-            path: normalized_column_path(path),
-            ty: resolved.clone(),
-            encoding: match name.as_str() {
-                "Int" => CalculationColumnEncoding::Integer,
-                "Float" => CalculationColumnEncoding::Float,
-                "Bool" => CalculationColumnEncoding::Boolean,
-                "Char" => CalculationColumnEncoding::Character,
-                _ => CalculationColumnEncoding::String,
-            },
-            required,
-            choices: if name == "Bool" {
-                vec!["true".to_string(), "false".to_string()]
-            } else {
-                Vec::new()
-            },
-        }),
-        CalculationTypeRef::Optional { item } => {
-            let item = substitute_contract_type(item, substitutions);
-            if is_scalar_column_type(&item, contract) {
-                flatten_columns(path, &item, contract, substitutions, false, active, columns);
-                if let Some(column) = columns.last_mut() {
-                    column.ty = resolved;
-                    column.required = false;
-                }
-            } else {
-                columns.push(json_column(path, resolved, false));
-            }
+struct CalculationLayoutBuilder<'a> {
+    contract: &'a CalculationContract,
+    tables: Vec<CalculationCollectionTable>,
+    used_sheet_names: BTreeSet<String>,
+}
+
+impl<'a> CalculationLayoutBuilder<'a> {
+    fn new(contract: &'a CalculationContract) -> Self {
+        Self {
+            contract,
+            tables: Vec::new(),
+            used_sheet_names: [
+                "_futuruna",
+                "_columns",
+                "_tables",
+                "cases",
+                "results",
+                "diagnostics",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
         }
-        CalculationTypeRef::Named { name, arguments } => {
-            let Some(definition) = contract.definition(name) else {
-                columns.push(json_column(path, resolved, required));
-                return;
-            };
-            if !active.insert(name.clone()) {
-                columns.push(json_column(path, resolved, required));
-                return;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn flatten_value(
+        &mut self,
+        column_path: &str,
+        absolute_path: &str,
+        ty: &CalculationTypeRef,
+        substitutions: &BTreeMap<String, CalculationTypeRef>,
+        required: bool,
+        parent_table: Option<&str>,
+        active: &mut BTreeSet<String>,
+        columns: &mut Vec<CalculationColumn>,
+    ) {
+        let resolved = substitute_contract_type(ty, substitutions);
+        match &resolved {
+            CalculationTypeRef::List { item } => self.register_collection(
+                column_path,
+                absolute_path,
+                CalculationCollectionKind::List,
+                item,
+                parent_table,
+                active,
+            ),
+            CalculationTypeRef::Map { key, value } if is_string_type(key) => self
+                .register_collection(
+                    column_path,
+                    absolute_path,
+                    CalculationCollectionKind::Map,
+                    value,
+                    parent_table,
+                    active,
+                ),
+            CalculationTypeRef::Set { item } => self.register_collection(
+                column_path,
+                absolute_path,
+                CalculationCollectionKind::Set,
+                item,
+                parent_table,
+                active,
+            ),
+            CalculationTypeRef::Primitive { name } => {
+                columns.push(scalar_column(
+                    layout_column_path(column_path, parent_table),
+                    resolved.clone(),
+                    name,
+                    required,
+                ));
             }
-            let local = definition_substitutions(definition, arguments);
-            if let Some(variant) = product_variant(definition) {
-                for field in &variant.fields {
-                    flatten_columns(
-                        &joined_column_path(path, &field.name),
-                        &field.ty,
-                        contract,
-                        &local,
-                        !matches!(
-                            substitute_contract_type(&field.ty, &local),
-                            CalculationTypeRef::Optional { .. }
-                        ),
+            CalculationTypeRef::Optional { item } => {
+                let item = substitute_contract_type(item, substitutions);
+                if is_scalar_column_type(&item, self.contract) {
+                    let before = columns.len();
+                    self.flatten_value(
+                        column_path,
+                        absolute_path,
+                        &item,
+                        substitutions,
+                        false,
+                        parent_table,
                         active,
                         columns,
                     );
+                    if columns.len() == before + 1 {
+                        columns[before].ty = resolved;
+                        columns[before].required = false;
+                    }
+                } else {
+                    columns.push(json_column(
+                        &layout_column_path(column_path, parent_table),
+                        resolved,
+                        false,
+                    ));
                 }
-            } else if definition
-                .variants
-                .iter()
-                .all(|variant| variant.fields.is_empty())
-            {
-                columns.push(CalculationColumn {
-                    path: normalized_column_path(path),
-                    ty: resolved.clone(),
-                    encoding: CalculationColumnEncoding::Enum,
-                    required,
-                    choices: definition
-                        .variants
-                        .iter()
-                        .map(|variant| variant.name.clone())
-                        .collect(),
-                });
-            } else {
-                columns.push(json_column(path, resolved.clone(), required));
             }
-            active.remove(name);
+            CalculationTypeRef::Named { name, arguments } => {
+                let Some(definition) = self.contract.definition(name) else {
+                    columns.push(json_column(
+                        &layout_column_path(column_path, parent_table),
+                        resolved,
+                        required,
+                    ));
+                    return;
+                };
+                if !active.insert(name.clone()) {
+                    columns.push(json_column(
+                        &layout_column_path(column_path, parent_table),
+                        resolved,
+                        required,
+                    ));
+                    return;
+                }
+                let local = definition_substitutions(definition, arguments);
+                if let Some(variant) = product_variant(definition) {
+                    for field in &variant.fields {
+                        let field_ty = substitute_contract_type(&field.ty, &local);
+                        self.flatten_value(
+                            &joined_column_path(column_path, &field.name),
+                            &joined_column_path(absolute_path, &field.name),
+                            &field.ty,
+                            &local,
+                            !matches!(field_ty, CalculationTypeRef::Optional { .. }),
+                            parent_table,
+                            active,
+                            columns,
+                        );
+                    }
+                } else if definition
+                    .variants
+                    .iter()
+                    .all(|variant| variant.fields.is_empty())
+                {
+                    columns.push(CalculationColumn {
+                        path: layout_column_path(column_path, parent_table),
+                        ty: resolved.clone(),
+                        encoding: CalculationColumnEncoding::Enum,
+                        required,
+                        choices: definition
+                            .variants
+                            .iter()
+                            .map(|variant| variant.name.clone())
+                            .collect(),
+                    });
+                } else {
+                    columns.push(json_column(
+                        &layout_column_path(column_path, parent_table),
+                        resolved.clone(),
+                        required,
+                    ));
+                }
+                active.remove(name);
+            }
+            _ => columns.push(json_column(
+                &layout_column_path(column_path, parent_table),
+                resolved,
+                required,
+            )),
         }
-        _ => columns.push(json_column(path, resolved, required)),
+    }
+
+    fn register_collection(
+        &mut self,
+        column_path: &str,
+        absolute_path: &str,
+        kind: CalculationCollectionKind,
+        item_type: &CalculationTypeRef,
+        parent_table: Option<&str>,
+        active: &mut BTreeSet<String>,
+    ) {
+        let is_root_collection = absolute_path.is_empty() && parent_table.is_none();
+        let path = if absolute_path.is_empty() {
+            match parent_table {
+                Some(parent) => joined_column_path(parent, "items"),
+                None => "input".to_string(),
+            }
+        } else {
+            absolute_path.to_string()
+        };
+        if self.tables.iter().any(|table| table.path == path) {
+            return;
+        }
+        let item_type = item_type.clone();
+        let item_value_column =
+            collection_item_uses_value_column(&item_type, self.contract, active);
+        let mut columns = Vec::new();
+        let item_absolute_path = if is_normalized_collection_type(&item_type) {
+            joined_column_path(&path, "items")
+        } else {
+            path.clone()
+        };
+        self.flatten_value(
+            "",
+            &item_absolute_path,
+            &item_type,
+            &BTreeMap::new(),
+            true,
+            Some(&path),
+            active,
+            &mut columns,
+        );
+        let sheet = self.next_sheet_name(&path);
+        self.tables.push(CalculationCollectionTable {
+            path: path.clone(),
+            sheet,
+            parent_path: parent_table.map(str::to_string),
+            attach_path: match parent_table {
+                Some(_) => column_path.to_string(),
+                None if is_root_collection => "input".to_string(),
+                None => path,
+            },
+            kind,
+            item_type,
+            item_value_column,
+            columns,
+        });
+    }
+
+    fn next_sheet_name(&mut self, path: &str) -> String {
+        let mut base: String = path
+            .chars()
+            .map(|character| {
+                if character.is_alphanumeric() || character == '_' {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        base = base.trim_matches('_').to_string();
+        if base.is_empty() {
+            base = "items".to_string();
+        }
+        let base_key = base.to_lowercase();
+        if base.chars().count() <= 31 && !self.used_sheet_names.contains(&base_key) {
+            self.used_sheet_names.insert(base_key);
+            return base;
+        }
+
+        let prefix: String = base.chars().take(22).collect();
+        for salt in 0_u64.. {
+            let digest = format!(
+                "{:x}",
+                Sha256::digest(format!("{}:{}", path, salt).as_bytes())
+            );
+            let candidate = format!("{}_{}", prefix, &digest[..8]);
+            if self.used_sheet_names.insert(candidate.to_lowercase()) {
+                return candidate;
+            }
+        }
+        unreachable!("worksheet name salt space is exhaustive")
+    }
+}
+
+fn scalar_column(
+    path: String,
+    ty: CalculationTypeRef,
+    primitive: &str,
+    required: bool,
+) -> CalculationColumn {
+    CalculationColumn {
+        path,
+        ty,
+        encoding: match primitive {
+            "Int" => CalculationColumnEncoding::Integer,
+            "Float" => CalculationColumnEncoding::Float,
+            "Bool" => CalculationColumnEncoding::Boolean,
+            "Char" => CalculationColumnEncoding::Character,
+            _ => CalculationColumnEncoding::String,
+        },
+        required,
+        choices: if primitive == "Bool" {
+            vec!["true".to_string(), "false".to_string()]
+        } else {
+            Vec::new()
+        },
+    }
+}
+
+fn is_string_type(ty: &CalculationTypeRef) -> bool {
+    matches!(ty, CalculationTypeRef::Primitive { name } if name == "String")
+}
+
+fn is_normalized_collection_type(ty: &CalculationTypeRef) -> bool {
+    match ty {
+        CalculationTypeRef::List { .. } | CalculationTypeRef::Set { .. } => true,
+        CalculationTypeRef::Map { key, .. } => is_string_type(key),
+        _ => false,
+    }
+}
+
+fn collection_item_uses_value_column(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    active: &BTreeSet<String>,
+) -> bool {
+    match ty {
+        CalculationTypeRef::Primitive { .. } => true,
+        CalculationTypeRef::Optional { .. } => true,
+        CalculationTypeRef::Named { name, .. } => {
+            if active.contains(name) {
+                return true;
+            }
+            contract
+                .definition(name)
+                .and_then(product_variant)
+                .is_none()
+        }
+        CalculationTypeRef::List { .. } | CalculationTypeRef::Set { .. } => false,
+        CalculationTypeRef::Map { key, .. } => !is_string_type(key),
+        _ => true,
+    }
+}
+
+fn layout_column_path(path: &str, parent_table: Option<&str>) -> String {
+    if path.is_empty() {
+        if parent_table.is_some() {
+            "value".to_string()
+        } else {
+            "input".to_string()
+        }
+    } else {
+        path.to_string()
     }
 }
 
