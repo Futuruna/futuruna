@@ -59,11 +59,13 @@ forhøjet anskaffelsessum for køberen. Tab fra før 2010 bevarer samtidig deres
 ældre, snævrere anvendelse og kan ikke senere modregnes i aktiegevinster.
 MTF-kontrakter og gevinster på MTF-aktier indgår først i § 32-modregningen fra
 1. januar 2024. Sytten scenarier kører ens i interpreter og kompileret kode.
-Den rå
-Personskattelov § 4-bro markerer fortsat et enkelt
-kontrakttab som afventende årsopgørelsen. Den efterfølgende bro skal bevare hver
-kontraktposts klassifikation som kapital- eller personlig indkomst og er derfor
-ikke skjult i et samlet løst beløb. Kilderne er
+Personskattelovens § 4-bro bruger nu det samlede § 32-årsresultat og bevarer hver
+kontraktposts klassifikation som kapital- eller personlig indkomst. Blandede
+sager bliver opdelt, når fordelingen er entydig; ellers bliver den tværgående
+årsfordeling stående som et udtrykkeligt uallokeret beløb, der ikke kan medregnes
+som kapitalindkomst. Ni fokuserede § 4-scenarier kører ens i begge backends.
+Den rå enkeltkontraktbro er fortsat tilgængelig og mærket som før
+årsopgørelsen. Kilderne er
 [Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176),
 [LOV nr. 1563/2023, § 4 og § 8](https://www.retsinformation.dk/eli/lta/2023/1563)
 og [Skattestyrelsens juridiske vejledning C.B.1.8.4.2](https://info.skat.dk/data.aspx?oid=1946050).

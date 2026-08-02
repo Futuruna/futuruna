@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-db8bc5`
-Latest completed implementation slice: `td-7ed524`
+Current focus issue: `td-ae4c63`
+Latest completed implementation slice: `td-db8bc5`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -63,11 +63,14 @@ både kontraktens marked og de aktiegevinster, tabet møder. Sytten scenarier pa
 i både interpreter og kompileret kode, herunder to ægtefæller med samtidige tab
 uden dobbelt anvendelse af aktiegevinster, 2023/2024-grænsen på begge sider af
 MTF-modregningen og overgangsværnet, der holder tab fra før 2010 ude af senere
-aktiegevinster. Den rå Personskattelov § 4-bro viser fortsat et enkelt
-kontrakttab som afventende § 32-årsopgørelse; broen fra det samlede årsresultat
-til kapital- eller personlig indkomst er et åbent efterfølgende korpussnit,
-fordi klassifikationen skal bevare de enkelte kontraktposters
-reklassifikationsfakta.
+aktiegevinster. Personskattelovens § 4-bro forbruger nu det samlede § 32-årsresultat
+og bevarer de enkelte kontraktposters kapital- eller
+personlig-indkomstklassifikation. Entydige årsresultater bliver til én typet post,
+mens en dokumenterbart blandet sag bliver opdelt i flere poster. Hvis en
+årsfordeling krydser indkomstarter uden et tilstrækkeligt fordelingsgrundlag,
+bevares resten som et udtrykkeligt uallokeret beløb og kan ikke glide ind i
+kapitalindkomsten. Ni fokuserede § 4-scenarier passerer i begge backends. Den rå
+enkeltkontraktbro er bevaret og mærket som før § 32-årsopgørelsen.
 
 Personskatteloven § 13 a modtager ikke længere et løst skyldnertab. En lukket
 union kan kun bære de faktiske årsresultater fra Aktieavancebeskatningsloven

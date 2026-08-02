@@ -6,6 +6,7 @@
 @ importer ./ligningsloven_cfc
 @ importer ./selskabsskatteloven
 @ importer ./kursgevinstloven
+@ importer ./kursgevinstloven - par32
 @ importer ./aktieavancebeskatningsloven
 @ importer ./virksomhedsskatteloven
 @ importer ./skattekontrolloven
@@ -37,6 +38,12 @@
 = personskatteloven_lbk1284_par3 = PersonskattelovIndkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2021/1284",
     identifier = "Personskatteloven § 3",
+    hentet_dato = "2026-07-18"
+)
+
+= personskatteloven_lbk1284_par4 = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven § 4",
     hentet_dato = "2026-07-18"
 )
 
@@ -881,6 +888,7 @@ iværksætterkonto
 | par3_personlig_indkomst_beregnes_beløb: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
 --@end::personskatteloven_par3--
 
+--@label:personskatteloven_par4::source:personskatteloven_lbk1284_par4::dependency:kursgevinstloven_lbk1176_par32--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 1) renteindtægter og renteudgifter samt fradrag efter ligningslovens § 6 og § 6 A,
@@ -1004,6 +1012,7 @@ Lov nr. 615 af 30/06/2026, § 16, stk. 5:
 fra og med den 1. januar 2027.
 ----
 
+--@begin:personskatteloven_par4--
 # Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | MedarbejderinvesteringsselskabBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
 # AndelsforeningUdlodning = NormalForrentning | IkkeNormalForrentning
@@ -1014,8 +1023,12 @@ fra og med den 1. januar 2027.
 # KapitalPersonligReklassifikation = IngenPersonligReklassifikation | FordringsEllerKontraktNæringReklassifikation | FinansieringsNæringReklassifikation | Kursgevinstlov17Fordringstab | AndelsUdlodningIkkeNormal | Aktieavance17Aktier | Aktieavance19CHvis17Aktier | Investeringsformidler19CHvis17Aktier | MedarbejderinvesteringsselskabAndel
 # Par4Stk1Nr1Input(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr1Resultat(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_fradrag_kroner: Heltal, ligningslov6a_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr2Opgørelsestrin = Par4Nr2FørPar32Årsopgørelse | Par4Nr2EfterPar32Årsopgørelse
 # Par4Stk1Nr2Input(kursgevinstlov_resultat: KursgevinstlovResultat)
-# Par4Stk1Nr2Resultat(skattepligtige_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, tab_afskåret_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr2Resultat(opgørelsestrin: Par4Stk1Nr2Opgørelsestrin, skattepligtige_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, tab_afskåret_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr2Årsklassifikation = Par4Nr2ÅrKapitalindkomst | Par4Nr2ÅrPersonligIndkomst(reklassifikation: KapitalPersonligReklassifikation) | Par4Nr2ÅrBlandetIndkomstklassifikation | Par4Nr2ÅrUgyldigÅrsopgørelse
+# Par4Stk1Nr2Årsresultat(opgørelsestrin: Par4Stk1Nr2Opgørelsestrin, kursgevinstlov_par32_årsresultat: KursgevinstPar32PersonÅrsresultat, klassifikation: Par4Stk1Nr2Årsklassifikation, fuldt_klassificeret: Boolsk, klassificeret_kapitalindkomst_kroner: Heltal, klassificeret_personlig_indkomst_kroner: Heltal, uallokeret_blandet_indkomst_kroner: Heltal, afvist_ugyldig_indkomst_kroner: Heltal)
+# Par4Stk1Nr2ÆgtefælleparÅrsresultat(venstre: Par4Stk1Nr2Årsresultat, højre: Par4Stk1Nr2Årsresultat, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 # Par4Stk1Nr3Input(virksomhedsskattelov7_resultat: Virksomhedsskattelov7Resultat, skattekontrollov_oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat)
 # Par4Stk1Nr3Resultat(brutto_kapitalafkast_kroner: Heltal, skattekontrollov_hjemmel: SkattekontrollovOplysningsfristKilde, oplysningsfrist_yyyymmdd: Heltal, overført_til_skattepligtig_inden_oplysningsfrist: Boolsk, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_efter_par23a_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr3aInput(virksomhedsskattelov22a_resultat: Virksomhedsskattelov22AResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat, virksomhedsskattelov22c_resultat: Virksomhedsskattelov22CResultat)
@@ -1120,6 +1133,7 @@ fra og med den 1. januar 2027.
     | kapitalindkomst_kroner() -> input.kursgevinstlov_resultat.netto_efter_kursgevinstloven_kroner
     | personlig_reklassifikation() -> par4_reklassifikation_fra_kursgevinstlov(input.kursgevinstlov_resultat.personlig_reklassifikation)
     | resultat() -> Par4Stk1Nr2Resultat(
+        opgørelsestrin = Par4Nr2FørPar32Årsopgørelse,
         skattepligtige_gevinster_kroner = skattepligtige_gevinster_kroner(),
         fradragsberettigede_tab_kroner = fradragsberettigede_tab_kroner(),
         kontrakttab_til_par32_årsopgørelse_kroner = kontrakttab_til_par32_årsopgørelse_kroner(),
@@ -1141,6 +1155,76 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 | par4_stk1_nr2_kapitalpost_fra_kursgevinstlov(input: KursgevinstlovInput) -> par4_stk1_nr2_kapitalpost(par4_stk1_nr2_input_fra_kursgevinstlov(input))
+
+| par4_stk1_nr2_entydig_kgl_reklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> hvis length(resultat.indkomstklassifikationer) == 1 { resultat.indkomstklassifikationer[0] } ellers { KglIngenPersonligReklassifikation }
+| par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrKapitalindkomst
+| exception par4_stk1_nr2_ugyldig_par32_årsopgørelse par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrUgyldigÅrsopgørelse under resultat.input_gyldigt == Falskt
+| exception par4_stk1_nr2_blandet_par32_indkomstklassifikation par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrBlandetIndkomstklassifikation under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig == Falskt
+| exception par4_stk3_entydig_personlig_par32_indkomst par4_stk1_nr2_årsklassifikation(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4Nr2ÅrPersonligIndkomst(par4_reklassifikation_fra_kursgevinstlov(par4_stk1_nr2_entydig_kgl_reklassifikation(resultat))) under resultat.input_gyldigt && resultat.indkomstklassifikation_entydig && par4_stk1_nr2_entydig_kgl_reklassifikation(resultat) != KglIngenPersonligReklassifikation
+| par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post: KursgevinstPar32KlassificeretKontraktpost) -> post.skattepligtig_gevinst_kroner - post.direkte_fradragsberettiget_tab_kroner
+| par4_stk1_nr2_klassificeret_kapitalindkomst_før_årsfordeling_kroner(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> foldl(poster, 0, |sum: Heltal, post: KursgevinstPar32KlassificeretKontraktpost| sum + hvis post.personlig_reklassifikation == KglIngenPersonligReklassifikation { par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post) } ellers { 0 })
+| par4_stk1_nr2_klassificeret_personlig_indkomst_før_årsfordeling_kroner(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> foldl(poster, 0, |sum: Heltal, post: KursgevinstPar32KlassificeretKontraktpost| sum + hvis post.personlig_reklassifikation != KglIngenPersonligReklassifikation { par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post) } ellers { 0 })
+| par4_stk1_nr2_klassificeret_indkomst_før_årsfordeling_kroner(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> par4_stk1_nr2_klassificeret_kapitalindkomst_før_årsfordeling_kroner(poster) + par4_stk1_nr2_klassificeret_personlig_indkomst_før_årsfordeling_kroner(poster)
+| par4_stk1_nr2_årsklassifikation_fuldt_klassificeret(klassifikation: Par4Stk1Nr2Årsklassifikation, uallokeret_årsfordeling_kroner: Heltal) -> match klassifikation {
+    | Par4Nr2ÅrBlandetIndkomstklassifikation -> uallokeret_årsfordeling_kroner == 0
+    | Par4Nr2ÅrUgyldigÅrsopgørelse -> Falskt
+    | _ -> Sandt
+}
+
+# Par4Stk1Nr2ÅrsSag(kursgevinstlov_par32_årsresultat: KursgevinstPar32PersonÅrsresultat) {
+    | klassifikation() -> par4_stk1_nr2_årsklassifikation(kursgevinstlov_par32_årsresultat)
+    | klassificeret_indkomst_før_årsfordeling_kroner() -> par4_stk1_nr2_klassificeret_indkomst_før_årsfordeling_kroner(kursgevinstlov_par32_årsresultat.klassificerede_kontraktposter)
+    | uallokeret_årsfordeling_kroner() -> kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner - klassificeret_indkomst_før_årsfordeling_kroner()
+    | fuldt_klassificeret() -> par4_stk1_nr2_årsklassifikation_fuldt_klassificeret(klassifikation(), uallokeret_årsfordeling_kroner())
+    | klassificeret_kapitalindkomst_kroner() -> match klassifikation() {
+        | Par4Nr2ÅrKapitalindkomst -> kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner
+        | Par4Nr2ÅrBlandetIndkomstklassifikation -> par4_stk1_nr2_klassificeret_kapitalindkomst_før_årsfordeling_kroner(kursgevinstlov_par32_årsresultat.klassificerede_kontraktposter)
+        | _ -> 0
+    }
+    | klassificeret_personlig_indkomst_kroner() -> match klassifikation() {
+        | Par4Nr2ÅrPersonligIndkomst(_) -> kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner
+        | Par4Nr2ÅrBlandetIndkomstklassifikation -> par4_stk1_nr2_klassificeret_personlig_indkomst_før_årsfordeling_kroner(kursgevinstlov_par32_årsresultat.klassificerede_kontraktposter)
+        | _ -> 0
+    }
+    | uallokeret_blandet_indkomst_kroner() -> match klassifikation() {
+        | Par4Nr2ÅrBlandetIndkomstklassifikation -> uallokeret_årsfordeling_kroner()
+        | _ -> 0
+    }
+    | afvist_ugyldig_indkomst_kroner() -> match klassifikation() {
+        | Par4Nr2ÅrUgyldigÅrsopgørelse -> kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner
+        | _ -> 0
+    }
+    | resultat() -> Par4Stk1Nr2Årsresultat(
+        opgørelsestrin = Par4Nr2EfterPar32Årsopgørelse,
+        kursgevinstlov_par32_årsresultat = kursgevinstlov_par32_årsresultat,
+        klassifikation = klassifikation(),
+        fuldt_klassificeret = fuldt_klassificeret(),
+        klassificeret_kapitalindkomst_kroner = klassificeret_kapitalindkomst_kroner(),
+        klassificeret_personlig_indkomst_kroner = klassificeret_personlig_indkomst_kroner(),
+        uallokeret_blandet_indkomst_kroner = uallokeret_blandet_indkomst_kroner(),
+        afvist_ugyldig_indkomst_kroner = afvist_ugyldig_indkomst_kroner()
+    )
+}
+| par4_stk1_nr2_årsresultat(kursgevinstlov_par32_årsresultat: KursgevinstPar32PersonÅrsresultat) -> Par4Stk1Nr2ÅrsSag(kursgevinstlov_par32_årsresultat).resultat()
+| par4_stk1_nr2_ægtefællepar_årsresultat(resultat: KursgevinstPar32ÆgtefælleparResultat) -> Par4Stk1Nr2ÆgtefælleparÅrsresultat(
+    venstre = par4_stk1_nr2_årsresultat(resultat.venstre),
+    højre = par4_stk1_nr2_årsresultat(resultat.højre),
+    gift_og_samlevende_ved_indkomstårets_udgang = resultat.gift_og_samlevende_ved_indkomstårets_udgang
+)
+| par4_stk1_nr2_kapitalpost_fra_klassificeret_kgl_post(post: KursgevinstPar32KlassificeretKontraktpost) -> Par4Kapitalpost(
+    art = KursgevinstOgTab,
+    beløb_kroner = par4_stk1_nr2_klassificeret_post_netto_før_årsfordeling_kroner(post),
+    personlig_reklassifikation = par4_reklassifikation_fra_kursgevinstlov(post.personlig_reklassifikation),
+    personlig_indkomst_tillæg_kroner = 0
+)
+| par4_stk1_nr2_kapitalpost_har_beløb(post: Par4Kapitalpost) -> post.beløb_kroner != 0
+| par4_stk1_nr2_kapitalposter_fra_klassificerede_kgl_poster(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> filter(map(poster, par4_stk1_nr2_kapitalpost_fra_klassificeret_kgl_post), par4_stk1_nr2_kapitalpost_har_beløb)
+| par4_stk1_nr2_års_kapitalposter(resultat: Par4Stk1Nr2Årsresultat) -> match resultat.klassifikation {
+    | Par4Nr2ÅrKapitalindkomst -> [Par4Kapitalpost(art = KursgevinstOgTab, beløb_kroner = resultat.klassificeret_kapitalindkomst_kroner, personlig_reklassifikation = IngenPersonligReklassifikation, personlig_indkomst_tillæg_kroner = 0)]
+    | Par4Nr2ÅrPersonligIndkomst(reklassifikation) -> [Par4Kapitalpost(art = KursgevinstOgTab, beløb_kroner = resultat.klassificeret_personlig_indkomst_kroner, personlig_reklassifikation = reklassifikation, personlig_indkomst_tillæg_kroner = 0)]
+    | Par4Nr2ÅrBlandetIndkomstklassifikation -> hvis resultat.fuldt_klassificeret { par4_stk1_nr2_kapitalposter_fra_klassificerede_kgl_poster(resultat.kursgevinstlov_par32_årsresultat.klassificerede_kontraktposter) } ellers { [] }
+    | _ -> []
+}
 
 # Par4Stk1Nr3Sag(input: Par4Stk1Nr3Input) {
     | brutto_kapitalafkast_kroner() -> input.virksomhedsskattelov7_resultat.kapitalafkast_kroner
@@ -2348,6 +2432,7 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr17_fra_ligningslov15q_ejer_udelukkes: par4_stk1_nr17_ll15q_ejer_fixture -> par4_stk1_nr17_ll15q_ejer_fixture.lejer_eller_andelshaver == Falskt && par4_stk1_nr17_ll15q_ejer_fixture.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_ll15q_ejer_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr17_ll15q_ejer_fixture.ikke_omfattet_af_par4_nr17_kroner == 14940
 | par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 270000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 268000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 268000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000 && par4_kapitalindkomst_resultat_fixture.personlig_indkomst_tillæg_kroner == 3000
 | par4_negativ_nettokapitalindkomst_beregnes: par4_negativ_nettokapitalindkomst_fixture -> par4_negativ_nettokapitalindkomst_fixture.nettokapitalindkomst_kroner == -25000 && par4_negativ_nettokapitalindkomst_fixture.positiv_nettokapitalindkomst_kroner == 0 && par4_negativ_nettokapitalindkomst_fixture.negativ_nettokapitalindkomst_abs_kroner == 25000
+--@end:personskatteloven_par4--
 
 ----
 § 4 a. Aktieindkomst omfatter det samlede beløb af:

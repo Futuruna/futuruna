@@ -1,0 +1,334 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+--@label:personskatteloven_par4_kursgevinst_scenarier::source:personskatteloven_lbk1284_par4::dependency:kursgevinstloven_lbk1176_par32--
+----
+§ 4. Kapitalindkomst omfatter det samlede nettobeløb af
+2) skattepligtige gevinster og fradragsberettigede tab efter kursgevinstloven,
+
+Stk. 3. Personer skal medregne indtægter og udgifter som nævnt i stk. 1 og 2
+ved opgørelsen af den personlige indkomst, hvis de udøver næring ved køb og salg
+af fordringer eller finansielle kontrakter eller driver næringsvirksomhed ved
+finansiering. Endvidere medregnes i den personlige indkomst tab på fordringer,
+som omfattes af kursgevinstlovens § 17.
+
+§ 32.
+
+Stk. 4. Tab, der ikke er fradraget efter stk. 2 eller 3,
+kan fradrages i de følgende indkomstårs nettogevinster på kontrakter og derefter
+i nettogevinster på aktier efter reglerne i stk. 2, 2.-4. pkt., og stk. 3. Tab
+kan kun fremføres til et senere indkomstår, hvis det ikke kan rummes i
+skattepligtig nettogevinst på finansielle kontrakter i et tidligere indkomstår.
+----
+
+--@begin:personskatteloven_par4_kursgevinst_scenarier--
+| par4_nr2_scenarie_kontraktinput(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, udøver_kontraktnæring: Boolsk) -> KursgevinstlovInput(
+    indkomstår = indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = KursgevinstlovKontraktOpgørelse(
+        kontrakt_art = KglKontraktOmfattetPar29,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = anskaffelsessum_kroner,
+        afståelsesværdi_kroner = afståelsesværdi_kroner,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt
+    ),
+    udøver_fordrings_eller_kontraktnæring = udøver_kontraktnæring,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+| par4_nr2_scenarie_kontraktpost(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, udøver_kontraktnæring: Boolsk, relation: KursgevinstPar32Kontraktrelation) -> KursgevinstPar32Kontraktpost(
+    resultat = kursgevinstlov_resultat(par4_nr2_scenarie_kontraktinput(
+        indkomstår = indkomstår,
+        anskaffelsessum_kroner = anskaffelsessum_kroner,
+        afståelsesværdi_kroner = afståelsesværdi_kroner,
+        udøver_kontraktnæring = udøver_kontraktnæring
+    )),
+    relation = relation,
+    aktiegrundlag = KglPar32IkkeAktiebaseret
+)
+| par4_nr2_scenarie_person(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), fremførsel: KursgevinstPar32Fremførsel) -> KursgevinstPar32PersonÅrsinput(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    kontrakter = kontrakter,
+    aktieårsresultat = kgl_par32_tomt_aktieårsresultat(indkomstår),
+    fremførsel = fremførsel,
+    tabsprioritet = KglPar32AlmindeligeTabFørst,
+    fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
+    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning()
+)
+| par4_nr2_scenarie_tom_person(identifikation: Tekst, indkomstår: Heltal) -> par4_nr2_scenarie_person(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    kontrakter = [],
+    fremførsel = KglPar32IngenFremførsel
+)
+| par4_nr2_scenarie_parresultat(venstre: KursgevinstPar32PersonÅrsinput, højre: KursgevinstPar32PersonÅrsinput, gift_og_samlevende: Boolsk) -> kursgevinst_par32_ægtefællepar_resultat(KursgevinstPar32ÆgtefælleparInput(
+    venstre = venstre,
+    højre = højre,
+    gift_og_samlevende_ved_indkomstårets_udgang = gift_og_samlevende
+))
+| par4_nr2_scenarie_kapitalindkomst(resultat: Par4Stk1Nr2Årsresultat) -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = par4_stk1_nr2_års_kapitalposter(resultat),
+    omkostninger = []
+))
+
+= par4_nr2_ordinær_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "ordinær",
+        indkomstår = 2026,
+        kontrakter = [
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 30000,
+                udøver_kontraktnæring = Falskt,
+                relation = KglPar32AlmindeligKontrakt
+            ),
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 18000,
+                afståelsesværdi_kroner = 10000,
+                udøver_kontraktnæring = Falskt,
+                relation = KglPar32AlmindeligKontrakt
+            )
+        ],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-ordinær", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_ordinær_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_ordinær_parresultat).venstre
+= par4_nr2_ordinær_kapitalindkomst = par4_nr2_scenarie_kapitalindkomst(par4_nr2_ordinær_resultat)
+
+= par4_nr2_næring_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "kontraktnæring",
+        indkomstår = 2026,
+        kontrakter = [
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 30000,
+                udøver_kontraktnæring = Sandt,
+                relation = KglPar32ErhvervstilknyttetKontrakt
+            ),
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 18000,
+                afståelsesværdi_kroner = 10000,
+                udøver_kontraktnæring = Sandt,
+                relation = KglPar32ErhvervstilknyttetKontrakt
+            )
+        ],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-kontraktnæring", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_næring_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_næring_parresultat).venstre
+= par4_nr2_næring_kapitalindkomst = par4_nr2_scenarie_kapitalindkomst(par4_nr2_næring_resultat)
+
+= par4_nr2_ægtefælle_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "ægtefælle-tab",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 19000,
+            afståelsesværdi_kroner = 10000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32AlmindeligKontrakt
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_person(
+        identifikation = "ægtefælle-gevinst",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 10000,
+            afståelsesværdi_kroner = 22000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32AlmindeligKontrakt
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    gift_og_samlevende = Sandt
+)
+= par4_nr2_ægtefælle_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_ægtefælle_parresultat)
+
+= par4_nr2_tværklassificeret_ægtefælle_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "kapitaltab-ægtefælle",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 19000,
+            afståelsesværdi_kroner = 10000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32AlmindeligKontrakt
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_person(
+        identifikation = "personlig-gevinst-ægtefælle",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 10000,
+            afståelsesværdi_kroner = 22000,
+            udøver_kontraktnæring = Sandt,
+            relation = KglPar32ErhvervstilknyttetKontrakt
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    gift_og_samlevende = Sandt
+)
+= par4_nr2_tværklassificeret_ægtefælle_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_tværklassificeret_ægtefælle_parresultat)
+
+= par4_nr2_fremførsel_2025_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "fremførsel",
+        indkomstår = 2025,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2025,
+            anskaffelsessum_kroner = 22000,
+            afståelsesværdi_kroner = 10000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32AlmindeligKontrakt
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-fremførsel-2025", indkomstår = 2025),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_fremførsel_2026_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "fremførsel",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 10000,
+            afståelsesværdi_kroner = 17000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32AlmindeligKontrakt
+        )],
+        fremførsel = KglPar32FremførselFraForrigeIndkomstår(par4_nr2_fremførsel_2025_parresultat.venstre)
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-fremførsel-2026", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_fremførsel_2025_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_fremførsel_2025_parresultat).venstre
+= par4_nr2_fremførsel_2026_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_fremførsel_2026_parresultat).venstre
+
+= par4_nr2_blandet_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "blandet",
+        indkomstår = 2026,
+        kontrakter = [
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 20000,
+                udøver_kontraktnæring = Falskt,
+                relation = KglPar32AlmindeligKontrakt
+            ),
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 15000,
+                udøver_kontraktnæring = Sandt,
+                relation = KglPar32ErhvervstilknyttetKontrakt
+            )
+        ],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-blandet", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_blandet_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_blandet_parresultat).venstre
+= par4_nr2_blandet_kapitalindkomst = par4_nr2_scenarie_kapitalindkomst(par4_nr2_blandet_resultat)
+
+= par4_nr2_blandet_årsfordeling_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "fremførsel",
+        indkomstår = 2026,
+        kontrakter = [
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 17000,
+                udøver_kontraktnæring = Falskt,
+                relation = KglPar32AlmindeligKontrakt
+            ),
+            par4_nr2_scenarie_kontraktpost(
+                indkomstår = 2026,
+                anskaffelsessum_kroner = 10000,
+                afståelsesværdi_kroner = 15000,
+                udøver_kontraktnæring = Sandt,
+                relation = KglPar32ErhvervstilknyttetKontrakt
+            )
+        ],
+        fremførsel = KglPar32FremførselFraForrigeIndkomstår(par4_nr2_fremførsel_2025_parresultat.venstre)
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-blandet-årsfordeling", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_blandet_årsfordeling_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_blandet_årsfordeling_parresultat).venstre
+
+= par4_nr2_fast_ejendom_parresultat = par4_nr2_scenarie_parresultat(
+    venstre = par4_nr2_scenarie_person(
+        identifikation = "fast-ejendom",
+        indkomstår = 2026,
+        kontrakter = [par4_nr2_scenarie_kontraktpost(
+            indkomstår = 2026,
+            anskaffelsessum_kroner = 17000,
+            afståelsesværdi_kroner = 10000,
+            udøver_kontraktnæring = Falskt,
+            relation = KglPar32FastEjendomSælger
+        )],
+        fremførsel = KglPar32IngenFremførsel
+    ),
+    højre = par4_nr2_scenarie_tom_person(identifikation = "tom-fast-ejendom", indkomstår = 2026),
+    gift_og_samlevende = Falskt
+)
+= par4_nr2_fast_ejendom_resultat = par4_stk1_nr2_ægtefællepar_årsresultat(par4_nr2_fast_ejendom_parresultat).venstre
+
+= par4_nr2_råt_tab_input = par4_nr2_scenarie_kontraktinput(
+    indkomstår = 2026,
+    anskaffelsessum_kroner = 18000,
+    afståelsesværdi_kroner = 10000,
+    udøver_kontraktnæring = Falskt
+)
+= par4_nr2_råt_tab_resultat = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_nr2_råt_tab_input)
+
+| par4_nr2_ordinære_kontrakter_bliver_kapitalindkomst: par4_nr2_ordinær_resultat -> par4_nr2_ordinær_resultat.opgørelsestrin == Par4Nr2EfterPar32Årsopgørelse && par4_nr2_ordinær_resultat.klassifikation == Par4Nr2ÅrKapitalindkomst && par4_nr2_ordinær_resultat.fuldt_klassificeret && par4_nr2_ordinær_resultat.klassificeret_kapitalindkomst_kroner == 12000 && par4_nr2_ordinær_resultat.klassificeret_personlig_indkomst_kroner == 0 && par4_nr2_ordinær_kapitalindkomst.nettokapitalindkomst_kroner == 12000
+| par4_nr2_kontraktnæring_bliver_personlig_indkomst: par4_nr2_næring_resultat -> par4_nr2_næring_resultat.klassifikation == Par4Nr2ÅrPersonligIndkomst(FordringsEllerKontraktNæringReklassifikation) && par4_nr2_næring_resultat.klassificeret_kapitalindkomst_kroner == 0 && par4_nr2_næring_resultat.klassificeret_personlig_indkomst_kroner == 12000 && par4_nr2_næring_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 0 && par4_nr2_næring_kapitalindkomst.omklassificeret_personlig_indkomst_kroner == 12000
+| par4_nr2_ægtefællemodregning_bevares_i_årsbroen: par4_nr2_ægtefælle_resultat -> par4_nr2_ægtefælle_resultat.venstre.kursgevinstlov_par32_årsresultat.tab_overført_til_ægtefælles_kontraktgevinster_kroner == 9000 && par4_nr2_ægtefælle_resultat.venstre.klassificeret_kapitalindkomst_kroner == 0 && par4_nr2_ægtefælle_resultat.højre.kursgevinstlov_par32_årsresultat.ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner == 9000 && par4_nr2_ægtefælle_resultat.højre.klassificeret_kapitalindkomst_kroner == 3000
+| par4_nr2_tværklassificeret_ægtefællemodregning_kollapser_ikke: par4_nr2_tværklassificeret_ægtefælle_resultat -> par4_nr2_tværklassificeret_ægtefælle_resultat.højre.klassifikation == Par4Nr2ÅrBlandetIndkomstklassifikation && par4_nr2_tværklassificeret_ægtefælle_resultat.højre.fuldt_klassificeret == Falskt && length(par4_nr2_tværklassificeret_ægtefælle_resultat.højre.kursgevinstlov_par32_årsresultat.indkomstklassifikationer) == 2 && par4_nr2_tværklassificeret_ægtefælle_resultat.højre.klassificeret_kapitalindkomst_kroner == 0 && par4_nr2_tværklassificeret_ægtefælle_resultat.højre.klassificeret_personlig_indkomst_kroner == 12000 && par4_nr2_tværklassificeret_ægtefælle_resultat.højre.uallokeret_blandet_indkomst_kroner == -9000 && par4_nr2_tværklassificeret_ægtefælle_resultat.højre.kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner == 3000 && length(par4_stk1_nr2_års_kapitalposter(par4_nr2_tværklassificeret_ægtefælle_resultat.højre)) == 0
+| par4_nr2_fremført_tab_bevarer_kapitalindkomstklassifikation: par4_nr2_fremførsel_2026_resultat -> par4_nr2_fremførsel_2025_resultat.kursgevinstlov_par32_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 12000 && par4_nr2_fremførsel_2026_resultat.kursgevinstlov_par32_årsresultat.tab_modregnet_i_egne_indkomstårsgevinster_kroner == 7000 && par4_nr2_fremførsel_2026_resultat.kursgevinstlov_par32_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 5000 && par4_nr2_fremførsel_2026_resultat.klassifikation == Par4Nr2ÅrKapitalindkomst && par4_nr2_fremførsel_2026_resultat.klassificeret_kapitalindkomst_kroner == 0
+| par4_nr2_blandet_klassifikation_opdeles_i_to_indkomstarter: par4_nr2_blandet_resultat -> par4_nr2_blandet_resultat.klassifikation == Par4Nr2ÅrBlandetIndkomstklassifikation && par4_nr2_blandet_resultat.fuldt_klassificeret && par4_nr2_blandet_resultat.klassificeret_kapitalindkomst_kroner == 10000 && par4_nr2_blandet_resultat.klassificeret_personlig_indkomst_kroner == 5000 && par4_nr2_blandet_resultat.uallokeret_blandet_indkomst_kroner == 0 && length(par4_nr2_blandet_resultat.kursgevinstlov_par32_årsresultat.indkomstklassifikationer) == 2 && length(par4_stk1_nr2_års_kapitalposter(par4_nr2_blandet_resultat)) == 2 && par4_nr2_blandet_kapitalindkomst.nettokapitalindkomst_kroner == 10000 && par4_nr2_blandet_kapitalindkomst.omklassificeret_personlig_indkomst_kroner == 5000
+| par4_nr2_blandet_årsfordeling_kollapser_ikke: par4_nr2_blandet_årsfordeling_resultat -> par4_nr2_blandet_årsfordeling_resultat.klassifikation == Par4Nr2ÅrBlandetIndkomstklassifikation && par4_nr2_blandet_årsfordeling_resultat.fuldt_klassificeret == Falskt && par4_nr2_blandet_årsfordeling_resultat.klassificeret_kapitalindkomst_kroner == 7000 && par4_nr2_blandet_årsfordeling_resultat.klassificeret_personlig_indkomst_kroner == 5000 && par4_nr2_blandet_årsfordeling_resultat.uallokeret_blandet_indkomst_kroner == -12000 && par4_nr2_blandet_årsfordeling_resultat.kursgevinstlov_par32_årsresultat.netto_kontraktindkomst_efter_par32_kroner == 0 && length(par4_stk1_nr2_års_kapitalposter(par4_nr2_blandet_årsfordeling_resultat)) == 0
+| par4_nr2_fast_ejendom_basisjustering_er_sporbar: par4_nr2_fast_ejendom_resultat -> par4_nr2_fast_ejendom_resultat.kursgevinstlov_par32_årsresultat.afståelsessum_nedsat_med_fast_ejendomstab_kroner == 7000 && par4_nr2_fast_ejendom_resultat.kursgevinstlov_par32_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 0
+| par4_nr2_råt_kontrakttab_er_udtrykkeligt_før_årsopgørelse: par4_nr2_råt_tab_resultat -> par4_nr2_råt_tab_resultat.opgørelsestrin == Par4Nr2FørPar32Årsopgørelse && par4_nr2_råt_tab_resultat.kontrakttab_til_par32_årsopgørelse_kroner == 8000 && par4_nr2_råt_tab_resultat.kapitalindkomst_kroner == 0
+
+? par4_nr2_ordinære_kontrakter_bliver_kapitalindkomst
+? par4_nr2_kontraktnæring_bliver_personlig_indkomst
+? par4_nr2_ægtefællemodregning_bevares_i_årsbroen
+? par4_nr2_tværklassificeret_ægtefællemodregning_kollapser_ikke
+? par4_nr2_fremført_tab_bevarer_kapitalindkomstklassifikation
+? par4_nr2_blandet_klassifikation_opdeles_i_to_indkomstarter
+? par4_nr2_blandet_årsfordeling_kollapser_ikke
+? par4_nr2_fast_ejendom_basisjustering_er_sporbar
+? par4_nr2_råt_kontrakttab_er_udtrykkeligt_før_årsopgørelse
+--@end:personskatteloven_par4_kursgevinst_scenarier--

@@ -86,6 +86,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Kontraktrelation = KglPar32AlmindeligKontrakt | KglPar32AktiekontraktEfterAbl17 | KglPar32ErhvervstilknyttetKontrakt | KglPar32FastEjendomSælger | KglPar32FastEjendomKøber
 # KursgevinstPar32Aktiegrundlag = KglPar32IkkeAktiebaseret | KglPar32AktiekontraktUdenKvalificeretMarked | KglPar32AktiekontraktPåReguleretMarked | KglPar32AktiekontraktPåMultilateralHandelsfacilitet | KglPar32AktieindekskontraktUdenKvalificeretMarked | KglPar32AktieindekskontraktPåReguleretMarked | KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet
 # KursgevinstPar32Kontraktpost(resultat: KursgevinstlovResultat, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag)
+# KursgevinstPar32KlassificeretKontraktpost(personlig_reklassifikation: KursgevinstlovPersonligReklassifikation, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag, gyldig: Boolsk, skattepligtig_gevinst_kroner: Heltal, direkte_fradragsberettiget_tab_kroner: Heltal, tab_til_par32_før_årsfordeling_kroner: Heltal, tab_afskåret_kroner: Heltal)
 # KursgevinstPar32Tabsprioritet = KglPar32AlmindeligeTabFørst | KglPar32AktiebaseredeTabFørst
 # KursgevinstPar32FastEjendomstabsprioritet = KglPar32SælgertabFørst | KglPar32KøbertabFørst
 # KursgevinstPar32Aktiemodregningsomfang = KglPar32IngenAktiemodregning | KglPar32KunEgneAktiegevinster | KglPar32EgneOgÆgtefællesAktiegevinster
@@ -97,7 +98,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Tabsmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32FastEjendomsmodregningsresultat(sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32Kontraktmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinster: KursgevinstPar32Gevinstsaldo)
-# KursgevinstPar32PersonÅrsresultat(identifikation: Tekst, indkomstår: Heltal, input_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_almindelige_tab_kroner: Heltal, årets_aktiebaserede_tab_kroner: Heltal, årets_fast_ejendom_sælgertab_kroner: Heltal, årets_fast_ejendom_købertab_kroner: Heltal, gyldigt_fremførte_almindelige_tab_kroner: Heltal, gyldigt_fremførte_aktiebaserede_tab_kroner: Heltal, årets_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_indkomstårsgevinster_kroner: Heltal, tab_modregnet_i_egne_tidligere_gevinster_kroner: Heltal, tab_overført_til_ægtefælles_kontraktgevinster_kroner: Heltal, ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, tab_overført_til_ægtefælles_aktiegevinster_kroner: Heltal, ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner: Heltal, afståelsessum_nedsat_med_fast_ejendomstab_kroner: Heltal, anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner: Heltal, almindelige_tab_fremført_til_følgende_indkomstår_kroner: Heltal, aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fradragsberettigede_tab_i_egen_kontraktindkomst_kroner: Heltal, netto_kontraktindkomst_efter_par32_kroner: Heltal)
+# KursgevinstPar32PersonÅrsresultat(identifikation: Tekst, indkomstår: Heltal, input_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, klassificerede_kontraktposter: List(KursgevinstPar32KlassificeretKontraktpost), indkomstklassifikationer: List(KursgevinstlovPersonligReklassifikation), indkomstklassifikation_entydig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_almindelige_tab_kroner: Heltal, årets_aktiebaserede_tab_kroner: Heltal, årets_fast_ejendom_sælgertab_kroner: Heltal, årets_fast_ejendom_købertab_kroner: Heltal, gyldigt_fremførte_almindelige_tab_kroner: Heltal, gyldigt_fremførte_aktiebaserede_tab_kroner: Heltal, årets_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_indkomstårsgevinster_kroner: Heltal, tab_modregnet_i_egne_tidligere_gevinster_kroner: Heltal, tab_overført_til_ægtefælles_kontraktgevinster_kroner: Heltal, ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, tab_overført_til_ægtefælles_aktiegevinster_kroner: Heltal, ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner: Heltal, afståelsessum_nedsat_med_fast_ejendomstab_kroner: Heltal, anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner: Heltal, almindelige_tab_fremført_til_følgende_indkomstår_kroner: Heltal, aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fradragsberettigede_tab_i_egen_kontraktindkomst_kroner: Heltal, netto_kontraktindkomst_efter_par32_kroner: Heltal)
 # KursgevinstPar32Fremførsel = KglPar32IngenFremførsel | KglPar32FremførselFraForrigeIndkomstår(resultat: KursgevinstPar32PersonÅrsresultat)
 # KursgevinstPar32PersonÅrsinput(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), aktieårsresultat: AktieavanceOrdinærÅrsresultat, fremførsel: KursgevinstPar32Fremførsel, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
 # KursgevinstPar32ÆgtefælleparInput(venstre: KursgevinstPar32PersonÅrsinput, højre: KursgevinstPar32PersonÅrsinput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
@@ -134,6 +135,19 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | kgl_par32_post_øvrig_gevinst_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) && kgl_par32_post_fast_ejendom(post) == Falskt { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) } ellers { 0 }
 | kgl_par32_post_fast_ejendomsgevinst_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) && kgl_par32_post_fast_ejendom(post) { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) } ellers { 0 }
 | kgl_par32_post_afvist_beløb_kroner(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> hvis kgl_par32_post_gyldig(post, indkomstår) { 0 } ellers { penge_positivt_beløb(post.resultat.skattepligtig_gevinst_kroner) + penge_positivt_beløb(post.resultat.kontrakttab_til_par32_årsopgørelse_kroner) }
+| kgl_par32_klassificeret_kontraktpost(post: KursgevinstPar32Kontraktpost, indkomstår: Heltal) -> KursgevinstPar32KlassificeretKontraktpost(
+    personlig_reklassifikation = post.resultat.personlig_reklassifikation,
+    relation = post.relation,
+    aktiegrundlag = post.aktiegrundlag,
+    gyldig = kgl_par32_post_gyldig(post, indkomstår),
+    skattepligtig_gevinst_kroner = kgl_par32_post_øvrig_gevinst_kroner(post, indkomstår) + kgl_par32_post_fast_ejendomsgevinst_kroner(post, indkomstår),
+    direkte_fradragsberettiget_tab_kroner = kgl_par32_post_direkte_tab_kroner(post, indkomstår),
+    tab_til_par32_før_årsfordeling_kroner = kgl_par32_post_tab_kroner(post, indkomstår),
+    tab_afskåret_kroner = penge_positivt_beløb(post.resultat.tab_afskåret_kroner)
+)
+| kgl_par32_klassificerede_kontraktposter(input: KursgevinstPar32PersonÅrsinput) -> map(input.kontrakter, |post: KursgevinstPar32Kontraktpost| kgl_par32_klassificeret_kontraktpost(post, input.indkomstår))
+| kgl_par32_klassificeret_post_har_indkomstgrundlag(post: KursgevinstPar32KlassificeretKontraktpost) -> post.skattepligtig_gevinst_kroner > 0 || post.direkte_fradragsberettiget_tab_kroner > 0 || post.tab_til_par32_før_årsfordeling_kroner > 0
+| kgl_par32_indkomstklassifikationer_fra_poster(poster: List(KursgevinstPar32KlassificeretKontraktpost)) -> distinct(map(filter(poster, kgl_par32_klassificeret_post_har_indkomstgrundlag), |post: KursgevinstPar32KlassificeretKontraktpost| post.personlig_reklassifikation))
 
 # KursgevinstPar32TabsmodregningSag(tab: KursgevinstPar32Tabsaldo, gevinstkapacitet_kroner: Heltal, prioritet: KursgevinstPar32Tabsprioritet) {
     | første_tab_kroner() -> hvis prioritet == KglPar32AlmindeligeTabFørst { tab.almindelige_tab_kroner } ellers { tab.aktiebaserede_tab_kroner }
@@ -212,6 +226,14 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | KglPar32IngenFremførsel -> 0
     | KglPar32FremførselFraForrigeIndkomstår(resultat) -> resultat.tab_fremført_til_følgende_indkomstår_kroner
 } }
+| kgl_par32_fremførte_indkomstklassifikationer(fremførsel: KursgevinstPar32Fremførsel, identifikation: Tekst, indkomstår: Heltal) -> hvis kgl_par32_fremførsel_gyldig(fremførsel, identifikation, indkomstår) { match fremførsel {
+    | KglPar32IngenFremførsel -> []
+    | KglPar32FremførselFraForrigeIndkomstår(resultat) -> hvis resultat.tab_fremført_til_følgende_indkomstår_kroner > 0 { resultat.indkomstklassifikationer } ellers { [] }
+} } ellers { [] }
+| kgl_par32_indkomstklassifikationer_fra_input(input: KursgevinstPar32PersonÅrsinput) -> distinct(concat(
+    kgl_par32_indkomstklassifikationer_fra_poster(kgl_par32_klassificerede_kontraktposter(input)),
+    kgl_par32_fremførte_indkomstklassifikationer(input.fremførsel, input.identifikation, input.indkomstår)
+))
 
 # KursgevinstPar32EgenÅrsopgørelseSag(input: KursgevinstPar32PersonÅrsinput) {
     | kontraktinput_gyldigt() -> all(input.kontrakter, |post: KursgevinstPar32Kontraktpost| kgl_par32_post_gyldig(post, input.indkomstår))
@@ -294,6 +316,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | kgl_par32_aktietab_til_ægtefælle_kroner(egen: KursgevinstPar32Aktiemodregningsforberedelse, ægtefælle: KursgevinstPar32Aktiemodregningsforberedelse, gift_og_samlevende: Boolsk) -> hvis gift_og_samlevende && kgl_par32_må_modregne_i_ægtefælles_aktiegevinster(egen.egen.input.aktiemodregningsvalg) { penge_mindste_beløb(penge_mindste_beløb(egen.aktiebaseret_tab_efter_egne_aktiegevinster_kroner, egen.valgt_loft_efter_egne_aktiegevinster_kroner), ægtefælle.resterende_egen_aktiegevinstkapacitet_kroner) } ellers { 0 }
 
 # KursgevinstPar32EfterÆgtefælleSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, ægtefælle: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, indgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, aktiemodregning: KursgevinstPar32Aktiemodregningsforberedelse, udgående_aktiemodregning_kroner: Heltal, indgående_aktiemodregning_kroner: Heltal) {
+    | klassificerede_kontraktposter() -> kgl_par32_klassificerede_kontraktposter(egen.input)
     | almindelige_tab_fremført_til_følgende_indkomstår_kroner() -> aktiemodregning.tab_efter_ægtefælles_kontraktgevinster.almindelige_tab_kroner
     | aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner() -> aktiemodregning.aktiebaseret_tab_efter_egne_aktiegevinster_kroner - udgående_aktiemodregning_kroner
     | tab_fremført_til_følgende_indkomstår_kroner() -> almindelige_tab_fremført_til_følgende_indkomstår_kroner() + aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner()
@@ -301,6 +324,10 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | tab_modregnet_i_egne_tidligere_gevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(egen.modregning_i_tidligere_gevinster)
     | tab_overført_til_ægtefælles_kontraktgevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(udgående_kontraktmodregning)
     | ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner() -> kgl_par32_samlet_kontraktmodregning_kroner(indgående_kontraktmodregning)
+    | egne_indkomstklassifikationer() -> kgl_par32_indkomstklassifikationer_fra_input(egen.input)
+    | modtagne_ægtefælleklassifikationer() -> hvis ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner() > 0 { kgl_par32_indkomstklassifikationer_fra_input(ægtefælle.input) } ellers { [] }
+    | indkomstklassifikationer() -> distinct(concat(egne_indkomstklassifikationer(), modtagne_ægtefælleklassifikationer()))
+    | indkomstklassifikation_entydig() -> length(indkomstklassifikationer()) <= 1
     | årets_kontraktgevinster_kroner() -> kgl_par32_gevinstsaldo_i_alt_kroner(egen.årets_gevinster_før_direkte_tab)
     | fradragsberettigede_tab_i_egen_kontraktindkomst_kroner() -> egen.direkte_fradragsberettigede_kontrakttab_kroner + tab_modregnet_i_egne_indkomstårsgevinster_kroner() + tab_modregnet_i_egne_tidligere_gevinster_kroner() + ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner()
     | netto_kontraktindkomst_efter_par32_kroner() -> årets_kontraktgevinster_kroner() - fradragsberettigede_tab_i_egen_kontraktindkomst_kroner()
@@ -312,6 +339,9 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
         indkomstår = egen.input.indkomstår,
         input_gyldigt = input_gyldigt(),
         fremførsel_gyldig = egen.fremførsel_gyldig,
+        klassificerede_kontraktposter = klassificerede_kontraktposter(),
+        indkomstklassifikationer = indkomstklassifikationer(),
+        indkomstklassifikation_entydig = indkomstklassifikation_entydig(),
         afvist_kontraktbeløb_kroner = egen.afvist_kontraktbeløb_kroner,
         afvist_fremført_tab_kroner = egen.afvist_fremført_tab_kroner,
         direkte_fradragsberettigede_kontrakttab_kroner = egen.direkte_fradragsberettigede_kontrakttab_kroner,
