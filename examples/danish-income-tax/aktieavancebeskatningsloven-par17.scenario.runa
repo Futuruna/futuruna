@@ -1,0 +1,168 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par17
+@ importer ./kapitel - 01 - indkomst
+
+= par17_selskabsnæringsdrivende = AktieavancePar17Skatteyder(
+    skattepligtig = AblPar17SkattepligtigEfterPar6,
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier
+)
+= par17_personnæringsdrivende = AktieavancePar17Skatteyder(
+    skattepligtig = AblPar17SkattepligtigEfterPar7,
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier
+)
+= par17_person_ikke_næringsdrivende = AktieavancePar17Skatteyder(
+    skattepligtig = AblPar17SkattepligtigEfterPar7,
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
+)
+
+| par17_scenarieinput(skatteyder: AktieavancePar17Skatteyder, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> AktieavancePar17Input(
+    indkomstår = 2026,
+    skatteyder = skatteyder,
+    instrument = instrument,
+    erhvervelsesstatus = erhvervelsesstatus,
+    afståelsessum_kroner = afståelsessum_kroner,
+    anskaffelsessum_kroner = anskaffelsessum_kroner
+)
+
+= par17_selskabsgevinst = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_selskabsnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_persontab = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 80000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_persongevinst = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_koncerninternt_tab = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_selskabsnæringsdrivende,
+    instrument = AblPar17KoncerninternKonvertibelObligation,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 70000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_koncernintern_gevinst = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_selskabsnæringsdrivende,
+    instrument = AblPar17TegningsretTilKoncerninternKonvertibelObligation,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 120000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_minimumsbevis = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17InvesteringsbevisIMinimumsinstitut,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 115000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_ikke_næringsdrivende = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_person_ikke_næringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_ikke_næringsanskaffelse = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+
+= par17_undtagne_instrumenter = [
+    AblPar17UndtagetEfterPar10,
+    AblPar17UndtagetEfterPar15,
+    AblPar17UndtagetEfterPar16Stk1,
+    AblPar17UndtagetEfterPar18,
+    AblPar17UndtagetEfterPar19A,
+    AblPar17UndtagetEfterPar19B,
+    AblPar17UndtagetEfterPar19C
+]
+= par17_undtagne_resultater = map(par17_undtagne_instrumenter, |instrument: AktieavancePar17Instrument| aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_selskabsnæringsdrivende,
+    instrument = instrument,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+)))
+= par17_investeringsselskab_modprøve = aktieavance_par17_resultat(par17_scenarieinput(
+    skatteyder = par17_selskabsnæringsdrivende,
+    instrument = AblPar17UndtagetEfterPar19B,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+= par17_ugyldigt_input = aktieavance_par17_resultat(AktieavancePar17Input(
+    indkomstår = 0,
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = -1,
+    anskaffelsessum_kroner = 100000
+))
+= par17_ugyldig_anskaffelsessum = aktieavance_par17_resultat(AktieavancePar17Input(
+    indkomstår = 2026,
+    skatteyder = par17_personnæringsdrivende,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 100000,
+    anskaffelsessum_kroner = -1
+))
+
+= par17_psl_nr5_resultat = par4_stk1_nr5_resultat(Par4Stk1Nr5Input(
+    aktieavancebeskatningslov_resultat = par17_persongevinst.aktieavancebeskatningslov_resultat
+))
+
+| par17_bro_er_par6_næringsaktiv(bro: AktieavancePar17Par23Bro) -> match bro {
+    | AblPar17Par23Bro(skattepligtig, aktiv) -> skattepligtig == AblSkattepligtigEfterPar6 && aktiv == AblPar17Næringsaktiv
+    | AblPar17IngenPar23Bro -> Falskt
+}
+| par17_bro_er_par7_minimumsbevis(bro: AktieavancePar17Par23Bro) -> match bro {
+    | AblPar17Par23Bro(skattepligtig, aktiv) -> skattepligtig == AblSkattepligtigEfterPar7 && aktiv == AblPar17Stk3Investeringsbevis
+    | AblPar17IngenPar23Bro -> Falskt
+}
+
+| par17_stk1_selskabsgevinst: par17_selskabsgevinst -> par17_selskabsgevinst.input_gyldigt && par17_selskabsgevinst.omfattet_af_stk1 && par17_selskabsgevinst.skattepligtig_gevinst_kroner == 30000 && par17_selskabsgevinst.fradragsberettiget_tab_kroner == 0 && par17_selskabsgevinst.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblIkkeMedregnetISlice
+| par17_stk1_persontab: par17_persontab -> par17_persontab.omfattet_af_stk1 && par17_persontab.bruttotab_kroner == 20000 && par17_persontab.fradragsberettiget_tab_kroner == 20000 && par17_persontab.tab_afskåret_kroner == 0 && par17_persontab.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| par17_stk2_koncerninternt_tab_afskæres: par17_koncerninternt_tab -> par17_koncerninternt_tab.omfattet_af_stk1 && par17_koncerninternt_tab.tab_afskåret_efter_stk2 && par17_koncerninternt_tab.bruttotab_kroner == 30000 && par17_koncerninternt_tab.fradragsberettiget_tab_kroner == 0 && par17_koncerninternt_tab.tab_afskåret_kroner == 30000
+| par17_stk2_afskærer_ikke_gevinst: par17_koncernintern_gevinst -> par17_koncernintern_gevinst.omfattet_af_stk1 && par17_koncernintern_gevinst.tab_afskåret_efter_stk2 == Falskt && par17_koncernintern_gevinst.skattepligtig_gevinst_kroner == 20000
+| par17_stk3_omfatter_alle_minimumsbeviser: par17_minimumsbevis -> par17_minimumsbevis.omfattet_af_stk1 == Falskt && par17_minimumsbevis.omfattet_af_stk3 && par17_minimumsbevis.skattepligtig_gevinst_kroner == 15000 && par17_bro_er_par7_minimumsbevis(par17_minimumsbevis.par23_bro)
+| par17_kræver_aktienæring: par17_ikke_næringsdrivende -> par17_ikke_næringsdrivende.aktienæringsdrivende == Falskt && par17_ikke_næringsdrivende.reglen_finder_anvendelse == Falskt && par17_ikke_næringsdrivende.kgl_par32_kontraktrelation == KglPar32AlmindeligKontrakt
+| par17_stk1_kræver_næringsanskaffelse: par17_ikke_næringsanskaffelse -> par17_ikke_næringsanskaffelse.aktienæringsdrivende && par17_ikke_næringsanskaffelse.omfattet_af_stk1 == Falskt && par17_ikke_næringsanskaffelse.reglen_finder_anvendelse == Falskt && par17_ikke_næringsanskaffelse.kgl_par32_kontraktrelation == KglPar32AktiekontraktEfterAbl17
+| par17_stk4_undtagelser_har_forrang: par17_undtagne_resultater -> length(par17_undtagne_resultater) == 7 && all(par17_undtagne_resultater, |resultat: AktieavancePar17Resultat| resultat.undtaget_efter_stk4 && resultat.reglen_finder_anvendelse == Falskt && length(resultat.fortrængte_regler_efter_stk4) == 0 && resultat.aktieavancebeskatningslov_resultat.medregnes_i_skattepligtig_indkomst == Falskt)
+| par17_stk4_fortrænger_alle_opregnede_regler: par17_selskabsgevinst -> length(par17_selskabsgevinst.fortrængte_regler_efter_stk4) == 7 && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar8) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar9) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar12) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar13) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar14) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar22) && contains(par17_selskabsgevinst.fortrængte_regler_efter_stk4, AblPar17FortrængerPar44)
+| par17_investeringsstatus_modprøve_er_typed: par17_investeringsselskab_modprøve -> par17_investeringsselskab_modprøve.undtaget_efter_stk4 && par17_investeringsselskab_modprøve.ville_være_omfattet_uden_investeringsstatus && par17_investeringsselskab_modprøve.reglen_finder_anvendelse == Falskt
+| par17_psl_par4_stk3_bro: par17_psl_nr5_resultat -> par17_psl_nr5_resultat.kapitalindkomst_kroner == 0 && par17_psl_nr5_resultat.personlig_reklassifikation == Aktieavance17Aktier && par17_psl_nr5_resultat.skattepligtig_gevinst_kroner == 30000
+| par17_par23_bro_bruger_typed_resultat: par17_selskabsgevinst -> par17_bro_er_par6_næringsaktiv(par17_selskabsgevinst.par23_bro)
+| par17_kgl_par32_relation_bruger_skatteyderstatus: par17_selskabsgevinst -> par17_selskabsgevinst.kgl_par32_kontraktrelation == KglPar32AktiekontraktEfterAbl17
+| par17_ugyldigt_input_afvises: par17_ugyldigt_input -> par17_ugyldigt_input.input_gyldigt == Falskt && par17_ugyldigt_input.reglen_finder_anvendelse == Falskt && par17_ugyldigt_input.bruttogevinst_kroner == 0 && par17_ugyldigt_input.bruttotab_kroner == 0
+| par17_negativ_anskaffelsessum_afvises: par17_ugyldig_anskaffelsessum -> par17_ugyldig_anskaffelsessum.input_gyldigt == Falskt && par17_ugyldig_anskaffelsessum.reglen_finder_anvendelse == Falskt && par17_ugyldig_anskaffelsessum.bruttogevinst_kroner == 0 && par17_ugyldig_anskaffelsessum.bruttotab_kroner == 0
+
+? par17_stk1_selskabsgevinst
+? par17_stk1_persontab
+? par17_stk2_koncerninternt_tab_afskæres
+? par17_stk2_afskærer_ikke_gevinst
+? par17_stk3_omfatter_alle_minimumsbeviser
+? par17_kræver_aktienæring
+? par17_stk1_kræver_næringsanskaffelse
+? par17_stk4_undtagelser_har_forrang
+? par17_stk4_fortrænger_alle_opregnede_regler
+? par17_investeringsstatus_modprøve_er_typed
+? par17_psl_par4_stk3_bro
+? par17_par23_bro_bruger_typed_resultat
+? par17_kgl_par32_relation_bruger_skatteyderstatus
+? par17_ugyldigt_input_afvises
+? par17_negativ_anskaffelsessum_afvises

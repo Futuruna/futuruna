@@ -116,6 +116,16 @@ fører både fradragene og de positive indtægtsføringer fra nr. 4 og nr. 10 in
 fokusscenarie dækker alle ni grene i både interpreter og kompileret kode og
 viser samtidig, at ni rå beløb mærket som nr. 3-11 samlet giver 0 kr. i fradrag.
 
+Aktieavancebeskatningslovens § 17 er nu en selvstændig, typet regelkaskade for
+aktienæring. Den skelner mellem selskaber og personer, aktienæringsstatus,
+anskaffelse som led i næringsvejen og instrumentets art. Stk. 2 afskærer kun
+tab på koncerninterne konvertible obligationer og tegningsretter, stk. 3
+medtager alle minimumsbeskattede investeringsbeviser hos den næringsdrivende,
+og stk. 4's undtagelser har udtrykkelig forrang. Resultatet forbinder den samme
+sag med § 23's opgørelsesmetode, Kursgevinstloven § 32's kontraktrelation og
+Personskatteloven § 4's personlige indkomstklassifikation for personer.
+Femten scenarier kører ens i interpreter og kompileret kode.
+
 Personaktievejen er nu også eksekverbar fra anskaffelse og gennemsnitlig
 anskaffelsessum til afståelse, noterede og unoterede tab,
 ægtefælleoverførsel og den endelige aktieindkomstpost efter Personskatteloven
@@ -153,8 +163,8 @@ Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
 vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
 saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 148 udfald i
-Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 33 A, §§ 35 G-35 K og
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 163 udfald i
+Aktieavancebeskatningsloven §§ 12-15, § 17, §§ 23-27, § 33 A, §§ 35 G-35 K og
 §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 [medarbejderejeændringen, LOV nr. 1755/2025](https://www.retsinformation.dk/eli/lta/2025/1755),

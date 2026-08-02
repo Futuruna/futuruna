@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-0f81a6` (submitted for review)
-Latest implementation slice submitted for review: `td-0f81a6`
-Latest approved implementation slice: `td-db8bc5`
+Current focus issue: `td-3ee767` (submitted for review)
+Latest implementation slice submitted for review: `td-3ee767`
+Latest approved implementation slice: `td-ed1bda`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -48,7 +48,19 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Kursgevinstloven § 32 er nu en kildebundet, typet
+Latest integration: Aktieavancebeskatningsloven § 17 er nu en kildebundet,
+typet regelkaskade for aktienæring. Skatteyderens § 6- eller § 7-status,
+næringsstatus, anskaffelsens forbindelse til næringsvejen og instrumentets
+art er domæneværdier frem for løse sand/falsk-flags. Stk. 1-4 beregner
+gevinst og tab, afskærer tab på koncerninterne konvertible obligationer og
+tegningsretter, medtager alle minimumsbeskattede investeringsbeviser hos den
+næringsdrivende og giver de udtrykkelige §§ 10, 15, 16, stk. 1, 18 og
+19 A-19 C-undtagelser forrang. Resultatet føder de typede § 23-,
+Kursgevinstloven § 32- og Personskatteloven § 4-broer; kun en fysisk person
+efter § 7 kan få Personskattelovens personlige indkomstklassifikation.
+Femten fokusscenarier passerer i både interpreter og kompileret kode.
+
+Kursgevinstloven § 32 er nu en kildebundet, typet
 årsopgørelse frem for et egnethedsflag leveret af kalderen. Den fordeler årets
 og fremførte kontrakttab i lovens rækkefølge mellem egne gevinster i året,
 egne skattepligtige nettogevinster fra tidligere år, en samlevende ægtefælles
@@ -103,9 +115,9 @@ endnu ukendt start ikke kan ligne et straksfradragsberettiget år. Den fokusered
 scenario-fil validerer 31 positive, begrænsende og afskærende udfald i både
 interpreter og kompileret kode.
 
-Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 30,
+Aktieavancebeskatningsloven §§ 12-15, § 17, §§ 23-27, § 30,
 stk. 1, § 33 A, §§ 35 G-35 K og §§ 37-40 har nu typede beregningsveje for
-ordinære personaktier, lageropgørelser, aktie- og tegningsretter,
+ordinære personaktier, næringsaktier, lageropgørelser, aktie- og tegningsretter,
 medarbejderejeoverdragelser, statusskifter samt indgangs- og
 fraflytterbeskatning.
 Den vedvarende ordinære selskabsposition håndterer aktier med pålydende værdi,
@@ -124,6 +136,17 @@ MTF-overgangen den 1. januar 2024,
 lagerprincipafgrænsningen, ligningslovens § 28-undtagelse og § 14's
 oplysningsbetingelse er eksplicitte. Begge domæner føder den samme typede
 § 13 A-årsopgørelse og Personskatteloven § 4 a-bro.
+
+`aktieavancebeskatningsloven-par17.runa` gør aktienæringens stk. 1-4 til en
+scoped regelkaskade. Den skelner mellem selskaber efter § 6 og personer efter
+§ 7, næringsstatus, næringsanskaffelse, koncerninterne konvertible
+obligationer og tegningsretter, minimumsbeskattede investeringsbeviser samt
+alle stk. 4-undtagelser. Den typede modprøve for §§ 19 A-19 C erstatter det
+tidligere løse `ville_være_par17_uden_investeringsstatus`-flag. Resultatet
+leverer en § 23-metodebro, den skatteyderafledte Kursgevinstloven
+§ 32-kontraktrelation og Personskatteloven § 4's personlige
+indkomstklassifikation for § 7-personer. Femten fokusscenarier passerer i
+både interpreter og kompileret kode.
 
 Det importerede `aktieavancebeskatningsloven-par23-27.runa` vælger mellem
 realisations-, lager- og tilladt anden opgørelsesmåde med lovens egne
@@ -208,7 +231,7 @@ udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
 De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-9, 17, 19 A-20 A og 22 samt § 38's fulde afhængige opgørelser efter §§ 23-29 og
+9, 19 A-20 A og 22 samt § 38's fulde afhængige opgørelser efter §§ 23-29 og
 46. Modulerne modtager juridiske
 klassifikationer som typede resultater frem for rå sand/falsk-flags forklædt
 som fuld dækning.
@@ -960,11 +983,18 @@ Current § 4 and § 13 amendment/dependency sources:
     and final lapse. Its 17 focused scenarios pass interpreted and compiled
     execution. The enacted text, commencement clause and preparatory work are
     attached through typed meta-comment spans.
-  - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
+  - `aktieavancebeskatningsloven-par17.runa` implements the typed taxpayer,
+    acquisition, instrument and amount classification for stk. 1-4. It blocks
+    group-internal convertible losses, includes all minimum-taxation
+    certificates for a share trader, gives every stk. 4 exclusion priority,
+    derives the investment-company counterfactual, and feeds typed § 23,
+    KGL § 32 and PSL § 4 bridges. Its 15 focused scenarios pass interpreted
+    and compiled execution.
+  - §§ 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
-    § 17/§ 19 C-if-§ 17 personal-income reclassification.
+    § 19 C-if-§ 17 personal-income reclassification.
   - Remaining ABL depth includes the remaining dependent classifications.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
