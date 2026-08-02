@@ -1,0 +1,587 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+@ importer ./slutopgoerelse
+
+-- Scenarier for Afskrivningslovens § 40 C og kæden til Kildeskattelovens
+-- slutopgørelse. Den originale lovtekst står i afskrivningsloven.runa.
+
+= al40c_betalingsrettighed_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "betaling-2021-1",
+        rettighedsnøgle = "eu-betalingsrettighed",
+        erhvervelsesdato = AfskrivningslovDato(år = 2021, måned = 1, dag = 15),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 10
+    ),
+    aktivgrundlag = Al40CBetalingsrettighedsgrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 100000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 100000
+)
+= al40c_betalingsrettighed_anskaffet = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2021,
+    position = al40c_betalingsrettighed_position,
+    lager = [al40c_betalingsrettighed_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+
+= al40c_gratis_betalingsrettighed_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "betaling-gratis-2021-1",
+        rettighedsnøgle = "eu-betalingsrettighed-gratis",
+        erhvervelsesdato = AfskrivningslovDato(år = 2021, måned = 2, dag = 1),
+        erhvervelsesrækkefølge = 2,
+        resterende_enheder = 5
+    ),
+    aktivgrundlag = Al40CBetalingsrettighedsgrundlag(
+        anskaffelsesgrundlag = Al40CVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner = 0)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 0
+)
+= al40c_gratis_betalingsrettighed_anskaffet = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2021,
+    position = al40c_gratis_betalingsrettighed_position,
+    lager = [al40c_gratis_betalingsrettighed_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+= al40c_forpagter_afgiver = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2021,
+    position = al40c_gratis_betalingsrettighed_position,
+    lager = [al40c_gratis_betalingsrettighed_position],
+    hændelse = Al40CForpagterAfgiverVederlagsfrit(
+        hændelsesdato = AfskrivningslovDato(år = 2021, måned = 12, dag = 1),
+        afgivne_enheder = 5
+    )
+))
+= al40c_bortforpagter_modtager = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2021,
+    position = al40c_gratis_betalingsrettighed_position,
+    lager = [al40c_gratis_betalingsrettighed_position],
+    hændelse = Al40CBortforpagterModtagerVederlagsfrit
+))
+
+= al40c_ny_mælk_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-2005-1",
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = 2005, måned = 2, dag = 1),
+        erhvervelsesrækkefølge = 2,
+        resterende_enheder = 100
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 120000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 120000
+)
+= al40c_ny_mælk_anskaffet = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2005,
+    position = al40c_ny_mælk_position,
+    lager = [al40c_ny_mælk_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+
+= al40c_gammel_mælk_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-1994-1",
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = 1994, måned = 6, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 100
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 80000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 80000
+)
+= al40c_mælkelager = [al40c_gammel_mælk_position, al40c_ny_mælk_position]
+= al40c_gammel_mælk_solgt_efter_ejendom = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_gammel_mælk_position,
+    lager = al40c_mælkelager,
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 4, dag = 1),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 100000,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetEfterEjendomUdenEblRegulering
+    )
+))
+= al40c_gammel_mælk_delvist_solgt_efter_ejendom = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_gammel_mælk_position,
+    lager = al40c_mælkelager,
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 3, dag = 1),
+        afståede_enheder = 25,
+        afståelsessum_kroner = 30000,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetEfterEjendomUdenEblRegulering
+    )
+))
+= al40c_gammel_mælk_solgt_med_ejendom = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_gammel_mælk_position,
+    lager = al40c_mælkelager,
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 4, dag = 1),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 100000,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetFørEllerSammenMedEjendom
+    )
+))
+= al40c_gammel_mælk_udløbet_efter_ejendom = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2015,
+    position = al40c_gammel_mælk_position,
+    lager = [al40c_gammel_mælk_position],
+    hændelse = Al40CAktivUdløbet(
+        hændelsesdato = AfskrivningslovDato(år = 2015, måned = 3, dag = 31),
+        udløbne_enheder = 100,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetEfterEjendomUdenEblRegulering
+    )
+))
+= al40c_gammel_mælk_udløbet_før_ejendom = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2015,
+    position = al40c_gammel_mælk_position,
+    lager = [al40c_gammel_mælk_position],
+    hændelse = Al40CAktivUdløbet(
+        hændelsesdato = AfskrivningslovDato(år = 2015, måned = 3, dag = 31),
+        udløbne_enheder = 100,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomIkkeAfstået
+    )
+))
+= al40c_ny_mælk_solgt_før_fifo = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_ny_mælk_position,
+    lager = al40c_mælkelager,
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 4, dag = 1),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 150000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+= al40c_ny_mælk_solgt_efter_fifo = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_ny_mælk_position,
+    lager = [al40c_gammel_mælk_solgt_efter_ejendom.position_efter, al40c_ny_mælk_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 4, dag = 2),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 150000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+
+= al40c_senere_ny_mælk_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-2006-1",
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = 2006, måned = 2, dag = 1),
+        erhvervelsesrækkefølge = 3,
+        resterende_enheder = 75
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 90000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 90000
+)
+= al40c_senere_ny_mælk_solgt_uden_blandet_lager = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_senere_ny_mælk_position,
+    lager = [al40c_ny_mælk_position, al40c_senere_ny_mælk_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 6, dag = 1),
+        afståede_enheder = 75,
+        afståelsessum_kroner = 100000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+
+= al40c_gammel_mælk_selskab_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelskabEllerForening,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-1994-selskab",
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = 1994, måned = 7, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 50
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 40000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 40000
+)
+= al40c_mælkelager_med_fremmed_skatteyder = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_ny_mælk_position,
+    lager = [al40c_gammel_mælk_selskab_position, al40c_ny_mælk_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 7, dag = 1),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 150000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+
+= al40c_mælk_før_1993_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-1990-1",
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = 1990, måned = 1, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 100
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 70000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 70000
+)
+= al40c_mælk_før_1993_solgt = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_mælk_før_1993_position,
+    lager = [al40c_mælk_før_1993_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 4, dag = 1),
+        afståede_enheder = 100,
+        afståelsessum_kroner = 90000,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetEfterEjendomUdenEblRegulering
+    )
+))
+
+= al40c_gammel_mælk_beskattet_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "mælk-1995-gratis",
+        rettighedsnøgle = "mælkekvote-beskattet",
+        erhvervelsesdato = AfskrivningslovDato(år = 1995, måned = 1, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 50
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner = 40000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 40000
+)
+= al40c_gammel_mælk_beskattet_solgt = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_gammel_mælk_beskattet_position,
+    lager = [al40c_gammel_mælk_beskattet_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 5, dag = 1),
+        afståede_enheder = 50,
+        afståelsessum_kroner = 50000,
+        mælkekvote_ejendomsforløb = Al40CMælkAfståetEfterEjendomUdenEblRegulering
+    )
+))
+
+= al40c_sukker_skøn_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "sukker-2000-skøn",
+        rettighedsnøgle = "sukkerroerettighed",
+        erhvervelsesdato = AfskrivningslovDato(år = 2000, måned = 1, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 1
+    ),
+    aktivgrundlag = Al40CSukkerroegrundlag(
+        anskaffelsesgrundlag = Al40CSkønsmæssigAndelAfSamletAnskaffelsessum(anskaffelsessum_kroner = 60000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 60000
+)
+= al40c_sukker_skøn_indgang = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2006,
+    position = al40c_sukker_skøn_position,
+    lager = [al40c_sukker_skøn_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+= al40c_sukker_standard_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "sukker-2000-standard",
+        rettighedsnøgle = "sukkerroerettighed-standard",
+        erhvervelsesdato = AfskrivningslovDato(år = 2000, måned = 2, dag = 1),
+        erhvervelsesrækkefølge = 2,
+        resterende_enheder = 1
+    ),
+    aktivgrundlag = Al40CSukkerroegrundlag(
+        anskaffelsesgrundlag = Al40CPolsukkerStandard(polsukker_ton = 20)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 50000
+)
+= al40c_sukker_standard_indgang = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2006,
+    position = al40c_sukker_standard_position,
+    lager = [al40c_sukker_standard_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+= al40c_sukker_standard_udløbet = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2017,
+    position = al40c_sukker_standard_position,
+    lager = [al40c_sukker_standard_position],
+    hændelse = Al40CAktivUdløbet(
+        hændelsesdato = AfskrivningslovDato(år = 2017, måned = 10, dag = 1),
+        udløbne_enheder = 1,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+= al40c_sukker_gratis_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "sukker-2000-gratis",
+        rettighedsnøgle = "sukkerroerettighed-gratis",
+        erhvervelsesdato = AfskrivningslovDato(år = 2000, måned = 3, dag = 1),
+        erhvervelsesrækkefølge = 3,
+        resterende_enheder = 1
+    ),
+    aktivgrundlag = Al40CSukkerroegrundlag(
+        anskaffelsesgrundlag = Al40CVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner = 0)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 0
+)
+= al40c_sukker_gratis_indgang = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2006,
+    position = al40c_sukker_gratis_position,
+    lager = [al40c_sukker_gratis_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+
+= al40c_sukker_ny_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "sukker-2008-køb",
+        rettighedsnøgle = "sukkerroerettighed-ny",
+        erhvervelsesdato = AfskrivningslovDato(år = 2008, måned = 3, dag = 1),
+        erhvervelsesrækkefølge = 4,
+        resterende_enheder = 10
+    ),
+    aktivgrundlag = Al40CSukkerroegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 70000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 70000
+)
+= al40c_sukker_ny_anskaffet = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2008,
+    position = al40c_sukker_ny_position,
+    lager = [al40c_sukker_ny_position],
+    hændelse = Al40CAnskaffelsePåSaldo
+))
+= al40c_sukker_ny_delvist_solgt = afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(
+    indkomstår = 2010,
+    position = al40c_sukker_ny_position,
+    lager = [al40c_sukker_ny_position],
+    hændelse = Al40CAktivAfstået(
+        hændelsesdato = AfskrivningslovDato(år = 2010, måned = 3, dag = 1),
+        afståede_enheder = 4,
+        afståelsessum_kroner = 40000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )
+))
+
+= al40c_gammel_mælk_saldo_resultat = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2010,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 0,
+    bevægelser_i_året = al40c_gammel_mælk_solgt_efter_ejendom.bevægelser_i_året
+))
+= al40c_sukker_ophør_resultat = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2017,
+    begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 50000,
+    bevægelser_i_året = al40c_sukker_standard_udløbet.bevægelser_i_året
+))
+= al40c_sukker_nyanskaffelse_i_afståelsesåret = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2010,
+    begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 50000,
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 70000),
+        Al40CAfståelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, afståelsessum_kroner = 100000)
+    ]
+))
+= al40c_betalingsrettighed_nyanskaffelse_i_afståelsesåret = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2010,
+    begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 50000,
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 70000),
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 100000)
+    ]
+))
+
+= al40c_negativ_saldo_2020 = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2020,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 0,
+    bevægelser_i_året = [Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 300000)]
+))
+= al40c_negativ_saldo_2021 = afskrivningslov40c_resultat(Afskrivningslov40CInput(
+    indkomstår = 2021,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = 0,
+    bevægelser_i_året = [Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 250000)]
+))
+= al40c_negativ_historik = [
+    afskrivningslov40c_negativ_saldo_indtægtsføring_fra_resultat(al40c_negativ_saldo_2020),
+    afskrivningslov40c_negativ_saldo_indtægtsføring_fra_resultat(al40c_negativ_saldo_2021)
+]
+= al40c_ejendomstab = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
+    indkomstår = 2022,
+    ejendomskategori = Al40CLandbrugsEllerSkovejendom,
+    fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
+    negativ_saldo_historik = al40c_negativ_historik
+))
+= al40c_andet_ejendomstab = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
+    indkomstår = 2022,
+    ejendomskategori = Al40CAndenEjendom,
+    fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
+    negativ_saldo_historik = al40c_negativ_historik
+))
+= al40c_dobbelt_historik = afskrivningslov40c_ejendomstab_resultat(Afskrivningslov40CEjendomstabInput(
+    indkomstår = 2022,
+    ejendomskategori = Al40CLandbrugsEllerSkovejendom,
+    fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 500000,
+    negativ_saldo_historik = [al40c_negativ_historik[0], al40c_negativ_historik[0]]
+))
+
+= al40c_aconto_uden_succession = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+    indkomstår = 2022,
+    grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = al40c_ejendomstab),
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 70000,
+    overdragelse = Al40CIngenSuccession,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+= al40c_aconto_succession = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+    indkomstår = 2022,
+    grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = al40c_ejendomstab),
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 70000,
+    overdragelse = Al40CSuccessionEfterKildeskattelov33C,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Sandt,
+    ægtefælles_slutskat_mv_kroner = 20000
+))
+= al40c_aconto_succession_uden_samliv = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+    indkomstår = 2022,
+    grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = al40c_ejendomstab),
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 70000,
+    overdragelse = Al40CSuccessionEfterDødsboskattelov39,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
+    ægtefælles_slutskat_mv_kroner = 20000
+))
+= al40c_aconto_fremført_2023 = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+    indkomstår = 2023,
+    grundlag = Al40CFremførtAcontoskattebeløb(position = al40c_aconto_succession.position_efter),
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 15000,
+    overdragelse = Al40CIngenSuccession,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+| al40c_kildeskat_kreditter(acontoskat_kroner: Heltal) -> KildeskatPar60Kreditter(
+    a_skat_og_am_indeholdt_kroner = 0,
+    par68_indbetalt_kroner = 0,
+    b_skat_betalt_kroner = 0,
+    udbytteskat_modregningsberettiget_kroner = 0,
+    frivillig_indbetaling_par59_kroner = 0,
+    virksomhedsordning_beløb_kroner = 0,
+    personskattelov_par8a_stk5_beløb_kroner = 0,
+    afskrivningslov_acontoskat_kroner = acontoskat_kroner,
+    am_lov_par6_beløb_kroner = 0,
+    seniornedslag_kroner = 0,
+    energiafgiftskompensation_kroner = 0,
+    tilbagebetalt_par55_kroner = 0
+)
+= al40c_kildeskat_uden_succession = kildeskat_slutopgørelse_resultat(KildeskatSlutopgørelseInput(
+    slutskat_kroner = 70000,
+    overført_restskat_mv_kroner = 0,
+    pensionsbeskatningsafgift_kroner = 0,
+    kreditter = al40c_kildeskat_kreditter(al40c_aconto_uden_succession.kredit_til_egen_kildeskat_slutopgørelse_kroner)
+))
+= al40c_kildeskat_succession_egen = kildeskat_slutopgørelse_resultat(KildeskatSlutopgørelseInput(
+    slutskat_kroner = 70000,
+    overført_restskat_mv_kroner = 0,
+    pensionsbeskatningsafgift_kroner = 0,
+    kreditter = al40c_kildeskat_kreditter(al40c_aconto_succession.kredit_til_egen_kildeskat_slutopgørelse_kroner)
+))
+= al40c_kildeskat_succession_ægtefælle = kildeskat_slutopgørelse_resultat(KildeskatSlutopgørelseInput(
+    slutskat_kroner = 20000,
+    overført_restskat_mv_kroner = 0,
+    pensionsbeskatningsafgift_kroner = 0,
+    kreditter = al40c_kildeskat_kreditter(al40c_aconto_succession.kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner)
+))
+
+| scenarie_al40c_betalingsrettighed_køb_indgår: al40c_betalingsrettighed_anskaffet -> al40c_betalingsrettighed_anskaffet.omfattet_af_par40c && al40c_betalingsrettighed_anskaffet.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 100000)]
+| scenarie_al40c_vederlagsfri_tildeling_indgår_med_nul: al40c_gratis_betalingsrettighed_anskaffet -> al40c_gratis_betalingsrettighed_anskaffet.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 0)]
+| scenarie_al40c_forpagterregel_begge_sider_nul: al40c_forpagter_afgiver -> al40c_forpagter_afgiver.forpagterregel_anvendt && al40c_forpagter_afgiver.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 0)] && al40c_bortforpagter_modtager.forpagterregel_anvendt && al40c_bortforpagter_modtager.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 0)]
+| scenarie_al40c_mælk_fra_2005_indgår_ved_anskaffelsen: al40c_ny_mælk_anskaffet -> al40c_ny_mælk_anskaffet.omfattet_af_par40c && al40c_ny_mælk_anskaffet.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 120000)]
+| scenarie_al40c_gammel_mælk_efter_ejendom_indgår_med_begge_beløb: al40c_gammel_mælk_solgt_efter_ejendom -> al40c_gammel_mælk_solgt_efter_ejendom.gammel_mælkekvote_indgår_ved_afståelsen && al40c_gammel_mælk_solgt_efter_ejendom.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 80000), Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 100000)]
+| scenarie_al40c_gammel_mælk_delafståelse_fordeler_grundlag: al40c_gammel_mælk_delvist_solgt_efter_ejendom -> al40c_gammel_mælk_delvist_solgt_efter_ejendom.anskaffelsessum_henført_til_hændelsen_kroner == 20000 && al40c_gammel_mælk_delvist_solgt_efter_ejendom.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 20000), Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 30000)] && al40c_gammel_mælk_delvist_solgt_efter_ejendom.resterende_enheder == 75 && al40c_gammel_mælk_delvist_solgt_efter_ejendom.resterende_anskaffelsesgrundlag_kroner == 60000
+| scenarie_al40c_gammel_mælk_udløb_følger_ejendomsforløbet: al40c_gammel_mælk_udløbet_efter_ejendom -> al40c_gammel_mælk_udløbet_efter_ejendom.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 80000), Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 0)] && al40c_gammel_mælk_udløbet_efter_ejendom.resterende_enheder == 0 && al40c_gammel_mælk_udløbet_før_ejendom.omfattet_af_par40c == Falskt && al40c_gammel_mælk_udløbet_før_ejendom.bevægelser_i_året == [Al40CIngenSaldobevægelse] && al40c_gammel_mælk_udløbet_før_ejendom.resterende_enheder == 0
+| scenarie_al40c_gammel_mælk_med_ejendom_bliver_i_ebl: al40c_gammel_mælk_solgt_med_ejendom -> al40c_gammel_mælk_solgt_med_ejendom.omfattet_af_par40c == Falskt && al40c_gammel_mælk_solgt_med_ejendom.bevægelser_i_året == [Al40CIngenSaldobevægelse] && al40c_gammel_mælk_solgt_med_ejendom.resterende_enheder == 0
+| scenarie_al40c_mælk_før_19_maj_1993_udelukkes: al40c_mælk_før_1993_solgt -> al40c_mælk_før_1993_solgt.omfattet_af_par40c == Falskt && al40c_mælk_før_1993_solgt.bevægelser_i_året == [Al40CIngenSaldobevægelse] && al40c_mælk_før_1993_solgt.resterende_enheder == 0
+| scenarie_al40c_beskattet_tildelingsværdi_kan_tillægges_gammel_mælk: al40c_gammel_mælk_beskattet_solgt -> al40c_gammel_mælk_beskattet_solgt.anskaffelsessum_henført_til_hændelsen_kroner == 40000 && al40c_gammel_mælk_beskattet_solgt.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 40000), Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 50000)]
+| scenarie_al40c_mælk_fifo_afledes_af_blandet_lager: al40c_ny_mælk_solgt_efter_fifo -> al40c_ny_mælk_solgt_før_fifo.fifo_betingelse_opfyldt == Falskt && al40c_ny_mælk_solgt_før_fifo.bevægelser_i_året == [Al40CIngenSaldobevægelse] && al40c_ny_mælk_solgt_efter_fifo.fifo_betingelse_opfyldt && al40c_ny_mælk_solgt_efter_fifo.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 150000)]
+| scenarie_al40c_stk12_kræver_blandet_mælkelager: al40c_senere_ny_mælk_solgt_uden_blandet_lager -> al40c_senere_ny_mælk_solgt_uden_blandet_lager.fifo_betingelse_opfyldt && al40c_senere_ny_mælk_solgt_uden_blandet_lager.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 100000)]
+| scenarie_al40c_saldo_lager_tilhører_en_skatteyder: al40c_mælkelager_med_fremmed_skatteyder -> al40c_mælkelager_med_fremmed_skatteyder.lager_gyldigt == Falskt && al40c_mælkelager_med_fremmed_skatteyder.bevægelser_i_året == [Al40CIngenSaldobevægelse]
+| scenarie_al40c_sukker_skøn_indgår_4_oktober_2006: al40c_sukker_skøn_indgang -> al40c_sukker_skøn_indgang.hændelse_gyldig && al40c_sukker_skøn_indgang.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 60000)]
+| scenarie_al40c_sukker_standard_er_2500_pr_ton: al40c_sukker_standard_indgang -> al40c_sukker_standard_indgang.anskaffelsessum_henført_til_hændelsen_kroner == 50000 && al40c_sukker_standard_indgang.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 50000)]
+| scenarie_al40c_sukker_vederlagsfri_tildeling_er_nul: al40c_sukker_gratis_indgang -> al40c_sukker_gratis_indgang.position_gyldig && al40c_sukker_gratis_indgang.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 0)]
+| scenarie_al40c_sukker_efter_2006_køb_og_delafståelse: al40c_sukker_ny_delvist_solgt -> al40c_sukker_ny_anskaffet.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 70000)] && al40c_sukker_ny_delvist_solgt.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, afståelsessum_kroner = 40000)] && al40c_sukker_ny_delvist_solgt.resterende_enheder == 6 && al40c_sukker_ny_delvist_solgt.resterende_anskaffelsesgrundlag_kroner == 42000
+| scenarie_al40c_udløb_er_afståelse_til_nul: al40c_sukker_standard_udløbet -> al40c_sukker_standard_udløbet.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, afståelsessum_kroner = 0)] && al40c_sukker_standard_udløbet.resterende_enheder == 0
+| scenarie_al40c_gammel_mælk_saldo_indtægtsfører_netto: al40c_gammel_mælk_saldo_resultat -> al40c_gammel_mælk_saldo_resultat.anskaffelsessummer_i_året_kroner == 80000 && al40c_gammel_mælk_saldo_resultat.afståelsessummer_i_året_kroner == 100000 && al40c_gammel_mælk_saldo_resultat.negativ_saldo_indtægtsført_kroner == 20000
+| scenarie_al40c_sidste_udløb_fradrager_positiv_saldo: al40c_sukker_ophør_resultat -> al40c_sukker_ophør_resultat.afståelsesår_tab_kroner == 50000 && al40c_sukker_ophør_resultat.fradragsberettiget_beløb_kroner == 50000
+| scenarie_al40c_stk11_nyanskaffelser_er_betaling_og_mælk: al40c_sukker_nyanskaffelse_i_afståelsesåret -> al40c_sukker_nyanskaffelse_i_afståelsesåret.anskaffelsessummer_i_året_kroner == 70000 && al40c_sukker_nyanskaffelse_i_afståelsesåret.afståelsesårets_nyanskaffelser_kroner == 0 && al40c_sukker_nyanskaffelse_i_afståelsesåret.afståelsesår_fortjeneste_kroner == 50000 && al40c_betalingsrettighed_nyanskaffelse_i_afståelsesåret.afståelsesårets_nyanskaffelser_kroner == 70000 && al40c_betalingsrettighed_nyanskaffelse_i_afståelsesåret.afståelsesår_tab_kroner == 20000
+| scenarie_al40c_ejendomstab_modregner_historik_og_beregner_22_pct: al40c_ejendomstab -> al40c_ejendomstab.dokumenterede_indtægtsførte_negative_saldi_kroner == 550000 && al40c_ejendomstab.modregnet_i_ejendomstab_kroner == 500000 && al40c_ejendomstab.ejendomstab_efter_modregning_kroner == 0 && al40c_ejendomstab.anset_indbetalt_acontoskat_kroner == 110000
+| scenarie_al40c_stk8_kræver_landbrugs_eller_skovkategori: al40c_andet_ejendomstab -> al40c_andet_ejendomstab.omfattet_af_stk8 == Falskt && al40c_andet_ejendomstab.modregnet_i_ejendomstab_kroner == 0 && al40c_andet_ejendomstab.anset_indbetalt_acontoskat_kroner == 0
+| scenarie_al40c_historik_kræver_entydige_indkomstår: al40c_dobbelt_historik -> al40c_dobbelt_historik.input_gyldigt == Falskt && al40c_dobbelt_historik.anset_indbetalt_acontoskat_kroner == 0
+| scenarie_al40c_stk9_egen_slutskat_og_kontant_rest: al40c_aconto_uden_succession -> al40c_aconto_uden_succession.fradrag_i_egen_slutskat_kroner == 70000 && al40c_aconto_uden_succession.kontant_udbetaling_kroner == 40000 && al40c_aconto_uden_succession.fremført_til_følgende_indkomstår_kroner == 0
+| scenarie_al40c_stk9_føder_kildeskattens_acontokredit: al40c_kildeskat_uden_succession -> al40c_aconto_uden_succession.kredit_til_egen_kildeskat_slutopgørelse_kroner == 110000 && al40c_kildeskat_uden_succession.restskat_kroner == 0 && al40c_kildeskat_uden_succession.overskydende_skat_kroner == 40000
+| scenarie_al40c_stk10_succession_bruger_ægtefælle_og_fremførsel: al40c_aconto_succession -> al40c_aconto_succession.succession_stk10 && al40c_aconto_succession.fradrag_i_egen_slutskat_kroner == 70000 && al40c_aconto_succession.fradrag_i_ægtefælles_slutskat_kroner == 20000 && al40c_aconto_succession.kontant_udbetaling_kroner == 0 && al40c_aconto_succession.fremført_til_følgende_indkomstår_kroner == 20000
+| scenarie_al40c_stk10_ægtefælle_kræver_samliv: al40c_aconto_succession_uden_samliv -> al40c_aconto_succession_uden_samliv.fradrag_i_ægtefælles_slutskat_kroner == 0 && al40c_aconto_succession_uden_samliv.fremført_til_følgende_indkomstår_kroner == 40000
+| scenarie_al40c_fremført_aconto_fortsætter_som_position: al40c_aconto_fremført_2023 -> al40c_aconto_fremført_2023.fradrag_i_egen_slutskat_kroner == 15000 && al40c_aconto_fremført_2023.kontant_udbetaling_kroner == 0 && al40c_aconto_fremført_2023.fremført_til_følgende_indkomstår_kroner == 5000 && al40c_aconto_fremført_2023.position_efter.resterende_fremført_acontoskat_kroner == 5000
+| scenarie_al40c_succession_kreditter_stemmer_med_kildeskat: al40c_kildeskat_succession_ægtefælle -> al40c_kildeskat_succession_egen.art == IngenSlutopgørelsesDifference && al40c_kildeskat_succession_ægtefælle.art == IngenSlutopgørelsesDifference && al40c_aconto_succession.position_efter.resterende_fremført_acontoskat_kroner == 20000
+
+? scenarie_al40c_betalingsrettighed_køb_indgår
+? scenarie_al40c_vederlagsfri_tildeling_indgår_med_nul
+? scenarie_al40c_forpagterregel_begge_sider_nul
+? scenarie_al40c_mælk_fra_2005_indgår_ved_anskaffelsen
+? scenarie_al40c_gammel_mælk_efter_ejendom_indgår_med_begge_beløb
+? scenarie_al40c_gammel_mælk_delafståelse_fordeler_grundlag
+? scenarie_al40c_gammel_mælk_udløb_følger_ejendomsforløbet
+? scenarie_al40c_gammel_mælk_med_ejendom_bliver_i_ebl
+? scenarie_al40c_mælk_før_19_maj_1993_udelukkes
+? scenarie_al40c_beskattet_tildelingsværdi_kan_tillægges_gammel_mælk
+? scenarie_al40c_mælk_fifo_afledes_af_blandet_lager
+? scenarie_al40c_stk12_kræver_blandet_mælkelager
+? scenarie_al40c_saldo_lager_tilhører_en_skatteyder
+? scenarie_al40c_sukker_skøn_indgår_4_oktober_2006
+? scenarie_al40c_sukker_standard_er_2500_pr_ton
+? scenarie_al40c_sukker_vederlagsfri_tildeling_er_nul
+? scenarie_al40c_sukker_efter_2006_køb_og_delafståelse
+? scenarie_al40c_udløb_er_afståelse_til_nul
+? scenarie_al40c_gammel_mælk_saldo_indtægtsfører_netto
+? scenarie_al40c_sidste_udløb_fradrager_positiv_saldo
+? scenarie_al40c_stk11_nyanskaffelser_er_betaling_og_mælk
+? scenarie_al40c_ejendomstab_modregner_historik_og_beregner_22_pct
+? scenarie_al40c_stk8_kræver_landbrugs_eller_skovkategori
+? scenarie_al40c_historik_kræver_entydige_indkomstår
+? scenarie_al40c_stk9_egen_slutskat_og_kontant_rest
+? scenarie_al40c_stk9_føder_kildeskattens_acontokredit
+? scenarie_al40c_stk10_succession_bruger_ægtefælle_og_fremførsel
+? scenarie_al40c_stk10_ægtefælle_kræver_samliv
+? scenarie_al40c_fremført_aconto_fortsætter_som_position
+? scenarie_al40c_succession_kreditter_stemmer_med_kildeskat
+
+@ print("AL §40 C gammelt mælkekvotesaldoresultat: " + vis(al40c_gammel_mælk_saldo_resultat.negativ_saldo_indtægtsført_kroner))
+@ print("AL §40 C anset indbetalt acontoskat: " + vis(al40c_ejendomstab.anset_indbetalt_acontoskat_kroner))
+@ print("AL §40 C fremført acontoskat efter 2023: " + vis(al40c_aconto_fremført_2023.fremført_til_følgende_indkomstår_kroner))

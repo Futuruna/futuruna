@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-3151e5`
+Current focus issue: `td-30ab37`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -26,16 +26,20 @@ diagnostikker. Spansymbolerne kommer fra parserens faktiske deklarationer, så
 `match`-grene ikke fejlagtigt optræder som regler, og både `|`-regler og
 `>`-funktioner indekseres. Råtekstens `----`-markører og de faktiske
 indholdslinjer har nu særskilte linjefelter, så en audit ikke skal gætte på,
-om et span omfatter afgrænsningen eller den ordrette tekst. Selskabsskattelovens historiske og gældende §
-17-kilder var den første korpusblok med gentagne `source`-referencer;
+om et span omfatter afgrænsningen eller den ordrette tekst.
+Selskabsskattelovens historiske og gældende § 17-kilder var den første
+korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
 ordlydsforskydningen i den dynamiske henvisning til Ligningsloven § 8 O fra
 2026. Ligningsloven § 12 B bruger samme generiske mekanisme med rollerne
 `source`, `historical_source`, `amendment_source`, `transition_source`,
 `guidance` og `warning`. Afskrivningslovens nu opfyldte § 40-henvisning bruger
 desuden den vilkårlige rolle `dependency_source` i stedet for at bevare en
-forældet advarsel. Dermed kan en audit søge efter enten kildens rolle eller
-Futuruna-typen uden særlige metadataregler for juridisk kode.
+forældet advarsel. § 40 C bruger den samme generiske mekanisme til en typet
+historisk korpusadvarsel, der kan findes både med `--role warning` og med
+`--type AfskrivningslovKorpusAdvarsel`. Dermed kan en audit søge efter enten
+kildens rolle eller Futuruna-typen uden særlige metadataregler for juridisk
+kode.
 
 Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
@@ -120,22 +124,32 @@ delvist solgt eller udløbet andel. Begge regler afleder FIFO fra lagerets
 daterede kvotelots,
 sætter vederlagsfri tildeling til nul og afskærer rettigheder knyttet til de
 lovbestemte andelsbeviser; § 40 B afskærer desuden mælkekvoter og
-sukkerroerettigheder. § 40 C modtager nu en typet liste af anskaffelses- og
-afståelsesbevægelser i stedet for tre løse saldotal. § 40 D producerer selv den
+sukkerroerettigheder. § 40 C modtager en typet liste af anskaffelses- og
+afståelsesbevægelser i stedet for tre løse saldotal. En særskilt aktivsag
+afleder bevægelserne fra daterede betalingsrettigheder, mælkekvoter og
+sukkerroerettigheder, herunder 19. maj 1993-, 1. januar 2005- og 4. oktober
+2006-grænserne, forholdsmæssige delafståelser, vederlagsfri tildeling,
+forpagterreglen, udløb til nul og stk. 12's FIFO for et blandet mælkekvotelager.
+Stk. 8-10 holder dokumenterede negative saldi, ejendomstab, 22 pct.
+acontoskat, egen og ægtefælles slutskat, kontant udbetaling og fremførsel som
+typede resultater. § 40 D producerer selv den
 § 40 C-anskaffelsesbevægelse, der svarer til handelsværdien ved indtræden af
 dansk skattepligt eller dansk DBO-hjemsted. Dermed går § 40 A- og § 40 B-beløb
 til Personskatteloven § 3, stk. 2, nr. 10, mens § 40 D kun når
 kapitalindkomsten gennem § 40 C og Personskatteloven § 4, stk. 1, nr. 16.
-Kvotescenariet kontrollerer 27 betingelser i både interpreter og kompileret
-kode, herunder delvis anvendelse, salg, udløb, afrunding, manglende opsamling af
-fravalgte afskrivninger, forholdsmæssigt salg af en kvoteandel, tidsrækkefølge,
-entydig FIFO, udelukkelser, tilflytningsårets saldoføring og hele § 40 D ->
-§ 40 C -> § 4-kæden.
+Det brede kvotescenarie kontrollerer 27 betingelser i både interpreter og
+kompileret kode, herunder delvis anvendelse, salg, udløb, afrunding, manglende
+opsamling af fravalgte afskrivninger, forholdsmæssigt salg af en kvoteandel,
+tidsrækkefølge, entydig FIFO, udelukkelser, tilflytningsårets saldoføring og
+hele § 40 D -> § 40 C -> § 4-kæden.
 
-Det gør endnu ikke § 40 C komplet. De særlige indgangsregler for ældre
-mælkekvoter, ejendomstabs- og acontoskattekæden i stk. 8-10 samt FIFO efter
-stk. 12 er åbne i `td-d44990`; statusgrænsen gennem § 40 D beskriver derfor en
-beregningsegnet slice og ikke fuld dækning af hvert stykke.
+Det fokuserede § 40 C-scenarie kontrollerer yderligere 30 betingelser i begge
+backends: køb og vederlagsfri tildeling, gamle og nye mælkekvoter, delafståelse,
+den blandede FIFO-grænse, sukkerroerettighedernes to anskaffelsesveje,
+forpagterreglen, udløb, ordinær saldo og ophør samt hele stk. 8-10-kæden ind i
+Kildeskattelovens slutopgørelse. Den gældende § 40 C er dermed modelleret
+stykke for stykke; den samlede Afskrivningslov-afhængighed er fortsat ikke
+færdig, fordi §§ 41-49 og overgangsreglerne står tilbage.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
 samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40 B-resultaterne og
@@ -1526,10 +1540,12 @@ Current decision:
   fees, default and virksomhedsordning effects without a flat parameter chain.
   `Par4Stk1Nr15Sag` consumes the typed result as Personskatteloven § 4,
   stk. 1, nr. 15 capital income rather than taking a bare scalar.
-- `Afskrivningslov40CSag` uses product-scoped `|` rules for Afskrivningsloven
-  § 40 C. It keeps the saldo event, covered asset posture, primo saldo, typed
-  acquisition/disposal movements, ordinary-year saldo treatment, negative-saldo
-  income recognition, final-year gain/loss and net taxable/deductible amount
+- `Afskrivningslov40CAktivSag`, `Afskrivningslov40CSag`,
+  `Afskrivningslov40CEjendomstabSag` and `Afskrivningslov40CAcontoskatSag` use
+  product-scoped `|` rules for Afskrivningsloven § 40 C. They keep dated asset
+  positions and FIFO inventory, typed acquisition/disposal movements, ordinary
+  and final-year saldo treatment, negative-saldo history, qualifying property
+  loss, 22 pct. advance tax, own/spouse settlement and carried positions
   together. `Afskrivningslov40DResultat` emits the typed acquisition movement
   from the entry-date market value, and `Par4Stk1Nr16Sag` consumes the resulting
   § 40 C result as
@@ -1906,8 +1922,8 @@ Review candidates to revisit deliberately, not as broad churn:
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
   Afskrivningsloven §§ 1-40 D and Statsskatteloven § 6 slice. The remaining
-  § 40 C branches, §§ 41-49 and the transitional rules must become typed
-  source-law outcomes before nr. 10 can be described as complete. The § 40
+  §§ 41-49 and the transitional rules must become typed source-law outcomes
+  before nr. 10 can be described as complete. The § 40
   transition to Ligningsloven § 12 B and the § 40 D route through § 40 C are
   now end-to-end calculation dependencies rather than only source-correct
   routes.

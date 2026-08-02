@@ -10037,6 +10037,7 @@ fn format_runa_source(source: &str) -> String {
     let lines: Vec<&str> = source.lines().collect();
     let mut result: Vec<String> = Vec::new();
     let mut depth: i32 = 0;
+    let mut continuation_stack: Vec<(char, usize)> = Vec::new();
     let mut prev_blank = false;
     let mut in_block_comment_dash = false;
     let mut in_block_comment_brace = false;
@@ -10183,8 +10184,17 @@ fn format_runa_source(source: &str) -> String {
             depth = (depth - 1).max(0);
         }
 
-        // Output with indentation
-        result.push(format!("{}{}", fmt_indent(depth), trimmed));
+        // Closing delimiters belong at the indentation of the expression they
+        // close. Openers on the same source line form one continuation level,
+        // so `outer(Inner(` does not double-indent its first named field.
+        let continuation_depth = fmt_continuation_depth_before_line(trimmed, &continuation_stack);
+        result.push(format!(
+            "{}{}",
+            fmt_indent(depth + continuation_depth as i32),
+            trimmed
+        ));
+
+        fmt_update_continuation_stack(trimmed, i, &mut continuation_stack);
 
         // Increase depth if line ends with { (outside strings/comments)
         if let Some('{') = fmt_effective_last_char(trimmed) {
@@ -10520,6 +10530,86 @@ fn fmt_is_unary_context(before: &str) -> bool {
 
 fn fmt_indent(depth: i32) -> String {
     "    ".repeat(depth.max(0) as usize)
+}
+
+fn fmt_continuation_depth_before_line(line: &str, stack: &[(char, usize)]) -> usize {
+    let mut preview = stack.to_vec();
+
+    for c in line.chars() {
+        match c {
+            ')' | ']' => fmt_pop_continuation(c, &mut preview),
+            ',' | ' ' | '\t' => {}
+            _ => break,
+        }
+    }
+
+    fmt_continuation_depth(&preview)
+}
+
+fn fmt_continuation_depth(stack: &[(char, usize)]) -> usize {
+    stack
+        .iter()
+        .map(|(_, group)| *group)
+        .fold((0, None), |(count, previous), group| {
+            if previous == Some(group) {
+                (count, previous)
+            } else {
+                (count + 1, Some(group))
+            }
+        })
+        .0
+}
+
+fn fmt_update_continuation_stack(line: &str, group: usize, stack: &mut Vec<(char, usize)>) {
+    let chars: Vec<char> = line.chars().collect();
+    let mut in_string = false;
+    let mut escape = false;
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        if escape {
+            escape = false;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+            i += 1;
+            continue;
+        }
+        if c == '-' && i + 1 < chars.len() && chars[i + 1] == '-' {
+            break;
+        }
+
+        match c {
+            '(' | '[' => stack.push((c, group)),
+            ')' | ']' => fmt_pop_continuation(c, stack),
+            _ => {}
+        }
+        i += 1;
+    }
+}
+
+fn fmt_pop_continuation(closing: char, stack: &mut Vec<(char, usize)>) {
+    let expected = match closing {
+        ')' => '(',
+        ']' => '[',
+        _ => return,
+    };
+    if stack.last().map(|(opening, _)| *opening) == Some(expected) {
+        stack.pop();
+    }
 }
 
 /// Find the last significant character on a line, ignoring trailing comments and whitespace.
@@ -36546,6 +36636,24 @@ fn sanitize_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn formatter_indents_multiline_named_constructors_and_lists() {
+        let source = "= result = outer(Inner(\nfield = 1,\nitems = [\nThing(\nname = \"first\",\nvalues = [\n1,\n2\n]\n),\nThing(name = \"second\", values = [])\n]\n))\n";
+        let expected = "= result = outer(Inner(\n    field = 1,\n    items = [\n        Thing(\n            name = \"first\",\n            values = [\n                1,\n                2\n            ]\n        ),\n        Thing(name = \"second\", values = [])\n    ]\n))\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
+    }
+
+    #[test]
+    fn formatter_combines_scope_and_continuation_indentation() {
+        let source = "# Case(input: Input) {\n| result() -> Result(\nvalue = input.value,\nentries = [\nEntry(name = \"one\")\n]\n)\n}\n";
+        let expected = "# Case(input: Input) {\n    | result() -> Result(\n        value = input.value,\n        entries = [\n            Entry(name = \"one\")\n        ]\n    )\n}\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
+    }
 
     #[test]
     fn rust_artifact_stem_sanitizes_role_suffixed_filenames() {

@@ -144,10 +144,17 @@ afskrivninger gennem et forløb på højst syv år. Ved salg af en andel fordele
 både anskaffelsessum og tidligere afskrivninger forholdsmæssigt, mens resten
 fortsætter som en eksekverbar position. FIFO afledes af daterede kvotelots i
 lageret, og vederlagsfri tildeling samt lovens udelukkelser er egne typede
-forhold. § 40 D omsætter handelsværdien ved indtræden af dansk
-skattepligt eller dansk DBO-hjemsted til en anskaffelsesbevægelse på § 40 C-
-saldoen. Derfor går § 40 A- og § 40 B-beløb gennem Personskatteloven § 3, mens
-§ 40 D kun når kapitalindkomsten gennem § 40 C og Personskatteloven § 4.
+forhold. § 40 C afleder selv sine saldobevægelser fra daterede
+betalingsrettigheder, gamle og nye mælkekvoter og sukkerroerettigheder. Modellen
+holder de historiske datogrænser, forholdsmæssige delafståelser,
+forpagterreglen, udløb til nul og den særlige FIFO for et blandet mælkelager
+synlige. Ved ejendomstab fører stk. 8-10 de tidligere indtægtsførte negative
+saldi videre til modregning, 22 pct. acontoskat, egen og ægtefælles slutskat,
+kontant udbetaling eller fremførsel. § 40 D omsætter handelsværdien ved
+indtræden af dansk skattepligt eller dansk DBO-hjemsted til en
+anskaffelsesbevægelse på § 40 C-saldoen. Derfor går § 40 A- og § 40 B-beløb
+gennem Personskatteloven § 3, mens § 40 D kun når kapitalindkomsten gennem
+§ 40 C og Personskatteloven § 4.
 
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
@@ -205,16 +212,22 @@ Den fokuserede §§ 38-40-scenario validerer 24 grænser og kaskadeudfald i båd
 interpreter og kompileret kode, herunder forskellen mellem § 40-yderens fradrag
 og modtagerens skattepligtige vederlag.
 
-Kvotescenariet validerer yderligere 27 forhold i begge backends: delvis brug af
-engangskvoter, salg og udløb, syvårige og kortere afskrivningsforløb, sidste års
-afrunding, forholdsmæssigt salg af en kvoteandel, tidsrækkefølge, entydig FIFO,
-vederlagsfri tildeling, lovens udelukkelser, tilflytningsårets saldoføring og
-hele § 40 D -> § 40 C -> Personskatteloven § 4-kæden.
+Det brede kvotescenarie validerer yderligere 27 forhold i begge backends:
+delvis brug af engangskvoter, salg og udløb, syvårige og kortere
+afskrivningsforløb, sidste års afrunding, forholdsmæssigt salg af en kvoteandel,
+tidsrækkefølge, entydig FIFO, vederlagsfri tildeling, lovens udelukkelser,
+tilflytningsårets saldoføring og hele § 40 D -> § 40 C -> Personskatteloven
+§ 4-kæden.
+
+Det fokuserede § 40 C-scenarie validerer 30 yderligere forhold i begge
+backends, herunder de tre aktivarter, gamle mælkekvoters dobbelte saldoindgang,
+delafståelser, stk. 12's blandede FIFO, ejendomstabsmodregning, 22 pct.
+acontoskat, succession, ægtefællefradrag, kontant udbetaling og fremførsel til
+senere indkomstår.
 
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
-resterende dependency-arbejde omfatter § 40 C's regler om ældre mælkekvoter,
-ejendomstab, acontoskat og FIFO, §§ 41-49 samt de historiske overgangsregler om
-bl.a. anskaffelsessummer, afståelse og ophør.
+resterende dependency-arbejde omfatter §§ 41-49 samt de historiske
+overgangsregler om bl.a. anskaffelsessummer, afståelse og ophør.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,
@@ -223,10 +236,13 @@ binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
 lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
 semantik. Ground metadata udstilles både som læsbar Futuruna-værdi og som et
 struktureret `data`-træ, så audits kan læse fx URL- eller advarselsfelter uden
-at parse visningstekst. JSON-indekset adskiller desuden `----`-markørernes linjer fra den
-ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges rekursivt efter
-vilkårlig type eller rolle, f.eks. `--type HusdyrbeskatningslovKildeInfo` eller
-`--role warning`.
+at parse visningstekst. JSON-indekset adskiller desuden `----`-markørernes linjer
+fra den ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges
+rekursivt efter vilkårlig type eller rolle, f.eks.
+`--type HusdyrbeskatningslovKildeInfo` eller `--role warning`. Den historiske
+korpusadvarsel til § 40 C kan derfor findes både via rollen `warning` og typen
+`AfskrivningslovKorpusAdvarsel`, uden at metadatasystemet kender noget særligt
+til skattelovgivning.
 
 ## Eksempel
 
