@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-08b891` (under `td-aa14a7`)
+Current focus issue: `td-eddd5d`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -30,7 +30,12 @@ om et span omfatter afgrænsningen eller den ordrette tekst. Selskabsskatteloven
 17-kilder var den første korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
 ordlydsforskydningen i den dynamiske henvisning til Ligningsloven § 8 O fra
-2026.
+2026. Ligningsloven § 12 B bruger samme generiske mekanisme med rollerne
+`source`, `historical_source`, `amendment_source`, `transition_source`,
+`guidance` og `warning`. Afskrivningslovens nu opfyldte § 40-henvisning bruger
+desuden den vilkårlige rolle `dependency_source` i stedet for at bevare en
+forældet advarsel. Dermed kan en audit søge efter enten kildens rolle eller
+Futuruna-typen uden særlige metadataregler for juridisk kode.
 
 Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
@@ -89,7 +94,22 @@ aktiver og godtgørelser eller vederlag, mellem yder og modtager og mellem
 årlig afskrivning, 5-pct.-straksfradrag og salg. LOV 749/2025 er kodet som en
 eksplicit overgang: gensidigt bebyrdende aftaler før 2026 bevarer det tidligere
 § 40, stk. 7-regime, mens aftaler fra 2026 henvises til Ligningsloven § 12 B.
-Den henviste 2026-version af § 12 B er fortsat et særskilt dependency-gap.
+Den henviste § 12 B-ordning er nu implementeret fra LOV 749/2025 sammen med
+den ikke-konsoliderede 2026-overgang. Modellen skelner aftaledatoens tre
+regimer, de historiske saldo- og udelukkelsesregler og den nye henstand med
+skat og arbejdsmarkedsbidrag. Den beregner forholdsmæssige afdrag, rente,
+rykkergebyr, misligholdelse, ophør og reduktion af konto for opsparet overskud.
+Skattestyrelsens eksempel med 1.000.000 kr. goodwill, 515.000 kr. skat og
+500.000 kr. kapitaliseret løbende ydelse giver 257.500 kr. skattehenstand i
+både interpreter og kompileret kode. De 19 fokuserede scenarieregler skelner
+desuden den samlede kapitalisering fra finansieringen af det enkelte aktiv,
+kræver hjemmel i arbejdsmarkedsbidragslovens § 4 eller § 5, behandler
+afståelse af retten som en typet realisation og bevarer § 2-kapitalisering,
+selv om en selvejende institution afskærer stk. 3 og frem. Senere indtræden af
+skattepligt reducerer den afledte saldoindgangsværdi med mellemliggende
+betalinger. Den juridiske vejlednings virksomhedsordningseksempel reducerer
+702.000 kr. opsparet overskud med 409.500 kr. til 292.500 kr.; reduktionen
+begrænses ikke fejlagtigt til det frafaldne skattekrav på 115.500 kr.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
 samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40-resultaterne og
@@ -684,7 +704,11 @@ Current § 4 and § 13 amendment/dependency sources:
   - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
     dependency for taxable and deductible running-payment saldo amounts under
     stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
-    exclusion posture.
+    exclusion posture. Because LBK nr. 1500/2025 expressly omits the provisions
+    that took effect on 1 January 2026, the current calculation source is the
+    combination of that consolidation and LOV nr. 749/2025. The latter source
+    also supplies the 19 March 2025 balance-rule transition and the 2026
+    henstand rules for tax and arbejdsmarkedsbidrag.
   - § 9 C is modeled as the ordinary befordringsfradrag slice used by
     wage-earner scenarios, with 24 km daily floor, 120 km split, 2025/2026
     rates, 2026 LOV 616 uplift, yderkommune/small-island rates,
@@ -1052,6 +1076,14 @@ encoded as a temporal rule on top of the consolidation.
   with `runa run`.
 - `personskatteloven-par4-ligningslov12b.audit.runa` exists and checks/runs
   with `runa run`.
+- `personskatteloven-par4-ligningslov12b.scenario.runa` exists and checks/runs
+  with `runa run`; it validates the 1999, 19 March 2025 and 2026 regime
+  boundaries, the official 257.500 kr. henstand example, proportional
+  installments on payments and right assignments, asset-specific financing,
+  AMBL §§ 4-5 authority, 2026 interest and fee, default, cessation, the
+  official retained-profit adjustment, typed historical/current henstand
+  bases, later tax-liability entry, institutional exclusion and § 4
+  classification.
 - `personskatteloven-par4-pensionsbeskatningslov53a.audit.runa` exists and
   checks/runs with `runa run`.
 - `personskatteloven-par4-ejendomsavance.audit.runa` exists and checks/runs
@@ -1451,11 +1483,17 @@ Current decision:
   taxable gain together. `Par4Stk1Nr14Sag` consumes the typed result as
   Personskatteloven § 4, stk. 1, nr. 14 capital income rather than passing a
   loose real-property gain amount.
-- `Ligningslov12BSag` uses product-scoped `|` rules for LL § 12 B. It keeps the
-  running-payment role, event, application posture, saldo before and after
-  payments or cash-converted consideration, negative-saldo amount, later-year
-  payments, termination balance, statutory exclusion amounts, acquisition-cost
-  adjustments, and obligation-transfer opening value together.
+- `Ligningslov12BSag` uses product-scoped `|` rules around nested agreement,
+  party, reporting and event objects for LL § 12 B. It derives the applicable
+  date regime instead of accepting it as a fixture, and keeps the
+  running-payment role, application posture, saldo before and after payments or
+  cash-converted consideration, negative-saldo amount, later-year payments,
+  termination balance, statutory exclusion amounts, acquisition-cost
+  adjustments, and obligation-transfer opening value together. Separate typed
+  henstand positions distinguish the historical Afskrivningsloven § 40 basis
+  from the 2026 LL § 12 B basis; scoped grant, annual-payment and cessation
+  rules carry tax, arbejdsmarkedsbidrag, proportional installments, interest,
+  fees, default and virksomhedsordning effects without a flat parameter chain.
   `Par4Stk1Nr15Sag` consumes the typed result as Personskatteloven § 4,
   stk. 1, nr. 15 capital income rather than taking a bare scalar.
 - `Afskrivningslov40CSag` uses product-scoped `|` rules for Afskrivningsloven
@@ -1807,6 +1845,10 @@ Review candidates to revisit deliberately, not as broad churn:
   municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
   unblock Personskatteloven calculation completeness or validate a newly
   implemented legal slice.
+- Deepen den nu implementerede § 12 B-henstandsposition i `td-69e51e`, så
+  eksakte realisationsdatoer, tidligere forfaldne afdrag og afsluttet,
+  misligholdt eller frafaldet status kan bæres gennem flere begivenheder uden
+  dobbeltopkrævning.
 - Keep validation audits close to the implementation. Exploratory daisy-chain,
   confiscatory, household-benefit, minimum-retained-income up to 2 mio. kr., or
   loophole searches belong after the main law model is more complete.
@@ -1829,9 +1871,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
   Afskrivningsloven §§ 1-40 and Statsskatteloven § 6 slice. §§ 40 A-40 B,
   § 40 D and later recapture/cessation rules must become typed source-law
-  outcomes before nr. 10 can be described as complete. Update Ligningsloven
-  § 12 B's 2026 henstandsregime before treating the new § 40 transition as an
-  end-to-end calculation rather than a source-correct route.
+  outcomes before nr. 10 can be described as complete. The § 40 transition to
+  Ligningsloven § 12 B is now an end-to-end calculation dependency rather than
+  only a source-correct route.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current

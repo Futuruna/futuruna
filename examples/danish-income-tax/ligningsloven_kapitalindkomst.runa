@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./opkraevningsloven
 
 -- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 7 N, 8, 12 B, 14 A og 16 A).
 --
@@ -741,6 +742,35 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
 | ll14a_stk1_kun_indbetalingsåret: ll14a_forkert_år_fixture -> ll14a_forkert_år_fixture.indbetaling_omfattet_af_stk1 == Sandt && ll14a_forkert_år_fixture.indbetaling_i_indbetalingsåret == Falskt && ll14a_forkert_år_fixture.fradrag_i_skattepligtig_indkomst_kroner == 0
 | ll14a_ikke_omfattet_giver_intet_fradrag: ll14a_ikke_omfattet_fixture -> ll14a_ikke_omfattet_fixture.indbetaling_omfattet_af_stk1 == Falskt && ll14a_ikke_omfattet_fixture.fradrag_i_skattepligtig_indkomst_kroner == 0
 
+# Ligningslov12BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# Ligningslov12BKildeAdvarsel(kode: Tekst, besked: Tekst)
+
+= ligningslov12b_lbk1500 = Ligningslov12BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 12 B i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-07-18"
+)
+= ligningslov12b_lov749 = Ligningslov12BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/749",
+    identifier = "LOV nr. 749 af 20/06/2025, § 1, nr. 2-15, og § 5",
+    hentet_dato = "2026-07-18"
+)
+= ligningslov12b_historisk_lbk42 = Ligningslov12BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Historisk Ligningslov § 12 B i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-07-18"
+)
+= ligningslov12b_juridisk_vejledning_henstand = Ligningslov12BKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948136",
+    identifier = "Den juridiske vejledning C.C.6.8.5, henstand efter LL § 12 B, stk. 10",
+    hentet_dato = "2026-07-18"
+)
+= ligningslov12b_ukonsolideret_2026_advarsel = Ligningslov12BKildeAdvarsel(
+    kode = "LL12B-2026-UKONSOLIDERET",
+    besked = "LBK 1500/2025 indeholder ikke de dele af LOV 749/2025, der trådte i kraft 1. januar 2026; den gældende position kræver begge kilder."
+)
+
+--@label:ligningsloven_par12b_lbk1500::source:ligningslov12b_lbk1500::amendment_source:ligningslov12b_lov749::warning:ligningslov12b_ukonsolideret_2026_advarsel--
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt
 bebyrdende aftale om overdragelse af et eller flere aktiver, gælder reglerne i
@@ -866,63 +896,328 @@ indflydelse, der er egnet til at påvirke de beslutninger, institutionen m.v.
 træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
 ----
 
+--@label:ligningsloven_par12b_historisk::historical_source:ligningslov12b_historisk_lbk42::transition_source:ligningslov12b_lov749--
+----
+Stk. 2. Parterne skal til brug for opgørelsen af den skattepligtige indkomst
+foretage en kapitalisering af den løbende ydelse. Kapitaliseringen skal
+foretages i forbindelse med indgåelsen af den gensidigt bebyrdende aftale. Den
+af parterne foretagne kapitalisering er undergivet told- og
+skatteforvaltningens prøvelse. Det skal endvidere fremgå af parternes aftale,
+hvilke aktiver der vederlægges med en løbende ydelse. Parterne skal senest
+samtidig med udløbet af oplysningsfristen efter skattekontrollovens §§ 10-13
+for det indkomstår, hvori aftalen indgås, indgive meddelelse til told- og
+skatteforvaltningen om den indgåede aftale, herunder oplyse om kapitaliseringen
+og den efter 4. pkt., foretagne fordeling.
+
+Stk. 3. Parterne, der har indgået aftale om den løbende ydelse, skal hver især
+føre en saldo, hvor den kapitaliserede værdi i aftaleåret, som opgjort efter
+stk. 2, anvendes som indgangsværdi. For hvert indkomstår reduceres saldoen med
+de i det pågældende indkomstår betalte ydelsers nominelle værdi. Den således
+nedskrevne saldo videreføres til det efterfølgende år. Saldoen føres til og med
+det indkomstår, hvori den løbende ydelse endeligt ophører, eller hvori saldoen
+bliver negativ. Parterne skal senest samtidig med udløbet af oplysningsfristen
+efter skattekontrollovens §§ 10-13 for det enkelte indkomstår oplyse saldoen
+til told- og skatteforvaltningen.
+
+Stk. 4. Så længe saldoen er positiv, beskattes de betalte ydelser ikke hos
+modtageren. I det indkomstår, hvor saldoen bliver negativ, skal modtageren
+medregne det negative beløb til den skattepligtige indkomst for dette
+indkomstår. I efterfølgende indkomstår medregnes de i det pågældende
+indkomstår betalte ydelser til den skattepligtige indkomst. Hvis den løbende
+ydelse endeligt ophører, inden saldoen bliver nul eller negativ, kan et beløb
+svarende til saldoen fradrages ved opgørelsen af modtagerens skattepligtige
+indkomst i det indkomstår, hvori den løbende ydelse er ophørt. Der kan dog ikke
+foretages fradrag for den del af saldoen, som svarer til et beløb, der er
+fastsat som vederlag for et aktiv, hvor avancen ved den efter stk. 1, foretagne
+overdragelse af et sådant aktiv ikke er skattepligtig, eller til et beløb, der
+svarer til grundlaget for et ikke betalt henstandsbeløb efter
+afskrivningslovens § 40, stk. 7.
+
+Stk. 5. Så længe saldoen er positiv, kan yderen ikke foretage fradrag for de
+betalte ydelser. I det indkomstår, hvori saldoen bliver negativ, kan yderen
+fradrage det negative beløb i den skattepligtige indkomst. I efterfølgende
+indkomstår kan de i det pågældende indkomstår betalte ydelser fradrages i den
+skattepligtige indkomst. Hvis den løbende ydelse endeligt ophører, inden
+saldoen bliver nul eller negativ, skal et beløb svarende til saldoen medregnes
+ved opgørelsen af yderens skattepligtige indkomst i det indkomstår, hvori den
+løbende ydelse er ophørt. Beløbet skal dog ikke medregnes i det omfang, det
+svarer til et beløb, der er fastsat som vederlag for et aktiv, hvis
+anskaffelsessum yderen hverken kan afskrive, fradrage eller lade indgå i
+opgørelsen af skattepligtig avance ved en afståelse af aktivet, eller til et
+beløb, der er fastsat som vederlag for et aktiv, der er overdraget med
+skattemæssig succession efter reglerne i aktieavancebeskatningslovens §§ 34,
+35 og 35 A eller kildeskattelovens § 33 C. I det omfang beløbet er fastsat som
+vederlag for et aktiv, hvis anskaffelsessum yderen ikke kan afskrive eller
+fradrage, men som vil kunne indgå i opgørelsen af skattepligtig avance ved en
+afståelse af aktivet, og yderen ikke har afstået aktivet på tidspunktet for den
+løbende ydelses ophør, medregnes beløbet ikke efter 4. pkt., men nedsætter i
+stedet anskaffelsessummen for aktivet til det faktisk betalte beløb.
+
+Stk. 6. Afstår modtageren retten til den løbende ydelse, beskattes modtageren
+efter 2. og 3. pkt. Modtagerens saldo reduceres med det kontantomregnede
+vederlag for retten til den løbende ydelse, og stk. 4 finder tilsvarende
+anvendelse. Føres der ikke saldo, jf. stk. 3, 4. pkt., medregnes vederlaget til
+modtagerens skattepligtige indkomst. Sker afståelsen af retten til den løbende
+ydelse ved gave, arv eller arveforskud, sættes vederlaget til rettens
+handelsværdi på overdragelsestidspunktet.
+
+Stk. 7. Sker den i stk. 6 nævnte afståelse af den løbende ydelse til yderen,
+fragår den kontantomregnede værdi af det af yderen betalte vederlag på dennes
+saldo, og stk. 5 finder tilsvarende anvendelse. Føres der ikke saldo, jf. stk.
+3, 4. pkt., fradrages vederlaget i yderens skattepligtige indkomst. Sker
+afståelsen af retten til den løbende ydelse ved gave, arv eller arveforskud,
+sættes vederlaget til rettens handelsværdi på overdragelsestidspunktet.
+
+Stk. 9. Overdrager yderen forpligtelsen til at betale de løbende ydelser,
+fragår det af yderen herfor betalte vederlag på yderens saldo, og stk. 5,
+finder tilsvarende anvendelse. Føres der ikke saldo, jf. stk. 3, 4. pkt.,
+fradrages vederlaget i yderens skattepligtige indkomst. Den, der påtager sig
+forpligtelsen, skal føre saldo efter reglen i stk. 3, idet det vederlag, yderen
+betaler, dog anvendes som indgangsværdi. Stk. 5, 1.-4. pkt., og stk. 7 finder
+tilsvarende anvendelse, dog således, at henvisningen til stk. 5 i stk. 7 i
+disse tilfælde alene gælder stk. 5, 1.-4. pkt.
+----
+
+--@label:ligningsloven_par12b_2026_aendring::amendment_source:ligningslov12b_lov749::transition_source:ligningslov12b_lov749::guidance:ligningslov12b_juridisk_vejledning_henstand--
+----
+§ 1
+
+I ligningsloven, jf. lovbekendtgørelse nr. 42 af 13. januar 2023, som ændret
+senest ved § 1 i lov nr. 564 af 27. maj 2025, foretages følgende ændringer:
+
+2. I § 12 B, stk. 1, 1. pkt., ændres »stk. 2-11« til: »stk. 2-12«.
+
+8. § 12 B, stk. 4, affattes således:
+
+»Stk. 4. Så længe saldoen er positiv, beskattes de betalte ydelser ikke hos
+modtageren. I det indkomstår, hvori saldoen bliver negativ, skal modtageren
+medregne det negative beløb til den skattepligtige indkomst. I efterfølgende
+indkomstår medregnes de i det pågældende indkomstår betalte ydelser til den
+skattepligtige indkomst. Negative beløb og betalte ydelser som nævnt i 2. og
+3. pkt. skal dog ikke medregnes, i det omfang de udgør vederlag for et aktiv,
+hvor avancen ved den efter stk. 1 foretagne overdragelse af aktivet ikke er
+skattepligtig. Hvis den løbende ydelse endeligt ophører, inden saldoen bliver
+nul eller negativ, kan et beløb svarende til saldoen fradrages ved opgørelsen
+af modtagerens skattepligtige indkomst i det indkomstår, hvori den løbende
+ydelse er ophørt. Der kan dog ikke foretages fradrag for beløbet, i det omfang
+det udgør vederlag for et aktiv som nævnt i 4. pkt. eller svarer til grundlaget
+for et ikke betalt henstandsbeløb efter stk. 10.«
+
+13. I § 12 B indsættes efter stk. 9 som nyt stykke:
+
+»Stk. 10. Told- og skatteforvaltningen giver efter den skattepligtiges begæring
+rentefri henstand med betaling af skatten beregnet på baggrund af den
+kapitaliserede værdi af den løbende ydelse. Udgøres vederlaget for et aktiv kun
+delvis af en løbende ydelse, kan der gives henstand for den del af skatten, som
+svarer til forholdet mellem den kapitaliserede værdi af den løbende ydelse og
+afståelsessummen for det pågældende aktiv. I det indkomstår, hvor fortjenesten
+medregnes til den skattepligtige indkomst, fragår henstandsbeløbet i den
+slutskat, der indgår ved opgørelsen af restskat og overskydende skat efter
+kildeskattelovens §§ 60-62, jf. § 62 A, eller selskabsskattelovens § 29 B,
+stk. 4 og 5. Der kan i samme omfang gives henstand med arbejdsmarkedsbidrag
+efter arbejdsmarkedsbidragslovens §§ 4 og 5. Det er en betingelse for opnåelse
+af henstand, at begæringen indsendes inden udløbet af oplysningsfristen efter
+skattekontrollovens §§ 10-13 for aftaleåret. Der skal ved modtagelse af en
+ydelse afdrages på henstandsbeløbet med en forholdsmæssig andel, der svarer til
+forholdet mellem den modtagne ydelse og den kapitaliserede værdi af den løbende
+ydelse. Beløbet forfalder til betaling den 1. i måneden efter modtagelsen af
+ydelsen med sidste rettidige betalingsdag den 10. i forfaldsmåneden. Betales
+beløbet ikke rettidigt, skal der betales rente i henhold til
+opkrævningslovens § 7, stk. 2, med tillæg af 0,4 procentpoint for hver
+påbegyndt måned fra forfaldsdagen at regne, dog mindst 25 kr. Renten kan ikke
+fratrækkes ved opgørelsen af den skattepligtige indkomst. Der betales et
+rykkergebyr på 65 kr. for erindringsskrivelser vedrørende manglende betaling af
+afdrag på henstandsbeløbet. Grov og gentagen misligholdelse af
+henstandsordningen medfører, at det resterende henstandsbeløb forfalder til
+betaling efter påkrav. Såfremt de løbende ydelser endeligt ophører, inden
+saldoen bliver nul eller negativ, frafaldes kravet på det ikke betalte
+henstandsbeløb. Anvender den skattepligtige virksomhedsordningen, jf.
+virksomhedsskattelovens afsnit I, og ophører de løbende ydelser endeligt, inden
+saldoen bliver nul eller negativ, reduceres konto for opsparet overskud med et
+beløb svarende til det opsparede overskud, der kan henføres til det ikke
+betalte henstandsbeløb. Konto for opsparet overskud kan ikke reduceres til
+mindre end nul som følge af 13. pkt. Uanset eventuel henstand skal de kommunale
+andele af skatten afregnes i indkomståret efter reglerne i lov om kommunal
+indkomstskat og statens afregning af grundskyld og dækningsafgift til
+kommunerne.«
+
+Stk. 10 og 11 bliver herefter stk. 11 og 12.
+
+14. I § 12 B, stk. 10, 1. og 2. pkt., der bliver stk. 11, 1. og 2. pkt.,
+ændres »stk. 2-9« til: »stk. 2-10«.
+
+15. I § 12 B, stk. 11, 1. pkt., der bliver stk. 12, 1. pkt., ændres
+»Stk. 3-10« til: »Stk. 3-11«.
+
+§ 5
+
+Stk. 1. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende, jf. dog
+stk. 2.
+
+Stk. 2. § 1, nr. 1, 2, 8 og 13-16, og §§ 2-4 træder i kraft den 1. januar
+2026.
+
+Stk. 3. § 1, nr. 3-7 og 9-12, finder anvendelse for gensidigt bebyrdende
+aftaler om overdragelse af et eller flere aktiver, der er indgået den 19. marts
+2025 eller senere.
+
+Stk. 4. § 1, nr. 1, 2, 8 og 13-15, og §§ 2 og 3 finder anvendelse for
+gensidigt bebyrdende aftaler om overdragelse af et eller flere aktiver, der er
+indgået den 1. januar 2026 eller senere.
+----
+
+--@begin:ligningsloven_par12b_lbk1500--
+--@begin:ligningsloven_par12b_historisk--
+--@begin:ligningsloven_par12b_2026_aendring--
 # Ligningslov12BRolle = Ll12BModtager | Ll12BYder | Ll12BForpligtelsesOvertager | Ll12BTredjemandErhverver
-# Ligningslov12BBegivenhed = Ll12BÅrligBetaling | Ll12BYdelseOphører | Ll12BModtagerAfstårRet | Ll12BModtagerAfstårRetTilYder | Ll12BYderOverdragerForpligtelse
-# Ligningslov12BInput(indkomstår: Heltal, rolle: Ligningslov12BRolle, begivenhed: Ligningslov12BBegivenhed, aftale_indgået_1_juli_1999_eller_senere: Boolsk, løbende_ydelse_usikker_varighed_eller_størrelse: Boolsk, anden_lov_regulerer_beskatning: Boolsk, kapitalisering_skal_føres_som_saldo: Boolsk, mindst_en_part_skattepligtig_efter_stk10: Boolsk, stk11_selvejende_institution_udelukker: Boolsk, saldo_primo_kroner: Heltal, betalte_ydelser_kroner: Heltal, kontantomregnet_vederlag_kroner: Heltal, modtager_ikke_skattepligtig_aktivandel_kroner: Heltal, modtager_ikke_betalt_henstand_kroner: Heltal, yder_fradrag_afskåret_kroner: Heltal, yder_anskaffelsessum_forhøjes_i_stedet_kroner: Heltal, yder_ophør_ikke_medregnes_kroner: Heltal, yder_ophør_nedsætter_anskaffelsessum_kroner: Heltal, overtager_nærtstående_fradrag_afskåret_kroner: Heltal)
-# Ligningslov12BResultat(indkomstår: Heltal, rolle: Ligningslov12BRolle, begivenhed: Ligningslov12BBegivenhed, omfattet_af_par12b: Boolsk, omfattet_af_stk4_til_7_eller_9: Boolsk, saldo_reduktion_kroner: Heltal, saldo_efter_reduktion_kroner: Heltal, negativ_saldo_beløb_kroner: Heltal, efterfølgende_betalte_ydelser_kroner: Heltal, ophørs_saldo_kroner: Heltal, modtager_skattepligtigt_kroner: Heltal, modtager_fradrag_kroner: Heltal, yder_fradrag_kroner: Heltal, yder_skattepligtigt_kroner: Heltal, anskaffelsessum_forhøjes_kroner: Heltal, anskaffelsessum_nedsættes_kroner: Heltal, overtager_indgangsværdi_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
+# Ligningslov12BRegime = Ll12BUdenForAnvendelsesperioden | Ll12B1Juli1999Til18Marts2025 | Ll12B19Marts2025Til31December2025 | Ll12BFra1Januar2026
+# Ligningslov12BDato(år: Heltal, måned: Heltal, dag: Heltal)
+# Ligningslov12BParter(mindst_en_part_skattepligtig_ved_aftalen: Boolsk, anden_part_senere_fuldt_skattepligtig: Boolsk, ydelser_betalt_før_skattepligtsindtræden_kroner: Heltal, yder_betaler_til_selvejende_institution_med_stifterindflydelse: Boolsk)
+# Ligningslov12BOplysninger(kapitalisering_foretaget_rettidigt: Boolsk, aktiver_og_fordeling_fremgår_af_aftalen: Boolsk, aftale_meddelt_rettidigt: Boolsk, saldo_oplyst_rettidigt: Boolsk)
+# Ligningslov12BAftale(aftaledato: Ligningslov12BDato, gensidigt_bebyrdende: Boolsk, antal_overdragne_aktiver: Heltal, løbende_ydelse_helt_eller_delvist_vederlag: Boolsk, usikker_varighed: Boolsk, usikker_årlig_størrelse: Boolsk, løber_ud_over_aftaleåret: Boolsk, anden_lov_regulerer_beskatningen: Boolsk, kun_aktier_omfattet_af_abl8_for_begge_parter: Boolsk, kapitaliseret_værdi_kroner: Heltal, parter: Ligningslov12BParter, oplysninger: Ligningslov12BOplysninger)
+# Ligningslov12BHenstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag | Ll12BUbetaltAfskrivningslov40Stk7(grundlag_kroner: Heltal) | Ll12BUbetaltLigningslov12BStk10(grundlag_kroner: Heltal)
+# Ligningslov12BPosition(saldo_primo_kroner: Heltal, henstandsgrundlag: Ligningslov12BHenstandsgrundlag)
+# Ligningslov12BBegivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner: Heltal) | Ll12BYdelseOphører(betalte_ydelser_kroner: Heltal) | Ll12BModtagerAfstårRet(kontantomregnet_vederlag_kroner: Heltal) | Ll12BModtagerAfstårRetTilYder(kontantomregnet_vederlag_kroner: Heltal) | Ll12BYderOverdragerForpligtelse(kontantomregnet_vederlag_kroner: Heltal) | Ll12BTredjemandModtagerYdelse(betalte_ydelser_kroner: Heltal)
+# Ligningslov12BÅrsfordeling(modtager_ikke_skattepligtig_aktivandel_kroner: Heltal, yder_fradrag_helt_afskåret_kroner: Heltal, yder_anskaffelsessum_forhøjes_i_stedet_kroner: Heltal, overtager_nærtstående_fradrag_afskåret_kroner: Heltal)
+# Ligningslov12BOphørsfordeling(modtager_ikke_skattepligtig_aktivandel_kroner: Heltal, yder_ophør_ikke_medregnes_kroner: Heltal, yder_ophør_nedsætter_anskaffelsessum_kroner: Heltal)
+# Ligningslov12BInput(indkomstår: Heltal, rolle: Ligningslov12BRolle, aftale: Ligningslov12BAftale, position: Ligningslov12BPosition, begivenhed: Ligningslov12BBegivenhed, årsfordeling: Ligningslov12BÅrsfordeling, ophørsfordeling: Ligningslov12BOphørsfordeling)
+# Ligningslov12BResultat(indkomstår: Heltal, rolle: Ligningslov12BRolle, begivenhed: Ligningslov12BBegivenhed, regime: Ligningslov12BRegime, aftaledato_gyldig: Boolsk, input_gyldigt: Boolsk, omfattet_af_par12b: Boolsk, kapitalisering_påkrævet: Boolsk, saldo_påkrævet: Boolsk, saldo_indgangsværdi_ved_skattepligtsindtræden_kroner: Heltal, oplysningspligter_overholdt: Boolsk, henstandsgrundlag_gyldigt: Boolsk, omfattet_af_stk4_til_7_eller_9: Boolsk, saldo_reduktion_kroner: Heltal, saldo_efter_reduktion_kroner: Heltal, negativ_saldo_beløb_kroner: Heltal, efterfølgende_betalte_ydelser_kroner: Heltal, ophørs_saldo_kroner: Heltal, modtager_skattepligtigt_kroner: Heltal, modtager_fradrag_kroner: Heltal, yder_fradrag_kroner: Heltal, yder_skattepligtigt_kroner: Heltal, tredjemand_skattepligtigt_kroner: Heltal, anskaffelsessum_forhøjes_kroner: Heltal, anskaffelsessum_nedsættes_kroner: Heltal, overtager_indgangsværdi_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
+
+| ll12b_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
+| ll12b_dage_i_måned(år: Heltal, måned: Heltal) -> match måned {
+    | 1 -> 31
+    | 2 -> hvis ll12b_skudår(år) { 29 } ellers { 28 }
+    | 3 -> 31
+    | 4 -> 30
+    | 5 -> 31
+    | 6 -> 30
+    | 7 -> 31
+    | 8 -> 31
+    | 9 -> 30
+    | 10 -> 31
+    | 11 -> 30
+    | 12 -> 31
+    | _ -> 0
+}
+| ll12b_dato_gyldig(dato: Ligningslov12BDato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= ll12b_dage_i_måned(dato.år, dato.måned)
+| ll12b_dato_yyyymmdd(dato: Ligningslov12BDato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
+| ll12b_regime(dato: Ligningslov12BDato) -> hvis ll12b_dato_gyldig(dato) == Falskt || ll12b_dato_yyyymmdd(dato) < 19990701 { Ll12BUdenForAnvendelsesperioden } ellers { hvis ll12b_dato_yyyymmdd(dato) < 20250319 { Ll12B1Juli1999Til18Marts2025 } ellers { hvis ll12b_dato_yyyymmdd(dato) < 20260101 { Ll12B19Marts2025Til31December2025 } ellers { Ll12BFra1Januar2026 } } }
+| ll12b_reviderede_saldoregler(regime: Ligningslov12BRegime) -> regime == Ll12B19Marts2025Til31December2025 || regime == Ll12BFra1Januar2026
 
 | ll12b_rolle_modtager(rolle: Ligningslov12BRolle) -> rolle == Ll12BModtager
 | ll12b_rolle_yder(rolle: Ligningslov12BRolle) -> rolle == Ll12BYder
 | ll12b_rolle_overtager(rolle: Ligningslov12BRolle) -> rolle == Ll12BForpligtelsesOvertager
 | ll12b_rolle_tredjemand(rolle: Ligningslov12BRolle) -> rolle == Ll12BTredjemandErhverver
 
+| ll12b_betalte_ydelser_kroner(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed {
+    | Ll12BÅrligBetaling(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BYdelseOphører(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BTredjemandModtagerYdelse(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | _ -> 0
+}
+| ll12b_kontantomregnet_vederlag_kroner(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed {
+    | Ll12BModtagerAfstårRet(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BModtagerAfstårRetTilYder(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BYderOverdragerForpligtelse(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | _ -> 0
+}
+| ll12b_årlig_betaling(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BÅrligBetaling(_) -> Sandt | _ -> Falskt }
+| ll12b_ydelse_ophører(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BYdelseOphører(_) -> Sandt | _ -> Falskt }
+| ll12b_modtager_afstår_ret(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BModtagerAfstårRet(_) -> Sandt | _ -> Falskt }
+| ll12b_modtager_afstår_ret_til_yder(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BModtagerAfstårRetTilYder(_) -> Sandt | _ -> Falskt }
+| ll12b_yder_overdrager_forpligtelse(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BYderOverdragerForpligtelse(_) -> Sandt | _ -> Falskt }
+| ll12b_tredjemand_modtager_ydelse(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed { | Ll12BTredjemandModtagerYdelse(_) -> Sandt | _ -> Falskt }
+| ll12b_henstandsgrundlag_kroner(grundlag: Ligningslov12BHenstandsgrundlag) -> match grundlag {
+    | Ll12BIntetUbetaltHenstandsgrundlag -> 0
+    | Ll12BUbetaltAfskrivningslov40Stk7(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BUbetaltLigningslov12BStk10(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+}
+| ll12b_henstandsgrundlag_tilladt(regime: Ligningslov12BRegime, grundlag: Ligningslov12BHenstandsgrundlag) -> match grundlag {
+    | Ll12BIntetUbetaltHenstandsgrundlag -> Sandt
+    | Ll12BUbetaltAfskrivningslov40Stk7(_) -> regime == Ll12B1Juli1999Til18Marts2025 || regime == Ll12B19Marts2025Til31December2025
+    | Ll12BUbetaltLigningslov12BStk10(_) -> regime == Ll12BFra1Januar2026
+}
+| ll12b_henstandsgrundlag_beløb_gyldigt(grundlag: Ligningslov12BHenstandsgrundlag) -> match grundlag {
+    | Ll12BIntetUbetaltHenstandsgrundlag -> Sandt
+    | Ll12BUbetaltAfskrivningslov40Stk7(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BUbetaltLigningslov12BStk10(beløb_kroner) -> beløb_kroner >= 0
+}
+| ll12b_begivenhedsbeløb_gyldigt(begivenhed: Ligningslov12BBegivenhed) -> match begivenhed {
+    | Ll12BÅrligBetaling(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BYdelseOphører(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BModtagerAfstårRet(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BModtagerAfstårRetTilYder(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BYderOverdragerForpligtelse(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BTredjemandModtagerYdelse(beløb_kroner) -> beløb_kroner >= 0
+}
+
+| ll12b_aftale_løbende_ydelse_definition_opfyldt(aftale: Ligningslov12BAftale) -> (aftale.usikker_varighed || aftale.usikker_årlig_størrelse) && aftale.løber_ud_over_aftaleåret
+| ll12b_aftale_omfattet_af_stk1(aftale: Ligningslov12BAftale) -> ll12b_dato_gyldig(aftale.aftaledato) && ll12b_regime(aftale.aftaledato) != Ll12BUdenForAnvendelsesperioden && aftale.gensidigt_bebyrdende && aftale.antal_overdragne_aktiver > 0 && aftale.løbende_ydelse_helt_eller_delvist_vederlag && ll12b_aftale_løbende_ydelse_definition_opfyldt(aftale) && aftale.anden_lov_regulerer_beskatningen == Falskt
+| ll12b_aftale_mindst_en_part_omfattet(aftale: Ligningslov12BAftale) -> aftale.parter.mindst_en_part_skattepligtig_ved_aftalen || aftale.parter.anden_part_senere_fuldt_skattepligtig
+| ll12b_aftale_stk2_anvendelig(aftale: Ligningslov12BAftale) -> ll12b_aftale_omfattet_af_stk1(aftale) && ll12b_aftale_mindst_en_part_omfattet(aftale)
+| ll12b_aftale_beregningsregler_anvendelige(aftale: Ligningslov12BAftale) -> ll12b_aftale_stk2_anvendelig(aftale) && aftale.parter.yder_betaler_til_selvejende_institution_med_stifterindflydelse == Falskt
+| ll12b_aftale_kapitalisering_påkrævet(aftale: Ligningslov12BAftale) -> ll12b_aftale_stk2_anvendelig(aftale) && (ll12b_reviderede_saldoregler(ll12b_regime(aftale.aftaledato)) == Falskt || aftale.kun_aktier_omfattet_af_abl8_for_begge_parter == Falskt)
+| ll12b_aftale_saldo_påkrævet(aftale: Ligningslov12BAftale) -> ll12b_aftale_beregningsregler_anvendelige(aftale) && ll12b_aftale_kapitalisering_påkrævet(aftale)
+
 # Ligningslov12BSag(input: Ligningslov12BInput) {
-    | omfattet_af_par12b() -> input.aftale_indgået_1_juli_1999_eller_senere && input.løbende_ydelse_usikker_varighed_eller_størrelse && input.anden_lov_regulerer_beskatning == Falskt && input.mindst_en_part_skattepligtig_efter_stk10 && input.stk11_selvejende_institution_udelukker == Falskt
-    | omfattet_af_stk4() -> omfattet_af_par12b() && ll12b_rolle_modtager(input.rolle) && (input.begivenhed == Ll12BÅrligBetaling || input.begivenhed == Ll12BYdelseOphører || input.begivenhed == Ll12BModtagerAfstårRet)
-    | omfattet_af_stk5() -> omfattet_af_par12b() && ll12b_rolle_yder(input.rolle) && (input.begivenhed == Ll12BÅrligBetaling || input.begivenhed == Ll12BYdelseOphører)
-    | omfattet_af_stk7() -> omfattet_af_par12b() && ll12b_rolle_yder(input.rolle) && input.begivenhed == Ll12BModtagerAfstårRetTilYder
-    | omfattet_af_stk9_yder() -> omfattet_af_par12b() && ll12b_rolle_yder(input.rolle) && input.begivenhed == Ll12BYderOverdragerForpligtelse
-    | omfattet_af_stk9_overtager() -> omfattet_af_par12b() && ll12b_rolle_overtager(input.rolle)
+    | aftaledato_gyldig() -> ll12b_dato_gyldig(input.aftale.aftaledato)
+    | regime() -> ll12b_regime(input.aftale.aftaledato)
+    | grunddata_gyldige() -> aftaledato_gyldig() && input.indkomstår > 0 && input.aftale.antal_overdragne_aktiver >= 0 && input.aftale.kapitaliseret_værdi_kroner >= 0 && input.aftale.parter.ydelser_betalt_før_skattepligtsindtræden_kroner >= 0 && ll12b_begivenhedsbeløb_gyldigt(input.begivenhed) && ll12b_henstandsgrundlag_beløb_gyldigt(input.position.henstandsgrundlag) && input.årsfordeling.modtager_ikke_skattepligtig_aktivandel_kroner >= 0 && input.årsfordeling.yder_fradrag_helt_afskåret_kroner >= 0 && input.årsfordeling.yder_anskaffelsessum_forhøjes_i_stedet_kroner >= 0 && input.årsfordeling.overtager_nærtstående_fradrag_afskåret_kroner >= 0 && input.ophørsfordeling.modtager_ikke_skattepligtig_aktivandel_kroner >= 0 && input.ophørsfordeling.yder_ophør_ikke_medregnes_kroner >= 0 && input.ophørsfordeling.yder_ophør_nedsætter_anskaffelsessum_kroner >= 0
+    | aftale_omfattet_af_stk1() -> grunddata_gyldige() && ll12b_aftale_omfattet_af_stk1(input.aftale)
+    | beregningsregler_anvendelige() -> grunddata_gyldige() && ll12b_aftale_beregningsregler_anvendelige(input.aftale)
+    | kapitalisering_påkrævet() -> grunddata_gyldige() && ll12b_aftale_kapitalisering_påkrævet(input.aftale)
+    | saldo_påkrævet() -> grunddata_gyldige() && ll12b_aftale_saldo_påkrævet(input.aftale)
+    | saldo_indgangsværdi_ved_skattepligtsindtræden_kroner() -> hvis saldo_påkrævet() { input.aftale.kapitaliseret_værdi_kroner - hvis input.aftale.parter.mindst_en_part_skattepligtig_ved_aftalen { 0 } ellers { input.aftale.parter.ydelser_betalt_før_skattepligtsindtræden_kroner } } ellers { 0 }
+    | input_gyldigt() -> grunddata_gyldige() && hvis kapitalisering_påkrævet() { input.aftale.kapitaliseret_værdi_kroner > 0 } ellers { Sandt }
+    | omfattet_af_par12b() -> aftale_omfattet_af_stk1() && input_gyldigt()
+    | henstandsgrundlag_gyldigt() -> ll12b_henstandsgrundlag_tilladt(regime(), input.position.henstandsgrundlag)
+    | oplysningspligter_overholdt() -> hvis ll12b_aftale_stk2_anvendelig(input.aftale) { input.aftale.oplysninger.aktiver_og_fordeling_fremgår_af_aftalen && input.aftale.oplysninger.aftale_meddelt_rettidigt && (kapitalisering_påkrævet() == Falskt || input.aftale.oplysninger.kapitalisering_foretaget_rettidigt) && (saldo_påkrævet() == Falskt || input.aftale.oplysninger.saldo_oplyst_rettidigt) } ellers { Sandt }
+    | omfattet_af_stk4() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_modtager(input.rolle) && (ll12b_årlig_betaling(input.begivenhed) || ll12b_ydelse_ophører(input.begivenhed) || ll12b_modtager_afstår_ret(input.begivenhed))
+    | omfattet_af_stk5() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_yder(input.rolle) && (ll12b_årlig_betaling(input.begivenhed) || ll12b_ydelse_ophører(input.begivenhed))
+    | omfattet_af_stk7() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_yder(input.rolle) && ll12b_modtager_afstår_ret_til_yder(input.begivenhed)
+    | omfattet_af_stk9_yder() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_yder(input.rolle) && ll12b_yder_overdrager_forpligtelse(input.begivenhed)
+    | omfattet_af_stk9_overtager() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_overtager(input.rolle) && (ll12b_årlig_betaling(input.begivenhed) || ll12b_ydelse_ophører(input.begivenhed) || ll12b_yder_overdrager_forpligtelse(input.begivenhed))
     | omfattet_af_stk4_til_7_eller_9() -> omfattet_af_stk4() || omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder() || omfattet_af_stk9_overtager()
-    | positiv_saldo_primo_kroner() -> penge_positivt_beløb(input.saldo_primo_kroner)
-    | betalte_ydelser_kroner() -> penge_positivt_beløb(input.betalte_ydelser_kroner)
-    | kontantomregnet_vederlag_kroner() -> penge_positivt_beløb(input.kontantomregnet_vederlag_kroner)
-    | vederlag_reducerer_saldo_kroner() -> 0
-    | exception ll12b_stk6_afståelse_reducerer_modtager_saldo vederlag_reducerer_saldo_kroner() -> kontantomregnet_vederlag_kroner() under input.begivenhed == Ll12BModtagerAfstårRet
-    | exception ll12b_stk7_afståelse_til_yder_reducerer_yder_saldo vederlag_reducerer_saldo_kroner() -> kontantomregnet_vederlag_kroner() under input.begivenhed == Ll12BModtagerAfstårRetTilYder
-    | exception ll12b_stk9_forpligtelsesoverdragelse_reducerer_yder_saldo vederlag_reducerer_saldo_kroner() -> kontantomregnet_vederlag_kroner() under input.begivenhed == Ll12BYderOverdragerForpligtelse
-    | saldo_reduktion_kroner() -> betalte_ydelser_kroner() + vederlag_reducerer_saldo_kroner()
-    | saldo_efter_reduktion_kroner() -> input.saldo_primo_kroner - saldo_reduktion_kroner()
-    | saldo_bliver_negativ_i_året() -> input.kapitalisering_skal_føres_som_saldo && positiv_saldo_primo_kroner() > 0 && saldo_efter_reduktion_kroner() < 0
-    | negativ_saldo_beløb_kroner() -> 0
-    | exception ll12b_saldo_bliver_negativ negativ_saldo_beløb_kroner() -> 0 - saldo_efter_reduktion_kroner() under saldo_bliver_negativ_i_året()
-    | efterfølgende_betalte_ydelser_kroner() -> 0
-    | exception ll12b_saldo_tidligere_negativ efterfølgende_betalte_ydelser_kroner() -> betalte_ydelser_kroner() under input.kapitalisering_skal_føres_som_saldo && input.saldo_primo_kroner <= 0 && input.begivenhed == Ll12BÅrligBetaling
-    | ophørs_saldo_kroner() -> 0
-    | exception ll12b_ophør_med_positiv_saldo ophørs_saldo_kroner() -> saldo_efter_reduktion_kroner() under input.kapitalisering_skal_føres_som_saldo && input.begivenhed == Ll12BYdelseOphører && saldo_efter_reduktion_kroner() > 0
-    | modtager_skattepligtig_brutto_kroner() -> 0
-    | exception ll12b_stk4_modtager_negativ_saldo modtager_skattepligtig_brutto_kroner() -> negativ_saldo_beløb_kroner() + efterfølgende_betalte_ydelser_kroner() under omfattet_af_stk4()
-    | modtager_skattepligtigt_kroner() -> penge_positivt_beløb(modtager_skattepligtig_brutto_kroner() - penge_positivt_beløb(input.modtager_ikke_skattepligtig_aktivandel_kroner))
-    | modtager_fradrag_brutto_kroner() -> 0
-    | exception ll12b_stk4_modtager_ophørsfradrag modtager_fradrag_brutto_kroner() -> ophørs_saldo_kroner() under omfattet_af_stk4()
-    | modtager_fradrag_kroner() -> penge_positivt_beløb(modtager_fradrag_brutto_kroner() - penge_positivt_beløb(input.modtager_ikke_skattepligtig_aktivandel_kroner) - penge_positivt_beløb(input.modtager_ikke_betalt_henstand_kroner))
-    | yder_fradrag_brutto_kroner() -> 0
-    | exception ll12b_stk5_yder_negativ_saldo yder_fradrag_brutto_kroner() -> negativ_saldo_beløb_kroner() + efterfølgende_betalte_ydelser_kroner() under omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder() || omfattet_af_stk9_overtager()
-    | yder_fradrag_afskåret_i_alt_kroner() -> penge_positivt_beløb(input.yder_fradrag_afskåret_kroner) + penge_positivt_beløb(input.yder_anskaffelsessum_forhøjes_i_stedet_kroner) + penge_positivt_beløb(input.overtager_nærtstående_fradrag_afskåret_kroner)
-    | yder_fradrag_kroner() -> penge_positivt_beløb(yder_fradrag_brutto_kroner() - yder_fradrag_afskåret_i_alt_kroner())
-    | yder_skattepligtig_brutto_kroner() -> 0
-    | exception ll12b_stk5_yder_ophørsbeskatning yder_skattepligtig_brutto_kroner() -> ophørs_saldo_kroner() under omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder()
-    | yder_skattepligtigt_kroner() -> penge_positivt_beløb(yder_skattepligtig_brutto_kroner() - penge_positivt_beløb(input.yder_ophør_ikke_medregnes_kroner) - penge_positivt_beløb(input.yder_ophør_nedsætter_anskaffelsessum_kroner))
-    | anskaffelsessum_forhøjes_kroner() -> penge_mindste_beløb(yder_fradrag_brutto_kroner(), penge_positivt_beløb(input.yder_anskaffelsessum_forhøjes_i_stedet_kroner))
-    | anskaffelsessum_nedsættes_kroner() -> penge_mindste_beløb(yder_skattepligtig_brutto_kroner(), penge_positivt_beløb(input.yder_ophør_nedsætter_anskaffelsessum_kroner))
-    | overtager_indgangsværdi_kroner() -> 0
-    | exception ll12b_stk9_overtager_indgangsværdi overtager_indgangsværdi_kroner() -> kontantomregnet_vederlag_kroner() under omfattet_af_stk9_overtager()
-    | netto_skattepligtigt_eller_fradragsberettiget_kroner() -> modtager_skattepligtigt_kroner() + yder_skattepligtigt_kroner() - modtager_fradrag_kroner() - yder_fradrag_kroner()
+    | omfattet_af_stk8() -> beregningsregler_anvendelige() && input_gyldigt() && ll12b_rolle_tredjemand(input.rolle) && ll12b_tredjemand_modtager_ydelse(input.begivenhed)
+    | betalte_ydelser_kroner() -> ll12b_betalte_ydelser_kroner(input.begivenhed)
+    | kontantomregnet_vederlag_kroner() -> ll12b_kontantomregnet_vederlag_kroner(input.begivenhed)
+    | begivenhedsbeløb_kroner() -> betalte_ydelser_kroner() + kontantomregnet_vederlag_kroner()
+    | begivenhed_reducerer_saldo() -> omfattet_af_stk4() || omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder() || omfattet_af_stk9_overtager() && ll12b_yder_overdrager_forpligtelse(input.begivenhed) == Falskt
+    | saldo_reduktion_kroner() -> hvis saldo_påkrævet() && begivenhed_reducerer_saldo() { begivenhedsbeløb_kroner() } ellers { 0 }
+    | saldo_efter_reduktion_kroner() -> hvis saldo_påkrævet() { input.position.saldo_primo_kroner - saldo_reduktion_kroner() } ellers { 0 }
+    | saldo_bliver_negativ_i_året() -> saldo_påkrævet() && input.position.saldo_primo_kroner > 0 && saldo_efter_reduktion_kroner() < 0
+    | negativ_saldo_beløb_kroner() -> hvis saldo_bliver_negativ_i_året() { 0 - saldo_efter_reduktion_kroner() } ellers { 0 }
+    | efterfølgende_betalte_ydelser_kroner() -> hvis saldo_påkrævet() && input.position.saldo_primo_kroner <= 0 && begivenhed_reducerer_saldo() && ll12b_ydelse_ophører(input.begivenhed) == Falskt { begivenhedsbeløb_kroner() } ellers { 0 }
+    | ophørs_saldo_kroner() -> hvis saldo_påkrævet() && ll12b_ydelse_ophører(input.begivenhed) && saldo_efter_reduktion_kroner() > 0 { saldo_efter_reduktion_kroner() } ellers { 0 }
+    | modtager_skattepligtig_brutto_kroner() -> hvis omfattet_af_stk4() && ll12b_ydelse_ophører(input.begivenhed) == Falskt { hvis saldo_påkrævet() { negativ_saldo_beløb_kroner() + efterfølgende_betalte_ydelser_kroner() } ellers { begivenhedsbeløb_kroner() } } ellers { 0 }
+    | modtager_årsafskæring_kroner() -> hvis ll12b_reviderede_saldoregler(regime()) { hvis input.aftale.kun_aktier_omfattet_af_abl8_for_begge_parter { modtager_skattepligtig_brutto_kroner() } ellers { penge_positivt_beløb(input.årsfordeling.modtager_ikke_skattepligtig_aktivandel_kroner) } } ellers { 0 }
+    | modtager_skattepligtigt_kroner() -> penge_positivt_beløb(modtager_skattepligtig_brutto_kroner() - modtager_årsafskæring_kroner())
+    | modtager_fradrag_brutto_kroner() -> hvis omfattet_af_stk4() { ophørs_saldo_kroner() } ellers { 0 }
+    | gyldigt_henstandsgrundlag_kroner() -> hvis henstandsgrundlag_gyldigt() { ll12b_henstandsgrundlag_kroner(input.position.henstandsgrundlag) } ellers { 0 }
+    | modtager_fradrag_kroner() -> penge_positivt_beløb(modtager_fradrag_brutto_kroner() - penge_positivt_beløb(input.ophørsfordeling.modtager_ikke_skattepligtig_aktivandel_kroner) - gyldigt_henstandsgrundlag_kroner())
+    | yder_fradrag_brutto_kroner() -> hvis (omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder() || omfattet_af_stk9_overtager()) && ll12b_ydelse_ophører(input.begivenhed) == Falskt { hvis saldo_påkrævet() { negativ_saldo_beløb_kroner() + efterfølgende_betalte_ydelser_kroner() } ellers { begivenhedsbeløb_kroner() } } ellers { 0 }
+    | yder_årsafskæring_kroner() -> hvis ll12b_reviderede_saldoregler(regime()) { hvis input.aftale.kun_aktier_omfattet_af_abl8_for_begge_parter { yder_fradrag_brutto_kroner() } ellers { penge_positivt_beløb(input.årsfordeling.yder_fradrag_helt_afskåret_kroner) + penge_positivt_beløb(input.årsfordeling.yder_anskaffelsessum_forhøjes_i_stedet_kroner) + penge_positivt_beløb(input.årsfordeling.overtager_nærtstående_fradrag_afskåret_kroner) } } ellers { 0 }
+    | yder_fradrag_kroner() -> penge_positivt_beløb(yder_fradrag_brutto_kroner() - yder_årsafskæring_kroner())
+    | yder_skattepligtig_brutto_kroner() -> hvis (omfattet_af_stk5() || omfattet_af_stk7() || omfattet_af_stk9_yder()) && ll12b_ydelse_ophører(input.begivenhed) { ophørs_saldo_kroner() } ellers { 0 }
+    | yder_skattepligtigt_kroner() -> penge_positivt_beløb(yder_skattepligtig_brutto_kroner() - penge_positivt_beløb(input.ophørsfordeling.yder_ophør_ikke_medregnes_kroner) - penge_positivt_beløb(input.ophørsfordeling.yder_ophør_nedsætter_anskaffelsessum_kroner))
+    | tredjemand_skattepligtigt_kroner() -> hvis omfattet_af_stk8() { betalte_ydelser_kroner() } ellers { 0 }
+    | anskaffelsessum_forhøjes_kroner() -> hvis ll12b_reviderede_saldoregler(regime()) { penge_mindste_beløb(yder_fradrag_brutto_kroner(), penge_positivt_beløb(input.årsfordeling.yder_anskaffelsessum_forhøjes_i_stedet_kroner)) } ellers { 0 }
+    | anskaffelsessum_nedsættes_kroner() -> penge_mindste_beløb(yder_skattepligtig_brutto_kroner(), penge_positivt_beløb(input.ophørsfordeling.yder_ophør_nedsætter_anskaffelsessum_kroner))
+    | overtager_indgangsværdi_kroner() -> hvis omfattet_af_stk9_overtager() && ll12b_yder_overdrager_forpligtelse(input.begivenhed) { kontantomregnet_vederlag_kroner() } ellers { 0 }
+    | netto_skattepligtigt_eller_fradragsberettiget_kroner() -> modtager_skattepligtigt_kroner() + yder_skattepligtigt_kroner() + tredjemand_skattepligtigt_kroner() - modtager_fradrag_kroner() - yder_fradrag_kroner()
     | resultat() -> Ligningslov12BResultat(
         indkomstår = input.indkomstår,
         rolle = input.rolle,
         begivenhed = input.begivenhed,
+        regime = regime(),
+        aftaledato_gyldig = aftaledato_gyldig(),
+        input_gyldigt = input_gyldigt(),
         omfattet_af_par12b = omfattet_af_par12b(),
+        kapitalisering_påkrævet = kapitalisering_påkrævet(),
+        saldo_påkrævet = saldo_påkrævet(),
+        saldo_indgangsværdi_ved_skattepligtsindtræden_kroner = saldo_indgangsværdi_ved_skattepligtsindtræden_kroner(),
+        oplysningspligter_overholdt = oplysningspligter_overholdt(),
+        henstandsgrundlag_gyldigt = henstandsgrundlag_gyldigt(),
         omfattet_af_stk4_til_7_eller_9 = omfattet_af_stk4_til_7_eller_9(),
         saldo_reduktion_kroner = saldo_reduktion_kroner(),
         saldo_efter_reduktion_kroner = saldo_efter_reduktion_kroner(),
@@ -933,6 +1228,7 @@ træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
         modtager_fradrag_kroner = modtager_fradrag_kroner(),
         yder_fradrag_kroner = yder_fradrag_kroner(),
         yder_skattepligtigt_kroner = yder_skattepligtigt_kroner(),
+        tredjemand_skattepligtigt_kroner = tredjemand_skattepligtigt_kroner(),
         anskaffelsessum_forhøjes_kroner = anskaffelsessum_forhøjes_kroner(),
         anskaffelsessum_nedsættes_kroner = anskaffelsessum_nedsættes_kroner(),
         overtager_indgangsværdi_kroner = overtager_indgangsværdi_kroner(),
@@ -942,152 +1238,280 @@ træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
 | ligningslov12b_sag(input: Ligningslov12BInput) -> Ligningslov12BSag(input)
 | ligningslov12b_resultat(input: Ligningslov12BInput) -> ligningslov12b_sag(input).resultat()
 
+# Ligningslov12BArbejdsmarkedsbidragHjemmel = Ll12BIntetArbejdsmarkedsbidrag | Ll12BArbejdsmarkedsbidragslovPar4 | Ll12BArbejdsmarkedsbidragslovPar5
+# Ligningslov12BHenstandsfinansiering(kapitaliseret_værdi_henført_til_aktiv_kroner: Heltal, afståelsessum_for_aktiv_kroner: Heltal)
+# Ligningslov12BHenstandSkatteberegning(skat_med_fortjeneste_kroner: Heltal, skat_uden_fortjeneste_kroner: Heltal, arbejdsmarkedsbidrag_hjemmel: Ligningslov12BArbejdsmarkedsbidragHjemmel, arbejdsmarkedsbidrag_med_fortjeneste_kroner: Heltal, arbejdsmarkedsbidrag_uden_fortjeneste_kroner: Heltal, kommunal_andel_af_skatten_kroner: Heltal)
+# Ligningslov12BHenstandBegæring(aftale: Ligningslov12BAftale, finansiering: Ligningslov12BHenstandsfinansiering, begæring_indsendt_rettidigt: Boolsk, skatteberegning: Ligningslov12BHenstandSkatteberegning)
+# Ligningslov12BHenstandBevillingResultat(regime: Ligningslov12BRegime, beregning_gyldig: Boolsk, finansiering_gyldig: Boolsk, betingelser_opfyldt: Boolsk, arbejdsmarkedsbidrag_hjemmel: Ligningslov12BArbejdsmarkedsbidragHjemmel, kapitaliseret_værdi_af_løbende_ydelse_kroner: Heltal, kapitaliseret_værdi_henført_til_aktiv_kroner: Heltal, afståelsessum_for_aktiv_kroner: Heltal, forhold_tæller_kroner: Heltal, forhold_nævner_kroner: Heltal, skat_beregnet_på_fortjenesten_kroner: Heltal, arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner: Heltal, henstand_med_skat_kroner: Heltal, henstand_med_arbejdsmarkedsbidrag_kroner: Heltal, samlet_henstandsbeløb_kroner: Heltal, henstand_fradrages_i_slutskat_kroner: Heltal, kommunal_andel_afregnes_i_indkomståret_kroner: Heltal, lovbestemt_syvårsgrænse: Boolsk)
+
+# Ligningslov12BHenstandBevillingSag(input: Ligningslov12BHenstandBegæring) {
+    | regime() -> ll12b_regime(input.aftale.aftaledato)
+    | skatteberegning_gyldig() -> input.skatteberegning.skat_med_fortjeneste_kroner >= 0 && input.skatteberegning.skat_uden_fortjeneste_kroner >= 0 && input.skatteberegning.skat_med_fortjeneste_kroner >= input.skatteberegning.skat_uden_fortjeneste_kroner && input.skatteberegning.kommunal_andel_af_skatten_kroner >= 0 && input.skatteberegning.kommunal_andel_af_skatten_kroner <= input.skatteberegning.skat_med_fortjeneste_kroner
+    | arbejdsmarkedsbidragsberegning_gyldig() -> input.skatteberegning.arbejdsmarkedsbidrag_med_fortjeneste_kroner >= 0 && input.skatteberegning.arbejdsmarkedsbidrag_uden_fortjeneste_kroner >= 0 && match input.skatteberegning.arbejdsmarkedsbidrag_hjemmel {
+        | Ll12BIntetArbejdsmarkedsbidrag -> input.skatteberegning.arbejdsmarkedsbidrag_med_fortjeneste_kroner == 0 && input.skatteberegning.arbejdsmarkedsbidrag_uden_fortjeneste_kroner == 0
+        | Ll12BArbejdsmarkedsbidragslovPar4 -> input.skatteberegning.arbejdsmarkedsbidrag_med_fortjeneste_kroner >= input.skatteberegning.arbejdsmarkedsbidrag_uden_fortjeneste_kroner
+        | Ll12BArbejdsmarkedsbidragslovPar5 -> input.skatteberegning.arbejdsmarkedsbidrag_med_fortjeneste_kroner >= input.skatteberegning.arbejdsmarkedsbidrag_uden_fortjeneste_kroner
+    }
+    | beregning_gyldig() -> skatteberegning_gyldig() && arbejdsmarkedsbidragsberegning_gyldig()
+    | finansiering_gyldig() -> input.aftale.kapitaliseret_værdi_kroner > 0 && input.finansiering.kapitaliseret_værdi_henført_til_aktiv_kroner > 0 && input.finansiering.kapitaliseret_værdi_henført_til_aktiv_kroner <= input.aftale.kapitaliseret_værdi_kroner && input.finansiering.afståelsessum_for_aktiv_kroner > 0 && input.finansiering.kapitaliseret_værdi_henført_til_aktiv_kroner <= input.finansiering.afståelsessum_for_aktiv_kroner
+    | betingelser_opfyldt() -> regime() == Ll12BFra1Januar2026 && ll12b_aftale_beregningsregler_anvendelige(input.aftale) && ll12b_aftale_kapitalisering_påkrævet(input.aftale) && input.begæring_indsendt_rettidigt && beregning_gyldig() && finansiering_gyldig()
+    | forhold_tæller_kroner() -> hvis betingelser_opfyldt() { input.finansiering.kapitaliseret_værdi_henført_til_aktiv_kroner } ellers { 0 }
+    | forhold_nævner_kroner() -> hvis betingelser_opfyldt() { input.finansiering.afståelsessum_for_aktiv_kroner } ellers { 0 }
+    | skat_beregnet_på_fortjenesten_kroner() -> hvis skatteberegning_gyldig() { input.skatteberegning.skat_med_fortjeneste_kroner - input.skatteberegning.skat_uden_fortjeneste_kroner } ellers { 0 }
+    | arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner() -> hvis arbejdsmarkedsbidragsberegning_gyldig() { input.skatteberegning.arbejdsmarkedsbidrag_med_fortjeneste_kroner - input.skatteberegning.arbejdsmarkedsbidrag_uden_fortjeneste_kroner } ellers { 0 }
+    | henstand_med_skat_kroner() -> hvis betingelser_opfyldt() { skat_beregnet_på_fortjenesten_kroner() * forhold_tæller_kroner() / forhold_nævner_kroner() } ellers { 0 }
+    | henstand_med_arbejdsmarkedsbidrag_kroner() -> hvis betingelser_opfyldt() { arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner() * forhold_tæller_kroner() / forhold_nævner_kroner() } ellers { 0 }
+    | samlet_henstandsbeløb_kroner() -> henstand_med_skat_kroner() + henstand_med_arbejdsmarkedsbidrag_kroner()
+    | kommunal_andel_afregnes_i_indkomståret_kroner() -> hvis betingelser_opfyldt() { input.skatteberegning.kommunal_andel_af_skatten_kroner } ellers { 0 }
+    | resultat() -> Ligningslov12BHenstandBevillingResultat(
+        regime = regime(),
+        beregning_gyldig = beregning_gyldig(),
+        finansiering_gyldig = finansiering_gyldig(),
+        betingelser_opfyldt = betingelser_opfyldt(),
+        arbejdsmarkedsbidrag_hjemmel = input.skatteberegning.arbejdsmarkedsbidrag_hjemmel,
+        kapitaliseret_værdi_af_løbende_ydelse_kroner = input.aftale.kapitaliseret_værdi_kroner,
+        kapitaliseret_værdi_henført_til_aktiv_kroner = input.finansiering.kapitaliseret_værdi_henført_til_aktiv_kroner,
+        afståelsessum_for_aktiv_kroner = input.finansiering.afståelsessum_for_aktiv_kroner,
+        forhold_tæller_kroner = forhold_tæller_kroner(),
+        forhold_nævner_kroner = forhold_nævner_kroner(),
+        skat_beregnet_på_fortjenesten_kroner = skat_beregnet_på_fortjenesten_kroner(),
+        arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner = arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner(),
+        henstand_med_skat_kroner = henstand_med_skat_kroner(),
+        henstand_med_arbejdsmarkedsbidrag_kroner = henstand_med_arbejdsmarkedsbidrag_kroner(),
+        samlet_henstandsbeløb_kroner = samlet_henstandsbeløb_kroner(),
+        henstand_fradrages_i_slutskat_kroner = henstand_med_skat_kroner(),
+        kommunal_andel_afregnes_i_indkomståret_kroner = kommunal_andel_afregnes_i_indkomståret_kroner(),
+        lovbestemt_syvårsgrænse = Falskt
+    )
+}
+| ligningslov12b_henstand_bevilling_sag(input: Ligningslov12BHenstandBegæring) -> Ligningslov12BHenstandBevillingSag(input)
+| ligningslov12b_henstand_bevilling(input: Ligningslov12BHenstandBegæring) -> ligningslov12b_henstand_bevilling_sag(input).resultat()
+
+# Ligningslov12BHenstandPosition(bevilling: Ligningslov12BHenstandBevillingResultat, resterende_skat_kroner: Heltal, resterende_arbejdsmarkedsbidrag_kroner: Heltal, konto_for_opsparet_overskud_kroner: Heltal)
+# Ligningslov12BHenstandRealisering = Ll12BIngenHenstandsrealisering | Ll12BHenstandYdelseModtaget(beløb_kroner: Heltal) | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner: Heltal)
+# Ligningslov12BHenstandÅrsinput(indkomstår: Heltal, position: Ligningslov12BHenstandPosition, realisering: Ligningslov12BHenstandRealisering, betalt_skatteafdrag_kroner: Heltal, betalt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, påbegyndte_forsinkelsesmåneder: Heltal, antal_erindringsskrivelser: Heltal, grov_og_gentagen_misligholdelse: Boolsk, påkrav_fremsat: Boolsk, løbende_ydelser_endeligt_ophørt: Boolsk, saldo_efter_realisering_kroner: Heltal, anvender_virksomhedsordningen: Boolsk, opsparet_overskud_henført_til_ubetalt_henstand_kroner: Heltal)
+# Ligningslov12BHenstandÅrsresultat(indkomstår: Heltal, realisering: Ligningslov12BHenstandRealisering, input_gyldigt: Boolsk, skatteafdrag_forfalder_kroner: Heltal, arbejdsmarkedsbidragsafdrag_forfalder_kroner: Heltal, samlet_afdrag_forfalder_kroner: Heltal, ubetalt_forfaldent_afdrag_kroner: Heltal, forfaldsdag_i_næste_måned: Heltal, sidste_rettidige_betalingsdag_i_forfaldsmåneden: Heltal, månedlig_forsinkelsesrente_basispoint: Heltal, ikke_fradragsberettiget_rente_kroner: Heltal, rykkergebyr_kroner: Heltal, resterende_henstandsbeløb_forfalder_efter_påkrav_kroner: Heltal, frafaldet_henstandsbeløb_kroner: Heltal, konto_for_opsparet_overskud_reduktion_kroner: Heltal, position_efter: Ligningslov12BHenstandPosition)
+
+| ll12b_henstand_realiseret_beløb_kroner(realisering: Ligningslov12BHenstandRealisering) -> match realisering {
+    | Ll12BIngenHenstandsrealisering -> 0
+    | Ll12BHenstandYdelseModtaget(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner) -> penge_positivt_beløb(kontantomregnet_vederlag_kroner)
+}
+| ll12b_henstand_realisering_gyldig(realisering: Ligningslov12BHenstandRealisering) -> match realisering {
+    | Ll12BIngenHenstandsrealisering -> Sandt
+    | Ll12BHenstandYdelseModtaget(beløb_kroner) -> beløb_kroner >= 0
+    | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner) -> kontantomregnet_vederlag_kroner >= 0
+}
+
+# Ligningslov12BHenstandÅrssag(input: Ligningslov12BHenstandÅrsinput) {
+    | position_gyldig() -> input.position.bevilling.betingelser_opfyldt && input.position.resterende_skat_kroner >= 0 && input.position.resterende_skat_kroner <= input.position.bevilling.henstand_med_skat_kroner && input.position.resterende_arbejdsmarkedsbidrag_kroner >= 0 && input.position.resterende_arbejdsmarkedsbidrag_kroner <= input.position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner && input.position.konto_for_opsparet_overskud_kroner >= 0
+    | opkrævningsrente_kildebelagt() -> input.indkomstår >= 2026 && opkrævning_par7_offentliggjort_stk2_rente_basispoint(input.indkomstår) > 0
+    | beløb_gyldige() -> opkrævningsrente_kildebelagt() && ll12b_henstand_realisering_gyldig(input.realisering) && input.betalt_skatteafdrag_kroner >= 0 && input.betalt_arbejdsmarkedsbidragsafdrag_kroner >= 0 && input.påbegyndte_forsinkelsesmåneder >= 0 && input.antal_erindringsskrivelser >= 0 && input.opsparet_overskud_henført_til_ubetalt_henstand_kroner >= 0
+    | realiseret_beløb_kroner() -> ll12b_henstand_realiseret_beløb_kroner(input.realisering)
+    | skatteafdrag_beregnet_kroner() -> hvis position_gyldig() && input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_skat_kroner * realiseret_beløb_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
+    | arbejdsmarkedsbidragsafdrag_beregnet_kroner() -> hvis position_gyldig() && input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner * realiseret_beløb_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
+    | skatteafdrag_forfalder_kroner() -> penge_mindste_beløb(input.position.resterende_skat_kroner, skatteafdrag_beregnet_kroner())
+    | arbejdsmarkedsbidragsafdrag_forfalder_kroner() -> penge_mindste_beløb(input.position.resterende_arbejdsmarkedsbidrag_kroner, arbejdsmarkedsbidragsafdrag_beregnet_kroner())
+    | betalinger_gyldige() -> input.betalt_skatteafdrag_kroner <= skatteafdrag_forfalder_kroner() && input.betalt_arbejdsmarkedsbidragsafdrag_kroner <= arbejdsmarkedsbidragsafdrag_forfalder_kroner()
+    | input_gyldigt() -> position_gyldig() && beløb_gyldige() && betalinger_gyldige()
+    | samlet_afdrag_forfalder_kroner() -> hvis input_gyldigt() { skatteafdrag_forfalder_kroner() + arbejdsmarkedsbidragsafdrag_forfalder_kroner() } ellers { 0 }
+    | ubetalt_forfaldent_afdrag_kroner() -> hvis input_gyldigt() { samlet_afdrag_forfalder_kroner() - input.betalt_skatteafdrag_kroner - input.betalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 }
+    | månedlig_forsinkelsesrente_basispoint() -> hvis opkrævningsrente_kildebelagt() { opkrævning_par7_offentliggjort_stk2_rente_basispoint(input.indkomstår) + 40 } ellers { 0 }
+    | beregnet_forsinkelsesrente_kroner() -> ubetalt_forfaldent_afdrag_kroner() * månedlig_forsinkelsesrente_basispoint() * input.påbegyndte_forsinkelsesmåneder / 10000
+    | ikke_fradragsberettiget_rente_kroner() -> hvis ubetalt_forfaldent_afdrag_kroner() > 0 && input.påbegyndte_forsinkelsesmåneder > 0 { penge_største_beløb(25, beregnet_forsinkelsesrente_kroner()) } ellers { 0 }
+    | rykkergebyr_kroner() -> hvis ubetalt_forfaldent_afdrag_kroner() > 0 { input.antal_erindringsskrivelser * 65 } ellers { 0 }
+    | resterende_skat_efter_betaling_kroner() -> hvis input_gyldigt() { input.position.resterende_skat_kroner - input.betalt_skatteafdrag_kroner } ellers { input.position.resterende_skat_kroner }
+    | resterende_arbejdsmarkedsbidrag_efter_betaling_kroner() -> hvis input_gyldigt() { input.position.resterende_arbejdsmarkedsbidrag_kroner - input.betalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { input.position.resterende_arbejdsmarkedsbidrag_kroner }
+    | resterende_henstandsbeløb_efter_betaling_kroner() -> resterende_skat_efter_betaling_kroner() + resterende_arbejdsmarkedsbidrag_efter_betaling_kroner()
+    | ophør_før_saldo_nul_eller_negativ() -> input_gyldigt() && input.løbende_ydelser_endeligt_ophørt && input.saldo_efter_realisering_kroner > 0
+    | frafaldet_henstandsbeløb_kroner() -> hvis ophør_før_saldo_nul_eller_negativ() { resterende_henstandsbeløb_efter_betaling_kroner() } ellers { 0 }
+    | resterende_henstandsbeløb_forfalder_efter_påkrav_kroner() -> hvis input_gyldigt() && ophør_før_saldo_nul_eller_negativ() == Falskt && input.grov_og_gentagen_misligholdelse && input.påkrav_fremsat { resterende_henstandsbeløb_efter_betaling_kroner() } ellers { 0 }
+    | konto_for_opsparet_overskud_reduktion_kroner() -> hvis ophør_før_saldo_nul_eller_negativ() && input.anvender_virksomhedsordningen { penge_mindste_beløb(input.position.konto_for_opsparet_overskud_kroner, input.opsparet_overskud_henført_til_ubetalt_henstand_kroner) } ellers { 0 }
+    | position_efter() -> Ligningslov12BHenstandPosition(
+        bevilling = input.position.bevilling,
+        resterende_skat_kroner = hvis ophør_før_saldo_nul_eller_negativ() { 0 } ellers { resterende_skat_efter_betaling_kroner() },
+        resterende_arbejdsmarkedsbidrag_kroner = hvis ophør_før_saldo_nul_eller_negativ() { 0 } ellers { resterende_arbejdsmarkedsbidrag_efter_betaling_kroner() },
+        konto_for_opsparet_overskud_kroner = input.position.konto_for_opsparet_overskud_kroner - konto_for_opsparet_overskud_reduktion_kroner()
+    )
+    | resultat() -> Ligningslov12BHenstandÅrsresultat(
+        indkomstår = input.indkomstår,
+        realisering = input.realisering,
+        input_gyldigt = input_gyldigt(),
+        skatteafdrag_forfalder_kroner = hvis input_gyldigt() { skatteafdrag_forfalder_kroner() } ellers { 0 },
+        arbejdsmarkedsbidragsafdrag_forfalder_kroner = hvis input_gyldigt() { arbejdsmarkedsbidragsafdrag_forfalder_kroner() } ellers { 0 },
+        samlet_afdrag_forfalder_kroner = samlet_afdrag_forfalder_kroner(),
+        ubetalt_forfaldent_afdrag_kroner = ubetalt_forfaldent_afdrag_kroner(),
+        forfaldsdag_i_næste_måned = 1,
+        sidste_rettidige_betalingsdag_i_forfaldsmåneden = 10,
+        månedlig_forsinkelsesrente_basispoint = månedlig_forsinkelsesrente_basispoint(),
+        ikke_fradragsberettiget_rente_kroner = ikke_fradragsberettiget_rente_kroner(),
+        rykkergebyr_kroner = rykkergebyr_kroner(),
+        resterende_henstandsbeløb_forfalder_efter_påkrav_kroner = resterende_henstandsbeløb_forfalder_efter_påkrav_kroner(),
+        frafaldet_henstandsbeløb_kroner = frafaldet_henstandsbeløb_kroner(),
+        konto_for_opsparet_overskud_reduktion_kroner = konto_for_opsparet_overskud_reduktion_kroner(),
+        position_efter = position_efter()
+    )
+}
+| ligningslov12b_henstand_årssag(input: Ligningslov12BHenstandÅrsinput) -> Ligningslov12BHenstandÅrssag(input)
+| ligningslov12b_henstand_årsresultat(input: Ligningslov12BHenstandÅrsinput) -> ligningslov12b_henstand_årssag(input).resultat()
+
+--@end:ligningsloven_par12b_2026_aendring--
+--@end:ligningsloven_par12b_historisk--
+--@end:ligningsloven_par12b_lbk1500--
+
+= ll12b_standard_oplysninger = Ligningslov12BOplysninger(
+    kapitalisering_foretaget_rettidigt = Sandt,
+    aktiver_og_fordeling_fremgår_af_aftalen = Sandt,
+    aftale_meddelt_rettidigt = Sandt,
+    saldo_oplyst_rettidigt = Sandt
+)
+= ll12b_standard_parter = Ligningslov12BParter(
+    mindst_en_part_skattepligtig_ved_aftalen = Sandt,
+    anden_part_senere_fuldt_skattepligtig = Falskt,
+    ydelser_betalt_før_skattepligtsindtræden_kroner = 0,
+    yder_betaler_til_selvejende_institution_med_stifterindflydelse = Falskt
+)
+= ll12b_standard_aftale_2026 = Ligningslov12BAftale(
+    aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+    gensidigt_bebyrdende = Sandt,
+    antal_overdragne_aktiver = 1,
+    løbende_ydelse_helt_eller_delvist_vederlag = Sandt,
+    usikker_varighed = Sandt,
+    usikker_årlig_størrelse = Falskt,
+    løber_ud_over_aftaleåret = Sandt,
+    anden_lov_regulerer_beskatningen = Falskt,
+    kun_aktier_omfattet_af_abl8_for_begge_parter = Falskt,
+    kapitaliseret_værdi_kroner = 100000,
+    parter = ll12b_standard_parter,
+    oplysninger = ll12b_standard_oplysninger
+)
+= ll12b_standard_årsfordeling = Ligningslov12BÅrsfordeling(
+    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+    yder_fradrag_helt_afskåret_kroner = 0,
+    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+    overtager_nærtstående_fradrag_afskåret_kroner = 0
+)
+= ll12b_standard_ophørsfordeling = Ligningslov12BOphørsfordeling(
+    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+    yder_ophør_ikke_medregnes_kroner = 0,
+    yder_ophør_nedsætter_anskaffelsessum_kroner = 0
+)
+
 = ll12b_modtager_negativ_saldo_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BModtager,
-    begivenhed = Ll12BÅrligBetaling,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = 10000,
-    betalte_ydelser_kroner = 18000,
-    kontantomregnet_vederlag_kroner = 0,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 10000,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 18000),
+    årsfordeling = ll12b_standard_årsfordeling,
+    ophørsfordeling = ll12b_standard_ophørsfordeling
 ))
 = ll12b_yder_efterfølgende_fradrag_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BYder,
-    begivenhed = Ll12BÅrligBetaling,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = -1,
-    betalte_ydelser_kroner = 20000,
-    kontantomregnet_vederlag_kroner = 0,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 3000,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 4000,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 20000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+        yder_fradrag_helt_afskåret_kroner = 3000,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 4000,
+        overtager_nærtstående_fradrag_afskåret_kroner = 0
+    ),
+    ophørsfordeling = ll12b_standard_ophørsfordeling
 ))
 = ll12b_modtager_ophør_fradrag_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BModtager,
-    begivenhed = Ll12BYdelseOphører,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = 50000,
-    betalte_ydelser_kroner = 10000,
-    kontantomregnet_vederlag_kroner = 0,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 7000,
-    modtager_ikke_betalt_henstand_kroner = 3000,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 50000,
+        henstandsgrundlag = Ll12BUbetaltLigningslov12BStk10(grundlag_kroner = 3000)
+    ),
+    begivenhed = Ll12BYdelseOphører(betalte_ydelser_kroner = 10000),
+    årsfordeling = ll12b_standard_årsfordeling,
+    ophørsfordeling = Ligningslov12BOphørsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 7000,
+        yder_ophør_ikke_medregnes_kroner = 0,
+        yder_ophør_nedsætter_anskaffelsessum_kroner = 0
+    )
 ))
 = ll12b_yder_ophør_skat_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BYder,
-    begivenhed = Ll12BYdelseOphører,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = 30000,
-    betalte_ydelser_kroner = 5000,
-    kontantomregnet_vederlag_kroner = 0,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 6000,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 4000,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 30000,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BYdelseOphører(betalte_ydelser_kroner = 5000),
+    årsfordeling = ll12b_standard_årsfordeling,
+    ophørsfordeling = Ligningslov12BOphørsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+        yder_ophør_ikke_medregnes_kroner = 6000,
+        yder_ophør_nedsætter_anskaffelsessum_kroner = 4000
+    )
 ))
 = ll12b_stk6_afståelse_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BModtager,
-    begivenhed = Ll12BModtagerAfstårRet,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = 12000,
-    betalte_ydelser_kroner = 0,
-    kontantomregnet_vederlag_kroner = 15000,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 12000,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BModtagerAfstårRet(kontantomregnet_vederlag_kroner = 15000),
+    årsfordeling = ll12b_standard_årsfordeling,
+    ophørsfordeling = ll12b_standard_ophørsfordeling
 ))
 = ll12b_stk9_overtager_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BForpligtelsesOvertager,
-    begivenhed = Ll12BÅrligBetaling,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Falskt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = -1,
-    betalte_ydelser_kroner = 16000,
-    kontantomregnet_vederlag_kroner = 45000,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 5000
+    aftale = ll12b_standard_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 16000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+        yder_fradrag_helt_afskåret_kroner = 0,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+        overtager_nærtstående_fradrag_afskåret_kroner = 5000
+    ),
+    ophørsfordeling = ll12b_standard_ophørsfordeling
 ))
+= ll12b_anden_lov_aftale_2026 = Ligningslov12BAftale(
+    aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+    gensidigt_bebyrdende = Sandt,
+    antal_overdragne_aktiver = 1,
+    løbende_ydelse_helt_eller_delvist_vederlag = Sandt,
+    usikker_varighed = Sandt,
+    usikker_årlig_størrelse = Falskt,
+    løber_ud_over_aftaleåret = Sandt,
+    anden_lov_regulerer_beskatningen = Sandt,
+    kun_aktier_omfattet_af_abl8_for_begge_parter = Falskt,
+    kapitaliseret_værdi_kroner = 100000,
+    parter = ll12b_standard_parter,
+    oplysninger = ll12b_standard_oplysninger
+)
 = ll12b_anden_lov_fixture = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BModtager,
-    begivenhed = Ll12BÅrligBetaling,
-    aftale_indgået_1_juli_1999_eller_senere = Sandt,
-    løbende_ydelse_usikker_varighed_eller_størrelse = Sandt,
-    anden_lov_regulerer_beskatning = Sandt,
-    kapitalisering_skal_føres_som_saldo = Sandt,
-    mindst_en_part_skattepligtig_efter_stk10 = Sandt,
-    stk11_selvejende_institution_udelukker = Falskt,
-    saldo_primo_kroner = 10000,
-    betalte_ydelser_kroner = 18000,
-    kontantomregnet_vederlag_kroner = 0,
-    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
-    modtager_ikke_betalt_henstand_kroner = 0,
-    yder_fradrag_afskåret_kroner = 0,
-    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
-    yder_ophør_ikke_medregnes_kroner = 0,
-    yder_ophør_nedsætter_anskaffelsessum_kroner = 0,
-    overtager_nærtstående_fradrag_afskåret_kroner = 0
+    aftale = ll12b_anden_lov_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 10000,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 18000),
+    årsfordeling = ll12b_standard_årsfordeling,
+    ophørsfordeling = ll12b_standard_ophørsfordeling
 ))
 
 | ll12b_modtager_beskattes_når_saldo_bliver_negativ: ll12b_modtager_negativ_saldo_fixture -> ll12b_modtager_negativ_saldo_fixture.saldo_efter_reduktion_kroner == -8000 && ll12b_modtager_negativ_saldo_fixture.modtager_skattepligtigt_kroner == 8000 && ll12b_modtager_negativ_saldo_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == 8000
@@ -1095,5 +1519,5 @@ træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
 | ll12b_modtager_ophørsfradrag_begrænses: ll12b_modtager_ophør_fradrag_fixture -> ll12b_modtager_ophør_fradrag_fixture.ophørs_saldo_kroner == 40000 && ll12b_modtager_ophør_fradrag_fixture.modtager_fradrag_kroner == 30000 && ll12b_modtager_ophør_fradrag_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == -30000
 | ll12b_yder_ophørsbeskattes_med_anskaffelsessum_nedsættelse: ll12b_yder_ophør_skat_fixture -> ll12b_yder_ophør_skat_fixture.ophørs_saldo_kroner == 25000 && ll12b_yder_ophør_skat_fixture.yder_skattepligtigt_kroner == 15000 && ll12b_yder_ophør_skat_fixture.anskaffelsessum_nedsættes_kroner == 4000
 | ll12b_stk6_afståelse_anvender_stk4: ll12b_stk6_afståelse_fixture -> ll12b_stk6_afståelse_fixture.negativ_saldo_beløb_kroner == 3000 && ll12b_stk6_afståelse_fixture.modtager_skattepligtigt_kroner == 3000
-| ll12b_stk9_overtager_fører_saldo_og_fradrag_begrænses: ll12b_stk9_overtager_fixture -> ll12b_stk9_overtager_fixture.overtager_indgangsværdi_kroner == 45000 && ll12b_stk9_overtager_fixture.yder_fradrag_kroner == 11000
+| ll12b_stk9_overtager_efterfølgende_fradrag_begrænses: ll12b_stk9_overtager_fixture -> ll12b_stk9_overtager_fixture.overtager_indgangsværdi_kroner == 0 && ll12b_stk9_overtager_fixture.yder_fradrag_kroner == 11000
 | ll12b_anden_lov_udelukker_par12b: ll12b_anden_lov_fixture -> ll12b_anden_lov_fixture.omfattet_af_par12b == Falskt && ll12b_anden_lov_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0

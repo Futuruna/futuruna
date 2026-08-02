@@ -1,0 +1,538 @@
+@ sprog da
+
+@ importer ./kapitel-01-indkomst
+
+-- Scenarier for Ligningslovens § 12 B og Personskattelovens § 4, stk. 1,
+-- nr. 15. Lovtekst og generelle regler står i
+-- ligningsloven_kapitalindkomst.runa.
+
+= scenarie_ll12b_oplysninger = Ligningslov12BOplysninger(
+    kapitalisering_foretaget_rettidigt = Sandt,
+    aktiver_og_fordeling_fremgår_af_aftalen = Sandt,
+    aftale_meddelt_rettidigt = Sandt,
+    saldo_oplyst_rettidigt = Sandt
+)
+= scenarie_ll12b_parter = Ligningslov12BParter(
+    mindst_en_part_skattepligtig_ved_aftalen = Sandt,
+    anden_part_senere_fuldt_skattepligtig = Falskt,
+    ydelser_betalt_før_skattepligtsindtræden_kroner = 0,
+    yder_betaler_til_selvejende_institution_med_stifterindflydelse = Falskt
+)
+= scenarie_ll12b_parter_selvejende_institution = Ligningslov12BParter(
+    mindst_en_part_skattepligtig_ved_aftalen = Sandt,
+    anden_part_senere_fuldt_skattepligtig = Falskt,
+    ydelser_betalt_før_skattepligtsindtræden_kroner = 0,
+    yder_betaler_til_selvejende_institution_med_stifterindflydelse = Sandt
+)
+= scenarie_ll12b_parter_senere_skattepligt = Ligningslov12BParter(
+    mindst_en_part_skattepligtig_ved_aftalen = Falskt,
+    anden_part_senere_fuldt_skattepligtig = Sandt,
+    ydelser_betalt_før_skattepligtsindtræden_kroner = 30000,
+    yder_betaler_til_selvejende_institution_med_stifterindflydelse = Falskt
+)
+= scenarie_ll12b_årsfordeling_ingen = Ligningslov12BÅrsfordeling(
+    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+    yder_fradrag_helt_afskåret_kroner = 0,
+    yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+    overtager_nærtstående_fradrag_afskåret_kroner = 0
+)
+= scenarie_ll12b_ophørsfordeling_ingen = Ligningslov12BOphørsfordeling(
+    modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+    yder_ophør_ikke_medregnes_kroner = 0,
+    yder_ophør_nedsætter_anskaffelsessum_kroner = 0
+)
+
+| scenarie_ll12b_aftale_med_antal(
+    aftaledato: Ligningslov12BDato,
+    antal_overdragne_aktiver: Heltal,
+    kun_aktier_abl8: Boolsk,
+    kapitaliseret_værdi_kroner: Heltal,
+    parter: Ligningslov12BParter
+) -> Ligningslov12BAftale(
+    aftaledato = aftaledato,
+    gensidigt_bebyrdende = Sandt,
+    antal_overdragne_aktiver = antal_overdragne_aktiver,
+    løbende_ydelse_helt_eller_delvist_vederlag = Sandt,
+    usikker_varighed = Sandt,
+    usikker_årlig_størrelse = Falskt,
+    løber_ud_over_aftaleåret = Sandt,
+    anden_lov_regulerer_beskatningen = Falskt,
+    kun_aktier_omfattet_af_abl8_for_begge_parter = kun_aktier_abl8,
+    kapitaliseret_værdi_kroner = kapitaliseret_værdi_kroner,
+    parter = parter,
+    oplysninger = scenarie_ll12b_oplysninger
+)
+| scenarie_ll12b_aftale(aftaledato: Ligningslov12BDato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal) -> scenarie_ll12b_aftale_med_antal(
+    aftaledato = aftaledato,
+    antal_overdragne_aktiver = 1,
+    kun_aktier_abl8 = kun_aktier_abl8,
+    kapitaliseret_værdi_kroner = kapitaliseret_værdi_kroner,
+    parter = scenarie_ll12b_parter
+)
+| scenarie_ll12b_aftale_med_parter(aftaledato: Ligningslov12BDato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal, parter: Ligningslov12BParter) -> scenarie_ll12b_aftale_med_antal(
+    aftaledato = aftaledato,
+    antal_overdragne_aktiver = 1,
+    kun_aktier_abl8 = kun_aktier_abl8,
+    kapitaliseret_værdi_kroner = kapitaliseret_værdi_kroner,
+    parter = parter
+)
+
+= scenarie_ll12b_regime_før_start = ll12b_regime(Ligningslov12BDato(år = 1999, måned = 6, dag = 30))
+= scenarie_ll12b_regime_historisk_start = ll12b_regime(Ligningslov12BDato(år = 1999, måned = 7, dag = 1))
+= scenarie_ll12b_regime_før_reform = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 3, dag = 18))
+= scenarie_ll12b_regime_reform = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 3, dag = 19))
+= scenarie_ll12b_regime_før_henstand = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 12, dag = 31))
+= scenarie_ll12b_regime_henstand = ll12b_regime(Ligningslov12BDato(år = 2026, måned = 1, dag = 1))
+
+= scenarie_ll12b_historisk_modtager = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 18),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 10000,
+        yder_fradrag_helt_afskåret_kroner = 0,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+        overtager_nærtstående_fradrag_afskåret_kroner = 0
+    ),
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+= scenarie_ll12b_revideret_modtager = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 10000,
+        yder_fradrag_helt_afskåret_kroner = 0,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+        overtager_nærtstående_fradrag_afskåret_kroner = 0
+    ),
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+
+= scenarie_ll12b_historisk_yder = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BYder,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 18),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+        yder_fradrag_helt_afskåret_kroner = 10000,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+        overtager_nærtstående_fradrag_afskåret_kroner = 0
+    ),
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+= scenarie_ll12b_revideret_yder = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BYder,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = -1,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = Ligningslov12BÅrsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 0,
+        yder_fradrag_helt_afskåret_kroner = 10000,
+        yder_anskaffelsessum_forhøjes_i_stedet_kroner = 0,
+        overtager_nærtstående_fradrag_afskåret_kroner = 0
+    ),
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+
+= scenarie_ll12b_abl8_uden_saldo = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        kun_aktier_abl8 = Sandt,
+        kapitaliseret_værdi_kroner = 0
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 0,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+= scenarie_ll12b_selvejende_institution = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale_med_parter(
+        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000,
+        parter = scenarie_ll12b_parter_selvejende_institution
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 0,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 10000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+= scenarie_ll12b_senere_skattepligt = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale_med_parter(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000,
+        parter = scenarie_ll12b_parter_senere_skattepligt
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 70000,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 0),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+
+= scenarie_ll12b_henstand_aftale_2026 = scenarie_ll12b_aftale(
+    aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+    kun_aktier_abl8 = Falskt,
+    kapitaliseret_værdi_kroner = 500000
+)
+= scenarie_ll12b_henstand_finansiering = Ligningslov12BHenstandsfinansiering(
+    kapitaliseret_værdi_henført_til_aktiv_kroner = 500000,
+    afståelsessum_for_aktiv_kroner = 1000000
+)
+= scenarie_ll12b_henstand_beregning = Ligningslov12BHenstandSkatteberegning(
+    skat_med_fortjeneste_kroner = 515000,
+    skat_uden_fortjeneste_kroner = 0,
+    arbejdsmarkedsbidrag_hjemmel = Ll12BArbejdsmarkedsbidragslovPar4,
+    arbejdsmarkedsbidrag_med_fortjeneste_kroner = 80000,
+    arbejdsmarkedsbidrag_uden_fortjeneste_kroner = 0,
+    kommunal_andel_af_skatten_kroner = 100000
+)
+= scenarie_ll12b_henstand_bevilling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_henstand_aftale_2026,
+    finansiering = scenarie_ll12b_henstand_finansiering,
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = scenarie_ll12b_henstand_beregning
+))
+= scenarie_ll12b_henstand_før_2026 = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 500000
+    ),
+    finansiering = scenarie_ll12b_henstand_finansiering,
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = scenarie_ll12b_henstand_beregning
+))
+= scenarie_ll12b_henstand_aktivfordeling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_aftale_med_antal(
+        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        antal_overdragne_aktiver = 2,
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 500000,
+        parter = scenarie_ll12b_parter
+    ),
+    finansiering = Ligningslov12BHenstandsfinansiering(
+        kapitaliseret_værdi_henført_til_aktiv_kroner = 200000,
+        afståelsessum_for_aktiv_kroner = 400000
+    ),
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = scenarie_ll12b_henstand_beregning
+))
+= scenarie_ll12b_henstand_uden_am_hjemmel = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_henstand_aftale_2026,
+    finansiering = scenarie_ll12b_henstand_finansiering,
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = Ligningslov12BHenstandSkatteberegning(
+        skat_med_fortjeneste_kroner = 515000,
+        skat_uden_fortjeneste_kroner = 0,
+        arbejdsmarkedsbidrag_hjemmel = Ll12BIntetArbejdsmarkedsbidrag,
+        arbejdsmarkedsbidrag_med_fortjeneste_kroner = 80000,
+        arbejdsmarkedsbidrag_uden_fortjeneste_kroner = 0,
+        kommunal_andel_af_skatten_kroner = 100000
+    )
+))
+= scenarie_ll12b_henstand_selvejende_afskåret = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_aftale_med_parter(
+        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 500000,
+        parter = scenarie_ll12b_parter_selvejende_institution
+    ),
+    finansiering = scenarie_ll12b_henstand_finansiering,
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = scenarie_ll12b_henstand_beregning
+))
+
+= scenarie_ll12b_henstand_position_primo = Ligningslov12BHenstandPosition(
+    bevilling = scenarie_ll12b_henstand_bevilling,
+    resterende_skat_kroner = 257500,
+    resterende_arbejdsmarkedsbidrag_kroner = 40000,
+    konto_for_opsparet_overskud_kroner = 0
+)
+= scenarie_ll12b_henstand_afdrag = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = scenarie_ll12b_henstand_position_primo,
+    realisering = Ll12BHenstandYdelseModtaget(beløb_kroner = 100000),
+    betalt_skatteafdrag_kroner = 51500,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 8000,
+    påbegyndte_forsinkelsesmåneder = 0,
+    antal_erindringsskrivelser = 0,
+    grov_og_gentagen_misligholdelse = Falskt,
+    påkrav_fremsat = Falskt,
+    løbende_ydelser_endeligt_ophørt = Falskt,
+    saldo_efter_realisering_kroner = 400000,
+    anvender_virksomhedsordningen = Falskt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+))
+= scenarie_ll12b_henstand_afdrag_ved_retsafståelse = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = scenarie_ll12b_henstand_position_primo,
+    realisering = Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner = 50000),
+    betalt_skatteafdrag_kroner = 25750,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 4000,
+    påbegyndte_forsinkelsesmåneder = 0,
+    antal_erindringsskrivelser = 0,
+    grov_og_gentagen_misligholdelse = Falskt,
+    påkrav_fremsat = Falskt,
+    løbende_ydelser_endeligt_ophørt = Falskt,
+    saldo_efter_realisering_kroner = 450000,
+    anvender_virksomhedsordningen = Falskt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+))
+= scenarie_ll12b_henstand_forsinket = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = scenarie_ll12b_henstand_position_primo,
+    realisering = Ll12BHenstandYdelseModtaget(beløb_kroner = 100000),
+    betalt_skatteafdrag_kroner = 0,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
+    påbegyndte_forsinkelsesmåneder = 1,
+    antal_erindringsskrivelser = 1,
+    grov_og_gentagen_misligholdelse = Falskt,
+    påkrav_fremsat = Falskt,
+    løbende_ydelser_endeligt_ophørt = Falskt,
+    saldo_efter_realisering_kroner = 400000,
+    anvender_virksomhedsordningen = Falskt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+))
+
+= scenarie_ll12b_henstand_position_efter_afdrag = Ligningslov12BHenstandPosition(
+    bevilling = scenarie_ll12b_henstand_bevilling,
+    resterende_skat_kroner = 206000,
+    resterende_arbejdsmarkedsbidrag_kroner = 32000,
+    konto_for_opsparet_overskud_kroner = 150000
+)
+= scenarie_ll12b_henstand_ophør_vso = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = scenarie_ll12b_henstand_position_efter_afdrag,
+    realisering = Ll12BIngenHenstandsrealisering,
+    betalt_skatteafdrag_kroner = 0,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
+    påbegyndte_forsinkelsesmåneder = 0,
+    antal_erindringsskrivelser = 0,
+    grov_og_gentagen_misligholdelse = Falskt,
+    påkrav_fremsat = Falskt,
+    løbende_ydelser_endeligt_ophørt = Sandt,
+    saldo_efter_realisering_kroner = 300000,
+    anvender_virksomhedsordningen = Sandt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 180000
+))
+= scenarie_ll12b_henstand_grov_misligholdelse = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = scenarie_ll12b_henstand_position_efter_afdrag,
+    realisering = Ll12BIngenHenstandsrealisering,
+    betalt_skatteafdrag_kroner = 0,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
+    påbegyndte_forsinkelsesmåneder = 0,
+    antal_erindringsskrivelser = 0,
+    grov_og_gentagen_misligholdelse = Sandt,
+    påkrav_fremsat = Sandt,
+    løbende_ydelser_endeligt_ophørt = Falskt,
+    saldo_efter_realisering_kroner = 300000,
+    anvender_virksomhedsordningen = Falskt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+))
+
+= scenarie_ll12b_vso_vejledning_bevilling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 900000
+    ),
+    finansiering = Ligningslov12BHenstandsfinansiering(
+        kapitaliseret_værdi_henført_til_aktiv_kroner = 900000,
+        afståelsessum_for_aktiv_kroner = 900000
+    ),
+    begæring_indsendt_rettidigt = Sandt,
+    skatteberegning = Ligningslov12BHenstandSkatteberegning(
+        skat_med_fortjeneste_kroner = 198000,
+        skat_uden_fortjeneste_kroner = 0,
+        arbejdsmarkedsbidrag_hjemmel = Ll12BIntetArbejdsmarkedsbidrag,
+        arbejdsmarkedsbidrag_med_fortjeneste_kroner = 0,
+        arbejdsmarkedsbidrag_uden_fortjeneste_kroner = 0,
+        kommunal_andel_af_skatten_kroner = 0
+    )
+))
+= scenarie_ll12b_vso_vejledning_ophør = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
+    indkomstår = 2026,
+    position = Ligningslov12BHenstandPosition(
+        bevilling = scenarie_ll12b_vso_vejledning_bevilling,
+        resterende_skat_kroner = 115500,
+        resterende_arbejdsmarkedsbidrag_kroner = 0,
+        konto_for_opsparet_overskud_kroner = 702000
+    ),
+    realisering = Ll12BIngenHenstandsrealisering,
+    betalt_skatteafdrag_kroner = 0,
+    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
+    påbegyndte_forsinkelsesmåneder = 0,
+    antal_erindringsskrivelser = 0,
+    grov_og_gentagen_misligholdelse = Falskt,
+    påkrav_fremsat = Falskt,
+    løbende_ydelser_endeligt_ophørt = Sandt,
+    saldo_efter_realisering_kroner = 525000,
+    anvender_virksomhedsordningen = Sandt,
+    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 409500
+))
+
+= scenarie_ll12b_historisk_ophør_gammel_henstand = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 50000,
+        henstandsgrundlag = Ll12BUbetaltAfskrivningslov40Stk7(grundlag_kroner = 3000)
+    ),
+    begivenhed = Ll12BYdelseOphører(betalte_ydelser_kroner = 10000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = Ligningslov12BOphørsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 7000,
+        yder_ophør_ikke_medregnes_kroner = 0,
+        yder_ophør_nedsætter_anskaffelsessum_kroner = 0
+    )
+))
+= scenarie_ll12b_historisk_ophør_forkert_ny_henstand = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BModtager,
+    aftale = scenarie_ll12b_aftale(
+        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        kun_aktier_abl8 = Falskt,
+        kapitaliseret_værdi_kroner = 100000
+    ),
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 50000,
+        henstandsgrundlag = Ll12BUbetaltLigningslov12BStk10(grundlag_kroner = 3000)
+    ),
+    begivenhed = Ll12BYdelseOphører(betalte_ydelser_kroner = 10000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = Ligningslov12BOphørsfordeling(
+        modtager_ikke_skattepligtig_aktivandel_kroner = 7000,
+        yder_ophør_ikke_medregnes_kroner = 0,
+        yder_ophør_nedsætter_anskaffelsessum_kroner = 0
+    )
+))
+
+= scenarie_ll12b_tredjemand = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BTredjemandErhverver,
+    aftale = scenarie_ll12b_henstand_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 0,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BTredjemandModtagerYdelse(betalte_ydelser_kroner = 12000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+= scenarie_ll12b_tredjemand_personskattelov = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = scenarie_ll12b_tredjemand
+))
+
+= scenarie_ll12b_overtager_indgangsværdi = ligningslov12b_resultat(Ligningslov12BInput(
+    indkomstår = 2026,
+    rolle = Ll12BForpligtelsesOvertager,
+    aftale = scenarie_ll12b_henstand_aftale_2026,
+    position = Ligningslov12BPosition(
+        saldo_primo_kroner = 0,
+        henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+    ),
+    begivenhed = Ll12BYderOverdragerForpligtelse(kontantomregnet_vederlag_kroner = 45000),
+    årsfordeling = scenarie_ll12b_årsfordeling_ingen,
+    ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
+))
+
+| scenarie_ll12b_regimegrænser: scenarie_ll12b_regime_henstand -> scenarie_ll12b_regime_før_start == Ll12BUdenForAnvendelsesperioden && scenarie_ll12b_regime_historisk_start == Ll12B1Juli1999Til18Marts2025 && scenarie_ll12b_regime_før_reform == Ll12B1Juli1999Til18Marts2025 && scenarie_ll12b_regime_reform == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_regime_før_henstand == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_regime_henstand == Ll12BFra1Januar2026
+| scenarie_ll12b_modtagerafskæring_gælder_fra_19_marts_2025: scenarie_ll12b_revideret_modtager -> scenarie_ll12b_historisk_modtager.modtager_skattepligtigt_kroner == 10000 && scenarie_ll12b_revideret_modtager.modtager_skattepligtigt_kroner == 0
+| scenarie_ll12b_yderafskæring_gælder_fra_19_marts_2025: scenarie_ll12b_revideret_yder -> scenarie_ll12b_historisk_yder.yder_fradrag_kroner == 10000 && scenarie_ll12b_revideret_yder.yder_fradrag_kroner == 0
+| scenarie_ll12b_abl8_kræver_hverken_kapitalisering_eller_saldo: scenarie_ll12b_abl8_uden_saldo -> scenarie_ll12b_abl8_uden_saldo.kapitalisering_påkrævet == Falskt && scenarie_ll12b_abl8_uden_saldo.saldo_påkrævet == Falskt && scenarie_ll12b_abl8_uden_saldo.modtager_skattepligtigt_kroner == 0
+| scenarie_ll12b_selvejende_institution_bevarer_stk2_men_afskærer_stk3_og_frem: scenarie_ll12b_selvejende_institution -> scenarie_ll12b_selvejende_institution.omfattet_af_par12b && scenarie_ll12b_selvejende_institution.kapitalisering_påkrævet && scenarie_ll12b_selvejende_institution.saldo_påkrævet == Falskt && scenarie_ll12b_selvejende_institution.modtager_skattepligtigt_kroner == 0 && scenarie_ll12b_henstand_selvejende_afskåret.betingelser_opfyldt == Falskt
+| scenarie_ll12b_senere_skattepligt_reducerer_indgangsværdi: scenarie_ll12b_senere_skattepligt -> scenarie_ll12b_senere_skattepligt.saldo_påkrævet && scenarie_ll12b_senere_skattepligt.saldo_indgangsværdi_ved_skattepligtsindtræden_kroner == 70000
+| scenarie_ll12b_henstand_skyggeberegning_og_forhold: scenarie_ll12b_henstand_bevilling -> scenarie_ll12b_henstand_bevilling.betingelser_opfyldt && scenarie_ll12b_henstand_bevilling.skat_beregnet_på_fortjenesten_kroner == 515000 && scenarie_ll12b_henstand_bevilling.henstand_med_skat_kroner == 257500 && scenarie_ll12b_henstand_bevilling.henstand_med_arbejdsmarkedsbidrag_kroner == 40000 && scenarie_ll12b_henstand_bevilling.samlet_henstandsbeløb_kroner == 297500 && scenarie_ll12b_henstand_bevilling.lovbestemt_syvårsgrænse == Falskt
+| scenarie_ll12b_ny_henstand_gælder_ikke_før_2026: scenarie_ll12b_henstand_før_2026 -> scenarie_ll12b_henstand_før_2026.regime == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_henstand_før_2026.betingelser_opfyldt == Falskt && scenarie_ll12b_henstand_før_2026.samlet_henstandsbeløb_kroner == 0
+| scenarie_ll12b_henstand_fordeles_til_det_enkelte_aktiv: scenarie_ll12b_henstand_aktivfordeling -> scenarie_ll12b_henstand_aktivfordeling.finansiering_gyldig && scenarie_ll12b_henstand_aktivfordeling.kapitaliseret_værdi_af_løbende_ydelse_kroner == 500000 && scenarie_ll12b_henstand_aktivfordeling.kapitaliseret_værdi_henført_til_aktiv_kroner == 200000 && scenarie_ll12b_henstand_aktivfordeling.afståelsessum_for_aktiv_kroner == 400000 && scenarie_ll12b_henstand_aktivfordeling.henstand_med_skat_kroner == 257500
+| scenarie_ll12b_am_henstand_kræver_par4_eller_par5: scenarie_ll12b_henstand_uden_am_hjemmel -> scenarie_ll12b_henstand_uden_am_hjemmel.beregning_gyldig == Falskt && scenarie_ll12b_henstand_uden_am_hjemmel.betingelser_opfyldt == Falskt && scenarie_ll12b_henstand_uden_am_hjemmel.samlet_henstandsbeløb_kroner == 0
+| scenarie_ll12b_forholdsmæssigt_afdrag: scenarie_ll12b_henstand_afdrag -> scenarie_ll12b_henstand_afdrag.skatteafdrag_forfalder_kroner == 51500 && scenarie_ll12b_henstand_afdrag.arbejdsmarkedsbidragsafdrag_forfalder_kroner == 8000 && scenarie_ll12b_henstand_afdrag.samlet_afdrag_forfalder_kroner == 59500 && scenarie_ll12b_henstand_afdrag.position_efter.resterende_skat_kroner == 206000
+| scenarie_ll12b_retsafståelse_udløser_forholdsmæssigt_afdrag: scenarie_ll12b_henstand_afdrag_ved_retsafståelse -> scenarie_ll12b_henstand_afdrag_ved_retsafståelse.skatteafdrag_forfalder_kroner == 25750 && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.arbejdsmarkedsbidragsafdrag_forfalder_kroner == 4000 && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.samlet_afdrag_forfalder_kroner == 29750
+| scenarie_ll12b_forsinkelsesrente_og_rykkergebyr: scenarie_ll12b_henstand_forsinket -> scenarie_ll12b_henstand_forsinket.månedlig_forsinkelsesrente_basispoint == 50 && scenarie_ll12b_henstand_forsinket.ubetalt_forfaldent_afdrag_kroner == 59500 && scenarie_ll12b_henstand_forsinket.ikke_fradragsberettiget_rente_kroner == 297 && scenarie_ll12b_henstand_forsinket.rykkergebyr_kroner == 65
+| scenarie_ll12b_ophør_frafalder_rest_og_reducerer_vso_konto: scenarie_ll12b_henstand_ophør_vso -> scenarie_ll12b_henstand_ophør_vso.frafaldet_henstandsbeløb_kroner == 238000 && scenarie_ll12b_henstand_ophør_vso.konto_for_opsparet_overskud_reduktion_kroner == 150000 && scenarie_ll12b_henstand_ophør_vso.position_efter.resterende_skat_kroner == 0 && scenarie_ll12b_henstand_ophør_vso.position_efter.konto_for_opsparet_overskud_kroner == 0
+| scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud: scenarie_ll12b_vso_vejledning_ophør -> scenarie_ll12b_vso_vejledning_bevilling.henstand_med_skat_kroner == 198000 && scenarie_ll12b_vso_vejledning_ophør.frafaldet_henstandsbeløb_kroner == 115500 && scenarie_ll12b_vso_vejledning_ophør.konto_for_opsparet_overskud_reduktion_kroner == 409500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.konto_for_opsparet_overskud_kroner == 292500
+| scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav: scenarie_ll12b_henstand_grov_misligholdelse -> scenarie_ll12b_henstand_grov_misligholdelse.resterende_henstandsbeløb_forfalder_efter_påkrav_kroner == 238000 && scenarie_ll12b_henstand_grov_misligholdelse.frafaldet_henstandsbeløb_kroner == 0
+| scenarie_ll12b_henstandsgrundlag_følger_aftaleregimet: scenarie_ll12b_historisk_ophør_gammel_henstand -> scenarie_ll12b_historisk_ophør_gammel_henstand.henstandsgrundlag_gyldigt && scenarie_ll12b_historisk_ophør_gammel_henstand.modtager_fradrag_kroner == 30000 && scenarie_ll12b_historisk_ophør_forkert_ny_henstand.henstandsgrundlag_gyldigt == Falskt && scenarie_ll12b_historisk_ophør_forkert_ny_henstand.modtager_fradrag_kroner == 33000 && ll12b_modtager_ophør_fradrag_fixture.henstandsgrundlag_gyldigt && ll12b_modtager_ophør_fradrag_fixture.modtager_fradrag_kroner == 30000
+| scenarie_ll12b_stk8_tredjemand_er_skattepligtig_men_ikke_par4_nr15: scenarie_ll12b_tredjemand -> scenarie_ll12b_tredjemand.tredjemand_skattepligtigt_kroner == 12000 && scenarie_ll12b_tredjemand.omfattet_af_stk4_til_7_eller_9 == Falskt && scenarie_ll12b_tredjemand_personskattelov.kapitalindkomst_kroner == 0
+| scenarie_ll12b_stk9_overtager_indgangsværdi: scenarie_ll12b_overtager_indgangsværdi -> scenarie_ll12b_overtager_indgangsværdi.overtager_indgangsværdi_kroner == 45000
+
+? scenarie_ll12b_regimegrænser
+? scenarie_ll12b_modtagerafskæring_gælder_fra_19_marts_2025
+? scenarie_ll12b_yderafskæring_gælder_fra_19_marts_2025
+? scenarie_ll12b_abl8_kræver_hverken_kapitalisering_eller_saldo
+? scenarie_ll12b_selvejende_institution_bevarer_stk2_men_afskærer_stk3_og_frem
+? scenarie_ll12b_senere_skattepligt_reducerer_indgangsværdi
+? scenarie_ll12b_henstand_skyggeberegning_og_forhold
+? scenarie_ll12b_ny_henstand_gælder_ikke_før_2026
+? scenarie_ll12b_henstand_fordeles_til_det_enkelte_aktiv
+? scenarie_ll12b_am_henstand_kræver_par4_eller_par5
+? scenarie_ll12b_forholdsmæssigt_afdrag
+? scenarie_ll12b_retsafståelse_udløser_forholdsmæssigt_afdrag
+? scenarie_ll12b_forsinkelsesrente_og_rykkergebyr
+? scenarie_ll12b_ophør_frafalder_rest_og_reducerer_vso_konto
+? scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud
+? scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav
+? scenarie_ll12b_henstandsgrundlag_følger_aftaleregimet
+? scenarie_ll12b_stk8_tredjemand_er_skattepligtig_men_ikke_par4_nr15
+? scenarie_ll12b_stk9_overtager_indgangsværdi
+
+@ print("LL §12B henstand med skat: " + vis(scenarie_ll12b_henstand_bevilling.henstand_med_skat_kroner))
+@ print("LL §12B samlet første afdrag: " + vis(scenarie_ll12b_henstand_afdrag.samlet_afdrag_forfalder_kroner))

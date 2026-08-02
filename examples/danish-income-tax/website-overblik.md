@@ -127,8 +127,15 @@ bl.a. lejeperiode, nærtstående og selskabskontrol, § 14-undtagelsen,
 goodwillgrundlag, rettighedsperioder, 5-pct.-straksfradrag, yder, modtager og
 salg som særskilte juridiske fakta. LOV 749/2025-overgangen er eksplicit:
 aftaler før 2026 kan bevare det tidligere § 40, stk. 7-regime, mens aftaler fra
-2026 henvises til Ligningsloven § 12 B. Den henviste 2026-ordning er endnu ikke
-fuldt beregnet i Ligningsloven-modulet.
+2026 henvises til Ligningsloven § 12 B. Den nye ordning er også beregnet i
+Ligningsloven-modulet: henstand med skat og arbejdsmarkedsbidrag, forholdsmæssige
+afdrag ved betaling eller afståelse af retten, rente, misligholdelse, ophør og
+virksomhedsordningens konto for opsparet overskud holdes som særskilte, typede
+resultater. Skattestyrelsens eksempel med
+1.000.000 kr. goodwill, 515.000 kr. skat og 500.000 kr. kapitaliseret løbende
+ydelse giver 257.500 kr. skattehenstand i begge Futuruna-backends. Vejledningens
+virksomhedsordningseksempel reducerer tilsvarende en konto på 702.000 kr. til
+292.500 kr., når 115.500 kr. virksomhedsskattehenstand frafaldes.
 
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En

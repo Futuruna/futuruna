@@ -194,11 +194,6 @@
     hentet_dato = "2026-07-18"
 )
 
-= afskrivningsloven_par40_ll12b_2026_dependency_advarsel = AfskrivningslovKorpusAdvarsel(
-    kode = "AL40_LL12B_2026_DEPENDENCY",
-    besked = "Overgangen henviser aftaler fra 2026 til Ligningsloven § 12 B; den henviste 2026-ordning er endnu ikke fuldt beregnet i Ligningsloven-modulet."
-)
-
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -4164,7 +4159,7 @@ den skattepligtige indkomst.
 )
 --@end:afskrivningsloven_par40--
 
---@label:afskrivningsloven_par40_2026_overgang::amendment_source:afskrivningsloven_lov749::transition_guidance:afskrivningsloven_par40_henstand_juridisk_vejledning::warning:afskrivningsloven_par40_ll12b_2026_dependency_advarsel--
+--@label:afskrivningsloven_par40_2026_overgang::amendment_source:afskrivningsloven_lov749::transition_guidance:afskrivningsloven_par40_henstand_juridisk_vejledning::dependency_source:afskrivningsloven_lov749--
 ----
 LOV nr. 749 af 20. juni 2025:
 
