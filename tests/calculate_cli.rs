@@ -2,6 +2,9 @@ use calamine::{open_workbook_auto, Data, Reader};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_TEMP_PATH_ID: AtomicU64 = AtomicU64::new(0);
 
 fn runa() -> &'static str {
     env!("CARGO_BIN_EXE_runa")
@@ -12,13 +15,15 @@ fn fixture() -> PathBuf {
 }
 
 fn temp_path(extension: &str) -> PathBuf {
+    let unique_id = NEXT_TEMP_PATH_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "futuruna-calculate-{}-{}.{}",
+        "futuruna-calculate-{}-{}-{}.{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("clock")
             .as_nanos(),
+        unique_id,
         extension
     ))
 }
