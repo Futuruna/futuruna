@@ -40,13 +40,17 @@ kommunal skat, kirkeskat, aktieindkomst, kapitalindkomst, personfradrag,
 underskud, delår, skatteloft, indeholdelse, slutopgørelse og dele af
 Ligningslovens fradragsregler.
 
-Den almindelige lønmodtagervej er også udstillet som en typet
+Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
-`LønmodtagerInput`, validere det mod samme kontrakt og returnere det fulde
-`LønmodtagerBreakdown`. Regnearket bruger særskilte relaterede faner, når en
-inputtype faktisk indeholder lister, maps eller sæt; den nuværende
-lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
-afgrænsede skatteberegning.
+`PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
+skatteresultat og en valgfri årsopgørelse. Den nuværende arbejdsbog afledes fra
+28 typer og har 49 inputkolonner plus sags-id. Tre dropdowns vælger mellem
+standard- og særforhold for skat, underskud og årsopgørelse; kun den valgte grens
+felter skal udfyldes. Regnearket bruger særskilte relaterede faner, når en
+inputtype faktisk indeholder lister, maps eller sæt. De fulde § 3-, § 4- og § 4
+a-kildegrafer samt ABL-årsposter er endnu ikke koblet til dette ene input, så den
+samlede borgerarbejdsbog er fortsat under udbygning frem for håndskrevet ved
+siden af reglerne.
 
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige

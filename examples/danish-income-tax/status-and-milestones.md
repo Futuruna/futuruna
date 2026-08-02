@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-d2945b` (submitted for review)
+Current focus issue: `td-c743fb` (in progress)
 Latest implementation slice submitted for review: `td-d2945b`
-Latest approved implementation slice: `td-5d9d23`
+Latest approved implementation slice: `td-d2945b`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -2434,16 +2434,22 @@ Review candidates to revisit deliberately, not as broad churn:
   its own current and carried losses, own-gain offset, spouse transfer and
   remaining carry-forward. The focused audit proves a 30.000 kr. ABL/KGL/EBL
   total and rejects a 7.000 kr. future-year result in both backends.
-- `personskat.calculate.runa` exposes the ordinary wage-earner route as the
-  typed `beregn_personskat(LønmodtagerInput) -> LønmodtagerBreakdown` boundary.
-  `runa schema`, JSON/TOML/XLSX templates, and `runa call` now carry the same
-  source-linked contract; `personskat-calculate.scenario.runa` fixes the 2026
-  Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
-  schema v3 uses related child worksheets only when the domain input actually
-  contains `List`, `Map`, or `Set` fields and expands payload-bearing variants
-  into typed discriminator-controlled columns. The current generated citizen
-  workbook has 13 input columns plus `case_id` and no child sheet because its
-  reachable input is still the narrow ordinary `LønmodtagerInput`; this is a
+- `personskat.calculate.runa` now exposes one aggregate
+  `beregn_personskat(PersonskatInput) -> PersonskatBeregningResultat` boundary.
+  The graph contains the ordinary wage-earner facts plus explicit variants for
+  special tax conditions, § 13 deficit/spouse conditions and an optional
+  Kildeskattelov annual assessment. `runa schema`, JSON/TOML/XLSX templates and
+  `runa call` carry the same source-linked contract. The generated workbook is
+  measured at 28 reachable type definitions and 49 typed input columns plus
+  `case_id`; three enum selectors guard the inactive variant payloads. A
+  two-case XLSX round trip proves both the ordinary 2026 Copenhagen result of
+  208.726 kr. including AM contribution and a selected annual assessment whose
+  1.000 kr. transferred rest tax plus 500 kr. pension-tax charge produces
+  210.226 kr. of rest tax when no preliminary credits are supplied.
+  XLSX schema v3 still creates related child worksheets only for genuine
+  `List`, `Map` or `Set` fields. This aggregate has no collection sheet yet
+  because the source-fact graphs for full § 3/§ 4/§ 4 a composition and the ABL
+  annual collections are not yet connected to `PersonskatInput`; that is a
   measured corpus-boundary gap, not a hand-authored workbook limitation.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
@@ -2523,10 +2529,12 @@ Review candidates to revisit deliberately, not as broad churn:
   classification by its impact on Personskatteloven rather than deepening
   exploratory audits.
 - Extend the canonical Personskatteloven `@ calculate` aggregate with the now
-  executable ABL §§ 19-22 factual input graphs when its surrounding income
-  branches are ready. Keep the generated workbook downstream of that graph so
-  scalar cells, enum dropdowns, variant payloads and related collection sheets
-  cannot drift from the executable law.
+  executable § 3/§ 4/§ 4 a source-fact branches and ABL §§ 19-22 factual input
+  graphs when their surrounding income composition is ready. The first
+  aggregate already reaches ordinary wage facts, special tax/deficit conditions
+  and optional annual settlement. Keep the generated workbook downstream of
+  that graph so scalar cells, enum dropdowns, variant payloads and related
+  collection sheets cannot drift from the executable law.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

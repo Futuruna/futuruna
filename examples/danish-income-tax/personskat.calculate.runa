@@ -2,9 +2,61 @@
 
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
+@ importer ./slutopgoerelse
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
+# PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: LønmodtagerSkatteforhold)
+# PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | SærligeUnderskudsforhold(forhold: LønmodtagerPar13Forhold)
+# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
+# PersonskatInput(lønmodtager: LønmodtagerInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, årsopgørelse: PersonskatÅrsopgørelseResultat)
+
+| personskat_skatteforhold(input: PersonskatSkatteforholdInput) -> match input {
+    | StandardSkatteforhold -> lønmodtager_standard_skatteforhold()
+    | SærligeSkatteforhold(forhold) -> forhold
+}
+| personskat_underskudsforhold(input: PersonskatUnderskudsforholdInput) -> match input {
+    | StandardUnderskudsforhold -> lønmodtager_par13_standard_forhold()
+    | SærligeUnderskudsforhold(forhold) -> forhold
+}
+| personskat_lønmodtagermodel(input: PersonskatInput) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    input.lønmodtager,
+    personskat_skatteforhold(input.skatteforhold),
+    personskat_underskudsforhold(input.underskudsforhold)
+)
+| personskat_skat(input: PersonskatInput) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input))
+| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown) -> match input {
+    | UdenÅrsopgørelse -> IngenÅrsopgørelse
+    | MedÅrsopgørelse(overført_restskat_mv_kroner, pensionsbeskatningsafgift_kroner, kreditter) -> {
+        = årsopgørelsesinput = KildeskatSlutopgørelseInput(
+            slutskat_kroner = skat.samlet_inkl_am_efter_personfradrag_kroner,
+            overført_restskat_mv_kroner = overført_restskat_mv_kroner,
+            pensionsbeskatningsafgift_kroner = pensionsbeskatningsafgift_kroner,
+            kreditter = kreditter
+        )
+        BeregnetÅrsopgørelse(
+            input = årsopgørelsesinput,
+            resultat = kildeskat_slutopgørelse_resultat(årsopgørelsesinput)
+        )
+    }
+}
+| personskat_beregning_resultat(input: PersonskatInput) -> {
+    = skat = personskat_skat(input)
+    PersonskatBeregningResultat(
+        skat = skat,
+        årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, skat)
+    )
+}
+| personskat_standard_input(input: LønmodtagerInput) -> PersonskatInput(
+    lønmodtager = input,
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+| beregn_personskat_lønmodtager(input: LønmodtagerInput) -> personskat_beregning_resultat(personskat_standard_input(input)).skat
+
 @ calculate
-| beregn_personskat(input: LønmodtagerInput) -> beregn_lønmodtager(input)
+| beregn_personskat(input: PersonskatInput) -> personskat_beregning_resultat(input)
 --@end:personskat_lønmodtagerberegning--

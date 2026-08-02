@@ -362,7 +362,7 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
 }
 
 #[test]
-fn personskatteloven_xlsx_boundary_round_trips_wage_earner_case() {
+fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_cases() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/personskat.calculate.runa");
     let input_path = temp_path("xlsx");
@@ -380,25 +380,186 @@ fn personskatteloven_xlsx_boundary_round_trips_wage_earner_case() {
         String::from_utf8_lossy(&template.stderr)
     );
 
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+        assert_workbook_visibility(&workbook, &["_futuruna", "_tables", "_columns"], "cases");
+        let case_headers = workbook_headers(&mut workbook, "cases");
+        assert_eq!(case_headers.len(), 50);
+        for expected in [
+            "skatteforhold.$variant",
+            "skatteforhold.SærligeSkatteforhold.forhold.aktieindkomst_kroner",
+            "underskudsforhold.$variant",
+            "underskudsforhold.SærligeUnderskudsforhold.forhold.ægtefælle_skattepligtig_indkomst_kroner",
+            "årsopgørelse.$variant",
+            "årsopgørelse.MedÅrsopgørelse.kreditter.a_skat_og_am_indeholdt_kroner",
+        ] {
+            assert!(
+                case_headers.iter().any(|header| header == expected),
+                "missing typed Personskatteloven input column {expected}"
+            );
+        }
+
+        let metadata = workbook
+            .worksheet_range("_columns")
+            .expect("column metadata");
+        let annual_assessment_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(2).map(ToString::to_string).as_deref()
+                    == Some("årsopgørelse.MedÅrsopgørelse.overført_restskat_mv_kroner")
+            })
+            .expect("annual assessment payload metadata");
+        assert!(annual_assessment_row
+            .get(8)
+            .map(ToString::to_string)
+            .expect("variant guard")
+            .contains("MedÅrsopgørelse"));
+    }
+
     edit_workbook(&input_path, |sheets| {
-        let values = [
-            Data::String("personskat-2026".to_string()),
-            Data::String("2026".to_string()),
-            Data::String("København".to_string()),
-            Data::String("600000".to_string()),
-            Data::String("0".to_string()),
-            Data::String("0".to_string()),
-            Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
-            Data::String("0".to_string()),
-            Data::String("0".to_string()),
-            Data::String("0".to_string()),
-            Data::String("0".to_string()),
-            Data::String("Ll9lIngenPbl20Udbetaling".to_string()),
-            Data::String("Fyldt18EllerGift".to_string()),
-            Data::Bool(false),
-        ];
-        for (column, value) in values.into_iter().enumerate() {
-            set_workbook_cell(sheets, "cases", 1, column, value);
+        let fill_wage_case = |sheets: &mut [(String, Vec<Vec<Data>>)],
+                              row: usize,
+                              case_id: &str| {
+            for (header, value) in [
+                    ("case_id", Data::String(case_id.to_string())),
+                    ("lønmodtager.skatteår", Data::String("2026".to_string())),
+                    (
+                        "lønmodtager.kommune",
+                        Data::String("København".to_string()),
+                    ),
+                    (
+                        "lønmodtager.bruttoløn_kroner",
+                        Data::String("600000".to_string()),
+                    ),
+                    (
+                        "lønmodtager.nettokapitalindkomst_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsmæssige_fradrag_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pensionsalder_status",
+                        Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pbl19_øvrige_indbetalinger_efter_am_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pbl20_indkomstskattepligtig_udbetaling_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pensionsfradrag.pbl20_udbetaling_status",
+                        Data::String("Ll9lIngenPbl20Udbetaling".to_string()),
+                    ),
+                    (
+                        "lønmodtager.personfradrag_alder_status",
+                        Data::String("Fyldt18EllerGift".to_string()),
+                    ),
+                    ("lønmodtager.betaler_kirkeskat", Data::Bool(false)),
+                    (
+                        "skatteforhold.$variant",
+                        Data::String("StandardSkatteforhold".to_string()),
+                    ),
+                    (
+                        "underskudsforhold.$variant",
+                        Data::String("StandardUnderskudsforhold".to_string()),
+                    ),
+                    (
+                        "årsopgørelse.$variant",
+                        Data::String("UdenÅrsopgørelse".to_string()),
+                    ),
+                ] {
+                    set_workbook_cell_by_header(sheets, "cases", row, header, value);
+                }
+        };
+
+        fill_wage_case(sheets, 1, "personskat-standard-2026");
+        fill_wage_case(sheets, 2, "personskat-årsopgørelse-2026");
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            2,
+            "årsopgørelse.$variant",
+            Data::String("MedÅrsopgørelse".to_string()),
+        );
+        for (header, value) in [
+            (
+                "årsopgørelse.MedÅrsopgørelse.overført_restskat_mv_kroner",
+                "1000",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.pensionsbeskatningsafgift_kroner",
+                "500",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.a_skat_og_am_indeholdt_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.par68_indbetalt_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.b_skat_betalt_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.udbytteskat_modregningsberettiget_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.frivillig_indbetaling_par59_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.virksomhedsordning_beløb_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.personskattelov_par8a_stk5_beløb_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.afskrivningslov_acontoskat_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.am_lov_par6_beløb_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.seniornedslag_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.energiafgiftskompensation_kroner",
+                "0",
+            ),
+            (
+                "årsopgørelse.MedÅrsopgørelse.kreditter.tilbagebetalt_par55_kroner",
+                "0",
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                "cases",
+                2,
+                header,
+                Data::String(value.to_string()),
+            );
         }
     });
 
@@ -421,8 +582,24 @@ fn personskatteloven_xlsx_boundary_round_trips_wage_earner_case() {
         .expect("diagnostics")
         .is_empty());
     assert_eq!(
-        result["results"][0]["result"]["samlet_inkl_am_efter_personfradrag_kroner"],
+        result["results"][0]["result"]["skat"]["samlet_inkl_am_efter_personfradrag_kroner"],
         208_726
+    );
+    assert_eq!(
+        result["results"][0]["result"]["årsopgørelse"]["$variant"],
+        "IngenÅrsopgørelse"
+    );
+    assert_eq!(
+        result["results"][1]["result"]["årsopgørelse"]["$variant"],
+        "BeregnetÅrsopgørelse"
+    );
+    assert_eq!(
+        result["results"][1]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_kroner"],
+        210_226
+    );
+    assert_eq!(
+        result["results"][1]["result"]["årsopgørelse"]["resultat"]["restskat_kroner"],
+        210_226
     );
 }
 
@@ -1325,6 +1502,29 @@ fn set_workbook_cell(
     value: Data,
 ) {
     let rows = workbook_sheet_mut(sheets, sheet);
+    while rows.len() <= row {
+        rows.push(Vec::new());
+    }
+    if rows[row].len() <= column {
+        rows[row].resize(column + 1, Data::Empty);
+    }
+    rows[row][column] = value;
+}
+
+fn set_workbook_cell_by_header(
+    sheets: &mut [(String, Vec<Vec<Data>>)],
+    sheet: &str,
+    row: usize,
+    header: &str,
+    value: Data,
+) {
+    let rows = workbook_sheet_mut(sheets, sheet);
+    let column = rows
+        .first()
+        .expect("header row")
+        .iter()
+        .position(|cell| cell.to_string() == header)
+        .unwrap_or_else(|| panic!("missing column {header} on sheet {sheet}"));
     while rows.len() <= row {
         rows.push(Vec::new());
     }

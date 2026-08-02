@@ -25273,61 +25273,18 @@ impl RustCodegen {
         let prev_var_use_counts = self.var_use_counts.clone();
         let prev_var_consuming_counts = self.var_consuming_counts.clone();
         let prev_in_self_method = self.in_self_method;
-        let mut method_var_uses = BTreeMap::new();
-        let mut method_consuming_uses = BTreeMap::new();
-        for rule in rules {
-            match rule {
-                Rule::Default {
-                    value, condition, ..
-                }
-                | Rule::Exception {
-                    value, condition, ..
-                } => {
-                    count_var_uses(value, &mut method_var_uses);
-                    count_consuming_uses_borrow_aware_for_ownership(
-                        value,
-                        &mut method_consuming_uses,
-                        &self.borrow_only_params,
-                        None,
-                        &[],
-                    );
-                    if let Some(condition) = condition {
-                        count_var_uses(condition, &mut method_var_uses);
-                        count_consuming_uses_borrow_aware_for_ownership(
-                            condition,
-                            &mut method_consuming_uses,
-                            &self.borrow_only_params,
-                            None,
-                            &[],
-                        );
-                    }
-                }
-                Rule::Clause { body, .. } => {
-                    if let Some(body) = body {
-                        count_var_uses(body, &mut method_var_uses);
-                        count_consuming_uses_borrow_aware_for_ownership(
-                            body,
-                            &mut method_consuming_uses,
-                            &self.borrow_only_params,
-                            None,
-                            &[],
-                        );
-                    }
-                }
-                Rule::ReactiveScope { .. } => {}
-            }
-        }
+        let method_ownership = self.analyze_rule_group_ownership(rules);
         for (name, ty) in all_names.iter().zip(all_tys.iter()) {
             self.local_bindings.insert(name.clone());
             if Self::fir_ty_is_copy(ty) {
                 self.copy_vars.insert(name.clone());
             }
-            if let Some(count) = method_var_uses.get(name).copied() {
+            if let Some(count) = method_ownership.var_uses.get(name).copied() {
                 self.var_use_counts.insert(name.clone(), count);
             } else {
                 self.var_use_counts.remove(name);
             }
-            if let Some(count) = method_consuming_uses.get(name).copied() {
+            if let Some(count) = method_ownership.consuming_uses.get(name).copied() {
                 self.var_consuming_counts.insert(name.clone(), count);
             } else {
                 self.var_consuming_counts.remove(name);
@@ -25447,6 +25404,48 @@ impl RustCodegen {
         self.var_consuming_counts = prev_var_consuming_counts;
         self.in_self_method = prev_in_self_method;
         body
+    }
+
+    fn analyze_rule_group_ownership(&self, rules: &[&Rule]) -> OwnershipAnalysis {
+        let mut var_uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        let mut analyze_expr = |expr: &Expr| {
+            count_var_uses(expr, &mut var_uses);
+            count_consuming_uses_borrow_aware_for_ownership(
+                expr,
+                &mut consuming_uses,
+                &self.borrow_only_params,
+                None,
+                &[],
+            );
+        };
+
+        for rule in rules {
+            match rule {
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => {
+                    analyze_expr(value);
+                    if let Some(condition) = condition {
+                        analyze_expr(condition);
+                    }
+                }
+                Rule::Clause { body, .. } => {
+                    if let Some(body) = body {
+                        analyze_expr(body);
+                    }
+                }
+                Rule::ReactiveScope { .. } => {}
+            }
+        }
+
+        OwnershipAnalysis {
+            var_uses,
+            consuming_uses,
+        }
     }
 
     fn emit_rule_scope_value_method(
@@ -29054,6 +29053,12 @@ impl RustCodegen {
             }
         }
 
+        let prev_var_use_counts = std::mem::take(&mut self.var_use_counts);
+        let prev_var_consuming_counts = std::mem::take(&mut self.var_consuming_counts);
+        let ownership = self.analyze_rule_group_ownership(rules);
+        self.var_use_counts = ownership.var_uses;
+        self.var_consuming_counts = ownership.consuming_uses;
+
         let prev_allow_global_getter_refs =
             std::mem::replace(&mut self.allow_global_getter_refs, !uses_binary_global_env);
         let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -29216,6 +29221,8 @@ impl RustCodegen {
         self.allow_global_getter_refs = prev_allow_global_getter_refs;
         self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
         self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
+        self.var_use_counts = prev_var_use_counts;
+        self.var_consuming_counts = prev_var_consuming_counts;
 
         emitted
     }
@@ -34414,7 +34421,11 @@ impl RustCodegen {
                                     .copied()
                                     .unwrap_or(0)
                             {
-                                format!("{}.clone()", s)
+                                if s.ends_with(".clone()") {
+                                    s
+                                } else {
+                                    format!("{}.clone()", s)
+                                }
                             } else if self
                                 .var_consuming_counts
                                 .get(n.as_str())
@@ -34424,7 +34435,11 @@ impl RustCodegen {
                             {
                                 s // 0-1 consuming uses — this is the only ownership transfer
                             } else {
-                                format!("{}.clone()", s)
+                                if s.ends_with(".clone()") {
+                                    s
+                                } else {
+                                    format!("{}.clone()", s)
+                                }
                             }
                         } else {
                             s
@@ -46018,6 +46033,34 @@ for x in [1, 2] {
         assert!(
             rust.contains("let big = is_big_point(Point { x: 20.0, y: 5.0 });"),
             "plain rule calls should not auto-borrow owned struct params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rule_clones_block_local_reused_across_constructor_fields() {
+        let source = r#"
+# Payload(value: Int)
+# Wrapped(input: Payload, projected: Int)
+| project(input: Payload) -> input.value
+| wrap(value: Int) -> {
+    = payload = Payload(value = value)
+    Wrapped(input = payload, projected = project(payload))
+}
+= result = wrap(7)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains(
+                "Wrapped { input: payload.clone(), projected: project(payload.clone()) }"
+            ),
+            "a rule-local value reused by a later constructor field must remain available: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("payload.clone().clone()"),
+            "ownership emission should not stack redundant clones: {}",
             rust
         );
     }

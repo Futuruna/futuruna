@@ -5,12 +5,13 @@
 ----
 Regressionsscenarie for den maskinlæsbare beregningsgrænse.
 
-Scenariet er ikke lovtekst. Det fastholder, at den samme LønmodtagerInput, som
-kan udfyldes gennem JSON, TOML eller XLSX, går gennem beregn_personskat og giver
-samme resultat som den øvrige lønmodtagermodel.
+Scenariet er ikke lovtekst. Det fastholder, at den samme typede PersonskatInput,
+som kan udfyldes gennem JSON, TOML eller XLSX, går gennem beregn_personskat og
+giver samme resultat som den øvrige lønmodtagermodel. Standardvarianterne gør
+særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ----
 
-= personskat_calculate_input = LønmodtagerInput(
+= personskat_calculate_lønmodtager = LønmodtagerInput(
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 600000,
@@ -20,12 +21,50 @@ samme resultat som den øvrige lønmodtagermodel.
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
+= personskat_calculate_input = PersonskatInput(
+    lønmodtager = personskat_calculate_lønmodtager,
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
 
-| personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.arbejdsmarkedsbidrag_kroner == 48000
-| personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.personfradrag_kroner == 54100
-| personskat_calculate_samlet_skat: personskat_calculate_resultat -> personskat_calculate_resultat.samlet_inkl_am_efter_personfradrag_kroner == 208726
+= personskat_calculate_med_årsopgørelse_input = PersonskatInput(
+    lønmodtager = personskat_calculate_lønmodtager,
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = MedÅrsopgørelse(
+        overført_restskat_mv_kroner = 1000,
+        pensionsbeskatningsafgift_kroner = 500,
+        kreditter = KildeskatPar60Kreditter(
+            a_skat_og_am_indeholdt_kroner = 0,
+            par68_indbetalt_kroner = 0,
+            b_skat_betalt_kroner = 0,
+            udbytteskat_modregningsberettiget_kroner = 0,
+            frivillig_indbetaling_par59_kroner = 0,
+            virksomhedsordning_beløb_kroner = 0,
+            personskattelov_par8a_stk5_beløb_kroner = 0,
+            afskrivningslov_acontoskat_kroner = 0,
+            am_lov_par6_beløb_kroner = 0,
+            seniornedslag_kroner = 0,
+            energiafgiftskompensation_kroner = 0,
+            tilbagebetalt_par55_kroner = 0
+        )
+    )
+)
+= personskat_calculate_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_med_årsopgørelse_input)
+
+| personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.personfradrag_kroner == 54100
+| personskat_calculate_samlet_skat: personskat_calculate_resultat -> personskat_calculate_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
+| personskat_calculate_årsopgørelse_valgfri: personskat_calculate_resultat -> personskat_calculate_resultat.årsopgørelse == IngenÅrsopgørelse
+| personskat_calculate_årsopgørelse_beregnes: personskat_calculate_med_årsopgørelse_resultat -> match personskat_calculate_med_årsopgørelse_resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> Falskt
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_kroner == 208726 && årsopgørelsesresultat.slutskat_med_tillæg_kroner == 210226 && årsopgørelsesresultat.restskat_kroner == 210226 && årsopgørelsesresultat.art == Restskat
+}
 
 ? personskat_calculate_am_bidrag
 ? personskat_calculate_personfradrag
 ? personskat_calculate_samlet_skat
+? personskat_calculate_årsopgørelse_valgfri
+? personskat_calculate_årsopgørelse_beregnes

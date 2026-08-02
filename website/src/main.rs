@@ -3416,7 +3416,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Input" }
                             strong { "Typet JSON, TOML og XLSX" }
-                            p { "Lønmodtagerberegningen har nu én kildebundet kontrakt, som kan generere inputskabeloner, validere udfyldte sager og returnere skatteresultatet. Motoren opretter relaterede regnearksfaner for List-, Map- og Set-felter og enum-dropdowns fra typerne. Det fulde borgerregneark udvides fra den samme kontrakt, efterhånden som den kan nå alle lovens påkrævede og valgfrie fakta; der vedligeholdes ikke et særskilt håndskrevet ark." }
+                            p { "Personskatberegningen har nu én kildebundet kontrakt med 28 nåbare typer. Den genererede arbejdsbog har 49 typede inputkolonner plus sags-id og dropdowns for særlige skatteforhold, underskudsforhold og valgfri årsopgørelse; kun den valgte variants felter kræves. Motoren opretter relaterede regnearksfaner for List-, Map- og Set-felter. De fulde § 3-, § 4- og § 4 a-kildegrafer samt ABL-årsposter kobles fortsat på samme kontrakt, så der ikke vedligeholdes et særskilt håndskrevet ark." }
                         }
                     }
                 }

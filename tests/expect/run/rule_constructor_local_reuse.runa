@@ -1,0 +1,19 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 7
+--
+-- A value-returning rule may retain one local value in a product field while
+-- another field passes the same value to a rule. Compiled ownership must keep
+-- both uses valid.
+
+# Payload(value: Int)
+# Wrapped(input: Payload, projected: Int)
+
+| project(input: Payload) -> input.value
+| wrap(value: Int) -> {
+    = payload = Payload(value = value)
+    Wrapped(input = payload, projected = project(payload))
+}
+
+= result = wrap(7)
+@ print(show(result.projected))
