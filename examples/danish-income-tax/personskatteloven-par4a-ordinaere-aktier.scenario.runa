@@ -327,6 +327,116 @@
     )
 )
 
+= abl_ordinaer_blandet_position_primo = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-ORDINAER-BLANDET",
+    kapitalmængde = AblPålydendeAktiekapital(
+        antal_aktier = 100,
+        samlet_pålydende_kroner = 100000
+    ),
+    anskaffelsessum_kroner = 200000
+)
+= abl_ordinaer_blandet_stykkapital_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_position_primo,
+    AblOrdinærAnskaffelse(
+        kapitalmængde = aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(
+            antal_aktier_i_beholdningen = 100,
+            antal_udstedte_stykkapitalandele = 100,
+            kapitalforhøjelse_kroner = 50000
+        ),
+        anskaffelsessum_kroner = 100000
+    )
+)
+= abl_ordinaer_blandet_stykkapital_delsalg = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(
+            antal_aktier_i_beholdningen = 50,
+            antal_udstedte_stykkapitalandele = 100,
+            kapitalforhøjelse_kroner = 50000
+        ),
+        afståelsessum_kroner = 80000,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+= abl_ordinaer_blandet_pålydende_delsalg = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_stykkapital_delsalg.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 50,
+            samlet_pålydende_kroner = 50000
+        ),
+        afståelsessum_kroner = 120000,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+= abl_ordinaer_blandet_fuldt_salg = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_pålydende_delsalg.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblBlandetAktiekapital(
+            pålydende_del = AktieavanceOrdinærPålydendeKapitaldel(
+                antal_aktier = 50,
+                samlet_pålydende_kroner = 50000
+            ),
+            stykkapital_del = aktieavance_ordinaer_stykkapitaldel_fra_kapitalforhøjelse(
+                antal_aktier_i_beholdningen = 50,
+                antal_udstedte_stykkapitalandele = 100,
+                kapitalforhøjelse_kroner = 50000
+            )
+        ),
+        afståelsessum_kroner = 200000,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+= abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter,
+    AblOrdinærAnskaffelse(
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 20),
+        anskaffelsessum_kroner = 40000
+    )
+)
+= abl_ordinaer_blandet_uens_stykkapitalvægt = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter,
+    AblOrdinærAnskaffelse(
+        kapitalmængde = aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(
+            antal_aktier_i_beholdningen = 20,
+            antal_udstedte_stykkapitalandele = 20,
+            kapitalforhøjelse_kroner = 20000
+        ),
+        anskaffelsessum_kroner = 40000
+    )
+)
+= abl_ordinaer_blandet_brøkvægt_position_primo = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-ORDINAER-BROEK",
+    kapitalmængde = AblPålydendeAktiekapital(
+        antal_aktier = 3,
+        samlet_pålydende_kroner = 1000
+    ),
+    anskaffelsessum_kroner = 3000
+)
+= abl_ordinaer_blandet_brøkvægt_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_brøkvægt_position_primo,
+    AblOrdinærAnskaffelse(
+        kapitalmængde = aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(
+            antal_aktier_i_beholdningen = 3,
+            antal_udstedte_stykkapitalandele = 3,
+            kapitalforhøjelse_kroner = 1000
+        ),
+        anskaffelsessum_kroner = 3000
+    )
+)
+= abl_ordinaer_blandet_brøkvægt_delsalg = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_blandet_brøkvægt_anskaffelse.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(
+            antal_aktier_i_beholdningen = 1,
+            antal_udstedte_stykkapitalandele = 3,
+            kapitalforhøjelse_kroner = 1000
+        ),
+        afståelsessum_kroner = 1400,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+
 | scenarie_abl_ordinaer_anskaffelse_opdaterer_gennemsnitsbeholdning: abl_ordinaer_anskaffelse -> abl_ordinaer_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_anskaffelse.position_efter) == 200 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_anskaffelse.position_efter) == 20000 && abl_ordinaer_anskaffelse.position_efter.anskaffelsessum_kroner == 240000
 | scenarie_abl_par26_første_delsalg_bruger_gennemsnitsmetoden: abl_ordinaer_første_delsalg -> abl_ordinaer_første_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_første_delsalg.bruttogevinst_kroner == 30000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_første_delsalg.position_efter) == 150 && abl_ordinaer_første_delsalg.position_efter.anskaffelsessum_kroner == 180000
 | scenarie_abl_par26_senere_delsalg_bevarer_resten: abl_ordinaer_andet_delsalg -> abl_ordinaer_andet_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_andet_delsalg.bruttotab_kroner == 20000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_andet_delsalg.position_efter) == 100 && abl_ordinaer_andet_delsalg.position_efter.anskaffelsessum_kroner == 120000
@@ -347,6 +457,13 @@
 | scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten: abl_ordinaer_uden_pålydende_anskaffelse -> abl_ordinaer_uden_pålydende_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 400 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 0 && abl_ordinaer_uden_pålydende_anskaffelse.position_efter.anskaffelsessum_kroner == 650000
 | scenarie_abl_par26_uden_pålydende_fordeler_efter_antal: abl_ordinaer_uden_pålydende_delsalg -> abl_ordinaer_uden_pålydende_delsalg.hændelse_gyldig && abl_ordinaer_uden_pålydende_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 130000 && abl_ordinaer_uden_pålydende_delsalg.bruttogevinst_kroner == 30000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_uden_pålydende_delsalg.position_efter) == 320 && abl_ordinaer_uden_pålydende_delsalg.position_efter.anskaffelsessum_kroner == 520000
 | scenarie_abl_par26_blandet_kapitalform_afvises_uden_fordelingsgrundlag: abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag -> abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag.hændelse_gyldig == Falskt && abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag.position_efter == abl_ordinaer_uden_pålydende_position
+| scenarie_abl_par26_dokumenteret_stykkapital_danner_blandet_position: abl_ordinaer_blandet_stykkapital_anskaffelse -> abl_ordinaer_blandet_stykkapital_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter) == 200 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter) == 100000 && aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter.kapitalmængde).antal_aktier == 100 && aktieavance_ordinaer_kapitalvægt_lig(aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter.kapitalmængde).kapitalvægt, AktieavanceOrdinærKapitalvægt(tæller = 50000, nævner = 1)) && abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter.anskaffelsessum_kroner == 300000
+| scenarie_abl_par26_blandet_stykkapitalsalg_fordeler_efter_kapitalandel: abl_ordinaer_blandet_stykkapital_delsalg -> abl_ordinaer_blandet_stykkapital_delsalg.hændelse_gyldig && abl_ordinaer_blandet_stykkapital_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 50000 && abl_ordinaer_blandet_stykkapital_delsalg.bruttogevinst_kroner == 30000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_blandet_stykkapital_delsalg.position_efter) == 150 && abl_ordinaer_blandet_stykkapital_delsalg.position_efter.anskaffelsessum_kroner == 250000
+| scenarie_abl_par26_blandet_pålydende_salg_fordeler_efter_kapitalandel: abl_ordinaer_blandet_pålydende_delsalg -> abl_ordinaer_blandet_pålydende_delsalg.hændelse_gyldig && abl_ordinaer_blandet_pålydende_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 100000 && abl_ordinaer_blandet_pålydende_delsalg.bruttogevinst_kroner == 20000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_blandet_pålydende_delsalg.position_efter) == 100 && abl_ordinaer_blandet_pålydende_delsalg.position_efter.anskaffelsessum_kroner == 150000
+| scenarie_abl_par26_blandet_fuldt_salg_tømmer_positionen: abl_ordinaer_blandet_fuldt_salg -> abl_ordinaer_blandet_fuldt_salg.hændelse_gyldig && abl_ordinaer_blandet_fuldt_salg.anskaffelsessum_henført_til_afståelse_kroner == 150000 && abl_ordinaer_blandet_fuldt_salg.bruttogevinst_kroner == 50000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_blandet_fuldt_salg.position_efter) == 0 && abl_ordinaer_blandet_fuldt_salg.position_efter.anskaffelsessum_kroner == 0
+| scenarie_abl_par47_lige_stykkapitalandele_udleder_ny_kapitalvægt: abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse -> abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse.position_efter.kapitalmængde).antal_aktier == 120 && aktieavance_ordinaer_kapitalvægt_lig(aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse.position_efter.kapitalmængde).kapitalvægt, AktieavanceOrdinærKapitalvægt(tæller = 60000, nævner = 1)) && abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse.position_efter.anskaffelsessum_kroner == 340000
+| scenarie_abl_par47_uens_stykkapitalvægt_afvises: abl_ordinaer_blandet_uens_stykkapitalvægt -> abl_ordinaer_blandet_uens_stykkapitalvægt.hændelse_gyldig == Falskt && abl_ordinaer_blandet_uens_stykkapitalvægt.position_efter == abl_ordinaer_blandet_stykkapital_anskaffelse.position_efter
+| scenarie_abl_par47_brøkvægt_bevares_i_fordeling_og_rest: abl_ordinaer_blandet_brøkvægt_delsalg -> abl_ordinaer_blandet_brøkvægt_delsalg.hændelse_gyldig && abl_ordinaer_blandet_brøkvægt_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 1000 && abl_ordinaer_blandet_brøkvægt_delsalg.bruttogevinst_kroner == 400 && aktieavance_ordinaer_kapitalvægt_lig(aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(abl_ordinaer_blandet_brøkvægt_delsalg.position_efter.kapitalmængde).kapitalvægt, AktieavanceOrdinærKapitalvægt(tæller = 2000, nævner = 3)) && abl_ordinaer_blandet_brøkvægt_delsalg.position_efter.anskaffelsessum_kroner == 5000
 
 ? scenarie_abl_ordinaer_anskaffelse_opdaterer_gennemsnitsbeholdning
 ? scenarie_abl_par26_første_delsalg_bruger_gennemsnitsmetoden
@@ -368,3 +485,10 @@
 ? scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten
 ? scenarie_abl_par26_uden_pålydende_fordeler_efter_antal
 ? scenarie_abl_par26_blandet_kapitalform_afvises_uden_fordelingsgrundlag
+? scenarie_abl_par26_dokumenteret_stykkapital_danner_blandet_position
+? scenarie_abl_par26_blandet_stykkapitalsalg_fordeler_efter_kapitalandel
+? scenarie_abl_par26_blandet_pålydende_salg_fordeler_efter_kapitalandel
+? scenarie_abl_par26_blandet_fuldt_salg_tømmer_positionen
+? scenarie_abl_par47_lige_stykkapitalandele_udleder_ny_kapitalvægt
+? scenarie_abl_par47_uens_stykkapitalvægt_afvises
+? scenarie_abl_par47_brøkvægt_bevares_i_fordeling_og_rest

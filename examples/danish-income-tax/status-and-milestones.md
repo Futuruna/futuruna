@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-216299`
+Current focus issue: `td-31b231`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -49,10 +49,15 @@ og audits bliver i `examples/danish-income-tax/`.
 Latest integration: Aktieavancebeskatningsloven §§ 12-15, §§ 23-27 og § 30,
 stk. 1, har nu typede beregningsveje for ordinære personaktier, lageropgørelser
 og aktie- og tegningsretter.
-Den vedvarende ordinære selskabsposition håndterer både aktier med pålydende
-værdi og homogene beholdninger af stykkapitalandele uden pålydende værdi.
+Den vedvarende ordinære selskabsposition håndterer aktier med pålydende værdi,
+homogene beholdninger af stykkapitalandele og dokumenterede blandede
+beholdninger med begge kapitalformer.
 Anskaffelses- og afståelseshændelser beregner gennemsnitlig anskaffelsessum,
-delafståelser og hovedaktionærfordeling. En særskilt § 25-position bevarer
+delafståelser og hovedaktionærfordeling. Blandede beholdninger bevarer nominelle
+kapitaldele og stykkapitaldele som særskilte domæneværdier. En eksakt rationel
+kapitalvægt afleder stykkapitalens andel fra kapitalforhøjelsen og antallet af
+udstedte stykkapitalandele; dermed fordeles anskaffelsessummen efter et fælles
+kapitalandelsgrundlag og ikke efter rå aktieantal. En særskilt § 25-position bevarer
 daterede rettighedspartier og bruger FIFO sammen med aktie for aktie-metoden;
 aktionærtildelte rettigheder får 0 kr. i anskaffelsessum, og købte rettigheder
 bevarer faktisk anskaffelsessum. Bortfald behandles som afståelse efter § 30.
@@ -71,18 +76,21 @@ eksisterende ABL/Personskattelov-resultat. § 23 A's anskaffelsessumsgulv,
 § 24's principskift og næringsaktiernes overgang til anlægsbeholdning,
 MTF-rettigheder erhvervet før 2024, § 26's 0-basis, handelsværdiregel og
 adskilte § 7 N-beholdninger samt § 27's daterede anskaffelsessumtillæg er
-eksekverbare. De fokuserede scenarier validerer nu 20 ordinære aktieudfald,
+eksekverbare. De fokuserede scenarier validerer nu 27 ordinære aktieudfald,
 11 rettighedsudfald og 22 §§ 23-27-udfald i både interpreter og kompileret kode.
 
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
-og stykkapitalandele. Den nuværende ABL-position beregner de to homogene former,
-men afviser en blandet hændelse, indtil et dokumenteret, sammenligneligt
-kapitalandelsgrundlag kan bæres i domænet. Dette er en udtrykkelig
-dækningsgrænse, ikke en påstand om, at kombinationen er selskabsretligt ugyldig.
+og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
+sammenlignelige kapitalandelsgrundlag i domænet og beregner anskaffelser samt
+delvise og fulde afståelser på tværs af de to former. Selskabslovens § 47 og
+2008/1 LSF 170's bemærkninger er knyttet til regelspændet som henholdsvis
+`dependency_source` og `preparatory_work`. En hændelse med nominelle aktier og
+udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
+leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
+ikke en dækningsgrænse for den lovlige kombination.
 De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
 9, 17, 19 A-20 A og 22, § 24's afhængige beløbsregler i § 33 A og §§ 37-38,
-blandede nominelle/stykkapitalbeholdninger samt de bredere status-,
-ind-/udtrædelses- og medarbejderejerregler. Modulet modtager de juridiske
+og de bredere status-, ind-/udtrædelses- og medarbejderejerregler. Modulet modtager de juridiske
 klassifikationer som typede resultater og udstiller dem som metadataadvarsler;
 det erstatter dem ikke med rå sand/falsk-flags forklædt som fuld dækning.
 

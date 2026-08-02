@@ -62,13 +62,13 @@ EndDate: 2026-07-01
     identifier = "Selskabsloven § 47, stk. 1-3: kapitalandele med nominel værdi og stykkapitalandele",
     hentet_dato = "2026-07-18"
 )
-= aktieavance_par26_blandet_kapitalform_dækningsgrænse = AktieavancebeskatningslovDækningsgrænse(
-    område = "Aktieavancebeskatningsloven § 26, stk. 5, sammenholdt med selskabsloven § 47",
-    beskrivelse = "Homogene beholdninger med eller uden pålydende værdi beregnes; kombinationen kræver et dokumenteret fælles kapitalandelsgrundlag og afvises indtil da.",
-    status = "Åben"
+= selskabsloven_lsf170_par47_bemærkninger = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/200812L00170",
+    identifier = "2008/1 LSF 170, bemærkningerne til selskabslovens § 47: kombination og fælles kapitalandelsgrundlag",
+    hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:selskabsloven_lbk331_par47::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615::warning:aktieavance_par26_blandet_kapitalform_dækningsgrænse--
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
 ----
 § 12. Gevinst ved afståelse af aktier medregnes ved opgørelsen af den
 skattepligtige indkomst.
@@ -202,6 +202,17 @@ en lige stor andel i selskabskapitalen.
 Stk. 3. Andelen i selskabskapitalen bestemmes for kapitalandele med nominel
 værdi efter forholdet mellem den pålydende værdi og selskabskapitalen og for
 stykkapitalandele efter antallet af udstedte andele.
+
+2008/1 LSF 170, bemærkningerne til § 47:
+
+Et selskab kan også kombinere nominelle kapitalandele med stykkapitalandele. Et
+allerede stiftet selskab med nominelle kapitalandele kan f.eks. forhøje
+selskabskapitalen og lade forhøjelsen ske ved stykkapitalandele. Værdien af hver
+stykkapitalandel findes da som den enkelte kapitalandels andel af
+kapitalforhøjelsen set i forhold til den samlede kapital. Værdien (kursen) af
+begge typer kapitalandele beregnes på samme måde (selskabets værdi/antallet af
+kapitalandele). Det er fortsat et krav, at det skal fremgå af selskabets
+vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 ----
 
 --@begin:aktieavancebeskatningsloven_ordinaere_aktier--
@@ -209,7 +220,10 @@ stykkapitalandele efter antallet af udstedte andele.
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
 # AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed: Boolsk, beboelseskrav_opfyldt: Boolsk, likvidationsprovenu: Boolsk, udloddet_i_endeligt_opløsningsår: Boolsk)
 # AktieavanceOrdinærAfståelsesvilkår(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, hovedaktionæraktier: Boolsk, afståede_aktiers_handelsværdi_kroner: Heltal, beholdte_aktiers_handelsværdi_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, boligret: AktieavanceOrdinærBoligretInput)
-# AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal)
+# AktieavanceOrdinærKapitalvægt(tæller: Heltal, nævner: Heltal)
+# AktieavanceOrdinærPålydendeKapitaldel(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal)
+# AktieavanceOrdinærStykkapitaldel(antal_aktier: Heltal, kapitalvægt: AktieavanceOrdinærKapitalvægt)
+# AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal) | AblDokumenteretStykkapital(stykkapital_del: AktieavanceOrdinærStykkapitaldel) | AblBlandetAktiekapital(pålydende_del: AktieavanceOrdinærPålydendeKapitaldel, stykkapital_del: AktieavanceOrdinærStykkapitaldel)
 # AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
 # AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår)
 # AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
@@ -221,13 +235,91 @@ stykkapitalandele efter antallet af udstedte andele.
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
 # AktieavanceOrdinærÅrsresultat(indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 
-| aktieavance_ordinaer_kapitalmængde_antal_aktier(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, _) -> antal_aktier | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier }
-| aktieavance_ordinaer_kapitalmængde_pålydende_kroner(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(_, samlet_pålydende_kroner) -> samlet_pålydende_kroner | AblAktiekapitalUdenPålydendeVærdi(_) -> 0 }
-| aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(_, _) -> Sandt | AblAktiekapitalUdenPålydendeVærdi(_) -> Falskt }
-| aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, samlet_pålydende_kroner) -> antal_aktier >= 0 && ((antal_aktier == 0 && samlet_pålydende_kroner == 0) || (antal_aktier > 0 && samlet_pålydende_kroner > 0)) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier >= 0 }
-| aktieavance_ordinaer_kapitalmængder_samme_art(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(_, _) -> match højre { | AblPålydendeAktiekapital(_, _) -> Sandt | _ -> Falskt } | AblAktiekapitalUdenPålydendeVærdi(_) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(_) -> Sandt | _ -> Falskt } }
-| aktieavance_ordinaer_kapitalmængder_plus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(antal_venstre, pålydende_venstre) -> match højre { | AblPålydendeAktiekapital(antal_højre, pålydende_højre) -> AblPålydendeAktiekapital(antal_aktier = antal_venstre + antal_højre, samlet_pålydende_kroner = pålydende_venstre + pålydende_højre) | _ -> venstre } | AblAktiekapitalUdenPålydendeVærdi(antal_venstre) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(antal_højre) -> AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal_venstre + antal_højre) | _ -> venstre } }
-| aktieavance_ordinaer_kapitalmængder_minus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(antal_venstre, pålydende_venstre) -> match højre { | AblPålydendeAktiekapital(antal_højre, pålydende_højre) -> AblPålydendeAktiekapital(antal_aktier = antal_venstre - antal_højre, samlet_pålydende_kroner = pålydende_venstre - pålydende_højre) | _ -> venstre } | AblAktiekapitalUdenPålydendeVærdi(antal_venstre) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(antal_højre) -> AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal_venstre - antal_højre) | _ -> venstre } }
+| aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
+| aktieavance_ordinaer_kapitalvægt_normaliser(tæller: Heltal, nævner: Heltal) -> hvis tæller == 0 { AktieavanceOrdinærKapitalvægt(tæller = 0, nævner = 1) } ellers { AktieavanceOrdinærKapitalvægt(tæller = tæller / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner), nævner = nævner / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner)) }
+| aktieavance_ordinaer_tom_kapitalvægt() -> AktieavanceOrdinærKapitalvægt(tæller = 0, nævner = 1)
+| aktieavance_ordinaer_kapitalvægt_gyldig(kapitalvægt: AktieavanceOrdinærKapitalvægt) -> kapitalvægt.tæller >= 0 && kapitalvægt.nævner > 0
+| aktieavance_ordinaer_kapitalvægt_plus(venstre: AktieavanceOrdinærKapitalvægt, højre: AktieavanceOrdinærKapitalvægt) -> aktieavance_ordinaer_kapitalvægt_normaliser(venstre.tæller * højre.nævner + højre.tæller * venstre.nævner, venstre.nævner * højre.nævner)
+| aktieavance_ordinaer_kapitalvægt_minus(venstre: AktieavanceOrdinærKapitalvægt, højre: AktieavanceOrdinærKapitalvægt) -> aktieavance_ordinaer_kapitalvægt_normaliser(venstre.tæller * højre.nævner - højre.tæller * venstre.nævner, venstre.nævner * højre.nævner)
+| aktieavance_ordinaer_kapitalvægt_lig(venstre: AktieavanceOrdinærKapitalvægt, højre: AktieavanceOrdinærKapitalvægt) -> venstre.tæller * højre.nævner == højre.tæller * venstre.nævner
+| aktieavance_ordinaer_kapitalvægt_mindre_eller_lig(venstre: AktieavanceOrdinærKapitalvægt, højre: AktieavanceOrdinærKapitalvægt) -> venstre.tæller * højre.nævner <= højre.tæller * venstre.nævner
+| aktieavance_ordinaer_beløb_efter_kapitalvægt(beløb_kroner: Heltal, del: AktieavanceOrdinærKapitalvægt, helhed: AktieavanceOrdinærKapitalvægt) -> beløb_kroner * del.tæller * helhed.nævner / (del.nævner * helhed.tæller)
+
+| aktieavance_ordinaer_tom_pålydende_kapitaldel() -> AktieavanceOrdinærPålydendeKapitaldel(antal_aktier = 0, samlet_pålydende_kroner = 0)
+| aktieavance_ordinaer_tom_stykkapitaldel() -> AktieavanceOrdinærStykkapitaldel(antal_aktier = 0, kapitalvægt = aktieavance_ordinaer_tom_kapitalvægt())
+| aktieavance_ordinaer_pålydende_kapitaldel_gyldig(del: AktieavanceOrdinærPålydendeKapitaldel) -> del.antal_aktier >= 0 && ((del.antal_aktier == 0 && del.samlet_pålydende_kroner == 0) || (del.antal_aktier > 0 && del.samlet_pålydende_kroner > 0))
+| aktieavance_ordinaer_stykkapitaldel_gyldig(del: AktieavanceOrdinærStykkapitaldel) -> del.antal_aktier >= 0 && aktieavance_ordinaer_kapitalvægt_gyldig(del.kapitalvægt) && ((del.antal_aktier == 0 && del.kapitalvægt.tæller == 0) || (del.antal_aktier > 0 && del.kapitalvægt.tæller > 0))
+| aktieavance_ordinaer_pålydende_kapitaldele_plus(venstre: AktieavanceOrdinærPålydendeKapitaldel, højre: AktieavanceOrdinærPålydendeKapitaldel) -> AktieavanceOrdinærPålydendeKapitaldel(antal_aktier = venstre.antal_aktier + højre.antal_aktier, samlet_pålydende_kroner = venstre.samlet_pålydende_kroner + højre.samlet_pålydende_kroner)
+| aktieavance_ordinaer_pålydende_kapitaldele_minus(venstre: AktieavanceOrdinærPålydendeKapitaldel, højre: AktieavanceOrdinærPålydendeKapitaldel) -> AktieavanceOrdinærPålydendeKapitaldel(antal_aktier = venstre.antal_aktier - højre.antal_aktier, samlet_pålydende_kroner = venstre.samlet_pålydende_kroner - højre.samlet_pålydende_kroner)
+| aktieavance_ordinaer_pålydende_kapitaldel_kapitalvægt(del: AktieavanceOrdinærPålydendeKapitaldel) -> AktieavanceOrdinærKapitalvægt(tæller = del.samlet_pålydende_kroner, nævner = 1)
+| aktieavance_ordinaer_stykkapitaldele_samme_kapitalvægt_pr_aktie(venstre: AktieavanceOrdinærStykkapitaldel, højre: AktieavanceOrdinærStykkapitaldel) -> venstre.antal_aktier == 0 || højre.antal_aktier == 0 || venstre.kapitalvægt.tæller * højre.kapitalvægt.nævner * højre.antal_aktier == højre.kapitalvægt.tæller * venstre.kapitalvægt.nævner * venstre.antal_aktier
+| aktieavance_ordinaer_stykkapitaldel_fra_antal(reference: AktieavanceOrdinærStykkapitaldel, antal_aktier: Heltal) -> AktieavanceOrdinærStykkapitaldel(antal_aktier = antal_aktier, kapitalvægt = aktieavance_ordinaer_kapitalvægt_normaliser(reference.kapitalvægt.tæller * antal_aktier, reference.kapitalvægt.nævner * reference.antal_aktier))
+| aktieavance_ordinaer_stykkapitaldele_plus(venstre: AktieavanceOrdinærStykkapitaldel, højre: AktieavanceOrdinærStykkapitaldel) -> AktieavanceOrdinærStykkapitaldel(antal_aktier = venstre.antal_aktier + højre.antal_aktier, kapitalvægt = aktieavance_ordinaer_kapitalvægt_plus(venstre.kapitalvægt, højre.kapitalvægt))
+| aktieavance_ordinaer_stykkapitaldele_minus(venstre: AktieavanceOrdinærStykkapitaldel, højre: AktieavanceOrdinærStykkapitaldel) -> AktieavanceOrdinærStykkapitaldel(antal_aktier = venstre.antal_aktier - højre.antal_aktier, kapitalvægt = aktieavance_ordinaer_kapitalvægt_minus(venstre.kapitalvægt, højre.kapitalvægt))
+
+| aktieavance_ordinaer_stykkapitaldel_fra_kapitalforhøjelse(antal_aktier_i_beholdningen: Heltal, antal_udstedte_stykkapitalandele: Heltal, kapitalforhøjelse_kroner: Heltal) -> AktieavanceOrdinærStykkapitaldel(antal_aktier = antal_aktier_i_beholdningen, kapitalvægt = AktieavanceOrdinærKapitalvægt(tæller = kapitalforhøjelse_kroner * antal_aktier_i_beholdningen, nævner = antal_udstedte_stykkapitalandele))
+| aktieavance_ordinaer_stykkapital_fra_kapitalforhøjelse(antal_aktier_i_beholdningen: Heltal, antal_udstedte_stykkapitalandele: Heltal, kapitalforhøjelse_kroner: Heltal) -> AblDokumenteretStykkapital(stykkapital_del = aktieavance_ordinaer_stykkapitaldel_fra_kapitalforhøjelse(antal_aktier_i_beholdningen, antal_udstedte_stykkapitalandele, kapitalforhøjelse_kroner))
+| aktieavance_ordinaer_kapitalmængde_pålydende_del(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, samlet_pålydende_kroner) -> AktieavanceOrdinærPålydendeKapitaldel(antal_aktier = antal_aktier, samlet_pålydende_kroner = samlet_pålydende_kroner) | AblBlandetAktiekapital(pålydende_del, _) -> pålydende_del | _ -> aktieavance_ordinaer_tom_pålydende_kapitaldel() }
+| aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblDokumenteretStykkapital(stykkapital_del) -> stykkapital_del | AblBlandetAktiekapital(_, stykkapital_del) -> stykkapital_del | _ -> aktieavance_ordinaer_tom_stykkapitaldel() }
+| aktieavance_ordinaer_kapitalmængde_udokumenteret_stykkapital_antal(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier | _ -> 0 }
+| aktieavance_ordinaer_kapitalmængde_fra_dele(pålydende_del: AktieavanceOrdinærPålydendeKapitaldel, stykkapital_del: AktieavanceOrdinærStykkapitaldel) -> hvis pålydende_del.antal_aktier > 0 { hvis stykkapital_del.antal_aktier > 0 { AblBlandetAktiekapital(pålydende_del = pålydende_del, stykkapital_del = stykkapital_del) } ellers { AblPålydendeAktiekapital(antal_aktier = pålydende_del.antal_aktier, samlet_pålydende_kroner = pålydende_del.samlet_pålydende_kroner) } } ellers { hvis stykkapital_del.antal_aktier > 0 { AblDokumenteretStykkapital(stykkapital_del = stykkapital_del) } ellers { AblPålydendeAktiekapital(antal_aktier = 0, samlet_pålydende_kroner = 0) } }
+| aktieavance_ordinaer_kapitalmængde_antal_aktier(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, _) -> antal_aktier | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier | AblDokumenteretStykkapital(stykkapital_del) -> stykkapital_del.antal_aktier | AblBlandetAktiekapital(pålydende_del, stykkapital_del) -> pålydende_del.antal_aktier + stykkapital_del.antal_aktier }
+| aktieavance_ordinaer_kapitalmængde_pålydende_kroner(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> aktieavance_ordinaer_kapitalmængde_pålydende_del(kapitalmængde).samlet_pålydende_kroner
+| aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> aktieavance_ordinaer_kapitalmængde_pålydende_del(kapitalmængde).antal_aktier > 0
+| aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, samlet_pålydende_kroner) -> aktieavance_ordinaer_pålydende_kapitaldel_gyldig(AktieavanceOrdinærPålydendeKapitaldel(antal_aktier = antal_aktier, samlet_pålydende_kroner = samlet_pålydende_kroner)) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier >= 0 | AblDokumenteretStykkapital(stykkapital_del) -> aktieavance_ordinaer_stykkapitaldel_gyldig(stykkapital_del) | AblBlandetAktiekapital(pålydende_del, stykkapital_del) -> pålydende_del.antal_aktier > 0 && stykkapital_del.antal_aktier > 0 && aktieavance_ordinaer_pålydende_kapitaldel_gyldig(pålydende_del) && aktieavance_ordinaer_stykkapitaldel_gyldig(stykkapital_del) }
+
+# AktieavanceOrdinærKapitalSammenlægningssag(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) {
+    | venstre_pålydende_del() -> aktieavance_ordinaer_kapitalmængde_pålydende_del(venstre)
+    | højre_pålydende_del() -> aktieavance_ordinaer_kapitalmængde_pålydende_del(højre)
+    | venstre_dokumenteret_stykkapitaldel() -> aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(venstre)
+    | højre_dokumenteret_stykkapitaldel() -> aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(højre)
+    | venstre_udokumenteret_stykkapital_antal() -> aktieavance_ordinaer_kapitalmængde_udokumenteret_stykkapital_antal(venstre)
+    | højre_udokumenteret_stykkapital_antal() -> aktieavance_ordinaer_kapitalmængde_udokumenteret_stykkapital_antal(højre)
+    | dokumenteret_reference_fundet() -> venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 || højre_dokumenteret_stykkapitaldel().antal_aktier > 0
+    | dokumenteret_reference() -> hvis venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 { venstre_dokumenteret_stykkapitaldel() } ellers { højre_dokumenteret_stykkapitaldel() }
+    | dokumenterede_enheder_sammenhængende() -> aktieavance_ordinaer_stykkapitaldele_samme_kapitalvægt_pr_aktie(venstre_dokumenteret_stykkapitaldel(), højre_dokumenteret_stykkapitaldel())
+    | samlet_pålydende_antal() -> venstre_pålydende_del().antal_aktier + højre_pålydende_del().antal_aktier
+    | samlet_udokumenteret_stykkapital_antal() -> venstre_udokumenteret_stykkapital_antal() + højre_udokumenteret_stykkapital_antal()
+    | udokumenteret_og_pålydende_uden_reference() -> samlet_pålydende_antal() > 0 && samlet_udokumenteret_stykkapital_antal() > 0 && dokumenteret_reference_fundet() == Falskt
+    | sammenhængende() -> aktieavance_ordinaer_kapitalmængde_gyldig(venstre) && aktieavance_ordinaer_kapitalmængde_gyldig(højre) && dokumenterede_enheder_sammenhængende() && udokumenteret_og_pålydende_uden_reference() == Falskt
+    | venstre_stykkapitaldel() -> hvis venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 { venstre_dokumenteret_stykkapitaldel() } ellers { hvis venstre_udokumenteret_stykkapital_antal() > 0 && dokumenteret_reference_fundet() { aktieavance_ordinaer_stykkapitaldel_fra_antal(dokumenteret_reference(), venstre_udokumenteret_stykkapital_antal()) } ellers { aktieavance_ordinaer_tom_stykkapitaldel() } }
+    | højre_stykkapitaldel() -> hvis højre_dokumenteret_stykkapitaldel().antal_aktier > 0 { højre_dokumenteret_stykkapitaldel() } ellers { hvis højre_udokumenteret_stykkapital_antal() > 0 && dokumenteret_reference_fundet() { aktieavance_ordinaer_stykkapitaldel_fra_antal(dokumenteret_reference(), højre_udokumenteret_stykkapital_antal()) } ellers { aktieavance_ordinaer_tom_stykkapitaldel() } }
+    | resultat_med_reference() -> aktieavance_ordinaer_kapitalmængde_fra_dele(aktieavance_ordinaer_pålydende_kapitaldele_plus(venstre_pålydende_del(), højre_pålydende_del()), aktieavance_ordinaer_stykkapitaldele_plus(venstre_stykkapitaldel(), højre_stykkapitaldel()))
+    | resultat_uden_reference() -> hvis samlet_pålydende_antal() > 0 { AblPålydendeAktiekapital(antal_aktier = samlet_pålydende_antal(), samlet_pålydende_kroner = venstre_pålydende_del().samlet_pålydende_kroner + højre_pålydende_del().samlet_pålydende_kroner) } ellers { AblAktiekapitalUdenPålydendeVærdi(antal_aktier = samlet_udokumenteret_stykkapital_antal()) }
+    | resultat() -> hvis sammenhængende() { hvis dokumenteret_reference_fundet() { resultat_med_reference() } ellers { resultat_uden_reference() } } ellers { venstre }
+}
+
+| aktieavance_ordinaer_kapitalmængder_kan_sammenlægges(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalSammenlægningssag(venstre, højre).sammenhængende()
+| aktieavance_ordinaer_kapitalmængder_plus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalSammenlægningssag(venstre, højre).resultat()
+
+# AktieavanceOrdinærKapitalFratrækningssag(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) {
+    | venstre_pålydende_del() -> aktieavance_ordinaer_kapitalmængde_pålydende_del(venstre)
+    | højre_pålydende_del() -> aktieavance_ordinaer_kapitalmængde_pålydende_del(højre)
+    | venstre_dokumenteret_stykkapitaldel() -> aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(venstre)
+    | højre_dokumenteret_stykkapitaldel() -> aktieavance_ordinaer_kapitalmængde_dokumenteret_stykkapitaldel(højre)
+    | venstre_udokumenteret_stykkapital_antal() -> aktieavance_ordinaer_kapitalmængde_udokumenteret_stykkapital_antal(venstre)
+    | højre_udokumenteret_stykkapital_antal() -> aktieavance_ordinaer_kapitalmængde_udokumenteret_stykkapital_antal(højre)
+    | dokumenteret_reference_fundet() -> venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 || højre_dokumenteret_stykkapitaldel().antal_aktier > 0
+    | dokumenteret_reference() -> hvis venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 { venstre_dokumenteret_stykkapitaldel() } ellers { højre_dokumenteret_stykkapitaldel() }
+    | dokumenterede_enheder_sammenhængende() -> aktieavance_ordinaer_stykkapitaldele_samme_kapitalvægt_pr_aktie(venstre_dokumenteret_stykkapitaldel(), højre_dokumenteret_stykkapitaldel())
+    | venstre_stykkapitaldel() -> hvis venstre_dokumenteret_stykkapitaldel().antal_aktier > 0 { venstre_dokumenteret_stykkapitaldel() } ellers { hvis venstre_udokumenteret_stykkapital_antal() > 0 && dokumenteret_reference_fundet() { aktieavance_ordinaer_stykkapitaldel_fra_antal(dokumenteret_reference(), venstre_udokumenteret_stykkapital_antal()) } ellers { aktieavance_ordinaer_tom_stykkapitaldel() } }
+    | højre_stykkapitaldel() -> hvis højre_dokumenteret_stykkapitaldel().antal_aktier > 0 { højre_dokumenteret_stykkapitaldel() } ellers { hvis højre_udokumenteret_stykkapital_antal() > 0 && dokumenteret_reference_fundet() { aktieavance_ordinaer_stykkapitaldel_fra_antal(dokumenteret_reference(), højre_udokumenteret_stykkapital_antal()) } ellers { aktieavance_ordinaer_tom_stykkapitaldel() } }
+    | pålydende_mængder_sammenhængende() -> højre_pålydende_del().antal_aktier <= venstre_pålydende_del().antal_aktier && højre_pålydende_del().samlet_pålydende_kroner <= venstre_pålydende_del().samlet_pålydende_kroner && (højre_pålydende_del().antal_aktier == venstre_pålydende_del().antal_aktier) == (højre_pålydende_del().samlet_pålydende_kroner == venstre_pålydende_del().samlet_pålydende_kroner)
+    | stykkapitalmængder_sammenhængende() -> hvis dokumenteret_reference_fundet() { dokumenterede_enheder_sammenhængende() && højre_stykkapitaldel().antal_aktier <= venstre_stykkapitaldel().antal_aktier && aktieavance_ordinaer_kapitalvægt_mindre_eller_lig(højre_stykkapitaldel().kapitalvægt, venstre_stykkapitaldel().kapitalvægt) } ellers { højre_udokumenteret_stykkapital_antal() <= venstre_udokumenteret_stykkapital_antal() }
+    | sammenhængende() -> aktieavance_ordinaer_kapitalmængde_gyldig(venstre) && aktieavance_ordinaer_kapitalmængde_gyldig(højre) && aktieavance_ordinaer_kapitalmængde_antal_aktier(højre) > 0 && pålydende_mængder_sammenhængende() && stykkapitalmængder_sammenhængende()
+    | resultat_med_reference() -> aktieavance_ordinaer_kapitalmængde_fra_dele(aktieavance_ordinaer_pålydende_kapitaldele_minus(venstre_pålydende_del(), højre_pålydende_del()), aktieavance_ordinaer_stykkapitaldele_minus(venstre_stykkapitaldel(), højre_stykkapitaldel()))
+    | resultat_uden_reference() -> hvis venstre_pålydende_del().antal_aktier > 0 { AblPålydendeAktiekapital(antal_aktier = venstre_pålydende_del().antal_aktier - højre_pålydende_del().antal_aktier, samlet_pålydende_kroner = venstre_pålydende_del().samlet_pålydende_kroner - højre_pålydende_del().samlet_pålydende_kroner) } ellers { AblAktiekapitalUdenPålydendeVærdi(antal_aktier = venstre_udokumenteret_stykkapital_antal() - højre_udokumenteret_stykkapital_antal()) }
+    | resultat() -> hvis sammenhængende() { hvis dokumenteret_reference_fundet() { resultat_med_reference() } ellers { resultat_uden_reference() } } ellers { venstre }
+    | har_sammenlignelig_kapitalvægt() -> dokumenteret_reference_fundet() || (venstre_udokumenteret_stykkapital_antal() == 0 && højre_udokumenteret_stykkapital_antal() == 0)
+    | venstre_kapitalvægt() -> aktieavance_ordinaer_kapitalvægt_plus(aktieavance_ordinaer_pålydende_kapitaldel_kapitalvægt(venstre_pålydende_del()), venstre_stykkapitaldel().kapitalvægt)
+    | højre_kapitalvægt() -> aktieavance_ordinaer_kapitalvægt_plus(aktieavance_ordinaer_pålydende_kapitaldel_kapitalvægt(højre_pålydende_del()), højre_stykkapitaldel().kapitalvægt)
+}
+
+| aktieavance_ordinaer_kapitalmængder_kan_fratrækkes(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalFratrækningssag(venstre, højre).sammenhængende()
+| aktieavance_ordinaer_kapitalmængder_minus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalFratrækningssag(venstre, højre).resultat()
+| aktieavance_ordinaer_kapitalmængder_har_sammenlignelig_kapitalvægt(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalFratrækningssag(venstre, højre).har_sammenlignelig_kapitalvægt()
+| aktieavance_ordinaer_kapitalmængde_før_kapitalvægt(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalFratrækningssag(venstre, højre).venstre_kapitalvægt()
+| aktieavance_ordinaer_kapitalmængde_afstået_kapitalvægt(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> AktieavanceOrdinærKapitalFratrækningssag(venstre, højre).højre_kapitalvægt()
 | aktieavance_ordinaer_position_antal_aktier(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_antal_aktier(position.kapitalmængde)
 | aktieavance_ordinaer_position_pålydende_kroner(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(position.kapitalmængde)
 | aktieavance_ordinaer_position_gyldig(position: AktieavanceOrdinærPosition) -> position.selskabsidentifikation != "" && aktieavance_ordinaer_kapitalmængde_gyldig(position.kapitalmængde) && position.anskaffelsessum_kroner >= 0 && ((aktieavance_ordinaer_position_antal_aktier(position) == 0 && position.anskaffelsessum_kroner == 0) || aktieavance_ordinaer_position_antal_aktier(position) > 0)
@@ -250,17 +342,22 @@ stykkapitalandele efter antallet af udstedte andele.
     | antal_aktier() -> aktieavance_ordinaer_antal_aktier(hændelse)
     | pålydende_kroner() -> aktieavance_ordinaer_pålydende_kroner(hændelse)
     | afståelsesvilkår() -> aktieavance_ordinaer_afståelsesvilkår(hændelse)
-    | kapitalart_sammenhængende() -> aktieavance_ordinaer_kapitalmængder_samme_art(position.kapitalmængde, kapitalmængde())
-    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && kapitalart_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
-    | afståelsesmængder_sammenhængende() -> aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde) == Falskt || (antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position)) == (pålydende_kroner() == aktieavance_ordinaer_position_pålydende_kroner(position))
-    | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position) || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
-    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && kapitalart_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && antal_aktier() <= aktieavance_ordinaer_position_antal_aktier(position) && pålydende_kroner() <= aktieavance_ordinaer_position_pålydende_kroner(position) && afståelsesmængder_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig()
+    | anskaffelseskapital_sammenhængende() -> aktieavance_ordinaer_kapitalmængder_kan_sammenlægges(position.kapitalmængde, kapitalmængde())
+    | afståelseskapital_sammenhængende() -> aktieavance_ordinaer_kapitalmængder_kan_fratrækkes(position.kapitalmængde, kapitalmængde())
+    | kapitalmængde_efter_afståelse() -> aktieavance_ordinaer_kapitalmængder_minus(position.kapitalmængde, kapitalmængde())
+    | afstår_hele_beholdningen_efter_mængde() -> aktieavance_ordinaer_kapitalmængde_antal_aktier(kapitalmængde_efter_afståelse()) == 0
+    | har_sammenlignelig_kapitalvægt() -> aktieavance_ordinaer_kapitalmængder_har_sammenlignelig_kapitalvægt(position.kapitalmængde, kapitalmængde())
+    | beholdningens_kapitalvægt() -> aktieavance_ordinaer_kapitalmængde_før_kapitalvægt(position.kapitalmængde, kapitalmængde())
+    | afstået_kapitalvægt() -> aktieavance_ordinaer_kapitalmængde_afstået_kapitalvægt(position.kapitalmængde, kapitalmængde())
+    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && anskaffelseskapital_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
+    | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || afstår_hele_beholdningen_efter_mængde() || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
+    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && afståelseskapital_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig()
     | hændelse_gyldig() -> position_gyldig() && (anskaffelse_gyldig() || afståelse_gyldig())
     | anskaffelsessum_henført_til_afståelse_kroner() -> 0
-    | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelse_gyldig() && antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position)
-    | exception abl_par26_stk5_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * pålydende_kroner() / aktieavance_ordinaer_position_pålydende_kroner(position) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier == Falskt && aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde)
-    | exception abl_par26_stk5_uden_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * antal_aktier() / aktieavance_ordinaer_position_antal_aktier(position) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier == Falskt && aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde) == Falskt
-    | exception abl_par26_stk5_hovedaktionær_handelsværdi anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * afståelsesvilkår().afståede_aktiers_handelsværdi_kroner / (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier
+    | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelse_gyldig() && afstår_hele_beholdningen_efter_mængde()
+    | exception abl_par26_stk5_sammenlignelig_kapitalandelsfordeling anskaffelsessum_henført_til_afståelse_kroner() -> aktieavance_ordinaer_beløb_efter_kapitalvægt(position.anskaffelsessum_kroner, afstået_kapitalvægt(), beholdningens_kapitalvægt()) under afståelse_gyldig() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier == Falskt && har_sammenlignelig_kapitalvægt()
+    | exception abl_par26_stk5_uden_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * antal_aktier() / aktieavance_ordinaer_position_antal_aktier(position) under afståelse_gyldig() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier == Falskt && har_sammenlignelig_kapitalvægt() == Falskt
+    | exception abl_par26_stk5_hovedaktionær_handelsværdi anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * afståelsesvilkår().afståede_aktiers_handelsværdi_kroner / (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner) under afståelse_gyldig() && afstår_hele_beholdningen_efter_mængde() == Falskt && afståelsesvilkår().hovedaktionæraktier
     | bruttogevinst_kroner() -> 0
     | exception abl_par12_realiseret_gevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktieavance_ordinaer_afståelsessum_kroner(hændelse) - anskaffelsessum_henført_til_afståelse_kroner()) under afståelse_gyldig()
     | bruttotab_kroner() -> 0
