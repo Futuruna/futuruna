@@ -89,6 +89,24 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par25_par26_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083991",
+    identifier = "Den juridiske vejledning, bygninger på lejet grund og ejendomme med hjemfaldsforpligtelse",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par25_hjemfaldsbekendtgørelse = AfskrivningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2005/1289",
+    identifier = "BEK nr. 1289 af 13/12/2005 om afskrivning på ejendomme med hjemfaldsforpligtelse",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par27_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2084000",
+    identifier = "Den juridiske vejledning, drænings- og markvandingsanlæg på jordbrugsbedrifter",
+    hentet_dato = "2026-07-18"
+)
+
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -2669,6 +2687,344 @@ for sidstnævnte indkomstår.
 | afskrivningslov24_sag(input: Afskrivningslov24Input) -> Afskrivningslov24Sag(input)
 | afskrivningslov24_resultat(input: Afskrivningslov24Input) -> afskrivningslov24_sag(input).resultat()
 --@end:afskrivningsloven_par24--
+
+--@label:afskrivningsloven_par25::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par25_par26_juridisk_vejledning::scale_source:afskrivningsloven_par25_hjemfaldsbekendtgørelse--
+----
+§ 25. Udgifter til anskaffelse og forbedring af bygninger, som ikke opfylder
+betingelserne for afskrivning i § 14, kan afskrives, såfremt bygningen er opført
+på lejet grund, bortset fra bygninger, der anvendes til beboelse eller
+ikkeerhvervsmæssige formål. Afskrivningen kan fra og med anskaffelsesåret eller
+året for forbedringen foretages med indtil 3 pct. årligt af anskaffelsessummen
+eller forbedringsudgiften, jf. dog 3. pkt. Afskrivning efter 1. og 2. pkt. på
+udgifter til erhvervelse eller forbedring af bygninger, der er afholdt før den
+1. januar 2023, kan foretages med indtil 4 pct. årligt af anskaffelsessummen
+eller forbedringsudgiften. Den årlige afskrivning kan dog ikke overstige et
+beløb svarende til, at afskrivning sker med lige store årlige beløb over
+lejeperioden, hvis lejemålet er indgået for et bestemt tidsrum eller over en
+periode, hvori lejeren er sikret uopsigelighed. Såfremt der ved lejemålets ophør
+ydes erstatning for bygningerne med et beløb, der er fastsat på forhånd,
+reduceres afskrivningsgrundlaget med dette beløb.
+
+Stk. 2. For fast ejendom, hvorpå der hviler en nedlæggelses- eller
+nedrivningsklausul, og som ikke opfylder betingelserne for afskrivning i § 14,
+finder reglerne i stk. 1 tilsvarende anvendelse.
+
+Stk. 3. Anskaffelsessummen for fast ejendom, hvorpå der hviler en
+hjemfaldsforpligtelse eller anden forpligtelse af lignende art, jf. dog stk. 2,
+kan fra og med anskaffelsesåret afskrives over antallet af år indtil det
+tidspunkt, hvor hjemfaldsretten kan gøres gældende, bortset fra fast ejendom,
+der anvendes til beboelse eller ikkeerhvervsmæssige formål. Såfremt ejendommens
+bygninger opfylder betingelserne for afskrivning i § 14, skal
+anskaffelsessummen for bygningerne afskrives efter den nævnte bestemmelse.
+Afskrivningen efter 1. pkt. sker efter en progressivt stigende skala, der
+fastsættes af Skatterådet. Hvis der ved hjemfaldet skal ske tilbagebetaling
+eller ydes erstatning med et på forhånd fastsat beløb, reduceres
+afskrivningsgrundlaget med beløbet.
+
+Stk. 4. Anvendes en væsentlig del af en ejendom, der omfattes af stk. 1, 2 eller
+3, erhvervsmæssigt til andre formål end beboelse, kan der foretages afskrivning
+på så stor en del af anskaffelsessummen, som forholdsmæssigt svarer til denne
+del af ejendommen.
+
+Stk. 5. Installationer, der udelukkende tjener bygninger, hvorpå der kan
+afskrives efter stk. 1, 2 eller 3, behandles og afskrives som de nævnte
+bygninger.
+
+Stk. 6. Der kan ikke afskrives efter stk. 1 eller 2 i det indkomstår, hvori
+lejemålet er ophørt eller nedlæggelsen eller nedrivningen er sket. Der kan
+heller ikke afskrives i det indkomstår, hvori en nedlæggelsesklausul,
+nedrivningsklausul eller hjemfaldsforpligtelse opgives. Ligeledes kan der ikke
+afskrives i det indkomstår, hvori en bygning eller ejendom omfattet af stk. 1,
+2 eller 3 sælges.
+
+Stk. 7. Der kan ikke afskrives efter stk. 1 eller 2, hvis der som følge af, at
+den ene part har bestemmende indflydelse på den anden parts handlemåde eller ved
+lejemål mellem nærtstående, ikke består en reel risiko for opsigelse af
+lejemålet. Endvidere kan der ikke afskrives ved lejemål, hvor lejemålet er
+indgået mellem selskaber eller mellem personer og selskaber, i det omfang
+nærtstående har bestemmende indflydelse i det eller de selskaber, der er part i
+lejemålet. Bestemmende indflydelse vil altid foreligge, såfremt en eller flere
+personer på grund af ejerskab eller rådighed over stemmerettigheder direkte
+eller indirekte ejer mere end 50 pct. af aktiekapitalen eller råder over mere
+end 50 pct. af stemmerne i et selskab, der er part i lejemålet. I øvrige
+tilfælde foreligger der bestemmende indflydelse, såfremt der direkte eller
+indirekte ejes mere end 50 pct. i ejerandel. Som nærtstående anses den
+skattepligtiges ægtefælle, forældre og bedsteforældre samt børn og børnebørn og
+disses ægtefæller eller dødsboer efter de nævnte personer. Stedbarns- og
+adoptivforhold sidestilles med ægte slægtskabsforhold. Tilsvarende kan der ikke
+afskrives, hvis der ikke består en reel risiko for, at en nedlæggelses- eller
+nedrivningsklausul vil blive gjort gældende. Der kan ikke afskrives, hvis der
+ydes erstatning efter vurdering for bygninger eller ejendom omfattet af stk. 1,
+2 eller 3, eller hvis lejeren er tillagt en køberet til den lejede grund ved
+lejeperiodens udløb på vilkår, der afviger fra markedsvilkår.
+----
+
+--@label:afskrivningsloven_par25_hjemfaldsskala::source:afskrivningsloven_par25_hjemfaldsbekendtgørelse--
+----
+§ 1. Efterstående tabel skal anvendes ved afskrivning på ejendomme med
+hjemfaldsforpligtelse eller anden forpligtelse af lignende art.
+
+§ 2. Det beløb, der årligt kan afskrives på ejendomme, hvorpå der hviler en
+hjemfaldsforpligtelse eller anden forpligtelse af lignende art, beregnes
+således: Først foretages en beløbsmæssig opgørelse af hjemfaldsbyrden. Dette
+sker ved, at ejerens faktiske erhvervelsessum (købesum tillagt evt. byggesum)
+nedsættes med det beløb, der tilbagebetales ved hjemfald, ligesom der foretages
+fradrag for beløb, der er afskrevet efter de tidligere regler om ekstraordinære
+afskrivninger, samt for anskaffelsessummer for installationer, der afskrives
+særskilt. Dernæst opgøres antallet af år fra anskaffelsestidspunktet til
+hjemfaldstidspunktet. Hjemfaldsbyrden multipliceres herefter med den faktor i
+tabellens kolonne d, som står ud for det tal i kolonne c, der angiver antallet
+af år fra anskaffelsestidspunktet til hjemfaldstidspunktet. Herved beregnes den
+korrigerede hjemfaldsbyrde. Derpå opgøres antallet af år fra henholdsvis
+indkomstårets begyndelse og indkomstårets afslutning til hjemfaldstidspunktet.
+Det beløb, der kan afskrives pr. 10.000 kr. korrigeret hjemfaldsbyrde, kan
+herefter aflæses i kolonne b mellem de to tal i kolonne a, der angiver antallet
+af år fra henholdsvis indkomstårets begyndelse og indkomstårets afslutning til
+hjemfaldstidspunktet.
+----
+
+--@begin:afskrivningsloven_par25--
+# Afskrivningslov25Aktivart = Al25BygningPåLejetGrund | Al25EjendomMedNedlæggelsesEllerNedrivningsklausul | Al25EjendomMedHjemfaldsforpligtelse | Al25InstallationPåLejetGrund | Al25InstallationVedNedlæggelsesEllerNedrivningsklausul | Al25InstallationVedHjemfaldsforpligtelse
+# Afskrivningslov25Hjemmel = Al25Stk1LejetGrund | Al25Stk2NedlæggelsesEllerNedrivningsklausul | Al25Stk3Hjemfaldsforpligtelse
+# Afskrivningslov25Hændelse = Al25FortsatAnvendelse | Al25LejemålOphørt | Al25NedlæggelseSket | Al25NedrivningSket | Al25NedlæggelsesEllerNedrivningsklausulOpgivet | Al25HjemfaldsforpligtelseOpgivet | Al25AktivSolgt
+# Afskrivningslov25NærtståendeRelation = Al25IkkeNærtstående | Al25Ægtefælle | Al25ForælderEllerBedsteforælder | Al25BarnEllerBarnebarn | Al25ÆgtefælleTilBarnEllerBarnebarn | Al25DødsboEfterNærtstående | Al25StedbarnsEllerAdoptivforhold
+# Afskrivningslov25Kontrol(part_kapitalandel_basispoint: Heltal, part_stemmerettigheder_basispoint: Heltal, part_anden_bestemmende_indflydelse: Boolsk, relation_mellem_udlejer_og_lejer: Afskrivningslov25NærtståendeRelation, nærtstående_kapitalandel_basispoint: Heltal, nærtstående_stemmerettigheder_basispoint: Heltal, nærtstående_anden_bestemmende_indflydelse: Boolsk, reel_risiko_for_opsigelse_af_lejemålet: Boolsk, reel_risiko_for_at_klausul_gøres_gældende: Boolsk, erstatning_ydes_efter_vurdering: Boolsk, køberet_til_lejet_grund_afviger_fra_markedsvilkår: Boolsk)
+# Afskrivningslov25Grundlag(skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov25Aktivart, anskaffelses_eller_forbedringsår: Heltal, anskaffelses_eller_forbedringsudgift_kroner: Heltal, beløb_henført_til_par14_bygninger_kroner: Heltal, fast_tilbagebetaling_eller_erstatning_kroner: Heltal, tidligere_ekstraordinære_afskrivninger_kroner: Heltal, særskilt_afskrevne_installationers_anskaffelsessum_kroner: Heltal, samlet_anvendelse_enheder: Heltal, erhvervsmæssig_anvendelse_enheder: Heltal, væsentlig_erhvervsmæssig_del_efter_konkret_vurdering: Boolsk, leje_eller_uopsigelighedsperiode_år: Heltal, hjemfaldsår: Heltal, bygning_opfylder_par14: Boolsk, udelukkende_beboelse_eller_ikkeerhvervsmæssigt_formål: Boolsk, installation_tjener_udelukkende_omfattet_bygning: Boolsk, kontrol: Afskrivningslov25Kontrol)
+# Afskrivningslov25Input(indkomstår: Heltal, grundlag: Afskrivningslov25Grundlag, tidligere_foretagne_afskrivninger_kroner: Heltal, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov25Hændelse)
+# Afskrivningslov25Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov25Aktivart, hjemmel: Afskrivningslov25Hjemmel, hændelse: Afskrivningslov25Hændelse, omfattet_af_par25: Boolsk, grundlag_gyldigt: Boolsk, afskrivning_afskåret_efter_stk6: Boolsk, afskrivning_afskåret_efter_stk7: Boolsk, afskrivningsgrundlag_før_erhvervsandel_kroner: Heltal, erhvervsandel_basispoint: Heltal, afskrivningsgrundlag_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, lineært_lejeperiodemaksimum_kroner: Heltal, hjemfald_multiplikationsfaktor_millital: Heltal, hjemfald_fradrag_pr_10000_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal)
+
+| afskrivningslov25_hjemmel(aktivart: Afskrivningslov25Aktivart) -> match aktivart {
+    | Al25BygningPåLejetGrund -> Al25Stk1LejetGrund
+    | Al25InstallationPåLejetGrund -> Al25Stk1LejetGrund
+    | Al25EjendomMedNedlæggelsesEllerNedrivningsklausul -> Al25Stk2NedlæggelsesEllerNedrivningsklausul
+    | Al25InstallationVedNedlæggelsesEllerNedrivningsklausul -> Al25Stk2NedlæggelsesEllerNedrivningsklausul
+    | Al25EjendomMedHjemfaldsforpligtelse -> Al25Stk3Hjemfaldsforpligtelse
+    | Al25InstallationVedHjemfaldsforpligtelse -> Al25Stk3Hjemfaldsforpligtelse
+}
+| afskrivningslov25_er_installation(aktivart: Afskrivningslov25Aktivart) -> aktivart == Al25InstallationPåLejetGrund || aktivart == Al25InstallationVedNedlæggelsesEllerNedrivningsklausul || aktivart == Al25InstallationVedHjemfaldsforpligtelse
+| afskrivningslov25_er_stk1_eller_stk2(hjemmel: Afskrivningslov25Hjemmel) -> hjemmel == Al25Stk1LejetGrund || hjemmel == Al25Stk2NedlæggelsesEllerNedrivningsklausul
+| afskrivningslov25_er_klausul(hjemmel: Afskrivningslov25Hjemmel) -> hjemmel == Al25Stk2NedlæggelsesEllerNedrivningsklausul
+| afskrivningslov25_er_hjemfald(hjemmel: Afskrivningslov25Hjemmel) -> hjemmel == Al25Stk3Hjemfaldsforpligtelse
+| afskrivningslov25_erhvervsandel_basispoint(grundlag: Afskrivningslov25Grundlag) -> hvis grundlag.samlet_anvendelse_enheder <= 0 || grundlag.erhvervsmæssig_anvendelse_enheder <= 0 || grundlag.erhvervsmæssig_anvendelse_enheder > grundlag.samlet_anvendelse_enheder { 0 } ellers hvis grundlag.erhvervsmæssig_anvendelse_enheder == grundlag.samlet_anvendelse_enheder { 10000 } ellers hvis grundlag.væsentlig_erhvervsmæssig_del_efter_konkret_vurdering { grundlag.erhvervsmæssig_anvendelse_enheder * 10000 / grundlag.samlet_anvendelse_enheder } ellers { 0 }
+| afskrivningslov25_basispoint_gyldige(basispoint: Heltal) -> basispoint >= 0 && basispoint <= 10000
+| afskrivningslov25_kontrol_gyldig(kontrol: Afskrivningslov25Kontrol) -> afskrivningslov25_basispoint_gyldige(kontrol.part_kapitalandel_basispoint) && afskrivningslov25_basispoint_gyldige(kontrol.part_stemmerettigheder_basispoint) && afskrivningslov25_basispoint_gyldige(kontrol.nærtstående_kapitalandel_basispoint) && afskrivningslov25_basispoint_gyldige(kontrol.nærtstående_stemmerettigheder_basispoint)
+| afskrivningslov25_bestemmende_indflydelse(kapitalandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, anden_bestemmende_indflydelse: Boolsk) -> kapitalandel_basispoint > 5000 || stemmerettigheder_basispoint > 5000 || anden_bestemmende_indflydelse
+| afskrivningslov25_part_har_bestemmende_indflydelse(kontrol: Afskrivningslov25Kontrol) -> afskrivningslov25_bestemmende_indflydelse(kontrol.part_kapitalandel_basispoint, kontrol.part_stemmerettigheder_basispoint, kontrol.part_anden_bestemmende_indflydelse)
+| afskrivningslov25_nærtstående_har_bestemmende_indflydelse(kontrol: Afskrivningslov25Kontrol) -> afskrivningslov25_bestemmende_indflydelse(kontrol.nærtstående_kapitalandel_basispoint, kontrol.nærtstående_stemmerettigheder_basispoint, kontrol.nærtstående_anden_bestemmende_indflydelse)
+| afskrivningslov25_er_nærtstående(relation: Afskrivningslov25NærtståendeRelation) -> relation != Al25IkkeNærtstående
+| afskrivningslov25_opsigelsesrisiko_afskærer(kontrol: Afskrivningslov25Kontrol) -> (afskrivningslov25_part_har_bestemmende_indflydelse(kontrol) || afskrivningslov25_er_nærtstående(kontrol.relation_mellem_udlejer_og_lejer)) && kontrol.reel_risiko_for_opsigelse_af_lejemålet == Falskt
+| afskrivningslov25_klausulrisiko_afskærer(grundlag: Afskrivningslov25Grundlag) -> afskrivningslov25_er_klausul(afskrivningslov25_hjemmel(grundlag.aktivart)) && grundlag.kontrol.reel_risiko_for_at_klausul_gøres_gældende == Falskt
+| afskrivningslov25_stk7_afskærer(grundlag: Afskrivningslov25Grundlag) -> grundlag.kontrol.erstatning_ydes_efter_vurdering || grundlag.kontrol.køberet_til_lejet_grund_afviger_fra_markedsvilkår || (afskrivningslov25_er_stk1_eller_stk2(afskrivningslov25_hjemmel(grundlag.aktivart)) && (afskrivningslov25_opsigelsesrisiko_afskærer(grundlag.kontrol) || afskrivningslov25_nærtstående_har_bestemmende_indflydelse(grundlag.kontrol))) || afskrivningslov25_klausulrisiko_afskærer(grundlag)
+| afskrivningslov25_stk6_afskærer(hjemmel: Afskrivningslov25Hjemmel, hændelse: Afskrivningslov25Hændelse) -> hændelse == Al25AktivSolgt || hændelse == Al25NedlæggelsesEllerNedrivningsklausulOpgivet || hændelse == Al25HjemfaldsforpligtelseOpgivet || (afskrivningslov25_er_stk1_eller_stk2(hjemmel) && (hændelse == Al25LejemålOphørt || hændelse == Al25NedlæggelseSket || hændelse == Al25NedrivningSket))
+| afskrivningslov25_par14_fordeling_gyldig(hjemmel: Afskrivningslov25Hjemmel, bygning_opfylder_par14: Boolsk, beløb_henført_til_par14_bygninger_kroner: Heltal, samlet_anskaffelsesudgift_kroner: Heltal) -> hvis afskrivningslov25_er_hjemfald(hjemmel) { beløb_henført_til_par14_bygninger_kroner >= 0 && beløb_henført_til_par14_bygninger_kroner <= samlet_anskaffelsesudgift_kroner && bygning_opfylder_par14 == (beløb_henført_til_par14_bygninger_kroner > 0) } ellers { bygning_opfylder_par14 == Falskt && beløb_henført_til_par14_bygninger_kroner == 0 }
+| afskrivningslov25_hjemfald_multiplikationsfaktor_millital(år_fra_anskaffelse_til_hjemfald: Heltal) -> hvis år_fra_anskaffelse_til_hjemfald > 0 { round(1000.0 / (1.0 - 1.0 / pow(1.04, år_fra_anskaffelse_til_hjemfald))) } ellers { 0 }
+| afskrivningslov25_hjemfald_fradrag_pr_10000_kroner(år_til_hjemfald_ved_indkomstårets_begyndelse: Heltal) -> hvis år_til_hjemfald_ved_indkomstårets_begyndelse > 0 { round(10000.0 / pow(1.04, år_til_hjemfald_ved_indkomstårets_begyndelse - 1) - 10000.0 / pow(1.04, år_til_hjemfald_ved_indkomstårets_begyndelse)) } ellers { 0 }
+| afskrivningslov25_hjemfald_årets_maksimum_kroner(afskrivningsgrundlag_kroner: Heltal, anskaffelsesår: Heltal, indkomstår: Heltal, hjemfaldsår: Heltal) -> hvis afskrivningsgrundlag_kroner > 0 && hjemfaldsår > indkomstår && hjemfaldsår > anskaffelsesår {
+    = faktor_millital = afskrivningslov25_hjemfald_multiplikationsfaktor_millital(hjemfaldsår - anskaffelsesår)
+    = korrigeret_hjemfaldsbyrde_kroner = (afskrivningsgrundlag_kroner * faktor_millital + 500) / 1000
+    = fradrag_pr_10000_kroner = afskrivningslov25_hjemfald_fradrag_pr_10000_kroner(hjemfaldsår - indkomstår)
+    (korrigeret_hjemfaldsbyrde_kroner * fradrag_pr_10000_kroner + 5000) / 10000
+} ellers { 0 }
+
+# Afskrivningslov25Sag(input: Afskrivningslov25Input) {
+    | hjemmel() -> afskrivningslov25_hjemmel(input.grundlag.aktivart)
+    | installation_gyldig() -> afskrivningslov25_er_installation(input.grundlag.aktivart) == Falskt || input.grundlag.installation_tjener_udelukkende_omfattet_bygning
+    | art_og_par14_gyldig() -> afskrivningslov25_par14_fordeling_gyldig(hjemmel(), input.grundlag.bygning_opfylder_par14, input.grundlag.beløb_henført_til_par14_bygninger_kroner, input.grundlag.anskaffelses_eller_forbedringsudgift_kroner)
+    | grundbeløb_før_erhvervsandel_kroner() -> penge_positivt_beløb(input.grundlag.anskaffelses_eller_forbedringsudgift_kroner - input.grundlag.beløb_henført_til_par14_bygninger_kroner - input.grundlag.fast_tilbagebetaling_eller_erstatning_kroner - hvis afskrivningslov25_er_hjemfald(hjemmel()) { input.grundlag.tidligere_ekstraordinære_afskrivninger_kroner + input.grundlag.særskilt_afskrevne_installationers_anskaffelsessum_kroner } ellers { 0 })
+    | erhvervsandel_basispoint() -> afskrivningslov25_erhvervsandel_basispoint(input.grundlag)
+    | afskrivningsgrundlag_kroner() -> penge_beløb_gange_basispoint_afrundet_kroner(grundbeløb_før_erhvervsandel_kroner(), erhvervsandel_basispoint())
+    | grundlag_gyldigt() -> input.grundlag.anskaffelses_eller_forbedringsår > 0 && input.indkomstår >= input.grundlag.anskaffelses_eller_forbedringsår && input.grundlag.anskaffelses_eller_forbedringsudgift_kroner > 0 && input.grundlag.beløb_henført_til_par14_bygninger_kroner >= 0 && input.grundlag.fast_tilbagebetaling_eller_erstatning_kroner >= 0 && input.grundlag.tidligere_ekstraordinære_afskrivninger_kroner >= 0 && input.grundlag.særskilt_afskrevne_installationers_anskaffelsessum_kroner >= 0 && input.tidligere_foretagne_afskrivninger_kroner >= 0 && input.grundlag.udelukkende_beboelse_eller_ikkeerhvervsmæssigt_formål == Falskt && afskrivningslov25_kontrol_gyldig(input.grundlag.kontrol) && installation_gyldig() && art_og_par14_gyldig() && afskrivningsgrundlag_kroner() > 0 && input.tidligere_foretagne_afskrivninger_kroner <= afskrivningsgrundlag_kroner() && (afskrivningslov25_er_hjemfald(hjemmel()) == Falskt || input.grundlag.hjemfaldsår > input.grundlag.anskaffelses_eller_forbedringsår)
+    | afskrivning_afskåret_efter_stk6() -> afskrivningslov25_stk6_afskærer(hjemmel(), input.hændelse)
+    | afskrivning_afskåret_efter_stk7() -> afskrivningslov25_stk7_afskærer(input.grundlag)
+    | omfattet_af_par25() -> grundlag_gyldigt() && afskrivning_afskåret_efter_stk6() == Falskt && afskrivning_afskåret_efter_stk7() == Falskt
+    | højeste_ordinære_sats_basispoint() -> hvis afskrivningslov25_er_hjemfald(hjemmel()) { 0 } ellers hvis input.grundlag.anskaffelses_eller_forbedringsår < 2023 { 400 } ellers { 300 }
+    | ordinært_satsmaksimum_kroner() -> penge_beløb_gange_basispoint_afrundet_kroner(afskrivningsgrundlag_kroner(), højeste_ordinære_sats_basispoint())
+    | lineært_lejeperiodemaksimum_kroner() -> hvis input.grundlag.leje_eller_uopsigelighedsperiode_år > 0 { (afskrivningsgrundlag_kroner() + input.grundlag.leje_eller_uopsigelighedsperiode_år / 2) / input.grundlag.leje_eller_uopsigelighedsperiode_år } ellers { ordinært_satsmaksimum_kroner() }
+    | hjemfald_multiplikationsfaktor_millital() -> hvis afskrivningslov25_er_hjemfald(hjemmel()) { afskrivningslov25_hjemfald_multiplikationsfaktor_millital(input.grundlag.hjemfaldsår - input.grundlag.anskaffelses_eller_forbedringsår) } ellers { 0 }
+    | hjemfald_fradrag_pr_10000_kroner() -> hvis afskrivningslov25_er_hjemfald(hjemmel()) { afskrivningslov25_hjemfald_fradrag_pr_10000_kroner(input.grundlag.hjemfaldsår - input.indkomstår) } ellers { 0 }
+    | maksimum_før_rest_kroner() -> hvis afskrivningslov25_er_hjemfald(hjemmel()) { afskrivningslov25_hjemfald_årets_maksimum_kroner(afskrivningsgrundlag_kroner(), input.grundlag.anskaffelses_eller_forbedringsår, input.indkomstår, input.grundlag.hjemfaldsår) } ellers { penge_mindste_beløb(ordinært_satsmaksimum_kroner(), lineært_lejeperiodemaksimum_kroner()) }
+    | rest_før_årets_afskrivning_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - input.tidligere_foretagne_afskrivninger_kroner)
+    | højeste_afskrivning_kroner() -> hvis omfattet_af_par25() { penge_mindste_beløb(rest_før_årets_afskrivning_kroner(), maksimum_før_rest_kroner()) } ellers { 0 }
+    | valg_gyldigt() -> input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner()
+    | fradrag_i_skattepligtig_indkomst_kroner() -> hvis valg_gyldigt() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | samlede_foretagne_afskrivninger_kroner() -> input.tidligere_foretagne_afskrivninger_kroner + fradrag_i_skattepligtig_indkomst_kroner()
+    | resterende_afskrivningsgrundlag_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - samlede_foretagne_afskrivninger_kroner())
+    | resultat() -> Afskrivningslov25Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.grundlag.skatteyder,
+        aktivart = input.grundlag.aktivart,
+        hjemmel = hjemmel(),
+        hændelse = input.hændelse,
+        omfattet_af_par25 = omfattet_af_par25(),
+        grundlag_gyldigt = grundlag_gyldigt(),
+        afskrivning_afskåret_efter_stk6 = afskrivning_afskåret_efter_stk6(),
+        afskrivning_afskåret_efter_stk7 = afskrivning_afskåret_efter_stk7(),
+        afskrivningsgrundlag_før_erhvervsandel_kroner = grundbeløb_før_erhvervsandel_kroner(),
+        erhvervsandel_basispoint = erhvervsandel_basispoint(),
+        afskrivningsgrundlag_kroner = afskrivningsgrundlag_kroner(),
+        højeste_ordinære_sats_basispoint = højeste_ordinære_sats_basispoint(),
+        lineært_lejeperiodemaksimum_kroner = lineært_lejeperiodemaksimum_kroner(),
+        hjemfald_multiplikationsfaktor_millital = hjemfald_multiplikationsfaktor_millital(),
+        hjemfald_fradrag_pr_10000_kroner = hjemfald_fradrag_pr_10000_kroner(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = input.valgt_afskrivning_kroner,
+        valg_gyldigt = valg_gyldigt(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        samlede_foretagne_afskrivninger_kroner = samlede_foretagne_afskrivninger_kroner(),
+        resterende_afskrivningsgrundlag_kroner = resterende_afskrivningsgrundlag_kroner()
+    )
+}
+| afskrivningslov25_sag(input: Afskrivningslov25Input) -> Afskrivningslov25Sag(input)
+| afskrivningslov25_resultat(input: Afskrivningslov25Input) -> afskrivningslov25_sag(input).resultat()
+--@end:afskrivningsloven_par25--
+
+--@label:afskrivningsloven_par26::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par25_par26_juridisk_vejledning--
+----
+§ 26. Ved ophør af lejemålet eller nedlæggelse af en lejlighed m.v., inden der
+er foretaget fuld afskrivning af anskaffelsessummen for bygningerne m.v. efter
+§ 25, stk. 1 eller 2, kan det uafskrevne beløb fradrages i den skattepligtige
+indkomst i det indkomstår, hvori lejemålet ophører eller nedlæggelsen sker.
+Dette gælder dog ikke, hvis lejemålet ophører som følge af, at lejeren køber
+grunden.
+
+Stk. 2. Bestemmelserne i § 21 finder tilsvarende anvendelse ved salg af
+bygninger og ejendomme, hvorpå der er afskrevet efter § 25, stk. 1-3. Tab kan
+dog ikke fradrages.
+
+Stk. 3. Nedrives en bygning, der er afskrevet, som følge af, at den er opført på
+lejet grund, eller der påhviler ejendommen en hjemfaldsforpligtelse eller anden
+forpligtelse af lignende art, kan der i den skattepligtige indkomst for det
+indkomstår, hvori nedrivning sker, foretages et nedrivningsfradrag. Fradraget
+udgør det uafskrevne beløb nedsat med eventuelle salgssummer for materialer
+m.v. For bygninger omfattet af § 25, stk. 4, beregnes det uafskrevne beløb på
+grundlag af den gennemsnitlige andel af anskaffelsessummen, som de
+afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
+----
+
+--@begin:afskrivningsloven_par26--
+# Afskrivningslov26Input(par25_resultat: Afskrivningslov25Resultat, hændelse: Afskrivningslov25Hændelse, lejer_køber_grunden: Boolsk, salgssum_for_aktiv_kroner: Heltal, salgssum_for_materialer_kroner: Heltal, gennemsnitlig_afskrivningsberettiget_andel_basispoint: Heltal)
+# Afskrivningslov26Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, hjemmel: Afskrivningslov25Hjemmel, hændelse_matcher: Boolsk, uafskrevet_beløb_kroner: Heltal, gennemsnitlig_afskrivningsberettiget_andel_basispoint: Heltal, uafskrevet_beløb_efter_gennemsnitlig_andel_kroner: Heltal, fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner: Heltal, beregnede_genvundne_afskrivninger_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, råt_tab_ved_salg_kroner: Heltal, fradragsberettiget_tab_ved_salg_kroner: Heltal, nedrivningsfradrag_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| afskrivningslov26_hændelse_er_omfattet(hændelse: Afskrivningslov25Hændelse) -> hændelse == Al25LejemålOphørt || hændelse == Al25NedlæggelseSket || hændelse == Al25NedrivningSket || hændelse == Al25AktivSolgt
+| afskrivningslov26_hændelse_matcher(input: Afskrivningslov26Input) -> input.par25_resultat.grundlag_gyldigt && input.par25_resultat.afskrivning_afskåret_efter_stk6 && input.par25_resultat.indkomstår > 0 && afskrivningslov26_hændelse_er_omfattet(input.hændelse) && input.hændelse == input.par25_resultat.hændelse
+| afskrivningslov26_nedrivning_omfattet(aktivart: Afskrivningslov25Aktivart) -> aktivart == Al25BygningPåLejetGrund || aktivart == Al25InstallationPåLejetGrund || aktivart == Al25EjendomMedHjemfaldsforpligtelse || aktivart == Al25InstallationVedHjemfaldsforpligtelse
+
+# Afskrivningslov26Sag(input: Afskrivningslov26Input) {
+    | par25() -> input.par25_resultat
+    | hændelse_matcher() -> afskrivningslov26_hændelse_matcher(input)
+    | uafskrevet_beløb_kroner() -> par25().resterende_afskrivningsgrundlag_kroner
+    | gennemsnitlig_andel_gyldig() -> afskrivningslov25_basispoint_gyldige(input.gennemsnitlig_afskrivningsberettiget_andel_basispoint)
+    | uafskrevet_beløb_efter_gennemsnitlig_andel_kroner() -> hvis par25().erhvervsandel_basispoint < 10000 && gennemsnitlig_andel_gyldig() { penge_positivt_beløb(penge_beløb_gange_basispoint_afrundet_kroner(par25().afskrivningsgrundlag_før_erhvervsandel_kroner, input.gennemsnitlig_afskrivningsberettiget_andel_basispoint) - par25().samlede_foretagne_afskrivninger_kroner) } ellers { uafskrevet_beløb_kroner() }
+    | fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner() -> hvis hændelse_matcher() && afskrivningslov25_er_stk1_eller_stk2(par25().hjemmel) && (input.hændelse == Al25LejemålOphørt || input.hændelse == Al25NedlæggelseSket) && input.lejer_køber_grunden == Falskt { uafskrevet_beløb_kroner() } ellers { 0 }
+    | rå_fortjeneste_ved_salg_kroner() -> hvis hændelse_matcher() && input.hændelse == Al25AktivSolgt { penge_positivt_beløb(penge_positivt_beløb(input.salgssum_for_aktiv_kroner) - uafskrevet_beløb_kroner()) } ellers { 0 }
+    | beregnede_genvundne_afskrivninger_kroner() -> penge_mindste_beløb(par25().samlede_foretagne_afskrivninger_kroner, rå_fortjeneste_ved_salg_kroner())
+    | råt_tab_ved_salg_kroner() -> hvis hændelse_matcher() && input.hændelse == Al25AktivSolgt { penge_positivt_beløb(uafskrevet_beløb_kroner() - penge_positivt_beløb(input.salgssum_for_aktiv_kroner)) } ellers { 0 }
+    | nedrivningsfradrag_kroner() -> hvis hændelse_matcher() && input.hændelse == Al25NedrivningSket && afskrivningslov26_nedrivning_omfattet(par25().aktivart) && gennemsnitlig_andel_gyldig() { penge_positivt_beløb(uafskrevet_beløb_efter_gennemsnitlig_andel_kroner() - penge_positivt_beløb(input.salgssum_for_materialer_kroner)) } ellers { 0 }
+    | samlet_fradrag_i_skattepligtig_indkomst_kroner() -> fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner() + nedrivningsfradrag_kroner()
+    | resultat() -> Afskrivningslov26Resultat(
+        indkomstår = par25().indkomstår,
+        skatteyder = par25().skatteyder,
+        hjemmel = par25().hjemmel,
+        hændelse_matcher = hændelse_matcher(),
+        uafskrevet_beløb_kroner = uafskrevet_beløb_kroner(),
+        gennemsnitlig_afskrivningsberettiget_andel_basispoint = input.gennemsnitlig_afskrivningsberettiget_andel_basispoint,
+        uafskrevet_beløb_efter_gennemsnitlig_andel_kroner = uafskrevet_beløb_efter_gennemsnitlig_andel_kroner(),
+        fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner = fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner(),
+        beregnede_genvundne_afskrivninger_kroner = beregnede_genvundne_afskrivninger_kroner(),
+        skattepligtige_genvundne_afskrivninger_kroner = beregnede_genvundne_afskrivninger_kroner(),
+        råt_tab_ved_salg_kroner = råt_tab_ved_salg_kroner(),
+        fradragsberettiget_tab_ved_salg_kroner = 0,
+        nedrivningsfradrag_kroner = nedrivningsfradrag_kroner(),
+        samlet_fradrag_i_skattepligtig_indkomst_kroner = samlet_fradrag_i_skattepligtig_indkomst_kroner()
+    )
+}
+| afskrivningslov26_sag(input: Afskrivningslov26Input) -> Afskrivningslov26Sag(input)
+| afskrivningslov26_resultat(input: Afskrivningslov26Input) -> afskrivningslov26_sag(input).resultat()
+--@end:afskrivningsloven_par26--
+
+--@label:afskrivningsloven_par27::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par27_juridisk_vejledning--
+----
+§ 27. Udgifter afholdt til opførelse af dræningsanlæg og jordfaste dele af
+markvandingsanlæg på jordbrugsbedrifter afskrives med indtil 20 pct. årligt i
+den skattepligtige indkomst fra og med det indkomstår, hvori anlægget er
+færdiggjort og benyttes erhvervsmæssigt. Det er en betingelse, at anlægget og
+den bedrift, som anlægget skal tjene, har samme ejer, jf. dog stk. 2.
+
+Stk. 2. Afholdes udgiften til opførelse af et dræningsanlæg eller jordfaste
+dele af et markvandingsanlæg af forpagteren af den bedrift, som anlægget skal
+tjene, kan forpagteren afskrive udgiften efter reglerne i stk. 1, 1. pkt.
+
+Stk. 3. Ved salg af den ejendom, hvor anlægget findes, inden udgiften er
+afskrevet fuldt ud, indtræder erhververen i overdragerens skattemæssige stilling
+vedrørende afskrivningen.
+
+Stk. 4. Ved ophør af forpagtningsaftalen, inden forpagteren har afskrevet
+udgiften fuldt ud, indtræder ejeren i forpagterens skattemæssige stilling
+vedrørende afskrivningen. I tilfælde, hvor der er sket videreforpagtning fra en
+forpagter til en anden forpagter, indtræder den anden forpagter i den første
+forpagters skattemæssige stilling vedrørende afskrivningen.
+----
+
+--@begin:afskrivningsloven_par27--
+# Afskrivningslov27Anlægsart = Al27Dræningsanlæg | Al27JordfastDelAfMarkvandingsanlæg
+# Afskrivningslov27Rettighedshaver = Al27Ejer | Al27Forpagter | Al27Videreforpagter
+# Afskrivningslov27Position(skatteyder: AfskrivningslovSkatteyder, rettighedshaver: Afskrivningslov27Rettighedshaver, anlægsart: Afskrivningslov27Anlægsart, oprindelig_udgift_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal)
+# Afskrivningslov27Overdragelse(efterfølger_skatteyder: AfskrivningslovSkatteyder, efterfølger_rettighedshaver: Afskrivningslov27Rettighedshaver)
+# Afskrivningslov27Hændelse = Al27FortsatRettighed | Al27EjendomSolgt(overdragelse: Afskrivningslov27Overdragelse) | Al27ForpagtningsaftaleOphørt(overdragelse: Afskrivningslov27Overdragelse) | Al27Videreforpagtning(overdragelse: Afskrivningslov27Overdragelse)
+# Afskrivningslov27Input(indkomstår: Heltal, position: Afskrivningslov27Position, færdiggjort_år: Heltal, benyttes_erhvervsmæssigt: Boolsk, anlæg_på_jordbrugsbedrift: Boolsk, anlæg_og_bedrift_har_samme_ejer: Boolsk, forpagter_har_afholdt_udgiften: Boolsk, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov27Hændelse)
+# Afskrivningslov27Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, rettighedshaver_før: Afskrivningslov27Rettighedshaver, anlægsart: Afskrivningslov27Anlægsart, omfattet_af_par27: Boolsk, position_gyldig: Boolsk, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal, overdragelse_gyldig: Boolsk, succession_sker: Boolsk, genvundne_afskrivninger_ved_overdragelse_kroner: Heltal, position_efter: Afskrivningslov27Position)
+
+| afskrivningslov27_position(skatteyder: AfskrivningslovSkatteyder, rettighedshaver: Afskrivningslov27Rettighedshaver, anlægsart: Afskrivningslov27Anlægsart, oprindelig_udgift_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal) -> Afskrivningslov27Position(skatteyder = skatteyder, rettighedshaver = rettighedshaver, anlægsart = anlægsart, oprindelig_udgift_kroner = oprindelig_udgift_kroner, samlede_foretagne_afskrivninger_kroner = samlede_foretagne_afskrivninger_kroner)
+| afskrivningslov27_overdragelse(input: Afskrivningslov27Input) -> match input.hændelse {
+    | Al27FortsatRettighed -> Afskrivningslov27Overdragelse(efterfølger_skatteyder = input.position.skatteyder, efterfølger_rettighedshaver = input.position.rettighedshaver)
+    | Al27EjendomSolgt(overdragelse) -> overdragelse
+    | Al27ForpagtningsaftaleOphørt(overdragelse) -> overdragelse
+    | Al27Videreforpagtning(overdragelse) -> overdragelse
+}
+| afskrivningslov27_overdragelse_gyldig(input: Afskrivningslov27Input) -> match input.hændelse {
+    | Al27FortsatRettighed -> Sandt
+    | Al27EjendomSolgt(overdragelse) -> input.position.rettighedshaver == Al27Ejer && overdragelse.efterfølger_rettighedshaver == Al27Ejer
+    | Al27ForpagtningsaftaleOphørt(overdragelse) -> (input.position.rettighedshaver == Al27Forpagter || input.position.rettighedshaver == Al27Videreforpagter) && overdragelse.efterfølger_rettighedshaver == Al27Ejer
+    | Al27Videreforpagtning(overdragelse) -> (input.position.rettighedshaver == Al27Forpagter || input.position.rettighedshaver == Al27Videreforpagter) && (overdragelse.efterfølger_rettighedshaver == Al27Forpagter || overdragelse.efterfølger_rettighedshaver == Al27Videreforpagter)
+}
+| afskrivningslov27_er_overdragelse(hændelse: Afskrivningslov27Hændelse) -> hændelse != Al27FortsatRettighed
+
+# Afskrivningslov27Sag(input: Afskrivningslov27Input) {
+    | position_gyldig() -> input.position.oprindelig_udgift_kroner > 0 && input.position.samlede_foretagne_afskrivninger_kroner >= 0 && input.position.samlede_foretagne_afskrivninger_kroner <= input.position.oprindelig_udgift_kroner
+    | rettighedshaver_opfylder_betingelser() -> hvis input.position.rettighedshaver == Al27Ejer { input.anlæg_og_bedrift_har_samme_ejer } ellers { input.forpagter_har_afholdt_udgiften }
+    | omfattet_af_par27() -> position_gyldig() && input.indkomstår >= input.færdiggjort_år && input.færdiggjort_år > 0 && input.benyttes_erhvervsmæssigt && input.anlæg_på_jordbrugsbedrift && rettighedshaver_opfylder_betingelser()
+    | rest_før_årets_afskrivning_kroner() -> penge_positivt_beløb(input.position.oprindelig_udgift_kroner - input.position.samlede_foretagne_afskrivninger_kroner)
+    | højeste_afskrivning_kroner() -> hvis omfattet_af_par27() { penge_mindste_beløb(rest_før_årets_afskrivning_kroner(), penge_beløb_gange_basispoint_afrundet_kroner(input.position.oprindelig_udgift_kroner, 2000)) } ellers { 0 }
+    | valg_gyldigt() -> input.valgt_afskrivning_kroner >= 0 && input.valgt_afskrivning_kroner <= højeste_afskrivning_kroner()
+    | fradrag_i_skattepligtig_indkomst_kroner() -> hvis valg_gyldigt() { input.valgt_afskrivning_kroner } ellers { 0 }
+    | samlede_foretagne_afskrivninger_kroner() -> input.position.samlede_foretagne_afskrivninger_kroner + fradrag_i_skattepligtig_indkomst_kroner()
+    | resterende_afskrivningsgrundlag_kroner() -> penge_positivt_beløb(input.position.oprindelig_udgift_kroner - samlede_foretagne_afskrivninger_kroner())
+    | overdragelse_gyldig() -> position_gyldig() && afskrivningslov27_overdragelse_gyldig(input)
+    | succession_sker() -> overdragelse_gyldig() && afskrivningslov27_er_overdragelse(input.hændelse) && resterende_afskrivningsgrundlag_kroner() > 0
+    | overdragelse() -> afskrivningslov27_overdragelse(input)
+    | opdateret_position_før_succession() -> afskrivningslov27_position(skatteyder = input.position.skatteyder, rettighedshaver = input.position.rettighedshaver, anlægsart = input.position.anlægsart, oprindelig_udgift_kroner = input.position.oprindelig_udgift_kroner, samlede_foretagne_afskrivninger_kroner = samlede_foretagne_afskrivninger_kroner())
+    | position_efter() -> hvis succession_sker() { afskrivningslov27_position(skatteyder = overdragelse().efterfølger_skatteyder, rettighedshaver = overdragelse().efterfølger_rettighedshaver, anlægsart = input.position.anlægsart, oprindelig_udgift_kroner = input.position.oprindelig_udgift_kroner, samlede_foretagne_afskrivninger_kroner = samlede_foretagne_afskrivninger_kroner()) } ellers { opdateret_position_før_succession() }
+    | resultat() -> Afskrivningslov27Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.skatteyder,
+        rettighedshaver_før = input.position.rettighedshaver,
+        anlægsart = input.position.anlægsart,
+        omfattet_af_par27 = omfattet_af_par27(),
+        position_gyldig = position_gyldig(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = input.valgt_afskrivning_kroner,
+        valg_gyldigt = valg_gyldigt(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        resterende_afskrivningsgrundlag_kroner = resterende_afskrivningsgrundlag_kroner(),
+        overdragelse_gyldig = overdragelse_gyldig(),
+        succession_sker = succession_sker(),
+        genvundne_afskrivninger_ved_overdragelse_kroner = 0,
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov27_sag(input: Afskrivningslov27Input) -> Afskrivningslov27Sag(input)
+| afskrivningslov27_resultat(input: Afskrivningslov27Input) -> afskrivningslov27_sag(input).resultat()
+--@end:afskrivningsloven_par27--
 
 --@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----

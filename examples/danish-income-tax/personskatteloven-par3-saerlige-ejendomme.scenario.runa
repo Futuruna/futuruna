@@ -1,0 +1,284 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Afskrivningsloven §§ 25-27.
+-- Lovtekst og typede kildeankre ligger i det importerede lovmodul.
+
+= al25_uden_afskæring = Afskrivningslov25Kontrol(
+    part_kapitalandel_basispoint = 0,
+    part_stemmerettigheder_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al25IkkeNærtstående,
+    nærtstående_kapitalandel_basispoint = 0,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse_af_lejemålet = Sandt,
+    reel_risiko_for_at_klausul_gøres_gældende = Sandt,
+    erstatning_ydes_efter_vurdering = Falskt,
+    køberet_til_lejet_grund_afviger_fra_markedsvilkår = Falskt
+)
+
+= al25_bestemmende_indflydelse_med_reel_risiko = Afskrivningslov25Kontrol(
+    part_kapitalandel_basispoint = 5001,
+    part_stemmerettigheder_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al25IkkeNærtstående,
+    nærtstående_kapitalandel_basispoint = 0,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse_af_lejemålet = Sandt,
+    reel_risiko_for_at_klausul_gøres_gældende = Sandt,
+    erstatning_ydes_efter_vurdering = Falskt,
+    køberet_til_lejet_grund_afviger_fra_markedsvilkår = Falskt
+)
+
+= al25_nærtstående_selskabskontrol = Afskrivningslov25Kontrol(
+    part_kapitalandel_basispoint = 0,
+    part_stemmerettigheder_basispoint = 0,
+    part_anden_bestemmende_indflydelse = Falskt,
+    relation_mellem_udlejer_og_lejer = Al25IkkeNærtstående,
+    nærtstående_kapitalandel_basispoint = 10000,
+    nærtstående_stemmerettigheder_basispoint = 0,
+    nærtstående_anden_bestemmende_indflydelse = Falskt,
+    reel_risiko_for_opsigelse_af_lejemålet = Sandt,
+    reel_risiko_for_at_klausul_gøres_gældende = Sandt,
+    erstatning_ydes_efter_vurdering = Falskt,
+    køberet_til_lejet_grund_afviger_fra_markedsvilkår = Falskt
+)
+
+| al25_lejet_grundlag(anskaffelsesår: Heltal, kontrol: Afskrivningslov25Kontrol, erhvervsenheder: Heltal, væsentlig_del: Boolsk) -> Afskrivningslov25Grundlag(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al25BygningPåLejetGrund,
+    anskaffelses_eller_forbedringsår = anskaffelsesår,
+    anskaffelses_eller_forbedringsudgift_kroner = 1000000,
+    beløb_henført_til_par14_bygninger_kroner = 0,
+    fast_tilbagebetaling_eller_erstatning_kroner = 0,
+    tidligere_ekstraordinære_afskrivninger_kroner = 0,
+    særskilt_afskrevne_installationers_anskaffelsessum_kroner = 0,
+    samlet_anvendelse_enheder = 100,
+    erhvervsmæssig_anvendelse_enheder = erhvervsenheder,
+    væsentlig_erhvervsmæssig_del_efter_konkret_vurdering = væsentlig_del,
+    leje_eller_uopsigelighedsperiode_år = 40,
+    hjemfaldsår = 0,
+    bygning_opfylder_par14 = Falskt,
+    udelukkende_beboelse_eller_ikkeerhvervsmæssigt_formål = Falskt,
+    installation_tjener_udelukkende_omfattet_bygning = Sandt,
+    kontrol = kontrol
+)
+
+| al25_resultat_for(grundlag: Afskrivningslov25Grundlag, indkomstår: Heltal, tidligere_afskrivninger_kroner: Heltal, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov25Hændelse) -> afskrivningslov25_resultat(Afskrivningslov25Input(
+    indkomstår = indkomstår,
+    grundlag = grundlag,
+    tidligere_foretagne_afskrivninger_kroner = tidligere_afskrivninger_kroner,
+    valgt_afskrivning_kroner = valgt_afskrivning_kroner,
+    hændelse = hændelse
+))
+
+= al25_lejet_grund_40_år = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 0, 25000, Al25FortsatAnvendelse)
+= al25_før_2023 = al25_resultat_for(al25_lejet_grundlag(2022, al25_uden_afskæring, 100, Sandt), 2022, 0, 25000, Al25FortsatAnvendelse)
+= al25_blandet_væsentlig_del = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 40, Sandt), 2026, 0, 10000, Al25FortsatAnvendelse)
+= al25_bestemmende_indflydelse_men_reel_risiko = al25_resultat_for(al25_lejet_grundlag(2024, al25_bestemmende_indflydelse_med_reel_risiko, 100, Sandt), 2026, 0, 25000, Al25FortsatAnvendelse)
+= al25_nærtstående_selskab_afskåret = al25_resultat_for(al25_lejet_grundlag(2024, al25_nærtstående_selskabskontrol, 100, Sandt), 2026, 0, 0, Al25FortsatAnvendelse)
+
+= al25_officielt_hjemfaldsgrundlag = Afskrivningslov25Grundlag(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al25EjendomMedHjemfaldsforpligtelse,
+    anskaffelses_eller_forbedringsår = 1968,
+    anskaffelses_eller_forbedringsudgift_kroner = 1594629,
+    beløb_henført_til_par14_bygninger_kroner = 0,
+    fast_tilbagebetaling_eller_erstatning_kroner = 0,
+    tidligere_ekstraordinære_afskrivninger_kroner = 0,
+    særskilt_afskrevne_installationers_anskaffelsessum_kroner = 0,
+    samlet_anvendelse_enheder = 1,
+    erhvervsmæssig_anvendelse_enheder = 1,
+    væsentlig_erhvervsmæssig_del_efter_konkret_vurdering = Sandt,
+    leje_eller_uopsigelighedsperiode_år = 0,
+    hjemfaldsår = 2063,
+    bygning_opfylder_par14 = Falskt,
+    udelukkende_beboelse_eller_ikkeerhvervsmæssigt_formål = Falskt,
+    installation_tjener_udelukkende_omfattet_bygning = Sandt,
+    kontrol = al25_uden_afskæring
+)
+= al25_officielt_hjemfaldseksempel = al25_resultat_for(al25_officielt_hjemfaldsgrundlag, 1986, 0, 3269, Al25FortsatAnvendelse)
+
+= al25_ophørsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25LejemålOphørt)
+= al25_salgsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25AktivSolgt)
+= al25_nedrivningsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25NedrivningSket)
+= al25_blandet_nedrivningsresultat = al25_resultat_for(
+    grundlag = al25_lejet_grundlag(anskaffelsesår = 2024, kontrol = al25_uden_afskæring, erhvervsenheder = 40, væsentlig_del = Sandt),
+    indkomstår = 2026,
+    tidligere_afskrivninger_kroner = 100000,
+    valgt_afskrivning_kroner = 0,
+    hændelse = Al25NedrivningSket
+)
+
+| al26_resultat_for(par25_resultat: Afskrivningslov25Resultat, hændelse: Afskrivningslov25Hændelse, lejer_køber_grunden: Boolsk, salgssum_for_aktiv_kroner: Heltal, salgssum_for_materialer_kroner: Heltal, gennemsnitlig_andel_basispoint: Heltal) -> afskrivningslov26_resultat(Afskrivningslov26Input(
+    par25_resultat = par25_resultat,
+    hændelse = hændelse,
+    lejer_køber_grunden = lejer_køber_grunden,
+    salgssum_for_aktiv_kroner = salgssum_for_aktiv_kroner,
+    salgssum_for_materialer_kroner = salgssum_for_materialer_kroner,
+    gennemsnitlig_afskrivningsberettiget_andel_basispoint = gennemsnitlig_andel_basispoint
+))
+
+= al26_lejemålsophør = al26_resultat_for(
+    par25_resultat = al25_ophørsresultat,
+    hændelse = Al25LejemålOphørt,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 0,
+    salgssum_for_materialer_kroner = 0,
+    gennemsnitlig_andel_basispoint = 10000
+)
+= al26_lejemålsophør_fordi_lejer_køber = al26_resultat_for(
+    par25_resultat = al25_ophørsresultat,
+    hændelse = Al25LejemålOphørt,
+    lejer_køber_grunden = Sandt,
+    salgssum_for_aktiv_kroner = 0,
+    salgssum_for_materialer_kroner = 0,
+    gennemsnitlig_andel_basispoint = 10000
+)
+= al26_salg_med_genvundne_afskrivninger = al26_resultat_for(
+    par25_resultat = al25_salgsresultat,
+    hændelse = Al25AktivSolgt,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 900000,
+    salgssum_for_materialer_kroner = 0,
+    gennemsnitlig_andel_basispoint = 10000
+)
+= al26_salg_med_ikke_fradragsberettiget_tab = al26_resultat_for(
+    par25_resultat = al25_salgsresultat,
+    hændelse = Al25AktivSolgt,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 600000,
+    salgssum_for_materialer_kroner = 0,
+    gennemsnitlig_andel_basispoint = 10000
+)
+= al26_nedrivning = al26_resultat_for(
+    par25_resultat = al25_nedrivningsresultat,
+    hændelse = Al25NedrivningSket,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 0,
+    salgssum_for_materialer_kroner = 100000,
+    gennemsnitlig_andel_basispoint = 10000
+)
+= al26_blandet_nedrivning = al26_resultat_for(
+    par25_resultat = al25_blandet_nedrivningsresultat,
+    hændelse = Al25NedrivningSket,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 0,
+    salgssum_for_materialer_kroner = 50000,
+    gennemsnitlig_andel_basispoint = 3000
+)
+= al26_forkert_hændelse_afvises = al26_resultat_for(
+    par25_resultat = al25_salgsresultat,
+    hændelse = Al25NedrivningSket,
+    lejer_køber_grunden = Falskt,
+    salgssum_for_aktiv_kroner = 0,
+    salgssum_for_materialer_kroner = 100000,
+    gennemsnitlig_andel_basispoint = 10000
+)
+
+= al27_ejerposition = afskrivningslov27_position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    rettighedshaver = Al27Ejer,
+    anlægsart = Al27Dræningsanlæg,
+    oprindelig_udgift_kroner = 1000000,
+    samlede_foretagne_afskrivninger_kroner = 0
+)
+= al27_ejersalg = afskrivningslov27_resultat(Afskrivningslov27Input(
+    indkomstår = 2026,
+    position = al27_ejerposition,
+    færdiggjort_år = 2026,
+    benyttes_erhvervsmæssigt = Sandt,
+    anlæg_på_jordbrugsbedrift = Sandt,
+    anlæg_og_bedrift_har_samme_ejer = Sandt,
+    forpagter_har_afholdt_udgiften = Falskt,
+    valgt_afskrivning_kroner = 200000,
+    hændelse = Al27EjendomSolgt(overdragelse = Afskrivningslov27Overdragelse(
+        efterfølger_skatteyder = AlAndenFysiskPerson,
+        efterfølger_rettighedshaver = Al27Ejer
+    ))
+))
+
+= al27_forpagterposition = afskrivningslov27_position(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    rettighedshaver = Al27Forpagter,
+    anlægsart = Al27JordfastDelAfMarkvandingsanlæg,
+    oprindelig_udgift_kroner = 500000,
+    samlede_foretagne_afskrivninger_kroner = 100000
+)
+= al27_forpagtningsophør = afskrivningslov27_resultat(Afskrivningslov27Input(
+    indkomstår = 2026,
+    position = al27_forpagterposition,
+    færdiggjort_år = 2024,
+    benyttes_erhvervsmæssigt = Sandt,
+    anlæg_på_jordbrugsbedrift = Sandt,
+    anlæg_og_bedrift_har_samme_ejer = Falskt,
+    forpagter_har_afholdt_udgiften = Sandt,
+    valgt_afskrivning_kroner = 100000,
+    hændelse = Al27ForpagtningsaftaleOphørt(overdragelse = Afskrivningslov27Overdragelse(
+        efterfølger_skatteyder = AlAndenFysiskPerson,
+        efterfølger_rettighedshaver = Al27Ejer
+    ))
+))
+
+= al27_fuldt_afskrevet_ejersalg = afskrivningslov27_resultat(Afskrivningslov27Input(
+    indkomstår = 2026,
+    position = afskrivningslov27_position(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        rettighedshaver = Al27Ejer,
+        anlægsart = Al27Dræningsanlæg,
+        oprindelig_udgift_kroner = 1000000,
+        samlede_foretagne_afskrivninger_kroner = 800000
+    ),
+    færdiggjort_år = 2022,
+    benyttes_erhvervsmæssigt = Sandt,
+    anlæg_på_jordbrugsbedrift = Sandt,
+    anlæg_og_bedrift_har_samme_ejer = Sandt,
+    forpagter_har_afholdt_udgiften = Falskt,
+    valgt_afskrivning_kroner = 200000,
+    hændelse = Al27EjendomSolgt(overdragelse = Afskrivningslov27Overdragelse(
+        efterfølger_skatteyder = AlAndenFysiskPerson,
+        efterfølger_rettighedshaver = Al27Ejer
+    ))
+))
+
+= par3_nr10_særlige_ejendomme = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al25(resultat = al25_lejet_grund_40_år),
+        Par3Nr10Al26(resultat = al26_salg_med_genvundne_afskrivninger),
+        Par3Nr10Al26(resultat = al26_nedrivning),
+        Par3Nr10Al27(resultat = al27_ejersalg)
+    ]
+))
+
+| scenarie_al25_lejeperioden_begrænser_tre_procent: al25_lejet_grund_40_år -> al25_lejet_grund_40_år.højeste_ordinære_sats_basispoint == 300 && al25_lejet_grund_40_år.lineært_lejeperiodemaksimum_kroner == 25000 && al25_lejet_grund_40_år.højeste_afskrivning_kroner == 25000 && al25_lejet_grund_40_år.fradrag_i_skattepligtig_indkomst_kroner == 25000
+| scenarie_al25_før_2023_har_fire_procent_men_samme_lejeperiodeloft: al25_før_2023 -> al25_før_2023.højeste_ordinære_sats_basispoint == 400 && al25_før_2023.højeste_afskrivning_kroner == 25000
+| scenarie_al25_væsentlig_erhvervsandel: al25_blandet_væsentlig_del -> al25_blandet_væsentlig_del.erhvervsandel_basispoint == 4000 && al25_blandet_væsentlig_del.afskrivningsgrundlag_kroner == 400000 && al25_blandet_væsentlig_del.højeste_afskrivning_kroner == 10000
+| scenarie_al25_kontrol_kræver_manglende_reel_risiko: al25_bestemmende_indflydelse_men_reel_risiko -> afskrivningslov25_bestemmende_indflydelse(5000, 0, Falskt) == Falskt && afskrivningslov25_bestemmende_indflydelse(5001, 0, Falskt) && afskrivningslov25_er_nærtstående(Al25Ægtefælle) && afskrivningslov25_er_nærtstående(Al25IkkeNærtstående) == Falskt && al25_bestemmende_indflydelse_men_reel_risiko.omfattet_af_par25 && al25_bestemmende_indflydelse_men_reel_risiko.afskrivning_afskåret_efter_stk7 == Falskt && al25_nærtstående_selskab_afskåret.afskrivning_afskåret_efter_stk7 && al25_nærtstående_selskab_afskåret.højeste_afskrivning_kroner == 0
+| scenarie_al25_hjemfald_fordeler_par14_bygninger: al25_officielt_hjemfaldseksempel -> afskrivningslov25_par14_fordeling_gyldig(Al25Stk3Hjemfaldsforpligtelse, Sandt, 300000, 1000000) && afskrivningslov25_par14_fordeling_gyldig(Al25Stk3Hjemfaldsforpligtelse, Sandt, 0, 1000000) == Falskt && afskrivningslov25_par14_fordeling_gyldig(Al25Stk1LejetGrund, Falskt, 0, 1000000)
+| scenarie_al25_officiel_hjemfaldsskala: al25_officielt_hjemfaldseksempel -> al25_officielt_hjemfaldseksempel.hjemfald_multiplikationsfaktor_millital == 1025 && al25_officielt_hjemfaldseksempel.hjemfald_fradrag_pr_10000_kroner == 20 && al25_officielt_hjemfaldseksempel.højeste_afskrivning_kroner == 3269 && al25_officielt_hjemfaldseksempel.valg_gyldigt
+| scenarie_al26_ophør_og_køb_af_grunden: al26_lejemålsophør -> al26_lejemålsophør.hændelse_matcher && al26_lejemålsophør.uafskrevet_beløb_kroner == 700000 && al26_lejemålsophør.fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner == 700000 && al26_lejemålsophør_fordi_lejer_køber.fradrag_ved_lejemålsophør_eller_nedlæggelse_kroner == 0
+| scenarie_al26_salg_beskatter_kun_genvundne_afskrivninger: al26_salg_med_genvundne_afskrivninger -> al26_salg_med_genvundne_afskrivninger.beregnede_genvundne_afskrivninger_kroner == 200000 && al26_salg_med_genvundne_afskrivninger.skattepligtige_genvundne_afskrivninger_kroner == 200000 && al26_salg_med_ikke_fradragsberettiget_tab.råt_tab_ved_salg_kroner == 100000 && al26_salg_med_ikke_fradragsberettiget_tab.fradragsberettiget_tab_ved_salg_kroner == 0
+| scenarie_al26_nedrivning_og_hændelsesintegritet: al26_nedrivning -> al26_nedrivning.nedrivningsfradrag_kroner == 600000 && al26_forkert_hændelse_afvises.hændelse_matcher == Falskt && al26_forkert_hændelse_afvises.nedrivningsfradrag_kroner == 0
+| scenarie_al26_blandet_nedrivning_bruger_gennemsnitlig_andel: al26_blandet_nedrivning -> al26_blandet_nedrivning.uafskrevet_beløb_kroner == 300000 && al26_blandet_nedrivning.uafskrevet_beløb_efter_gennemsnitlig_andel_kroner == 200000 && al26_blandet_nedrivning.nedrivningsfradrag_kroner == 150000
+| scenarie_al27_ejerens_position_følger_ejendommen: al27_ejersalg -> al27_ejersalg.højeste_afskrivning_kroner == 200000 && al27_ejersalg.fradrag_i_skattepligtig_indkomst_kroner == 200000 && al27_ejersalg.succession_sker && al27_ejersalg.genvundne_afskrivninger_ved_overdragelse_kroner == 0 && al27_ejersalg.position_efter.skatteyder == AlAndenFysiskPerson && al27_ejersalg.position_efter.samlede_foretagne_afskrivninger_kroner == 200000
+| scenarie_al27_forpagterens_position_følger_til_ejeren: al27_forpagtningsophør -> al27_forpagtningsophør.overdragelse_gyldig && al27_forpagtningsophør.fradrag_i_skattepligtig_indkomst_kroner == 100000 && al27_forpagtningsophør.position_efter.rettighedshaver == Al27Ejer && al27_forpagtningsophør.position_efter.samlede_foretagne_afskrivninger_kroner == 200000
+| scenarie_al27_fuld_afskrivning_efterlader_ingen_succession: al27_fuldt_afskrevet_ejersalg -> al27_fuldt_afskrevet_ejersalg.overdragelse_gyldig && al27_fuldt_afskrevet_ejersalg.resterende_afskrivningsgrundlag_kroner == 0 && al27_fuldt_afskrevet_ejersalg.succession_sker == Falskt && al27_fuldt_afskrevet_ejersalg.position_efter.skatteyder == AlSelvstændigErhvervsdrivendePerson && al27_fuldt_afskrevet_ejersalg.position_efter.samlede_foretagne_afskrivninger_kroner == 1000000
+| scenarie_par3_nr10_adskiller_særlige_ejendomseffekter: par3_nr10_særlige_ejendomme -> length(par3_nr10_særlige_ejendomme.post_resultater) == 4 && par3_nr10_særlige_ejendomme.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 200000 && par3_nr10_særlige_ejendomme.indtægtsføring_i_personlig_indkomst_kroner == 200000 && par3_nr10_særlige_ejendomme.brutto_skattemæssige_afskrivninger_kroner == 225000 && par3_nr10_særlige_ejendomme.brutto_tab_kroner == 0 && par3_nr10_særlige_ejendomme.brutto_andre_fradrag_kroner == 600000 && par3_nr10_særlige_ejendomme.fradrag_i_personlig_indkomst_kroner == 825000
+
+? scenarie_al25_lejeperioden_begrænser_tre_procent
+? scenarie_al25_før_2023_har_fire_procent_men_samme_lejeperiodeloft
+? scenarie_al25_væsentlig_erhvervsandel
+? scenarie_al25_kontrol_kræver_manglende_reel_risiko
+? scenarie_al25_hjemfald_fordeler_par14_bygninger
+? scenarie_al25_officiel_hjemfaldsskala
+? scenarie_al26_ophør_og_køb_af_grunden
+? scenarie_al26_salg_beskatter_kun_genvundne_afskrivninger
+? scenarie_al26_nedrivning_og_hændelsesintegritet
+? scenarie_al26_blandet_nedrivning_bruger_gennemsnitlig_andel
+? scenarie_al27_ejerens_position_følger_ejendommen
+? scenarie_al27_forpagterens_position_følger_til_ejeren
+? scenarie_al27_fuld_afskrivning_efterlader_ingen_succession
+? scenarie_par3_nr10_adskiller_særlige_ejendomseffekter
