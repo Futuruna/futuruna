@@ -48,12 +48,20 @@ inputtype faktisk indeholder lister, maps eller sæt; den nuværende
 lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
 afgrænsede skatteberegning.
 
-Den ordinære personaktievej er nu også eksekverbar fra anskaffelse og
-gennemsnitlig anskaffelsessum til afståelse, noterede og unoterede tab,
+Personaktievejen er nu også eksekverbar fra anskaffelse og gennemsnitlig
+anskaffelsessum til afståelse, noterede og unoterede tab,
 ægtefælleoverførsel og den endelige aktieindkomstpost efter Personskatteloven
-§ 4 a. Det fokuserede scenarie dækker betingelser og undtagelser i
-Aktieavancebeskatningsloven §§ 12-15 samt de anvendte dele af §§ 23-26. Kilden
-er [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098).
+§ 4 a. Den håndterer homogene beholdninger både med og uden pålydende værdi.
+En særskilt § 25-vej beregner aktie- og tegningsretter efter FIFO og aktie for
+aktie-metoden, herunder 0 kr. i anskaffelsessum ved aktionærtildeling,
+§ 30's afståelsesbegreb ved bortfald, MTF-overgangen fra 2024 og § 14's
+oplysningsbetingelse. De fokuserede scenarier
+dækker 31 udfald i Aktieavancebeskatningsloven §§ 12-15 samt de anvendte dele
+af §§ 23-26. Kilden er
+[Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098).
+Selskabslovens tilladte kombination af aktier med og uden pålydende værdi er
+stadig en udtrykkelig dækningsgrænse, indtil det fælles kapitalandelsgrundlag er
+modelleret.
 
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til

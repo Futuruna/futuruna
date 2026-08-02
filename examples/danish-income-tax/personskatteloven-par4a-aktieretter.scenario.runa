@@ -1,0 +1,238 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Fokus-scenarier for aktieretter og tegningsretter efter
+-- Aktieavancebeskatningslovens § 1, stk. 4, § 5, § 24, stk. 2, § 25 og
+-- § 26, stk. 3-4, samt § 30, stk. 1.
+
+= abl_par25_aktieret_reguleret_marked = AktieavancePar25Rettighed(
+    underliggende_selskabsidentifikation = "DK-RET-A",
+    rettighedsserie = "FONDS-2024",
+    art = AblPar25Aktieret,
+    lovregime = AblRettighedEfterAktieavancebeskatningsloven,
+    underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåReguleretMarked
+)
+= abl_par25_tegningsret_mtf = AktieavancePar25Rettighed(
+    underliggende_selskabsidentifikation = "DK-RET-B",
+    rettighedsserie = "WARRANT-MTF",
+    art = AblPar25Tegningsret,
+    lovregime = AblRettighedEfterAktieavancebeskatningsloven,
+    underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet
+)
+= abl_par25_tegningsret_ligningslov28 = AktieavancePar25Rettighed(
+    underliggende_selskabsidentifikation = "DK-RET-LL28",
+    rettighedsserie = "WARRANT-LL28",
+    art = AblPar25Tegningsret,
+    lovregime = AblTegningsretEfterLigningslov28,
+    underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåReguleretMarked
+)
+= abl_par25_position_primo = AktieavancePar25Position(
+    rettighed = abl_par25_aktieret_reguleret_marked,
+    beskatningsprincip = AblPar25Realisationsprincip,
+    partier = []
+)
+= abl_par25_hændelsesforløb = aktieavance_par25_hændelsesforløb(
+    abl_par25_position_primo,
+    [
+        AblPar25TildelingSomAktionær(
+            erhvervelsesår = 2024,
+            erhvervelsesrækkefølge = 1,
+            antal_rettigheder = 10,
+            oplysningsstatus = AblIndberettetAfAndenIndberetningspligtig
+        ),
+        AblPar25Køb(
+            erhvervelsesår = 2025,
+            erhvervelsesrækkefølge = 1,
+            antal_rettigheder = 10,
+            købesum_kroner = 300,
+            oplysningsstatus = AblOplystRettidigt
+        ),
+        AblPar25Afståelse(
+            antal_rettigheder = 15,
+            afståelsessum_kroner = 600
+        )
+    ]
+)
+= abl_par25_afståelsesresultat = last(abl_par25_hændelsesforløb.hændelsesresultater)
+= abl_par25_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+    indkomstår = 2026,
+    skatteposter = aktieavance_skatteposter_fra_par25_hændelsesresultater(abl_par25_hændelsesforløb.hændelsesresultater),
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+    ),
+    gift_og_samlevende_ved_årets_udgang = Falskt
+))
+= abl_par25_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(
+    aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat_fra_ordinaere_aktier(abl_par25_årsresultat)
+))
+
+= abl_par25_blandet_oplysningsposition = AktieavancePar25Position(
+    rettighed = abl_par25_aktieret_reguleret_marked,
+    beskatningsprincip = AblPar25Realisationsprincip,
+    partier = [
+        AktieavancePar25Parti(
+            erhvervelsesår = 2024,
+            erhvervelsesrækkefølge = 1,
+            resterende_rettigheder = 5,
+            resterende_anskaffelsessum_kroner = 500,
+            oplysningsstatus = AblOplystRettidigt
+        ),
+        AktieavancePar25Parti(
+            erhvervelsesår = 2024,
+            erhvervelsesrækkefølge = 2,
+            resterende_rettigheder = 5,
+            resterende_anskaffelsessum_kroner = 500,
+            oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt
+        )
+    ]
+)
+= abl_par25_første_parti_bortfalder = aktieavance_par25_hændelsesresultat(
+    abl_par25_blandet_oplysningsposition,
+    AblPar25Bortfald(antal_rettigheder = 5)
+)
+= abl_par25_begge_partier_bortfalder = aktieavance_par25_hændelsesresultat(
+    abl_par25_blandet_oplysningsposition,
+    AblPar25Bortfald(antal_rettigheder = 10)
+)
+= abl_par25_uoplyst_modgående_position = AktieavancePar25Position(
+    rettighed = abl_par25_aktieret_reguleret_marked,
+    beskatningsprincip = AblPar25Realisationsprincip,
+    partier = [
+        AktieavancePar25Parti(
+            erhvervelsesår = 2024,
+            erhvervelsesrækkefølge = 1,
+            resterende_rettigheder = 5,
+            resterende_anskaffelsessum_kroner = 500,
+            oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt
+        ),
+        AktieavancePar25Parti(
+            erhvervelsesår = 2024,
+            erhvervelsesrækkefølge = 2,
+            resterende_rettigheder = 5,
+            resterende_anskaffelsessum_kroner = 0,
+            oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt
+        )
+    ]
+)
+= abl_par25_uoplyst_modgående_afståelse = aktieavance_par25_hændelsesresultat(
+    abl_par25_uoplyst_modgående_position,
+    AblPar25Afståelse(
+        antal_rettigheder = 10,
+        afståelsessum_kroner = 500
+    )
+)
+
+= abl_par25_mtf_før_2024 = aktieavance_par25_hændelsesresultat(
+    AktieavancePar25Position(
+        rettighed = abl_par25_tegningsret_mtf,
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = []
+    ),
+    AblPar25Køb(
+        erhvervelsesår = 2023,
+        erhvervelsesrækkefølge = 1,
+        antal_rettigheder = 10,
+        købesum_kroner = 300,
+        oplysningsstatus = AblOplystRettidigt
+    )
+)
+= abl_par25_mtf_fra_2024 = aktieavance_par25_hændelsesresultat(
+    AktieavancePar25Position(
+        rettighed = abl_par25_tegningsret_mtf,
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = []
+    ),
+    AblPar25Køb(
+        erhvervelsesår = 2024,
+        erhvervelsesrækkefølge = 1,
+        antal_rettigheder = 10,
+        købesum_kroner = 300,
+        oplysningsstatus = AblOplystRettidigt
+    )
+)
+= abl_par25_lagerposition = AktieavancePar25Position(
+    rettighed = abl_par25_aktieret_reguleret_marked,
+    beskatningsprincip = AblPar25Lagerprincip,
+    partier = []
+)
+= abl_par25_lageranskaffelse = aktieavance_par25_hændelsesresultat(
+    abl_par25_lagerposition,
+    AblPar25AndenAnskaffelse(
+        erhvervelsesår = 2026,
+        erhvervelsesrækkefølge = 1,
+        antal_rettigheder = 10,
+        anskaffelsessum_kroner = 300,
+        oplysningsstatus = AblOplystRettidigt
+    )
+)
+= abl_par25_ligningslov28_anskaffelse = aktieavance_par25_hændelsesresultat(
+    AktieavancePar25Position(
+        rettighed = abl_par25_tegningsret_ligningslov28,
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = []
+    ),
+    AblPar25Køb(
+        erhvervelsesår = 2026,
+        erhvervelsesrækkefølge = 1,
+        antal_rettigheder = 10,
+        købesum_kroner = 300,
+        oplysningsstatus = AblOplystRettidigt
+    )
+)
+
+= abl_par26_stk4_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-RET-C",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsessum_kroner = 10000
+)
+= abl_par26_stk4_afståelse = aktieavance_ordinaer_hændelsesresultat(
+    abl_par26_stk4_position,
+    aktieavance_par26_stk4_afståelseshændelse(
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 4),
+        salgssum_for_tegningsret_kroner = 2000,
+        beløb_ved_tegning_kroner = 3600,
+        vilkår = AktieavanceOrdinærAfståelsesvilkår(
+            markedsstatus = AblIkkeOptagetTilHandel,
+            har_tidligere_været_optaget_til_handel = Falskt,
+            hovedaktionæraktier = Falskt,
+            afståede_aktiers_handelsværdi_kroner = 0,
+            beholdte_aktiers_handelsværdi_kroner = 0,
+            oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+            boligret = AktieavanceOrdinærBoligretInput(
+                forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
+                beboelseskrav_opfyldt = Falskt,
+                likvidationsprovenu = Falskt,
+                udloddet_i_endeligt_opløsningsår = Falskt
+            )
+        )
+    )
+)
+
+| scenarie_abl_par25_tildeling_har_nul_i_anskaffelsessum: abl_par25_hændelsesforløb -> abl_par25_hændelsesforløb.alle_hændelser_gyldige && head(abl_par25_hændelsesforløb.hændelsesresultater).position_efter.partier == [AktieavancePar25Parti(erhvervelsesår = 2024, erhvervelsesrækkefølge = 1, resterende_rettigheder = 10, resterende_anskaffelsessum_kroner = 0, oplysningsstatus = AblIndberettetAfAndenIndberetningspligtig)]
+| scenarie_abl_par5_fifo_og_par25_aktie_for_aktie: abl_par25_afståelsesresultat -> abl_par25_afståelsesresultat.hændelse_gyldig && abl_par25_afståelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 150 && abl_par25_afståelsesresultat.bruttogevinst_kroner == 450 && length(abl_par25_afståelsesresultat.position_efter.partier) == 1 && head(abl_par25_afståelsesresultat.position_efter.partier).resterende_rettigheder == 5 && head(abl_par25_afståelsesresultat.position_efter.partier).resterende_anskaffelsessum_kroner == 150
+| scenarie_abl_par25_føder_personskattelov_par4a: abl_par25_par4a -> abl_par25_årsresultat.skattepligtige_gevinster_efter_par12_kroner == 450 && abl_par25_årsresultat.eget_modregningsgrundlag_efter_par13a_kroner == 450 && abl_par25_par4a.aktieindkomst_kroner == 450 && abl_par25_par4a.personlig_indkomst_kroner == 0
+| scenarie_abl_par14_følger_det_fifo_forbrugte_parti: abl_par25_første_parti_bortfalder -> abl_par25_første_parti_bortfalder.alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14 && abl_par25_første_parti_bortfalder.tab_til_modregning_efter_par13a_kroner == 500 && abl_par25_første_parti_bortfalder.tab_afskåret_efter_par14_kroner == 0
+| scenarie_abl_par14_kun_det_manglende_fifo_parti_afskærer_sit_tab: abl_par25_begge_partier_bortfalder -> abl_par25_begge_partier_bortfalder.alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14 == Falskt && abl_par25_begge_partier_bortfalder.bruttotab_kroner == 1000 && abl_par25_begge_partier_bortfalder.tab_til_modregning_efter_par13a_kroner == 500 && abl_par25_begge_partier_bortfalder.tab_afskåret_efter_par14_kroner == 500
+| scenarie_abl_par25_modgående_partigevinst_og_tab_nettoføres_ikke_før_par14: abl_par25_uoplyst_modgående_afståelse -> abl_par25_uoplyst_modgående_afståelse.anskaffelsessum_henført_til_afståelse_kroner == 500 && abl_par25_uoplyst_modgående_afståelse.bruttogevinst_kroner == 250 && abl_par25_uoplyst_modgående_afståelse.bruttotab_kroner == 250 && abl_par25_uoplyst_modgående_afståelse.skattepligtig_gevinst_efter_par12_kroner == 250 && abl_par25_uoplyst_modgående_afståelse.tab_til_modregning_efter_par13a_kroner == 0 && abl_par25_uoplyst_modgående_afståelse.tab_afskåret_efter_par14_kroner == 250
+| scenarie_abl_par25_mtf_overgang_fra_2024: abl_par25_mtf_fra_2024 -> abl_par25_mtf_før_2024.omfattet_af_par25_stk1 == Falskt && abl_par25_mtf_før_2024.hændelse_gyldig == Falskt && abl_par25_mtf_fra_2024.omfattet_af_par25_stk1 && abl_par25_mtf_fra_2024.hændelse_gyldig
+| scenarie_abl_par25_stk3_lagerprincip_er_udenfor: abl_par25_lageranskaffelse -> abl_par25_lageranskaffelse.position_gyldig && abl_par25_lageranskaffelse.omfattet_af_par25_stk1 == Falskt && abl_par25_lageranskaffelse.hændelse_gyldig == Falskt && abl_par25_lageranskaffelse.position_efter == abl_par25_lagerposition
+| scenarie_abl_par1_stk4_ligningslov28_er_udenfor: abl_par25_ligningslov28_anskaffelse -> abl_par25_ligningslov28_anskaffelse.position_gyldig && abl_par25_ligningslov28_anskaffelse.omfattet_af_par25_stk1 == Falskt && abl_par25_ligningslov28_anskaffelse.hændelse_gyldig == Falskt && length(abl_par25_ligningslov28_anskaffelse.position_efter.partier) == 0
+| scenarie_abl_par26_stk3_afgrænser_gennemsnitsmetoden: abl_par25_position_primo -> aktieavance_par26_rettighed_medregnes_i_gennemsnitsmetoden(AblPar26RetEfterPar25AktieForAktie) == Falskt && aktieavance_par26_rettighed_medregnes_i_gennemsnitsmetoden(AblPar26RetEfterPar44UdenforGennemsnit) == Falskt && aktieavance_par26_rettighed_medregnes_i_gennemsnitsmetoden(AblPar26RetEfterPar16Stk1UdenforGennemsnit) == Falskt && aktieavance_par26_rettighed_medregnes_i_gennemsnitsmetoden(AblPar26Stk4RetBetragtesSomAktie)
+| scenarie_abl_par26_stk4_medregner_tegningsbeløbet: abl_par26_stk4_afståelse -> aktieavance_par26_stk4_beløb_gyldige(2000, 3600) && abl_par26_stk4_afståelse.hændelse_gyldig && abl_par26_stk4_afståelse.anskaffelsessum_henført_til_afståelse_kroner == 4000 && aktieavance_ordinaer_afståelsessum_kroner(abl_par26_stk4_afståelse.hændelse) == 5600 && abl_par26_stk4_afståelse.bruttogevinst_kroner == 1600
+
+? scenarie_abl_par25_tildeling_har_nul_i_anskaffelsessum
+? scenarie_abl_par5_fifo_og_par25_aktie_for_aktie
+? scenarie_abl_par25_føder_personskattelov_par4a
+? scenarie_abl_par14_følger_det_fifo_forbrugte_parti
+? scenarie_abl_par14_kun_det_manglende_fifo_parti_afskærer_sit_tab
+? scenarie_abl_par25_modgående_partigevinst_og_tab_nettoføres_ikke_før_par14
+? scenarie_abl_par25_mtf_overgang_fra_2024
+? scenarie_abl_par25_stk3_lagerprincip_er_udenfor
+? scenarie_abl_par1_stk4_ligningslov28_er_udenfor
+? scenarie_abl_par26_stk3_afgrænser_gennemsnitsmetoden
+? scenarie_abl_par26_stk4_medregner_tegningsbeløbet

@@ -83,23 +83,29 @@
 
 = abl_ordinaer_position_primo = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-ORDINAER-A",
-    antal_aktier = 100,
-    samlet_pålydende_kroner = 10000,
+    kapitalmængde = AblPålydendeAktiekapital(
+        antal_aktier = 100,
+        samlet_pålydende_kroner = 10000
+    ),
     anskaffelsessum_kroner = 100000
 )
 = abl_ordinaer_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAnskaffelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         anskaffelsessum_kroner = 140000
     )
 )
 = abl_ordinaer_første_delsalg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_anskaffelse.position_efter,
     AblOrdinærAfståelse(
-        antal_aktier = 50,
-        samlet_pålydende_kroner = 5000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 50,
+            samlet_pålydende_kroner = 5000
+        ),
         afståelsessum_kroner = 90000,
         vilkår = abl_ordinaer_noteret_vilkår
     )
@@ -107,8 +113,10 @@
 = abl_ordinaer_andet_delsalg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_første_delsalg.position_efter,
     AblOrdinærAfståelse(
-        antal_aktier = 50,
-        samlet_pålydende_kroner = 5000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 50,
+            samlet_pålydende_kroner = 5000
+        ),
         afståelsessum_kroner = 40000,
         vilkår = abl_ordinaer_noteret_vilkår
     )
@@ -123,7 +131,7 @@
 )
 = abl_ordinaer_gennemsnit_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = 2026,
-    hændelsesresultater = abl_ordinaer_gennemsnit_hændelsesforløb.hændelsesresultater,
+    skatteposter = aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(abl_ordinaer_gennemsnit_hændelsesforløb.hændelsesresultater),
     fremført_tab_efter_par13a_kroner = 0,
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
@@ -140,8 +148,10 @@
 = abl_ordinaer_hovedaktionær_delsalg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 50,
-        samlet_pålydende_kroner = 5000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 50,
+            samlet_pålydende_kroner = 5000
+        ),
         afståelsessum_kroner = 90000,
         vilkår = abl_ordinaer_hovedaktionær_vilkår
     )
@@ -149,8 +159,10 @@
 = abl_ordinaer_hovedaktionær_nulværdi_delsalg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 50,
-        samlet_pålydende_kroner = 5000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 50,
+            samlet_pålydende_kroner = 5000
+        ),
         afståelsessum_kroner = 90000,
         vilkår = abl_ordinaer_hovedaktionær_nulværdi_vilkår
     )
@@ -159,15 +171,17 @@
 = abl_ordinaer_unoteret_tab = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         afståelsessum_kroner = 70000,
         vilkår = abl_ordinaer_unoteret_vilkår
     )
 )
 = abl_ordinaer_unoteret_tab_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = 2026,
-    hændelsesresultater = [abl_ordinaer_unoteret_tab],
+    skatteposter = aktieavance_skatteposter_fra_ordinaere_hændelsesresultater([abl_ordinaer_unoteret_tab]),
     fremført_tab_efter_par13a_kroner = 0,
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
@@ -181,30 +195,36 @@
 = abl_ordinaer_tidligere_noteret_tab = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         afståelsessum_kroner = 50000,
         vilkår = abl_ordinaer_tidligere_noteret_vilkår
     )
 )
 = abl_ordinaer_tidligere_noteret_gevinst_position = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-ORDINAER-B",
-    antal_aktier = 100,
-    samlet_pålydende_kroner = 10000,
+    kapitalmængde = AblPålydendeAktiekapital(
+        antal_aktier = 100,
+        samlet_pålydende_kroner = 10000
+    ),
     anskaffelsessum_kroner = 100000
 )
 = abl_ordinaer_tidligere_noteret_gevinst = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_tidligere_noteret_gevinst_position,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         afståelsessum_kroner = 130000,
         vilkår = abl_ordinaer_tidligere_noteret_vilkår
     )
 )
 = abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = 2026,
-    hændelsesresultater = [abl_ordinaer_tidligere_noteret_tab, abl_ordinaer_tidligere_noteret_gevinst],
+    skatteposter = aktieavance_skatteposter_fra_ordinaere_hændelsesresultater([abl_ordinaer_tidligere_noteret_tab, abl_ordinaer_tidligere_noteret_gevinst]),
     fremført_tab_efter_par13a_kroner = 0,
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
@@ -216,7 +236,7 @@
 ))
 = abl_ordinaer_par13a_ægtefælle_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = 2026,
-    hændelsesresultater = [abl_ordinaer_tidligere_noteret_tab],
+    skatteposter = aktieavance_skatteposter_fra_ordinaere_hændelsesresultater([abl_ordinaer_tidligere_noteret_tab]),
     fremført_tab_efter_par13a_kroner = 0,
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 30000,
@@ -233,8 +253,10 @@
 = abl_ordinaer_noteret_tab_uden_oplysning = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         afståelsessum_kroner = 70000,
         vilkår = abl_ordinaer_noteret_manglende_oplysning_vilkår
     )
@@ -242,8 +264,10 @@
 = abl_ordinaer_boligret_gevinst = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 10000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
         afståelsessum_kroner = 180000,
         vilkår = abl_ordinaer_boligret_vilkår
     )
@@ -251,8 +275,10 @@
 = abl_ordinaer_ugyldigt_salg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 101,
-        samlet_pålydende_kroner = 10100,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 101,
+            samlet_pålydende_kroner = 10100
+        ),
         afståelsessum_kroner = 120000,
         vilkår = abl_ordinaer_unoteret_vilkår
     )
@@ -260,16 +286,50 @@
 = abl_ordinaer_usammenhængende_fuldt_salg = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
-        antal_aktier = 100,
-        samlet_pålydende_kroner = 5000,
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 5000
+        ),
         afståelsessum_kroner = 120000,
         vilkår = abl_ordinaer_unoteret_vilkår
     )
 )
 
-| scenarie_abl_ordinaer_anskaffelse_opdaterer_gennemsnitsbeholdning: abl_ordinaer_anskaffelse -> abl_ordinaer_anskaffelse.hændelse_gyldig && abl_ordinaer_anskaffelse.position_efter.antal_aktier == 200 && abl_ordinaer_anskaffelse.position_efter.samlet_pålydende_kroner == 20000 && abl_ordinaer_anskaffelse.position_efter.anskaffelsessum_kroner == 240000
-| scenarie_abl_par26_første_delsalg_bruger_gennemsnitsmetoden: abl_ordinaer_første_delsalg -> abl_ordinaer_første_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_første_delsalg.bruttogevinst_kroner == 30000 && abl_ordinaer_første_delsalg.position_efter.antal_aktier == 150 && abl_ordinaer_første_delsalg.position_efter.anskaffelsessum_kroner == 180000
-| scenarie_abl_par26_senere_delsalg_bevarer_resten: abl_ordinaer_andet_delsalg -> abl_ordinaer_andet_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_andet_delsalg.bruttotab_kroner == 20000 && abl_ordinaer_andet_delsalg.position_efter.antal_aktier == 100 && abl_ordinaer_andet_delsalg.position_efter.anskaffelsessum_kroner == 120000
+= abl_ordinaer_uden_pålydende_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-ORDINAER-STYK",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 300),
+    anskaffelsessum_kroner = 450000
+)
+= abl_ordinaer_uden_pålydende_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_uden_pålydende_position,
+    AblOrdinærAnskaffelse(
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+        anskaffelsessum_kroner = 200000
+    )
+)
+= abl_ordinaer_uden_pålydende_delsalg = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_uden_pålydende_anskaffelse.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 80),
+        afståelsessum_kroner = 160000,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+= abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_uden_pålydende_position,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 80,
+            samlet_pålydende_kroner = 8000
+        ),
+        afståelsessum_kroner = 160000,
+        vilkår = abl_ordinaer_noteret_vilkår
+    )
+)
+
+| scenarie_abl_ordinaer_anskaffelse_opdaterer_gennemsnitsbeholdning: abl_ordinaer_anskaffelse -> abl_ordinaer_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_anskaffelse.position_efter) == 200 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_anskaffelse.position_efter) == 20000 && abl_ordinaer_anskaffelse.position_efter.anskaffelsessum_kroner == 240000
+| scenarie_abl_par26_første_delsalg_bruger_gennemsnitsmetoden: abl_ordinaer_første_delsalg -> abl_ordinaer_første_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_første_delsalg.bruttogevinst_kroner == 30000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_første_delsalg.position_efter) == 150 && abl_ordinaer_første_delsalg.position_efter.anskaffelsessum_kroner == 180000
+| scenarie_abl_par26_senere_delsalg_bevarer_resten: abl_ordinaer_andet_delsalg -> abl_ordinaer_andet_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 60000 && abl_ordinaer_andet_delsalg.bruttotab_kroner == 20000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_andet_delsalg.position_efter) == 100 && abl_ordinaer_andet_delsalg.position_efter.anskaffelsessum_kroner == 120000
 | scenarie_abl_hændelsesforløb_tråder_positionen_automatisk: abl_ordinaer_gennemsnit_hændelsesforløb -> abl_ordinaer_gennemsnit_hændelsesforløb.alle_hændelser_gyldige && length(abl_ordinaer_gennemsnit_hændelsesforløb.hændelsesresultater) == 3 && abl_ordinaer_gennemsnit_hændelsesforløb.position_ultimo == abl_ordinaer_andet_delsalg.position_efter
 | scenarie_abl_par12_par13a_nettogevinst: abl_ordinaer_gennemsnit_årsresultat -> abl_ordinaer_gennemsnit_årsresultat.skattepligtige_gevinster_efter_par12_kroner == 30000 && abl_ordinaer_gennemsnit_årsresultat.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 20000 && abl_ordinaer_gennemsnit_årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 10000
 | scenarie_abl_ordinaer_føder_personskattelov_par4a: abl_ordinaer_gennemsnit_par4a -> abl_ordinaer_gennemsnit_par4a.effektiv_aktiv == AblOrdinærAktiePar12Til15 && abl_ordinaer_gennemsnit_par4a.afgrænsning == AktiepostOmfattetAfStk1 && abl_ordinaer_gennemsnit_par4a.aktieindkomst_kroner == 10000 && abl_ordinaer_gennemsnit_par4a.personlig_indkomst_kroner == 0
@@ -284,6 +344,9 @@
 | scenarie_abl_par15_boligret_gevinst_er_skattefri: abl_ordinaer_boligret_gevinst -> abl_ordinaer_boligret_gevinst.bruttogevinst_kroner == 80000 && abl_ordinaer_boligret_gevinst.skattefri_efter_par15 && abl_ordinaer_boligret_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0
 | scenarie_abl_ugyldig_afståelse_bevarer_position: abl_ordinaer_ugyldigt_salg -> abl_ordinaer_ugyldigt_salg.hændelse_gyldig == Falskt && abl_ordinaer_ugyldigt_salg.bruttogevinst_kroner == 0 && abl_ordinaer_ugyldigt_salg.bruttotab_kroner == 0 && abl_ordinaer_ugyldigt_salg.position_efter == abl_ordinaer_position_primo
 | scenarie_abl_usammenhængende_fuldt_salg_bevarer_position: abl_ordinaer_usammenhængende_fuldt_salg -> abl_ordinaer_usammenhængende_fuldt_salg.hændelse_gyldig == Falskt && abl_ordinaer_usammenhængende_fuldt_salg.anskaffelsessum_henført_til_afståelse_kroner == 0 && abl_ordinaer_usammenhængende_fuldt_salg.position_efter == abl_ordinaer_position_primo
+| scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten: abl_ordinaer_uden_pålydende_anskaffelse -> abl_ordinaer_uden_pålydende_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 400 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 0 && abl_ordinaer_uden_pålydende_anskaffelse.position_efter.anskaffelsessum_kroner == 650000
+| scenarie_abl_par26_uden_pålydende_fordeler_efter_antal: abl_ordinaer_uden_pålydende_delsalg -> abl_ordinaer_uden_pålydende_delsalg.hændelse_gyldig && abl_ordinaer_uden_pålydende_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 130000 && abl_ordinaer_uden_pålydende_delsalg.bruttogevinst_kroner == 30000 && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_uden_pålydende_delsalg.position_efter) == 320 && abl_ordinaer_uden_pålydende_delsalg.position_efter.anskaffelsessum_kroner == 520000
+| scenarie_abl_par26_blandet_kapitalform_afvises_uden_fordelingsgrundlag: abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag -> abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag.hændelse_gyldig == Falskt && abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag.position_efter == abl_ordinaer_uden_pålydende_position
 
 ? scenarie_abl_ordinaer_anskaffelse_opdaterer_gennemsnitsbeholdning
 ? scenarie_abl_par26_første_delsalg_bruger_gennemsnitsmetoden
@@ -302,3 +365,6 @@
 ? scenarie_abl_par15_boligret_gevinst_er_skattefri
 ? scenarie_abl_ugyldig_afståelse_bevarer_position
 ? scenarie_abl_usammenhængende_fuldt_salg_bevarer_position
+? scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten
+? scenarie_abl_par26_uden_pålydende_fordeler_efter_antal
+? scenarie_abl_par26_blandet_kapitalform_afvises_uden_fordelingsgrundlag

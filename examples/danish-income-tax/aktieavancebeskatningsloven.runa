@@ -20,6 +20,7 @@ EndDate: 2026-07-01
 ----
 
 # AktieavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# AktieavancebeskatningslovDækningsgrænse(område: Tekst, beskrivelse: Tekst, status: Tekst)
 
 = aktieavancebeskatningsloven_lov1755 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1755",
@@ -41,8 +42,33 @@ EndDate: 2026-07-01
     identifier = "Aktieavancebeskatningsloven § 23, stk. 1, § 24, stk. 1, og § 26, stk. 1, 2 og 5",
     hentet_dato = "2026-07-18"
 )
+= aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 1, stk. 4, § 5, § 24, stk. 1-2, § 25, § 26, stk. 1-4, og § 30, stk. 1",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lov1563_par8_stk6 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1563",
+    identifier = "LOV nr. 1563 af 12/12/2023, § 8, stk. 6: overgang for rettigheder til aktier på en multilateral handelsfacilitet",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948010",
+    identifier = "Den juridiske vejledning C.B.2.1.7.3: aktie for aktie-metoden, FIFO og gennemsnitsmetoden",
+    hentet_dato = "2026-07-18"
+)
+= selskabsloven_lbk331_par47 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/331",
+    identifier = "Selskabsloven § 47, stk. 1-3: kapitalandele med nominel værdi og stykkapitalandele",
+    hentet_dato = "2026-07-18"
+)
+= aktieavance_par26_blandet_kapitalform_dækningsgrænse = AktieavancebeskatningslovDækningsgrænse(
+    område = "Aktieavancebeskatningsloven § 26, stk. 5, sammenholdt med selskabsloven § 47",
+    beskrivelse = "Homogene beholdninger med eller uden pålydende værdi beregnes; kombinationen kræver et dokumenteret fælles kapitalandelsgrundlag og afvises indtil da.",
+    status = "Åben"
+)
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:selskabsloven_lbk331_par47::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615::warning:aktieavance_par26_blandet_kapitalform_dækningsgrænse--
 ----
 § 12. Gevinst ved afståelse af aktier medregnes ved opgørelsen af den
 skattepligtige indkomst.
@@ -166,6 +192,16 @@ lægges til grund ved opgørelsen af gevinst eller tab ved afståelsen. Resten a
 den samlede anskaffelsessum betragtes som anskaffelsessum for de i behold
 værende aktier og skal ved senere afståelser af en del af aktierne fordeles
 efter foranstående regler.
+
+§ 47. Et kapitalselskab kan udstede kapitalandele med nominel
+værdi eller som stykkapitalandele eller en kombination heraf.
+
+Stk. 2. Stykkapitalandele har ingen pålydende værdi. Hver stykkapitalandel udgør
+en lige stor andel i selskabskapitalen.
+
+Stk. 3. Andelen i selskabskapitalen bestemmes for kapitalandele med nominel
+værdi efter forholdet mellem den pålydende værdi og selskabskapitalen og for
+stykkapitalandele efter antallet af udstedte andele.
 ----
 
 --@begin:aktieavancebeskatningsloven_ordinaere_aktier--
@@ -173,23 +209,36 @@ efter foranstående regler.
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
 # AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed: Boolsk, beboelseskrav_opfyldt: Boolsk, likvidationsprovenu: Boolsk, udloddet_i_endeligt_opløsningsår: Boolsk)
 # AktieavanceOrdinærAfståelsesvilkår(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, hovedaktionæraktier: Boolsk, afståede_aktiers_handelsværdi_kroner: Heltal, beholdte_aktiers_handelsværdi_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, boligret: AktieavanceOrdinærBoligretInput)
-# AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, antal_aktier: Heltal, samlet_pålydende_kroner: Heltal, anskaffelsessum_kroner: Heltal)
-# AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal, anskaffelsessum_kroner: Heltal) | AblOrdinærAfståelse(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår)
+# AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal)
+# AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
+# AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår)
 # AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
 # AktieavanceOrdinærHændelsesforløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, alle_hændelser_gyldige: Boolsk)
+# AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25
+# AktieavanceSkattepost(art: AktieavanceSkattepostArt, skattepligtig_gevinst_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, gevinst_i_modregningsgrundlag_efter_par13a_kroner: Heltal)
 # AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner: Heltal, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner: Heltal, udbytter_for_aktier_omfattet_af_par44_kroner: Heltal, ægtefælles_positive_nettobeløb_efter_par13a_kroner: Heltal)
-# AktieavanceOrdinærÅrsinput(indkomstår: Heltal, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
+# AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
 # AktieavanceOrdinærÅrsresultat(indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 
-| aktieavance_ordinaer_position_gyldig(position: AktieavanceOrdinærPosition) -> position.selskabsidentifikation != "" && position.antal_aktier >= 0 && position.samlet_pålydende_kroner >= 0 && position.anskaffelsessum_kroner >= 0 && ((position.antal_aktier == 0 && position.samlet_pålydende_kroner == 0 && position.anskaffelsessum_kroner == 0) || (position.antal_aktier > 0 && position.samlet_pålydende_kroner > 0))
-| aktieavance_ordinaer_er_anskaffelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, _, _) -> Sandt | _ -> Falskt }
-| aktieavance_ordinaer_er_afståelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, _, _) -> Sandt | _ -> Falskt }
-| aktieavance_ordinaer_antal_aktier(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(antal_aktier, _, _) -> antal_aktier | AblOrdinærAfståelse(antal_aktier, _, _, _) -> antal_aktier }
-| aktieavance_ordinaer_pålydende_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, pålydende_kroner, _) -> pålydende_kroner | AblOrdinærAfståelse(_, pålydende_kroner, _, _) -> pålydende_kroner }
-| aktieavance_ordinaer_anskaffelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, _, anskaffelsessum_kroner) -> anskaffelsessum_kroner | _ -> 0 }
-| aktieavance_ordinaer_afståelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, afståelsessum_kroner, _) -> afståelsessum_kroner | _ -> 0 }
-| aktieavance_ordinaer_afståelsesvilkår(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, _, vilkår) -> vilkår | _ -> AktieavanceOrdinærAfståelsesvilkår(markedsstatus = AblIkkeOptagetTilHandel, har_tidligere_været_optaget_til_handel = Falskt, hovedaktionæraktier = Falskt, afståede_aktiers_handelsværdi_kroner = 0, beholdte_aktiers_handelsværdi_kroner = 0, oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt, boligret = AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed = Falskt, beboelseskrav_opfyldt = Falskt, likvidationsprovenu = Falskt, udloddet_i_endeligt_opløsningsår = Falskt)) }
+| aktieavance_ordinaer_kapitalmængde_antal_aktier(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, _) -> antal_aktier | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier }
+| aktieavance_ordinaer_kapitalmængde_pålydende_kroner(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(_, samlet_pålydende_kroner) -> samlet_pålydende_kroner | AblAktiekapitalUdenPålydendeVærdi(_) -> 0 }
+| aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(_, _) -> Sandt | AblAktiekapitalUdenPålydendeVærdi(_) -> Falskt }
+| aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde: AktieavanceOrdinærKapitalmængde) -> match kapitalmængde { | AblPålydendeAktiekapital(antal_aktier, samlet_pålydende_kroner) -> antal_aktier >= 0 && ((antal_aktier == 0 && samlet_pålydende_kroner == 0) || (antal_aktier > 0 && samlet_pålydende_kroner > 0)) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier) -> antal_aktier >= 0 }
+| aktieavance_ordinaer_kapitalmængder_samme_art(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(_, _) -> match højre { | AblPålydendeAktiekapital(_, _) -> Sandt | _ -> Falskt } | AblAktiekapitalUdenPålydendeVærdi(_) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(_) -> Sandt | _ -> Falskt } }
+| aktieavance_ordinaer_kapitalmængder_plus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(antal_venstre, pålydende_venstre) -> match højre { | AblPålydendeAktiekapital(antal_højre, pålydende_højre) -> AblPålydendeAktiekapital(antal_aktier = antal_venstre + antal_højre, samlet_pålydende_kroner = pålydende_venstre + pålydende_højre) | _ -> venstre } | AblAktiekapitalUdenPålydendeVærdi(antal_venstre) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(antal_højre) -> AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal_venstre + antal_højre) | _ -> venstre } }
+| aktieavance_ordinaer_kapitalmængder_minus(venstre: AktieavanceOrdinærKapitalmængde, højre: AktieavanceOrdinærKapitalmængde) -> match venstre { | AblPålydendeAktiekapital(antal_venstre, pålydende_venstre) -> match højre { | AblPålydendeAktiekapital(antal_højre, pålydende_højre) -> AblPålydendeAktiekapital(antal_aktier = antal_venstre - antal_højre, samlet_pålydende_kroner = pålydende_venstre - pålydende_højre) | _ -> venstre } | AblAktiekapitalUdenPålydendeVærdi(antal_venstre) -> match højre { | AblAktiekapitalUdenPålydendeVærdi(antal_højre) -> AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal_venstre - antal_højre) | _ -> venstre } }
+| aktieavance_ordinaer_position_antal_aktier(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_antal_aktier(position.kapitalmængde)
+| aktieavance_ordinaer_position_pålydende_kroner(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(position.kapitalmængde)
+| aktieavance_ordinaer_position_gyldig(position: AktieavanceOrdinærPosition) -> position.selskabsidentifikation != "" && aktieavance_ordinaer_kapitalmængde_gyldig(position.kapitalmængde) && position.anskaffelsessum_kroner >= 0 && ((aktieavance_ordinaer_position_antal_aktier(position) == 0 && position.anskaffelsessum_kroner == 0) || aktieavance_ordinaer_position_antal_aktier(position) > 0)
+| aktieavance_ordinaer_er_anskaffelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, _) -> Sandt | _ -> Falskt }
+| aktieavance_ordinaer_er_afståelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, _) -> Sandt | _ -> Falskt }
+| aktieavance_ordinaer_kapitalmængde(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(kapitalmængde, _) -> kapitalmængde | AblOrdinærAfståelse(kapitalmængde, _, _) -> kapitalmængde }
+| aktieavance_ordinaer_antal_aktier(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_kapitalmængde_antal_aktier(aktieavance_ordinaer_kapitalmængde(hændelse))
+| aktieavance_ordinaer_pålydende_kroner(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(aktieavance_ordinaer_kapitalmængde(hændelse))
+| aktieavance_ordinaer_anskaffelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, anskaffelsessum_kroner) -> anskaffelsessum_kroner | _ -> 0 }
+| aktieavance_ordinaer_afståelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, afståelsessum_kroner, _) -> afståelsessum_kroner | _ -> 0 }
+| aktieavance_ordinaer_afståelsesvilkår(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, vilkår) -> vilkår | _ -> AktieavanceOrdinærAfståelsesvilkår(markedsstatus = AblIkkeOptagetTilHandel, har_tidligere_været_optaget_til_handel = Falskt, hovedaktionæraktier = Falskt, afståede_aktiers_handelsværdi_kroner = 0, beholdte_aktiers_handelsværdi_kroner = 0, oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt, boligret = AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed = Falskt, beboelseskrav_opfyldt = Falskt, likvidationsprovenu = Falskt, udloddet_i_endeligt_opløsningsår = Falskt)) }
 | aktieavance_ordinaer_oplysningsbetingelse_opfyldt(status: AktieavanceOrdinærOplysningsstatus) -> status != AblOplysningsbetingelseIkkeOpfyldt
 | aktieavance_ordinaer_er_optaget_til_handel(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> markedsstatus != AblIkkeOptagetTilHandel
 | aktieavance_ordinaer_tab_behandles_efter_par13a(vilkår: AktieavanceOrdinærAfståelsesvilkår) -> aktieavance_ordinaer_er_optaget_til_handel(vilkår.markedsstatus) || vilkår.har_tidligere_været_optaget_til_handel
@@ -197,18 +246,21 @@ efter foranstående regler.
 
 # AktieavanceOrdinærHændelsesSag(position: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse) {
     | position_gyldig() -> aktieavance_ordinaer_position_gyldig(position)
+    | kapitalmængde() -> aktieavance_ordinaer_kapitalmængde(hændelse)
     | antal_aktier() -> aktieavance_ordinaer_antal_aktier(hændelse)
     | pålydende_kroner() -> aktieavance_ordinaer_pålydende_kroner(hændelse)
     | afståelsesvilkår() -> aktieavance_ordinaer_afståelsesvilkår(hændelse)
-    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && antal_aktier() > 0 && pålydende_kroner() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
-    | afståelsesmængder_sammenhængende() -> (antal_aktier() == position.antal_aktier) == (pålydende_kroner() == position.samlet_pålydende_kroner)
-    | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || antal_aktier() == position.antal_aktier || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
-    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && antal_aktier() > 0 && antal_aktier() <= position.antal_aktier && pålydende_kroner() > 0 && pålydende_kroner() <= position.samlet_pålydende_kroner && afståelsesmængder_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig()
+    | kapitalart_sammenhængende() -> aktieavance_ordinaer_kapitalmængder_samme_art(position.kapitalmængde, kapitalmængde())
+    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && kapitalart_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
+    | afståelsesmængder_sammenhængende() -> aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde) == Falskt || (antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position)) == (pålydende_kroner() == aktieavance_ordinaer_position_pålydende_kroner(position))
+    | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position) || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
+    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && kapitalart_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && antal_aktier() <= aktieavance_ordinaer_position_antal_aktier(position) && pålydende_kroner() <= aktieavance_ordinaer_position_pålydende_kroner(position) && afståelsesmængder_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig()
     | hændelse_gyldig() -> position_gyldig() && (anskaffelse_gyldig() || afståelse_gyldig())
     | anskaffelsessum_henført_til_afståelse_kroner() -> 0
-    | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelse_gyldig() && antal_aktier() == position.antal_aktier
-    | exception abl_par26_stk5_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * pålydende_kroner() / position.samlet_pålydende_kroner under afståelse_gyldig() && antal_aktier() < position.antal_aktier && afståelsesvilkår().hovedaktionæraktier == Falskt
-    | exception abl_par26_stk5_hovedaktionær_handelsværdi anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * afståelsesvilkår().afståede_aktiers_handelsværdi_kroner / (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner) under afståelse_gyldig() && antal_aktier() < position.antal_aktier && afståelsesvilkår().hovedaktionæraktier
+    | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelse_gyldig() && antal_aktier() == aktieavance_ordinaer_position_antal_aktier(position)
+    | exception abl_par26_stk5_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * pålydende_kroner() / aktieavance_ordinaer_position_pålydende_kroner(position) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier == Falskt && aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde)
+    | exception abl_par26_stk5_uden_pålydende_fordeling anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * antal_aktier() / aktieavance_ordinaer_position_antal_aktier(position) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier == Falskt && aktieavance_ordinaer_kapitalmængde_har_pålydende_værdi(position.kapitalmængde) == Falskt
+    | exception abl_par26_stk5_hovedaktionær_handelsværdi anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner * afståelsesvilkår().afståede_aktiers_handelsværdi_kroner / (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner) under afståelse_gyldig() && antal_aktier() < aktieavance_ordinaer_position_antal_aktier(position) && afståelsesvilkår().hovedaktionæraktier
     | bruttogevinst_kroner() -> 0
     | exception abl_par12_realiseret_gevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktieavance_ordinaer_afståelsessum_kroner(hændelse) - anskaffelsessum_henført_til_afståelse_kroner()) under afståelse_gyldig()
     | bruttotab_kroner() -> 0
@@ -225,14 +277,12 @@ efter foranstående regler.
     | exception abl_par14_oplysningsbetingelse_mangler tab_afskåret_efter_par14_kroner() -> bruttotab_kroner() under skattefri_efter_par15() == Falskt && tab_behandles_efter_par13a() && oplysningsbetingelse_efter_par14_opfyldt() == Falskt
     | position_efter_anskaffelse() -> AktieavanceOrdinærPosition(
         selskabsidentifikation = position.selskabsidentifikation,
-        antal_aktier = position.antal_aktier + antal_aktier(),
-        samlet_pålydende_kroner = position.samlet_pålydende_kroner + pålydende_kroner(),
+        kapitalmængde = aktieavance_ordinaer_kapitalmængder_plus(position.kapitalmængde, kapitalmængde()),
         anskaffelsessum_kroner = position.anskaffelsessum_kroner + aktieavance_ordinaer_anskaffelsessum_kroner(hændelse)
     )
     | position_efter_afståelse() -> AktieavanceOrdinærPosition(
         selskabsidentifikation = position.selskabsidentifikation,
-        antal_aktier = position.antal_aktier - antal_aktier(),
-        samlet_pålydende_kroner = position.samlet_pålydende_kroner - pålydende_kroner(),
+        kapitalmængde = aktieavance_ordinaer_kapitalmængder_minus(position.kapitalmængde, kapitalmængde()),
         anskaffelsessum_kroner = position.anskaffelsessum_kroner - anskaffelsessum_henført_til_afståelse_kroner()
     )
     | position_efter() -> position
@@ -287,13 +337,24 @@ efter foranstående regler.
 
 | aktieavance_ordinaer_hændelsesforløb(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse)) -> AktieavanceOrdinærHændelsesforløbSag(position_primo, hændelser).resultat()
 
+| aktieavance_skattepost_fra_ordinaert_hændelsesresultat(resultat: AktieavanceOrdinærHændelsesresultat) -> AktieavanceSkattepost(
+    art = AblSkattepostOrdinærAktie,
+    skattepligtig_gevinst_efter_par12_kroner = resultat.skattepligtig_gevinst_efter_par12_kroner,
+    bruttotab_kroner = resultat.bruttotab_kroner,
+    fradragsberettiget_tab_efter_par13_kroner = resultat.fradragsberettiget_tab_efter_par13_kroner,
+    tab_til_modregning_efter_par13a_kroner = resultat.tab_til_modregning_efter_par13a_kroner,
+    tab_afskåret_efter_par14_kroner = resultat.tab_afskåret_efter_par14_kroner,
+    gevinst_i_modregningsgrundlag_efter_par13a_kroner = hvis resultat.skattepligtig_gevinst_efter_par12_kroner > 0 && aktieavance_ordinaer_er_optaget_til_handel(aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).markedsstatus) { resultat.skattepligtig_gevinst_efter_par12_kroner } ellers { 0 }
+)
+| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultater: List(AktieavanceOrdinærHændelsesresultat)) -> map(resultater, aktieavance_skattepost_fra_ordinaert_hændelsesresultat)
+
 # AktieavanceOrdinærÅrssag(input: AktieavanceOrdinærÅrsinput) {
-    | skattepligtige_gevinster_efter_par12_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + resultat.skattepligtig_gevinst_efter_par12_kroner)
-    | bruttotab_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + resultat.bruttotab_kroner)
-    | direkte_fradrag_efter_par13_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + resultat.fradragsberettiget_tab_efter_par13_kroner)
-    | årets_tab_efter_par13a_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + resultat.tab_til_modregning_efter_par13a_kroner)
-    | tab_afskåret_efter_par14_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + resultat.tab_afskåret_efter_par14_kroner)
-    | gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() -> foldl(input.hændelsesresultater, 0, |sum: Heltal, resultat: AktieavanceOrdinærHændelsesresultat| sum + hvis resultat.skattepligtig_gevinst_efter_par12_kroner > 0 && aktieavance_ordinaer_er_optaget_til_handel(aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).markedsstatus) { resultat.skattepligtig_gevinst_efter_par12_kroner } ellers { 0 })
+    | skattepligtige_gevinster_efter_par12_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.skattepligtig_gevinst_efter_par12_kroner)
+    | bruttotab_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.bruttotab_kroner)
+    | direkte_fradrag_efter_par13_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.fradragsberettiget_tab_efter_par13_kroner)
+    | årets_tab_efter_par13a_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.tab_til_modregning_efter_par13a_kroner)
+    | tab_afskåret_efter_par14_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.tab_afskåret_efter_par14_kroner)
+    | gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.gevinst_i_modregningsgrundlag_efter_par13a_kroner)
     | årets_og_fremførte_tab_efter_par13a_kroner() -> årets_tab_efter_par13a_kroner() + penge_positivt_beløb(input.fremført_tab_efter_par13a_kroner)
     | eget_modregningsgrundlag_efter_par13a_kroner() -> gevinster_for_aktier_optaget_til_handel_efter_par12_kroner() + penge_positivt_beløb(input.modregningsgrundlag.udbytter_for_aktier_med_gevinst_efter_par12_kroner) + penge_positivt_beløb(input.modregningsgrundlag.udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner) + penge_positivt_beløb(input.modregningsgrundlag.udbytter_for_aktier_omfattet_af_par44_kroner)
     | tab_modregnet_i_egne_udbytter_og_gevinster_kroner() -> penge_mindste_beløb(årets_og_fremførte_tab_efter_par13a_kroner(), eget_modregningsgrundlag_efter_par13a_kroner())
@@ -323,6 +384,262 @@ efter foranstående regler.
 
 | aktieavance_ordinaer_årsresultat(input: AktieavanceOrdinærÅrsinput) -> AktieavanceOrdinærÅrssag(input).resultat()
 --@end:aktieavancebeskatningsloven_ordinaere_aktier--
+
+--@label:aktieavancebeskatningsloven_par25_rettigheder::source:aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30::amendment_source:aktieavancebeskatningsloven_lov1563_par8_stk6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+Stk. 4. Gevinst og tab ved afståelse af tegningsret til aktier, tegningsret
+til konvertible obligationer eller ret til fondsaktier (aktieretter) medregnes
+ved opgørelsen af den skattepligtige indkomst efter reglerne i denne lov.
+Bortset fra § 36 finder reglerne i denne lov dog ikke anvendelse på
+tegningsretter til aktier, der er omfattet af ligningslovens § 28.
+
+§ 5. Såfremt en skattepligtig ejer aktier med samme rettigheder, der er
+erhvervet på forskellige tidspunkter, anses de først erhvervede aktier for de
+først afståede.
+
+§ 24. Gevinst og tab opgøres efter gennemsnitsmetoden, jf. § 26, jf. dog stk. 2.
+
+Stk. 2. Gevinst og tab ved afståelse af aktieretter og tegningsretter til
+aktier, der er optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet, opgøres efter aktie for aktie-metoden, jf. § 25.
+
+§ 25. Gevinst og tab ved afståelse af aktieretter og tegningsretter til aktier,
+der er optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet, opgøres som forskellen mellem afståelsessummen og
+anskaffelsessummen.
+
+Stk. 2. Anskaffelsessummen for aktieretter og tegningsretter, der er tildelt den
+skattepligtige i dennes egenskab af aktionær i selskabet, er 0 kr.
+
+Stk. 3. Stk. 1 finder ikke anvendelse i de tilfælde, hvor gevinst og tab opgøres
+efter lagerprincippet.
+
+§ 26. Gevinst og tab ved afståelse af aktier opgøres efter reglerne i stk. 2-6,
+jf. dog § 23, stk. 2, 4, 5, 8 og 9, og § 23 A, 1. pkt., om lagerprincippet.
+
+Stk. 2. Gevinst og tab opgøres som forskellen mellem afståelsessummen og
+anskaffelsessummen for de pågældende aktier. Ved anskaffelsessummen forstås den
+samlede anskaffelsessum for den beholdning af aktier, som den skattepligtige har
+i det pågældende selskab, uanset om de har forskellige rettigheder.
+Anskaffelsessummen for andele i et medarbejderinvesteringsselskab, hvor
+indbetalingen har været omfattet af ligningslovens § 7 N, sættes til nul. Afstår
+et selskab aktier til en kurs under handelsværdien, og kan selskabet fradrage
+forskellen mellem aktiernes handelsværdi og afståelsessummen efter
+statsskattelovens § 6, stk. 1, litra a, skal aktierne ved opgørelsen efter 1.
+pkt. anses for afstået til aktiernes handelsværdi på afståelsestidspunktet.
+
+Stk. 3. Aktieretter og tegningsretter til aktier, der er omfattet af § 25,
+skal ikke medregnes ved opgørelser efter stk. 2 og 5, og der skal ikke foretages
+en opgørelse efter stk. 2 og 5 ved afståelse af sådanne retter. Tilsvarende
+gælder for aktier, som indgår i en beholdning omfattet af § 44, og
+tegningsretter til aktier omfattet af § 16, stk. 1, hvor der er tale om
+tegningsretter til aktier, der hverken er optaget til handel på et reguleret
+marked eller en multilateral handelsfacilitet. Tegningsretter som nævnt i 2.
+pkt. er ikke omfattet af reglerne i stk. 4.
+
+Stk. 4. Tegningsretter til aktier, der ikke er omfattet af § 25, betragtes som
+aktier. Tegningsretter anses for erhvervet for et beløb opgjort som summen af
+købesummen for tegningsretten og det beløb, der skal betales ved tegningen.
+Tegningsretter anses for afstået for et beløb opgjort som summen af salgssummen
+for tegningsretten og det beløb, der skal betales ved tegningen.
+
+§ 30. Ved afståelse forstås i denne lov salg, bytte, bortfald og andre former
+for afhændelse.
+
+Stk. 6. § 2, nr. 12 og 14, har
+ikke virkning for aktieretter og tegningsretter til aktier optaget til handel på
+en multilateral handelsfacilitet, der er erhvervet før den 1. januar 2024. For
+sådanne aktieretter og tegningsretter til aktier finder de hidtil gældende
+regler anvendelse.
+----
+
+--@begin:aktieavancebeskatningsloven_par25_rettigheder--
+# AktieavanceRettighedLovregime = AblRettighedEfterAktieavancebeskatningsloven | AblTegningsretEfterLigningslov28
+# AktieavancePar25Rettighedsart = AblPar25Aktieret | AblPar25Tegningsret
+# AktieavancePar25Beskatningsprincip = AblPar25Realisationsprincip | AblPar25Lagerprincip
+# AktieavancePar26Tegningsretsregime = AblPar26RetEfterPar25AktieForAktie | AblPar26RetEfterPar44UdenforGennemsnit | AblPar26RetEfterPar16Stk1UdenforGennemsnit | AblPar26Stk4RetBetragtesSomAktie
+# AktieavancePar25Rettighed(underliggende_selskabsidentifikation: Tekst, rettighedsserie: Tekst, art: AktieavancePar25Rettighedsart, lovregime: AktieavanceRettighedLovregime, underliggende_aktiers_markedsstatus: AktieavanceOrdinærMarkedsstatus)
+# AktieavancePar25Parti(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, resterende_rettigheder: Heltal, resterende_anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
+# AktieavancePar25Position(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, partier: List(AktieavancePar25Parti))
+# AktieavancePar25Hændelse = AblPar25TildelingSomAktionær(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Køb(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, købesum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25AndenAnskaffelse(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Afståelse(antal_rettigheder: Heltal, afståelsessum_kroner: Heltal) | AblPar25Bortfald(antal_rettigheder: Heltal)
+# AktieavancePar25FifoResultat(resterende_antal_at_henføre: Heltal, anskaffelsessum_henført_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, alle_forbrugte_partier_opfylder_par14: Boolsk, resterende_partier: List(AktieavancePar25Parti))
+# AktieavancePar25Hændelsesresultat(position_før: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse, position_gyldig: Boolsk, omfattet_af_par25_stk1: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavancePar25Position)
+# AktieavancePar25Hændelsesforløbstilstand(position: AktieavancePar25Position, hændelsesresultater: List(AktieavancePar25Hændelsesresultat), alle_hændelser_gyldige: Boolsk)
+# AktieavancePar25HændelsesforløbResultat(position_primo: AktieavancePar25Position, hændelser: List(AktieavancePar25Hændelse), hændelsesresultater: List(AktieavancePar25Hændelsesresultat), position_ultimo: AktieavancePar25Position, alle_hændelser_gyldige: Boolsk)
+
+| aktieavance_rettighed_omfattet_af_abl(regime: AktieavanceRettighedLovregime) -> regime == AblRettighedEfterAktieavancebeskatningsloven
+| aktieavance_par26_rettighed_medregnes_i_gennemsnitsmetoden(regime: AktieavancePar26Tegningsretsregime) -> regime == AblPar26Stk4RetBetragtesSomAktie
+| aktieavance_par25_realisationsprincip(princip: AktieavancePar25Beskatningsprincip) -> princip == AblPar25Realisationsprincip
+| aktieavance_par25_underliggende_marked_omfattet(markedsstatus: AktieavanceOrdinærMarkedsstatus, erhvervelsesår: Heltal) -> match markedsstatus { | AblOptagetTilHandelPåReguleretMarked -> Sandt | AblOptagetTilHandelPåMultilateralHandelsfacilitet -> erhvervelsesår >= 2024 | AblIkkeOptagetTilHandel -> Falskt }
+| aktieavance_par25_rettighed_lovregime_gyldigt(rettighed: AktieavancePar25Rettighed) -> match rettighed.art { | AblPar25Aktieret -> rettighed.lovregime == AblRettighedEfterAktieavancebeskatningsloven | AblPar25Tegningsret -> Sandt }
+| aktieavance_par25_finder_anvendelse(rettighed: AktieavancePar25Rettighed, princip: AktieavancePar25Beskatningsprincip, erhvervelsesår: Heltal) -> aktieavance_rettighed_omfattet_af_abl(rettighed.lovregime) && aktieavance_par25_realisationsprincip(princip) && aktieavance_par25_underliggende_marked_omfattet(rettighed.underliggende_aktiers_markedsstatus, erhvervelsesår)
+| aktieavance_par25_parti_gyldigt(rettighed: AktieavancePar25Rettighed, parti: AktieavancePar25Parti) -> parti.erhvervelsesår > 0 && parti.erhvervelsesrækkefølge > 0 && parti.resterende_rettigheder > 0 && parti.resterende_anskaffelsessum_kroner >= 0 && aktieavance_par25_underliggende_marked_omfattet(rettighed.underliggende_aktiers_markedsstatus, parti.erhvervelsesår)
+| aktieavance_par25_partier_gyldige_fra(rettighed: AktieavancePar25Rettighed, partier: List(AktieavancePar25Parti), forrige_år: Heltal, forrige_rækkefølge: Heltal) -> hvis length(partier) == 0 { Sandt } ellers { aktieavance_par25_parti_gyldigt(rettighed, head(partier)) && (head(partier).erhvervelsesår > forrige_år || head(partier).erhvervelsesår == forrige_år && head(partier).erhvervelsesrækkefølge > forrige_rækkefølge) && aktieavance_par25_partier_gyldige_fra(rettighed, tail(partier), head(partier).erhvervelsesår, head(partier).erhvervelsesrækkefølge) }
+| aktieavance_par25_position_gyldig(position: AktieavancePar25Position) -> position.rettighed.underliggende_selskabsidentifikation != "" && position.rettighed.rettighedsserie != "" && aktieavance_par25_rettighed_lovregime_gyldigt(position.rettighed) && aktieavance_par25_partier_gyldige_fra(position.rettighed, position.partier, 0, 0)
+| aktieavance_par25_position_omfattet_af_stk1(position: AktieavancePar25Position) -> aktieavance_rettighed_omfattet_af_abl(position.rettighed.lovregime) && aktieavance_par25_realisationsprincip(position.beskatningsprincip) && position.rettighed.underliggende_aktiers_markedsstatus != AblIkkeOptagetTilHandel && aktieavance_par25_position_gyldig(position)
+| aktieavance_par25_position_antal_rettigheder(position: AktieavancePar25Position) -> foldl(position.partier, 0, |sum: Heltal, parti: AktieavancePar25Parti| sum + parti.resterende_rettigheder)
+| aktieavance_par25_er_anskaffelse(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, _, _, _) -> Sandt | AblPar25Køb(_, _, _, _, _) -> Sandt | AblPar25AndenAnskaffelse(_, _, _, _, _) -> Sandt | _ -> Falskt }
+| aktieavance_par25_er_afståelse(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25Afståelse(_, _) -> Sandt | AblPar25Bortfald(_) -> Sandt | _ -> Falskt }
+| aktieavance_par25_hændelsesantal(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, _, antal, _) -> antal | AblPar25Køb(_, _, antal, _, _) -> antal | AblPar25AndenAnskaffelse(_, _, antal, _, _) -> antal | AblPar25Afståelse(antal, _) -> antal | AblPar25Bortfald(antal) -> antal }
+| aktieavance_par25_erhvervelsesår(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(erhvervelsesår, _, _, _) -> erhvervelsesår | AblPar25Køb(erhvervelsesår, _, _, _, _) -> erhvervelsesår | AblPar25AndenAnskaffelse(erhvervelsesår, _, _, _, _) -> erhvervelsesår | _ -> 0 }
+| aktieavance_par25_erhvervelsesrækkefølge(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, rækkefølge, _, _) -> rækkefølge | AblPar25Køb(_, rækkefølge, _, _, _) -> rækkefølge | AblPar25AndenAnskaffelse(_, rækkefølge, _, _, _) -> rækkefølge | _ -> 0 }
+| aktieavance_par25_anskaffelsessum_kroner(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, _, _, _) -> 0 | AblPar25Køb(_, _, _, købesum_kroner, _) -> købesum_kroner | AblPar25AndenAnskaffelse(_, _, _, anskaffelsessum_kroner, _) -> anskaffelsessum_kroner | _ -> 0 }
+| aktieavance_par25_oplysningsstatus(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, _, _, status) -> status | AblPar25Køb(_, _, _, _, status) -> status | AblPar25AndenAnskaffelse(_, _, _, _, status) -> status | _ -> AblOplysningsbetingelseIkkeOpfyldt }
+| aktieavance_par25_afståelsessum_kroner(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25Afståelse(_, afståelsessum_kroner) -> afståelsessum_kroner | _ -> 0 }
+| aktieavance_par25_anskaffelse_følger_seneste_parti(position: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse) -> length(position.partier) == 0 || aktieavance_par25_erhvervelsesår(hændelse) > last(position.partier).erhvervelsesår || aktieavance_par25_erhvervelsesår(hændelse) == last(position.partier).erhvervelsesår && aktieavance_par25_erhvervelsesrækkefølge(hændelse) > last(position.partier).erhvervelsesrækkefølge
+
+# AktieavancePar25FifoPartiSag(parti: AktieavancePar25Parti, senere_partier: List(AktieavancePar25Parti), antal_at_henføre: Heltal, afståelsessum_at_henføre_kroner: Heltal) {
+    | antal_fra_partiet() -> penge_mindste_beløb(antal_at_henføre, parti.resterende_rettigheder)
+    | anskaffelsessum_fra_partiet_kroner() -> hvis antal_fra_partiet() == parti.resterende_rettigheder { parti.resterende_anskaffelsessum_kroner } ellers { parti.resterende_anskaffelsessum_kroner * antal_fra_partiet() / parti.resterende_rettigheder }
+    | afståelsessum_fra_partiet_kroner() -> hvis antal_fra_partiet() == antal_at_henføre { afståelsessum_at_henføre_kroner } ellers { afståelsessum_at_henføre_kroner * antal_fra_partiet() / antal_at_henføre }
+    | bruttogevinst_fra_partiet_kroner() -> penge_positivt_beløb(afståelsessum_fra_partiet_kroner() - anskaffelsessum_fra_partiet_kroner())
+    | bruttotab_fra_partiet_kroner() -> penge_positivt_beløb(anskaffelsessum_fra_partiet_kroner() - afståelsessum_fra_partiet_kroner())
+    | parti_opfylder_par14() -> aktieavance_ordinaer_oplysningsbetingelse_opfyldt(parti.oplysningsstatus)
+    | tab_til_modregning_fra_partiet_kroner() -> hvis parti_opfylder_par14() { bruttotab_fra_partiet_kroner() } ellers { 0 }
+    | tab_afskåret_fra_partiet_kroner() -> hvis parti_opfylder_par14() { 0 } ellers { bruttotab_fra_partiet_kroner() }
+    | parti_efter() -> AktieavancePar25Parti(
+        erhvervelsesår = parti.erhvervelsesår,
+        erhvervelsesrækkefølge = parti.erhvervelsesrækkefølge,
+        resterende_rettigheder = parti.resterende_rettigheder - antal_fra_partiet(),
+        resterende_anskaffelsessum_kroner = parti.resterende_anskaffelsessum_kroner - anskaffelsessum_fra_partiet_kroner(),
+        oplysningsstatus = parti.oplysningsstatus
+    )
+    | senere_resultat() -> aktieavance_par25_fifo_henfør(
+        partier = senere_partier,
+        antal_at_henføre = antal_at_henføre - antal_fra_partiet(),
+        afståelsessum_at_henføre_kroner = afståelsessum_at_henføre_kroner - afståelsessum_fra_partiet_kroner()
+    )
+    | resterende_partier() -> concat(hvis parti_efter().resterende_rettigheder > 0 { [parti_efter()] } ellers { [] }, senere_resultat().resterende_partier)
+    | resultat() -> AktieavancePar25FifoResultat(
+        resterende_antal_at_henføre = senere_resultat().resterende_antal_at_henføre,
+        anskaffelsessum_henført_kroner = anskaffelsessum_fra_partiet_kroner() + senere_resultat().anskaffelsessum_henført_kroner,
+        bruttogevinst_kroner = bruttogevinst_fra_partiet_kroner() + senere_resultat().bruttogevinst_kroner,
+        bruttotab_kroner = bruttotab_fra_partiet_kroner() + senere_resultat().bruttotab_kroner,
+        skattepligtig_gevinst_efter_par12_kroner = bruttogevinst_fra_partiet_kroner() + senere_resultat().skattepligtig_gevinst_efter_par12_kroner,
+        tab_til_modregning_efter_par13a_kroner = tab_til_modregning_fra_partiet_kroner() + senere_resultat().tab_til_modregning_efter_par13a_kroner,
+        tab_afskåret_efter_par14_kroner = tab_afskåret_fra_partiet_kroner() + senere_resultat().tab_afskåret_efter_par14_kroner,
+        alle_forbrugte_partier_opfylder_par14 = parti_opfylder_par14() && senere_resultat().alle_forbrugte_partier_opfylder_par14,
+        resterende_partier = resterende_partier()
+    )
+}
+
+| aktieavance_par25_tomt_fifo_resultat(resterende_antal_at_henføre: Heltal, resterende_partier: List(AktieavancePar25Parti)) -> AktieavancePar25FifoResultat(resterende_antal_at_henføre = resterende_antal_at_henføre, anskaffelsessum_henført_kroner = 0, bruttogevinst_kroner = 0, bruttotab_kroner = 0, skattepligtig_gevinst_efter_par12_kroner = 0, tab_til_modregning_efter_par13a_kroner = 0, tab_afskåret_efter_par14_kroner = 0, alle_forbrugte_partier_opfylder_par14 = Sandt, resterende_partier = resterende_partier)
+| aktieavance_par25_fifo_henfør(partier: List(AktieavancePar25Parti), antal_at_henføre: Heltal, afståelsessum_at_henføre_kroner: Heltal) -> hvis antal_at_henføre <= 0 { aktieavance_par25_tomt_fifo_resultat(0, partier) } ellers { hvis length(partier) == 0 { aktieavance_par25_tomt_fifo_resultat(antal_at_henføre, []) } ellers { AktieavancePar25FifoPartiSag(parti = head(partier), senere_partier = tail(partier), antal_at_henføre = antal_at_henføre, afståelsessum_at_henføre_kroner = afståelsessum_at_henføre_kroner).resultat() } }
+
+# AktieavancePar25HændelsesSag(position: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse) {
+    | position_gyldig() -> aktieavance_par25_position_gyldig(position)
+    | omfattet_af_par25_stk1() -> hvis aktieavance_par25_er_anskaffelse(hændelse) { aktieavance_par25_finder_anvendelse(position.rettighed, position.beskatningsprincip, aktieavance_par25_erhvervelsesår(hændelse)) } ellers { aktieavance_par25_position_omfattet_af_stk1(position) }
+    | antal_rettigheder() -> aktieavance_par25_hændelsesantal(hændelse)
+    | fifo_resultat() -> aktieavance_par25_fifo_henfør(
+        partier = position.partier,
+        antal_at_henføre = antal_rettigheder(),
+        afståelsessum_at_henføre_kroner = aktieavance_par25_afståelsessum_kroner(hændelse)
+    )
+    | anskaffelse_gyldig() -> aktieavance_par25_er_anskaffelse(hændelse) && antal_rettigheder() > 0 && aktieavance_par25_erhvervelsesår(hændelse) > 0 && aktieavance_par25_erhvervelsesrækkefølge(hændelse) > 0 && aktieavance_par25_anskaffelsessum_kroner(hændelse) >= 0 && aktieavance_par25_anskaffelse_følger_seneste_parti(position, hændelse) && aktieavance_par25_finder_anvendelse(position.rettighed, position.beskatningsprincip, aktieavance_par25_erhvervelsesår(hændelse))
+    | afståelse_gyldig() -> aktieavance_par25_er_afståelse(hændelse) && antal_rettigheder() > 0 && aktieavance_par25_afståelsessum_kroner(hændelse) >= 0 && fifo_resultat().resterende_antal_at_henføre == 0
+    | hændelse_gyldig() -> position_gyldig() && omfattet_af_par25_stk1() && (anskaffelse_gyldig() || afståelse_gyldig())
+    | anskaffelsessum_henført_til_afståelse_kroner() -> 0
+    | exception abl_par25_aktie_for_aktie_anskaffelsessum anskaffelsessum_henført_til_afståelse_kroner() -> fifo_resultat().anskaffelsessum_henført_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | bruttogevinst_kroner() -> 0
+    | exception abl_par25_realiseret_gevinst bruttogevinst_kroner() -> fifo_resultat().bruttogevinst_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | bruttotab_kroner() -> 0
+    | exception abl_par25_realiseret_tab bruttotab_kroner() -> fifo_resultat().bruttotab_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14() -> hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse) && fifo_resultat().alle_forbrugte_partier_opfylder_par14
+    | skattepligtig_gevinst_efter_par12_kroner() -> 0
+    | exception abl_par25_skattepligtig_gevinst_pr_parti skattepligtig_gevinst_efter_par12_kroner() -> fifo_resultat().skattepligtig_gevinst_efter_par12_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | tab_til_modregning_efter_par13a_kroner() -> 0
+    | exception abl_par25_tab_med_oplysningsbetingelse tab_til_modregning_efter_par13a_kroner() -> fifo_resultat().tab_til_modregning_efter_par13a_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | tab_afskåret_efter_par14_kroner() -> 0
+    | exception abl_par25_tab_uden_oplysningsbetingelse tab_afskåret_efter_par14_kroner() -> fifo_resultat().tab_afskåret_efter_par14_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | nyt_parti() -> AktieavancePar25Parti(
+        erhvervelsesår = aktieavance_par25_erhvervelsesår(hændelse),
+        erhvervelsesrækkefølge = aktieavance_par25_erhvervelsesrækkefølge(hændelse),
+        resterende_rettigheder = antal_rettigheder(),
+        resterende_anskaffelsessum_kroner = aktieavance_par25_anskaffelsessum_kroner(hændelse),
+        oplysningsstatus = aktieavance_par25_oplysningsstatus(hændelse)
+    )
+    | position_efter_anskaffelse() -> AktieavancePar25Position(
+        rettighed = position.rettighed,
+        beskatningsprincip = position.beskatningsprincip,
+        partier = concat(position.partier, [nyt_parti()])
+    )
+    | position_efter_afståelse() -> AktieavancePar25Position(
+        rettighed = position.rettighed,
+        beskatningsprincip = position.beskatningsprincip,
+        partier = fifo_resultat().resterende_partier
+    )
+    | position_efter() -> position
+    | exception abl_par25_gyldig_anskaffelse_position position_efter() -> position_efter_anskaffelse() under hændelse_gyldig() && aktieavance_par25_er_anskaffelse(hændelse)
+    | exception abl_par25_gyldig_afståelse_position position_efter() -> position_efter_afståelse() under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)
+    | resultat() -> AktieavancePar25Hændelsesresultat(
+        position_før = position,
+        hændelse = hændelse,
+        position_gyldig = position_gyldig(),
+        omfattet_af_par25_stk1 = omfattet_af_par25_stk1(),
+        hændelse_gyldig = hændelse_gyldig(),
+        anskaffelsessum_henført_til_afståelse_kroner = anskaffelsessum_henført_til_afståelse_kroner(),
+        bruttogevinst_kroner = bruttogevinst_kroner(),
+        bruttotab_kroner = bruttotab_kroner(),
+        alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14 = alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14(),
+        skattepligtig_gevinst_efter_par12_kroner = skattepligtig_gevinst_efter_par12_kroner(),
+        tab_til_modregning_efter_par13a_kroner = tab_til_modregning_efter_par13a_kroner(),
+        tab_afskåret_efter_par14_kroner = tab_afskåret_efter_par14_kroner(),
+        position_efter = position_efter()
+    )
+}
+
+| aktieavance_par25_hændelsesresultat(position: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse) -> AktieavancePar25HændelsesSag(position, hændelse).resultat()
+
+# AktieavancePar25HændelsesforløbstrinSag(tilstand: AktieavancePar25Hændelsesforløbstilstand, hændelse: AktieavancePar25Hændelse) {
+    | hændelsesresultat() -> aktieavance_par25_hændelsesresultat(tilstand.position, hændelse)
+    | resultat() -> AktieavancePar25Hændelsesforløbstilstand(
+        position = hændelsesresultat().position_efter,
+        hændelsesresultater = concat(tilstand.hændelsesresultater, [hændelsesresultat()]),
+        alle_hændelser_gyldige = tilstand.alle_hændelser_gyldige && hændelsesresultat().hændelse_gyldig
+    )
+}
+
+| aktieavance_par25_hændelsesforløbstrin(tilstand: AktieavancePar25Hændelsesforløbstilstand, hændelse: AktieavancePar25Hændelse) -> AktieavancePar25HændelsesforløbstrinSag(tilstand, hændelse).resultat()
+
+# AktieavancePar25HændelsesforløbSag(position_primo: AktieavancePar25Position, hændelser: List(AktieavancePar25Hændelse)) {
+    | sluttilstand() -> foldl(hændelser, AktieavancePar25Hændelsesforløbstilstand(
+        position = position_primo,
+        hændelsesresultater = [],
+        alle_hændelser_gyldige = aktieavance_par25_position_gyldig(position_primo)
+        ), aktieavance_par25_hændelsesforløbstrin)
+    | resultat() -> AktieavancePar25HændelsesforløbResultat(
+        position_primo = position_primo,
+        hændelser = hændelser,
+        hændelsesresultater = sluttilstand().hændelsesresultater,
+        position_ultimo = sluttilstand().position,
+        alle_hændelser_gyldige = sluttilstand().alle_hændelser_gyldige
+    )
+}
+
+| aktieavance_par25_hændelsesforløb(position_primo: AktieavancePar25Position, hændelser: List(AktieavancePar25Hændelse)) -> AktieavancePar25HændelsesforløbSag(position_primo, hændelser).resultat()
+| aktieavance_par25_skattepost_art(rettighedsart: AktieavancePar25Rettighedsart) -> match rettighedsart { | AblPar25Aktieret -> AblSkattepostAktieretEfterPar25 | AblPar25Tegningsret -> AblSkattepostTegningsretEfterPar25 }
+| aktieavance_skattepost_fra_par25_hændelsesresultat(resultat: AktieavancePar25Hændelsesresultat) -> AktieavanceSkattepost(
+    art = aktieavance_par25_skattepost_art(resultat.position_før.rettighed.art),
+    skattepligtig_gevinst_efter_par12_kroner = resultat.skattepligtig_gevinst_efter_par12_kroner,
+    bruttotab_kroner = resultat.bruttotab_kroner,
+    fradragsberettiget_tab_efter_par13_kroner = 0,
+    tab_til_modregning_efter_par13a_kroner = resultat.tab_til_modregning_efter_par13a_kroner,
+    tab_afskåret_efter_par14_kroner = resultat.tab_afskåret_efter_par14_kroner,
+    gevinst_i_modregningsgrundlag_efter_par13a_kroner = resultat.skattepligtig_gevinst_efter_par12_kroner
+)
+| aktieavance_skatteposter_fra_par25_hændelsesresultater(resultater: List(AktieavancePar25Hændelsesresultat)) -> map(resultater, aktieavance_skattepost_fra_par25_hændelsesresultat)
+
+| aktieavance_par26_stk4_beløb_gyldige(rettighedsbeløb_kroner: Heltal, beløb_ved_tegning_kroner: Heltal) -> rettighedsbeløb_kroner >= 0 && beløb_ved_tegning_kroner >= 0
+| aktieavance_par26_stk4_anskaffelseshændelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, købesum_for_tegningsret_kroner: Heltal, beløb_ved_tegning_kroner: Heltal) -> AblOrdinærAnskaffelse(
+    kapitalmængde = kapitalmængde,
+    anskaffelsessum_kroner = købesum_for_tegningsret_kroner + beløb_ved_tegning_kroner
+)
+| aktieavance_par26_stk4_afståelseshændelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, salgssum_for_tegningsret_kroner: Heltal, beløb_ved_tegning_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår) -> AblOrdinærAfståelse(
+    kapitalmængde = kapitalmængde,
+    afståelsessum_kroner = salgssum_for_tegningsret_kroner + beløb_ved_tegning_kroner,
+    vilkår = vilkår
+)
+--@end:aktieavancebeskatningsloven_par25_rettigheder--
 
 ----
 § 17.

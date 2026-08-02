@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-8fe9a8`
+Current focus issue: `td-eec214`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -47,15 +47,33 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Aktieavancebeskatningsloven §§ 12-15, § 23, stk. 1,
-§ 24, stk. 1, og § 26, stk. 1, 2 og 5 har nu en typet beregningsvej for
-ordinære personaktier med pålydende værdi. En vedvarende selskabsposition og
-anskaffelses-/afståelseshændelser beregner gennemsnitlig anskaffelsessum,
-delafståelser og hovedaktionærfordeling. Årsreglerne skelner mellem direkte
-fradrag for unoterede tab, kildebegrænset modregning og fremførsel for noterede
-tab, § 14-oplysningsafskæring, § 15-boligretsfritagelse og § 13 A-overførsel
-til en samlevende ægtefælle. Både eget nettoresultat og ægtefællens overførte
-tab føder typede Personskatteloven § 4 a-poster. Det fokuserede scenarie
-validerer 17 betingelser og undtagelser i både interpreter og kompileret kode.
+§ 24, stk. 1-2, § 25, § 26, stk. 1-5, og § 30, stk. 1, har nu typede beregningsveje for
+ordinære personaktier og aktie- og tegningsretter under realisationsprincippet.
+Den vedvarende ordinære selskabsposition håndterer både aktier med pålydende
+værdi og homogene beholdninger af stykkapitalandele uden pålydende værdi.
+Anskaffelses- og afståelseshændelser beregner gennemsnitlig anskaffelsessum,
+delafståelser og hovedaktionærfordeling. En særskilt § 25-position bevarer
+daterede rettighedspartier og bruger FIFO sammen med aktie for aktie-metoden;
+aktionærtildelte rettigheder får 0 kr. i anskaffelsessum, og købte rettigheder
+bevarer faktisk anskaffelsessum. Bortfald behandles som afståelse efter § 30.
+MTF-overgangen den 1. januar 2024,
+lagerprincipafgrænsningen, ligningslovens § 28-undtagelse og § 14's
+oplysningsbetingelse er eksplicitte. Begge domæner føder den samme typede
+§ 13 A-årsopgørelse og Personskatteloven § 4 a-bro. De fokuserede scenarier
+validerer 20 ordinære aktieudfald og 11 rettighedsudfald i både interpreter og
+kompileret kode.
+
+Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
+og stykkapitalandele. Den nuværende ABL-position beregner de to homogene former,
+men afviser en blandet hændelse, indtil et dokumenteret, sammenligneligt
+kapitalandelsgrundlag kan bæres i domænet. Dette er en udtrykkelig
+dækningsgrænse, ikke en påstand om, at kombinationen er selskabsretligt ugyldig.
+De resterende §§ 23-27-grene omfatter § 23, stk. 2-9 og § 23 A's valg og krav
+om lagerprincip, § 24, stk. 3-5's principskift, næringsbeholdning og
+ind-/udtræden af skattepligt, den hidtidige regel for MTF-rettigheder erhvervet
+før 2024, § 26, stk. 2's medarbejderinvesteringsselskaber og salg under
+handelsværdi, § 26, stk. 6's adskilte § 7 N-beholdninger samt § 27's tillæg til
+anskaffelsessummen for manglende effektiv minimumsudlodning.
 
 Afskrivningslovens aktuelle kilde- og regelkorpus omfatter
 nu hele paragrafsekvensen §§ 1-69. § 3 kræver leveret, driftsbestemt og
@@ -1998,9 +2016,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
-- Continue Aktieavancebeskatningsloven beyond the ordinary nominal-share path:
-  model shares without nominal value, § 25 rights under the share-by-share
-  method, the remaining §§ 23-27 realization/lager and basis branches,
+- Continue Aktieavancebeskatningsloven beyond the ordinary and § 25 rights paths:
+  model mixed nominal/no-par holdings on a documented common capital-share
+  basis, the remaining §§ 23-27 realization/lager and basis branches,
   § 33 A status changes, §§ 37-39 entry/exit taxation, transitions and the
   employee-ownership provisions before calling the ABL dependency complete.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
