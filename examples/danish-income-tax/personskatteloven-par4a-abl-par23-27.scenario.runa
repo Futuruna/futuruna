@@ -1,0 +1,356 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./kapitel - 01 - indkomst
+
+-- Fokusscenarier for Aktieavancebeskatningsloven §§ 23-27.
+
+= abl_par23_intet_stk7_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+
+= abl_par23_person_standard_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar7,
+    aktiv = AblAndenAktieEfterPar23,
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_person_standard = aktieavance_par23_princip_resultat(abl_par23_person_standard_input)
+
+= abl_par23_naeringslager_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar7,
+    aktiv = AblPar17Næringsaktiv,
+    stk2_valg = AblLagerValgtEnGangForAlleEfterPar23Stk2,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_naeringslager = aktieavance_par23_princip_resultat(abl_par23_naeringslager_input)
+
+= abl_par23_stk4_obligationsbevis_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar7,
+    aktiv = AblPar22Investeringsbevis,
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Sandt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_stk4_obligationsbevis = aktieavance_par23_princip_resultat(abl_par23_stk4_obligationsbevis_input)
+
+= abl_par23_stk6_realisationsvalg_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-U", markedsstatus = AblIkkeOptagetTilHandel),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    ),
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_stk6_realisationsvalg = aktieavance_par23_princip_resultat(abl_par23_stk6_realisationsvalg_input)
+
+= abl_par23_stk6_ugyldigt_genvalg_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-U", markedsstatus = AblIkkeOptagetTilHandel),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Sandt
+    ),
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_stk6_ugyldigt_genvalg = aktieavance_par23_princip_resultat(abl_par23_stk6_ugyldigt_genvalg_input)
+
+= abl_par23_stk7_historisk_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "DK-P9-L",
+    første_optagelsesdato = AktieavancePar23Dato(år = 2020, måned = 5, dag = 15),
+    ejer_dage_før_første_optagelse = 45,
+    valgmåde = AblHistoriskGenoptagelsesvalg(
+        anmodet_senest_1_juli_2025 = Sandt,
+        omfatter_hele_perioden = Sandt
+    )
+)
+= abl_par23_stk7_sidste_dag_input = AktieavancePar23PrincipInput(
+    indkomstår = 2027,
+    opgørelsesdato = AktieavancePar23Dato(år = 2027, måned = 5, dag = 14),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-L", markedsstatus = AblOptagetTilHandelPåReguleretMarked),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_stk7_historisk_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_stk7_sidste_dag = aktieavance_par23_princip_resultat(abl_par23_stk7_sidste_dag_input)
+= abl_par23_stk7_efter_perioden_input = AktieavancePar23PrincipInput(
+    indkomstår = 2027,
+    opgørelsesdato = AktieavancePar23Dato(år = 2027, måned = 5, dag = 15),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-L", markedsstatus = AblOptagetTilHandelPåReguleretMarked),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_stk7_historisk_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+= abl_par23_stk7_efter_perioden = aktieavance_par23_princip_resultat(abl_par23_stk7_efter_perioden_input)
+= abl_par23_stk7_valg_efter_omstrukturering = aktieavance_par23_stk7_valg_efter_omstrukturering(
+    abl_par23_stk7_historisk_valg,
+    "DK-P9-NY"
+)
+
+= abl_par23_19b_lager_input = AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar7,
+    aktiv = AblPar19BInvesteringsselskabsaktiv(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        registreret_i_værdipapircentral = Falskt
+    ),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = abl_par23_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Sandt
+)
+= abl_par23_19b_princip = aktieavance_par23_princip_resultat(abl_par23_19b_lager_input)
+= abl_par23_stk8_værdi_med_lav_markedskurs = aktieavance_par23_stk8_skattemæssig_værdi_kroner(
+    AblPar23Stk8Markedskurs(markedskurs_kroner = 80000, tilbagekøbsværdi_kroner = 90000)
+)
+= abl_par23_stk8_værdi_uden_markedskurs = aktieavance_par23_stk8_skattemæssig_værdi_kroner(
+    AblPar23Stk8UdenFastlæggeligMarkedskurs(tilbagekøbsværdi_kroner = 75000)
+)
+= abl_par23_19b_lager = aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+    princip_resultat = abl_par23_19b_princip,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 120000,
+    anskaffelsessummer_i_perioden_kroner = 30000,
+    afståelsessummer_i_perioden_kroner = 25000,
+    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 5000,
+    ville_være_par17_uden_investeringsstatus = Falskt
+))
+= abl_par23_19b_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(
+    aktieavancebeskatningslov_resultat = abl_par23_19b_lager.aktieavancebeskatningslov_resultat
+))
+
+= abl_par23_stk9_tidligt_salg = AktieavancePar23Stk9Afståelsesinput(
+    overgang_skyldes_instituttets_beslutning_eller_manglende_rettidige_oplysninger = Sandt,
+    afståelse_før_beslutning_eller_oplysningsfrist = Sandt,
+    grund_til_at_antage_overgang_efter_generalforsamling = Falskt
+)
+
+= abl_par23a_gulv = aktieavance_par23a_resultat(AktieavancePar23AInput(
+    værdi_primo_eller_anskaffelsessum_kroner = 100000,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    hændelse = AblPar23ABeholdesVedÅretsSlutning(værdi_ultimo_kroner = 80000)
+))
+
+= abl_par24_realisation_til_lager = aktieavance_par24_principskift_resultat(
+    AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
+    AblIkkeOmfattetAfPar33A
+)
+= abl_par24_lager_til_realisation = aktieavance_par24_principskift_resultat(
+    AblFraLagerprincipTilRealisationsprincip(værdi_ultimo_før_skift_kroner = 67000),
+    AblIkkeOmfattetAfPar33A
+)
+= abl_par24_par33a_undtagelse = aktieavance_par24_principskift_resultat(
+    AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
+    AblOmfattetAfPar33A
+)
+
+= abl_par24_naeringsposition = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-NAERING-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    anskaffelsessum_kroner = 50000
+)
+= abl_par24_anlaeg = aktieavance_par24_næring_til_anlæg_resultat(AktieavancePar24NæringTilAnlægInput(
+    overgangsår = 2026,
+    næringsposition = abl_par24_naeringsposition,
+    lagerprincip_valgt_efter_par23_stk2 = Sandt,
+    værdi_ultimo_før_overgang_kroner = 72000
+))
+
+= abl_mtf_tegningsret = AktieavancePar25Rettighed(
+    underliggende_selskabsidentifikation = "DK-MTF-1",
+    rettighedsserie = "T-2023",
+    art = AblPar25Tegningsret,
+    lovregime = AblRettighedEfterAktieavancebeskatningsloven,
+    underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet
+)
+= abl_mtf_tegningsret_2023 = aktieavance_rettigheds_opgørelsesresultat(
+    abl_mtf_tegningsret,
+    AblPar25Realisationsprincip,
+    2023
+)
+= abl_mtf_tegningsret_2024 = aktieavance_rettigheds_opgørelsesresultat(
+    abl_mtf_tegningsret,
+    AblPar25Realisationsprincip,
+    2024
+)
+
+= abl_tom_boligret = AktieavanceOrdinærBoligretInput(
+    forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
+    beboelseskrav_opfyldt = Falskt,
+    likvidationsprovenu = Falskt,
+    udloddet_i_endeligt_opløsningsår = Falskt
+)
+= abl_unoteret_vilkår = AktieavanceOrdinærAfståelsesvilkår(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Falskt,
+    hovedaktionæraktier = Falskt,
+    afståede_aktiers_handelsværdi_kroner = 0,
+    beholdte_aktiers_handelsværdi_kroner = 0,
+    oplysningsstatus = AblOplystRettidigt,
+    boligret = abl_tom_boligret
+)
+= abl_par26_ll7n_anskaffelse = aktieavance_par26_stk2_anskaffelseshændelse(
+    AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    10000,
+    AblMedarbejderinvesteringsandelMedIndbetalingEfterLl7N
+)
+= abl_par26_markedsprisinput = AktieavancePar26Stk2Afståelsesprisinput(
+    faktisk_afståelsessum_kroner = 5000,
+    handelsværdi_kroner = 9000,
+    sælgerstatus = AblSelskabMedFradragEfterStatsskattelovPar6
+)
+
+= abl_par26_stk6_beholdning = AktieavancePar26Stk6Beholdning(
+    ll7n_position = AktieavanceOrdinærPosition(
+        selskabsidentifikation = "DK-MIS-1",
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+        anskaffelsessum_kroner = 0
+    ),
+    anden_position = AktieavanceOrdinærPosition(
+        selskabsidentifikation = "DK-MIS-1",
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+        anskaffelsessum_kroner = 10000
+    )
+)
+= abl_par26_stk6_ll7n_salg = aktieavance_par26_stk6_hændelsesresultat(
+    abl_par26_stk6_beholdning,
+    AktieavancePar26Stk6Hændelse(
+        gruppe = AblBeholdningMedIndbetalingEfterLl7N,
+        hændelse = AblOrdinærAfståelse(
+            kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5),
+            afståelsessum_kroner = 7500,
+            vilkår = abl_unoteret_vilkår
+        )
+    )
+)
+
+= abl_par27_andel = AktieavancePar27OprindeligAndel(
+    selskabsidentifikation = "DK-MIN-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsestidspunkt = AktieavancePar27Dato(år = 2020, måned = 5, dag = 15),
+    anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner = 10000)
+)
+= abl_par27_tillæg = aktieavance_par27_resultat(
+    abl_par27_andel,
+    AktieavancePar27Hændelse(
+        minimumsindkomstens_kalenderår = 2026,
+        manglende_effektiv_udbetaling_kroner = 2000,
+        årlig_regnskabsgodkendelse = AktieavancePar27Dato(år = 2027, måned = 8, dag = 15),
+        institutsstatus = AblPar27UcitsMinimumsinstitut,
+        stk2_vilkår = AktieavancePar27Stk2Vilkår(
+            behandles_som_nyt_indskud_med_nominel_forøgelse = Falskt,
+            er_likvidationsudlodning_efter_ll16a_stk3_nr1 = Falskt
+        )
+    )
+)
+= abl_par27_salg = aktieavance_ordinaer_hændelsesresultat(
+    abl_par27_tillæg.position_efter,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5),
+        afståelsessum_kroner = 8000,
+        vilkår = abl_unoteret_vilkår
+    )
+)
+= abl_par27_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+    indkomstår = 2027,
+    skatteposter = [aktieavance_skattepost_fra_ordinaert_hændelsesresultat(abl_par27_salg)],
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+    ),
+    gift_og_samlevende_ved_årets_udgang = Falskt
+))
+= abl_par27_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(
+    aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat_fra_ordinaere_aktier(abl_par27_årsresultat)
+))
+
+| scenarie_abl_par23_stk1_er_standard_for_person: abl_par23_person_standard -> abl_par23_person_standard.princip == AblPar23Realisationsprincip && abl_par23_person_standard.grundlag == AblPar23Stk1Grundlag && abl_par23_person_standard.valganmodning_gyldig
+| scenarie_abl_par23_stk2_naeringslager_er_bindende: abl_par23_naeringslager -> abl_par23_naeringslager.princip == AblPar23Lagerprincip && abl_par23_naeringslager.grundlag == AblPar23Stk2ValgtLager && abl_par23_naeringslager.valg_bindende
+| scenarie_abl_par23_stk4_tvinger_obligationsbevis_paa_lager: abl_par23_stk4_obligationsbevis -> abl_par23_stk4_obligationsbevis.princip == AblPar23Lagerprincip && abl_par23_stk4_obligationsbevis.grundlag == AblPar23Stk4TvungetLager
+| scenarie_abl_par23_stk6_tillader_unoteret_realisation: abl_par23_stk6_realisationsvalg -> abl_par23_stk6_realisationsvalg.princip == AblPar23Realisationsprincip && abl_par23_stk6_realisationsvalg.grundlag == AblPar23Stk6ValgtRealisation && abl_par23_stk6_realisationsvalg.valganmodning_gyldig
+| scenarie_abl_par23_stk6_afviser_genvalg_efter_lager: abl_par23_stk6_ugyldigt_genvalg -> abl_par23_stk6_ugyldigt_genvalg.princip == AblPar23Lagerprincip && abl_par23_stk6_ugyldigt_genvalg.grundlag == AblPar23Stk5TvungetLager && abl_par23_stk6_ugyldigt_genvalg.valganmodning_gyldig == Falskt
+| scenarie_abl_par23_stk7_gælder_til_sidste_dag: abl_par23_stk7_sidste_dag -> abl_par23_stk7_sidste_dag.princip == AblPar23Realisationsprincip && abl_par23_stk7_sidste_dag.grundlag == AblPar23Stk7SyvårigtRealisationsvalg && abl_par23_stk7_sidste_dag.valg_bindende
+| scenarie_abl_par23_stk7_udløber_efter_syvende_år: abl_par23_stk7_efter_perioden -> abl_par23_stk7_efter_perioden.princip == AblPar23Lagerprincip && abl_par23_stk7_efter_perioden.grundlag == AblPar23Stk5TvungetLager && abl_par23_stk7_efter_perioden.valganmodning_gyldig && abl_par23_stk7_efter_perioden.valg_bindende
+| scenarie_abl_par23_stk7_omstrukturering_bevarer_valgdato: abl_par23_stk7_valg_efter_omstrukturering -> abl_par23_stk7_valg_efter_omstrukturering.selskabsidentifikation == "DK-P9-NY" && abl_par23_stk7_valg_efter_omstrukturering.første_optagelsesdato == abl_par23_stk7_historisk_valg.første_optagelsesdato && abl_par23_stk7_valg_efter_omstrukturering.valgmåde == abl_par23_stk7_historisk_valg.valgmåde
+| scenarie_abl_par23_stk8_bruger_kalenderår: abl_par23_19b_princip -> abl_par23_19b_princip.princip == AblPar23Lagerprincip && abl_par23_19b_princip.grundlag == AblPar23Stk8TvungetLager && abl_par23_19b_princip.opgøres_efter_kalenderår
+| scenarie_abl_par23_stk8_bruger_mindst_tilbagekøbsværdi: abl_par23_stk8_værdi_med_lav_markedskurs -> abl_par23_stk8_værdi_med_lav_markedskurs == 90000 && abl_par23_stk8_værdi_uden_markedskurs == 75000
+| scenarie_abl_par23_lager_korrigerer_for_køb_salg_og_ll16b: abl_par23_19b_lager -> abl_par23_19b_lager.opgørelse_gyldig && abl_par23_19b_lager.afståelsessummer_der_indgår_kroner == 20000 && abl_par23_19b_lager.nettogevinst_kroner == 10000 && abl_par23_19b_lager.bruttogevinst_kroner == 10000
+| scenarie_abl_par23_lager_føder_personskattelov_par4a: abl_par23_19b_par4a -> abl_par23_19b_par4a.effektiv_aktiv == AblInvesteringsselskab19B && abl_par23_19b_par4a.afgrænsning == AktiepostOmfattetAfStk1 && abl_par23_19b_par4a.aktieindkomst_kroner == 10000
+| scenarie_abl_par23_stk9_ser_bort_fra_lager_ved_tidligt_salg: abl_par23_stk9_tidligt_salg -> aktieavance_par23_stk9_realisation_finder_anvendelse(abl_par23_stk9_tidligt_salg)
+| scenarie_abl_par23a_gulv_forhindrer_lagertab_under_basis: abl_par23a_gulv -> abl_par23a_gulv.opgørelse_gyldig && abl_par23a_gulv.værdi_ultimo_eller_afståelsessum_efter_gulv_kroner == 100000 && abl_par23a_gulv.nettogevinst_kroner == 0
+| scenarie_abl_par24_principskift_fastlægger_ny_basis: abl_par24_realisation_til_lager -> abl_par24_realisation_til_lager.åbningsværdi_under_lagerprincip_kroner == 42000 && abl_par24_lager_til_realisation.anskaffelsessum_under_senere_realisationsprincip_kroner == 67000 && abl_par24_par33a_undtagelse.reglen_finder_anvendelse == Falskt
+| scenarie_abl_par24_naering_overgaar_aaret_efter: abl_par24_anlaeg -> abl_par24_anlaeg.reglen_finder_anvendelse && abl_par24_anlaeg.første_indkomstår_som_anlægsbeholdning == 2027 && abl_par24_anlaeg.anlægsposition.anskaffelsessum_kroner == 72000
+| scenarie_abl_mtf_rettighed_før_2024_følger_par26: abl_mtf_tegningsret_2023 -> abl_mtf_tegningsret_2023.mtf_overgang_før_2024_finder_anvendelse && abl_mtf_tegningsret_2023.regime == AblTegningsretEfterPar26Stk4SomAktie && abl_mtf_tegningsret_2024.regime == AblRettighedEfterPar25AktieForAktie
+| scenarie_abl_par26_stk2_ll7n_basis_er_nul: abl_par26_ll7n_anskaffelse -> aktieavance_ordinaer_anskaffelsessum_kroner(abl_par26_ll7n_anskaffelse) == 0
+| scenarie_abl_par26_stk2_fradragsberettiget_underkurs_bruger_handelsværdi: abl_par26_markedsprisinput -> aktieavance_par26_stk2_afståelsessum_kroner(abl_par26_markedsprisinput) == 9000
+| scenarie_abl_par26_stk6_holder_ll7n_adskilt: abl_par26_stk6_ll7n_salg -> abl_par26_stk6_ll7n_salg.hændelse_gyldig && abl_par26_stk6_ll7n_salg.valgt_hændelsesresultat.bruttogevinst_kroner == 7500 && aktieavance_ordinaer_position_antal_aktier(abl_par26_stk6_ll7n_salg.beholdning_efter.ll7n_position) == 5 && aktieavance_ordinaer_position_antal_aktier(abl_par26_stk6_ll7n_salg.beholdning_efter.anden_position) == 10 && abl_par26_stk6_ll7n_salg.beholdning_efter.anden_position.anskaffelsessum_kroner == 10000
+| scenarie_abl_par27_tillæg_bevarer_tid_og_forhøjer_basis: abl_par27_tillæg -> abl_par27_tillæg.reglen_finder_anvendelse && abl_par27_tillæg.anskaffelsestidspunkt_efter == AktieavancePar27Dato(år = 2020, måned = 5, dag = 15) && abl_par27_tillæg.tillægstidspunkt == AblPar27Tillægstidspunkt(dato = AktieavancePar27Dato(år = 2027, måned = 6, dag = 30)) && abl_par27_tillæg.position_efter.anskaffelsessum_kroner == 12000
+| scenarie_abl_par27_basis_følger_senere_salg_til_par4a: abl_par27_par4a -> abl_par27_salg.anskaffelsessum_henført_til_afståelse_kroner == 6000 && abl_par27_salg.bruttogevinst_kroner == 2000 && abl_par27_par4a.aktieindkomst_kroner == 2000
+
+? scenarie_abl_par23_stk1_er_standard_for_person
+? scenarie_abl_par23_stk2_naeringslager_er_bindende
+? scenarie_abl_par23_stk4_tvinger_obligationsbevis_paa_lager
+? scenarie_abl_par23_stk6_tillader_unoteret_realisation
+? scenarie_abl_par23_stk6_afviser_genvalg_efter_lager
+? scenarie_abl_par23_stk7_gælder_til_sidste_dag
+? scenarie_abl_par23_stk7_udløber_efter_syvende_år
+? scenarie_abl_par23_stk7_omstrukturering_bevarer_valgdato
+? scenarie_abl_par23_stk8_bruger_kalenderår
+? scenarie_abl_par23_stk8_bruger_mindst_tilbagekøbsværdi
+? scenarie_abl_par23_lager_korrigerer_for_køb_salg_og_ll16b
+? scenarie_abl_par23_lager_føder_personskattelov_par4a
+? scenarie_abl_par23_stk9_ser_bort_fra_lager_ved_tidligt_salg
+? scenarie_abl_par23a_gulv_forhindrer_lagertab_under_basis
+? scenarie_abl_par24_principskift_fastlægger_ny_basis
+? scenarie_abl_par24_naering_overgaar_aaret_efter
+? scenarie_abl_mtf_rettighed_før_2024_følger_par26
+? scenarie_abl_par26_stk2_ll7n_basis_er_nul
+? scenarie_abl_par26_stk2_fradragsberettiget_underkurs_bruger_handelsværdi
+? scenarie_abl_par26_stk6_holder_ll7n_adskilt
+? scenarie_abl_par27_tillæg_bevarer_tid_og_forhøjer_basis
+? scenarie_abl_par27_basis_følger_senere_salg_til_par4a

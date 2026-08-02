@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-eec214`
+Current focus issue: `td-216299`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -46,9 +46,9 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven §§ 12-15, § 23, stk. 1,
-§ 24, stk. 1-2, § 25, § 26, stk. 1-5, og § 30, stk. 1, har nu typede beregningsveje for
-ordinære personaktier og aktie- og tegningsretter under realisationsprincippet.
+Latest integration: Aktieavancebeskatningsloven §§ 12-15, §§ 23-27 og § 30,
+stk. 1, har nu typede beregningsveje for ordinære personaktier, lageropgørelser
+og aktie- og tegningsretter.
 Den vedvarende ordinære selskabsposition håndterer både aktier med pålydende
 værdi og homogene beholdninger af stykkapitalandele uden pålydende værdi.
 Anskaffelses- og afståelseshændelser beregner gennemsnitlig anskaffelsessum,
@@ -59,21 +59,32 @@ bevarer faktisk anskaffelsessum. Bortfald behandles som afståelse efter § 30.
 MTF-overgangen den 1. januar 2024,
 lagerprincipafgrænsningen, ligningslovens § 28-undtagelse og § 14's
 oplysningsbetingelse er eksplicitte. Begge domæner føder den samme typede
-§ 13 A-årsopgørelse og Personskatteloven § 4 a-bro. De fokuserede scenarier
-validerer 20 ordinære aktieudfald og 11 rettighedsudfald i både interpreter og
-kompileret kode.
+§ 13 A-årsopgørelse og Personskatteloven § 4 a-bro.
+
+Det importerede `aktieavancebeskatningsloven-par23-27.runa` vælger mellem
+realisations-, lager- og tilladt anden opgørelsesmåde med lovens egne
+undtagelser. Det håndterer det bindende § 23, stk. 2-valg, tvungne
+lagergrene, stk. 6-valget og stk. 7's selskabsspecifikke syvårsperiode på
+eksakte datoer, inklusive 2015-2024-overgangen og omstrukturering. Den årlige
+lageropgørelse korrigerer for køb, salg og LL § 16 B-beløb og føder det
+eksisterende ABL/Personskattelov-resultat. § 23 A's anskaffelsessumsgulv,
+§ 24's principskift og næringsaktiernes overgang til anlægsbeholdning,
+MTF-rettigheder erhvervet før 2024, § 26's 0-basis, handelsværdiregel og
+adskilte § 7 N-beholdninger samt § 27's daterede anskaffelsessumtillæg er
+eksekverbare. De fokuserede scenarier validerer nu 20 ordinære aktieudfald,
+11 rettighedsudfald og 22 §§ 23-27-udfald i både interpreter og kompileret kode.
 
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position beregner de to homogene former,
 men afviser en blandet hændelse, indtil et dokumenteret, sammenligneligt
 kapitalandelsgrundlag kan bæres i domænet. Dette er en udtrykkelig
 dækningsgrænse, ikke en påstand om, at kombinationen er selskabsretligt ugyldig.
-De resterende §§ 23-27-grene omfatter § 23, stk. 2-9 og § 23 A's valg og krav
-om lagerprincip, § 24, stk. 3-5's principskift, næringsbeholdning og
-ind-/udtræden af skattepligt, den hidtidige regel for MTF-rettigheder erhvervet
-før 2024, § 26, stk. 2's medarbejderinvesteringsselskaber og salg under
-handelsværdi, § 26, stk. 6's adskilte § 7 N-beholdninger samt § 27's tillæg til
-anskaffelsessummen for manglende effektiv minimumsudlodning.
+De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
+9, 17, 19 A-20 A og 22, § 24's afhængige beløbsregler i § 33 A og §§ 37-38,
+blandede nominelle/stykkapitalbeholdninger samt de bredere status-,
+ind-/udtrædelses- og medarbejderejerregler. Modulet modtager de juridiske
+klassifikationer som typede resultater og udstiller dem som metadataadvarsler;
+det erstatter dem ikke med rå sand/falsk-flags forklædt som fuld dækning.
 
 Afskrivningslovens aktuelle kilde- og regelkorpus omfatter
 nu hele paragrafsekvensen §§ 1-69. § 3 kræver leveret, driftsbestemt og
@@ -729,20 +740,26 @@ Current § 4 and § 13 amendment/dependency sources:
 - Aktieavancebeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1098`
   - XML status on 2026-07-18: `Valid`
-  - §§ 12-15, § 23, stk. 1, § 24, stk. 1, and § 26, stk. 1, 2 and 5
-    supply the ordinary personal-share calculation path for nominal-value
-    shares: realization, average acquisition basis, partial disposals,
+  - §§ 12-15, § 24, stk. 1-2, § 25, § 26, stk. 1-5, and § 30 supply the
+    ordinary personal-share and rights paths for homogeneous holdings with or
+    without nominal value: realization, average/FIFO basis, partial disposals,
     main-shareholder market-value allocation, listed/unlisted loss treatment,
     the § 14 information condition, the § 15 housing-right exemption, and
     § 13 A spouse transfer/carry-forward into Personskatteloven § 4 a.
+  - `aktieavancebeskatningsloven-par23-27.runa` implements § 23, stk. 2-9,
+    § 23 A, § 24, stk. 3-5, the pre-2024 MTF-rights transition, § 26's employee
+    basis/deemed-price and separated § 7 N holdings, and § 27's basis addition.
+    Its 22 focused scenarios pass interpreted and compiled execution and route
+    applicable lager and later realization results into the existing PSL
+    category bridge.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
     § 17/§ 19 C-if-§ 17 personal-income reclassification.
-  - Remaining ABL corpus includes non-nominal shares, § 25's share-by-share
-    rights method, the remaining §§ 23-27 calculation branches, status changes,
-    entry/exit taxation, transitions and employee-ownership provisions.
+  - Remaining ABL depth includes mixed nominal/no-par capital, the dependent
+    § 33 A and §§ 37-39 calculations, broader status changes, entry/exit
+    taxation and employee-ownership provisions.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
@@ -2016,11 +2033,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
-- Continue Aktieavancebeskatningsloven beyond the ordinary and § 25 rights paths:
-  model mixed nominal/no-par holdings on a documented common capital-share
-  basis, the remaining §§ 23-27 realization/lager and basis branches,
-  § 33 A status changes, §§ 37-39 entry/exit taxation, transitions and the
-  employee-ownership provisions before calling the ABL dependency complete.
+- Continue Aktieavancebeskatningsloven from the ordinary, rights and §§ 23-27
+  paths: model mixed nominal/no-par holdings on a documented common
+  capital-share basis, then deepen § 33 A status changes, §§ 37-39 entry/exit
+  taxation and the employee-ownership provisions before calling the ABL
+  dependency complete.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already
