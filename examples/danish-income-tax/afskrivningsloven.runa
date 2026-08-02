@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Afskrivningsloven -- Personskatteloven §§ 3 og 4-afhængigheder.
 --
@@ -104,6 +105,66 @@
 = afskrivningsloven_par27_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2084000",
     identifier = "Den juridiske vejledning, drænings- og markvandingsanlæg på jordbrugsbedrifter",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_forskudsafskrivning_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083968",
+    identifier = "Den juridiske vejledning, forskudsafskrivning efter Afskrivningsloven kapitel 4",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par28_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083969",
+    identifier = "Den juridiske vejledning, aktiver omfattet af forskudsafskrivning efter § 28",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par29_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083970",
+    identifier = "Den juridiske vejledning, betingelser for forskudsafskrivning efter § 29",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par30_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083972",
+    identifier = "Den juridiske vejledning, tidspunktet for forskudsafskrivning efter § 30",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par31_par32_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083973",
+    identifier = "Den juridiske vejledning, forskudsafskrivningsgrundlaget efter §§ 31-32",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par31_sats_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083974",
+    identifier = "Den juridiske vejledning, forskudsafskrivningssatsen efter § 31",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par32_par33_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083975",
+    identifier = "Den juridiske vejledning, anskaffelse og fordeling efter §§ 32-33",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par34_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083976",
+    identifier = "Den juridiske vejledning, efterbeskatning efter § 34",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par36_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083977",
+    identifier = "Den juridiske vejledning, fristforlængelse efter § 36",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par34_par35_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083978",
+    identifier = "Den juridiske vejledning, efterbeskatning ved fraflytning, død, konkurs og virksomhedsophør efter §§ 34-35",
     hentet_dato = "2026-07-18"
 )
 
@@ -3025,6 +3086,576 @@ forpagters skattemæssige stilling vedrørende afskrivningen.
 | afskrivningslov27_sag(input: Afskrivningslov27Input) -> Afskrivningslov27Sag(input)
 | afskrivningslov27_resultat(input: Afskrivningslov27Input) -> afskrivningslov27_sag(input).resultat()
 --@end:afskrivningsloven_par27--
+
+--@label:afskrivningsloven_par28::source:afskrivningsloven_lbk1222::chapter_guidance:afskrivningsloven_forskudsafskrivning_juridisk_vejledning::guidance:afskrivningsloven_par28_juridisk_vejledning--
+----
+§ 28. Forskudsafskrivning kan foretages efter reglerne i dette kapitel på
+driftsmidler og skibe, der udelukkende skal benyttes erhvervsmæssigt, og hvorpå
+der kan afskrives efter kapitel 2.
+
+Stk. 2. Forskudsafskrivning på driftsmidler kan alene foretages, når den
+skattepligtige senest den 3. oktober 2000 har indgået bindende aftale om levering
+af driftsmidler, eller når den skattepligtige senest den 3. oktober 2000 har
+planlagt fremstilling af et sådant aktiv i egen virksomhed.
+
+Stk. 3. Der kan ikke foretages forskudsafskrivninger på aktiver, som er omfattet
+af §§ 5 B og 5 C.
+----
+
+--@begin:afskrivningsloven_par28--
+# AfskrivningslovForskudsAftaleform = Al28BindendeLeveringsaftale | Al28BindendeSkibsbygningsaftale | Al28EgenFremstillingsplan
+# AfskrivningslovForskudsSaldoart = Al28Par5Saldo | Al28Par5BSaldo | Al28Par5CSaldo
+# AfskrivningslovForskudsPlanlagtAktiv(identifikation: Tekst, planlagt_leverings_eller_færdiggørelsesår: Heltal, aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner: Heltal)
+# AfskrivningslovForskudsAftale(skatteyder: AfskrivningslovSkatteyder, par1_par2_resultat: AfskrivningslovPar1Par2Resultat, saldoart: AfskrivningslovForskudsSaldoart, aftaleform: AfskrivningslovForskudsAftaleform, bestillings_eller_planlægningsdato: AfskrivningslovDato, virksomhedsidentifikation: Tekst, planlagte_aktiver: List(AfskrivningslovForskudsPlanlagtAktiv), selskab_omfattet_af_selskabsskattelov1_stk1_nr1_2_eller_4: Boolsk, aktiver_erhverves_med_henblik_på_udlejning_eller_er_udlejet: Boolsk, tilladelse_efter_par5_stk6: Boolsk)
+# Afskrivningslov28Resultat(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, udelukkende_erhvervsmæssigt_benyttet: Boolsk, afskrivningsberettiget_efter_kapitel2: Boolsk, driftsmiddel_eller_skib: Boolsk, aftaleform_matcher_aktiv: Boolsk, driftsmiddelaftale_indgået_rettidigt: Boolsk, saldo_omfattet: Boolsk, omfattet_af_par28: Boolsk)
+# Afskrivningslov29GrundbeløbResultat(indkomstår: Heltal, grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal, reguleret_grundbeløb_kroner: Heltal)
+# AfskrivningslovForskudsAnskaffelse(identifikation: Tekst, par3_resultat: Afskrivningslov3Resultat, faktisk_anskaffelsessum_for_skatteyder_kroner: Heltal, forlods_afskrivning_efter_etableringskontoloven_kroner: Heltal)
+# AfskrivningslovForskudsÅrspost(indkomstår: Heltal, resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner: Heltal, anvendt_forskudsafskrivningssats_basispoint: Heltal, forskudsafskrivning_kroner: Heltal)
+# AfskrivningslovForskudsPosition(aftale: AfskrivningslovForskudsAftale, grundbeløb_resultat: Afskrivningslov29GrundbeløbResultat, årsposter: List(AfskrivningslovForskudsÅrspost), anskaffelser: List(AfskrivningslovForskudsAnskaffelse))
+
+| afskrivningslov28_driftsmiddel(aktivart: AfskrivningslovAktivart) -> aktivart == AlMaskine || aktivart == AlInventar || aktivart == AlAndetDriftsmiddel
+| afskrivningslov28_skib(aktivart: AfskrivningslovAktivart) -> aktivart == AlSkib
+| afskrivningslov28_driftsmiddel_eller_skib(aktivart: AfskrivningslovAktivart) -> afskrivningslov28_driftsmiddel(aktivart) || afskrivningslov28_skib(aktivart)
+| afskrivningslov28_aftaleform_matcher_aktiv(aftale: AfskrivningslovForskudsAftale) -> match aftale.aftaleform {
+    | Al28BindendeLeveringsaftale -> afskrivningslov28_driftsmiddel(aftale.par1_par2_resultat.aktivart)
+    | Al28BindendeSkibsbygningsaftale -> afskrivningslov28_skib(aftale.par1_par2_resultat.aktivart)
+    | Al28EgenFremstillingsplan -> afskrivningslov28_driftsmiddel_eller_skib(aftale.par1_par2_resultat.aktivart)
+}
+| afskrivningslov28_driftsmiddelaftale_indgået_rettidigt(aftale: AfskrivningslovForskudsAftale) -> afskrivningslov28_skib(aftale.par1_par2_resultat.aktivart) || afskrivningslov_dato_mellem_inklusive(aftale.bestillings_eller_planlægningsdato, AfskrivningslovDato(år = 1, måned = 1, dag = 1), AfskrivningslovDato(år = 2000, måned = 10, dag = 3))
+| afskrivningslov28_saldo_omfattet(saldoart: AfskrivningslovForskudsSaldoart) -> saldoart == Al28Par5Saldo
+
+# Afskrivningslov28Sag(aftale: AfskrivningslovForskudsAftale) {
+    | par1_par2_matcher_skatteyder() -> aftale.par1_par2_resultat.skatteyder == aftale.skatteyder
+    | udelukkende_erhvervsmæssigt_benyttet() -> aftale.par1_par2_resultat.udelukkende_erhvervsmæssigt_benyttet
+    | afskrivningsberettiget_efter_kapitel2() -> aftale.par1_par2_resultat.omfattet_af_kapitel2
+    | driftsmiddel_eller_skib() -> afskrivningslov28_driftsmiddel_eller_skib(aftale.par1_par2_resultat.aktivart)
+    | aftaleform_matcher_aktiv() -> afskrivningslov28_aftaleform_matcher_aktiv(aftale)
+    | driftsmiddelaftale_indgået_rettidigt() -> afskrivningslov28_driftsmiddelaftale_indgået_rettidigt(aftale)
+    | saldo_omfattet() -> afskrivningslov28_saldo_omfattet(aftale.saldoart)
+    | omfattet_af_par28() -> par1_par2_matcher_skatteyder() && udelukkende_erhvervsmæssigt_benyttet() && afskrivningsberettiget_efter_kapitel2() && driftsmiddel_eller_skib() && aftaleform_matcher_aktiv() && driftsmiddelaftale_indgået_rettidigt() && saldo_omfattet()
+    | resultat() -> Afskrivningslov28Resultat(
+        skatteyder = aftale.skatteyder,
+        aktivart = aftale.par1_par2_resultat.aktivart,
+        udelukkende_erhvervsmæssigt_benyttet = udelukkende_erhvervsmæssigt_benyttet(),
+        afskrivningsberettiget_efter_kapitel2 = afskrivningsberettiget_efter_kapitel2(),
+        driftsmiddel_eller_skib = driftsmiddel_eller_skib(),
+        aftaleform_matcher_aktiv = aftaleform_matcher_aktiv(),
+        driftsmiddelaftale_indgået_rettidigt = driftsmiddelaftale_indgået_rettidigt(),
+        saldo_omfattet = saldo_omfattet(),
+        omfattet_af_par28 = omfattet_af_par28()
+    )
+}
+| afskrivningslov28_sag(aftale: AfskrivningslovForskudsAftale) -> Afskrivningslov28Sag(aftale)
+| afskrivningslov28_resultat(aftale: AfskrivningslovForskudsAftale) -> afskrivningslov28_sag(aftale).resultat()
+--@end:afskrivningsloven_par28--
+
+--@label:afskrivningsloven_par29::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par29_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 29. Forskudsafskrivning kan foretages, når
+
+1) den skattepligtige enten har truffet bindende aftale om levering af
+driftsmidlerne eller bygning af skibet eller har planlagt at fremstille dem i
+egen virksomhed,
+
+2) levering eller færdiggørelse af driftsmidlerne eller skibene ifølge aftalen
+eller planerne tidligst skal ske i det første og senest i det fjerde indkomstår
+efter bestillings- eller planlægningsåret og
+
+3) den samlede aftalte anskaffelsessum eller, hvis aktiverne skal fremstilles i
+egen virksomhed, den beregnede anskaffelsessum for aktiver med samme
+bestillings- eller planlægningsår overstiger et grundbeløb på 1.406.800 kr.
+(2010-niveau).
+
+Stk. 2. Tilkommer retten til afskrivning på aktiverne flere skattepligtige, kan
+den enkelte skattepligtige kun forskudsafskrive, hvis den enkeltes andel i den
+aftalte eller beregnede anskaffelsessum for aktiver med samme bestillings- eller
+planlægningsår overstiger grundbeløbet efter stk. 1, nr. 3. Skal aktiverne
+benyttes i forskellige virksomheder, kan den skattepligtige kun
+forskudsafskrive, når anskaffelsessummen for aktiverne for hver enkelt
+virksomhed overstiger grundbeløbet.
+----
+
+--@begin:afskrivningsloven_par29--
+# Afskrivningslov29Resultat(aftale: AfskrivningslovForskudsAftale, par28_resultat: Afskrivningslov28Resultat, grundbeløb_resultat: Afskrivningslov29GrundbeløbResultat, bestillings_eller_planlægningsår: Heltal, planlagte_aktiver_gyldige: Boolsk, identifikationer_entydige: Boolsk, levering_eller_færdiggørelse_i_første_til_fjerde_år: Boolsk, samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner: Heltal, grundbeløb_matcher_indkomståret: Boolsk, grundbeløb_oversteget: Boolsk, omfattet_af_par29: Boolsk)
+
+| afskrivningslov29_grundbeløb_resultat(indkomstår: Heltal) -> Afskrivningslov29GrundbeløbResultat(
+    indkomstår = indkomstår,
+    grundbeløb_2010_niveau_kroner = 1406800,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår),
+    reguleret_grundbeløb_kroner = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+        grundbeløb_2010_niveau_kroner = 1406800,
+        reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+    ))
+) under indkomstår >= 2009 && indkomstår <= 2026
+| afskrivningslov29_planlagte_identifikationer(aftale: AfskrivningslovForskudsAftale) -> map(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation)
+| afskrivningslov29_identifikationer_entydige(aftale: AfskrivningslovForskudsAftale) -> length(afskrivningslov29_planlagte_identifikationer(aftale)) == length(distinct(afskrivningslov29_planlagte_identifikationer(aftale)))
+| afskrivningslov29_planlagte_aktiver_gyldige(aftale: AfskrivningslovForskudsAftale) -> length(aftale.planlagte_aktiver) > 0 && aftale.virksomhedsidentifikation != "" && all(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation != "" && aktiv.aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner > 0) && afskrivningslov29_identifikationer_entydige(aftale)
+| afskrivningslov29_selskabsstatus_gyldig(aftale: AfskrivningslovForskudsAftale) -> aftale.selskab_omfattet_af_selskabsskattelov1_stk1_nr1_2_eller_4 == Falskt || aftale.skatteyder == AlSelskabEllerForening
+| afskrivningslov29_levering_i_første_til_fjerde_år(aftale: AfskrivningslovForskudsAftale) -> all(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.planlagt_leverings_eller_færdiggørelsesår >= aftale.bestillings_eller_planlægningsdato.år + 1 && aktiv.planlagt_leverings_eller_færdiggørelsesår <= aftale.bestillings_eller_planlægningsdato.år + 4)
+| afskrivningslov29_samlet_anskaffelsessum_kroner(aftale: AfskrivningslovForskudsAftale) -> foldl(aftale.planlagte_aktiver, 0, |sum: Heltal, aktiv: AfskrivningslovForskudsPlanlagtAktiv| sum + penge_positivt_beløb(aktiv.aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner))
+| afskrivningslov29_grundbeløb_matcher(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> grundbeløb.indkomstår == aftale.bestillings_eller_planlægningsdato.år && grundbeløb.indkomstår >= 2009 && grundbeløb.indkomstår <= 2026 && grundbeløb == afskrivningslov29_grundbeløb_resultat(grundbeløb.indkomstår)
+
+# Afskrivningslov29Sag(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) {
+    | par28() -> afskrivningslov28_resultat(aftale)
+    | planlagte_aktiver_gyldige() -> afskrivningslov29_planlagte_aktiver_gyldige(aftale)
+    | levering_i_første_til_fjerde_år() -> afskrivningslov29_levering_i_første_til_fjerde_år(aftale)
+    | samlet_anskaffelsessum_kroner() -> afskrivningslov29_samlet_anskaffelsessum_kroner(aftale)
+    | grundbeløb_matcher() -> afskrivningslov29_grundbeløb_matcher(aftale, grundbeløb)
+    | grundbeløb_oversteget() -> grundbeløb_matcher() && samlet_anskaffelsessum_kroner() > grundbeløb.reguleret_grundbeløb_kroner
+    | omfattet_af_par29() -> par28().omfattet_af_par28 && planlagte_aktiver_gyldige() && afskrivningslov29_selskabsstatus_gyldig(aftale) && levering_i_første_til_fjerde_år() && grundbeløb_oversteget()
+    | resultat() -> Afskrivningslov29Resultat(
+        aftale = aftale,
+        par28_resultat = par28(),
+        grundbeløb_resultat = grundbeløb,
+        bestillings_eller_planlægningsår = aftale.bestillings_eller_planlægningsdato.år,
+        planlagte_aktiver_gyldige = planlagte_aktiver_gyldige(),
+        identifikationer_entydige = afskrivningslov29_identifikationer_entydige(aftale),
+        levering_eller_færdiggørelse_i_første_til_fjerde_år = levering_i_første_til_fjerde_år(),
+        samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner = samlet_anskaffelsessum_kroner(),
+        grundbeløb_matcher_indkomståret = grundbeløb_matcher(),
+        grundbeløb_oversteget = grundbeløb_oversteget(),
+        omfattet_af_par29 = omfattet_af_par29()
+    )
+}
+| afskrivningslov29_sag(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> Afskrivningslov29Sag(aftale, grundbeløb)
+| afskrivningslov29_resultat(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> afskrivningslov29_sag(aftale, grundbeløb).resultat()
+--@end:afskrivningsloven_par29--
+
+--@label:afskrivningsloven_par30::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par30_juridisk_vejledning--
+----
+§ 30. Forskudsafskrivning kan første gang foretages ved opgørelsen af den
+skattepligtige indkomst for bestillings- eller planlægningsåret og sidste gang
+ved indkomstopgørelsen for det tredje indkomstår efter bestillings- eller
+planlægningsåret. Selskaber og foreninger omfattet af selskabsskattelovens § 1,
+stk. 1, nr. 1, 2 eller 4, kan dog tidligst forskudsafskrive på driftsmidler og
+skibe, der erhverves med henblik på udlejning, eller som ved indgåelse af
+bindende aftale om levering er udlejet, i året efter det indkomstår, hvori
+bestilling eller planlægning er sket. Told- og skatteforvaltningen kan efter
+reglerne i § 5, stk. 6, tillade, at 2. pkt. ikke skal finde anvendelse.
+
+Stk. 2. Forskudsafskrivning kan kun foretages på aktiver, der ved indkomstårets
+udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
+----
+
+--@begin:afskrivningsloven_par30--
+# Afskrivningslov30Resultat(indkomstår: Heltal, første_forskudsafskrivningsår: Heltal, sidste_forskudsafskrivningsår: Heltal, selskabsudlejning_udskyder_første_år: Boolsk, inden_for_forskudsafskrivningsperioden: Boolsk, antal_aktiver_der_endnu_ikke_opfylder_par3: Heltal, kan_forskudsafskrive_i_indkomståret: Boolsk)
+
+| afskrivningslov30_selskabsudlejning_udskyder(aftale: AfskrivningslovForskudsAftale) -> aftale.selskab_omfattet_af_selskabsskattelov1_stk1_nr1_2_eller_4 && aftale.skatteyder == AlSelskabEllerForening && aftale.aktiver_erhverves_med_henblik_på_udlejning_eller_er_udlejet && aftale.tilladelse_efter_par5_stk6 == Falskt
+| afskrivningslov30_første_forskudsafskrivningsår(aftale: AfskrivningslovForskudsAftale) -> aftale.bestillings_eller_planlægningsdato.år + hvis afskrivningslov30_selskabsudlejning_udskyder(aftale) { 1 } ellers { 0 }
+| afskrivningslov30_sidste_forskudsafskrivningsår(aftale: AfskrivningslovForskudsAftale) -> aftale.bestillings_eller_planlægningsdato.år + 3
+
+# Afskrivningslov30Sag(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) {
+    | første_år() -> afskrivningslov30_første_forskudsafskrivningsår(position.aftale)
+    | sidste_år() -> afskrivningslov30_sidste_forskudsafskrivningsår(position.aftale)
+    | inden_for_perioden() -> indkomstår >= første_år() && indkomstår <= sidste_år()
+    | resterende_aktiver() -> afskrivningslov32_resterende_planlagte_aktiver_i_år(position, indkomstår)
+    | resultat() -> Afskrivningslov30Resultat(
+        indkomstår = indkomstår,
+        første_forskudsafskrivningsår = første_år(),
+        sidste_forskudsafskrivningsår = sidste_år(),
+        selskabsudlejning_udskyder_første_år = afskrivningslov30_selskabsudlejning_udskyder(position.aftale),
+        inden_for_forskudsafskrivningsperioden = inden_for_perioden(),
+        antal_aktiver_der_endnu_ikke_opfylder_par3 = length(resterende_aktiver()),
+        kan_forskudsafskrive_i_indkomståret = inden_for_perioden() && length(resterende_aktiver()) > 0
+    )
+}
+| afskrivningslov30_sag(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> Afskrivningslov30Sag(position, indkomstår)
+| afskrivningslov30_resultat(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> afskrivningslov30_sag(position, indkomstår).resultat()
+--@end:afskrivningsloven_par30--
+
+--@label:afskrivningsloven_par31::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par31_par32_juridisk_vejledning::rate_guidance:afskrivningsloven_par31_sats_juridisk_vejledning--
+----
+§ 31. Forskudsafskrivning foretages på grundlag af den del af den samlede
+aftalte eller beregnede anskaffelsessum, der overstiger grundbeløbet efter § 29,
+stk. 1, nr. 3 (forskudsafskrivningsgrundlaget), dog kun i det omfang,
+anskaffelsessummen kan afskrives efter denne lov. Eventuelle senere
+prisstigninger indgår ikke i forskudsafskrivningsgrundlaget.
+
+Stk. 2. Forskudsafskrivningen kan foretages med indtil 15 pct. årligt af
+forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgøre
+30 pct. af det nævnte grundlag.
+----
+
+--@begin:afskrivningsloven_par31--
+# Afskrivningslov31Resultat(oprindeligt_forskudsafskrivningsgrundlag_kroner: Heltal, hidtil_anvendt_forskudsafskrivningssats_basispoint: Heltal, højeste_årlige_sats_basispoint: Heltal, højeste_samlede_sats_basispoint: Heltal, resterende_satsrum_basispoint: Heltal)
+
+| afskrivningslov31_oprindeligt_forskudsafskrivningsgrundlag_kroner(position: AfskrivningslovForskudsPosition) -> penge_positivt_beløb(afskrivningslov29_samlet_anskaffelsessum_kroner(position.aftale) - position.grundbeløb_resultat.reguleret_grundbeløb_kroner)
+| afskrivningslov31_hidtil_anvendt_sats_basispoint(position: AfskrivningslovForskudsPosition) -> foldl(position.årsposter, 0, |sum: Heltal, årspost: AfskrivningslovForskudsÅrspost| sum + årspost.anvendt_forskudsafskrivningssats_basispoint)
+| afskrivningslov31_resterende_satsrum_basispoint(position: AfskrivningslovForskudsPosition) -> penge_positivt_beløb(3000 - afskrivningslov31_hidtil_anvendt_sats_basispoint(position))
+| afskrivningslov31_resultat(position: AfskrivningslovForskudsPosition) -> Afskrivningslov31Resultat(
+    oprindeligt_forskudsafskrivningsgrundlag_kroner = afskrivningslov31_oprindeligt_forskudsafskrivningsgrundlag_kroner(position),
+    hidtil_anvendt_forskudsafskrivningssats_basispoint = afskrivningslov31_hidtil_anvendt_sats_basispoint(position),
+    højeste_årlige_sats_basispoint = 1500,
+    højeste_samlede_sats_basispoint = 3000,
+    resterende_satsrum_basispoint = afskrivningslov31_resterende_satsrum_basispoint(position)
+)
+--@end:afskrivningsloven_par31--
+
+--@label:afskrivningsloven_par32::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par31_par32_juridisk_vejledning::allocation_guidance:afskrivningsloven_par32_par33_juridisk_vejledning--
+----
+§ 32. Når driftsmidler eller skibe, hvorpå der er forskudsafskrevet, bliver
+afskrivningsberettigede efter § 5, fragår aktivernes faktiske anskaffelsessum i
+den samlede aftalte eller beregnede anskaffelsessum, efterhånden som aktiverne
+anskaffes. Anskaffelsessummen fragår først i grundbeløbet, jf. § 29, stk. 1, nr.
+3. Herefter fragår den overskydende del af anskaffelsessummen i
+forskudsafskrivningsgrundlaget, jf. § 31, stk. 1. Der kan i det enkelte
+indkomstår alene forskudsafskrives på den del af forskudsafskrivningsgrundlaget,
+der resterer ved indkomstårets udløb.
+----
+
+--@begin:afskrivningsloven_par32--
+# Afskrivningslov32ÅrsInput(position: AfskrivningslovForskudsPosition, indkomstår: Heltal, nye_anskaffelser: List(AfskrivningslovForskudsAnskaffelse), valgt_forskudsafskrivningssats_basispoint: Heltal)
+# Afskrivningslov32ÅrsResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, position_gyldig_før: Boolsk, nye_anskaffelser_gyldige: Boolsk, kan_forskudsafskrive_i_indkomståret: Boolsk, resterende_grundbeløb_ved_årets_udløb_kroner: Heltal, resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner: Heltal, hidtil_anvendt_sats_basispoint: Heltal, valgt_sats_basispoint: Heltal, valg_gyldigt: Boolsk, forskudsafskrivning_kroner: Heltal, behandling_gyldig: Boolsk, position_efter: AfskrivningslovForskudsPosition)
+
+| afskrivningslov32_anskaffelsesår(anskaffelse: AfskrivningslovForskudsAnskaffelse) -> anskaffelse.par3_resultat.anskaffelsesdato.år
+| afskrivningslov32_planlagt_aktiv_findes(aftale: AfskrivningslovForskudsAftale, identifikation: Tekst) -> any(aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| aktiv.identifikation == identifikation)
+| afskrivningslov32_anskaffelse_gyldig(aftale: AfskrivningslovForskudsAftale, anskaffelse: AfskrivningslovForskudsAnskaffelse) -> anskaffelse.identifikation != "" && afskrivningslov32_planlagt_aktiv_findes(aftale, anskaffelse.identifikation) && anskaffelse.par3_resultat.anskaffet_efter_par3 && anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner > 0 && anskaffelse.forlods_afskrivning_efter_etableringskontoloven_kroner >= 0 && anskaffelse.forlods_afskrivning_efter_etableringskontoloven_kroner <= anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner
+| afskrivningslov32_anskaffelsesidentifikationer(anskaffelser: List(AfskrivningslovForskudsAnskaffelse)) -> map(anskaffelser, |anskaffelse: AfskrivningslovForskudsAnskaffelse| anskaffelse.identifikation)
+| afskrivningslov32_anskaffelser_entydige(anskaffelser: List(AfskrivningslovForskudsAnskaffelse)) -> length(afskrivningslov32_anskaffelsesidentifikationer(anskaffelser)) == length(distinct(afskrivningslov32_anskaffelsesidentifikationer(anskaffelser)))
+| afskrivningslov32_anskaffelser_gyldige(aftale: AfskrivningslovForskudsAftale, anskaffelser: List(AfskrivningslovForskudsAnskaffelse)) -> afskrivningslov32_anskaffelser_entydige(anskaffelser) && all(anskaffelser, |anskaffelse: AfskrivningslovForskudsAnskaffelse| afskrivningslov32_anskaffelse_gyldig(aftale, anskaffelse))
+| afskrivningslov32_anskaffelser_i_eller_før_år(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> filter(position.anskaffelser, |anskaffelse: AfskrivningslovForskudsAnskaffelse| afskrivningslov32_anskaffelsesår(anskaffelse) <= indkomstår)
+| afskrivningslov32_samlet_faktisk_anskaffelsessum_kroner(anskaffelser: List(AfskrivningslovForskudsAnskaffelse)) -> foldl(anskaffelser, 0, |sum: Heltal, anskaffelse: AfskrivningslovForskudsAnskaffelse| sum + penge_positivt_beløb(anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner))
+| afskrivningslov32_resterende_grundbeløb_i_år_kroner(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> penge_positivt_beløb(position.grundbeløb_resultat.reguleret_grundbeløb_kroner - afskrivningslov32_samlet_faktisk_anskaffelsessum_kroner(afskrivningslov32_anskaffelser_i_eller_før_år(position, indkomstår)))
+| afskrivningslov32_reduktion_af_forskudsgrundlag_i_år_kroner(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> penge_mindste_beløb(afskrivningslov31_oprindeligt_forskudsafskrivningsgrundlag_kroner(position), penge_positivt_beløb(afskrivningslov32_samlet_faktisk_anskaffelsessum_kroner(afskrivningslov32_anskaffelser_i_eller_før_år(position, indkomstår)) - position.grundbeløb_resultat.reguleret_grundbeløb_kroner))
+| afskrivningslov32_resterende_forskudsgrundlag_i_år_kroner(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> penge_positivt_beløb(afskrivningslov31_oprindeligt_forskudsafskrivningsgrundlag_kroner(position) - afskrivningslov32_reduktion_af_forskudsgrundlag_i_år_kroner(position, indkomstår))
+| afskrivningslov32_aktiv_anskaffet_i_eller_før_år(position: AfskrivningslovForskudsPosition, identifikation: Tekst, indkomstår: Heltal) -> any(position.anskaffelser, |anskaffelse: AfskrivningslovForskudsAnskaffelse| anskaffelse.identifikation == identifikation && afskrivningslov32_anskaffelsesår(anskaffelse) <= indkomstår)
+| afskrivningslov32_resterende_planlagte_aktiver_i_år(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> filter(position.aftale.planlagte_aktiver, |aktiv: AfskrivningslovForskudsPlanlagtAktiv| afskrivningslov32_aktiv_anskaffet_i_eller_før_år(position, aktiv.identifikation, indkomstår) == Falskt)
+| afskrivningslov32_årsposter_entydige(årsposter: List(AfskrivningslovForskudsÅrspost)) -> length(map(årsposter, |årspost: AfskrivningslovForskudsÅrspost| årspost.indkomstår)) == length(distinct(map(årsposter, |årspost: AfskrivningslovForskudsÅrspost| årspost.indkomstår)))
+| afskrivningslov32_årspost_gyldig(position: AfskrivningslovForskudsPosition, årspost: AfskrivningslovForskudsÅrspost) -> årspost.anvendt_forskudsafskrivningssats_basispoint >= 0 && årspost.anvendt_forskudsafskrivningssats_basispoint <= 1500 && afskrivningslov30_resultat(position, årspost.indkomstår).kan_forskudsafskrive_i_indkomståret && årspost.resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner == afskrivningslov32_resterende_forskudsgrundlag_i_år_kroner(position, årspost.indkomstår) && årspost.forskudsafskrivning_kroner == penge_beløb_gange_basispoint_kroner(årspost.resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint)
+| afskrivningslov32_position_gyldig(position: AfskrivningslovForskudsPosition) -> afskrivningslov29_resultat(position.aftale, position.grundbeløb_resultat).omfattet_af_par29 && afskrivningslov32_anskaffelser_gyldige(position.aftale, position.anskaffelser) && afskrivningslov32_årsposter_entydige(position.årsposter) && all(position.årsposter, |årspost: AfskrivningslovForskudsÅrspost| afskrivningslov32_årspost_gyldig(position, årspost)) && afskrivningslov31_hidtil_anvendt_sats_basispoint(position) <= 3000
+| afskrivningslov32_nye_anskaffelser_gyldige(input: Afskrivningslov32ÅrsInput) -> afskrivningslov32_anskaffelser_gyldige(input.position.aftale, input.nye_anskaffelser) && all(input.nye_anskaffelser, |anskaffelse: AfskrivningslovForskudsAnskaffelse| afskrivningslov32_anskaffelsesår(anskaffelse) == input.indkomstår) && afskrivningslov32_anskaffelser_entydige(concat(input.position.anskaffelser, input.nye_anskaffelser))
+| afskrivningslov32_position_med_nye_anskaffelser(input: Afskrivningslov32ÅrsInput) -> AfskrivningslovForskudsPosition(
+    aftale = input.position.aftale,
+    grundbeløb_resultat = input.position.grundbeløb_resultat,
+    årsposter = input.position.årsposter,
+    anskaffelser = concat(input.position.anskaffelser, input.nye_anskaffelser)
+)
+
+# Afskrivningslov32ÅrsSag(input: Afskrivningslov32ÅrsInput) {
+    | position_gyldig_før() -> afskrivningslov32_position_gyldig(input.position)
+    | nye_anskaffelser_gyldige() -> afskrivningslov32_nye_anskaffelser_gyldige(input)
+    | position_efter_anskaffelser() -> hvis position_gyldig_før() && nye_anskaffelser_gyldige() { afskrivningslov32_position_med_nye_anskaffelser(input) } ellers { input.position }
+    | tidsrum() -> afskrivningslov30_resultat(position_efter_anskaffelser(), input.indkomstår)
+    | resterende_grundbeløb_kroner() -> afskrivningslov32_resterende_grundbeløb_i_år_kroner(position_efter_anskaffelser(), input.indkomstår)
+    | resterende_forskudsgrundlag_kroner() -> afskrivningslov32_resterende_forskudsgrundlag_i_år_kroner(position_efter_anskaffelser(), input.indkomstår)
+    | hidtil_anvendt_sats_basispoint() -> afskrivningslov31_hidtil_anvendt_sats_basispoint(input.position)
+    | kan_forskudsafskrive() -> position_gyldig_før() && nye_anskaffelser_gyldige() && tidsrum().kan_forskudsafskrive_i_indkomståret && resterende_forskudsgrundlag_kroner() > 0
+    | valg_gyldigt() -> hvis kan_forskudsafskrive() { input.valgt_forskudsafskrivningssats_basispoint >= 0 && input.valgt_forskudsafskrivningssats_basispoint <= 1500 && hidtil_anvendt_sats_basispoint() + input.valgt_forskudsafskrivningssats_basispoint <= 3000 } ellers { input.valgt_forskudsafskrivningssats_basispoint == 0 }
+    | forskudsafskrivning_kroner() -> hvis kan_forskudsafskrive() && valg_gyldigt() { penge_beløb_gange_basispoint_kroner(resterende_forskudsgrundlag_kroner(), input.valgt_forskudsafskrivningssats_basispoint) } ellers { 0 }
+    | behandling_gyldig() -> position_gyldig_før() && nye_anskaffelser_gyldige() && valg_gyldigt()
+    | ny_årspost() -> AfskrivningslovForskudsÅrspost(
+        indkomstår = input.indkomstår,
+        resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner = resterende_forskudsgrundlag_kroner(),
+        anvendt_forskudsafskrivningssats_basispoint = input.valgt_forskudsafskrivningssats_basispoint,
+        forskudsafskrivning_kroner = forskudsafskrivning_kroner()
+    )
+    | position_efter() -> hvis behandling_gyldig() && kan_forskudsafskrive() { AfskrivningslovForskudsPosition(
+        aftale = position_efter_anskaffelser().aftale,
+        grundbeløb_resultat = position_efter_anskaffelser().grundbeløb_resultat,
+        årsposter = concat(position_efter_anskaffelser().årsposter, [ny_årspost()]),
+        anskaffelser = position_efter_anskaffelser().anskaffelser
+    ) } ellers { position_efter_anskaffelser() }
+    | resultat() -> Afskrivningslov32ÅrsResultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.aftale.skatteyder,
+        position_gyldig_før = position_gyldig_før(),
+        nye_anskaffelser_gyldige = nye_anskaffelser_gyldige(),
+        kan_forskudsafskrive_i_indkomståret = kan_forskudsafskrive(),
+        resterende_grundbeløb_ved_årets_udløb_kroner = resterende_grundbeløb_kroner(),
+        resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner = resterende_forskudsgrundlag_kroner(),
+        hidtil_anvendt_sats_basispoint = hidtil_anvendt_sats_basispoint(),
+        valgt_sats_basispoint = input.valgt_forskudsafskrivningssats_basispoint,
+        valg_gyldigt = valg_gyldigt(),
+        forskudsafskrivning_kroner = forskudsafskrivning_kroner(),
+        behandling_gyldig = behandling_gyldig(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov32_års_sag(input: Afskrivningslov32ÅrsInput) -> Afskrivningslov32ÅrsSag(input)
+| afskrivningslov32_årsresultat(input: Afskrivningslov32ÅrsInput) -> afskrivningslov32_års_sag(input).resultat()
+--@end:afskrivningsloven_par32--
+
+--@label:afskrivningsloven_par33::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par32_par33_juridisk_vejledning--
+----
+§ 33. I det omfang et aktivs anskaffelsessum efter bestemmelsen i § 32 fragår i
+forskudsafskrivningsgrundlaget, opgøres de forskudsafskrivninger, der er
+foretaget på aktivet. Forskudsafskrivningerne for det enkelte aktiv beregnes ved
+at gange den samlede forskudsafskrivningsprocent med den del af den faktiske
+anskaffelsessum, der fragår i forskudsafskrivningsgrundlaget. Såfremt flere
+aktiver bliver afskrivningsberettigede i samme indkomstår, fordeles den del af
+den faktiske anskaffelsessum, der fragår i forskudsafskrivningsgrundlaget,
+forholdsmæssigt på aktiverne.
+
+Stk. 2. De forskudsafskrivninger, der efter stk. 1 er foretaget på det enkelte
+aktiv, fratrækkes i aktivets afskrivningsberettigede anskaffelsessum. Den
+resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
+----
+
+--@begin:afskrivningsloven_par33--
+# Afskrivningslov33Input(position_før_anskaffelser: AfskrivningslovForskudsPosition, anskaffelser_i_indkomståret: List(AfskrivningslovForskudsAnskaffelse))
+# Afskrivningslov33AktivResultat(identifikation: Tekst, faktisk_anskaffelsessum_kroner: Heltal, del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, forskudsafskrivning_henført_til_aktivet_kroner: Heltal, forlods_afskrivning_efter_etableringskontoloven_kroner: Heltal, resterende_anskaffelsessum_til_par5_kroner: Heltal)
+# Afskrivningslov33Resultat(skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, samlet_faktisk_anskaffelsessum_i_indkomståret_kroner: Heltal, samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, samlede_forskudsafskrivninger_henført_til_aktiver_kroner: Heltal, aktiv_resultater: List(Afskrivningslov33AktivResultat))
+
+| afskrivningslov33_reduktion_før_kroner(position: AfskrivningslovForskudsPosition) -> afskrivningslov32_reduktion_af_forskudsgrundlag_i_år_kroner(position, 9999)
+| afskrivningslov33_position_med_anskaffelser(input: Afskrivningslov33Input) -> AfskrivningslovForskudsPosition(
+    aftale = input.position_før_anskaffelser.aftale,
+    grundbeløb_resultat = input.position_før_anskaffelser.grundbeløb_resultat,
+    årsposter = input.position_før_anskaffelser.årsposter,
+    anskaffelser = concat(input.position_før_anskaffelser.anskaffelser, input.anskaffelser_i_indkomståret)
+)
+| afskrivningslov33_samlet_reduktion_i_indkomståret_kroner(input: Afskrivningslov33Input) -> penge_positivt_beløb(afskrivningslov33_reduktion_før_kroner(afskrivningslov33_position_med_anskaffelser(input)) - afskrivningslov33_reduktion_før_kroner(input.position_før_anskaffelser))
+| afskrivningslov33_forholdsmæssig_del_kroner(samlet_beløb_kroner: Heltal, aktivets_anskaffelsessum_kroner: Heltal, resterende_anskaffelsessummer_kroner: Heltal) -> hvis resterende_anskaffelsessummer_kroner > 0 { samlet_beløb_kroner * aktivets_anskaffelsessum_kroner / resterende_anskaffelsessummer_kroner } ellers { 0 }
+| afskrivningslov33_aktiv_resultat(anskaffelse: AfskrivningslovForskudsAnskaffelse, grundlagsreduktion_kroner: Heltal, forskudsafskrivning_kroner: Heltal, samlet_sats_basispoint: Heltal) -> Afskrivningslov33AktivResultat(
+    identifikation = anskaffelse.identifikation,
+    faktisk_anskaffelsessum_kroner = anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner,
+    del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner = grundlagsreduktion_kroner,
+    samlet_forskudsafskrivningsprocent_basispoint = samlet_sats_basispoint,
+    forskudsafskrivning_henført_til_aktivet_kroner = forskudsafskrivning_kroner,
+    forlods_afskrivning_efter_etableringskontoloven_kroner = anskaffelse.forlods_afskrivning_efter_etableringskontoloven_kroner,
+    resterende_anskaffelsessum_til_par5_kroner = penge_positivt_beløb(anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner - anskaffelse.forlods_afskrivning_efter_etableringskontoloven_kroner - forskudsafskrivning_kroner)
+)
+| afskrivningslov33_fordel_aktiver(anskaffelser: List(AfskrivningslovForskudsAnskaffelse), resterende_grundlagsreduktion_kroner: Heltal, resterende_forskudsafskrivning_kroner: Heltal, resterende_anskaffelsessummer_kroner: Heltal, samlet_sats_basispoint: Heltal) -> hvis length(anskaffelser) == 0 { [] } ellers { hvis length(anskaffelser) == 1 {
+    [afskrivningslov33_aktiv_resultat(head(anskaffelser), resterende_grundlagsreduktion_kroner, resterende_forskudsafskrivning_kroner, samlet_sats_basispoint)]
+} ellers {
+    concat(
+        [afskrivningslov33_aktiv_resultat(
+            head(anskaffelser),
+            afskrivningslov33_forholdsmæssig_del_kroner(resterende_grundlagsreduktion_kroner, head(anskaffelser).faktisk_anskaffelsessum_for_skatteyder_kroner, resterende_anskaffelsessummer_kroner),
+            afskrivningslov33_forholdsmæssig_del_kroner(resterende_forskudsafskrivning_kroner, head(anskaffelser).faktisk_anskaffelsessum_for_skatteyder_kroner, resterende_anskaffelsessummer_kroner),
+            samlet_sats_basispoint
+        )],
+        afskrivningslov33_fordel_aktiver(
+            tail(anskaffelser),
+            resterende_grundlagsreduktion_kroner - afskrivningslov33_forholdsmæssig_del_kroner(resterende_grundlagsreduktion_kroner, head(anskaffelser).faktisk_anskaffelsessum_for_skatteyder_kroner, resterende_anskaffelsessummer_kroner),
+            resterende_forskudsafskrivning_kroner - afskrivningslov33_forholdsmæssig_del_kroner(resterende_forskudsafskrivning_kroner, head(anskaffelser).faktisk_anskaffelsessum_for_skatteyder_kroner, resterende_anskaffelsessummer_kroner),
+            resterende_anskaffelsessummer_kroner - head(anskaffelser).faktisk_anskaffelsessum_for_skatteyder_kroner,
+            samlet_sats_basispoint
+        )
+    )
+} }
+
+# Afskrivningslov33Sag(input: Afskrivningslov33Input) {
+    | position_gyldig() -> afskrivningslov32_position_gyldig(input.position_før_anskaffelser)
+    | anskaffelser_gyldige() -> afskrivningslov32_anskaffelser_gyldige(input.position_før_anskaffelser.aftale, input.anskaffelser_i_indkomståret) && afskrivningslov32_anskaffelser_entydige(concat(input.position_før_anskaffelser.anskaffelser, input.anskaffelser_i_indkomståret))
+    | samme_indkomstår() -> length(input.anskaffelser_i_indkomståret) == 0 || all(input.anskaffelser_i_indkomståret, |anskaffelse: AfskrivningslovForskudsAnskaffelse| afskrivningslov32_anskaffelsesår(anskaffelse) == afskrivningslov32_anskaffelsesår(head(input.anskaffelser_i_indkomståret)))
+    | input_gyldigt() -> position_gyldig() && anskaffelser_gyldige() && samme_indkomstår()
+    | samlet_anskaffelsessum_kroner() -> afskrivningslov32_samlet_faktisk_anskaffelsessum_kroner(input.anskaffelser_i_indkomståret)
+    | grundlagsreduktion_kroner() -> hvis input_gyldigt() { afskrivningslov33_samlet_reduktion_i_indkomståret_kroner(input) } ellers { 0 }
+    | samlet_sats_basispoint() -> afskrivningslov31_hidtil_anvendt_sats_basispoint(input.position_før_anskaffelser)
+    | forskudsafskrivning_henført_kroner() -> penge_beløb_gange_basispoint_kroner(grundlagsreduktion_kroner(), samlet_sats_basispoint())
+    | aktiv_resultater() -> hvis input_gyldigt() { afskrivningslov33_fordel_aktiver(input.anskaffelser_i_indkomståret, grundlagsreduktion_kroner(), forskudsafskrivning_henført_kroner(), samlet_anskaffelsessum_kroner(), samlet_sats_basispoint()) } ellers { [] }
+    | resultat() -> Afskrivningslov33Resultat(
+        skatteyder = input.position_før_anskaffelser.aftale.skatteyder,
+        input_gyldigt = input_gyldigt(),
+        samlet_faktisk_anskaffelsessum_i_indkomståret_kroner = samlet_anskaffelsessum_kroner(),
+        samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner = grundlagsreduktion_kroner(),
+        samlet_forskudsafskrivningsprocent_basispoint = samlet_sats_basispoint(),
+        samlede_forskudsafskrivninger_henført_til_aktiver_kroner = forskudsafskrivning_henført_kroner(),
+        aktiv_resultater = aktiv_resultater()
+    )
+}
+| afskrivningslov33_sag(input: Afskrivningslov33Input) -> Afskrivningslov33Sag(input)
+| afskrivningslov33_resultat(input: Afskrivningslov33Input) -> afskrivningslov33_sag(input).resultat()
+--@end:afskrivningsloven_par33--
+
+--@label:afskrivningsloven_par34::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par34_juridisk_vejledning::event_guidance:afskrivningsloven_par34_par35_juridisk_vejledning--
+----
+§ 34. Opfyldes forudsætningerne for forskudsafskrivning ikke, forhøjes den
+skattepligtige indkomst for det indkomstår, hvori dette viser sig, dog senest
+ved udløbet af det fjerde indkomstår efter bestillings- eller planlægningsåret.
+Forhøjelsen foretages med tillæg efter reglerne i stk. 2.
+
+Stk. 2. Såfremt der ved udløbet af den i stk. 1, 1. pkt., nævnte frist resterer
+en del af eller hele forskudsafskrivningsgrundlaget efter § 32, jf. § 31, stk.
+1, ganges for hvert enkelt forskudsafskrivningsår det resterende
+forskudsafskrivningsgrundlag med den forskudsafskrivningssats, der er anvendt i
+vedkommende forskudsafskrivningsår. Hvert af de fremkomne beløb tillægges 5 pct.
+for hvert år fra udløbet af vedkommende forskudsafskrivningsår og indtil udløbet
+af den i stk. 1, 1. pkt., nævnte frist. Forhøjelsen med tillæg udgør summen af
+de nævnte beløb.
+
+Stk. 3. Reglerne i stk. 1 og 2 anvendes tilsvarende for aktiver, der omfattes af
+skattepligt her i landet, når denne skattepligt ophører af anden grund end den
+skattepligtiges død. Når en person eller et selskab m.v., som er fuldt
+skattepligtig i Danmark, efter bestemmelserne i en dobbeltbeskatningsoverenskomst
+indgået mellem Danmark og en fremmed stat, Færøerne eller Grønland bliver
+hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
+----
+
+--@begin:afskrivningsloven_par34--
+# Afskrivningslov34Hændelse = Al34ForudsætningerIkkeOpfyldt | Al34AftaleEllerPlanAnnulleret | Al34FristUdløbet | Al34SkattepligtOphørt(aktiver_forbliver_under_dansk_skattepligt: Boolsk) | Al34DobbeltbeskatningHjemmehørendeUdenForDanmark(aktiver_forbliver_under_dansk_skattepligt: Boolsk)
+# Afskrivningslov34Input(position: AfskrivningslovForskudsPosition, hændelse: Afskrivningslov34Hændelse, hændelsesår: Heltal, fristforlængelse_resultat: Afskrivningslov36Resultat)
+# Afskrivningslov34Årsforhøjelse(forskudsafskrivningsår: Heltal, resterende_forskudsafskrivningsgrundlag_kroner: Heltal, anvendt_sats_basispoint: Heltal, tilbageført_forskudsafskrivning_kroner: Heltal, antal_tillægsår: Heltal, fem_procent_tillæg_kroner: Heltal, forhøjelse_med_tillæg_kroner: Heltal)
+# Afskrivningslov34Resultat(skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, fristforlængelse_matcher_position: Boolsk, ordinært_seneste_forhøjelsesår: Heltal, seneste_forhøjelsesår: Heltal, forhøjelsesår: Heltal, hændelse_udløser_forhøjelse: Boolsk, resterende_forskudsafskrivningsgrundlag_kroner: Heltal, årsforhøjelser: List(Afskrivningslov34Årsforhøjelse), forhøjelse_af_skattepligtig_indkomst_kroner: Heltal)
+
+| afskrivningslov34_ordinært_seneste_forhøjelsesår(position: AfskrivningslovForskudsPosition) -> position.aftale.bestillings_eller_planlægningsdato.år + 4
+| afskrivningslov34_fristforlængelse_matcher(position: AfskrivningslovForskudsPosition, frist: Afskrivningslov36Resultat) -> frist.bestillings_eller_planlægningsår == position.aftale.bestillings_eller_planlægningsdato.år && frist.ordinært_seneste_forhøjelsesår == afskrivningslov34_ordinært_seneste_forhøjelsesår(position)
+| afskrivningslov34_hændelse_udløser(hændelse: Afskrivningslov34Hændelse) -> match hændelse {
+    | Al34ForudsætningerIkkeOpfyldt -> Sandt
+    | Al34AftaleEllerPlanAnnulleret -> Sandt
+    | Al34FristUdløbet -> Sandt
+    | Al34SkattepligtOphørt(aktiver_forbliver_under_dansk_skattepligt) -> aktiver_forbliver_under_dansk_skattepligt == Falskt
+    | Al34DobbeltbeskatningHjemmehørendeUdenForDanmark(aktiver_forbliver_under_dansk_skattepligt) -> aktiver_forbliver_under_dansk_skattepligt == Falskt
+}
+| afskrivningslov34_årsforhøjelse(årspost: AfskrivningslovForskudsÅrspost, resterende_forskudsgrundlag_kroner: Heltal, forhøjelsesår: Heltal) -> Afskrivningslov34Årsforhøjelse(
+    forskudsafskrivningsår = årspost.indkomstår,
+    resterende_forskudsafskrivningsgrundlag_kroner = resterende_forskudsgrundlag_kroner,
+    anvendt_sats_basispoint = årspost.anvendt_forskudsafskrivningssats_basispoint,
+    tilbageført_forskudsafskrivning_kroner = penge_beløb_gange_basispoint_kroner(resterende_forskudsgrundlag_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint),
+    antal_tillægsår = penge_positivt_beløb(forhøjelsesår - årspost.indkomstår),
+    fem_procent_tillæg_kroner = penge_beløb_gange_basispoint_kroner(resterende_forskudsgrundlag_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) * 5 * penge_positivt_beløb(forhøjelsesår - årspost.indkomstår) / 100,
+    forhøjelse_med_tillæg_kroner = penge_beløb_gange_basispoint_kroner(resterende_forskudsgrundlag_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) + penge_beløb_gange_basispoint_kroner(resterende_forskudsgrundlag_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) * 5 * penge_positivt_beløb(forhøjelsesår - årspost.indkomstår) / 100
+)
+
+# Afskrivningslov34Sag(input: Afskrivningslov34Input) {
+    | position_gyldig() -> afskrivningslov32_position_gyldig(input.position)
+    | frist_matcher() -> afskrivningslov34_fristforlængelse_matcher(input.position, input.fristforlængelse_resultat)
+    | seneste_forhøjelsesår() -> afskrivningslov34_ordinært_seneste_forhøjelsesår(input.position) + hvis input.fristforlængelse_resultat.gyldig_fristforlængelse { input.fristforlængelse_resultat.forlængelse_år } ellers { 0 }
+    | forhøjelsesår() -> hvis input.hændelse == Al34FristUdløbet { seneste_forhøjelsesår() } ellers { penge_mindste_beløb(input.hændelsesår, seneste_forhøjelsesår()) }
+    | hændelse_udløser() -> afskrivningslov34_hændelse_udløser(input.hændelse) && input.hændelsesår >= input.position.aftale.bestillings_eller_planlægningsdato.år
+    | resterende_forskudsgrundlag_kroner() -> afskrivningslov32_resterende_forskudsgrundlag_i_år_kroner(input.position, forhøjelsesår())
+    | relevante_årsposter() -> filter(input.position.årsposter, |årspost: AfskrivningslovForskudsÅrspost| årspost.indkomstår <= forhøjelsesår() && årspost.anvendt_forskudsafskrivningssats_basispoint > 0)
+    | årsforhøjelser() -> hvis position_gyldig() && frist_matcher() && hændelse_udløser() && resterende_forskudsgrundlag_kroner() > 0 { map(relevante_årsposter(), |årspost: AfskrivningslovForskudsÅrspost| afskrivningslov34_årsforhøjelse(årspost, resterende_forskudsgrundlag_kroner(), forhøjelsesår())) } ellers { [] }
+    | samlet_forhøjelse_kroner() -> foldl(årsforhøjelser(), 0, |sum: Heltal, forhøjelse: Afskrivningslov34Årsforhøjelse| sum + forhøjelse.forhøjelse_med_tillæg_kroner)
+    | resultat() -> Afskrivningslov34Resultat(
+        skatteyder = input.position.aftale.skatteyder,
+        position_gyldig = position_gyldig(),
+        fristforlængelse_matcher_position = frist_matcher(),
+        ordinært_seneste_forhøjelsesår = afskrivningslov34_ordinært_seneste_forhøjelsesår(input.position),
+        seneste_forhøjelsesår = seneste_forhøjelsesår(),
+        forhøjelsesår = forhøjelsesår(),
+        hændelse_udløser_forhøjelse = hændelse_udløser(),
+        resterende_forskudsafskrivningsgrundlag_kroner = resterende_forskudsgrundlag_kroner(),
+        årsforhøjelser = årsforhøjelser(),
+        forhøjelse_af_skattepligtig_indkomst_kroner = samlet_forhøjelse_kroner()
+    )
+}
+| afskrivningslov34_sag(input: Afskrivningslov34Input) -> Afskrivningslov34Sag(input)
+| afskrivningslov34_resultat(input: Afskrivningslov34Input) -> afskrivningslov34_sag(input).resultat()
+--@end:afskrivningsloven_par34--
+
+--@label:afskrivningsloven_par35::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par34_par35_juridisk_vejledning--
+----
+§ 35. Såfremt den skattepligtige dør eller går konkurs og der resterer en del af
+eller hele forskudsafskrivningsgrundlaget efter § 32, jf. § 31, stk. 1, forhøjes
+den skattepligtige indkomst for de indkomstår, hvori der er forskudsafskrevet,
+uanset fristen i skatteforvaltningslovens § 26, stk. 1. Forhøjelsen beregnes for
+hvert enkelt forskudsafskrivningsår som den resterende del af
+forskudsafskrivningsgrundlaget ganget med den forskudsafskrivningssats, der er
+anvendt i vedkommende forskudsafskrivningsår med tillæg af 5 pct. for hvert år
+fra forskudsafskrivningsårets udløb til udløbet af døds- eller konkursåret.
+
+Stk. 2. Reglerne i stk. 1 anvendes tilsvarende for en virksomhed, der ophører
+eller sælges.
+
+Stk. 3. Stk. 1 finder ikke anvendelse, i det omfang forskudsafskrivningerne
+overtages efter dødsboskattelovens § 39, stk. 1, eller § 45, stk. 1, eller en
+længstlevende ægtefælle indtræder i afdødes skattemæssige stilling efter
+dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
+----
+
+--@begin:afskrivningsloven_par35--
+# Afskrivningslov35Hændelse = Al35SkattepligtigDør | Al35SkattepligtigGårKonkurs | Al35VirksomhedOphører | Al35VirksomhedSælges
+# Afskrivningslov35Input(position: AfskrivningslovForskudsPosition, hændelse: Afskrivningslov35Hændelse, hændelsesår: Heltal, forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner: Heltal)
+# Afskrivningslov35Årsforhøjelse(forskudsafskrivningsår: Heltal, tilbageført_forskudsafskrivning_kroner: Heltal, antal_tillægsår: Heltal, fem_procent_tillæg_kroner: Heltal, forhøjelse_af_det_tidligere_indkomstår_kroner: Heltal)
+# Afskrivningslov35Resultat(skatteyder: AfskrivningslovSkatteyder, position_gyldig: Boolsk, succession_gyldig: Boolsk, resterende_forskudsafskrivningsgrundlag_før_succession_kroner: Heltal, overtaget_ved_dødsbosuccession_kroner: Heltal, grundlag_til_forhøjelse_kroner: Heltal, genåbner_tidligere_indkomstår: Boolsk, årsforhøjelser: List(Afskrivningslov35Årsforhøjelse), samlet_forhøjelse_af_tidligere_indkomstår_kroner: Heltal)
+
+| afskrivningslov35_død(hændelse: Afskrivningslov35Hændelse) -> hændelse == Al35SkattepligtigDør
+| afskrivningslov35_årsforhøjelse(årspost: AfskrivningslovForskudsÅrspost, grundlag_til_forhøjelse_kroner: Heltal, hændelsesår: Heltal) -> Afskrivningslov35Årsforhøjelse(
+    forskudsafskrivningsår = årspost.indkomstår,
+    tilbageført_forskudsafskrivning_kroner = penge_beløb_gange_basispoint_kroner(grundlag_til_forhøjelse_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint),
+    antal_tillægsår = penge_positivt_beløb(hændelsesår - årspost.indkomstår),
+    fem_procent_tillæg_kroner = penge_beløb_gange_basispoint_kroner(grundlag_til_forhøjelse_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) * 5 * penge_positivt_beløb(hændelsesår - årspost.indkomstår) / 100,
+    forhøjelse_af_det_tidligere_indkomstår_kroner = penge_beløb_gange_basispoint_kroner(grundlag_til_forhøjelse_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) + penge_beløb_gange_basispoint_kroner(grundlag_til_forhøjelse_kroner, årspost.anvendt_forskudsafskrivningssats_basispoint) * 5 * penge_positivt_beløb(hændelsesår - årspost.indkomstår) / 100
+)
+
+# Afskrivningslov35Sag(input: Afskrivningslov35Input) {
+    | position_gyldig() -> afskrivningslov32_position_gyldig(input.position)
+    | resterende_forskudsgrundlag_kroner() -> afskrivningslov32_resterende_forskudsgrundlag_i_år_kroner(input.position, input.hændelsesår)
+    | succession_gyldig() -> input.forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner >= 0 && input.forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner <= resterende_forskudsgrundlag_kroner() && (afskrivningslov35_død(input.hændelse) || input.forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner == 0)
+    | grundlag_til_forhøjelse_kroner() -> hvis succession_gyldig() { resterende_forskudsgrundlag_kroner() - input.forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner } ellers { 0 }
+    | genåbner_tidligere_indkomstår() -> position_gyldig() && succession_gyldig() && input.hændelsesår >= input.position.aftale.bestillings_eller_planlægningsdato.år && grundlag_til_forhøjelse_kroner() > 0
+    | relevante_årsposter() -> filter(input.position.årsposter, |årspost: AfskrivningslovForskudsÅrspost| årspost.indkomstår <= input.hændelsesår && årspost.anvendt_forskudsafskrivningssats_basispoint > 0)
+    | årsforhøjelser() -> hvis genåbner_tidligere_indkomstår() { map(relevante_årsposter(), |årspost: AfskrivningslovForskudsÅrspost| afskrivningslov35_årsforhøjelse(årspost, grundlag_til_forhøjelse_kroner(), input.hændelsesår)) } ellers { [] }
+    | samlet_forhøjelse_kroner() -> foldl(årsforhøjelser(), 0, |sum: Heltal, forhøjelse: Afskrivningslov35Årsforhøjelse| sum + forhøjelse.forhøjelse_af_det_tidligere_indkomstår_kroner)
+    | resultat() -> Afskrivningslov35Resultat(
+        skatteyder = input.position.aftale.skatteyder,
+        position_gyldig = position_gyldig(),
+        succession_gyldig = succession_gyldig(),
+        resterende_forskudsafskrivningsgrundlag_før_succession_kroner = resterende_forskudsgrundlag_kroner(),
+        overtaget_ved_dødsbosuccession_kroner = hvis succession_gyldig() { input.forskudsafskrivningsgrundlag_overtaget_ved_dødsbosuccession_kroner } ellers { 0 },
+        grundlag_til_forhøjelse_kroner = grundlag_til_forhøjelse_kroner(),
+        genåbner_tidligere_indkomstår = genåbner_tidligere_indkomstår(),
+        årsforhøjelser = årsforhøjelser(),
+        samlet_forhøjelse_af_tidligere_indkomstår_kroner = samlet_forhøjelse_kroner()
+    )
+}
+| afskrivningslov35_sag(input: Afskrivningslov35Input) -> Afskrivningslov35Sag(input)
+| afskrivningslov35_resultat(input: Afskrivningslov35Input) -> afskrivningslov35_sag(input).resultat()
+--@end:afskrivningsloven_par35--
+
+--@label:afskrivningsloven_par36::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par36_juridisk_vejledning--
+----
+§ 36. Fristen for forhøjelse af den skattepligtige indkomst efter § 34 kan efter
+tilladelse fra told- og skatteforvaltningen forlænges med indtil 3 år, hvis
+aktiverne ikke er blevet afskrivningsberettigede inden udløbet af det fjerde
+indkomstår efter bestillings- eller planlægningsåret, når forsinkelsen skyldes
+tekniske forhold eller leverandørens konkurs og den skattepligtige ikke har
+kunnet forudse eller afværge forsinkelsen eller forsinkelsen skyldes told- og
+skatteforvaltningens eller andre myndigheders egne forhold.
+----
+
+--@begin:afskrivningsloven_par36--
+# Afskrivningslov36Forsinkelsesgrund = Al36TekniskeForhold | Al36LeverandørensKonkurs | Al36SkatteforvaltningensEllerAndreMyndighedersEgneForhold | Al36AndenForsinkelse
+# Afskrivningslov36Input(position: AfskrivningslovForskudsPosition, tilladelse_givet: Boolsk, ansøgt_forlængelse_år: Heltal, forsinkelsesgrund: Afskrivningslov36Forsinkelsesgrund, forsinkelsen_kunne_ikke_forudses_eller_afværges: Boolsk)
+# Afskrivningslov36Resultat(bestillings_eller_planlægningsår: Heltal, ordinært_seneste_forhøjelsesår: Heltal, aktiver_ikke_afskrivningsberettigede_ved_ordinær_frist: Boolsk, forsinkelsesgrund_omfattet: Boolsk, tilladelse_givet: Boolsk, gyldig_fristforlængelse: Boolsk, forlængelse_år: Heltal, seneste_forhøjelsesår: Heltal)
+
+| afskrivningslov36_forsinkelsesgrund_omfattet(input: Afskrivningslov36Input) -> match input.forsinkelsesgrund {
+    | Al36TekniskeForhold -> input.forsinkelsen_kunne_ikke_forudses_eller_afværges
+    | Al36LeverandørensKonkurs -> input.forsinkelsen_kunne_ikke_forudses_eller_afværges
+    | Al36SkatteforvaltningensEllerAndreMyndighedersEgneForhold -> Sandt
+    | Al36AndenForsinkelse -> Falskt
+}
+
+# Afskrivningslov36Sag(input: Afskrivningslov36Input) {
+    | bestillingsår() -> input.position.aftale.bestillings_eller_planlægningsdato.år
+    | ordinær_frist() -> bestillingsår() + 4
+    | aktiver_ikke_afskrivningsberettigede() -> length(afskrivningslov32_resterende_planlagte_aktiver_i_år(input.position, ordinær_frist())) > 0
+    | grund_omfattet() -> afskrivningslov36_forsinkelsesgrund_omfattet(input)
+    | gyldig_fristforlængelse() -> afskrivningslov32_position_gyldig(input.position) && input.tilladelse_givet && aktiver_ikke_afskrivningsberettigede() && grund_omfattet() && input.ansøgt_forlængelse_år >= 1 && input.ansøgt_forlængelse_år <= 3
+    | forlængelse_år() -> hvis gyldig_fristforlængelse() { input.ansøgt_forlængelse_år } ellers { 0 }
+    | resultat() -> Afskrivningslov36Resultat(
+        bestillings_eller_planlægningsår = bestillingsår(),
+        ordinært_seneste_forhøjelsesår = ordinær_frist(),
+        aktiver_ikke_afskrivningsberettigede_ved_ordinær_frist = aktiver_ikke_afskrivningsberettigede(),
+        forsinkelsesgrund_omfattet = grund_omfattet(),
+        tilladelse_givet = input.tilladelse_givet,
+        gyldig_fristforlængelse = gyldig_fristforlængelse(),
+        forlængelse_år = forlængelse_år(),
+        seneste_forhøjelsesår = ordinær_frist() + forlængelse_år()
+    )
+}
+| afskrivningslov36_sag(input: Afskrivningslov36Input) -> Afskrivningslov36Sag(input)
+| afskrivningslov36_resultat(input: Afskrivningslov36Input) -> afskrivningslov36_sag(input).resultat()
+| afskrivningslov36_ingen_fristforlængelse(position: AfskrivningslovForskudsPosition) -> afskrivningslov36_resultat(Afskrivningslov36Input(
+    position = position,
+    tilladelse_givet = Falskt,
+    ansøgt_forlængelse_år = 0,
+    forsinkelsesgrund = Al36AndenForsinkelse,
+    forsinkelsen_kunne_ikke_forudses_eller_afværges = Falskt
+))
+--@end:afskrivningsloven_par36--
+
+--@label:afskrivningsloven_par37::source:afskrivningsloven_lbk1222--
+----
+§ 37. (Ophævet)
+----
+
+--@begin:afskrivningsloven_par37--
+# Afskrivningslov37Status = Al37Ophævet
+
+| afskrivningslov37_status() -> Al37Ophævet
+--@end:afskrivningsloven_par37--
 
 --@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----

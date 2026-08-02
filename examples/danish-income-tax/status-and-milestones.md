@@ -38,7 +38,7 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Afskrivningslovens aktuelle beregningsslice omfatter nu
-§§ 1-27. § 3 kræver leveret, driftsbestemt og
+§§ 1-37. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
@@ -70,9 +70,17 @@ hjemfaldsforpligtelser med 3- og 4-pct.-satser, lejeperiodeloft, delvis anvendel
 kontrolafskæring, den progressive hjemfaldsskala, ophørsfradrag, genvundne
 afskrivninger, tabsafskæring og nedrivningsfradrag. § 27 bærer den oprindelige
 udgift og foretagne afskrivninger videre ved ejer- og forpagtersuccession.
+§§ 28-37 bærer en samlet, vedvarende forskudsafskrivningsposition pr.
+skatteyder, virksomhed og bestillingsår. § 29-grundbeløbet reguleres gennem
+Personskatteloven § 20; §§ 30-32 afleder tidsrum, anskaffelser, resterende
+grundbeløb og 15/30-pct.-lofter fra historikken; § 33 fordeler
+forskudsafskrivninger på de faktiske aktiver uden at tabe afrundingsresten; og
+§§ 34-36 holder aktuel efterbeskatning, genåbning af tidligere indkomstår,
+dødsbosuccession og myndighedsgodkendt fristforlængelse adskilt. § 37 er bevaret
+som en eksplicit ophævet bestemmelse.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
-samt §§ 17-18- og §§ 21-27-resultaterne og
+samt §§ 17-18-, §§ 21-27-, § 32- og § 34-resultaterne og
 holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
 adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
 føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
@@ -83,7 +91,11 @@ kr. nedrivnings- og skadefradrag. Scenarierne for §§ 25-27 validerer desuden
 Skatterådets hjemfaldseksempel på 3.269 kr., 2,5 pct.-loftet ved 40 års leje,
 den gennemsnitlige erhvervsandel ved nedrivning og en § 3-kaskade, der holder
 200.000 kr. genvundne afskrivninger adskilt fra 225.000 kr. afskrivninger og
-600.000 kr. andre fradrag. De eksisterende
+600.000 kr. andre fradrag. Kapitel 4-scenariet gengiver desuden Den juridiske
+vejlednings fire-skibsforløb: 1.200.000 kr. oprindeligt forskudsgrundlag,
+144.000/180.000/13.200 kr. i årlige forskudsafskrivninger, en § 33-fordeling på
+154.643/50.557 kr. og 118.830 kr. i samlet § 34-forhøjelse. Både interpreter og
+kompileret kode kontrollerer samme regelkæde. De eksisterende
 2026-parametre omfatter også 36.000 kr.-grænserne og forskningsfradragets
 114/110 pct.-deling omkring loftet på 1.088,8 mio. kr. § 5 A-modellen begrænser
 et valgt tab forholdsmæssigt, når hele den uafskrevne anskaffelsessum ellers
@@ -699,13 +711,15 @@ Current § 4 and § 13 amendment/dependency sources:
   - XML status checked on 2026-07-18: `Valid`; the LBK version window ends on
     2026-07-01, so current source posture also includes LOV 749/2025 § 2,
     effective 2026-01-01. That amendment changes § 40, stk. 7-8, not the
-    modeled §§ 1-27 or § 40 C.
+    modeled §§ 1-37 or § 40 C.
   - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
-    §§ 1-27 with amount-level chapter 2 outcomes, § 17 depreciation, § 18
+    §§ 1-37 with amount-level chapter 2 outcomes, § 17 depreciation, § 18
     immediate deductions, §§ 21-24 recapture, loss, demolition, damage and
     reconstruction outcomes, §§ 25-26 special-property depreciation and
-    disposition outcomes, and § 27 succession for drainage and irrigation
-    installations.
+    disposition outcomes, § 27 succession for drainage and irrigation
+    installations, and chapter 4 advance depreciation. Current § 32 deductions
+    and § 34 recapture feed nr. 10; § 35 remains an explicit prior-year
+    reassessment result instead of being misclassified as current income.
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
@@ -1793,8 +1807,8 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-27 and Statsskatteloven § 6 slice. Advance
-  depreciation, intangible assets and later recapture/cessation rules must
+  Afskrivningsloven §§ 1-37 and Statsskatteloven § 6 slice. Intangible assets
+  and later recapture/cessation rules must
   become typed source-law outcomes before nr. 10 can be described as complete.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
