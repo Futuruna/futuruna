@@ -305,9 +305,9 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | kgl_par32_par13a_skattepost_har_indkomstgrundlag(post: AktieavanceSkattepost) -> post.skattepligtig_gevinst_efter_par12_kroner > 0 || post.bruttotab_kroner > 0
 | kgl_par32_par13a_aktieklasser(resultat: AktieavanceOrdinærÅrsresultat) -> distinct(map(filter(resultat.input.skatteposter, kgl_par32_par13a_skattepost_har_indkomstgrundlag), kgl_par32_aktieklasse_fra_par13a_skattepost))
 | kgl_par32_supplerende_aktieklasse(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
-    | KglPar32AblLagerÅrsresultat(resultat) -> match resultat.input.princip_resultat.input.aktiv {
-        | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> KglPar32Abl19BInvesteringsselskab
-        | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> KglPar32Abl19CInvesteringsselskab
+    | KglPar32AblLagerÅrsresultat(resultat) -> match resultat.aktieavancebeskatningslov_resultat.effektiv_aktiv {
+        | AblInvesteringsselskab19B -> KglPar32Abl19BInvesteringsselskab
+        | AblInvesteringsselskab19C -> KglPar32Abl19CInvesteringsselskab
         | _ -> KglPar32AndenIkkeKvalificeretAktieklasse
     }
     | KglPar32AblResultat(resultat) -> hvis resultat.effektiv_aktiv == AblMinimumsbevis22 { KglPar32Abl22ObligationsbaseretMinimumsbevis } ellers { KglPar32AndenIkkeKvalificeretAktieklasse }
@@ -327,7 +327,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 } }
 | kgl_par32_abl_resultat_strukturelt_gyldigt(resultat: AktieavancebeskatningslovResultat, indkomstår: Heltal) -> resultat.indkomstår == indkomstår && resultat.bruttogevinst_kroner >= 0 && resultat.bruttotab_kroner >= 0 && resultat.tab_afskåret_kroner >= 0 && resultat.skattepligtig_gevinst_kroner >= 0 && resultat.fradragsberettiget_tab_kroner >= 0 && resultat.netto_efter_aktieavancebeskatningsloven_kroner == resultat.skattepligtig_gevinst_kroner - resultat.fradragsberettiget_tab_kroner
 | kgl_par32_supplerende_strukturelt_gyldigt(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> match kilde {
-    | KglPar32AblLagerÅrsresultat(resultat) -> resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtsresultat.omfattet_af_par7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
+    | KglPar32AblLagerÅrsresultat(resultat) -> aktieavance_par23_lager_årsresultat_gyldigt(resultat) && resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtsresultat.omfattet_af_par7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
     | KglPar32AblResultat(resultat) -> kgl_par32_abl_resultat_strukturelt_gyldigt(resultat, indkomstår)
 }
 | kgl_par32_supplerende_netto_efter_abl_kroner(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
@@ -341,6 +341,18 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 }
 | kgl_par32_supplerende_klasse_kvalificerer(klasse: KursgevinstPar32Aktiegevinstklasse) -> klasse == KglPar32Abl19BInvesteringsselskab || klasse == KglPar32Abl19CInvesteringsselskab || klasse == KglPar32Abl22ObligationsbaseretMinimumsbevis
 | kgl_par32_supplerende_kvalificerer(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> kgl_par32_supplerende_klasse_kvalificerer(kgl_par32_supplerende_aktieklasse(kilde)) && kgl_par32_aktiemarkedsgrundlag_kvalificerer(kgl_par32_supplerende_markedsgrundlag(kilde), indkomstår)
+| kgl_par32_klassificeret_supplerende_resultat_fra_afledte_felter(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal, klasse: KursgevinstPar32Aktiegevinstklasse, markedsgrundlag: KursgevinstPar32Aktiemarkedsgrundlag, strukturelt_gyldigt: Boolsk, nettogevinst_efter_abl_kroner: Heltal) -> KursgevinstPar32KlassificeretSupplerendeAktieårsresultat(
+    kilde = kilde,
+    klasse = klasse,
+    markedsgrundlag = markedsgrundlag,
+    anset_optaget_efter_abl3 = kgl_par32_supplerende_anset_optaget_efter_abl3(kilde),
+    strukturelt_gyldigt = strukturelt_gyldigt,
+    kvalificerer_til_par32_stk3 = strukturelt_gyldigt && kgl_par32_supplerende_klasse_kvalificerer(klasse) && kgl_par32_aktiemarkedsgrundlag_kvalificerer(markedsgrundlag, indkomstår),
+    nettogevinst_efter_abl_kroner = nettogevinst_efter_abl_kroner,
+    medregnet_nettoaktiegevinst_kroner = hvis strukturelt_gyldigt && kgl_par32_supplerende_klasse_kvalificerer(klasse) && kgl_par32_aktiemarkedsgrundlag_kvalificerer(markedsgrundlag, indkomstår) { nettogevinst_efter_abl_kroner } ellers { 0 },
+    udeladt_ikke_kvalificeret_netto_kroner = hvis strukturelt_gyldigt && (kgl_par32_supplerende_klasse_kvalificerer(klasse) == Falskt || kgl_par32_aktiemarkedsgrundlag_kvalificerer(markedsgrundlag, indkomstår) == Falskt) { nettogevinst_efter_abl_kroner } ellers { 0 },
+    afvist_ugyldigt_netto_kroner = hvis strukturelt_gyldigt { 0 } ellers { nettogevinst_efter_abl_kroner }
+)
 
 # KursgevinstPar32SupplerendeAktieklassifikationssag(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) {
     | klasse() -> kgl_par32_supplerende_aktieklasse(kilde)
@@ -351,22 +363,26 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | medregnet_nettoaktiegevinst_kroner() -> hvis kvalificerer_til_par32_stk3() { nettogevinst_efter_abl_kroner() } ellers { 0 }
     | udeladt_ikke_kvalificeret_netto_kroner() -> hvis strukturelt_gyldigt() && kvalificerer_til_par32_stk3() == Falskt { nettogevinst_efter_abl_kroner() } ellers { 0 }
     | afvist_ugyldigt_netto_kroner() -> hvis strukturelt_gyldigt() { 0 } ellers { nettogevinst_efter_abl_kroner() }
-    | resultat() -> KursgevinstPar32KlassificeretSupplerendeAktieårsresultat(
-        kilde = kilde,
-        klasse = klasse(),
-        markedsgrundlag = markedsgrundlag(),
-        anset_optaget_efter_abl3 = kgl_par32_supplerende_anset_optaget_efter_abl3(kilde),
-        strukturelt_gyldigt = strukturelt_gyldigt(),
-        kvalificerer_til_par32_stk3 = kvalificerer_til_par32_stk3(),
-        nettogevinst_efter_abl_kroner = nettogevinst_efter_abl_kroner(),
-        medregnet_nettoaktiegevinst_kroner = medregnet_nettoaktiegevinst_kroner(),
-        udeladt_ikke_kvalificeret_netto_kroner = udeladt_ikke_kvalificeret_netto_kroner(),
-        afvist_ugyldigt_netto_kroner = afvist_ugyldigt_netto_kroner()
-    )
+    | resultat() -> kgl_par32_klassificeret_supplerende_resultat_fra_afledte_felter(kilde, indkomstår, klasse(), markedsgrundlag(), strukturelt_gyldigt(), nettogevinst_efter_abl_kroner())
 }
 | kgl_par32_klassificer_supplerende_aktieårsresultat(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> KursgevinstPar32SupplerendeAktieklassifikationssag(kilde, indkomstår).resultat()
 | kgl_par32_klassificerede_supplerende_aktieårsresultater(kilder: List(KursgevinstPar32SupplerendeAktieårsresultat), indkomstår: Heltal) -> map(kilder, |kilde: KursgevinstPar32SupplerendeAktieårsresultat| kgl_par32_klassificer_supplerende_aktieårsresultat(kilde, indkomstår))
 | kgl_par32_klassificeret_supplerende_resultat_gyldigt(resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat) -> resultat.strukturelt_gyldigt
+| kgl_par32_aktiegevinstgrundlagsresultat_fra_klassificerede(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal, klassificerede: List(KursgevinstPar32KlassificeretSupplerendeAktieårsresultat)) -> KursgevinstPar32Aktiegevinstgrundlagsresultat(
+    grundlag = grundlag,
+    indkomstår = indkomstår,
+    input_gyldigt = grundlag.par13a_årsresultat.indkomstår == indkomstår && all(klassificerede, kgl_par32_klassificeret_supplerende_resultat_gyldigt),
+    klasser = distinct(concat(kgl_par32_par13a_aktieklasser(grundlag.par13a_årsresultat), map(klassificerede, |resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| resultat.klasse))),
+    klassificerede_supplerende_resultater = klassificerede,
+    par13a_gevinster_på_reguleret_marked_kroner = grundlag.par13a_årsresultat.gevinster_på_reguleret_marked_efter_par12_kroner,
+    par13a_gevinster_på_multilateral_handelsfacilitet_kroner = grundlag.par13a_årsresultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner,
+    årets_par13a_tab_kroner = penge_positivt_beløb(grundlag.par13a_årsresultat.årets_tab_efter_par13a_kroner),
+    supplerende_medregnet_nettoaktiegevinst_kroner = foldl(klassificerede, 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.medregnet_nettoaktiegevinst_kroner),
+    supplerende_udeladt_ikke_kvalificeret_netto_kroner = foldl(klassificerede, 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.udeladt_ikke_kvalificeret_netto_kroner),
+    supplerende_afvist_ugyldigt_netto_kroner = foldl(klassificerede, 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.afvist_ugyldigt_netto_kroner),
+    samlet_nettoaktiegevinst_før_nulgrænse_kroner = grundlag.par13a_årsresultat.gevinster_på_reguleret_marked_efter_par12_kroner + hvis indkomstår >= 2024 { grundlag.par13a_årsresultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner } ellers { 0 } + foldl(klassificerede, 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.medregnet_nettoaktiegevinst_kroner) - penge_positivt_beløb(grundlag.par13a_årsresultat.årets_tab_efter_par13a_kroner),
+    aktiegevinstkapacitet_kroner = hvis grundlag.par13a_årsresultat.indkomstår == indkomstår && all(klassificerede, kgl_par32_klassificeret_supplerende_resultat_gyldigt) { penge_positivt_beløb(grundlag.par13a_årsresultat.gevinster_på_reguleret_marked_efter_par12_kroner + hvis indkomstår >= 2024 { grundlag.par13a_årsresultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner } ellers { 0 } + foldl(klassificerede, 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.medregnet_nettoaktiegevinst_kroner) - penge_positivt_beløb(grundlag.par13a_årsresultat.årets_tab_efter_par13a_kroner)) } ellers { 0 }
+)
 
 # KursgevinstPar32AktiegevinstgrundlagSag(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal) {
     | klassificerede_supplerende_resultater() -> kgl_par32_klassificerede_supplerende_aktieårsresultater(grundlag.supplerende_årsresultater, indkomstår)
@@ -382,21 +398,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | kvalificerede_par13a_gevinster_kroner() -> par13a_gevinster_på_reguleret_marked_kroner() + hvis indkomstår >= 2024 { par13a_gevinster_på_multilateral_handelsfacilitet_kroner() } ellers { 0 }
     | samlet_nettoaktiegevinst_før_nulgrænse_kroner() -> kvalificerede_par13a_gevinster_kroner() + supplerende_medregnet_nettoaktiegevinst_kroner() - årets_par13a_tab_kroner()
     | aktiegevinstkapacitet_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(samlet_nettoaktiegevinst_før_nulgrænse_kroner()) } ellers { 0 }
-    | resultat() -> KursgevinstPar32Aktiegevinstgrundlagsresultat(
-        grundlag = grundlag,
-        indkomstår = indkomstår,
-        input_gyldigt = input_gyldigt(),
-        klasser = klasser(),
-        klassificerede_supplerende_resultater = klassificerede_supplerende_resultater(),
-        par13a_gevinster_på_reguleret_marked_kroner = par13a_gevinster_på_reguleret_marked_kroner(),
-        par13a_gevinster_på_multilateral_handelsfacilitet_kroner = par13a_gevinster_på_multilateral_handelsfacilitet_kroner(),
-        årets_par13a_tab_kroner = årets_par13a_tab_kroner(),
-        supplerende_medregnet_nettoaktiegevinst_kroner = supplerende_medregnet_nettoaktiegevinst_kroner(),
-        supplerende_udeladt_ikke_kvalificeret_netto_kroner = supplerende_udeladt_ikke_kvalificeret_netto_kroner(),
-        supplerende_afvist_ugyldigt_netto_kroner = supplerende_afvist_ugyldigt_netto_kroner(),
-        samlet_nettoaktiegevinst_før_nulgrænse_kroner = samlet_nettoaktiegevinst_før_nulgrænse_kroner(),
-        aktiegevinstkapacitet_kroner = aktiegevinstkapacitet_kroner()
-    )
+    | resultat() -> kgl_par32_aktiegevinstgrundlagsresultat_fra_klassificerede(grundlag, indkomstår, klassificerede_supplerende_resultater())
 }
 | kgl_par32_aktiegevinstgrundlagsresultat(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal) -> KursgevinstPar32AktiegevinstgrundlagSag(grundlag, indkomstår).resultat()
 | kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0, ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0)

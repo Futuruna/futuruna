@@ -1,0 +1,338 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+# AktieavanceInvesteringsklassifikationKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= aktieavancebeskatningsloven_lbk1098_par19b_til_par22 = AktieavanceInvesteringsklassifikationKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_par19b_til_par22::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
+----
+§ 19 B. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et
+investeringsselskab, jf. § 19, der er aktiebaseret, jf. stk. 2-6, medregnes ved
+opgørelsen af den skattepligtige indkomst.
+
+Stk. 2. Ved et aktiebaseret investeringsselskab forstås et investeringsselskab,
+der over for told- og skatteforvaltningen har meddelt, at investeringsselskabet
+er aktiebaseret. Det er endvidere en betingelse, at 50 pct. eller mere af
+selskabets aktivmasse i løbet af hvert kalenderår gennemsnitligt er placeret i
+værdipapirer m.v. omfattet af denne lov bortset fra aktier m.v. omfattet af
+§ 19 C og investeringsbeviser omfattet af § 22, og at den resterende del af
+aktivmassen udelukkende er placeret i værdipapirer m.v. Værdien af aktier eller
+investeringsbeviser i et andet aktiebaseret investeringsselskab, hvori
+investeringsselskabet ejer mindst 25 pct. af kapitalen, og værdien af
+investeringsbeviser i et aktiebaseret investeringsinstitut med
+minimumsbeskatning, jf. § 21, hvori investeringsselskabet ejer mindst 25 pct. af
+kapitalen, medregnes ikke. I stedet medregnes den del af dette
+investeringsselskabs eller investeringsinstituts aktiver, som svarer til
+ejerforholdet.
+
+Stk. 3. Ved opgørelse af, om anbringelserne overholder betingelsen i stk. 2,
+medregnes aktiver som nævnt i kursgevinstlovens §§ 29-33 med værdien af det
+underliggende aktiv.
+
+Stk. 4. Meddelelse efter stk. 2, 1. pkt., om status som aktiebaseret
+investeringsselskab skal indsendes til told- og skatteforvaltningen senest den
+1. november i kalenderåret før det kalenderår, som meddelelsen skal have
+virkning fra. For et nyoprettet investeringsselskab kan valg af status som
+aktiebaseret investeringsselskab, jf. stk. 2, have virkning fra det kalenderår,
+hvori investeringsselskabet er oprettet, hvis valget træffes samtidig med
+oprettelsen og der indsendes en meddelelse herom til told- og
+skatteforvaltningen senest 2 måneder efter oprettelsen, dog senest den
+1. november i oprettelsesåret.
+
+Stk. 5. Investeringsselskabet anses for obligationsbaseret, jf. § 19 C, hvis
+betingelsen i stk. 2, 1. pkt., ikke er opfyldt. Hvis betingelsen i stk. 2,
+1. pkt., er opfyldt, men investeringsselskabets anbringelser ikke overholder
+betingelsen i stk. 2, 2. pkt., anses selskabet for at have skiftet skattemæssig
+status til et obligationsbaseret investeringsselskab, jf. § 33 og
+selskabsskattelovens § 5 F, og reglerne i § 19 C finder anvendelse.
+
+Stk. 6. Investeringsselskabet skal indsende oplysninger til told- og
+skatteforvaltningen til vurdering af, om anbringelsesgrænsen i stk. 2 er
+overholdt. Oplysningerne skal indsendes senest den 1. juli året efter.
+Indsendes oplysninger ikke rettidigt, anses investeringsselskabet for at have
+skiftet skattemæssig status til et obligationsbaseret investeringsselskab, jf.
+§ 33 og selskabsskattelovens § 5 F, og reglerne i § 19 C finder anvendelse. Hvis
+anbringelsesgrænsen ikke er overholdt, skal investeringsselskabet offentliggøre
+dette.
+
+Stk. 7. I tilfælde omfattet af stk. 1 finder §§ 12-14 og 17 ikke anvendelse.
+Stk. 1 finder ikke anvendelse i de tilfælde, der er nævnt i § 16, stk. 1, og
+§§ 18, 21 og 22.
+
+Stk. 8. Told- og skatteforvaltningen kan fastsætte regler om den meddelelse,
+der skal indsendes efter stk. 4, og de oplysninger, der skal indsendes efter
+stk. 6.
+
+§ 19 C. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et
+investeringsselskab, jf. § 19, der er obligationsbaseret, jf. stk. 2, medregnes
+ved opgørelsen af den skattepligtige indkomst.
+
+Stk. 2. Et investeringsselskab er obligationsbaseret, medmindre
+investeringsselskabet opfylder betingelserne i § 19 B, stk. 2.
+
+Stk. 3. I tilfælde omfattet af stk. 1 finder §§ 12-14 og 17 ikke anvendelse.
+Stk. 1 finder ikke anvendelse i de tilfælde, der er nævnt i § 16, stk. 1, og
+§§ 18, 21 og 22.
+
+§ 21. Gevinst og tab ved afståelse af omsættelige beviser for indskud i
+investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C,
+stk. 1, der er aktiebaserede, jf. stk. 2-5, medregnes ved opgørelsen af den
+skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2,
+§§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
+Stk. 2. Et investeringsinstitut med minimumsbeskatning er aktiebaseret, hvis
+50 pct. eller mere af instituttets aktivmasse i løbet af hvert kalenderår
+gennemsnitligt er placeret i værdipapirer m.v. omfattet af denne lov, bortset
+fra aktier m.v. omfattet af § 19 C og investeringsbeviser omfattet af § 22.
+Værdien af investeringsbeviser i et andet aktiebaseret investeringsinstitut med
+minimumsbeskatning, hvori investeringsinstituttet ejer mindst 25 pct. af
+kapitalen, og værdien af aktier og investeringsbeviser i et aktiebaseret
+investeringsselskab, jf. § 19 B, hvori investeringsinstituttet ejer mindst
+25 pct. af kapitalen, medregnes ikke. I stedet medregnes den del af dette
+investeringsinstituts eller investeringsselskabs aktiver, som svarer til
+ejerforholdet.
+
+Stk. 3. Ved opgørelse af, om anbringelserne overholder betingelsen i stk. 2,
+medregnes aktiver som nævnt i kursgevinstlovens §§ 29-33 med værdien af det
+underliggende aktiv.
+
+Stk. 4. Hvis investeringsinstituttets anbringelser ikke overholder betingelsen i
+stk. 2, anses instituttet for at have skiftet skattemæssig status til et
+obligationsbaseret investeringsinstitut med minimumsbeskatning, jf. § 33 og
+selskabsskattelovens § 5 F, og reglerne i § 22 finder anvendelse.
+
+Stk. 5. Investeringsinstituttet skal indsende oplysninger til told- og
+skatteforvaltningen til vurdering af, om anbringelsesgrænsen i stk. 2 er
+overholdt. Oplysningerne skal indsendes senest samtidig med oplysninger til
+bedømmelse af, om investeringsinstituttet overholder betingelserne for at være
+et investeringsinstitut med minimumsbeskatning. Hvis anbringelsesgrænsen ikke er
+overholdt, skal investeringsinstituttet offentliggøre dette.
+
+§ 22. Gevinst og tab ved afståelse af omsættelige beviser for indskud i
+investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C,
+stk. 1, der er obligationsbaserede, jf. stk. 2-5, medregnes ved opgørelsen af
+den skattepligtige indkomst. 1. pkt. finder dog alene anvendelse, hvis årets
+nettogevinst eller nettotab sammenlagt med nettogevinster og nettotab på
+fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
+2.000 kr. Reglerne i § 14 finder tilsvarende anvendelse.
+
+Stk. 2. Et investeringsinstitut med minimumsbeskatning er obligationsbaseret,
+medmindre investeringsinstituttet opfylder betingelserne i § 21, stk. 2.
+
+Stk. 3. Ved opgørelse af, om anbringelserne overholder betingelsen i stk. 2,
+medregnes aktiver som nævnt i kursgevinstlovens §§ 29-33 med værdien af det
+underliggende aktiv.
+
+Stk. 4. Hvis investeringsinstituttets anbringelser ikke overholder betingelsen i
+stk. 2, anses instituttet for at have skiftet skattemæssig status til et
+aktiebaseret investeringsinstitut med minimumsbeskatning, jf. § 33 og
+selskabsskattelovens § 5 F, og reglerne i § 21 finder anvendelse.
+
+Stk. 5. Investeringsinstituttet skal indsende oplysninger til told- og
+skatteforvaltningen til vurdering af, om anbringelsesgrænsen i stk. 2 er
+overholdt. Oplysningerne skal indsendes senest samtidig med oplysninger til
+bedømmelse af, om investeringsinstituttet overholder betingelserne for at være
+et investeringsinstitut med minimumsbeskatning. Hvis anbringelsesgrænsen ikke er
+overholdt, skal investeringsinstituttet offentliggøre dette.
+
+Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
+13 A, 19 B, 19 C og 44 ikke anvendelse. Stk. 1 finder ikke anvendelse i de i
+§ 17 nævnte tilfælde.
+----
+
+--@begin:aktieavancebeskatningsloven_par19b_til_par22--
+# AktieavanceInvesteringsdato(år: Heltal, måned: Heltal, dag: Heltal)
+# AktieavanceInvesteringsaktivArt = AblKvalificerendeAktieaktiv | AblAktivOmfattetAfPar19C | AblInvesteringsbevisOmfattetAfPar22 | AblAndetVærdipapir | AblAndetAktiv
+# AktieavanceInvesteringsaktiv = AblDirekteInvesteringsaktiv(art: AktieavanceInvesteringsaktivArt, gennemsnitlig_værdi_kroner: Heltal) | AblKglPar29Til33Aktiv(underliggende_art: AktieavanceInvesteringsaktivArt, underliggende_gennemsnitlig_værdi_kroner: Heltal)
+# AktieavanceInvesteringsaktivmasse(indkomstår: Heltal, direkte_aktiver: List(AktieavanceInvesteringsaktiv), ejerposter: List(AktieavanceInvesteringsEjerpost))
+# AktieavanceInvesteringsEjerandel(ejede_kapitalenheder: Heltal, samlede_kapitalenheder: Heltal)
+# AktieavanceInvesteringsEjerpost = AblEjerpostIPar19B(ejerandel: AktieavanceInvesteringsEjerandel, gennemsnitlig_markedsværdi_kroner: Heltal, klassifikationsinput: AktieavancePar19BPar19CInput) | AblEjerpostIPar21(ejerandel: AktieavanceInvesteringsEjerandel, gennemsnitlig_markedsværdi_kroner: Heltal, klassifikationsinput: AktieavancePar21Par22Input)
+# AktieavanceInvesteringsaktivsummering(input_gyldigt: Boolsk, medregnet_aktivmasse_kroner: Heltal, kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal)
+# AktieavanceInvesteringsaktivmasseResultat(input: AktieavanceInvesteringsaktivmasse, input_gyldigt: Boolsk, medregnet_aktivmasse_kroner: Heltal, kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal, kvalificerende_andel_mindst_50_pct: Boolsk, resterende_aktivmasse_kun_værdipapirer: Boolsk)
+# AktieavanceInvesteringsEjerpostKlassifikation(input_gyldigt: Boolsk, aktiebaseret: Boolsk, indkomstår: Heltal, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat)
+
+# AktieavancePar19BMeddelelse = AblIngenPar19BMeddelelse | AblPar19BOrdinærMeddelelse(virkningsår: Heltal, indsendelsesdato: AktieavanceInvesteringsdato) | AblPar19BNyoprettetMeddelelse(oprettelsesdato: AktieavanceInvesteringsdato, valg_truffet_samtidig_med_oprettelsen: Boolsk, indsendelsesdato: AktieavanceInvesteringsdato)
+# AktieavancePar19BOplysninger = AblPar19BOplysningerIkkeIndsendt | AblPar19BOplysningerIndsendt(indsendelsesdato: AktieavanceInvesteringsdato)
+# AktieavancePar19BPar19CStatus = AblAktiebaseretInvesteringsselskabEfterPar19B | AblObligationsbaseretInvesteringsselskabEfterPar19C
+# AktieavancePar19BPar19CInput(indkomstår: Heltal, meddelelse: AktieavancePar19BMeddelelse, aktivmasse: AktieavanceInvesteringsaktivmasse, oplysninger: AktieavancePar19BOplysninger)
+# AktieavancePar19BPar19CResultat(input: AktieavancePar19BPar19CInput, input_gyldigt: Boolsk, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat, meddelelse_rettidig: Boolsk, anbringelsesbetingelser_efter_stk2_opfyldt: Boolsk, oplysninger_rettidige_efter_stk6: Boolsk, aktiebaseret_efter_par19b_stk2: Boolsk, skift_til_par19c_på_grund_af_anbringelser: Boolsk, skift_til_par19c_på_grund_af_oplysninger: Boolsk, skal_offentliggøre_manglende_overholdelse: Boolsk, effektiv_status: AktieavancePar19BPar19CStatus)
+
+# AktieavancePar21Oplysninger = AblPar21OplysningerIkkeIndsendt(frist: AktieavanceInvesteringsdato) | AblPar21OplysningerIndsendt(frist: AktieavanceInvesteringsdato, indsendelsesdato: AktieavanceInvesteringsdato)
+# AktieavancePar21Par22Status = AblAktiebaseretMinimumsinstitutEfterPar21 | AblObligationsbaseretMinimumsinstitutEfterPar22
+# AktieavancePar21Par22Input(indkomstår: Heltal, aktivmasse: AktieavanceInvesteringsaktivmasse, oplysninger: AktieavancePar21Oplysninger)
+# AktieavancePar21Par22Resultat(input: AktieavancePar21Par22Input, input_gyldigt: Boolsk, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat, oplysninger_rettidige_efter_par21_stk5: Boolsk, skiftet_skattemæssig_status: Boolsk, skal_offentliggøre_manglende_overholdelse: Boolsk, effektiv_status: AktieavancePar21Par22Status)
+
+# AktieavanceInvesteringsklassifikation = AblIngenInvesteringsklassifikation | AblPar19BPar19CKlassifikation(input: AktieavancePar19BPar19CInput) | AblPar21Par22Klassifikation(input: AktieavancePar21Par22Input)
+
+| aktieavance_investerings_skudår(år: Heltal) -> år % 400 == 0 || (år % 4 == 0 && år % 100 != 0)
+| aktieavance_investerings_dage_i_måned(år: Heltal, måned: Heltal) -> match måned { | 2 -> hvis aktieavance_investerings_skudår(år) { 29 } ellers { 28 } | 4 -> 30 | 6 -> 30 | 9 -> 30 | 11 -> 30 | _ -> 31 }
+| aktieavance_investerings_dato_gyldig(dato: AktieavanceInvesteringsdato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= aktieavance_investerings_dage_i_måned(dato.år, dato.måned)
+| aktieavance_investerings_dato_nøgle(dato: AktieavanceInvesteringsdato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
+| aktieavance_investerings_dato_senest(dato: AktieavanceInvesteringsdato, frist: AktieavanceInvesteringsdato) -> aktieavance_investerings_dato_gyldig(dato) && aktieavance_investerings_dato_gyldig(frist) && aktieavance_investerings_dato_nøgle(dato) <= aktieavance_investerings_dato_nøgle(frist)
+| aktieavance_investerings_dato_tidligst(a: AktieavanceInvesteringsdato, b: AktieavanceInvesteringsdato) -> hvis aktieavance_investerings_dato_nøgle(a) <= aktieavance_investerings_dato_nøgle(b) { a } ellers { b }
+| aktieavance_investerings_dato_plus_måneder(dato: AktieavanceInvesteringsdato, måneder: Heltal) -> AktieavanceInvesteringsdato(
+    år = (dato.år * 12 + dato.måned - 1 + måneder) / 12,
+    måned = (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1,
+    dag = penge_mindste_beløb(dato.dag, aktieavance_investerings_dage_i_måned((dato.år * 12 + dato.måned - 1 + måneder) / 12, (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1))
+)
+
+| aktieavance_investeringsaktiv_art(aktiv: AktieavanceInvesteringsaktiv) -> match aktiv { | AblDirekteInvesteringsaktiv(art, _) -> art | AblKglPar29Til33Aktiv(underliggende_art, _) -> underliggende_art }
+| aktieavance_investeringsaktiv_værdi_kroner(aktiv: AktieavanceInvesteringsaktiv) -> match aktiv { | AblDirekteInvesteringsaktiv(_, gennemsnitlig_værdi_kroner) -> gennemsnitlig_værdi_kroner | AblKglPar29Til33Aktiv(_, underliggende_gennemsnitlig_værdi_kroner) -> underliggende_gennemsnitlig_værdi_kroner }
+| aktieavance_investeringsaktiv_gyldigt(aktiv: AktieavanceInvesteringsaktiv) -> aktieavance_investeringsaktiv_værdi_kroner(aktiv) >= 0
+| aktieavance_investeringsaktiv_kvalificerer(aktiv: AktieavanceInvesteringsaktiv) -> aktieavance_investeringsaktiv_art(aktiv) == AblKvalificerendeAktieaktiv
+| aktieavance_investeringsaktiv_er_værdipapir(aktiv: AktieavanceInvesteringsaktiv) -> aktieavance_investeringsaktiv_art(aktiv) != AblAndetAktiv
+| aktieavance_investeringsaktiv_til_summering(aktiv: AktieavanceInvesteringsaktiv) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = aktieavance_investeringsaktiv_gyldigt(aktiv),
+    medregnet_aktivmasse_kroner = hvis aktieavance_investeringsaktiv_gyldigt(aktiv) { aktieavance_investeringsaktiv_værdi_kroner(aktiv) } ellers { 0 },
+    kvalificerende_aktiver_kroner = hvis aktieavance_investeringsaktiv_gyldigt(aktiv) && aktieavance_investeringsaktiv_kvalificerer(aktiv) { aktieavance_investeringsaktiv_værdi_kroner(aktiv) } ellers { 0 },
+    øvrige_værdipapirer_kroner = hvis aktieavance_investeringsaktiv_gyldigt(aktiv) && aktieavance_investeringsaktiv_kvalificerer(aktiv) == Falskt && aktieavance_investeringsaktiv_er_værdipapir(aktiv) { aktieavance_investeringsaktiv_værdi_kroner(aktiv) } ellers { 0 },
+    andre_aktiver_kroner = hvis aktieavance_investeringsaktiv_gyldigt(aktiv) && aktieavance_investeringsaktiv_er_værdipapir(aktiv) == Falskt { aktieavance_investeringsaktiv_værdi_kroner(aktiv) } ellers { 0 }
+)
+| aktieavance_investeringsaktiv_summering_nul() -> AktieavanceInvesteringsaktivsummering(input_gyldigt = Sandt, medregnet_aktivmasse_kroner = 0, kvalificerende_aktiver_kroner = 0, øvrige_værdipapirer_kroner = 0, andre_aktiver_kroner = 0)
+| aktieavance_investeringsaktiv_summering_læg_sammen(a: AktieavanceInvesteringsaktivsummering, b: AktieavanceInvesteringsaktivsummering) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = a.input_gyldigt && b.input_gyldigt,
+    medregnet_aktivmasse_kroner = a.medregnet_aktivmasse_kroner + b.medregnet_aktivmasse_kroner,
+    kvalificerende_aktiver_kroner = a.kvalificerende_aktiver_kroner + b.kvalificerende_aktiver_kroner,
+    øvrige_værdipapirer_kroner = a.øvrige_værdipapirer_kroner + b.øvrige_værdipapirer_kroner,
+    andre_aktiver_kroner = a.andre_aktiver_kroner + b.andre_aktiver_kroner
+)
+| aktieavance_investeringsaktiv_fold(opsamling: AktieavanceInvesteringsaktivsummering, aktiv: AktieavanceInvesteringsaktiv) -> aktieavance_investeringsaktiv_summering_læg_sammen(opsamling, aktieavance_investeringsaktiv_til_summering(aktiv))
+| aktieavance_investeringsaktiv_direkte_summering(aktiver: List(AktieavanceInvesteringsaktiv)) -> foldl(aktiver, aktieavance_investeringsaktiv_summering_nul(), aktieavance_investeringsaktiv_fold)
+| aktieavance_investerings_ejerandel_gyldig(ejerandel: AktieavanceInvesteringsEjerandel) -> ejerandel.ejede_kapitalenheder > 0 && ejerandel.samlede_kapitalenheder > 0 && ejerandel.ejede_kapitalenheder <= ejerandel.samlede_kapitalenheder
+| aktieavance_investerings_ejerandel_mindst_25_pct(ejerandel: AktieavanceInvesteringsEjerandel) -> aktieavance_investerings_ejerandel_gyldig(ejerandel) && ejerandel.ejede_kapitalenheder * 4 >= ejerandel.samlede_kapitalenheder
+| aktieavance_investerings_beløb_gange_ejerandel_kroner(beløb_kroner: Heltal, ejerandel: AktieavanceInvesteringsEjerandel) -> hvis aktieavance_investerings_ejerandel_gyldig(ejerandel) { (beløb_kroner * ejerandel.ejede_kapitalenheder + ejerandel.samlede_kapitalenheder / 2) / ejerandel.samlede_kapitalenheder } ellers { 0 }
+| aktieavance_investeringsaktiv_summering_gange_ejerandel(summering: AktieavanceInvesteringsaktivsummering, ejerandel: AktieavanceInvesteringsEjerandel) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = summering.input_gyldigt && aktieavance_investerings_ejerandel_gyldig(ejerandel),
+    medregnet_aktivmasse_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(summering.medregnet_aktivmasse_kroner, ejerandel),
+    kvalificerende_aktiver_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(summering.kvalificerende_aktiver_kroner, ejerandel),
+    øvrige_værdipapirer_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(summering.øvrige_værdipapirer_kroner, ejerandel),
+    andre_aktiver_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(summering.andre_aktiver_kroner, ejerandel)
+)
+| aktieavance_investeringsaktiv_summering_kræver_positiv_aktivmasse(summering: AktieavanceInvesteringsaktivsummering) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = summering.input_gyldigt && summering.medregnet_aktivmasse_kroner > 0,
+    medregnet_aktivmasse_kroner = summering.medregnet_aktivmasse_kroner,
+    kvalificerende_aktiver_kroner = summering.kvalificerende_aktiver_kroner,
+    øvrige_værdipapirer_kroner = summering.øvrige_værdipapirer_kroner,
+    andre_aktiver_kroner = summering.andre_aktiver_kroner
+)
+| aktieavance_investeringsaktiv_summering_fra_aktivmasse_resultat(resultat: AktieavanceInvesteringsaktivmasseResultat) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = resultat.input_gyldigt,
+    medregnet_aktivmasse_kroner = resultat.medregnet_aktivmasse_kroner,
+    kvalificerende_aktiver_kroner = resultat.kvalificerende_aktiver_kroner,
+    øvrige_værdipapirer_kroner = resultat.øvrige_værdipapirer_kroner,
+    andre_aktiver_kroner = resultat.andre_aktiver_kroner
+)
+| aktieavance_investerings_ejerpost_ejerandel(ejerpost: AktieavanceInvesteringsEjerpost) -> match ejerpost { | AblEjerpostIPar19B(ejerandel, _, _) -> ejerandel | AblEjerpostIPar21(ejerandel, _, _) -> ejerandel }
+| aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost: AktieavanceInvesteringsEjerpost) -> match ejerpost { | AblEjerpostIPar19B(_, gennemsnitlig_markedsværdi_kroner, _) -> gennemsnitlig_markedsværdi_kroner | AblEjerpostIPar21(_, gennemsnitlig_markedsværdi_kroner, _) -> gennemsnitlig_markedsværdi_kroner }
+| aktieavance_investerings_ejerpost_klassifikation_fra_par19(resultat: AktieavancePar19BPar19CResultat) -> AktieavanceInvesteringsEjerpostKlassifikation(
+    input_gyldigt = resultat.input_gyldigt,
+    aktiebaseret = resultat.effektiv_status == AblAktiebaseretInvesteringsselskabEfterPar19B,
+    indkomstår = resultat.input.indkomstår,
+    aktivmasse_resultat = resultat.aktivmasse_resultat
+)
+| aktieavance_investerings_ejerpost_klassifikation_fra_par21(resultat: AktieavancePar21Par22Resultat) -> AktieavanceInvesteringsEjerpostKlassifikation(
+    input_gyldigt = resultat.input_gyldigt,
+    aktiebaseret = resultat.effektiv_status == AblAktiebaseretMinimumsinstitutEfterPar21,
+    indkomstår = resultat.input.indkomstår,
+    aktivmasse_resultat = resultat.aktivmasse_resultat
+)
+| aktieavance_investerings_ejerpost_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost) -> match ejerpost {
+    | AblEjerpostIPar19B(_, _, input) -> aktieavance_investerings_ejerpost_klassifikation_fra_par19(aktieavance_par19b_par19c_resultat(input))
+    | AblEjerpostIPar21(_, _, input) -> aktieavance_investerings_ejerpost_klassifikation_fra_par21(aktieavance_par21_par22_resultat(input))
+}
+| aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> klassifikation.input_gyldigt && klassifikation.indkomstår == indkomstår && aktieavance_investerings_ejerandel_gyldig(aktieavance_investerings_ejerpost_ejerandel(ejerpost)) && aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) >= 0
+| aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår) && (klassifikation.aktiebaseret == Falskt || aktieavance_investerings_ejerandel_mindst_25_pct(aktieavance_investerings_ejerpost_ejerandel(ejerpost)) == Falskt)
+| aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> AktieavanceInvesteringsaktivsummering(
+    input_gyldigt = aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår),
+    medregnet_aktivmasse_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
+    kvalificerende_aktiver_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
+    øvrige_værdipapirer_kroner = hvis aktieavance_investerings_ejerpost_medregnes_direkte(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret == Falskt { aktieavance_investerings_ejerpost_markedsværdi_kroner(ejerpost) } ellers { 0 },
+    andre_aktiver_kroner = 0
+)
+| exception aktieavance_investerings_ejerpost_lookthrough aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost: AktieavanceInvesteringsEjerpost, klassifikation: AktieavanceInvesteringsEjerpostKlassifikation, indkomstår: Heltal) -> aktieavance_investeringsaktiv_summering_kræver_positiv_aktivmasse(aktieavance_investeringsaktiv_summering_gange_ejerandel(aktieavance_investeringsaktiv_summering_fra_aktivmasse_resultat(klassifikation.aktivmasse_resultat), aktieavance_investerings_ejerpost_ejerandel(ejerpost))) under aktieavance_investerings_ejerpost_grundinput_gyldigt(ejerpost, klassifikation, indkomstår) && klassifikation.aktiebaseret && aktieavance_investerings_ejerandel_mindst_25_pct(aktieavance_investerings_ejerpost_ejerandel(ejerpost))
+| aktieavance_investerings_ejerpost_summering(ejerpost: AktieavanceInvesteringsEjerpost, indkomstår: Heltal) -> aktieavance_investerings_ejerpost_summering_fra_klassifikation(ejerpost, aktieavance_investerings_ejerpost_klassifikation(ejerpost), indkomstår)
+| aktieavance_investeringsaktivmasse_summering(input: AktieavanceInvesteringsaktivmasse) -> foldl(input.ejerposter, aktieavance_investeringsaktiv_direkte_summering(input.direkte_aktiver), |opsamling: AktieavanceInvesteringsaktivsummering, ejerpost: AktieavanceInvesteringsEjerpost| aktieavance_investeringsaktiv_summering_læg_sammen(opsamling, aktieavance_investerings_ejerpost_summering(ejerpost, input.indkomstår)))
+| aktieavance_investeringsaktivmasse_resultat_fra_summering(input: AktieavanceInvesteringsaktivmasse, summering: AktieavanceInvesteringsaktivsummering) -> AktieavanceInvesteringsaktivmasseResultat(
+    input = input,
+    input_gyldigt = input.indkomstår > 0 && summering.input_gyldigt && summering.medregnet_aktivmasse_kroner > 0,
+    medregnet_aktivmasse_kroner = summering.medregnet_aktivmasse_kroner,
+    kvalificerende_aktiver_kroner = summering.kvalificerende_aktiver_kroner,
+    øvrige_værdipapirer_kroner = summering.øvrige_værdipapirer_kroner,
+    andre_aktiver_kroner = summering.andre_aktiver_kroner,
+    kvalificerende_andel_mindst_50_pct = summering.kvalificerende_aktiver_kroner * 2 >= summering.medregnet_aktivmasse_kroner,
+    resterende_aktivmasse_kun_værdipapirer = summering.andre_aktiver_kroner == 0
+)
+| aktieavance_investeringsaktivmasse_resultat(input: AktieavanceInvesteringsaktivmasse) -> aktieavance_investeringsaktivmasse_resultat_fra_summering(input, aktieavance_investeringsaktivmasse_summering(input))
+| aktieavance_investeringsaktivmasse_resultat_gyldigt(resultat: AktieavanceInvesteringsaktivmasseResultat) -> resultat == aktieavance_investeringsaktivmasse_resultat(resultat.input)
+
+| aktieavance_par19b_meddelelse_input_gyldigt(indkomstår: Heltal, meddelelse: AktieavancePar19BMeddelelse) -> match meddelelse { | AblIngenPar19BMeddelelse -> Sandt | AblPar19BOrdinærMeddelelse(virkningsår, indsendelsesdato) -> virkningsår == indkomstår && aktieavance_investerings_dato_gyldig(indsendelsesdato) | AblPar19BNyoprettetMeddelelse(oprettelsesdato, _, indsendelsesdato) -> oprettelsesdato.år == indkomstår && aktieavance_investerings_dato_gyldig(oprettelsesdato) && aktieavance_investerings_dato_gyldig(indsendelsesdato) && aktieavance_investerings_dato_nøgle(indsendelsesdato) >= aktieavance_investerings_dato_nøgle(oprettelsesdato) }
+| aktieavance_par19b_meddelelse_rettidig(indkomstår: Heltal, meddelelse: AktieavancePar19BMeddelelse) -> match meddelelse {
+    | AblIngenPar19BMeddelelse -> Falskt
+    | AblPar19BOrdinærMeddelelse(virkningsår, indsendelsesdato) -> virkningsår == indkomstår && aktieavance_investerings_dato_senest(indsendelsesdato, AktieavanceInvesteringsdato(år = indkomstår - 1, måned = 11, dag = 1))
+    | AblPar19BNyoprettetMeddelelse(oprettelsesdato, valg_samtidig, indsendelsesdato) -> oprettelsesdato.år == indkomstår && valg_samtidig && aktieavance_investerings_dato_nøgle(indsendelsesdato) >= aktieavance_investerings_dato_nøgle(oprettelsesdato) && aktieavance_investerings_dato_senest(indsendelsesdato, aktieavance_investerings_dato_tidligst(aktieavance_investerings_dato_plus_måneder(oprettelsesdato, 2), AktieavanceInvesteringsdato(år = indkomstår, måned = 11, dag = 1)))
+}
+| aktieavance_par19b_oplysninger_input_gyldigt(oplysninger: AktieavancePar19BOplysninger) -> match oplysninger { | AblPar19BOplysningerIkkeIndsendt -> Sandt | AblPar19BOplysningerIndsendt(indsendelsesdato) -> aktieavance_investerings_dato_gyldig(indsendelsesdato) }
+| aktieavance_par19b_oplysninger_rettidige(indkomstår: Heltal, oplysninger: AktieavancePar19BOplysninger) -> match oplysninger { | AblPar19BOplysningerIkkeIndsendt -> Falskt | AblPar19BOplysningerIndsendt(indsendelsesdato) -> aktieavance_investerings_dato_senest(indsendelsesdato, AktieavanceInvesteringsdato(år = indkomstår + 1, måned = 7, dag = 1)) }
+
+# AktieavancePar19BPar19CSag(input: AktieavancePar19BPar19CInput) {
+    | aktivmasse_resultat() -> aktieavance_investeringsaktivmasse_resultat(input.aktivmasse)
+    | input_gyldigt() -> input.indkomstår > 0 && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par19b_meddelelse_input_gyldigt(input.indkomstår, input.meddelelse) && aktieavance_par19b_oplysninger_input_gyldigt(input.oplysninger)
+    | meddelelse_rettidig() -> input_gyldigt() && aktieavance_par19b_meddelelse_rettidig(input.indkomstår, input.meddelelse)
+    | anbringelsesbetingelser_efter_stk2_opfyldt() -> input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct && aktivmasse_resultat().resterende_aktivmasse_kun_værdipapirer
+    | oplysninger_rettidige_efter_stk6() -> input_gyldigt() && aktieavance_par19b_oplysninger_rettidige(input.indkomstår, input.oplysninger)
+    | aktiebaseret_efter_par19b_stk2() -> meddelelse_rettidig() && anbringelsesbetingelser_efter_stk2_opfyldt()
+    | skift_til_par19c_på_grund_af_anbringelser() -> meddelelse_rettidig() && anbringelsesbetingelser_efter_stk2_opfyldt() == Falskt
+    | skift_til_par19c_på_grund_af_oplysninger() -> aktiebaseret_efter_par19b_stk2() && oplysninger_rettidige_efter_stk6() == Falskt
+    | skal_offentliggøre_manglende_overholdelse() -> meddelelse_rettidig() && anbringelsesbetingelser_efter_stk2_opfyldt() == Falskt
+    | effektiv_status() -> AblObligationsbaseretInvesteringsselskabEfterPar19C
+    | exception abl_par19b_effektiv_status effektiv_status() -> AblAktiebaseretInvesteringsselskabEfterPar19B under aktiebaseret_efter_par19b_stk2() && oplysninger_rettidige_efter_stk6()
+    | resultat() -> AktieavancePar19BPar19CResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        aktivmasse_resultat = aktivmasse_resultat(),
+        meddelelse_rettidig = meddelelse_rettidig(),
+        anbringelsesbetingelser_efter_stk2_opfyldt = anbringelsesbetingelser_efter_stk2_opfyldt(),
+        oplysninger_rettidige_efter_stk6 = oplysninger_rettidige_efter_stk6(),
+        aktiebaseret_efter_par19b_stk2 = aktiebaseret_efter_par19b_stk2(),
+        skift_til_par19c_på_grund_af_anbringelser = skift_til_par19c_på_grund_af_anbringelser(),
+        skift_til_par19c_på_grund_af_oplysninger = skift_til_par19c_på_grund_af_oplysninger(),
+        skal_offentliggøre_manglende_overholdelse = skal_offentliggøre_manglende_overholdelse(),
+        effektiv_status = effektiv_status()
+    )
+}
+
+| aktieavance_par19b_par19c_resultat(input: AktieavancePar19BPar19CInput) -> AktieavancePar19BPar19CSag(input).resultat()
+| aktieavance_par19b_par19c_resultat_gyldigt(resultat: AktieavancePar19BPar19CResultat) -> resultat == aktieavance_par19b_par19c_resultat(resultat.input)
+
+| aktieavance_par21_oplysninger_input_gyldigt(oplysninger: AktieavancePar21Oplysninger) -> match oplysninger { | AblPar21OplysningerIkkeIndsendt(frist) -> aktieavance_investerings_dato_gyldig(frist) | AblPar21OplysningerIndsendt(frist, indsendelsesdato) -> aktieavance_investerings_dato_gyldig(frist) && aktieavance_investerings_dato_gyldig(indsendelsesdato) }
+| aktieavance_par21_oplysninger_rettidige(oplysninger: AktieavancePar21Oplysninger) -> match oplysninger { | AblPar21OplysningerIkkeIndsendt(_) -> Falskt | AblPar21OplysningerIndsendt(frist, indsendelsesdato) -> aktieavance_investerings_dato_senest(indsendelsesdato, frist) }
+
+# AktieavancePar21Par22Sag(input: AktieavancePar21Par22Input) {
+    | aktivmasse_resultat() -> aktieavance_investeringsaktivmasse_resultat(input.aktivmasse)
+    | input_gyldigt() -> input.indkomstår > 0 && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par21_oplysninger_input_gyldigt(input.oplysninger)
+    | oplysninger_rettidige_efter_par21_stk5() -> input_gyldigt() && aktieavance_par21_oplysninger_rettidige(input.oplysninger)
+    | skiftet_skattemæssig_status() -> input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct == Falskt
+    | skal_offentliggøre_manglende_overholdelse() -> skiftet_skattemæssig_status()
+    | effektiv_status() -> AblObligationsbaseretMinimumsinstitutEfterPar22
+    | exception abl_par21_effektiv_status effektiv_status() -> AblAktiebaseretMinimumsinstitutEfterPar21 under input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct
+    | resultat() -> AktieavancePar21Par22Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        aktivmasse_resultat = aktivmasse_resultat(),
+        oplysninger_rettidige_efter_par21_stk5 = oplysninger_rettidige_efter_par21_stk5(),
+        skiftet_skattemæssig_status = skiftet_skattemæssig_status(),
+        skal_offentliggøre_manglende_overholdelse = skal_offentliggøre_manglende_overholdelse(),
+        effektiv_status = effektiv_status()
+    )
+}
+
+| aktieavance_par21_par22_resultat(input: AktieavancePar21Par22Input) -> AktieavancePar21Par22Sag(input).resultat()
+| aktieavance_par21_par22_resultat_gyldigt(resultat: AktieavancePar21Par22Resultat) -> resultat == aktieavance_par21_par22_resultat(resultat.input)
+| aktieavance_investeringsklassifikation_gyldig(klassifikation: AktieavanceInvesteringsklassifikation) -> match klassifikation { | AblIngenInvesteringsklassifikation -> Sandt | AblPar19BPar19CKlassifikation(input) -> aktieavance_par19b_par19c_resultat(input).input_gyldigt | AblPar21Par22Klassifikation(input) -> aktieavance_par21_par22_resultat(input).input_gyldigt }
+--@end:aktieavancebeskatningsloven_par19b_til_par22--

@@ -45,7 +45,7 @@
         anskaffelsessummer_i_perioden_kroner = 0,
         afståelsessummer_i_perioden_kroner = 0,
         afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
-        ville_være_par17_uden_investeringsstatus = Falskt,
+        par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
         oplysningsbetingelse_efter_par19d_opfyldt = Sandt
     ))),
     par5a_behandling = AblPar5ALagerafståelser(resultater = [])

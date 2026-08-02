@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./aktieavancebeskatningsloven - par19b - 22
 
 -- Aktieavancebeskatningsloven -- Personskatteloven § 4, stk. 1, nr. 5, og § 4 a.
 --
@@ -991,26 +992,44 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 ----
 
 --@begin:aktieavancebeskatningsloven_par17_til_par22--
-# AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblSkattepligtigPorteføljeaktiePar9 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
+# AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblSkattepligtigPorteføljeaktiePar9 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskabPar19TilKlassifikation | AblMinimumsinstitutTilKlassifikation | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
 # AktieavancebeskatningslovPslKategori = AblIkkeMedregnetISlice | AblKapitalindkomstEfterPslPar4Nr5 | AblAktieindkomstEfterPslPar4a | AblPersonligIndkomstEfterPslUndtagelse
-# AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, udøver_aktienæring: Boolsk, erhvervet_som_led_i_næring: Boolsk, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, meddelt_aktiebaseret_status: Boolsk, aktieandel_basispoint: Heltal, resterende_aktivmasse_kun_værdipapirer: Boolsk, oplysninger_indsendt_rettidigt: Boolsk, ville_være_par17_uden_investeringsstatus: Boolsk, årets_netto_med_kgl_par14_23_kroner: Heltal)
+# AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
+# AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej
+# AktieavancePar17Modprøve(næringsstatus: AktieavancePar17Næringsstatus, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus)
+# AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, par17_modprøve: AktieavancePar17Modprøve, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
 # AktieavancebeskatningslovResultat(indkomstår: Heltal, effektiv_aktiv: AktieavancebeskatningslovAktiv, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, netto_efter_aktieavancebeskatningsloven_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk, personskattelov_kategori: AktieavancebeskatningslovPslKategori)
 
+| aktieavance_par17_modprøve_stk1_omfattet(modprøve: AktieavancePar17Modprøve) -> modprøve.næringsstatus == AblPar17UdøverNæringVedKøbOgSalgAfAktier && modprøve.erhvervelsesstatus == AblPar17ErhvervetSomLedINæringsvej
+| aktieavance_par17_modprøve_stk3_omfattet(modprøve: AktieavancePar17Modprøve) -> modprøve.næringsstatus == AblPar17UdøverNæringVedKøbOgSalgAfAktier
+| aktieavance_par17_modprøve_finder_anvendelse(effektivt_aktiv: AktieavancebeskatningslovAktiv, modprøve: AktieavancePar17Modprøve) -> hvis effektivt_aktiv == AblMinimumsbevis21 || effektivt_aktiv == AblMinimumsbevis22 { aktieavance_par17_modprøve_stk3_omfattet(modprøve) } ellers { aktieavance_par17_modprøve_stk1_omfattet(modprøve) }
+| aktieavance_investeringsklassifikation_matcher_aktiv(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, klassifikation: AktieavanceInvesteringsklassifikation) -> match aktiv {
+    | AblInvesteringsselskabPar19TilKlassifikation -> match klassifikation { | AblPar19BPar19CKlassifikation(input) -> input.indkomstår == indkomstår && aktieavance_par19b_par19c_resultat(input).input_gyldigt | _ -> Falskt }
+    | AblMinimumsinstitutTilKlassifikation -> match klassifikation { | AblPar21Par22Klassifikation(input) -> input.indkomstår == indkomstår && aktieavance_par21_par22_resultat(input).input_gyldigt | _ -> Falskt }
+    | AblInvesteringsselskab19B -> Falskt
+    | AblInvesteringsselskab19C -> Falskt
+    | AblMinimumsbevis21 -> Falskt
+    | AblMinimumsbevis22 -> Falskt
+    | _ -> klassifikation == AblIngenInvesteringsklassifikation
+}
+| aktieavance_effektiv_investeringsaktiv(klassifikation: AktieavanceInvesteringsklassifikation) -> match klassifikation {
+    | AblPar19BPar19CKlassifikation(input) -> hvis aktieavance_par19b_par19c_resultat(input).effektiv_status == AblAktiebaseretInvesteringsselskabEfterPar19B { AblInvesteringsselskab19B } ellers { AblInvesteringsselskab19C }
+    | AblPar21Par22Klassifikation(input) -> hvis aktieavance_par21_par22_resultat(input).effektiv_status == AblAktiebaseretMinimumsinstitutEfterPar21 { AblMinimumsbevis21 } ellers { AblMinimumsbevis22 }
+    | AblIngenInvesteringsklassifikation -> AblUdenforDenneSlice
+}
+
 # AktieavancebeskatningslovSag(input: AktieavancebeskatningslovInput) {
+    | input_gyldigt() -> input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && aktieavance_investeringsklassifikation_matcher_aktiv(input.indkomstår, input.aktiv, input.investeringsklassifikation)
     | bruttogevinst_kroner() -> penge_positivt_beløb(input.afståelsessum_kroner - input.anskaffelsessum_kroner)
     | bruttotab_kroner() -> penge_positivt_beløb(input.anskaffelsessum_kroner - input.afståelsessum_kroner)
-    | aktiebaseret_investeringsselskab() -> input.meddelt_aktiebaseret_status && input.aktieandel_basispoint >= 5000 && input.resterende_aktivmasse_kun_værdipapirer && input.oplysninger_indsendt_rettidigt
-    | aktiebaseret_minimumsinstitut() -> input.aktieandel_basispoint >= 5000 && input.oplysninger_indsendt_rettidigt
     | effektiv_aktiv() -> input.aktiv
-    | exception par19b_skifter_til_19c effektiv_aktiv() -> AblInvesteringsselskab19C under input.aktiv == AblInvesteringsselskab19B && aktiebaseret_investeringsselskab() == Falskt
-    | exception par19c_skifter_til_19b effektiv_aktiv() -> AblInvesteringsselskab19B under input.aktiv == AblInvesteringsselskab19C && aktiebaseret_investeringsselskab()
-    | exception par21_skifter_til_22 effektiv_aktiv() -> AblMinimumsbevis22 under input.aktiv == AblMinimumsbevis21 && aktiebaseret_minimumsinstitut() == Falskt
-    | exception par22_skifter_til_21 effektiv_aktiv() -> AblMinimumsbevis21 under input.aktiv == AblMinimumsbevis22 && aktiebaseret_minimumsinstitut()
-    | næringsaktie_omfattet_af_par17() -> input.aktiv == AblNæringsaktiePar17 && input.udøver_aktienæring && input.erhvervet_som_led_i_næring
+    | exception afledt_investeringsaktiv effektiv_aktiv() -> aktieavance_effektiv_investeringsaktiv(input.investeringsklassifikation) under input_gyldigt() && (input.aktiv == AblInvesteringsselskabPar19TilKlassifikation || input.aktiv == AblMinimumsinstitutTilKlassifikation)
+    | ville_være_omfattet_af_par17_uden_investeringsstatus() -> aktieavance_par17_modprøve_finder_anvendelse(effektiv_aktiv(), input.par17_modprøve)
+    | næringsaktie_omfattet_af_par17() -> input.aktiv == AblNæringsaktiePar17 && aktieavance_par17_modprøve_stk1_omfattet(input.par17_modprøve)
     | par18_gammel_andelsgevinst_undtaget() -> effektiv_aktiv() == AblAndelsbevisPar18 && input.andelsforening_stiftet_før_22_maj_1987 && input.afståelse_sker_for_at_undgå_likvidationsbeskatning == Falskt && bruttogevinst_kroner() > 0
     | par22_bagatelgrundlag_abs_kroner() -> penge_positivt_beløb(input.årets_netto_med_kgl_par14_23_kroner) + penge_positivt_beløb(0 - input.årets_netto_med_kgl_par14_23_kroner)
-    | par22_bagatelgrænse_afskærer() -> effektiv_aktiv() == AblMinimumsbevis22 && par22_bagatelgrundlag_abs_kroner() <= 2000
-    | medregnes_i_skattepligtig_indkomst() -> effektiv_aktiv() != AblUdenforDenneSlice && par18_gammel_andelsgevinst_undtaget() == Falskt && par22_bagatelgrænse_afskærer() == Falskt
+    | par22_bagatelgrænse_afskærer() -> effektiv_aktiv() == AblMinimumsbevis22 && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt && par22_bagatelgrundlag_abs_kroner() <= 2000
+    | medregnes_i_skattepligtig_indkomst() -> input_gyldigt() && effektiv_aktiv() != AblUdenforDenneSlice && par18_gammel_andelsgevinst_undtaget() == Falskt && par22_bagatelgrænse_afskærer() == Falskt
     | skattepligtig_gevinst_kroner() -> 0
     | exception medregnet_gevinst skattepligtig_gevinst_kroner() -> bruttogevinst_kroner() under medregnes_i_skattepligtig_indkomst()
     | tab_afskåret_kroner() -> 0
@@ -1020,13 +1039,15 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     | netto_efter_aktieavancebeskatningsloven_kroner() -> skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner()
     | personskattelov_kategori() -> AblIkkeMedregnetISlice
     | exception par18_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblAndelsbevisPar18
-    | exception par19c_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19C && input.ville_være_par17_uden_investeringsstatus == Falskt
-    | exception par22_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis22
-    | exception par19b_til_aktieindkomst personskattelov_kategori() -> AblAktieindkomstEfterPslPar4a under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19B && input.ville_være_par17_uden_investeringsstatus == Falskt
-    | exception par21_til_aktieindkomst personskattelov_kategori() -> AblAktieindkomstEfterPslPar4a under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis21
+    | exception par19c_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19C && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt
+    | exception par22_til_kapital personskattelov_kategori() -> AblKapitalindkomstEfterPslPar4Nr5 under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis22 && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt
+    | exception par19b_til_aktieindkomst personskattelov_kategori() -> AblAktieindkomstEfterPslPar4a under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19B && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt
+    | exception par21_til_aktieindkomst personskattelov_kategori() -> AblAktieindkomstEfterPslPar4a under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis21 && ville_være_omfattet_af_par17_uden_investeringsstatus() == Falskt
     | exception par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && næringsaktie_omfattet_af_par17()
-    | exception par19b_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19B && input.ville_være_par17_uden_investeringsstatus
-    | exception par19c_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19C && input.ville_være_par17_uden_investeringsstatus
+    | exception par19b_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19B && ville_være_omfattet_af_par17_uden_investeringsstatus()
+    | exception par19c_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblInvesteringsselskab19C && ville_være_omfattet_af_par17_uden_investeringsstatus()
+    | exception par21_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis21 && ville_være_omfattet_af_par17_uden_investeringsstatus()
+    | exception par22_hvis_par17_til_personlig personskattelov_kategori() -> AblPersonligIndkomstEfterPslUndtagelse under medregnes_i_skattepligtig_indkomst() && effektiv_aktiv() == AblMinimumsbevis22 && ville_være_omfattet_af_par17_uden_investeringsstatus()
     | resultat() -> AktieavancebeskatningslovResultat(
         indkomstår = input.indkomstår,
         effektiv_aktiv = effektiv_aktiv(),
@@ -1056,123 +1077,154 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     personskattelov_kategori = AblAktieindkomstEfterPslPar4a
 )
 
+= abl19b_aktivmasse = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 60000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 40000)
+    ],
+    ejerposter = []
+)
+= abl19c_aktivmasse = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 20000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 80000)
+    ],
+    ejerposter = []
+)
+= abl21_aktivmasse = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 60000),
+        AblDirekteInvesteringsaktiv(art = AblAndetAktiv, gennemsnitlig_værdi_kroner = 40000)
+    ],
+    ejerposter = []
+)
+= abl22_aktivmasse = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 20000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 80000)
+    ],
+    ejerposter = []
+)
+= abl19b_klassifikationsresultat = aktieavance_par19b_par19c_resultat(AktieavancePar19BPar19CInput(
+    indkomstår = 2026,
+    meddelelse = AblPar19BOrdinærMeddelelse(
+        virkningsår = 2026,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2025, måned = 11, dag = 1)
+    ),
+    aktivmasse = abl19b_aktivmasse,
+    oplysninger = AblPar19BOplysningerIndsendt(
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+    )
+))
+= abl19c_klassifikationsresultat = aktieavance_par19b_par19c_resultat(AktieavancePar19BPar19CInput(
+    indkomstår = 2026,
+    meddelelse = AblIngenPar19BMeddelelse,
+    aktivmasse = abl19c_aktivmasse,
+    oplysninger = AblPar19BOplysningerIkkeIndsendt
+))
+= abl21_klassifikationsresultat = aktieavance_par21_par22_resultat(AktieavancePar21Par22Input(
+    indkomstår = 2026,
+    aktivmasse = abl21_aktivmasse,
+    oplysninger = AblPar21OplysningerIndsendt(
+        frist = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1),
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+    )
+))
+= abl22_klassifikationsresultat = aktieavance_par21_par22_resultat(AktieavancePar21Par22Input(
+    indkomstår = 2026,
+    aktivmasse = abl22_aktivmasse,
+    oplysninger = AblPar21OplysningerIndsendt(
+        frist = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1),
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+    )
+))
+
 = abl19c_kapital_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblInvesteringsselskab19C,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
     afståelsessum_kroner = 42000,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 2000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19c_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 0
 )
 = abl19c_hvis17_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblInvesteringsselskab19C,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
     afståelsessum_kroner = 37000,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Sandt,
-    erhvervet_som_led_i_næring = Sandt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 2000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Sandt,
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19c_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 0
 )
 = abl22_tab_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblMinimumsbevis22,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
     afståelsessum_kroner = 30000,
     anskaffelsessum_kroner = 33000,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 2000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = abl22_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = -3000
 )
 = abl22_under_bagatel_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblMinimumsbevis22,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
     afståelsessum_kroner = 31500,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 2000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = abl22_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 1500
 )
 = abl19b_aktieindkomst_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblInvesteringsselskab19B,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
     afståelsessum_kroner = 50000,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Sandt,
-    aktieandel_basispoint = 6000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19b_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 0
 )
 = abl19b_hvis17_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblInvesteringsselskab19B,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
     afståelsessum_kroner = 37000,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Sandt,
-    erhvervet_som_led_i_næring = Sandt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Sandt,
-    aktieandel_basispoint = 6000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Sandt,
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19b_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 0
 )
 = abl21_aktieindkomst_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
-    aktiv = AblMinimumsbevis21,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
     afståelsessum_kroner = 40000,
     anskaffelsessum_kroner = 30000,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 6000,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = abl21_klassifikationsresultat.input),
     årets_netto_med_kgl_par14_23_kroner = 0
 )
 

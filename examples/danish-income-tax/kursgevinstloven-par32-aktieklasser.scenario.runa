@@ -62,6 +62,37 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     ejer_dage_før_første_optagelse = 0,
     valgmåde = AblIntetPar23Stk7Valg
 )
+| kgl_par32_aktieklasse_scenarie_par19b_input(indkomstår: Heltal) -> AktieavancePar19BPar19CInput(
+    indkomstår = indkomstår,
+    meddelelse = AblPar19BOrdinærMeddelelse(
+        virkningsår = indkomstår,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = indkomstår - 1, måned = 11, dag = 1)
+    ),
+    aktivmasse = AktieavanceInvesteringsaktivmasse(
+        indkomstår = indkomstår,
+        direkte_aktiver = [
+            AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 60000),
+            AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 40000)
+        ],
+        ejerposter = []
+    ),
+    oplysninger = AblPar19BOplysningerIndsendt(
+        indsendelsesdato = AktieavanceInvesteringsdato(år = indkomstår + 1, måned = 7, dag = 1)
+    )
+)
+| kgl_par32_aktieklasse_scenarie_par19c_input(indkomstår: Heltal) -> AktieavancePar19BPar19CInput(
+    indkomstår = indkomstår,
+    meddelelse = AblIngenPar19BMeddelelse,
+    aktivmasse = AktieavanceInvesteringsaktivmasse(
+        indkomstår = indkomstår,
+        direkte_aktiver = [
+            AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 20000),
+            AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 80000)
+        ],
+        ejerposter = []
+    ),
+    oplysninger = AblPar19BOplysningerIkkeIndsendt
+)
 | kgl_par32_aktieklasse_scenarie_modregningsgrundlag(ægtefælles_positive_nettobeløb_kroner: Heltal) -> AktieavanceOrdinærPar13AModregningsgrundlag(
     udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
     udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
@@ -110,24 +141,19 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     anskaffelsessummer_i_perioden_kroner = 0,
     afståelsessummer_i_perioden_kroner = 0,
     afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     oplysningsbetingelse_efter_par19d_opfyldt = oplysningsbetingelse_efter_par19d_opfyldt
 ))
-| kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, årets_netto_med_kgl_par14_23_kroner: Heltal) -> aktieavancebeskatningslov_resultat(AktieavancebeskatningslovInput(
+| kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, investeringsklassifikation: AktieavanceInvesteringsklassifikation, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, årets_netto_med_kgl_par14_23_kroner: Heltal) -> aktieavancebeskatningslov_resultat(AktieavancebeskatningslovInput(
     indkomstår = indkomstår,
     aktiv = aktiv,
     afståelsessum_kroner = afståelsessum_kroner,
     anskaffelsessum_kroner = anskaffelsessum_kroner,
-    udøver_aktienæring = Falskt,
-    erhvervet_som_led_i_næring = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-    meddelt_aktiebaseret_status = Falskt,
-    aktieandel_basispoint = 0,
-    resterende_aktivmasse_kun_værdipapirer = Sandt,
-    oplysninger_indsendt_rettidigt = Sandt,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    investeringsklassifikation = investeringsklassifikation,
     årets_netto_med_kgl_par14_23_kroner = årets_netto_med_kgl_par14_23_kroner
 ))
 | kgl_par32_aktieklasse_scenarie_aktieårsgrundlag(par13a_årsresultat: AktieavanceOrdinærÅrsresultat, supplerende_årsresultater: List(KursgevinstPar32SupplerendeAktieårsresultat)) -> KursgevinstPar32Aktieårsgrundlag(
@@ -209,7 +235,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 
 = kgl_par32_19b_reguleret_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2026,
-    aktiv = AblPar19BInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19b_input(2026),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblOptagetTilHandelPåReguleretMarked,
         registreret_i_værdipapircentral = Sandt
@@ -228,7 +255,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 
 = kgl_par32_19c_mtf_2023_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2023,
-    aktiv = AblPar19CInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19c_input(2023),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet,
         registreret_i_værdipapircentral = Sandt
@@ -239,7 +267,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 )
 = kgl_par32_19c_mtf_2024_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2024,
-    aktiv = AblPar19CInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19c_input(2024),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet,
         registreret_i_værdipapircentral = Sandt
@@ -265,7 +294,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 
 = kgl_par32_19b_omsætteligt_unoteret_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2026,
-    aktiv = AblPar19BInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19b_input(2026),
         papirart = AblOmsætteligtInvesteringsbevis,
         markedsstatus = AblIkkeOptagetTilHandel,
         registreret_i_værdipapircentral = Falskt
@@ -283,7 +313,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 )
 = kgl_par32_19b_unoteret_aktie_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2026,
-    aktiv = AblPar19BInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19b_input(2026),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblIkkeOptagetTilHandel,
         registreret_i_værdipapircentral = Falskt
@@ -302,7 +333,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 
 = kgl_par32_par22_resultat = kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(
     indkomstår = 2026,
-    aktiv = AblMinimumsbevis22,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = abl22_klassifikationsresultat.input),
     afståelsessum_kroner = 18000,
     anskaffelsessum_kroner = 10000,
     årets_netto_med_kgl_par14_23_kroner = 8000
@@ -310,6 +342,7 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 = kgl_par32_par18_resultat = kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(
     indkomstår = 2026,
     aktiv = AblAndelsbevisPar18,
+    investeringsklassifikation = AblIngenInvesteringsklassifikation,
     afståelsessum_kroner = 17000,
     anskaffelsessum_kroner = 10000,
     årets_netto_med_kgl_par14_23_kroner = 7000
@@ -357,7 +390,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 
 = kgl_par32_19c_tab_uden_par19d = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2026,
-    aktiv = AblPar19CInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19c_input(2026),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblOptagetTilHandelPåReguleretMarked,
         registreret_i_værdipapircentral = Sandt
@@ -368,7 +402,8 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 )
 = kgl_par32_19c_tab_med_par19d = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
     indkomstår = 2026,
-    aktiv = AblPar19CInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = kgl_par32_aktieklasse_scenarie_par19c_input(2026),
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblOptagetTilHandelPåReguleretMarked,
         registreret_i_værdipapircentral = Sandt

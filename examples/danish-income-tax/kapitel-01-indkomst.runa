@@ -1020,7 +1020,7 @@ fra og med den 1. januar 2027.
 # Anskaffelsesstatus = Før19Maj1993 | PåEllerEfter19Maj1993
 # SkatterådsTilladelse = TilladelseGivet | TilladelseIkkeGivet
 # RådetsSkøn = Godtgjort | IkkeGodtgjort
-# KapitalPersonligReklassifikation = IngenPersonligReklassifikation | FordringsEllerKontraktNæringReklassifikation | FinansieringsNæringReklassifikation | Kursgevinstlov17Fordringstab | AndelsUdlodningIkkeNormal | Aktieavance17Aktier | Aktieavance19CHvis17Aktier | Investeringsformidler19CHvis17Aktier | MedarbejderinvesteringsselskabAndel
+# KapitalPersonligReklassifikation = IngenPersonligReklassifikation | FordringsEllerKontraktNæringReklassifikation | FinansieringsNæringReklassifikation | Kursgevinstlov17Fordringstab | AndelsUdlodningIkkeNormal | Aktieavance17Aktier | Aktieavance19CHvis17Aktier | Aktieavance22Efter17 | Investeringsformidler19CHvis17Aktier | MedarbejderinvesteringsselskabAndel
 # Par4Stk1Nr1Input(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr1Resultat(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_fradrag_kroner: Heltal, ligningslov6a_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr2Opgørelsestrin = Par4Nr2FørPar32Årsopgørelse | Par4Nr2EfterPar32Årsopgørelse
@@ -1334,6 +1334,7 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenPersonligReklassifikation
 | exception par4_stk1_nr5_par17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblNæringsaktiePar17
 | exception par4_stk1_nr5_par19c_hvis17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance19CHvis17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19C
+| exception par4_stk1_nr5_par22_efter17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance22Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis22
 
 # Par4Stk1Nr5Sag(input: Par4Stk1Nr5Input) {
     | effektiv_aktiv() -> input.aktieavancebeskatningslov_resultat.effektiv_aktiv
@@ -1835,6 +1836,7 @@ fra og med den 1. januar 2027.
 | exception par4_stk4_andelsudlodning_ikke_normal par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == AndelsUdlodningIkkeNormal
 | exception par4_stk5_aktieavance17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance17Aktier
 | exception par4_stk5_aktieavance19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance19CHvis17Aktier
+| exception par4_stk5_aktieavance22_efter17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance22Efter17
 | exception par4_stk6_investeringsformidler19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Investeringsformidler19CHvis17Aktier
 | exception par4_stk7_medarbejderinvesteringsselskab par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == MedarbejderinvesteringsselskabAndel
 | par4_kapitalpost_reklassificeres_til_personlig_indkomst(post: Par4Kapitalpost) -> par4_reklassifikation_til_personlig_indkomst(post.personlig_reklassifikation)
@@ -2496,7 +2498,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 # Aktiepost = Ligningslov16AUdbytte | VirksomhedsomdannelsePar4Stk4TredjePunktum | AktieInvesteringsselskabUdbytte | AktieFortjenesteTab | InvesteringsformidlerAktieBeløb
 # AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAktie
 # AktiepostStk1Og2Afgrænsning = AktiepostOmfattetAfStk1 | AktiepostUdenforStk1 | AktiepostUndtagetAktieavance19C | AktiepostUndtagetLigningslov16AStk5 | AktiepostUndtagetMedarbejderinvesteringsselskab
-# AktieTilPersonligUndtagelse = IngenAktieTilPersonligUndtagelse | Aktieavance19BHvis17
+# AktieTilPersonligUndtagelse = IngenAktieTilPersonligUndtagelse | Aktieavance19BHvis17 | Aktieavance21Efter17
 # AktiePensionsFradragPersonligStatus = IkkeFradragetIPersonligIndkomst | FradragetIPersonligIndkomst
 # AktiePensionsFradragPbl15AGrundlag = IntetPbl15AFradragsgrundlag | Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner: Heltal)
 # AktiePensionsFradragValgInput(indkomstår: Heltal, ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal, personlig_indkomst_status: AktiePensionsFradragPersonligStatus)
@@ -2516,6 +2518,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | aktieindkomst_undtager(undtagelse: AktieUndtagelse) -> Sandt
 | aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Falskt
 | exception aktieavance19b_hvis_17_personlig aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Sandt under undtagelse == Aktieavance19BHvis17
+| exception aktieavance21_efter_17_personlig aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Sandt under undtagelse == Aktieavance21Efter17
 | par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Falskt
 | exception par4a_stk2_aktieavance19c par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetAktieavance19C
 | exception par4a_stk2_ligningslov16a_stk5 par4a_aktiepost_undtages_efter_stk2(afgrænsning: AktiepostStk1Og2Afgrænsning) -> Sandt under afgrænsning == AktiepostUndtagetLigningslov16AStk5
@@ -2563,6 +2566,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 
 | par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenAktieTilPersonligUndtagelse
 | exception par4a_19b_hvis17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance19BHvis17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19B
+| exception par4a_21_efter17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance21Efter17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblMinimumsbevis21
 | par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> AktieFortjenesteTab
 | exception par4a_ll7n_udbetaling_som_udbytte par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> Ligningslov16AUdbytte under postart == Ll7NUdbytteEllerUdbetaling
 

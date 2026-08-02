@@ -1,0 +1,12 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par19b - 22
+
+--@label:abl_investeringsklassifikation_beregning::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
+--@begin:abl_investeringsklassifikation_beregning--
+@ calculate
+| klassificer_investeringsselskab(input: AktieavancePar19BPar19CInput) -> aktieavance_par19b_par19c_resultat(input)
+
+@ calculate
+| klassificer_minimumsinstitut(input: AktieavancePar21Par22Input) -> aktieavance_par21_par22_resultat(input)
+--@end:abl_investeringsklassifikation_beregning--

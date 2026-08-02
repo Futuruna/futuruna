@@ -34,8 +34,6 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
 ----
 
 --@begin:aktieavancebeskatningsloven_par17_klassifikation--
-# AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
-# AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej
 # AktieavancePar17Instrument = AblPar17AlmindeligAktie | AblPar17KoncerninternKonvertibelObligation | AblPar17TegningsretTilKoncerninternKonvertibelObligation | AblPar17InvesteringsbevisIMinimumsinstitut | AblPar17UndtagetEfterPar10 | AblPar17UndtagetEfterPar15 | AblPar17UndtagetEfterPar16Stk1 | AblPar17UndtagetEfterPar18 | AblPar17UndtagetEfterPar19A | AblPar17UndtagetEfterPar19B | AblPar17UndtagetEfterPar19C
 # AktieavancePar17FortrængtRegel = AblPar17FortrængerPar8 | AblPar17FortrængerPar9 | AblPar17FortrængerPar12 | AblPar17FortrængerPar13 | AblPar17FortrængerPar14 | AblPar17FortrængerPar22 | AblPar17FortrængerPar44
 # AktieavancePar17Skatteyder(skattepligtsresultat: AktieavancePar6Par7Resultat, næringsstatus: AktieavancePar17Næringsstatus)

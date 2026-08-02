@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-5d9d23` (submitted for review)
-Latest implementation slice submitted for review: `td-5d9d23`
+Current focus issue: `td-6e23b5` (submitted for review)
+Latest implementation slice submitted for review: `td-6e23b5`
 Latest approved implementation slice: `td-3ee767`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -48,7 +48,26 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven §§ 6-7 er nu en kildebundet,
+Latest integration: Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 er
+nu afledte klassifikationer frem for mærkater valgt af kalderen. Den
+gennemsnitlige aktivmasse bygges af direkte aktiver og KGL §§ 29-33-aktivers
+underliggende aktiv. Ejerandelen angives som ejede og samlede kapitalenheder;
+ved præcis 25 pct. eller mere erstattes markedsværdien af den forholdsmæssige
+underliggende aktivmasse, når den ejede enhed faktisk er aktiebaseret; en
+obligationsbaseret ejerpost medregnes fortsat direkte som et ikke-kvalificerende
+værdipapir. § 19 B's meddelelse, nyoprettelsesfrist,
+1. november-grænse, 1. juli-oplysninger og statusskift til § 19 C samt
+§ 21/§ 22-grænsen afledes i scoped `|`-regler med integritetskontrollerede
+resultater. Den samme faktabårne klassifikation afgør nu § 23, stk. 4 og 8,
+Personskattelovens personlige, kapital- eller aktieindkomst og
+Kursgevinstloven § 32. Fyrre fokusscenarier passerer i interpreter og
+kompileret kode. KGL-aggregatet klassificerer hvert årsresultat én gang før
+summering, så fuld produktvalidering bevares uden gentagen eksponentiel
+genberegning. Domænet er samtidig egnet til det genererede regneark: brugeren
+angiver aktiver og ejerposter som fakta, mens § 19 B/§ 19 C/§ 21/§ 22-status
+aldrig bliver en inputkolonne.
+
+Aktieavancebeskatningsloven §§ 6-7 er nu en kildebundet,
 typet grænse fra skattepligt efter Selskabsskatteloven, Fondsbeskatningsloven,
 Kildeskatteloven eller Dødsboskatteloven til lovens § 6- og § 7-regelspor.
 Resultatet afledes gennem en scoped `|`-regelkaskade og kan ikke forfalskes ved
@@ -1485,6 +1504,22 @@ encoded as a temporal rule on top of the consolidation.
   and compiled execution. Eleven focused scenarios cover both § 6 liability
   grounds, person, estate, life-insurer status, the outside result, forged
   result rejection, and composition into § 23.
+- `aktieavancebeskatningsloven-par19b-22.runa` and
+  `aktieavancebeskatningsloven-par19b-22.scenario.runa` exist and pass
+  interpreted and compiled execution. They derive annual-average asset tests,
+  KGL §§ 29-33 underlying assets, the exact 25% ownership look-through,
+  § 19 B election/reporting deadlines, and effective § 19 B/§ 19 C or
+  § 21/§ 22 status. Forty focused scenarios also cover the neutral
+  § 23 fact boundary, wrong-year rejection, forged-product rejection, and the
+  downstream Personskatteloven and KGL § 32 routes.
+- `investeringsklassifikation.calculate.runa` exposes both derived investment
+  classifications as typed calculation contracts. Schema generation, XLSX
+  generation and XLSX `runa call` round-trip pass even though the >=25%
+  look-through makes the source type recursive. Direct assets and owner
+  positions become related sheets. Payload-bearing sum values still use
+  canonical JSON cells; `td-1eafe4` tracks discriminator dropdowns and typed
+  variant columns as a generic workbook UX improvement before the complete
+  citizen workbook is considered human-finished.
 - `aktieavancebeskatningsloven-par9.runa` and
   `aktieavancebeskatningsloven-par9.scenario.runa` exist and pass interpreted
   and compiled execution. Eighteen focused scenarios cover the current § 9
@@ -1734,8 +1769,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 76-85% complete as an executable research corpus,
-  and roughly 62-72% complete as a production-grade calculator for
+- Working estimate: roughly 77-85% complete as an executable research corpus,
+  and roughly 63-72% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -2328,6 +2363,16 @@ Current decision:
 
 Review candidates to revisit deliberately, not as broad churn:
 
+- The §§ 19 B-22 investment domain now separates factual input from legal
+  output. `AktieavanceInvesteringsaktivmasse` owns direct annual-average
+  assets and owner positions, while § 23 accepts neutral
+  `AblInvesteringsselskabsaktiv` or `AblMinimumsinstitutsbevis` values carrying
+  those classification inputs. This is the preferred workbook boundary:
+  genuine lists can become related sheets, enum facts can become dropdowns,
+  and no user is asked to choose the legal status that the rules calculate.
+  The recursive >=25% look-through should remain a domain relationship rather
+  than being flattened into caller-supplied percentages or totals.
+
 - `KildeskatESkattekortInput` and the generated-card result may eventually
   share smaller card-period and withholding-percentage objects, but the current
   BEK 1094 slice keeps the annual 2026 percentage derivation as its own domain
@@ -2342,6 +2387,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Aktieavancebeskatningsloven §§ 19 B-22 now derive investment status from
+  annual-average asset facts, KGL underliers, exact capital-unit ownership,
+  election/reporting dates and nested owner positions. § 23, PSL § 4/§ 4 a
+  and KGL § 32 consume the effective result. Raw § 19 B, § 19 C and § 22
+  constructors have been removed from the § 23 boundary, and full product
+  equality rejects tampered or wrong-year chains.
 - Aktieavancebeskatningsloven §§ 6-7 now derive a source-backed taxpayer result
   from the relevant underlying liability ground. § 17, § 23, § 9 and their KGL
   and Personskatteloven bridges consume and integrity-check the same result;
@@ -2364,6 +2415,14 @@ Review candidates to revisit deliberately, not as broad churn:
   remains derived from that contract: scalar and optional values stay on the
   case sheet, while only genuine `List`, `Map`, or `Set` values become related
   child sheets.
+  The workbook engine itself is no longer the limiting factor: this slice adds
+  fact-only asset and owner-position lists that the eventual aggregate can
+  expose. The remaining work is to make the canonical input graph reach every
+  supported branch before generating and presenting one full citizen workbook.
+  The focused investment contract also proves that recursive legal input graphs
+  terminate in schema/XLSX generation and round-trip through `runa call`.
+  `td-1eafe4` keeps the remaining payload-ADT cell ergonomics explicit rather
+  than replacing the legal recursion with precomputed caller values.
 - Aktieavancebeskatningsloven §§ 37-40 now cover entry value, personal exit-tax
   scope and netting, the initial deferral decision, the persistent § 39 A
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
@@ -2414,7 +2473,7 @@ Review candidates to revisit deliberately, not as broad churn:
   source-backed dependency outcomes. Do not reintroduce generic `{art, beløb}`
   adapters between typed dependency results and the canonical § 3 calculation.
 - Continue Aktieavancebeskatningsloven from the now-executable §§ 35 G-40
-  paths and the now-derived §§ 6-7 boundary: complete the remaining dependent
+  paths and the now-derived §§ 6-7 and §§ 19 B-22 boundaries: complete the remaining dependent
   classifications before calling the ABL dependency complete. Mixed
   nominal/no-par holdings, § 33 A status
   changes, employee-ownership transferor tax and the modeled exit-tax deferral
@@ -2423,6 +2482,11 @@ Review candidates to revisit deliberately, not as broad churn:
   disposal loss before that calculation. Rank the next dependent
   classification by its impact on Personskatteloven rather than deepening
   exploratory audits.
+- Complete the remaining ABL investment classifications around § 19,
+  § 19 A, § 20 and § 20 A, then extend the canonical `@ calculate` aggregate
+  with their factual inputs. Keep the generated workbook downstream of that
+  graph so its scalar cells, enum dropdowns and related collection sheets
+  cannot drift from the executable law.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

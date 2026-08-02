@@ -44,7 +44,9 @@
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
     skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
-    aktiv = AblPar22Investeringsbevis,
+    aktiv = AblMinimumsinstitutsbevis(
+        klassifikationsinput = abl22_klassifikationsresultat.input
+    ),
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
     stk6_valg = AblIntetPar23Stk6Valg,
@@ -130,7 +132,8 @@
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
     skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
-    aktiv = AblPar19BInvesteringsselskabsaktiv(
+    aktiv = AblInvesteringsselskabsaktiv(
+        klassifikationsinput = abl19b_klassifikationsresultat.input,
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblIkkeOptagetTilHandel,
         registreret_i_værdipapircentral = Falskt
@@ -156,7 +159,7 @@
     anskaffelsessummer_i_perioden_kroner = 30000,
     afståelsessummer_i_perioden_kroner = 25000,
     afståelsessummer_omfattet_af_ll16b_stk1_kroner = 5000,
-    ville_være_par17_uden_investeringsstatus = Falskt,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
     oplysningsbetingelse_efter_par19d_opfyldt = Sandt
 ))
 = abl_par23_19b_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(

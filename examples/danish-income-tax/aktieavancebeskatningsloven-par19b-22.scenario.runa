@@ -1,0 +1,437 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./aktieavancebeskatningsloven - par23 - 27
+
+| abl_inv_par19_resultat(aktivmasse: AktieavanceInvesteringsaktivmasse, meddelelse: AktieavancePar19BMeddelelse, oplysninger: AktieavancePar19BOplysninger) -> aktieavance_par19b_par19c_resultat(AktieavancePar19BPar19CInput(
+    indkomstår = 2026,
+    meddelelse = meddelelse,
+    aktivmasse = aktivmasse,
+    oplysninger = oplysninger
+))
+| abl_inv_par21_resultat(aktivmasse: AktieavanceInvesteringsaktivmasse, oplysninger: AktieavancePar21Oplysninger) -> aktieavance_par21_par22_resultat(AktieavancePar21Par22Input(
+    indkomstår = 2026,
+    aktivmasse = aktivmasse,
+    oplysninger = oplysninger
+))
+| abl_inv_generisk_input(aktiv: AktieavancebeskatningslovAktiv, klassifikation: AktieavanceInvesteringsklassifikation, par17_modprøve: AktieavancePar17Modprøve, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, årets_netto_med_kgl_par14_23_kroner: Heltal) -> AktieavancebeskatningslovInput(
+    indkomstår = 2026,
+    aktiv = aktiv,
+    afståelsessum_kroner = afståelsessum_kroner,
+    anskaffelsessum_kroner = anskaffelsessum_kroner,
+    par17_modprøve = par17_modprøve,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    investeringsklassifikation = klassifikation,
+    årets_netto_med_kgl_par14_23_kroner = årets_netto_med_kgl_par14_23_kroner
+)
+
+= abl_inv_ingen_par17 = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+= abl_inv_omfattet_af_par17 = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej
+)
+= abl_inv_omfattet_af_par17_stk3 = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+= abl_inv_rettidig_ordinær_meddelelse = AblPar19BOrdinærMeddelelse(
+    virkningsår = 2026,
+    indsendelsesdato = AktieavanceInvesteringsdato(år = 2025, måned = 11, dag = 1)
+)
+= abl_inv_rettidige_par19b_oplysninger = AblPar19BOplysningerIndsendt(
+    indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+)
+= abl_inv_par21_oplysninger_rettidige = AblPar21OplysningerIndsendt(
+    frist = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1),
+    indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+)
+
+= abl_inv_aktivmasse_præcis_50_med_værdipapirer = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 50000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 50000)
+    ],
+    ejerposter = []
+)
+= abl_inv_aktivmasse_præcis_50_med_andet_aktiv = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 50000),
+        AblDirekteInvesteringsaktiv(art = AblAndetAktiv, gennemsnitlig_værdi_kroner = 50000)
+    ],
+    ejerposter = []
+)
+= abl_inv_aktivmasse_under_50 = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 49000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 51000)
+    ],
+    ejerposter = []
+)
+= abl_inv_aktivmasse_med_kgl_underliggende = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblKglPar29Til33Aktiv(underliggende_art = AblKvalificerendeAktieaktiv, underliggende_gennemsnitlig_værdi_kroner = 50000),
+        AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 50000)
+    ],
+    ejerposter = []
+)
+= abl_inv_underliggende_par21_aktivmasse = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 50000),
+        AblDirekteInvesteringsaktiv(art = AblAndetAktiv, gennemsnitlig_værdi_kroner = 50000)
+    ],
+    ejerposter = []
+)
+= abl_inv_underliggende_par21_resultat = abl_inv_par21_resultat(
+    aktivmasse = abl_inv_underliggende_par21_aktivmasse,
+    oplysninger = abl_inv_par21_oplysninger_rettidige
+)
+= abl_inv_underliggende_par22_resultat = abl_inv_par21_resultat(
+    aktivmasse = abl_inv_aktivmasse_under_50,
+    oplysninger = abl_inv_par21_oplysninger_rettidige
+)
+= abl_inv_ejerpost_under_25_pct = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [],
+    ejerposter = [
+        AblEjerpostIPar21(
+            ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 2499, samlede_kapitalenheder = 10000),
+            gennemsnitlig_markedsværdi_kroner = 100000,
+            klassifikationsinput = abl_inv_underliggende_par21_resultat.input
+        )
+    ]
+)
+= abl_inv_ejerpost_præcis_25_pct = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [],
+    ejerposter = [
+        AblEjerpostIPar21(
+            ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 1, samlede_kapitalenheder = 4),
+            gennemsnitlig_markedsværdi_kroner = 1000000,
+            klassifikationsinput = abl_inv_underliggende_par21_resultat.input
+        )
+    ]
+)
+= abl_inv_ejerpost_præcis_25_pct_med_par22_status = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2026,
+    direkte_aktiver = [],
+    ejerposter = [
+        AblEjerpostIPar21(
+            ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 1, samlede_kapitalenheder = 4),
+            gennemsnitlig_markedsværdi_kroner = 100000,
+            klassifikationsinput = abl_inv_underliggende_par22_resultat.input
+        )
+    ]
+)
+= abl_inv_ejerpost_fra_forkert_indkomstår = AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2027,
+    direkte_aktiver = [],
+    ejerposter = [
+        AblEjerpostIPar21(
+            ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 1, samlede_kapitalenheder = 5),
+            gennemsnitlig_markedsværdi_kroner = 100000,
+            klassifikationsinput = abl_inv_underliggende_par21_resultat.input
+        )
+    ]
+)
+
+= abl_inv_par19b_resultat = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = abl_inv_rettidig_ordinær_meddelelse,
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19c_på_grund_af_andet_aktiv = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_andet_aktiv,
+    meddelelse = abl_inv_rettidig_ordinær_meddelelse,
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19c_uden_meddelelse = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = AblIngenPar19BMeddelelse,
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19c_sen_ordinær_meddelelse = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = AblPar19BOrdinærMeddelelse(
+        virkningsår = 2026,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2025, måned = 11, dag = 2)
+    ),
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19b_nyoprettet_to_måneder = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = AblPar19BNyoprettetMeddelelse(
+        oprettelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 8, dag = 31),
+        valg_truffet_samtidig_med_oprettelsen = Sandt,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 10, dag = 31)
+    ),
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19c_nyoprettet_efter_novemberfrist = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = AblPar19BNyoprettetMeddelelse(
+        oprettelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 10, dag = 1),
+        valg_truffet_samtidig_med_oprettelsen = Sandt,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 11, dag = 2)
+    ),
+    oplysninger = abl_inv_rettidige_par19b_oplysninger
+)
+= abl_inv_par19c_sene_oplysninger = abl_inv_par19_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_værdipapirer,
+    meddelelse = abl_inv_rettidig_ordinær_meddelelse,
+    oplysninger = AblPar19BOplysningerIndsendt(
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 2)
+    )
+)
+
+= abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger = abl_inv_par21_resultat(
+    aktivmasse = abl_inv_aktivmasse_præcis_50_med_andet_aktiv,
+    oplysninger = AblPar21OplysningerIndsendt(
+        frist = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1),
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 2)
+    )
+)
+= abl_inv_par22_resultat = abl_inv_underliggende_par22_resultat
+= abl_inv_forfalsket_par19b_resultat = AktieavancePar19BPar19CResultat(
+    input = abl_inv_par19b_resultat.input,
+    input_gyldigt = Sandt,
+    aktivmasse_resultat = abl_inv_par19b_resultat.aktivmasse_resultat,
+    meddelelse_rettidig = Sandt,
+    anbringelsesbetingelser_efter_stk2_opfyldt = Sandt,
+    oplysninger_rettidige_efter_stk6 = Sandt,
+    aktiebaseret_efter_par19b_stk2 = Sandt,
+    skift_til_par19c_på_grund_af_anbringelser = Falskt,
+    skift_til_par19c_på_grund_af_oplysninger = Falskt,
+    skal_offentliggøre_manglende_overholdelse = Falskt,
+    effektiv_status = AblObligationsbaseretInvesteringsselskabEfterPar19C
+)
+
+= abl_inv_19b_aktieinput = abl_inv_generisk_input(
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    klassifikation = AblPar19BPar19CKlassifikation(input = abl_inv_par19b_resultat.input),
+    par17_modprøve = abl_inv_ingen_par17,
+    afståelsessum_kroner = 50000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_19c_kapitalinput = abl_inv_generisk_input(
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    klassifikation = AblPar19BPar19CKlassifikation(input = abl_inv_par19c_uden_meddelelse.input),
+    par17_modprøve = abl_inv_ingen_par17,
+    afståelsessum_kroner = 42000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_19b_personlig_input = abl_inv_generisk_input(
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    klassifikation = AblPar19BPar19CKlassifikation(input = abl_inv_par19b_resultat.input),
+    par17_modprøve = abl_inv_omfattet_af_par17,
+    afståelsessum_kroner = 37000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_19c_personlig_input = abl_inv_generisk_input(
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    klassifikation = AblPar19BPar19CKlassifikation(input = abl_inv_par19c_uden_meddelelse.input),
+    par17_modprøve = abl_inv_omfattet_af_par17,
+    afståelsessum_kroner = 37000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_21_aktieinput = abl_inv_generisk_input(
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    klassifikation = AblPar21Par22Klassifikation(input = abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger.input),
+    par17_modprøve = abl_inv_ingen_par17,
+    afståelsessum_kroner = 40000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_21_personlig_input = abl_inv_generisk_input(
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    klassifikation = AblPar21Par22Klassifikation(input = abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger.input),
+    par17_modprøve = abl_inv_omfattet_af_par17,
+    afståelsessum_kroner = 37000,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl_inv_22_under_bagatel_input = abl_inv_generisk_input(
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    klassifikation = AblPar21Par22Klassifikation(input = abl_inv_par22_resultat.input),
+    par17_modprøve = abl_inv_ingen_par17,
+    afståelsessum_kroner = 31500,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 1500
+)
+= abl_inv_22_par17_input = abl_inv_generisk_input(
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    klassifikation = AblPar21Par22Klassifikation(input = abl_inv_par22_resultat.input),
+    par17_modprøve = abl_inv_omfattet_af_par17_stk3,
+    afståelsessum_kroner = 31500,
+    anskaffelsessum_kroner = 30000,
+    årets_netto_med_kgl_par14_23_kroner = 1500
+)
+
+= abl_inv_19b_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_19b_aktieinput)
+= abl_inv_19c_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_19c_kapitalinput)
+= abl_inv_19b_personlig_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_19b_personlig_input)
+= abl_inv_19c_personlig_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_19c_personlig_input)
+= abl_inv_21_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_21_aktieinput)
+= abl_inv_21_personlig_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_21_personlig_input)
+= abl_inv_22_under_bagatel_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_22_under_bagatel_input)
+= abl_inv_22_par17_abl_resultat = aktieavancebeskatningslov_resultat(abl_inv_22_par17_input)
+
+= abl_inv_19b_par4a_resultat = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl_inv_19b_aktieinput)
+= abl_inv_19c_par4_resultat = par4_stk1_nr5_resultat_fra_aktieavancebeskatningslov(abl_inv_19c_kapitalinput)
+= abl_inv_19b_personlig_par4a_resultat = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl_inv_19b_personlig_input)
+= abl_inv_19c_personlig_par4_resultat = par4_stk1_nr5_resultat_fra_aktieavancebeskatningslov(abl_inv_19c_personlig_input)
+= abl_inv_21_par4a_resultat = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl_inv_21_aktieinput)
+= abl_inv_21_personlig_par4a_resultat = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl_inv_21_personlig_input)
+= abl_inv_22_personlig_par4_resultat = par4_stk1_nr5_resultat_fra_aktieavancebeskatningslov(abl_inv_22_par17_input)
+
+| abl_inv_par23_principinput(indkomstår: Heltal, aktiv: AktieavancePar23Aktiv, obligationslager: Boolsk) -> AktieavancePar23PrincipInput(
+    indkomstår = indkomstår,
+    opgørelsesdato = AktieavancePar23Dato(år = indkomstår, måned = 12, dag = 31),
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
+    aktiv = aktiv,
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = AktieavancePar23Stk7Valg(
+        selskabsidentifikation = "",
+        første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+        ejer_dage_før_første_optagelse = 0,
+        valgmåde = AblIntetPar23Stk7Valg
+    ),
+    obligationsgevinst_opgøres_efter_lagerprincippet = obligationslager,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+| abl_inv_par23_investeringsselskabsaktiv(klassifikationsinput: AktieavancePar19BPar19CInput) -> AblInvesteringsselskabsaktiv(
+    klassifikationsinput = klassifikationsinput,
+    papirart = AblInvesteringsselskabsaktie,
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    registreret_i_værdipapircentral = Sandt
+)
+
+= abl_inv_par23_19b_aktiv = abl_inv_par23_investeringsselskabsaktiv(abl_inv_par19b_resultat.input)
+= abl_inv_par23_19c_aktiv = abl_inv_par23_investeringsselskabsaktiv(abl_inv_par19c_uden_meddelelse.input)
+= abl_inv_par23_21_aktiv = AblMinimumsinstitutsbevis(klassifikationsinput = abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger.input)
+= abl_inv_par23_22_aktiv = AblMinimumsinstitutsbevis(klassifikationsinput = abl_inv_par22_resultat.input)
+= abl_inv_par23_19b_princip = aktieavance_par23_princip_resultat(abl_inv_par23_principinput(2026, abl_inv_par23_19b_aktiv, Falskt))
+= abl_inv_par23_19c_princip = aktieavance_par23_princip_resultat(abl_inv_par23_principinput(2026, abl_inv_par23_19c_aktiv, Falskt))
+= abl_inv_par23_21_princip = aktieavance_par23_princip_resultat(abl_inv_par23_principinput(2026, abl_inv_par23_21_aktiv, Sandt))
+= abl_inv_par23_22_princip = aktieavance_par23_princip_resultat(abl_inv_par23_principinput(2026, abl_inv_par23_22_aktiv, Sandt))
+= abl_inv_par23_forkert_indkomstår_princip = aktieavance_par23_princip_resultat(abl_inv_par23_principinput(2027, abl_inv_par23_19b_aktiv, Falskt))
+= abl_inv_par23_forfalsket_aktivklassifikation = AktieavancePar23AktivKlassifikation(
+    input_gyldigt = Sandt,
+    effektivt_abl_aktiv = AblInvesteringsselskab19C
+)
+= abl_inv_par23_forfalsket_princip = AktieavancePar23PrincipResultat(
+    input = abl_inv_par23_19b_princip.input,
+    input_gyldig = abl_inv_par23_19b_princip.input_gyldig,
+    princip = abl_inv_par23_19b_princip.princip,
+    grundlag = AblPar23Stk1Grundlag,
+    valganmodning_gyldig = abl_inv_par23_19b_princip.valganmodning_gyldig,
+    valg_bindende = abl_inv_par23_19b_princip.valg_bindende,
+    opgøres_efter_kalenderår = abl_inv_par23_19b_princip.opgøres_efter_kalenderår
+)
+= abl_inv_par23_lager_med_forfalsket_princip = aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+    princip_resultat = abl_inv_par23_forfalsket_princip,
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 12000,
+    anskaffelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+    par17_modprøve = abl_inv_ingen_par17,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+))
+
+| abl_inv_præcis_50_pct_opfylder_andelsgrænsen: abl_inv_aktivmasse_præcis_50_med_værdipapirer -> aktieavance_investeringsaktivmasse_resultat(abl_inv_aktivmasse_præcis_50_med_værdipapirer).kvalificerende_andel_mindst_50_pct
+| abl_inv_par19b_kræver_værdipapirer_i_resten: abl_inv_par19c_på_grund_af_andet_aktiv -> abl_inv_par19c_på_grund_af_andet_aktiv.aktivmasse_resultat.kvalificerende_andel_mindst_50_pct && abl_inv_par19c_på_grund_af_andet_aktiv.aktivmasse_resultat.resterende_aktivmasse_kun_værdipapirer == Falskt && abl_inv_par19c_på_grund_af_andet_aktiv.effektiv_status == AblObligationsbaseretInvesteringsselskabEfterPar19C
+| abl_inv_kgl_par29_til_33_bruger_underliggende_aktiv: abl_inv_aktivmasse_med_kgl_underliggende -> aktieavance_investeringsaktivmasse_resultat(abl_inv_aktivmasse_med_kgl_underliggende).kvalificerende_aktiver_kroner == 50000 && aktieavance_investeringsaktivmasse_resultat(abl_inv_aktivmasse_med_kgl_underliggende).kvalificerende_andel_mindst_50_pct
+| abl_inv_ejerandel_under_25_pct_bruger_markedsværdi: abl_inv_ejerpost_under_25_pct -> aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_under_25_pct).medregnet_aktivmasse_kroner == 100000 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_under_25_pct).kvalificerende_aktiver_kroner == 100000
+| abl_inv_ejerandel_præcis_25_pct_gennemlyses: abl_inv_ejerpost_præcis_25_pct -> aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct).medregnet_aktivmasse_kroner == 25000 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct).kvalificerende_aktiver_kroner == 12500 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct).andre_aktiver_kroner == 12500 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct).kvalificerende_andel_mindst_50_pct && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct).resterende_aktivmasse_kun_værdipapirer == Falskt
+| abl_inv_obligationsbaseret_ejerpost_medregnes_direkte: abl_inv_ejerpost_præcis_25_pct_med_par22_status -> aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct_med_par22_status).input_gyldigt && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct_med_par22_status).medregnet_aktivmasse_kroner == 100000 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct_med_par22_status).kvalificerende_aktiver_kroner == 0 && aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_præcis_25_pct_med_par22_status).øvrige_værdipapirer_kroner == 100000
+| abl_inv_ejerpost_kræver_samme_indkomstår: abl_inv_ejerpost_fra_forkert_indkomstår -> aktieavance_investeringsaktivmasse_resultat(abl_inv_ejerpost_fra_forkert_indkomstår).input_gyldigt == Falskt
+| abl_inv_rettidig_meddelelse_og_oplysninger_giver_par19b: abl_inv_par19b_resultat -> abl_inv_par19b_resultat.input_gyldigt && abl_inv_par19b_resultat.effektiv_status == AblAktiebaseretInvesteringsselskabEfterPar19B
+| abl_inv_manglende_meddelelse_giver_par19c: abl_inv_par19c_uden_meddelelse -> abl_inv_par19c_uden_meddelelse.meddelelse_rettidig == Falskt && abl_inv_par19c_uden_meddelelse.effektiv_status == AblObligationsbaseretInvesteringsselskabEfterPar19C
+| abl_inv_ordinær_novemberfrist_er_inklusiv: abl_inv_par19b_resultat -> abl_inv_par19b_resultat.meddelelse_rettidig && abl_inv_par19c_sen_ordinær_meddelelse.meddelelse_rettidig == Falskt
+| abl_inv_nyoprettet_to_månedersfrist_håndteres: abl_inv_par19b_nyoprettet_to_måneder -> abl_inv_par19b_nyoprettet_to_måneder.meddelelse_rettidig && abl_inv_par19b_nyoprettet_to_måneder.effektiv_status == AblAktiebaseretInvesteringsselskabEfterPar19B
+| abl_inv_nyoprettet_er_senest_begrænset_af_1_november: abl_inv_par19c_nyoprettet_efter_novemberfrist -> abl_inv_par19c_nyoprettet_efter_novemberfrist.meddelelse_rettidig == Falskt && abl_inv_par19c_nyoprettet_efter_novemberfrist.effektiv_status == AblObligationsbaseretInvesteringsselskabEfterPar19C
+| abl_inv_sene_par19b_oplysninger_skifter_til_par19c: abl_inv_par19c_sene_oplysninger -> abl_inv_par19c_sene_oplysninger.oplysninger_rettidige_efter_stk6 == Falskt && abl_inv_par19c_sene_oplysninger.skift_til_par19c_på_grund_af_oplysninger && abl_inv_par19c_sene_oplysninger.effektiv_status == AblObligationsbaseretInvesteringsselskabEfterPar19C
+| abl_inv_par21_kræver_ikke_værdipapirer_i_resten: abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger -> abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger.oplysninger_rettidige_efter_par21_stk5 == Falskt && abl_inv_par21_trods_andet_aktiv_og_sene_oplysninger.effektiv_status == AblAktiebaseretMinimumsinstitutEfterPar21
+| abl_inv_under_50_pct_giver_par22_og_offentliggørelse: abl_inv_par22_resultat -> abl_inv_par22_resultat.skiftet_skattemæssig_status && abl_inv_par22_resultat.skal_offentliggøre_manglende_overholdelse && abl_inv_par22_resultat.effektiv_status == AblObligationsbaseretMinimumsinstitutEfterPar22
+| abl_inv_afledt_resultat_kan_ikke_forfalskes: abl_inv_forfalsket_par19b_resultat -> aktieavance_par19b_par19c_resultat_gyldigt(abl_inv_forfalsket_par19b_resultat) == Falskt
+| abl_inv_generisk_abl_kræver_samme_indkomstår: abl_inv_par19b_resultat -> aktieavance_investeringsklassifikation_matcher_aktiv(2027, AblInvesteringsselskabPar19TilKlassifikation, AblPar19BPar19CKlassifikation(input = abl_inv_par19b_resultat.input)) == Falskt
+| abl_inv_par19b_fører_til_aktieindkomst: abl_inv_19b_abl_resultat -> abl_inv_19b_abl_resultat.effektiv_aktiv == AblInvesteringsselskab19B && abl_inv_19b_abl_resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+| abl_inv_par19c_fører_til_kapitalindkomst: abl_inv_19c_abl_resultat -> abl_inv_19c_abl_resultat.effektiv_aktiv == AblInvesteringsselskab19C && abl_inv_19c_abl_resultat.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
+| abl_inv_par19b_hvis17_fører_til_personlig_indkomst: abl_inv_19b_personlig_abl_resultat -> abl_inv_19b_personlig_abl_resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| abl_inv_par19c_hvis17_fører_til_personlig_indkomst: abl_inv_19c_personlig_abl_resultat -> abl_inv_19c_personlig_abl_resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| abl_inv_par21_fører_til_aktieindkomst: abl_inv_21_abl_resultat -> abl_inv_21_abl_resultat.effektiv_aktiv == AblMinimumsbevis21 && abl_inv_21_abl_resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+| abl_inv_par21_efter17_fører_til_personlig_indkomst: abl_inv_21_personlig_abl_resultat -> abl_inv_21_personlig_abl_resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| abl_inv_par22_bagatelgrænse_afskærer_ordinært: abl_inv_22_under_bagatel_abl_resultat -> abl_inv_22_under_bagatel_abl_resultat.medregnes_i_skattepligtig_indkomst == Falskt && abl_inv_22_under_bagatel_abl_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 0
+| abl_inv_par22_efter17_tilsidesætter_bagatelgrænsen: abl_inv_22_par17_abl_resultat -> abl_inv_22_par17_abl_resultat.medregnes_i_skattepligtig_indkomst && abl_inv_22_par17_abl_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 1500 && abl_inv_22_par17_abl_resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| abl_inv_par19_modprøve_kræver_næringsanskaffelse: abl_inv_omfattet_af_par17_stk3 -> aktieavance_par17_modprøve_finder_anvendelse(AblInvesteringsselskab19B, abl_inv_omfattet_af_par17_stk3) == Falskt
+| abl_inv_par4a_bruge_afledt_par19b: abl_inv_19b_par4a_resultat -> abl_inv_19b_par4a_resultat.aktieindkomst_kroner == 20000 && abl_inv_19b_par4a_resultat.personlig_indkomst_kroner == 0
+| abl_inv_par4_bruger_afledt_par19c: abl_inv_19c_par4_resultat -> abl_inv_19c_par4_resultat.kapitalindkomst_kroner == 12000 && abl_inv_19c_par4_resultat.personlig_reklassifikation == IngenPersonligReklassifikation
+| abl_inv_par4a_reklassificerer_par19b_hvis17: abl_inv_19b_personlig_par4a_resultat -> abl_inv_19b_personlig_par4a_resultat.aktieindkomst_kroner == 0 && abl_inv_19b_personlig_par4a_resultat.personlig_indkomst_kroner == 7000
+| abl_inv_par4_reklassificerer_par19c_hvis17: abl_inv_19c_personlig_par4_resultat -> abl_inv_19c_personlig_par4_resultat.kapitalindkomst_kroner == 0 && abl_inv_19c_personlig_par4_resultat.personlig_reklassifikation == Aktieavance19CHvis17Aktier
+| abl_inv_par4a_bruger_afledt_par21: abl_inv_21_par4a_resultat -> abl_inv_21_par4a_resultat.aktieindkomst_kroner == 10000 && abl_inv_21_par4a_resultat.personlig_indkomst_kroner == 0
+| abl_inv_par4a_reklassificerer_par21_efter17: abl_inv_21_personlig_par4a_resultat -> abl_inv_21_personlig_par4a_resultat.aktieindkomst_kroner == 0 && abl_inv_21_personlig_par4a_resultat.personlig_indkomst_kroner == 7000
+| abl_inv_par4_reklassificerer_par22_efter17: abl_inv_22_personlig_par4_resultat -> abl_inv_22_personlig_par4_resultat.kapitalindkomst_kroner == 0 && abl_inv_22_personlig_par4_resultat.personlig_reklassifikation == Aktieavance22Efter17
+| abl_inv_par23_afleder_par19b_til_stk8: abl_inv_par23_19b_princip -> abl_inv_par23_19b_princip.input_gyldig && abl_inv_par23_19b_princip.princip == AblPar23Lagerprincip && abl_inv_par23_19b_princip.grundlag == AblPar23Stk8TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_inv_par23_19b_aktiv, 2026) == AblInvesteringsselskab19B
+| abl_inv_par23_afleder_par19c_til_stk8: abl_inv_par23_19c_princip -> abl_inv_par23_19c_princip.input_gyldig && abl_inv_par23_19c_princip.grundlag == AblPar23Stk8TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_inv_par23_19c_aktiv, 2026) == AblInvesteringsselskab19C
+| abl_inv_par23_afleder_par22_til_stk4: abl_inv_par23_22_princip -> abl_inv_par23_22_princip.input_gyldig && abl_inv_par23_22_princip.grundlag == AblPar23Stk4TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_inv_par23_22_aktiv, 2026) == AblMinimumsbevis22
+| abl_inv_par23_par21_udløser_ikke_par22_stk4: abl_inv_par23_21_princip -> abl_inv_par23_21_princip.input_gyldig && abl_inv_par23_21_princip.princip == AblPar23Realisationsprincip && aktieavance_par23_effektivt_abl_aktiv(abl_inv_par23_21_aktiv, 2026) == AblMinimumsbevis21
+| abl_inv_par23_kræver_samme_indkomstår: abl_inv_par23_forkert_indkomstår_princip -> abl_inv_par23_forkert_indkomstår_princip.input_gyldig == Falskt
+| abl_inv_par23_aktivklassifikation_kan_ikke_forfalskes: abl_inv_par23_forfalsket_aktivklassifikation -> aktieavance_par23_aktivklassifikation_gyldig(abl_inv_par23_forfalsket_aktivklassifikation, abl_inv_par23_19b_aktiv, 2026) == Falskt
+| abl_inv_par23_lager_afviser_forfalsket_princip: abl_inv_par23_lager_med_forfalsket_princip -> abl_inv_par23_lager_med_forfalsket_princip.opgørelse_gyldig == Falskt && abl_inv_par23_lager_med_forfalsket_princip.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblIkkeMedregnetISlice
+
+? abl_inv_præcis_50_pct_opfylder_andelsgrænsen
+? abl_inv_par19b_kræver_værdipapirer_i_resten
+? abl_inv_kgl_par29_til_33_bruger_underliggende_aktiv
+? abl_inv_ejerandel_under_25_pct_bruger_markedsværdi
+? abl_inv_ejerandel_præcis_25_pct_gennemlyses
+? abl_inv_obligationsbaseret_ejerpost_medregnes_direkte
+? abl_inv_ejerpost_kræver_samme_indkomstår
+? abl_inv_rettidig_meddelelse_og_oplysninger_giver_par19b
+? abl_inv_manglende_meddelelse_giver_par19c
+? abl_inv_ordinær_novemberfrist_er_inklusiv
+? abl_inv_nyoprettet_to_månedersfrist_håndteres
+? abl_inv_nyoprettet_er_senest_begrænset_af_1_november
+? abl_inv_sene_par19b_oplysninger_skifter_til_par19c
+? abl_inv_par21_kræver_ikke_værdipapirer_i_resten
+? abl_inv_under_50_pct_giver_par22_og_offentliggørelse
+? abl_inv_afledt_resultat_kan_ikke_forfalskes
+? abl_inv_generisk_abl_kræver_samme_indkomstår
+? abl_inv_par19b_fører_til_aktieindkomst
+? abl_inv_par19c_fører_til_kapitalindkomst
+? abl_inv_par19b_hvis17_fører_til_personlig_indkomst
+? abl_inv_par19c_hvis17_fører_til_personlig_indkomst
+? abl_inv_par21_fører_til_aktieindkomst
+? abl_inv_par21_efter17_fører_til_personlig_indkomst
+? abl_inv_par22_bagatelgrænse_afskærer_ordinært
+? abl_inv_par22_efter17_tilsidesætter_bagatelgrænsen
+? abl_inv_par19_modprøve_kræver_næringsanskaffelse
+? abl_inv_par4a_bruge_afledt_par19b
+? abl_inv_par4_bruger_afledt_par19c
+? abl_inv_par4a_reklassificerer_par19b_hvis17
+? abl_inv_par4_reklassificerer_par19c_hvis17
+? abl_inv_par4a_bruger_afledt_par21
+? abl_inv_par4a_reklassificerer_par21_efter17
+? abl_inv_par4_reklassificerer_par22_efter17
+? abl_inv_par23_afleder_par19b_til_stk8
+? abl_inv_par23_afleder_par19c_til_stk8
+? abl_inv_par23_afleder_par22_til_stk4
+? abl_inv_par23_par21_udløser_ikke_par22_stk4
+? abl_inv_par23_kræver_samme_indkomstår
+? abl_inv_par23_aktivklassifikation_kan_ikke_forfalskes
+? abl_inv_par23_lager_afviser_forfalsket_princip

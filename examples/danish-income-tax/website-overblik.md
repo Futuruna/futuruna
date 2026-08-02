@@ -126,6 +126,18 @@ sag med § 23's opgørelsesmetode, Kursgevinstloven § 32's kontraktrelation og
 Personskatteloven § 4's personlige indkomstklassifikation for personer.
 Femten scenarier kører ens i interpreter og kompileret kode.
 
+Aktieavancebeskatningslovens §§ 19 B-19 C og §§ 21-22 afledes nu fra de
+faktiske investeringsforhold. Den gennemsnitlige aktivmasse bygges af direkte
+aktiver og de underliggende aktiver efter Kursgevinstlovens §§ 29-33. Ved en
+ejerandel på præcis 25 pct. eller mere gennemlyses den ejede enhed efter ejede
+og samlede kapitalenheder i stedet for en oplyst procent. Meddelelse,
+nyoprettelsesfrist, årsoplysninger og anbringelsesgrænse afgør derefter den
+effektive status. § 23, Personskattelovens §§ 4 og 4 a og Kursgevinstlovens §
+32 genbruger samme integritetskontrollerede resultat. En bruger eller et
+genereret regneark indtaster derfor aktiver, ejerposter og datoer, ikke om
+enheden »er § 19 B« eller »er § 22«. Fyrre fokusscenarier kører ens i
+interpreter og kompileret kode.
+
 Aktieavancebeskatningslovens §§ 6-7 er nu også en kildebundet regelgrænse.
 Skattepligt efter Selskabsskatteloven, Fondsbeskatningsloven,
 Kildeskatteloven eller Dødsboskatteloven afleder ét integritetskontrolleret §
