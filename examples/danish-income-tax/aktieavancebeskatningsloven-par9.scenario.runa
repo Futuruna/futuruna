@@ -1,0 +1,457 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par9
+
+# Par9ScenariePrincipInput(indkomstår: Heltal, opgørelsesdato: AktieavancePar23Dato, skattepligtig: AktieavancePar23Skattepligtig, aktiv: AktieavancePar23Aktiv, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg)
+# Par9ScenarieLagerpostInput(aktivstatus: AktieavancePar9Aktivstatus, princip_resultat: AktieavancePar23PrincipResultat, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal)
+# Par9ScenarieRealisationspostInput(aktivstatus: AktieavancePar9Aktivstatus, princip_resultat: AktieavancePar23PrincipResultat, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
+
+= par9_intet_stk7_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+
+| par9_scenarie_princip_resultat(input: Par9ScenariePrincipInput) -> aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
+    indkomstår = input.indkomstår,
+    opgørelsesdato = input.opgørelsesdato,
+    skattepligtig = input.skattepligtig,
+    aktiv = input.aktiv,
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = input.stk6_valg,
+    stk7_valg = input.stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+))
+| par9_scenarie_lagerpost(input: Par9ScenarieLagerpostInput) -> aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = input.aktivstatus,
+    opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat = aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+        princip_resultat = input.princip_resultat,
+        værdi_primo_kroner = input.værdi_primo_kroner,
+        værdi_ultimo_kroner = input.værdi_ultimo_kroner,
+        anskaffelsessummer_i_perioden_kroner = 0,
+        afståelsessummer_i_perioden_kroner = 0,
+        afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+        ville_være_par17_uden_investeringsstatus = Falskt,
+        oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+    )))
+))
+| par9_scenarie_realisationspost(input: Par9ScenarieRealisationspostInput) -> aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = input.aktivstatus,
+    opgørelsesgrundlag = AblPar9RealiseretAfståelse(
+        princip_resultat = input.princip_resultat,
+        afståelsessum_kroner = input.afståelsessum_kroner,
+        anskaffelsessum_kroner = input.anskaffelsessum_kroner
+    )
+))
+
+= par9_lager_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-LAGER",
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_lager_gevinst_40000 = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_lager_princip_2026,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 140000
+))
+= par9_lager_tab_25000 = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_lager_princip_2026,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 75000
+))
+= par9_lagerår = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_40000, par9_lager_tab_25000],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+
+= par9_stk6_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-STK6",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    ),
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_stk6_gevinst_30000 = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk6_princip_2026,
+    afståelsessum_kroner = 130000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_stk6_tab_50000 = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk6_princip_2026,
+    afståelsessum_kroner = 50000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_stk6_år = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_stk6_gevinst_30000, par9_stk6_tab_50000],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+= par9_stk6_udeladt_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-STK6-UDELADT",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_stk6_udeladt_lagergevinst = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk6_udeladt_princip_2026,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 110000
+))
+= par9_usammenhængende_stk6_porteføljevalg = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_stk6_gevinst_30000, par9_stk6_udeladt_lagergevinst],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+
+= par9_stk6_konvertibel_princip = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9KonvertibelObligation(
+        underliggende_markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    ),
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_stk6_konvertibelt_tab = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9AndenKonvertibelObligation,
+    princip_resultat = par9_stk6_konvertibel_princip,
+    afståelsessum_kroner = 80000,
+    anskaffelsessum_kroner = 100000
+))
+
+= par9_stk7_valg_2024 = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "DK-P9-STK7",
+    første_optagelsesdato = AktieavancePar23Dato(år = 2024, måned = 6, dag = 1),
+    ejer_dage_før_første_optagelse = 45,
+    valgmåde = AblValgVedOplysningerForFørsteIndkomstår(
+        oplysninger_indgivet_rettidigt = Sandt
+    )
+)
+= par9_stk7_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-STK7",
+        markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_stk7_valg_2024
+))
+= par9_stk7_gevinst_40000 = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk7_princip_2026,
+    afståelsessum_kroner = 140000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_stk7_tab_70000 = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk7_princip_2026,
+    afståelsessum_kroner = 30000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_stk7_år = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_40000, par9_stk7_gevinst_40000, par9_stk7_tab_70000],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+
+= par9_koncernintern_princip = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar23AKoncerninternKonvertibelObligation,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_koncernintern_årsregulering = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9KoncerninternKonvertibelObligation,
+    opgørelsesgrundlag = AblPar9Par23AOpgørelse(
+        princip_resultat = par9_koncernintern_princip,
+        resultat = aktieavance_par23a_resultat(AktieavancePar23AInput(
+            værdi_primo_eller_anskaffelsessum_kroner = 150000,
+            skattemæssig_anskaffelsessum_kroner = 100000,
+            hændelse = AblPar23ABeholdesVedÅretsSlutning(værdi_ultimo_kroner = 120000)
+        ))
+    )
+))
+= par9_koncerninternt_afståelsestab = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9KoncerninternKonvertibelObligation,
+    opgørelsesgrundlag = AblPar9Par23AOpgørelse(
+        princip_resultat = par9_koncernintern_princip,
+        resultat = aktieavance_par23a_resultat(AktieavancePar23AInput(
+            værdi_primo_eller_anskaffelsessum_kroner = 150000,
+            skattemæssig_anskaffelsessum_kroner = 100000,
+            hændelse = AblPar23AAfståsIÅret(afståelsessum_kroner = 120000)
+        ))
+    )
+))
+= par9_koncerninternt_tabsår = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_koncernintern_årsregulering, par9_koncerninternt_afståelsestab],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+
+= par9_udenfor_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblAndenAktieEfterPar23,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_par8_undtaget_gevinst = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattefriPorteføljeaktieEfterPar8,
+    princip_resultat = par9_udenfor_princip_2026,
+    afståelsessum_kroner = 200000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_par10_undtaget_tab = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9EgenAktieEfterPar10,
+    princip_resultat = par9_udenfor_princip_2026,
+    afståelsessum_kroner = 50000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_person_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar7,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-PERSON",
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_person_gevinst = par9_scenarie_realisationspost(Par9ScenarieRealisationspostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_person_princip_2026,
+    afståelsessum_kroner = 120000,
+    anskaffelsessum_kroner = 100000
+))
+= par9_undtagelsesår = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_par8_undtaget_gevinst, par9_par10_undtaget_tab, par9_person_gevinst],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+
+= par9_stk6_princip_2025 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2025,
+    opgørelsesdato = AktieavancePar23Dato(år = 2025, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-SKIFT",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    ),
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_lager_princip_efter_stk6_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-SKIFT",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_lager_gevinst_efter_stk6_15000 = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_lager_princip_efter_stk6_2026,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 115000
+))
+= par9_stk4_position_2025 = AktieavancePar9Tabsposition(
+    indkomstår = 2025,
+    fremført_tab_efter_stk4_kroner = 20000,
+    stk4_tabsanvendelse = AblPar9Stk4KunRealisationsbeskattedeGevinster,
+    fremført_tab_efter_stk6_kroner = 0
+)
+= par9_stk4_uden_skift = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_efter_stk6_15000],
+    fremførsel = AblPar9FremførselFraForrigeIndkomstår(position = par9_stk4_position_2025),
+    principovergange = []
+))
+= par9_stk4_med_skift = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_efter_stk6_15000],
+    fremførsel = AblPar9FremførselFraForrigeIndkomstår(position = par9_stk4_position_2025),
+    principovergange = [AktieavancePar9Principovergang(
+        forrige_princip_resultat = par9_stk6_princip_2025,
+        aktuelle_princip_resultat = par9_lager_princip_efter_stk6_2026
+    )]
+))
+= par9_stk4_skift_uden_matchende_post = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_40000],
+    fremførsel = AblPar9FremførselFraForrigeIndkomstår(position = par9_stk4_position_2025),
+    principovergange = [AktieavancePar9Principovergang(
+        forrige_princip_resultat = par9_stk6_princip_2025,
+        aktuelle_princip_resultat = par9_lager_princip_efter_stk6_2026
+    )]
+))
+
+= par9_lager_princip_2027 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2027,
+    opgørelsesdato = AktieavancePar23Dato(år = 2027, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-SKIFT",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_lager_gevinst_2027_10000 = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_lager_princip_2027,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 110000
+))
+= par9_stk4_efter_skift_2027 = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2027,
+    poster = [par9_lager_gevinst_2027_10000],
+    fremførsel = AblPar9FremførselFraForrigeIndkomstår(position = par9_stk4_med_skift.position_ultimo),
+    principovergange = []
+))
+
+= par9_stk7_historisk_valg_2019 = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "DK-P9-STK7-SKIFT",
+    første_optagelsesdato = AktieavancePar23Dato(år = 2019, måned = 1, dag = 1),
+    ejer_dage_før_første_optagelse = 45,
+    valgmåde = AblHistoriskGenoptagelsesvalg(
+        anmodet_senest_1_juli_2025 = Sandt,
+        omfatter_hele_perioden = Sandt
+    )
+)
+= par9_stk7_princip_2025 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2025,
+    opgørelsesdato = AktieavancePar23Dato(år = 2025, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-STK7-SKIFT",
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_stk7_historisk_valg_2019
+))
+= par9_stk7_lager_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P9-STK7-SKIFT",
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked
+    ),
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = par9_intet_stk7_valg
+))
+= par9_stk7_lagerpost_2026 = par9_scenarie_lagerpost(Par9ScenarieLagerpostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    princip_resultat = par9_stk7_lager_princip_2026,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 110000
+))
+= par9_stk7_skifteår = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_stk7_lagerpost_2026],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = [AktieavancePar9Principovergang(
+        forrige_princip_resultat = par9_stk7_princip_2025,
+        aktuelle_princip_resultat = par9_stk7_lager_princip_2026
+    )]
+))
+
+= par9_for_gammel_position = AktieavancePar9Tabsposition(
+    indkomstår = 2024,
+    fremført_tab_efter_stk4_kroner = 20000,
+    stk4_tabsanvendelse = AblPar9Stk4AlleGevinsterEfterSkiftTilLagerprincip,
+    fremført_tab_efter_stk6_kroner = 10000
+)
+= par9_afviser_sprunget_fremførsel = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par9_lager_gevinst_40000],
+    fremførsel = AblPar9FremførselFraForrigeIndkomstår(position = par9_for_gammel_position),
+    principovergange = []
+))
+
+| par9_stk1_og_stk2_lagerbeløb: par9_lagerår -> par9_lagerår.årsopgørelse_gyldig && par9_lagerår.skattepligtige_gevinster_efter_stk1_kroner == 40000 && par9_lagerår.direkte_lagerfradrag_efter_stk2_kroner == 25000 && par9_lagerår.netto_efter_par9_kroner == 15000
+| par9_stk3_modregner_kun_realisationsgevinst: par9_stk6_år -> par9_stk6_år.årets_tab_efter_stk3_kroner == 50000 && par9_stk6_år.tab_modregnet_efter_stk3_og_stk4_kroner == 30000 && par9_stk6_år.tab_fremført_efter_stk4_kroner == 20000
+| par9_stk4_position_bærer_tab_videre: par9_stk6_år -> par9_stk6_år.position_ultimo.fremført_tab_efter_stk4_kroner == 20000 && par9_stk6_år.position_ultimo.stk4_tabsanvendelse == AblPar9Stk4KunRealisationsbeskattedeGevinster
+| par9_stk6_valg_gælder_alle_kvalificerede_porteføljeaktier: par9_usammenhængende_stk6_porteføljevalg -> par9_usammenhængende_stk6_porteføljevalg.stk6_porteføljevalg_sammenhængende == Falskt && par9_usammenhængende_stk6_porteføljevalg.årsopgørelse_gyldig == Falskt && par9_usammenhængende_stk6_porteføljevalg.skattepligtige_gevinster_efter_stk1_kroner == 0
+| par9_stk6_omfatter_unoteret_konvertibel: par9_stk6_konvertibelt_tab -> par9_stk6_konvertibel_princip.grundlag == AblPar23Stk6ValgtRealisation && par9_stk6_konvertibelt_tab.tab_til_modregning_efter_stk3_kroner == 20000
+| par9_stk5_og_stk6_bruger_alle_stk1_gevinster: par9_stk7_år -> par9_stk7_år.skattepligtige_gevinster_efter_stk1_kroner == 80000 && par9_stk7_år.årets_tab_efter_stk5_kroner == 70000 && par9_stk7_år.tab_modregnet_efter_stk5_og_stk6_kroner == 70000 && par9_stk7_år.tab_fremført_efter_stk6_kroner == 0
+| par9_stk7_skelner_afståelse_fra_årsregulering: par9_koncerninternt_tabsår -> par9_koncernintern_årsregulering.bruttotab_kroner == 30000 && par9_koncernintern_årsregulering.direkte_lagerfradrag_efter_stk2_kroner == 30000 && par9_koncernintern_årsregulering.tab_afskåret_efter_stk7_kroner == 0 && par9_koncerninternt_afståelsestab.bruttotab_kroner == 30000 && par9_koncerninternt_afståelsestab.direkte_lagerfradrag_efter_stk2_kroner == 0 && par9_koncerninternt_tabsår.tab_afskåret_efter_stk7_kroner == 30000 && par9_koncerninternt_tabsår.samlet_fradrag_i_skattepligtig_indkomst_kroner == 30000
+| par9_par8_gevinst_undtaget: par9_par8_undtaget_gevinst -> par9_par8_undtaget_gevinst.undtaget_efter_par8 && par9_par8_undtaget_gevinst.skattepligtig_gevinst_kroner == 0
+| par9_par10_tab_undtaget: par9_par10_undtaget_tab -> par9_par10_undtaget_tab.undtaget_efter_par10 && par9_par10_undtaget_tab.direkte_lagerfradrag_efter_stk2_kroner == 0 && par9_par10_undtaget_tab.tab_til_modregning_efter_stk3_kroner == 0
+| par9_person_er_ikke_selskab_efter_par6: par9_person_gevinst -> par9_person_gevinst.input_gyldigt && par9_person_gevinst.omfattet_af_par6 == Falskt && par9_person_gevinst.skattepligtig_gevinst_kroner == 0
+| par9_undtagelser_og_person_giver_intet_årsbeløb: par9_undtagelsesår -> par9_undtagelsesår.årsopgørelse_gyldig && par9_undtagelsesår.skattepligtige_gevinster_efter_stk1_kroner == 0 && par9_undtagelsesår.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| par9_stk4_uden_skift_kan_ikke_bruges_i_lagergevinst: par9_stk4_uden_skift -> par9_stk4_uden_skift.tab_modregnet_efter_stk3_og_stk4_kroner == 0 && par9_stk4_uden_skift.tab_fremført_efter_stk4_kroner == 20000
+| par9_stk4_skift_til_lager_bruger_fremført_tab: par9_stk4_med_skift -> par9_stk4_med_skift.skift_fra_stk6_realisation_til_lagerprincip && par9_stk4_med_skift.tab_modregnet_efter_stk3_og_stk4_kroner == 15000 && par9_stk4_med_skift.tab_fremført_efter_stk4_kroner == 5000 && par9_stk4_med_skift.stk4_tabsanvendelse_ultimo == AblPar9Stk4AlleGevinsterEfterSkiftTilLagerprincip
+| par9_skift_uden_matchende_post_afvises: par9_stk4_skift_uden_matchende_post -> par9_stk4_skift_uden_matchende_post.årsopgørelse_gyldig == Falskt && par9_stk4_skift_uden_matchende_post.skift_fra_stk6_realisation_til_lagerprincip == Falskt && par9_stk4_skift_uden_matchende_post.position_ultimo.indkomstår == 2025 && par9_stk4_skift_uden_matchende_post.position_ultimo.fremført_tab_efter_stk4_kroner == 20000 && par9_stk4_skift_uden_matchende_post.position_ultimo.stk4_tabsanvendelse == AblPar9Stk4KunRealisationsbeskattedeGevinster
+| par9_stk4_lagerstatus_bevares_i_senere_år: par9_stk4_efter_skift_2027 -> par9_stk4_efter_skift_2027.tab_modregnet_efter_stk3_og_stk4_kroner == 5000 && par9_stk4_efter_skift_2027.tab_fremført_efter_stk4_kroner == 0 && par9_stk4_efter_skift_2027.stk4_tabsanvendelse_ultimo == AblPar9Stk4AlleGevinsterEfterSkiftTilLagerprincip
+| par9_stk7_syvaarsudløb_registreres_som_skift: par9_stk7_skifteår -> par9_stk7_princip_2025.grundlag == AblPar23Stk7SyvårigtRealisationsvalg && par9_stk7_lager_princip_2026.grundlag == AblPar23Stk5TvungetLager && par9_stk7_skifteår.skift_fra_stk7_realisation_til_lagerprincip
+| par9_sprunget_fremførsel_afvises: par9_afviser_sprunget_fremførsel -> par9_afviser_sprunget_fremførsel.fremførsel_gyldig == Falskt && par9_afviser_sprunget_fremførsel.afvist_fremført_tab_efter_stk4_kroner == 20000 && par9_afviser_sprunget_fremførsel.afvist_fremført_tab_efter_stk6_kroner == 10000 && par9_afviser_sprunget_fremførsel.netto_efter_par9_kroner == 40000
+| par9_generisk_resultat_bevarer_selskabskategori: par9_lagerår -> par9_lagerår.aktieavancebeskatningslov_resultat.effektiv_aktiv == AblSkattepligtigPorteføljeaktiePar9 && par9_lagerår.aktieavancebeskatningslov_resultat.personskattelov_kategori == AblIkkeMedregnetISlice
+
+? par9_stk1_og_stk2_lagerbeløb
+? par9_stk3_modregner_kun_realisationsgevinst
+? par9_stk4_position_bærer_tab_videre
+? par9_stk6_valg_gælder_alle_kvalificerede_porteføljeaktier
+? par9_stk6_omfatter_unoteret_konvertibel
+? par9_stk5_og_stk6_bruger_alle_stk1_gevinster
+? par9_stk7_skelner_afståelse_fra_årsregulering
+? par9_par8_gevinst_undtaget
+? par9_par10_tab_undtaget
+? par9_person_er_ikke_selskab_efter_par6
+? par9_undtagelser_og_person_giver_intet_årsbeløb
+? par9_stk4_uden_skift_kan_ikke_bruges_i_lagergevinst
+? par9_stk4_skift_til_lager_bruger_fremført_tab
+? par9_skift_uden_matchende_post_afvises
+? par9_stk4_lagerstatus_bevares_i_senere_år
+? par9_stk7_syvaarsudløb_registreres_som_skift
+? par9_sprunget_fremførsel_afvises
+? par9_generisk_resultat_bevarer_selskabskategori
+
+@ print("ABL § 9 lager netto: " + vis(par9_lagerår.netto_efter_par9_kroner))
+@ print("ABL § 9 stk. 4 fremført efter skift: " + vis(par9_stk4_med_skift.tab_fremført_efter_stk4_kroner))

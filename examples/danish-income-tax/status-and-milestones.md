@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-3ee767` (submitted for review)
-Latest implementation slice submitted for review: `td-3ee767`
-Latest approved implementation slice: `td-ed1bda`
+Current focus issue: `td-0c9da0` (submitted for review)
+Latest implementation slice submitted for review: `td-0c9da0`
+Latest approved implementation slice: `td-3ee767`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -48,17 +48,19 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven § 17 er nu en kildebundet,
-typet regelkaskade for aktienæring. Skatteyderens § 6- eller § 7-status,
-næringsstatus, anskaffelsens forbindelse til næringsvejen og instrumentets
-art er domæneværdier frem for løse sand/falsk-flags. Stk. 1-4 beregner
-gevinst og tab, afskærer tab på koncerninterne konvertible obligationer og
-tegningsretter, medtager alle minimumsbeskattede investeringsbeviser hos den
-næringsdrivende og giver de udtrykkelige §§ 10, 15, 16, stk. 1, 18 og
-19 A-19 C-undtagelser forrang. Resultatet føder de typede § 23-,
-Kursgevinstloven § 32- og Personskatteloven § 4-broer; kun en fysisk person
-efter § 7 kan få Personskattelovens personlige indkomstklassifikation.
-Femten fokusscenarier passerer i både interpreter og kompileret kode.
+Latest integration: Aktieavancebeskatningsloven § 9 er nu en kildebundet,
+typet årsopgørelse for selskabers skattepligtige porteføljeaktier. Den bruger
+§ 23's beregnede realisations- eller lagerprincip, holder § 8- og
+§ 10-undtagelser uden for stk. 1 og afskærer koncerninterne konvertible
+afståelsestab efter stk. 7. Stk. 2-tab fradrages direkte, mens stk. 3-4- og
+stk. 5-6-tab føres i to særskilte, årsbundne tabsbeholdninger. Typede
+principskift åbner de
+fremførte tab for lagergevinster og kræver et sammenhængende år, samme aktiv
+og en faktisk post i årsopgørelsen. § 23, stk. 6-valget kontrolleres på tværs
+af alle kvalificerede poster. Atten fokusscenarier passerer i både
+interpreter og kompileret kode. Metadataindekset gør både den valgte rækkefølge
+ved samtidige tabsbeholdninger og den endnu manglende § 5 A-reduktion synlige
+som typede advarsler; § 5 A er fulgt op i `td-d2945b`.
 
 Kursgevinstloven § 32 er nu en kildebundet, typet
 årsopgørelse frem for et egnethedsflag leveret af kalderen. Den fordeler årets
@@ -115,7 +117,7 @@ endnu ukendt start ikke kan ligne et straksfradragsberettiget år. Den fokusered
 scenario-fil validerer 31 positive, begrænsende og afskærende udfald i både
 interpreter og kompileret kode.
 
-Aktieavancebeskatningsloven §§ 12-15, § 17, §§ 23-27, § 30,
+Aktieavancebeskatningsloven § 9, §§ 12-15, § 17, §§ 23-27, § 30,
 stk. 1, § 33 A, §§ 35 G-35 K og §§ 37-40 har nu typede beregningsveje for
 ordinære personaktier, næringsaktier, lageropgørelser, aktie- og tegningsretter,
 medarbejderejeoverdragelser, statusskifter samt indgangs- og
@@ -147,6 +149,21 @@ leverer en § 23-metodebro, den skatteyderafledte Kursgevinstloven
 § 32-kontraktrelation og Personskatteloven § 4's personlige
 indkomstklassifikation for § 7-personer. Femten fokusscenarier passerer i
 både interpreter og kompileret kode.
+
+`aktieavancebeskatningsloven-par9.runa` gør stk. 1-7 til en typet
+årsopgørelse med poster, § 23-principresultater og vedvarende tabspositioner.
+Lager- og realisationsresultater holdes adskilt, stk. 3-4-tab kan først bruge
+realisationsbeskattede gevinster, og stk. 5-6-tab kan bruge alle stk. 1-
+gevinster. Ved et valideret skift til lagerprincippet bevares saldoen, men dens
+anvendelsesgrundlag udvides efter lovteksten. Udelukkelserne efter §§ 8 og 10,
+§ 7-personer, § 23 A-årsregulering over for stk. 7-afståelsestab, det
+porteføljeomfattende stk. 6-valg, forældede fremførsler og ugyldige
+principskift er særskilte udfald. De 18 fokusscenarier passerer i begge
+backends. Modellen anvender den ældre og snævrere stk. 3-4-beholdning først,
+når begge
+tabsbeholdninger konkurrerer om samme realisationsgevinst; dette er markeret
+som et fortolkningsvalg, ikke skjult som sikker lovtekst. § 5 A's reduktion af
+visse tab skal fortsat komponeres ind før § 9.
 
 Det importerede `aktieavancebeskatningsloven-par23-27.runa` vælger mellem
 realisations-, lager- og tilladt anden opgørelsesmåde med lovens egne
@@ -230,9 +247,9 @@ delvise og fulde afståelser på tværs af de to former. Selskabslovens § 47 og
 udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
-De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-9, 19 A-20 A og 22 samt § 38's fulde afhængige opgørelser efter §§ 23-29 og
-46. Modulerne modtager juridiske
+De smallere ABL-grænser er nu § 5 A's beløbsreduktion før tabsbehandling, de
+underliggende klassifikationer efter §§ 6, 7, 19 A-20 A og 22 samt § 38's fulde
+afhængige opgørelser efter §§ 23-29 og 46. Modulerne modtager juridiske
 klassifikationer som typede resultater frem for rå sand/falsk-flags forklædt
 som fuld dækning.
 
@@ -2311,7 +2328,9 @@ Review candidates to revisit deliberately, not as broad churn:
   paths: complete the remaining dependent classifications before calling the
   ABL dependency complete. Mixed nominal/no-par holdings, § 33 A status
   changes, employee-ownership transferor tax and the modeled exit-tax deferral
-  lifecycle already have source-backed calculation paths.
+  lifecycle already have source-backed calculation paths. § 9 now has an
+  annual two-ledger loss calculation; the immediate amount-level follow-up is
+  § 5 A's dividend-based loss reduction in `td-d2945b`.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already
