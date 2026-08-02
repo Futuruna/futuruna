@@ -4,15 +4,15 @@
 @ importer ./kapitel - 01 - indkomst
 
 = par17_selskabsnæringsdrivende = AktieavancePar17Skatteyder(
-    skattepligtig = AblPar17SkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier
 )
 = par17_personnæringsdrivende = AktieavancePar17Skatteyder(
-    skattepligtig = AblPar17SkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier
 )
 = par17_person_ikke_næringsdrivende = AktieavancePar17Skatteyder(
-    skattepligtig = AblPar17SkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
 )
 
@@ -127,11 +127,11 @@
 ))
 
 | par17_bro_er_par6_næringsaktiv(bro: AktieavancePar17Par23Bro) -> match bro {
-    | AblPar17Par23Bro(skattepligtig, aktiv) -> skattepligtig == AblSkattepligtigEfterPar6 && aktiv == AblPar17Næringsaktiv
+    | AblPar17Par23Bro(skattepligtsresultat, aktiv) -> skattepligtsresultat.omfattet_af_par6 && aktiv == AblPar17Næringsaktiv
     | AblPar17IngenPar23Bro -> Falskt
 }
 | par17_bro_er_par7_minimumsbevis(bro: AktieavancePar17Par23Bro) -> match bro {
-    | AblPar17Par23Bro(skattepligtig, aktiv) -> skattepligtig == AblSkattepligtigEfterPar7 && aktiv == AblPar17Stk3Investeringsbevis
+    | AblPar17Par23Bro(skattepligtsresultat, aktiv) -> skattepligtsresultat.omfattet_af_par7 && aktiv == AblPar17Stk3Investeringsbevis
     | AblPar17IngenPar23Bro -> Falskt
 }
 

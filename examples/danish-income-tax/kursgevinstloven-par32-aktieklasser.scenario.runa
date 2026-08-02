@@ -96,7 +96,7 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     princip_resultat = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
         indkomstår = indkomstår,
         opgørelsesdato = AktieavancePar23Dato(år = indkomstår, måned = 12, dag = 31),
-        skattepligtig = AblSkattepligtigEfterPar7,
+        skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
         aktiv = aktiv,
         stk2_valg = AblIntetPar23Stk2Valg,
         stk3_tilladelse = AblIngenPar23Stk3Tilladelse,

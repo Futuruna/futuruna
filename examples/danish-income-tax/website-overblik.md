@@ -126,13 +126,22 @@ sag med § 23's opgørelsesmetode, Kursgevinstloven § 32's kontraktrelation og
 Personskatteloven § 4's personlige indkomstklassifikation for personer.
 Femten scenarier kører ens i interpreter og kompileret kode.
 
+Aktieavancebeskatningslovens §§ 6-7 er nu også en kildebundet regelgrænse.
+Skattepligt efter Selskabsskatteloven, Fondsbeskatningsloven,
+Kildeskatteloven eller Dødsboskatteloven afleder ét integritetskontrolleret §
+6/§ 7-resultat, som § 17, § 23 og § 9 genbruger. Resultatfelterne kan ikke
+forfalskes uafhængigt af grundlaget, og livsforsikringsselskabets nødvendige
+særstatus bevares til § 23, stk. 6-7. Elleve scenarier kører ens i interpreter
+og kompileret kode.
+
 Aktieavancebeskatningslovens § 5 A beregner nu selv den tabsreduktion, der skal
 ske før de almindelige tabsregler. Skattefrie udbytter, forøget
 dobbeltbeskatningslempelse, endnu uudnyttede præferenceudbytter og kvalificerede
 koncernbeløb bevares som særskilte, typede led. Reduktionen kan ikke overstige
 afståelsestabet. § 22, stk. 6-undtagelsen, virkningsgrænsen den 24. november
-2010 og særreglen for tidligere statusskifter er udtrykkelige udfald. Seksten
-scenarier kører ens i interpreter og kompileret kode.
+2010 og særreglen for tidligere statusskifter er udtrykkelige udfald. § 9
+genberegner resultatet fra dets input og afviser forfalskede resultatfelter.
+Sytten scenarier kører ens i interpreter og kompileret kode.
 
 Aktieavancebeskatningslovens § 9 er tilsvarende en typet årsopgørelse for
 selskabers skattepligtige porteføljeaktier. Den bruger § 23's beregnede
@@ -184,8 +193,8 @@ Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
 vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
 saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 197 udfald i
-Aktieavancebeskatningsloven § 5 A, § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 209 udfald i
+Aktieavancebeskatningsloven § 5 A, §§ 6-7, § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
 §§ 35 G-35 K og §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 [den oprindelige § 5 A-ændring og overgang, LOV nr. 254/2011](https://www.retsinformation.dk/eli/lta/2011/254),

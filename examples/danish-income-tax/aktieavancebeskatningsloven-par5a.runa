@@ -137,10 +137,11 @@ statusskifte sker inden den 24. november 2010.
 }
 
 | aktieavance_par5a_resultat(input: AktieavancePar5AInput) -> AktieavancePar5ASag(input).resultat()
-| aktieavance_par5a_resultatliste_gyldig(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, Sandt, |gyldige: Boolsk, resultat: AktieavancePar5AResultat| gyldige && resultat.input_gyldigt)
+| aktieavance_par5a_resultat_gyldigt(resultat: AktieavancePar5AResultat) -> resultat == aktieavance_par5a_resultat(resultat.input)
+| aktieavance_par5a_resultatliste_gyldig(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, Sandt, |gyldige: Boolsk, resultat: AktieavancePar5AResultat| gyldige && aktieavance_par5a_resultat_gyldigt(resultat))
 | aktieavance_par5a_resultatliste_bruttotab_kroner(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: AktieavancePar5AResultat| sum + resultat.input.bruttotab_ved_afståelse_kroner)
 | aktieavance_par5a_resultatliste_tabsreduktion_kroner(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: AktieavancePar5AResultat| sum + resultat.tabsreduktion_efter_par5a_kroner)
-| aktieavance_par5a_behandling_gyldig(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> Sandt | AblPar5AEnkeltAfståelse(resultat) -> resultat.input_gyldigt | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_gyldig(resultater) }
+| aktieavance_par5a_behandling_gyldig(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> Sandt | AblPar5AEnkeltAfståelse(resultat) -> aktieavance_par5a_resultat_gyldigt(resultat) | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_gyldig(resultater) }
 | aktieavance_par5a_behandling_bruttotab_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.input.bruttotab_ved_afståelse_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_bruttotab_kroner(resultater) }
 | aktieavance_par5a_behandling_tabsreduktion_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.tabsreduktion_efter_par5a_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_tabsreduktion_kroner(resultater) }
 --@end:aktieavancebeskatningsloven_par5a--

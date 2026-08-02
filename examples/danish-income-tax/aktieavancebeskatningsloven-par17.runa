@@ -34,18 +34,17 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
 ----
 
 --@begin:aktieavancebeskatningsloven_par17_klassifikation--
-# AktieavancePar17Skattepligtig = AblPar17SkattepligtigEfterPar6 | AblPar17SkattepligtigEfterPar7
 # AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
 # AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej
 # AktieavancePar17Instrument = AblPar17AlmindeligAktie | AblPar17KoncerninternKonvertibelObligation | AblPar17TegningsretTilKoncerninternKonvertibelObligation | AblPar17InvesteringsbevisIMinimumsinstitut | AblPar17UndtagetEfterPar10 | AblPar17UndtagetEfterPar15 | AblPar17UndtagetEfterPar16Stk1 | AblPar17UndtagetEfterPar18 | AblPar17UndtagetEfterPar19A | AblPar17UndtagetEfterPar19B | AblPar17UndtagetEfterPar19C
 # AktieavancePar17FortrængtRegel = AblPar17FortrængerPar8 | AblPar17FortrængerPar9 | AblPar17FortrængerPar12 | AblPar17FortrængerPar13 | AblPar17FortrængerPar14 | AblPar17FortrængerPar22 | AblPar17FortrængerPar44
-# AktieavancePar17Skatteyder(skattepligtig: AktieavancePar17Skattepligtig, næringsstatus: AktieavancePar17Næringsstatus)
+# AktieavancePar17Skatteyder(skattepligtsresultat: AktieavancePar6Par7Resultat, næringsstatus: AktieavancePar17Næringsstatus)
 # AktieavancePar17Input(indkomstår: Heltal, skatteyder: AktieavancePar17Skatteyder, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
-# AktieavancePar17Par23Bro = AblPar17IngenPar23Bro | AblPar17Par23Bro(skattepligtig: AktieavancePar23Skattepligtig, aktiv: AktieavancePar23Aktiv)
+# AktieavancePar17Par23Bro = AblPar17IngenPar23Bro | AblPar17Par23Bro(skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv)
 # AktieavancePar17Resultat(input: AktieavancePar17Input, input_gyldigt: Boolsk, aktienæringsdrivende: Boolsk, omfattet_af_stk1: Boolsk, tab_afskåret_efter_stk2: Boolsk, omfattet_af_stk3: Boolsk, undtaget_efter_stk4: Boolsk, fortrængte_regler_efter_stk4: List(AktieavancePar17FortrængtRegel), ville_være_omfattet_uden_investeringsstatus: Boolsk, reglen_finder_anvendelse: Boolsk, kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, par23_bro: AktieavancePar17Par23Bro, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, tab_afskåret_kroner: Heltal, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 
 | aktieavance_par17_er_aktienæringsdrivende(skatteyder: AktieavancePar17Skatteyder) -> skatteyder.næringsstatus == AblPar17UdøverNæringVedKøbOgSalgAfAktier
-| aktieavance_par17_er_person(skatteyder: AktieavancePar17Skatteyder) -> skatteyder.skattepligtig == AblPar17SkattepligtigEfterPar7
+| aktieavance_par17_er_person(skatteyder: AktieavancePar17Skatteyder) -> skatteyder.skattepligtsresultat.omfattet_af_par7
 | aktieavance_par17_er_erhvervet_som_led_i_næringsvej(status: AktieavancePar17Erhvervelsesstatus) -> status == AblPar17ErhvervetSomLedINæringsvej
 | aktieavance_par17_instrument_kan_være_omfattet_af_stk1(instrument: AktieavancePar17Instrument) -> match instrument {
     | AblPar17AlmindeligAktie -> Sandt
@@ -66,7 +65,6 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
     | AblPar17UndtagetEfterPar19C -> Sandt
     | _ -> Falskt
 }
-| aktieavance_par17_til_par23_skattepligtig(skattepligtig: AktieavancePar17Skattepligtig) -> hvis skattepligtig == AblPar17SkattepligtigEfterPar6 { AblSkattepligtigEfterPar6 } ellers { AblSkattepligtigEfterPar7 }
 | aktieavance_par17_kgl_par32_kontraktrelation(skatteyder: AktieavancePar17Skatteyder) -> hvis aktieavance_par17_er_aktienæringsdrivende(skatteyder) { KglPar32AktiekontraktEfterAbl17 } ellers { KglPar32AlmindeligKontrakt }
 | aktieavance_par17_kgl_par32_kontraktpost(skatteyder: AktieavancePar17Skatteyder, resultat: KursgevinstlovResultat, aktiegrundlag: KursgevinstPar32Aktiegrundlag) -> KursgevinstPar32Kontraktpost(
     resultat = resultat,
@@ -75,7 +73,7 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
 )
 
 # AktieavancePar17Sag(input: AktieavancePar17Input) {
-    | input_gyldigt() -> input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0
+    | input_gyldigt() -> input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && aktieavance_par6_par7_resultat_gyldigt(input.skatteyder.skattepligtsresultat) && (input.skatteyder.skattepligtsresultat.omfattet_af_par6 || input.skatteyder.skattepligtsresultat.omfattet_af_par7)
     | aktienæringsdrivende() -> aktieavance_par17_er_aktienæringsdrivende(input.skatteyder)
     | erhvervet_som_led_i_næringsvej() -> aktieavance_par17_er_erhvervet_som_led_i_næringsvej(input.erhvervelsesstatus)
     | undtaget_efter_stk4() -> aktieavance_par17_instrument_undtaget_efter_stk4(input.instrument)
@@ -92,7 +90,7 @@ Stk. 4. I tilfælde, der er omfattet af stk. 1 eller 3, finder reglerne i §§ 8
     | fradragsberettiget_tab_kroner() -> hvis reglen_finder_anvendelse() && tab_afskåret_efter_stk2() == Falskt { bruttotab_kroner() } ellers { 0 }
     | tab_afskåret_kroner() -> hvis tab_afskåret_efter_stk2() { bruttotab_kroner() } ellers { 0 }
     | kgl_par32_kontraktrelation() -> aktieavance_par17_kgl_par32_kontraktrelation(input.skatteyder)
-    | par23_bro() -> hvis omfattet_af_stk3() { AblPar17Par23Bro(skattepligtig = aktieavance_par17_til_par23_skattepligtig(input.skatteyder.skattepligtig), aktiv = AblPar17Stk3Investeringsbevis) } ellers { hvis omfattet_af_stk1() { AblPar17Par23Bro(skattepligtig = aktieavance_par17_til_par23_skattepligtig(input.skatteyder.skattepligtig), aktiv = AblPar17Næringsaktiv) } ellers { AblPar17IngenPar23Bro } }
+    | par23_bro() -> hvis omfattet_af_stk3() { AblPar17Par23Bro(skattepligtsresultat = input.skatteyder.skattepligtsresultat, aktiv = AblPar17Stk3Investeringsbevis) } ellers { hvis omfattet_af_stk1() { AblPar17Par23Bro(skattepligtsresultat = input.skatteyder.skattepligtsresultat, aktiv = AblPar17Næringsaktiv) } ellers { AblPar17IngenPar23Bro } }
     | personskattelov_kategori() -> hvis reglen_finder_anvendelse() && aktieavance_par17_er_person(input.skatteyder) { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblIkkeMedregnetISlice }
     | aktieavancebeskatningslov_resultat() -> AktieavancebeskatningslovResultat(
         indkomstår = input.indkomstår,

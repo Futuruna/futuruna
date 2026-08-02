@@ -1,0 +1,76 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par23 - 27
+
+= par6_par7_intet_stk7_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+
+| par6_par7_princip_resultat(skattepligtsresultat: AktieavancePar6Par7Resultat, stk6_valg: AktieavancePar23Stk6Valg) -> aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtsresultat = skattepligtsresultat,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-PAR6-PAR7",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = stk6_valg,
+    stk7_valg = par6_par7_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+))
+
+= par6_par7_forfalsket_personresultat = AktieavancePar6Par7Resultat(
+    grundlag = AblPar7PersonEfterKildeskatteloven,
+    regelspor = AblPar6Regelspor,
+    omfattet_af_par6 = Sandt,
+    omfattet_af_par7 = Falskt,
+    livsforsikringsselskab = Falskt
+)
+= par6_par7_personprincip = par6_par7_princip_resultat(
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
+    stk6_valg = AblIntetPar23Stk6Valg
+)
+= par6_par7_selskabsprincip = par6_par7_princip_resultat(
+    skattepligtsresultat = aktieavance_par6_efter_selskabsskatteloven,
+    stk6_valg = AblIntetPar23Stk6Valg
+)
+= par6_par7_livsforsikringsselskab_med_stk6_valg = par6_par7_princip_resultat(
+    skattepligtsresultat = aktieavance_par6_livsforsikringsselskab_efter_selskabsskatteloven,
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    )
+)
+= par6_par7_udenforprincip = par6_par7_princip_resultat(
+    skattepligtsresultat = aktieavance_uden_for_par6_og_par7,
+    stk6_valg = AblIntetPar23Stk6Valg
+)
+
+| par6_skattepligt_efter_selskabsskatteloven_følger_par6: aktieavance_par6_efter_selskabsskatteloven -> aktieavance_par6_efter_selskabsskatteloven.regelspor == AblPar6Regelspor && aktieavance_par6_efter_selskabsskatteloven.omfattet_af_par6 && aktieavance_par6_efter_selskabsskatteloven.omfattet_af_par7 == Falskt
+| par6_begge_underliggende_skattepligtslove_fører_til_par6: aktieavance_par6_efter_selskabsskatteloven -> aktieavance_par6_efter_selskabsskatteloven.omfattet_af_par6 && aktieavance_par6_efter_fondsbeskatningsloven.omfattet_af_par6
+| par6_livsforsikringsselskab_bevarer_særstatus: aktieavance_par6_livsforsikringsselskab_efter_selskabsskatteloven -> aktieavance_par6_livsforsikringsselskab_efter_selskabsskatteloven.omfattet_af_par6 && aktieavance_par6_livsforsikringsselskab_efter_selskabsskatteloven.livsforsikringsselskab
+| par7_person_følger_par7_regelsporet: aktieavance_par7_person_efter_kildeskatteloven -> aktieavance_par7_person_efter_kildeskatteloven.regelspor == AblPar7Regelspor && aktieavance_par7_person_efter_kildeskatteloven.omfattet_af_par7 && aktieavance_par7_person_efter_kildeskatteloven.omfattet_af_par6 == Falskt
+| par7_dødsbo_følger_par7_regelsporet: aktieavance_par7_dødsbo_efter_dødsboskatteloven -> aktieavance_par7_dødsbo_efter_dødsboskatteloven.regelspor == AblPar7Regelspor && aktieavance_par7_dødsbo_efter_dødsboskatteloven.omfattet_af_par7
+| par6_par7_udenforgrundlag_er_udtrykkeligt: aktieavance_uden_for_par6_og_par7 -> aktieavance_uden_for_par6_og_par7.regelspor == AblUdenForPar6OgPar7Regelspor && aktieavance_uden_for_par6_og_par7.omfattet_af_par6 == Falskt && aktieavance_uden_for_par6_og_par7.omfattet_af_par7 == Falskt
+| par6_par7_resultat_kan_ikke_forfalskes: par6_par7_forfalsket_personresultat -> aktieavance_par6_par7_resultat_gyldigt(par6_par7_forfalsket_personresultat) == Falskt
+| par23_person_bruger_afledt_par7_resultat: par6_par7_personprincip -> par6_par7_personprincip.input_gyldig && par6_par7_personprincip.princip == AblPar23Realisationsprincip && par6_par7_personprincip.grundlag == AblPar23Stk1Grundlag
+| par23_selskab_bruger_afledt_par6_resultat: par6_par7_selskabsprincip -> par6_par7_selskabsprincip.input_gyldig && par6_par7_selskabsprincip.princip == AblPar23Lagerprincip && par6_par7_selskabsprincip.grundlag == AblPar23Stk5TvungetLager
+| par23_livsforsikringsselskab_kan_ikke_brug_stk6: par6_par7_livsforsikringsselskab_med_stk6_valg -> par6_par7_livsforsikringsselskab_med_stk6_valg.input_gyldig && par6_par7_livsforsikringsselskab_med_stk6_valg.valganmodning_gyldig == Falskt && par6_par7_livsforsikringsselskab_med_stk6_valg.princip == AblPar23Lagerprincip
+| par23_afviser_skatteyder_uden_for_par6_og_par7: par6_par7_udenforprincip -> par6_par7_udenforprincip.input_gyldig == Falskt
+
+? par6_skattepligt_efter_selskabsskatteloven_følger_par6
+? par6_begge_underliggende_skattepligtslove_fører_til_par6
+? par6_livsforsikringsselskab_bevarer_særstatus
+? par7_person_følger_par7_regelsporet
+? par7_dødsbo_følger_par7_regelsporet
+? par6_par7_udenforgrundlag_er_udtrykkeligt
+? par6_par7_resultat_kan_ikke_forfalskes
+? par23_person_bruger_afledt_par7_resultat
+? par23_selskab_bruger_afledt_par6_resultat
+? par23_livsforsikringsselskab_kan_ikke_brug_stk6
+? par23_afviser_skatteyder_uden_for_par6_og_par7

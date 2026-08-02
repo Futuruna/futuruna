@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./aktieavancebeskatningsloven
+@ importer ./aktieavancebeskatningsloven - par6 - 7
 @ importer ./aktieavancebeskatningsloven - par33a
 
 -- Aktieavancebeskatningsloven §§ 23-27 -- opgørelsesprincipper og
@@ -28,11 +29,11 @@
 )
 = aktieavance_par23_til_par27_afhængighedsgrænse = AktieavancebeskatningslovDækningsgrænse(
     område = "Aktieavancebeskatningsloven §§ 23-27",
-    beskrivelse = "Valg og opgørelser tager klassifikationer efter §§ 6, 7, 9, 17, 19 A-20 A og 22 samt LL §§ 16 A-16 C som typede juridiske resultater; de afhængige bestemmelsers egne klassifikationsprøver ligger i deres respektive korpus.",
-    status = "Afhængige klassifikationer kræves"
+    beskrivelse = "§§ 6-7 afledes og integritetskontrolleres som ét kildebundet skattepligtsresultat. Øvrige valg og opgørelser tager klassifikationer efter §§ 9, 17, 19 A-20 A og 22 samt LL §§ 16 A-16 C som typede juridiske resultater; de afhængige bestemmelsers egne klassifikationsprøver ligger i deres respektive korpus.",
+    status = "Øvrige afhængige klassifikationer kræves"
 )
 
---@label:aktieavancebeskatningsloven_par23_og_par23a::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
+--@label:aktieavancebeskatningsloven_par23_og_par23a::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::dependency_source:aktieavancebeskatningsloven_lbk1098_par6_og_par7::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
 ----
 § 19 D. Fradrag efter §§ 19 B eller 19 C er betinget af, at told- og
 skatteforvaltningen inden udløbet af oplysningsfristen efter
@@ -178,7 +179,6 @@ skattekontrollovens § 2.
 ----
 
 --@begin:aktieavancebeskatningsloven_par23_og_par23a--
-# AktieavancePar23Skattepligtig = AblSkattepligtigEfterPar7 | AblSkattepligtigEfterPar6 | AblLivsforsikringsselskabEfterPar6
 # AktieavancePar23Dato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsselskabPapirart = AblInvesteringsselskabsaktie | AblOmsætteligtInvesteringsbevis | AblAndetInvesteringsselskabspapir
 # AktieavancePar23Aktiv = AblPar17Næringsaktiv | AblPar17Stk3Investeringsbevis | AblPar22Investeringsbevis | AblPar9Aktie(selskabsidentifikation: Tekst, markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9Tegningsret(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9KonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar9TegningsretTilKonvertibelObligation(underliggende_markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblPar20Stk1Investeringsbevis | AblPar20AInvesteringsbevis | AblPar19AInvesteringsselskabsaktiv(papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblPar19BInvesteringsselskabsaktiv(papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblPar19CInvesteringsselskabsaktiv(papirart: AktieavanceInvesteringsselskabPapirart, markedsstatus: AktieavanceOrdinærMarkedsstatus, registreret_i_værdipapircentral: Boolsk) | AblPar23AKoncerninternKonvertibelObligation | AblPar23ATegningsretTilKoncerninternKonvertibelObligation | AblAndenAktieEfterPar23
@@ -189,11 +189,11 @@ skattekontrollovens § 2.
 # AktieavancePar23Stk6Valg = AblIntetPar23Stk6Valg | AblRealisationsprincipForAlleUnoteredePar9Aktier(har_tidligere_anvendt_lagerprincip: Boolsk)
 # AktieavancePar23Stk7Valgmåde = AblIntetPar23Stk7Valg | AblHistoriskGenoptagelsesvalg(anmodet_senest_1_juli_2025: Boolsk, omfatter_hele_perioden: Boolsk) | AblValgVedOplysningerForFørsteIndkomstår(oplysninger_indgivet_rettidigt: Boolsk)
 # AktieavancePar23Stk7Valg(selskabsidentifikation: Tekst, første_optagelsesdato: AktieavancePar23Dato, ejer_dage_før_første_optagelse: Heltal, valgmåde: AktieavancePar23Stk7Valgmåde)
-# AktieavancePar23PrincipInput(indkomstår: Heltal, opgørelsesdato: AktieavancePar23Dato, skattepligtig: AktieavancePar23Skattepligtig, aktiv: AktieavancePar23Aktiv, stk2_valg: AktieavancePar23Stk2Valg, stk3_tilladelse: AktieavancePar23Stk3Tilladelse, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg, obligationsgevinst_opgøres_efter_lagerprincippet: Boolsk, indkomstår_forskelligt_fra_kalenderår: Boolsk)
+# AktieavancePar23PrincipInput(indkomstår: Heltal, opgørelsesdato: AktieavancePar23Dato, skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv, stk2_valg: AktieavancePar23Stk2Valg, stk3_tilladelse: AktieavancePar23Stk3Tilladelse, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg, obligationsgevinst_opgøres_efter_lagerprincippet: Boolsk, indkomstår_forskelligt_fra_kalenderår: Boolsk)
 # AktieavancePar23PrincipResultat(input: AktieavancePar23PrincipInput, input_gyldig: Boolsk, princip: AktieavancePar23Princip, grundlag: AktieavancePar23Principgrundlag, valganmodning_gyldig: Boolsk, valg_bindende: Boolsk, opgøres_efter_kalenderår: Boolsk)
 
-| aktieavance_par23_er_skattepligtig_efter_par6(skattepligtig: AktieavancePar23Skattepligtig) -> skattepligtig == AblSkattepligtigEfterPar6 || skattepligtig == AblLivsforsikringsselskabEfterPar6
-| aktieavance_par23_er_livsforsikringsselskab(skattepligtig: AktieavancePar23Skattepligtig) -> skattepligtig == AblLivsforsikringsselskabEfterPar6
+| aktieavance_par23_er_skattepligtig_efter_par6(skattepligtsresultat: AktieavancePar6Par7Resultat) -> skattepligtsresultat.omfattet_af_par6
+| aktieavance_par23_er_livsforsikringsselskab(skattepligtsresultat: AktieavancePar6Par7Resultat) -> skattepligtsresultat.livsforsikringsselskab
 | aktieavance_par23_aktiv_omfattet_af_par17(aktiv: AktieavancePar23Aktiv) -> match aktiv { | AblPar17Næringsaktiv -> Sandt | AblPar17Stk3Investeringsbevis -> Sandt | _ -> Falskt }
 | aktieavance_par23_aktiv_omfattet_af_stk5(aktiv: AktieavancePar23Aktiv) -> match aktiv { | AblPar9Aktie(_, _) -> Sandt | AblPar9Tegningsret(_) -> Sandt | AblPar9KonvertibelObligation(_) -> Sandt | AblPar9TegningsretTilKonvertibelObligation(_) -> Sandt | AblPar17Næringsaktiv -> Sandt | AblPar17Stk3Investeringsbevis -> Sandt | AblPar20Stk1Investeringsbevis -> Sandt | AblPar20AInvesteringsbevis -> Sandt | _ -> Falskt }
 | aktieavance_par23_aktiv_omfattet_af_stk8(aktiv: AktieavancePar23Aktiv) -> match aktiv { | AblPar19AInvesteringsselskabsaktiv(_, _, _) -> Sandt | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> Sandt | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> Sandt | _ -> Falskt }
@@ -214,16 +214,16 @@ skattekontrollovens § 2.
 | aktieavance_par23_stk7_overgangsvalg_gyldigt(valg: AktieavancePar23Stk7Valg) -> aktieavance_par23_dato_gyldig(valg.første_optagelsesdato) && valg.selskabsidentifikation != "" && hvis valg.første_optagelsesdato.år >= 2015 && valg.første_optagelsesdato.år <= 2023 { valg.ejer_dage_før_første_optagelse >= 30 && match valg.valgmåde { | AblHistoriskGenoptagelsesvalg(anmodet_rettidigt, hele_perioden) -> anmodet_rettidigt && hele_perioden | _ -> Falskt } } ellers { hvis valg.første_optagelsesdato.år == 2024 { valg.ejer_dage_før_første_optagelse >= 30 && match valg.valgmåde { | AblValgVedOplysningerForFørsteIndkomstår(oplysninger_rettidige) -> oplysninger_rettidige | _ -> Falskt } } ellers { valg.første_optagelsesdato.år >= 2025 && match valg.valgmåde { | AblValgVedOplysningerForFørsteIndkomstår(oplysninger_rettidige) -> oplysninger_rettidige | _ -> Falskt } } }
 
 # AktieavancePar23PrincipSag(input: AktieavancePar23PrincipInput) {
-    | input_gyldig() -> input.indkomstår > 0 && aktieavance_par23_dato_gyldig(input.opgørelsesdato) && input.opgørelsesdato.år == input.indkomstår
-    | stk2_valg_gyldigt() -> input.stk2_valg == AblLagerValgtEnGangForAlleEfterPar23Stk2 && input.skattepligtig == AblSkattepligtigEfterPar7 && aktieavance_par23_aktiv_omfattet_af_par17(input.aktiv)
-    | stk4_lager_påkrævet() -> input.skattepligtig == AblSkattepligtigEfterPar7 && (input.aktiv == AblPar17Stk3Investeringsbevis || input.aktiv == AblPar22Investeringsbevis && input.obligationsgevinst_opgøres_efter_lagerprincippet)
-    | stk6_valg_gyldigt() -> input_gyldig() && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtig) && aktieavance_par23_er_livsforsikringsselskab(input.skattepligtig) == Falskt && aktieavance_par23_aktiv_kan_vælge_stk6_realisation(input.aktiv) && aktieavance_par23_stk6_valg_foretages(input.stk6_valg) && aktieavance_par23_stk6_har_tidligere_lager(input.stk6_valg) == Falskt
-    | stk7_valg_formelt_gyldigt() -> input_gyldig() && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtig) && aktieavance_par23_er_livsforsikringsselskab(input.skattepligtig) == Falskt && match input.aktiv { | AblPar9Aktie(selskabsidentifikation, markedsstatus) -> selskabsidentifikation == input.stk7_valg.selskabsidentifikation && aktieavance_ordinaer_er_optaget_til_handel(markedsstatus) | _ -> Falskt } && aktieavance_par23_stk7_valg_foretages(input.stk7_valg) && aktieavance_par23_stk7_overgangsvalg_gyldigt(input.stk7_valg)
+    | input_gyldig() -> input.indkomstår > 0 && aktieavance_par23_dato_gyldig(input.opgørelsesdato) && input.opgørelsesdato.år == input.indkomstår && aktieavance_par6_par7_resultat_gyldigt(input.skattepligtsresultat) && (input.skattepligtsresultat.omfattet_af_par6 || input.skattepligtsresultat.omfattet_af_par7)
+    | stk2_valg_gyldigt() -> input.stk2_valg == AblLagerValgtEnGangForAlleEfterPar23Stk2 && input.skattepligtsresultat.omfattet_af_par7 && aktieavance_par23_aktiv_omfattet_af_par17(input.aktiv)
+    | stk4_lager_påkrævet() -> input.skattepligtsresultat.omfattet_af_par7 && (input.aktiv == AblPar17Stk3Investeringsbevis || input.aktiv == AblPar22Investeringsbevis && input.obligationsgevinst_opgøres_efter_lagerprincippet)
+    | stk6_valg_gyldigt() -> input_gyldig() && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtsresultat) && aktieavance_par23_er_livsforsikringsselskab(input.skattepligtsresultat) == Falskt && aktieavance_par23_aktiv_kan_vælge_stk6_realisation(input.aktiv) && aktieavance_par23_stk6_valg_foretages(input.stk6_valg) && aktieavance_par23_stk6_har_tidligere_lager(input.stk6_valg) == Falskt
+    | stk7_valg_formelt_gyldigt() -> input_gyldig() && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtsresultat) && aktieavance_par23_er_livsforsikringsselskab(input.skattepligtsresultat) == Falskt && match input.aktiv { | AblPar9Aktie(selskabsidentifikation, markedsstatus) -> selskabsidentifikation == input.stk7_valg.selskabsidentifikation && aktieavance_ordinaer_er_optaget_til_handel(markedsstatus) | _ -> Falskt } && aktieavance_par23_stk7_valg_foretages(input.stk7_valg) && aktieavance_par23_stk7_overgangsvalg_gyldigt(input.stk7_valg)
     | stk7_valg_virker_på_opgørelsesdato() -> stk7_valg_formelt_gyldigt() && aktieavance_par23_dato_nøgle(input.opgørelsesdato) >= aktieavance_par23_dato_nøgle(input.stk7_valg.første_optagelsesdato) && aktieavance_par23_dato_nøgle(input.opgørelsesdato) < aktieavance_par23_dato_nøgle(aktieavance_par23_stk7_slutdato(input.stk7_valg))
-    | stk5_lager_påkrævet() -> aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtig) && aktieavance_par23_aktiv_omfattet_af_stk5(input.aktiv) && stk6_valg_gyldigt() == Falskt && stk7_valg_virker_på_opgørelsesdato() == Falskt
+    | stk5_lager_påkrævet() -> aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtsresultat) && aktieavance_par23_aktiv_omfattet_af_stk5(input.aktiv) && stk6_valg_gyldigt() == Falskt && stk7_valg_virker_på_opgørelsesdato() == Falskt
     | stk8_lager_påkrævet() -> aktieavance_par23_aktiv_omfattet_af_stk8(input.aktiv)
     | par23a_lager_påkrævet() -> aktieavance_par23_aktiv_omfattet_af_par23a(input.aktiv)
-    | anden_opgørelsesmåde_tilladt() -> input.stk3_tilladelse == AblAndenOpgørelsesmådeTilladtEfterPar23Stk3 && input.stk2_valg == AblIntetPar23Stk2Valg && stk4_lager_påkrævet() == Falskt && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtig) == Falskt && stk8_lager_påkrævet() == Falskt && par23a_lager_påkrævet() == Falskt
+    | anden_opgørelsesmåde_tilladt() -> input.stk3_tilladelse == AblAndenOpgørelsesmådeTilladtEfterPar23Stk3 && input.stk2_valg == AblIntetPar23Stk2Valg && stk4_lager_påkrævet() == Falskt && aktieavance_par23_er_skattepligtig_efter_par6(input.skattepligtsresultat) == Falskt && stk8_lager_påkrævet() == Falskt && par23a_lager_påkrævet() == Falskt
     | valganmodning_gyldig() -> (input.stk2_valg == AblIntetPar23Stk2Valg || stk2_valg_gyldigt()) && (aktieavance_par23_stk6_valg_foretages(input.stk6_valg) == Falskt || stk6_valg_gyldigt()) && (aktieavance_par23_stk7_valg_foretages(input.stk7_valg) == Falskt || stk7_valg_formelt_gyldigt())
     | princip() -> AblPar23Realisationsprincip
     | exception abl_par23_stk3_tilladt_opgørelsesmåde princip() -> AblPar23AndenTilladtOpgørelsesmåde under anden_opgørelsesmåde_tilladt()
@@ -266,7 +266,7 @@ skattekontrollovens § 2.
 # AktieavancePar23LagerÅrsresultat(input: AktieavancePar23LagerÅrsinput, opgørelse_gyldig: Boolsk, afståelsessummer_der_indgår_kroner: Heltal, nettogevinst_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, tab_afskåret_efter_par19d_kroner: Heltal, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 
 | aktieavance_par23_effektivt_abl_aktiv(aktiv: AktieavancePar23Aktiv) -> match aktiv { | AblPar17Næringsaktiv -> AblNæringsaktiePar17 | AblPar17Stk3Investeringsbevis -> AblNæringsaktiePar17 | AblPar22Investeringsbevis -> AblMinimumsbevis22 | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> AblInvesteringsselskab19B | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> AblInvesteringsselskab19C | _ -> AblUdenforDenneSlice }
-| aktieavance_par23_psl_kategori(skattepligtig: AktieavancePar23Skattepligtig, aktiv: AktieavancePar23Aktiv, ville_være_par17: Boolsk) -> hvis skattepligtig != AblSkattepligtigEfterPar7 { AblIkkeMedregnetISlice } ellers { match aktiv { | AblPar17Næringsaktiv -> AblPersonligIndkomstEfterPslUndtagelse | AblPar17Stk3Investeringsbevis -> AblPersonligIndkomstEfterPslUndtagelse | AblPar22Investeringsbevis -> AblKapitalindkomstEfterPslPar4Nr5 | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> hvis ville_være_par17 { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblAktieindkomstEfterPslPar4a } | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> hvis ville_være_par17 { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblKapitalindkomstEfterPslPar4Nr5 } | _ -> AblIkkeMedregnetISlice } }
+| aktieavance_par23_psl_kategori(skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv, ville_være_par17: Boolsk) -> hvis skattepligtsresultat.omfattet_af_par7 == Falskt { AblIkkeMedregnetISlice } ellers { match aktiv { | AblPar17Næringsaktiv -> AblPersonligIndkomstEfterPslUndtagelse | AblPar17Stk3Investeringsbevis -> AblPersonligIndkomstEfterPslUndtagelse | AblPar22Investeringsbevis -> AblKapitalindkomstEfterPslPar4Nr5 | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> hvis ville_være_par17 { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblAktieindkomstEfterPslPar4a } | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> hvis ville_være_par17 { AblPersonligIndkomstEfterPslUndtagelse } ellers { AblKapitalindkomstEfterPslPar4Nr5 } | _ -> AblIkkeMedregnetISlice } }
 
 # AktieavancePar23LagerÅrssag(input: AktieavancePar23LagerÅrsinput) {
     | opgørelse_gyldig() -> input.princip_resultat.input_gyldig && input.princip_resultat.princip == AblPar23Lagerprincip && input.princip_resultat.valganmodning_gyldig && input.værdi_primo_kroner >= 0 && input.værdi_ultimo_kroner >= 0 && input.anskaffelsessummer_i_perioden_kroner >= 0 && input.afståelsessummer_i_perioden_kroner >= 0 && input.afståelsessummer_omfattet_af_ll16b_stk1_kroner >= 0 && input.afståelsessummer_omfattet_af_ll16b_stk1_kroner <= input.afståelsessummer_i_perioden_kroner
@@ -275,8 +275,8 @@ skattekontrollovens § 2.
     | bruttogevinst_kroner() -> penge_positivt_beløb(nettogevinst_kroner())
     | bruttotab_kroner() -> penge_positivt_beløb(0 - nettogevinst_kroner())
     | effektivt_aktiv() -> aktieavance_par23_effektivt_abl_aktiv(input.princip_resultat.input.aktiv)
-    | psl_kategori() -> aktieavance_par23_psl_kategori(input.princip_resultat.input.skattepligtig, input.princip_resultat.input.aktiv, input.ville_være_par17_uden_investeringsstatus)
-    | par19d_finder_anvendelse() -> input.princip_resultat.input.skattepligtig == AblSkattepligtigEfterPar7 && (effektivt_aktiv() == AblInvesteringsselskab19B || effektivt_aktiv() == AblInvesteringsselskab19C)
+    | psl_kategori() -> aktieavance_par23_psl_kategori(input.princip_resultat.input.skattepligtsresultat, input.princip_resultat.input.aktiv, input.ville_være_par17_uden_investeringsstatus)
+    | par19d_finder_anvendelse() -> input.princip_resultat.input.skattepligtsresultat.omfattet_af_par7 && (effektivt_aktiv() == AblInvesteringsselskab19B || effektivt_aktiv() == AblInvesteringsselskab19C)
     | fradragsberettiget_tab_kroner() -> hvis par19d_finder_anvendelse() == Falskt || input.oplysningsbetingelse_efter_par19d_opfyldt { bruttotab_kroner() } ellers { 0 }
     | tab_afskåret_efter_par19d_kroner() -> bruttotab_kroner() - fradragsberettiget_tab_kroner()
     | netto_efter_aktieavancebeskatningsloven_kroner() -> bruttogevinst_kroner() - fradragsberettiget_tab_kroner()

@@ -190,7 +190,7 @@
 = par5a_par9_princip = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     aktiv = AblPar9Aktie(
         selskabsidentifikation = "DK-P5A-P9",
         markedsstatus = AblIkkeOptagetTilHandel
@@ -261,6 +261,28 @@
     ),
     par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_par9_mismatch_resultat)
 ))
+= par5a_forfalsket_tabsresultat = AktieavancePar5AResultat(
+    input = par5a_par9_tabsresultat.input,
+    input_gyldigt = Sandt,
+    reglen_finder_anvendelse = Sandt,
+    skattefrie_udbytter_efter_stk1_nr1_kroner = 20000,
+    forøget_lempelse_efter_stk1_nr2_kroner = 0,
+    reduktionsgrundlag_efter_stk1_kroner = 20000,
+    uudnyttede_præferenceudbytter_efter_stk2_kroner = 0,
+    koncernbeløb_efter_stk3_kroner = 0,
+    samlet_reduktionsgrundlag_kroner = 20000,
+    tabsreduktion_efter_par5a_kroner = 0,
+    fradragsberettiget_tab_efter_par5a_kroner = 50000
+)
+= par5a_par9_forfalsket_post = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9RealiseretAfståelse(
+        princip_resultat = par5a_par9_princip,
+        afståelsessum_kroner = 50000,
+        anskaffelsessum_kroner = 100000
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_forfalsket_tabsresultat)
+))
 
 | par5a_stk1_nr1_og_nr2_opgøres_særskilt: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.skattefrie_udbytter_efter_stk1_nr1_kroner == 30000 && par5a_alle_reduktionsled.forøget_lempelse_efter_stk1_nr2_kroner == 5000 && par5a_alle_reduktionsled.reduktionsgrundlag_efter_stk1_kroner == 35000
 | par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.uudnyttede_præferenceudbytter_efter_stk2_kroner == 30000
@@ -278,6 +300,7 @@
 | par5a_par9_post_bruger_reduceret_tab: par5a_par9_tabspost -> par5a_par9_tabspost.input_gyldigt && par5a_par9_tabspost.bruttotab_kroner == 50000 && par5a_par9_tabspost.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_tabspost.tab_efter_par5a_kroner == 30000 && par5a_par9_tabspost.tab_til_modregning_efter_stk3_kroner == 30000
 | par5a_par9_reducerer_før_årets_modregning: par5a_par9_årsresultat -> par5a_par9_årsresultat.årsopgørelse_gyldig && par5a_par9_årsresultat.bruttotab_før_par5a_kroner == 50000 && par5a_par9_årsresultat.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_årsresultat.tab_modregnet_efter_stk3_og_stk4_kroner == 15000 && par5a_par9_årsresultat.tab_fremført_efter_stk4_kroner == 15000 && par5a_par9_årsresultat.aktieavancebeskatningslov_resultat.tab_afskåret_kroner == 20000
 | par5a_par9_afviser_et_resultat_for_et_andet_bruttotab: par5a_par9_mismatch_post -> par5a_par9_mismatch_post.input_gyldigt == Falskt && par5a_par9_mismatch_post.tab_til_modregning_efter_stk3_kroner == 0
+| par5a_par9_afviser_forfalskede_resultatfelter: par5a_forfalsket_tabsresultat -> aktieavance_par5a_resultat_gyldigt(par5a_forfalsket_tabsresultat) == Falskt && par5a_par9_forfalsket_post.input_gyldigt == Falskt && par5a_par9_forfalsket_post.tab_til_modregning_efter_stk3_kroner == 0
 
 ? par5a_stk1_nr1_og_nr2_opgøres_særskilt
 ? par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter
@@ -295,6 +318,7 @@
 ? par5a_par9_post_bruger_reduceret_tab
 ? par5a_par9_reducerer_før_årets_modregning
 ? par5a_par9_afviser_et_resultat_for_et_andet_bruttotab
+? par5a_par9_afviser_forfalskede_resultatfelter
 
 @ print("ABL § 5 A reduktionsgrundlag: " + vis(par5a_alle_reduktionsled.samlet_reduktionsgrundlag_kroner))
 @ print("ABL § 5 A tab efter § 9-komposition: " + vis(par5a_par9_tabspost.tab_efter_par5a_kroner))

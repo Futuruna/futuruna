@@ -1,0 +1,60 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven
+
+= aktieavancebeskatningsloven_lbk1098_par6_og_par7 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 6-7",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_par6_og_par7::source:aktieavancebeskatningsloven_lbk1098_par6_og_par7::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 6. Selskaber, fonde og foreninger m.v., der er skattepligtige efter
+selskabsskatteloven eller fondsbeskatningsloven, skal ved opgørelsen af den
+skattepligtige indkomst medregne gevinst og tab på aktier, som omfattes af §§ 1
+og 2, efter de regler, der er angivet i §§ 5, 8-10, 16-18 og 19 A, § 20, stk.
+1, § 20 A, kapitel 6 og §§ 29 A-31, 33, 36-37 og 43.
+
+§ 7. Personer, der er skattepligtige efter kildeskatteloven, og dødsboer, der
+er skattepligtige efter dødsboskatteloven, skal ved opgørelsen af den
+skattepligtige indkomst medregne gevinst og tab på aktier, som omfattes af §§ 1
+og 2, efter de regler, der er angivet i § 5, §§ 12-15, kapitel 4, §§ 19 B og 19
+C, § 20, stk. 2, §§ 21 og 22, kapitel 6 og 7, §§ 37-39 B og 44-46.
+----
+
+--@begin:aktieavancebeskatningsloven_par6_og_par7--
+# AktieavancePar6Par7Skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven | AblPar6LivsforsikringsselskabEfterSelskabsskatteloven | AblPar6EfterFondsbeskatningsloven | AblPar7PersonEfterKildeskatteloven | AblPar7DødsboEfterDødsboskatteloven | AblUdenForPar6OgPar7
+# AktieavancePar6Par7Regelspor = AblPar6Regelspor | AblPar7Regelspor | AblUdenForPar6OgPar7Regelspor
+# AktieavancePar6Par7Resultat(grundlag: AktieavancePar6Par7Skattepligtsgrundlag, regelspor: AktieavancePar6Par7Regelspor, omfattet_af_par6: Boolsk, omfattet_af_par7: Boolsk, livsforsikringsselskab: Boolsk)
+
+# AktieavancePar6Par7Sag(grundlag: AktieavancePar6Par7Skattepligtsgrundlag) {
+    | regelspor() -> AblUdenForPar6OgPar7Regelspor
+    | exception abl_par6_efter_selskabsskatteloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6EfterSelskabsskatteloven
+    | exception abl_par6_livsforsikringsselskab_efter_selskabsskatteloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6LivsforsikringsselskabEfterSelskabsskatteloven
+    | exception abl_par6_efter_fondsbeskatningsloven regelspor() -> AblPar6Regelspor under grundlag == AblPar6EfterFondsbeskatningsloven
+    | exception abl_par7_person_efter_kildeskatteloven regelspor() -> AblPar7Regelspor under grundlag == AblPar7PersonEfterKildeskatteloven
+    | exception abl_par7_dødsbo_efter_dødsboskatteloven regelspor() -> AblPar7Regelspor under grundlag == AblPar7DødsboEfterDødsboskatteloven
+    | omfattet_af_par6() -> regelspor() == AblPar6Regelspor
+    | omfattet_af_par7() -> regelspor() == AblPar7Regelspor
+    | livsforsikringsselskab() -> grundlag == AblPar6LivsforsikringsselskabEfterSelskabsskatteloven
+    | resultat() -> AktieavancePar6Par7Resultat(
+        grundlag = grundlag,
+        regelspor = regelspor(),
+        omfattet_af_par6 = omfattet_af_par6(),
+        omfattet_af_par7 = omfattet_af_par7(),
+        livsforsikringsselskab = livsforsikringsselskab()
+    )
+}
+
+| aktieavance_par6_par7_resultat(grundlag: AktieavancePar6Par7Skattepligtsgrundlag) -> AktieavancePar6Par7Sag(grundlag).resultat()
+| aktieavance_par6_par7_resultat_gyldigt(resultat: AktieavancePar6Par7Resultat) -> resultat == aktieavance_par6_par7_resultat(resultat.grundlag)
+
+= aktieavance_par6_efter_selskabsskatteloven = aktieavance_par6_par7_resultat(AblPar6EfterSelskabsskatteloven)
+= aktieavance_par6_selskab_efter_selskabsskatteloven = aktieavance_par6_efter_selskabsskatteloven
+= aktieavance_par6_livsforsikringsselskab_efter_selskabsskatteloven = aktieavance_par6_par7_resultat(AblPar6LivsforsikringsselskabEfterSelskabsskatteloven)
+= aktieavance_par6_efter_fondsbeskatningsloven = aktieavance_par6_par7_resultat(AblPar6EfterFondsbeskatningsloven)
+= aktieavance_par7_person_efter_kildeskatteloven = aktieavance_par6_par7_resultat(AblPar7PersonEfterKildeskatteloven)
+= aktieavance_par7_dødsbo_efter_dødsboskatteloven = aktieavance_par6_par7_resultat(AblPar7DødsboEfterDødsboskatteloven)
+= aktieavance_uden_for_par6_og_par7 = aktieavance_par6_par7_resultat(AblUdenForPar6OgPar7)
+--@end:aktieavancebeskatningsloven_par6_og_par7--

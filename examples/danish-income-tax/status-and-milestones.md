@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-d2945b` (submitted for review)
-Latest implementation slice submitted for review: `td-d2945b`
+Current focus issue: `td-5d9d23` (submitted for review)
+Latest implementation slice submitted for review: `td-5d9d23`
 Latest approved implementation slice: `td-3ee767`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -48,14 +48,24 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven § 5 A er nu et genbrugeligt,
+Latest integration: Aktieavancebeskatningsloven §§ 6-7 er nu en kildebundet,
+typet grænse fra skattepligt efter Selskabsskatteloven, Fondsbeskatningsloven,
+Kildeskatteloven eller Dødsboskatteloven til lovens § 6- og § 7-regelspor.
+Resultatet afledes gennem en scoped `|`-regelkaskade og kan ikke forfalskes ved
+at kombinere et grundlag med vilkårlige resultatfelter. § 17, § 23 og § 9
+forbruger og integritetskontrollerer samme resultat. Livsforsikringsselskabets
+§ 6-status bevares som en særskilt, materiel subtype til § 23, stk. 6-7. Elleve
+fokusscenarier passerer i både interpreter og kompileret kode.
+
+Aktieavancebeskatningsloven § 5 A er nu et genbrugeligt,
 kildebundet afståelsestabsresultat. Det opgør skattefrie udbytter, den del af
 en dobbeltbeskatningslempelse, der overstiger den betalte udenlandske skat,
 endnu uudnyttede præferenceudbytter og de kvalificerede koncernbeløb særskilt.
 Reduktionen begrænses til bruttotabet, § 22, stk. 6-undtagelsen bevares, og
 LOV nr. 254/2011's særlige overgang for tidligere statusskifter er
-udtrykkelig. Seksten fokusscenarier passerer i både interpreter og kompileret
-kode.
+udtrykkelig. Resultatfelterne integritetskontrolleres mod det genberegnede
+resultat, før § 9 bruger dem. Sytten fokusscenarier passerer i både interpreter
+og kompileret kode.
 
 § 9's typede årsopgørelse for selskabers skattepligtige porteføljeaktier
 forbruger nu § 5 A-resultatet før stk. 2-7. Den bruger § 23's beregnede
@@ -125,7 +135,7 @@ endnu ukendt start ikke kan ligne et straksfradragsberettiget år. Den fokusered
 scenario-fil validerer 31 positive, begrænsende og afskærende udfald i både
 interpreter og kompileret kode.
 
-Aktieavancebeskatningsloven § 5 A, § 9, §§ 12-15, § 17, §§ 23-27, § 30,
+Aktieavancebeskatningsloven § 5 A, §§ 6-7, § 9, §§ 12-15, § 17, §§ 23-27, § 30,
 stk. 1, § 33 A, §§ 35 G-35 K og §§ 37-40 har nu typede beregningsveje for
 ordinære personaktier, næringsaktier, lageropgørelser, aktie- og tegningsretter,
 medarbejderejeoverdragelser, statusskifter samt indgangs- og
@@ -158,14 +168,23 @@ leverer en § 23-metodebro, den skatteyderafledte Kursgevinstloven
 indkomstklassifikation for § 7-personer. Femten fokusscenarier passerer i
 både interpreter og kompileret kode.
 
+`aktieavancebeskatningsloven-par6-7.runa` gengiver den aktuelle ordlyd af §§
+6-7 og afleder den relevante ABL-regelsti fra den underliggende lovs
+skattepligtsgrundlag. Domænet skelner kun de to hjemmelsgrunde i § 6, person og
+dødsbo i § 7 samt livsforsikringsselskabets nødvendige særstatus; det opfinder
+ikke en udtømmende liste over selskaber, fonde og foreninger m.v. Resultatet
+integritetskontrolleres ved komposition, og 11 fokusscenarier passerer i begge
+backends.
+
 `aktieavancebeskatningsloven-par5a.runa` gør tabsreduktionen før de almindelige
 tabsregler til et selvstændigt, typet resultat. Stk. 1, nr. 1 og 2, stk. 2 og
 stk. 3 opgøres særskilt, og både skatteydergrundlag, udbytteart,
 koncernrelationer og personens kontrol over yder og modtager er lukkede
 domænetyper. Reduktionen kan ikke overstige afståelsestabet. Virkningen fra
 24. november 2010, LOV nr. 254/2011's særregel om tidligere statusskifter og
-§ 22, stk. 6-undtagelsen er udtrykkelige udfald. De 16 fokusscenarier passerer
-i begge backends og beviser også kompositionen før § 9's årsmodregning.
+§ 22, stk. 6-undtagelsen er udtrykkelige udfald. De 17 fokusscenarier passerer
+i begge backends og beviser også kompositionen før § 9's årsmodregning samt
+afvisning af et resultat med forfalskede beregningsfelter.
 
 `aktieavancebeskatningsloven-par9.runa` gør stk. 1-7 til en typet
 årsopgørelse med poster, § 23-principresultater og vedvarende tabspositioner.
@@ -265,8 +284,11 @@ delvise og fulde afståelser på tværs af de to former. Selskabslovens § 47 og
 udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
-De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-19 A-20 A og 22 samt § 38's fulde
+§§ 6-7 har nu en lukket, kildebundet grænse fra skattepligtsgrundlag efter
+Selskabsskatteloven, Fondsbeskatningsloven, Kildeskatteloven og
+Dødsboskatteloven til ABL's to regelspor. De underliggende loves fulde
+personkredse hører fortsat til deres egne korpusser. De smallere ABL-grænser er
+nu klassifikationerne efter §§ 19 A-20 A og 22 samt § 38's fulde
 afhængige opgørelser efter §§ 23-29 og 46. Modulerne modtager juridiske
 klassifikationer som typede resultater frem for rå sand/falsk-flags forklædt
 som fuld dækning.
@@ -976,11 +998,18 @@ Current § 4 and § 13 amendment/dependency sources:
   - Medarbejderejeændringen og dens virkning fra 1. januar 2026:
     `https://www.retsinformation.dk/eli/lta/2025/1755`, § 2 og § 8, stk. 1.
   - XML status on 2026-07-18: `Valid`
+  - `aktieavancebeskatningsloven-par6-7.runa` contains the exact current §§ 6-7
+    text and derives one integrity-checked result from the liability ground
+    supplied by Selskabsskatteloven, Fondsbeskatningsloven, Kildeskatteloven or
+    Dødsboskatteloven. § 17, § 23 and § 9 consume that result instead of raw
+    § 6/§ 7 labels. Eleven focused scenarios pass interpreted and compiled
+    execution.
   - `aktieavancebeskatningsloven-par5a.runa` contains the exact current § 5 A
     text, the § 22, stk. 6 exclusion and LOV nr. 254/2011 § 14, stk. 5 and 11.
     Its typed result calculates each reduction component, caps the reduction at
-    the disposal loss and feeds § 9 before annual loss use. Sixteen focused
-    scenarios pass interpreted and compiled execution.
+    the disposal loss and feeds § 9 before annual loss use. Seventeen focused
+    scenarios pass interpreted and compiled execution, including rejection of
+    a caller-constructed result whose calculated fields do not match its input.
   - Original § 5 A amendment and transition:
     `https://www.retsinformation.dk/eli/lta/2011/254`, § 1, nr. 7, and § 14,
     stk. 5 and 11.
@@ -1448,9 +1477,14 @@ encoded as a temporal rule on top of the consolidation.
   treatment, spouse transfer/carry-forward and the § 14/§ 15 conditions.
 - `aktieavancebeskatningsloven-par5a.runa` and
   `aktieavancebeskatningsloven-par5a.scenario.runa` exist and pass interpreted
-  and compiled execution. Sixteen focused scenarios cover every reduction
+  and compiled execution. Seventeen focused scenarios cover every reduction
   component, the loss cap, invalid amounts, the § 22, stk. 6 exclusion, both
-  transition branches and composition before § 9.
+  transition branches, forged-result rejection and composition before § 9.
+- `aktieavancebeskatningsloven-par6-7.runa` and
+  `aktieavancebeskatningsloven-par6-7.scenario.runa` exist and pass interpreted
+  and compiled execution. Eleven focused scenarios cover both § 6 liability
+  grounds, person, estate, life-insurer status, the outside result, forged
+  result rejection, and composition into § 23.
 - `aktieavancebeskatningsloven-par9.runa` and
   `aktieavancebeskatningsloven-par9.scenario.runa` exist and pass interpreted
   and compiled execution. Eighteen focused scenarios cover the current § 9
@@ -2308,6 +2342,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Aktieavancebeskatningsloven §§ 6-7 now derive a source-backed taxpayer result
+  from the relevant underlying liability ground. § 17, § 23, § 9 and their KGL
+  and Personskatteloven bridges consume and integrity-check the same result;
+  no raw § 6/§ 7 caller label remains at those boundaries.
 - Personskatteloven § 13 a now consumes a closed union of source-law annual
   results instead of `skyldner_tab_kroner`. The EBL § 6 dependency calculates
   its own current and carried losses, own-gain offset, spouse transfer and
@@ -2320,6 +2358,12 @@ Review candidates to revisit deliberately, not as broad churn:
   Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
   schema v2 uses related child worksheets only when the domain input actually
   contains `List`, `Map`, or `Set` fields.
+- `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
+  completion boundary is one typed `@ calculate` input graph that reaches every
+  required and optional fact in the supported full-law calculation. The XLSX
+  remains derived from that contract: scalar and optional values stay on the
+  case sheet, while only genuine `List`, `Map`, or `Set` values become related
+  child sheets.
 - Aktieavancebeskatningsloven §§ 37-40 now cover entry value, personal exit-tax
   scope and netting, the initial deferral decision, the persistent § 39 A
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
@@ -2363,13 +2407,16 @@ Review candidates to revisit deliberately, not as broad churn:
 
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
-  safe.
+  safe. As those inputs become complete, extend the canonical calculation
+  boundary tracked by `td-c743fb`; do not maintain a separate hand-authored tax
+  workbook that can drift from the rules.
 - Preserve the closed § 3, stk. 2, nr. 2-11 boundary while extending missing
   source-backed dependency outcomes. Do not reintroduce generic `{art, beløb}`
   adapters between typed dependency results and the canonical § 3 calculation.
 - Continue Aktieavancebeskatningsloven from the now-executable §§ 35 G-40
-  paths: complete the remaining dependent classifications before calling the
-  ABL dependency complete. Mixed nominal/no-par holdings, § 33 A status
+  paths and the now-derived §§ 6-7 boundary: complete the remaining dependent
+  classifications before calling the ABL dependency complete. Mixed
+  nominal/no-par holdings, § 33 A status
   changes, employee-ownership transferor tax and the modeled exit-tax deferral
   lifecycle already have source-backed calculation paths. § 9 now has an
   annual two-ledger loss calculation, and § 5 A now reduces each validated

@@ -15,7 +15,7 @@
 = abl_par23_person_standard_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     aktiv = AblAndenAktieEfterPar23,
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -29,7 +29,7 @@
 = abl_par23_naeringslager_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     aktiv = AblPar17Næringsaktiv,
     stk2_valg = AblLagerValgtEnGangForAlleEfterPar23Stk2,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -43,7 +43,7 @@
 = abl_par23_stk4_obligationsbevis_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     aktiv = AblPar22Investeringsbevis,
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -57,7 +57,7 @@
 = abl_par23_stk6_realisationsvalg_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-U", markedsstatus = AblIkkeOptagetTilHandel),
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -73,7 +73,7 @@
 = abl_par23_stk6_ugyldigt_genvalg_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-U", markedsstatus = AblIkkeOptagetTilHandel),
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -98,7 +98,7 @@
 = abl_par23_stk7_sidste_dag_input = AktieavancePar23PrincipInput(
     indkomstår = 2027,
     opgørelsesdato = AktieavancePar23Dato(år = 2027, måned = 5, dag = 14),
-    skattepligtig = AblSkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-L", markedsstatus = AblOptagetTilHandelPåReguleretMarked),
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -111,7 +111,7 @@
 = abl_par23_stk7_efter_perioden_input = AktieavancePar23PrincipInput(
     indkomstår = 2027,
     opgørelsesdato = AktieavancePar23Dato(år = 2027, måned = 5, dag = 15),
-    skattepligtig = AblSkattepligtigEfterPar6,
+    skattepligtsresultat = aktieavance_par6_selskab_efter_selskabsskatteloven,
     aktiv = AblPar9Aktie(selskabsidentifikation = "DK-P9-L", markedsstatus = AblOptagetTilHandelPåReguleretMarked),
     stk2_valg = AblIntetPar23Stk2Valg,
     stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
@@ -129,7 +129,7 @@
 = abl_par23_19b_lager_input = AktieavancePar23PrincipInput(
     indkomstår = 2026,
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
-    skattepligtig = AblSkattepligtigEfterPar7,
+    skattepligtsresultat = aktieavance_par7_person_efter_kildeskatteloven,
     aktiv = AblPar19BInvesteringsselskabsaktiv(
         papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblIkkeOptagetTilHandel,

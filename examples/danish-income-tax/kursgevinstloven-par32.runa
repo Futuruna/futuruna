@@ -327,7 +327,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 } }
 | kgl_par32_abl_resultat_strukturelt_gyldigt(resultat: AktieavancebeskatningslovResultat, indkomstår: Heltal) -> resultat.indkomstår == indkomstår && resultat.bruttogevinst_kroner >= 0 && resultat.bruttotab_kroner >= 0 && resultat.tab_afskåret_kroner >= 0 && resultat.skattepligtig_gevinst_kroner >= 0 && resultat.fradragsberettiget_tab_kroner >= 0 && resultat.netto_efter_aktieavancebeskatningsloven_kroner == resultat.skattepligtig_gevinst_kroner - resultat.fradragsberettiget_tab_kroner
 | kgl_par32_supplerende_strukturelt_gyldigt(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> match kilde {
-    | KglPar32AblLagerÅrsresultat(resultat) -> resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtig == AblSkattepligtigEfterPar7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
+    | KglPar32AblLagerÅrsresultat(resultat) -> resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtsresultat.omfattet_af_par7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
     | KglPar32AblResultat(resultat) -> kgl_par32_abl_resultat_strukturelt_gyldigt(resultat, indkomstår)
 }
 | kgl_par32_supplerende_netto_efter_abl_kroner(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
