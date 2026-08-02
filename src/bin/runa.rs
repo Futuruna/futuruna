@@ -45919,6 +45919,29 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_rulescope_projects_structured_named_rule_fold_result() {
+        let source = r#"
+# FoldState(total: Int)
+
+# FoldStep(state: FoldState, item: Int) {
+    | result() -> FoldState(total = state.total + item)
+}
+
+| add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
+| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+
+# FoldCase(values: List(Int)) {
+    | final_state() -> foldl(values, FoldState(total = 0), add_item)
+    | total() -> final_state().total
+}
+
+@ print(show(FoldCase(values = [1, 2, 3]).total()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "8");
+    }
+
+    #[test]
     fn legacy_emit_rulescope_call_prefers_member_over_same_named_capture() {
         let source = r#"
 # Input(value: Int)

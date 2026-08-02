@@ -9128,6 +9128,8 @@ impl Interpreter {
                         body: self.functions[name].body.clone(),
                         env: env.clone(),
                     }
+                } else if self.has_callable_rule(name) {
+                    Value::Builtin(format!("rule:{}", name))
                 } else if self.constructors.contains_key(name) {
                     let (arity, positional) = self.constructors[name];
                     if arity == 0 {
@@ -9558,6 +9560,9 @@ impl Interpreter {
         // resume(val) — algebraic effect continuation (identity in tail-resumptive)
         if name == "__resume" {
             return args.into_iter().next().unwrap_or(Value::Unit);
+        }
+        if let Some(rule_name) = name.strip_prefix("rule:") {
+            return self.apply_rule_value(rule_name, args, env);
         }
         if name.starts_with("rulescope:") {
             let parts: Vec<&str> = name["rulescope:".len()..].split('/').collect();
@@ -12082,6 +12087,44 @@ impl Interpreter {
             .get(scope_name)
             .map(|def| !Self::rule_scope_matching_rules(def, method, arity).is_empty())
             .unwrap_or(false)
+    }
+
+    fn has_callable_rule(&self, name: &str) -> bool {
+        let active_rule = self
+            .active_rule_scopes
+            .last()
+            .and_then(|frame| self.rule_scopes.get(&frame.name))
+            .map(|def| {
+                def.body
+                    .iter()
+                    .filter_map(|stmt| match stmt {
+                        Stmt::Rule(Rule::Clause { head, .. })
+                        | Stmt::Rule(Rule::Default { head, .. })
+                        | Stmt::Rule(Rule::Exception { head, .. }) => Some(head),
+                        _ => None,
+                    })
+                    .any(|head| Self::expr_name_static(head) == name)
+            })
+            .unwrap_or(false);
+
+        active_rule || self.rules.iter().any(|(rule_name, _)| rule_name == name)
+    }
+
+    fn apply_rule_value(&mut self, name: &str, args: Vec<Value>, env: &Env) -> Value {
+        let mut arg_env = env.child();
+        let arg_exprs: Vec<Expr> = args
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let arg_name = format!("__rule_value_arg_{}", index);
+                arg_env.set(arg_name.clone(), value);
+                ExprKind::Var(arg_name).into()
+            })
+            .collect();
+
+        self.try_active_rule_scope_call(name, &arg_exprs, &arg_env)
+            .or_else(|| self.try_rule_call(name, &arg_exprs, &arg_env))
+            .unwrap_or(Value::Bool(false))
     }
 
     fn expr_name_static(expr: &Expr) -> String {
@@ -17089,6 +17132,43 @@ mod tests {
         assert_eq!(
             env.get("results").map(ToString::to_string),
             Some("[12, 14]".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_projects_structured_named_rule_fold_result() {
+        let source = r#"
+# FoldState(total: Int)
+# FoldResult(total: Int)
+
+# FoldStep(state: FoldState, item: Int) {
+    | result() -> FoldState(total = state.total + item)
+}
+
+| add_item(state: FoldState, item: Int) -> FoldStep(state, item).result()
+| exception double_second add_item(state: FoldState, item: Int) -> FoldStep(state, item + item).result() under item == 2
+
+# FoldCase(values: List(Int)) {
+    | final_state() -> foldl(values, FoldState(total = 0), add_item)
+    | result() -> FoldResult(total = final_state().total)
+}
+
+= result = FoldCase(values = [1, 2, 3]).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse RuleScope named-rule fold regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("FoldResult(total: 8)".to_string())
         );
     }
 
