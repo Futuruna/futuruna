@@ -380,6 +380,101 @@ fn personskatteloven_xlsx_boundary_round_trips_wage_earner_case() {
 }
 
 #[test]
+fn investment_classification_xlsx_expands_payloads_and_round_trips_template() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/investeringsklassifikation.calculate.runa");
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--entry",
+        "klassificer_investeringsselskab",
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+        let case_headers = workbook_headers(&mut workbook, "cases");
+        for expected in [
+            "meddelelse.$variant",
+            "meddelelse.AblPar19BOrdinærMeddelelse.virkningsår",
+            "meddelelse.AblPar19BNyoprettetMeddelelse.oprettelsesdato.år",
+            "oplysninger.$variant",
+        ] {
+            assert!(
+                case_headers.iter().any(|header| header == expected),
+                "missing typed investment input column {expected}"
+            );
+        }
+        let owner_headers = workbook_headers(&mut workbook, "aktivmasse_ejerposter");
+        for expected in [
+            "$variant",
+            "AblEjerpostIPar19B.ejerandel.ejede_kapitalenheder",
+            "AblEjerpostIPar21.klassifikationsinput.oplysninger.$variant",
+        ] {
+            assert!(
+                owner_headers.iter().any(|header| header == expected),
+                "missing typed owner input column {expected}"
+            );
+        }
+
+        let metadata = workbook
+            .worksheet_range("_columns")
+            .expect("column metadata");
+        let notification_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(2).map(ToString::to_string).as_deref()
+                    == Some("meddelelse.AblPar19BOrdinærMeddelelse.virkningsår")
+            })
+            .expect("notification payload metadata");
+        assert_eq!(
+            notification_row.get(5).map(ToString::to_string).as_deref(),
+            Some("integer")
+        );
+        assert!(notification_row
+            .get(8)
+            .map(ToString::to_string)
+            .expect("variant guard")
+            .contains("AblPar19BOrdinærMeddelelse"));
+    }
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--entry",
+        "klassificer_investeringsselskab",
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .is_empty());
+    assert_eq!(
+        result["results"][0]["result"]["effektiv_status"]["$variant"],
+        "AblObligationsbaseretInvesteringsselskabEfterPar19C"
+    );
+}
+
+#[test]
 fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() {
     let source_path = temp_path("runa");
     let input_path = temp_path("xlsx");
@@ -541,6 +636,189 @@ fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() 
                     .is_some_and(|message| message.contains(expected))
         }));
     }
+}
+
+#[test]
+fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    std::fs::write(
+        &source_path,
+        "# Child(name: String, age: Int)\n\
+# Selection = Empty | Fixed(amount: Int) | Pair(Int, String) | Family(label: String, children: List(Child))\n\
+# Input(selection: Selection, history: List(Selection))\n\
+@ calculate\n\
+> echo(input: Input) -> Input { input }\n",
+    )
+    .expect("write payload-variant calculation");
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+        assert_eq!(
+            workbook_headers(&mut workbook, "cases"),
+            [
+                "case_id",
+                "selection.$variant",
+                "selection.Fixed.amount",
+                "selection.Pair._0",
+                "selection.Pair._1",
+                "selection.Family.label",
+            ]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, "history"),
+            [
+                "case_id",
+                "item_id",
+                "position",
+                "$variant",
+                "Fixed.amount",
+                "Pair._0",
+                "Pair._1",
+                "Family.label",
+            ]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, "selection_Family_children"),
+            ["case_id", "item_id", "position", "name", "age"]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, "history_Family_children"),
+            ["case_id", "parent_id", "item_id", "position", "name", "age",]
+        );
+    }
+
+    edit_workbook(&input_path, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 1, Data::String("Family".to_string()));
+        set_workbook_cell(sheets, "cases", 1, 5, Data::String("primary".to_string()));
+        workbook_sheet_mut(sheets, "cases").push(vec![
+            Data::String("invalid".to_string()),
+            Data::String("Empty".to_string()),
+            Data::Int(9),
+        ]);
+        workbook_sheet_mut(sheets, "cases").push(vec![
+            Data::String("inactive-table".to_string()),
+            Data::String("Empty".to_string()),
+        ]);
+        workbook_sheet_mut(sheets, "selection_Family_children").extend([
+            vec![
+                Data::String("case-1".to_string()),
+                Data::String("root-child".to_string()),
+                Data::Int(1),
+                Data::String("Ada".to_string()),
+                Data::Int(7),
+            ],
+            vec![
+                Data::String("inactive-table".to_string()),
+                Data::String("inactive-child".to_string()),
+                Data::Int(1),
+                Data::String("No".to_string()),
+                Data::Int(1),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "history").extend([
+            vec![
+                Data::String("case-1".to_string()),
+                Data::String("history-fixed".to_string()),
+                Data::Int(1),
+                Data::String("Fixed".to_string()),
+                Data::Int(12),
+            ],
+            vec![
+                Data::String("case-1".to_string()),
+                Data::String("history-pair".to_string()),
+                Data::Int(2),
+                Data::String("Pair".to_string()),
+                Data::Empty,
+                Data::Int(7),
+                Data::String("seven".to_string()),
+            ],
+            vec![
+                Data::String("case-1".to_string()),
+                Data::String("history-family".to_string()),
+                Data::Int(3),
+                Data::String("Family".to_string()),
+                Data::Empty,
+                Data::Empty,
+                Data::Empty,
+                Data::String("secondary".to_string()),
+            ],
+        ]);
+        workbook_sheet_mut(sheets, "history_Family_children").push(vec![
+            Data::String("case-1".to_string()),
+            Data::String("history-family".to_string()),
+            Data::String("nested-child".to_string()),
+            Data::Int(1),
+            Data::String("Bo".to_string()),
+            Data::Int(10),
+        ]);
+    });
+
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    assert_eq!(result["results"].as_array().expect("results").len(), 1);
+    assert_eq!(result["results"][0]["case_id"], "case-1");
+    assert_eq!(
+        result["results"][0]["result"]["selection"]["$variant"],
+        "Family"
+    );
+    assert_eq!(
+        result["results"][0]["result"]["selection"]["children"][0]["name"],
+        "Ada"
+    );
+    assert_eq!(
+        result["results"][0]["result"]["history"][0],
+        serde_json::json!({ "$variant": "Fixed", "amount": 12 })
+    );
+    assert_eq!(
+        result["results"][0]["result"]["history"][1],
+        serde_json::json!({ "$variant": "Pair", "$values": [7, "seven"] })
+    );
+    assert_eq!(
+        result["results"][0]["result"]["history"][2]["children"][0]["name"],
+        "Bo"
+    );
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["case_id"] == "invalid"
+                && diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("input column is inactive"))
+        }));
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .iter()
+        .any(|diagnostic| {
+            diagnostic["case_id"] == "inactive-table"
+                && diagnostic["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("collection table is inactive"))
+        }));
 }
 
 #[test]
@@ -807,7 +1085,7 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v2"),
+        ("schema", "futuruna.calculate.xlsx.input.v3"),
         ("contract_schema", "futuruna.calculate.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),

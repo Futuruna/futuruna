@@ -171,20 +171,24 @@ impl CalculationContract {
         builder.flatten_value(
             "",
             "",
+            "",
             &self.input,
             &BTreeMap::new(),
             true,
             None,
+            &[],
             &mut BTreeSet::new(),
             &mut root_columns,
         );
         if root_columns.is_empty() && builder.tables.is_empty() {
             root_columns.push(CalculationColumn {
                 path: "input".to_string(),
+                value_path: "input".to_string(),
                 ty: self.input.clone(),
                 encoding: CalculationColumnEncoding::Json,
                 required: true,
                 choices: Vec::new(),
+                variant_guards: Vec::new(),
             });
         }
         builder.tables.sort_by(|left, right| {
@@ -276,6 +280,7 @@ pub enum CalculationColumnEncoding {
     String,
     Character,
     Enum,
+    Variant,
     Json,
 }
 
@@ -288,19 +293,28 @@ impl CalculationColumnEncoding {
             Self::String => "string",
             Self::Character => "character",
             Self::Enum => "enum",
+            Self::Variant => "variant",
             Self::Json => "json",
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationVariantGuard {
+    pub path: String,
+    pub variant: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationColumn {
     pub path: String,
+    pub value_path: String,
     #[serde(rename = "type")]
     pub ty: CalculationTypeRef,
     pub encoding: CalculationColumnEncoding,
     pub required: bool,
     pub choices: Vec<String>,
+    pub variant_guards: Vec<CalculationVariantGuard>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -331,6 +345,7 @@ pub struct CalculationCollectionTable {
     pub kind: CalculationCollectionKind,
     pub item_type: CalculationTypeRef,
     pub item_value_column: bool,
+    pub variant_guards: Vec<CalculationVariantGuard>,
     pub columns: Vec<CalculationColumn>,
 }
 
@@ -1954,46 +1969,53 @@ impl<'a> CalculationLayoutBuilder<'a> {
         &mut self,
         column_path: &str,
         absolute_path: &str,
+        value_path: &str,
         ty: &CalculationTypeRef,
         substitutions: &BTreeMap<String, CalculationTypeRef>,
         required: bool,
         parent_table: Option<&str>,
+        variant_guards: &[CalculationVariantGuard],
         active: &mut BTreeSet<String>,
         columns: &mut Vec<CalculationColumn>,
     ) {
         let resolved = substitute_contract_type(ty, substitutions);
         match &resolved {
             CalculationTypeRef::List { item } => self.register_collection(
-                column_path,
                 absolute_path,
+                value_path,
                 CalculationCollectionKind::List,
                 item,
                 parent_table,
+                variant_guards,
                 active,
             ),
             CalculationTypeRef::Map { key, value } if is_string_type(key) => self
                 .register_collection(
-                    column_path,
                     absolute_path,
+                    value_path,
                     CalculationCollectionKind::Map,
                     value,
                     parent_table,
+                    variant_guards,
                     active,
                 ),
             CalculationTypeRef::Set { item } => self.register_collection(
-                column_path,
                 absolute_path,
+                value_path,
                 CalculationCollectionKind::Set,
                 item,
                 parent_table,
+                variant_guards,
                 active,
             ),
             CalculationTypeRef::Primitive { name } => {
                 columns.push(scalar_column(
                     layout_column_path(column_path, parent_table),
+                    normalized_value_path(value_path),
                     resolved.clone(),
                     name,
                     required,
+                    variant_guards,
                 ));
             }
             CalculationTypeRef::Optional { item } => {
@@ -2003,10 +2025,12 @@ impl<'a> CalculationLayoutBuilder<'a> {
                     self.flatten_value(
                         column_path,
                         absolute_path,
+                        value_path,
                         &item,
                         substitutions,
                         false,
                         parent_table,
+                        variant_guards,
                         active,
                         columns,
                     );
@@ -2017,8 +2041,10 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 } else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_value_path(value_path),
                         resolved,
                         false,
+                        variant_guards,
                     ));
                 }
             }
@@ -2026,16 +2052,20 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 let Some(definition) = self.contract.definition(name) else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_value_path(value_path),
                         resolved,
                         required,
+                        variant_guards,
                     ));
                     return;
                 };
                 if !active.insert(name.clone()) {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_value_path(value_path),
                         resolved,
                         required,
+                        variant_guards,
                     ));
                     return;
                 }
@@ -2046,21 +2076,25 @@ impl<'a> CalculationLayoutBuilder<'a> {
                         self.flatten_value(
                             &joined_column_path(column_path, &field.name),
                             &joined_column_path(absolute_path, &field.name),
+                            &joined_column_path(value_path, &field.name),
                             &field.ty,
                             &local,
                             !matches!(field_ty, CalculationTypeRef::Optional { .. }),
                             parent_table,
+                            variant_guards,
                             active,
                             columns,
                         );
                     }
-                } else if definition
-                    .variants
-                    .iter()
-                    .all(|variant| variant.fields.is_empty())
+                } else if !definition.variants.is_empty()
+                    && definition
+                        .variants
+                        .iter()
+                        .all(|variant| variant.fields.is_empty())
                 {
                     columns.push(CalculationColumn {
                         path: layout_column_path(column_path, parent_table),
+                        value_path: normalized_value_path(value_path),
                         ty: resolved.clone(),
                         encoding: CalculationColumnEncoding::Enum,
                         required,
@@ -2069,34 +2103,90 @@ impl<'a> CalculationLayoutBuilder<'a> {
                             .iter()
                             .map(|variant| variant.name.clone())
                             .collect(),
+                        variant_guards: variant_guards.to_vec(),
                     });
+                } else if !definition.variants.is_empty() {
+                    let discriminator_path = joined_column_path(column_path, "$variant");
+                    let discriminator_value_path = joined_column_path(value_path, "$variant");
+                    columns.push(CalculationColumn {
+                        path: layout_column_path(&discriminator_path, parent_table),
+                        value_path: normalized_value_path(&discriminator_value_path),
+                        ty: resolved.clone(),
+                        encoding: CalculationColumnEncoding::Variant,
+                        required,
+                        choices: definition
+                            .variants
+                            .iter()
+                            .map(|variant| variant.name.clone())
+                            .collect(),
+                        variant_guards: variant_guards.to_vec(),
+                    });
+
+                    for variant in &definition.variants {
+                        let mut guards = variant_guards.to_vec();
+                        guards.push(CalculationVariantGuard {
+                            path: normalized_value_path(value_path),
+                            variant: variant.name.clone(),
+                        });
+                        let variant_column_path = joined_column_path(column_path, &variant.name);
+                        let variant_absolute_path =
+                            joined_column_path(absolute_path, &variant.name);
+                        for (index, field) in variant.fields.iter().enumerate() {
+                            let field_ty = substitute_contract_type(&field.ty, &local);
+                            let field_value_path = if variant.positional {
+                                joined_column_path(
+                                    &joined_column_path(value_path, "$values"),
+                                    &index.to_string(),
+                                )
+                            } else {
+                                joined_column_path(value_path, &field.name)
+                            };
+                            self.flatten_value(
+                                &joined_column_path(&variant_column_path, &field.name),
+                                &joined_column_path(&variant_absolute_path, &field.name),
+                                &field_value_path,
+                                &field.ty,
+                                &local,
+                                !matches!(field_ty, CalculationTypeRef::Optional { .. }),
+                                parent_table,
+                                &guards,
+                                active,
+                                columns,
+                            );
+                        }
+                    }
                 } else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_value_path(value_path),
                         resolved.clone(),
                         required,
+                        variant_guards,
                     ));
                 }
                 active.remove(name);
             }
             _ => columns.push(json_column(
                 &layout_column_path(column_path, parent_table),
+                &normalized_value_path(value_path),
                 resolved,
                 required,
+                variant_guards,
             )),
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn register_collection(
         &mut self,
-        column_path: &str,
         absolute_path: &str,
+        value_path: &str,
         kind: CalculationCollectionKind,
         item_type: &CalculationTypeRef,
         parent_table: Option<&str>,
+        variant_guards: &[CalculationVariantGuard],
         active: &mut BTreeSet<String>,
     ) {
-        let is_root_collection = absolute_path.is_empty() && parent_table.is_none();
         let path = if absolute_path.is_empty() {
             match parent_table {
                 Some(parent) => joined_column_path(parent, "items"),
@@ -2120,10 +2210,12 @@ impl<'a> CalculationLayoutBuilder<'a> {
         self.flatten_value(
             "",
             &item_absolute_path,
+            "",
             &item_type,
             &BTreeMap::new(),
             true,
             Some(&path),
+            &[],
             active,
             &mut columns,
         );
@@ -2132,14 +2224,11 @@ impl<'a> CalculationLayoutBuilder<'a> {
             path: path.clone(),
             sheet,
             parent_path: parent_table.map(str::to_string),
-            attach_path: match parent_table {
-                Some(_) => column_path.to_string(),
-                None if is_root_collection => "input".to_string(),
-                None => path,
-            },
+            attach_path: normalized_value_path(value_path),
             kind,
             item_type,
             item_value_column,
+            variant_guards: variant_guards.to_vec(),
             columns,
         });
     }
@@ -2182,12 +2271,15 @@ impl<'a> CalculationLayoutBuilder<'a> {
 
 fn scalar_column(
     path: String,
+    value_path: String,
     ty: CalculationTypeRef,
     primitive: &str,
     required: bool,
+    variant_guards: &[CalculationVariantGuard],
 ) -> CalculationColumn {
     CalculationColumn {
         path,
+        value_path,
         ty,
         encoding: match primitive {
             "Int" => CalculationColumnEncoding::Integer,
@@ -2202,6 +2294,7 @@ fn scalar_column(
         } else {
             Vec::new()
         },
+        variant_guards: variant_guards.to_vec(),
     }
 }
 
@@ -2229,10 +2322,14 @@ fn collection_item_uses_value_column(
             if active.contains(name) {
                 return true;
             }
-            contract
-                .definition(name)
-                .and_then(product_variant)
-                .is_none()
+            contract.definition(name).is_none_or(|definition| {
+                product_variant(definition).is_none()
+                    && (definition.variants.is_empty()
+                        || definition
+                            .variants
+                            .iter()
+                            .all(|variant| variant.fields.is_empty()))
+            })
         }
         CalculationTypeRef::List { .. } | CalculationTypeRef::Set { .. } => false,
         CalculationTypeRef::Map { key, .. } => !is_string_type(key),
@@ -2268,13 +2365,21 @@ fn is_scalar_column_type(ty: &CalculationTypeRef, contract: &CalculationContract
     }
 }
 
-fn json_column(path: &str, ty: CalculationTypeRef, required: bool) -> CalculationColumn {
+fn json_column(
+    path: &str,
+    value_path: &str,
+    ty: CalculationTypeRef,
+    required: bool,
+    variant_guards: &[CalculationVariantGuard],
+) -> CalculationColumn {
     CalculationColumn {
         path: normalized_column_path(path),
+        value_path: normalized_value_path(value_path),
         ty,
         encoding: CalculationColumnEncoding::Json,
         required,
         choices: Vec::new(),
+        variant_guards: variant_guards.to_vec(),
     }
 }
 
@@ -2294,7 +2399,18 @@ fn normalized_column_path(path: &str) -> String {
     }
 }
 
+fn normalized_value_path(path: &str) -> String {
+    if path.is_empty() {
+        "input".to_string()
+    } else {
+        path.to_string()
+    }
+}
+
 /// Set a dotted record path in a canonical JSON input tree.
+///
+/// Numeric segments address array elements. Calculation layouts use those
+/// segments for positional ADT payloads such as `$values.0`.
 pub fn set_calculation_input_path(
     root: &mut JsonValue,
     path: &str,
@@ -2308,23 +2424,53 @@ pub fn set_calculation_input_path(
         *root = JsonValue::Object(JsonMap::new());
     }
     let parts: Vec<&str> = path.split('.').collect();
-    let mut current = root;
-    for part in &parts[..parts.len().saturating_sub(1)] {
-        let object = current
-            .as_object_mut()
-            .ok_or_else(|| value_error(path, "column path crosses a non-object value"))?;
-        current = object
-            .entry((*part).to_string())
-            .or_insert_with(|| JsonValue::Object(JsonMap::new()));
-    }
-    let Some(last) = parts.last() else {
+    if parts.is_empty() || parts.iter().any(|part| part.is_empty()) {
         return Err(value_error(path, "empty input path"));
-    };
-    current
-        .as_object_mut()
-        .ok_or_else(|| value_error(path, "column path ends inside a non-object value"))?
-        .insert((*last).to_string(), value);
-    Ok(())
+    }
+    set_calculation_json_path(root, &parts, value, path)
+}
+
+fn set_calculation_json_path(
+    current: &mut JsonValue,
+    parts: &[&str],
+    value: JsonValue,
+    full_path: &str,
+) -> Result<(), CalculationValueError> {
+    if parts.is_empty() {
+        *current = value;
+        return Ok(());
+    }
+    if current.is_null() {
+        *current = if parts[0].parse::<usize>().is_ok() {
+            JsonValue::Array(Vec::new())
+        } else {
+            JsonValue::Object(JsonMap::new())
+        };
+    }
+    match current {
+        JsonValue::Object(object) => {
+            let child = object
+                .entry(parts[0].to_string())
+                .or_insert(JsonValue::Null);
+            set_calculation_json_path(child, &parts[1..], value, full_path)
+        }
+        JsonValue::Array(items) => {
+            let index = parts[0].parse::<usize>().map_err(|_| {
+                value_error(
+                    full_path,
+                    format!("array path segment `{}` is not an index", parts[0]),
+                )
+            })?;
+            if items.len() <= index {
+                items.resize(index + 1, JsonValue::Null);
+            }
+            set_calculation_json_path(&mut items[index], &parts[1..], value, full_path)
+        }
+        _ => Err(value_error(
+            full_path,
+            "column path crosses a non-object, non-array value",
+        )),
+    }
 }
 
 /// Validate envelope identity and case identifiers before adapter values run.

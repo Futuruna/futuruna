@@ -52,9 +52,10 @@ runa template model.calculate.runa --format xlsx --output cases.xlsx
 
 JSON is the canonical value model. TOML omits absent optional record fields.
 XLSX flattens nested named records into columns, gives booleans and nullary enums
-constrained choices, and puts each `List`, string-keyed `Map`, or `Set` field in
-a separate related worksheet. Integer template cells are text-formatted so all
-`i64` values remain exact.
+constrained choices, expands finite payload alternatives into a `$variant`
+choice plus typed variant-qualified columns, and puts each `List`, string-keyed
+`Map`, or `Set` field in a separate related worksheet. Integer template cells
+are text-formatted so all `i64` values remain exact.
 
 `cases` is the first visible worksheet and contains scalar fields for the named
 input record. Every collection row
@@ -63,8 +64,9 @@ use one-based `position`, map rows use `key`, and set rows have neither. Leave a
 collection sheet without matching rows to supply an empty collection. Hidden
 `_futuruna`, `_tables`, and `_columns` sheets record the contract fingerprint,
 generated topology, and column types; do not edit them. Optional composite fields
-and complex alternatives remain canonical JSON cells when they cannot be
-represented without ambiguity.
+and recursive or opaque leaves remain canonical JSON cells when they cannot be
+expanded to a finite unambiguous layout. Cells and child rows belonging to an
+inactive alternative are rejected.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes

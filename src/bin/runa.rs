@@ -680,7 +680,7 @@ fn main_inner() {
     }
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v2";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v3";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
 
 fn run_calculation_command(
@@ -1110,6 +1110,7 @@ fn write_calculation_xlsx_layout_metadata(
         "kind",
         "item_type",
         "item_value_column",
+        "active_when",
     ]
     .into_iter()
     .enumerate()
@@ -1125,8 +1126,13 @@ fn write_calculation_xlsx_layout_metadata(
         tables.write_string(row, 4, table.kind.as_str())?;
         tables.write_string(row, 5, table.item_type.display_name())?;
         tables.write_boolean(row, 6, table.item_value_column)?;
+        tables.write_string(
+            row,
+            7,
+            calculation_variant_guards_metadata(&table.variant_guards),
+        )?;
     }
-    for (column, width) in [28.0, 24.0, 28.0, 28.0, 12.0, 32.0, 20.0]
+    for (column, width) in [28.0, 24.0, 28.0, 28.0, 12.0, 32.0, 20.0, 48.0]
         .into_iter()
         .enumerate()
     {
@@ -1139,10 +1145,12 @@ fn write_calculation_xlsx_layout_metadata(
         "sheet",
         "table_path",
         "path",
+        "value_path",
         "type",
         "encoding",
         "required",
         "choices",
+        "active_when",
     ]
     .into_iter()
     .enumerate()
@@ -1166,7 +1174,7 @@ fn write_calculation_xlsx_layout_metadata(
             row += 1;
         }
     }
-    for (column, width) in [24.0, 28.0, 36.0, 32.0, 14.0, 12.0, 48.0]
+    for (column, width) in [24.0, 28.0, 36.0, 36.0, 32.0, 14.0, 12.0, 48.0, 48.0]
         .into_iter()
         .enumerate()
     {
@@ -1186,11 +1194,21 @@ fn write_calculation_xlsx_column_metadata(
     worksheet.write_string(row, 0, sheet)?;
     worksheet.write_string(row, 1, table_path)?;
     worksheet.write_string(row, 2, &column.path)?;
-    worksheet.write_string(row, 3, column.ty.display_name())?;
-    worksheet.write_string(row, 4, column.encoding.as_str())?;
-    worksheet.write_boolean(row, 5, column.required)?;
-    worksheet.write_string(row, 6, column.choices.join(" | "))?;
+    worksheet.write_string(row, 3, &column.value_path)?;
+    worksheet.write_string(row, 4, column.ty.display_name())?;
+    worksheet.write_string(row, 5, column.encoding.as_str())?;
+    worksheet.write_boolean(row, 6, column.required)?;
+    worksheet.write_string(row, 7, column.choices.join(" | "))?;
+    worksheet.write_string(
+        row,
+        8,
+        calculation_variant_guards_metadata(&column.variant_guards),
+    )?;
     Ok(())
+}
+
+fn calculation_variant_guards_metadata(guards: &[calculate::CalculationVariantGuard]) -> String {
+    serde_json::to_string(guards).expect("calculation variant guards are JSON serializable")
 }
 
 fn write_calculation_xlsx_cases(
@@ -1217,8 +1235,12 @@ fn write_calculation_xlsx_cases(
         let row = index as u32 + 1;
         worksheet.write_string_with_format(row, 0, &case.case_id, &text_format)?;
         for (index, column) in columns.iter().enumerate() {
-            let value = calculation_value_at_column_path(&case.input, &column.path)
-                .unwrap_or(&serde_json::Value::Null);
+            let value = if calculation_variant_guards_match(&case.input, &column.variant_guards) {
+                calculation_value_at_column_path(&case.input, &column.value_path)
+                    .unwrap_or(&serde_json::Value::Null)
+            } else {
+                &serde_json::Value::Null
+            };
             write_calculation_xlsx_value(
                 worksheet,
                 row,
@@ -1335,11 +1357,11 @@ fn write_calculation_xlsx_collection_sheet(
             calculate::CalculationCollectionKind::Set => {}
         }
         for column in &table.columns {
-            let value = if table.item_value_column && column.path == "value" {
-                &item.value
-            } else {
-                calculation_value_at_column_path(&item.value, &column.path)
+            let value = if calculation_variant_guards_match(&item.value, &column.variant_guards) {
+                calculation_value_at_column_path(&item.value, &column.value_path)
                     .unwrap_or(&serde_json::Value::Null)
+            } else {
+                &serde_json::Value::Null
             };
             write_calculation_xlsx_value(
                 worksheet,
@@ -1371,6 +1393,9 @@ fn calculation_xlsx_collection_rows(
             .iter()
             .filter(|table| table.parent_path.is_none())
         {
+            if !calculation_variant_guards_match(&case.input, &table.variant_guards) {
+                continue;
+            }
             let value = calculation_value_at_column_path(&case.input, &table.attach_path)
                 .ok_or_else(|| {
                     format!(
@@ -1483,6 +1508,9 @@ fn append_calculation_xlsx_collection_item(
         .iter()
         .filter(|child| child.parent_path.as_deref() == Some(table.path.as_str()))
     {
+        if !calculation_variant_guards_match(value, &child.variant_guards) {
+            continue;
+        }
         let child_value = if child.attach_path.is_empty() {
             value
         } else {
@@ -1512,7 +1540,8 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
         calculate::CalculationColumnEncoding::Float => 16.0,
         calculate::CalculationColumnEncoding::Boolean => 12.0,
         calculate::CalculationColumnEncoding::Character => 10.0,
-        calculate::CalculationColumnEncoding::Enum => 24.0,
+        calculate::CalculationColumnEncoding::Enum
+        | calculate::CalculationColumnEncoding::Variant => 24.0,
         calculate::CalculationColumnEncoding::Json => 48.0,
         calculate::CalculationColumnEncoding::String => 28.0,
     };
@@ -1534,9 +1563,41 @@ fn calculation_value_at_column_path<'a>(
     }
     let mut value = root;
     for part in path.split('.') {
-        value = value.as_object()?.get(part)?;
+        value = match value {
+            serde_json::Value::Object(object) => object.get(part)?,
+            serde_json::Value::Array(items) => items.get(part.parse::<usize>().ok()?)?,
+            _ => return None,
+        };
     }
     Some(value)
+}
+
+fn calculation_variant_guards_match(
+    root: &serde_json::Value,
+    guards: &[calculate::CalculationVariantGuard],
+) -> bool {
+    guards.iter().all(|guard| {
+        calculation_value_at_column_path(root, &guard.path)
+            .and_then(serde_json::Value::as_object)
+            .and_then(|object| object.get("$variant"))
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|variant| variant == guard.variant)
+    })
+}
+
+fn calculation_variant_guards_description(guards: &[calculate::CalculationVariantGuard]) -> String {
+    guards
+        .iter()
+        .map(|guard| {
+            let path = if guard.path == "input" {
+                "input"
+            } else {
+                guard.path.as_str()
+            };
+            format!("`{}` is `{}`", path, guard.variant)
+        })
+        .collect::<Vec<_>>()
+        .join(" and ")
 }
 
 fn write_calculation_xlsx_value(
@@ -1580,6 +1641,11 @@ fn write_calculation_xlsx_value(
                 .and_then(|object| object.get("$variant"))
                 .and_then(serde_json::Value::as_str)
             {
+                worksheet.write_string(row, column_index, value)?;
+            }
+        }
+        calculate::CalculationColumnEncoding::Variant => {
+            if let Some(value) = value.as_str() {
                 worksheet.write_string(row, column_index, value)?;
             }
         }
@@ -1747,6 +1813,20 @@ fn read_calculation_xlsx(
         let mut row_valid = true;
         for (index, column) in layout.root_columns.iter().enumerate() {
             let cell = row.get(index + 1).unwrap_or(&Data::Empty);
+            if !calculation_variant_guards_match(&input, &column.variant_guards) {
+                if !matches!(cell, Data::Empty) {
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id: case_id.clone(),
+                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 2),
+                        message: format!(
+                            "input column is inactive unless {}",
+                            calculation_variant_guards_description(&column.variant_guards)
+                        ),
+                    });
+                    row_valid = false;
+                }
+                continue;
+            }
             let value = match calculation_json_from_cell(cell, column) {
                 Ok(value) => value,
                 Err(message) => {
@@ -1760,7 +1840,7 @@ fn read_calculation_xlsx(
                 }
             };
             if let Err(error) =
-                calculate::set_calculation_input_path(&mut input, &column.path, value)
+                calculate::set_calculation_input_path(&mut input, &column.value_path, value)
             {
                 diagnostics.push(calculate::CalculationCaseDiagnostic {
                     case_id: case_id.clone(),
@@ -1776,7 +1856,7 @@ fn read_calculation_xlsx(
     }
 
     let known_case_ids: BTreeSet<String> = cases.iter().map(|case| case.case_id.clone()).collect();
-    let mut collection_rows = BTreeMap::new();
+    let mut collection_rows: BTreeMap<String, Vec<CalculationXlsxCollectionRow>> = BTreeMap::new();
     let mut item_ids_by_table: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     for table in &layout.collection_tables {
         let range = workbook
@@ -1858,6 +1938,35 @@ fn read_calculation_xlsx(
             } else {
                 None
             };
+
+            let activation_root = match (&table.parent_path, parent_id.as_deref()) {
+                (Some(parent_path), Some(parent_id)) => collection_rows
+                    .get(parent_path)
+                    .into_iter()
+                    .flatten()
+                    .find(|parent| {
+                        parent.case_id == case_id && parent.item_id.as_str() == parent_id
+                    })
+                    .map(|parent| &parent.value),
+                (None, _) => cases
+                    .iter()
+                    .find(|case| case.case_id == case_id)
+                    .map(|case| &case.input),
+                _ => None,
+            };
+            if activation_root
+                .is_some_and(|root| !calculation_variant_guards_match(root, &table.variant_guards))
+            {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: calculation_xlsx_cell_path(&table.sheet, 0, excel_row),
+                    message: format!(
+                        "collection table is inactive unless {}",
+                        calculation_variant_guards_description(&table.variant_guards)
+                    ),
+                });
+                row_valid = false;
+            }
 
             let item_id = row
                 .get(column_index)
@@ -1954,13 +2063,28 @@ fn read_calculation_xlsx(
             };
             for column in &table.columns {
                 let cell = row.get(column_index).unwrap_or(&Data::Empty);
+                if !calculation_variant_guards_match(&value, &column.variant_guards) {
+                    if !matches!(cell, Data::Empty) {
+                        diagnostics.push(calculate::CalculationCaseDiagnostic {
+                            case_id: case_id.clone(),
+                            path: calculation_xlsx_cell_path(&table.sheet, column_index, excel_row),
+                            message: format!(
+                                "input column is inactive unless {}",
+                                calculation_variant_guards_description(&column.variant_guards)
+                            ),
+                        });
+                        row_valid = false;
+                    }
+                    column_index += 1;
+                    continue;
+                }
                 match calculation_json_from_cell(cell, column) {
                     Ok(parsed) => {
-                        if table.item_value_column && column.path == "value" {
-                            value = parsed;
-                        } else if let Err(error) =
-                            calculate::set_calculation_input_path(&mut value, &column.path, parsed)
-                        {
+                        if let Err(error) = calculate::set_calculation_input_path(
+                            &mut value,
+                            &column.value_path,
+                            parsed,
+                        ) {
                             diagnostics.push(calculate::CalculationCaseDiagnostic {
                                 case_id: case_id.clone(),
                                 path: error.path,
@@ -2012,6 +2136,9 @@ fn read_calculation_xlsx(
             .iter()
             .filter(|table| table.parent_path.is_none())
         {
+            if !calculation_variant_guards_match(&case.input, &table.variant_guards) {
+                continue;
+            }
             let collection = match build_calculation_xlsx_collection(
                 &layout,
                 table,
@@ -2070,6 +2197,7 @@ fn calculation_xlsx_expected_tables_metadata(
         "kind".to_string(),
         "item_type".to_string(),
         "item_value_column".to_string(),
+        "active_when".to_string(),
     ]];
     rows.extend(layout.collection_tables.iter().map(|table| {
         vec![
@@ -2080,6 +2208,7 @@ fn calculation_xlsx_expected_tables_metadata(
             table.kind.as_str().to_string(),
             table.item_type.display_name(),
             table.item_value_column.to_string(),
+            calculation_variant_guards_metadata(&table.variant_guards),
         ]
     }));
     rows
@@ -2092,10 +2221,12 @@ fn calculation_xlsx_expected_columns_metadata(
         "sheet".to_string(),
         "table_path".to_string(),
         "path".to_string(),
+        "value_path".to_string(),
         "type".to_string(),
         "encoding".to_string(),
         "required".to_string(),
         "choices".to_string(),
+        "active_when".to_string(),
     ]];
     rows.extend(
         layout
@@ -2122,10 +2253,12 @@ fn calculation_xlsx_expected_column_row(
         sheet.to_string(),
         table_path.to_string(),
         column.path.clone(),
+        column.value_path.clone(),
         column.ty.display_name(),
         column.encoding.as_str().to_string(),
         column.required.to_string(),
         column.choices.join(" | "),
+        calculation_variant_guards_metadata(&column.variant_guards),
     ]
 }
 
@@ -2219,6 +2352,9 @@ fn build_calculation_xlsx_collection(
             .iter()
             .filter(|child| child.parent_path.as_deref() == Some(table.path.as_str()))
         {
+            if !calculation_variant_guards_match(&value, &child.variant_guards) {
+                continue;
+            }
             let collection = build_calculation_xlsx_collection(
                 layout,
                 child,
@@ -2344,6 +2480,20 @@ fn calculation_json_from_cell(
                 ));
             }
             Ok(serde_json::json!({ "$variant": value }))
+        }
+        calculate::CalculationColumnEncoding::Variant => {
+            let value = match cell {
+                Data::String(value) => value,
+                _ => return Err("expected a variant choice".to_string()),
+            };
+            if !column.choices.contains(value) {
+                return Err(format!(
+                    "unknown choice `{}`; expected {}",
+                    value,
+                    column.choices.join(", ")
+                ));
+            }
+            Ok(serde_json::Value::String(value.clone()))
         }
         calculate::CalculationColumnEncoding::Json => {
             let Data::String(value) = cell else {
