@@ -46,38 +46,38 @@ og tab ved afståelse af aktier m.v.:
 1) Udlodning af likvidationsprovenu foretaget i det kalenderår, hvori selskabet
 endeligt opløses, medmindre udlodningen er omfattet af stk. 2, nr. 2, eller en
 af følgende betingelser er opfyldt:
-  a) Det modtagende selskab ejer mindst 10 pct. af aktiekapitalen i det selskab,
-  der likvideres, og udlodningen omfattes af selskabsskattelovens § 2, stk. 1,
-  litra c.
-  b) Det modtagende selskab ejer mindre end 10 pct. af aktiekapitalen, er
-  skattepligtigt af udbytter, jf. selskabsskattelovens § 2, stk. 1, litra c, og
-  har bestemmende indflydelse i det selskab, der likvideres, jf. § 2. Dette
-  gælder dog ikke, hvis det modtagende selskab er hjemmehørende i en stat, der
-  er medlem af EU eller EØS, og udbyttebeskatningen skulle være frafaldet eller
-  nedsat efter bestemmelserne i direktiv 2011/96/EU eller en
-  dobbeltbeskatningsoverenskomst med den pågældende stat, hvis der havde været
-  tale om datterselskabsaktier.
-  c) Den modtagende fysiske person er hjemmehørende uden for EU/EØS og har
-  bestemmende indflydelse i det selskab, der likvideres, jf. § 2.
-  d) Det modtagende selskab ejer skattefri porteføljeaktier, jf.
-  aktieavancebeskatningslovens § 4 C, i det selskab, der likvideres, og er
-  skattepligtigt af udbytter, jf. selskabsskattelovens § 2, stk. 1, litra c,
-  som beskattes med den i selskabsskattelovens § 2, stk. 8, 2. pkt., nævnte sats
-  eller den sats, der fremgår af en relevant dobbeltbeskatningsoverenskomst. Det
-  er en forudsætning, at mindst 50 pct. af aktiverne i det selskab, der
-  likvideres, består af direkte eller indirekte ejede datterselskabs- eller
-  koncernselskabsaktier, eller at der inden for de seneste 3 år forud for
-  likvidationen er foretaget en overdragelse af sådanne aktier til selskabets
-  direkte eller indirekte aktionærer eller til et koncernforbundet selskab, jf.
-  § 2, stk. 3.
+a) Det modtagende selskab ejer mindst 10 pct. af aktiekapitalen i det selskab,
+der likvideres, og udlodningen omfattes af selskabsskattelovens § 2, stk. 1,
+litra c.
+b) Det modtagende selskab ejer mindre end 10 pct. af aktiekapitalen, er
+skattepligtigt af udbytter, jf. selskabsskattelovens § 2, stk. 1, litra c, og
+har bestemmende indflydelse i det selskab, der likvideres, jf. § 2. Dette
+gælder dog ikke, hvis det modtagende selskab er hjemmehørende i en stat, der
+er medlem af EU eller EØS, og udbyttebeskatningen skulle være frafaldet eller
+nedsat efter bestemmelserne i direktiv 2011/96/EU eller en
+dobbeltbeskatningsoverenskomst med den pågældende stat, hvis der havde været
+tale om datterselskabsaktier.
+c) Den modtagende fysiske person er hjemmehørende uden for EU/EØS og har
+bestemmende indflydelse i det selskab, der likvideres, jf. § 2.
+d) Det modtagende selskab ejer skattefri porteføljeaktier, jf.
+aktieavancebeskatningslovens § 4 C, i det selskab, der likvideres, og er
+skattepligtigt af udbytter, jf. selskabsskattelovens § 2, stk. 1, litra c,
+som beskattes med den i selskabsskattelovens § 2, stk. 8, 2. pkt., nævnte sats
+eller den sats, der fremgår af en relevant dobbeltbeskatningsoverenskomst. Det
+er en forudsætning, at mindst 50 pct. af aktiverne i det selskab, der
+likvideres, består af direkte eller indirekte ejede datterselskabs- eller
+koncernselskabsaktier, eller at der inden for de seneste 3 år forud for
+likvidationen er foretaget en overdragelse af sådanne aktier til selskabets
+direkte eller indirekte aktionærer eller til et koncernforbundet selskab, jf.
+§ 2, stk. 3.
 2) Udlodning efter tilladelse fra told- og skatteforvaltningen, for så vidt
 angår:
-  a) De beløb eller en del af disse, der udbetales ved udlodning af
-  likvidationsprovenu fra aktieselskaber og andelsselskaber forud for det
-  kalenderår, hvori selskabet endeligt opløses, når særlige omstændigheder
-  taler derfor. Der kan ikke gives tilladelse til modtagere som nævnt i nr. 1.
-  b) Beløb, der udloddes i forbindelse med en nedsættelse af aktiekapitalen
-  eller andelskapitalen i et selskab, der ikke er under likvidation.
+a) De beløb eller en del af disse, der udbetales ved udlodning af
+likvidationsprovenu fra aktieselskaber og andelsselskaber forud for det
+kalenderår, hvori selskabet endeligt opløses, når særlige omstændigheder
+taler derfor. Der kan ikke gives tilladelse til modtagere som nævnt i nr. 1.
+b) Beløb, der udloddes i forbindelse med en nedsættelse af aktiekapitalen
+eller andelskapitalen i et selskab, der ikke er under likvidation.
 3) Udlodning som nævnt i nr. 2, hvor aktierne i det udbyttegivende selskab er
 omfattet af aktieavancebeskatningslovens § 17 og det modtagende selskab
 opfylder betingelserne for at modtage skattefrit udbytte efter
@@ -1242,7 +1242,7 @@ indgået den 1. januar 2026 eller senere.
 # Ligningslov12BHenstandsfinansiering(kapitaliseret_værdi_henført_til_aktiv_kroner: Heltal, afståelsessum_for_aktiv_kroner: Heltal)
 # Ligningslov12BHenstandSkatteberegning(skat_med_fortjeneste_kroner: Heltal, skat_uden_fortjeneste_kroner: Heltal, arbejdsmarkedsbidrag_hjemmel: Ligningslov12BArbejdsmarkedsbidragHjemmel, arbejdsmarkedsbidrag_med_fortjeneste_kroner: Heltal, arbejdsmarkedsbidrag_uden_fortjeneste_kroner: Heltal, kommunal_andel_af_skatten_kroner: Heltal)
 # Ligningslov12BHenstandBegæring(aftale: Ligningslov12BAftale, finansiering: Ligningslov12BHenstandsfinansiering, begæring_indsendt_rettidigt: Boolsk, skatteberegning: Ligningslov12BHenstandSkatteberegning)
-# Ligningslov12BHenstandBevillingResultat(regime: Ligningslov12BRegime, beregning_gyldig: Boolsk, finansiering_gyldig: Boolsk, betingelser_opfyldt: Boolsk, arbejdsmarkedsbidrag_hjemmel: Ligningslov12BArbejdsmarkedsbidragHjemmel, kapitaliseret_værdi_af_løbende_ydelse_kroner: Heltal, kapitaliseret_værdi_henført_til_aktiv_kroner: Heltal, afståelsessum_for_aktiv_kroner: Heltal, forhold_tæller_kroner: Heltal, forhold_nævner_kroner: Heltal, skat_beregnet_på_fortjenesten_kroner: Heltal, arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner: Heltal, henstand_med_skat_kroner: Heltal, henstand_med_arbejdsmarkedsbidrag_kroner: Heltal, samlet_henstandsbeløb_kroner: Heltal, henstand_fradrages_i_slutskat_kroner: Heltal, kommunal_andel_afregnes_i_indkomståret_kroner: Heltal, lovbestemt_syvårsgrænse: Boolsk)
+# Ligningslov12BHenstandBevillingResultat(aftaledato: Ligningslov12BDato, regime: Ligningslov12BRegime, beregning_gyldig: Boolsk, finansiering_gyldig: Boolsk, betingelser_opfyldt: Boolsk, arbejdsmarkedsbidrag_hjemmel: Ligningslov12BArbejdsmarkedsbidragHjemmel, kapitaliseret_værdi_af_løbende_ydelse_kroner: Heltal, kapitaliseret_værdi_henført_til_aktiv_kroner: Heltal, afståelsessum_for_aktiv_kroner: Heltal, forhold_tæller_kroner: Heltal, forhold_nævner_kroner: Heltal, skat_beregnet_på_fortjenesten_kroner: Heltal, arbejdsmarkedsbidrag_beregnet_på_fortjenesten_kroner: Heltal, henstand_med_skat_kroner: Heltal, henstand_med_arbejdsmarkedsbidrag_kroner: Heltal, samlet_henstandsbeløb_kroner: Heltal, henstand_fradrages_i_slutskat_kroner: Heltal, kommunal_andel_afregnes_i_indkomståret_kroner: Heltal, lovbestemt_syvårsgrænse: Boolsk)
 
 # Ligningslov12BHenstandBevillingSag(input: Ligningslov12BHenstandBegæring) {
     | regime() -> ll12b_regime(input.aftale.aftaledato)
@@ -1264,6 +1264,7 @@ indgået den 1. januar 2026 eller senere.
     | samlet_henstandsbeløb_kroner() -> henstand_med_skat_kroner() + henstand_med_arbejdsmarkedsbidrag_kroner()
     | kommunal_andel_afregnes_i_indkomståret_kroner() -> hvis betingelser_opfyldt() { input.skatteberegning.kommunal_andel_af_skatten_kroner } ellers { 0 }
     | resultat() -> Ligningslov12BHenstandBevillingResultat(
+        aftaledato = input.aftale.aftaledato,
         regime = regime(),
         beregning_gyldig = beregning_gyldig(),
         finansiering_gyldig = finansiering_gyldig(),
@@ -1287,64 +1288,176 @@ indgået den 1. januar 2026 eller senere.
 | ligningslov12b_henstand_bevilling_sag(input: Ligningslov12BHenstandBegæring) -> Ligningslov12BHenstandBevillingSag(input)
 | ligningslov12b_henstand_bevilling(input: Ligningslov12BHenstandBegæring) -> ligningslov12b_henstand_bevilling_sag(input).resultat()
 
-# Ligningslov12BHenstandPosition(bevilling: Ligningslov12BHenstandBevillingResultat, resterende_skat_kroner: Heltal, resterende_arbejdsmarkedsbidrag_kroner: Heltal, konto_for_opsparet_overskud_kroner: Heltal)
-# Ligningslov12BHenstandRealisering = Ll12BIngenHenstandsrealisering | Ll12BHenstandYdelseModtaget(beløb_kroner: Heltal) | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner: Heltal)
-# Ligningslov12BHenstandÅrsinput(indkomstår: Heltal, position: Ligningslov12BHenstandPosition, realisering: Ligningslov12BHenstandRealisering, betalt_skatteafdrag_kroner: Heltal, betalt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, påbegyndte_forsinkelsesmåneder: Heltal, antal_erindringsskrivelser: Heltal, grov_og_gentagen_misligholdelse: Boolsk, påkrav_fremsat: Boolsk, løbende_ydelser_endeligt_ophørt: Boolsk, saldo_efter_realisering_kroner: Heltal, anvender_virksomhedsordningen: Boolsk, opsparet_overskud_henført_til_ubetalt_henstand_kroner: Heltal)
-# Ligningslov12BHenstandÅrsresultat(indkomstår: Heltal, realisering: Ligningslov12BHenstandRealisering, input_gyldigt: Boolsk, skatteafdrag_forfalder_kroner: Heltal, arbejdsmarkedsbidragsafdrag_forfalder_kroner: Heltal, samlet_afdrag_forfalder_kroner: Heltal, ubetalt_forfaldent_afdrag_kroner: Heltal, forfaldsdag_i_næste_måned: Heltal, sidste_rettidige_betalingsdag_i_forfaldsmåneden: Heltal, månedlig_forsinkelsesrente_basispoint: Heltal, ikke_fradragsberettiget_rente_kroner: Heltal, rykkergebyr_kroner: Heltal, resterende_henstandsbeløb_forfalder_efter_påkrav_kroner: Heltal, frafaldet_henstandsbeløb_kroner: Heltal, konto_for_opsparet_overskud_reduktion_kroner: Heltal, position_efter: Ligningslov12BHenstandPosition)
+# Ligningslov12BHenstandStatus = Ll12BHenstandAktiv | Ll12BHenstandAfviklet | Ll12BHenstandMisligholdt | Ll12BHenstandFrafaldet
+# Ligningslov12BHenstandsafdragArt = Ll12BForholdsmæssigtRealiseringsafdrag | Ll12BRestForfaldetEfterMisligholdelse | Ll12BRestFrafaldetVedOphør
+# Ligningslov12BHenstandsafdragStatus = Ll12BAfdragAfventerForfald | Ll12BAfdragForfaldent | Ll12BAfdragBetalt | Ll12BAfdragFrafaldet
+# Ligningslov12BHenstandsafdrag(identifikation: Tekst, art: Ligningslov12BHenstandsafdragArt, realisationsgrundlag_kroner: Heltal, realisationsdato: Ligningslov12BDato, forfaldsdato: Ligningslov12BDato, sidste_rettidige_betalingsdato: Ligningslov12BDato, oprindeligt_skatteafdrag_kroner: Heltal, oprindeligt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, ubetalt_skatteafdrag_kroner: Heltal, ubetalt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, status: Ligningslov12BHenstandsafdragStatus, sidst_beregnede_rentemånedsindeks: Heltal, beregnet_rente_før_minimum_kroner: Heltal, pålignet_ikke_fradragsberettiget_rente_kroner: Heltal, antal_erindringsskrivelser: Heltal)
+# Ligningslov12BHenstandPosition(bevilling: Ligningslov12BHenstandBevillingResultat, status: Ligningslov12BHenstandStatus, opgjort_pr: Ligningslov12BDato, aktiv_henstand_skat_kroner: Heltal, aktiv_henstand_arbejdsmarkedsbidrag_kroner: Heltal, afdrag: List(Ligningslov12BHenstandsafdrag), konto_for_opsparet_overskud_kroner: Heltal)
+# Ligningslov12BHenstandHændelse = Ll12BHenstandYdelseModtaget(afdragsidentifikation: Tekst, realisationsdato: Ligningslov12BDato, beløb_kroner: Heltal) | Ll12BHenstandRetAfstået(afdragsidentifikation: Tekst, realisationsdato: Ligningslov12BDato, kontantomregnet_vederlag_kroner: Heltal) | Ll12BHenstandAfdragBetalt(afdragsidentifikation: Tekst, betalingsdato: Ligningslov12BDato, betalt_skatteafdrag_kroner: Heltal, betalt_arbejdsmarkedsbidragsafdrag_kroner: Heltal) | Ll12BHenstandErindringsskrivelse(afdragsidentifikation: Tekst, erindringsdato: Ligningslov12BDato) | Ll12BHenstandGrovGentagenMisligholdelse(afdragsidentifikation: Tekst, påkravsdato: Ligningslov12BDato) | Ll12BHenstandYdelserEndeligtOphørt(frafaldsidentifikation: Tekst, ophørsdato: Ligningslov12BDato, saldo_efter_ophør_kroner: Heltal, anvender_virksomhedsordningen: Boolsk, opsparet_overskud_henført_til_ubetalt_henstand_kroner: Heltal) | Ll12BHenstandOpgørelse(opgørelsesdato: Ligningslov12BDato)
+# Ligningslov12BHenstandBetalingsfrist = Ll12BIngenNyBetalingsfrist | Ll12BNyBetalingsfrist(forfaldsdato: Ligningslov12BDato, sidste_rettidige_betalingsdato: Ligningslov12BDato)
+# Ligningslov12BHenstandHændelsesinput(position: Ligningslov12BHenstandPosition, hændelse: Ligningslov12BHenstandHændelse)
+# Ligningslov12BHenstandHændelsesresultat(hændelse: Ligningslov12BHenstandHændelse, hændelsesdato: Ligningslov12BDato, input_gyldigt: Boolsk, rente_kilder_påkrævet: Boolsk, rente_kilder_tilgængelige: Boolsk, nyt_skatteafdrag_kroner: Heltal, nyt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, ny_betalingsfrist: Ligningslov12BHenstandBetalingsfrist, betalt_skatteafdrag_kroner: Heltal, betalt_arbejdsmarkedsbidragsafdrag_kroner: Heltal, forfaldent_skatteafdrag_efter_kroner: Heltal, forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner: Heltal, afventer_forfald_skatteafdrag_efter_kroner: Heltal, afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner: Heltal, ny_ikke_fradragsberettiget_rente_kroner: Heltal, rykkergebyr_kroner: Heltal, resterende_henstandsbeløb_forfalder_efter_påkrav_kroner: Heltal, frafaldet_henstandsbeløb_kroner: Heltal, konto_for_opsparet_overskud_reduktion_kroner: Heltal, position_efter: Ligningslov12BHenstandPosition)
 
-| ll12b_henstand_realiseret_beløb_kroner(realisering: Ligningslov12BHenstandRealisering) -> match realisering {
-    | Ll12BIngenHenstandsrealisering -> 0
-    | Ll12BHenstandYdelseModtaget(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
-    | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner) -> penge_positivt_beløb(kontantomregnet_vederlag_kroner)
-}
-| ll12b_henstand_realisering_gyldig(realisering: Ligningslov12BHenstandRealisering) -> match realisering {
-    | Ll12BIngenHenstandsrealisering -> Sandt
-    | Ll12BHenstandYdelseModtaget(beløb_kroner) -> beløb_kroner >= 0
-    | Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner) -> kontantomregnet_vederlag_kroner >= 0
-}
+| ll12b_dato_før_eller_lig_med(venstre: Ligningslov12BDato, højre: Ligningslov12BDato) -> ll12b_dato_yyyymmdd(venstre) <= ll12b_dato_yyyymmdd(højre)
+| ll12b_dato_efter(venstre: Ligningslov12BDato, højre: Ligningslov12BDato) -> ll12b_dato_yyyymmdd(venstre) > ll12b_dato_yyyymmdd(højre)
+| ll12b_henstand_månedsindeks(dato: Ligningslov12BDato) -> dato.år * 12 + dato.måned - 1
+| ll12b_henstand_år_fra_månedsindeks(månedsindeks: Heltal) -> månedsindeks / 12
+| ll12b_henstand_forfaldsdato(realisationsdato: Ligningslov12BDato) -> Ligningslov12BDato(
+    år = opkrævning_år_for_måned_efter(realisationsdato.år, realisationsdato.måned),
+    måned = opkrævning_måned_efter(realisationsdato.måned),
+    dag = 1
+)
+| ll12b_henstand_sidste_rettidige_betalingsdato(realisationsdato: Ligningslov12BDato) -> Ligningslov12BDato(
+    år = opkrævning_år_for_måned_efter(realisationsdato.år, realisationsdato.måned),
+    måned = opkrævning_måned_efter(realisationsdato.måned),
+    dag = 10
+)
 
-# Ligningslov12BHenstandÅrssag(input: Ligningslov12BHenstandÅrsinput) {
-    | position_gyldig() -> input.position.bevilling.betingelser_opfyldt && input.position.resterende_skat_kroner >= 0 && input.position.resterende_skat_kroner <= input.position.bevilling.henstand_med_skat_kroner && input.position.resterende_arbejdsmarkedsbidrag_kroner >= 0 && input.position.resterende_arbejdsmarkedsbidrag_kroner <= input.position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner && input.position.konto_for_opsparet_overskud_kroner >= 0
-    | opkrævningsrente_kildebelagt() -> input.indkomstår >= 2026 && opkrævning_par7_offentliggjort_stk2_rente_basispoint(input.indkomstår) > 0
-    | beløb_gyldige() -> opkrævningsrente_kildebelagt() && ll12b_henstand_realisering_gyldig(input.realisering) && input.betalt_skatteafdrag_kroner >= 0 && input.betalt_arbejdsmarkedsbidragsafdrag_kroner >= 0 && input.påbegyndte_forsinkelsesmåneder >= 0 && input.antal_erindringsskrivelser >= 0 && input.opsparet_overskud_henført_til_ubetalt_henstand_kroner >= 0
-    | realiseret_beløb_kroner() -> ll12b_henstand_realiseret_beløb_kroner(input.realisering)
-    | skatteafdrag_beregnet_kroner() -> hvis position_gyldig() && input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_skat_kroner * realiseret_beløb_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
-    | arbejdsmarkedsbidragsafdrag_beregnet_kroner() -> hvis position_gyldig() && input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner * realiseret_beløb_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
-    | skatteafdrag_forfalder_kroner() -> penge_mindste_beløb(input.position.resterende_skat_kroner, skatteafdrag_beregnet_kroner())
-    | arbejdsmarkedsbidragsafdrag_forfalder_kroner() -> penge_mindste_beløb(input.position.resterende_arbejdsmarkedsbidrag_kroner, arbejdsmarkedsbidragsafdrag_beregnet_kroner())
-    | betalinger_gyldige() -> input.betalt_skatteafdrag_kroner <= skatteafdrag_forfalder_kroner() && input.betalt_arbejdsmarkedsbidragsafdrag_kroner <= arbejdsmarkedsbidragsafdrag_forfalder_kroner()
-    | input_gyldigt() -> position_gyldig() && beløb_gyldige() && betalinger_gyldige()
-    | samlet_afdrag_forfalder_kroner() -> hvis input_gyldigt() { skatteafdrag_forfalder_kroner() + arbejdsmarkedsbidragsafdrag_forfalder_kroner() } ellers { 0 }
-    | ubetalt_forfaldent_afdrag_kroner() -> hvis input_gyldigt() { samlet_afdrag_forfalder_kroner() - input.betalt_skatteafdrag_kroner - input.betalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 }
-    | månedlig_forsinkelsesrente_basispoint() -> hvis opkrævningsrente_kildebelagt() { opkrævning_par7_offentliggjort_stk2_rente_basispoint(input.indkomstår) + 40 } ellers { 0 }
-    | beregnet_forsinkelsesrente_kroner() -> ubetalt_forfaldent_afdrag_kroner() * månedlig_forsinkelsesrente_basispoint() * input.påbegyndte_forsinkelsesmåneder / 10000
-    | ikke_fradragsberettiget_rente_kroner() -> hvis ubetalt_forfaldent_afdrag_kroner() > 0 && input.påbegyndte_forsinkelsesmåneder > 0 { penge_største_beløb(25, beregnet_forsinkelsesrente_kroner()) } ellers { 0 }
-    | rykkergebyr_kroner() -> hvis ubetalt_forfaldent_afdrag_kroner() > 0 { input.antal_erindringsskrivelser * 65 } ellers { 0 }
-    | resterende_skat_efter_betaling_kroner() -> hvis input_gyldigt() { input.position.resterende_skat_kroner - input.betalt_skatteafdrag_kroner } ellers { input.position.resterende_skat_kroner }
-    | resterende_arbejdsmarkedsbidrag_efter_betaling_kroner() -> hvis input_gyldigt() { input.position.resterende_arbejdsmarkedsbidrag_kroner - input.betalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { input.position.resterende_arbejdsmarkedsbidrag_kroner }
-    | resterende_henstandsbeløb_efter_betaling_kroner() -> resterende_skat_efter_betaling_kroner() + resterende_arbejdsmarkedsbidrag_efter_betaling_kroner()
-    | ophør_før_saldo_nul_eller_negativ() -> input_gyldigt() && input.løbende_ydelser_endeligt_ophørt && input.saldo_efter_realisering_kroner > 0
-    | frafaldet_henstandsbeløb_kroner() -> hvis ophør_før_saldo_nul_eller_negativ() { resterende_henstandsbeløb_efter_betaling_kroner() } ellers { 0 }
-    | resterende_henstandsbeløb_forfalder_efter_påkrav_kroner() -> hvis input_gyldigt() && ophør_før_saldo_nul_eller_negativ() == Falskt && input.grov_og_gentagen_misligholdelse && input.påkrav_fremsat { resterende_henstandsbeløb_efter_betaling_kroner() } ellers { 0 }
-    | konto_for_opsparet_overskud_reduktion_kroner() -> hvis ophør_før_saldo_nul_eller_negativ() && input.anvender_virksomhedsordningen { penge_mindste_beløb(input.position.konto_for_opsparet_overskud_kroner, input.opsparet_overskud_henført_til_ubetalt_henstand_kroner) } ellers { 0 }
-    | position_efter() -> Ligningslov12BHenstandPosition(
-        bevilling = input.position.bevilling,
-        resterende_skat_kroner = hvis ophør_før_saldo_nul_eller_negativ() { 0 } ellers { resterende_skat_efter_betaling_kroner() },
-        resterende_arbejdsmarkedsbidrag_kroner = hvis ophør_før_saldo_nul_eller_negativ() { 0 } ellers { resterende_arbejdsmarkedsbidrag_efter_betaling_kroner() },
-        konto_for_opsparet_overskud_kroner = input.position.konto_for_opsparet_overskud_kroner - konto_for_opsparet_overskud_reduktion_kroner()
-    )
-    | resultat() -> Ligningslov12BHenstandÅrsresultat(
-        indkomstår = input.indkomstår,
-        realisering = input.realisering,
+| ll12b_henstand_hændelsesdato(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse {
+    | Ll12BHenstandYdelseModtaget(_, dato, _) -> dato
+    | Ll12BHenstandRetAfstået(_, dato, _) -> dato
+    | Ll12BHenstandAfdragBetalt(_, dato, _, _) -> dato
+    | Ll12BHenstandErindringsskrivelse(_, dato) -> dato
+    | Ll12BHenstandGrovGentagenMisligholdelse(_, dato) -> dato
+    | Ll12BHenstandYdelserEndeligtOphørt(_, dato, _, _, _) -> dato
+    | Ll12BHenstandOpgørelse(dato) -> dato
+}
+| ll12b_henstand_hændelsesidentifikation(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse {
+    | Ll12BHenstandYdelseModtaget(identifikation, _, _) -> identifikation
+    | Ll12BHenstandRetAfstået(identifikation, _, _) -> identifikation
+    | Ll12BHenstandAfdragBetalt(identifikation, _, _, _) -> identifikation
+    | Ll12BHenstandErindringsskrivelse(identifikation, _) -> identifikation
+    | Ll12BHenstandGrovGentagenMisligholdelse(identifikation, _) -> identifikation
+    | Ll12BHenstandYdelserEndeligtOphørt(identifikation, _, _, _, _) -> identifikation
+    | Ll12BHenstandOpgørelse(_) -> ""
+}
+| ll12b_henstand_realiseret_beløb_kroner(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse {
+    | Ll12BHenstandYdelseModtaget(_, _, beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | Ll12BHenstandRetAfstået(_, _, beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | _ -> 0
+}
+| ll12b_henstand_betalt_skat_kroner(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandAfdragBetalt(_, _, beløb_kroner, _) -> penge_positivt_beløb(beløb_kroner) | _ -> 0 }
+| ll12b_henstand_betalt_arbejdsmarkedsbidrag_kroner(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandAfdragBetalt(_, _, _, beløb_kroner) -> penge_positivt_beløb(beløb_kroner) | _ -> 0 }
+| ll12b_henstand_realisering(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandYdelseModtaget(_, _, _) -> Sandt | Ll12BHenstandRetAfstået(_, _, _) -> Sandt | _ -> Falskt }
+| ll12b_henstand_betaling(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandAfdragBetalt(_, _, _, _) -> Sandt | _ -> Falskt }
+| ll12b_henstand_erindringsskrivelse(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandErindringsskrivelse(_, _) -> Sandt | _ -> Falskt }
+| ll12b_henstand_misligholdelse(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandGrovGentagenMisligholdelse(_, _) -> Sandt | _ -> Falskt }
+| ll12b_henstand_ophør(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandYdelserEndeligtOphørt(_, _, _, _, _) -> Sandt | _ -> Falskt }
+| ll12b_henstand_opgørelse(hændelse: Ligningslov12BHenstandHændelse) -> match hændelse { | Ll12BHenstandOpgørelse(_) -> Sandt | _ -> Falskt }
+
+| ll12b_henstandsafdrag_ubetalt_kroner(afdrag: Ligningslov12BHenstandsafdrag) -> penge_positivt_beløb(afdrag.ubetalt_skatteafdrag_kroner) + penge_positivt_beløb(afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner)
+| ll12b_henstandsafdrag_rentemånedsindekser(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> hvis afdrag.status != Ll12BAfdragFrafaldet && ll12b_henstandsafdrag_ubetalt_kroner(afdrag) > 0 && ll12b_dato_efter(opgørelsesdato, afdrag.sidste_rettidige_betalingsdato) { range(afdrag.sidst_beregnede_rentemånedsindeks + 1, ll12b_henstand_månedsindeks(opgørelsesdato) + 1) } ellers { [] }
+| ll12b_henstand_renteår_kildebelagt(renteår: Heltal) -> opkrævning_par7_offentliggjort_sats(renteår).kilde_eli != ""
+| ll12b_henstandsafdrag_rentekilder_tilgængelige(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> all(ll12b_henstandsafdrag_rentemånedsindekser(afdrag, opgørelsesdato), |månedsindeks: Heltal| ll12b_henstand_renteår_kildebelagt(ll12b_henstand_år_fra_månedsindeks(månedsindeks)))
+| ll12b_henstandsafdrag_nye_rentebasispoint(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> foldl(ll12b_henstandsafdrag_rentemånedsindekser(afdrag, opgørelsesdato), 0, |sum: Heltal, månedsindeks: Heltal| sum + opkrævning_par7_offentliggjort_stk2_rente_basispoint(ll12b_henstand_år_fra_månedsindeks(månedsindeks)) + 40)
+| ll12b_henstandsafdrag_ny_rente_før_minimum_kroner(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> hvis ll12b_henstandsafdrag_rentekilder_tilgængelige(afdrag, opgørelsesdato) { ll12b_henstandsafdrag_ubetalt_kroner(afdrag) * ll12b_henstandsafdrag_nye_rentebasispoint(afdrag, opgørelsesdato) / 10000 } ellers { 0 }
+| ll12b_henstandsafdrag_opgjort_status(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> hvis afdrag.status == Ll12BAfdragFrafaldet { Ll12BAfdragFrafaldet } ellers { hvis ll12b_henstandsafdrag_ubetalt_kroner(afdrag) == 0 { Ll12BAfdragBetalt } ellers { hvis ll12b_dato_efter(opgørelsesdato, afdrag.sidste_rettidige_betalingsdato) { Ll12BAfdragForfaldent } ellers { Ll12BAfdragAfventerForfald } } }
+| ll12b_henstandsafdrag_opgjort(afdrag: Ligningslov12BHenstandsafdrag, opgørelsesdato: Ligningslov12BDato) -> Ligningslov12BHenstandsafdrag(
+    identifikation = afdrag.identifikation,
+    art = afdrag.art,
+    realisationsgrundlag_kroner = afdrag.realisationsgrundlag_kroner,
+    realisationsdato = afdrag.realisationsdato,
+    forfaldsdato = afdrag.forfaldsdato,
+    sidste_rettidige_betalingsdato = afdrag.sidste_rettidige_betalingsdato,
+    oprindeligt_skatteafdrag_kroner = afdrag.oprindeligt_skatteafdrag_kroner,
+    oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner,
+    ubetalt_skatteafdrag_kroner = afdrag.ubetalt_skatteafdrag_kroner,
+    ubetalt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner,
+    status = ll12b_henstandsafdrag_opgjort_status(afdrag, opgørelsesdato),
+    sidst_beregnede_rentemånedsindeks = hvis length(ll12b_henstandsafdrag_rentemånedsindekser(afdrag, opgørelsesdato)) > 0 && ll12b_henstandsafdrag_rentekilder_tilgængelige(afdrag, opgørelsesdato) { ll12b_henstand_månedsindeks(opgørelsesdato) } ellers { afdrag.sidst_beregnede_rentemånedsindeks },
+    beregnet_rente_før_minimum_kroner = afdrag.beregnet_rente_før_minimum_kroner + ll12b_henstandsafdrag_ny_rente_før_minimum_kroner(afdrag, opgørelsesdato),
+    pålignet_ikke_fradragsberettiget_rente_kroner = hvis length(ll12b_henstandsafdrag_rentemånedsindekser(afdrag, opgørelsesdato)) > 0 && ll12b_henstandsafdrag_rentekilder_tilgængelige(afdrag, opgørelsesdato) { penge_største_beløb(25, afdrag.beregnet_rente_før_minimum_kroner + ll12b_henstandsafdrag_ny_rente_før_minimum_kroner(afdrag, opgørelsesdato)) } ellers { afdrag.pålignet_ikke_fradragsberettiget_rente_kroner },
+    antal_erindringsskrivelser = afdrag.antal_erindringsskrivelser
+)
+
+| ll12b_henstandsafdrag_identifikation_antal(afdrag: List(Ligningslov12BHenstandsafdrag), identifikation: Tekst) -> foldl(afdrag, 0, |antal: Heltal, post: Ligningslov12BHenstandsafdrag| antal + hvis post.identifikation == identifikation { 1 } ellers { 0 })
+| ll12b_henstandsafdrag_identifikationer_entydige(afdrag: List(Ligningslov12BHenstandsafdrag)) -> all(afdrag, |post: Ligningslov12BHenstandsafdrag| post.identifikation != "" && ll12b_henstandsafdrag_identifikation_antal(afdrag, post.identifikation) == 1)
+| ll12b_henstandsafdrag_oprindelig_skat_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + post.oprindeligt_skatteafdrag_kroner)
+| ll12b_henstandsafdrag_oprindeligt_arbejdsmarkedsbidrag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + post.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner)
+| ll12b_henstandsafdrag_ubetalt_skat_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + post.ubetalt_skatteafdrag_kroner)
+| ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + post.ubetalt_arbejdsmarkedsbidragsafdrag_kroner)
+| ll12b_henstandsafdrag_forfaldent_skat_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.status == Ll12BAfdragForfaldent { post.ubetalt_skatteafdrag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_forfaldent_arbejdsmarkedsbidrag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.status == Ll12BAfdragForfaldent { post.ubetalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_afventer_skat_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.status == Ll12BAfdragAfventerForfald { post.ubetalt_skatteafdrag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_afventer_arbejdsmarkedsbidrag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.status == Ll12BAfdragAfventerForfald { post.ubetalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_pålignet_rente_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + post.pålignet_ikke_fradragsberettiget_rente_kroner)
+| ll12b_henstandsafdrag_realiseret_grundlag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.art == Ll12BForholdsmæssigtRealiseringsafdrag { post.realisationsgrundlag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_forholdsmæssig_skat_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.art == Ll12BForholdsmæssigtRealiseringsafdrag { post.oprindeligt_skatteafdrag_kroner } ellers { 0 })
+| ll12b_henstandsafdrag_forholdsmæssigt_arbejdsmarkedsbidrag_kroner(afdrag: List(Ligningslov12BHenstandsafdrag)) -> foldl(afdrag, 0, |sum: Heltal, post: Ligningslov12BHenstandsafdrag| sum + hvis post.art == Ll12BForholdsmæssigtRealiseringsafdrag { post.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 })
+
+| ll12b_henstandsafdrag_gyldigt(afdrag: Ligningslov12BHenstandsafdrag, opgjort_pr: Ligningslov12BDato) -> afdrag.identifikation != "" && afdrag.realisationsgrundlag_kroner >= 0 && ll12b_dato_gyldig(afdrag.realisationsdato) && ll12b_dato_gyldig(afdrag.forfaldsdato) && ll12b_dato_gyldig(afdrag.sidste_rettidige_betalingsdato) && ll12b_dato_før_eller_lig_med(afdrag.realisationsdato, opgjort_pr) && afdrag.oprindeligt_skatteafdrag_kroner >= 0 && afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner >= 0 && afdrag.ubetalt_skatteafdrag_kroner >= 0 && afdrag.ubetalt_skatteafdrag_kroner <= afdrag.oprindeligt_skatteafdrag_kroner && afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner >= 0 && afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner <= afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner && afdrag.sidst_beregnede_rentemånedsindeks >= ll12b_henstand_månedsindeks(afdrag.forfaldsdato) - 1 && afdrag.sidst_beregnede_rentemånedsindeks <= ll12b_henstand_månedsindeks(opgjort_pr) && afdrag.beregnet_rente_før_minimum_kroner >= 0 && afdrag.pålignet_ikke_fradragsberettiget_rente_kroner >= afdrag.beregnet_rente_før_minimum_kroner && afdrag.antal_erindringsskrivelser >= 0 && hvis afdrag.art == Ll12BForholdsmæssigtRealiseringsafdrag { afdrag.realisationsgrundlag_kroner > 0 && afdrag.forfaldsdato == ll12b_henstand_forfaldsdato(afdrag.realisationsdato) && afdrag.sidste_rettidige_betalingsdato == ll12b_henstand_sidste_rettidige_betalingsdato(afdrag.realisationsdato) } ellers { afdrag.realisationsgrundlag_kroner == 0 } && match afdrag.status { | Ll12BAfdragAfventerForfald -> ll12b_henstandsafdrag_ubetalt_kroner(afdrag) > 0 && ll12b_dato_efter(opgjort_pr, afdrag.sidste_rettidige_betalingsdato) == Falskt | Ll12BAfdragForfaldent -> ll12b_henstandsafdrag_ubetalt_kroner(afdrag) > 0 | Ll12BAfdragBetalt -> ll12b_henstandsafdrag_ubetalt_kroner(afdrag) == 0 | Ll12BAfdragFrafaldet -> ll12b_henstandsafdrag_ubetalt_kroner(afdrag) == 0 }
+| ll12b_henstand_position_gyldig(position: Ligningslov12BHenstandPosition) -> position.bevilling.betingelser_opfyldt && ll12b_dato_gyldig(position.opgjort_pr) && ll12b_dato_før_eller_lig_med(position.bevilling.aftaledato, position.opgjort_pr) && position.aktiv_henstand_skat_kroner >= 0 && position.aktiv_henstand_arbejdsmarkedsbidrag_kroner >= 0 && position.konto_for_opsparet_overskud_kroner >= 0 && ll12b_henstandsafdrag_identifikationer_entydige(position.afdrag) && all(position.afdrag, |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_gyldigt(afdrag, position.opgjort_pr)) && position.aktiv_henstand_skat_kroner + ll12b_henstandsafdrag_oprindelig_skat_kroner(position.afdrag) == position.bevilling.henstand_med_skat_kroner && position.aktiv_henstand_arbejdsmarkedsbidrag_kroner + ll12b_henstandsafdrag_oprindeligt_arbejdsmarkedsbidrag_kroner(position.afdrag) == position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner && match position.status { | Ll12BHenstandAktiv -> position.aktiv_henstand_skat_kroner + position.aktiv_henstand_arbejdsmarkedsbidrag_kroner + ll12b_henstandsafdrag_ubetalt_skat_kroner(position.afdrag) + ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(position.afdrag) > 0 | Ll12BHenstandAfviklet -> position.aktiv_henstand_skat_kroner + position.aktiv_henstand_arbejdsmarkedsbidrag_kroner + ll12b_henstandsafdrag_ubetalt_skat_kroner(position.afdrag) + ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(position.afdrag) == 0 | Ll12BHenstandMisligholdt -> position.aktiv_henstand_skat_kroner + position.aktiv_henstand_arbejdsmarkedsbidrag_kroner == 0 | Ll12BHenstandFrafaldet -> position.aktiv_henstand_skat_kroner + position.aktiv_henstand_arbejdsmarkedsbidrag_kroner + ll12b_henstandsafdrag_ubetalt_skat_kroner(position.afdrag) + ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(position.afdrag) == 0 }
+| ligningslov12b_henstand_startposition(bevilling: Ligningslov12BHenstandBevillingResultat, konto_for_opsparet_overskud_kroner: Heltal) -> Ligningslov12BHenstandPosition(bevilling = bevilling, status = hvis bevilling.samlet_henstandsbeløb_kroner > 0 { Ll12BHenstandAktiv } ellers { Ll12BHenstandAfviklet }, opgjort_pr = bevilling.aftaledato, aktiv_henstand_skat_kroner = bevilling.henstand_med_skat_kroner, aktiv_henstand_arbejdsmarkedsbidrag_kroner = bevilling.henstand_med_arbejdsmarkedsbidrag_kroner, afdrag = [], konto_for_opsparet_overskud_kroner = penge_positivt_beløb(konto_for_opsparet_overskud_kroner))
+
+| ll12b_henstandsafdrag_efter_betaling(afdrag: Ligningslov12BHenstandsafdrag, identifikation: Tekst, betalt_skat_kroner: Heltal, betalt_arbejdsmarkedsbidrag_kroner: Heltal, betalingsdato: Ligningslov12BDato) -> hvis afdrag.identifikation == identifikation { Ligningslov12BHenstandsafdrag(identifikation = afdrag.identifikation, art = afdrag.art, realisationsgrundlag_kroner = afdrag.realisationsgrundlag_kroner, realisationsdato = afdrag.realisationsdato, forfaldsdato = afdrag.forfaldsdato, sidste_rettidige_betalingsdato = afdrag.sidste_rettidige_betalingsdato, oprindeligt_skatteafdrag_kroner = afdrag.oprindeligt_skatteafdrag_kroner, oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner, ubetalt_skatteafdrag_kroner = afdrag.ubetalt_skatteafdrag_kroner - betalt_skat_kroner, ubetalt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner - betalt_arbejdsmarkedsbidrag_kroner, status = hvis afdrag.ubetalt_skatteafdrag_kroner - betalt_skat_kroner + afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner - betalt_arbejdsmarkedsbidrag_kroner == 0 { Ll12BAfdragBetalt } ellers { hvis ll12b_dato_efter(betalingsdato, afdrag.sidste_rettidige_betalingsdato) { Ll12BAfdragForfaldent } ellers { Ll12BAfdragAfventerForfald } }, sidst_beregnede_rentemånedsindeks = afdrag.sidst_beregnede_rentemånedsindeks, beregnet_rente_før_minimum_kroner = afdrag.beregnet_rente_før_minimum_kroner, pålignet_ikke_fradragsberettiget_rente_kroner = afdrag.pålignet_ikke_fradragsberettiget_rente_kroner, antal_erindringsskrivelser = afdrag.antal_erindringsskrivelser) } ellers { afdrag }
+| ll12b_henstandsafdrag_efter_erindring(afdrag: Ligningslov12BHenstandsafdrag, identifikation: Tekst) -> hvis afdrag.identifikation == identifikation { Ligningslov12BHenstandsafdrag(identifikation = afdrag.identifikation, art = afdrag.art, realisationsgrundlag_kroner = afdrag.realisationsgrundlag_kroner, realisationsdato = afdrag.realisationsdato, forfaldsdato = afdrag.forfaldsdato, sidste_rettidige_betalingsdato = afdrag.sidste_rettidige_betalingsdato, oprindeligt_skatteafdrag_kroner = afdrag.oprindeligt_skatteafdrag_kroner, oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner, ubetalt_skatteafdrag_kroner = afdrag.ubetalt_skatteafdrag_kroner, ubetalt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner, status = afdrag.status, sidst_beregnede_rentemånedsindeks = afdrag.sidst_beregnede_rentemånedsindeks, beregnet_rente_før_minimum_kroner = afdrag.beregnet_rente_før_minimum_kroner, pålignet_ikke_fradragsberettiget_rente_kroner = afdrag.pålignet_ikke_fradragsberettiget_rente_kroner, antal_erindringsskrivelser = afdrag.antal_erindringsskrivelser + 1) } ellers { afdrag }
+| ll12b_henstandsafdrag_frafaldet(afdrag: Ligningslov12BHenstandsafdrag) -> hvis ll12b_henstandsafdrag_ubetalt_kroner(afdrag) > 0 { Ligningslov12BHenstandsafdrag(identifikation = afdrag.identifikation, art = afdrag.art, realisationsgrundlag_kroner = afdrag.realisationsgrundlag_kroner, realisationsdato = afdrag.realisationsdato, forfaldsdato = afdrag.forfaldsdato, sidste_rettidige_betalingsdato = afdrag.sidste_rettidige_betalingsdato, oprindeligt_skatteafdrag_kroner = afdrag.oprindeligt_skatteafdrag_kroner, oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = afdrag.oprindeligt_arbejdsmarkedsbidragsafdrag_kroner, ubetalt_skatteafdrag_kroner = 0, ubetalt_arbejdsmarkedsbidragsafdrag_kroner = 0, status = Ll12BAfdragFrafaldet, sidst_beregnede_rentemånedsindeks = afdrag.sidst_beregnede_rentemånedsindeks, beregnet_rente_før_minimum_kroner = afdrag.beregnet_rente_før_minimum_kroner, pålignet_ikke_fradragsberettiget_rente_kroner = afdrag.pålignet_ikke_fradragsberettiget_rente_kroner, antal_erindringsskrivelser = afdrag.antal_erindringsskrivelser) } ellers { afdrag }
+
+# Ligningslov12BHenstandHændelsessag(input: Ligningslov12BHenstandHændelsesinput) {
+    | hændelsesdato() -> ll12b_henstand_hændelsesdato(input.hændelse)
+    | identifikation() -> ll12b_henstand_hændelsesidentifikation(input.hændelse)
+    | position_gyldig() -> ll12b_henstand_position_gyldig(input.position)
+    | dato_gyldig_og_kronologisk() -> ll12b_dato_gyldig(hændelsesdato()) && ll12b_dato_før_eller_lig_med(input.position.opgjort_pr, hændelsesdato())
+    | afdrag_før_hændelse() -> map(input.position.afdrag, |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_opgjort(afdrag, hændelsesdato()))
+    | rente_kilder_påkrævet() -> any(input.position.afdrag, |afdrag: Ligningslov12BHenstandsafdrag| length(ll12b_henstandsafdrag_rentemånedsindekser(afdrag, hændelsesdato())) > 0)
+    | rente_kilder_tilgængelige() -> all(input.position.afdrag, |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_rentekilder_tilgængelige(afdrag, hændelsesdato()))
+    | aktiv_eller_misligholdt() -> input.position.status == Ll12BHenstandAktiv || input.position.status == Ll12BHenstandMisligholdt
+    | hændelse_tilladt_for_status() -> hvis ll12b_henstand_realisering(input.hændelse) || ll12b_henstand_misligholdelse(input.hændelse) || ll12b_henstand_ophør(input.hændelse) { input.position.status == Ll12BHenstandAktiv } ellers { hvis ll12b_henstand_betaling(input.hændelse) || ll12b_henstand_erindringsskrivelse(input.hændelse) { aktiv_eller_misligholdt() } ellers { ll12b_henstand_opgørelse(input.hændelse) } }
+    | identifikation_findes() -> ll12b_henstandsafdrag_identifikation_antal(afdrag_før_hændelse(), identifikation()) == 1
+    | identifikation_er_ny() -> identifikation() != "" && ll12b_henstandsafdrag_identifikation_antal(afdrag_før_hændelse(), identifikation()) == 0
+    | realiseret_beløb_kroner() -> ll12b_henstand_realiseret_beløb_kroner(input.hændelse)
+    | realisering_gyldig() -> ll12b_henstand_realisering(input.hændelse) == Falskt || identifikation_er_ny() && realiseret_beløb_kroner() > 0
+    | betalt_skat_kroner() -> ll12b_henstand_betalt_skat_kroner(input.hændelse)
+    | betalt_arbejdsmarkedsbidrag_kroner() -> ll12b_henstand_betalt_arbejdsmarkedsbidrag_kroner(input.hændelse)
+    | mål_ubetalt_skat_kroner() -> foldl(afdrag_før_hændelse(), 0, |sum: Heltal, afdrag: Ligningslov12BHenstandsafdrag| sum + hvis afdrag.identifikation == identifikation() { afdrag.ubetalt_skatteafdrag_kroner } ellers { 0 })
+    | mål_ubetalt_arbejdsmarkedsbidrag_kroner() -> foldl(afdrag_før_hændelse(), 0, |sum: Heltal, afdrag: Ligningslov12BHenstandsafdrag| sum + hvis afdrag.identifikation == identifikation() { afdrag.ubetalt_arbejdsmarkedsbidragsafdrag_kroner } ellers { 0 })
+    | betaling_gyldig() -> ll12b_henstand_betaling(input.hændelse) == Falskt || identifikation_findes() && betalt_skat_kroner() + betalt_arbejdsmarkedsbidrag_kroner() > 0 && betalt_skat_kroner() <= mål_ubetalt_skat_kroner() && betalt_arbejdsmarkedsbidrag_kroner() <= mål_ubetalt_arbejdsmarkedsbidrag_kroner()
+    | erindring_gyldig() -> ll12b_henstand_erindringsskrivelse(input.hændelse) == Falskt || identifikation_findes() && any(afdrag_før_hændelse(), |afdrag: Ligningslov12BHenstandsafdrag| afdrag.identifikation == identifikation() && afdrag.status == Ll12BAfdragForfaldent)
+    | misligholdelse_gyldig() -> ll12b_henstand_misligholdelse(input.hændelse) == Falskt || identifikation_er_ny()
+    | ophørssaldo_kroner() -> match input.hændelse { | Ll12BHenstandYdelserEndeligtOphørt(_, _, saldo_kroner, _, _) -> saldo_kroner | _ -> 0 }
+    | opsparet_overskud_henført_kroner() -> match input.hændelse { | Ll12BHenstandYdelserEndeligtOphørt(_, _, _, _, beløb_kroner) -> beløb_kroner | _ -> 0 }
+    | anvender_virksomhedsordningen() -> match input.hændelse { | Ll12BHenstandYdelserEndeligtOphørt(_, _, _, anvender, _) -> anvender | _ -> Falskt }
+    | ophør_gyldigt() -> ll12b_henstand_ophør(input.hændelse) == Falskt || identifikation_er_ny() && ophørssaldo_kroner() > 0 && opsparet_overskud_henført_kroner() >= 0
+    | input_gyldigt() -> position_gyldig() && dato_gyldig_og_kronologisk() && rente_kilder_tilgængelige() && hændelse_tilladt_for_status() && realisering_gyldig() && betaling_gyldig() && erindring_gyldig() && misligholdelse_gyldig() && ophør_gyldigt()
+    | realiseret_grundlag_før_kroner() -> ll12b_henstandsafdrag_realiseret_grundlag_kroner(input.position.afdrag)
+    | realiseret_grundlag_efter_kroner() -> penge_mindste_beløb(input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner, realiseret_grundlag_før_kroner() + realiseret_beløb_kroner())
+    | forholdsmæssig_skat_efter_kroner() -> hvis input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_skat_kroner * realiseret_grundlag_efter_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
+    | forholdsmæssigt_arbejdsmarkedsbidrag_efter_kroner() -> hvis input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner > 0 { input.position.bevilling.henstand_med_arbejdsmarkedsbidrag_kroner * realiseret_grundlag_efter_kroner() / input.position.bevilling.kapitaliseret_værdi_af_løbende_ydelse_kroner } ellers { 0 }
+    | nyt_skatteafdrag_kroner() -> hvis input_gyldigt() && ll12b_henstand_realisering(input.hændelse) { penge_mindste_beløb(input.position.aktiv_henstand_skat_kroner, penge_positivt_beløb(forholdsmæssig_skat_efter_kroner() - ll12b_henstandsafdrag_forholdsmæssig_skat_kroner(input.position.afdrag))) } ellers { 0 }
+    | nyt_arbejdsmarkedsbidragsafdrag_kroner() -> hvis input_gyldigt() && ll12b_henstand_realisering(input.hændelse) { penge_mindste_beløb(input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner, penge_positivt_beløb(forholdsmæssigt_arbejdsmarkedsbidrag_efter_kroner() - ll12b_henstandsafdrag_forholdsmæssigt_arbejdsmarkedsbidrag_kroner(input.position.afdrag))) } ellers { 0 }
+    | nyt_realiseringsafdrag() -> Ligningslov12BHenstandsafdrag(identifikation = identifikation(), art = Ll12BForholdsmæssigtRealiseringsafdrag, realisationsgrundlag_kroner = realiseret_beløb_kroner(), realisationsdato = hændelsesdato(), forfaldsdato = ll12b_henstand_forfaldsdato(hændelsesdato()), sidste_rettidige_betalingsdato = ll12b_henstand_sidste_rettidige_betalingsdato(hændelsesdato()), oprindeligt_skatteafdrag_kroner = nyt_skatteafdrag_kroner(), oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = nyt_arbejdsmarkedsbidragsafdrag_kroner(), ubetalt_skatteafdrag_kroner = nyt_skatteafdrag_kroner(), ubetalt_arbejdsmarkedsbidragsafdrag_kroner = nyt_arbejdsmarkedsbidragsafdrag_kroner(), status = hvis nyt_skatteafdrag_kroner() + nyt_arbejdsmarkedsbidragsafdrag_kroner() > 0 { Ll12BAfdragAfventerForfald } ellers { Ll12BAfdragBetalt }, sidst_beregnede_rentemånedsindeks = ll12b_henstand_månedsindeks(ll12b_henstand_forfaldsdato(hændelsesdato())) - 1, beregnet_rente_før_minimum_kroner = 0, pålignet_ikke_fradragsberettiget_rente_kroner = 0, antal_erindringsskrivelser = 0)
+    | terminalt_restafdrag(art: Ligningslov12BHenstandsafdragArt, status: Ligningslov12BHenstandsafdragStatus) -> Ligningslov12BHenstandsafdrag(identifikation = identifikation(), art = art, realisationsgrundlag_kroner = 0, realisationsdato = hændelsesdato(), forfaldsdato = hændelsesdato(), sidste_rettidige_betalingsdato = hændelsesdato(), oprindeligt_skatteafdrag_kroner = input.position.aktiv_henstand_skat_kroner, oprindeligt_arbejdsmarkedsbidragsafdrag_kroner = input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner, ubetalt_skatteafdrag_kroner = hvis status == Ll12BAfdragFrafaldet { 0 } ellers { input.position.aktiv_henstand_skat_kroner }, ubetalt_arbejdsmarkedsbidragsafdrag_kroner = hvis status == Ll12BAfdragFrafaldet { 0 } ellers { input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner }, status = status, sidst_beregnede_rentemånedsindeks = ll12b_henstand_månedsindeks(hændelsesdato()) - 1, beregnet_rente_før_minimum_kroner = 0, pålignet_ikke_fradragsberettiget_rente_kroner = 0, antal_erindringsskrivelser = 0)
+    | afdrag_efter_betaling() -> map(afdrag_før_hændelse(), |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_efter_betaling(afdrag, identifikation(), betalt_skat_kroner(), betalt_arbejdsmarkedsbidrag_kroner(), hændelsesdato()))
+    | afdrag_efter_erindring() -> map(afdrag_før_hændelse(), |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_efter_erindring(afdrag, identifikation()))
+    | afdrag_efter_frafald() -> concat(map(afdrag_før_hændelse(), |afdrag: Ligningslov12BHenstandsafdrag| ll12b_henstandsafdrag_frafaldet(afdrag)), hvis input.position.aktiv_henstand_skat_kroner + input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner > 0 { [terminalt_restafdrag(Ll12BRestFrafaldetVedOphør, Ll12BAfdragFrafaldet)] } ellers { [] })
+    | afdrag_efter_hændelse() -> hvis ll12b_henstand_realisering(input.hændelse) { concat(afdrag_før_hændelse(), [nyt_realiseringsafdrag()]) } ellers { hvis ll12b_henstand_betaling(input.hændelse) { afdrag_efter_betaling() } ellers { hvis ll12b_henstand_erindringsskrivelse(input.hændelse) { afdrag_efter_erindring() } ellers { hvis ll12b_henstand_misligholdelse(input.hændelse) { concat(afdrag_før_hændelse(), hvis input.position.aktiv_henstand_skat_kroner + input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner > 0 { [terminalt_restafdrag(Ll12BRestForfaldetEfterMisligholdelse, Ll12BAfdragForfaldent)] } ellers { [] }) } ellers { hvis ll12b_henstand_ophør(input.hændelse) { afdrag_efter_frafald() } ellers { afdrag_før_hændelse() } } } } }
+    | aktiv_henstand_skat_efter_kroner() -> hvis ll12b_henstand_realisering(input.hændelse) { input.position.aktiv_henstand_skat_kroner - nyt_skatteafdrag_kroner() } ellers { hvis ll12b_henstand_misligholdelse(input.hændelse) || ll12b_henstand_ophør(input.hændelse) { 0 } ellers { input.position.aktiv_henstand_skat_kroner } }
+    | aktiv_henstand_arbejdsmarkedsbidrag_efter_kroner() -> hvis ll12b_henstand_realisering(input.hændelse) { input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner - nyt_arbejdsmarkedsbidragsafdrag_kroner() } ellers { hvis ll12b_henstand_misligholdelse(input.hændelse) || ll12b_henstand_ophør(input.hændelse) { 0 } ellers { input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner } }
+    | frafaldet_henstandsbeløb_kroner() -> hvis input_gyldigt() && ll12b_henstand_ophør(input.hændelse) { input.position.aktiv_henstand_skat_kroner + input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner + ll12b_henstandsafdrag_ubetalt_skat_kroner(afdrag_før_hændelse()) + ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(afdrag_før_hændelse()) } ellers { 0 }
+    | resterende_henstandsbeløb_forfalder_efter_påkrav_kroner() -> hvis input_gyldigt() && ll12b_henstand_misligholdelse(input.hændelse) { input.position.aktiv_henstand_skat_kroner + input.position.aktiv_henstand_arbejdsmarkedsbidrag_kroner } ellers { 0 }
+    | konto_for_opsparet_overskud_reduktion_kroner() -> hvis input_gyldigt() && ll12b_henstand_ophør(input.hændelse) && anvender_virksomhedsordningen() { penge_mindste_beløb(input.position.konto_for_opsparet_overskud_kroner, opsparet_overskud_henført_kroner()) } ellers { 0 }
+    | status_efter() -> hvis ll12b_henstand_misligholdelse(input.hændelse) { Ll12BHenstandMisligholdt } ellers { hvis ll12b_henstand_ophør(input.hændelse) { Ll12BHenstandFrafaldet } ellers { hvis input.position.status == Ll12BHenstandMisligholdt { Ll12BHenstandMisligholdt } ellers { hvis input.position.status == Ll12BHenstandFrafaldet { Ll12BHenstandFrafaldet } ellers { hvis aktiv_henstand_skat_efter_kroner() + aktiv_henstand_arbejdsmarkedsbidrag_efter_kroner() + ll12b_henstandsafdrag_ubetalt_skat_kroner(afdrag_efter_hændelse()) + ll12b_henstandsafdrag_ubetalt_arbejdsmarkedsbidrag_kroner(afdrag_efter_hændelse()) == 0 { Ll12BHenstandAfviklet } ellers { Ll12BHenstandAktiv } } } } }
+    | position_efter_gyldig_hændelse() -> Ligningslov12BHenstandPosition(bevilling = input.position.bevilling, status = status_efter(), opgjort_pr = hændelsesdato(), aktiv_henstand_skat_kroner = aktiv_henstand_skat_efter_kroner(), aktiv_henstand_arbejdsmarkedsbidrag_kroner = aktiv_henstand_arbejdsmarkedsbidrag_efter_kroner(), afdrag = afdrag_efter_hændelse(), konto_for_opsparet_overskud_kroner = input.position.konto_for_opsparet_overskud_kroner - konto_for_opsparet_overskud_reduktion_kroner())
+    | position_efter() -> hvis input_gyldigt() { position_efter_gyldig_hændelse() } ellers { input.position }
+    | ny_betalingsfrist() -> hvis input_gyldigt() && ll12b_henstand_realisering(input.hændelse) { Ll12BNyBetalingsfrist(forfaldsdato = ll12b_henstand_forfaldsdato(hændelsesdato()), sidste_rettidige_betalingsdato = ll12b_henstand_sidste_rettidige_betalingsdato(hændelsesdato())) } ellers { Ll12BIngenNyBetalingsfrist }
+    | ny_rente_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(ll12b_henstandsafdrag_pålignet_rente_kroner(afdrag_før_hændelse()) - ll12b_henstandsafdrag_pålignet_rente_kroner(input.position.afdrag)) } ellers { 0 }
+    | rykkergebyr_kroner() -> hvis input_gyldigt() && ll12b_henstand_erindringsskrivelse(input.hændelse) { 65 } ellers { 0 }
+    | resultat() -> Ligningslov12BHenstandHændelsesresultat(
+        hændelse = input.hændelse,
+        hændelsesdato = hændelsesdato(),
         input_gyldigt = input_gyldigt(),
-        skatteafdrag_forfalder_kroner = hvis input_gyldigt() { skatteafdrag_forfalder_kroner() } ellers { 0 },
-        arbejdsmarkedsbidragsafdrag_forfalder_kroner = hvis input_gyldigt() { arbejdsmarkedsbidragsafdrag_forfalder_kroner() } ellers { 0 },
-        samlet_afdrag_forfalder_kroner = samlet_afdrag_forfalder_kroner(),
-        ubetalt_forfaldent_afdrag_kroner = ubetalt_forfaldent_afdrag_kroner(),
-        forfaldsdag_i_næste_måned = 1,
-        sidste_rettidige_betalingsdag_i_forfaldsmåneden = 10,
-        månedlig_forsinkelsesrente_basispoint = månedlig_forsinkelsesrente_basispoint(),
-        ikke_fradragsberettiget_rente_kroner = ikke_fradragsberettiget_rente_kroner(),
+        rente_kilder_påkrævet = rente_kilder_påkrævet(),
+        rente_kilder_tilgængelige = rente_kilder_tilgængelige(),
+        nyt_skatteafdrag_kroner = nyt_skatteafdrag_kroner(),
+        nyt_arbejdsmarkedsbidragsafdrag_kroner = nyt_arbejdsmarkedsbidragsafdrag_kroner(),
+        ny_betalingsfrist = ny_betalingsfrist(),
+        betalt_skatteafdrag_kroner = hvis input_gyldigt() { betalt_skat_kroner() } ellers { 0 },
+        betalt_arbejdsmarkedsbidragsafdrag_kroner = hvis input_gyldigt() { betalt_arbejdsmarkedsbidrag_kroner() } ellers { 0 },
+        forfaldent_skatteafdrag_efter_kroner = ll12b_henstandsafdrag_forfaldent_skat_kroner(position_efter().afdrag),
+        forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner = ll12b_henstandsafdrag_forfaldent_arbejdsmarkedsbidrag_kroner(position_efter().afdrag),
+        afventer_forfald_skatteafdrag_efter_kroner = ll12b_henstandsafdrag_afventer_skat_kroner(position_efter().afdrag),
+        afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner = ll12b_henstandsafdrag_afventer_arbejdsmarkedsbidrag_kroner(position_efter().afdrag),
+        ny_ikke_fradragsberettiget_rente_kroner = ny_rente_kroner(),
         rykkergebyr_kroner = rykkergebyr_kroner(),
         resterende_henstandsbeløb_forfalder_efter_påkrav_kroner = resterende_henstandsbeløb_forfalder_efter_påkrav_kroner(),
         frafaldet_henstandsbeløb_kroner = frafaldet_henstandsbeløb_kroner(),
@@ -1352,8 +1465,8 @@ indgået den 1. januar 2026 eller senere.
         position_efter = position_efter()
     )
 }
-| ligningslov12b_henstand_årssag(input: Ligningslov12BHenstandÅrsinput) -> Ligningslov12BHenstandÅrssag(input)
-| ligningslov12b_henstand_årsresultat(input: Ligningslov12BHenstandÅrsinput) -> ligningslov12b_henstand_årssag(input).resultat()
+| ligningslov12b_henstand_hændelsessag(input: Ligningslov12BHenstandHændelsesinput) -> Ligningslov12BHenstandHændelsessag(input)
+| ligningslov12b_henstand_hændelsesresultat(input: Ligningslov12BHenstandHændelsesinput) -> ligningslov12b_henstand_hændelsessag(input).resultat()
 
 --@end:ligningsloven_par12b_2026_aendring--
 --@end:ligningsloven_par12b_historisk--

@@ -1,6 +1,6 @@
 @ sprog da
 
-@ importer ./kapitel-01-indkomst
+@ importer ./kapitel - 01 - indkomst
 
 -- Scenarier for Ligningslovens § 12 B og Personskattelovens § 4, stk. 1,
 -- nr. 15. Lovtekst og generelle regler står i
@@ -294,93 +294,87 @@
     skatteberegning = scenarie_ll12b_henstand_beregning
 ))
 
-= scenarie_ll12b_henstand_position_primo = Ligningslov12BHenstandPosition(
+= scenarie_ll12b_henstand_startposition = ligningslov12b_henstand_startposition(
     bevilling = scenarie_ll12b_henstand_bevilling,
-    resterende_skat_kroner = 257500,
-    resterende_arbejdsmarkedsbidrag_kroner = 40000,
     konto_for_opsparet_overskud_kroner = 0
 )
-= scenarie_ll12b_henstand_afdrag = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = scenarie_ll12b_henstand_position_primo,
-    realisering = Ll12BHenstandYdelseModtaget(beløb_kroner = 100000),
-    betalt_skatteafdrag_kroner = 51500,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 8000,
-    påbegyndte_forsinkelsesmåneder = 0,
-    antal_erindringsskrivelser = 0,
-    grov_og_gentagen_misligholdelse = Falskt,
-    påkrav_fremsat = Falskt,
-    løbende_ydelser_endeligt_ophørt = Falskt,
-    saldo_efter_realisering_kroner = 400000,
-    anvender_virksomhedsordningen = Falskt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+= scenarie_ll12b_henstand_første_realisering = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_startposition,
+    hændelse = Ll12BHenstandYdelseModtaget(
+        afdragsidentifikation = "ydelse-1",
+        realisationsdato = Ligningslov12BDato(år = 2026, måned = 1, dag = 15),
+        beløb_kroner = 100000
+    )
 ))
-= scenarie_ll12b_henstand_afdrag_ved_retsafståelse = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = scenarie_ll12b_henstand_position_primo,
-    realisering = Ll12BHenstandRetAfstået(kontantomregnet_vederlag_kroner = 50000),
-    betalt_skatteafdrag_kroner = 25750,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 4000,
-    påbegyndte_forsinkelsesmåneder = 0,
-    antal_erindringsskrivelser = 0,
-    grov_og_gentagen_misligholdelse = Falskt,
-    påkrav_fremsat = Falskt,
-    løbende_ydelser_endeligt_ophørt = Falskt,
-    saldo_efter_realisering_kroner = 450000,
-    anvender_virksomhedsordningen = Falskt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+= scenarie_ll12b_henstand_første_rettidige_betaling = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_første_realisering.position_efter,
+    hændelse = Ll12BHenstandAfdragBetalt(
+        afdragsidentifikation = "ydelse-1",
+        betalingsdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 10),
+        betalt_skatteafdrag_kroner = 51500,
+        betalt_arbejdsmarkedsbidragsafdrag_kroner = 8000
+    )
 ))
-= scenarie_ll12b_henstand_forsinket = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = scenarie_ll12b_henstand_position_primo,
-    realisering = Ll12BHenstandYdelseModtaget(beløb_kroner = 100000),
-    betalt_skatteafdrag_kroner = 0,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
-    påbegyndte_forsinkelsesmåneder = 1,
-    antal_erindringsskrivelser = 1,
-    grov_og_gentagen_misligholdelse = Falskt,
-    påkrav_fremsat = Falskt,
-    løbende_ydelser_endeligt_ophørt = Falskt,
-    saldo_efter_realisering_kroner = 400000,
-    anvender_virksomhedsordningen = Falskt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+= scenarie_ll12b_henstand_afdrag_ved_retsafståelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_startposition,
+    hændelse = Ll12BHenstandRetAfstået(
+        afdragsidentifikation = "retsafståelse-1",
+        realisationsdato = Ligningslov12BDato(år = 2026, måned = 4, dag = 15),
+        kontantomregnet_vederlag_kroner = 50000
+    )
 ))
 
-= scenarie_ll12b_henstand_position_efter_afdrag = Ligningslov12BHenstandPosition(
-    bevilling = scenarie_ll12b_henstand_bevilling,
-    resterende_skat_kroner = 206000,
-    resterende_arbejdsmarkedsbidrag_kroner = 32000,
-    konto_for_opsparet_overskud_kroner = 150000
-)
-= scenarie_ll12b_henstand_ophør_vso = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = scenarie_ll12b_henstand_position_efter_afdrag,
-    realisering = Ll12BIngenHenstandsrealisering,
-    betalt_skatteafdrag_kroner = 0,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
-    påbegyndte_forsinkelsesmåneder = 0,
-    antal_erindringsskrivelser = 0,
-    grov_og_gentagen_misligholdelse = Falskt,
-    påkrav_fremsat = Falskt,
-    løbende_ydelser_endeligt_ophørt = Sandt,
-    saldo_efter_realisering_kroner = 300000,
-    anvender_virksomhedsordningen = Sandt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 180000
+= scenarie_ll12b_henstand_første_forfaldne_afdrag = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_første_realisering.position_efter,
+    hændelse = Ll12BHenstandOpgørelse(
+        opgørelsesdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 11)
+    )
 ))
-= scenarie_ll12b_henstand_grov_misligholdelse = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = scenarie_ll12b_henstand_position_efter_afdrag,
-    realisering = Ll12BIngenHenstandsrealisering,
-    betalt_skatteafdrag_kroner = 0,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
-    påbegyndte_forsinkelsesmåneder = 0,
-    antal_erindringsskrivelser = 0,
-    grov_og_gentagen_misligholdelse = Sandt,
-    påkrav_fremsat = Sandt,
-    løbende_ydelser_endeligt_ophørt = Falskt,
-    saldo_efter_realisering_kroner = 300000,
-    anvender_virksomhedsordningen = Falskt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 0
+= scenarie_ll12b_henstand_erindringsskrivelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_første_forfaldne_afdrag.position_efter,
+    hændelse = Ll12BHenstandErindringsskrivelse(
+        afdragsidentifikation = "ydelse-1",
+        erindringsdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 12)
+    )
+))
+= scenarie_ll12b_henstand_anden_realisering_med_restance = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_første_forfaldne_afdrag.position_efter,
+    hændelse = Ll12BHenstandYdelseModtaget(
+        afdragsidentifikation = "ydelse-2",
+        realisationsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 15),
+        beløb_kroner = 50000
+    )
+))
+= scenarie_ll12b_henstand_delvis_restancebetaling = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter,
+    hændelse = Ll12BHenstandAfdragBetalt(
+        afdragsidentifikation = "ydelse-1",
+        betalingsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 20),
+        betalt_skatteafdrag_kroner = 25750,
+        betalt_arbejdsmarkedsbidragsafdrag_kroner = 4000
+    )
+))
+= scenarie_ll12b_henstand_grov_misligholdelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter,
+    hændelse = Ll12BHenstandGrovGentagenMisligholdelse(
+        afdragsidentifikation = "påkrav-1",
+        påkravsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 20)
+    )
+))
+
+= scenarie_ll12b_henstand_decemberrealisering = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_startposition,
+    hændelse = Ll12BHenstandYdelseModtaget(
+        afdragsidentifikation = "december-ydelse",
+        realisationsdato = Ligningslov12BDato(år = 2026, måned = 12, dag = 15),
+        beløb_kroner = 100000
+    )
+))
+= scenarie_ll12b_henstand_2027_rentekilde_mangler = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_henstand_decemberrealisering.position_efter,
+    hændelse = Ll12BHenstandOpgørelse(
+        opgørelsesdato = Ligningslov12BDato(år = 2027, måned = 1, dag = 11)
+    )
 ))
 
 = scenarie_ll12b_vso_vejledning_bevilling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
@@ -403,25 +397,42 @@
         kommunal_andel_af_skatten_kroner = 0
     )
 ))
-= scenarie_ll12b_vso_vejledning_ophør = ligningslov12b_henstand_årsresultat(Ligningslov12BHenstandÅrsinput(
-    indkomstår = 2026,
-    position = Ligningslov12BHenstandPosition(
-        bevilling = scenarie_ll12b_vso_vejledning_bevilling,
-        resterende_skat_kroner = 115500,
-        resterende_arbejdsmarkedsbidrag_kroner = 0,
-        konto_for_opsparet_overskud_kroner = 702000
-    ),
-    realisering = Ll12BIngenHenstandsrealisering,
-    betalt_skatteafdrag_kroner = 0,
-    betalt_arbejdsmarkedsbidragsafdrag_kroner = 0,
-    påbegyndte_forsinkelsesmåneder = 0,
-    antal_erindringsskrivelser = 0,
-    grov_og_gentagen_misligholdelse = Falskt,
-    påkrav_fremsat = Falskt,
-    løbende_ydelser_endeligt_ophørt = Sandt,
-    saldo_efter_realisering_kroner = 525000,
-    anvender_virksomhedsordningen = Sandt,
-    opsparet_overskud_henført_til_ubetalt_henstand_kroner = 409500
+= scenarie_ll12b_vso_vejledning_startposition = ligningslov12b_henstand_startposition(
+    bevilling = scenarie_ll12b_vso_vejledning_bevilling,
+    konto_for_opsparet_overskud_kroner = 702000
+)
+= scenarie_ll12b_vso_vejledning_realisering = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_vso_vejledning_startposition,
+    hændelse = Ll12BHenstandYdelseModtaget(
+        afdragsidentifikation = "vejledning-betalt-afdrag",
+        realisationsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 15),
+        beløb_kroner = 375000
+    )
+))
+= scenarie_ll12b_vso_vejledning_betaling = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_vso_vejledning_realisering.position_efter,
+    hændelse = Ll12BHenstandAfdragBetalt(
+        afdragsidentifikation = "vejledning-betalt-afdrag",
+        betalingsdato = Ligningslov12BDato(år = 2026, måned = 4, dag = 10),
+        betalt_skatteafdrag_kroner = 82500,
+        betalt_arbejdsmarkedsbidragsafdrag_kroner = 0
+    )
+))
+= scenarie_ll12b_vso_vejledning_ophør = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_vso_vejledning_betaling.position_efter,
+    hændelse = Ll12BHenstandYdelserEndeligtOphørt(
+        frafaldsidentifikation = "vejledning-frafald",
+        ophørsdato = Ligningslov12BDato(år = 2026, måned = 6, dag = 30),
+        saldo_efter_ophør_kroner = 525000,
+        anvender_virksomhedsordningen = Sandt,
+        opsparet_overskud_henført_til_ubetalt_henstand_kroner = 409500
+    )
+))
+= scenarie_ll12b_vso_vejledning_senere_opgørelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
+    position = scenarie_ll12b_vso_vejledning_ophør.position_efter,
+    hændelse = Ll12BHenstandOpgørelse(
+        opgørelsesdato = Ligningslov12BDato(år = 2026, måned = 7, dag = 1)
+    )
 ))
 
 = scenarie_ll12b_historisk_ophør_gammel_henstand = ligningslov12b_resultat(Ligningslov12BInput(
@@ -494,6 +505,11 @@
     ophørsfordeling = scenarie_ll12b_ophørsfordeling_ingen
 ))
 
+| scenarie_ll12b_betalingsfrist_er(frist: Ligningslov12BHenstandBetalingsfrist, år: Heltal, måned: Heltal) -> match frist {
+    | Ll12BNyBetalingsfrist(forfaldsdato, sidste_rettidige_betalingsdato) -> forfaldsdato.år == år && forfaldsdato.måned == måned && forfaldsdato.dag == 1 && sidste_rettidige_betalingsdato.år == år && sidste_rettidige_betalingsdato.måned == måned && sidste_rettidige_betalingsdato.dag == 10
+    | Ll12BIngenNyBetalingsfrist -> Falskt
+}
+
 | scenarie_ll12b_regimegrænser: scenarie_ll12b_regime_henstand -> scenarie_ll12b_regime_før_start == Ll12BUdenForAnvendelsesperioden && scenarie_ll12b_regime_historisk_start == Ll12B1Juli1999Til18Marts2025 && scenarie_ll12b_regime_før_reform == Ll12B1Juli1999Til18Marts2025 && scenarie_ll12b_regime_reform == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_regime_før_henstand == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_regime_henstand == Ll12BFra1Januar2026
 | scenarie_ll12b_modtagerafskæring_gælder_fra_19_marts_2025: scenarie_ll12b_revideret_modtager -> scenarie_ll12b_historisk_modtager.modtager_skattepligtigt_kroner == 10000 && scenarie_ll12b_revideret_modtager.modtager_skattepligtigt_kroner == 0
 | scenarie_ll12b_yderafskæring_gælder_fra_19_marts_2025: scenarie_ll12b_revideret_yder -> scenarie_ll12b_historisk_yder.yder_fradrag_kroner == 10000 && scenarie_ll12b_revideret_yder.yder_fradrag_kroner == 0
@@ -504,12 +520,17 @@
 | scenarie_ll12b_ny_henstand_gælder_ikke_før_2026: scenarie_ll12b_henstand_før_2026 -> scenarie_ll12b_henstand_før_2026.regime == Ll12B19Marts2025Til31December2025 && scenarie_ll12b_henstand_før_2026.betingelser_opfyldt == Falskt && scenarie_ll12b_henstand_før_2026.samlet_henstandsbeløb_kroner == 0
 | scenarie_ll12b_henstand_fordeles_til_det_enkelte_aktiv: scenarie_ll12b_henstand_aktivfordeling -> scenarie_ll12b_henstand_aktivfordeling.finansiering_gyldig && scenarie_ll12b_henstand_aktivfordeling.kapitaliseret_værdi_af_løbende_ydelse_kroner == 500000 && scenarie_ll12b_henstand_aktivfordeling.kapitaliseret_værdi_henført_til_aktiv_kroner == 200000 && scenarie_ll12b_henstand_aktivfordeling.afståelsessum_for_aktiv_kroner == 400000 && scenarie_ll12b_henstand_aktivfordeling.henstand_med_skat_kroner == 257500
 | scenarie_ll12b_am_henstand_kræver_par4_eller_par5: scenarie_ll12b_henstand_uden_am_hjemmel -> scenarie_ll12b_henstand_uden_am_hjemmel.beregning_gyldig == Falskt && scenarie_ll12b_henstand_uden_am_hjemmel.betingelser_opfyldt == Falskt && scenarie_ll12b_henstand_uden_am_hjemmel.samlet_henstandsbeløb_kroner == 0
-| scenarie_ll12b_forholdsmæssigt_afdrag: scenarie_ll12b_henstand_afdrag -> scenarie_ll12b_henstand_afdrag.skatteafdrag_forfalder_kroner == 51500 && scenarie_ll12b_henstand_afdrag.arbejdsmarkedsbidragsafdrag_forfalder_kroner == 8000 && scenarie_ll12b_henstand_afdrag.samlet_afdrag_forfalder_kroner == 59500 && scenarie_ll12b_henstand_afdrag.position_efter.resterende_skat_kroner == 206000
-| scenarie_ll12b_retsafståelse_udløser_forholdsmæssigt_afdrag: scenarie_ll12b_henstand_afdrag_ved_retsafståelse -> scenarie_ll12b_henstand_afdrag_ved_retsafståelse.skatteafdrag_forfalder_kroner == 25750 && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.arbejdsmarkedsbidragsafdrag_forfalder_kroner == 4000 && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.samlet_afdrag_forfalder_kroner == 29750
-| scenarie_ll12b_forsinkelsesrente_og_rykkergebyr: scenarie_ll12b_henstand_forsinket -> scenarie_ll12b_henstand_forsinket.månedlig_forsinkelsesrente_basispoint == 50 && scenarie_ll12b_henstand_forsinket.ubetalt_forfaldent_afdrag_kroner == 59500 && scenarie_ll12b_henstand_forsinket.ikke_fradragsberettiget_rente_kroner == 297 && scenarie_ll12b_henstand_forsinket.rykkergebyr_kroner == 65
-| scenarie_ll12b_ophør_frafalder_rest_og_reducerer_vso_konto: scenarie_ll12b_henstand_ophør_vso -> scenarie_ll12b_henstand_ophør_vso.frafaldet_henstandsbeløb_kroner == 238000 && scenarie_ll12b_henstand_ophør_vso.konto_for_opsparet_overskud_reduktion_kroner == 150000 && scenarie_ll12b_henstand_ophør_vso.position_efter.resterende_skat_kroner == 0 && scenarie_ll12b_henstand_ophør_vso.position_efter.konto_for_opsparet_overskud_kroner == 0
-| scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud: scenarie_ll12b_vso_vejledning_ophør -> scenarie_ll12b_vso_vejledning_bevilling.henstand_med_skat_kroner == 198000 && scenarie_ll12b_vso_vejledning_ophør.frafaldet_henstandsbeløb_kroner == 115500 && scenarie_ll12b_vso_vejledning_ophør.konto_for_opsparet_overskud_reduktion_kroner == 409500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.konto_for_opsparet_overskud_kroner == 292500
-| scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav: scenarie_ll12b_henstand_grov_misligholdelse -> scenarie_ll12b_henstand_grov_misligholdelse.resterende_henstandsbeløb_forfalder_efter_påkrav_kroner == 238000 && scenarie_ll12b_henstand_grov_misligholdelse.frafaldet_henstandsbeløb_kroner == 0
+| scenarie_ll12b_forholdsmæssigt_afdrag_får_betalingsfrist: scenarie_ll12b_henstand_første_realisering -> scenarie_ll12b_henstand_første_realisering.input_gyldigt && scenarie_ll12b_henstand_første_realisering.rente_kilder_påkrævet == Falskt && scenarie_ll12b_henstand_første_realisering.nyt_skatteafdrag_kroner == 51500 && scenarie_ll12b_henstand_første_realisering.nyt_arbejdsmarkedsbidragsafdrag_kroner == 8000 && scenarie_ll12b_betalingsfrist_er(scenarie_ll12b_henstand_første_realisering.ny_betalingsfrist, 2026, 2) && scenarie_ll12b_henstand_første_realisering.position_efter.aktiv_henstand_skat_kroner == 206000 && scenarie_ll12b_henstand_første_realisering.position_efter.aktiv_henstand_arbejdsmarkedsbidrag_kroner == 32000
+| scenarie_ll12b_rettidig_betaling_lukker_kun_afdraget: scenarie_ll12b_henstand_første_rettidige_betaling -> scenarie_ll12b_henstand_første_rettidige_betaling.input_gyldigt && scenarie_ll12b_henstand_første_rettidige_betaling.betalt_skatteafdrag_kroner == 51500 && scenarie_ll12b_henstand_første_rettidige_betaling.betalt_arbejdsmarkedsbidragsafdrag_kroner == 8000 && scenarie_ll12b_henstand_første_rettidige_betaling.forfaldent_skatteafdrag_efter_kroner == 0 && scenarie_ll12b_henstand_første_rettidige_betaling.afventer_forfald_skatteafdrag_efter_kroner == 0 && scenarie_ll12b_henstand_første_rettidige_betaling.position_efter.aktiv_henstand_skat_kroner == 206000
+| scenarie_ll12b_retsafståelse_udløser_forholdsmæssigt_afdrag: scenarie_ll12b_henstand_afdrag_ved_retsafståelse -> scenarie_ll12b_henstand_afdrag_ved_retsafståelse.input_gyldigt && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.nyt_skatteafdrag_kroner == 25750 && scenarie_ll12b_henstand_afdrag_ved_retsafståelse.nyt_arbejdsmarkedsbidragsafdrag_kroner == 4000
+| scenarie_ll12b_forsinkelsesrente_og_rykkergebyr: scenarie_ll12b_henstand_erindringsskrivelse -> scenarie_ll12b_henstand_første_forfaldne_afdrag.input_gyldigt && scenarie_ll12b_henstand_første_forfaldne_afdrag.rente_kilder_påkrævet && scenarie_ll12b_henstand_første_forfaldne_afdrag.rente_kilder_tilgængelige && scenarie_ll12b_henstand_første_forfaldne_afdrag.forfaldent_skatteafdrag_efter_kroner == 51500 && scenarie_ll12b_henstand_første_forfaldne_afdrag.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 8000 && scenarie_ll12b_henstand_første_forfaldne_afdrag.ny_ikke_fradragsberettiget_rente_kroner == 297 && scenarie_ll12b_henstand_erindringsskrivelse.input_gyldigt && scenarie_ll12b_henstand_erindringsskrivelse.rykkergebyr_kroner == 65
+| scenarie_ll12b_restance_bæres_gennem_ny_realisering: scenarie_ll12b_henstand_anden_realisering_med_restance -> scenarie_ll12b_henstand_anden_realisering_med_restance.input_gyldigt && scenarie_ll12b_henstand_anden_realisering_med_restance.nyt_skatteafdrag_kroner == 25750 && scenarie_ll12b_henstand_anden_realisering_med_restance.nyt_arbejdsmarkedsbidragsafdrag_kroner == 4000 && scenarie_ll12b_henstand_anden_realisering_med_restance.forfaldent_skatteafdrag_efter_kroner == 51500 && scenarie_ll12b_henstand_anden_realisering_med_restance.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 8000 && scenarie_ll12b_henstand_anden_realisering_med_restance.afventer_forfald_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_anden_realisering_med_restance.afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && scenarie_ll12b_henstand_anden_realisering_med_restance.ny_ikke_fradragsberettiget_rente_kroner == 297 && length(scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter.afdrag) == 2
+| scenarie_ll12b_delvis_restancebetaling_bevarer_begge_afdrag: scenarie_ll12b_henstand_delvis_restancebetaling -> scenarie_ll12b_henstand_delvis_restancebetaling.input_gyldigt && scenarie_ll12b_henstand_delvis_restancebetaling.betalt_skatteafdrag_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.betalt_arbejdsmarkedsbidragsafdrag_kroner == 4000 && scenarie_ll12b_henstand_delvis_restancebetaling.forfaldent_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && scenarie_ll12b_henstand_delvis_restancebetaling.afventer_forfald_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && length(scenarie_ll12b_henstand_delvis_restancebetaling.position_efter.afdrag) == 2
+| scenarie_ll12b_decemberrealisering_forfalder_i_januar: scenarie_ll12b_henstand_decemberrealisering -> scenarie_ll12b_henstand_decemberrealisering.input_gyldigt && scenarie_ll12b_henstand_decemberrealisering.rente_kilder_påkrævet == Falskt && scenarie_ll12b_betalingsfrist_er(scenarie_ll12b_henstand_decemberrealisering.ny_betalingsfrist, 2027, 1)
+| scenarie_ll12b_fremtidig_rentekilde_kræves_før_beregning: scenarie_ll12b_henstand_2027_rentekilde_mangler -> scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_påkrævet && scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_tilgængelige == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.input_gyldigt == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.position_efter.opgjort_pr == Ligningslov12BDato(år = 2026, måned = 12, dag = 15)
+| scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud: scenarie_ll12b_vso_vejledning_ophør -> scenarie_ll12b_vso_vejledning_bevilling.henstand_med_skat_kroner == 198000 && scenarie_ll12b_vso_vejledning_realisering.nyt_skatteafdrag_kroner == 82500 && scenarie_ll12b_vso_vejledning_betaling.input_gyldigt && scenarie_ll12b_vso_vejledning_ophør.input_gyldigt && scenarie_ll12b_vso_vejledning_ophør.frafaldet_henstandsbeløb_kroner == 115500 && scenarie_ll12b_vso_vejledning_ophør.konto_for_opsparet_overskud_reduktion_kroner == 409500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.konto_for_opsparet_overskud_kroner == 292500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.status == Ll12BHenstandFrafaldet
+| scenarie_ll12b_frafald_er_terminalt: scenarie_ll12b_vso_vejledning_senere_opgørelse -> scenarie_ll12b_vso_vejledning_senere_opgørelse.input_gyldigt && scenarie_ll12b_vso_vejledning_senere_opgørelse.position_efter.status == Ll12BHenstandFrafaldet && scenarie_ll12b_vso_vejledning_senere_opgørelse.position_efter.konto_for_opsparet_overskud_kroner == 292500
+| scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav: scenarie_ll12b_henstand_grov_misligholdelse -> scenarie_ll12b_henstand_grov_misligholdelse.input_gyldigt && scenarie_ll12b_henstand_grov_misligholdelse.resterende_henstandsbeløb_forfalder_efter_påkrav_kroner == 208250 && scenarie_ll12b_henstand_grov_misligholdelse.forfaldent_skatteafdrag_efter_kroner == 231750 && scenarie_ll12b_henstand_grov_misligholdelse.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 36000 && scenarie_ll12b_henstand_grov_misligholdelse.position_efter.status == Ll12BHenstandMisligholdt && scenarie_ll12b_henstand_grov_misligholdelse.position_efter.aktiv_henstand_skat_kroner == 0 && scenarie_ll12b_henstand_grov_misligholdelse.frafaldet_henstandsbeløb_kroner == 0
 | scenarie_ll12b_henstandsgrundlag_følger_aftaleregimet: scenarie_ll12b_historisk_ophør_gammel_henstand -> scenarie_ll12b_historisk_ophør_gammel_henstand.henstandsgrundlag_gyldigt && scenarie_ll12b_historisk_ophør_gammel_henstand.modtager_fradrag_kroner == 30000 && scenarie_ll12b_historisk_ophør_forkert_ny_henstand.henstandsgrundlag_gyldigt == Falskt && scenarie_ll12b_historisk_ophør_forkert_ny_henstand.modtager_fradrag_kroner == 33000 && ll12b_modtager_ophør_fradrag_fixture.henstandsgrundlag_gyldigt && ll12b_modtager_ophør_fradrag_fixture.modtager_fradrag_kroner == 30000
 | scenarie_ll12b_stk8_tredjemand_er_skattepligtig_men_ikke_par4_nr15: scenarie_ll12b_tredjemand -> scenarie_ll12b_tredjemand.tredjemand_skattepligtigt_kroner == 12000 && scenarie_ll12b_tredjemand.omfattet_af_stk4_til_7_eller_9 == Falskt && scenarie_ll12b_tredjemand_personskattelov.kapitalindkomst_kroner == 0
 | scenarie_ll12b_stk9_overtager_indgangsværdi: scenarie_ll12b_overtager_indgangsværdi -> scenarie_ll12b_overtager_indgangsværdi.overtager_indgangsværdi_kroner == 45000
@@ -524,15 +545,20 @@
 ? scenarie_ll12b_ny_henstand_gælder_ikke_før_2026
 ? scenarie_ll12b_henstand_fordeles_til_det_enkelte_aktiv
 ? scenarie_ll12b_am_henstand_kræver_par4_eller_par5
-? scenarie_ll12b_forholdsmæssigt_afdrag
+? scenarie_ll12b_forholdsmæssigt_afdrag_får_betalingsfrist
+? scenarie_ll12b_rettidig_betaling_lukker_kun_afdraget
 ? scenarie_ll12b_retsafståelse_udløser_forholdsmæssigt_afdrag
 ? scenarie_ll12b_forsinkelsesrente_og_rykkergebyr
-? scenarie_ll12b_ophør_frafalder_rest_og_reducerer_vso_konto
+? scenarie_ll12b_restance_bæres_gennem_ny_realisering
+? scenarie_ll12b_delvis_restancebetaling_bevarer_begge_afdrag
+? scenarie_ll12b_decemberrealisering_forfalder_i_januar
+? scenarie_ll12b_fremtidig_rentekilde_kræves_før_beregning
 ? scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud
+? scenarie_ll12b_frafald_er_terminalt
 ? scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav
 ? scenarie_ll12b_henstandsgrundlag_følger_aftaleregimet
 ? scenarie_ll12b_stk8_tredjemand_er_skattepligtig_men_ikke_par4_nr15
 ? scenarie_ll12b_stk9_overtager_indgangsværdi
 
 @ print("LL §12B henstand med skat: " + vis(scenarie_ll12b_henstand_bevilling.henstand_med_skat_kroner))
-@ print("LL §12B samlet første afdrag: " + vis(scenarie_ll12b_henstand_afdrag.samlet_afdrag_forfalder_kroner))
+@ print("LL §12B samlet første afdrag: " + vis(scenarie_ll12b_henstand_første_realisering.nyt_skatteafdrag_kroner + scenarie_ll12b_henstand_første_realisering.nyt_arbejdsmarkedsbidragsafdrag_kroner))

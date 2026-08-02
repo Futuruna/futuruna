@@ -18464,6 +18464,7 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         "read_lines" | "json_array" | "regex_find_all" | "db_query_row" => {
             Some(FirTy::List(Box::new(FirTy::String)))
         }
+        "range" => Some(FirTy::List(Box::new(FirTy::Int))),
         "regex_find" => Some(FirTy::Option(Box::new(FirTy::String))),
         "db_query" => Some(FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String))))),
         "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
@@ -48993,6 +48994,20 @@ routes <- "b"
 "#,
         );
         assert_eq!(output, "1\n1\n1\n");
+    }
+
+    #[test]
+    fn compiled_list_valued_rule_infers_range_against_empty_branch() {
+        let output = compile_and_run_test_program(
+            r#"
+| month_indexes(flag: Bool) -> if flag { range(4, 7) } else { [] }
+
+@ print(show(length(month_indexes(True))))
+@ print(show(foldl(month_indexes(True), 0, |sum: Int, i: Int| sum + i)))
+@ print(show(length(month_indexes(False))))
+"#,
+        );
+        assert_eq!(output, "3\n15\n0\n");
     }
 
     #[test]

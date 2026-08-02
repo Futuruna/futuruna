@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-744cb5`
+Current focus issue: `td-69e51e`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -101,11 +101,17 @@ eksplicit overgang: gensidigt bebyrdende aftaler før 2026 bevarer det tidligere
 Den henviste § 12 B-ordning er nu implementeret fra LOV 749/2025 sammen med
 den ikke-konsoliderede 2026-overgang. Modellen skelner aftaledatoens tre
 regimer, de historiske saldo- og udelukkelsesregler og den nye henstand med
-skat og arbejdsmarkedsbidrag. Den beregner forholdsmæssige afdrag, rente,
-rykkergebyr, misligholdelse, ophør og reduktion af konto for opsparet overskud.
+skat og arbejdsmarkedsbidrag. En vedvarende, dateret hændelsesposition holder
+aktiv henstand adskilt fra hvert identificeret, afventende, forfaldent, betalt
+eller frafaldet afdrag. Forholdsmæssige afdrag udledes kumulativt, så gentagne
+realiseringer og delbetalinger ikke dobbeltopkræves. Betalingsfristen går
+korrekt fra en decemberrealisering til 1./10. januar i næste kalenderår, mens
+en fremtidig Opkrævningsloven-rente først kræves, når forsinkelsesrenten faktisk
+skal beregnes. Modellen bærer desuden rente, rykkergebyr, misligholdelse, ophør
+og reduktion af konto for opsparet overskud gennem samme hændelseslog.
 Skattestyrelsens eksempel med 1.000.000 kr. goodwill, 515.000 kr. skat og
 500.000 kr. kapitaliseret løbende ydelse giver 257.500 kr. skattehenstand i
-både interpreter og kompileret kode. De 19 fokuserede scenarieregler skelner
+både interpreter og kompileret kode. De 24 fokuserede scenarieregler skelner
 desuden den samlede kapitalisering fra finansieringen af det enkelte aktiv,
 kræver hjemmel i arbejdsmarkedsbidragslovens § 4 eller § 5, behandler
 afståelse af retten som en typet realisation og bevarer § 2-kapitalisering,
@@ -1565,9 +1571,11 @@ Current decision:
   termination balance, statutory exclusion amounts, acquisition-cost
   adjustments, and obligation-transfer opening value together. Separate typed
   henstand positions distinguish the historical Afskrivningsloven § 40 basis
-  from the 2026 LL § 12 B basis; scoped grant, annual-payment and cessation
-  rules carry tax, arbejdsmarkedsbidrag, proportional installments, interest,
-  fees, default and virksomhedsordning effects without a flat parameter chain.
+  from the 2026 LL § 12 B basis. A dated event ledger carries the grant,
+  active deferred tax and arbejdsmarkedsbidrag, individually identified
+  installments, arrears, payments, interest, fees, default, cessation and
+  virksomhedsordning effects without a flat parameter chain or fabricated
+  annual closing balance.
   `Par4Stk1Nr15Sag` consumes the typed result as Personskatteloven § 4,
   stk. 1, nr. 15 capital income rather than taking a bare scalar.
 - `Afskrivningslov40CAktivSag`, `Afskrivningslov40CSag`,
@@ -1934,10 +1942,9 @@ Review candidates to revisit deliberately, not as broad churn:
   municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
   unblock Personskatteloven calculation completeness or validate a newly
   implemented legal slice.
-- Deepen den nu implementerede § 12 B-henstandsposition i `td-69e51e`, så
-  eksakte realisationsdatoer, tidligere forfaldne afdrag og afsluttet,
-  misligholdt eller frafaldet status kan bæres gennem flere begivenheder uden
-  dobbeltopkrævning.
+- Brug den nu vedvarende § 12 B-hændelsesposition som mønster for andre
+  flerperiodiske lovforløb, når den juridiske regel faktisk kræver en historik
+  frem for et manuelt opgjort slutbeløb.
 - Keep validation audits close to the implementation. Exploratory daisy-chain,
   confiscatory, household-benefit, minimum-retained-income up to 2 mio. kr., or
   loophole searches belong after the main law model is more complete.
