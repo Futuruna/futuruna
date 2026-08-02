@@ -191,6 +191,7 @@
 
 = abl39a_lån_til_personen = AktieavancePar39ALånedata(
     hændelsesidentifikation = "laan-person",
+    skatteår = 2026,
     beholdningsselskabsidentifikation = "A",
     låneprovenu_kroner = 50000,
     låntager = AblPar39ALånTilPersonen,
@@ -208,6 +209,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
         hændelsesidentifikation = "laan-deltagerselskab",
+        skatteår = 2026,
         beholdningsselskabsidentifikation = "A",
         låneprovenu_kroner = 100000,
         låntager = AblPar39ALånTilPersonkredsEfterPar4Stk2,
@@ -222,6 +224,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
         hændelsesidentifikation = "laan-helejet",
+        skatteår = 2026,
         beholdningsselskabsidentifikation = "A",
         låneprovenu_kroner = 70000,
         låntager = AblPar39ALånTilSelskabMedMindstTiPctEjerskab,
@@ -236,6 +239,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
         hændelsesidentifikation = "laan-bank",
+        skatteår = 2026,
         beholdningsselskabsidentifikation = "A",
         låneprovenu_kroner = 70000,
         låntager = AblPar39ALånTilPersonen,
@@ -250,6 +254,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
         hændelsesidentifikation = "laan-ll16e",
+        skatteår = 2026,
         beholdningsselskabsidentifikation = "A",
         låneprovenu_kroner = 70000,
         låntager = AblPar39ALånTilPersonen,
@@ -263,6 +268,7 @@
 
 = abl39a_lån_70_første = AktieavancePar39ALånedata(
     hændelsesidentifikation = "laan-reservation-1",
+    skatteår = 2026,
     beholdningsselskabsidentifikation = "A",
     låneprovenu_kroner = 70000,
     låntager = AblPar39ALånTilPersonen,
@@ -274,6 +280,7 @@
 )
 = abl39a_lån_70_andet = AktieavancePar39ALånedata(
     hændelsesidentifikation = "laan-reservation-2",
+    skatteår = 2026,
     beholdningsselskabsidentifikation = "A",
     låneprovenu_kroner = 70000,
     låntager = AblPar39ALånTilPersonen,
@@ -308,6 +315,55 @@
     ]
 )
 
+| abl39a_stor_gevinst_i_år(hændelsesidentifikation: Tekst, skatteår: Heltal) -> AktieavancePar39AAfståelsesdata(
+    hændelsesidentifikation = hændelsesidentifikation,
+    selskabsidentifikation = "A",
+    aktieserie = "ordinær",
+    antal = 100,
+    afståelsessum_kroner = 400000,
+    skatteår = skatteår,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+    udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+    udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+    uudnyttet_realiseret_tab_kan_fremføres = Falskt
+)
+
+= abl39a_samme_års_stk4_prioritet_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_tilstand,
+    hændelser = [
+        AblPar39AAfståelse(data = abl39a_stor_gevinst_i_år(hændelsesidentifikation = "prioritet-samme-aar-gevinst", skatteår = 2026)),
+        AblPar39AAfståelse(data = abl39a_afståelse_b_med_tab)
+    ]
+)
+= abl39a_tidligere_års_fordring_beskyttet_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_tilstand,
+    hændelser = [
+        AblPar39AAfståelse(data = abl39a_stor_gevinst_i_år(hændelsesidentifikation = "prioritet-tidligere-aar-gevinst", skatteår = 2025)),
+        AblPar39AAfståelse(data = abl39a_afståelse_b_med_tab)
+    ]
+)
+= abl39a_betalt_beløb_beskyttet_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_tilstand,
+    hændelser = [
+        AblPar39AAfståelse(data = abl39a_stor_gevinst_i_år(hændelsesidentifikation = "prioritet-betalt-gevinst", skatteår = 2026)),
+        AblPar39ABetaling(data = AktieavancePar39ABetaling(
+            forfaldsidentifikation = "prioritet-betalt-gevinst:stk3-gevinst",
+            beløb_kroner = 60000,
+            art = AblPar39ABetalingAfForfaldspost,
+            friststatus = AblPar39ABetalingRettidigDen20
+        )),
+        AblPar39AAfståelse(data = abl39a_afståelse_b_med_tab)
+    ]
+)
+= abl39a_gevinst_fortrænger_lån_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_to_lån_reserveret_resultat.tilstand_ultimo,
+    hændelse = AblPar39AAfståelse(data = abl39a_stor_gevinst_i_år(hændelsesidentifikation = "prioritet-gevinst-efter-laan", skatteår = 2026))
+)
+= abl39a_stk3_tab_fortrænger_lån_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_to_lån_reserveret_resultat.tilstand_ultimo,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_a_med_stk3_tab)
+)
+
 = abl39a_årsoplysninger_rettidige_resultat = aktieavance_par39a_hændelsesresultat(
     tilstand = abl39a_tilstand,
     hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
@@ -330,6 +386,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ADokumentation(data = AktieavancePar39ADokumentation(
         hændelsesidentifikation = "dokumentation-undskyldelig",
+        indkomstår = 2026,
         friststatus = AblPar39ADokumentationFristoverskridelseTilsidesat
     ))
 )
@@ -337,6 +394,7 @@
     tilstand = abl39a_tilstand,
     hændelse = AblPar39ADokumentation(data = AktieavancePar39ADokumentation(
         hændelsesidentifikation = "dokumentation-for-sent",
+        indkomstår = 2026,
         friststatus = AblPar39ADokumentationForSent
     ))
 )
@@ -697,6 +755,11 @@
 | scenarie_abl39a_lån_beskattet_efter_ll16e_følger_udlodningssporet: abl39a_lån_beskattet_efter_ll16e_resultat -> abl39a_lån_beskattet_efter_ll16e_resultat.hændelse_gyldig && abl39a_lån_beskattet_efter_ll16e_resultat.nyt_forfald_kroner == 0
 | scenarie_abl39a_fordringer_reserverer_saldo_uden_overopkrævning: abl39a_to_lån_reserveret_resultat -> abl39a_to_lån_reserveret_resultat.alle_hændelser_gyldige && abl39a_to_lån_reserveret_resultat.tilstand_ultimo.henstandssaldo_kroner == 100000 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo.forfaldsposter) == 100000 && aktieavance_par39a_disponibel_henstandssaldo_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo) == 0 && aktieavance_par39a_fordringsrest_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo, "laan-reservation-1:forfald") == 70000 && aktieavance_par39a_fordringsrest_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo, "laan-reservation-2:forfald") == 30000
 | scenarie_abl39a_reserverede_fordringer_kan_betales_præcist_til_nul: abl39a_to_lån_betalt_resultat -> abl39a_to_lån_betalt_resultat.alle_hændelser_gyldige && abl39a_to_lån_betalt_resultat.tilstand_ultimo.henstandssaldo_kroner == 0 && length(abl39a_to_lån_betalt_resultat.tilstand_ultimo.forfaldsposter) == 0
+| scenarie_abl39a_årets_stk4_tab_fortrænger_ubetalt_gevinstfordring: abl39a_samme_års_stk4_prioritet_resultat -> abl39a_samme_års_stk4_prioritet_resultat.alle_hændelser_gyldige && abl39a_samme_års_stk4_prioritet_resultat.resultater[0].nyt_forfald_kroner == 100000 && abl39a_samme_års_stk4_prioritet_resultat.resultater[1].straksnedskrivning_kroner == 8100 && abl39a_samme_års_stk4_prioritet_resultat.tilstand_ultimo.henstandssaldo_kroner == 91900 && aktieavance_par39a_fordringsrest_kroner(abl39a_samme_års_stk4_prioritet_resultat.tilstand_ultimo, "prioritet-samme-aar-gevinst:stk3-gevinst") == 91900 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_samme_års_stk4_prioritet_resultat.tilstand_ultimo.forfaldsposter) == 91900
+| scenarie_abl39a_tidligere_års_ubetalte_fordring_bevarer_prioritet: abl39a_tidligere_års_fordring_beskyttet_resultat -> abl39a_tidligere_års_fordring_beskyttet_resultat.alle_hændelser_gyldige && abl39a_tidligere_års_fordring_beskyttet_resultat.resultater[1].straksnedskrivning_kroner == 0 && abl39a_tidligere_års_fordring_beskyttet_resultat.tilstand_ultimo.henstandssaldo_kroner == 100000 && aktieavance_par39a_fordringsrest_kroner(abl39a_tidligere_års_fordring_beskyttet_resultat.tilstand_ultimo, "prioritet-tidligere-aar-gevinst:stk3-gevinst") == 100000
+| scenarie_abl39a_betalt_gevinstbeløb_forbliver_nedskrevet_før_stk4_tab: abl39a_betalt_beløb_beskyttet_resultat -> abl39a_betalt_beløb_beskyttet_resultat.alle_hændelser_gyldige && abl39a_betalt_beløb_beskyttet_resultat.resultater[1].betalt_kroner == 60000 && abl39a_betalt_beløb_beskyttet_resultat.resultater[2].straksnedskrivning_kroner == 8100 && abl39a_betalt_beløb_beskyttet_resultat.tilstand_ultimo.henstandssaldo_kroner == 31900 && aktieavance_par39a_fordringsrest_kroner(abl39a_betalt_beløb_beskyttet_resultat.tilstand_ultimo, "prioritet-betalt-gevinst:stk3-gevinst") == 31900
+| scenarie_abl39a_årets_gevinst_fortrænger_senere_prioriterede_lån: abl39a_gevinst_fortrænger_lån_resultat -> abl39a_gevinst_fortrænger_lån_resultat.hændelse_gyldig && abl39a_gevinst_fortrænger_lån_resultat.nyt_forfald_kroner == 100000 && aktieavance_par39a_fordringsrest_kroner(abl39a_gevinst_fortrænger_lån_resultat.tilstand_efter, "prioritet-gevinst-efter-laan:stk3-gevinst") == 100000 && aktieavance_par39a_fordringsrest_kroner(abl39a_gevinst_fortrænger_lån_resultat.tilstand_efter, "laan-reservation-1:forfald") == 0 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_gevinst_fortrænger_lån_resultat.tilstand_efter.forfaldsposter) == 100000
+| scenarie_abl39a_stk3_tab_bevarer_gevinst_men_fortrænger_lån: abl39a_stk3_tab_fortrænger_lån_resultat -> abl39a_stk3_tab_fortrænger_lån_resultat.hændelse_gyldig && abl39a_stk3_tab_fortrænger_lån_resultat.straksnedskrivning_kroner == 10800 && abl39a_stk3_tab_fortrænger_lån_resultat.tilstand_efter.henstandssaldo_kroner == 89200 && aktieavance_par39a_fordringsrest_kroner(abl39a_stk3_tab_fortrænger_lån_resultat.tilstand_efter, "salg-a-stk3-tab:stk3-gevinst") == 5400 && aktieavance_par39a_fordringsrest_kroner(abl39a_stk3_tab_fortrænger_lån_resultat.tilstand_efter, "laan-reservation-1:forfald") == 70000 && aktieavance_par39a_fordringsrest_kroner(abl39a_stk3_tab_fortrænger_lån_resultat.tilstand_efter, "laan-reservation-2:forfald") == 13800 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_stk3_tab_fortrænger_lån_resultat.tilstand_efter.forfaldsposter) == 89200
 | scenarie_abl39a_rettidige_årsoplysninger_bevarer_henstand: abl39a_årsoplysninger_rettidige_resultat -> abl39a_årsoplysninger_rettidige_resultat.hændelse_gyldig && abl39a_årsoplysninger_rettidige_resultat.henstand_bortfaldet == Falskt && abl39a_årsoplysninger_rettidige_resultat.nyt_forfald_kroner == 0 && abl39a_årsoplysninger_rettidige_resultat.tilstand_efter.henstand_aktiv
 | scenarie_abl39a_for_sene_årsoplysninger_bortfalder_henstanden: abl39a_årsoplysninger_for_sent_resultat -> abl39a_årsoplysninger_for_sent_resultat.hændelse_gyldig && abl39a_årsoplysninger_for_sent_resultat.henstand_bortfaldet && abl39a_årsoplysninger_for_sent_resultat.nyt_forfald_kroner == 100000 && abl39a_årsoplysninger_for_sent_resultat.tilstand_efter.henstand_aktiv == Falskt
 | scenarie_abl39a_tilsidesat_dokumentationsfrist_bevarer_henstand: abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat -> abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.hændelse_gyldig && abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.henstand_bortfaldet == Falskt && abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.nyt_forfald_kroner == 0
@@ -734,6 +797,11 @@
 ? scenarie_abl39a_lån_beskattet_efter_ll16e_følger_udlodningssporet
 ? scenarie_abl39a_fordringer_reserverer_saldo_uden_overopkrævning
 ? scenarie_abl39a_reserverede_fordringer_kan_betales_præcist_til_nul
+? scenarie_abl39a_årets_stk4_tab_fortrænger_ubetalt_gevinstfordring
+? scenarie_abl39a_tidligere_års_ubetalte_fordring_bevarer_prioritet
+? scenarie_abl39a_betalt_gevinstbeløb_forbliver_nedskrevet_før_stk4_tab
+? scenarie_abl39a_årets_gevinst_fortrænger_senere_prioriterede_lån
+? scenarie_abl39a_stk3_tab_bevarer_gevinst_men_fortrænger_lån
 ? scenarie_abl39a_rettidige_årsoplysninger_bevarer_henstand
 ? scenarie_abl39a_for_sene_årsoplysninger_bortfalder_henstanden
 ? scenarie_abl39a_tilsidesat_dokumentationsfrist_bevarer_henstand
@@ -754,4 +822,4 @@
 ? scenarie_abl39a_oprettes_fra_faktisk_par39_henstand
 ? scenarie_abl39a_regelkaskade_folder_hændelser_i_rækkefølge
 
-@ print("Aktieavancebeskatningsloven §§ 39 A-40: 36 ledger-, forfalds- og tilflytningsscenarier kontrolleret")
+@ print("Aktieavancebeskatningsloven §§ 39 A-40: 41 ledger-, prioritets-, forfalds- og tilflytningsscenarier kontrolleret")

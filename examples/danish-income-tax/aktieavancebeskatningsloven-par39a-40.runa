@@ -192,14 +192,14 @@ finder tilsvarende anvendelse.
 # AktieavancePar39AUdlodningsdata(hændelsesidentifikation: Tekst, selskabsidentifikation: Tekst, skatteår: Heltal, beregningsgrundlag_kroner: Heltal, betalt_dansk_skat_kroner: Heltal, godkendt_fradrag_efter_ligningslov_par33_kroner: Heltal)
 # AktieavancePar39ALåntager = AblPar39ALånTilPersonen | AblPar39ALånTilPersonkredsEfterPar4Stk2 | AblPar39ALånTilSelskabMedMindstTiPctEjerskab | AblPar39ALånTilAnden
 # AktieavancePar39ALångiverrelation = AblPar39ALånFraBeholdningsselskab | AblPar39ALånFraSelskabSomBeholdningsselskabetDeltagerI(ejerandel_basispoint: Heltal)
-# AktieavancePar39ALånedata(hændelsesidentifikation: Tekst, beholdningsselskabsidentifikation: Tekst, låneprovenu_kroner: Heltal, låntager: AktieavancePar39ALåntager, långiverrelation: AktieavancePar39ALångiverrelation, långivende_selskab_ejer_hele_låntagerselskabet: Boolsk, långivende_selskab_er_pengeinstitut: Boolsk, personens_ejerandel_i_långivende_selskab_basispoint: Heltal, beskattes_efter_ligningslov_par16e: Boolsk)
+# AktieavancePar39ALånedata(hændelsesidentifikation: Tekst, skatteår: Heltal, beholdningsselskabsidentifikation: Tekst, låneprovenu_kroner: Heltal, låntager: AktieavancePar39ALåntager, långiverrelation: AktieavancePar39ALångiverrelation, långivende_selskab_ejer_hele_låntagerselskabet: Boolsk, långivende_selskab_er_pengeinstitut: Boolsk, personens_ejerandel_i_långivende_selskab_basispoint: Heltal, beskattes_efter_ligningslov_par16e: Boolsk)
 # AktieavancePar39AÅrsoplysningsfrist = AblPar39ARettidig1Juli | AblPar39ARettidigFørstkommendeHverdagKl9 | AblPar39ARettidigUdsatFrist | AblPar39AÅrsoplysningerForSent
 # AktieavancePar39AÅrsoplysninger(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39AÅrsoplysningsfrist, adresse_oplyst: Boolsk)
 # AktieavancePar39ADokumentationsfrist = AblPar39ADokumentationRettidig | AblPar39ADokumentationForSent | AblPar39ADokumentationFristoverskridelseTilsidesat
-# AktieavancePar39ADokumentation(hændelsesidentifikation: Tekst, friststatus: AktieavancePar39ADokumentationsfrist)
+# AktieavancePar39ADokumentation(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39ADokumentationsfrist)
 # AktieavancePar39AForfaldsgrund = AblPar39AForfaldAfståelsesgevinstStk3 | AblPar39AForfaldUdenlandskTabsfradragStk3 | AblPar39AForfaldUdenlandskTabsfradragStk4 | AblPar39AForfaldUdbytteStk5 | AblPar39AForfaldAndenUdlodningStk6 | AblPar39AForfaldLånStk7 | AblPar39AForfaldDødStk9 | AblPar39AForfaldManglendeÅrsoplysningerStk11 | AblPar39AForfaldManglendeDokumentationStk13
 # AktieavancePar39AForfaldsfristregel = AblPar39AForfald1SeptemberSidsteRettidige20 | AblPar39AForfaldAndenMånedSidsteRettidige20
-# AktieavancePar39AForfaldspost(identifikation: Tekst, grund: AktieavancePar39AForfaldsgrund, fristregel: AktieavancePar39AForfaldsfristregel, oprindeligt_beløb_kroner: Heltal, resterende_beløb_kroner: Heltal, nedskriver_henstandssaldo_ved_betaling: Boolsk)
+# AktieavancePar39AForfaldspost(identifikation: Tekst, indkomstår: Heltal, grund: AktieavancePar39AForfaldsgrund, fristregel: AktieavancePar39AForfaldsfristregel, oprindeligt_beløb_kroner: Heltal, resterende_beløb_kroner: Heltal, nedskriver_henstandssaldo_ved_betaling: Boolsk)
 # AktieavancePar39ABetalingsart = AblPar39ABetalingAfForfaldspost | AblPar39AFrivilligBetaling
 # AktieavancePar39ABetalingsfrist = AblPar39ABetalingRettidigDen20 | AblPar39ABetalingRettidigFølgendeHverdag | AblPar39ABetalingForSent
 # AktieavancePar39ABetaling(forfaldsidentifikation: Tekst, beløb_kroner: Heltal, art: AktieavancePar39ABetalingsart, friststatus: AktieavancePar39ABetalingsfrist)
@@ -211,6 +211,7 @@ finder tilsvarende anvendelse.
 # AktieavancePar39AHændelsesresultat(tilstand_før: AktieavancePar39ATilstand, hændelse: AktieavancePar39AHændelse, hændelse_gyldig: Boolsk, gevinst_efter_stk2_kroner: Heltal, tab_efter_stk2_kroner: Heltal, reguleret_tab_efter_stk4_kroner: Heltal, beregnet_skat_efter_par8a_kroner: Heltal, straksnedskrivning_kroner: Heltal, nyt_forfald_kroner: Heltal, betalt_kroner: Heltal, saldobortfald_efter_stk10_kroner: Heltal, henstand_bortfaldet: Boolsk, kildeskattelov_par63_anvendes: Boolsk, tilstand_efter: AktieavancePar39ATilstand)
 # AktieavancePar39AForløbstilstand(tilstand: AktieavancePar39ATilstand, resultater: List(AktieavancePar39AHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavancePar39AForløbsresultat(tilstand_primo: AktieavancePar39ATilstand, hændelser: List(AktieavancePar39AHændelse), resultater: List(AktieavancePar39AHændelsesresultat), tilstand_ultimo: AktieavancePar39ATilstand, alle_hændelser_gyldige: Boolsk)
+# AktieavancePar39APrioritetsfordeling(resterende_kapacitet_kroner: Heltal, forfaldsposter: List(AktieavancePar39AForfaldspost))
 
 | aktieavance_par39a_parti_nøgle(parti: AktieavancePar39ABeholdningsparti) -> aktieavance_par23_dato_nøgle(parti.erhvervelsesdato) * 1000000 + parti.erhvervelsesrækkefølge
 | aktieavance_par39a_parti_gyldigt(parti: AktieavancePar39ABeholdningsparti) -> parti.identifikation != "" && parti.selskabsidentifikation != "" && parti.aktieserie != "" && aktieavance_par23_dato_gyldig(parti.erhvervelsesdato) && parti.erhvervelsesrækkefølge > 0 && parti.resterende_antal > 0 && parti.resterende_anskaffelsessum_efter_par38_kroner >= 0 && parti.resterende_værdi_ved_fraflytning_kroner >= 0
@@ -224,7 +225,7 @@ finder tilsvarende anvendelse.
 | aktieavance_par39a_reserveret_henstandssaldo_kroner(forfaldsposter: List(AktieavancePar39AForfaldspost)) -> foldl(forfaldsposter, 0, |sum: Heltal, post: AktieavancePar39AForfaldspost| sum + hvis post.nedskriver_henstandssaldo_ved_betaling { post.resterende_beløb_kroner } ellers { 0 })
 | aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand: AktieavancePar39ATilstand) -> penge_positivt_beløb(tilstand.henstandssaldo_kroner - aktieavance_par39a_reserveret_henstandssaldo_kroner(tilstand.forfaldsposter))
 | aktieavance_par39a_forfaldsidentifikation_unik(forfaldsposter: List(AktieavancePar39AForfaldspost), post: AktieavancePar39AForfaldspost) -> foldl(forfaldsposter, 0, |antal: Heltal, anden: AktieavancePar39AForfaldspost| antal + hvis anden.identifikation == post.identifikation { 1 } ellers { 0 }) == 1
-| aktieavance_par39a_tilstand_gyldig(tilstand: AktieavancePar39ATilstand) -> aktieavance_par39a_beholdning_gyldig(tilstand.beholdning) && tilstand.henstandssaldo_kroner >= 0 && aktieavance_par39a_reserveret_henstandssaldo_kroner(tilstand.forfaldsposter) <= tilstand.henstandssaldo_kroner && all(tilstand.forfaldsposter, |post: AktieavancePar39AForfaldspost| post.identifikation != "" && post.oprindeligt_beløb_kroner > 0 && post.resterende_beløb_kroner > 0 && post.resterende_beløb_kroner <= post.oprindeligt_beløb_kroner && aktieavance_par39a_forfaldsidentifikation_unik(tilstand.forfaldsposter, post))
+| aktieavance_par39a_tilstand_gyldig(tilstand: AktieavancePar39ATilstand) -> aktieavance_par39a_beholdning_gyldig(tilstand.beholdning) && tilstand.henstandssaldo_kroner >= 0 && aktieavance_par39a_reserveret_henstandssaldo_kroner(tilstand.forfaldsposter) <= tilstand.henstandssaldo_kroner && all(tilstand.forfaldsposter, |post: AktieavancePar39AForfaldspost| post.identifikation != "" && post.indkomstår > 0 && post.oprindeligt_beløb_kroner > 0 && post.resterende_beløb_kroner > 0 && post.resterende_beløb_kroner <= post.oprindeligt_beløb_kroner && aktieavance_par39a_forfaldsidentifikation_unik(tilstand.forfaldsposter, post))
 | aktieavance_par39a_skat_efter_par8a_kroner(skatteår: Heltal, grundlag_kroner: Heltal) -> aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(skatteår = skatteår, aktieindkomst_kroner = penge_positivt_beløb(grundlag_kroner), effektivt_grundbeløb_kroner = aktieindkomst_grundbeløb_for(skatteår))).samlet_skat_kroner
 | aktieavance_par39a_tabsfradrag_gyldigt(fradrag: AktieavancePar39ATabsfradrag) -> fradrag.negativ_skatteværdi_i_udlandet_kroner >= 0 && (fradrag.fradrag_i_udlandet || fradrag.negativ_skatteværdi_i_udlandet_kroner == 0)
 | aktieavance_par39a_parti_matcher(parti: AktieavancePar39ABeholdningsparti, selskabsidentifikation: Tekst, aktieserie: Tekst) -> parti.selskabsidentifikation == selskabsidentifikation && parti.aktieserie == aktieserie
@@ -293,9 +294,37 @@ finder tilsvarende anvendelse.
 | aktieavance_par39a_tilstand_for_nettotab_uden_henstand(beholdning: List(AktieavancePar39ABeholdningsparti)) -> AktieavancePar39ATilstand(beholdning = beholdning, henstandssaldo_kroner = 0, forfaldsposter = [], uudnyttede_realiserede_tab_kan_fremføres = Falskt, henstand_aktiv = Falskt)
 
 | aktieavance_par39a_fordringsidentifikation_ledig(tilstand: AktieavancePar39ATilstand, identifikation: Tekst) -> identifikation != "" && all(tilstand.forfaldsposter, |post: AktieavancePar39AForfaldspost| post.identifikation != identifikation)
-| aktieavance_par39a_ny_forfaldspost(identifikation: Tekst, grund: AktieavancePar39AForfaldsgrund, fristregel: AktieavancePar39AForfaldsfristregel, beløb_kroner: Heltal, nedskriver_saldo: Boolsk) -> AktieavancePar39AForfaldspost(identifikation = identifikation, grund = grund, fristregel = fristregel, oprindeligt_beløb_kroner = beløb_kroner, resterende_beløb_kroner = beløb_kroner, nedskriver_henstandssaldo_ved_betaling = nedskriver_saldo)
+| aktieavance_par39a_ny_forfaldspost(identifikation: Tekst, indkomstår: Heltal, grund: AktieavancePar39AForfaldsgrund, fristregel: AktieavancePar39AForfaldsfristregel, beløb_kroner: Heltal, nedskriver_saldo: Boolsk) -> AktieavancePar39AForfaldspost(identifikation = identifikation, indkomstår = indkomstår, grund = grund, fristregel = fristregel, oprindeligt_beløb_kroner = beløb_kroner, resterende_beløb_kroner = beløb_kroner, nedskriver_henstandssaldo_ved_betaling = nedskriver_saldo)
 | aktieavance_par39a_tilføj_forfaldspost(forfaldsposter: List(AktieavancePar39AForfaldspost), post: AktieavancePar39AForfaldspost) -> hvis post.resterende_beløb_kroner > 0 { concat(forfaldsposter, [post]) } ellers { forfaldsposter }
 | aktieavance_par39a_tilføj_forfaldsposter(forfaldsposter: List(AktieavancePar39AForfaldspost), nye_poster: List(AktieavancePar39AForfaldspost)) -> foldl(nye_poster, forfaldsposter, aktieavance_par39a_tilføj_forfaldspost)
+| aktieavance_par39a_forfaldspost_med_rest(post: AktieavancePar39AForfaldspost, resterende_beløb_kroner: Heltal) -> AktieavancePar39AForfaldspost(identifikation = post.identifikation, indkomstår = post.indkomstår, grund = post.grund, fristregel = post.fristregel, oprindeligt_beløb_kroner = post.oprindeligt_beløb_kroner, resterende_beløb_kroner = resterende_beløb_kroner, nedskriver_henstandssaldo_ved_betaling = post.nedskriver_henstandssaldo_ved_betaling)
+| aktieavance_par39a_forfald_er_årets_afståelsesgevinst(post: AktieavancePar39AForfaldspost, indkomstår: Heltal) -> post.nedskriver_henstandssaldo_ved_betaling && post.indkomstår == indkomstår && (post.grund == AblPar39AForfaldAfståelsesgevinstStk3 || post.grund == AblPar39AForfaldDødStk9)
+| aktieavance_par39a_forfald_er_årets_udlodning_eller_lån(post: AktieavancePar39AForfaldspost, indkomstår: Heltal) -> post.nedskriver_henstandssaldo_ved_betaling && post.indkomstår == indkomstår && (post.grund == AblPar39AForfaldUdbytteStk5 || post.grund == AblPar39AForfaldAndenUdlodningStk6 || post.grund == AblPar39AForfaldLånStk7)
+| aktieavance_par39a_forfald_er_årsprioriteret(post: AktieavancePar39AForfaldspost, indkomstår: Heltal) -> aktieavance_par39a_forfald_er_årets_afståelsesgevinst(post, indkomstår) || aktieavance_par39a_forfald_er_årets_udlodning_eller_lån(post, indkomstår)
+| aktieavance_par39a_beskyttede_forfaldsposter(forfaldsposter: List(AktieavancePar39AForfaldspost), indkomstår: Heltal) -> filter(forfaldsposter, |post: AktieavancePar39AForfaldspost| aktieavance_par39a_forfald_er_årsprioriteret(post, indkomstår) == Falskt)
+| aktieavance_par39a_årets_forfaldsposter_i_prioritetsrækkefølge(forfaldsposter: List(AktieavancePar39AForfaldspost), indkomstår: Heltal) -> concat(filter(forfaldsposter, |post: AktieavancePar39AForfaldspost| aktieavance_par39a_forfald_er_årets_afståelsesgevinst(post, indkomstår)), filter(forfaldsposter, |post: AktieavancePar39AForfaldspost| aktieavance_par39a_forfald_er_årets_udlodning_eller_lån(post, indkomstår)))
+
+# AktieavancePar39APrioritetsfordelingstrinSag(fordeling: AktieavancePar39APrioritetsfordeling, post: AktieavancePar39AForfaldspost) {
+    | tildelt_beløb_kroner() -> penge_mindste_beløb(fordeling.resterende_kapacitet_kroner, post.resterende_beløb_kroner)
+    | post_efter() -> aktieavance_par39a_forfaldspost_med_rest(post, tildelt_beløb_kroner())
+    | resultat() -> AktieavancePar39APrioritetsfordeling(resterende_kapacitet_kroner = fordeling.resterende_kapacitet_kroner - tildelt_beløb_kroner(), forfaldsposter = aktieavance_par39a_tilføj_forfaldspost(fordeling.forfaldsposter, post_efter()))
+}
+
+| aktieavance_par39a_prioritetsfordelingstrin(fordeling: AktieavancePar39APrioritetsfordeling, post: AktieavancePar39AForfaldspost) -> AktieavancePar39APrioritetsfordelingstrinSag(fordeling, post).resultat()
+| aktieavance_par39a_forfaldsposter_efter_årsprioritet(forfaldsposter: List(AktieavancePar39AForfaldspost), henstandssaldo_kroner: Heltal, indkomstår: Heltal) -> concat(
+    aktieavance_par39a_beskyttede_forfaldsposter(forfaldsposter, indkomstår),
+    foldl(
+        aktieavance_par39a_årets_forfaldsposter_i_prioritetsrækkefølge(forfaldsposter, indkomstår),
+        AktieavancePar39APrioritetsfordeling(
+            resterende_kapacitet_kroner = penge_positivt_beløb(henstandssaldo_kroner - aktieavance_par39a_reserveret_henstandssaldo_kroner(aktieavance_par39a_beskyttede_forfaldsposter(forfaldsposter, indkomstår))),
+            forfaldsposter = []
+        ),
+        aktieavance_par39a_prioritetsfordelingstrin
+    ).forfaldsposter
+)
+| aktieavance_par39a_beskyttet_reserve_før_stk4_kroner(forfaldsposter: List(AktieavancePar39AForfaldspost), indkomstår: Heltal) -> aktieavance_par39a_reserveret_henstandssaldo_kroner(aktieavance_par39a_beskyttede_forfaldsposter(forfaldsposter, indkomstår))
+| aktieavance_par39a_reserve_før_stk3_kroner(forfaldsposter: List(AktieavancePar39AForfaldspost), indkomstår: Heltal) -> aktieavance_par39a_reserveret_henstandssaldo_kroner(filter(forfaldsposter, |post: AktieavancePar39AForfaldspost| aktieavance_par39a_forfald_er_årets_udlodning_eller_lån(post, indkomstår) == Falskt))
+| aktieavance_par39a_forfaldsrest_i_poster_kroner(forfaldsposter: List(AktieavancePar39AForfaldspost), identifikation: Tekst) -> foldl(forfaldsposter, 0, |sum: Heltal, post: AktieavancePar39AForfaldspost| sum + hvis post.identifikation == identifikation { post.resterende_beløb_kroner } ellers { 0 })
 | aktieavance_par39a_beholdningsforpligtelse_skal_afsluttes(tilstand: AktieavancePar39ATilstand) -> length(tilstand.beholdning) == 0 && tilstand.uudnyttede_realiserede_tab_kan_fremføres == Falskt
 | aktieavance_par39a_saldo_skal_bortfalde(tilstand: AktieavancePar39ATilstand) -> aktieavance_par39a_beholdningsforpligtelse_skal_afsluttes(tilstand) && aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand) > 0
 | aktieavance_par39a_normaliser_tilstand(tilstand: AktieavancePar39ATilstand) -> AktieavancePar39ATilstand(
@@ -323,30 +352,36 @@ finder tilsvarende anvendelse.
     | skat_af_gevinst_kroner() -> hvis hændelse_gyldig() { aktieavance_par39a_skat_efter_par8a_kroner(data.skatteår, gevinst_efter_stk2_kroner()) } ellers { 0 }
     | negativ_skatteværdi_stk3_kroner() -> hvis hændelse_gyldig() { aktieavance_par39a_skat_efter_par8a_kroner(data.skatteår, tab_efter_fraflytningsværdi_for_stk3_kroner()) } ellers { 0 }
     | negativ_skatteværdi_stk4_kroner() -> hvis hændelse_gyldig() { aktieavance_par39a_skat_efter_par8a_kroner(data.skatteår, reguleret_tab_efter_stk4_kroner()) } ellers { 0 }
-    | disponibel_saldo_før_kroner() -> aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand)
-    | straksnedskrivning_stk4_kroner() -> penge_mindste_beløb(disponibel_saldo_før_kroner(), negativ_skatteværdi_stk4_kroner())
-    | disponibel_saldo_efter_stk4_kroner() -> disponibel_saldo_før_kroner() - straksnedskrivning_stk4_kroner()
-    | gevinstfordring_kroner() -> penge_mindste_beløb(disponibel_saldo_efter_stk4_kroner(), penge_positivt_beløb(skat_af_gevinst_kroner() - data.godkendt_fradrag_efter_ligningslov_par33_kroner))
-    | disponibel_saldo_efter_gevinstfordring_kroner() -> disponibel_saldo_efter_stk4_kroner() - gevinstfordring_kroner()
-    | straksnedskrivning_stk3_kroner() -> penge_mindste_beløb(disponibel_saldo_efter_gevinstfordring_kroner(), negativ_skatteværdi_stk3_kroner())
+    | beskyttet_reserve_før_stk4_kroner() -> aktieavance_par39a_beskyttet_reserve_før_stk4_kroner(tilstand.forfaldsposter, data.skatteår)
+    | saldo_tilgængelig_for_stk4_kroner() -> penge_positivt_beløb(tilstand.henstandssaldo_kroner - beskyttet_reserve_før_stk4_kroner())
+    | straksnedskrivning_stk4_kroner() -> penge_mindste_beløb(saldo_tilgængelig_for_stk4_kroner(), negativ_skatteværdi_stk4_kroner())
+    | saldo_efter_stk4_kroner() -> tilstand.henstandssaldo_kroner - straksnedskrivning_stk4_kroner()
+    | beregnet_gevinstfordring_kroner() -> penge_positivt_beløb(skat_af_gevinst_kroner() - data.godkendt_fradrag_efter_ligningslov_par33_kroner)
+    | gevinstfordring() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk3-gevinst", data.skatteår, gevinstfordringsgrund, AblPar39AForfald1SeptemberSidsteRettidige20, beregnet_gevinstfordring_kroner(), Sandt)
+    | forfaldsposter_med_gevinstfordring() -> aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, gevinstfordring())
+    | forfaldsposter_efter_stk4_og_gevinst() -> aktieavance_par39a_forfaldsposter_efter_årsprioritet(forfaldsposter_med_gevinstfordring(), saldo_efter_stk4_kroner(), data.skatteår)
+    | reserve_før_stk3_kroner() -> aktieavance_par39a_reserve_før_stk3_kroner(forfaldsposter_efter_stk4_og_gevinst(), data.skatteår)
+    | saldo_tilgængelig_for_stk3_kroner() -> penge_positivt_beløb(saldo_efter_stk4_kroner() - reserve_før_stk3_kroner())
+    | straksnedskrivning_stk3_kroner() -> penge_mindste_beløb(saldo_tilgængelig_for_stk3_kroner(), negativ_skatteværdi_stk3_kroner())
     | straksnedskrivning_kroner() -> straksnedskrivning_stk4_kroner() + straksnedskrivning_stk3_kroner()
-    | saldo_efter_straksnedskrivning_kroner() -> tilstand.henstandssaldo_kroner - straksnedskrivning_kroner()
+    | saldo_efter_straksnedskrivning_kroner() -> saldo_efter_stk4_kroner() - straksnedskrivning_stk3_kroner()
+    | prioriterede_forfaldsposter() -> aktieavance_par39a_forfaldsposter_efter_årsprioritet(forfaldsposter_efter_stk4_og_gevinst(), saldo_efter_straksnedskrivning_kroner(), data.skatteår)
     | udenlandsk_tabsfordring_stk3_kroner() -> hvis data.udenlandsk_tabsfradrag_efter_stk3.fradrag_i_udlandet { penge_mindste_beløb(data.udenlandsk_tabsfradrag_efter_stk3.negativ_skatteværdi_i_udlandet_kroner, straksnedskrivning_stk3_kroner()) } ellers { 0 }
     | udenlandsk_tabsfordring_stk4_kroner() -> hvis data.udenlandsk_tabsfradrag_efter_stk4.fradrag_i_udlandet { penge_mindste_beløb(data.udenlandsk_tabsfradrag_efter_stk4.negativ_skatteværdi_i_udlandet_kroner, straksnedskrivning_stk4_kroner()) } ellers { 0 }
-    | gevinstfordring() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk3-gevinst", gevinstfordringsgrund, AblPar39AForfald1SeptemberSidsteRettidige20, gevinstfordring_kroner(), Sandt)
-    | udenlandsk_tabsfordring_stk3() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk3-udenlandsk-tab", AblPar39AForfaldUdenlandskTabsfradragStk3, AblPar39AForfald1SeptemberSidsteRettidige20, udenlandsk_tabsfordring_stk3_kroner(), Falskt)
-    | udenlandsk_tabsfordring_stk4() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk4-udenlandsk-tab", AblPar39AForfaldUdenlandskTabsfradragStk4, AblPar39AForfald1SeptemberSidsteRettidige20, udenlandsk_tabsfordring_stk4_kroner(), Falskt)
-    | nye_fordringer() -> [gevinstfordring(), udenlandsk_tabsfordring_stk3(), udenlandsk_tabsfordring_stk4()]
+    | udenlandsk_tabsfordring_stk3() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk3-udenlandsk-tab", data.skatteår, AblPar39AForfaldUdenlandskTabsfradragStk3, AblPar39AForfald1SeptemberSidsteRettidige20, udenlandsk_tabsfordring_stk3_kroner(), Falskt)
+    | udenlandsk_tabsfordring_stk4() -> aktieavance_par39a_ny_forfaldspost(data.hændelsesidentifikation + ":stk4-udenlandsk-tab", data.skatteår, AblPar39AForfaldUdenlandskTabsfradragStk4, AblPar39AForfald1SeptemberSidsteRettidige20, udenlandsk_tabsfordring_stk4_kroner(), Falskt)
+    | forfaldsposter_efter() -> aktieavance_par39a_tilføj_forfaldsposter(prioriterede_forfaldsposter(), [udenlandsk_tabsfordring_stk3(), udenlandsk_tabsfordring_stk4()])
+    | gevinstfordring_efter_prioritet_kroner() -> aktieavance_par39a_forfaldsrest_i_poster_kroner(forfaldsposter_efter(), data.hændelsesidentifikation + ":stk3-gevinst")
     | tilstand_før_bortfald() -> AktieavancePar39ATilstand(
         beholdning = fifo_resultat().resterende_beholdning,
         henstandssaldo_kroner = saldo_efter_straksnedskrivning_kroner(),
-        forfaldsposter = aktieavance_par39a_tilføj_forfaldsposter(tilstand.forfaldsposter, nye_fordringer()),
+        forfaldsposter = forfaldsposter_efter(),
         uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres || data.uudnyttet_realiseret_tab_kan_fremføres,
         henstand_aktiv = tilstand.henstand_aktiv
     )
     | tilstand_efter() -> hvis hændelse_gyldig() { aktieavance_par39a_normaliser_tilstand(tilstand_før_bortfald()) } ellers { tilstand }
     | saldobortfald_efter_stk10_kroner() -> hvis hændelse_gyldig() { tilstand_før_bortfald().henstandssaldo_kroner - tilstand_efter().henstandssaldo_kroner } ellers { 0 }
-    | nyt_forfald_kroner() -> hvis hændelse_gyldig() { gevinstfordring_kroner() + udenlandsk_tabsfordring_stk3_kroner() + udenlandsk_tabsfordring_stk4_kroner() } ellers { 0 }
+    | nyt_forfald_kroner() -> hvis hændelse_gyldig() { gevinstfordring_efter_prioritet_kroner() + udenlandsk_tabsfordring_stk3_kroner() + udenlandsk_tabsfordring_stk4_kroner() } ellers { 0 }
     | resultat() -> AktieavancePar39AHændelsesresultat(
         tilstand_før = tilstand,
         hændelse = AblPar39AAfståelse(data),
@@ -383,11 +418,12 @@ finder tilsvarende anvendelse.
     | disponibel_saldo_før_kroner() -> aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand)
     | straksnedskrivning_kroner() -> hvis hændelse_gyldig() && omfattet { penge_mindste_beløb(disponibel_saldo_før_kroner(), data.betalt_dansk_skat_kroner) } ellers { 0 }
     | saldo_efter_straksnedskrivning_kroner() -> tilstand.henstandssaldo_kroner - straksnedskrivning_kroner()
-    | disponibel_saldo_efter_straksnedskrivning_kroner() -> disponibel_saldo_før_kroner() - straksnedskrivning_kroner()
-    | forfald_kroner() -> hvis hændelse_gyldig() { penge_mindste_beløb(disponibel_saldo_efter_straksnedskrivning_kroner(), penge_positivt_beløb(beregnet_skat_kroner() - data.betalt_dansk_skat_kroner - data.godkendt_fradrag_efter_ligningslov_par33_kroner)) } ellers { 0 }
-    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), forfaldsgrund, AblPar39AForfald1SeptemberSidsteRettidige20, forfald_kroner(), Sandt)
-    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = saldo_efter_straksnedskrivning_kroner(), forfaldsposter = aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv && saldo_efter_straksnedskrivning_kroner() > 0) } ellers { tilstand }
-    | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse, hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = beregnet_skat_kroner(), straksnedskrivning_kroner = straksnedskrivning_kroner(), nyt_forfald_kroner = forfald_kroner(), betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = Falskt, kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
+    | beregnet_forfald_kroner() -> hvis hændelse_gyldig() { penge_positivt_beløb(beregnet_skat_kroner() - data.betalt_dansk_skat_kroner - data.godkendt_fradrag_efter_ligningslov_par33_kroner) } ellers { 0 }
+    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), data.skatteår, forfaldsgrund, AblPar39AForfald1SeptemberSidsteRettidige20, beregnet_forfald_kroner(), Sandt)
+    | forfaldsposter_efter() -> aktieavance_par39a_forfaldsposter_efter_årsprioritet(aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), saldo_efter_straksnedskrivning_kroner(), data.skatteår)
+    | nyt_forfald_kroner() -> aktieavance_par39a_forfaldsrest_i_poster_kroner(forfaldsposter_efter(), forfaldsidentifikation())
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = saldo_efter_straksnedskrivning_kroner(), forfaldsposter = forfaldsposter_efter(), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv && saldo_efter_straksnedskrivning_kroner() > 0) } ellers { tilstand }
+    | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse, hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = beregnet_skat_kroner(), straksnedskrivning_kroner = straksnedskrivning_kroner(), nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = Falskt, kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
 }
 
 | aktieavance_par39a_udlodningsresultat(tilstand: AktieavancePar39ATilstand, data: AktieavancePar39AUdlodningsdata, hændelse: AktieavancePar39AHændelse, forfaldsgrund: AktieavancePar39AForfaldsgrund, omfattet: Boolsk) -> AktieavancePar39AUdlodningsSag(tilstand, data, hændelse, forfaldsgrund, omfattet).resultat()
@@ -403,12 +439,13 @@ finder tilsvarende anvendelse.
     | undtaget_helejet_låntagerselskab() -> aktieavance_par39a_låntager_er_selskab(data.låntager) && data.långivende_selskab_ejer_hele_låntagerselskabet
     | undtaget_pengeinstitut_under_fem_pct() -> data.långivende_selskab_er_pengeinstitut && data.personens_ejerandel_i_långivende_selskab_basispoint < 500
     | lån_omfattet() -> aktieavance_par39a_låntager_omfattet(data.låntager) && undtaget_helejet_låntagerselskab() == Falskt && undtaget_pengeinstitut_under_fem_pct() == Falskt && data.beskattes_efter_ligningslov_par16e == Falskt
-    | hændelse_gyldig() -> aktieavance_par39a_tilstand_gyldig(tilstand) && tilstand.henstand_aktiv && data.hændelsesidentifikation != "" && data.beholdningsselskabsidentifikation != "" && aktieavance_par39a_har_selskab(tilstand, data.beholdningsselskabsidentifikation) && data.låneprovenu_kroner >= 0 && aktieavance_par39a_långiverrelation_gyldig(data.långiverrelation) && data.personens_ejerandel_i_långivende_selskab_basispoint >= 0 && data.personens_ejerandel_i_långivende_selskab_basispoint <= 10000 && aktieavance_par39a_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation())
+    | hændelse_gyldig() -> aktieavance_par39a_tilstand_gyldig(tilstand) && tilstand.henstand_aktiv && data.hændelsesidentifikation != "" && data.skatteår > 0 && data.beholdningsselskabsidentifikation != "" && aktieavance_par39a_har_selskab(tilstand, data.beholdningsselskabsidentifikation) && data.låneprovenu_kroner >= 0 && aktieavance_par39a_långiverrelation_gyldig(data.långiverrelation) && data.personens_ejerandel_i_långivende_selskab_basispoint >= 0 && data.personens_ejerandel_i_långivende_selskab_basispoint <= 10000 && aktieavance_par39a_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation())
     | beregnet_forfald_kroner() -> data.låneprovenu_kroner * aktieavance_par39a_lån_ejerandel_basispoint(data.långiverrelation) / 10000
-    | forfald_kroner() -> hvis hændelse_gyldig() && lån_omfattet() { penge_mindste_beløb(aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand), beregnet_forfald_kroner()) } ellers { 0 }
-    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), AblPar39AForfaldLånStk7, AblPar39AForfald1SeptemberSidsteRettidige20, forfald_kroner(), Sandt)
-    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = tilstand.henstandssaldo_kroner, forfaldsposter = aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv) } ellers { tilstand }
-    | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse(), hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = 0, straksnedskrivning_kroner = 0, nyt_forfald_kroner = forfald_kroner(), betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = Falskt, kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
+    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), data.skatteår, AblPar39AForfaldLånStk7, AblPar39AForfald1SeptemberSidsteRettidige20, hvis hændelse_gyldig() && lån_omfattet() { beregnet_forfald_kroner() } ellers { 0 }, Sandt)
+    | forfaldsposter_efter() -> aktieavance_par39a_forfaldsposter_efter_årsprioritet(aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), tilstand.henstandssaldo_kroner, data.skatteår)
+    | nyt_forfald_kroner() -> aktieavance_par39a_forfaldsrest_i_poster_kroner(forfaldsposter_efter(), forfaldsidentifikation())
+    | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = tilstand.henstandssaldo_kroner, forfaldsposter = forfaldsposter_efter(), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv) } ellers { tilstand }
+    | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse(), hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = 0, straksnedskrivning_kroner = 0, nyt_forfald_kroner = hvis hændelse_gyldig() { nyt_forfald_kroner() } ellers { 0 }, betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = Falskt, kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
 }
 
 | aktieavance_par39a_låneresultat(tilstand: AktieavancePar39ATilstand, data: AktieavancePar39ALånedata) -> AktieavancePar39ALåneSag(tilstand, data).resultat()
@@ -422,7 +459,7 @@ finder tilsvarende anvendelse.
     | henstand_bortfaldet() -> oplysninger_påkrævet() && aktieavance_par39a_årsoplysninger_rettidige(data) == Falskt
     | hændelse_gyldig() -> aktieavance_par39a_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && data.indkomstår > 0 && aktieavance_par39a_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation())
     | forfald_kroner() -> hvis hændelse_gyldig() && henstand_bortfaldet() { aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand) } ellers { 0 }
-    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), AblPar39AForfaldManglendeÅrsoplysningerStk11, AblPar39AForfald1SeptemberSidsteRettidige20, forfald_kroner(), Sandt)
+    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar39AForfaldManglendeÅrsoplysningerStk11, AblPar39AForfald1SeptemberSidsteRettidige20, forfald_kroner(), Sandt)
     | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = tilstand.henstandssaldo_kroner, forfaldsposter = aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv && henstand_bortfaldet() == Falskt) } ellers { tilstand }
     | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse(), hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = 0, straksnedskrivning_kroner = 0, nyt_forfald_kroner = forfald_kroner(), betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = hændelse_gyldig() && henstand_bortfaldet(), kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
 }
@@ -435,9 +472,9 @@ finder tilsvarende anvendelse.
     | hændelse() -> AblPar39ADokumentation(data)
     | forfaldsidentifikation() -> data.hændelsesidentifikation + ":forfald"
     | henstand_bortfaldet() -> tilstand.henstand_aktiv && tilstand.henstandssaldo_kroner > 0 && aktieavance_par39a_dokumentation_rettidig(data) == Falskt
-    | hændelse_gyldig() -> aktieavance_par39a_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && aktieavance_par39a_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation())
+    | hændelse_gyldig() -> aktieavance_par39a_tilstand_gyldig(tilstand) && data.hændelsesidentifikation != "" && data.indkomstår > 0 && aktieavance_par39a_fordringsidentifikation_ledig(tilstand, forfaldsidentifikation())
     | forfald_kroner() -> hvis hændelse_gyldig() && henstand_bortfaldet() { aktieavance_par39a_disponibel_henstandssaldo_kroner(tilstand) } ellers { 0 }
-    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), AblPar39AForfaldManglendeDokumentationStk13, AblPar39AForfaldAndenMånedSidsteRettidige20, forfald_kroner(), Sandt)
+    | forfaldspost() -> aktieavance_par39a_ny_forfaldspost(forfaldsidentifikation(), data.indkomstår, AblPar39AForfaldManglendeDokumentationStk13, AblPar39AForfaldAndenMånedSidsteRettidige20, forfald_kroner(), Sandt)
     | tilstand_efter() -> hvis hændelse_gyldig() { AktieavancePar39ATilstand(beholdning = tilstand.beholdning, henstandssaldo_kroner = tilstand.henstandssaldo_kroner, forfaldsposter = aktieavance_par39a_tilføj_forfaldspost(tilstand.forfaldsposter, forfaldspost()), uudnyttede_realiserede_tab_kan_fremføres = tilstand.uudnyttede_realiserede_tab_kan_fremføres, henstand_aktiv = tilstand.henstand_aktiv && henstand_bortfaldet() == Falskt) } ellers { tilstand }
     | resultat() -> AktieavancePar39AHændelsesresultat(tilstand_før = tilstand, hændelse = hændelse(), hændelse_gyldig = hændelse_gyldig(), gevinst_efter_stk2_kroner = 0, tab_efter_stk2_kroner = 0, reguleret_tab_efter_stk4_kroner = 0, beregnet_skat_efter_par8a_kroner = 0, straksnedskrivning_kroner = 0, nyt_forfald_kroner = forfald_kroner(), betalt_kroner = 0, saldobortfald_efter_stk10_kroner = 0, henstand_bortfaldet = hændelse_gyldig() && henstand_bortfaldet(), kildeskattelov_par63_anvendes = Falskt, tilstand_efter = tilstand_efter())
 }
@@ -447,7 +484,7 @@ finder tilsvarende anvendelse.
 | aktieavance_par39a_fordringsantal(tilstand: AktieavancePar39ATilstand, identifikation: Tekst) -> foldl(tilstand.forfaldsposter, 0, |antal: Heltal, post: AktieavancePar39AForfaldspost| antal + hvis post.identifikation == identifikation { 1 } ellers { 0 })
 | aktieavance_par39a_fordringsrest_kroner(tilstand: AktieavancePar39ATilstand, identifikation: Tekst) -> foldl(tilstand.forfaldsposter, 0, |sum: Heltal, post: AktieavancePar39AForfaldspost| sum + hvis post.identifikation == identifikation { post.resterende_beløb_kroner } ellers { 0 })
 | aktieavance_par39a_fordring_nedskriver_saldo(tilstand: AktieavancePar39ATilstand, identifikation: Tekst) -> any(tilstand.forfaldsposter, |post: AktieavancePar39AForfaldspost| post.identifikation == identifikation && post.nedskriver_henstandssaldo_ved_betaling)
-| aktieavance_par39a_fordring_efter_betaling(post: AktieavancePar39AForfaldspost, identifikation: Tekst, beløb_kroner: Heltal) -> hvis post.identifikation == identifikation { AktieavancePar39AForfaldspost(identifikation = post.identifikation, grund = post.grund, fristregel = post.fristregel, oprindeligt_beløb_kroner = post.oprindeligt_beløb_kroner, resterende_beløb_kroner = post.resterende_beløb_kroner - beløb_kroner, nedskriver_henstandssaldo_ved_betaling = post.nedskriver_henstandssaldo_ved_betaling) } ellers { post }
+| aktieavance_par39a_fordring_efter_betaling(post: AktieavancePar39AForfaldspost, identifikation: Tekst, beløb_kroner: Heltal) -> hvis post.identifikation == identifikation { aktieavance_par39a_forfaldspost_med_rest(post, post.resterende_beløb_kroner - beløb_kroner) } ellers { post }
 
 # AktieavancePar39ABetalingsSag(tilstand: AktieavancePar39ATilstand, data: AktieavancePar39ABetaling) {
     | hændelse() -> AblPar39ABetaling(data)

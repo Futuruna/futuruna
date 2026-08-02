@@ -108,18 +108,23 @@ klassifikationsregler eller en skattesats, som bestemmelserne ikke selv angiver.
 typet, uforanderlig flerperiodetilstand. Den holder beholdningspartier,
 henstandssaldo og forfaldsposter adskilt, anvender FIFO ved afståelser og
 skelner mellem bruttosaldoen, allerede reserverede fordringer og den endnu
-disponible saldo. Regelkaskaden dækker gevinst og tab, udenlandsk skat,
-udbytte, andre udlodninger og dispositioner, lån og deres undtagelser, død,
-årlige oplysninger, dokumentation, betalingsfrister, kildeskattelovens § 63 og
-det endelige bortfald. § 39 B fordeler tilbageflytningens regulering af
+disponible saldo. Hver saldoafhængig fordring bærer nu sit indkomstår, så
+årsprioriteten kan genfordele ubetalte fordringer i rækkefølgen stk. 4-tab,
+afståelsesgevinster, stk. 3-tabsregulering og til sidst udlodninger og lån uden
+at ændre tidligere års eller allerede betalte beløb. Regelkaskaden dækker
+gevinst og tab, udenlandsk skat, udbytte, andre udlodninger og dispositioner,
+lån og deres undtagelser, død, årlige oplysninger, dokumentation,
+betalingsfrister, kildeskattelovens § 63 og det endelige bortfald. § 39 B
+fordeler tilbageflytningens regulering af
 indgangsværdier forholdsmæssigt og bruger Personskatteloven § 8 a's faktiske
 grundbeløb, inklusive ægtefællers dobbelte grundbeløb. § 40 nedskriver den
-disponible henstandssaldo med betalt skat uden at gå under nul. De 36
+disponible henstandssaldo med betalt skat uden at gå under nul. De 41
 fokusscenarier passerer i både interpreter og kompileret kode og indeholder et
 forløb, som beviser, at flere samtidige fordringer ikke kan reservere eller
-opkræve mere end den samlede henstandssaldo. Satsbaserede hændelser accepterer
-kun skatteår med en kildebunden national parameterpakke, aktuelt 2024-2026;
-andre år afvises før opslaget i Personskatteloven § 8 a.
+opkræve mere end den samlede henstandssaldo, samt flerhændelsesforløb for
+samme års, tidligere års og delvist betalte fordringer. Satsbaserede hændelser
+accepterer kun skatteår med en kildebunden national parameterpakke, aktuelt
+2024-2026; andre år afvises før opslaget i Personskatteloven § 8 a.
 
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
@@ -819,11 +824,12 @@ Current § 4 and § 13 amendment/dependency sources:
     reserved claims, payments, distributions, loans, death, reporting,
     documentation and final cancellation. § 39 B adjusts re-entry basis
     proportionally and cancels the remaining available balance; § 40 applies
-    paid-tax reductions with a zero floor. Its 36 focused scenarios pass
-    interpreted and compiled execution, including a two-claim proof that the
-    ledger cannot reserve or collect more than its gross balance. Exact current
-    legal text and the relevant Skattestyrelsen guidance are connected through
-    three typed meta-comment spans.
+    paid-tax reductions with a zero floor. Its 41 focused scenarios pass
+    interpreted and compiled execution, including annual priority across
+    pending claims and a proof that the ledger cannot reserve or collect more
+    than its gross balance. Exact current legal text and the relevant
+    Skattestyrelsen guidance are connected through three typed meta-comment
+    spans.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
