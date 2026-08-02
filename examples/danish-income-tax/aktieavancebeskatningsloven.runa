@@ -992,7 +992,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 ----
 
 --@begin:aktieavancebeskatningsloven_par17_til_par22--
-# AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblSkattepligtigPorteføljeaktiePar9 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskabPar19TilKlassifikation | AblMinimumsinstitutTilKlassifikation | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
+# AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblSkattepligtigPorteføljeaktiePar9 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskabPar19TilKlassifikation | AblMinimumsinstitutTilKlassifikation | AblInvesteringsselskab19A | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblAkkumulerendeInvesteringsbevis20Stk1 | AblMinimumsbevis20A | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
 # AktieavancebeskatningslovPslKategori = AblIkkeMedregnetISlice | AblKapitalindkomstEfterPslPar4Nr5 | AblAktieindkomstEfterPslPar4a | AblPersonligIndkomstEfterPslUndtagelse
 # AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
 # AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej

@@ -1,0 +1,15 @@
+@ sprog da
+
+# CollectionMember(groups: List(Tekst))
+
+| collection_group_names(members: List(CollectionMember)) -> distinct(flat_map(members, |member: CollectionMember| member.groups))
+
+= collection_members = [
+    CollectionMember(groups = ["alpha", "beta"]),
+    CollectionMember(groups = ["beta", "gamma"])
+]
+= collection_names = collection_group_names(collection_members)
+
+| collection_rule_preserves_list_return: collection_names -> length(collection_names) == 3 && contains(collection_names, "alpha") && contains(collection_names, "beta") && contains(collection_names, "gamma")
+
+? collection_rule_preserves_list_return

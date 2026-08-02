@@ -1,9 +1,16 @@
 @ sprog da
 
+@ importer ./aktieavancebeskatningsloven - par19 - 20a
 @ importer ./aktieavancebeskatningsloven - par19b - 22
 
---@label:abl_investeringsklassifikation_beregning::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
+--@label:abl_investeringsklassifikation_beregning::source:aktieavancebeskatningsloven_lbk1098_par19_til_par20a::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
 --@begin:abl_investeringsklassifikation_beregning--
+@ calculate
+| klassificer_investeringsselskab_efter_par19(input: AktieavancePar19Input) -> aktieavance_par19_resultat(input)
+
+@ calculate
+| klassificer_investeringsbevis_efter_par19a_til20a(input: AktieavancePar19ATil20AInput) -> aktieavance_par19a_til20a_resultat(input)
+
 @ calculate
 | klassificer_investeringsselskab(input: AktieavancePar19BPar19CInput) -> aktieavance_par19b_par19c_resultat(input)
 

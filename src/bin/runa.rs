@@ -15860,6 +15860,17 @@ impl<'a> LoweringCtx<'a> {
                             };
                         }
                     }
+                    if fn_name == "flat_map" && fir_args.len() >= 2 {
+                        if let FirTy::Arrow(_, result_ty) = &fir_args[1].ty {
+                            if let FirTy::List(elem_ty) = result_ty.as_ref() {
+                                return FirExpr {
+                                    kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
+                                    span: expr.span,
+                                    ty: FirTy::List(elem_ty.clone()),
+                                };
+                            }
+                        }
+                    }
                     // map_entries(Map(K, V)) -> List(Tuple(K, V))
                     if fn_name == "map_entries" && !fir_args.is_empty() {
                         let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {
@@ -45747,6 +45758,36 @@ for x in [1, 2] {
         assert!(
             !rust.contains("if input.clone().items"),
             "fold-valued rule body must not be lowered as a boolean guard: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rule_function_infers_distinct_flat_map_list_return_type() {
+        let source = r#"
+# Member(groups: List(String))
+| group_names(members: List(Member)) -> distinct(flat_map(members, |member: Member| member.groups))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let rust = cg.emit_rule_function("group_names", &rules);
+        assert!(
+            rust.contains("fn group_names(members: Vec<Member>) -> Vec<String> {"),
+            "collection-valued rule signature should preserve the flat_map element type: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("-> bool"),
+            "collection-valued rule body must not fall back to predicate codegen: {}",
             rust
         );
     }

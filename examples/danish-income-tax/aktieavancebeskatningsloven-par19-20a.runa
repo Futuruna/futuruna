@@ -1,0 +1,231 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./aktieavancebeskatningsloven - par6 - 7
+@ importer ./aktieavancebeskatningsloven - par19b - 22
+
+# AktieavancePar19Til20AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# AktieavancePar19Fortolkningsgrænse(område: Tekst, beskrivelse: Tekst, status: Tekst)
+
+= aktieavancebeskatningsloven_lbk1098_par19_til_par20a = AktieavancePar19Til20AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 19, 19 A, 20 og 20 A",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par19 = AktieavancePar19Til20AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1899913",
+    identifier = "Den juridiske vejledning 2026-1, C.D.1.1.10.2.1: Investeringsselskaber - ABL § 19",
+    hentet_dato = "2026-07-18"
+)
+= aktieavance_par19_hovedsagelig_fortolkningsgrænse = AktieavancePar19Fortolkningsgrænse(
+    område = "ABL § 19, stk. 2, 1. pkt.",
+    beskrivelse = "Lovteksten opstiller ingen numerisk grænse for, hvornår formue gennem datterselskaber hovedsagelig er investeret i andre værdier end værdipapirer. Korpuset kræver derfor en synlig juridisk vurdering og opfinder ikke en procentgrænse.",
+    status = "Ekstern juridisk vurdering kræves"
+)
+
+--@label:aktieavancebeskatningsloven_par19_til_par20a::source:aktieavancebeskatningsloven_lbk1098_par19_til_par20a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par19::warning:aktieavance_par19_hovedsagelig_fortolkningsgrænse--
+----
+§ 19. Ved et investeringsselskab forstås:
+1) Et investeringsinstitut i henhold til Europa-Parlamentets og Rådets direktiv 2009/65/EF, jf. bilag 1.
+2) Et selskab m.v., hvis virksomhed består i investering i værdipapirer m.v., og hvor andele i selskabet på forlangende af ihændehaverne skal tilbagekøbes for midler af selskabets formue til en kursværdi, der ikke i væsentlig grad er mindre end den indre værdi. Med tilbagekøb sidestilles, at en tredjemand tilkendegiver over for selskabet, at enten den pågældende eller en anden fysisk eller juridisk person på forlangende vil købe enhver andel til en kursværdi, der ikke i væsentlig grad er mindre end den indre værdi. Kravet om tilbagekøb på forlangende er opfyldt, selv om kravet kun imødekommes inden for en vis frist. Uanset at der ikke er pligt til tilbagekøb, anses selskabet for et investeringsselskab, hvis dets virksomhed består i kollektiv investering i værdipapirer m.v. Ved kollektiv investering forstås, at selskabet har mindst 8 deltagere. Koncernforbundne og nærtstående deltagere, jf. kursgevinstlovens § 4, stk. 2, og denne lovs § 4, stk. 2, regnes i denne sammenhæng for én deltager.
+
+Stk. 2. Et investeringsselskab som nævnt i stk. 1, nr. 2, 1. pkt., omfatter ikke et selskab m.v., hvis formue gennem datterselskaber hovedsagelig investeres i andre værdier end værdipapirer m.v. Ved et datterselskab forstås et selskab, hvori moderselskabet har bestemmende indflydelse, jf. ligningslovens § 2, stk. 2. Et investeringsselskab som nævnt i stk. 1, nr. 2, 4. pkt., omfatter ikke et selskab m.v., hvis mere end 15 pct. af selskabets regnskabsmæssige aktiver i løbet af regnskabsåret gennemsnitligt er placeret i andet end værdipapirer m.v. Til værdipapirer m.v. medregnes ikke aktier i et andet selskab, hvori førstnævnte selskab ejer mindst 10 pct. af aktiekapitalen, medmindre det andet selskab selv er et investeringsselskab, jf. stk. 1. Hvis et selskab har bestemmende indflydelse på et selskab, jf. ligningslovens § 2, stk. 2, ses der ved opgørelsen efter 3. pkt. bort fra disse aktier, og i stedet medregnes den andel af det andet selskabs aktiver, som svarer til førstnævnte selskabs direkte eller indirekte ejerforhold i det andet selskab.
+
+Stk. 3. Et investeringsselskab som nævnt i stk. 1 omfatter ikke et investeringsinstitut med minimumsbeskatning, jf. ligningslovens § 16 C. Et investeringsselskab som nævnt i stk. 1 omfatter heller ikke en kontoførende forening, der opfylder betingelserne i § 2, 2. og 3. pkt., i lov om beskatning af medlemmer af kontoførende investeringsforeninger.
+
+Stk. 4. Et investeringsselskab som nævnt i stk. 1, nr. 2, 4. pkt., omfatter ikke et selskab m.v., som udelukkende ejer aktier, tegningsretter og aktieretter i et andet selskab, hvis alle aktionærerne i det førstnævnte selskab ved erhvervelsen af aktierne var ansat i det andet selskab eller i andre selskaber, der er koncernforbundet med det andet selskab, jf. selskabsskattelovens § 31 C, medmindre det andet eller et af de andre selskaber selv er et investeringsselskab, jf. stk. 1. Uanset 1. pkt. kan selskabet også eje kontanter, herunder anbringelse på en anfordringskonto, inden for en ramme på 15 pct. af selskabets regnskabsmæssige aktiver opgjort gennemsnitligt i løbet af regnskabsåret.
+
+§ 19 A. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et investeringsselskab, jf. § 19, medregnes ved opgørelsen af den skattepligtige indkomst.
+
+Stk. 2. I tilfælde omfattet af stk. 1 finder §§ 8, 9 og 17 ikke anvendelse. Stk. 1 finder ikke anvendelse i de tilfælde, der er nævnt i § 10, § 16, stk. 1, og § 18.
+
+§ 20. For skattepligtige omfattet af § 6 medregnes gevinst og tab ved afståelse af omsættelige beviser for indskud i akkumulerende investeringsforeninger, jf. selskabsskattelovens § 1, stk. 1, nr. 5 a, ved opgørelsen af den skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2, §§ 8-10 og 17 og kapitel 6-9.
+
+Stk. 2. For skattepligtige omfattet af § 7 medregnes gevinst og tab ved afståelse af omsættelige beviser for indskud i akkumulerende investeringsforeninger, jf. selskabsskattelovens § 1, stk. 1, nr. 5 a, ved opgørelsen af den skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2, §§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
+§ 20 A. Gevinst og tab på omsættelige beviser for indskud i investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C, stk. 1, medregnes ved opgørelsen af den skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2, §§ 9, 10 og 17 og kapitel 6-9, jf. dog stk. 2.
+
+Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er det en betingelse for at kunne fradrage tab, at investeringsinstituttet ikke investerer i fordringer på selskaber, som en deltager i investeringsinstituttet er koncernforbundet med efter kursgevinstlovens § 4, stk. 2.
+----
+
+--@begin:aktieavancebeskatningsloven_par19_til_par20a--
+# AktieavancePar19Tilbagekøbskurs = AblPar19KursIkkeVæsentligtUnderIndreVærdi | AblPar19KursVæsentligtUnderIndreVærdi
+# AktieavancePar19Tilbagekøbsordning = AblPar19IngenTilbagekøbsordning | AblPar19SelskabstilbagekøbPåForlangende(kurs: AktieavancePar19Tilbagekøbskurs, frist_dage: Heltal) | AblPar19TredjemandskøbPåForlangende(kurs: AktieavancePar19Tilbagekøbskurs, frist_dage: Heltal)
+# AktieavancePar19Deltager = AblPar19SelvstændigDeltager(identifikation: Tekst) | AblPar19SammenlagtDeltager(identifikation: Tekst, sammenlægningsgruppe: Tekst)
+# AktieavancePar19Aktivart = AblPar19Værdipapir | AblPar19AndetAktiv
+# AktieavancePar19Aktiv(art: AktieavancePar19Aktivart, gennemsnitlig_regnskabsmæssig_værdi_kroner: Heltal)
+# AktieavancePar19Ejerpost = AblPar19IkkeBestemmendeEjerpost(ejerandel: AktieavanceInvesteringsEjerandel, gennemsnitlig_regnskabsmæssig_værdi_kroner: Heltal, andet_selskab_er_investeringsselskab_efter_par19: Boolsk) | AblPar19BestemmendeEjerpost(ejerandel: AktieavanceInvesteringsEjerandel, underliggende_aktiver_efter_direkte_og_indirekte_gennemlysning: List(AktieavancePar19Aktiv))
+# AktieavancePar19Aktivmasse(direkte_aktiver: List(AktieavancePar19Aktiv), ejerposter: List(AktieavancePar19Ejerpost))
+# AktieavancePar19Aktivsammenfatning(input_gyldigt: Boolsk, regnskabsmæssige_aktiver_kroner: Heltal, værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal)
+# AktieavancePar19AktivmasseResultat(input: AktieavancePar19Aktivmasse, input_gyldigt: Boolsk, regnskabsmæssige_aktiver_kroner: Heltal, værdipapirer_kroner: Heltal, andre_aktiver_kroner: Heltal, andre_aktiver_højst_15_pct: Boolsk)
+# AktieavancePar19Datterselskabsvurdering = AblPar19IngenDatterselskabsformue | AblPar19DatterselskabsformueIkkeHovedsageligAndreVærdier | AblPar19DatterselskabsformueHovedsageligAndreVærdier
+# AktieavancePar19Medarbejderselskabsgrundlag = AblPar19IntetMedarbejderselskabsgrundlag | AblPar19Medarbejderselskabsgrundlag(ejer_udelukkende_aktier_tegningsretter_og_aktieretter_i_et_selskab: Boolsk, alle_aktionærer_var_ansat_i_målselskabet_eller_koncernselskab_ved_erhvervelsen: Boolsk, målselskabet_eller_koncernselskab_er_investeringsselskab: Boolsk, gennemsnitlige_kontanter_kroner: Heltal, gennemsnitlige_regnskabsmæssige_aktiver_kroner: Heltal)
+# AktieavancePar19Værdipapirvirksomhed(tilbagekøbsordning: AktieavancePar19Tilbagekøbsordning, deltagere_ved_indkomstårets_udgang: List(AktieavancePar19Deltager), aktivmasse: AktieavancePar19Aktivmasse, datterselskabsvurdering: AktieavancePar19Datterselskabsvurdering, medarbejderselskabsgrundlag: AktieavancePar19Medarbejderselskabsgrundlag)
+# AktieavancePar19Virksomhedsgrundlag = AblPar19UcitsEfterDirektiv2009_65_EF | AblPar19AndenVirksomhedEndInvesteringIVærdipapirer | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data: AktieavancePar19Værdipapirvirksomhed)
+# AktieavancePar19Institutsundtagelse = AblPar19IngenInstitutsundtagelse | AblPar19InvesteringsinstitutMedMinimumsbeskatning | AblPar19KontoførendeForeningEfterPar2
+# AktieavancePar19Status = AblPar19IkkeInvesteringsselskab | AblPar19UcitsInvesteringsselskab | AblPar19TilbagekøbsInvesteringsselskab | AblPar19KollektivtInvesteringsselskab
+# AktieavancePar19Input(indkomstår: Heltal, virksomhedsgrundlag: AktieavancePar19Virksomhedsgrundlag, institutsundtagelse: AktieavancePar19Institutsundtagelse)
+# AktieavancePar19Resultat(input: AktieavancePar19Input, input_gyldigt: Boolsk, effektivt_deltagerantal: Heltal, aktivmasse_resultat: AktieavancePar19AktivmasseResultat, tilbagekøbsbetingelser_opfyldt: Boolsk, kollektiv_investering_mindst_8_deltagere: Boolsk, datterselskabsundtagelse_finder_anvendelse: Boolsk, institutsundtagelse_finder_anvendelse: Boolsk, medarbejderselskabsundtagelse_finder_anvendelse: Boolsk, status: AktieavancePar19Status, er_investeringsselskab: Boolsk)
+
+| aktieavance_par19_tilbagekøbsordning_input_gyldig(ordning: AktieavancePar19Tilbagekøbsordning) -> match ordning { | AblPar19IngenTilbagekøbsordning -> Sandt | AblPar19SelskabstilbagekøbPåForlangende(_, frist_dage) -> frist_dage >= 0 | AblPar19TredjemandskøbPåForlangende(_, frist_dage) -> frist_dage >= 0 }
+| aktieavance_par19_tilbagekøbsbetingelser_opfyldt(ordning: AktieavancePar19Tilbagekøbsordning) -> match ordning { | AblPar19IngenTilbagekøbsordning -> Falskt | AblPar19SelskabstilbagekøbPåForlangende(kurs, _) -> kurs == AblPar19KursIkkeVæsentligtUnderIndreVærdi | AblPar19TredjemandskøbPåForlangende(kurs, _) -> kurs == AblPar19KursIkkeVæsentligtUnderIndreVærdi }
+| aktieavance_par19_deltager_identifikation(deltager: AktieavancePar19Deltager) -> match deltager { | AblPar19SelvstændigDeltager(identifikation) -> identifikation | AblPar19SammenlagtDeltager(identifikation, _) -> identifikation }
+| aktieavance_par19_deltager_sammenlægningsnøgle(deltager: AktieavancePar19Deltager) -> match deltager { | AblPar19SelvstændigDeltager(identifikation) -> "selv:" + identifikation | AblPar19SammenlagtDeltager(_, sammenlægningsgruppe) -> "gruppe:" + sammenlægningsgruppe }
+| aktieavance_par19_deltager_input_gyldigt(deltager: AktieavancePar19Deltager) -> match deltager { | AblPar19SelvstændigDeltager(identifikation) -> identifikation != "" | AblPar19SammenlagtDeltager(identifikation, sammenlægningsgruppe) -> identifikation != "" && sammenlægningsgruppe != "" }
+| aktieavance_par19_deltagere_input_gyldige(deltagere: List(AktieavancePar19Deltager)) -> all(deltagere, aktieavance_par19_deltager_input_gyldigt) && length(distinct(map(deltagere, aktieavance_par19_deltager_identifikation))) == length(deltagere)
+| aktieavance_par19_effektivt_deltagerantal(deltagere: List(AktieavancePar19Deltager)) -> hvis aktieavance_par19_deltagere_input_gyldige(deltagere) { length(distinct(map(deltagere, aktieavance_par19_deltager_sammenlægningsnøgle))) } ellers { 0 }
+
+| aktieavance_par19_aktiv_input_gyldigt(aktiv: AktieavancePar19Aktiv) -> aktiv.gennemsnitlig_regnskabsmæssig_værdi_kroner >= 0
+| aktieavance_par19_aktiv_sammenfatning(aktiv: AktieavancePar19Aktiv) -> AktieavancePar19Aktivsammenfatning(
+    input_gyldigt = aktieavance_par19_aktiv_input_gyldigt(aktiv),
+    regnskabsmæssige_aktiver_kroner = hvis aktieavance_par19_aktiv_input_gyldigt(aktiv) { aktiv.gennemsnitlig_regnskabsmæssig_værdi_kroner } ellers { 0 },
+    værdipapirer_kroner = hvis aktieavance_par19_aktiv_input_gyldigt(aktiv) && aktiv.art == AblPar19Værdipapir { aktiv.gennemsnitlig_regnskabsmæssig_værdi_kroner } ellers { 0 },
+    andre_aktiver_kroner = hvis aktieavance_par19_aktiv_input_gyldigt(aktiv) && aktiv.art == AblPar19AndetAktiv { aktiv.gennemsnitlig_regnskabsmæssig_værdi_kroner } ellers { 0 }
+)
+| aktieavance_par19_aktivsammenfatning_nul() -> AktieavancePar19Aktivsammenfatning(input_gyldigt = Sandt, regnskabsmæssige_aktiver_kroner = 0, værdipapirer_kroner = 0, andre_aktiver_kroner = 0)
+| aktieavance_par19_aktivsammenfatning_læg_sammen(a: AktieavancePar19Aktivsammenfatning, b: AktieavancePar19Aktivsammenfatning) -> AktieavancePar19Aktivsammenfatning(
+    input_gyldigt = a.input_gyldigt && b.input_gyldigt,
+    regnskabsmæssige_aktiver_kroner = a.regnskabsmæssige_aktiver_kroner + b.regnskabsmæssige_aktiver_kroner,
+    værdipapirer_kroner = a.værdipapirer_kroner + b.værdipapirer_kroner,
+    andre_aktiver_kroner = a.andre_aktiver_kroner + b.andre_aktiver_kroner
+)
+| aktieavance_par19_aktivsammenfatning_fold(opsamling: AktieavancePar19Aktivsammenfatning, aktiv: AktieavancePar19Aktiv) -> aktieavance_par19_aktivsammenfatning_læg_sammen(opsamling, aktieavance_par19_aktiv_sammenfatning(aktiv))
+| aktieavance_par19_aktiver_sammenfatning(aktiver: List(AktieavancePar19Aktiv)) -> foldl(aktiver, aktieavance_par19_aktivsammenfatning_nul(), aktieavance_par19_aktivsammenfatning_fold)
+| aktieavance_par19_ejerandel_mindst_10_pct(ejerandel: AktieavanceInvesteringsEjerandel) -> aktieavance_investerings_ejerandel_gyldig(ejerandel) && ejerandel.ejede_kapitalenheder * 10 >= ejerandel.samlede_kapitalenheder
+| aktieavance_par19_aktivsammenfatning_gange_ejerandel(sammenfatning: AktieavancePar19Aktivsammenfatning, ejerandel: AktieavanceInvesteringsEjerandel) -> AktieavancePar19Aktivsammenfatning(
+    input_gyldigt = sammenfatning.input_gyldigt && aktieavance_investerings_ejerandel_gyldig(ejerandel),
+    regnskabsmæssige_aktiver_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(sammenfatning.regnskabsmæssige_aktiver_kroner, ejerandel),
+    værdipapirer_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(sammenfatning.værdipapirer_kroner, ejerandel),
+    andre_aktiver_kroner = aktieavance_investerings_beløb_gange_ejerandel_kroner(sammenfatning.andre_aktiver_kroner, ejerandel)
+)
+| aktieavance_par19_ejerpost_input_gyldig(ejerpost: AktieavancePar19Ejerpost) -> match ejerpost {
+    | AblPar19IkkeBestemmendeEjerpost(ejerandel, værdi, _) -> aktieavance_investerings_ejerandel_gyldig(ejerandel) && værdi >= 0
+    | AblPar19BestemmendeEjerpost(ejerandel, underliggende_aktiver) -> aktieavance_investerings_ejerandel_gyldig(ejerandel) && aktieavance_par19_aktiver_sammenfatning(underliggende_aktiver).input_gyldigt && aktieavance_par19_aktiver_sammenfatning(underliggende_aktiver).regnskabsmæssige_aktiver_kroner > 0
+}
+| aktieavance_par19_ejerpost_sammenfatning(ejerpost: AktieavancePar19Ejerpost) -> match ejerpost {
+    | AblPar19IkkeBestemmendeEjerpost(ejerandel, værdi, andet_selskab_er_investeringsselskab) -> AktieavancePar19Aktivsammenfatning(
+        input_gyldigt = aktieavance_par19_ejerpost_input_gyldig(ejerpost),
+        regnskabsmæssige_aktiver_kroner = hvis aktieavance_par19_ejerpost_input_gyldig(ejerpost) { værdi } ellers { 0 },
+        værdipapirer_kroner = hvis aktieavance_par19_ejerpost_input_gyldig(ejerpost) && (aktieavance_par19_ejerandel_mindst_10_pct(ejerandel) == Falskt || andet_selskab_er_investeringsselskab) { værdi } ellers { 0 },
+        andre_aktiver_kroner = hvis aktieavance_par19_ejerpost_input_gyldig(ejerpost) && aktieavance_par19_ejerandel_mindst_10_pct(ejerandel) && andet_selskab_er_investeringsselskab == Falskt { værdi } ellers { 0 }
+    )
+    | AblPar19BestemmendeEjerpost(ejerandel, underliggende_aktiver) -> aktieavance_par19_aktivsammenfatning_gange_ejerandel(aktieavance_par19_aktiver_sammenfatning(underliggende_aktiver), ejerandel)
+}
+| aktieavance_par19_ejerpost_fold(opsamling: AktieavancePar19Aktivsammenfatning, ejerpost: AktieavancePar19Ejerpost) -> aktieavance_par19_aktivsammenfatning_læg_sammen(opsamling, aktieavance_par19_ejerpost_sammenfatning(ejerpost))
+| aktieavance_par19_aktivmasse_sammenfatning(input: AktieavancePar19Aktivmasse) -> foldl(input.ejerposter, aktieavance_par19_aktiver_sammenfatning(input.direkte_aktiver), aktieavance_par19_ejerpost_fold)
+| aktieavance_par19_aktivmasse_resultat_fra_sammenfatning(input: AktieavancePar19Aktivmasse, sammenfatning: AktieavancePar19Aktivsammenfatning) -> AktieavancePar19AktivmasseResultat(
+    input = input,
+    input_gyldigt = sammenfatning.input_gyldigt && sammenfatning.regnskabsmæssige_aktiver_kroner > 0,
+    regnskabsmæssige_aktiver_kroner = sammenfatning.regnskabsmæssige_aktiver_kroner,
+    værdipapirer_kroner = sammenfatning.værdipapirer_kroner,
+    andre_aktiver_kroner = sammenfatning.andre_aktiver_kroner,
+    andre_aktiver_højst_15_pct = sammenfatning.regnskabsmæssige_aktiver_kroner > 0 && sammenfatning.andre_aktiver_kroner * 100 <= sammenfatning.regnskabsmæssige_aktiver_kroner * 15
+)
+| aktieavance_par19_aktivmasse_resultat(input: AktieavancePar19Aktivmasse) -> aktieavance_par19_aktivmasse_resultat_fra_sammenfatning(input, aktieavance_par19_aktivmasse_sammenfatning(input))
+| aktieavance_par19_aktivmasse_resultat_gyldigt(resultat: AktieavancePar19AktivmasseResultat) -> resultat == aktieavance_par19_aktivmasse_resultat(resultat.input)
+
+| aktieavance_par19_aktivmasse_fra_grundlag(grundlag: AktieavancePar19Virksomhedsgrundlag) -> match grundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> data.aktivmasse | _ -> AktieavancePar19Aktivmasse(direkte_aktiver = [], ejerposter = []) }
+| aktieavance_par19_deltagere_fra_grundlag(grundlag: AktieavancePar19Virksomhedsgrundlag) -> match grundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> data.deltagere_ved_indkomstårets_udgang | _ -> [] }
+| aktieavance_par19_har_bestemmende_ejerpost(aktivmasse: AktieavancePar19Aktivmasse) -> any(aktivmasse.ejerposter, |ejerpost: AktieavancePar19Ejerpost| match ejerpost { | AblPar19BestemmendeEjerpost(_, _) -> Sandt | _ -> Falskt })
+| aktieavance_par19_datterselskabsvurdering_input_gyldig(aktivmasse: AktieavancePar19Aktivmasse, vurdering: AktieavancePar19Datterselskabsvurdering) -> hvis aktieavance_par19_har_bestemmende_ejerpost(aktivmasse) { vurdering != AblPar19IngenDatterselskabsformue } ellers { vurdering == AblPar19IngenDatterselskabsformue }
+| aktieavance_par19_medarbejderselskabsgrundlag_input_gyldigt(grundlag: AktieavancePar19Medarbejderselskabsgrundlag) -> match grundlag { | AblPar19IntetMedarbejderselskabsgrundlag -> Sandt | AblPar19Medarbejderselskabsgrundlag(_, _, _, kontanter, aktiver) -> kontanter >= 0 && aktiver > 0 && kontanter <= aktiver }
+| aktieavance_par19_medarbejderselskabsundtagelse(grundlag: AktieavancePar19Medarbejderselskabsgrundlag) -> match grundlag {
+    | AblPar19IntetMedarbejderselskabsgrundlag -> Falskt
+    | AblPar19Medarbejderselskabsgrundlag(ejer_kun_tilladte_aktiver, alle_ansat_ved_erhvervelsen, mål_eller_koncern_er_investeringsselskab, kontanter, aktiver) -> aktieavance_par19_medarbejderselskabsgrundlag_input_gyldigt(grundlag) && ejer_kun_tilladte_aktiver && alle_ansat_ved_erhvervelsen && mål_eller_koncern_er_investeringsselskab == Falskt && kontanter * 100 <= aktiver * 15
+}
+| aktieavance_par19_værdipapirvirksomhed_input_gyldig(data: AktieavancePar19Værdipapirvirksomhed) -> aktieavance_par19_tilbagekøbsordning_input_gyldig(data.tilbagekøbsordning) && aktieavance_par19_deltagere_input_gyldige(data.deltagere_ved_indkomstårets_udgang) && aktieavance_par19_aktivmasse_resultat(data.aktivmasse).input_gyldigt && aktieavance_par19_datterselskabsvurdering_input_gyldig(data.aktivmasse, data.datterselskabsvurdering) && aktieavance_par19_medarbejderselskabsgrundlag_input_gyldigt(data.medarbejderselskabsgrundlag)
+
+# AktieavancePar19Sag(input: AktieavancePar19Input) {
+    | aktivmasse_resultat() -> aktieavance_par19_aktivmasse_resultat(aktieavance_par19_aktivmasse_fra_grundlag(input.virksomhedsgrundlag))
+    | effektivt_deltagerantal() -> aktieavance_par19_effektivt_deltagerantal(aktieavance_par19_deltagere_fra_grundlag(input.virksomhedsgrundlag))
+    | input_gyldigt() -> input.indkomstår > 0 && match input.virksomhedsgrundlag { | AblPar19UcitsEfterDirektiv2009_65_EF -> Sandt | AblPar19AndenVirksomhedEndInvesteringIVærdipapirer -> Sandt | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_værdipapirvirksomhed_input_gyldig(data) }
+    | tilbagekøbsbetingelser_opfyldt() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_tilbagekøbsbetingelser_opfyldt(data.tilbagekøbsordning) | _ -> Falskt }
+    | kollektiv_investering_mindst_8_deltagere() -> input_gyldigt() && effektivt_deltagerantal() >= 8
+    | datterselskabsundtagelse_finder_anvendelse() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> data.datterselskabsvurdering == AblPar19DatterselskabsformueHovedsageligAndreVærdier | _ -> Falskt }
+    | institutsundtagelse_finder_anvendelse() -> input.institutsundtagelse != AblPar19IngenInstitutsundtagelse
+    | medarbejderselskabsundtagelse_finder_anvendelse() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_medarbejderselskabsundtagelse(data.medarbejderselskabsgrundlag) | _ -> Falskt }
+    | tilbagekøbsinvesteringsselskab() -> tilbagekøbsbetingelser_opfyldt() && datterselskabsundtagelse_finder_anvendelse() == Falskt
+    | kollektivt_investeringsselskab() -> kollektiv_investering_mindst_8_deltagere() && aktivmasse_resultat().andre_aktiver_højst_15_pct && medarbejderselskabsundtagelse_finder_anvendelse() == Falskt
+    | status() -> AblPar19IkkeInvesteringsselskab
+    | exception abl_par19_kollektivt_investeringsselskab status() -> AblPar19KollektivtInvesteringsselskab under input_gyldigt() && institutsundtagelse_finder_anvendelse() == Falskt && kollektivt_investeringsselskab() && tilbagekøbsinvesteringsselskab() == Falskt
+    | exception abl_par19_tilbagekøbsinvesteringsselskab status() -> AblPar19TilbagekøbsInvesteringsselskab under input_gyldigt() && institutsundtagelse_finder_anvendelse() == Falskt && tilbagekøbsinvesteringsselskab()
+    | exception abl_par19_ucits_investeringsselskab status() -> AblPar19UcitsInvesteringsselskab under input_gyldigt() && input.virksomhedsgrundlag == AblPar19UcitsEfterDirektiv2009_65_EF && institutsundtagelse_finder_anvendelse() == Falskt
+    | resultat() -> AktieavancePar19Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        effektivt_deltagerantal = effektivt_deltagerantal(),
+        aktivmasse_resultat = aktivmasse_resultat(),
+        tilbagekøbsbetingelser_opfyldt = tilbagekøbsbetingelser_opfyldt(),
+        kollektiv_investering_mindst_8_deltagere = kollektiv_investering_mindst_8_deltagere(),
+        datterselskabsundtagelse_finder_anvendelse = datterselskabsundtagelse_finder_anvendelse(),
+        institutsundtagelse_finder_anvendelse = institutsundtagelse_finder_anvendelse(),
+        medarbejderselskabsundtagelse_finder_anvendelse = medarbejderselskabsundtagelse_finder_anvendelse(),
+        status = status(),
+        er_investeringsselskab = status() != AblPar19IkkeInvesteringsselskab
+    )
+}
+
+| aktieavance_par19_resultat(input: AktieavancePar19Input) -> AktieavancePar19Sag(input).resultat()
+| aktieavance_par19_resultat_gyldigt(resultat: AktieavancePar19Resultat) -> resultat == aktieavance_par19_resultat(resultat.input)
+
+# AktieavancePar19AUndtagelse = AblPar19AIngenUndtagelse | AblPar19AUndtagetEfterPar10 | AblPar19AUndtagetEfterPar16Stk1 | AblPar19AUndtagetEfterPar18
+# AktieavancePar20ADeltager(identifikation: Tekst, koncernforbundne_selskabsidentifikationer: List(Tekst))
+# AktieavancePar20AFordring(debitor_selskabsidentifikation: Tekst, gennemsnitlig_værdi_kroner: Heltal)
+# AktieavancePar19ATil20AAktivgrundlag = AblPar19AGrundlag(par19_input: AktieavancePar19Input, undtagelse: AktieavancePar19AUndtagelse) | AblPar20AkkumulerendeInvesteringsforeningsbevis | AblPar20AMinimumsbevis(deltagere: List(AktieavancePar20ADeltager), fordringer: List(AktieavancePar20AFordring))
+# AktieavancePar19ATil20ARegelspor = AblPar19ARegelspor | AblPar20Stk1Regelspor | AblPar20Stk2Regelspor | AblPar20ARegelspor | AblUdenForPar19ATil20ARegelspor
+# AktieavancePar19ATil20AInput(indkomstår: Heltal, skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag)
+# AktieavancePar19ATil20AResultat(input: AktieavancePar19ATil20AInput, input_gyldigt: Boolsk, skattepligtsresultat: AktieavancePar6Par7Resultat, udstederstatus_efter_par19: AktieavancePar19Status, regelspor: AktieavancePar19ATil20ARegelspor, medregnes_i_skattepligtig_indkomst: Boolsk, par20a_deltagerantal: Heltal, par20a_færre_end_8_deltagere: Boolsk, par20a_investerer_i_koncernforbundet_fordring: Boolsk, tab_kan_fradrages_efter_par20a_stk2: Boolsk, tab_afskæres_efter_par20a_stk2: Boolsk)
+
+| aktieavance_par20a_deltager_input_gyldigt(deltager: AktieavancePar20ADeltager) -> deltager.identifikation != "" && all(deltager.koncernforbundne_selskabsidentifikationer, |identifikation: Tekst| identifikation != "") && length(distinct(deltager.koncernforbundne_selskabsidentifikationer)) == length(deltager.koncernforbundne_selskabsidentifikationer)
+| aktieavance_par20a_deltagere_input_gyldige(deltagere: List(AktieavancePar20ADeltager)) -> all(deltagere, aktieavance_par20a_deltager_input_gyldigt) && length(distinct(map(deltagere, |deltager: AktieavancePar20ADeltager| deltager.identifikation))) == length(deltagere)
+| aktieavance_par20a_fordring_input_gyldig(fordring: AktieavancePar20AFordring) -> fordring.debitor_selskabsidentifikation != "" && fordring.gennemsnitlig_værdi_kroner >= 0
+| aktieavance_par20a_fordringer_input_gyldige(fordringer: List(AktieavancePar20AFordring)) -> all(fordringer, aktieavance_par20a_fordring_input_gyldig)
+| aktieavance_par20a_koncernforbundne_selskabsidentifikationer(deltagere: List(AktieavancePar20ADeltager)) -> distinct(flat_map(deltagere, |deltager: AktieavancePar20ADeltager| deltager.koncernforbundne_selskabsidentifikationer))
+| aktieavance_par20a_investerer_i_koncernforbundet_fordring(deltagere: List(AktieavancePar20ADeltager), fordringer: List(AktieavancePar20AFordring)) -> any(fordringer, |fordring: AktieavancePar20AFordring| fordring.gennemsnitlig_værdi_kroner > 0 && contains(aktieavance_par20a_koncernforbundne_selskabsidentifikationer(deltagere), fordring.debitor_selskabsidentifikation))
+| aktieavance_par19a_til20a_aktivgrundlag_input_gyldigt(aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag) -> match aktivgrundlag {
+    | AblPar19AGrundlag(par19_input, _) -> aktieavance_par19_resultat(par19_input).input_gyldigt
+    | AblPar20AkkumulerendeInvesteringsforeningsbevis -> Sandt
+    | AblPar20AMinimumsbevis(deltagere, fordringer) -> aktieavance_par20a_deltagere_input_gyldige(deltagere) && aktieavance_par20a_fordringer_input_gyldige(fordringer)
+}
+| aktieavance_par19a_til20a_indkomstår_matcher(aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag, indkomstår: Heltal) -> match aktivgrundlag { | AblPar19AGrundlag(par19_input, _) -> par19_input.indkomstår == indkomstår | _ -> Sandt }
+| aktieavance_par19a_til20a_udstederstatus(aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag) -> match aktivgrundlag { | AblPar19AGrundlag(par19_input, _) -> aktieavance_par19_resultat(par19_input).status | _ -> AblPar19IkkeInvesteringsselskab }
+| aktieavance_par19a_til20a_par20a_deltagerantal(aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag) -> match aktivgrundlag { | AblPar20AMinimumsbevis(deltagere, _) -> length(deltagere) | _ -> 0 }
+| aktieavance_par19a_til20a_par20a_relateret_fordring(aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag) -> match aktivgrundlag { | AblPar20AMinimumsbevis(deltagere, fordringer) -> aktieavance_par20a_investerer_i_koncernforbundet_fordring(deltagere, fordringer) | _ -> Falskt }
+
+# AktieavancePar19ATil20ASag(input: AktieavancePar19ATil20AInput) {
+    | skattepligtsresultat() -> aktieavance_par6_par7_resultat(input.skattepligtsgrundlag)
+    | udstederstatus_efter_par19() -> aktieavance_par19a_til20a_udstederstatus(input.aktivgrundlag)
+    | input_gyldigt() -> input.indkomstår > 0 && aktieavance_par19a_til20a_aktivgrundlag_input_gyldigt(input.aktivgrundlag) && aktieavance_par19a_til20a_indkomstår_matcher(input.aktivgrundlag, input.indkomstår)
+    | par19a_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && match input.aktivgrundlag { | AblPar19AGrundlag(_, undtagelse) -> udstederstatus_efter_par19() != AblPar19IkkeInvesteringsselskab && undtagelse == AblPar19AIngenUndtagelse | _ -> Falskt }
+    | par20_stk1_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis
+    | par20_stk2_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par7 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis
+    | par20a_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && match input.aktivgrundlag { | AblPar20AMinimumsbevis(_, _) -> Sandt | _ -> Falskt }
+    | regelspor() -> AblUdenForPar19ATil20ARegelspor
+    | exception abl_par19a_regelspor regelspor() -> AblPar19ARegelspor under par19a_finder_anvendelse()
+    | exception abl_par20_stk1_regelspor regelspor() -> AblPar20Stk1Regelspor under par20_stk1_finder_anvendelse()
+    | exception abl_par20_stk2_regelspor regelspor() -> AblPar20Stk2Regelspor under par20_stk2_finder_anvendelse()
+    | exception abl_par20a_regelspor regelspor() -> AblPar20ARegelspor under par20a_finder_anvendelse()
+    | medregnes_i_skattepligtig_indkomst() -> regelspor() != AblUdenForPar19ATil20ARegelspor
+    | par20a_deltagerantal() -> aktieavance_par19a_til20a_par20a_deltagerantal(input.aktivgrundlag)
+    | par20a_færre_end_8_deltagere() -> par20a_finder_anvendelse() && par20a_deltagerantal() < 8
+    | par20a_investerer_i_koncernforbundet_fordring() -> par20a_finder_anvendelse() && aktieavance_par19a_til20a_par20a_relateret_fordring(input.aktivgrundlag)
+    | tab_kan_fradrages_efter_par20a_stk2() -> medregnes_i_skattepligtig_indkomst() && (par20a_færre_end_8_deltagere() == Falskt || par20a_investerer_i_koncernforbundet_fordring() == Falskt)
+    | tab_afskæres_efter_par20a_stk2() -> par20a_finder_anvendelse() && par20a_færre_end_8_deltagere() && par20a_investerer_i_koncernforbundet_fordring()
+    | resultat() -> AktieavancePar19ATil20AResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        skattepligtsresultat = skattepligtsresultat(),
+        udstederstatus_efter_par19 = udstederstatus_efter_par19(),
+        regelspor = regelspor(),
+        medregnes_i_skattepligtig_indkomst = medregnes_i_skattepligtig_indkomst(),
+        par20a_deltagerantal = par20a_deltagerantal(),
+        par20a_færre_end_8_deltagere = par20a_færre_end_8_deltagere(),
+        par20a_investerer_i_koncernforbundet_fordring = par20a_investerer_i_koncernforbundet_fordring(),
+        tab_kan_fradrages_efter_par20a_stk2 = tab_kan_fradrages_efter_par20a_stk2(),
+        tab_afskæres_efter_par20a_stk2 = tab_afskæres_efter_par20a_stk2()
+    )
+}
+
+| aktieavance_par19a_til20a_resultat(input: AktieavancePar19ATil20AInput) -> AktieavancePar19ATil20ASag(input).resultat()
+| aktieavance_par19a_til20a_resultat_gyldigt(resultat: AktieavancePar19ATil20AResultat) -> resultat == aktieavance_par19a_til20a_resultat(resultat.input)
+--@end:aktieavancebeskatningsloven_par19_til_par20a--

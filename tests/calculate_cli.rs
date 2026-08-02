@@ -153,6 +153,53 @@ fn json_batch_invokes_conditions_and_exceptions() {
 }
 
 #[test]
+fn calculation_output_encodes_empty_list_literals() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("json");
+    std::fs::write(
+        &source_path,
+        "# EmptyListInput(marker: Int)\n\
+# EmptyListResult(marker: Int, items: List(Int))\n\
+\n\
+@ calculate\n\
+| calculate_empty_list(input: EmptyListInput) -> EmptyListResult(marker = input.marker, items = [])\n",
+    )
+    .expect("write empty-list calculation");
+
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert_eq!(
+        result["results"][0]["result"]["items"],
+        serde_json::json!([])
+    );
+}
+
+#[test]
 fn stale_json_template_fails_closed_with_both_hashes() {
     let fixture = fixture();
     let input_path = temp_path("json");
@@ -471,6 +518,77 @@ fn investment_classification_xlsx_expands_payloads_and_round_trips_template() {
     assert_eq!(
         result["results"][0]["result"]["effektiv_status"]["$variant"],
         "AblObligationsbaseretInvesteringsselskabEfterPar19C"
+    );
+}
+
+#[test]
+fn par19_xlsx_derives_nested_fact_tables_and_round_trips_template() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/investeringsklassifikation.calculate.runa");
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--entry",
+        "klassificer_investeringsselskab_efter_par19",
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
+        let tables = workbook.worksheet_range("_tables").expect("table metadata");
+        let table_paths = tables
+            .rows()
+            .skip(1)
+            .filter_map(|row| row.first().map(ToString::to_string))
+            .collect::<Vec<_>>();
+        assert_eq!(table_paths.len(), 4);
+        for expected_suffix in [
+            ".deltagere_ved_indkomstårets_udgang",
+            ".aktivmasse.direkte_aktiver",
+            ".aktivmasse.ejerposter",
+            ".underliggende_aktiver_efter_direkte_og_indirekte_gennemlysning",
+        ] {
+            assert!(
+                table_paths
+                    .iter()
+                    .any(|path| path.ends_with(expected_suffix)),
+                "missing derived § 19 fact table ending in {expected_suffix}: {table_paths:?}"
+            );
+        }
+    }
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--entry",
+        "klassificer_investeringsselskab_efter_par19",
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .is_empty());
+    assert_eq!(
+        result["results"][0]["result"]["status"]["$variant"],
+        "AblPar19IkkeInvesteringsselskab"
     );
 }
 

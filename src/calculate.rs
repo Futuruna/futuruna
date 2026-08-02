@@ -1687,10 +1687,17 @@ fn encode_value(
                 value,
             )),
         },
-        CalculationTypeRef::List { item } => match value {
-            Value::List(values) => Ok(JsonValue::Array(
+        CalculationTypeRef::List { item } => {
+            let Some(values) = runtime_list_values(value) else {
+                return Err(runtime_type_error(
+                    path,
+                    &format!("List({})", item.display_name()),
+                    value,
+                ));
+            };
+            Ok(JsonValue::Array(
                 values
-                    .iter()
+                    .into_iter()
                     .enumerate()
                     .map(|(index, value)| {
                         encode_value(
@@ -1702,13 +1709,8 @@ fn encode_value(
                         )
                     })
                     .collect::<Result<Vec<_>, _>>()?,
-            )),
-            _ => Err(runtime_type_error(
-                path,
-                &format!("List({})", item.display_name()),
-                value,
-            )),
-        },
+            ))
+        }
         CalculationTypeRef::Map { key, value: item } => {
             if !matches!(*key, CalculationTypeRef::Primitive { ref name } if name == "String") {
                 return Err(value_error(path, "only Map(String, T) is supported"));
@@ -1766,6 +1768,27 @@ fn encode_value(
             } else {
                 encode_variant(value, definition, contract, &local, path)
             }
+        }
+    }
+}
+
+fn runtime_list_values(value: &Value) -> Option<Vec<&Value>> {
+    let mut values = Vec::new();
+    let mut current = value;
+    loop {
+        match current {
+            Value::List(items) => {
+                values.extend(items.iter());
+                return Some(values);
+            }
+            Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => {
+                return Some(values);
+            }
+            Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
+                values.push(&fields[0]);
+                current = &fields[1];
+            }
+            _ => return None,
         }
     }
 }

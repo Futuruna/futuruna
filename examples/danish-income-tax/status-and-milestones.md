@@ -1512,14 +1512,28 @@ encoded as a temporal rule on top of the consolidation.
   § 21/§ 22 status. Forty focused scenarios also cover the neutral
   § 23 fact boundary, wrong-year rejection, forged-product rejection, and the
   downstream Personskatteloven and KGL § 32 routes.
-- `investeringsklassifikation.calculate.runa` exposes both derived investment
+- `aktieavancebeskatningsloven-par19-20a.runa` and
+  `aktieavancebeskatningsloven-par19-20a.scenario.runa` exist and pass
+  interpreted and compiled execution. They derive § 19 UCITS,
+  repurchase-company and collective-investment-company status from typed
+  facts, including participant grouping, the exact 10% and 15% tests,
+  controlling-owner look-through and the employee-company exception. The
+  statute's non-numeric `hovedsagelig` subsidiary test remains a closed legal
+  assessment with warning metadata rather than an invented percentage. The
+  resulting taxpayer classification routes through §§ 19 A, 20 and 20 A;
+  § 20 A's related-claim loss restriction reaches the § 23 annual result.
+  Twenty-seven focused scenarios cover boundary values, wrong-year and
+  wrong-taxpayer rejection, and both allowed and denied § 20 A losses.
+- `investeringsklassifikation.calculate.runa` exposes four derived investment
   classifications as typed calculation contracts. Schema generation, XLSX
-  generation and XLSX `runa call` round-trip pass even though the >=25%
-  look-through makes the source type recursive. Direct assets and owner
-  positions become related sheets. Payload-bearing sum values still use
-  canonical JSON cells; `td-1eafe4` tracks discriminator dropdowns and typed
-  variant columns as a generic workbook UX improvement before the complete
-  citizen workbook is considered human-finished.
+  generation and XLSX `runa call` round-trip pass, including the recursive
+  >=25% look-through and the nested § 19 controlling-owner graph. XLSX input
+  schema v3 gives payload-bearing variants discriminator dropdowns and typed,
+  conditionally active columns. Direct assets, owner positions, participants,
+  participant companies and claims become keyed related sheets; inactive
+  variant fields fail closed instead of being accepted as stray JSON. This is
+  the generic workbook foundation for the complete citizen contract, not a
+  separately maintained tax form.
 - `aktieavancebeskatningsloven-par9.runa` and
   `aktieavancebeskatningsloven-par9.scenario.runa` exist and pass interpreted
   and compiled execution. Eighteen focused scenarios cover the current § 9
@@ -2387,6 +2401,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Aktieavancebeskatningsloven §§ 19, 19 A, 20 and 20 A now derive their legal
+  classifications from typed source facts. The § 19 model covers UCITS,
+  repurchase obligations, effective participant counts, securities ratios,
+  exact ownership look-through and the employee-company exception. § 23
+  consumes the derived result, including § 20 A's loss restriction, rather
+  than accepting a caller-selected legal label.
 - Aktieavancebeskatningsloven §§ 19 B-22 now derive investment status from
   annual-average asset facts, KGL underliers, exact capital-unit ownership,
   election/reporting dates and nested owner positions. § 23, PSL § 4/§ 4 a
@@ -2407,8 +2427,9 @@ Review candidates to revisit deliberately, not as broad churn:
   `runa schema`, JSON/TOML/XLSX templates, and `runa call` now carry the same
   source-linked contract; `personskat-calculate.scenario.runa` fixes the 2026
   Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
-  schema v2 uses related child worksheets only when the domain input actually
-  contains `List`, `Map`, or `Set` fields.
+  schema v3 uses related child worksheets only when the domain input actually
+  contains `List`, `Map`, or `Set` fields and expands payload-bearing variants
+  into typed discriminator-controlled columns.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
@@ -2421,8 +2442,11 @@ Review candidates to revisit deliberately, not as broad churn:
   supported branch before generating and presenting one full citizen workbook.
   The focused investment contract also proves that recursive legal input graphs
   terminate in schema/XLSX generation and round-trip through `runa call`.
-  `td-1eafe4` keeps the remaining payload-ADT cell ergonomics explicit rather
-  than replacing the legal recursion with precomputed caller values.
+  The § 19 workbook currently derives four related fact sheets, and the
+  §§ 19 A-20 A workbook derives seven, including nested participant-company
+  claims. The eventual full workbook remains downstream of the complete
+  calculation contract rather than replacing legal recursion with precomputed
+  caller values.
 - Aktieavancebeskatningsloven §§ 37-40 now cover entry value, personal exit-tax
   scope and netting, the initial deferral decision, the persistent § 39 A
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
@@ -2473,8 +2497,9 @@ Review candidates to revisit deliberately, not as broad churn:
   source-backed dependency outcomes. Do not reintroduce generic `{art, beløb}`
   adapters between typed dependency results and the canonical § 3 calculation.
 - Continue Aktieavancebeskatningsloven from the now-executable §§ 35 G-40
-  paths and the now-derived §§ 6-7 and §§ 19 B-22 boundaries: complete the remaining dependent
-  classifications before calling the ABL dependency complete. Mixed
+  paths and the now-derived §§ 6-7 and §§ 19-22 boundaries: complete the
+  remaining dependent classifications before calling the ABL dependency
+  complete. Mixed
   nominal/no-par holdings, § 33 A status
   changes, employee-ownership transferor tax and the modeled exit-tax deferral
   lifecycle already have source-backed calculation paths. § 9 now has an
@@ -2482,10 +2507,10 @@ Review candidates to revisit deliberately, not as broad churn:
   disposal loss before that calculation. Rank the next dependent
   classification by its impact on Personskatteloven rather than deepening
   exploratory audits.
-- Complete the remaining ABL investment classifications around § 19,
-  § 19 A, § 20 and § 20 A, then extend the canonical `@ calculate` aggregate
-  with their factual inputs. Keep the generated workbook downstream of that
-  graph so its scalar cells, enum dropdowns and related collection sheets
+- Extend the canonical Personskatteloven `@ calculate` aggregate with the now
+  executable ABL §§ 19-22 factual input graphs when its surrounding income
+  branches are ready. Keep the generated workbook downstream of that graph so
+  scalar cells, enum dropdowns, variant payloads and related collection sheets
   cannot drift from the executable law.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further

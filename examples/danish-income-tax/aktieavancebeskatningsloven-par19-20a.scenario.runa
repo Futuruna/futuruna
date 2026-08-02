@@ -1,0 +1,361 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par23 - 27
+
+| abl_par19_værdipapirdata(tilbagekøbsordning: AktieavancePar19Tilbagekøbsordning, deltagere: List(AktieavancePar19Deltager), aktivmasse: AktieavancePar19Aktivmasse, datterselskabsvurdering: AktieavancePar19Datterselskabsvurdering, medarbejderselskabsgrundlag: AktieavancePar19Medarbejderselskabsgrundlag) -> AktieavancePar19Værdipapirvirksomhed(
+    tilbagekøbsordning = tilbagekøbsordning,
+    deltagere_ved_indkomstårets_udgang = deltagere,
+    aktivmasse = aktivmasse,
+    datterselskabsvurdering = datterselskabsvurdering,
+    medarbejderselskabsgrundlag = medarbejderselskabsgrundlag
+)
+| abl_par19_input(data: AktieavancePar19Værdipapirvirksomhed, institutsundtagelse: AktieavancePar19Institutsundtagelse) -> AktieavancePar19Input(
+    indkomstår = 2026,
+    virksomhedsgrundlag = AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data = data),
+    institutsundtagelse = institutsundtagelse
+)
+| abl_par19a_til20a_input(skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, aktivgrundlag: AktieavancePar19ATil20AAktivgrundlag) -> AktieavancePar19ATil20AInput(
+    indkomstår = 2026,
+    skattepligtsgrundlag = skattepligtsgrundlag,
+    aktivgrundlag = aktivgrundlag
+)
+
+= abl_par19_otte_effektive_deltagere = [
+    AblPar19SammenlagtDeltager(identifikation = "A", sammenlægningsgruppe = "familie-1"),
+    AblPar19SammenlagtDeltager(identifikation = "B", sammenlægningsgruppe = "familie-1"),
+    AblPar19SelvstændigDeltager(identifikation = "C"),
+    AblPar19SelvstændigDeltager(identifikation = "D"),
+    AblPar19SelvstændigDeltager(identifikation = "E"),
+    AblPar19SelvstændigDeltager(identifikation = "F"),
+    AblPar19SelvstændigDeltager(identifikation = "G"),
+    AblPar19SelvstændigDeltager(identifikation = "H"),
+    AblPar19SelvstændigDeltager(identifikation = "I")
+]
+= abl_par19_syva_effektive_deltagere = [
+    AblPar19SammenlagtDeltager(identifikation = "A", sammenlægningsgruppe = "familie-1"),
+    AblPar19SammenlagtDeltager(identifikation = "B", sammenlægningsgruppe = "familie-1"),
+    AblPar19SelvstændigDeltager(identifikation = "C"),
+    AblPar19SelvstændigDeltager(identifikation = "D"),
+    AblPar19SelvstændigDeltager(identifikation = "E"),
+    AblPar19SelvstændigDeltager(identifikation = "F"),
+    AblPar19SelvstændigDeltager(identifikation = "G"),
+    AblPar19SelvstændigDeltager(identifikation = "H")
+]
+= abl_par19_aktivmasse_kun_værdipapirer = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 100000)],
+    ejerposter = []
+)
+= abl_par19_aktivmasse_præcis_15_pct_andre = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [
+        AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 85000),
+        AktieavancePar19Aktiv(art = AblPar19AndetAktiv, gennemsnitlig_regnskabsmæssig_værdi_kroner = 15000)
+    ],
+    ejerposter = []
+)
+= abl_par19_aktivmasse_16_pct_andre = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [
+        AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 84000),
+        AktieavancePar19Aktiv(art = AblPar19AndetAktiv, gennemsnitlig_regnskabsmæssig_værdi_kroner = 16000)
+    ],
+    ejerposter = []
+)
+= abl_par19_aktivmasse_med_10_pct_ikke_investeringsselskab = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 84000)],
+    ejerposter = [AblPar19IkkeBestemmendeEjerpost(
+        ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 1, samlede_kapitalenheder = 10),
+        gennemsnitlig_regnskabsmæssig_værdi_kroner = 16000,
+        andet_selskab_er_investeringsselskab_efter_par19 = Falskt
+    )]
+)
+= abl_par19_aktivmasse_med_under_10_pct_ikke_investeringsselskab = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 84000)],
+    ejerposter = [AblPar19IkkeBestemmendeEjerpost(
+        ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 999, samlede_kapitalenheder = 10000),
+        gennemsnitlig_regnskabsmæssig_værdi_kroner = 16000,
+        andet_selskab_er_investeringsselskab_efter_par19 = Falskt
+    )]
+)
+= abl_par19_aktivmasse_med_bestemmende_gennemlysning = AktieavancePar19Aktivmasse(
+    direkte_aktiver = [],
+    ejerposter = [AblPar19BestemmendeEjerpost(
+        ejerandel = AktieavanceInvesteringsEjerandel(ejede_kapitalenheder = 1, samlede_kapitalenheder = 2),
+        underliggende_aktiver_efter_direkte_og_indirekte_gennemlysning = [
+            AktieavancePar19Aktiv(art = AblPar19Værdipapir, gennemsnitlig_regnskabsmæssig_værdi_kroner = 150000),
+            AktieavancePar19Aktiv(art = AblPar19AndetAktiv, gennemsnitlig_regnskabsmæssig_værdi_kroner = 50000)
+        ]
+    )]
+)
+= abl_par19_intet_medarbejderselskab = AblPar19IntetMedarbejderselskabsgrundlag
+= abl_par19_medarbejderselskab_præcis_15_pct_kontanter = AblPar19Medarbejderselskabsgrundlag(
+    ejer_udelukkende_aktier_tegningsretter_og_aktieretter_i_et_selskab = Sandt,
+    alle_aktionærer_var_ansat_i_målselskabet_eller_koncernselskab_ved_erhvervelsen = Sandt,
+    målselskabet_eller_koncernselskab_er_investeringsselskab = Falskt,
+    gennemsnitlige_kontanter_kroner = 15000,
+    gennemsnitlige_regnskabsmæssige_aktiver_kroner = 100000
+)
+= abl_par19_medarbejderselskab_over_15_pct_kontanter = AblPar19Medarbejderselskabsgrundlag(
+    ejer_udelukkende_aktier_tegningsretter_og_aktieretter_i_et_selskab = Sandt,
+    alle_aktionærer_var_ansat_i_målselskabet_eller_koncernselskab_ved_erhvervelsen = Sandt,
+    målselskabet_eller_koncernselskab_er_investeringsselskab = Falskt,
+    gennemsnitlige_kontanter_kroner = 15001,
+    gennemsnitlige_regnskabsmæssige_aktiver_kroner = 100000
+)
+
+= abl_par19_ucits_resultat = aktieavance_par19_resultat(AktieavancePar19Input(
+    indkomstår = 2026,
+    virksomhedsgrundlag = AblPar19UcitsEfterDirektiv2009_65_EF,
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_ucits_minimumsundtaget = aktieavance_par19_resultat(AktieavancePar19Input(
+    indkomstår = 2026,
+    virksomhedsgrundlag = AblPar19UcitsEfterDirektiv2009_65_EF,
+    institutsundtagelse = AblPar19InvesteringsinstitutMedMinimumsbeskatning
+))
+= abl_par19_tilbagekøbsresultat = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19TredjemandskøbPåForlangende(kurs = AblPar19KursIkkeVæsentligtUnderIndreVærdi, frist_dage = 180),
+        deltagere = [],
+        aktivmasse = abl_par19_aktivmasse_kun_værdipapirer,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_datterselskabsundtaget = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19SelskabstilbagekøbPåForlangende(kurs = AblPar19KursIkkeVæsentligtUnderIndreVærdi, frist_dage = 30),
+        deltagere = [],
+        aktivmasse = abl_par19_aktivmasse_med_bestemmende_gennemlysning,
+        datterselskabsvurdering = AblPar19DatterselskabsformueHovedsageligAndreVærdier,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_kollektiv_præcis_15_pct = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_præcis_15_pct_andre,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_kollektiv_16_pct = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_16_pct_andre,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_præcis_10_pct_udelukkes_fra_værdipapirer = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_med_10_pct_ikke_investeringsselskab,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_under_10_pct_medregnes_som_værdipapir = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_med_under_10_pct_ikke_investeringsselskab,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_intet_medarbejderselskab
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_medarbejderselskab_undtaget = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_kun_værdipapirer,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_medarbejderselskab_præcis_15_pct_kontanter
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+= abl_par19_medarbejderselskab_over_grænse = aktieavance_par19_resultat(abl_par19_input(
+    data = abl_par19_værdipapirdata(
+        tilbagekøbsordning = AblPar19IngenTilbagekøbsordning,
+        deltagere = abl_par19_otte_effektive_deltagere,
+        aktivmasse = abl_par19_aktivmasse_kun_værdipapirer,
+        datterselskabsvurdering = AblPar19IngenDatterselskabsformue,
+        medarbejderselskabsgrundlag = abl_par19_medarbejderselskab_over_15_pct_kontanter
+    ),
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+
+= abl_par20a_syva_deltagere = [
+    AktieavancePar20ADeltager(identifikation = "P1", koncernforbundne_selskabsidentifikationer = ["S1"]),
+    AktieavancePar20ADeltager(identifikation = "P2", koncernforbundne_selskabsidentifikationer = []),
+    AktieavancePar20ADeltager(identifikation = "P3", koncernforbundne_selskabsidentifikationer = []),
+    AktieavancePar20ADeltager(identifikation = "P4", koncernforbundne_selskabsidentifikationer = []),
+    AktieavancePar20ADeltager(identifikation = "P5", koncernforbundne_selskabsidentifikationer = []),
+    AktieavancePar20ADeltager(identifikation = "P6", koncernforbundne_selskabsidentifikationer = []),
+    AktieavancePar20ADeltager(identifikation = "P7", koncernforbundne_selskabsidentifikationer = [])
+]
+= abl_par20a_otte_deltagere = concat(abl_par20a_syva_deltagere, [AktieavancePar20ADeltager(identifikation = "P8", koncernforbundne_selskabsidentifikationer = [])])
+= abl_par20a_relateret_fordring = [AktieavancePar20AFordring(debitor_selskabsidentifikation = "S1", gennemsnitlig_værdi_kroner = 50000)]
+= abl_par20a_urelateret_fordring = [AktieavancePar20AFordring(debitor_selskabsidentifikation = "U1", gennemsnitlig_værdi_kroner = 50000)]
+
+= abl_par19a_selskabsinput = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar19AGrundlag(par19_input = abl_par19_ucits_resultat.input, undtagelse = AblPar19AIngenUndtagelse)
+)
+= abl_par19a_personinput = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    aktivgrundlag = AblPar19AGrundlag(par19_input = abl_par19_ucits_resultat.input, undtagelse = AblPar19AIngenUndtagelse)
+)
+= abl_par19a_undtaget_input = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar19AGrundlag(par19_input = abl_par19_ucits_resultat.input, undtagelse = AblPar19AUndtagetEfterPar18)
+)
+= abl_par19a_forkert_udstederår_input = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar19AGrundlag(
+        par19_input = AktieavancePar19Input(
+            indkomstår = 2025,
+            virksomhedsgrundlag = AblPar19UcitsEfterDirektiv2009_65_EF,
+            institutsundtagelse = AblPar19IngenInstitutsundtagelse
+        ),
+        undtagelse = AblPar19AIngenUndtagelse
+    )
+)
+= abl_par20_selskabsinput = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar20AkkumulerendeInvesteringsforeningsbevis
+)
+= abl_par20_personinput = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    aktivgrundlag = AblPar20AkkumulerendeInvesteringsforeningsbevis
+)
+= abl_par20a_syva_relateret_input = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar20AMinimumsbevis(deltagere = abl_par20a_syva_deltagere, fordringer = abl_par20a_relateret_fordring)
+)
+= abl_par20a_syva_urelateret_input = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar20AMinimumsbevis(deltagere = abl_par20a_syva_deltagere, fordringer = abl_par20a_urelateret_fordring)
+)
+= abl_par20a_otte_relateret_input = abl_par19a_til20a_input(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    aktivgrundlag = AblPar20AMinimumsbevis(deltagere = abl_par20a_otte_deltagere, fordringer = abl_par20a_relateret_fordring)
+)
+
+= abl_par19a_selskabsresultat = aktieavance_par19a_til20a_resultat(abl_par19a_selskabsinput)
+= abl_par19a_personresultat = aktieavance_par19a_til20a_resultat(abl_par19a_personinput)
+= abl_par19a_undtaget_resultat = aktieavance_par19a_til20a_resultat(abl_par19a_undtaget_input)
+= abl_par19a_forkert_udstederår_resultat = aktieavance_par19a_til20a_resultat(abl_par19a_forkert_udstederår_input)
+= abl_par20_selskabsresultat = aktieavance_par19a_til20a_resultat(abl_par20_selskabsinput)
+= abl_par20_personresultat = aktieavance_par19a_til20a_resultat(abl_par20_personinput)
+= abl_par20a_syva_relateret_resultat = aktieavance_par19a_til20a_resultat(abl_par20a_syva_relateret_input)
+= abl_par20a_syva_urelateret_resultat = aktieavance_par19a_til20a_resultat(abl_par20a_syva_urelateret_input)
+= abl_par20a_otte_relateret_resultat = aktieavance_par19a_til20a_resultat(abl_par20a_otte_relateret_input)
+
+| abl_par19_til20a_par23_principinput(skattepligtsresultat: AktieavancePar6Par7Resultat, aktiv: AktieavancePar23Aktiv) -> AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtsresultat = skattepligtsresultat,
+    aktiv = aktiv,
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblIntetPar23Stk6Valg,
+    stk7_valg = AktieavancePar23Stk7Valg(
+        selskabsidentifikation = "",
+        første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+        ejer_dage_før_første_optagelse = 0,
+        valgmåde = AblIntetPar23Stk7Valg
+    ),
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+)
+| abl_par19_til20a_lagerårsresultat(princip_resultat: AktieavancePar23PrincipResultat) -> aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+    princip_resultat = princip_resultat,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 90000,
+    anskaffelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+    par17_modprøve = AktieavancePar17Modprøve(næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier, erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej),
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+))
+
+= abl_par19a_par23_aktiv = AblPar19AInvesteringsselskabsaktiv(
+    klassifikationsinput = abl_par19a_selskabsinput,
+    papirart = AblInvesteringsselskabsaktie,
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    registreret_i_værdipapircentral = Sandt
+)
+= abl_par20_par23_aktiv = AblPar20Stk1Investeringsbevis(klassifikationsinput = abl_par20_selskabsinput)
+= abl_par20a_afskåret_par23_aktiv = AblPar20AInvesteringsbevis(klassifikationsinput = abl_par20a_syva_relateret_input)
+= abl_par20a_tilladt_par23_aktiv = AblPar20AInvesteringsbevis(klassifikationsinput = abl_par20a_syva_urelateret_input)
+= abl_par19a_par23_princip = aktieavance_par23_princip_resultat(abl_par19_til20a_par23_principinput(aktieavance_par6_selskab_efter_selskabsskatteloven, abl_par19a_par23_aktiv))
+= abl_par20_par23_princip = aktieavance_par23_princip_resultat(abl_par19_til20a_par23_principinput(aktieavance_par6_selskab_efter_selskabsskatteloven, abl_par20_par23_aktiv))
+= abl_par20a_afskåret_par23_princip = aktieavance_par23_princip_resultat(abl_par19_til20a_par23_principinput(aktieavance_par6_selskab_efter_selskabsskatteloven, abl_par20a_afskåret_par23_aktiv))
+= abl_par20a_tilladt_par23_princip = aktieavance_par23_princip_resultat(abl_par19_til20a_par23_principinput(aktieavance_par6_selskab_efter_selskabsskatteloven, abl_par20a_tilladt_par23_aktiv))
+= abl_par20a_forkert_skattepligt_par23_princip = aktieavance_par23_princip_resultat(abl_par19_til20a_par23_principinput(aktieavance_par7_person_efter_kildeskatteloven, abl_par20a_afskåret_par23_aktiv))
+= abl_par20a_afskåret_lagerresultat = abl_par19_til20a_lagerårsresultat(abl_par20a_afskåret_par23_princip)
+= abl_par20a_tilladt_lagerresultat = abl_par19_til20a_lagerårsresultat(abl_par20a_tilladt_par23_princip)
+
+| abl_par19_ucits_er_investeringsselskab: abl_par19_ucits_resultat -> abl_par19_ucits_resultat.input_gyldigt && abl_par19_ucits_resultat.status == AblPar19UcitsInvesteringsselskab
+| abl_par19_stk3_undtager_minimumsinstitut: abl_par19_ucits_minimumsundtaget -> abl_par19_ucits_minimumsundtaget.institutsundtagelse_finder_anvendelse && abl_par19_ucits_minimumsundtaget.status == AblPar19IkkeInvesteringsselskab
+| abl_par19_tredjemandskøb_inden_for_frist_opfylder_tilbagekøb: abl_par19_tilbagekøbsresultat -> abl_par19_tilbagekøbsresultat.tilbagekøbsbetingelser_opfyldt && abl_par19_tilbagekøbsresultat.status == AblPar19TilbagekøbsInvesteringsselskab
+| abl_par19_datterselskabsundtagelse_afskærer_tilbagekøbsruten: abl_par19_datterselskabsundtaget -> abl_par19_datterselskabsundtaget.input_gyldigt && abl_par19_datterselskabsundtaget.datterselskabsundtagelse_finder_anvendelse && abl_par19_datterselskabsundtaget.status == AblPar19IkkeInvesteringsselskab
+| abl_par19_koncernforbundne_deltagere_regnes_som_en: abl_par19_kollektiv_præcis_15_pct -> length(abl_par19_otte_effektive_deltagere) == 9 && abl_par19_kollektiv_præcis_15_pct.effektivt_deltagerantal == 8
+| abl_par19_præcis_15_pct_andre_aktiver_er_tilladt: abl_par19_kollektiv_præcis_15_pct -> abl_par19_kollektiv_præcis_15_pct.aktivmasse_resultat.andre_aktiver_højst_15_pct && abl_par19_kollektiv_præcis_15_pct.status == AblPar19KollektivtInvesteringsselskab
+| abl_par19_over_15_pct_andre_aktiver_afskærer_kollektiv_rute: abl_par19_kollektiv_16_pct -> abl_par19_kollektiv_16_pct.aktivmasse_resultat.andre_aktiver_højst_15_pct == Falskt && abl_par19_kollektiv_16_pct.status == AblPar19IkkeInvesteringsselskab
+| abl_par19_præcis_10_pct_i_andet_selskab_er_ikke_værdipapir: abl_par19_præcis_10_pct_udelukkes_fra_værdipapirer -> abl_par19_præcis_10_pct_udelukkes_fra_værdipapirer.aktivmasse_resultat.andre_aktiver_kroner == 16000 && abl_par19_præcis_10_pct_udelukkes_fra_værdipapirer.status == AblPar19IkkeInvesteringsselskab
+| abl_par19_under_10_pct_i_andet_selskab_er_værdipapir: abl_par19_under_10_pct_medregnes_som_værdipapir -> abl_par19_under_10_pct_medregnes_som_værdipapir.aktivmasse_resultat.værdipapirer_kroner == 100000 && abl_par19_under_10_pct_medregnes_som_værdipapir.status == AblPar19KollektivtInvesteringsselskab
+| abl_par19_bestemmende_ejerpost_gennemlyses_forholdsmæssigt: abl_par19_datterselskabsundtaget -> abl_par19_datterselskabsundtaget.aktivmasse_resultat.regnskabsmæssige_aktiver_kroner == 100000 && abl_par19_datterselskabsundtaget.aktivmasse_resultat.værdipapirer_kroner == 75000 && abl_par19_datterselskabsundtaget.aktivmasse_resultat.andre_aktiver_kroner == 25000
+| abl_par19_medarbejderselskab_præcis_15_pct_kontanter_undtages: abl_par19_medarbejderselskab_undtaget -> abl_par19_medarbejderselskab_undtaget.medarbejderselskabsundtagelse_finder_anvendelse && abl_par19_medarbejderselskab_undtaget.status == AblPar19IkkeInvesteringsselskab
+| abl_par19_medarbejderselskab_over_15_pct_kontanter_undtages_ikke: abl_par19_medarbejderselskab_over_grænse -> abl_par19_medarbejderselskab_over_grænse.medarbejderselskabsundtagelse_finder_anvendelse == Falskt && abl_par19_medarbejderselskab_over_grænse.status == AblPar19KollektivtInvesteringsselskab
+| abl_par19a_gælder_selskab_med_par19_udsteder: abl_par19a_selskabsresultat -> abl_par19a_selskabsresultat.regelspor == AblPar19ARegelspor && abl_par19a_selskabsresultat.medregnes_i_skattepligtig_indkomst
+| abl_par19a_gælder_ikke_person: abl_par19a_personresultat -> abl_par19a_personresultat.regelspor == AblUdenForPar19ATil20ARegelspor
+| abl_par19a_stk2_undtagelse_afskærer_regelsporet: abl_par19a_undtaget_resultat -> abl_par19a_undtaget_resultat.regelspor == AblUdenForPar19ATil20ARegelspor
+| abl_par19a_afviser_udstederstatus_fra_forkert_indkomstår: abl_par19a_forkert_udstederår_resultat -> abl_par19a_forkert_udstederår_resultat.input_gyldigt == Falskt && abl_par19a_forkert_udstederår_resultat.regelspor == AblUdenForPar19ATil20ARegelspor
+| abl_par20_ruter_selskab_til_stk1: abl_par20_selskabsresultat -> abl_par20_selskabsresultat.regelspor == AblPar20Stk1Regelspor
+| abl_par20_ruter_person_til_stk2: abl_par20_personresultat -> abl_par20_personresultat.regelspor == AblPar20Stk2Regelspor
+| abl_par20a_under_8_med_relateret_fordring_afskærer_tab: abl_par20a_syva_relateret_resultat -> abl_par20a_syva_relateret_resultat.par20a_færre_end_8_deltagere && abl_par20a_syva_relateret_resultat.par20a_investerer_i_koncernforbundet_fordring && abl_par20a_syva_relateret_resultat.tab_afskæres_efter_par20a_stk2
+| abl_par20a_under_8_uden_relateret_fordring_tillader_tab: abl_par20a_syva_urelateret_resultat -> abl_par20a_syva_urelateret_resultat.tab_kan_fradrages_efter_par20a_stk2 && abl_par20a_syva_urelateret_resultat.tab_afskæres_efter_par20a_stk2 == Falskt
+| abl_par20a_8_deltagere_tillader_relateret_fordring: abl_par20a_otte_relateret_resultat -> abl_par20a_otte_relateret_resultat.par20a_færre_end_8_deltagere == Falskt && abl_par20a_otte_relateret_resultat.tab_kan_fradrages_efter_par20a_stk2
+| abl_par23_afleder_par19a_til_stk8: abl_par19a_par23_princip -> abl_par19a_par23_princip.input_gyldig && abl_par19a_par23_princip.grundlag == AblPar23Stk8TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_par19a_par23_aktiv, 2026) == AblInvesteringsselskab19A
+| abl_par23_afleder_par20_stk1_til_stk5: abl_par20_par23_princip -> abl_par20_par23_princip.input_gyldig && abl_par20_par23_princip.grundlag == AblPar23Stk5TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_par20_par23_aktiv, 2026) == AblAkkumulerendeInvesteringsbevis20Stk1
+| abl_par23_afleder_par20a_til_stk5: abl_par20a_afskåret_par23_princip -> abl_par20a_afskåret_par23_princip.input_gyldig && abl_par20a_afskåret_par23_princip.grundlag == AblPar23Stk5TvungetLager && aktieavance_par23_effektivt_abl_aktiv(abl_par20a_afskåret_par23_aktiv, 2026) == AblMinimumsbevis20A
+| abl_par23_afviser_mismatch_mellem_klassifikation_og_skattepligt: abl_par20a_forkert_skattepligt_par23_princip -> abl_par20a_forkert_skattepligt_par23_princip.input_gyldig == Falskt
+| abl_par20a_afskåret_tab_føres_gennem_lageropgørelsen: abl_par20a_afskåret_lagerresultat -> abl_par20a_afskåret_lagerresultat.opgørelse_gyldig && abl_par20a_afskåret_lagerresultat.bruttotab_kroner == 10000 && abl_par20a_afskåret_lagerresultat.fradragsberettiget_tab_kroner == 0 && abl_par20a_afskåret_lagerresultat.tab_afskåret_efter_par20a_stk2_kroner == 10000 && abl_par20a_afskåret_lagerresultat.aktieavancebeskatningslov_resultat.tab_afskåret_kroner == 10000
+| abl_par20a_tilladt_tab_føres_gennem_lageropgørelsen: abl_par20a_tilladt_lagerresultat -> abl_par20a_tilladt_lagerresultat.opgørelse_gyldig && abl_par20a_tilladt_lagerresultat.fradragsberettiget_tab_kroner == 10000 && abl_par20a_tilladt_lagerresultat.tab_afskåret_efter_par20a_stk2_kroner == 0
+
+? abl_par19_ucits_er_investeringsselskab
+? abl_par19_stk3_undtager_minimumsinstitut
+? abl_par19_tredjemandskøb_inden_for_frist_opfylder_tilbagekøb
+? abl_par19_datterselskabsundtagelse_afskærer_tilbagekøbsruten
+? abl_par19_koncernforbundne_deltagere_regnes_som_en
+? abl_par19_præcis_15_pct_andre_aktiver_er_tilladt
+? abl_par19_over_15_pct_andre_aktiver_afskærer_kollektiv_rute
+? abl_par19_præcis_10_pct_i_andet_selskab_er_ikke_værdipapir
+? abl_par19_under_10_pct_i_andet_selskab_er_værdipapir
+? abl_par19_bestemmende_ejerpost_gennemlyses_forholdsmæssigt
+? abl_par19_medarbejderselskab_præcis_15_pct_kontanter_undtages
+? abl_par19_medarbejderselskab_over_15_pct_kontanter_undtages_ikke
+? abl_par19a_gælder_selskab_med_par19_udsteder
+? abl_par19a_gælder_ikke_person
+? abl_par19a_stk2_undtagelse_afskærer_regelsporet
+? abl_par19a_afviser_udstederstatus_fra_forkert_indkomstår
+? abl_par20_ruter_selskab_til_stk1
+? abl_par20_ruter_person_til_stk2
+? abl_par20a_under_8_med_relateret_fordring_afskærer_tab
+? abl_par20a_under_8_uden_relateret_fordring_tillader_tab
+? abl_par20a_8_deltagere_tillader_relateret_fordring
+? abl_par23_afleder_par19a_til_stk8
+? abl_par23_afleder_par20_stk1_til_stk5
+? abl_par23_afleder_par20a_til_stk5
+? abl_par23_afviser_mismatch_mellem_klassifikation_og_skattepligt
+? abl_par20a_afskåret_tab_føres_gennem_lageropgørelsen
+? abl_par20a_tilladt_tab_føres_gennem_lageropgørelsen
