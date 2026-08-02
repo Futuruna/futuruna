@@ -346,16 +346,14 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
     beløb_kroner = 999999
 ))
 
-= nr2_personlig_indkomst = par3_personlig_indkomst_med_nr2_resultat(Par3PersonligIndkomstMedNr2Input(
-    grundinput = Par3PersonligIndkomstInput(
-        indkomstposter = [Par3Indkomstpost(
-            indgår_i_skattepligtig_indkomst = Sandt,
-            er_kapitalindkomst = Falskt,
-            beløb_kroner = 1000000
-        )],
-        fradragsposter = []
-    ),
-    nr2_input = Par3Stk2Nr2Input(poster = [
+= nr2_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [Par3Indkomstpost(
+        indgår_i_skattepligtig_indkomst = Sandt,
+        er_kapitalindkomst = Falskt,
+        beløb_kroner = 1000000
+    )],
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = [
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8Stk1(nr2_ll8_reklame), ved_selvstændig_erhvervsvirksomhed = Sandt),
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8B(nr2_ll8b_straks), ved_selvstændig_erhvervsvirksomhed = Sandt),
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8K(nr2_ll8k_fredskov_tyve_procent), ved_selvstændig_erhvervsvirksomhed = Sandt),
@@ -365,7 +363,8 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ll14F(nr2_ll14f_gældsbidrag), ved_selvstændig_erhvervsvirksomhed = Sandt),
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ll30A(nr2_ll30a_alkoholbehandling), ved_selvstændig_erhvervsvirksomhed = Sandt),
         Par3Stk2Nr2Post(grundlag = Par3Nr2Ksl25AStk3Til5(nr2_ksl25a_ægtefælleoverførsel), ved_selvstændig_erhvervsvirksomhed = Sandt)
-    ])
+    ]),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [])
 ))
 
 | scenarie_nr2_ll8_reklame_fradrages_fuldt: nr2_ll8_reklame -> nr2_ll8_reklame.udgift_omfattet_af_stk1 && nr2_ll8_reklame.fradrag_i_skattepligtig_indkomst_kroner == 12000

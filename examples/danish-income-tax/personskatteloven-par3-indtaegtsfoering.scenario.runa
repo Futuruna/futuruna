@@ -242,7 +242,9 @@
         ),
         par3_udlignings_indtægtsføring_indkomstpost(udlignings_frivillig_fixture)
     ],
-    fradragsposter = []
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [])
 ))
 
 | udligning_fifo_ældste_først: udlignings_frivillig_fixture -> head(udlignings_frivillig_fixture.opgørelser).henlæggelsesår == 2018 && head(udlignings_frivillig_fixture.opgørelser).indtægtsført_i_året_kroner == 100000 && nth(udlignings_frivillig_fixture.opgørelser, 1).henlæggelsesår == 2019 && nth(udlignings_frivillig_fixture.opgørelser, 1).indtægtsført_i_året_kroner == 20000

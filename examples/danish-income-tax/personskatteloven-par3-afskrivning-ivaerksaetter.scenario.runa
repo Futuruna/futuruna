@@ -66,7 +66,7 @@
     forbedringsudgifter_i_året_kroner = 10000,
     salgssummer_i_året_kroner = 20000,
     valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5_ordinær_selskab = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
@@ -77,7 +77,7 @@
     forbedringsudgifter_i_året_kroner = 10000,
     salgssummer_i_året_kroner = 20000,
     valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5_fuld_småsaldo = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
@@ -88,7 +88,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5FuldRestsaldo
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5_fuld_over_småsaldogrænsen = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
@@ -99,7 +99,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5FuldRestsaldo
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5a_valgt_tab = afskrivningslov5a_resultat(Afskrivningslov5AInput(
     indkomstår = 2026,
@@ -162,7 +162,7 @@
     ),
     udlejningsforhold = al6_ingen_udlejning,
     valg = Al6Småaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
@@ -178,7 +178,7 @@
     ),
     udlejningsforhold = al6_ingen_udlejning,
     valg = Al6KortFysiskLevetid
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_skib_er_ikke_småaktiv_efter_nr2 = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
@@ -194,7 +194,7 @@
     ),
     udlejningsforhold = al6_ingen_udlejning,
     valg = Al6Småaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_forskning_krydser_2026_loftet = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
@@ -210,7 +210,7 @@
     ),
     udlejningsforhold = al6_ingen_udlejning,
     valg = Al6ForsøgsOgForskningsaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_stk2_salg_af_straksafskrevet_småaktiv = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
     straksafskrivningsresultat = al6_software_som_småaktiv,
@@ -242,21 +242,21 @@
     aktivgrundlag = al6_selskabsudlejnings_småaktiv,
     udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
     valg = Al6Småaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_selskabsudlejning_året_efter = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2027,
     aktivgrundlag = al6_selskabsudlejnings_småaktiv,
     udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
     valg = Al6Småaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = al6_selskabsudlejnings_småaktiv,
     udlejningsforhold = al6_selskabsudlejning_med_tilladelse,
     valg = Al6Småaktiv
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
     straksafskrivningsresultat = al6_selskabsudlejning_anskaffelsesår,
@@ -398,7 +398,7 @@
     første_afskrivningsår = Falskt,
     undergivet_tonnageskat = Falskt,
     valgt_nybygget_førsteårs_sats_basispoint = 0
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5b_nybygget_selskab = afskrivningslov5b_resultat(Afskrivningslov5BInput(
     indkomstår = 2026,
@@ -417,7 +417,7 @@
     første_afskrivningsår = Sandt,
     undergivet_tonnageskat = Falskt,
     valgt_nybygget_førsteårs_sats_basispoint = 2000
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5b_forholdsmæssig_overførsel = afskrivningslov5b_saldooverførsel_resultat(Afskrivningslov5BSaldooverførselInput(
     retning = Al5SaldoTil5BSaldo,
@@ -438,7 +438,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5COrdinærAfskrivning(sats_basispoint = 1500)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5c_infrastruktur_7_pct = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
@@ -452,7 +452,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5COrdinærAfskrivning(sats_basispoint = 700)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5c_fuld_småsaldo = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
@@ -466,7 +466,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5CFuldRestsaldo
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5c_softwaredel_afskåret = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
@@ -480,7 +480,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     salgssummer_i_året_kroner = 0,
     valg = Al5COrdinærAfskrivning(sats_basispoint = 700)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al5d_anskaffelse_2022 = afskrivningslov_forhøjet_saldo_resultat(AfskrivningslovForhøjetSaldoInput(
     indkomstår = 2022,
@@ -705,7 +705,7 @@
     samlet_anskaffelsessum_i_indkomståret_kroner = 965800,
     vælger_par5_til_par9 = Sandt,
     fortjeneste_mv_behandles_efter_par5_til_par9 = Sandt
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al10_dok_under_minimum = afskrivningslov10_resultat(Afskrivningslov10Input(
     indkomstår = 2026,
@@ -715,7 +715,7 @@
     samlet_anskaffelsessum_i_indkomståret_kroner = 965799,
     vælger_par5_til_par9 = Sandt,
     fortjeneste_mv_behandles_efter_par5_til_par9 = Sandt
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = par3_nr10_kapitel2_input = Par3Stk2Nr10Input(
     grundlagsposter = [
@@ -741,12 +741,13 @@
 
 = par3_nr10_kapitel2_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
     indkomstposter = [
-        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Falskt, beløb_kroner = 200000),
-        par3_stk2_nr10_indkomstpost(par3_nr10_kapitel2_input)
+        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Falskt, beløb_kroner = 200000)
     ],
-    fradragsposter = [
-        par3_stk2_nr10_fradragspost(par3_nr10_kapitel2_input)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr10Post(resultat = par3_stk2_nr10_resultat(par3_nr10_kapitel2_input))
+    ])
 ))
 
 = sl6_ordinær_selvstændig = statsskattelov6_ordinær_afskrivning_resultat(Statsskattelov6OrdinærAfskrivningInput(
@@ -789,7 +790,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     valg = Al11OrdinærAfskrivning(sats_basispoint = 2500)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al11_fuldt_blandet_småaktiv = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
@@ -800,7 +801,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     valg = Al11FuldRestfradrag
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al11_blandet_over_småaktivgrænsen = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
@@ -811,7 +812,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     valg = Al11FuldRestfradrag
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al11_par5c_stk1_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
@@ -822,7 +823,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     valg = Al11OrdinærAfskrivning(sats_basispoint = 1500)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al11_par5c_stk2_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
@@ -833,7 +834,7 @@
     forbedringsudgifter_i_året_kroner = 0,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     valg = Al11OrdinærAfskrivning(sats_basispoint = 700)
-), al_2026_parametre)
+    ), al_2026_parametre)
 
 = al11_officiel_salgs_historik = [
     Afskrivningslov11Årsopgørelse(
@@ -944,12 +945,13 @@
             indgår_i_skattepligtig_indkomst = Sandt,
             er_kapitalindkomst = Falskt,
             beløb_kroner = 100000
-        ),
-        par3_stk2_nr10_indkomstpost(par3_nr10_blandet_input)
+        )
     ],
-    fradragsposter = [
-        par3_stk2_nr10_fradragspost(par3_nr10_blandet_input)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr10Post(resultat = par3_nr10_blandet_resultat)
+    ])
 ))
 
 = etbl_nettoløn_200000 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
@@ -1181,6 +1183,17 @@
     etableringskonto_resultat = etbl_blandet_fordeling
 ))
 
+= par3_nr10_nr11_afskrivningsresultat = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al5(resultat = al5_ordinær_selvstændig),
+        Par3Nr10Al5A(resultat = al5a_valgt_tab),
+        Par3Nr10Al6(resultat = al6_software_som_småaktiv),
+        Par3Nr10Al6(resultat = al6_forskning_krydser_2026_loftet),
+        Par3Nr10Sl6A(resultat = sl6_ordinær_selvstændig),
+        Par3Nr10Al5(resultat = al5_ordinær_selskab)
+    ]
+))
+
 = par3_nr10_nr11_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
     indkomstposter = [
         Par3Indkomstpost(
@@ -1189,21 +1202,12 @@
             beløb_kroner = 600000
         )
     ],
-    fradragsposter = [
-        par3_stk2_nr10_fradragspost(Par3Stk2Nr10Input(
-            grundlagsposter = [
-                Par3Nr10Al5(resultat = al5_ordinær_selvstændig),
-                Par3Nr10Al5A(resultat = al5a_valgt_tab),
-                Par3Nr10Al6(resultat = al6_software_som_småaktiv),
-                Par3Nr10Al6(resultat = al6_forskning_krydser_2026_loftet),
-                Par3Nr10Sl6A(resultat = sl6_ordinær_selvstændig),
-                Par3Nr10Al5(resultat = al5_ordinær_selskab)
-            ]
-        )),
-        par3_stk2_nr11_fradragspost(Par3Stk2Nr11Input(
-            etableringskonto_resultat = etbl_blandet_fordeling
-        ))
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr10Post(resultat = par3_nr10_nr11_afskrivningsresultat),
+        Par3Stk2Nr11Post(resultat = par3_nr11_blandet_fordeling)
+    ])
 ))
 
 | scenarie_al3_kræver_gyldig_dato_og_alle_tre_betingelser: al3_anskaffet_2026 -> al3_anskaffet_2026.dato_gyldig == Sandt && al3_anskaffet_2026.anskaffet_efter_par3 == Sandt && al3_ufærdig_2026.anskaffet_efter_par3 == Falskt && al3_ugyldig_2026_dato.dato_gyldig == Falskt && al3_ugyldig_2026_dato.anskaffet_efter_par3 == Falskt

@@ -64,6 +64,14 @@ ens i interpreter og kompileret kode. Kilderne er
 [Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500)
 og [Kildeskatteloven, LBK nr. 460/2024](https://www.retsinformation.dk/eli/lta/2024/460).
 
+Nr. 3-11 fortsætter nu gennem én lukket resultattype i stedet for at blive
+omdannet til løse poster med en kategori og et beløb. Hver gren kan kun bære
+det typede resultat fra den lovregel, der har beregnet den. Den samme kaskade
+fører både fradragene og de positive indtægtsføringer fra nr. 4 og nr. 10 ind i
+§ 3-resultatet, så de ikke skal tilføjes manuelt som parallelle poster. Et
+fokusscenarie dækker alle ni grene i både interpreter og kompileret kode og
+viser samtidig, at ni rå beløb mærket som nr. 3-11 samlet giver 0 kr. i fradrag.
+
 Personaktievejen er nu også eksekverbar fra anskaffelse og gennemsnitlig
 anskaffelsessum til afståelse, noterede og unoterede tab,
 ægtefælleoverførsel og den endelige aktieindkomstpost efter Personskatteloven
@@ -112,7 +120,8 @@ former.
 
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til
-kildebundne beløbsregler.
+kildebundne beløbsregler og udfylde de afhængigheder, der endnu mangler et
+beregnet resultat.
 
 Nyere afhængighedsdækning omfatter Ligningsloven § 9 C og § 9 D, herunder
 befordringsfradrag, yderkommuner, lavindkomsttillæg, broer, SU-yderområde og
@@ -250,8 +259,9 @@ fælles, typet ejendomskategori.
 
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
-skattepligtig fortjeneste for en fysisk person går i stedet videre som en
-særskilt personlig indkomstpost. Modellen bruger de offentliggjorte 2026-
+skattepligtig fortjeneste for en fysisk person går i stedet videre i
+nr. 10-resultatets særskilte indtægtsføringsfelt og medregnes automatisk af den
+samlede § 3-kaskade. Modellen bruger de offentliggjorte 2026-
 grænser på 36.000 kr. og deler forsøgs- og
 forskningsudgifter mellem 114 pct. under loftet på 1.088,8 mio. kr. og 110 pct.
 over loftet. Et § 5 A-tab bliver begrænset, ikke bare afvist, hvis den fulde

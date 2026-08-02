@@ -328,10 +328,12 @@
             beløb_kroner = 100000
         )
     ],
-    fradragsposter = [
-        par3_stk2_nr8_fradragspost(ll9b_selvstændig_dag60),
-        par3_stk2_nr9_fradragspost(ll8o_2026_lab_par123)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr8Post(resultat = par3_nr8_selvstændig),
+        Par3Stk2Nr9Post(resultat = par3_nr9_lab)
+    ])
 ))
 
 | ll9b_dag60_er_erhvervsmæssig: ll9b_selvstændig_dag60 -> ll9b_selvstændig_dag60.erhvervsmæssig_befordring && ll9b_selvstændig_dag60.godtgørelses_høj_sats_kilometer == 1000 && ll9b_selvstændig_dag60.direkte_fradrags_høj_sats_kilometer == 500 && ll9b_selvstændig_dag60.direkte_fradrags_lav_sats_kilometer == 500 && ll9b_selvstændig_dag60.maksimal_skattefri_godtgørelse_kroner == 3940 && ll9b_selvstændig_dag60.satsbaseret_direkte_fradrag_før_bro_tunnel_kroner == 3110 && ll9b_selvstændig_dag60.fradrag_i_personlig_indkomst_kroner == 3410

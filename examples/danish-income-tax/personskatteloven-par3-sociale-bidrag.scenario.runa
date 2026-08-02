@@ -161,9 +161,11 @@
             beløb_kroner = 100000
         )
     ],
-    fradragsposter = [
-        par3_stk2_nr6_fradragspost(par3_sociale_fuldt_skattepligtig_eu_fixture)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr6Post(resultat = par3_sociale_par3_nr6_fixture)
+    ])
 ))
 
 | par3_sociale_am_nr2_fradrages: par3_sociale_am_nr2_fixture -> par3_sociale_am_nr2_fixture.arbejdsmarkedsbidrag_omfattet_af_stk1 == Sandt && par3_sociale_am_nr2_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 8000

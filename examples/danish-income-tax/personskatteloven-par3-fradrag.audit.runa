@@ -53,22 +53,31 @@ iværksætterkonto
     indkomstposter = [
         Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Falskt, beløb_kroner = 100000)
     ],
-    fradragsposter = [
-        Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 25000),
-        Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = Par4Stk1Nr1RenterOgLl6, beløb_kroner = 5000),
-        Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = Ligningslov13Udgift, beløb_kroner = 7000),
-        Par3Fradragspost(art = ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 8000)
-    ]
+    stk2_nr1_udgifter = [
+        Par3Stk2Nr1UdgiftInput(afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 25000),
+        Par3Stk2Nr1UdgiftInput(afgrænsning = Par4Stk1Nr1RenterOgLl6, beløb_kroner = 5000),
+        Par3Stk2Nr1UdgiftInput(afgrænsning = Ligningslov13Udgift, beløb_kroner = 7000)
+    ],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [])
+))
+
+= par3_stk2_nr6_råt_beløb_probe = par3_fradragspost_kroner(Par3Fradragspost(
+    art = ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = 8000
 ))
 
 | par3_stk2_nr1_fradrager_erhvervsudgift: par3_stk2_nr1_drift_probe -> par3_stk2_nr1_drift_probe.fradragsberettiget_i_personlig_indkomst == Sandt && par3_stk2_nr1_drift_probe.fradrag_kroner == 25000 && par3_stk2_nr1_drift_probe.afskåret_til_anden_regel_kroner == 0
 | par3_stk2_nr1_undtager_par4_nr1: par3_stk2_nr1_renter_probe -> par3_stk2_nr1_renter_probe.fradragsberettiget_i_personlig_indkomst == Falskt && par3_stk2_nr1_renter_probe.fradrag_kroner == 0 && par3_stk2_nr1_renter_probe.afskåret_til_anden_regel_kroner == 5000
 | par3_stk2_nr1_undtager_ligningslov13: par3_stk2_nr1_ll13_probe -> par3_stk2_nr1_ll13_probe.fradragsberettiget_i_personlig_indkomst == Falskt && par3_stk2_nr1_ll13_probe.fradrag_kroner == 0 && par3_stk2_nr1_ll13_probe.afskåret_til_anden_regel_kroner == 7000
-| par3_stk2_nr1_samlet_personlig_indkomst_afskærer_undtagelser: par3_stk2_nr1_samlet_probe -> par3_stk2_nr1_samlet_probe.brutto_personlig_indkomst_kroner == 100000 && par3_stk2_nr1_samlet_probe.fradrag_i_personlig_indkomst_kroner == 33000 && par3_stk2_nr1_samlet_probe.netto_personlig_indkomst_kroner == 67000
+| par3_stk2_nr1_samlet_personlig_indkomst_afskærer_undtagelser: par3_stk2_nr1_samlet_probe -> par3_stk2_nr1_samlet_probe.brutto_personlig_indkomst_kroner == 100000 && par3_stk2_nr1_samlet_probe.fradrag_i_personlig_indkomst_kroner == 25000 && par3_stk2_nr1_samlet_probe.netto_personlig_indkomst_kroner == 75000
+| par3_stk2_nr6_råt_beløb_kan_ikke_omgå_resultattypen: par3_stk2_nr6_råt_beløb_probe -> par3_stk2_nr6_råt_beløb_probe == 0
 
 ? par3_stk2_nr1_fradrager_erhvervsudgift
 ? par3_stk2_nr1_undtager_par4_nr1
 ? par3_stk2_nr1_undtager_ligningslov13
 ? par3_stk2_nr1_samlet_personlig_indkomst_afskærer_undtagelser
+? par3_stk2_nr6_råt_beløb_kan_ikke_omgå_resultattypen
 
 @ print("§3 stk.2 nr.1 fradrag efter undtagelser: " + vis(par3_stk2_nr1_samlet_probe.fradrag_i_personlig_indkomst_kroner))

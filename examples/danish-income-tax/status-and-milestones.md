@@ -659,11 +659,14 @@ Distance to full implementation: the Personskatteloven corpus is broad and the
 ordinary wage-earner/slutopgørelse path is already calculation useful.
 Afskrivningsloven now has a contiguous executable source corpus for §§ 1-69,
 including repealed and transitional provisions, and § 3, stk. 2, nr. 2-11 now
-have typed amount paths for their principal named dependencies. The remaining
-full-corpus work is in Personskatteloven's other posture-only clauses,
-dependent statutes, annual parameters and edge cases that still need
-amount-level, source-backed rules. This is well past the structural phase, but
-it is not yet the complete Danish income-tax system.
+have typed amount paths for their principal named dependencies. Nr. 3-11 feed
+one closed aggregate that carries both deductions and the personal-income
+additions from nr. 4 and nr. 10 into the canonical § 3 calculation; generic
+tagged amounts cannot enter that calculation. The remaining full-corpus work
+is in Personskatteloven's other posture-only clauses, dependent statutes,
+annual parameters and edge cases that still need amount-level, source-backed
+rules. This is well past the structural phase, but it is not yet the complete
+Danish income-tax system.
 
 ## Source Status
 
@@ -2128,10 +2131,13 @@ Review candidates to revisit deliberately, not as broad churn:
   reduction. The multi-period state remains a separate typed module instead of
   being folded into § 39's one-time eligibility decision.
 - Close the Personskatteloven implementation gaps before deeper audits.
-  § 3, stk. 2, nr. 2 is now converted from a raw amount bridge to nine typed
-  dependency outcomes. The next bounded review should rank the remaining raw
-  § 3 nr. 3-11 adapters and posture-only clauses by material calculation impact
-  before choosing the next source-backed slice.
+  § 3, stk. 2, nr. 2 is converted from a raw amount bridge to nine typed
+  dependency outcomes, and nr. 3-11 now enter the canonical calculation
+  through a closed union over their typed results. The focused aggregate
+  scenario covers every numbered branch, both income-addition branches and
+  rejection of all nine legacy raw amount categories in interpreter and
+  compiled execution. The next bounded review should rank posture-only clauses
+  and genuinely missing dependency rules by material calculation impact.
 - Continue deepening dependency laws such as Kildeskatteloven, AM-law,
   municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
   unblock Personskatteloven calculation completeness or validate a newly
@@ -2158,10 +2164,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
-- Preserve the new § 3, stk. 2, nr. 2 typed boundary while constraining the
-  remaining generic nr. 3-11 amount adapters to their existing dependency
-  result objects. Do this incrementally so established scenarios keep exposing
-  which caller still relies on an untyped bridge.
+- Preserve the closed § 3, stk. 2, nr. 2-11 boundary while extending missing
+  source-backed dependency outcomes. Do not reintroduce generic `{art, beløb}`
+  adapters between typed dependency results and the canonical § 3 calculation.
 - Continue Aktieavancebeskatningsloven from the now-executable §§ 37-40 path:
   complete the remaining dependent classifications and employee-ownership
   provisions before calling the ABL dependency complete. Mixed nominal/no-par
@@ -2349,7 +2354,9 @@ M1 - Income taxonomy
   Ligningsloven § 8 M result before adding the amount to personal-income
   deductions. § 3, stk. 2, nr. 7 likewise delegates new-reserve eligibility
   and amount calculation to typed Virksomhedsskatteloven § 22 b or § 22 d
-  results before constructing the personal-income deduction post.
+  results. Nr. 3-11 are then combined by a closed result union instead of
+  constructing generic personal-income deduction posts; nr. 4 and nr. 10
+  taxable additions travel through the same aggregate.
 
 M2 - State tax computation skeleton
 

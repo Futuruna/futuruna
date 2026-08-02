@@ -1,0 +1,174 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+
+----
+§ 3. Personlig indkomst omfatter alle de indkomster, der indgår i den
+skattepligtige indkomst, og som ikke er kapitalindkomst.
+
+Stk. 2. Ved opgørelsen af den personlige indkomst fradrages
+1) udgifter, som i årets løb er anvendt til at erhverve, sikre og vedligeholde
+indkomst ved selvstændig erhvervsvirksomhed, dog med undtagelse af de i § 4,
+stk. 1, nr. 1, 2, 7 og 8, og ligningslovens §§ 9 G og 13 nævnte udgifter,
+2) udgifter, som nævnt i ligningslovens §§ 8, stk. 1, 8 B, 8 K, 8 L, 8 N,
+14, stk. 1, 14 F og 30 A, og overført indkomst efter kildeskattelovens § 25 A,
+stk. 3-5, ved selvstændig erhvervsvirksomhed,
+3) bidrag og præmier til pensionsordninger mv. i samme omfang som nævnt i
+pensionsbeskatningslovens §§ 18 og 52, jf. dog § 4 a, stk. 3,
+4) forskelsbeløb og nedskrivning på husdyrbesætninger efter lov om den
+skattemæssige behandling af husdyrbesætninger §§ 2 og 8,
+5) nedskrivning af varelager efter varelagerlovens § 1, stk. 4,
+6) arbejdsmarkedsbidrag og obligatoriske udenlandske sociale bidrag i samme
+omfang som nævnt i ligningslovens § 8 M,
+7) henlæggelser efter § 22 b og § 22 d i virksomhedsskatteloven,
+8) udgifter, der er fradragsberettigede efter ligningslovens § 9 B,
+9) tilbagebetalt skattepligtig kontanthjælp i samme omfang som nævnt i
+ligningslovens § 8 O,
+10) skattemæssige afskrivninger, tab og fradrag efter afskrivningsloven og
+statsskatteloven for selvstændige erhvervsdrivende og
+11) indskud på iværksætterkonto efter lov om indskud på etableringskonto og
+iværksætterkonto
+----
+
+= samlet_nr3_post = Par3Stk2Nr3Post(resultat = Par3Stk2Nr3Resultat(
+    hjemmel = Par3Nr3Pensionsbeskatningslov18,
+    brutto_fradrag_efter_pensionsbeskatningsloven_kroner = 3000,
+    fradrag_i_aktieindkomst_kroner = 0,
+    dobbeltfradrag_afskåret_kroner = 0,
+    fradrag_i_personlig_indkomst_kroner = 3000
+))
+
+= samlet_nr4_post = Par3Stk2Nr4Post(resultat = Par3Stk2Nr4Resultat(
+    husdyrnedskrivning_par2_kroner = 2500,
+    forskelsbeløbsfradrag_par8_kroner = 1500,
+    forskelsbeløbstillæg_par8_kroner = 401,
+    fradrag_i_personlig_indkomst_kroner = 4000
+))
+
+= samlet_nr5_post = Par3Stk2Nr5Post(resultat = Par3Stk2Nr5Resultat(
+    indkomstår = 1997,
+    nedskrivningssats_basispoint = 800,
+    varelagergrundlag_kroner = 62500,
+    fradrag_i_personlig_indkomst_kroner = 5000
+))
+
+= samlet_nr6_post = Par3Stk2Nr6Post(resultat = Par3Stk2Nr6Resultat(
+    arbejdsmarkedsbidrag_fradrag_kroner = 3000,
+    udenlandsk_socialt_bidrag_fradrag_kroner = 2000,
+    udenlandsk_arbejdsgiverbidrag_fradrag_kroner = 1000,
+    fradrag_i_personlig_indkomst_kroner = 6000
+))
+
+= samlet_nr7_post = Par3Stk2Nr7Post(resultat = Par3Stk2Nr7Resultat(
+    indkomstår = 2026,
+    hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B,
+    henlæggelse_kroner = 7000,
+    fradrag_i_personlig_indkomst_kroner = 7000
+))
+
+= samlet_nr8_post = Par3Stk2Nr8Post(resultat = Par3Stk2Nr8Resultat(
+    indkomstår = 2026,
+    erhvervsmæssig_befordring = Sandt,
+    kundeopsøgende_flere_arbejdsgivere = Falskt,
+    henvises_til_ligningslov9c = Falskt,
+    fradrag_i_personlig_indkomst_kroner = 8000
+))
+
+= samlet_nr9_post = Par3Stk2Nr9Post(resultat = Par3Stk2Nr9Resultat(
+    indkomstår = 2026,
+    ydelse_omfattet_af_ligningslov8o = Sandt,
+    dobbeltfradrag_afskåret = Falskt,
+    fradrag_i_personlig_indkomst_kroner = 9000
+))
+
+= samlet_nr10_post = Par3Stk2Nr10Post(resultat = Par3Stk2Nr10Resultat(
+    post_resultater = [],
+    brutto_indtægtsføringer_efter_afskrivningsloven_kroner = 1001,
+    indtægtsføring_i_personlig_indkomst_kroner = 1001,
+    brutto_skattemæssige_afskrivninger_kroner = 10000,
+    brutto_tab_kroner = 0,
+    brutto_andre_fradrag_kroner = 0,
+    brutto_fradrag_efter_afskrivningsloven_kroner = 10000,
+    fradrag_i_personlig_indkomst_kroner = 10000,
+    afskåret_fordi_ikke_selvstændig_person_kroner = 0,
+    afskåret_fordi_ikke_fysisk_person_indtægt_kroner = 0
+))
+
+= samlet_nr11_post = Par3Stk2Nr11Post(resultat = Par3Stk2Nr11Resultat(
+    indkomstår = 2026,
+    person_berettiget = Sandt,
+    indskudsgrænser_opfyldt = Sandt,
+    etableringskonto_fradrag_uden_for_personlig_indkomst_kroner = 0,
+    iværksætterkonto_fradrag_i_personlig_indkomst_kroner = 11000,
+    fradrag_i_personlig_indkomst_kroner = 11000
+))
+
+= samlet_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+    samlet_nr3_post,
+    samlet_nr4_post,
+    samlet_nr5_post,
+    samlet_nr6_post,
+    samlet_nr7_post,
+    samlet_nr8_post,
+    samlet_nr9_post,
+    samlet_nr10_post,
+    samlet_nr11_post
+])
+
+= samlet_nr3_til_11_resultat = par3_stk2_nr3_til_11_resultat(samlet_nr3_til_11_input)
+
+= samlet_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 100000
+        )
+    ],
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = samlet_nr3_til_11_input
+))
+
+= rå_nr3_til_11_poster = [
+    Par3Fradragspost(art = PensionsbidragOgPræmier, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = HusdyrbesætningForskelsbeløb, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = VarelagerNedskrivning, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = VirksomhedsskatteHenlæggelse, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = Ligningslov9BUdgift, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = TilbagebetaltKontanthjælp, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = AfskrivningerTabFradragSelvstændige, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999),
+    Par3Fradragspost(art = IværksætterkontoIndskud, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 999999)
+]
+
+= rå_nr3_til_11_fradrag_kroner = foldl(rå_nr3_til_11_poster, 0, |sum, post| sum + par3_fradragspost_kroner(post))
+
+| nr3_resultat_forbruges_typed: samlet_nr3_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr3_post) == 3000
+| nr4_resultat_forbruges_typed: samlet_nr4_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr4_post) == 4000 && par3_stk2_nr3_til_11_post_indtægtsføring_kroner(samlet_nr4_post) == 401
+| nr5_resultat_forbruges_typed: samlet_nr5_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr5_post) == 5000
+| nr6_resultat_forbruges_typed: samlet_nr6_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr6_post) == 6000
+| nr7_resultat_forbruges_typed: samlet_nr7_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr7_post) == 7000
+| nr8_resultat_forbruges_typed: samlet_nr8_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr8_post) == 8000
+| nr9_resultat_forbruges_typed: samlet_nr9_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr9_post) == 9000
+| nr10_resultat_forbruges_typed: samlet_nr10_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr10_post) == 10000 && par3_stk2_nr3_til_11_post_indtægtsføring_kroner(samlet_nr10_post) == 1001
+| nr11_resultat_forbruges_typed: samlet_nr11_post -> par3_stk2_nr3_til_11_post_fradrag_kroner(samlet_nr11_post) == 11000
+| nr3_til_11_aggregerer_alle_lovvirkninger: samlet_nr3_til_11_resultat -> length(samlet_nr3_til_11_resultat.poster) == 9 && samlet_nr3_til_11_resultat.indtægtsføring_i_personlig_indkomst_kroner == 1402 && samlet_nr3_til_11_resultat.fradrag_i_personlig_indkomst_kroner == 63000
+| samlet_personlig_indkomst_forbruger_typed_kaskade: samlet_personlig_indkomst -> samlet_personlig_indkomst.brutto_personlig_indkomst_kroner == 101402 && samlet_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 63000 && samlet_personlig_indkomst.netto_personlig_indkomst_kroner == 38402
+| rå_nr3_til_11_beløb_kan_ikke_skabe_fradrag: rå_nr3_til_11_fradrag_kroner -> rå_nr3_til_11_fradrag_kroner == 0
+
+? nr3_resultat_forbruges_typed
+? nr4_resultat_forbruges_typed
+? nr5_resultat_forbruges_typed
+? nr6_resultat_forbruges_typed
+? nr7_resultat_forbruges_typed
+? nr8_resultat_forbruges_typed
+? nr9_resultat_forbruges_typed
+? nr10_resultat_forbruges_typed
+? nr11_resultat_forbruges_typed
+? nr3_til_11_aggregerer_alle_lovvirkninger
+? samlet_personlig_indkomst_forbruger_typed_kaskade
+? rå_nr3_til_11_beløb_kan_ikke_skabe_fradrag

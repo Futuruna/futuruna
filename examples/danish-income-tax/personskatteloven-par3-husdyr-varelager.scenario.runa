@@ -216,6 +216,7 @@
     )),
     husdyr_par8_resultat = husdyr_par8_tilbageregulering_2024
 )
+= husdyr_par3_nr4_tilbageregulering = par3_stk2_nr4_resultat(husdyr_par3_nr4_tilbageregulering_input)
 
 = husdyr_par3_tilbageregulering_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
     indkomstposter = [
@@ -223,12 +224,13 @@
             indgår_i_skattepligtig_indkomst = Sandt,
             er_kapitalindkomst = Falskt,
             beløb_kroner = 100000
-        ),
-        par3_stk2_nr4_forskelsbeløbstillæg_indkomstpost(husdyr_par3_nr4_tilbageregulering_input)
+        )
     ],
-    fradragsposter = [
-        par3_stk2_nr4_fradragspost(husdyr_par3_nr4_tilbageregulering_input)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr4Post(resultat = husdyr_par3_nr4_tilbageregulering)
+    ])
 ))
 
 = varelager_varegrupper = [
@@ -289,19 +291,14 @@
             indgår_i_skattepligtig_indkomst = Sandt,
             er_kapitalindkomst = Falskt,
             beløb_kroner = 200000
-        ),
-        par3_stk2_nr4_forskelsbeløbstillæg_indkomstpost(Par3Stk2Nr4Input(
-            husdyr_par2_resultat = husdyr_par2_normalværdi_2026,
-            husdyr_par8_resultat = husdyr_par8_gruppevis_reduktion_2026
-        ))
+        )
     ],
-    fradragsposter = [
-        par3_stk2_nr4_fradragspost(Par3Stk2Nr4Input(
-            husdyr_par2_resultat = husdyr_par2_normalværdi_2026,
-            husdyr_par8_resultat = husdyr_par8_gruppevis_reduktion_2026
-        )),
-        par3_stk2_nr5_fradragspost(varelager_person_1997_input)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr4Post(resultat = husdyr_par3_nr4_gruppevis),
+        Par3Stk2Nr5Post(resultat = par3_stk2_nr5_resultat(varelager_person_1997_input))
+    ])
 ))
 
 | husdyr_par2_normalværdi_begrænses_til_15_pct: husdyr_par2_normalværdi_2026 -> husdyr_par2_normalværdi_2026.opgjort_besætningsværdi_før_nedskrivning_kroner == 200000 && husdyr_par2_normalværdi_2026.højeste_nedskrivning_kroner == 30000 && husdyr_par2_normalværdi_2026.anvendt_nedskrivning_kroner == 30000

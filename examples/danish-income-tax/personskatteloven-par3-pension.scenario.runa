@@ -363,12 +363,14 @@
             beløb_kroner = 200000
         )
     ],
-    fradragsposter = [
-        par3_stk2_nr3_fradragspost(Par3Stk2Nr3Input(
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr3Post(resultat = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
             grundlag = Par3Nr3Pbl18(resultat = pension_par15a),
             aktiepensionsfradrag_resultat = pension_aktiefradrag
-        ))
-    ]
+        )))
+    ])
 ))
 
 | pension_par16_rate_loft_2026: pension_par16_rate_2026 -> pension_par16_rate_2026.understøttet_indkomstår && pension_par16_rate_2026.grundbeløb_2010_niveau_kroner == 50000 && pension_par16_rate_2026.reguleret_bruttoloft_kroner == 68700

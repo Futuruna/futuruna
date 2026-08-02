@@ -182,9 +182,11 @@
             beløb_kroner = 500000
         )
     ],
-    fradragsposter = [
-        par3_stk2_nr7_fradragspost(henlæggelse_par3_nr7_par22b_fixture)
-    ]
+    stk2_nr1_udgifter = [],
+    stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
+        Par3Stk2Nr7Post(resultat = henlæggelse_par3_nr7_par22b_fixture)
+    ])
 ))
 
 | par22b_regulerer_overskud_og_lofter_25_pct: henlæggelse_par22b_loftet_fixture -> henlæggelse_par22b_loftet_fixture.reguleret_overskud_kroner == 400000 && henlæggelse_par22b_loftet_fixture.højst_25_pct_kroner == 100000 && henlæggelse_par22b_loftet_fixture.henlæggelse_kroner == 100000
