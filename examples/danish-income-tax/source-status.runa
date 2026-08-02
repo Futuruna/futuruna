@@ -66,6 +66,17 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1088
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1088/dan/xml
 --
+-- Afhængige kilder for § 3, stk. 2, nr. 10-11:
+-- Retsinformation, LBK nr. 1222 af 13/10/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1222
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1222/dan/xml
+-- Retsinformation, LOV nr. 149 af 10/04/1922.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/1922/149
+-- XML: https://www.retsinformation.dk/eli/lta/1922/149/dan/xml
+-- Retsinformation, LBK nr. 1307 af 10/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1307
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1307/dan/xml
+--
 -- Historisk kildelinje fra projektoplægget:
 -- Retsinformation, LBK nr. 799 af 07/08/2019.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2019/799
@@ -419,6 +430,30 @@ Status: Valid
 DiesSigni: 2025-09-02
 StartDate: 2025-09-09
 EndDate: 2026-06-24
+
+Officiel XML-metadata for 2025/1222, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om skattemæssige afskrivninger (afskrivningsloven)
+PopularTitle: Afskrivningsloven
+Status: Valid
+DiesSigni: 2025-10-13
+StartDate: 2025-10-16
+EndDate: 2026-07-01
+
+Officiel XML-metadata for 1922/149, hentet 2026-07-18:
+DocumentTitle: Lov om Indkomst- og Formueskat til Staten. (* 1)
+PopularTitle: Statsskatteloven
+Status: Valid
+DiesSigni: 1922-04-10
+StartDate: 1997-09-25
+EndDate: 2026-06-24
+
+Officiel XML-metadata for 2025/1307, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om indskud på etableringskonto og iværksætterkonto
+PopularTitle: Etableringskontoloven
+Status: Valid
+DiesSigni: 2025-11-10
+StartDate: 2025-11-18
+EndDate: 2026-07-01
 ----
 
 # Kildestatus = Gældende | Historisk
@@ -579,6 +614,33 @@ EndDate: 2026-06-24
     hentet_yyyymmdd = 20260718,
     metadata_start_yyyymmdd = 20250909,
     metadata_end_yyyymmdd = 20260624
+)
+= afskrivningsloven_2025_1222 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/1222",
+    år = 2025,
+    nummer = 1222,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20251016,
+    metadata_end_yyyymmdd = 20260701
+)
+= statsskatteloven_1922_149 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/1922/149",
+    år = 1922,
+    nummer = 149,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 19970925,
+    metadata_end_yyyymmdd = 20260624
+)
+= etableringskontoloven_2025_1307 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/1307",
+    år = 2025,
+    nummer = 1307,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20251118,
+    metadata_end_yyyymmdd = 20260701
 )
 = arbejdsmarkedsbidragsloven_2020_121 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2020/121",
@@ -770,6 +832,9 @@ EndDate: 2026-06-24
 | kilde_er_husdyrbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1099 && kilde.år == 2025
 | kilde_er_husdyr_forskelsbeløb_bekendtgørelse(kilde: Retskilde) -> kilde.nummer == 543 && kilde.år == 1981
 | kilde_er_varelagerloven(kilde: Retskilde) -> kilde.nummer == 1088 && kilde.år == 2025
+| kilde_er_afskrivningsloven(kilde: Retskilde) -> kilde.nummer == 1222 && kilde.år == 2025
+| kilde_er_statsskatteloven(kilde: Retskilde) -> kilde.nummer == 149 && kilde.år == 1922
+| kilde_er_etableringskontoloven(kilde: Retskilde) -> kilde.nummer == 1307 && kilde.år == 2025
 | kilde_er_arbejdsmarkedsbidragsloven(kilde: Retskilde) -> kilde.nummer == 121 && kilde.år == 2020
 | kilde_er_arbejdsmarkedsbidrag_aendring(kilde: Retskilde) -> kilde.nummer == 96 && kilde.år == 2025
 | kilde_er_kommuneskatteloven(kilde: Retskilde) -> kilde.nummer == 935 && kilde.år == 2019
@@ -811,6 +876,7 @@ EndDate: 2026-06-24
 = pensionsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
 = sømandsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(sømandsbeskatningsloven_2023_1181, AktuelSkatteberegning)
 = husdyr_varelager_kilder_til_aktuel_beregning = kilde_egnet_til_formål(husdyrbeskatningsloven_2025_1099, AktuelSkatteberegning) && kilde_egnet_til_formål(husdyr_forskelsbeløb_bekendtgørelse_1981_543, AktuelSkatteberegning) && kilde_egnet_til_formål(varelagerloven_2025_1088, AktuelSkatteberegning)
+= par3_nr10_nr11_kilder_til_aktuel_beregning = kilde_egnet_til_formål(afskrivningsloven_2025_1222, AktuelSkatteberegning) && kilde_egnet_til_formål(statsskatteloven_1922_149, AktuelSkatteberegning) && kilde_egnet_til_formål(etableringskontoloven_2025_1307, AktuelSkatteberegning)
 = am_lov_til_aktuel_beregning = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
 = am_aendring_til_aktuel_beregning = kilde_egnet_til_formål(arbejdsmarkedsbidrag_aendring_2025_96, AktuelSkatteberegning)
 = kommuneskattelov_til_aktuel_beregning = kilde_egnet_til_formål(kommuneskatteloven_2019_935, AktuelSkatteberegning)
@@ -837,6 +903,7 @@ EndDate: 2026-06-24
 = par8b_historisk_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2022_1241)
 = par13_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(pensionsbeskatningsloven_2024_1243) && kilde_hentet_på_statusdato(sømandsbeskatningsloven_2023_1181)
 = par3_nr4_nr5_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(husdyrbeskatningsloven_2025_1099) && kilde_hentet_på_statusdato(husdyr_forskelsbeløb_bekendtgørelse_1981_543) && kilde_hentet_på_statusdato(varelagerloven_2025_1088)
+= par3_nr10_nr11_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(afskrivningsloven_2025_1222) && kilde_hentet_på_statusdato(statsskatteloven_1922_149) && kilde_hentet_på_statusdato(etableringskontoloven_2025_1307)
 = am_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(arbejdsmarkedsbidragsloven_2020_121) && kilde_hentet_på_statusdato(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kommuneskatteloven_2019_935) && kilde_hentet_på_statusdato(folkekirkens_økonomilov_2023_424) && kilde_hentet_på_statusdato(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kildeskatteloven_2024_460) && kilde_hentet_på_statusdato(kildeskattebekendtgørelsen_2025_839) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
@@ -846,12 +913,13 @@ EndDate: 2026-06-24
 = virksomhedsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsskatteloven_2023_678)
 = ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsværdiskatteloven_2020_1590)
-= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && par3_nr4_nr5_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato && ejendomsskattelov_kilder_hentet_på_statusdato
+= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && par3_nr4_nr5_dependency_kilder_hentet_på_statusdato && par3_nr10_nr11_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato && ejendomsskattelov_kilder_hentet_på_statusdato
 
 = personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2022_252) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2023_610) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_overgang_aendring_2023_679) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2024_108) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(selskabsskatteloven_2025_279)
 = par13_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(pensionsbeskatningsloven_2024_1243) && kilde_formelt_gældende_men_metadata_udløbet(sømandsbeskatningsloven_2023_1181)
 = par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(husdyrbeskatningsloven_2025_1099) && kilde_formelt_gældende_men_metadata_udløbet(husdyr_forskelsbeløb_bekendtgørelse_1981_543) && kilde_formelt_gældende_men_metadata_udløbet(varelagerloven_2025_1088)
+= par3_nr10_nr11_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(afskrivningsloven_2025_1222) && kilde_formelt_gældende_men_metadata_udløbet(statsskatteloven_1922_149) && kilde_formelt_gældende_men_metadata_udløbet(etableringskontoloven_2025_1307)
 = am_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidragsloven_2020_121) && kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kommuneskatteloven_2019_935) && kilde_formelt_gældende_men_metadata_udløbet(folkekirkens_økonomilov_2023_424) && kilde_formelt_gældende_men_metadata_udløbet(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kildeskatteloven_2024_460) && kilde_formelt_gældende_men_metadata_udløbet(kildeskattebekendtgørelsen_2025_839) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
@@ -860,7 +928,7 @@ EndDate: 2026-06-24
 = aktieavancebeskatningslov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningsloven_2025_1098)
 = virksomhedsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(ejendomsskatteloven_2023_678)
-= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet
+= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet && par3_nr10_nr11_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
@@ -877,6 +945,9 @@ EndDate: 2026-06-24
 | husdyr_varelager_kilder_accepteres_til_aktuel_beregning: husdyr_varelager_kilder_til_aktuel_beregning -> husdyr_varelager_kilder_til_aktuel_beregning == Sandt
 | husdyr_varelager_kilder_hentet_på_statusdato: par3_nr4_nr5_dependency_kilder_hentet_på_statusdato -> par3_nr4_nr5_dependency_kilder_hentet_på_statusdato == Sandt
 | husdyr_varelager_metadata_horisont_udløbet: par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet -> par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet == Sandt
+| par3_nr10_nr11_kilder_accepteres_til_aktuel_beregning: par3_nr10_nr11_kilder_til_aktuel_beregning -> par3_nr10_nr11_kilder_til_aktuel_beregning == Sandt
+| par3_nr10_nr11_kilder_hentet_på_statusdato: par3_nr10_nr11_dependency_kilder_hentet_på_statusdato -> par3_nr10_nr11_dependency_kilder_hentet_på_statusdato == Sandt
+| par3_nr10_nr11_metadata_horisont_udløbet: par3_nr10_nr11_dependency_kilder_metadata_horisont_udløbet -> par3_nr10_nr11_dependency_kilder_metadata_horisont_udløbet == Sandt
 | arbejdsmarkedsbidragslov_accepteres_til_aktuel_beregning: am_lov_til_aktuel_beregning -> am_lov_til_aktuel_beregning == Sandt
 | arbejdsmarkedsbidrag_aendring_accepteres_til_aktuel_beregning: am_aendring_til_aktuel_beregning -> am_aendring_til_aktuel_beregning == Sandt
 | kommuneskattelov_accepteres_til_aktuel_beregning: kommuneskattelov_til_aktuel_beregning -> kommuneskattelov_til_aktuel_beregning == Sandt

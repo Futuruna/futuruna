@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-3004db`
+Current focus issue: `td-5c9875`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -34,7 +34,23 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 3, stk. 2, nr. 4-5 modtager nu typede
+Latest integration: Personskatteloven § 3, stk. 2, nr. 10-11 modtager nu typede
+beløbsresultater fra Afskrivningsloven §§ 1-2, 5, 5 A og 6, stk. 1,
+Statsskatteloven § 6, litra a og Etableringskontoloven §§ 1-4. Nr. 10 holder
+ordinære afskrivninger, tab og andre fradrag adskilt og filtrerer selskabers
+resultater fra, før beløbet føres til en selvstændig persons personlige
+indkomst. Afskrivningslovens 2026-parametre omfatter 36.000 kr.-grænserne og
+forskningsfradragets 114/110 pct.-deling omkring loftet på 1.088,8 mio. kr.
+§ 5 A-modellen begrænser et valgt tab forholdsmæssigt, når hele den uafskrevne
+anskaffelsessum ellers ville gøre saldoen negativ. Nr. 11 fører kun
+iværksætterkontoens fradrag til personlig indkomst; etableringskontoens
+ligningsmæssige fradrag forbliver synligt uden at blive dobbeltklassificeret.
+Etableringskontomodellen dækker også 60 pct./250.000 kr.-loftet, 5.000
+kr.-minimum, § 29-forskudsafskrivning, kontoformen og beløb, der efter § 4,
+stk. 2 behandles som indskud. Den fokuserede scenario-fil validerer hele
+regelkaskaden og de offentliggjorte 200.000/300.000/800.000 kr.-eksempler.
+
+Previous integration: Personskatteloven § 3, stk. 2, nr. 4-5 modtager nu typede
 resultater fra Husdyrbeskatningsloven §§ 2 og 8 og Varelagerloven § 1.
 Husdyrmodellen dækker normalhandelsværdi, handelsværdi efter indgående moms,
 15 pct.-loftet fra 2003, særskilte forskelsbeløb for dyregrupperne, A-, B- og
@@ -105,7 +121,7 @@ korrektionsbeløb og kommunens forholdsmæssige andel. Andelen føres tilbage ti
 § 16, stk. 2 og fratrækkes efterreguleringen før januar/februar/marts-raterne.
 LOV 720/2025's § 2 og virkningsbestemmelsen fra tilskudsåret 2026 er bevaret
 ordret i en `--@source`-blok, hvis regelsymboler kan aflæses med `runa meta`.
-Den officielle metadata-refresh validerer nu 37 kilder uden drift.
+Den officielle metadata-refresh validerer nu 40 kilder uden drift.
 
 Arbejdsmarkedsbidragsloven § 3 er nu en typet
 `ArbejdsmarkedsbidragPar3UdelukkelseResultat` med særskilte beløb for nr. 1-5.
@@ -373,7 +389,7 @@ Current source-refresh finding:
 - `scripts/refresh-danish-tax-source-status.py --today 20260712 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 37 records with 0 drift and 0 fetch/parse errors.
+  checked 40 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -859,8 +875,17 @@ encoded as a temporal rule on top of the consolidation.
   business tax scheme, § 22 d bankruptcy and permanent-establishment exit,
   succession settlement, and the resulting personal-income amount.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
-  the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
-  stk. 1, nr. 16.
+  the Afskrivningsloven §§ 1-2, 5, 5 A and 6, stk. 1 dependency slice consumed
+  by Personskatteloven § 3, stk. 2, nr. 10 and the § 40 C dependency consumed
+  by § 4, stk. 1, nr. 16.
+- `statsskatteloven.runa` exists and checks with `runa check`; it exposes the
+  source-bounded ordinary-depreciation fallback under § 6, litra a.
+- `etableringskontoloven.runa` exists and checks with `runa check`; it covers
+  §§ 1-4 and keeps establishment-account and entrepreneur-account deductions
+  as separate typed amounts.
+- `personskatteloven-par3-afskrivning-ivaerksaetter.scenario.runa` exists and
+  checks/runs with `runa run`; it validates the § 3, stk. 2, nr. 10-11 amount
+  cascade and its principal 2026 boundaries.
 - `pensionsbeskatningsloven.runa` exists and checks/runs with `runa run`; it
   covers the Pensionsbeskatningsloven § 53 A dependency consumed by
   Personskatteloven § 4, stk. 1, nr. 13.
@@ -1673,6 +1698,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
+- Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
+  Afskrivningsloven §§ 1-2/5/5 A/6 and Statsskatteloven § 6 slice. The remaining
+  Afskrivningsloven saldoordninger, mixed-use assets, buildings, installations,
+  advance depreciation, intangible assets, recapture and cessation rules must
+  become typed source-law outcomes before nr. 10 can be described as complete.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current

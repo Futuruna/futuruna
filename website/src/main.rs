@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyrfradrag efter §§ 2 og 8, varelagerfradrag efter § 1, personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt den første beløbskaskade for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3517,6 +3517,12 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/1981/543", "BEK nr. 543/1981" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1088", "Varelagerloven, LBK nr. 1088/2025" }
+                        " · afskrivning og iværksætterkonto: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1222", "Afskrivningsloven, LBK nr. 1222/2025" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskatteloven, LOV nr. 149/1922" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1307", "Etableringskontoloven, LBK nr. 1307/2025" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                     }
@@ -3531,7 +3537,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         div { class: "tax-source-row",
                             span { "Afhængigheder" }
-                            strong { "AM-bidrag, kommunal/kirkelig skat, Kildeskatteloven, Ligningsloven, Kursgevinstloven, Virksomhedsskatteloven, Pensionsbeskatningsloven, Husdyrbeskatningsloven, Varelagerloven, Selskabsskatteloven og flere andre kilder modelleres ved behov" }
+                            strong { "AM-bidrag, kommunal/kirkelig skat, Kildeskatteloven, Ligningsloven, Kursgevinstloven, Virksomhedsskatteloven, Pensionsbeskatningsloven, Afskrivningsloven, Statsskatteloven, Etableringskontoloven, Husdyrbeskatningsloven, Varelagerloven, Selskabsskatteloven og flere andre kilder modelleres ved behov" }
                         }
                         div { class: "tax-source-row",
                             span { "Websitegrænse" }

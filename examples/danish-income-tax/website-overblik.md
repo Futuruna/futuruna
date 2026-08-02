@@ -104,6 +104,32 @@ Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
 1998. Kilden er
 [Varelagerloven, LBK nr. 1088/2025](https://www.retsinformation.dk/eli/lta/2025/1088).
 
+Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
+beløbskaskade. Nr. 10 modtager typede resultater for almindelig
+saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
+afskrivning efter Statsskatteloven. Kun resultater for en selvstændig
+erhvervsdrivende person går videre til personlig indkomst. Modellen bruger de
+offentliggjorte 2026-grænser på 36.000 kr. og deler forsøgs- og
+forskningsudgifter mellem 114 pct. under loftet på 1.088,8 mio. kr. og 110 pct.
+over loftet. Et § 5 A-tab bliver begrænset, ikke bare afvist, hvis den fulde
+saldoformindskelse ellers ville føre under nul.
+
+Nr. 11 modtager et samlet resultat fra Etableringskontoloven §§ 1-4. Det holder
+etableringskontoens ligningsmæssige fradrag adskilt fra iværksætterkontoens
+fradrag i personlig indkomst og håndterer 5.000 kr.-minimum, 60 pct.-grænsen,
+muligheden for altid at indskyde op til 250.000 kr., fælles kontoloft,
+forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
+[Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222),
+[Statsskatteloven, LOV nr. 149/1922](https://www.retsinformation.dk/eli/lta/1922/149),
+[Etableringskontoloven, LBK nr. 1307/2025](https://www.retsinformation.dk/eli/lta/2025/1307),
+[Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven)
+og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
+
+Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. De øvrige
+saldoordninger, blandet benyttede aktiver, bygninger, installationer,
+immaterielle aktiver, genvundne afskrivninger og ophør er fortsat udestående
+dependency-arbejde under nr. 10.
+
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,
 ikke indbyggede særtilfælde: enhver rolle kan pege på en almindelig Futuruna-

@@ -1,0 +1,241 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Etableringskontoloven -- Personskatteloven § 3, stk. 2, nr. 11.
+--
+-- Kilde: Retsinformation, LBK nr. 1307 af 10/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1307
+
+# EtableringskontolovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= etableringskontoloven_lbk1307_par1_par4 = EtableringskontolovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1307",
+    identifier = "Etableringskontoloven §§ 1-4",
+    hentet_dato = "2026-07-18"
+)
+
+= etableringskonto_skatdk_vejledning = EtableringskontolovKildeInfo(
+    url = "https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto",
+    identifier = "Skattestyrelsen, Etablerings- og iværksætterkonto",
+    hentet_dato = "2026-07-18"
+)
+
+= etableringskonto_juridisk_vejledning = EtableringskontolovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2047453",
+    identifier = "Den juridiske vejledning, etableringskonto- og iværksætterkontoordningen",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:etableringskontoloven_par1_par4::source:etableringskontoloven_lbk1307_par1_par4::guidance:etableringskonto_skatdk_vejledning::guidance:etableringskonto_juridisk_vejledning--
+----
+§ 1. Den, der med henblik på etablering af selvstændig
+erhvervsvirksomhed eller erhvervelse af virksomhed i selskabsform ved
+anskaffelse af aktier eller anparter i et selskab foretager indskud på
+etableringskonto eller iværksætterkonto efter reglerne i denne lov, kan
+fradrage indskuddet ved opgørelsen af den skattepligtige indkomst.
+
+Stk. 2. Fradrag for et givet indkomstår indrømmes for indskud, der er
+foretaget i tiden fra den 16. maj i indkomståret til og med den nærmest
+efterfølgende 15. maj (indskudsåret).
+
+Stk. 3. Efter etablering af selvstændig erhvervsvirksomhed eller
+erhvervelse af virksomhed i selskabsform ved anskaffelse af aktier eller
+anparter i et selskab har fundet sted, kan fradrag for indskud kun opnås
+for det indkomstår, hvor etablering eller erhvervelse finder sted, jf. §
+5, og de nærmest efterfølgende 4 indkomstår. Fradrag kan ikke opnås for
+efterfølgende indkomstår, hvori indskudte beløb endnu ikke er hævet
+fuldt ud.
+
+§ 2. Berettiget til at foretage indskud på etableringskonto eller
+iværksætterkonto er fuldt skattepligtige personer, som ikke efter en
+dobbeltbeskatningsoverenskomst er skattemæssigt hjemmehørende i et andet
+land, og som i indkomståret har oppebåret lønindtægt, eller som indtil 5
+år efter etableringen af den selvstændige erhvervsvirksomhed, jf. § 5,
+oppebærer lønindtægter eller overskud fra den selvstændige
+erhvervsvirksomhed, til og med indkomståret efter det indkomstår, hvor
+den pågældende når folkepensionsalderen, jf. § 1 a i lov om social
+pension.
+
+§ 3. Indskud, der vedrører indkomstår før etablering af den selvstændige
+erhvervsvirksomhed eller anskaffelse af aktier og anparter i et selskab,
+skal mindst udgøre 5.000 kr. og kan højst udgøre 60 pct. af indskyderens
+nettolønindtægt i indkomståret, dog kan der altid indskydes 250.000 kr.
+af nettolønindtægten. Indskud, der vedrører det indkomstår, hvor
+etablering finder sted, eller et af de nærmest efterfølgende 4
+indkomstår, skal mindst udgøre 5.000 kr. og kan højst udgøre 60 pct. af
+indskyderens nettolønindtægt eller af overskuddet fra den selvstændige
+erhvervsvirksomhed, dog kan der altid indskydes 250.000 kr. af
+nettolønindtægten eller overskuddet fra den selvstændige
+erhvervsvirksomhed. Ved opgørelsen af, om de nævnte grænser er
+overholdt, lægges indskud på etableringskonto og iværksætterkonto
+sammen.
+
+Stk. 2. Til lønindtægten henregnes kontant løn med tillæg af den
+skattemæssige værdi af frit ophold og andre goder, som lønmodtageren har
+oppebåret i kraft af arbejdsforholdet, samt beløb, der af arbejdsgiveren
+er udbetalt som godtgørelse for udgifter, der påføres lønmodtageren som
+følge af arbejdet, herunder udgifter til rejse, ophold og fortæring
+under rejser, bortset fra beløb, der omfattes af bestemmelsen i
+ligningslovens § 9, stk. 4, 2. pkt. Ved beregningen af
+nettolønindtægten foretages fradrag efter ligningslovens §§ 9-9 D.
+
+Stk. 3. Ved overskud fra selvstændig erhvervsvirksomhed forstås overskud
+opgjort efter reglerne for opgørelse af skattepligtig indkomst før
+fradrag for henlæggelse til konjunkturudligning efter
+virksomhedsskattelovens § 22 b, med tillæg af renteudgifter og kurstab
+på fordringer og gæld og med fradrag af rente- og udbytteindtægter samt
+kursgevinst på fordringer og gæld, som indgår i opgørelsen af dette
+overskud.
+
+Stk. 4. Forskudsafskrivning på et kontraheret skib i medfør af
+bestemmelsen i afskrivningslovens § 29 formindsker det indskud, som den
+skattepligtige kan foretage for det pågældende indskudsår, med
+forskudsafskrivningens beløb.
+
+§ 4. Indskuddet skal foretages kontant på en særlig indlånskonto, der
+forrentes med en forud for renteperioden fastsat procentdel af
+indeståendet, eller anbringes i et særskilt depot af obligationer, som
+er omfattet af kursgevinstloven bortset fra kursgevinstlovens § 29, og
+som er optaget til handel på et reguleret marked. Indskud på
+etableringskonto og iværksætterkonto sker på særskilte konti. Det skal
+ske i et pengeinstitut, der af Finanstilsynet er meddelt tilladelse til
+at drive virksomhed her i landet, eller i et udenlandsk kreditinstitut,
+der efter tilladelse i et andet land inden for Den Europæiske Union
+eller i et land, som Den Europæiske Union har indgået aftale med på det
+finansielle område, udøver virksomhed her i landet gennem en filial, jf.
+§ 30, stk. 1, 4, 5, 9 og 10, i lov om finansiel virksomhed. Kontoen skal
+betegnes etableringskonto eller iværksætterkonto og skal bære påtegning
+om den skattepligtiges navn, adresse og personnummer. Kontantkonto og
+depot skal være oprettet i samme pengeinstitut. Foretagne indskud og
+indestående kan overføres mellem kontantkonto og depot.
+
+Stk. 2. Efter og ved etablering af selvstændig erhvervsvirksomhed eller
+erhvervelse af virksomhed i selskabsform ved anskaffelse af aktier eller
+anparter i et selskab kan indskud på en konto dog helt eller delvis
+undlades, når den skattepligtige inden udløbet af indskudsåret opfylder
+betingelserne i § 5 for at hæve indskud af samme størrelse.
+Skatteministeren kan fastsætte nærmere regler, hvorefter den
+skattepligtige skal afgive oplysninger om og dokumentation for, at
+betingelserne i § 5 er opfyldt. Beløb omfattet af 1. pkt. behandles
+efter reglerne om indskud.
+----
+
+--@begin:etableringskontoloven_par1_par4--
+# EtableringskontoIndskudsfase = EtblFørEtablering | EtblEtableringsår | EtblEfterEtablering(antal_år_efter_etableringsåret: Heltal) | EtblEfterFradragsperioden
+# EtableringskontoPlacering = EtblSærligIndlånskonto | EtblSærskiltObligationsdepot | EtblIndlånskontoOgObligationsdepot | EtblIkkeGodkendtPlacering
+# EtableringskontoPar4Placering(placering: EtableringskontoPlacering, pengeinstitut_omfattet_af_par4_stk1: Boolsk, etableringskonto_og_iværksætterkonto_ført_særskilt: Boolsk, konto_korrekt_betegnet: Boolsk, navn_adresse_og_personnummer_påført: Boolsk, kontantkonto_og_depot_i_samme_pengeinstitut: Boolsk)
+# EtableringskontoIndskudInput(indkomstår: Heltal, fase: EtableringskontoIndskudsfase, fuldt_skattepligtig: Boolsk, skattemæssigt_hjemmehørende_i_andet_land_efter_dbo: Boolsk, senest_indkomståret_efter_folkepensionsalderen: Boolsk, tidligere_indskud_fuldt_hævet: Boolsk, indskud_foretaget_i_indskudsåret: Boolsk, betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt: Boolsk, faktisk_indskudsplacering: EtableringskontoPar4Placering, kontant_løn_kroner: Heltal, skatteværdi_af_frit_ophold_og_andre_goder_kroner: Heltal, skattepligtige_arbejdsgivergodtgørelser_kroner: Heltal, ligningslov9_til_9d_fradrag_kroner: Heltal, skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner: Heltal, vsl22b_henlæggelse_kroner: Heltal, renteudgifter_og_kurstab_kroner: Heltal, rente_udbytte_og_kursgevinst_kroner: Heltal, forskudsafskrivning_efter_al29_kroner: Heltal, faktisk_etableringskontoindskud_kroner: Heltal, faktisk_iværksætterkontoindskud_kroner: Heltal, undladt_etableringskontoindskud_efter_par4_stk2_kroner: Heltal, undladt_iværksætterkontoindskud_efter_par4_stk2_kroner: Heltal)
+# EtableringskontoIndskudResultat(indkomstår: Heltal, fase: EtableringskontoIndskudsfase, person_berettiget: Boolsk, indkomstkrav_opfyldt: Boolsk, fradragsperiode_åben: Boolsk, faktiske_indskud_opfylder_par4_stk1: Boolsk, indskudskrav_opfyldt: Boolsk, indskudsgrænser_opfyldt: Boolsk, lønindtægt_før_ligningslov9_til_9d_fradrag_kroner: Heltal, nettolønindtægt_kroner: Heltal, reguleret_virksomhedsoverskud_kroner: Heltal, højeste_indskud_før_forskudsafskrivning_kroner: Heltal, højeste_indskud_efter_forskudsafskrivning_kroner: Heltal, faktiske_indskud_i_alt_kroner: Heltal, faktiske_indskud_afskåret_af_form_eller_frist_kroner: Heltal, behandlede_indskud_i_alt_kroner: Heltal, etableringskonto_ligningsmæssigt_fradrag_kroner: Heltal, iværksætterkonto_personlig_indkomst_fradrag_kroner: Heltal, behandlede_indskud_uden_fradrag_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
+    penge_positivt_beløb(input.kontant_løn_kroner)
+        + penge_positivt_beløb(input.skatteværdi_af_frit_ophold_og_andre_goder_kroner)
+        + penge_positivt_beløb(input.skattepligtige_arbejdsgivergodtgørelser_kroner)
+)
+| etableringskonto_nettolønindtægt_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
+    etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input)
+        - penge_positivt_beløb(input.ligningslov9_til_9d_fradrag_kroner)
+)
+| etableringskonto_reguleret_virksomhedsoverskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
+    input.skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner
+        + penge_positivt_beløb(input.vsl22b_henlæggelse_kroner)
+        + penge_positivt_beløb(input.renteudgifter_og_kurstab_kroner)
+        - penge_positivt_beløb(input.rente_udbytte_og_kursgevinst_kroner)
+)
+| etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(indkomstgrundlag_kroner: Heltal) -> penge_mindste_beløb(
+    penge_positivt_beløb(indkomstgrundlag_kroner),
+    penge_største_beløb(
+        penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(indkomstgrundlag_kroner), 6000),
+        250000
+    )
+)
+| etableringskonto_fase_inden_for_femårsperioden(fase: EtableringskontoIndskudsfase) -> match fase {
+    | EtblFørEtablering -> Sandt
+    | EtblEtableringsår -> Sandt
+    | EtblEfterEtablering(antal_år) -> antal_år >= 1 && antal_år <= 4
+    | EtblEfterFradragsperioden -> Falskt
+}
+| etableringskonto_fase_kræver_tidligere_indskud_hævet(fase: EtableringskontoIndskudsfase) -> match fase {
+    | EtblEfterEtablering(_) -> Sandt
+    | _ -> Falskt
+}
+| etableringskonto_fradragsperiode_åben(input: EtableringskontoIndskudInput) -> etableringskonto_fase_inden_for_femårsperioden(input.fase) && (etableringskonto_fase_kræver_tidligere_indskud_hævet(input.fase) == Falskt || input.tidligere_indskud_fuldt_hævet)
+| etableringskonto_indkomstkrav_opfyldt(input: EtableringskontoIndskudInput) -> match input.fase {
+    | EtblFørEtablering -> etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input) > 0
+    | EtblEtableringsår -> etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input) > 0 || etableringskonto_reguleret_virksomhedsoverskud_kroner(input) > 0
+    | EtblEfterEtablering(_) -> etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input) > 0 || etableringskonto_reguleret_virksomhedsoverskud_kroner(input) > 0
+    | EtblEfterFradragsperioden -> Falskt
+}
+| etableringskonto_person_berettiget(input: EtableringskontoIndskudInput) -> input.fuldt_skattepligtig && input.skattemæssigt_hjemmehørende_i_andet_land_efter_dbo == Falskt && input.senest_indkomståret_efter_folkepensionsalderen && etableringskonto_indkomstkrav_opfyldt(input)
+| etableringskonto_højeste_indskud_før_forskudsafskrivning_kroner(input: EtableringskontoIndskudInput) -> match input.fase {
+    | EtblFørEtablering -> etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(etableringskonto_nettolønindtægt_kroner(input))
+    | EtblEtableringsår -> penge_største_beløb(
+        etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(etableringskonto_nettolønindtægt_kroner(input)),
+        etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(etableringskonto_reguleret_virksomhedsoverskud_kroner(input))
+    )
+    | EtblEfterEtablering(_) -> penge_største_beløb(
+        etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(etableringskonto_nettolønindtægt_kroner(input)),
+        etableringskonto_højeste_indskud_for_indkomstgrundlag_kroner(etableringskonto_reguleret_virksomhedsoverskud_kroner(input))
+    )
+    | EtblEfterFradragsperioden -> 0
+}
+| etableringskonto_højeste_indskud_efter_forskudsafskrivning_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(
+    etableringskonto_højeste_indskud_før_forskudsafskrivning_kroner(input)
+        - penge_positivt_beløb(input.forskudsafskrivning_efter_al29_kroner)
+)
+| etableringskonto_faktiske_indskud_i_alt_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.faktisk_etableringskontoindskud_kroner) + penge_positivt_beløb(input.faktisk_iværksætterkontoindskud_kroner)
+| etableringskonto_par4_placering_godkendt(placering: EtableringskontoPlacering) -> placering != EtblIkkeGodkendtPlacering
+| etableringskonto_par4_placering_kræver_samme_pengeinstitut(placering: EtableringskontoPlacering) -> placering == EtblIndlånskontoOgObligationsdepot
+| etableringskonto_par4_samme_pengeinstitut_opfyldt(placering: EtableringskontoPar4Placering) -> etableringskonto_par4_placering_kræver_samme_pengeinstitut(placering.placering) == Falskt || placering.kontantkonto_og_depot_i_samme_pengeinstitut
+| etableringskonto_faktiske_indskud_opfylder_par4_stk1(input: EtableringskontoIndskudInput) -> etableringskonto_par4_placering_godkendt(input.faktisk_indskudsplacering.placering) && input.faktisk_indskudsplacering.pengeinstitut_omfattet_af_par4_stk1 && input.faktisk_indskudsplacering.etableringskonto_og_iværksætterkonto_ført_særskilt && input.faktisk_indskudsplacering.konto_korrekt_betegnet && input.faktisk_indskudsplacering.navn_adresse_og_personnummer_påført && etableringskonto_par4_samme_pengeinstitut_opfyldt(input.faktisk_indskudsplacering)
+| etableringskonto_rettidigt_faktisk_etableringskontoindskud_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_rettidigt_faktisk_etableringskontoindskud etableringskonto_rettidigt_faktisk_etableringskontoindskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.faktisk_etableringskontoindskud_kroner) under input.indskud_foretaget_i_indskudsåret && etableringskonto_faktiske_indskud_opfylder_par4_stk1(input)
+| etableringskonto_gyldigt_undladt_etableringskontoindskud_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_undladt_etableringskontoindskud_behandles_som_indskud etableringskonto_gyldigt_undladt_etableringskontoindskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.undladt_etableringskontoindskud_efter_par4_stk2_kroner) under input.betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt
+| etableringskonto_behandlet_etableringskontoindskud_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_rettidigt_faktisk_etableringskontoindskud_kroner(input) + etableringskonto_gyldigt_undladt_etableringskontoindskud_kroner(input)
+| etableringskonto_rettidigt_faktisk_iværksætterkontoindskud_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_rettidigt_faktisk_iværksætterkontoindskud etableringskonto_rettidigt_faktisk_iværksætterkontoindskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.faktisk_iværksætterkontoindskud_kroner) under input.indskud_foretaget_i_indskudsåret && etableringskonto_faktiske_indskud_opfylder_par4_stk1(input)
+| etableringskonto_gyldigt_undladt_iværksætterkontoindskud_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_undladt_iværksætterkontoindskud_behandles_som_indskud etableringskonto_gyldigt_undladt_iværksætterkontoindskud_kroner(input: EtableringskontoIndskudInput) -> penge_positivt_beløb(input.undladt_iværksætterkontoindskud_efter_par4_stk2_kroner) under input.betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt
+| etableringskonto_behandlet_iværksætterkontoindskud_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_rettidigt_faktisk_iværksætterkontoindskud_kroner(input) + etableringskonto_gyldigt_undladt_iværksætterkontoindskud_kroner(input)
+| etableringskonto_rettidige_faktiske_indskud_i_alt_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_rettidigt_faktisk_etableringskontoindskud_kroner(input) + etableringskonto_rettidigt_faktisk_iværksætterkontoindskud_kroner(input)
+| etableringskonto_behandlede_indskud_i_alt_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_behandlet_etableringskontoindskud_kroner(input) + etableringskonto_behandlet_iværksætterkontoindskud_kroner(input)
+| etableringskonto_indskudskrav_opfyldt(input: EtableringskontoIndskudInput) -> etableringskonto_behandlede_indskud_i_alt_kroner(input) > 0
+| etableringskonto_indskudsgrænser_opfyldt(input: EtableringskontoIndskudInput) -> etableringskonto_behandlede_indskud_i_alt_kroner(input) >= 5000 && etableringskonto_behandlede_indskud_i_alt_kroner(input) <= etableringskonto_højeste_indskud_efter_forskudsafskrivning_kroner(input)
+| etableringskonto_fradrag_kan_anvendes(input: EtableringskontoIndskudInput) -> etableringskonto_person_berettiget(input) && etableringskonto_fradragsperiode_åben(input) && etableringskonto_indskudskrav_opfyldt(input) && etableringskonto_indskudsgrænser_opfyldt(input)
+| etableringskonto_ligningsmæssigt_fradrag_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_etableringskonto_fradrag etableringskonto_ligningsmæssigt_fradrag_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_behandlet_etableringskontoindskud_kroner(input) under etableringskonto_fradrag_kan_anvendes(input)
+| etableringskonto_personlig_indkomst_fradrag_kroner(input: EtableringskontoIndskudInput) -> 0
+| exception etbl_iværksætterkonto_fradrag etableringskonto_personlig_indkomst_fradrag_kroner(input: EtableringskontoIndskudInput) -> etableringskonto_behandlet_iværksætterkontoindskud_kroner(input) under etableringskonto_fradrag_kan_anvendes(input)
+
+# EtableringskontoIndskudSag(input: EtableringskontoIndskudInput) {
+    | etableringskonto_fradrag_kroner() -> etableringskonto_ligningsmæssigt_fradrag_kroner(input)
+    | iværksætterkonto_fradrag_kroner() -> etableringskonto_personlig_indkomst_fradrag_kroner(input)
+    | samlet_fradrag_kroner() -> etableringskonto_fradrag_kroner() + iværksætterkonto_fradrag_kroner()
+    | resultat() -> EtableringskontoIndskudResultat(
+        indkomstår = input.indkomstår,
+        fase = input.fase,
+        person_berettiget = etableringskonto_person_berettiget(input),
+        indkomstkrav_opfyldt = etableringskonto_indkomstkrav_opfyldt(input),
+        fradragsperiode_åben = etableringskonto_fradragsperiode_åben(input),
+        faktiske_indskud_opfylder_par4_stk1 = etableringskonto_faktiske_indskud_opfylder_par4_stk1(input),
+        indskudskrav_opfyldt = etableringskonto_indskudskrav_opfyldt(input),
+        indskudsgrænser_opfyldt = etableringskonto_indskudsgrænser_opfyldt(input),
+        lønindtægt_før_ligningslov9_til_9d_fradrag_kroner = etableringskonto_lønindtægt_før_ligningslov9_til_9d_fradrag_kroner(input),
+        nettolønindtægt_kroner = etableringskonto_nettolønindtægt_kroner(input),
+        reguleret_virksomhedsoverskud_kroner = etableringskonto_reguleret_virksomhedsoverskud_kroner(input),
+        højeste_indskud_før_forskudsafskrivning_kroner = etableringskonto_højeste_indskud_før_forskudsafskrivning_kroner(input),
+        højeste_indskud_efter_forskudsafskrivning_kroner = etableringskonto_højeste_indskud_efter_forskudsafskrivning_kroner(input),
+        faktiske_indskud_i_alt_kroner = etableringskonto_faktiske_indskud_i_alt_kroner(input),
+        faktiske_indskud_afskåret_af_form_eller_frist_kroner = etableringskonto_faktiske_indskud_i_alt_kroner(input) - etableringskonto_rettidige_faktiske_indskud_i_alt_kroner(input),
+        behandlede_indskud_i_alt_kroner = etableringskonto_behandlede_indskud_i_alt_kroner(input),
+        etableringskonto_ligningsmæssigt_fradrag_kroner = etableringskonto_fradrag_kroner(),
+        iværksætterkonto_personlig_indkomst_fradrag_kroner = iværksætterkonto_fradrag_kroner(),
+        behandlede_indskud_uden_fradrag_kroner = etableringskonto_behandlede_indskud_i_alt_kroner(input) - samlet_fradrag_kroner(),
+        samlet_fradrag_i_skattepligtig_indkomst_kroner = samlet_fradrag_kroner()
+    )
+}
+| etableringskonto_indskud_sag(input: EtableringskontoIndskudInput) -> EtableringskontoIndskudSag(input)
+| etableringskonto_indskud_resultat(input: EtableringskontoIndskudInput) -> etableringskonto_indskud_sag(input).resultat()
+--@end:etableringskontoloven_par1_par4--

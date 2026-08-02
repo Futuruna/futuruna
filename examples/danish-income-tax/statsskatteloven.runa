@@ -1,0 +1,64 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Statsskatteloven -- Personskatteloven § 3, stk. 2, nr. 10.
+--
+-- Kilde: Retsinformation, LOV nr. 149 af 10/04/1922.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/1922/149
+
+# StatsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= statsskatteloven_lov149_par6_litra_a = StatsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1922/149",
+    identifier = "Statsskatteloven § 6, litra a",
+    hentet_dato = "2026-07-18"
+)
+
+= statsskatteloven_par6_juridisk_vejledning = StatsskattelovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083468",
+    identifier = "Den juridiske vejledning, SL § 6, stk. 1, litra a",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:statsskatteloven_par6_litra_a::source:statsskatteloven_lov149_par6_litra_a::guidance:statsskatteloven_par6_juridisk_vejledning--
+----
+§ 6
+
+Ved Beregningen af den skattepligtige Indkomst bliver at fradrage:
+
+a. Driftsomkostninger, d.v.s. de Udgifter, som i Aarets Løb er anvendt
+til at erhverve, sikre og vedligeholde Indkomsten, derunder ordinære
+Afskrivninger;
+----
+
+--@begin:statsskatteloven_par6_litra_a--
+# Statsskattelov6Skatteyder = Sl6SelvstændigErhvervsdrivendePerson | Sl6AndenSkatteyder
+# Statsskattelov6OrdinærAfskrivningInput(skatteyder: Statsskattelov6Skatteyder, udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten: Boolsk, ikke_omfattet_af_særlig_afskrivningslovgivning: Boolsk, afskrivningsgrundlag_primo_kroner: Heltal, dokumenteret_ordinær_værdiforringelse_i_året_kroner: Heltal, ønsket_ordinær_afskrivning_kroner: Heltal)
+# Statsskattelov6OrdinærAfskrivningResultat(skatteyder: Statsskattelov6Skatteyder, driftsomkostning_omfattet: Boolsk, afskrivningsgrundlag_primo_kroner: Heltal, dokumenteret_ordinær_værdiforringelse_i_året_kroner: Heltal, ordinær_afskrivning_kroner: Heltal, afskrivningsgrundlag_ultimo_kroner: Heltal)
+
+| statsskattelov6_ordinær_afskrivning_omfattet(input: Statsskattelov6OrdinærAfskrivningInput) -> input.skatteyder == Sl6SelvstændigErhvervsdrivendePerson && input.udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten && input.ikke_omfattet_af_særlig_afskrivningslovgivning
+| statsskattelov6_ordinær_afskrivning_kroner(input: Statsskattelov6OrdinærAfskrivningInput) -> 0
+| exception sl6_dokumenteret_ordinær_afskrivning statsskattelov6_ordinær_afskrivning_kroner(input: Statsskattelov6OrdinærAfskrivningInput) -> penge_mindste_beløb(
+    penge_mindste_beløb(
+        penge_positivt_beløb(input.afskrivningsgrundlag_primo_kroner),
+        penge_positivt_beløb(input.dokumenteret_ordinær_værdiforringelse_i_året_kroner)
+    ),
+    penge_positivt_beløb(input.ønsket_ordinær_afskrivning_kroner)
+) under statsskattelov6_ordinær_afskrivning_omfattet(input)
+
+# Statsskattelov6OrdinærAfskrivningSag(input: Statsskattelov6OrdinærAfskrivningInput) {
+    | afskrivningsgrundlag_primo_kroner() -> penge_positivt_beløb(input.afskrivningsgrundlag_primo_kroner)
+    | ordinær_afskrivning_kroner() -> statsskattelov6_ordinær_afskrivning_kroner(input)
+    | resultat() -> Statsskattelov6OrdinærAfskrivningResultat(
+        skatteyder = input.skatteyder,
+        driftsomkostning_omfattet = statsskattelov6_ordinær_afskrivning_omfattet(input),
+        afskrivningsgrundlag_primo_kroner = afskrivningsgrundlag_primo_kroner(),
+        dokumenteret_ordinær_værdiforringelse_i_året_kroner = penge_positivt_beløb(input.dokumenteret_ordinær_værdiforringelse_i_året_kroner),
+        ordinær_afskrivning_kroner = ordinær_afskrivning_kroner(),
+        afskrivningsgrundlag_ultimo_kroner = afskrivningsgrundlag_primo_kroner() - ordinær_afskrivning_kroner()
+    )
+}
+| statsskattelov6_ordinær_afskrivning_sag(input: Statsskattelov6OrdinærAfskrivningInput) -> Statsskattelov6OrdinærAfskrivningSag(input)
+| statsskattelov6_ordinær_afskrivning_resultat(input: Statsskattelov6OrdinærAfskrivningInput) -> statsskattelov6_ordinær_afskrivning_sag(input).resultat()
+--@end:statsskatteloven_par6_litra_a--

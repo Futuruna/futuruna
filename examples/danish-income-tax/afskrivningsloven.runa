@@ -2,11 +2,31 @@
 
 @ importer ./pengebeloeb
 
--- Afskrivningsloven -- Personskatteloven § 4-afhængigheder.
+-- Afskrivningsloven -- Personskatteloven §§ 3 og 4-afhængigheder.
 --
 -- Kilde: Retsinformation, LBK nr. 1222 af 13/10/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1222
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1222/dan/xml
+
+# AfskrivningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= afskrivningsloven_lbk1222 = AfskrivningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1222",
+    identifier = "Afskrivningsloven, LBK nr. 1222 af 13/10/2025",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_2026_satser = AfskrivningslovKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven",
+    identifier = "Skatteministeriet, Afskrivningsloven, satser og beløbsgrænser 2026",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par5a_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2060789",
+    identifier = "Den juridiske vejledning, tabsfradrag ved salg af driftsmidler efter AL § 5 A",
+    hentet_dato = "2026-07-18"
+)
 
 ----
 Officiel XML-metadata for 2025/1222, hentet 2026-07-18:
@@ -19,6 +39,292 @@ StartDate: 2025-10-16
 EndDate: 2026-07-01
 ----
 
+--@label:afskrivningsloven_par1_par2::source:afskrivningsloven_lbk1222--
+----
+§ 1. Efter reglerne i denne lov kan skattemæssig afskrivning foretages
+på udgifter til anskaffelse og forbedring af aktiver, der benyttes
+erhvervsmæssigt af den skattepligtige, samt på visse andre udgifter.
+
+§ 2. Maskiner, inventar og andre driftsmidler samt skibe afskrives efter
+reglerne i dette kapitel, såfremt de udelukkende eller delvis benyttes
+erhvervsmæssigt.
+
+Stk. 2. Udgifter til anskaffelse af software afskrives efter reglerne i
+dette kapitel, uanset om der er tale om erhvervelse af en tidsubegrænset
+brugsrettighed i henhold til en softwarelicensaftale eller lignende.
+
+Stk. 3. Antikviteter og andre aktiver, der efter deres art og anvendelse
+normalt ikke udsættes for værdiforringelse, kan ikke afskrives.
+Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
+----
+
+--@begin:afskrivningsloven_par1_par2--
+# AfskrivningslovSkatteyder = AlSelvstændigErhvervsdrivendePerson | AlSelskabEllerForening | AlAndenSkatteyder
+# AfskrivningslovAktivart = AlMaskine | AlInventar | AlAndetDriftsmiddel | AlSkib | AlSoftware | AlAntikvitetEllerAndetVærdifastAktiv | AlKunstværk
+# AfskrivningslovPar1Par2Input(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal)
+# AfskrivningslovPar1Par2Resultat(skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, erhvervsmæssigt_benyttet: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, aktivart_omfattet_af_kapitel2: Boolsk, omfattet_af_kapitel2: Boolsk)
+
+| afskrivningslov_par1_par2_aktivart_omfattet(aktivart: AfskrivningslovAktivart) -> match aktivart {
+    | AlMaskine -> Sandt
+    | AlInventar -> Sandt
+    | AlAndetDriftsmiddel -> Sandt
+    | AlSkib -> Sandt
+    | AlSoftware -> Sandt
+    | AlAntikvitetEllerAndetVærdifastAktiv -> Falskt
+    | AlKunstværk -> Falskt
+}
+| afskrivningslov_par1_par2_erhvervsmæssigt_benyttet(input: AfskrivningslovPar1Par2Input) -> input.erhvervsmæssig_anvendelsesandel_basispoint > 0 && input.erhvervsmæssig_anvendelsesandel_basispoint <= 10000
+| afskrivningslov_par1_par2_resultat(input: AfskrivningslovPar1Par2Input) -> AfskrivningslovPar1Par2Resultat(
+    skatteyder = input.skatteyder,
+    aktivart = input.aktivart,
+    erhvervsmæssig_anvendelsesandel_basispoint = input.erhvervsmæssig_anvendelsesandel_basispoint,
+    erhvervsmæssigt_benyttet = afskrivningslov_par1_par2_erhvervsmæssigt_benyttet(input),
+    udelukkende_erhvervsmæssigt_benyttet = input.erhvervsmæssig_anvendelsesandel_basispoint == 10000,
+    aktivart_omfattet_af_kapitel2 = afskrivningslov_par1_par2_aktivart_omfattet(input.aktivart),
+    omfattet_af_kapitel2 = afskrivningslov_par1_par2_erhvervsmæssigt_benyttet(input) && afskrivningslov_par1_par2_aktivart_omfattet(input.aktivart)
+)
+--@end:afskrivningsloven_par1_par2--
+
+--@label:afskrivningsloven_2026_parametre::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+----
+Skatteministeriets offentliggjorte 2026-satser til afskrivningsloven:
+
+Småsaldigrænse (§ 5): 36.000 kr.
+Småaktivgrænse (§ 6): 36.000 kr.
+Loft over forhøjet afskrivningsgrundlag for udgifter til forsknings- og
+forsøgsvirksomhed (§ 6, stk. 1): 1.088,8 mio. kr.
+----
+
+--@begin:afskrivningsloven_2026_parametre--
+# AfskrivningslovÅrsparameterKilde = AlSkatteministerietSatser2026
+# AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
+
+| afskrivningslov_årsparametre(indkomstår: Heltal) -> AfskrivningslovÅrsparametre(
+    indkomstår = indkomstår,
+    kilde = AlSkatteministerietSatser2026,
+    småsaldigrænse_kroner = 36000,
+    småaktivgrænse_kroner = 36000,
+    forskningsloft_kroner = 1088800000,
+    højeste_ordinære_sats_basispoint = 2500,
+    forskning_sats_under_loft_basispoint = 11400,
+    forskning_sats_over_loft_basispoint = 11000
+) under indkomstår == 2026
+--@end:afskrivningsloven_2026_parametre--
+
+--@label:afskrivningsloven_par5::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 5. Driftsmidler og skibe, som en skattepligtig udelukkende benytter
+erhvervsmæssigt, skal afskrives på en samlet saldo for den enkelte
+virksomhed, jf. dog § 5 B.
+
+Stk. 2. Indkomstårets afskrivninger foretages på grundlag af den
+afskrivningsberettigede saldoværdi ved indkomstårets udgang. Denne værdi
+opgøres som saldoværdien ved indkomstårets begyndelse med tillæg af
+anskaffelsessummen for driftsmidler og skibe, der er anskaffet i
+indkomståret, og med fradrag af salgssummen for driftsmidler og skibe,
+der er solgt og leveret i indkomstårets løb. Udgifter til forbedring
+behandles på samme måde som anskaffelsessummer. Saldoværdien ved
+indkomstårets begyndelse udgør det beløb, hvortil driftsmidler og skibe
+anskaffet i tidligere indkomstår er nedbragt ved afskrivninger.
+Driftsmidler og skibe, der anvendes til forsøgs- og
+forskningsvirksomhed, indgår i afskrivningssaldoen med det beløb, der
+kan fradrages efter § 6, stk. 1, nr. 3.
+
+Stk. 3. Afskrivning kan højst udgøre 25 pct. af den
+afskrivningsberettigede saldoværdi efter stk. 2. Udgør den
+afskrivningsberettigede saldoværdi før indkomstårets afskrivning et
+grundbeløb på 26.200 kr. (2010-niveau) eller derunder, kan beløbet
+fradrages fuldt ud i den skattepligtige indkomst.
+----
+
+--@begin:afskrivningsloven_par5--
+# AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
+# Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
+# Afskrivningslov5Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
+# Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
+
+| afskrivningslov5_omfattet(input: Afskrivningslov5Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.saldoordning == AlPar5AlmindeligSaldo
+| afskrivningslov5_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5Input) -> input.saldoværdi_primo_kroner + penge_positivt_beløb(input.anskaffelsessummer_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
+| afskrivningslov5_valgt_ordinær_sats_basispoint(valg: Afskrivningslov5Valg) -> match valg {
+    | Al5OrdinærAfskrivning(sats_basispoint) -> penge_positivt_beløb(sats_basispoint)
+    | _ -> 0
+}
+| afskrivningslov5_årsparametre_matcher(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår
+| afskrivningslov5_valg_gyldigt(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al5IngenAfskrivning -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre)
+    | Al5OrdinærAfskrivning(sats_basispoint) -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= parametre.højeste_ordinære_sats_basispoint
+    | Al5FuldRestsaldo -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre) && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) > 0 && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) <= parametre.småsaldigrænse_kroner
+}
+| afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> 0
+| exception al5_ordinær_saldoafskrivning afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(
+    penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)),
+    afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg)
+) under afskrivningslov5_valg_gyldigt(input, parametre) && afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg) > 0
+| exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
+| afskrivningslov5_resultat(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5Resultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    saldoordning = input.saldoordning,
+    omfattet_af_par5 = afskrivningslov5_omfattet(input),
+    valg = input.valg,
+    valg_gyldigt = afskrivningslov5_valg_gyldigt(input, parametre),
+    saldoværdi_før_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input),
+    afskrivningsberettiget_saldoværdi_kroner = penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)),
+    højeste_ordinære_afskrivning_kroner = penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)), parametre.højeste_ordinære_sats_basispoint),
+    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov5_fradrag_kroner(input, parametre),
+    saldoværdi_efter_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov5_fradrag_kroner(input, parametre)
+)
+--@end:afskrivningsloven_par5--
+
+--@label:afskrivningsloven_par5a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par5a_juridisk_vejledning--
+----
+§ 5 A. Har en skattepligtig solgt et driftsmiddel eller et skib omfattet
+af dette kapitel til et beløb, der er mindre end anskaffelsessummen med
+fradrag af samtlige foretagne afskrivninger, kan tabet fradrages i det
+indkomstår, hvori driftsmidlet eller skibet er solgt. Opgørelsen af
+foretagne afskrivninger sker med den procentsats, som den skattepligtige
+har anvendt efter § 5, stk. 3. Skrotning og lignende sidestilles med
+salg. Vælger den skattepligtige at fradrage tabet, kan der ikke
+afskrives på det pågældende aktiv i salgsåret. Saldoværdien efter § 5
+ved indkomstårets begyndelse skal i dette tilfælde formindskes med den
+uafskrevne del af anskaffelsessummen for aktivet. Den skattepligtige kan
+kun opnå fradrag for tab, i det omfang formindskelsen med den uafskrevne
+del af anskaffelsessummen efter 5. pkt. ikke fører til en negativ saldo
+efter § 5.
+----
+
+--@begin:afskrivningsloven_par5a--
+# Afskrivningslov5AInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessum_kroner: Heltal, samtlige_foretagne_afskrivninger_kroner: Heltal, salgssum_kroner: Heltal, vælger_tabsfradrag: Boolsk)
+# Afskrivningslov5AResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5a_modellen: Boolsk, vælger_tabsfradrag: Boolsk, uafskrevet_anskaffelsessum_kroner: Heltal, beregnet_tab_kroner: Heltal, saldoformindskelse_fører_til_negativ_saldo: Boolsk, saldoformindskelse_kroner: Heltal, tab_afskåret_af_saldogrænsen_kroner: Heltal, tabsvalg_gyldigt: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_formindskelse_kroner: Heltal)
+
+| afskrivningslov5a_omfattet_af_modellen(input: Afskrivningslov5AInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet
+| afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) - penge_positivt_beløb(input.samtlige_foretagne_afskrivninger_kroner))
+| afskrivningslov5a_beregnet_tab_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
+| afskrivningslov5a_saldoformindskelse_fører_til_negativ_saldo(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner - afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input) < 0
+| afskrivningslov5a_saldoformindskelse_kroner(input: Afskrivningslov5AInput) -> penge_mindste_beløb(afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input), penge_positivt_beløb(input.saldoværdi_primo_kroner))
+| afskrivningslov5a_fradragsberettiget_tab_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(afskrivningslov5a_saldoformindskelse_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
+| afskrivningslov5a_tabsvalg_gyldigt(input: Afskrivningslov5AInput) -> input.vælger_tabsfradrag && afskrivningslov5a_omfattet_af_modellen(input) && afskrivningslov5a_fradragsberettiget_tab_kroner(input) > 0
+| afskrivningslov5a_fradrag_kroner(input: Afskrivningslov5AInput) -> 0
+| exception al5a_valgt_tab afskrivningslov5a_fradrag_kroner(input: Afskrivningslov5AInput) -> afskrivningslov5a_fradragsberettiget_tab_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
+| afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner
+| exception al5a_uafskrevet_del_fjernes_fra_saldo afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner - afskrivningslov5a_saldoformindskelse_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
+| afskrivningslov5a_resultat(input: Afskrivningslov5AInput) -> Afskrivningslov5AResultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    saldoordning = input.saldoordning,
+    omfattet_af_par5a_modellen = afskrivningslov5a_omfattet_af_modellen(input),
+    vælger_tabsfradrag = input.vælger_tabsfradrag,
+    uafskrevet_anskaffelsessum_kroner = afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input),
+    beregnet_tab_kroner = afskrivningslov5a_beregnet_tab_kroner(input),
+    saldoformindskelse_fører_til_negativ_saldo = afskrivningslov5a_saldoformindskelse_fører_til_negativ_saldo(input),
+    saldoformindskelse_kroner = afskrivningslov5a_saldoformindskelse_kroner(input),
+    tab_afskåret_af_saldogrænsen_kroner = afskrivningslov5a_beregnet_tab_kroner(input) - afskrivningslov5a_fradrag_kroner(input),
+    tabsvalg_gyldigt = afskrivningslov5a_tabsvalg_gyldigt(input),
+    afskrivning_i_salgsåret_afskåret = afskrivningslov5a_tabsvalg_gyldigt(input),
+    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov5a_fradrag_kroner(input),
+    saldoværdi_efter_formindskelse_kroner = afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input)
+)
+--@end:afskrivningsloven_par5a--
+
+--@label:afskrivningsloven_par6_stk1::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+----
+§ 6. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
+fradrage (straksafskrive) hele anskaffelsessummen for nedennævnte
+driftsmidler m.v. i den skattepligtige indkomst for det indkomstår,
+hvori anskaffelsen finder sted, jf. dog stk. 3:
+
+1) Driftsmidler, hvis fysiske levealder må antages ikke at overstige 3
+år.
+
+2) Driftsmidler med en anskaffelsessum på et grundbeløb på 26.200 kr.
+(2010-niveau) eller derunder. Aktiver i et samlesæt eller lignende samt
+aktiver, der er bestemt til at fungere samlet, anses for ét
+driftsmiddel. Aktiver, der er bestemt til at fungere sammen med allerede
+anskaffede aktiver, kan ikke straksafskrives, såfremt den samlede
+anskaffelsessum overstiger grundbeløbet. Forbedringsudgifter sidestilles
+med udgifter til anskaffelse af aktiver, der er bestemt til at fungere
+sammen med allerede anskaffede aktiver.
+
+3) Driftsmidler og skibe til forsøgs- og forskningsvirksomhed bortset
+fra driftsmidler og skibe, der anvendes til efterforskning efter
+råstoffer. Fradrag af anskaffelsessummen som nævnt i 1. pkt. kan for
+indkomstårene 2018 og 2019 foretages med et beløb svarende til 101,5
+pct. af anskaffelsessummen, for indkomståret 2020 med 103 pct., for
+indkomstårene 2021 og 2022 med 105 pct. og for indkomstårene 2023-2025
+med 108 pct. For indkomstårene 2020-2022 kan der ud over fradrag efter
+2. pkt. foretages fradrag på henholdsvis 27 pct. af anskaffelsessummen
+for indkomståret 2020 og 25 pct. af anskaffelsessummen for indkomstårene
+2021 og 2022. Fradrag af anskaffelsessummen som nævnt i 1. pkt. kan for
+indkomståret 2026 foretages med et beløb svarende til 114 pct. af
+anskaffelsessummen, for indkomståret 2027 med et beløb svarende til 116
+pct. af anskaffelsessummen og fra og med indkomståret 2028 med et beløb
+svarende til 120 pct. af anskaffelsessummen. Fradrag efter 3. pkt. og
+fradrag eller afskrivning efter ligningslovens § 8 B, stk. 4, 2. pkt.,
+kan højst foretages for samlede udgifter på 845 mio. kr. i indkomståret
+2020 og 910 mio. kr. i indkomstårene 2021 og 2022. Fradrag efter 4. pkt.
+og fradrag eller afskrivning efter ligningslovens § 8 B, stk. 4, 3.
+pkt., kan højst foretages for samlede udgifter på 793 mio. kr.
+(2010-niveau). Udgifter over loftet i 6. pkt. kan fra og med
+indkomståret 2026 fradrages med 110 pct. Begrænsningerne efter 5. og 6.
+pkt. gælder samlet for sambeskattede selskaber i samme koncern, idet den
+samlede begrænsning fordeles forholdsmæssigt mellem de sambeskattede
+selskabers udgifter omfattet af 5. og 6. pkt. Grundbeløbet i 6. pkt.
+reguleres efter personskattelovens § 20, dog således at det regulerede
+beløb afrundes opad til nærmeste kronebeløb, der kan deles med 100.000.
+----
+
+--@begin:afskrivningsloven_par6_stk1--
+# Afskrivningslov6Valg = Al6IngenStraksafskrivning | Al6KortFysiskLevetid | Al6Småaktiv | Al6ForsøgsOgForskningsaktiv
+# Afskrivningslov6Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal, valg: Afskrivningslov6Valg)
+# Afskrivningslov6Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, valg: Afskrivningslov6Valg, omfattet_af_par6_stk1_modellen: Boolsk, kort_levetid_betingelse_opfyldt: Boolsk, småaktiv_betingelse_opfyldt: Boolsk, forskning_betingelse_opfyldt: Boolsk, valg_gyldigt: Boolsk, forskningsudgift_under_loft_kroner: Heltal, forskningsudgift_over_loft_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| afskrivningslov6_omfattet_af_modellen(input: Afskrivningslov6Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet
+| afskrivningslov6_aktiv_er_driftsmiddel(aktivart: AfskrivningslovAktivart) -> match aktivart {
+    | AlMaskine -> Sandt
+    | AlInventar -> Sandt
+    | AlAndetDriftsmiddel -> Sandt
+    | AlSoftware -> Sandt
+    | _ -> Falskt
+}
+| afskrivningslov6_kort_levetid_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktiv_resultat.aktivart) && input.aktiv_resultat.aktivart != AlSoftware && input.fysisk_levetid_år > 0 && input.fysisk_levetid_år <= 3
+| afskrivningslov6_småaktiv_betingelse(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktiv_resultat.aktivart) && penge_positivt_beløb(input.samlet_anskaffelsessum_for_funktionsenhed_kroner) > 0 && penge_positivt_beløb(input.samlet_anskaffelsessum_for_funktionsenhed_kroner) <= parametre.småaktivgrænse_kroner
+| afskrivningslov6_forskning_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && input.anvendes_til_forsøgs_og_forskningsvirksomhed && input.anvendes_til_råstofefterforskning == Falskt
+| afskrivningslov6_årsparametre_matcher(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår
+| afskrivningslov6_valg_gyldigt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al6IngenStraksafskrivning -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
+    | Al6KortFysiskLevetid -> afskrivningslov6_kort_levetid_betingelse(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
+    | Al6Småaktiv -> afskrivningslov6_småaktiv_betingelse(input, parametre) && afskrivningslov6_årsparametre_matcher(input, parametre)
+    | Al6ForsøgsOgForskningsaktiv -> afskrivningslov6_forskning_betingelse(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
+}
+| afskrivningslov6_forskningsudgift_under_loft_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_mindste_beløb(
+    penge_positivt_beløb(input.anskaffelsessum_kroner),
+    penge_positivt_beløb(parametre.forskningsloft_kroner - penge_positivt_beløb(input.forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner))
+)
+| afskrivningslov6_forskningsudgift_over_loft_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.anskaffelsessum_kroner) - afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre)
+| afskrivningslov6_beregnet_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al6IngenStraksafskrivning -> 0
+    | Al6KortFysiskLevetid -> penge_positivt_beløb(input.anskaffelsessum_kroner)
+    | Al6Småaktiv -> penge_positivt_beløb(input.anskaffelsessum_kroner)
+    | Al6ForsøgsOgForskningsaktiv -> penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre), parametre.forskning_sats_under_loft_basispoint) + penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_over_loft_kroner(input, parametre), parametre.forskning_sats_over_loft_basispoint)
+}
+| afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> 0
+| exception al6_valgt_straksafskrivning afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_beregnet_fradrag_kroner(input, parametre) under afskrivningslov6_valg_gyldigt(input, parametre)
+| afskrivningslov6_resultat(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov6Resultat(
+    indkomstår = input.indkomstår,
+    skatteyder = input.aktiv_resultat.skatteyder,
+    valg = input.valg,
+    omfattet_af_par6_stk1_modellen = afskrivningslov6_omfattet_af_modellen(input),
+    kort_levetid_betingelse_opfyldt = afskrivningslov6_kort_levetid_betingelse(input),
+    småaktiv_betingelse_opfyldt = afskrivningslov6_småaktiv_betingelse(input, parametre),
+    forskning_betingelse_opfyldt = afskrivningslov6_forskning_betingelse(input),
+    valg_gyldigt = afskrivningslov6_valg_gyldigt(input, parametre),
+    forskningsudgift_under_loft_kroner = afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre),
+    forskningsudgift_over_loft_kroner = afskrivningslov6_forskningsudgift_over_loft_kroner(input, parametre),
+    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov6_fradrag_kroner(input, parametre)
+)
+--@end:afskrivningsloven_par6_stk1--
+
+--@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----
 § 40 C. Anskaffelsessummen ved erhvervelse og afståelsessummen ved afståelse af
 en betalingsrettighed efter EU-landbrugsstøtteordningen skal indgå på en samlet
@@ -112,6 +418,7 @@ anskaffet den 1. januar 2005 eller senere, anses de først erhvervede kvoter
 eller andele af kvoter for de først afståede.
 ----
 
+--@begin:afskrivningsloven_par40c--
 # Afskrivningslov40CBegivenhed = Al40CÅrligSaldoopgørelse | Al40CSidsteAktivAfståetEllerUdløbet
 # Afskrivningslov40CInput(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_omfatter_aktiver_efter_stk1_til_4: Boolsk, saldo_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, afståelsessummer_i_året_kroner: Heltal)
 # Afskrivningslov40CResultat(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, omfattet_af_par40c: Boolsk, saldoværdi_ultimo_før_regulering_kroner: Heltal, positiv_saldo_uden_fradrag_kroner: Heltal, negativ_saldo_indtægtsført_kroner: Heltal, saldo_efter_regulering_kroner: Heltal, afståelsesår_fortjeneste_kroner: Heltal, afståelsesår_tab_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal, fradragsberettiget_beløb_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
@@ -155,50 +462,4 @@ eller andele af kvoter for de først afståede.
 }
 | afskrivningslov40c_sag(input: Afskrivningslov40CInput) -> Afskrivningslov40CSag(input)
 | afskrivningslov40c_resultat(input: Afskrivningslov40CInput) -> afskrivningslov40c_sag(input).resultat()
-
-= al40c_negativ_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
-    indkomstår = 2026,
-    begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
-    saldo_primo_kroner = 10000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 32000
-))
-= al40c_positiv_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
-    indkomstår = 2026,
-    begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
-    saldo_primo_kroner = 40000,
-    anskaffelsessummer_i_året_kroner = 10000,
-    afståelsessummer_i_året_kroner = 20000
-))
-= al40c_afståelsesår_fortjeneste_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
-    indkomstår = 2026,
-    begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
-    saldo_primo_kroner = 25000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 42000
-))
-= al40c_afståelsesår_tab_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
-    indkomstår = 2026,
-    begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
-    saldo_primo_kroner = 30000,
-    anskaffelsessummer_i_året_kroner = 10000,
-    afståelsessummer_i_året_kroner = 25000
-))
-= al40c_udenfor_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
-    indkomstår = 2026,
-    begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Falskt,
-    saldo_primo_kroner = 10000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 32000
-))
-
-| al40c_negativ_saldo_indtægtsføres: al40c_negativ_saldo_fixture -> al40c_negativ_saldo_fixture.saldoværdi_ultimo_før_regulering_kroner == -17000 && al40c_negativ_saldo_fixture.negativ_saldo_indtægtsført_kroner == 17000 && al40c_negativ_saldo_fixture.saldo_efter_regulering_kroner == 0 && al40c_negativ_saldo_fixture.skattepligtigt_beløb_kroner == 17000
-| al40c_positiv_saldo_fradrages_ikke: al40c_positiv_saldo_fixture -> al40c_positiv_saldo_fixture.saldoværdi_ultimo_før_regulering_kroner == 30000 && al40c_positiv_saldo_fixture.positiv_saldo_uden_fradrag_kroner == 30000 && al40c_positiv_saldo_fixture.skattepligtigt_beløb_kroner == 0 && al40c_positiv_saldo_fixture.fradragsberettiget_beløb_kroner == 0
-| al40c_afståelsesår_fortjeneste_medregnes: al40c_afståelsesår_fortjeneste_fixture -> al40c_afståelsesår_fortjeneste_fixture.afståelsesår_fortjeneste_kroner == 12000 && al40c_afståelsesår_fortjeneste_fixture.skattepligtigt_beløb_kroner == 12000
-| al40c_afståelsesår_tab_fradrages: al40c_afståelsesår_tab_fixture -> al40c_afståelsesår_tab_fixture.afståelsesår_tab_kroner == 15000 && al40c_afståelsesår_tab_fixture.fradragsberettiget_beløb_kroner == 15000 && al40c_afståelsesår_tab_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == -15000
-| al40c_udenfor_saldo_udelukkes: al40c_udenfor_saldo_fixture -> al40c_udenfor_saldo_fixture.omfattet_af_par40c == Falskt && al40c_udenfor_saldo_fixture.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+--@end:afskrivningsloven_par40c--

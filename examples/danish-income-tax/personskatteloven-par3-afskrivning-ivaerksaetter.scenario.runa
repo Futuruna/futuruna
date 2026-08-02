@@ -1,0 +1,482 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Afskrivningsloven §§ 1-2, 5, 5 A og 6, stk. 1,
+-- Statsskatteloven § 6, litra a, Etableringskontoloven §§ 1-4 og
+-- Personskatteloven § 3, stk. 2, nr. 10-11.
+-- Lovtekst og kildeankre ligger i de importerede lovmoduler.
+
+= al_2026_parametre = afskrivningslov_årsparametre(2026)
+
+= etbl_gyldig_kontantplacering = EtableringskontoPar4Placering(
+    placering = EtblSærligIndlånskonto,
+    pengeinstitut_omfattet_af_par4_stk1 = Sandt,
+    etableringskonto_og_iværksætterkonto_ført_særskilt = Sandt,
+    konto_korrekt_betegnet = Sandt,
+    navn_adresse_og_personnummer_påført = Sandt,
+    kontantkonto_og_depot_i_samme_pengeinstitut = Sandt
+)
+
+= etbl_ugyldig_placering = EtableringskontoPar4Placering(
+    placering = EtblIkkeGodkendtPlacering,
+    pengeinstitut_omfattet_af_par4_stk1 = Falskt,
+    etableringskonto_og_iværksætterkonto_ført_særskilt = Falskt,
+    konto_korrekt_betegnet = Falskt,
+    navn_adresse_og_personnummer_påført = Falskt,
+    kontantkonto_og_depot_i_samme_pengeinstitut = Falskt
+)
+
+= al_selvstændig_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = AlMaskine,
+    erhvervsmæssig_anvendelsesandel_basispoint = 10000
+))
+
+= al_selvstændig_software = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = AlSoftware,
+    erhvervsmæssig_anvendelsesandel_basispoint = 10000
+))
+
+= al_selvstændig_skib = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = AlSkib,
+    erhvervsmæssig_anvendelsesandel_basispoint = 10000
+))
+
+= al_selskab_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelskabEllerForening,
+    aktivart = AlMaskine,
+    erhvervsmæssig_anvendelsesandel_basispoint = 10000
+))
+
+= al5_ordinær_selvstændig = afskrivningslov5_resultat(Afskrivningslov5Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 40000,
+    forbedringsudgifter_i_året_kroner = 10000,
+    salgssummer_i_året_kroner = 20000,
+    valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
+), al_2026_parametre)
+
+= al5_ordinær_selskab = afskrivningslov5_resultat(Afskrivningslov5Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selskab_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 40000,
+    forbedringsudgifter_i_året_kroner = 10000,
+    salgssummer_i_året_kroner = 20000,
+    valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
+), al_2026_parametre)
+
+= al5_fuld_småsaldo = afskrivningslov5_resultat(Afskrivningslov5Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 36000,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5FuldRestsaldo
+), al_2026_parametre)
+
+= al5_fuld_over_småsaldogrænsen = afskrivningslov5_resultat(Afskrivningslov5Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 36001,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5FuldRestsaldo
+), al_2026_parametre)
+
+= al5a_valgt_tab = afskrivningslov5a_resultat(Afskrivningslov5AInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessum_kroner = 80000,
+    samtlige_foretagne_afskrivninger_kroner = 30000,
+    salgssum_kroner = 20000,
+    vælger_tabsfradrag = Sandt
+))
+
+= al5a_tab_med_negativ_saldo = afskrivningslov5a_resultat(Afskrivningslov5AInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 40000,
+    anskaffelsessum_kroner = 80000,
+    samtlige_foretagne_afskrivninger_kroner = 30000,
+    salgssum_kroner = 20000,
+    vælger_tabsfradrag = Sandt
+))
+
+= al6_software_som_småaktiv = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_software,
+    anskaffelsessum_kroner = 35000,
+    samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
+    fysisk_levetid_år = 0,
+    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+    anvendes_til_råstofefterforskning = Falskt,
+    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_software,
+    anskaffelsessum_kroner = 70000,
+    samlet_anskaffelsessum_for_funktionsenhed_kroner = 70000,
+    fysisk_levetid_år = 2,
+    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+    anvendes_til_råstofefterforskning = Falskt,
+    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
+    valg = Al6KortFysiskLevetid
+), al_2026_parametre)
+
+= al6_skib_er_ikke_småaktiv_efter_nr2 = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_skib,
+    anskaffelsessum_kroner = 35000,
+    samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
+    fysisk_levetid_år = 2,
+    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+    anvendes_til_råstofefterforskning = Falskt,
+    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_forskning_krydser_2026_loftet = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    anskaffelsessum_kroner = 200000,
+    samlet_anskaffelsessum_for_funktionsenhed_kroner = 200000,
+    fysisk_levetid_år = 10,
+    anvendes_til_forsøgs_og_forskningsvirksomhed = Sandt,
+    anvendes_til_råstofefterforskning = Falskt,
+    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 1088700000,
+    valg = Al6ForsøgsOgForskningsaktiv
+), al_2026_parametre)
+
+= sl6_ordinær_selvstændig = statsskattelov6_ordinær_afskrivning_resultat(Statsskattelov6OrdinærAfskrivningInput(
+    skatteyder = Sl6SelvstændigErhvervsdrivendePerson,
+    udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten = Sandt,
+    ikke_omfattet_af_særlig_afskrivningslovgivning = Sandt,
+    afskrivningsgrundlag_primo_kroner = 80000,
+    dokumenteret_ordinær_værdiforringelse_i_året_kroner = 12000,
+    ønsket_ordinær_afskrivning_kroner = 15000
+))
+
+= par3_nr10_samlet = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al5(resultat = al5_ordinær_selvstændig),
+        Par3Nr10Al5A(resultat = al5a_valgt_tab),
+        Par3Nr10Al6(resultat = al6_software_som_småaktiv),
+        Par3Nr10Al6(resultat = al6_forskning_krydser_2026_loftet),
+        Par3Nr10Sl6A(resultat = sl6_ordinær_selvstændig),
+        Par3Nr10Al5(resultat = al5_ordinær_selskab)
+    ]
+))
+
+= etbl_nettoløn_200000 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 200000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 200000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_nettoløn_300000 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 300000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 250000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_nettoløn_800000 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 800000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 480000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_blandet_fordeling = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 500000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 150000,
+    faktisk_iværksætterkontoindskud_kroner = 150000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_al29_reducerer_loftet = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 500000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 60000,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 240000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_undladt_indskud_efter_par4_stk2 = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblEtableringsår,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Falskt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Sandt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 0,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 400000,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 0,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 100000
+))
+
+= etbl_før_etablering_kræver_løn = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 0,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 300000,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 100000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_lønmodtaget_men_nettoløn_nul = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_gyldig_kontantplacering,
+    kontant_løn_kroner = 5000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 5000,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 5000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= etbl_ugyldig_placering_afskærer_faktisk_indskud = etableringskonto_indskud_resultat(EtableringskontoIndskudInput(
+    indkomstår = 2026,
+    fase = EtblFørEtablering,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = etbl_ugyldig_placering,
+    kontant_løn_kroner = 200000,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = 0,
+    faktisk_iværksætterkontoindskud_kroner = 100000,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+))
+
+= par3_nr11_blandet_fordeling = par3_stk2_nr11_resultat(Par3Stk2Nr11Input(
+    etableringskonto_resultat = etbl_blandet_fordeling
+))
+
+= par3_nr10_nr11_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 600000
+        )
+    ],
+    fradragsposter = [
+        par3_stk2_nr10_fradragspost(Par3Stk2Nr10Input(
+            grundlagsposter = [
+                Par3Nr10Al5(resultat = al5_ordinær_selvstændig),
+                Par3Nr10Al5A(resultat = al5a_valgt_tab),
+                Par3Nr10Al6(resultat = al6_software_som_småaktiv),
+                Par3Nr10Al6(resultat = al6_forskning_krydser_2026_loftet),
+                Par3Nr10Sl6A(resultat = sl6_ordinær_selvstændig),
+                Par3Nr10Al5(resultat = al5_ordinær_selskab)
+            ]
+        )),
+        par3_stk2_nr11_fradragspost(Par3Stk2Nr11Input(
+            etableringskonto_resultat = etbl_blandet_fordeling
+        ))
+    ]
+))
+
+| scenarie_al5_ordinær_25_pct: al5_ordinær_selvstændig -> al5_ordinær_selvstændig.saldoværdi_før_afskrivning_kroner == 130000 && al5_ordinær_selvstændig.højeste_ordinære_afskrivning_kroner == 32500 && al5_ordinær_selvstændig.fradrag_i_skattepligtig_indkomst_kroner == 32500 && al5_ordinær_selvstændig.saldoværdi_efter_afskrivning_kroner == 97500
+| scenarie_al5_fuld_småsaldo: al5_fuld_småsaldo -> al5_fuld_småsaldo.valg_gyldigt == Sandt && al5_fuld_småsaldo.fradrag_i_skattepligtig_indkomst_kroner == 36000 && al5_fuld_småsaldo.saldoværdi_efter_afskrivning_kroner == 0
+| scenarie_al5_over_småsaldogrænsen_afskæres: al5_fuld_over_småsaldogrænsen -> al5_fuld_over_småsaldogrænsen.valg_gyldigt == Falskt && al5_fuld_over_småsaldogrænsen.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al5a_valgt_tab: al5a_valgt_tab -> al5a_valgt_tab.beregnet_tab_kroner == 30000 && al5a_valgt_tab.tabsvalg_gyldigt == Sandt && al5a_valgt_tab.afskrivning_i_salgsåret_afskåret == Sandt && al5a_valgt_tab.saldoværdi_efter_formindskelse_kroner == 50000
+| scenarie_al5a_negativ_saldo_begrænser_tabet: al5a_tab_med_negativ_saldo -> al5a_tab_med_negativ_saldo.saldoformindskelse_fører_til_negativ_saldo == Sandt && al5a_tab_med_negativ_saldo.saldoformindskelse_kroner == 40000 && al5a_tab_med_negativ_saldo.tab_afskåret_af_saldogrænsen_kroner == 10000 && al5a_tab_med_negativ_saldo.tabsvalg_gyldigt == Sandt && al5a_tab_med_negativ_saldo.fradrag_i_skattepligtig_indkomst_kroner == 20000 && al5a_tab_med_negativ_saldo.saldoværdi_efter_formindskelse_kroner == 0
+| scenarie_al6_software_småaktiv: al6_software_som_småaktiv -> al6_software_som_småaktiv.småaktiv_betingelse_opfyldt == Sandt && al6_software_som_småaktiv.valg_gyldigt == Sandt && al6_software_som_småaktiv.fradrag_i_skattepligtig_indkomst_kroner == 35000
+| scenarie_al6_software_ikke_fysisk_levetid: al6_software_kan_ikke_vælges_som_kort_fysisk_levetid -> al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.kort_levetid_betingelse_opfyldt == Falskt && al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.valg_gyldigt == Falskt && al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al6_skib_ikke_småaktiv_efter_nr2: al6_skib_er_ikke_småaktiv_efter_nr2 -> al6_skib_er_ikke_småaktiv_efter_nr2.småaktiv_betingelse_opfyldt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.valg_gyldigt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al6_forskning_114_og_110_pct: al6_forskning_krydser_2026_loftet -> al6_forskning_krydser_2026_loftet.forskningsudgift_under_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.forskningsudgift_over_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.fradrag_i_skattepligtig_indkomst_kroner == 224000
+| scenarie_sl6_dokumenteret_ordinær_afskrivning: sl6_ordinær_selvstændig -> sl6_ordinær_selvstændig.ordinær_afskrivning_kroner == 12000 && sl6_ordinær_selvstændig.afskrivningsgrundlag_ultimo_kroner == 68000
+| scenarie_par3_nr10_filtrerer_selskab: par3_nr10_samlet -> par3_nr10_samlet.brutto_skattemæssige_afskrivninger_kroner == 77000 && par3_nr10_samlet.brutto_tab_kroner == 30000 && par3_nr10_samlet.brutto_andre_fradrag_kroner == 259000 && par3_nr10_samlet.brutto_fradrag_efter_kildelovene_kroner == 366000 && par3_nr10_samlet.fradrag_i_personlig_indkomst_kroner == 333500 && par3_nr10_samlet.afskåret_fordi_ikke_selvstændig_person_kroner == 32500
+| scenarie_etbl_officielle_indskudseksempler: etbl_nettoløn_200000 -> etbl_nettoløn_200000.højeste_indskud_efter_forskudsafskrivning_kroner == 200000 && etbl_nettoløn_200000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 200000 && etbl_nettoløn_300000.højeste_indskud_efter_forskudsafskrivning_kroner == 250000 && etbl_nettoløn_300000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 250000 && etbl_nettoløn_800000.højeste_indskud_efter_forskudsafskrivning_kroner == 480000 && etbl_nettoløn_800000.iværksætterkonto_personlig_indkomst_fradrag_kroner == 480000
+| scenarie_etbl_fordeler_kontotyper: etbl_blandet_fordeling -> etbl_blandet_fordeling.indskudsgrænser_opfyldt == Sandt && etbl_blandet_fordeling.behandlede_indskud_i_alt_kroner == 300000 && etbl_blandet_fordeling.etableringskonto_ligningsmæssigt_fradrag_kroner == 150000 && etbl_blandet_fordeling.iværksætterkonto_personlig_indkomst_fradrag_kroner == 150000 && etbl_blandet_fordeling.behandlede_indskud_uden_fradrag_kroner == 0
+| scenarie_etbl_al29_reducerer_indskudsloft: etbl_al29_reducerer_loftet -> etbl_al29_reducerer_loftet.højeste_indskud_før_forskudsafskrivning_kroner == 300000 && etbl_al29_reducerer_loftet.højeste_indskud_efter_forskudsafskrivning_kroner == 240000 && etbl_al29_reducerer_loftet.iværksætterkonto_personlig_indkomst_fradrag_kroner == 240000
+| scenarie_etbl_undladt_indskud_behandles_som_indskud: etbl_undladt_indskud_efter_par4_stk2 -> etbl_undladt_indskud_efter_par4_stk2.faktiske_indskud_i_alt_kroner == 0 && etbl_undladt_indskud_efter_par4_stk2.behandlede_indskud_i_alt_kroner == 100000 && etbl_undladt_indskud_efter_par4_stk2.iværksætterkonto_personlig_indkomst_fradrag_kroner == 100000
+| scenarie_etbl_før_etablering_kræver_løn: etbl_før_etablering_kræver_løn -> etbl_før_etablering_kræver_løn.indkomstkrav_opfyldt == Falskt && etbl_før_etablering_kræver_løn.person_berettiget == Falskt && etbl_før_etablering_kræver_løn.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_etbl_lønmodtagelse_og_nettolønsloft_adskilles: etbl_lønmodtaget_men_nettoløn_nul -> etbl_lønmodtaget_men_nettoløn_nul.lønindtægt_før_ligningslov9_til_9d_fradrag_kroner == 5000 && etbl_lønmodtaget_men_nettoløn_nul.nettolønindtægt_kroner == 0 && etbl_lønmodtaget_men_nettoløn_nul.indkomstkrav_opfyldt == Sandt && etbl_lønmodtaget_men_nettoløn_nul.person_berettiget == Sandt && etbl_lønmodtaget_men_nettoløn_nul.højeste_indskud_efter_forskudsafskrivning_kroner == 0 && etbl_lønmodtaget_men_nettoløn_nul.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_etbl_ugyldig_placering_afskærer_faktisk_indskud: etbl_ugyldig_placering_afskærer_faktisk_indskud -> etbl_ugyldig_placering_afskærer_faktisk_indskud.faktiske_indskud_opfylder_par4_stk1 == Falskt && etbl_ugyldig_placering_afskærer_faktisk_indskud.faktiske_indskud_i_alt_kroner == 100000 && etbl_ugyldig_placering_afskærer_faktisk_indskud.faktiske_indskud_afskåret_af_form_eller_frist_kroner == 100000 && etbl_ugyldig_placering_afskærer_faktisk_indskud.behandlede_indskud_i_alt_kroner == 0 && etbl_ugyldig_placering_afskærer_faktisk_indskud.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_par3_nr11_kun_iværksætterkonto: par3_nr11_blandet_fordeling -> par3_nr11_blandet_fordeling.etableringskonto_fradrag_uden_for_personlig_indkomst_kroner == 150000 && par3_nr11_blandet_fordeling.iværksætterkonto_fradrag_i_personlig_indkomst_kroner == 150000 && par3_nr11_blandet_fordeling.fradrag_i_personlig_indkomst_kroner == 150000
+| scenarie_par3_nr10_nr11_regelkaskade: par3_nr10_nr11_personlig_indkomst -> par3_nr10_nr11_personlig_indkomst.brutto_personlig_indkomst_kroner == 600000 && par3_nr10_nr11_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 483500 && par3_nr10_nr11_personlig_indkomst.netto_personlig_indkomst_kroner == 116500
+
+? scenarie_al5_ordinær_25_pct
+? scenarie_al5_fuld_småsaldo
+? scenarie_al5_over_småsaldogrænsen_afskæres
+? scenarie_al5a_valgt_tab
+? scenarie_al5a_negativ_saldo_begrænser_tabet
+? scenarie_al6_software_småaktiv
+? scenarie_al6_software_ikke_fysisk_levetid
+? scenarie_al6_skib_ikke_småaktiv_efter_nr2
+? scenarie_al6_forskning_114_og_110_pct
+? scenarie_sl6_dokumenteret_ordinær_afskrivning
+? scenarie_par3_nr10_filtrerer_selskab
+? scenarie_etbl_officielle_indskudseksempler
+? scenarie_etbl_fordeler_kontotyper
+? scenarie_etbl_al29_reducerer_indskudsloft
+? scenarie_etbl_undladt_indskud_behandles_som_indskud
+? scenarie_etbl_før_etablering_kræver_løn
+? scenarie_etbl_lønmodtagelse_og_nettolønsloft_adskilles
+? scenarie_etbl_ugyldig_placering_afskærer_faktisk_indskud
+? scenarie_par3_nr11_kun_iværksætterkonto
+? scenarie_par3_nr10_nr11_regelkaskade
