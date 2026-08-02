@@ -1,468 +1,313 @@
 # Invisible Ownership
 
-## Abstract
+Every program creates values, passes them around, changes some of them, and
+eventually releases the memory behind them. A language cannot make those
+questions disappear. It can only decide who has to answer them.
 
-Rust proved that memory safety without garbage collection is achievable — but at the cost of explicit lifetime annotations, borrow syntax, and an infamously steep learning curve. We ask: can a compiler infer ownership, borrowing, and cloning automatically from value semantics alone?
+Rust asks the programmer and compiler to answer together. The source code says
+when a value moves, when it is borrowed, when it is cloned, and sometimes how
+long a reference must remain valid. Futuruna chooses a narrower source model:
+the programmer writes value flow, while the compiler decides how that flow
+should become ownership-correct Rust.
 
-We tested this by systematically attacking Futuruna's ownership inference with every pathological pattern that forces Rust into explicit lifetimes: self-referential structs, arena allocators, intrusive linked lists, async state machines with borrows across yield points, and 72 adversarial borrow-checker patterns. The result: **76 patterns compile to valid Rust with zero ownership annotations**. Three compiler bugs were discovered and fixed during the process.
+That is what **invisible ownership** means. Ownership is not absent. It is
+present in the generated program rather than in the ordinary Futuruna syntax.
 
-This page describes the inference algorithm, presents every adversarial pattern with real code, documents the honest limits, and explains why the escape hatch exists for the remaining 1-5%.
+## The Memory Question
 
----
+Consider a value used twice:
 
-## The Criticism We're Answering
+```runa
+= clause = "A tenant may terminate the agreement"
+= words = word_count(clause)
+@ print(clause)
+```
 
-Two independent reviewers raised the same concern:
+Several implementation questions are hiding inside these three lines:
 
-> *"The escape analysis and borrow inference work for the test suite. But systems programming creates pathological ownership patterns — self-referential structs, arena allocators, intrusive linked lists, async state machines with borrows across yield points. These are the cases that forced Rust into explicit lifetimes."*
+- Does `word_count` take the string away from its caller?
+- Does it borrow the string temporarily?
+- Is the string copied, or is its storage shared?
+- If either side can mutate it, what does the other side observe?
+- When can the allocation be released?
 
-> *"While inferring &[String] over Vec&lt;String&gt; for read-only parameters is elegantly solvable, the boundary conditions of ownership — specifically cyclic data structures, self-referential structs, and complex interior mutability — are notoriously difficult to infer purely from usage without annotations."*
+Those are ownership questions. They matter because the wrong answer can create
+a dangling pointer, a double free, a data race, or an unnecessary copy.
 
-Both reviewers are right that these patterns are hard. Our claim is not that we solved them — it's that we **eliminated the need for them** through a different design point.
+For a long time, mainstream languages mostly placed this burden in one of two
+places. C exposes allocation and deallocation directly; C++ adds deterministic
+destruction and RAII, but the programmer still reasons about pointers and
+object lifetimes. Managed languages usually place more of the burden on a
+garbage collector, which discovers unreachable objects while the program runs.
+The first route offers direct control. The second removes a large class of
+memory-lifetime mistakes. Both make a real tradeoff.
 
----
+## From Rust to Hylo
 
-## The Hylo Influence
+[Rust](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html) made a
+third route practical for general systems programming: memory is managed by a
+static ownership system checked by the compiler, without requiring a tracing
+garbage collector.
 
-Futuruna did not invent the idea of keeping ownership and lifetime syntax out
-of the programmer's way. Its clearest direct influence here is
-[Hylo](https://hylo-lang.org/introduction/), formerly called Val, a systems
-programming language built around mutable value semantics.
+Rust makes the important distinctions visible. Passing a value can move it.
+`&T` borrows it for reading, `&mut T` borrows it exclusively for mutation, and
+`.clone()` asks for another owned value. References carry lifetimes so the
+compiler can prove that they do not outlive what they point to. Most lifetime
+relationships are inferred or covered by [lifetime
+elision](https://doc.rust-lang.org/reference/lifetime-elision.html); explicit
+annotations are needed when the relationship cannot be inferred from the
+signature.
+
+This is an excellent design for control. Rust can store references in data
+structures, return borrowed views, and express low-level relationships
+precisely. The cost is that ownership and borrowing become part of the
+programmer's working vocabulary.
+
+Futuruna's direct influence at this point is
+[Hylo](https://hylo-lang.org/introduction/), formerly called Val. Hylo is built
+around **mutable value semantics**: values behave as independent values, while
+temporary access can still permit efficient in-place mutation.
 
 The 2022 paper [*Mutable Value
 Semantics*](https://research.google/pubs/mutable-value-semantics/) describes the
-central boundary: references are second-class. They can be created implicitly
-at function boundaries, but they cannot be stored in variables or object
-fields. Hylo applies this boundary so programs can combine value semantics with
-efficient in-place mutation without exposing lifetime annotations.
+strict form of this idea. References are second-class: they arise implicitly at
+function boundaries, but cannot be stored in variables or object fields. Hylo
+uses access conventions such as
+[`inout`](https://hylo-lang.org/docs/user/language-tour/functions-and-methods/)
+to say that a function may temporarily modify a caller's value without turning
+references and lifetimes into ordinary source-level data.
 
-Futuruna directly adopts that part of the design. Values have value semantics,
-`inout` grants temporary mutable access, and references are not part of the
-source-level data model. A Futuruna program cannot store a reference in a
-structure or return one as a value.
+Futuruna adopts that semantic boundary and the `inout` idea. It does not adopt
+Hylo's compiler or exact syntax. Futuruna takes a different implementation
+route: it transpiles to Rust and infers the moves, borrows, clones, and sharing
+operations that the Rust program needs.
 
-From there, Futuruna takes a different implementation path. Hylo is its own
-language and compiler. Futuruna transpiles to Rust, using branch-aware escape
-analysis and auto-borrow inference to decide when the generated Rust should
-move, borrow, or clone a value. For the remaining low-level cases, Futuruna
-provides the `@ rust {}` escape hatch.
+## The Futuruna Choice
 
----
+The ordinary Futuruna model rests on a few constraints:
 
-## The Design Philosophy
+1. **Values are the default.** A parameter describes the value a function
+   receives, not a pointer shape the caller must manage.
+2. **References are not source-level data.** Ordinary Futuruna code does not
+   store a reference in a field or return a borrowed value tied to an input
+   lifetime.
+3. **Mutation across a function boundary is explicit.** An `inout` parameter
+   says that the caller's value may change.
+4. **Shared mutable state gets an owner.** Actors and other dedicated handles
+   put mutation behind an interface instead of exposing freely aliased memory.
+5. **Rust remains available at the boundary.** Interop and low-level work can
+   use `@ rust {}` when the value model is not the right tool.
 
-Rust and Futuruna make different tradeoffs:
+The first constraint gives the language its simple surface. The others are
+what make that simplicity possible. Futuruna can omit lifetime syntax because
+its normal data model does not let a reference escape and become a long-lived
+value.
 
-| | Rust | Futuruna |
-|---|---|---|
-| **References** | First-class (can be stored, returned, composed) | Second-class (compiler emits them, programmer never sees them) |
-| **Mutation** | Mutable by default, with careful exclusion rules | Immutable by default; `inout` for explicit mutation |
-| **Shared mutable state** | `Arc<Mutex<T>>` with careful lifetime management | Actors own state exclusively; messages are the only interface |
-| **Self-referential data** | `Pin<Box<T>>` + unsafe, or crates like ouroboros | Indices into flat arrays — integers are Copy |
-| **Lifetimes** | Explicit `'a` annotations when the compiler can't infer | Never visible — the compiler either infers or clones |
-| **When inference fails** | Programmer adds annotations | Programmer uses `@ rust {}` escape hatch |
-
-The question becomes: **does second-class-reference programming actually work for real programs?**
-
----
-
-## The Inference Algorithm
-
-Futuruna's ownership inference has three layers that compose to produce Rust-level efficiency without annotations.
-
-### Layer 1: Escape Analysis
-
-For every variable in every scope, the compiler counts *consuming uses* — places where ownership would be required in Rust:
-
-```
-For each binding = x = expr:
-  1. Count consuming uses of x in the remaining scope
-  2. Classify:
-     - 0 uses → drop immediately
-     - 1 consuming use → move (zero cost)
-     - 2+ consuming uses → clone at all but the last
-  3. Copy types (Int, Float, Bool, Char) → never clone
-```
-
-The counting is **branch-aware**: a variable used once in the `if` branch and once in the `else` branch counts as 1 consuming use (maximum across branches), not 2. This prevents unnecessary cloning when a value is moved on whichever branch executes.
-
-### Layer 2: Auto-Borrow Inference
-
-For every function parameter, the compiler asks: *is this parameter only read, never consumed?*
-
-```
-analyze_borrow_only_params(params, body):
-  for each param p:
-    if p is never consumed AND never returned AND never pattern-matched:
-      → emit as &T (borrow)
-    else if ALL consuming uses are field access only:
-      → emit as &T (field access works on references)
-    else:
-      → emit as T (owned)
-```
-
-At call sites, the compiler automatically emits `&var` for borrow-only parameters. The programmer writes `process(data)`. The compiler emits `process(&data)`.
-
-This cascades: if function `get_x` borrows its parameter, and function `sum` calls `get_x(p) + get_y(p)`, then `sum` sees zero consuming uses of `p` — so `sum` also borrows its parameter. One level of inference propagates through the entire call graph.
-
-### Layer 3: Ref-Match (Structural Borrowing)
-
-Accessor functions that pattern-match on a parameter can still borrow if all destructured fields are Copy:
+For example:
 
 ```runa
-# Pair(fst: Int, snd: Int)
-
-> pair_first(p: Pair) -> Int {
-    match p { | Pair(a, _) -> a }
+> word_count(text: String) -> Int {
+    length(split(text, " "))
 }
+
+= clause = "A tenant may terminate the agreement"
+= words = word_count(clause)
+@ print(clause)
 ```
 
-The compiler proves: `Pair` has all-Copy fields (`Int, Int`), the return type is Copy, and the type has no recursive (boxed) fields. Therefore the match can operate on `&Pair`:
+The source reads as value flow. Because `word_count` only inspects `text`, the
+compiler can emit a Rust function that accepts a shared borrow and a call that
+passes `&clause`. The Futuruna programmer does not choose or spell that borrow.
 
-```rust
-fn pair_first(p: &Pair) -> i64 {
-    match p { Pair { fst: a, .. } => (*a) }
-}
-```
+## What the Compiler Infers
 
-The `(*a)` dereference is inserted automatically. The programmer never sees `&` or `*`.
+The compiler analyzes how each binding and function parameter is used. The
+result is carried into Rust generation as one of several ownership strategies:
 
----
+| Source situation | Generated Rust strategy | Typical cost |
+|------------------|-------------------------|--------------|
+| A primitive such as `Int` or `Bool` | Copy | No allocation |
+| One consuming use of an owned value | Move | No copy |
+| A read-only parameter | Shared borrow, `&T` | No copy |
+| An `inout` parameter | Exclusive borrow, `&mut T` | In-place mutation |
+| Several consuming uses | Clone where another owner must survive | Depends on the value |
+| A recursive algebraic data type | `Rc` in synchronous code, `Arc` in async code | Reference-count update on shared edges |
+| An explicit `shared T` | `Arc<T>` | Atomic reference-count update |
 
-## The Adversarial Patterns
+This is more than counting textual appearances. The analysis knows which
+built-ins borrow their arguments, propagates read-only parameter decisions
+through calls between named functions, and treats mutually exclusive branches
+independently. A value consumed once in either side of an `if` need not be
+cloned merely because both branches mention it.
 
-We systematically tested every pattern the reviewers named, plus 60+ additional patterns from the Rust borrow-checker literature. Each pattern compiles to valid Rust, verified by `rustc`.
+The analysis is conservative. When it cannot justify a borrow or a unique move,
+it preserves the source-level value behavior by cloning, or by relying on a
+representation that is already shared. That choice should be correct before it
+is clever.
 
-### Arena Allocators
+Rust then checks the generated program. This is an important division of
+responsibility: Futuruna's analysis chooses a representation, while `rustc`
+enforces Rust's ownership rules. Rust compilation is strong evidence of memory
+safety for the emitted code, but it does not prove that every clone was optimal
+or that the transpiler preserved every intended high-level behavior. Those are
+separate compiler-correctness questions.
 
-**The Rust pain:** Arenas need lifetime annotations. `fn get<'a>(&'a self, idx: usize) -> &'a Node` ties the returned reference to the arena's lifetime.
+## Mutation as a Semantic Choice
 
-**The Futuruna approach:** Index-based arena. Nodes store integer indices to children, not pointers. Integers are Copy — no lifetimes needed.
+Ownership and mutation are related, but they are not the same question.
+Futuruna hides most ownership choices while keeping mutation visible:
 
 ```runa
-# Node(value: String, left: Int, right: Int)
+> push_squares(xs: inout List(Int), n: Int) -> () {
+    for i in range(0, n) {
+        push(xs, i * i)
+    }
+}
 
-> node_value(n: Node) -> String { match n { | Node(v, _, _) -> v } }
-> node_left(n: Node) -> Int { match n { | Node(_, l, _) -> l } }
-> node_right(n: Node) -> Int { match n { | Node(_, _, r) -> r } }
-
--- Build a tree as a flat array (arena pattern)
-= arena = [Node("root", 1, 2), Node("left", 3, -1),
-           Node("right", -1, -1), Node("leaf", -1, -1)]
-
--- Navigate by index — no lifetimes
-= root = arena[0]
-= left_child = arena[node_left(root)]
+= values = [0]
+push_squares(values, 5)
 ```
 
-The tree traversal, depth calculation, and DFS all work with zero annotations. The generated Rust uses `Vec<Node>` with safe indexing — no `unsafe`, no lifetimes, no `Pin`.
+`inout` says something useful to a human reader: this function may change
+`values`. It does not ask the reader to reason about a pointer or lifetime. The
+compiler lowers the parameter to `&mut Vec<i64>` and passes temporary exclusive
+access at the call site.
 
-**Key insight:** The arena pattern works *identically* in Rust (many Rust arena crates use index-based access). Futuruna just makes it the default — and since there are no references to worry about, the programmer doesn't need to think about why.
+For `inout shared T`, the generated Rust uses copy-on-write through
+`Arc::make_mut`. Mutation remains local to the caller's logical value even when
+the previous representation was shared. This can require a copy, but it
+preserves value independence.
 
-### Self-Referential Structs
+This is the central lesson inherited from Hylo: make the semantic effect
+visible and leave the physical access mechanism to the implementation.
 
-**The Rust pain:** A struct containing both owned data and a reference into that data (e.g., a parsed document with token slices) requires `Pin<Box<T>>` + unsafe, or the ouroboros crate.
+## When References Become Data
 
-**The Futuruna approach:** Store offsets instead of references.
+Not every Rust design fits a language without stored references. Futuruna does
+not secretly infer arbitrary lifetime graphs. It asks the program to represent
+some relationships differently.
+
+| Reference-oriented shape | Value-oriented Futuruna shape |
+|---------------------------|--------------------------------|
+| Slice pointing into a document | Source value plus `Span(start, stop)` |
+| Parent or cross-link in a graph | Index or stable identifier |
+| Iterator borrowing a collection | Owned iterator state, or collection plus cursor position |
+| Long-lived shared mutable object | Actor or purpose-built handle |
+| Borrowed result tied to an input | Owned result, index, or operation performed inside the call |
+
+A parsed document, for example, can keep its source text and store spans rather
+than slices:
 
 ```runa
 # Span(start: Int, stop: Int)
-
-> get_token(source: String, spans: List(Span), idx: Int) -> String {
-    = span = spans[idx]
-    = start = span_start(span)
-    = stop = span_stop(span)
-    substring(source, start, stop - start)
-}
-
-= source = "hello world"
-= spans = [Span(0, 5), Span(6, 11)]
-= tok0 = get_token(source, spans, 0)   -- "hello"
-= tok1 = get_token(source, spans, 1)   -- "world"
+# Document(source: String, clauses: List(Span))
 ```
 
-The same pattern handles iterators/cursors (carry `(items, position)` through function calls instead of storing `&'a Vec<T>`) and graph nodes with parent pointers (store `parent_idx: Int` instead of `*mut Node`).
+This removes a lifetime relationship from the type. It does not remove all
+work. Spans must be validated, indices can become logically stale, reconstructing
+an owned view may allocate, and an actor introduces messaging overhead. These
+are representation tradeoffs, not free victories over the borrow checker.
 
-**What this costs:** Reconstructing a substring from offsets is O(1) in both approaches (Rust slice indexing vs Futuruna's `substring`). The performance is equivalent.
+The benefit is a firm boundary: ordinary data remains self-contained. A value
+does not quietly keep another value alive through an invisible source-level
+reference.
 
-### Doubly-Linked Lists
+## Sharing and Concurrency
 
-**The Rust pain:** Doubly-linked lists are the canonical example of data that requires `Rc<RefCell<Node>>` or unsafe raw pointers. Each node needs both forward and backward references — ownership can't flow in both directions.
+Value semantics do not require deep-copying everything.
 
-**The Futuruna approach:** Flat array with prev/next indices.
-
-```runa
-# DLNode(label: String, prev: Int, next: Int)
-
-> dl_value(n: DLNode) -> String { match n { | DLNode(v, _, _) -> v } }
-> dl_prev(n: DLNode) -> Int { match n { | DLNode(_, p, _) -> p } }
-> dl_next(n: DLNode) -> Int { match n { | DLNode(_, _, nx) -> nx } }
-
-= dl = [DLNode("alpha", -1, 1), DLNode("beta", 0, 2), DLNode("gamma", 1, -1)]
-
--- Traverse forward
-= n0 = dl[0]                    -- alpha
-= n1 = dl[dl_next(n0)]          -- beta
-= n2 = dl[dl_next(n1)]          -- gamma
-
--- Traverse backward
-= n1b = dl[dl_prev(n2)]         -- beta
-= n0b = dl[dl_prev(n1b)]        -- alpha
-```
-
-Forward and backward traversal with zero ownership annotations. The same approach handles intrusive linked lists (multiple index arrays over shared data, each providing a different ordering).
-
-### Structural Sharing
-
-**The Rust pain:** Two lists sharing a common tail require `Rc<List>`.
-
-**The Futuruna approach:** Clone the shared data. Safe, correct, possibly more memory.
+For recursive algebraic data types, Futuruna emits reference-counted recursive
+edges. Synchronous programs use `Rc`; programs with async features use `Arc`.
+That makes persistent tails and subtrees cheap to share:
 
 ```runa
 # IntList = Nil | Cons(Int, IntList)
 
-= shared_tail = Cons(30, Cons(40, Nil))
-= branch_a = Cons(10, shared_tail)
-= branch_b = Cons(20, shared_tail)
+= tail = Cons(30, Cons(40, Nil))
+= branch_a = Cons(10, tail)
+= branch_b = Cons(20, tail)
 ```
 
-The compiler sees `shared_tail` used in two consuming positions and emits `.clone()` for the first. Both branches get independent copies. This is semantically identical to sharing (the data is immutable) but uses more memory for large structures.
-
-**Honest cost:** For a shared tail of n elements, this is O(n) extra memory and O(n) extra time. Rust's `Rc<List>` is O(1). For small to medium data, the cost is negligible. For large immutable trees with heavy sharing (persistent data structures), this is a real performance gap. Future work: Perceus-style reuse analysis could detect single-owner cases and avoid the copy.
-
-### Async State Machines
-
-**The Rust pain:** Borrows across `.await` points are the #1 source of lifetime pain in async Rust. The compiler must prove that borrowed data outlives the future that references it.
-
-**The Futuruna approach:** Actors own their state exclusively. Messages transfer ownership. There are no borrows across yield points because there are no borrows.
-
-```runa
-> actor accumulator(total: Int) {
-    | Add(n) -> total + n
-    | Sub(n) -> total - n
-    | Reset -> 0
-}
-
-= acc = spawn(accumulator, 0)
-acc <- Add(10)
-acc <- Add(20)
-acc <- Sub(5)
-= result = ask(acc, Add(0))     -- 25
-```
-
-The generated Rust uses tokio channels and message enums — standard async Rust, but the programmer never writes `Arc<Mutex<T>>`, never manages `Send` bounds, never fights the async borrow checker.
-
-**Shared configuration** across multiple actors/tasks uses value copying. Since config is immutable, copying is semantically identical to `Arc<Config>` — but without atomic reference counting overhead:
-
-```runa
-# Config(url: String, retries: Int)
-
-= cfg = Config("postgres://localhost/db", 3)
-= r1 = process_with_config(cfg, 1)   -- clone
-= r2 = process_with_config(cfg, 2)   -- clone
-= r3 = process_with_config(cfg, 3)   -- move
-```
-
-### Higher-Order Closures
-
-**The Rust pain:** Closures that capture non-Copy values and are used in multiple places need `Box<dyn Fn>` or careful Clone bounds. Composing closures (`compose(f, g)`) moves both into the composed closure, making the originals unusable.
-
-**The Futuruna approach:** All closures are Clone (the compiler adds `+ Clone` to every `impl FnMut` bound). The escape analysis counts closure callee positions as consuming uses.
-
-```runa
-> make_adder(n: Int) -> Int -> Int { |x| x + n }
-> make_multiplier(n: Int) -> Int -> Int { |x| x * n }
-> compose(f: Int -> Int, g: Int -> Int) -> Int -> Int { |x| f(g(x)) }
-
-= add5 = make_adder(5)
-= mul3 = make_multiplier(3)
-= add5_then_mul3 = compose(mul3, add5)
-
--- All three closures still usable:
-@ print(show(add5(10)))              -- 15
-@ print(show(mul3(10)))              -- 30
-@ print(show(add5_then_mul3(10)))    -- 45
-```
-
-The compiler sees `add5` used twice (passed to `compose` AND called directly), emits `.clone()` for the first use, and the original survives. This pattern was a compiler bug we discovered and fixed during this research.
-
-### Builder Pattern
-
-**The Rust pain:** Builder patterns need `&mut self -> Self` chains or separate Builder/Built types.
-
-**The Futuruna approach:** Functional rebinding. Each `with_*` function takes an owned struct and returns a new one.
-
-```runa
-# Request(method: String, path: String, body: String)
-
-> with_method(r: Request, m: String) -> Request {
-    Request(m, req_path(r), req_body(r))
-}
-
-= req = Request("GET", "", "")
-= req = with_method(req, "POST")
-= req = with_path(req, "/api/data")
-= req = with_body(req, "{key: value}")
-```
-
-Each rebinding moves the previous value into the function (single consuming use → no clone). The generated Rust is identical to what a Rust programmer would write by hand.
-
-### Recursive ADTs with Non-Copy Fields
-
-Recursive types with String fields test the safety guard: the compiler must NOT attempt ref-match on types with boxed fields (matching on `&Box<T>` would require moving out of a shared reference).
-
-```runa
-# Expr = Lit(Int) | Add(Expr, Expr) | Mul(Expr, Expr) | Var(String)
-
-> eval_expr(e: Expr, x_val: Int) -> Int {
-    match e {
-        | Lit(n) -> n
-        | Add(a, b) -> eval_expr(a, x_val) + eval_expr(b, x_val)
-        | Mul(a, b) -> eval_expr(a, x_val) * eval_expr(b, x_val)
-        | Var(_) -> x_val
-    }
-}
-```
-
-The compiler correctly detects boxed fields in `Expr` (the recursive `Expr` arguments in `Add` and `Mul`), disables ref-match, and emits owned parameters. The expression tree `(x + 2) * (x + 3)` evaluates correctly at x=5 (56) and x=10 (156).
-
----
-
-## The 72 Adversarial Borrow Patterns
-
-Beyond the structural patterns above, we maintain five dedicated adversarial test files that attack the escape analysis with patterns from the Rust borrow-checker literature:
-
-| Test File | Patterns | What It Tests |
-|-----------|----------|---------------|
-| `borrow_checker_test.runa` | 12 | Use-after-move, branch independence, aliasing, borrow-then-consume, match arm independence, recursive ownership, closure capture, struct field access, string building, mutual recursion, use-after-call, deep pattern match |
-| `borrow_adversarial2.runa` | 12 | Same-var double-pass `f(x, x)`, closures capturing non-Copy, conditional return, loop+reuse, chained accessors, nested match, FnOnce vs FnMut, triple field access, string accumulation, Option matching |
-| `borrow_adversarial3.runa` | 12 | Consume-then-use, multi-read after consume, lambda captures, for-loop ownership, match+use-after, string aliasing, multi-call same arg, nested calls, conditional consume, list of strings |
-| `borrow_adversarial4.runa` | 12 | Identity consuming, strings in multiple concats, ADT with String fields, unit enum match, for-loop string use, nested consuming calls, struct multi-access, deep string ops, recursive string |
-| `borrow_adversarial5.runa` | 12 | Triple aliasing, both-branch use, struct double-pass, list multi-op, nested match on ADT, HOF chain, string builder, pipeline captures, Boolean match, string foldl |
-
-**Result:** All 60 patterns compile to valid Rust. Plus 16 patterns in the 5 ownership stress tests. **Total: 76 patterns, 0 escape hatches needed.**
-
-### Comparison Table
-
-| # | Pattern | Rust Requires | Futuruna Emits | Winner |
-|---|---------|---------------|----------------|--------|
-| T1 | Use-after-move | `.clone()` or `&T` | Auto-borrow `&String` | **Futuruna** (zero clones) |
-| T2 | Branch independence | Manual analysis | Branch-aware counting | **Futuruna** (no annotation) |
-| T3 | Aliasing `= y = x; use x` | `x.clone()` at binding | `x.clone()` at binding | Tie |
-| T4 | Borrow then consume | Careful ordering | Auto-borrow `&val` | **Futuruna** (zero clones) |
-| T5 | Match arm independence | Clone in all-but-last | Auto-borrow `&fallback` | **Futuruna** (zero clones) |
-| T8 | Struct field access | Manual `&Pair` + `*a` deref | Ref-match cascade | **Futuruna** (zero clones) |
-| T13 | Same-var double-pass `f(x, x)` | `.clone()` | `.clone()` | Tie |
-| T14 | Closure capturing non-Copy | `move` + Clone | `move` + auto-clone | Tie |
-
-**Summary:** Futuruna wins on 5/12 core patterns (auto-borrow + ref-match eliminates clones), ties on 7/12, loses on 0/12.
-
----
-
-## Bugs Discovered
-
-This research uncovered three compiler bugs, all fixed:
-
-### Bug 1: Auto-Comptime on Closures
-
-`= add5 = make_adder(5)` was incorrectly evaluated at compile time. The interpreter returned a closure value, which `value_to_rust_literal` couldn't represent, emitting `const add5: () = todo!(...)`.
-
-**Fix:** After evaluation, check if the result can be represented as a Rust literal. Skip auto-comptime for closures, actors, and other non-representable values.
-
-### Bug 2: Closure Callee Not Counted as Consuming
-
-```runa
-= add5 = make_adder(5)
-= composed = compose(f, add5)   -- consuming use 1
-@ print(show(add5(10)))          -- use after move!
-```
-
-The escape analysis counted `add5` as an argument to `compose` (1 consuming use) but did NOT count the callee position in `add5(10)` as consuming. With only 1 counted use, no clone was emitted.
-
-**Fix:** In `count_consuming_uses_borrow_aware`, when the callee of an `App` is a variable not in the known function map (i.e., a local closure variable, not a top-level function definition), count it as a consuming use.
-
-### Bug 3: Closures Not Clone
-
-Even after correct counting, `.clone()` on `impl FnMut(i64) -> i64` fails — Rust's `impl Fn*` bounds don't include `Clone` by default.
-
-**Fix:** All closure types now emit `impl FnMut(...) -> T + Clone`. This is sound because Futuruna values are always cloneable (the compiler auto-clones as needed), so all captured values in closures are Clone.
-
----
-
-## The Honest Limits
-
-### What costs more than hand-written Rust
-
-1. **Structural sharing.** `Rc<List>` shares in O(1). Futuruna clones in O(n). For persistent data structures with heavy tail-sharing, this is a real performance gap.
-
-2. **Shared immutable config.** `Arc<Config>` costs one atomic increment per share. Futuruna copies the entire struct. For small config objects, copying is faster (no atomic). For large objects shared thousands of times, `Arc` wins.
-
-3. **Over-cloning in complex control flow.** The compiler takes the max count across branches, but can't prove a branch is unreachable. Some clones may be unnecessary.
-
-### What requires `@ rust {}`
-
-1. **Raw pointer manipulation** — inherently unsafe in any language
-2. **FFI with C libraries** — external ABIs need explicit type mapping
-3. **Custom allocators** — fine-grained memory control by definition
-4. **Lock-free data structures** — atomic operations are inherently low-level
-5. **General cyclic graphs** — back-edges create ownership cycles (index-based works for trees; raw pointer graphs need unsafe)
-
-### What we explicitly do not handle
-
-1. **Stored references.** You cannot create `struct { data: String, slice: &str }` in Futuruna. This is by design, not a bug. Futuruna follows Hylo's mutable-value-semantics boundary: if you cannot store a reference, you cannot create a stored-reference lifetime problem that outlives the current call.
-
-2. **Interior mutability.** No `RefCell<T>`, no `Cell<T>`. Mutation goes through `inout` (local, scoped) or actors (concurrent, message-based). This eliminates the aliasing problem but means some Rust patterns must be restructured.
-
-3. **Lifetime polymorphism.** Rust functions can be generic over lifetimes (`fn foo<'a, 'b>(...)`). Futuruna has no concept of lifetimes, so these patterns are handled by the compiler's choice of move vs clone vs borrow.
-
----
-
-## Theoretical Connection: S_τ and Ownership
-
-The ownership inference is, mathematically, a degenerate case of the S_τ (causal entropic force) computation that governs Futuruna's syntax design.
-
-S_τ measures the freedom of future action from a given state. Applied to data flow:
-
-- **S_τ = 0:** Variable is unused (dead code) → drop immediately
-- **S_τ low (1 path):** Variable flows to exactly one consumer → move (zero cost)
-- **S_τ medium (bounded paths):** Variable used in multiple consuming positions → clone
-- **S_τ high (unbounded paths):** Variable escapes to unknown code → reference counting
-
-The compiler's escape analysis computes S_τ with τ=1 (one-step lookahead): how many distinct future consumers does this variable have? Extending to τ>1 would enable cross-function flow analysis — each function "knows" how its values propagate through the call graph.
-
-This is not implemented, but the theory predicts what a fully-optimized ownership inference would look like: an S_τ computation on the data flow graph, where the entropy of each variable's future determines whether it should be moved, borrowed, cloned, or reference-counted.
-
----
-
-## Reproducibility
-
-Every pattern on this page is a runnable test in the Futuruna repository:
+At the Futuruna level, `branch_a` and `branch_b` are independent immutable
+values. In generated Rust, their recursive edges can point to the same
+allocation. Cloning such an edge updates a reference count instead of copying
+the entire tail.
+
+This mechanism is suited to finite recursive values, not arbitrary mutable
+pointer graphs. A general cyclic graph is normally represented with indexed
+nodes. Code that specifically needs intrusive pointers, custom allocation, or
+lock-free mutation belongs in a Rust library or a raw Rust boundary.
+
+For concurrency, Futuruna steers shared mutation toward actors. An actor owns
+its state and receives messages; callers hold a handle rather than a mutable
+reference into that state. The generated runtime can still use Rust channels,
+reference counts, locks, and task handles internally. The point is that those
+mechanisms do not become the application's source-level ownership protocol.
+
+## The Honest Costs
+
+Invisible ownership is a trade, not a universal improvement over explicit
+ownership.
+
+1. **Conservative clones can cost time and memory.** Read-only inference removes
+   common copies, but complex flows can still produce clones that a Rust expert
+   would avoid.
+2. **Reference counting is not free.** `Rc` and especially atomic `Arc` updates
+   have a cost, even when they are much cheaper than a deep copy.
+3. **Borrowed views are deliberately limited.** A Rust API can return a slice
+   tied to its input. Ordinary Futuruna code must return an owned value, return
+   coordinates, or perform the operation before temporary access ends.
+4. **Some data structures change shape.** Indices and spans are often clear and
+   robust, but they are not interchangeable with pointers in every algorithm.
+5. **Actors trade aliasing for messaging.** That is useful for concurrent
+   workflows, but excessive actor use is the wrong choice for a hot local loop.
+6. **The inference is compiler machinery, not magic.** Its safety is backed by
+   Rust's checks; its performance and semantic correctness still need tests,
+   generated-code inspection, and benchmarks.
+
+The `@ rust {}` escape hatch marks the edge of the model. It is appropriate for
+FFI, specialized allocation, lock-free structures, unusual borrowed APIs, and
+performance-sensitive integration with Rust crates. Raw Rust is still checked
+by Rust, but any `unsafe` code inside it carries the same obligations as
+`unsafe` code in a Rust project.
+
+## The Claim and the Evidence
+
+Futuruna does not claim to make every Rust ownership pattern inferable. That
+would combine Rust's full expressive freedom with none of its visible
+constraints, which is not a credible promise.
+
+The narrower claim is this:
+
+> For ordinary rule, data, and application programming, Futuruna can present a
+> value-oriented language without source-level borrow syntax, then generate
+> Rust that moves, borrows, clones, or shares those values as required.
+
+Rust handles difficult lifetime relationships by making them expressible and
+checkable. Futuruna handles many of them by making stored references
+inexpressible in its ordinary model. What remains is represented as values,
+indices, spans, shared immutable structure, actors, or explicit Rust interop.
+
+The repository keeps this claim inspectable rather than attaching it to a
+fixed test count that will immediately go stale:
 
 ```bash
-# Run all 63 tests (including 5 ownership stress tests)
-./target/release/runa test
+# Inspect the ownership decisions in generated Rust
+runa emit tests/ownership_arena.runa
 
-# Verify generated Rust compiles (rustc validation)
-./target/release/runa check tests/ownership_arena.runa
-./target/release/runa check tests/ownership_self_ref.runa
-./target/release/runa check tests/ownership_linked_list.runa
-./target/release/runa check tests/ownership_async.runa
-./target/release/runa check tests/ownership_hard_patterns.runa
+# Compile and execute the test corpus
+runa test --run
 
-# See the generated Rust for any test
-./target/release/runa emit tests/ownership_arena.runa
+# Require generated Rust to pass rustc across the supported test corpus
+runa test --check-codegen
 ```
 
-The adversarial borrow tests are in `tests/borrow_checker_test.runa`, `tests/borrow_adversarial2.runa` through `tests/borrow_adversarial5.runa`.
+The focused cases include `tests/ownership_arena.runa` for arena and index-based
+data, `tests/ownership_self_ref.runa` for self-reference alternatives,
+`tests/ownership_async.runa` for actor-oriented state,
+`tests/ownership_hard_patterns.runa` for difficult value flows, and
+`tests/rc_sharing_test.runa` for reference-counted structural sharing.
 
----
-
-## Conclusion
-
-Ownership inference with unknown limits is a valid criticism of any system that claims to eliminate Rust's annotation burden. Our response is not that the limits are gone — it's that **the limits are now known, tested, and documented**.
-
-The 76 adversarial patterns establish an empirical boundary. Everything inside that boundary — arena allocators, self-referential data, doubly-linked lists, async state machines, higher-order closures, recursive ADTs — works with zero annotations. Everything outside it — raw pointer manipulation, FFI, custom allocators, general cyclic graphs — has the `@ rust {}` escape hatch.
-
-The honest question is not "can Futuruna handle every Rust pattern?" but "how often do you need the escape hatch?" In our test suite of 63 programs and all examples, the answer is: **zero times for ownership reasons**.
-
-The escape hatch is for FFI and performance tuning. Not for borrow-checker fights.
+That evidence should grow with the language. The promise should remain the
+same: simple source semantics, visible mutation, honest boundaries, and Rust
+doing the final ownership check.
