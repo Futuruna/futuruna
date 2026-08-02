@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: calculation rule `calculate` input needs an explicit type
+
+# Input(value: Int)
+
+@ calculate
+| calculate(input) -> input

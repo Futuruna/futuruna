@@ -284,5 +284,7 @@ If you need to see values, write `?` proofs with pass/fail blocks, not print sta
 ## Structure for multi-file models
 
 - **Source files** (kapitel-01.runa, kapitel-02.runa): types, `|` facts, `>` functions. No `@ print`. No verification. The law and nothing else.
+- **Calculation file** (personskat.calculate.runa): exposes one or more typed domain-object boundaries with `@ calculate`, suitable for `runa schema`, `runa template`, and `runa call`.
+- **Scenario file** (loenmodtager.scenario.runa): contains concrete fictional or sourced input facts and executable `?` checks, fed to `runa run`.
 - **Audit file** (grundlov.audit.runa): collects all rules, defines `|` invariants, runs `?` proofs, fed to `runa audit`.
 - **Source text in `----` blocks**: the actual text being modeled, verbatim. The code that follows must be traceable to the text above it.

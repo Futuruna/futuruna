@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: pass
+
+# Input(value: Int)
+# Output(value: Int)
+
+@ calculate
+| calculate(input: Input) -> Output(value = input.value + 1)

@@ -31,6 +31,7 @@ use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
 use std::rc::Rc;
 
+pub mod calculate;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
 /// Lives in its own file so it can be audited in isolation.
 /// See `docs/proof-kernel.md` for the design spec.
@@ -5702,6 +5703,14 @@ impl Parser {
                 let _ = self.parse_arg_list()?; // consume empty parens
             }
             return Ok(Stmt::Expr(ExprKind::Effect(name, vec![]).into()));
+        }
+
+        if name == "calculate" && self.peek_kind() == TokenKind::LParen {
+            let p = self.peek();
+            return Err(format!(
+                "{}:{}: `@ calculate` does not take arguments.\n  Attach prompts, labels, units, and sources through typed meta comments.",
+                p.line, p.col
+            ));
         }
 
         // If followed by ( it's an effect invocation: @ print("hello")
@@ -16681,6 +16690,13 @@ impl TypeChecker {
         tc.infer_rule_return_types(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        if tc.diagnostics.is_empty() {
+            if let Err(mut diagnostics) =
+                calculate::extract_calculation_contracts(stmts, source, tc.source_dir.clone())
+            {
+                tc.diagnostics.append(&mut diagnostics);
+            }
+        }
         tc.diagnostics
     }
 

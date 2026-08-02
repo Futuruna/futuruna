@@ -72,6 +72,10 @@ fn main_inner() {
     let mut meta_type_filter = None;
     let mut meta_role_filter = None;
     let mut meta_json = false;
+    let mut calculation_entry = None;
+    let mut calculation_format = None;
+    let mut calculation_input = None;
+    let mut calculation_output = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -125,6 +129,58 @@ fn main_inner() {
             }
             "--json" if mode == "meta" => {
                 meta_json = true;
+                i += 1;
+            }
+            "--entry" if matches!(mode, "schema" | "template" | "call") => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --entry requires a calculation name");
+                    std::process::exit(1);
+                }
+                calculation_entry = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if matches!(mode, "schema" | "template" | "call")
+                && arg.starts_with("--entry=") =>
+            {
+                calculation_entry = Some(arg["--entry=".len()..].to_string());
+                i += 1;
+            }
+            "--format" if matches!(mode, "template" | "call") => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --format requires json, toml, or xlsx");
+                    std::process::exit(1);
+                }
+                calculation_format = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if matches!(mode, "template" | "call") && arg.starts_with("--format=") => {
+                calculation_format = Some(arg["--format=".len()..].to_string());
+                i += 1;
+            }
+            "--input" if mode == "call" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --input requires a JSON, TOML, or XLSX path");
+                    std::process::exit(1);
+                }
+                calculation_input = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "call" && arg.starts_with("--input=") => {
+                calculation_input = Some(arg["--input=".len()..].to_string());
+                i += 1;
+            }
+            "--output" if matches!(mode, "schema" | "template" | "call") => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --output requires a path");
+                    std::process::exit(1);
+                }
+                calculation_output = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if matches!(mode, "schema" | "template" | "call")
+                && arg.starts_with("--output=") =>
+            {
+                calculation_output = Some(arg["--output=".len()..].to_string());
                 i += 1;
             }
             "--type" if mode == "meta" => {
@@ -240,6 +296,9 @@ fn main_inner() {
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
+                eprintln!("  schema        Emit a typed @ calculate contract as JSON");
+                eprintln!("  template      Generate JSON, TOML, or XLSX calculation input");
+                eprintln!("  call          Validate input and invoke a typed calculation");
                 eprintln!(
                     "  meta          Report typed meta references across a file or source tree"
                 );
@@ -267,6 +326,10 @@ fn main_inner() {
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
+                eprintln!("  --entry NAME       Select an @ calculate entry");
+                eprintln!("  --format FORMAT    Select json, toml, or xlsx");
+                eprintln!("  --input PATH       Read calculation cases");
+                eprintln!("  --output PATH      Write a contract, template, or result");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
@@ -274,7 +337,7 @@ fn main_inner() {
                 eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
                 eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
                 eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
-                eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify");
+                eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call");
                 eprintln!("  Experimental: audit");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
@@ -287,6 +350,9 @@ fn main_inner() {
                 eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
+                eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
+                eprintln!("  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx");
+                eprintln!("  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -340,6 +406,18 @@ fn main_inner() {
             }
             "check" => {
                 mode = "check";
+                i += 1;
+            }
+            "schema" => {
+                mode = "schema";
+                i += 1;
+            }
+            "template" => {
+                mode = "template";
+                i += 1;
+            }
+            "call" => {
+                mode = "call";
                 i += 1;
             }
             "meta" => {
@@ -539,6 +617,23 @@ fn main_inner() {
         return;
     }
 
+    if matches!(mode, "schema" | "template" | "call") {
+        let Some(path) = filename.as_deref() else {
+            eprintln!("Usage: runa {} <file.runa> [OPTIONS]", mode);
+            std::process::exit(1);
+        };
+        run_calculation_command(
+            mode,
+            path,
+            calculation_entry.as_deref(),
+            calculation_format.as_deref(),
+            calculation_input.as_deref(),
+            calculation_output.as_deref(),
+            use_prelude,
+        );
+        return;
+    }
+
     if let Some(ref path) = filename {
         if mode == "meta" && std::path::Path::new(path).is_dir() {
             print_meta_directory(
@@ -583,6 +678,926 @@ fn main_inner() {
         // REPL mode
         run_repl();
     }
+}
+
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v1";
+const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
+
+fn run_calculation_command(
+    mode: &str,
+    filename: &str,
+    requested_entry: Option<&str>,
+    requested_format: Option<&str>,
+    input_path: Option<&str>,
+    output_path: Option<&str>,
+    use_prelude: bool,
+) {
+    let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
+        eprintln!("error: cannot read {}: {}", filename, error);
+        std::process::exit(1);
+    });
+    let mut lexer = Lexer::new(&source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, &source);
+    let user_stmts = parser.parse_program().unwrap_or_else(|error| {
+        display_error_in(&source, &error, filename);
+        std::process::exit(1);
+    });
+    let stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    if run_type_check(&stmts, &source, filename) {
+        std::process::exit(1);
+    }
+    let source_dir = source_dir_for(filename);
+    let contracts = calculate::extract_calculation_contracts(&stmts, &source, source_dir.clone())
+        .unwrap_or_else(|diagnostics| {
+            print_calculation_diagnostics(&diagnostics, &source, filename);
+            std::process::exit(1);
+        });
+    let contract =
+        select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {
+            eprintln!("error: {}", error);
+            std::process::exit(1);
+        });
+
+    match mode {
+        "schema" => {
+            let document = serde_json::to_string_pretty(contract).expect("contract is JSON");
+            write_calculation_text(&document, output_path);
+        }
+        "template" => {
+            let format = calculation_format(requested_format, output_path, "json");
+            let envelope = contract.template_envelope();
+            match format.as_str() {
+                "json" => {
+                    let document =
+                        serde_json::to_string_pretty(&envelope).expect("template is JSON");
+                    write_calculation_text(&document, output_path);
+                }
+                "toml" => {
+                    let document = calculation_to_toml(&envelope).unwrap_or_else(|error| {
+                        eprintln!("error: cannot generate TOML template: {}", error);
+                        std::process::exit(1);
+                    });
+                    write_calculation_text(&document, output_path);
+                }
+                "xlsx" => {
+                    let path = output_path.unwrap_or_else(|| {
+                        eprintln!("error: XLSX templates require --output <file.xlsx>");
+                        std::process::exit(1);
+                    });
+                    write_calculation_xlsx_template(contract, &envelope, path).unwrap_or_else(
+                        |error| {
+                            eprintln!("error: cannot write {}: {}", path, error);
+                            std::process::exit(1);
+                        },
+                    );
+                }
+                _ => calculation_unknown_format(&format),
+            }
+        }
+        "call" => {
+            let input_path = input_path.unwrap_or_else(|| {
+                eprintln!("error: runa call requires --input <cases.json|toml|xlsx>");
+                std::process::exit(1);
+            });
+            let input_format = calculation_format(None, Some(input_path), "json");
+            let (envelope, mut adapter_diagnostics) = match input_format.as_str() {
+                "json" => (
+                    read_calculation_json(input_path).unwrap_or_else(|error| {
+                        eprintln!("error: cannot read calculation input: {}", error);
+                        std::process::exit(1);
+                    }),
+                    Vec::new(),
+                ),
+                "toml" => (
+                    read_calculation_toml(input_path).unwrap_or_else(|error| {
+                        eprintln!("error: cannot read calculation input: {}", error);
+                        std::process::exit(1);
+                    }),
+                    Vec::new(),
+                ),
+                "xlsx" => read_calculation_xlsx(contract, input_path).unwrap_or_else(|error| {
+                    eprintln!("error: cannot read calculation workbook: {}", error);
+                    std::process::exit(1);
+                }),
+                _ => calculation_unknown_format(&input_format),
+            };
+            let mut result =
+                calculate::invoke_calculation_cases(contract, &stmts, source_dir, &envelope);
+            adapter_diagnostics.append(&mut result.diagnostics);
+            result.diagnostics = adapter_diagnostics;
+
+            let output_format = calculation_format(requested_format, output_path, "json");
+            match output_format.as_str() {
+                "json" => {
+                    let document = serde_json::to_string_pretty(&result).expect("result is JSON");
+                    write_calculation_text(&document, output_path);
+                }
+                "toml" => {
+                    let document = calculation_to_toml(&result).unwrap_or_else(|error| {
+                        eprintln!("error: cannot encode TOML result: {}", error);
+                        std::process::exit(1);
+                    });
+                    write_calculation_text(&document, output_path);
+                }
+                "xlsx" => {
+                    let path = output_path.unwrap_or_else(|| {
+                        eprintln!("error: XLSX results require --output <file.xlsx>");
+                        std::process::exit(1);
+                    });
+                    write_calculation_xlsx_output(contract, &result, path).unwrap_or_else(
+                        |error| {
+                            eprintln!("error: cannot write {}: {}", path, error);
+                            std::process::exit(1);
+                        },
+                    );
+                }
+                _ => calculation_unknown_format(&output_format),
+            }
+            if !result.diagnostics.is_empty() {
+                std::process::exit(1);
+            }
+        }
+        _ => unreachable!("calculation command dispatch"),
+    }
+}
+
+fn print_calculation_diagnostics(diagnostics: &[Diagnostic], source: &str, filename: &str) {
+    let use_color = should_use_color();
+    eprintln!(
+        "error: {} calculation contract error{} in {}:",
+        diagnostics.len(),
+        if diagnostics.len() == 1 { "" } else { "s" },
+        filename
+    );
+    for diagnostic in diagnostics {
+        eprint!("{}", diagnostic.display(source, filename, use_color));
+    }
+}
+
+fn select_calculation_contract<'a>(
+    contracts: &'a [calculate::CalculationContract],
+    requested_entry: Option<&str>,
+) -> Result<&'a calculate::CalculationContract, String> {
+    if let Some(entry) = requested_entry {
+        return contracts
+            .iter()
+            .find(|contract| contract.entry == entry)
+            .ok_or_else(|| {
+                format!(
+                    "unknown calculation entry `{}`; available entries: {}",
+                    entry,
+                    calculation_entry_names(contracts)
+                )
+            });
+    }
+    match contracts {
+        [] => Err("source has no `@ calculate` entry".to_string()),
+        [contract] => Ok(contract),
+        _ => Err(format!(
+            "source has multiple calculations ({}); select one with --entry NAME",
+            calculation_entry_names(contracts)
+        )),
+    }
+}
+
+fn calculation_entry_names(contracts: &[calculate::CalculationContract]) -> String {
+    if contracts.is_empty() {
+        "none".to_string()
+    } else {
+        contracts
+            .iter()
+            .map(|contract| format!("`{}`", contract.entry))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+fn calculation_unknown_format(format: &str) -> ! {
+    eprintln!(
+        "error: unsupported calculation format `{}`; expected json, toml, or xlsx",
+        format
+    );
+    std::process::exit(1);
+}
+
+fn calculation_format(explicit: Option<&str>, path: Option<&str>, default: &str) -> String {
+    let inferred = path.and_then(|path| {
+        Path::new(path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.to_ascii_lowercase())
+    });
+    if let (Some(explicit), Some(inferred)) = (explicit, inferred.as_deref()) {
+        if explicit.to_ascii_lowercase() != inferred {
+            eprintln!(
+                "error: --format {} conflicts with output extension .{}",
+                explicit, inferred
+            );
+            std::process::exit(1);
+        }
+    }
+    explicit
+        .map(str::to_ascii_lowercase)
+        .or(inferred)
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn write_calculation_text(document: &str, output_path: Option<&str>) {
+    if let Some(path) = output_path {
+        std::fs::write(path, format!("{}\n", document)).unwrap_or_else(|error| {
+            eprintln!("error: cannot write {}: {}", path, error);
+            std::process::exit(1);
+        });
+    } else {
+        println!("{}", document);
+    }
+}
+
+fn calculation_to_toml<T: serde::Serialize>(value: &T) -> Result<String, String> {
+    let json = serde_json::to_value(value).map_err(|error| error.to_string())?;
+    let toml = json_to_calculation_toml(&json, false)?
+        .ok_or_else(|| "top-level calculation document cannot be null".to_string())?;
+    toml::to_string_pretty(&toml).map_err(|error| error.to_string())
+}
+
+fn json_to_calculation_toml(
+    value: &serde_json::Value,
+    omit_null: bool,
+) -> Result<Option<toml::Value>, String> {
+    match value {
+        serde_json::Value::Null if omit_null => Ok(None),
+        serde_json::Value::Null => {
+            let mut table = toml::map::Map::new();
+            table.insert("$futuruna_null".to_string(), toml::Value::Boolean(true));
+            Ok(Some(toml::Value::Table(table)))
+        }
+        serde_json::Value::Bool(value) => Ok(Some(toml::Value::Boolean(*value))),
+        serde_json::Value::Number(value) => {
+            if let Some(value) = value.as_i64() {
+                Ok(Some(toml::Value::Integer(value)))
+            } else if let Some(value) = value.as_f64() {
+                Ok(Some(toml::Value::Float(value)))
+            } else {
+                Err(format!(
+                    "number `{}` is outside TOML's integer range",
+                    value
+                ))
+            }
+        }
+        serde_json::Value::String(value) => Ok(Some(toml::Value::String(value.clone()))),
+        serde_json::Value::Array(values) => {
+            let mut array = Vec::new();
+            for value in values {
+                let encoded = json_to_calculation_toml(value, false)?
+                    .expect("array nulls use an explicit sentinel");
+                array.push(encoded);
+            }
+            Ok(Some(toml::Value::Array(array)))
+        }
+        serde_json::Value::Object(values) => {
+            let mut table = toml::map::Map::new();
+            for (name, value) in values {
+                if let Some(value) = json_to_calculation_toml(value, true)? {
+                    table.insert(name.clone(), value);
+                }
+            }
+            Ok(Some(toml::Value::Table(table)))
+        }
+    }
+}
+
+fn calculation_toml_to_json(value: &toml::Value) -> Result<serde_json::Value, String> {
+    match value {
+        toml::Value::String(value) => Ok(serde_json::Value::String(value.clone())),
+        toml::Value::Integer(value) => Ok(serde_json::Value::Number((*value).into())),
+        toml::Value::Float(value) => serde_json::Number::from_f64(*value)
+            .map(serde_json::Value::Number)
+            .ok_or_else(|| "TOML contains a non-finite float".to_string()),
+        toml::Value::Boolean(value) => Ok(serde_json::Value::Bool(*value)),
+        toml::Value::Datetime(value) => Err(format!(
+            "TOML datetime `{}` is not a Futuruna calculation value",
+            value
+        )),
+        toml::Value::Array(values) => values
+            .iter()
+            .map(calculation_toml_to_json)
+            .collect::<Result<Vec<_>, _>>()
+            .map(serde_json::Value::Array),
+        toml::Value::Table(values) => {
+            if values.len() == 1
+                && values.get("$futuruna_null") == Some(&toml::Value::Boolean(true))
+            {
+                return Ok(serde_json::Value::Null);
+            }
+            let mut object = serde_json::Map::new();
+            for (name, value) in values {
+                object.insert(name.clone(), calculation_toml_to_json(value)?);
+            }
+            Ok(serde_json::Value::Object(object))
+        }
+    }
+}
+
+fn read_calculation_json(path: &str) -> Result<calculate::CalculationInputEnvelope, String> {
+    let source = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
+    serde_json::from_str(&source).map_err(|error| error.to_string())
+}
+
+fn read_calculation_toml(path: &str) -> Result<calculate::CalculationInputEnvelope, String> {
+    let source = std::fs::read_to_string(path).map_err(|error| error.to_string())?;
+    let value = toml::from_str::<toml::Value>(&source).map_err(|error| error.to_string())?;
+    let json = calculation_toml_to_json(&value)?;
+    serde_json::from_value(json).map_err(|error| error.to_string())
+}
+
+fn calculation_header_format() -> rust_xlsxwriter::Format {
+    rust_xlsxwriter::Format::new()
+        .set_bold()
+        .set_font_color(rust_xlsxwriter::Color::White)
+        .set_background_color(rust_xlsxwriter::Color::RGB(0x185B56))
+        .set_border(rust_xlsxwriter::FormatBorder::Thin)
+}
+
+fn calculation_metadata_format() -> rust_xlsxwriter::Format {
+    rust_xlsxwriter::Format::new()
+        .set_bold()
+        .set_font_color(rust_xlsxwriter::Color::RGB(0x1F2937))
+        .set_background_color(rust_xlsxwriter::Color::RGB(0xDDEBE7))
+}
+
+fn write_calculation_xlsx_metadata(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    schema: &str,
+    contract: &calculate::CalculationContract,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let header = calculation_header_format();
+    let key_format = calculation_metadata_format();
+    let worksheet = workbook.add_worksheet().set_name("_futuruna")?;
+    worksheet.write_string_with_format(0, 0, "key", &header)?;
+    worksheet.write_string_with_format(0, 1, "value", &header)?;
+    for (row, (key, value)) in [
+        ("schema", schema),
+        ("contract_schema", calculate::CONTRACT_SCHEMA),
+        ("schema_hash", contract.schema_hash.as_str()),
+        ("entry", contract.entry.as_str()),
+        ("encoding", "futuruna-canonical-json-v1"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let row = row as u32 + 1;
+        worksheet.write_string_with_format(row, 0, key, &key_format)?;
+        worksheet.write_string(row, 1, value)?;
+    }
+    worksheet.set_column_width(0, 20)?;
+    worksheet.set_column_width(1, 72)?;
+    worksheet.set_freeze_panes(1, 0)?;
+    Ok(())
+}
+
+fn write_calculation_xlsx_template(
+    contract: &calculate::CalculationContract,
+    envelope: &calculate::CalculationInputEnvelope,
+    path: &str,
+) -> Result<(), String> {
+    let mut workbook = rust_xlsxwriter::Workbook::new();
+    write_calculation_xlsx_metadata(&mut workbook, CALCULATION_XLSX_INPUT_SCHEMA, contract)
+        .map_err(|error| error.to_string())?;
+    let columns = contract.input_columns();
+    write_calculation_xlsx_columns(&mut workbook, &columns).map_err(|error| error.to_string())?;
+
+    let header = calculation_header_format();
+    let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
+    let worksheet = workbook
+        .add_worksheet()
+        .set_name("cases")
+        .map_err(|error| error.to_string())?;
+    worksheet
+        .write_string_with_format(0, 0, "case_id", &header)
+        .map_err(|error| error.to_string())?;
+    for (index, column) in columns.iter().enumerate() {
+        let excel_column = index as u16 + 1;
+        worksheet
+            .write_string_with_format(0, excel_column, &column.path, &header)
+            .map_err(|error| error.to_string())?;
+        worksheet
+            .set_column_width(excel_column, calculation_column_width(column))
+            .map_err(|error| error.to_string())?;
+        if !column.choices.is_empty() {
+            let choices: Vec<&str> = column.choices.iter().map(String::as_str).collect();
+            let validation = rust_xlsxwriter::DataValidation::new()
+                .allow_list_strings(&choices)
+                .map_err(|error| error.to_string())?;
+            worksheet
+                .add_data_validation(1, excel_column, 999, excel_column, &validation)
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    worksheet
+        .set_column_width(0, 18)
+        .map_err(|error| error.to_string())?;
+    worksheet
+        .set_freeze_panes(1, 1)
+        .map_err(|error| error.to_string())?;
+    worksheet
+        .autofilter(0, 0, 999, columns.len() as u16)
+        .map_err(|error| error.to_string())?;
+
+    if let Some(case) = envelope.cases.first() {
+        worksheet
+            .write_string_with_format(1, 0, &case.case_id, &text_format)
+            .map_err(|error| error.to_string())?;
+        for (index, column) in columns.iter().enumerate() {
+            let value = calculation_value_at_column_path(&case.input, &column.path)
+                .unwrap_or(&serde_json::Value::Null);
+            write_calculation_xlsx_value(
+                worksheet,
+                1,
+                index as u16 + 1,
+                column,
+                value,
+                &text_format,
+            )
+            .map_err(|error| error.to_string())?;
+        }
+    }
+    workbook.save(path).map_err(|error| error.to_string())
+}
+
+fn write_calculation_xlsx_columns(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    columns: &[calculate::CalculationColumn],
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let header = calculation_header_format();
+    let worksheet = workbook.add_worksheet().set_name("_columns")?;
+    for (column, name) in ["path", "type", "encoding", "required", "choices"]
+        .into_iter()
+        .enumerate()
+    {
+        worksheet.write_string_with_format(0, column as u16, name, &header)?;
+    }
+    for (row, column) in columns.iter().enumerate() {
+        let row = row as u32 + 1;
+        worksheet.write_string(row, 0, &column.path)?;
+        worksheet.write_string(row, 1, column.ty.display_name())?;
+        worksheet.write_string(row, 2, column.encoding.as_str())?;
+        worksheet.write_boolean(row, 3, column.required)?;
+        worksheet.write_string(row, 4, column.choices.join(" | "))?;
+    }
+    worksheet.set_column_width(0, 36)?;
+    worksheet.set_column_width(1, 28)?;
+    worksheet.set_column_width(2, 14)?;
+    worksheet.set_column_width(3, 12)?;
+    worksheet.set_column_width(4, 48)?;
+    worksheet.set_hidden(true);
+    Ok(())
+}
+
+fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
+    match column.encoding {
+        calculate::CalculationColumnEncoding::Integer => 18.0,
+        calculate::CalculationColumnEncoding::Float => 16.0,
+        calculate::CalculationColumnEncoding::Boolean => 12.0,
+        calculate::CalculationColumnEncoding::Character => 10.0,
+        calculate::CalculationColumnEncoding::Enum => 24.0,
+        calculate::CalculationColumnEncoding::Json => 48.0,
+        calculate::CalculationColumnEncoding::String => 28.0,
+    }
+}
+
+fn calculation_value_at_column_path<'a>(
+    root: &'a serde_json::Value,
+    path: &str,
+) -> Option<&'a serde_json::Value> {
+    if path == "input" {
+        return Some(root);
+    }
+    let mut value = root;
+    for part in path.split('.') {
+        value = value.as_object()?.get(part)?;
+    }
+    Some(value)
+}
+
+fn write_calculation_xlsx_value(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    row: u32,
+    column_index: u16,
+    column: &calculate::CalculationColumn,
+    value: &serde_json::Value,
+    text_format: &rust_xlsxwriter::Format,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    if value.is_null() {
+        return Ok(());
+    }
+    match column.encoding {
+        calculate::CalculationColumnEncoding::Integer => {
+            let text = value
+                .as_i64()
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| value.to_string());
+            worksheet.write_string_with_format(row, column_index, text, text_format)?;
+        }
+        calculate::CalculationColumnEncoding::Float => {
+            if let Some(value) = value.as_f64() {
+                worksheet.write_number(row, column_index, value)?;
+            }
+        }
+        calculate::CalculationColumnEncoding::Boolean => {
+            if let Some(value) = value.as_bool() {
+                worksheet.write_boolean(row, column_index, value)?;
+            }
+        }
+        calculate::CalculationColumnEncoding::String
+        | calculate::CalculationColumnEncoding::Character => {
+            if let Some(value) = value.as_str() {
+                worksheet.write_string_with_format(row, column_index, value, text_format)?;
+            }
+        }
+        calculate::CalculationColumnEncoding::Enum => {
+            if let Some(value) = value
+                .as_object()
+                .and_then(|object| object.get("$variant"))
+                .and_then(serde_json::Value::as_str)
+            {
+                worksheet.write_string(row, column_index, value)?;
+            }
+        }
+        calculate::CalculationColumnEncoding::Json => {
+            worksheet.write_string_with_format(
+                row,
+                column_index,
+                serde_json::to_string(value).expect("canonical JSON value"),
+                text_format,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn read_calculation_xlsx(
+    contract: &calculate::CalculationContract,
+    path: &str,
+) -> Result<
+    (
+        calculate::CalculationInputEnvelope,
+        Vec<calculate::CalculationCaseDiagnostic>,
+    ),
+    String,
+> {
+    use calamine::{Data, Reader};
+
+    if Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| !extension.eq_ignore_ascii_case("xlsx"))
+        .unwrap_or(true)
+    {
+        return Err("calculation workbooks must use the macro-free .xlsx format".to_string());
+    }
+    let mut workbook = calamine::open_workbook_auto(path).map_err(|error| error.to_string())?;
+    if workbook
+        .vba_project()
+        .map_err(|error| error.to_string())?
+        .is_some()
+    {
+        return Err("workbook contains a VBA project; macros are rejected".to_string());
+    }
+    for sheet_name in workbook.sheet_names() {
+        let formulas = workbook
+            .worksheet_formula(&sheet_name)
+            .map_err(|error| error.to_string())?;
+        if formulas
+            .rows()
+            .flat_map(|row| row.iter())
+            .any(|formula| !formula.is_empty())
+        {
+            return Err(format!(
+                "workbook contains formulas in `{}`; formulas are rejected",
+                sheet_name
+            ));
+        }
+    }
+
+    let metadata_range = workbook
+        .worksheet_range("_futuruna")
+        .map_err(|error| error.to_string())?;
+    let mut metadata = BTreeMap::new();
+    for row in metadata_range.rows().skip(1) {
+        let key = row.first().map(calculation_cell_text).unwrap_or_default();
+        let value = row.get(1).map(calculation_cell_text).unwrap_or_default();
+        if !key.is_empty() {
+            metadata.insert(key, value);
+        }
+    }
+    for (key, expected) in [
+        ("schema", CALCULATION_XLSX_INPUT_SCHEMA),
+        ("contract_schema", calculate::CONTRACT_SCHEMA),
+        ("entry", contract.entry.as_str()),
+        ("encoding", "futuruna-canonical-json-v1"),
+    ] {
+        let actual = metadata.get(key).map(String::as_str).unwrap_or("");
+        if actual != expected {
+            return Err(format!(
+                "workbook metadata `{}` is `{}`, expected `{}`",
+                key, actual, expected
+            ));
+        }
+    }
+
+    let workbook_hash = metadata.get("schema_hash").cloned().unwrap_or_default();
+    if workbook_hash != contract.schema_hash {
+        return Ok((
+            calculate::CalculationInputEnvelope {
+                futuruna: calculate::CalculationEnvelopeMetadata {
+                    schema: calculate::INPUT_SCHEMA.to_string(),
+                    schema_hash: workbook_hash,
+                    entry: contract.entry.clone(),
+                },
+                cases: Vec::new(),
+            },
+            Vec::new(),
+        ));
+    }
+
+    let cases_range = workbook
+        .worksheet_range("cases")
+        .map_err(|error| error.to_string())?;
+    let mut rows = cases_range.rows();
+    let header = rows
+        .next()
+        .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
+    let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
+    let columns = contract.input_columns();
+    let expected_headers: Vec<String> = std::iter::once("case_id".to_string())
+        .chain(columns.iter().map(|column| column.path.clone()))
+        .collect();
+    if actual_headers != expected_headers {
+        return Err(format!(
+            "`cases` headers do not match the current contract\n  expected: {}\n  actual:   {}",
+            expected_headers.join(", "),
+            actual_headers.join(", ")
+        ));
+    }
+
+    let mut cases = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut seen_ids = BTreeSet::new();
+    for (row_index, row) in rows.enumerate() {
+        if row.iter().all(|cell| matches!(cell, Data::Empty)) {
+            continue;
+        }
+        let case_id = row.first().map(calculation_cell_text).unwrap_or_default();
+        if case_id.trim().is_empty() {
+            diagnostics.push(calculate::CalculationCaseDiagnostic {
+                case_id,
+                path: format!("cases!A{}", row_index + 2),
+                message: "case_id must not be empty".to_string(),
+            });
+            continue;
+        }
+        if !seen_ids.insert(case_id.clone()) {
+            diagnostics.push(calculate::CalculationCaseDiagnostic {
+                case_id: case_id.clone(),
+                path: format!("cases!A{}", row_index + 2),
+                message: format!("duplicate case_id `{}`", case_id),
+            });
+            continue;
+        }
+        let mut input = serde_json::Value::Object(serde_json::Map::new());
+        let mut row_valid = true;
+        for (index, column) in columns.iter().enumerate() {
+            let cell = row.get(index + 1).unwrap_or(&Data::Empty);
+            let value = match calculation_json_from_cell(cell, column) {
+                Ok(value) => value,
+                Err(message) => {
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id: case_id.clone(),
+                        path: column.path.clone(),
+                        message,
+                    });
+                    row_valid = false;
+                    continue;
+                }
+            };
+            if let Err(error) =
+                calculate::set_calculation_input_path(&mut input, &column.path, value)
+            {
+                diagnostics.push(calculate::CalculationCaseDiagnostic {
+                    case_id: case_id.clone(),
+                    path: error.path,
+                    message: error.message,
+                });
+                row_valid = false;
+            }
+        }
+        if row_valid {
+            cases.push(calculate::CalculationInputCase { case_id, input });
+        }
+    }
+    Ok((
+        calculate::CalculationInputEnvelope {
+            futuruna: calculate::CalculationEnvelopeMetadata {
+                schema: calculate::INPUT_SCHEMA.to_string(),
+                schema_hash: workbook_hash,
+                entry: contract.entry.clone(),
+            },
+            cases,
+        },
+        diagnostics,
+    ))
+}
+
+fn calculation_cell_text(cell: &calamine::Data) -> String {
+    match cell {
+        calamine::Data::String(value) => value.clone(),
+        calamine::Data::Int(value) => value.to_string(),
+        calamine::Data::Float(value) => value.to_string(),
+        calamine::Data::Bool(value) => value.to_string(),
+        calamine::Data::DateTime(value) => value.to_string(),
+        calamine::Data::DateTimeIso(value) | calamine::Data::DurationIso(value) => value.clone(),
+        calamine::Data::Error(value) => format!("{:?}", value),
+        calamine::Data::Empty => String::new(),
+    }
+}
+
+fn calculation_json_from_cell(
+    cell: &calamine::Data,
+    column: &calculate::CalculationColumn,
+) -> Result<serde_json::Value, String> {
+    use calamine::Data;
+
+    if matches!(cell, Data::Empty) {
+        return if column.required {
+            Err("required input cell is empty".to_string())
+        } else {
+            Ok(serde_json::Value::Null)
+        };
+    }
+    match column.encoding {
+        calculate::CalculationColumnEncoding::Integer => {
+            let value = match cell {
+                Data::Int(value) => *value,
+                Data::String(value) => value
+                    .trim()
+                    .parse::<i64>()
+                    .map_err(|_| format!("`{}` is not an exact signed integer", value))?,
+                Data::Float(value)
+                    if value.is_finite()
+                        && value.fract() == 0.0
+                        && value.abs() <= 9_007_199_254_740_991.0 =>
+                {
+                    let integer = *value as i64;
+                    if integer as f64 != *value {
+                        return Err("numeric cell cannot be represented exactly as Int".to_string());
+                    }
+                    integer
+                }
+                _ => return Err("expected an integer or decimal integer text".to_string()),
+            };
+            Ok(serde_json::Value::Number(value.into()))
+        }
+        calculate::CalculationColumnEncoding::Float => {
+            let value = match cell {
+                Data::Int(value) => *value as f64,
+                Data::Float(value) => *value,
+                Data::String(value) => value
+                    .trim()
+                    .parse::<f64>()
+                    .map_err(|_| format!("`{}` is not a number", value))?,
+                _ => return Err("expected a numeric cell".to_string()),
+            };
+            serde_json::Number::from_f64(value)
+                .map(serde_json::Value::Number)
+                .ok_or_else(|| "expected a finite number".to_string())
+        }
+        calculate::CalculationColumnEncoding::Boolean => {
+            let value = match cell {
+                Data::Bool(value) => *value,
+                Data::String(value) if value.eq_ignore_ascii_case("true") => true,
+                Data::String(value) if value.eq_ignore_ascii_case("false") => false,
+                _ => return Err("expected true or false".to_string()),
+            };
+            Ok(serde_json::Value::Bool(value))
+        }
+        calculate::CalculationColumnEncoding::String => match cell {
+            Data::String(value) => Ok(serde_json::Value::String(value.clone())),
+            _ => Err("expected a text cell".to_string()),
+        },
+        calculate::CalculationColumnEncoding::Character => match cell {
+            Data::String(value) if value.chars().count() == 1 => {
+                Ok(serde_json::Value::String(value.clone()))
+            }
+            _ => Err("expected exactly one character".to_string()),
+        },
+        calculate::CalculationColumnEncoding::Enum => {
+            let value = match cell {
+                Data::String(value) => value,
+                _ => return Err("expected an enum choice".to_string()),
+            };
+            if !column.choices.contains(value) {
+                return Err(format!(
+                    "unknown choice `{}`; expected {}",
+                    value,
+                    column.choices.join(", ")
+                ));
+            }
+            Ok(serde_json::json!({ "$variant": value }))
+        }
+        calculate::CalculationColumnEncoding::Json => {
+            let Data::String(value) = cell else {
+                return Err("expected canonical JSON text".to_string());
+            };
+            serde_json::from_str(value).map_err(|error| format!("invalid JSON: {}", error))
+        }
+    }
+}
+
+fn write_calculation_xlsx_output(
+    contract: &calculate::CalculationContract,
+    output: &calculate::CalculationOutputEnvelope,
+    path: &str,
+) -> Result<(), String> {
+    let mut workbook = rust_xlsxwriter::Workbook::new();
+    write_calculation_xlsx_metadata(&mut workbook, CALCULATION_XLSX_OUTPUT_SCHEMA, contract)
+        .map_err(|error| error.to_string())?;
+    let header = calculation_header_format();
+    let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
+
+    let results = workbook
+        .add_worksheet()
+        .set_name("results")
+        .map_err(|error| error.to_string())?;
+    results
+        .write_string_with_format(0, 0, "case_id", &header)
+        .map_err(|error| error.to_string())?;
+    results
+        .write_string_with_format(0, 1, "result", &header)
+        .map_err(|error| error.to_string())?;
+    for (index, result) in output.results.iter().enumerate() {
+        let row = index as u32 + 1;
+        results
+            .write_string_with_format(row, 0, &result.case_id, &text_format)
+            .map_err(|error| error.to_string())?;
+        results
+            .write_string_with_format(
+                row,
+                1,
+                serde_json::to_string(&result.result).expect("result JSON"),
+                &text_format,
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    results
+        .set_column_width(0, 18)
+        .map_err(|error| error.to_string())?;
+    results
+        .set_column_width(1, 72)
+        .map_err(|error| error.to_string())?;
+    results
+        .set_freeze_panes(1, 0)
+        .map_err(|error| error.to_string())?;
+
+    let diagnostics = workbook
+        .add_worksheet()
+        .set_name("diagnostics")
+        .map_err(|error| error.to_string())?;
+    for (column, name) in ["case_id", "path", "message"].into_iter().enumerate() {
+        diagnostics
+            .write_string_with_format(0, column as u16, name, &header)
+            .map_err(|error| error.to_string())?;
+    }
+    for (index, diagnostic) in output.diagnostics.iter().enumerate() {
+        let row = index as u32 + 1;
+        diagnostics
+            .write_string(row, 0, &diagnostic.case_id)
+            .map_err(|error| error.to_string())?;
+        diagnostics
+            .write_string(row, 1, &diagnostic.path)
+            .map_err(|error| error.to_string())?;
+        diagnostics
+            .write_string(row, 2, &diagnostic.message)
+            .map_err(|error| error.to_string())?;
+    }
+    diagnostics
+        .set_column_width(0, 18)
+        .map_err(|error| error.to_string())?;
+    diagnostics
+        .set_column_width(1, 32)
+        .map_err(|error| error.to_string())?;
+    diagnostics
+        .set_column_width(2, 72)
+        .map_err(|error| error.to_string())?;
+    diagnostics
+        .set_freeze_panes(1, 0)
+        .map_err(|error| error.to_string())?;
+
+    workbook.save(path).map_err(|error| error.to_string())
 }
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: duplicate `@ calculate` marker before the same callable
+
+# Input(value: Int)
+# Output(value: Int)
+
+@ calculate
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(value = input.value)
+}

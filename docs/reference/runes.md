@@ -1,7 +1,8 @@
 ---
-feature_stage: stable
+feature_stage: mixed
 feature_stage_surfaces:
   - core-language-syntax
+  - typed-calculation-contracts
 ---
 
 # The Seven Runes
@@ -400,6 +401,16 @@ Use `@ import` for Futuruna modules.
 ```
 
 Marks the next definition as public. Without `@ export`, definitions are private.
+
+### Calculate (typed external input)
+```runa
+@ calculate
+| calculate_tax(input: TaxInput) -> TaxResult(annual_tax = annual_tax(input))
+```
+
+Marks one typed rule or function as a discoverable calculation boundary for
+`runa schema`, `runa template`, and `runa call`. This annotation does not perform
+an effect or change rule semantics. See [calculations.md](calculations.md).
 
 ### Comptime (compile-time evaluation)
 ```runa

@@ -1,0 +1,29 @@
+# FilingStatus = Single | Married
+# Child(name: String, age: Int)
+# TaxInput(monthly_income: Int, filing_status: FilingStatus, deduction: Int?, children: List(Child))
+# TaxResult(annual_income: Int, taxable_income: Int, annual_tax: Int)
+# SourceInfo(url: String, section: String)
+
+= tax_source = SourceInfo(url = "https://example.invalid/tax", section = "fixture")
+
+| annual_income(input: TaxInput) -> input.monthly_income * 12
+
+| taxable_income(input: TaxInput) -> annual_income(input)
+| exception deduction taxable_income(input: TaxInput) -> annual_income(input) - unwrap_or(input.deduction, 0) under unwrap_or(input.deduction, 0) > 0
+
+| annual_tax(input: TaxInput) -> taxable_income(input) / 4
+| exception family annual_tax(input: TaxInput) -> taxable_income(input) / 5 under input.filing_status == Married && length(input.children) > 0
+
+--@label:tax_calculation::source:tax_source--
+----
+Synthetic calculation source used to verify typed calculation provenance.
+----
+
+--@begin:tax_calculation--
+@ calculate
+| calculate_tax(input: TaxInput) -> TaxResult(
+    annual_income = annual_income(input),
+    taxable_income = taxable_income(input),
+    annual_tax = annual_tax(input)
+)
+--@end:tax_calculation--

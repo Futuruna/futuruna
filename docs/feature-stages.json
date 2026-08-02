@@ -206,6 +206,21 @@
       ]
     },
     {
+      "id": "typed-calculation-contracts",
+      "kind": "tooling",
+      "name": "Typed calculation contracts and input adapters",
+      "stage": "preview",
+      "commands": [
+        "schema",
+        "template",
+        "call"
+      ],
+      "docs": [
+        "docs/reference/calculations.md",
+        "docs/rfcs/typed-calculation-contracts.md"
+      ]
+    },
+    {
       "id": "exploratory-audit-tooling",
       "kind": "tooling",
       "name": "Invariant-gap and rule-asymmetry audit tooling",
@@ -342,6 +357,21 @@
       "surface": "source-meta-comment-tooling"
     },
     {
+      "name": "schema",
+      "stage": "preview",
+      "surface": "typed-calculation-contracts"
+    },
+    {
+      "name": "template",
+      "stage": "preview",
+      "surface": "typed-calculation-contracts"
+    },
+    {
+      "name": "call",
+      "stage": "preview",
+      "surface": "typed-calculation-contracts"
+    },
+    {
       "name": "audit",
       "stage": "experimental",
       "surface": "exploratory-audit-tooling"
@@ -359,6 +389,13 @@
     }
   ],
   "documents": [
+    {
+      "path": "docs/rfcs/typed-calculation-contracts.md",
+      "stage": "preview",
+      "surfaces": [
+        "typed-calculation-contracts"
+      ]
+    },
     {
       "path": "docs/library-hygiene.md",
       "stage": "stable",
@@ -398,7 +435,8 @@
         "pure-core-rust-artifacts",
         "reactive-stateful-surfaces",
         "rust-interop",
-        "style-and-modeling-guidance"
+        "style-and-modeling-guidance",
+        "typed-calculation-contracts"
       ]
     },
     {
@@ -409,10 +447,18 @@
       ]
     },
     {
-      "path": "docs/reference/runes.md",
-      "stage": "stable",
+      "path": "docs/reference/calculations.md",
+      "stage": "preview",
       "surfaces": [
-        "core-language-syntax"
+        "typed-calculation-contracts"
+      ]
+    },
+    {
+      "path": "docs/reference/runes.md",
+      "stage": "mixed",
+      "surfaces": [
+        "core-language-syntax",
+        "typed-calculation-contracts"
       ]
     },
     {
