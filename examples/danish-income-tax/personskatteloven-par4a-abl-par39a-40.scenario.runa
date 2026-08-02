@@ -1,0 +1,757 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par39a - 40
+
+-- Fokusscenarier for Aktieavancebeskatningsloven §§ 39 A-40.
+
+= abl39a_intet_tabsfradrag = AktieavancePar39ATabsfradrag(
+    fradrag_i_udlandet = Falskt,
+    negativ_skatteværdi_i_udlandet_kroner = 0
+)
+= abl39a_tabsfradrag_9000 = AktieavancePar39ATabsfradrag(
+    fradrag_i_udlandet = Sandt,
+    negativ_skatteværdi_i_udlandet_kroner = 9000
+)
+= abl39a_tabsfradrag_10000 = AktieavancePar39ATabsfradrag(
+    fradrag_i_udlandet = Sandt,
+    negativ_skatteværdi_i_udlandet_kroner = 10000
+)
+
+= abl39a_parti_a = AktieavancePar39ABeholdningsparti(
+    identifikation = "A-2018",
+    selskabsidentifikation = "A",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2018, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 100000,
+    resterende_værdi_ved_fraflytning_kroner = 160000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39a_parti_b = AktieavancePar39ABeholdningsparti(
+    identifikation = "B-2019",
+    selskabsidentifikation = "B",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2019, måned = 2, dag = 3),
+    erhvervelsesrækkefølge = 2,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 120000,
+    resterende_værdi_ved_fraflytning_kroner = 90000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Sandt
+)
+= abl39a_parti_c_par44 = AktieavancePar39ABeholdningsparti(
+    identifikation = "C-2020",
+    selskabsidentifikation = "C",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 3, dag = 4),
+    erhvervelsesrækkefølge = 3,
+    resterende_antal = 50,
+    resterende_anskaffelsessum_efter_par38_kroner = 20000,
+    resterende_værdi_ved_fraflytning_kroner = 50000,
+    par44_status = AblPar39AOmfattetAfPar44VedFraflytning,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+
+= abl39a_tilstand = AktieavancePar39ATilstand(
+    beholdning = [abl39a_parti_a, abl39a_parti_b, abl39a_parti_c_par44],
+    henstandssaldo_kroner = 100000,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+
+| abl39a_afståelse_halvdelen_af_a_i_år(skatteår: Heltal) -> AktieavancePar39AAfståelsesdata(
+    hændelsesidentifikation = "salg-a-halv",
+    selskabsidentifikation = "A",
+    aktieserie = "ordinær",
+    antal = 50,
+    afståelsessum_kroner = 100000,
+    skatteår = skatteår,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 2000,
+    udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+    udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+    uudnyttet_realiseret_tab_kan_fremføres = Falskt
+)
+= abl39a_afståelse_halvdelen_af_a = abl39a_afståelse_halvdelen_af_a_i_år(skatteår = 2026)
+= abl39a_afståelse_halvdelen_af_a_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_halvdelen_af_a)
+)
+= abl39a_afståelse_i_ikke_understøttet_år_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_halvdelen_af_a_i_år(skatteår = 2023))
+)
+= abl39a_betaling_af_a_fordring = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter,
+    hændelse = AblPar39ABetaling(data = AktieavancePar39ABetaling(
+        forfaldsidentifikation = "salg-a-halv:stk3-gevinst",
+        beløb_kroner = 11500,
+        art = AblPar39ABetalingAfForfaldspost,
+        friststatus = AblPar39ABetalingRettidigDen20
+    ))
+)
+
+= abl39a_afståelse_a_med_stk3_tab = AktieavancePar39AAfståelsesdata(
+    hændelsesidentifikation = "salg-a-stk3-tab",
+    selskabsidentifikation = "A",
+    aktieserie = "ordinær",
+    antal = 100,
+    afståelsessum_kroner = 120000,
+    skatteår = 2026,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+    udenlandsk_tabsfradrag_efter_stk3 = abl39a_tabsfradrag_9000,
+    udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+    uudnyttet_realiseret_tab_kan_fremføres = Falskt
+)
+= abl39a_afståelse_a_med_stk3_tab_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_a_med_stk3_tab)
+)
+
+= abl39a_afståelse_b_med_tab = AktieavancePar39AAfståelsesdata(
+    hændelsesidentifikation = "salg-b-tab",
+    selskabsidentifikation = "B",
+    aktieserie = "ordinær",
+    antal = 100,
+    afståelsessum_kroner = 60000,
+    skatteår = 2026,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+    udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+    udenlandsk_tabsfradrag_efter_stk4 = abl39a_tabsfradrag_10000,
+    uudnyttet_realiseret_tab_kan_fremføres = Falskt
+)
+= abl39a_afståelse_b_med_tab_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_b_med_tab)
+)
+
+= abl39a_afståelse_par44 = AktieavancePar39AAfståelsesdata(
+    hændelsesidentifikation = "salg-c-par44",
+    selskabsidentifikation = "C",
+    aktieserie = "ordinær",
+    antal = 50,
+    afståelsessum_kroner = 100000,
+    skatteår = 2026,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+    udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+    udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+    uudnyttet_realiseret_tab_kan_fremføres = Falskt
+)
+= abl39a_afståelse_par44_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_par44)
+)
+
+= abl39a_udbytte_data = AktieavancePar39AUdlodningsdata(
+    hændelsesidentifikation = "udbytte-a",
+    selskabsidentifikation = "A",
+    skatteår = 2026,
+    beregningsgrundlag_kroner = 100000,
+    betalt_dansk_skat_kroner = 10000,
+    godkendt_fradrag_efter_ligningslov_par33_kroner = 5000
+)
+= abl39a_udbytte_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AUdbytte(data = abl39a_udbytte_data)
+)
+= abl39a_disposition_uden_nedadgående_potentiale_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAndenUdlodningEllerDisposition(
+        data = AktieavancePar39AUdlodningsdata(
+            hændelsesidentifikation = "markedsvilkår-a",
+            selskabsidentifikation = "A",
+            skatteår = 2026,
+            beregningsgrundlag_kroner = 50000,
+            betalt_dansk_skat_kroner = 0,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+        ),
+        kan_påvirke_kursværdi_nedad = Falskt,
+        til_personen_selv = Sandt,
+        i_personens_interesse = Sandt
+    )
+)
+= abl39a_potentiel_disposition_uden_påvist_kursfald_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AAndenUdlodningEllerDisposition(
+        data = AktieavancePar39AUdlodningsdata(
+            hændelsesidentifikation = "udlodning-a",
+            selskabsidentifikation = "A",
+            skatteår = 2026,
+            beregningsgrundlag_kroner = 50000,
+            betalt_dansk_skat_kroner = 0,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+        ),
+        kan_påvirke_kursværdi_nedad = Sandt,
+        til_personen_selv = Sandt,
+        i_personens_interesse = Falskt
+    )
+)
+
+= abl39a_lån_til_personen = AktieavancePar39ALånedata(
+    hændelsesidentifikation = "laan-person",
+    beholdningsselskabsidentifikation = "A",
+    låneprovenu_kroner = 50000,
+    låntager = AblPar39ALånTilPersonen,
+    långiverrelation = AblPar39ALånFraBeholdningsselskab,
+    långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+    långivende_selskab_er_pengeinstitut = Falskt,
+    personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+    beskattes_efter_ligningslov_par16e = Falskt
+)
+= abl39a_lån_til_personen_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ALån(data = abl39a_lån_til_personen)
+)
+= abl39a_lån_gennem_deltagerselskab_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
+        hændelsesidentifikation = "laan-deltagerselskab",
+        beholdningsselskabsidentifikation = "A",
+        låneprovenu_kroner = 100000,
+        låntager = AblPar39ALånTilPersonkredsEfterPar4Stk2,
+        långiverrelation = AblPar39ALånFraSelskabSomBeholdningsselskabetDeltagerI(ejerandel_basispoint = 4000),
+        långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+        långivende_selskab_er_pengeinstitut = Falskt,
+        personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+        beskattes_efter_ligningslov_par16e = Falskt
+    ))
+)
+= abl39a_lån_til_helejet_selskab_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
+        hændelsesidentifikation = "laan-helejet",
+        beholdningsselskabsidentifikation = "A",
+        låneprovenu_kroner = 70000,
+        låntager = AblPar39ALånTilSelskabMedMindstTiPctEjerskab,
+        långiverrelation = AblPar39ALånFraBeholdningsselskab,
+        långivende_selskab_ejer_hele_låntagerselskabet = Sandt,
+        långivende_selskab_er_pengeinstitut = Falskt,
+        personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+        beskattes_efter_ligningslov_par16e = Falskt
+    ))
+)
+= abl39a_lån_fra_bank_under_fem_pct_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
+        hændelsesidentifikation = "laan-bank",
+        beholdningsselskabsidentifikation = "A",
+        låneprovenu_kroner = 70000,
+        låntager = AblPar39ALånTilPersonen,
+        långiverrelation = AblPar39ALånFraBeholdningsselskab,
+        långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+        långivende_selskab_er_pengeinstitut = Sandt,
+        personens_ejerandel_i_långivende_selskab_basispoint = 400,
+        beskattes_efter_ligningslov_par16e = Falskt
+    ))
+)
+= abl39a_lån_beskattet_efter_ll16e_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ALån(data = AktieavancePar39ALånedata(
+        hændelsesidentifikation = "laan-ll16e",
+        beholdningsselskabsidentifikation = "A",
+        låneprovenu_kroner = 70000,
+        låntager = AblPar39ALånTilPersonen,
+        långiverrelation = AblPar39ALånFraBeholdningsselskab,
+        långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+        långivende_selskab_er_pengeinstitut = Falskt,
+        personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+        beskattes_efter_ligningslov_par16e = Sandt
+    ))
+)
+
+= abl39a_lån_70_første = AktieavancePar39ALånedata(
+    hændelsesidentifikation = "laan-reservation-1",
+    beholdningsselskabsidentifikation = "A",
+    låneprovenu_kroner = 70000,
+    låntager = AblPar39ALånTilPersonen,
+    långiverrelation = AblPar39ALånFraBeholdningsselskab,
+    långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+    långivende_selskab_er_pengeinstitut = Falskt,
+    personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+    beskattes_efter_ligningslov_par16e = Falskt
+)
+= abl39a_lån_70_andet = AktieavancePar39ALånedata(
+    hændelsesidentifikation = "laan-reservation-2",
+    beholdningsselskabsidentifikation = "A",
+    låneprovenu_kroner = 70000,
+    låntager = AblPar39ALånTilPersonen,
+    långiverrelation = AblPar39ALånFraBeholdningsselskab,
+    långivende_selskab_ejer_hele_låntagerselskabet = Falskt,
+    långivende_selskab_er_pengeinstitut = Falskt,
+    personens_ejerandel_i_långivende_selskab_basispoint = 10000,
+    beskattes_efter_ligningslov_par16e = Falskt
+)
+= abl39a_to_lån_reserveret_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_tilstand,
+    hændelser = [
+        AblPar39ALån(data = abl39a_lån_70_første),
+        AblPar39ALån(data = abl39a_lån_70_andet)
+    ]
+)
+= abl39a_to_lån_betalt_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_to_lån_reserveret_resultat.tilstand_ultimo,
+    hændelser = [
+        AblPar39ABetaling(data = AktieavancePar39ABetaling(
+            forfaldsidentifikation = "laan-reservation-1:forfald",
+            beløb_kroner = 70000,
+            art = AblPar39ABetalingAfForfaldspost,
+            friststatus = AblPar39ABetalingRettidigDen20
+        )),
+        AblPar39ABetaling(data = AktieavancePar39ABetaling(
+            forfaldsidentifikation = "laan-reservation-2:forfald",
+            beløb_kroner = 30000,
+            art = AblPar39ABetalingAfForfaldspost,
+            friststatus = AblPar39ABetalingRettidigDen20
+        ))
+    ]
+)
+
+= abl39a_årsoplysninger_rettidige_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-2026",
+        indkomstår = 2026,
+        friststatus = AblPar39ARettidigFørstkommendeHverdagKl9,
+        adresse_oplyst = Sandt
+    ))
+)
+= abl39a_årsoplysninger_for_sent_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-for-sent",
+        indkomstår = 2026,
+        friststatus = AblPar39AÅrsoplysningerForSent,
+        adresse_oplyst = Sandt
+    ))
+)
+= abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ADokumentation(data = AktieavancePar39ADokumentation(
+        hændelsesidentifikation = "dokumentation-undskyldelig",
+        friststatus = AblPar39ADokumentationFristoverskridelseTilsidesat
+    ))
+)
+= abl39a_dokumentation_for_sent_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ADokumentation(data = AktieavancePar39ADokumentation(
+        hændelsesidentifikation = "dokumentation-for-sent",
+        friststatus = AblPar39ADokumentationForSent
+    ))
+)
+
+= abl39a_forsinket_delbetaling_af_lån = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_lån_til_personen_resultat.tilstand_efter,
+    hændelse = AblPar39ABetaling(data = AktieavancePar39ABetaling(
+        forfaldsidentifikation = "laan-person:forfald",
+        beløb_kroner = 20000,
+        art = AblPar39ABetalingAfForfaldspost,
+        friststatus = AblPar39ABetalingForSent
+    ))
+)
+= abl39a_frivillig_betaling_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ABetaling(data = AktieavancePar39ABetaling(
+        forfaldsidentifikation = "",
+        beløb_kroner = 25000,
+        art = AblPar39AFrivilligBetaling,
+        friststatus = AblPar39ABetalingRettidigDen20
+    ))
+)
+= abl40_betalt_skat_over_saldo_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar40BetaltSkatVedLedelsessædefraflytning(beløb_kroner = 120000)
+)
+
+= abl39a_omstruktureret_parti_d = AktieavancePar39ABeholdningsparti(
+    identifikation = "D-efter-omstrukturering",
+    selskabsidentifikation = "D",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2018, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 140,
+    resterende_anskaffelsessum_efter_par38_kroner = 140000,
+    resterende_værdi_ved_fraflytning_kroner = 180000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39a_omstruktureret_parti_e = AktieavancePar39ABeholdningsparti(
+    identifikation = "E-efter-omstrukturering",
+    selskabsidentifikation = "E",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2019, måned = 2, dag = 3),
+    erhvervelsesrækkefølge = 2,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 100000,
+    resterende_værdi_ved_fraflytning_kroner = 120000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Sandt
+)
+= abl39a_skattefri_omstrukturering_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand,
+    hændelse = AblPar39ASkattefriOmstrukturering(data = AktieavancePar39ASkattefriOmstrukturering(
+        hændelsesidentifikation = "skattefri-omstrukturering",
+        beholdning_efter = [abl39a_omstruktureret_parti_d, abl39a_omstruktureret_parti_e],
+        skattefri_med_succession = Sandt
+    ))
+)
+
+= abl39a_tilstand_kun_a = AktieavancePar39ATilstand(
+    beholdning = [abl39a_parti_a],
+    henstandssaldo_kroner = 100000,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+= abl39a_sidste_aktie_afstået_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand_kun_a,
+    hændelse = AblPar39AAfståelse(data = AktieavancePar39AAfståelsesdata(
+        hændelsesidentifikation = "sidste-aktie-afstået",
+        selskabsidentifikation = "A",
+        aktieserie = "ordinær",
+        antal = 100,
+        afståelsessum_kroner = 200000,
+        skatteår = 2026,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+        udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+        uudnyttet_realiseret_tab_kan_fremføres = Falskt
+    ))
+)
+= abl39a_sidste_akties_fordring_betalt_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_sidste_aktie_afstået_resultat.tilstand_efter,
+    hændelse = AblPar39ABetaling(data = AktieavancePar39ABetaling(
+        forfaldsidentifikation = "sidste-aktie-afstået:stk3-gevinst",
+        beløb_kroner = 30090,
+        art = AblPar39ABetalingAfForfaldspost,
+        friststatus = AblPar39ABetalingRettidigDen20
+    ))
+)
+
+= abl39a_tilstand_kun_b = AktieavancePar39ATilstand(
+    beholdning = [abl39a_parti_b],
+    henstandssaldo_kroner = 100000,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+= abl39a_sidste_tab_med_fremførsel_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_tilstand_kun_b,
+    hændelse = AblPar39AAfståelse(data = AktieavancePar39AAfståelsesdata(
+        hændelsesidentifikation = "sidste-tab-med-fremførsel",
+        selskabsidentifikation = "B",
+        aktieserie = "ordinær",
+        antal = 100,
+        afståelsessum_kroner = 60000,
+        skatteår = 2026,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+        udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+        uudnyttet_realiseret_tab_kan_fremføres = Sandt
+    ))
+)
+= abl39a_tabsfremførsel_afsluttet_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_sidste_tab_med_fremførsel_resultat.tilstand_efter,
+    hændelse = AblPar39ATabsfremførselAfsluttet
+)
+
+= abl39a_dødstilstand = AktieavancePar39ATilstand(
+    beholdning = [abl39a_parti_a, abl39a_parti_b],
+    henstandssaldo_kroner = 100000,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+= abl39a_død_resultat = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_dødstilstand,
+    hændelse = AblPar39ADød(data = AktieavancePar39ADødsdata(
+        hændelsesidentifikation = "død-2026",
+        afståelser_til_markedsværdi = [
+            AktieavancePar39AAfståelsesdata(
+                hændelsesidentifikation = "død-a",
+                selskabsidentifikation = "A",
+                aktieserie = "ordinær",
+                antal = 100,
+                afståelsessum_kroner = 200000,
+                skatteår = 2026,
+                godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+                udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+                udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+                uudnyttet_realiseret_tab_kan_fremføres = Falskt
+            ),
+            AktieavancePar39AAfståelsesdata(
+                hændelsesidentifikation = "død-b",
+                selskabsidentifikation = "B",
+                aktieserie = "ordinær",
+                antal = 100,
+                afståelsessum_kroner = 60000,
+                skatteår = 2026,
+                godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+                udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+                udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+                uudnyttet_realiseret_tab_kan_fremføres = Falskt
+            )
+        ]
+    ))
+)
+
+= abl39b_gevinstparti_1 = AktieavancePar39ABeholdningsparti(
+    identifikation = "tilflytning-gevinst-1",
+    selskabsidentifikation = "G1",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2018, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 100000,
+    resterende_værdi_ved_fraflytning_kroner = 150000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39b_gevinstparti_2 = AktieavancePar39ABeholdningsparti(
+    identifikation = "tilflytning-gevinst-2",
+    selskabsidentifikation = "G2",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2019, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 2,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 100000,
+    resterende_værdi_ved_fraflytning_kroner = 150000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39b_gevinsttilstand = AktieavancePar39ATilstand(
+    beholdning = [abl39b_gevinstparti_1, abl39b_gevinstparti_2],
+    henstandssaldo_kroner = 21438,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+| abl39b_tilflytning_med_saldo_input_i_år(skatteår: Heltal) -> AktieavancePar39BInput(
+    tilstand_før_tilflytning = abl39b_gevinsttilstand,
+    tilflytningsværdier = [
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-gevinst-1",
+            handelsværdi_kroner = 200000
+        ),
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-gevinst-2",
+            handelsværdi_kroner = 100000
+        )
+    ],
+    skatteår = skatteår,
+    får_på_ny_skattemæssigt_hjemsted_i_danmark = Sandt,
+    samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt,
+    oprindeligt_nettotab_ved_fraflytning_kroner = 0
+)
+= abl39b_tilflytning_med_saldo_resultat = aktieavance_par39b_resultat(
+    input = abl39b_tilflytning_med_saldo_input_i_år(skatteår = 2026)
+)
+= abl39b_tilflytning_i_ikke_understøttet_år_resultat = aktieavance_par39b_resultat(
+    input = abl39b_tilflytning_med_saldo_input_i_år(skatteår = 2023)
+)
+= abl39b_ægtefælletilstand = AktieavancePar39ATilstand(
+    beholdning = [abl39b_gevinstparti_1, abl39b_gevinstparti_2],
+    henstandssaldo_kroner = 42876,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+= abl39b_tilflytning_samlevende_ægtefæller_resultat = aktieavance_par39b_resultat(input = AktieavancePar39BInput(
+    tilstand_før_tilflytning = abl39b_ægtefælletilstand,
+    tilflytningsværdier = [
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-gevinst-1",
+            handelsværdi_kroner = 300000
+        ),
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-gevinst-2",
+            handelsværdi_kroner = 100000
+        )
+    ],
+    skatteår = 2026,
+    får_på_ny_skattemæssigt_hjemsted_i_danmark = Sandt,
+    samlevende_med_ægtefælle_ved_indkomstårets_udløb = Sandt,
+    oprindeligt_nettotab_ved_fraflytning_kroner = 0
+))
+
+= abl39b_tabsparti_1 = AktieavancePar39ABeholdningsparti(
+    identifikation = "tilflytning-tab-1",
+    selskabsidentifikation = "T1",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2018, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 200000,
+    resterende_værdi_ved_fraflytning_kroner = 100000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Sandt
+)
+= abl39b_tabsparti_2 = AktieavancePar39ABeholdningsparti(
+    identifikation = "tilflytning-tab-2",
+    selskabsidentifikation = "T2",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2019, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 2,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 300000,
+    resterende_værdi_ved_fraflytning_kroner = 100000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Sandt
+)
+= abl39b_tabstilstand = aktieavance_par39a_tilstand_for_nettotab_uden_henstand(
+    beholdning = [abl39b_tabsparti_1, abl39b_tabsparti_2]
+)
+= abl39b_tilflytning_med_oprindeligt_nettotab_resultat = aktieavance_par39b_resultat(input = AktieavancePar39BInput(
+    tilstand_før_tilflytning = abl39b_tabstilstand,
+    tilflytningsværdier = [
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-tab-1",
+            handelsværdi_kroner = 200000
+        ),
+        AktieavancePar39BTilflytningsværdi(
+            partiidentifikation = "tilflytning-tab-2",
+            handelsværdi_kroner = 300000
+        )
+    ],
+    skatteår = 2026,
+    får_på_ny_skattemæssigt_hjemsted_i_danmark = Sandt,
+    samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt,
+    oprindeligt_nettotab_ved_fraflytning_kroner = 400000
+))
+
+= abl39a_oprettelsesaktie = AktieavancePar38Aktie(
+    identifikation = "oprettelse-a",
+    handelsværdi_ved_ophør_kroner = 200000,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 100000),
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip
+)
+= abl39a_oprettelse_par38_resultat = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [abl39a_oprettelsesaktie]
+))
+= abl39a_oprettelse_par39_resultat = aktieavance_par39_resultat(input = AktieavancePar39Input(
+    par38_resultat = abl39a_oprettelse_par38_resultat,
+    beregnet_skat_for_realisationsopgjorte_poster_kroner = 30090,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+))
+= abl39a_oprettelsesparti = AktieavancePar39ABeholdningsparti(
+    identifikation = "oprettelse-a",
+    selskabsidentifikation = "OA",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 1, dag = 2),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = 100000,
+    resterende_værdi_ved_fraflytning_kroner = 200000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39a_oprettelse_fra_par39_resultat = aktieavance_par39a_oprettelsesresultat(
+    par39_resultat = abl39a_oprettelse_par39_resultat,
+    beholdning = [abl39a_oprettelsesparti]
+)
+
+= abl39a_kort_forløb_resultat = aktieavance_par39a_forløbsresultat(
+    tilstand_primo = abl39a_tilstand,
+    hændelser = [
+        AblPar39AUdbytte(data = abl39a_udbytte_data),
+        AblPar39ABetaling(data = AktieavancePar39ABetaling(
+            forfaldsidentifikation = "udbytte-a:forfald",
+            beløb_kroner = 15090,
+            art = AblPar39ABetalingAfForfaldspost,
+            friststatus = AblPar39ABetalingRettidigDen20
+        ))
+    ]
+)
+
+| scenarie_abl39a_tilstanden_bevarer_ledger_invarianter: abl39a_tilstand -> aktieavance_par39a_tilstand_gyldig(abl39a_tilstand) && length(abl39a_tilstand.beholdning) == 3 && abl39a_tilstand.henstandssaldo_kroner == 100000 && aktieavance_par39a_samlet_anskaffelsessum_kroner(abl39a_tilstand.beholdning) == 240000 && aktieavance_par39a_samlet_fraflytningsværdi_kroner(abl39a_tilstand.beholdning) == 300000
+| scenarie_abl39a_fifo_delsalg_beregner_gevinst_og_forfald: abl39a_afståelse_halvdelen_af_a_resultat -> abl39a_afståelse_halvdelen_af_a_resultat.hændelse_gyldig && abl39a_afståelse_halvdelen_af_a_resultat.gevinst_efter_stk2_kroner == 50000 && abl39a_afståelse_halvdelen_af_a_resultat.beregnet_skat_efter_par8a_kroner == 13500 && abl39a_afståelse_halvdelen_af_a_resultat.nyt_forfald_kroner == 11500 && head(abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.beholdning).resterende_antal == 50 && head(abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.beholdning).resterende_anskaffelsessum_efter_par38_kroner == 50000 && abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.henstandssaldo_kroner == 100000
+| scenarie_abl39a_ikke_understøttet_skatteår_afvises_før_skatteberegning: abl39a_afståelse_i_ikke_understøttet_år_resultat -> abl39a_afståelse_i_ikke_understøttet_år_resultat.hændelse_gyldig == Falskt && abl39a_afståelse_i_ikke_understøttet_år_resultat.beregnet_skat_efter_par8a_kroner == 0 && abl39a_afståelse_i_ikke_understøttet_år_resultat.tilstand_efter == abl39a_tilstand
+| scenarie_abl39a_betaling_nedskriver_saldo_og_fordring: abl39a_betaling_af_a_fordring -> abl39a_betaling_af_a_fordring.hændelse_gyldig && abl39a_betaling_af_a_fordring.betalt_kroner == 11500 && abl39a_betaling_af_a_fordring.tilstand_efter.henstandssaldo_kroner == 88500 && aktieavance_par39a_fordringsrest_kroner(abl39a_betaling_af_a_fordring.tilstand_efter, "salg-a-halv:stk3-gevinst") == 0
+| scenarie_abl39a_stk3_tab_nedskriver_straks_og_udløser_udlandsk_fordring: abl39a_afståelse_a_med_stk3_tab_resultat -> abl39a_afståelse_a_med_stk3_tab_resultat.hændelse_gyldig && abl39a_afståelse_a_med_stk3_tab_resultat.gevinst_efter_stk2_kroner == 20000 && abl39a_afståelse_a_med_stk3_tab_resultat.beregnet_skat_efter_par8a_kroner == 5400 && abl39a_afståelse_a_med_stk3_tab_resultat.straksnedskrivning_kroner == 10800 && abl39a_afståelse_a_med_stk3_tab_resultat.nyt_forfald_kroner == 14400 && abl39a_afståelse_a_med_stk3_tab_resultat.tilstand_efter.henstandssaldo_kroner == 89200 && aktieavance_par39a_fordringsrest_kroner(abl39a_afståelse_a_med_stk3_tab_resultat.tilstand_efter, "salg-a-stk3-tab:stk3-udenlandsk-tab") == 9000
+| scenarie_abl39a_stk4_tab_begrænses_af_fraflytningsværdien: abl39a_afståelse_b_med_tab_resultat -> abl39a_afståelse_b_med_tab_resultat.hændelse_gyldig && abl39a_afståelse_b_med_tab_resultat.tab_efter_stk2_kroner == 60000 && abl39a_afståelse_b_med_tab_resultat.reguleret_tab_efter_stk4_kroner == 30000 && abl39a_afståelse_b_med_tab_resultat.straksnedskrivning_kroner == 8100 && abl39a_afståelse_b_med_tab_resultat.nyt_forfald_kroner == 8100 && abl39a_afståelse_b_med_tab_resultat.tilstand_efter.henstandssaldo_kroner == 91900
+| scenarie_abl39a_par44_aktie_fjernes_uden_ny_opgørelse: abl39a_afståelse_par44_resultat -> abl39a_afståelse_par44_resultat.hændelse_gyldig && abl39a_afståelse_par44_resultat.gevinst_efter_stk2_kroner == 0 && abl39a_afståelse_par44_resultat.tab_efter_stk2_kroner == 0 && abl39a_afståelse_par44_resultat.beregnet_skat_efter_par8a_kroner == 0 && length(abl39a_afståelse_par44_resultat.tilstand_efter.beholdning) == 2
+| scenarie_abl39a_udbytte_modregner_dansk_og_udenlandsk_skat: abl39a_udbytte_resultat -> abl39a_udbytte_resultat.hændelse_gyldig && abl39a_udbytte_resultat.beregnet_skat_efter_par8a_kroner == 30090 && abl39a_udbytte_resultat.straksnedskrivning_kroner == 10000 && abl39a_udbytte_resultat.nyt_forfald_kroner == 15090 && abl39a_udbytte_resultat.tilstand_efter.henstandssaldo_kroner == 90000
+| scenarie_abl39a_disposition_uden_nedadgående_potentiale_er_uden_ledger_virkning: abl39a_disposition_uden_nedadgående_potentiale_resultat -> abl39a_disposition_uden_nedadgående_potentiale_resultat.hændelse_gyldig && abl39a_disposition_uden_nedadgående_potentiale_resultat.beregnet_skat_efter_par8a_kroner == 0 && abl39a_disposition_uden_nedadgående_potentiale_resultat.nyt_forfald_kroner == 0 && abl39a_disposition_uden_nedadgående_potentiale_resultat.tilstand_efter == abl39a_tilstand
+| scenarie_abl39a_potentiel_nedadgående_virkning_kræver_ikke_påvist_kursfald: abl39a_potentiel_disposition_uden_påvist_kursfald_resultat -> abl39a_potentiel_disposition_uden_påvist_kursfald_resultat.hændelse_gyldig && abl39a_potentiel_disposition_uden_påvist_kursfald_resultat.beregnet_skat_efter_par8a_kroner == 13500 && abl39a_potentiel_disposition_uden_påvist_kursfald_resultat.nyt_forfald_kroner == 13500
+| scenarie_abl39a_lån_til_personen_udløser_forfald: abl39a_lån_til_personen_resultat -> abl39a_lån_til_personen_resultat.hændelse_gyldig && abl39a_lån_til_personen_resultat.nyt_forfald_kroner == 50000 && aktieavance_par39a_fordringsrest_kroner(abl39a_lån_til_personen_resultat.tilstand_efter, "laan-person:forfald") == 50000
+| scenarie_abl39a_indirekte_lån_følger_ejerandelen: abl39a_lån_gennem_deltagerselskab_resultat -> abl39a_lån_gennem_deltagerselskab_resultat.hændelse_gyldig && abl39a_lån_gennem_deltagerselskab_resultat.nyt_forfald_kroner == 40000
+| scenarie_abl39a_helejet_låntagerselskab_er_undtaget: abl39a_lån_til_helejet_selskab_resultat -> abl39a_lån_til_helejet_selskab_resultat.hændelse_gyldig && abl39a_lån_til_helejet_selskab_resultat.nyt_forfald_kroner == 0
+| scenarie_abl39a_banklån_under_fem_pct_er_undtaget: abl39a_lån_fra_bank_under_fem_pct_resultat -> abl39a_lån_fra_bank_under_fem_pct_resultat.hændelse_gyldig && abl39a_lån_fra_bank_under_fem_pct_resultat.nyt_forfald_kroner == 0
+| scenarie_abl39a_lån_beskattet_efter_ll16e_følger_udlodningssporet: abl39a_lån_beskattet_efter_ll16e_resultat -> abl39a_lån_beskattet_efter_ll16e_resultat.hændelse_gyldig && abl39a_lån_beskattet_efter_ll16e_resultat.nyt_forfald_kroner == 0
+| scenarie_abl39a_fordringer_reserverer_saldo_uden_overopkrævning: abl39a_to_lån_reserveret_resultat -> abl39a_to_lån_reserveret_resultat.alle_hændelser_gyldige && abl39a_to_lån_reserveret_resultat.tilstand_ultimo.henstandssaldo_kroner == 100000 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo.forfaldsposter) == 100000 && aktieavance_par39a_disponibel_henstandssaldo_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo) == 0 && aktieavance_par39a_fordringsrest_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo, "laan-reservation-1:forfald") == 70000 && aktieavance_par39a_fordringsrest_kroner(abl39a_to_lån_reserveret_resultat.tilstand_ultimo, "laan-reservation-2:forfald") == 30000
+| scenarie_abl39a_reserverede_fordringer_kan_betales_præcist_til_nul: abl39a_to_lån_betalt_resultat -> abl39a_to_lån_betalt_resultat.alle_hændelser_gyldige && abl39a_to_lån_betalt_resultat.tilstand_ultimo.henstandssaldo_kroner == 0 && length(abl39a_to_lån_betalt_resultat.tilstand_ultimo.forfaldsposter) == 0
+| scenarie_abl39a_rettidige_årsoplysninger_bevarer_henstand: abl39a_årsoplysninger_rettidige_resultat -> abl39a_årsoplysninger_rettidige_resultat.hændelse_gyldig && abl39a_årsoplysninger_rettidige_resultat.henstand_bortfaldet == Falskt && abl39a_årsoplysninger_rettidige_resultat.nyt_forfald_kroner == 0 && abl39a_årsoplysninger_rettidige_resultat.tilstand_efter.henstand_aktiv
+| scenarie_abl39a_for_sene_årsoplysninger_bortfalder_henstanden: abl39a_årsoplysninger_for_sent_resultat -> abl39a_årsoplysninger_for_sent_resultat.hændelse_gyldig && abl39a_årsoplysninger_for_sent_resultat.henstand_bortfaldet && abl39a_årsoplysninger_for_sent_resultat.nyt_forfald_kroner == 100000 && abl39a_årsoplysninger_for_sent_resultat.tilstand_efter.henstand_aktiv == Falskt
+| scenarie_abl39a_tilsidesat_dokumentationsfrist_bevarer_henstand: abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat -> abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.hændelse_gyldig && abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.henstand_bortfaldet == Falskt && abl39a_dokumentation_fristoverskridelse_tilsidesat_resultat.nyt_forfald_kroner == 0
+| scenarie_abl39a_manglende_dokumentation_bruger_anden_måneds_frist: abl39a_dokumentation_for_sent_resultat -> abl39a_dokumentation_for_sent_resultat.hændelse_gyldig && abl39a_dokumentation_for_sent_resultat.henstand_bortfaldet && abl39a_dokumentation_for_sent_resultat.nyt_forfald_kroner == 100000 && any(abl39a_dokumentation_for_sent_resultat.tilstand_efter.forfaldsposter, |post: AktieavancePar39AForfaldspost| post.fristregel == AblPar39AForfaldAndenMånedSidsteRettidige20)
+| scenarie_abl39a_forsinket_delbetaling_udløser_kildeskattelov_par63: abl39a_forsinket_delbetaling_af_lån -> abl39a_forsinket_delbetaling_af_lån.hændelse_gyldig && abl39a_forsinket_delbetaling_af_lån.kildeskattelov_par63_anvendes && abl39a_forsinket_delbetaling_af_lån.tilstand_efter.henstandssaldo_kroner == 80000 && aktieavance_par39a_fordringsrest_kroner(abl39a_forsinket_delbetaling_af_lån.tilstand_efter, "laan-person:forfald") == 30000
+| scenarie_abl39a_frivillig_betaling_nedskriver_saldoen: abl39a_frivillig_betaling_resultat -> abl39a_frivillig_betaling_resultat.hændelse_gyldig && abl39a_frivillig_betaling_resultat.betalt_kroner == 25000 && abl39a_frivillig_betaling_resultat.tilstand_efter.henstandssaldo_kroner == 75000
+| scenarie_abl40_saldoen_kan_ikke_nedskrives_under_nul: abl40_betalt_skat_over_saldo_resultat -> abl40_betalt_skat_over_saldo_resultat.hændelse_gyldig && abl40_betalt_skat_over_saldo_resultat.straksnedskrivning_kroner == 100000 && abl40_betalt_skat_over_saldo_resultat.betalt_kroner == 120000 && abl40_betalt_skat_over_saldo_resultat.tilstand_efter.henstandssaldo_kroner == 0
+| scenarie_abl39a_skattefri_omstrukturering_bevarer_samlede_værdier: abl39a_skattefri_omstrukturering_resultat -> abl39a_skattefri_omstrukturering_resultat.hændelse_gyldig && length(abl39a_skattefri_omstrukturering_resultat.tilstand_efter.beholdning) == 2 && aktieavance_par39a_samlet_anskaffelsessum_kroner(abl39a_skattefri_omstrukturering_resultat.tilstand_efter.beholdning) == 240000 && aktieavance_par39a_samlet_fraflytningsværdi_kroner(abl39a_skattefri_omstrukturering_resultat.tilstand_efter.beholdning) == 300000 && abl39a_skattefri_omstrukturering_resultat.tilstand_efter.henstandssaldo_kroner == 100000
+| scenarie_abl39a_sidste_afståelse_bortfalder_kun_ureserveret_restsaldo: abl39a_sidste_aktie_afstået_resultat -> abl39a_sidste_aktie_afstået_resultat.hændelse_gyldig && abl39a_sidste_aktie_afstået_resultat.gevinst_efter_stk2_kroner == 100000 && abl39a_sidste_aktie_afstået_resultat.nyt_forfald_kroner == 30090 && abl39a_sidste_aktie_afstået_resultat.saldobortfald_efter_stk10_kroner == 69910 && abl39a_sidste_aktie_afstået_resultat.tilstand_efter.henstandssaldo_kroner == 30090 && aktieavance_par39a_reserveret_henstandssaldo_kroner(abl39a_sidste_aktie_afstået_resultat.tilstand_efter.forfaldsposter) == 30090 && length(abl39a_sidste_aktie_afstået_resultat.tilstand_efter.beholdning) == 0
+| scenarie_abl39a_sidste_afståelsesfordring_nedskriver_resten_til_nul: abl39a_sidste_akties_fordring_betalt_resultat -> abl39a_sidste_akties_fordring_betalt_resultat.hændelse_gyldig && abl39a_sidste_akties_fordring_betalt_resultat.betalt_kroner == 30090 && abl39a_sidste_akties_fordring_betalt_resultat.tilstand_efter.henstandssaldo_kroner == 0 && length(abl39a_sidste_akties_fordring_betalt_resultat.tilstand_efter.forfaldsposter) == 0
+| scenarie_abl39a_uudnyttet_tab_udskyder_saldobortfald: abl39a_sidste_tab_med_fremførsel_resultat -> abl39a_sidste_tab_med_fremførsel_resultat.hændelse_gyldig && abl39a_sidste_tab_med_fremførsel_resultat.straksnedskrivning_kroner == 8100 && abl39a_sidste_tab_med_fremførsel_resultat.saldobortfald_efter_stk10_kroner == 0 && abl39a_sidste_tab_med_fremførsel_resultat.tilstand_efter.henstandssaldo_kroner == 91900 && abl39a_sidste_tab_med_fremførsel_resultat.tilstand_efter.uudnyttede_realiserede_tab_kan_fremføres
+| scenarie_abl39a_afsluttet_tabsfremførsel_bortfalder_restsaldoen: abl39a_tabsfremførsel_afsluttet_resultat -> abl39a_tabsfremførsel_afsluttet_resultat.hændelse_gyldig && abl39a_tabsfremførsel_afsluttet_resultat.saldobortfald_efter_stk10_kroner == 91900 && abl39a_tabsfremførsel_afsluttet_resultat.tilstand_efter.henstandssaldo_kroner == 0
+| scenarie_abl39a_død_behandler_hele_beholdningen_som_afstået: abl39a_død_resultat -> abl39a_død_resultat.hændelse_gyldig && abl39a_død_resultat.gevinst_efter_stk2_kroner == 100000 && abl39a_død_resultat.tab_efter_stk2_kroner == 60000 && abl39a_død_resultat.reguleret_tab_efter_stk4_kroner == 30000 && abl39a_død_resultat.beregnet_skat_efter_par8a_kroner == 30090 && abl39a_død_resultat.straksnedskrivning_kroner == 8100 && abl39a_død_resultat.nyt_forfald_kroner == 30090 && abl39a_død_resultat.saldobortfald_efter_stk10_kroner == 61810 && abl39a_død_resultat.tilstand_efter.henstandssaldo_kroner == 30090 && length(abl39a_død_resultat.tilstand_efter.beholdning) == 0
+| scenarie_abl39b_saldo_omregnes_og_fordeles_forholdsmæssigt: abl39b_tilflytning_med_saldo_resultat -> abl39b_tilflytning_med_saldo_resultat.input_gyldigt && abl39b_tilflytning_med_saldo_resultat.par37_finder_anvendelse && abl39b_tilflytning_med_saldo_resultat.henstandssaldo_omregnet_til_indkomstgrundlag_kroner == 79400 && abl39b_tilflytning_med_saldo_resultat.samlet_nettogevinst_kroner == 100000 && abl39b_tilflytning_med_saldo_resultat.samlet_nedsættelse_kroner == 79400 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_med_saldo_resultat.indgangsværdier, "tilflytning-gevinst-1") == 147067 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_med_saldo_resultat.indgangsværdier, "tilflytning-gevinst-2") == 73533 && abl39b_tilflytning_med_saldo_resultat.resterende_henstandssaldo_bortfalder_kroner == 21438 && abl39b_tilflytning_med_saldo_resultat.tilstand_efter_tilflytning.henstandssaldo_kroner == 0
+| scenarie_abl39b_ikke_understøttet_skatteår_afvises_før_omregning: abl39b_tilflytning_i_ikke_understøttet_år_resultat -> abl39b_tilflytning_i_ikke_understøttet_år_resultat.input_gyldigt == Falskt && abl39b_tilflytning_i_ikke_understøttet_år_resultat.par37_finder_anvendelse == Falskt && abl39b_tilflytning_i_ikke_understøttet_år_resultat.henstandssaldo_omregnet_til_indkomstgrundlag_kroner == 0 && abl39b_tilflytning_i_ikke_understøttet_år_resultat.tilstand_efter_tilflytning == abl39b_gevinsttilstand
+| scenarie_abl39b_samlevende_ægtefæller_bruger_dobbelt_grundbeløb: abl39b_tilflytning_samlevende_ægtefæller_resultat -> abl39b_tilflytning_samlevende_ægtefæller_resultat.input_gyldigt && abl39b_tilflytning_samlevende_ægtefæller_resultat.henstandssaldo_omregnet_til_indkomstgrundlag_kroner == 158800 && abl39b_tilflytning_samlevende_ægtefæller_resultat.samlet_nettogevinst_kroner == 200000 && abl39b_tilflytning_samlevende_ægtefæller_resultat.samlet_nedsættelse_kroner == 158800 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_samlevende_ægtefæller_resultat.indgangsværdier, "tilflytning-gevinst-1") == 180900 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_samlevende_ægtefæller_resultat.indgangsværdier, "tilflytning-gevinst-2") == 60300
+| scenarie_abl39b_oprindeligt_nettotab_forhøjer_indgangsværdierne: abl39b_tilflytning_med_oprindeligt_nettotab_resultat -> abl39b_tilflytning_med_oprindeligt_nettotab_resultat.input_gyldigt && abl39b_tilflytning_med_oprindeligt_nettotab_resultat.samlet_nettogevinst_kroner == 0 && abl39b_tilflytning_med_oprindeligt_nettotab_resultat.samlet_nedsættelse_kroner == 0 && abl39b_tilflytning_med_oprindeligt_nettotab_resultat.samlet_forhøjelse_kroner == 400000 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_med_oprindeligt_nettotab_resultat.indgangsværdier, "tilflytning-tab-1") == 360000 && aktieavance_par39b_indgangsværdi_kroner(abl39b_tilflytning_med_oprindeligt_nettotab_resultat.indgangsværdier, "tilflytning-tab-2") == 540000
+| scenarie_abl39a_oprettes_fra_faktisk_par39_henstand: abl39a_oprettelse_fra_par39_resultat -> abl39a_oprettelse_par38_resultat.nettogevinst_til_skatteberegning_efter_stk5_kroner == 100000 && abl39a_oprettelse_par39_resultat.henstand_finder_anvendelse && abl39a_oprettelse_par39_resultat.henstandsbeløb_kroner == 30090 && abl39a_oprettelse_fra_par39_resultat.oprettelse_gyldig && abl39a_oprettelse_fra_par39_resultat.tilstand.henstandssaldo_kroner == 30090 && length(abl39a_oprettelse_fra_par39_resultat.tilstand.beholdning) == 1
+| scenarie_abl39a_regelkaskade_folder_hændelser_i_rækkefølge: abl39a_kort_forløb_resultat -> abl39a_kort_forløb_resultat.alle_hændelser_gyldige && length(abl39a_kort_forløb_resultat.resultater) == 2 && abl39a_kort_forløb_resultat.tilstand_ultimo.henstandssaldo_kroner == 74910 && aktieavance_par39a_fordringsrest_kroner(abl39a_kort_forløb_resultat.tilstand_ultimo, "udbytte-a:forfald") == 0
+
+? scenarie_abl39a_tilstanden_bevarer_ledger_invarianter
+? scenarie_abl39a_fifo_delsalg_beregner_gevinst_og_forfald
+? scenarie_abl39a_ikke_understøttet_skatteår_afvises_før_skatteberegning
+? scenarie_abl39a_betaling_nedskriver_saldo_og_fordring
+? scenarie_abl39a_stk3_tab_nedskriver_straks_og_udløser_udlandsk_fordring
+? scenarie_abl39a_stk4_tab_begrænses_af_fraflytningsværdien
+? scenarie_abl39a_par44_aktie_fjernes_uden_ny_opgørelse
+? scenarie_abl39a_udbytte_modregner_dansk_og_udenlandsk_skat
+? scenarie_abl39a_disposition_uden_nedadgående_potentiale_er_uden_ledger_virkning
+? scenarie_abl39a_potentiel_nedadgående_virkning_kræver_ikke_påvist_kursfald
+? scenarie_abl39a_lån_til_personen_udløser_forfald
+? scenarie_abl39a_indirekte_lån_følger_ejerandelen
+? scenarie_abl39a_helejet_låntagerselskab_er_undtaget
+? scenarie_abl39a_banklån_under_fem_pct_er_undtaget
+? scenarie_abl39a_lån_beskattet_efter_ll16e_følger_udlodningssporet
+? scenarie_abl39a_fordringer_reserverer_saldo_uden_overopkrævning
+? scenarie_abl39a_reserverede_fordringer_kan_betales_præcist_til_nul
+? scenarie_abl39a_rettidige_årsoplysninger_bevarer_henstand
+? scenarie_abl39a_for_sene_årsoplysninger_bortfalder_henstanden
+? scenarie_abl39a_tilsidesat_dokumentationsfrist_bevarer_henstand
+? scenarie_abl39a_manglende_dokumentation_bruger_anden_måneds_frist
+? scenarie_abl39a_forsinket_delbetaling_udløser_kildeskattelov_par63
+? scenarie_abl39a_frivillig_betaling_nedskriver_saldoen
+? scenarie_abl40_saldoen_kan_ikke_nedskrives_under_nul
+? scenarie_abl39a_skattefri_omstrukturering_bevarer_samlede_værdier
+? scenarie_abl39a_sidste_afståelse_bortfalder_kun_ureserveret_restsaldo
+? scenarie_abl39a_sidste_afståelsesfordring_nedskriver_resten_til_nul
+? scenarie_abl39a_uudnyttet_tab_udskyder_saldobortfald
+? scenarie_abl39a_afsluttet_tabsfremførsel_bortfalder_restsaldoen
+? scenarie_abl39a_død_behandler_hele_beholdningen_som_afstået
+? scenarie_abl39b_saldo_omregnes_og_fordeles_forholdsmæssigt
+? scenarie_abl39b_ikke_understøttet_skatteår_afvises_før_omregning
+? scenarie_abl39b_samlevende_ægtefæller_bruger_dobbelt_grundbeløb
+? scenarie_abl39b_oprindeligt_nettotab_forhøjer_indgangsværdierne
+? scenarie_abl39a_oprettes_fra_faktisk_par39_henstand
+? scenarie_abl39a_regelkaskade_folder_hændelser_i_rækkefølge
+
+@ print("Aktieavancebeskatningsloven §§ 39 A-40: 36 ledger-, forfalds- og tilflytningsscenarier kontrolleret")

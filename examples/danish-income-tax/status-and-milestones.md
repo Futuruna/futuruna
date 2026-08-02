@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-d7aa75`
+Current focus issue: `td-748d7e`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -47,7 +47,7 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 30,
-stk. 1, § 33 A og §§ 37-39 har nu typede beregningsveje for ordinære
+stk. 1, § 33 A og §§ 37-40 har nu typede beregningsveje for ordinære
 personaktier, lageropgørelser, aktie- og tegningsretter, statusskifter samt
 indgangs- og fraflytterbeskatning.
 Den vedvarende ordinære selskabsposition håndterer aktier med pålydende værdi,
@@ -104,6 +104,23 @@ typet nettobeløb fra de afhængige §§ 23-29 og 46; § 39 modtager den beregne
 skat for realisationsposterne. Dermed opfinder modulet hverken manglende
 klassifikationsregler eller en skattesats, som bestemmelserne ikke selv angiver.
 
+`aktieavancebeskatningsloven-par39a-40.runa` viderefører henstanden som en
+typet, uforanderlig flerperiodetilstand. Den holder beholdningspartier,
+henstandssaldo og forfaldsposter adskilt, anvender FIFO ved afståelser og
+skelner mellem bruttosaldoen, allerede reserverede fordringer og den endnu
+disponible saldo. Regelkaskaden dækker gevinst og tab, udenlandsk skat,
+udbytte, andre udlodninger og dispositioner, lån og deres undtagelser, død,
+årlige oplysninger, dokumentation, betalingsfrister, kildeskattelovens § 63 og
+det endelige bortfald. § 39 B fordeler tilbageflytningens regulering af
+indgangsværdier forholdsmæssigt og bruger Personskatteloven § 8 a's faktiske
+grundbeløb, inklusive ægtefællers dobbelte grundbeløb. § 40 nedskriver den
+disponible henstandssaldo med betalt skat uden at gå under nul. De 36
+fokusscenarier passerer i både interpreter og kompileret kode og indeholder et
+forløb, som beviser, at flere samtidige fordringer ikke kan reservere eller
+opkræve mere end den samlede henstandssaldo. Satsbaserede hændelser accepterer
+kun skatteår med en kildebunden national parameterpakke, aktuelt 2024-2026;
+andre år afvises før opslaget i Personskatteloven § 8 a.
+
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
 sammenlignelige kapitalandelsgrundlag i domænet og beregner anskaffelser samt
@@ -114,10 +131,10 @@ udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
 De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-9, 17, 19 A-20 A og 22, § 38's afhængige opgørelser efter §§ 23-29 og 46,
-§ 39 A's beholdningsoversigt og henstandssaldo, § 39 B's tilbageflytning samt de
-resterende medarbejderejerregler. Modulerne modtager juridiske klassifikationer
-som typede resultater frem for rå sand/falsk-flags forklædt som fuld dækning.
+9, 17, 19 A-20 A og 22, § 38's fulde afhængige opgørelser efter §§ 23-29 og 46
+samt de resterende medarbejderejerregler. Modulerne modtager juridiske
+klassifikationer som typede resultater frem for rå sand/falsk-flags forklædt
+som fuld dækning.
 
 Afskrivningslovens aktuelle kilde- og regelkorpus omfatter
 nu hele paragrafsekvensen §§ 1-69. § 3 kræver leveret, driftsbestemt og
@@ -797,13 +814,22 @@ Current § 4 and § 13 amendment/dependency sources:
     scenarios pass interpreted and compiled execution. The exact current legal
     text, Skattestyrelsen guidance and post-consolidation amendment checks are
     connected through three typed meta-comment spans.
+  - `aktieavancebeskatningsloven-par39a-40.runa` implements § 39 A's persistent
+    portfolio and deferred-tax ledger, FIFO disposals, immediate reductions,
+    reserved claims, payments, distributions, loans, death, reporting,
+    documentation and final cancellation. § 39 B adjusts re-entry basis
+    proportionally and cancels the remaining available balance; § 40 applies
+    paid-tax reductions with a zero floor. Its 36 focused scenarios pass
+    interpreted and compiled execution, including a two-claim proof that the
+    ledger cannot reserve or collect more than its gross balance. Exact current
+    legal text and the relevant Skattestyrelsen guidance are connected through
+    three typed meta-comment spans.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
     § 17/§ 19 C-if-§ 17 personal-income reclassification.
-  - Remaining ABL depth includes § 39 A's portfolio/deferred-tax ledger,
-    § 39 B's re-entry adjustment, the remaining dependent classifications and
+  - Remaining ABL depth includes the remaining dependent classifications and
     employee-ownership provisions.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
@@ -2049,10 +2075,11 @@ Review candidates to revisit deliberately, not as broad churn:
   Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
   schema v2 uses related child worksheets only when the domain input actually
   contains `List`, `Map`, or `Set` fields.
-- Aktieavancebeskatningsloven §§ 37-39 now cover entry value, personal exit-tax
-  scope and netting, and the first deferral decision. Keep § 39 A's ledger and
-  § 39 B's re-entry adjustment as explicit next modules rather than folding
-  their multi-period state into § 39.
+- Aktieavancebeskatningsloven §§ 37-40 now cover entry value, personal exit-tax
+  scope and netting, the initial deferral decision, the persistent § 39 A
+  portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
+  reduction. The multi-period state remains a separate typed module instead of
+  being folded into § 39's one-time eligibility decision.
 - Close the Personskatteloven implementation gaps before deeper audits. The next
   work should identify the remaining posture-only/first-slice legal areas and
   turn the highest-value ones into source-backed calculation rules.
@@ -2082,11 +2109,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
-- Continue Aktieavancebeskatningsloven from the now-executable §§ 37-39 path:
-  implement § 39 A's portfolio/deferred-tax ledger and § 39 B's re-entry
-  adjustment, then the remaining employee-ownership provisions before calling
-  the ABL dependency complete. Mixed nominal/no-par holdings and § 33 A status
-  changes already have source-backed calculation paths.
+- Continue Aktieavancebeskatningsloven from the now-executable §§ 37-40 path:
+  complete the remaining dependent classifications and employee-ownership
+  provisions before calling the ABL dependency complete. Mixed nominal/no-par
+  holdings, § 33 A status changes and the modeled exit-tax deferral lifecycle
+  already have source-backed calculation paths.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

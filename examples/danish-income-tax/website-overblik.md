@@ -67,14 +67,24 @@ tilflytningsværdi, fraflytterskattens 100.000 kr.- og syvårsgrænser, døds- o
 § 44-undtagelser, gevinst/tab-netting, tegningsretsvalg samt henstandens
 indberetnings- og sikkerhedskrav eksekverbare. Videreflytning mellem bistands- og
 ikke-bistandslande og en for sen beholdningsoversigt er særskilte udfald.
-Resultaterne går videre gennem den samme ABL/Personskattelov-bro. De fokuserede
-scenarier dækker 90 udfald i Aktieavancebeskatningsloven §§ 12-15, §§ 23-27,
-§ 33 A og §§ 37-39. Kilderne er
+§§ 39 A-40 fortsætter henstanden som en typet flerperiodetilstand med
+beholdningspartier, FIFO-afståelser, en samlet henstandssaldo, reserverede
+fordringer og betalinger. Gevinst, tab, udbytte, andre dispositioner, lån og
+undtagelser, død, årsoplysninger, dokumentation, endeligt bortfald,
+tilbageflytning og betalt skat er eksekverbare. De 36 nye scenarier omfatter et
+forløb, som beviser, at flere fordringer hverken kan reservere eller opkræve mere
+end henstandssaldoen. Satsbaserede hændelser er aktuelt afgrænset til de
+kildebundne parameterpakker for 2024-2026; andre år afvises før skatteopslaget.
+Resultaterne går videre gennem den samme
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 126 udfald i
+Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 33 A og §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 [vejledningen om tilflytning](https://info.skat.dk/data.aspx?oid=1946389),
 [vejledningen om fraflytterskattens personkreds](https://info.skat.dk/data.aspx?oid=1946393),
 [vejledningen om gevinst og tab ved fraflytning](https://info.skat.dk/data.aspx?oid=1946398)
-og [vejledningen om henstand](https://info.skat.dk/data.aspx?oid=1946400).
+[vejledningen om henstand](https://info.skat.dk/data.aspx?oid=1946400),
+[betalingen på henstandssaldoen](https://info.skat.dk/data.aspx?oid=1946405)
+og [tilbageflytning](https://info.skat.dk/data.aspx?oid=1946418).
 Selskabslovens tilladte kombination af aktier med og uden pålydende værdi
 bevares som særskilte domæneværdier på et dokumenteret fælles
 kapitalandelsgrundlag, så anskaffelsessummen kan fordeles på tværs af begge
