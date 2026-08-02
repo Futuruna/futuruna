@@ -35,6 +35,12 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par6_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2060787",
+    identifier = "Den juridiske vejledning, straksafskrivning efter AL § 6",
+    hentet_dato = "2026-07-18"
+)
+
 = afskrivningsloven_par11_par13_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060792",
     identifier = "Den juridiske vejledning, delvist erhvervsmæssigt benyttede driftsmidler og skibe",
@@ -807,7 +813,7 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
 )
 --@end:afskrivningsloven_par5d_par5e--
 
---@label:afskrivningsloven_par6_stk1::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+--@label:afskrivningsloven_par6::source:afskrivningsloven_lbk1222::guidance_source:afskrivningsloven_par6_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
 ----
 § 6. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 fradrage (straksafskrive) hele anskaffelsessummen for nedennævnte
@@ -852,14 +858,37 @@ samlede begrænsning fordeles forholdsmæssigt mellem de sambeskattede
 selskabers udgifter omfattet af 5. og 6. pkt. Grundbeløbet i 6. pkt.
 reguleres efter personskattelovens § 20, dog således at det regulerede
 beløb afrundes opad til nærmeste kronebeløb, der kan deles med 100.000.
+
+Stk. 2. Sælges et aktiv, hvis anskaffelsessum efter stk. 1 fuldt ud er
+fradraget i den skattepligtige indkomst for anskaffelsesåret, skal
+salgssummen medregnes i den skattepligtige indkomst for det indkomstår,
+hvori leveringen finder sted, jf. dog § 9.
+
+Stk. 3. Selskaber og foreninger omfattet af selskabsskattelovens § 1,
+stk. 1, nr. 1, 2 og 4, kan først fradrage udgifter til anskaffelse af
+aktiver omfattet af stk. 1, nr. 1 og 2, som erhverves med henblik på
+udlejning, eller som allerede ved erhvervelsen er udlejet, i den
+skattepligtige indkomst for indkomståret efter anskaffelsesåret. Told- og
+skatteforvaltningen kan efter reglerne i § 5, stk. 6, tillade, at 1. pkt.
+ikke skal finde anvendelse.
+
+Stk. 4. Sælges et aktiv omfattet af stk. 3, skal salgssummen med fradrag af
+en eventuel anskaffelsessum, der ikke fuldt ud er fradraget i den
+skattepligtige indkomst, medregnes i den skattepligtige indkomst for det
+indkomstår, hvori leveringen finder sted, jf. dog § 9.
 ----
 
---@begin:afskrivningsloven_par6_stk1--
+--@begin:afskrivningsloven_par6--
 # Afskrivningslov6Valg = Al6IngenStraksafskrivning | Al6KortFysiskLevetid | Al6Småaktiv | Al6ForsøgsOgForskningsaktiv
-# Afskrivningslov6Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal, valg: Afskrivningslov6Valg)
-# Afskrivningslov6Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, valg: Afskrivningslov6Valg, omfattet_af_par6_stk1_modellen: Boolsk, kort_levetid_betingelse_opfyldt: Boolsk, småaktiv_betingelse_opfyldt: Boolsk, forskning_betingelse_opfyldt: Boolsk, valg_gyldigt: Boolsk, forskningsudgift_under_loft_kroner: Heltal, forskningsudgift_over_loft_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+# Afskrivningslov6Aktivgrundlag(aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsesresultat: Afskrivningslov3Resultat, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal)
+# Afskrivningslov6Udlejningsforhold(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse_i_anskaffelsesåret: Afskrivningslov5UdlejningsTilladelse)
+# Afskrivningslov6Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov6Aktivgrundlag, udlejningsforhold: Afskrivningslov6Udlejningsforhold, valg: Afskrivningslov6Valg)
+# Afskrivningslov6Resultat(indkomstår: Heltal, anskaffelsesår: Heltal, skatteyder: AfskrivningslovSkatteyder, valg: Afskrivningslov6Valg, omfattet_af_par6_stk1_modellen: Boolsk, kort_levetid_betingelse_opfyldt: Boolsk, småaktiv_betingelse_opfyldt: Boolsk, forskning_betingelse_opfyldt: Boolsk, valg_hjemmel_opfyldt: Boolsk, omfattet_af_stk3: Boolsk, udskydelse_efter_stk3_gælder: Boolsk, første_mulige_fradragsår: Heltal, fradragsår_opfyldt: Boolsk, valg_gyldigt: Boolsk, forskningsudgift_under_loft_kroner: Heltal, forskningsudgift_over_loft_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, anskaffelsessum_fradraget_senest_i_indkomståret_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal)
+# Afskrivningslov6SalgInput(straksafskrivningsresultat: Afskrivningslov6Resultat, salgssum_kroner: Heltal, leveret_i_indkomståret: Boolsk, virksomhed_sælges_eller_ophører_i_indkomståret: Boolsk)
+# Afskrivningslov6SalgResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_stk2: Boolsk, omfattet_af_stk4: Boolsk, behandles_efter_par9: Boolsk, salgssum_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal, netto_beløb_til_skattepligtig_indkomst_kroner: Heltal, skattepligtig_indtægtsføring_kroner: Heltal, fradragsberettiget_negativt_beløb_kroner: Heltal)
 
-| afskrivningslov6_omfattet_af_modellen(input: Afskrivningslov6Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet
+| afskrivningslov6_anskaffelsesår(input: Afskrivningslov6Input) -> input.aktivgrundlag.anskaffelsesresultat.anskaffelsesdato.år
+| afskrivningslov6_omfattet_af_modellen(input: Afskrivningslov6Input) -> input.aktivgrundlag.aktiv_resultat.omfattet_af_kapitel2 && input.aktivgrundlag.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.aktivgrundlag.anskaffelsesresultat.anskaffet_efter_par3 && input.indkomstår >= afskrivningslov6_anskaffelsesår(input)
 | afskrivningslov6_aktiv_er_driftsmiddel(aktivart: AfskrivningslovAktivart) -> match aktivart {
     | AlMaskine -> Sandt
     | AlInventar -> Sandt
@@ -867,43 +896,83 @@ beløb afrundes opad til nærmeste kronebeløb, der kan deles med 100.000.
     | AlSoftware -> Sandt
     | _ -> Falskt
 }
-| afskrivningslov6_kort_levetid_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktiv_resultat.aktivart) && input.aktiv_resultat.aktivart != AlSoftware && input.fysisk_levetid_år > 0 && input.fysisk_levetid_år <= 3
-| afskrivningslov6_småaktiv_betingelse(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktiv_resultat.aktivart) && penge_positivt_beløb(input.samlet_anskaffelsessum_for_funktionsenhed_kroner) > 0 && penge_positivt_beløb(input.samlet_anskaffelsessum_for_funktionsenhed_kroner) <= parametre.småaktivgrænse_kroner
-| afskrivningslov6_forskning_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && input.anvendes_til_forsøgs_og_forskningsvirksomhed && input.anvendes_til_råstofefterforskning == Falskt
-| afskrivningslov6_årsparametre_matcher(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår
-| afskrivningslov6_valg_gyldigt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
-    | Al6IngenStraksafskrivning -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
-    | Al6KortFysiskLevetid -> afskrivningslov6_kort_levetid_betingelse(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
-    | Al6Småaktiv -> afskrivningslov6_småaktiv_betingelse(input, parametre) && afskrivningslov6_årsparametre_matcher(input, parametre)
-    | Al6ForsøgsOgForskningsaktiv -> afskrivningslov6_forskning_betingelse(input) && afskrivningslov6_årsparametre_matcher(input, parametre)
+| afskrivningslov6_kort_levetid_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktivgrundlag.aktiv_resultat.aktivart) && input.aktivgrundlag.aktiv_resultat.aktivart != AlSoftware && input.aktivgrundlag.fysisk_levetid_år > 0 && input.aktivgrundlag.fysisk_levetid_år <= 3
+| afskrivningslov6_småaktiv_betingelse(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktivgrundlag.aktiv_resultat.aktivart) && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) > 0 && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) <= parametre.småaktivgrænse_kroner
+| afskrivningslov6_forskning_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && input.aktivgrundlag.anvendes_til_forsøgs_og_forskningsvirksomhed && input.aktivgrundlag.anvendes_til_råstofefterforskning == Falskt
+| afskrivningslov6_årsparametre_matcher_anskaffelsen(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_anskaffelsesår(input) == parametre.indkomstår
+| afskrivningslov6_valg_hjemmel_opfyldt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al6IngenStraksafskrivning -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
+    | Al6KortFysiskLevetid -> afskrivningslov6_kort_levetid_betingelse(input) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
+    | Al6Småaktiv -> afskrivningslov6_småaktiv_betingelse(input, parametre) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
+    | Al6ForsøgsOgForskningsaktiv -> afskrivningslov6_forskning_betingelse(input) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
 }
+| afskrivningslov6_stk3_valg_hjemmel_opfyldt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
+    | Al6KortFysiskLevetid -> afskrivningslov6_kort_levetid_betingelse(input) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
+    | Al6Småaktiv -> afskrivningslov6_småaktiv_betingelse(input, parametre) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
+    | _ -> Falskt
+}
+| afskrivningslov6_stk3_skatteyder(input: Afskrivningslov6Input) -> input.aktivgrundlag.aktiv_resultat.skatteyder == AlSelskabEllerForening && input.udlejningsforhold.skatteyder_status == Al5SelskabPar1Stk1Nr1Nr2EllerNr4
+| afskrivningslov6_omfattet_af_stk3(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_stk3_skatteyder(input) && afskrivningslov6_stk3_valg_hjemmel_opfyldt(input, parametre) && input.udlejningsforhold.erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen
+| afskrivningslov6_udskydelse_efter_stk3_gælder(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_stk3(input, parametre) && input.udlejningsforhold.tilladelse_i_anskaffelsesåret != Al5UdlejningstilladelseGældende
+| afskrivningslov6_første_mulige_fradragsår(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_anskaffelsesår(input) + if afskrivningslov6_udskydelse_efter_stk3_gælder(input, parametre) { 1 } else { 0 }
+| afskrivningslov6_fradragsår_opfyldt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == afskrivningslov6_første_mulige_fradragsår(input, parametre)
+| afskrivningslov6_valg_gyldigt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_valg_hjemmel_opfyldt(input, parametre) && afskrivningslov6_fradragsår_opfyldt(input, parametre)
 | afskrivningslov6_forskningsudgift_under_loft_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_mindste_beløb(
-    penge_positivt_beløb(input.anskaffelsessum_kroner),
-    penge_positivt_beløb(parametre.forskningsloft_kroner - penge_positivt_beløb(input.forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner))
+    penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner),
+    penge_positivt_beløb(parametre.forskningsloft_kroner - penge_positivt_beløb(input.aktivgrundlag.forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner))
 )
-| afskrivningslov6_forskningsudgift_over_loft_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.anskaffelsessum_kroner) - afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre)
+| afskrivningslov6_forskningsudgift_over_loft_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) - afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre)
 | afskrivningslov6_beregnet_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
     | Al6IngenStraksafskrivning -> 0
-    | Al6KortFysiskLevetid -> penge_positivt_beløb(input.anskaffelsessum_kroner)
-    | Al6Småaktiv -> penge_positivt_beløb(input.anskaffelsessum_kroner)
+    | Al6KortFysiskLevetid -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner)
+    | Al6Småaktiv -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner)
     | Al6ForsøgsOgForskningsaktiv -> penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre), parametre.forskning_sats_under_loft_basispoint) + penge_beløb_gange_basispoint_kroner(afskrivningslov6_forskningsudgift_over_loft_kroner(input, parametre), parametre.forskning_sats_over_loft_basispoint)
 }
 | afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> 0
 | exception al6_valgt_straksafskrivning afskrivningslov6_fradrag_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_beregnet_fradrag_kroner(input, parametre) under afskrivningslov6_valg_gyldigt(input, parametre)
+| afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> 0
+| exception al6_valgt_anskaffelsessum_fuldt_fradraget afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) under input.valg != Al6IngenStraksafskrivning && afskrivningslov6_valg_hjemmel_opfyldt(input, parametre) && input.indkomstår >= afskrivningslov6_første_mulige_fradragsår(input, parametre)
 | afskrivningslov6_resultat(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov6Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    anskaffelsesår = afskrivningslov6_anskaffelsesår(input),
+    skatteyder = input.aktivgrundlag.aktiv_resultat.skatteyder,
     valg = input.valg,
     omfattet_af_par6_stk1_modellen = afskrivningslov6_omfattet_af_modellen(input),
     kort_levetid_betingelse_opfyldt = afskrivningslov6_kort_levetid_betingelse(input),
     småaktiv_betingelse_opfyldt = afskrivningslov6_småaktiv_betingelse(input, parametre),
     forskning_betingelse_opfyldt = afskrivningslov6_forskning_betingelse(input),
+    valg_hjemmel_opfyldt = afskrivningslov6_valg_hjemmel_opfyldt(input, parametre),
+    omfattet_af_stk3 = afskrivningslov6_omfattet_af_stk3(input, parametre),
+    udskydelse_efter_stk3_gælder = afskrivningslov6_udskydelse_efter_stk3_gælder(input, parametre),
+    første_mulige_fradragsår = afskrivningslov6_første_mulige_fradragsår(input, parametre),
+    fradragsår_opfyldt = afskrivningslov6_fradragsår_opfyldt(input, parametre),
     valg_gyldigt = afskrivningslov6_valg_gyldigt(input, parametre),
     forskningsudgift_under_loft_kroner = afskrivningslov6_forskningsudgift_under_loft_kroner(input, parametre),
     forskningsudgift_over_loft_kroner = afskrivningslov6_forskningsudgift_over_loft_kroner(input, parametre),
-    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov6_fradrag_kroner(input, parametre)
+    fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov6_fradrag_kroner(input, parametre),
+    anskaffelsessum_fradraget_senest_i_indkomståret_kroner = afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input, parametre),
+    ufradraget_anskaffelsessum_kroner = penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) - afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input, parametre)
 )
---@end:afskrivningsloven_par6_stk1--
+
+| afskrivningslov6_salg_omfattet_af_stk2(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && input.straksafskrivningsresultat.omfattet_af_stk3 == Falskt && input.straksafskrivningsresultat.valg != Al6IngenStraksafskrivning && input.straksafskrivningsresultat.anskaffelsessum_fradraget_senest_i_indkomståret_kroner > 0 && input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner == 0
+| afskrivningslov6_salg_omfattet_af_stk4(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && input.straksafskrivningsresultat.omfattet_af_stk3 && input.straksafskrivningsresultat.valg_hjemmel_opfyldt && input.straksafskrivningsresultat.valg != Al6IngenStraksafskrivning
+| afskrivningslov6_salg_behandles_efter_par9(input: Afskrivningslov6SalgInput) -> input.virksomhed_sælges_eller_ophører_i_indkomståret && (afskrivningslov6_salg_omfattet_af_stk2(input) || afskrivningslov6_salg_omfattet_af_stk4(input))
+| afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> 0
+| exception al6_stk2_salgssum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) under afskrivningslov6_salg_omfattet_af_stk2(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
+| exception al6_stk4_salgssum_efter_ufradraget_anskaffelsessum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) - input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner under afskrivningslov6_salg_omfattet_af_stk4(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
+| afskrivningslov6_salg_resultat(input: Afskrivningslov6SalgInput) -> Afskrivningslov6SalgResultat(
+    indkomstår = input.straksafskrivningsresultat.indkomstår,
+    skatteyder = input.straksafskrivningsresultat.skatteyder,
+    omfattet_af_stk2 = afskrivningslov6_salg_omfattet_af_stk2(input),
+    omfattet_af_stk4 = afskrivningslov6_salg_omfattet_af_stk4(input),
+    behandles_efter_par9 = afskrivningslov6_salg_behandles_efter_par9(input),
+    salgssum_kroner = penge_positivt_beløb(input.salgssum_kroner),
+    ufradraget_anskaffelsessum_kroner = input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner,
+    netto_beløb_til_skattepligtig_indkomst_kroner = afskrivningslov6_salg_netto_beløb_kroner(input),
+    skattepligtig_indtægtsføring_kroner = penge_positivt_beløb(afskrivningslov6_salg_netto_beløb_kroner(input)),
+    fradragsberettiget_negativt_beløb_kroner = penge_positivt_beløb(0 - afskrivningslov6_salg_netto_beløb_kroner(input))
+)
+--@end:afskrivningsloven_par6--
 
 --@label:afskrivningsloven_par7::source:afskrivningsloven_lbk1222--
 ----

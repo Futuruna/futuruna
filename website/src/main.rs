@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu §§ 1-5 E, § 6, stk. 1, og §§ 7-13: bl.a. saldoordninger, skade, negativ saldo, ophør, senere salg og blandet benyttelse. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu §§ 1-13: bl.a. saldoordninger, straksfradrag, salg af straksafskrevne aktiver, selskabers udlejningsregler, skade, negativ saldo, ophør, senere salg og blandet benyttelse. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3525,6 +3525,8 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven", "Skatteministeriets 2026-satser" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=2060781", "Skattestyrelsens saldovejledning" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2060787", "Skattestyrelsens vejledning til § 6" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=2060792", "Skattestyrelsens vejledning til §§ 11-13" }
                         " / "

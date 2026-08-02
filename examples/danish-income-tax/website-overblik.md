@@ -108,11 +108,13 @@ Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
 afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle kapitel 2-slice
-omfatter §§ 1-5 E, § 6, stk. 1, og §§ 7-13: anskaffelse og benyttelsesændring,
+omfatter §§ 1-13: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
-15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi, skade og
-erstatning, negativ saldo, virksomhedsophør og senere salg, dok- og
-beddingsanlæg samt delvist erhvervsmæssigt benyttede aktiver. Kun fradrag for en
+15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
+straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
+for udlejningsaktiver, skade og erstatning, negativ saldo, virksomhedsophør og
+senere salg, dok- og beddingsanlæg samt delvist erhvervsmæssigt benyttede
+aktiver. Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
 særskilt personlig indkomstpost. Modellen bruger de offentliggjorte 2026-
@@ -139,6 +141,7 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Etableringskontoloven, LBK nr. 1307/2025](https://www.retsinformation.dk/eli/lta/2025/1307),
 [Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven),
 [Skattestyrelsens saldovejledning](https://info.skat.dk/data.aspx?oid=2060781),
+[Skattestyrelsens vejledning til § 6](https://info.skat.dk/data.aspx?oid=2060787),
 [Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
@@ -149,9 +152,9 @@ reparationsfradrag og 30.000 kr. endeligt ophørstab. Det giver 78.000 kr.
 indtægtsføring og 96.000 kr. fradrag gennem den samme § 3-regelkaskade.
 
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Den
-resterende § 6, bygninger, installationer, forskudsafskrivning, immaterielle
-aktiver og genvundne afskrivninger er fortsat udestående dependency-arbejde
-under nr. 10.
+resterende opgave omfatter bygninger, installationer, forskudsafskrivning,
+immaterielle aktiver og genvundne afskrivninger. De er fortsat udestående
+dependency-arbejde under nr. 10.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

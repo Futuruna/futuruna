@@ -37,13 +37,17 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Afskrivningslovens aktuelle kapitel 2-slice omfatter nu
-§§ 1-5 E, § 6, stk. 1, og §§ 7-13. § 3 kræver leveret, driftsbestemt og
+§§ 1-13. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
 treårige udlejningsforløb. §§ 5 B-5 E dækker særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi samt de tidsafgrænsede 116/108 pct.-saldi og deres
-sammenlægning med § 5. §§ 7-10 dækker skade og erstatning, separat eller samlet
+sammenlægning med § 5. § 6 dækker nu både straksfradraget, salg af det
+straksafskrevne aktiv, selskabers udskudte fradragsår for udlejningsaktiver,
+dispensationen og § 9-henvisningen. Et negativt stk. 4-beløb bevares som et
+selvstændigt fradragsudfald i stedet for at blive skjult i en positiv
+indtægtsføring. §§ 7-10 dækker skade og erstatning, separat eller samlet
 negativ saldo, ophør og senere salg samt 2026-grænsen på 965.800 kr. for dok- og
 beddingsanlæg. §§ 11-13 dækker de blandet benyttede aktiver, salg og skade.
 
@@ -657,7 +661,7 @@ Current § 4 and § 13 amendment/dependency sources:
     effective 2026-01-01. That amendment changes § 40, stk. 7-8, not the
     modeled §§ 1-13 or § 40 C.
   - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
-    §§ 1-5 E, § 6, stk. 1, and §§ 7-13 with amount-level chapter 2 outcomes.
+    §§ 1-13 with amount-level chapter 2 outcomes.
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
@@ -912,7 +916,7 @@ encoded as a temporal rule on top of the consolidation.
   business tax scheme, § 22 d bankruptcy and permanent-establishment exit,
   succession settlement, and the resulting personal-income amount.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
-  the Afskrivningsloven §§ 1-5 E, § 6, stk. 1, and §§ 7-13 dependency slice
+  the Afskrivningsloven §§ 1-13 dependency slice
   consumed by Personskatteloven § 3, stk. 2, nr. 10 and the § 40 C dependency
   consumed by § 4, stk. 1, nr. 16.
 - `statsskatteloven.runa` exists and checks with `runa check`; it exposes the

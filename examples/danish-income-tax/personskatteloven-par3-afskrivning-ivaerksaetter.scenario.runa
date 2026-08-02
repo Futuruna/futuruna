@@ -2,7 +2,7 @@
 
 @ importer ./kapitel - 01 - indkomst
 
--- Scenarier for Afskrivningsloven §§ 1-2, 5, 5 A og 6, stk. 1,
+-- Scenarier for Afskrivningsloven §§ 1-13,
 -- Statsskatteloven § 6, litra a, Etableringskontoloven §§ 1-4 og
 -- Personskatteloven § 3, stk. 2, nr. 10-11.
 -- Lovtekst og kildeankre ligger i de importerede lovmoduler.
@@ -123,59 +123,153 @@
     vælger_tabsfradrag = Sandt
 ))
 
-= al6_software_som_småaktiv = afskrivningslov6_resultat(Afskrivningslov6Input(
-    indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_software,
-    anskaffelsessum_kroner = 35000,
-    samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
-    fysisk_levetid_år = 0,
-    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
-    anvendes_til_råstofefterforskning = Falskt,
-    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
-    valg = Al6Småaktiv
-), al_2026_parametre)
-
-= al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
-    indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_software,
-    anskaffelsessum_kroner = 70000,
-    samlet_anskaffelsessum_for_funktionsenhed_kroner = 70000,
-    fysisk_levetid_år = 2,
-    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
-    anvendes_til_råstofefterforskning = Falskt,
-    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
-    valg = Al6KortFysiskLevetid
-), al_2026_parametre)
-
-= al6_skib_er_ikke_småaktiv_efter_nr2 = afskrivningslov6_resultat(Afskrivningslov6Input(
-    indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_skib,
-    anskaffelsessum_kroner = 35000,
-    samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
-    fysisk_levetid_år = 2,
-    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
-    anvendes_til_råstofefterforskning = Falskt,
-    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0,
-    valg = Al6Småaktiv
-), al_2026_parametre)
-
-= al6_forskning_krydser_2026_loftet = afskrivningslov6_resultat(Afskrivningslov6Input(
-    indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
-    anskaffelsessum_kroner = 200000,
-    samlet_anskaffelsessum_for_funktionsenhed_kroner = 200000,
-    fysisk_levetid_år = 10,
-    anvendes_til_forsøgs_og_forskningsvirksomhed = Sandt,
-    anvendes_til_råstofefterforskning = Falskt,
-    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 1088700000,
-    valg = Al6ForsøgsOgForskningsaktiv
-), al_2026_parametre)
-
 = al3_anskaffet_2026 = afskrivningslov3_resultat(Afskrivningslov3Input(
     anskaffelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 30),
     leveret_til_igangværende_virksomhed = Sandt,
     bestemt_til_virksomhedens_drift = Sandt,
     færdiggjort_til_at_indgå_i_driften = Sandt
+))
+
+= al6_ingen_udlejning = Afskrivningslov6Udlejningsforhold(
+    skatteyder_status = Al5AndenSkatteyder,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Falskt,
+    tilladelse_i_anskaffelsesåret = Al5IngenUdlejningstilladelse
+)
+
+= al6_selskabsudlejning_uden_tilladelse = Afskrivningslov6Udlejningsforhold(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse_i_anskaffelsesåret = Al5IngenUdlejningstilladelse
+)
+
+= al6_selskabsudlejning_med_tilladelse = Afskrivningslov6Udlejningsforhold(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse_i_anskaffelsesåret = Al5UdlejningstilladelseGældende
+)
+
+= al6_software_som_småaktiv = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = Afskrivningslov6Aktivgrundlag(
+        aktiv_resultat = al_selvstændig_software,
+        anskaffelsesresultat = al3_anskaffet_2026,
+        anskaffelsessum_kroner = 35000,
+        samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
+        fysisk_levetid_år = 0,
+        anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+        anvendes_til_råstofefterforskning = Falskt,
+        forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0
+    ),
+    udlejningsforhold = al6_ingen_udlejning,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = Afskrivningslov6Aktivgrundlag(
+        aktiv_resultat = al_selvstændig_software,
+        anskaffelsesresultat = al3_anskaffet_2026,
+        anskaffelsessum_kroner = 70000,
+        samlet_anskaffelsessum_for_funktionsenhed_kroner = 70000,
+        fysisk_levetid_år = 2,
+        anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+        anvendes_til_råstofefterforskning = Falskt,
+        forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0
+    ),
+    udlejningsforhold = al6_ingen_udlejning,
+    valg = Al6KortFysiskLevetid
+), al_2026_parametre)
+
+= al6_skib_er_ikke_småaktiv_efter_nr2 = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = Afskrivningslov6Aktivgrundlag(
+        aktiv_resultat = al_selvstændig_skib,
+        anskaffelsesresultat = al3_anskaffet_2026,
+        anskaffelsessum_kroner = 35000,
+        samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
+        fysisk_levetid_år = 2,
+        anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+        anvendes_til_råstofefterforskning = Falskt,
+        forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0
+    ),
+    udlejningsforhold = al6_ingen_udlejning,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_forskning_krydser_2026_loftet = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = Afskrivningslov6Aktivgrundlag(
+        aktiv_resultat = al_selvstændig_maskine,
+        anskaffelsesresultat = al3_anskaffet_2026,
+        anskaffelsessum_kroner = 200000,
+        samlet_anskaffelsessum_for_funktionsenhed_kroner = 200000,
+        fysisk_levetid_år = 10,
+        anvendes_til_forsøgs_og_forskningsvirksomhed = Sandt,
+        anvendes_til_råstofefterforskning = Falskt,
+        forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 1088700000
+    ),
+    udlejningsforhold = al6_ingen_udlejning,
+    valg = Al6ForsøgsOgForskningsaktiv
+), al_2026_parametre)
+
+= al6_stk2_salg_af_straksafskrevet_småaktiv = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
+    straksafskrivningsresultat = al6_software_som_småaktiv,
+    salgssum_kroner = 20000,
+    leveret_i_indkomståret = Sandt,
+    virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
+))
+
+= al6_stk2_salg_henvist_til_par9 = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
+    straksafskrivningsresultat = al6_software_som_småaktiv,
+    salgssum_kroner = 20000,
+    leveret_i_indkomståret = Sandt,
+    virksomhed_sælges_eller_ophører_i_indkomståret = Sandt
+))
+
+= al6_selskabsudlejnings_småaktiv = Afskrivningslov6Aktivgrundlag(
+    aktiv_resultat = al_selskab_maskine,
+    anskaffelsesresultat = al3_anskaffet_2026,
+    anskaffelsessum_kroner = 30000,
+    samlet_anskaffelsessum_for_funktionsenhed_kroner = 30000,
+    fysisk_levetid_år = 5,
+    anvendes_til_forsøgs_og_forskningsvirksomhed = Falskt,
+    anvendes_til_råstofefterforskning = Falskt,
+    forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0
+)
+
+= al6_selskabsudlejning_anskaffelsesår = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = al6_selskabsudlejnings_småaktiv,
+    udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_selskabsudlejning_året_efter = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2027,
+    aktivgrundlag = al6_selskabsudlejnings_småaktiv,
+    udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret = afskrivningslov6_resultat(Afskrivningslov6Input(
+    indkomstår = 2026,
+    aktivgrundlag = al6_selskabsudlejnings_småaktiv,
+    udlejningsforhold = al6_selskabsudlejning_med_tilladelse,
+    valg = Al6Småaktiv
+), al_2026_parametre)
+
+= al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
+    straksafskrivningsresultat = al6_selskabsudlejning_anskaffelsesår,
+    salgssum_kroner = 20000,
+    leveret_i_indkomståret = Sandt,
+    virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
+))
+
+= al6_stk4_salg_efter_fuldt_fradrag = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
+    straksafskrivningsresultat = al6_selskabsudlejning_året_efter,
+    salgssum_kroner = 20000,
+    leveret_i_indkomståret = Sandt,
+    virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
 ))
 
 = al3_ufærdig_2026 = afskrivningslov3_resultat(Afskrivningslov3Input(
@@ -636,6 +730,14 @@
 )
 
 = par3_nr10_kapitel2_resultat = par3_stk2_nr10_resultat(par3_nr10_kapitel2_input)
+
+= par3_nr10_al6_salg_resultat = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al6Salg(resultat = al6_stk2_salg_af_straksafskrevet_småaktiv),
+        Par3Nr10Al6Salg(resultat = al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb),
+        Par3Nr10Al6Salg(resultat = al6_stk4_salg_efter_fuldt_fradrag)
+    ]
+))
 
 = par3_nr10_kapitel2_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
     indkomstposter = [
@@ -1132,6 +1234,11 @@
 | scenarie_al6_software_ikke_fysisk_levetid: al6_software_kan_ikke_vælges_som_kort_fysisk_levetid -> al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.kort_levetid_betingelse_opfyldt == Falskt && al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.valg_gyldigt == Falskt && al6_software_kan_ikke_vælges_som_kort_fysisk_levetid.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al6_skib_ikke_småaktiv_efter_nr2: al6_skib_er_ikke_småaktiv_efter_nr2 -> al6_skib_er_ikke_småaktiv_efter_nr2.småaktiv_betingelse_opfyldt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.valg_gyldigt == Falskt && al6_skib_er_ikke_småaktiv_efter_nr2.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al6_forskning_114_og_110_pct: al6_forskning_krydser_2026_loftet -> al6_forskning_krydser_2026_loftet.forskningsudgift_under_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.forskningsudgift_over_loft_kroner == 100000 && al6_forskning_krydser_2026_loftet.fradrag_i_skattepligtig_indkomst_kroner == 224000
+| scenarie_al6_stk2_salg_og_par9_henvisning: al6_stk2_salg_af_straksafskrevet_småaktiv -> al6_stk2_salg_af_straksafskrevet_småaktiv.omfattet_af_stk2 == Sandt && al6_stk2_salg_af_straksafskrevet_småaktiv.netto_beløb_til_skattepligtig_indkomst_kroner == 20000 && al6_stk2_salg_af_straksafskrevet_småaktiv.skattepligtig_indtægtsføring_kroner == 20000 && al6_stk2_salg_henvist_til_par9.behandles_efter_par9 == Sandt && al6_stk2_salg_henvist_til_par9.netto_beløb_til_skattepligtig_indkomst_kroner == 0
+| scenarie_al6_stk3_udskyder_selskabsudlejning: al6_selskabsudlejning_anskaffelsesår -> al6_selskabsudlejning_anskaffelsesår.omfattet_af_stk3 == Sandt && al6_selskabsudlejning_anskaffelsesår.udskydelse_efter_stk3_gælder == Sandt && al6_selskabsudlejning_anskaffelsesår.første_mulige_fradragsår == 2027 && al6_selskabsudlejning_anskaffelsesår.fradrag_i_skattepligtig_indkomst_kroner == 0 && al6_selskabsudlejning_anskaffelsesår.ufradraget_anskaffelsessum_kroner == 30000 && al6_selskabsudlejning_året_efter.valg_gyldigt == Sandt && al6_selskabsudlejning_året_efter.fradrag_i_skattepligtig_indkomst_kroner == 30000 && al6_selskabsudlejning_året_efter.ufradraget_anskaffelsessum_kroner == 0
+| scenarie_al6_stk3_tilladelse_ophæver_udskydelsen: al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret -> al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret.omfattet_af_stk3 == Sandt && al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret.udskydelse_efter_stk3_gælder == Falskt && al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret.første_mulige_fradragsår == 2026 && al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret.fradrag_i_skattepligtig_indkomst_kroner == 30000
+| scenarie_al6_stk4_bevarer_det_signerede_beløb: al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb -> al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb.omfattet_af_stk4 == Sandt && al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb.ufradraget_anskaffelsessum_kroner == 30000 && al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb.netto_beløb_til_skattepligtig_indkomst_kroner == -10000 && al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb.fradragsberettiget_negativt_beløb_kroner == 10000 && al6_stk4_salg_efter_fuldt_fradrag.netto_beløb_til_skattepligtig_indkomst_kroner == 20000 && al6_stk4_salg_efter_fuldt_fradrag.skattepligtig_indtægtsføring_kroner == 20000
+| scenarie_par3_nr10_klassificerer_al6_salg: par3_nr10_al6_salg_resultat -> par3_nr10_al6_salg_resultat.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 40000 && par3_nr10_al6_salg_resultat.indtægtsføring_i_personlig_indkomst_kroner == 20000 && par3_nr10_al6_salg_resultat.brutto_andre_fradrag_kroner == 10000 && par3_nr10_al6_salg_resultat.fradrag_i_personlig_indkomst_kroner == 0 && par3_nr10_al6_salg_resultat.afskåret_fordi_ikke_selvstændig_person_kroner == 10000 && par3_nr10_al6_salg_resultat.afskåret_fordi_ikke_fysisk_person_indtægt_kroner == 20000
 | scenarie_sl6_dokumenteret_ordinær_afskrivning: sl6_ordinær_selvstændig -> sl6_ordinær_selvstændig.ordinær_afskrivning_kroner == 12000 && sl6_ordinær_selvstændig.afskrivningsgrundlag_ultimo_kroner == 68000
 | scenarie_al11_ordinær_blandet_afskrivning: al11_ordinær_blandet -> al11_ordinær_blandet.blandet_benyttet == Sandt && al11_ordinær_blandet.valg_gyldigt == Sandt && al11_ordinær_blandet.beregnet_afskrivning_før_erhvervsandel_kroner == 25000 && al11_ordinær_blandet.fradrag_i_skattepligtig_indkomst_kroner == 15000 && al11_ordinær_blandet.uafskrevet_beløb_ultimo_kroner == 75000
 | scenarie_al11_blandet_småaktivgrænse: al11_fuldt_blandet_småaktiv -> al11_fuldt_blandet_småaktiv.valg_gyldigt == Sandt && al11_fuldt_blandet_småaktiv.fradrag_i_skattepligtig_indkomst_kroner == 10140 && al11_fuldt_blandet_småaktiv.uafskrevet_beløb_ultimo_kroner == 0 && al11_blandet_over_småaktivgrænsen.valg_gyldigt == Falskt && al11_blandet_over_småaktivgrænsen.fradrag_i_skattepligtig_indkomst_kroner == 0
@@ -1182,6 +1289,11 @@
 ? scenarie_al6_software_ikke_fysisk_levetid
 ? scenarie_al6_skib_ikke_småaktiv_efter_nr2
 ? scenarie_al6_forskning_114_og_110_pct
+? scenarie_al6_stk2_salg_og_par9_henvisning
+? scenarie_al6_stk3_udskyder_selskabsudlejning
+? scenarie_al6_stk3_tilladelse_ophæver_udskydelsen
+? scenarie_al6_stk4_bevarer_det_signerede_beløb
+? scenarie_par3_nr10_klassificerer_al6_salg
 ? scenarie_sl6_dokumenteret_ordinær_afskrivning
 ? scenarie_al11_ordinær_blandet_afskrivning
 ? scenarie_al11_blandet_småaktivgrænse
