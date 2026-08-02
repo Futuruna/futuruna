@@ -51,6 +51,12 @@
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
 ))
 
+= al_selskab_skib = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+    skatteyder = AlSelskabEllerForening,
+    aktivart = AlSkib,
+    erhvervsmæssig_anvendelsesandel_basispoint = 10000
+))
+
 = al5_ordinær_selvstændig = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
     aktiv_resultat = al_selvstændig_maskine,
@@ -164,6 +170,482 @@
     forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 1088700000,
     valg = Al6ForsøgsOgForskningsaktiv
 ), al_2026_parametre)
+
+= al3_anskaffet_2026 = afskrivningslov3_resultat(Afskrivningslov3Input(
+    anskaffelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 30),
+    leveret_til_igangværende_virksomhed = Sandt,
+    bestemt_til_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Sandt
+))
+
+= al3_ufærdig_2026 = afskrivningslov3_resultat(Afskrivningslov3Input(
+    anskaffelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 30),
+    leveret_til_igangværende_virksomhed = Sandt,
+    bestemt_til_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Falskt
+))
+
+= al3_ugyldig_2026_dato = afskrivningslov3_resultat(Afskrivningslov3Input(
+    anskaffelsesdato = AfskrivningslovDato(år = 2026, måned = 2, dag = 29),
+    leveret_til_igangværende_virksomhed = Sandt,
+    bestemt_til_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Sandt
+))
+
+= al3_anskaffet_2022 = afskrivningslov3_resultat(Afskrivningslov3Input(
+    anskaffelsesdato = AfskrivningslovDato(år = 2022, måned = 12, dag = 31),
+    leveret_til_igangværende_virksomhed = Sandt,
+    bestemt_til_virksomhedens_drift = Sandt,
+    færdiggjort_til_at_indgå_i_driften = Sandt
+))
+
+= al4_erhverv_til_privat = afskrivningslov4_resultat(Afskrivningslov4Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al4AndetDriftsmiddelEllerSkib,
+    benyttelsesændring = Al4ErhvervTilPrivat,
+    handelsværdi_kroner = 75000,
+    overføres_fra_virksomhedsordningen_til_skattepligtige = Falskt,
+    blandet_benyttet_før_virksomhedsordningsoverførsel = Falskt,
+    fri_elbil_eller_pluginhybrid_beskattet_måneder = 0
+))
+
+= al4_privat_til_erhverv = afskrivningslov4_resultat(Afskrivningslov4Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al4AndetDriftsmiddelEllerSkib,
+    benyttelsesændring = Al4PrivatTilErhverv,
+    handelsværdi_kroner = 75000,
+    overføres_fra_virksomhedsordningen_til_skattepligtige = Falskt,
+    blandet_benyttet_før_virksomhedsordningsoverførsel = Falskt,
+    fri_elbil_eller_pluginhybrid_beskattet_måneder = 0
+))
+
+= al4_vso_blandet_bil = afskrivningslov4_resultat(Afskrivningslov4Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al4Bil,
+    benyttelsesændring = Al4IngenÆndring,
+    handelsværdi_kroner = 120000,
+    overføres_fra_virksomhedsordningen_til_skattepligtige = Sandt,
+    blandet_benyttet_før_virksomhedsordningsoverførsel = Sandt,
+    fri_elbil_eller_pluginhybrid_beskattet_måneder = 0
+))
+
+= al4_ladestander_nulværdi = afskrivningslov4_resultat(Afskrivningslov4Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al4Ladestander,
+    benyttelsesændring = Al4ErhvervTilPrivat,
+    handelsværdi_kroner = 15000,
+    overføres_fra_virksomhedsordningen_til_skattepligtige = Falskt,
+    blandet_benyttet_før_virksomhedsordningsoverførsel = Falskt,
+    fri_elbil_eller_pluginhybrid_beskattet_måneder = 6
+))
+
+= al5_udlejning_anskaffelsesår = afskrivningslov5_udlejningsaktiv_resultat(Afskrivningslov5UdlejningsaktivInput(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    anskaffelsesår = 2026,
+    indkomstår = 2026,
+    anskaffelsessum_kroner = 100000,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse = Al5IngenUdlejningstilladelse,
+    valgt_særskilt_afskrivning_basispoint = 5000,
+    solgt_i_indkomståret = Falskt,
+    salgssum_kroner = 0
+))
+
+= al5_udlejning_andet_indkomstår = afskrivningslov5_udlejningsaktiv_resultat(Afskrivningslov5UdlejningsaktivInput(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    anskaffelsesår = 2026,
+    indkomstår = 2027,
+    anskaffelsessum_kroner = 100000,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse = Al5IngenUdlejningstilladelse,
+    valgt_særskilt_afskrivning_basispoint = 5000,
+    solgt_i_indkomståret = Falskt,
+    salgssum_kroner = 0
+))
+
+= al5_udlejning_tredje_indkomstår = afskrivningslov5_udlejningsaktiv_resultat(Afskrivningslov5UdlejningsaktivInput(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    anskaffelsesår = 2026,
+    indkomstår = 2028,
+    anskaffelsessum_kroner = 100000,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse = Al5IngenUdlejningstilladelse,
+    valgt_særskilt_afskrivning_basispoint = 5000,
+    solgt_i_indkomståret = Falskt,
+    salgssum_kroner = 0
+))
+
+= al5_udlejning_tidligt_salg = afskrivningslov5_udlejningsaktiv_resultat(Afskrivningslov5UdlejningsaktivInput(
+    skatteyder_status = Al5SelskabPar1Stk1Nr1Nr2EllerNr4,
+    anskaffelsesår = 2026,
+    indkomstår = 2027,
+    anskaffelsessum_kroner = 100000,
+    erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen = Sandt,
+    tilladelse = Al5IngenUdlejningstilladelse,
+    valgt_særskilt_afskrivning_basispoint = 5000,
+    solgt_i_indkomståret = Sandt,
+    salgssum_kroner = 120000
+))
+
+= al5b_bareboat_selvstændig = afskrivningslov5b_resultat(Afskrivningslov5BInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_skib,
+    bruttotonnage = 20,
+    erhvervsmæssig_transport_af_passagerer_eller_gods = Sandt,
+    skatteydergrundlag = Al5BIntetSkatteydergrundlag,
+    bareboat_udlejet_eller_erhvervet_til_bareboat = Sandt,
+    saldoværdi_primo_kroner = 100000,
+    øvrige_anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valgt_saldosats_basispoint = 1200,
+    nybygget_førsteårs_anskaffelsessum_kroner = 0,
+    nybygget_skib = Falskt,
+    første_afskrivningsår = Falskt,
+    undergivet_tonnageskat = Falskt,
+    valgt_nybygget_førsteårs_sats_basispoint = 0
+), al_2026_parametre)
+
+= al5b_nybygget_selskab = afskrivningslov5b_resultat(Afskrivningslov5BInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selskab_skib,
+    bruttotonnage = 200,
+    erhvervsmæssig_transport_af_passagerer_eller_gods = Sandt,
+    skatteydergrundlag = Al5BSelskabPar1Stk1Nr1Nr2EllerStk6,
+    bareboat_udlejet_eller_erhvervet_til_bareboat = Falskt,
+    saldoværdi_primo_kroner = 0,
+    øvrige_anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valgt_saldosats_basispoint = 0,
+    nybygget_førsteårs_anskaffelsessum_kroner = 100000,
+    nybygget_skib = Sandt,
+    første_afskrivningsår = Sandt,
+    undergivet_tonnageskat = Falskt,
+    valgt_nybygget_førsteårs_sats_basispoint = 2000
+), al_2026_parametre)
+
+= al5b_forholdsmæssig_overførsel = afskrivningslov5b_saldooverførsel_resultat(Afskrivningslov5BSaldooverførselInput(
+    retning = Al5SaldoTil5BSaldo,
+    eksisterende_kildesaldo_kroner = 100000,
+    regnskabsmæssig_værdi_berørte_skibe_kroner = 40000,
+    regnskabsmæssig_værdi_øvrige_aktiver_kroner = 60000
+))
+
+= al5c_lang_levetid_15_pct = afskrivningslov5c_resultat(Afskrivningslov5CInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoart = Al5CStk1LangLevetid,
+    aktivkategori = Al5COlieGasAnlæg,
+    afskrives_efter_kapitel3 = Falskt,
+    software_eller_hardware_del = Falskt,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5COrdinærAfskrivning(sats_basispoint = 1500)
+), al_2026_parametre)
+
+= al5c_infrastruktur_7_pct = afskrivningslov5c_resultat(Afskrivningslov5CInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoart = Al5CStk2Infrastruktur,
+    aktivkategori = Al5CTransmission,
+    afskrives_efter_kapitel3 = Falskt,
+    software_eller_hardware_del = Falskt,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5COrdinærAfskrivning(sats_basispoint = 700)
+), al_2026_parametre)
+
+= al5c_fuld_småsaldo = afskrivningslov5c_resultat(Afskrivningslov5CInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoart = Al5CStk2Infrastruktur,
+    aktivkategori = Al5CTransmission,
+    afskrives_efter_kapitel3 = Falskt,
+    software_eller_hardware_del = Falskt,
+    saldoværdi_primo_kroner = 36000,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5CFuldRestsaldo
+), al_2026_parametre)
+
+= al5c_softwaredel_afskåret = afskrivningslov5c_resultat(Afskrivningslov5CInput(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoart = Al5CStk2Infrastruktur,
+    aktivkategori = Al5CTransmission,
+    afskrives_efter_kapitel3 = Falskt,
+    software_eller_hardware_del = Sandt,
+    saldoværdi_primo_kroner = 100000,
+    anskaffelsessummer_i_året_kroner = 0,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5COrdinærAfskrivning(sats_basispoint = 700)
+), al_2026_parametre)
+
+= al5d_anskaffelse_2022 = afskrivningslov_forhøjet_saldo_resultat(AfskrivningslovForhøjetSaldoInput(
+    indkomstår = 2022,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    saldoordning = AlPar5DMidlertidig116Saldo,
+    saldoværdi_primo_kroner = 0,
+    anskaffelser = [
+        AfskrivningslovForhøjetAnskaffelse(
+            par3_resultat = al3_anskaffet_2022,
+            anskaffelsessum_kroner = 100000,
+            fabriksnyt = Sandt,
+            udelukkende_erhvervsmæssigt_benyttet = Sandt,
+            straksafskrevet_efter_par6_stk1 = Falskt,
+            aktivkategori = AlForhøjetSoftware,
+            nummerpladevilkår_opfyldt = Falskt
+        )
+    ],
+    salg = [],
+    valg = AlForhøjetOrdinærAfskrivning(sats_basispoint = 2500)
+))
+
+= al5d_sammenlægning_2026 = afskrivningslov_forhøjet_saldo_resultat(AfskrivningslovForhøjetSaldoInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    saldoordning = AlPar5DMidlertidig116Saldo,
+    saldoværdi_primo_kroner = 87000,
+    anskaffelser = [],
+    salg = [],
+    valg = AlForhøjetOrdinærAfskrivning(sats_basispoint = 2500)
+))
+
+= al5e_anskaffelser_2026 = afskrivningslov_forhøjet_saldo_resultat(AfskrivningslovForhøjetSaldoInput(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    saldoordning = AlPar5EMidlertidig108Saldo,
+    saldoværdi_primo_kroner = 0,
+    anskaffelser = [
+        AfskrivningslovForhøjetAnskaffelse(
+            par3_resultat = al3_anskaffet_2026,
+            anskaffelsessum_kroner = 100000,
+            fabriksnyt = Sandt,
+            udelukkende_erhvervsmæssigt_benyttet = Sandt,
+            straksafskrevet_efter_par6_stk1 = Falskt,
+            aktivkategori = AlForhøjetAndetDriftsmiddel,
+            nummerpladevilkår_opfyldt = Falskt
+        ),
+        AfskrivningslovForhøjetAnskaffelse(
+            par3_resultat = al3_anskaffet_2026,
+            anskaffelsessum_kroner = 50000,
+            fabriksnyt = Sandt,
+            udelukkende_erhvervsmæssigt_benyttet = Sandt,
+            straksafskrevet_efter_par6_stk1 = Falskt,
+            aktivkategori = AlForhøjetSoftware,
+            nummerpladevilkår_opfyldt = Falskt
+        )
+    ],
+    salg = [],
+    valg = AlForhøjetOrdinærAfskrivning(sats_basispoint = 2500)
+))
+
+= al7_reparation_over_erstatning = afskrivningslov7_resultat(Afskrivningslov7Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    reparationsudgifter_kroner = 20000,
+    forsikrings_eller_erstatningssum_kroner = 8000,
+    udgifter_sætter_aktivet_i_stand_som_ved_skaden = Sandt
+))
+
+= al7_erstatning_over_reparation = afskrivningslov7_resultat(Afskrivningslov7Input(
+    indkomstår = 2026,
+    aktiv_resultat = al_selvstændig_maskine,
+    saldoordning = AlPar5AlmindeligSaldo,
+    reparationsudgifter_kroner = 8000,
+    forsikrings_eller_erstatningssum_kroner = 20000,
+    udgifter_sætter_aktivet_i_stand_som_ved_skaden = Sandt
+))
+
+= al8_separate_saldi = afskrivningslov8_resultat(Afskrivningslov8Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    negativ_saldo_opståelsesår = 2026,
+    indkomstår = 2027,
+    saldi_før_udligning = AfskrivningslovSaldoTreklang(par5_saldo_kroner = -50000, par5d_saldo_kroner = 30000, par5e_saldo_kroner = 0),
+    udlignende_anskaffelser = AfskrivningslovSaldoTreklang(par5_saldo_kroner = 0, par5d_saldo_kroner = 0, par5e_saldo_kroner = 0),
+    opgørelsesvalg = Al8SeparateSaldi,
+    medregnes_i_opståelsesåret = Falskt,
+    fristforlængelse = Al8IngenFristforlængelse
+))
+
+= al8_sammenlagte_saldi = afskrivningslov8_resultat(Afskrivningslov8Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    negativ_saldo_opståelsesår = 2026,
+    indkomstår = 2027,
+    saldi_før_udligning = AfskrivningslovSaldoTreklang(par5_saldo_kroner = -50000, par5d_saldo_kroner = 30000, par5e_saldo_kroner = 0),
+    udlignende_anskaffelser = AfskrivningslovSaldoTreklang(par5_saldo_kroner = 0, par5d_saldo_kroner = 0, par5e_saldo_kroner = 0),
+    opgørelsesvalg = Al8SumPar5Par5DPar5E,
+    medregnes_i_opståelsesåret = Falskt,
+    fristforlængelse = Al8IngenFristforlængelse
+))
+
+= al8_sammenlagt_delvist_udlignet = afskrivningslov8_resultat(Afskrivningslov8Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    negativ_saldo_opståelsesår = 2026,
+    indkomstår = 2027,
+    saldi_før_udligning = AfskrivningslovSaldoTreklang(par5_saldo_kroner = -50000, par5d_saldo_kroner = 30000, par5e_saldo_kroner = 0),
+    udlignende_anskaffelser = AfskrivningslovSaldoTreklang(par5_saldo_kroner = 12000, par5d_saldo_kroner = 0, par5e_saldo_kroner = 0),
+    opgørelsesvalg = Al8SumPar5Par5DPar5E,
+    medregnes_i_opståelsesåret = Falskt,
+    fristforlængelse = Al8IngenFristforlængelse
+))
+
+= al8_gyldig_fristforlængelse = afskrivningslov8_resultat(Afskrivningslov8Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    negativ_saldo_opståelsesår = 2026,
+    indkomstår = 2027,
+    saldi_før_udligning = AfskrivningslovSaldoTreklang(par5_saldo_kroner = -50000, par5d_saldo_kroner = 30000, par5e_saldo_kroner = 0),
+    udlignende_anskaffelser = AfskrivningslovSaldoTreklang(par5_saldo_kroner = 0, par5d_saldo_kroner = 0, par5e_saldo_kroner = 0),
+    opgørelsesvalg = Al8SumPar5Par5DPar5E,
+    medregnes_i_opståelsesåret = Falskt,
+    fristforlængelse = Al8ForlængetFrist(
+        til_indkomstår = 2028,
+        bestillingsaftale_indgået_før_ordinær_frist = Sandt,
+        bestilte_aktiver_kan_udligne_saldo = Sandt,
+        forsinkelse_skyldes_leverandøren = Sandt,
+        overskridelse_ikke_forudset_eller_afværgelig = Sandt,
+        sikkerhed_påkrævet = Sandt,
+        sikkerhed_stillet = Sandt
+    )
+))
+
+= al9_officielt_negativ_saldo_eksempel = afskrivningslov9_resultat(Afskrivningslov9Input(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    virksomhed_solgt_eller_ophørt = Sandt,
+    opgørelsesvalg = Al9SeparateSaldi,
+    saldoposter = [
+        Afskrivningslov9SaldoPost(
+            saldoordning = AlPar5AlmindeligSaldo,
+            saldoværdi_primo_kroner = -50000,
+            salgssummer_inkl_straksafskrevne_aktiver_kroner = 50000,
+            nyanskaffelser_i_ophørsåret_kroner = 30000,
+            ikke_fradragne_anskaffelsessummer_uden_for_saldo_kroner = 0,
+            alle_aktiver_på_saldoen_solgt = Sandt
+        )
+    ]
+))
+
+= al9_sammenlagt_ophør = afskrivningslov9_resultat(Afskrivningslov9Input(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    virksomhed_solgt_eller_ophørt = Sandt,
+    opgørelsesvalg = Al9SammenlægPar5Par5DPar5E,
+    saldoposter = [
+        Afskrivningslov9SaldoPost(
+            saldoordning = AlPar5AlmindeligSaldo,
+            saldoværdi_primo_kroner = 0,
+            salgssummer_inkl_straksafskrevne_aktiver_kroner = 80000,
+            nyanskaffelser_i_ophørsåret_kroner = 0,
+            ikke_fradragne_anskaffelsessummer_uden_for_saldo_kroner = 0,
+            alle_aktiver_på_saldoen_solgt = Sandt
+        ),
+        Afskrivningslov9SaldoPost(
+            saldoordning = AlPar5DMidlertidig116Saldo,
+            saldoværdi_primo_kroner = 50000,
+            salgssummer_inkl_straksafskrevne_aktiver_kroner = 0,
+            nyanskaffelser_i_ophørsåret_kroner = 0,
+            ikke_fradragne_anskaffelsessummer_uden_for_saldo_kroner = 0,
+            alle_aktiver_på_saldoen_solgt = Sandt
+        )
+    ]
+))
+
+= al9_positiv_saldo_videreført = afskrivningslov9_resultat(Afskrivningslov9Input(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    virksomhed_solgt_eller_ophørt = Sandt,
+    opgørelsesvalg = Al9SeparateSaldi,
+    saldoposter = [
+        Afskrivningslov9SaldoPost(
+            saldoordning = AlPar5AlmindeligSaldo,
+            saldoværdi_primo_kroner = 100000,
+            salgssummer_inkl_straksafskrevne_aktiver_kroner = 30000,
+            nyanskaffelser_i_ophørsåret_kroner = 0,
+            ikke_fradragne_anskaffelsessummer_uden_for_saldo_kroner = 0,
+            alle_aktiver_på_saldoen_solgt = Falskt
+        )
+    ]
+))
+
+= al9_efterfølgende_delvist_salg = afskrivningslov9_efterfølgende_salg_resultat(Afskrivningslov9EfterfølgendeSalgInput(
+    indkomstår = 2027,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    salg_omfattet_af_stk2 = Sandt,
+    videreført_positiv_saldo_primo_kroner = 70000,
+    salgssum_kroner = 20000,
+    sidste_driftsmiddel_eller_skib_solgt = Falskt
+))
+
+= al9_efterfølgende_sidste_salg_med_tab = afskrivningslov9_efterfølgende_salg_resultat(Afskrivningslov9EfterfølgendeSalgInput(
+    indkomstår = 2028,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    salg_omfattet_af_stk2 = Sandt,
+    videreført_positiv_saldo_primo_kroner = 50000,
+    salgssum_kroner = 20000,
+    sidste_driftsmiddel_eller_skib_solgt = Sandt
+))
+
+= al9_efterfølgende_sidste_salg_med_overskud = afskrivningslov9_efterfølgende_salg_resultat(Afskrivningslov9EfterfølgendeSalgInput(
+    indkomstår = 2028,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    salg_omfattet_af_stk2 = Sandt,
+    videreført_positiv_saldo_primo_kroner = 50000,
+    salgssum_kroner = 80000,
+    sidste_driftsmiddel_eller_skib_solgt = Sandt
+))
+
+= al10_dok_minimum_opfyldt = afskrivningslov10_resultat(Afskrivningslov10Input(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al10DokAnlæg,
+    beregnet_til_bygning_og_reparation_af_skibe = Sandt,
+    samlet_anskaffelsessum_i_indkomståret_kroner = 965800,
+    vælger_par5_til_par9 = Sandt,
+    fortjeneste_mv_behandles_efter_par5_til_par9 = Sandt
+), al_2026_parametre)
+
+= al10_dok_under_minimum = afskrivningslov10_resultat(Afskrivningslov10Input(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktivart = Al10DokAnlæg,
+    beregnet_til_bygning_og_reparation_af_skibe = Sandt,
+    samlet_anskaffelsessum_i_indkomståret_kroner = 965799,
+    vælger_par5_til_par9 = Sandt,
+    fortjeneste_mv_behandles_efter_par5_til_par9 = Sandt
+), al_2026_parametre)
+
+= par3_nr10_kapitel2_input = Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al5B(resultat = al5b_bareboat_selvstændig),
+        Par3Nr10Al5C(resultat = al5c_lang_levetid_15_pct),
+        Par3Nr10Al5D5E(resultat = al5e_anskaffelser_2026),
+        Par3Nr10Al7(resultat = al7_reparation_over_erstatning),
+        Par3Nr10Al8(resultat = al8_sammenlagt_delvist_udlignet),
+        Par3Nr10Al9(resultat = al9_officielt_negativ_saldo_eksempel),
+        Par3Nr10Al9EfterfølgendeSalg(resultat = al9_efterfølgende_sidste_salg_med_tab)
+    ]
+)
+
+= par3_nr10_kapitel2_resultat = par3_stk2_nr10_resultat(par3_nr10_kapitel2_input)
+
+= par3_nr10_kapitel2_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Falskt, beløb_kroner = 200000),
+        par3_stk2_nr10_indkomstpost(par3_nr10_kapitel2_input)
+    ],
+    fradragsposter = [
+        par3_stk2_nr10_fradragspost(par3_nr10_kapitel2_input)
+    ]
+))
 
 = sl6_ordinær_selvstændig = statsskattelov6_ordinær_afskrivning_resultat(Statsskattelov6OrdinærAfskrivningInput(
     skatteyder = Sl6SelvstændigErhvervsdrivendePerson,
@@ -622,6 +1104,25 @@
     ]
 ))
 
+| scenarie_al3_kræver_gyldig_dato_og_alle_tre_betingelser: al3_anskaffet_2026 -> al3_anskaffet_2026.dato_gyldig == Sandt && al3_anskaffet_2026.anskaffet_efter_par3 == Sandt && al3_ufærdig_2026.anskaffet_efter_par3 == Falskt && al3_ugyldig_2026_dato.dato_gyldig == Falskt && al3_ugyldig_2026_dato.anskaffet_efter_par3 == Falskt
+| scenarie_al4_fiktivt_salg_køb_og_ladestander: al4_erhverv_til_privat -> al4_erhverv_til_privat.behandles_som_salg == Sandt && al4_erhverv_til_privat.salgssum_kroner == 75000 && al4_privat_til_erhverv.behandles_som_køb == Sandt && al4_privat_til_erhverv.købesum_kroner == 75000 && al4_vso_blandet_bil.virksomhedsordningsoverførsel_omfattet_af_stk2 == Sandt && al4_vso_blandet_bil.salgssum_kroner == 120000 && al4_ladestander_nulværdi.ladestander_værdi_ansat_til_nul == Sandt && al4_ladestander_nulværdi.salgssum_kroner == 0
+| scenarie_al5_udlejning_følger_treårsforløbet: al5_udlejning_anskaffelsesår -> al5_udlejning_anskaffelsesår.særskilt_afskrivning_i_indkomståret_kroner == 0 && al5_udlejning_anskaffelsesår.beløb_til_afskrivningssaldo_kroner == 0 && al5_udlejning_andet_indkomstår.valgt_særskilt_afskrivning_gyldig == Sandt && al5_udlejning_andet_indkomstår.andet_indkomstårs_afskrivning_kroner == 50000 && al5_udlejning_andet_indkomstår.særskilt_afskrivning_i_indkomståret_kroner == 50000 && al5_udlejning_tredje_indkomstår.andet_indkomstårs_afskrivning_kroner == 50000 && al5_udlejning_tredje_indkomstår.særskilt_afskrivning_i_indkomståret_kroner == 0 && al5_udlejning_tredje_indkomstår.uafskrevet_anskaffelsessum_kroner == 50000 && al5_udlejning_tredje_indkomstår.beløb_til_afskrivningssaldo_kroner == 50000
+| scenarie_al5_tidligt_udlejningssalg_regulerer_saldoen: al5_udlejning_tidligt_salg -> al5_udlejning_tidligt_salg.tidligt_salg_omfattet_af_stk5 == Sandt && al5_udlejning_tidligt_salg.andet_indkomstårs_afskrivning_kroner == 0 && al5_udlejning_tidligt_salg.fortjeneste_kroner == 20000 && al5_udlejning_tidligt_salg.tab_kroner == 0 && al5_udlejning_tidligt_salg.saldoændring_ved_tidligt_salg_kroner == -20000
+| scenarie_al5b_særskilt_skibssaldo_og_nybygget_skib: al5b_bareboat_selvstændig -> al5b_bareboat_selvstændig.omfattet_af_par5b == Sandt && al5b_bareboat_selvstændig.alene_omfattet_af_stk1_nr1_eller_nr2 == Falskt && al5b_bareboat_selvstændig.saldoafskrivning_kroner == 12000 && al5b_bareboat_selvstændig.saldoværdi_til_næste_indkomstår_kroner == 88000 && al5b_nybygget_selskab.alene_omfattet_af_stk1_nr1_eller_nr2 == Sandt && al5b_nybygget_selskab.nybygget_førsteårsvalg_gyldigt == Sandt && al5b_nybygget_selskab.nybygget_førsteårsafskrivning_kroner == 20000 && al5b_nybygget_selskab.nybygget_rest_til_næste_års_saldo_kroner == 80000 && al5b_nybygget_selskab.saldoværdi_til_næste_indkomstår_kroner == 80000
+| scenarie_al5b_forholdsmæssig_saldooverførsel: al5b_forholdsmæssig_overførsel -> al5b_forholdsmæssig_overførsel.grundlag_gyldigt == Sandt && al5b_forholdsmæssig_overførsel.overført_saldoværdi_kroner == 40000 && al5b_forholdsmæssig_overførsel.resterende_kildesaldo_kroner == 60000 && al5b_forholdsmæssig_overførsel.tillæg_til_modtagersaldo_kroner == 40000
+| scenarie_al5c_satser_småsaldo_og_softwareafgrænsning: al5c_lang_levetid_15_pct -> al5c_lang_levetid_15_pct.omfattet_af_par5c == Sandt && al5c_lang_levetid_15_pct.højeste_sats_basispoint == 1500 && al5c_lang_levetid_15_pct.fradrag_i_skattepligtig_indkomst_kroner == 15000 && al5c_infrastruktur_7_pct.højeste_sats_basispoint == 700 && al5c_infrastruktur_7_pct.fradrag_i_skattepligtig_indkomst_kroner == 7000 && al5c_fuld_småsaldo.valg_gyldigt == Sandt && al5c_fuld_småsaldo.fradrag_i_skattepligtig_indkomst_kroner == 36000 && al5c_softwaredel_afskåret.omfattet_af_par5c == Falskt && al5c_softwaredel_afskåret.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al5d_forhøjer_og_sammenlægger_saldoen: al5d_anskaffelse_2022 -> al5d_anskaffelse_2022.gyldige_anskaffelsessummer_kroner == 100000 && al5d_anskaffelse_2022.forhøjede_anskaffelsessummer_kroner == 116000 && al5d_anskaffelse_2022.fradrag_i_skattepligtig_indkomst_kroner == 29000 && al5d_anskaffelse_2022.særskilt_saldo_til_næste_indkomstår_kroner == 87000 && al5d_sammenlægning_2026.fradrag_i_skattepligtig_indkomst_kroner == 21750 && al5d_sammenlægning_2026.sammenlægges_med_par5_ved_årets_udgang == Sandt && al5d_sammenlægning_2026.saldo_til_par5_næste_indkomstår_kroner == 65250 && al5d_sammenlægning_2026.særskilt_saldo_til_næste_indkomstår_kroner == 0
+| scenarie_al5e_forhøjer_kun_omfattede_anskaffelser: al5e_anskaffelser_2026 -> al5e_anskaffelser_2026.gyldige_anskaffelsessummer_kroner == 100000 && al5e_anskaffelser_2026.afskårne_anskaffelsessummer_kroner == 50000 && al5e_anskaffelser_2026.forhøjede_anskaffelsessummer_kroner == 108000 && al5e_anskaffelser_2026.fradrag_i_skattepligtig_indkomst_kroner == 27000 && al5e_anskaffelser_2026.særskilt_saldo_til_næste_indkomstår_kroner == 81000
+| scenarie_al7_nettoforskellen_fradrages_eller_reducerer_saldoen: al7_reparation_over_erstatning -> al7_reparation_over_erstatning.fradrag_i_skattepligtig_indkomst_kroner == 12000 && al7_reparation_over_erstatning.reduktion_af_saldoværdi_kroner == 0 && al7_erstatning_over_reparation.fradrag_i_skattepligtig_indkomst_kroner == 0 && al7_erstatning_over_reparation.reduktion_af_saldoværdi_kroner == 12000
+| scenarie_al8_separate_og_sammenlagte_saldi_adskilles: al8_separate_saldi -> al8_separate_saldi.negativ_saldo_før_udligning_kroner == 50000 && al8_separate_saldi.samlet_skattepligtig_indtægtsføring_kroner == 50000 && al8_sammenlagte_saldi.negativ_saldo_før_udligning_kroner == 20000 && al8_sammenlagte_saldi.samlet_skattepligtig_indtægtsføring_kroner == 20000
+| scenarie_al8_anskaffelser_udligner_og_frist_kan_forlænges: al8_sammenlagt_delvist_udlignet -> al8_sammenlagt_delvist_udlignet.udlignende_anskaffelser_kroner == 12000 && al8_sammenlagt_delvist_udlignet.negativ_saldo_efter_udligning_kroner == 8000 && al8_sammenlagt_delvist_udlignet.samlet_skattepligtig_indtægtsføring_kroner == 8000 && al8_gyldig_fristforlængelse.fristforlængelse_gyldig == Sandt && al8_gyldig_fristforlængelse.seneste_udligningsår == 2028 && al8_gyldig_fristforlængelse.samlet_skattepligtig_indtægtsføring_kroner == 0 && al8_gyldig_fristforlængelse.negativ_saldo_fremføres_kroner == 20000
+| scenarie_al9_officielt_negativ_saldo_eksempel: al9_officielt_negativ_saldo_eksempel -> al9_officielt_negativ_saldo_eksempel.korrigerede_salgssummer_kroner == 50000 && al9_officielt_negativ_saldo_eksempel.nyanskaffelser_i_ophørsåret_kroner == 30000 && al9_officielt_negativ_saldo_eksempel.brutto_fortjeneste_kroner == 70000 && al9_officielt_negativ_saldo_eksempel.skattepligtig_fortjeneste_kroner == 70000
+| scenarie_al9_sammenlægning_modregner_saldiene: al9_sammenlagt_ophør -> al9_sammenlagt_ophør.brutto_fortjeneste_kroner == 30000 && al9_sammenlagt_ophør.brutto_tab_før_udskydelse_kroner == 0 && al9_sammenlagt_ophør.skattepligtig_fortjeneste_kroner == 30000 && al9_sammenlagt_ophør.fradragsberettiget_tab_kroner == 0
+| scenarie_al9_restsaldo_udskydes_til_sidste_salg: al9_positiv_saldo_videreført -> al9_positiv_saldo_videreført.brutto_tab_før_udskydelse_kroner == 70000 && al9_positiv_saldo_videreført.fradragsberettiget_tab_kroner == 0 && al9_positiv_saldo_videreført.tab_udskudt_til_sidste_aktiv_kroner == 70000 && al9_positiv_saldo_videreført.positiv_saldo_videreført_kroner == 70000 && al9_efterfølgende_delvist_salg.saldo_nedbragt_kroner == 20000 && al9_efterfølgende_delvist_salg.resterende_saldo_kroner == 50000 && al9_efterfølgende_delvist_salg.skattepligtig_salgssum_eller_overskud_kroner == 0 && al9_efterfølgende_sidste_salg_med_tab.fradragsberettiget_endeligt_tab_kroner == 30000 && al9_efterfølgende_sidste_salg_med_overskud.skattepligtig_salgssum_eller_overskud_kroner == 30000
+| scenarie_al10_dokgrænsen_er_inklusive: al10_dok_minimum_opfyldt -> al10_dok_minimum_opfyldt.minimumsanskaffelsessum_kroner == 965800 && al10_dok_minimum_opfyldt.minimum_opfyldt == Sandt && al10_dok_minimum_opfyldt.valg_gyldigt == Sandt && al10_dok_minimum_opfyldt.anskaffelsessum_til_par5_saldo_kroner == 965800 && al10_dok_under_minimum.minimum_opfyldt == Falskt && al10_dok_under_minimum.valg_gyldigt == Falskt && al10_dok_under_minimum.anskaffelsessum_til_par5_saldo_kroner == 0
+| scenarie_par3_nr10_samler_kapitel2_udfald: par3_nr10_kapitel2_resultat -> par3_nr10_kapitel2_resultat.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 78000 && par3_nr10_kapitel2_resultat.indtægtsføring_i_personlig_indkomst_kroner == 78000 && par3_nr10_kapitel2_resultat.brutto_skattemæssige_afskrivninger_kroner == 54000 && par3_nr10_kapitel2_resultat.brutto_tab_kroner == 30000 && par3_nr10_kapitel2_resultat.brutto_andre_fradrag_kroner == 12000 && par3_nr10_kapitel2_resultat.brutto_fradrag_efter_kildelovene_kroner == 96000 && par3_nr10_kapitel2_resultat.fradrag_i_personlig_indkomst_kroner == 96000
+| scenarie_par3_nr10_kapitel2_regelkaskade: par3_nr10_kapitel2_personlig_indkomst -> par3_nr10_kapitel2_personlig_indkomst.brutto_personlig_indkomst_kroner == 278000 && par3_nr10_kapitel2_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 96000 && par3_nr10_kapitel2_personlig_indkomst.netto_personlig_indkomst_kroner == 182000
+
 | scenarie_al5_ordinær_25_pct: al5_ordinær_selvstændig -> al5_ordinær_selvstændig.saldoværdi_før_afskrivning_kroner == 130000 && al5_ordinær_selvstændig.højeste_ordinære_afskrivning_kroner == 32500 && al5_ordinær_selvstændig.fradrag_i_skattepligtig_indkomst_kroner == 32500 && al5_ordinær_selvstændig.saldoværdi_efter_afskrivning_kroner == 97500
 | scenarie_al5_fuld_småsaldo: al5_fuld_småsaldo -> al5_fuld_småsaldo.valg_gyldigt == Sandt && al5_fuld_småsaldo.fradrag_i_skattepligtig_indkomst_kroner == 36000 && al5_fuld_småsaldo.saldoværdi_efter_afskrivning_kroner == 0
 | scenarie_al5_over_småsaldogrænsen_afskæres: al5_fuld_over_småsaldogrænsen -> al5_fuld_over_småsaldogrænsen.valg_gyldigt == Falskt && al5_fuld_over_småsaldogrænsen.fradrag_i_skattepligtig_indkomst_kroner == 0
@@ -654,6 +1155,24 @@
 | scenarie_par3_nr11_kun_iværksætterkonto: par3_nr11_blandet_fordeling -> par3_nr11_blandet_fordeling.etableringskonto_fradrag_uden_for_personlig_indkomst_kroner == 150000 && par3_nr11_blandet_fordeling.iværksætterkonto_fradrag_i_personlig_indkomst_kroner == 150000 && par3_nr11_blandet_fordeling.fradrag_i_personlig_indkomst_kroner == 150000
 | scenarie_par3_nr10_nr11_regelkaskade: par3_nr10_nr11_personlig_indkomst -> par3_nr10_nr11_personlig_indkomst.brutto_personlig_indkomst_kroner == 600000 && par3_nr10_nr11_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 483500 && par3_nr10_nr11_personlig_indkomst.netto_personlig_indkomst_kroner == 116500
 
+? scenarie_al3_kræver_gyldig_dato_og_alle_tre_betingelser
+? scenarie_al4_fiktivt_salg_køb_og_ladestander
+? scenarie_al5_udlejning_følger_treårsforløbet
+? scenarie_al5_tidligt_udlejningssalg_regulerer_saldoen
+? scenarie_al5b_særskilt_skibssaldo_og_nybygget_skib
+? scenarie_al5b_forholdsmæssig_saldooverførsel
+? scenarie_al5c_satser_småsaldo_og_softwareafgrænsning
+? scenarie_al5d_forhøjer_og_sammenlægger_saldoen
+? scenarie_al5e_forhøjer_kun_omfattede_anskaffelser
+? scenarie_al7_nettoforskellen_fradrages_eller_reducerer_saldoen
+? scenarie_al8_separate_og_sammenlagte_saldi_adskilles
+? scenarie_al8_anskaffelser_udligner_og_frist_kan_forlænges
+? scenarie_al9_officielt_negativ_saldo_eksempel
+? scenarie_al9_sammenlægning_modregner_saldiene
+? scenarie_al9_restsaldo_udskydes_til_sidste_salg
+? scenarie_al10_dokgrænsen_er_inklusive
+? scenarie_par3_nr10_samler_kapitel2_udfald
+? scenarie_par3_nr10_kapitel2_regelkaskade
 ? scenarie_al5_ordinær_25_pct
 ? scenarie_al5_fuld_småsaldo
 ? scenarie_al5_over_småsaldogrænsen_afskæres

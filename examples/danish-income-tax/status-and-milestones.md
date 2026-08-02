@@ -23,7 +23,9 @@ semantik. `runa meta --json` udstiller desuden det typede indeks som
 `futuruna.meta.v1` med råtekstankre, regelspans, symboler og strukturerede
 diagnostikker. Spansymbolerne kommer fra parserens faktiske deklarationer, så
 `match`-grene ikke fejlagtigt optræder som regler, og både `|`-regler og
-`>`-funktioner indekseres. Selskabsskattelovens historiske og gældende §
+`>`-funktioner indekseres. Råtekstens `----`-markører og de faktiske
+indholdslinjer har nu særskilte linjefelter, så en audit ikke skal gætte på,
+om et span omfatter afgrænsningen eller den ordrette tekst. Selskabsskattelovens historiske og gældende §
 17-kilder var den første korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
 ordlydsforskydningen i den dynamiske henvisning til Ligningsloven § 8 O fra
@@ -34,21 +36,32 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 3, stk. 2, nr. 10-11 modtager nu typede
-beløbsresultater fra Afskrivningsloven §§ 1-2, 5, 5 A og 6, stk. 1,
-Statsskatteloven § 6, litra a og Etableringskontoloven §§ 1-4. Nr. 10 holder
-ordinære afskrivninger, tab og andre fradrag adskilt og filtrerer selskabers
-resultater fra, før beløbet føres til en selvstændig persons personlige
-indkomst. Afskrivningslovens 2026-parametre omfatter 36.000 kr.-grænserne og
-forskningsfradragets 114/110 pct.-deling omkring loftet på 1.088,8 mio. kr.
-§ 5 A-modellen begrænser et valgt tab forholdsmæssigt, når hele den uafskrevne
-anskaffelsessum ellers ville gøre saldoen negativ. Nr. 11 fører kun
+Latest integration: Afskrivningslovens aktuelle kapitel 2-slice omfatter nu
+§§ 1-5 E, § 6, stk. 1, og §§ 7-13. § 3 kræver leveret, driftsbestemt og
+driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
+køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
+omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
+treårige udlejningsforløb. §§ 5 B-5 E dækker særskilt skibssaldo,
+15/7 pct.-infrastruktursaldi samt de tidsafgrænsede 116/108 pct.-saldi og deres
+sammenlægning med § 5. §§ 7-10 dækker skade og erstatning, separat eller samlet
+negativ saldo, ophør og senere salg samt 2026-grænsen på 965.800 kr. for dok- og
+beddingsanlæg. §§ 11-13 dækker de blandet benyttede aktiver, salg og skade.
+
+Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater og
+holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
+adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
+føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
+samlet forløb med 78.000 kr. indtægtsføring og 96.000 kr. fradrag. De eksisterende
+2026-parametre omfatter også 36.000 kr.-grænserne og forskningsfradragets
+114/110 pct.-deling omkring loftet på 1.088,8 mio. kr. § 5 A-modellen begrænser
+et valgt tab forholdsmæssigt, når hele den uafskrevne anskaffelsessum ellers
+ville gøre saldoen negativ. Nr. 11 fører kun
 iværksætterkontoens fradrag til personlig indkomst; etableringskontoens
 ligningsmæssige fradrag forbliver synligt uden at blive dobbeltklassificeret.
 Etableringskontomodellen dækker også 60 pct./250.000 kr.-loftet, 5.000
 kr.-minimum, § 29-forskudsafskrivning, kontoformen og beløb, der efter § 4,
-stk. 2 behandles som indskud. Den fokuserede scenario-fil validerer hele
-regelkaskaden og de offentliggjorte 200.000/300.000/800.000 kr.-eksempler.
+stk. 2 behandles som indskud. Samme scenario-fil validerer de offentliggjorte
+200.000/300.000/800.000 kr.-eksempler.
 
 Afskrivningslovens §§ 11-13 er nu føjet til samme nr. 10-kaskade. Delvist
 erhvervsmæssigt benyttede driftsmidler og skibe bærer en typet årsopgørelse med
@@ -639,7 +652,15 @@ Current § 4 and § 13 amendment/dependency sources:
     `https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag`
 - Afskrivningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1222`
-  - XML status on 2026-07-18: `Valid`
+  - XML status checked on 2026-07-18: `Valid`; the LBK version window ends on
+    2026-07-01, so current source posture also includes LOV 749/2025 § 2,
+    effective 2026-01-01. That amendment changes § 40, stk. 7-8, not the
+    modeled §§ 1-13 or § 40 C.
+  - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
+    §§ 1-5 E, § 6, stk. 1, and §§ 7-13 with amount-level chapter 2 outcomes.
+  - Current rates and limits come from the Ministry's 2026 rates page; the
+    separate-balance, negative-balance, cessation and mixed-use interpretations
+    are cross-checked against Den juridiske vejledning.
   - § 40 C is modeled as the Personskatteloven § 4, stk. 1, nr. 16
     dependency for taxable/deductible saldo amounts from EU agricultural
     payment rights, milk quotas and sugar-beet delivery rights.
@@ -891,7 +912,7 @@ encoded as a temporal rule on top of the consolidation.
   business tax scheme, § 22 d bankruptcy and permanent-establishment exit,
   succession settlement, and the resulting personal-income amount.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
-  the Afskrivningsloven §§ 1-2, 5, 5 A, 6, stk. 1 and 11-13 dependency slice
+  the Afskrivningsloven §§ 1-5 E, § 6, stk. 1, and §§ 7-13 dependency slice
   consumed by Personskatteloven § 3, stk. 2, nr. 10 and the § 40 C dependency
   consumed by § 4, stk. 1, nr. 16.
 - `statsskatteloven.runa` exists and checks with `runa check`; it exposes the
@@ -901,7 +922,8 @@ encoded as a temporal rule on top of the consolidation.
   as separate typed amounts.
 - `personskatteloven-par3-afskrivning-ivaerksaetter.scenario.runa` exists and
   checks/runs with `runa run`; it validates the § 3, stk. 2, nr. 10-11 amount
-  cascade and its principal 2026 boundaries.
+  cascade, the principal 2026 boundaries, negative-saldo and cessation paths,
+  and the combined chapter 2 income/deduction result.
 - `pensionsbeskatningsloven.runa` exists and checks/runs with `runa run`; it
   covers the Pensionsbeskatningsloven § 53 A dependency consumed by
   Personskatteloven § 4, stk. 1, nr. 13.
@@ -1107,8 +1129,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 74-84% complete as an executable research corpus,
-  and roughly 60-70% complete as a production-grade calculator for
+- Working estimate: roughly 76-85% complete as an executable research corpus,
+  and roughly 62-72% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

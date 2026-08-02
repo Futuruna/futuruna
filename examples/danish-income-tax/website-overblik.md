@@ -107,10 +107,12 @@ Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
 Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
-afskrivning efter Statsskatteloven. Den dækker desuden Afskrivningslovens §§
-11-13 om delvist erhvervsmæssigt benyttede driftsmidler og skibe: særskilt
-25/15/7 pct.-afskrivning, 16.900 kr.-grænsen, forholdsmæssig fortjeneste eller
-tab ved salg samt skade, reparation og forsikringsoverskud. Kun fradrag for en
+afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle kapitel 2-slice
+omfatter §§ 1-5 E, § 6, stk. 1, og §§ 7-13: anskaffelse og benyttelsesændring,
+den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
+15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi, skade og
+erstatning, negativ saldo, virksomhedsophør og senere salg, dok- og
+beddingsanlæg samt delvist erhvervsmæssigt benyttede aktiver. Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
 særskilt personlig indkomstpost. Modellen bruger de offentliggjorte 2026-
@@ -132,24 +134,34 @@ fradrag i personlig indkomst og håndterer 5.000 kr.-minimum, 60 pct.-grænsen,
 muligheden for altid at indskyde op til 250.000 kr., fælles kontoloft,
 forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222),
+[ændringslov nr. 749/2025](https://www.retsinformation.dk/eli/lta/2025/749),
 [Statsskatteloven, LOV nr. 149/1922](https://www.retsinformation.dk/eli/lta/1922/149),
 [Etableringskontoloven, LBK nr. 1307/2025](https://www.retsinformation.dk/eli/lta/2025/1307),
 [Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven),
+[Skattestyrelsens saldovejledning](https://info.skat.dk/data.aspx?oid=2060781),
 [Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
-Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. De øvrige
-saldoordninger, bygninger, installationer, forskudsafskrivning, immaterielle
-aktiver, genvundne afskrivninger og ophør er fortsat udestående dependency-
-arbejde under nr. 10.
+Den fokuserede scenario-fil fører 8.000 kr. negativ saldo og 70.000 kr.
+ophørsfortjeneste frem som indtægt og samler 12.000 kr. skibsafskrivning,
+15.000 kr. infrastruktursaldo, 27.000 kr. 108 pct.-saldo, 12.000 kr.
+reparationsfradrag og 30.000 kr. endeligt ophørstab. Det giver 78.000 kr.
+indtægtsføring og 96.000 kr. fradrag gennem den samme § 3-regelkaskade.
+
+Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Den
+resterende § 6, bygninger, installationer, forskudsafskrivning, immaterielle
+aktiver og genvundne afskrivninger er fortsat udestående dependency-arbejde
+under nr. 10.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,
 ikke indbyggede særtilfælde: enhver rolle kan pege på en almindelig Futuruna-
 binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
 lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
-semantik. En hel kildemappe kan gennemsøges rekursivt efter vilkårlig type eller
-rolle, f.eks. `--type HusdyrbeskatningslovKildeInfo` eller `--role warning`.
+semantik. JSON-indekset adskiller desuden `----`-markørernes linjer fra den
+ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges rekursivt efter
+vilkårlig type eller rolle, f.eks. `--type HusdyrbeskatningslovKildeInfo` eller
+`--role warning`.
 
 ## Eksempel
 
