@@ -1,0 +1,14 @@
+-- expect-skip: dependency-only fixture for interpreted forward declarations
+
+= forward_payload = forward_make_payload(41)
+= forward_function_value = forward_plus_one(41)
+= forward_scope_value = forward_scope(40).result()
+
+| forward_make_payload(value: Int) -> ForwardPayload(value = value + 1)
+> forward_plus_one(value: Int) -> Int { value + 1 }
+| forward_scope(value: Int) -> ForwardScope(value)
+
+# ForwardPayload(value: Int)
+# ForwardScope(value: Int) {
+    | result() -> value + 2
+}

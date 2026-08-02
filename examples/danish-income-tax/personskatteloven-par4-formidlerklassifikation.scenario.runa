@@ -1,0 +1,71 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for den kildeafledte aktivklassifikation i personskattelovens
+-- § 4, stk. 1, nr. 5 b, og den personlige omklassifikation efter stk. 6.
+
+| scenarie_par4_nr5b_input(
+    beløb_kroner: Heltal,
+    formidler: Par4Stk1Nr5bFormidler,
+    aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput
+) -> Par4Stk1Nr5bInput(
+    beløb_kroner = beløb_kroner,
+    formidler = formidler,
+    formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut = Sandt,
+    aktieavance_aktivklassifikation_input = aktieavance_aktivklassifikation_input
+)
+
+= scenarie_par4_nr5b_22_resultat = par4_stk1_nr5b_resultat(scenarie_par4_nr5b_input(
+    beløb_kroner = 4000,
+    formidler = Par4Nr5bPengeinstitut,
+    aktieavance_aktivklassifikation_input = aktieavance_aktivklassifikation_input_fra_beregning(abl22_tab_input)
+))
+= scenarie_par4_nr5b_19c_resultat = par4_stk1_nr5b_resultat(scenarie_par4_nr5b_input(
+    beløb_kroner = 5000,
+    formidler = Par4Nr5bFinansielRådgiver,
+    aktieavance_aktivklassifikation_input = aktieavance_aktivklassifikation_input_fra_beregning(abl19c_kapital_input)
+))
+= scenarie_par4_nr5b_19c_hvis17_resultat = par4_stk1_nr5b_resultat(scenarie_par4_nr5b_input(
+    beløb_kroner = 3000,
+    formidler = Par4Nr5bInvesteringsrådgiver,
+    aktieavance_aktivklassifikation_input = aktieavance_aktivklassifikation_input_fra_beregning(abl19c_hvis17_input)
+))
+= scenarie_par4_nr5b_direkte_22_uden_kilde_resultat = par4_stk1_nr5b_resultat(scenarie_par4_nr5b_input(
+    beløb_kroner = 4000,
+    formidler = Par4Nr5bPengeinstitut,
+    aktieavance_aktivklassifikation_input = AktieavanceAktivklassifikationInput(
+        indkomstår = 2026,
+        aktiv = AblMinimumsbevis22,
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        ),
+        investeringsklassifikation = AblIngenInvesteringsklassifikation
+    )
+))
+= scenarie_par4_nr5b_ordinær_aktie_resultat = par4_stk1_nr5b_resultat(scenarie_par4_nr5b_input(
+    beløb_kroner = 4000,
+    formidler = Par4Nr5bPengeinstitut,
+    aktieavance_aktivklassifikation_input = AktieavanceAktivklassifikationInput(
+        indkomstår = 2026,
+        aktiv = AblOrdinærAktiePar12Til15,
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        ),
+        investeringsklassifikation = AblIngenInvesteringsklassifikation
+    )
+))
+
+| scenarie_par4_nr5b_22_afledes_til_kapitalindkomst: scenarie_par4_nr5b_22_resultat -> scenarie_par4_nr5b_22_resultat.aktieavance_aktivklassifikation_resultat.input_gyldigt && scenarie_par4_nr5b_22_resultat.aktieavance_aktivklassifikation_resultat.effektiv_aktiv == AblMinimumsbevis22 && scenarie_par4_nr5b_22_resultat.aktiv == Par4Nr5bInvesteringsbevis22 && scenarie_par4_nr5b_22_resultat.omfattet_af_kapitalindkomst && scenarie_par4_nr5b_22_resultat.kapitalindkomst_kroner == 4000
+| scenarie_par4_nr5b_19c_afledes_til_kapitalindkomst: scenarie_par4_nr5b_19c_resultat -> scenarie_par4_nr5b_19c_resultat.aktieavance_aktivklassifikation_resultat.input_gyldigt && scenarie_par4_nr5b_19c_resultat.aktieavance_aktivklassifikation_resultat.effektiv_aktiv == AblInvesteringsselskab19C && scenarie_par4_nr5b_19c_resultat.aktieavance_aktivklassifikation_resultat.ville_være_omfattet_af_par17_uden_investeringsstatus == Falskt && scenarie_par4_nr5b_19c_resultat.aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C && scenarie_par4_nr5b_19c_resultat.omfattet_af_kapitalindkomst && scenarie_par4_nr5b_19c_resultat.kapitalindkomst_kroner == 5000
+| scenarie_par4_nr5b_19c_hvis17_afledes_til_personlig_indkomst: scenarie_par4_nr5b_19c_hvis17_resultat -> scenarie_par4_nr5b_19c_hvis17_resultat.aktieavance_aktivklassifikation_resultat.input_gyldigt && scenarie_par4_nr5b_19c_hvis17_resultat.aktieavance_aktivklassifikation_resultat.ville_være_omfattet_af_par17_uden_investeringsstatus && scenarie_par4_nr5b_19c_hvis17_resultat.aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C && scenarie_par4_nr5b_19c_hvis17_resultat.omfattet_af_kapitalindkomst == Falskt && scenarie_par4_nr5b_19c_hvis17_resultat.kapitalindkomst_kroner == 0 && scenarie_par4_nr5b_19c_hvis17_resultat.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| scenarie_par4_nr5b_direkte_22_uden_kilde_afvises: scenarie_par4_nr5b_direkte_22_uden_kilde_resultat -> scenarie_par4_nr5b_direkte_22_uden_kilde_resultat.aktieavance_aktivklassifikation_resultat.input_gyldigt == Falskt && scenarie_par4_nr5b_direkte_22_uden_kilde_resultat.aktiv == Par4Nr5bAndet && scenarie_par4_nr5b_direkte_22_uden_kilde_resultat.omfattet_af_par4_nr5b == Falskt && scenarie_par4_nr5b_direkte_22_uden_kilde_resultat.kapitalindkomst_kroner == 0
+| scenarie_par4_nr5b_ordinær_aktie_er_gyldig_men_udenfor_nr5b: scenarie_par4_nr5b_ordinær_aktie_resultat -> scenarie_par4_nr5b_ordinær_aktie_resultat.aktieavance_aktivklassifikation_resultat.input_gyldigt && scenarie_par4_nr5b_ordinær_aktie_resultat.aktieavance_aktivklassifikation_resultat.effektiv_aktiv == AblOrdinærAktiePar12Til15 && scenarie_par4_nr5b_ordinær_aktie_resultat.aktiv == Par4Nr5bAndet && scenarie_par4_nr5b_ordinær_aktie_resultat.omfattet_af_par4_nr5b == Falskt && scenarie_par4_nr5b_ordinær_aktie_resultat.kapitalindkomst_kroner == 0
+
+? scenarie_par4_nr5b_22_afledes_til_kapitalindkomst
+? scenarie_par4_nr5b_19c_afledes_til_kapitalindkomst
+? scenarie_par4_nr5b_19c_hvis17_afledes_til_personlig_indkomst
+? scenarie_par4_nr5b_direkte_22_uden_kilde_afvises
+? scenarie_par4_nr5b_ordinær_aktie_er_gyldig_men_udenfor_nr5b

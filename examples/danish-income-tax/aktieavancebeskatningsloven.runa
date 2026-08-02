@@ -997,6 +997,8 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 # AktieavancePar17Næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier | AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier
 # AktieavancePar17Erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej | AblPar17IkkeErhvervetSomLedINæringsvej
 # AktieavancePar17Modprøve(næringsstatus: AktieavancePar17Næringsstatus, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus)
+# AktieavanceAktivklassifikationInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, par17_modprøve: AktieavancePar17Modprøve, investeringsklassifikation: AktieavanceInvesteringsklassifikation)
+# AktieavanceAktivklassifikationResultat(input: AktieavanceAktivklassifikationInput, input_gyldigt: Boolsk, effektiv_aktiv: AktieavancebeskatningslovAktiv, ville_være_omfattet_af_par17_uden_investeringsstatus: Boolsk)
 # AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, par17_modprøve: AktieavancePar17Modprøve, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
 # AktieavancebeskatningslovResultat(indkomstår: Heltal, effektiv_aktiv: AktieavancebeskatningslovAktiv, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, netto_efter_aktieavancebeskatningsloven_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk, personskattelov_kategori: AktieavancebeskatningslovPslKategori)
 
@@ -1018,13 +1020,35 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     | AblIngenInvesteringsklassifikation -> AblUdenforDenneSlice
 }
 
-# AktieavancebeskatningslovSag(input: AktieavancebeskatningslovInput) {
-    | input_gyldigt() -> input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && aktieavance_investeringsklassifikation_matcher_aktiv(input.indkomstår, input.aktiv, input.investeringsklassifikation)
-    | bruttogevinst_kroner() -> penge_positivt_beløb(input.afståelsessum_kroner - input.anskaffelsessum_kroner)
-    | bruttotab_kroner() -> penge_positivt_beløb(input.anskaffelsessum_kroner - input.afståelsessum_kroner)
+# AktieavanceAktivklassifikationSag(input: AktieavanceAktivklassifikationInput) {
+    | input_gyldigt() -> input.indkomstår > 0 && aktieavance_investeringsklassifikation_matcher_aktiv(input.indkomstår, input.aktiv, input.investeringsklassifikation)
     | effektiv_aktiv() -> input.aktiv
     | exception afledt_investeringsaktiv effektiv_aktiv() -> aktieavance_effektiv_investeringsaktiv(input.investeringsklassifikation) under input_gyldigt() && (input.aktiv == AblInvesteringsselskabPar19TilKlassifikation || input.aktiv == AblMinimumsinstitutTilKlassifikation)
-    | ville_være_omfattet_af_par17_uden_investeringsstatus() -> aktieavance_par17_modprøve_finder_anvendelse(effektiv_aktiv(), input.par17_modprøve)
+    | ville_være_omfattet_af_par17_uden_investeringsstatus() -> input_gyldigt() && aktieavance_par17_modprøve_finder_anvendelse(effektiv_aktiv(), input.par17_modprøve)
+    | resultat() -> AktieavanceAktivklassifikationResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        effektiv_aktiv = effektiv_aktiv(),
+        ville_være_omfattet_af_par17_uden_investeringsstatus = ville_være_omfattet_af_par17_uden_investeringsstatus()
+    )
+}
+| aktieavance_aktivklassifikation_sag(input: AktieavanceAktivklassifikationInput) -> AktieavanceAktivklassifikationSag(input)
+| aktieavance_aktivklassifikation_resultat(input: AktieavanceAktivklassifikationInput) -> aktieavance_aktivklassifikation_sag(input).resultat()
+| aktieavance_aktivklassifikation_resultat_gyldigt(resultat: AktieavanceAktivklassifikationResultat) -> resultat == aktieavance_aktivklassifikation_resultat(resultat.input)
+| aktieavance_aktivklassifikation_input_fra_beregning(input: AktieavancebeskatningslovInput) -> AktieavanceAktivklassifikationInput(
+    indkomstår = input.indkomstår,
+    aktiv = input.aktiv,
+    par17_modprøve = input.par17_modprøve,
+    investeringsklassifikation = input.investeringsklassifikation
+)
+
+# AktieavancebeskatningslovSag(input: AktieavancebeskatningslovInput) {
+    | aktivklassifikation() -> aktieavance_aktivklassifikation_resultat(aktieavance_aktivklassifikation_input_fra_beregning(input))
+    | input_gyldigt() -> input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0 && aktivklassifikation().input_gyldigt
+    | bruttogevinst_kroner() -> penge_positivt_beløb(input.afståelsessum_kroner - input.anskaffelsessum_kroner)
+    | bruttotab_kroner() -> penge_positivt_beløb(input.anskaffelsessum_kroner - input.afståelsessum_kroner)
+    | effektiv_aktiv() -> aktivklassifikation().effektiv_aktiv
+    | ville_være_omfattet_af_par17_uden_investeringsstatus() -> aktivklassifikation().ville_være_omfattet_af_par17_uden_investeringsstatus
     | næringsaktie_omfattet_af_par17() -> input.aktiv == AblNæringsaktiePar17 && aktieavance_par17_modprøve_stk1_omfattet(input.par17_modprøve)
     | par18_gammel_andelsgevinst_undtaget() -> effektiv_aktiv() == AblAndelsbevisPar18 && input.andelsforening_stiftet_før_22_maj_1987 && input.afståelse_sker_for_at_undgå_likvidationsbeskatning == Falskt && bruttogevinst_kroner() > 0
     | par22_bagatelgrundlag_abs_kroner() -> penge_positivt_beløb(input.årets_netto_med_kgl_par14_23_kroner) + penge_positivt_beløb(0 - input.årets_netto_med_kgl_par14_23_kroner)

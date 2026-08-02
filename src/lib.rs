@@ -8279,11 +8279,71 @@ impl Interpreter {
         }
     }
 
+    fn register_runtime_type_decl(&mut self, decl: &TypeDecl, env: &mut Env) {
+        self.register_type(decl);
+        self.register_constructors(decl, env);
+        if let TypeDecl::ADT { methods, .. } = decl {
+            for method in methods {
+                if let Defn::Fn {
+                    name, params, body, ..
+                } = method
+                {
+                    let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                    self.functions.insert(
+                        name.clone(),
+                        FnDef {
+                            params: param_names,
+                            body: body.clone(),
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => {
+                    self.eval_defn(defn, env);
+                }
+                Stmt::TypeDecl(decl) if !matches!(decl, TypeDecl::WhenType { .. }) => {
+                    self.register_runtime_type_decl(decl, env);
+                }
+                Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                    let name = self.rule_name(rule);
+                    self.rules.push((name, rule.clone()));
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
+        let mut static_declarations_registered = false;
 
         for stmt in stmts {
+            // Imports establish the dependency environment first. Once the local
+            // module starts, hoist its static declarations before evaluating any
+            // binding, matching codegen without reversing local import overrides.
+            if !static_declarations_registered
+                && !matches!(
+                    stmt,
+                    Stmt::Annot(_, _)
+                        | Stmt::Use(_)
+                        | Stmt::RustBlock(_)
+                        | Stmt::Import(_)
+                        | Stmt::QualifiedImport(_, _)
+                        | Stmt::HashImport(_, _)
+                        | Stmt::Depend(_, _)
+                )
+            {
+                self.register_static_declarations(stmts, env);
+                static_declarations_registered = true;
+            }
+
             match stmt {
                 Stmt::Annot(name, _) => {
                     pending_annot = Some(name.clone());
@@ -8296,7 +8356,11 @@ impl Interpreter {
 
             match stmt {
                 Stmt::Defn(defn) => {
-                    last = self.eval_defn(defn, env);
+                    if matches!(defn, Defn::Fn { .. }) {
+                        last = Value::Unit;
+                    } else {
+                        last = self.eval_defn(defn, env);
+                    }
                 }
                 Stmt::TypeDecl(decl) => {
                     // Handle WHEN type evolution: evaluate condition, then update type
@@ -8318,37 +8382,15 @@ impl Interpreter {
                                 methods: vec![],
                                 except_from: except_from.clone(),
                             };
-                            self.register_type(&adt);
+                            self.register_runtime_type_decl(&adt, env);
                         }
                         // If false, type stays unchanged
-                    } else {
-                        self.register_type(decl);
-                    }
-                    // Register constructors and methods as functions in env
-                    self.register_constructors(decl, env);
-                    // Register methods in function table for recursion
-                    if let TypeDecl::ADT { methods, .. } = decl {
-                        for method in methods {
-                            if let Defn::Fn {
-                                name, params, body, ..
-                            } = method
-                            {
-                                let param_names: Vec<String> =
-                                    params.iter().map(|p| p.name.clone()).collect();
-                                self.functions.insert(
-                                    name.clone(),
-                                    FnDef {
-                                        params: param_names,
-                                        body: body.clone(),
-                                    },
-                                );
-                            }
-                        }
                     }
                     last = Value::Unit;
                 }
                 Stmt::Rule(rule) => {
-                    // Scopes are executed immediately, not registered as rules
+                    // Ordinary rules were registered before statement evaluation.
+                    // Reactive scopes remain imperative and execute in place.
                     if let Rule::ReactiveScope { name, body } = rule {
                         let mut scope_env = env.child();
                         // Execute all body statements in the child environment
@@ -8364,8 +8406,6 @@ impl Interpreter {
                         );
                         last = Value::Unit;
                     } else {
-                        let name = self.rule_name(rule);
-                        self.rules.push((name, rule.clone()));
                         last = Value::Unit;
                     }
                 }
@@ -17249,6 +17289,59 @@ mod tests {
     }
 
     #[test]
+    fn interpreted_binding_can_call_rule_declared_later() {
+        let source = r#"
+= result = doubled(21)
+| doubled(value: Int) -> value + value
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse forward rule reference regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("42".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_binding_can_use_static_declarations_declared_later() {
+        let source = r#"
+= from_rule = make_payload(41)
+= from_function = plus_one(41)
+| make_payload(value: Int) -> Payload(value = value + 1)
+> plus_one(value: Int) -> Int { value + 1 }
+# Payload(value: Int)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse forward static declaration regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("from_rule").map(ToString::to_string),
+            Some("Payload(value: 42)".to_string())
+        );
+        assert_eq!(
+            env.get("from_function").map(ToString::to_string),
+            Some("42".to_string())
+        );
+    }
+
+    #[test]
     fn interpreted_value_rule_retains_structured_lexical_binding() {
         let source = r#"
 # Payload(value: Int)
@@ -17741,6 +17834,79 @@ mod tests {
         interpreter.run_program(&stmts, &mut env);
 
         assert_eq!(env.get("value").map(ToString::to_string), Some("7".into()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_import_binding_can_call_rule_declared_later() {
+        let temp_name = format!(
+            "futuruna_interpreted_forward_rule_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("derived.runa"),
+            "= imported_value = make_payload(41)\n| make_payload(value: Int) -> Payload(value = value + 1)\n# Payload(value: Int)\n",
+        )
+        .unwrap();
+
+        let source = "@ import ./derived\n= value = imported_value\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse imported forward rule reference regression");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("value").map(ToString::to_string),
+            Some("Payload(value: 42)".into())
+        );
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_local_function_after_import_keeps_local_precedence() {
+        let temp_name = format!(
+            "futuruna_interpreted_local_import_precedence_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dependency.runa"),
+            "> selected() -> Int { 1 }\n",
+        )
+        .unwrap();
+
+        let source = "@ import ./dependency\n> selected() -> Int { 2 }\n= value = selected()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse local import precedence regression");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(env.get("value").map(ToString::to_string), Some("2".into()));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 

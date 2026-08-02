@@ -1,0 +1,7 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 42:42:42
+
+@ import ./forward_static_declarations_lib
+
+@ print(show(forward_payload.value) + ":" + show(forward_function_value) + ":" + show(forward_scope_value))

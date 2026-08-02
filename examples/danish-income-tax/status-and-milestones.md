@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-c743fb` (in progress)
-Latest implementation slice submitted for review: `td-d2945b`
+Current focus issue: `td-2d84ec` (in progress)
+Latest implementation slice submitted for review: `td-897d8a`
 Latest approved implementation slice: `td-d2945b`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -48,7 +48,24 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 er
+Latest integration: Personskattelovens § 4, stk. 1, nr. 5 b modtager nu
+kildefakta gennem `AktieavanceAktivklassifikationInput` i stedet for en
+kaldervalgt § 19 C-/§ 22-etiket og et løst § 17-modprøveflag. ABL-reglerne
+afleder den effektive aktivklasse og det kontrafaktiske § 17-resultat;
+Personskatteloven bruger derefter almindelige `|`-regler, betingelser og
+undtagelsen i stk. 6. Fem fokusscenarier dækker § 22, almindelig § 19 C,
+§ 19 C hvis § 17, en ugyldig direkte klassepåstand og en ordinær aktie uden
+for nr. 5 b i både interpreter og kompileret kode. Den eksisterende audit
+bevarer det afledte ABL-resultat i sit spor og passerer alle 13 invarianter i
+begge backends.
+
+Arbejdet afdækkede samtidig en generel interpreter/codegen-forskel:
+topniveau-bindinger kunne i interpreter fejlagtigt blive `Falskt`, når de
+brugte en regel, funktion, type eller rulescope, som stod senere i samme fil.
+Interpreteren registrerer nu statiske deklarationer før evaluering ligesom
+codegen. Direkte og importerede regressionsprøver fastholder semantikken.
+
+Previous integration: Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 er
 nu afledte klassifikationer frem for mærkater valgt af kalderen. Den
 gennemsnitlige aktivmasse bygges af direkte aktiver og KGL §§ 29-33-aktivers
 underliggende aktiv. Ejerandelen angives som ejede og samlede kapitalenheder;
@@ -2413,6 +2430,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
+  kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
+  Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
+  samlede regneark kan spore § 19 C-/§ 22-status og § 17-modprøven tilbage til
+  faktainputtet. Ugyldige direkte klassepåstande afvises frem for at glide ind
+  i kapitalindkomsten.
 - Aktieavancebeskatningsloven §§ 19, 19 A, 20 and 20 A now derive their legal
   classifications from typed source facts. The § 19 model covers UCITS,
   repurchase obligations, effective participant counts, securities ratios,
