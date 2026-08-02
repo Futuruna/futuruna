@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-0f81a6`
-Latest implementation slice submitted for review: `td-ae4c63`
+Current focus issue: `td-0f81a6` (submitted for review)
+Latest implementation slice submitted for review: `td-0f81a6`
 Latest approved implementation slice: `td-db8bc5`
 
 This folder is the working home for encoding Danish personal income tax law in
