@@ -4,7 +4,7 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
 Current focus issue: `td-2d84ec`
-Active implementation slice: `td-7ed1ee`
+Latest completed implementation slice: `td-7ed524`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -47,7 +47,22 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 3, stk. 2, nr. 2 har nu en lukket,
+Latest integration: Personskatteloven § 13 a modtager ikke længere et løst
+skyldnertab. En lukket union kan kun bære de faktiske årsresultater fra
+Aktieavancebeskatningsloven § 13 A, Kursgevinstloven § 32 eller
+Ejendomsavancebeskatningsloven § 6. En scoped årssag samler de tre
+fremførselsbeløb særskilt og afviser resultater fra senere indkomstår, før
+gældsnedsættelsen fordeles mellem underskud, tab, negativ aktieskat og en
+samlevende ægtefælles virksomhedsunderskud. Ejendomsavancebeskatningsloven
+§ 6, stk. 3-5 beregner nu selv tabsafgrænsning efter §§ 8 og 9, § 4, stk. 3-
+loftet, egen fortjeneste, overførsel til samlevende ægtefælle og dateret
+fremførsel. Syv EBL-scenarier og seks § 13 a-invarianter passerer i både
+interpreter og kompileret kode. Metadataindekset forbinder den ordrette tekst,
+regelspændet og de officielle kilder og udstiller samtidig den gamle § 13 a-
+henvisning til KGL § 32, stk. 3, over for den gældende fremførselsregel i
+stk. 4 som en typet `warning`.
+
+Personskatteloven § 3, stk. 2, nr. 2 har nu en lukket,
 typet resultatunion for Ligningsloven §§ 8, stk. 1, 8 B, 8 K, 8 L, 8 N, 14,
 stk. 1, 14 F og 30 A samt Kildeskatteloven § 25 A, stk. 3-5. De afhængige love
 beregner selv beløbene, betingelserne og undtagelserne; Personskatteloven
@@ -587,8 +602,9 @@ transferred deficit in both spouse-income deduction and spouse-tax offset paths;
 § 13, stk. 4 now has
 amount-level spouse and carry-forward offset ordering for negative personal
 income; § 13 a now has amount-level debt-settlement reduction of carried
-deficits, losses, negative share-income tax and a cohabiting spouse's business
-deficit; § 8 a, stk. 2
+deficits, typed ABL/KGL/EBL loss results, negative share-income tax and a
+cohabiting spouse's business deficit, while future-year loss results are
+rejected before reduction; § 8 a, stk. 2
 high-layer share-income tax now flows through the wage-earner § 5/§ 9
 state-tax path, § 8 a, stk. 6 now has a pair-level both-negative spouse
 share-income threshold allocation, and § 8 a negative share-income annual
@@ -1642,9 +1658,14 @@ Current decision:
   old single-person rest amount.
 - `Par13aNedsættelseSag` keeps § 13 a's debt-settlement reduction chain inside
   one legal case: covered debt arrangement, debt reduction after release
-  income, debtor deficit, debtor loss, 40 pct. negative share-tax reduction,
-  remaining amount after the debtor, spouse non-business netting under stk. 3,
-  and cohabiting spouse business-deficit reduction under stk. 2.
+  income, debtor deficit, typed carried losses from ABL, KGL and EBL, 40 pct.
+  negative share-tax reduction, remaining amount after the debtor, spouse
+  non-business netting under stk. 3, and cohabiting spouse business-deficit
+  reduction under stk. 2. `Par13aFremførbareTabSag` owns the three-branch
+  aggregate and rejects future-year results. `EjendomsavancePar6TabsårSag`
+  owns property exclusions, the acquisition-basis cap, own and spouse gain
+  offset, and the annual carry-forward ledger. Each year consumes the previous
+  year's typed result instead of a caller-supplied loss and eligibility flag.
 - `AktiePensionsFradragValgSag` and `Par4aPensionsfradragSag` use
   product-scoped `|` rules for the § 4 a, stk. 4 election and amount layer. The
   election scope keeps income year, requested pension deduction, notice date,
@@ -2118,6 +2139,11 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Personskatteloven § 13 a now consumes a closed union of source-law annual
+  results instead of `skyldner_tab_kroner`. The EBL § 6 dependency calculates
+  its own current and carried losses, own-gain offset, spouse transfer and
+  remaining carry-forward. The focused audit proves a 30.000 kr. ABL/KGL/EBL
+  total and rejects a 7.000 kr. future-year result in both backends.
 - `personskat.calculate.runa` exposes the ordinary wage-earner route as the
   typed `beregn_personskat(LønmodtagerInput) -> LønmodtagerBreakdown` boundary.
   `runa schema`, JSON/TOML/XLSX templates, and `runa call` now carry the same
@@ -2713,9 +2739,11 @@ M7 - Personfradrag and deficit layer
   personal income and both spouses' positive capital income, and carried-forward
   negative personal income ordering are fixture-tested,
   § 13 a debt-settlement reduction now lowers the debtor's carried deficits,
-  then carried losses, then negative share-income tax at 40 pct., before any
-  remaining reduction lowers a cohabiting spouse's business deficit after
-  stk. 3 non-business netting,
+  then a closed union of ABL/KGL/EBL carried-loss results, then negative
+  share-income tax at 40 pct., before any remaining reduction lowers a
+  cohabiting spouse's business deficit after stk. 3 non-business netting;
+  later-year loss results are rejected and EBL § 6 calculates its own
+  exclusions, own/spouse offsets and remaining carry-forward,
   foreign/pension spouse transfer limitations are executable, and same-business
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen

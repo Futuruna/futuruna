@@ -50,12 +50,91 @@ samlet ordning mellem en skyldner og dennes kreditorer om bortfald eller
 nedsættelse af skyldnerens gæld (frivillig akkord).
 ----
 
+| par13a_audit_tomt_abl_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(
+    udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+    udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+    udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+    ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+)
+| par13a_audit_abl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+    indkomstår = indkomstår,
+    skatteposter = [],
+    fremført_tab_efter_par13a_kroner = tab_kroner,
+    modregningsgrundlag = par13a_audit_tomt_abl_modregningsgrundlag(),
+    gift_og_samlevende_ved_årets_udgang = Falskt
+))
+| par13a_audit_kgl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> kursgevinstlov_resultat(KursgevinstlovInput(
+    indkomstår = indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = KursgevinstlovKontraktOpgørelse(
+        kontrakt_art = KglKontraktOmfattetPar29,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = tab_kroner,
+        afståelsesværdi_kroner = 0,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt,
+        kontraktgevinster_til_tabsmodregning_kroner = 0
+    ),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+))
+| par13a_audit_ebl_tab(indkomstår: Heltal, tab_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = indkomstår,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = tab_kroner,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 0,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+))
+| par13a_audit_ebl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
+    indkomstår = indkomstår,
+    tabsposter = [EjendomsavancePar6Tabspost(
+        resultat = par13a_audit_ebl_tab(indkomstår, tab_kroner),
+        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    )],
+    fortjenester = [],
+    fremførsel = EblIngenFremførsel,
+    ægtefælles_fortjenester = [],
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+= par13a_abl_tab_2024 = par13a_audit_abl_fremført_tab(2024, 10000)
+= par13a_kgl_tab_2025 = par13a_audit_kgl_fremført_tab(2025, 10000)
+= par13a_ebl_tab_2026 = par13a_audit_ebl_fremført_tab(2026, 10000)
+= par13a_abl_fremtidigt_tab_2027 = par13a_audit_abl_fremført_tab(2027, 7000)
+= par13a_tabsposter = [
+    Par13aAktieavanceTab(resultat = par13a_abl_tab_2024),
+    Par13aKursgevinstTab(resultat = par13a_kgl_tab_2025),
+    Par13aEjendomsavanceTab(resultat = par13a_ebl_tab_2026),
+    Par13aAktieavanceTab(resultat = par13a_abl_fremtidigt_tab_2027)
+]
+= par13a_tabsposter_2026 = par13a_fremførbare_tab_resultat(Par13aFremførbareTabInput(
+    indkomstår = 2026,
+    poster = par13a_tabsposter
+))
+
 = par13a_tvangsakkord_probe = par13a_nedsættelse_resultat(Par13aNedsættelseInput(
+    indkomstår = 2026,
     status = TvangsakkordIRekonstruktion,
     gæld_nedsat_kroner = 100000,
     frigørelsesindkomst_kroner = 0,
     skyldner_underskud_kroner = 40000,
-    skyldner_tab_kroner = 30000,
+    skyldner_fremførbare_tab = par13a_tabsposter,
     skyldner_negativ_aktieskat_kroner = 8000,
     ægtefælle_samlevende_driver_virksomhed = Sandt,
     ægtefælle_virksomhedsunderskud_før_stk3_kroner = 50000,
@@ -64,11 +143,12 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 ))
 
 = par13a_frivillig_akkord_probe = par13a_nedsættelse_resultat(Par13aNedsættelseInput(
+    indkomstår = 2026,
     status = FrivilligAkkord,
     gæld_nedsat_kroner = 50000,
     frigørelsesindkomst_kroner = 12000,
     skyldner_underskud_kroner = 60000,
-    skyldner_tab_kroner = 0,
+    skyldner_fremførbare_tab = [],
     skyldner_negativ_aktieskat_kroner = 0,
     ægtefælle_samlevende_driver_virksomhed = Falskt,
     ægtefælle_virksomhedsunderskud_før_stk3_kroner = 0,
@@ -77,11 +157,12 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 ))
 
 = par13a_ingen_ordning_probe = par13a_nedsættelse_resultat(Par13aNedsættelseInput(
+    indkomstår = 2026,
     status = IngenPar13aAkkord,
     gæld_nedsat_kroner = 100000,
     frigørelsesindkomst_kroner = 0,
     skyldner_underskud_kroner = 50000,
-    skyldner_tab_kroner = 10000,
+    skyldner_fremførbare_tab = par13a_tabsposter,
     skyldner_negativ_aktieskat_kroner = 5000,
     ægtefælle_samlevende_driver_virksomhed = Sandt,
     ægtefælle_virksomhedsunderskud_før_stk3_kroner = 30000,
@@ -89,15 +170,21 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     ægtefælle_ikke_virksomhedsudgifter_kroner = 0
 ))
 
-| par13a_nedsætter_i_lovbestemt_rækkefølge: par13a_tvangsakkord_probe -> par13a_tvangsakkord_probe.nedsættelsesbeløb_kroner == 100000 && par13a_tvangsakkord_probe.skyldner_underskud_nedsat_kroner == 40000 && par13a_tvangsakkord_probe.skyldner_tab_nedsat_kroner == 30000 && par13a_tvangsakkord_probe.skyldner_negativ_aktieskat_nedsat_kroner == 8000 && par13a_tvangsakkord_probe.nedsættelsesbeløb_efter_skyldner_kroner == 10000
+| par13a_afhængighedslove_leverer_fremførte_tab: par13a_tabsposter_2026 -> par13a_abl_tab_2024.tab_fremført_til_følgende_indkomstår_kroner == 10000 && par13a_kgl_tab_2025.fremført_kontrakttab_kroner == 10000 && par13a_ebl_tab_2026.tab_fremført_til_følgende_indkomstår_kroner == 10000
+| par13a_samler_kun_tab_fra_nuvaerende_og_tidligere_år: par13a_tabsposter_2026 -> par13a_tabsposter_2026.aktieavancetab_kroner == 10000 && par13a_tabsposter_2026.kursgevinsttab_kroner == 10000 && par13a_tabsposter_2026.ejendomsavancetab_kroner == 10000 && par13a_tabsposter_2026.fremførbare_tab_i_alt_kroner == 30000 && par13a_tabsposter_2026.afvist_fremtidigt_tab_kroner == 7000
+| par13a_nedsætter_i_lovbestemt_rækkefølge: par13a_tvangsakkord_probe -> par13a_tvangsakkord_probe.nedsættelsesbeløb_kroner == 100000 && par13a_tvangsakkord_probe.skyldner_underskud_nedsat_kroner == 40000 && par13a_tvangsakkord_probe.skyldner_fremførbare_tab_resultat.fremførbare_tab_i_alt_kroner == 30000 && par13a_tvangsakkord_probe.skyldner_fremførbare_tab_resultat.afvist_fremtidigt_tab_kroner == 7000 && par13a_tvangsakkord_probe.skyldner_tab_nedsat_kroner == 30000 && par13a_tvangsakkord_probe.skyldner_negativ_aktieskat_nedsat_kroner == 8000 && par13a_tvangsakkord_probe.nedsættelsesbeløb_efter_skyldner_kroner == 10000
 | par13a_stk2_stk3_nedsætter_ægtefælles_virksomhedsunderskud: par13a_tvangsakkord_probe -> par13a_tvangsakkord_probe.ægtefælle_ikke_virksomhedsnettoindtægt_kroner == 7000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_efter_stk3_kroner == 43000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_nedsat_kroner == 10000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner == 33000
 | par13a_frivillig_akkord_følger_samme_regler: par13a_frivillig_akkord_probe -> par13a_frivillig_akkord_probe.ordning_omfattet == Sandt && par13a_frivillig_akkord_probe.nedsættelsesbeløb_kroner == 38000 && par13a_frivillig_akkord_probe.skyldner_underskud_nedsat_kroner == 38000 && par13a_frivillig_akkord_probe.skyldner_underskud_efter_nedsættelse_kroner == 22000
 | par13a_uden_ordning_nedsætter_ikke: par13a_ingen_ordning_probe -> par13a_ingen_ordning_probe.ordning_omfattet == Falskt && par13a_ingen_ordning_probe.nedsættelsesbeløb_kroner == 0 && par13a_ingen_ordning_probe.skyldner_underskud_efter_nedsættelse_kroner == 50000 && par13a_ingen_ordning_probe.ægtefælle_virksomhedsunderskud_nedsat_kroner == 0
 
+? par13a_afhængighedslove_leverer_fremførte_tab
+? par13a_samler_kun_tab_fra_nuvaerende_og_tidligere_år
 ? par13a_nedsætter_i_lovbestemt_rækkefølge
 ? par13a_stk2_stk3_nedsætter_ægtefælles_virksomhedsunderskud
 ? par13a_frivillig_akkord_følger_samme_regler
 ? par13a_uden_ordning_nedsætter_ikke
 
 @ print("§13 a rest efter skyldner før ægtefælle: " + vis(par13a_tvangsakkord_probe.nedsættelsesbeløb_efter_skyldner_kroner))
+@ print("§13 a fremførbare tab fra ABL/KGL/EBL: " + vis(par13a_tabsposter_2026.fremførbare_tab_i_alt_kroner))
+@ print("§13 a afvist fremtidigt tab: " + vis(par13a_tabsposter_2026.afvist_fremtidigt_tab_kroner))
 @ print("§13 a ægtefællevirksomhedsunderskud efter nedsættelse: " + vis(par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner))

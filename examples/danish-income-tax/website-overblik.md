@@ -48,6 +48,21 @@ inputtype faktisk indeholder lister, maps eller sæt; den nuværende
 lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
 afgrænsede skatteberegning.
 
+Personskatteloven § 13 a er nu også en lukket, typet regelkaskade. Ved
+gældssanering eller akkord kan modellen kun modtage fremførte tab gennem de
+faktiske årsresultater fra Aktieavancebeskatningsloven, Kursgevinstloven eller
+Ejendomsavancebeskatningsloven; et løst `skyldner_tab_kroner` findes ikke
+længere. Ejendomsavancebeskatningsloven § 6 beregner selv, om et ejendomstab
+afskæres efter §§ 8 eller 9, begrænses af § 4, stk. 3, modregnes i egen eller en
+samlevende ægtefælles fortjeneste eller fremføres. Et fokuseret eksempel samler
+10.000 kr. fra hver af de tre afhængige love og afviser samtidig et tab fra et
+senere indkomstår. Metadataindekset gør også en henvisningsforskydning synlig:
+den ældre Personskattelovtekst nævner Kursgevinstlovens § 32, stk. 3, mens den
+gældende almindelige fremførselsregel står i stk. 4. Kilderne er
+[Personskatteloven, LBK nr. 1284/2021](https://www.retsinformation.dk/eli/lta/2021/1284),
+[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176)
+og [Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132).
+
 Personskatteloven § 3, stk. 2, nr. 2 er nu også en egentlig regelkaskade.
 Ligningslovens regler om salgs- og repræsentationsudgifter, forskning,
 råstofefterforskning, skov og andre plantninger, friplejeboliger,

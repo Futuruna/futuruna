@@ -1,0 +1,147 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+-- Kilde: Retsinformation, LBK nr. 132 af 25/02/2019.
+-- https://www.retsinformation.dk/eli/lta/2019/132
+
+--@label:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
+----
+Stk. 3. I fortjeneste, der i et givet indkomstår er skattepligtig efter stk. 1,
+kan den skattepligtige fradrage indkomstårets tab ved afståelse af fast ejendom,
+jf. dog stk. 4. Overstiger årets tab årets fortjenester, kan det overskydende
+tab fradrages i fortjeneste efter stk. 1 i de følgende indkomstår, jf. dog stk.
+6. Tabet kan kun overføres til fradrag i et senere indkomstår, i det omfang det
+ikke kan rummes i nettofortjenesten ved afståelse af fast ejendom i et tidligere
+indkomstår.
+
+Stk. 4. Tab ved afståelse af ejendomme, som er omfattet af § 8, kan ikke
+fradrages, mens tab ved afståelse af ejendomme, som er omfattet af § 9, ikke kan
+fradrages, for så vidt angår den del af tabet, som vedrører stuehuset med
+tilhørende grund og have eller ejerboligen. Er tabet opgjort på grundlag af
+anskaffelsessummen efter § 4, stk. 3, 3. pkt., kan tabet ikke overstige det tab,
+der kan opgøres ved anvendelse af ejendomsværdien efter § 4, stk. 3, 1. og 2.
+pkt.
+
+Stk. 5. Overstiger en ægtefælles tab dennes fortjenester ved afståelse af fast
+ejendom, kan det overskydende beløb i indkomståret overføres til fradrag i den
+anden ægtefælles fortjenester ved afståelse af fast ejendom, såfremt
+ægtefællerne er samlevende ved indkomstårets udgang, jf. kildeskattelovens § 4.
+Tabet kan ligeledes overføres til fradrag i den anden ægtefælles fortjenester
+ved afståelse af fast ejendom i de følgende indkomstår, hvis tabet ikke kan
+indeholdes i den skattepligtiges nettofortjeneste ved afståelse af fast ejendom
+i det pågældende indkomstår, og hvis ægtefællerne er samlevende ved
+indkomstårets udgang.
+----
+
+--@begin:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie--
+| ebl_par6_scenarie_ejendomsresultat(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = indkomstår,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = anskaffelsessum_kroner,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = afståelsessum_kroner,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+))
+| ebl_par6_scenarie_tabsår_uden_fortjeneste(tab: EjendomsavancebeskatningslovResultat) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
+    indkomstår = tab.indkomstår,
+    tabsposter = [EjendomsavancePar6Tabspost(
+        resultat = tab,
+        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    )],
+    fortjenester = [],
+    fremførsel = EblIngenFremførsel,
+    ægtefælles_fortjenester = [],
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+= ebl_par6_tab_2024 = ebl_par6_scenarie_ejendomsresultat(2024, 7000, 0)
+= ebl_par6_tab_2025 = ebl_par6_scenarie_ejendomsresultat(2025, 20000, 0)
+= ebl_par6_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 100000)
+= ebl_par6_egen_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 130000)
+= ebl_par6_ægtefælles_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 140000)
+= ebl_par6_tabsår_2024 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2024)
+= ebl_par6_tabsår_2025 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2025)
+
+= ebl_par6_almindeligt_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_tab_2026,
+    ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+))
+= ebl_par6_par8_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_tab_2026,
+    ejendomsafgrænsning = EblPar8Ejendom,
+    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+))
+= ebl_par6_par9_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_tab_2026,
+    ejendomsafgrænsning = EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner = 30000),
+    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+))
+= ebl_par6_par4_stk3_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_tab_2026,
+    ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+    anskaffelsesgrundlag = EblPar4Stk3TredjePktAnskaffelsesgrundlag(
+        tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner = 40000
+    )
+))
+
+= ebl_par6_tabsår_med_samlevende_ægtefælle = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
+    indkomstår = 2026,
+    tabsposter = [EjendomsavancePar6Tabspost(
+        resultat = ebl_par6_tab_2026,
+        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    )],
+    fortjenester = [ebl_par6_egen_fortjeneste_2026],
+    fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
+    ægtefælles_fortjenester = [ebl_par6_ægtefælles_fortjeneste_2026],
+    gift_samlevende_ved_indkomstårets_udgang = Sandt
+))
+
+= ebl_par6_tabsår_uden_samlevende_ægtefælle = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
+    indkomstår = 2026,
+    tabsposter = [EjendomsavancePar6Tabspost(
+        resultat = ebl_par6_tab_2026,
+        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    )],
+    fortjenester = [ebl_par6_egen_fortjeneste_2026],
+    fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
+    ægtefælles_fortjenester = [ebl_par6_ægtefælles_fortjeneste_2026],
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+= ebl_par6_tabsår_med_sprunget_fremførsel = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
+    indkomstår = 2026,
+    tabsposter = [],
+    fortjenester = [],
+    fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2024),
+    ægtefælles_fortjenester = [],
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+| ebl_par6_almindeligt_tab_kan_fradrages: ebl_par6_almindeligt_tab -> ebl_par6_almindeligt_tab.brutto_tab_kroner == 100000 && ebl_par6_almindeligt_tab.fradragsberettiget_tab_kroner == 100000
+| ebl_par6_par8_tab_afskæres: ebl_par6_par8_tab -> ebl_par6_par8_tab.afskåret_efter_par8_kroner == 100000 && ebl_par6_par8_tab.fradragsberettiget_tab_kroner == 0
+| ebl_par6_par9_boligdel_afskæres: ebl_par6_par9_tab -> ebl_par6_par9_tab.afskåret_boligdel_efter_par9_kroner == 30000 && ebl_par6_par9_tab.fradragsberettiget_tab_kroner == 70000
+| ebl_par6_par4_stk3_lofter_tabet: ebl_par6_par4_stk3_tab -> ebl_par6_par4_stk3_tab.afskåret_efter_par4_stk3_tredje_pkt_kroner == 60000 && ebl_par6_par4_stk3_tab.fradragsberettiget_tab_kroner == 40000
+| ebl_par6_modregner_først_egen_og_siden_ægtefælles_fortjeneste: ebl_par6_tabsår_med_samlevende_ægtefælle -> ebl_par6_tabsår_med_samlevende_ægtefælle.årets_fradragsberettigede_tab_kroner == 100000 && ebl_par6_tabsår_med_samlevende_ægtefælle.gyldigt_fremført_tab_fra_tidligere_år_kroner == 20000 && ebl_par6_tabsår_med_samlevende_ægtefælle.afvist_fremførsel_kroner == 0 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_modregnet_i_egne_fortjenester_kroner == 30000 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_overført_til_ægtefælle_kroner == 40000 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner == 50000
+| ebl_par6_uden_samliv_overføres_intet_til_ægtefællen: ebl_par6_tabsår_uden_samlevende_ægtefælle -> ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_modregnet_i_egne_fortjenester_kroner == 30000 && ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_overført_til_ægtefælle_kroner == 0 && ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner == 90000
+| ebl_par6_fremførsel_kræver_forrige_indkomstårs_resultat: ebl_par6_tabsår_med_sprunget_fremførsel -> ebl_par6_tabsår_2024.tab_fremført_til_følgende_indkomstår_kroner == 7000 && ebl_par6_tabsår_med_sprunget_fremførsel.gyldigt_fremført_tab_fra_tidligere_år_kroner == 0 && ebl_par6_tabsår_med_sprunget_fremførsel.afvist_fremførsel_kroner == 7000 && ebl_par6_tabsår_med_sprunget_fremførsel.tab_fremført_til_følgende_indkomstår_kroner == 0
+
+? ebl_par6_almindeligt_tab_kan_fradrages
+? ebl_par6_par8_tab_afskæres
+? ebl_par6_par9_boligdel_afskæres
+? ebl_par6_par4_stk3_lofter_tabet
+? ebl_par6_modregner_først_egen_og_siden_ægtefælles_fortjeneste
+? ebl_par6_uden_samliv_overføres_intet_til_ægtefællen
+? ebl_par6_fremførsel_kræver_forrige_indkomstårs_resultat
+
+@ print("EBL § 6 tab fremført efter samlevende ægtefælle: " + vis(ebl_par6_tabsår_med_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner))
+--@end:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie--
