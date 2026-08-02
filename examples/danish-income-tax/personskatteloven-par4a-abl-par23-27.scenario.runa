@@ -173,17 +173,33 @@
     hændelse = AblPar23ABeholdesVedÅretsSlutning(værdi_ultimo_kroner = 80000)
 ))
 
+= abl_par24_uden_par33a = aktieavance_par33a_resultat(AktieavancePar33AInput(
+    status_før = AblPar33AStatusUdenForStk2,
+    status_efter = AblPar33AStatusUdenForStk2,
+    hidtidig_anskaffelsessum_kroner = 0,
+    handelsværdi_på_statusskiftet_kroner = 0,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+= abl_par24_med_par33a = aktieavance_par33a_resultat(AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar9,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = 42000,
+    handelsværdi_på_statusskiftet_kroner = 50000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
 = abl_par24_realisation_til_lager = aktieavance_par24_principskift_resultat(
-    AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
-    AblIkkeOmfattetAfPar33A
+    skift = AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
+    par33a_resultat = abl_par24_uden_par33a
 )
 = abl_par24_lager_til_realisation = aktieavance_par24_principskift_resultat(
-    AblFraLagerprincipTilRealisationsprincip(værdi_ultimo_før_skift_kroner = 67000),
-    AblIkkeOmfattetAfPar33A
+    skift = AblFraLagerprincipTilRealisationsprincip(værdi_ultimo_før_skift_kroner = 67000),
+    par33a_resultat = abl_par24_uden_par33a
 )
 = abl_par24_par33a_undtagelse = aktieavance_par24_principskift_resultat(
-    AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
-    AblOmfattetAfPar33A
+    skift = AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner = 42000),
+    par33a_resultat = abl_par24_med_par33a
 )
 
 = abl_par24_naeringsposition = AktieavanceOrdinærPosition(

@@ -1,0 +1,108 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par33a
+
+-- Fokusscenarier for Aktieavancebeskatningsloven § 33 A.
+
+= abl_par33a_par8_til_par9 = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar8,
+    status_efter = AblPar33AStatusEfterPar9,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = 150000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_par9_til_par8 = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar9,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = 150000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_par17_til_par10_med_tab = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar17,
+    status_efter = AblPar33AStatusEfterPar10,
+    hidtidig_anskaffelsessum_kroner = 120000,
+    handelsværdi_på_statusskiftet_kroner = 90000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_skattefri_ombytning = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar18,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = 80000,
+    handelsværdi_på_statusskiftet_kroner = 125000,
+    hændelse = AblPar33ASkattefriAktieombytningUdenTilladelse,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_samme_status = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar9,
+    status_efter = AblPar33AStatusEfterPar9,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = 150000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_par8_til_par17_ikke_opregnet = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar8,
+    status_efter = AblPar33AStatusEfterPar17,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = 150000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_par33_undtagelse = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar9,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = 150000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33Tilfælde
+))
+
+= abl_par33a_ugyldig_negativ_handelsværdi = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar9,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = 100000,
+    handelsværdi_på_statusskiftet_kroner = -1,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+= abl_par33a_negativ_anskaffelsessum = aktieavance_par33a_resultat(input = AktieavancePar33AInput(
+    status_før = AblPar33AStatusEfterPar20A,
+    status_efter = AblPar33AStatusEfterPar8,
+    hidtidig_anskaffelsessum_kroner = -10000,
+    handelsværdi_på_statusskiftet_kroner = 50000,
+    hændelse = AblPar33ADirekteStatusskifte,
+    afgrænsning = AblPar33ATilfældeUdenForPar33
+))
+
+| scenarie_abl_par33a_par8_til_par9_nulstiller_basis_uden_straksbeskatning: abl_par33a_par8_til_par9 -> abl_par33a_par8_til_par9.statusskifte_efter_stk2_nr1 && abl_par33a_par8_til_par9.reglen_finder_anvendelse && abl_par33a_par8_til_par9.anskaffelsessum_efter_stk1_kroner == 150000 && abl_par33a_par8_til_par9.opgjort_bruttogevinst_kroner == 50000 && abl_par33a_par8_til_par9.gevinst_til_almindelige_regler_kroner == 0
+| scenarie_abl_par33a_par9_til_par8_afståelsesbeskattes: abl_par33a_par9_til_par8 -> abl_par33a_par9_til_par8.statusskifte_efter_stk2_nr2 && abl_par33a_par9_til_par8.afståelsesbeskatningsregel == AblPar33ABeskatningEfterPar9 && abl_par33a_par9_til_par8.gevinst_til_almindelige_regler_kroner == 50000
+| scenarie_abl_par33a_par17_til_par10_sender_tab_til_par17: abl_par33a_par17_til_par10_med_tab -> abl_par33a_par17_til_par10_med_tab.statusskifte_efter_stk2_nr2 && abl_par33a_par17_til_par10_med_tab.afståelsesbeskatningsregel == AblPar33ABeskatningEfterPar17 && abl_par33a_par17_til_par10_med_tab.tab_til_almindelige_regler_kroner == 30000
+| scenarie_abl_par33a_skattefri_ombytning_tilsidesættes: abl_par33a_skattefri_ombytning -> abl_par33a_skattefri_ombytning.skattefri_transaktion_efter_stk3 && abl_par33a_skattefri_ombytning.reglen_finder_anvendelse && abl_par33a_skattefri_ombytning.afståelsesbeskatningsregel == AblPar33ABeskatningEfterPar18 && abl_par33a_skattefri_ombytning.gevinst_til_almindelige_regler_kroner == 45000
+| scenarie_abl_par33a_samme_status_udløser_ikke_reglen: abl_par33a_samme_status -> abl_par33a_samme_status.reglen_finder_anvendelse == Falskt && abl_par33a_samme_status.afståelsessum_efter_stk1_kroner == 0 && abl_par33a_samme_status.anskaffelsessum_efter_stk1_kroner == 0
+| scenarie_abl_par33a_par8_til_par17_er_ikke_opregnet: abl_par33a_par8_til_par17_ikke_opregnet -> abl_par33a_par8_til_par17_ikke_opregnet.statusskifte_efter_stk2_nr1 == Falskt && abl_par33a_par8_til_par17_ikke_opregnet.statusskifte_efter_stk2_nr2 == Falskt && abl_par33a_par8_til_par17_ikke_opregnet.reglen_finder_anvendelse == Falskt
+| scenarie_abl_par33a_par33_tilfælde_er_undtaget: abl_par33a_par33_undtagelse -> abl_par33a_par33_undtagelse.statusskifte_efter_stk2_nr2 && abl_par33a_par33_undtagelse.undtaget_efter_stk4 && abl_par33a_par33_undtagelse.reglen_finder_anvendelse == Falskt
+| scenarie_abl_par33a_negativ_handelsværdi_afvises: abl_par33a_ugyldig_negativ_handelsværdi -> abl_par33a_ugyldig_negativ_handelsværdi.opgørelse_gyldig == Falskt && abl_par33a_ugyldig_negativ_handelsværdi.reglen_finder_anvendelse == Falskt
+| scenarie_abl_par33a_negativ_anskaffelsessum_bevares_i_opgørelsen: abl_par33a_negativ_anskaffelsessum -> abl_par33a_negativ_anskaffelsessum.opgørelse_gyldig && abl_par33a_negativ_anskaffelsessum.afståelsesbeskatningsregel == AblPar33ABeskatningEfterPar20A && abl_par33a_negativ_anskaffelsessum.gevinst_til_almindelige_regler_kroner == 60000
+
+? scenarie_abl_par33a_par8_til_par9_nulstiller_basis_uden_straksbeskatning
+? scenarie_abl_par33a_par9_til_par8_afståelsesbeskattes
+? scenarie_abl_par33a_par17_til_par10_sender_tab_til_par17
+? scenarie_abl_par33a_skattefri_ombytning_tilsidesættes
+? scenarie_abl_par33a_samme_status_udløser_ikke_reglen
+? scenarie_abl_par33a_par8_til_par17_er_ikke_opregnet
+? scenarie_abl_par33a_par33_tilfælde_er_undtaget
+? scenarie_abl_par33a_negativ_handelsværdi_afvises
+? scenarie_abl_par33a_negativ_anskaffelsessum_bevares_i_opgørelsen
+
+@ print("Aktieavancebeskatningsloven § 33 A: 9 statusskifter og afgrænsninger kontrolleret")

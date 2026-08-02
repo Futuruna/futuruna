@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-31b231`
+Current focus issue: `td-f0957e`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -79,6 +79,17 @@ adskilte § 7 N-beholdninger samt § 27's daterede anskaffelsessumtillæg er
 eksekverbare. De fokuserede scenarier validerer nu 27 ordinære aktieudfald,
 11 rettighedsudfald og 22 §§ 23-27-udfald i både interpreter og kompileret kode.
 
+`aktieavancebeskatningsloven-par33a.runa` gør § 33 A's skattemæssige
+statusskifter eksekverbare som en scoped regelkaskade. Den skelner mellem
+stk. 2, nr. 1 og 2, beregner den fiktive afståelse og genanskaffelse til
+handelsværdi, bevarer negativ anskaffelsessum og sender gevinst eller tab til
+den udgående skattepligtige status' almindelige regel. Skift fra § 8 til en
+skattepligtig status nulstiller derfor anskaffelsessummen uden at opfinde en
+straksbeskatning under § 8. Stk. 3's skattefri omstruktureringer og stk. 4's
+§ 33-undtagelse er særskilte typede udfald. § 24, stk. 3 modtager nu dette
+resultat i stedet for et løst ja/nej-flag. Ni fokusscenarier passerer i både
+interpreter og kompileret kode.
+
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
 sammenlignelige kapitalandelsgrundlag i domænet og beregner anskaffelser samt
@@ -89,8 +100,8 @@ udokumenterede stykkapitalandele afvises fortsat, når ingen af positionerne
 leverer den manglende kapitalvægt; det er validering af et ufuldstændigt input,
 ikke en dækningsgrænse for den lovlige kombination.
 De smallere ABL-grænser er nu de underliggende klassifikationer efter §§ 6, 7,
-9, 17, 19 A-20 A og 22, § 24's afhængige beløbsregler i § 33 A og §§ 37-38,
-og de bredere status-, ind-/udtrædelses- og medarbejderejerregler. Modulet modtager de juridiske
+9, 17, 19 A-20 A og 22, § 24's afhængige beløbsregler i §§ 37-38 samt de
+bredere ind-/udtrædelses- og medarbejderejerregler. Modulet modtager de juridiske
 klassifikationer som typede resultater og udstiller dem som metadataadvarsler;
 det erstatter dem ikke med rå sand/falsk-flags forklædt som fuld dækning.
 
@@ -760,14 +771,18 @@ Current § 4 and § 13 amendment/dependency sources:
     Its 22 focused scenarios pass interpreted and compiled execution and route
     applicable lager and later realization results into the existing PSL
     category bridge.
+  - `aktieavancebeskatningsloven-par33a.runa` implements § 33 A's exact
+    taxable-to-exempt and exempt-to-taxable status sets, deemed disposal and
+    reacquisition at market value, ordinary-rule routing, tax-free transaction
+    override and § 33 exclusion. Its 9 focused scenarios pass interpreted and
+    compiled execution, and § 24, stk. 3 consumes the typed result.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
     § 17/§ 19 C-if-§ 17 personal-income reclassification.
-  - Remaining ABL depth includes mixed nominal/no-par capital, the dependent
-    § 33 A and §§ 37-39 calculations, broader status changes, entry/exit
-    taxation and employee-ownership provisions.
+  - Remaining ABL depth includes §§ 37-39 and related entry/exit calculations,
+    the remaining dependent classifications and employee-ownership provisions.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
@@ -2042,10 +2057,10 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Continue Aktieavancebeskatningsloven from the ordinary, rights and §§ 23-27
-  paths: model mixed nominal/no-par holdings on a documented common
-  capital-share basis, then deepen § 33 A status changes, §§ 37-39 entry/exit
-  taxation and the employee-ownership provisions before calling the ABL
-  dependency complete.
+  paths: implement §§ 37-39 entry/exit taxation and its portfolio/henstand
+  domain, then the remaining employee-ownership provisions before calling the
+  ABL dependency complete. Mixed nominal/no-par holdings and § 33 A status
+  changes now have source-backed calculation paths.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

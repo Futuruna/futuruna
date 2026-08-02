@@ -58,13 +58,18 @@ aktie-metoden, herunder 0 kr. i anskaffelsessum ved aktionærtildeling,
 oplysningsbetingelse. Et særskilt §§ 23-27-modul gør valget mellem
 realisations- og lagerprincip, den eksakte syvårsperiode, årlige
 lageropgørelser, principskift, den hidtidige MTF-regel, adskilte § 7
-N-beholdninger og § 27's anskaffelsessumtillæg eksekverbare. Resultaterne går
+N-beholdninger og § 27's anskaffelsessumtillæg eksekverbare. § 33 A beregner
+desuden skattemæssige statusskifter som afståelse og genanskaffelse til
+handelsværdi, sender udfaldet til den udgående status' almindelige regel og
+holder skattefri omstruktureringer samt § 33-undtagelsen synlige. § 24, stk. 3
+bruger dette typede resultat frem for et løst ja/nej-flag. Resultaterne går
 videre gennem den samme ABL/Personskattelov-bro. De fokuserede scenarier dækker
-53 udfald i Aktieavancebeskatningsloven §§ 12-15 og §§ 23-27. Kilden er
+69 udfald i Aktieavancebeskatningsloven §§ 12-15, §§ 23-27 og § 33 A. Kilden er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098).
-Selskabslovens tilladte kombination af aktier med og uden pålydende værdi er
-stadig en udtrykkelig dækningsgrænse, indtil det fælles kapitalandelsgrundlag er
-modelleret.
+Selskabslovens tilladte kombination af aktier med og uden pålydende værdi
+bevares som særskilte domæneværdier på et dokumenteret fælles
+kapitalandelsgrundlag, så anskaffelsessummen kan fordeles på tværs af begge
+former.
 
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til

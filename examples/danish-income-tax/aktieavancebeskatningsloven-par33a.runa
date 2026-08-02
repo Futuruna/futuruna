@@ -1,0 +1,93 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven
+
+= aktieavancebeskatningsloven_lbk1098_par33a = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 33 A",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par33a = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946341",
+    identifier = "Den juridiske vejledning C.B.2.3.7: skift af skattemæssig status",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_par33a::source:aktieavancebeskatningsloven_lbk1098_par33a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par33a::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 33 A. I tilfælde, hvor aktier skifter skattemæssig status, jf. stk. 2, skal
+aktierne anses for afstået og anskaffet igen til handelsværdien på tidspunktet
+for skift af skattemæssig status.
+
+Stk. 2. Ved skift af skattemæssig status, jf. stk. 1, forstås, at gevinst og tab
+på aktierne enten
+1) skifter fra at være omfattet af § 8 til at være omfattet af §§ 9, 18 og
+19 A, § 20, stk. 1, eller § 20 A eller
+2) skifter fra at være omfattet af §§ 9, 17, 18 og 19 A, § 20, stk. 1, eller
+§ 20 A til at være omfattet af §§ 8 eller 10.
+
+Stk. 3. Stk. 1 og 2 finder tilsvarende anvendelse, hvor aktier som led i en
+skattefri transaktion ombyttes med aktier i samme eller et andet selskab, når
+aktierne har en anden skattemæssig status end de ombyttede aktier. Skift af
+skattemæssig status efter stk. 1 og 2 medfører beskatning efter de almindelige
+regler i §§ 9, 17, 18 og 19 A, § 20, stk. 1, eller § 20 A, uanset at
+statusskiftet indtræder i forbindelse med en skattefri fusion, spaltning,
+tilførsel af aktiver eller ombytning af aktier med eller uden tilladelse.
+
+Stk. 4. Stk. 1-3 gælder ikke de i § 33 nævnte tilfælde.
+----
+
+--@begin:aktieavancebeskatningsloven_par33a--
+# AktieavancePar33AStatus = AblPar33AStatusEfterPar8 | AblPar33AStatusEfterPar9 | AblPar33AStatusEfterPar10 | AblPar33AStatusEfterPar17 | AblPar33AStatusEfterPar18 | AblPar33AStatusEfterPar19A | AblPar33AStatusEfterPar20Stk1 | AblPar33AStatusEfterPar20A | AblPar33AStatusUdenForStk2
+# AktieavancePar33AHændelse = AblPar33ADirekteStatusskifte | AblPar33ASkattefriFusion | AblPar33ASkattefriSpaltning | AblPar33ASkattefriTilførselAfAktiver | AblPar33ASkattefriAktieombytningMedTilladelse | AblPar33ASkattefriAktieombytningUdenTilladelse
+# AktieavancePar33AAfgrænsning = AblPar33ATilfældeUdenForPar33 | AblPar33Tilfælde
+# AktieavancePar33ABeskatningsregel = AblPar33AIngenAlmindeligBeskatning | AblPar33ABeskatningEfterPar9 | AblPar33ABeskatningEfterPar17 | AblPar33ABeskatningEfterPar18 | AblPar33ABeskatningEfterPar19A | AblPar33ABeskatningEfterPar20Stk1 | AblPar33ABeskatningEfterPar20A
+# AktieavancePar33AInput(status_før: AktieavancePar33AStatus, status_efter: AktieavancePar33AStatus, hidtidig_anskaffelsessum_kroner: Heltal, handelsværdi_på_statusskiftet_kroner: Heltal, hændelse: AktieavancePar33AHændelse, afgrænsning: AktieavancePar33AAfgrænsning)
+# AktieavancePar33AResultat(input: AktieavancePar33AInput, opgørelse_gyldig: Boolsk, statusskifte_efter_stk2_nr1: Boolsk, statusskifte_efter_stk2_nr2: Boolsk, skattefri_transaktion_efter_stk3: Boolsk, undtaget_efter_stk4: Boolsk, reglen_finder_anvendelse: Boolsk, afståelsesbeskatningsregel: AktieavancePar33ABeskatningsregel, afståelsessum_efter_stk1_kroner: Heltal, anskaffelsessum_efter_stk1_kroner: Heltal, opgjort_bruttogevinst_kroner: Heltal, opgjort_bruttotab_kroner: Heltal, gevinst_til_almindelige_regler_kroner: Heltal, tab_til_almindelige_regler_kroner: Heltal)
+
+| aktieavance_par33a_status_er_par8(status: AktieavancePar33AStatus) -> status == AblPar33AStatusEfterPar8
+| aktieavance_par33a_status_er_nr1_modtager(status: AktieavancePar33AStatus) -> match status { | AblPar33AStatusEfterPar9 -> Sandt | AblPar33AStatusEfterPar18 -> Sandt | AblPar33AStatusEfterPar19A -> Sandt | AblPar33AStatusEfterPar20Stk1 -> Sandt | AblPar33AStatusEfterPar20A -> Sandt | _ -> Falskt }
+| aktieavance_par33a_status_er_nr2_afgiver(status: AktieavancePar33AStatus) -> match status { | AblPar33AStatusEfterPar9 -> Sandt | AblPar33AStatusEfterPar17 -> Sandt | AblPar33AStatusEfterPar18 -> Sandt | AblPar33AStatusEfterPar19A -> Sandt | AblPar33AStatusEfterPar20Stk1 -> Sandt | AblPar33AStatusEfterPar20A -> Sandt | _ -> Falskt }
+| aktieavance_par33a_status_er_nr2_modtager(status: AktieavancePar33AStatus) -> status == AblPar33AStatusEfterPar8 || status == AblPar33AStatusEfterPar10
+| aktieavance_par33a_hændelse_er_skattefri_transaktion(hændelse: AktieavancePar33AHændelse) -> hændelse != AblPar33ADirekteStatusskifte
+| aktieavance_par33a_beskatningsregel_for_status(status: AktieavancePar33AStatus) -> match status { | AblPar33AStatusEfterPar9 -> AblPar33ABeskatningEfterPar9 | AblPar33AStatusEfterPar17 -> AblPar33ABeskatningEfterPar17 | AblPar33AStatusEfterPar18 -> AblPar33ABeskatningEfterPar18 | AblPar33AStatusEfterPar19A -> AblPar33ABeskatningEfterPar19A | AblPar33AStatusEfterPar20Stk1 -> AblPar33ABeskatningEfterPar20Stk1 | AblPar33AStatusEfterPar20A -> AblPar33ABeskatningEfterPar20A | _ -> AblPar33AIngenAlmindeligBeskatning }
+
+# AktieavancePar33ASag(input: AktieavancePar33AInput) {
+    | opgørelse_gyldig() -> input.handelsværdi_på_statusskiftet_kroner >= 0
+    | statusskifte_efter_stk2_nr1() -> aktieavance_par33a_status_er_par8(input.status_før) && aktieavance_par33a_status_er_nr1_modtager(input.status_efter)
+    | statusskifte_efter_stk2_nr2() -> aktieavance_par33a_status_er_nr2_afgiver(input.status_før) && aktieavance_par33a_status_er_nr2_modtager(input.status_efter)
+    | statusskifte_efter_stk2() -> statusskifte_efter_stk2_nr1() || statusskifte_efter_stk2_nr2()
+    | skattefri_transaktion_efter_stk3() -> statusskifte_efter_stk2() && aktieavance_par33a_hændelse_er_skattefri_transaktion(input.hændelse)
+    | undtaget_efter_stk4() -> input.afgrænsning == AblPar33Tilfælde
+    | reglen_finder_anvendelse() -> opgørelse_gyldig() && statusskifte_efter_stk2() && undtaget_efter_stk4() == Falskt
+    | afståelsesbeskatningsregel() -> hvis reglen_finder_anvendelse() { aktieavance_par33a_beskatningsregel_for_status(input.status_før) } ellers { AblPar33AIngenAlmindeligBeskatning }
+    | afståelsessum_efter_stk1_kroner() -> 0
+    | exception abl_par33a_stk1_afståelse_til_handelsværdi afståelsessum_efter_stk1_kroner() -> input.handelsværdi_på_statusskiftet_kroner under reglen_finder_anvendelse()
+    | anskaffelsessum_efter_stk1_kroner() -> 0
+    | exception abl_par33a_stk1_genanskaffelse_til_handelsværdi anskaffelsessum_efter_stk1_kroner() -> input.handelsværdi_på_statusskiftet_kroner under reglen_finder_anvendelse()
+    | nettogevinst_kroner() -> hvis reglen_finder_anvendelse() { afståelsessum_efter_stk1_kroner() - input.hidtidig_anskaffelsessum_kroner } ellers { 0 }
+    | opgjort_bruttogevinst_kroner() -> penge_positivt_beløb(nettogevinst_kroner())
+    | opgjort_bruttotab_kroner() -> penge_positivt_beløb(0 - nettogevinst_kroner())
+    | almindelige_regler_finder_anvendelse() -> afståelsesbeskatningsregel() != AblPar33AIngenAlmindeligBeskatning
+    | gevinst_til_almindelige_regler_kroner() -> hvis almindelige_regler_finder_anvendelse() { opgjort_bruttogevinst_kroner() } ellers { 0 }
+    | tab_til_almindelige_regler_kroner() -> hvis almindelige_regler_finder_anvendelse() { opgjort_bruttotab_kroner() } ellers { 0 }
+    | resultat() -> AktieavancePar33AResultat(
+        input = input,
+        opgørelse_gyldig = opgørelse_gyldig(),
+        statusskifte_efter_stk2_nr1 = statusskifte_efter_stk2_nr1(),
+        statusskifte_efter_stk2_nr2 = statusskifte_efter_stk2_nr2(),
+        skattefri_transaktion_efter_stk3 = skattefri_transaktion_efter_stk3(),
+        undtaget_efter_stk4 = undtaget_efter_stk4(),
+        reglen_finder_anvendelse = reglen_finder_anvendelse(),
+        afståelsesbeskatningsregel = afståelsesbeskatningsregel(),
+        afståelsessum_efter_stk1_kroner = afståelsessum_efter_stk1_kroner(),
+        anskaffelsessum_efter_stk1_kroner = anskaffelsessum_efter_stk1_kroner(),
+        opgjort_bruttogevinst_kroner = opgjort_bruttogevinst_kroner(),
+        opgjort_bruttotab_kroner = opgjort_bruttotab_kroner(),
+        gevinst_til_almindelige_regler_kroner = gevinst_til_almindelige_regler_kroner(),
+        tab_til_almindelige_regler_kroner = tab_til_almindelige_regler_kroner()
+    )
+}
+
+| aktieavance_par33a_resultat(input: AktieavancePar33AInput) -> AktieavancePar33ASag(input).resultat()
+--@end:aktieavancebeskatningsloven_par33a--

@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./aktieavancebeskatningsloven
+@ importer ./aktieavancebeskatningsloven - par33a
 
 -- Aktieavancebeskatningsloven §§ 23-27 -- opgørelsesprincipper og
 -- anskaffelsessumsregler, som bygger videre på de ordinære aktiepositioner.
@@ -344,27 +345,26 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 
 --@begin:aktieavancebeskatningsloven_par24--
 # AktieavancePar24Principskift = AblFraRealisationsprincipTilLagerprincip(aktiens_anskaffelsessum_kroner: Heltal) | AblFraLagerprincipTilRealisationsprincip(værdi_ultimo_før_skift_kroner: Heltal)
-# AktieavancePar24Par33AStatus = AblIkkeOmfattetAfPar33A | AblOmfattetAfPar33A
-# AktieavancePar24PrincipskiftResultat(skift: AktieavancePar24Principskift, par33a_status: AktieavancePar24Par33AStatus, reglen_finder_anvendelse: Boolsk, åbningsværdi_under_lagerprincip_kroner: Heltal, anskaffelsessum_under_senere_realisationsprincip_kroner: Heltal)
+# AktieavancePar24PrincipskiftResultat(skift: AktieavancePar24Principskift, par33a_resultat: AktieavancePar33AResultat, reglen_finder_anvendelse: Boolsk, åbningsværdi_under_lagerprincip_kroner: Heltal, anskaffelsessum_under_senere_realisationsprincip_kroner: Heltal)
 
 | aktieavance_par24_principskift_beløb_kroner(skift: AktieavancePar24Principskift) -> match skift { | AblFraRealisationsprincipTilLagerprincip(anskaffelsessum) -> anskaffelsessum | AblFraLagerprincipTilRealisationsprincip(værdi_ultimo) -> værdi_ultimo }
 
-# AktieavancePar24PrincipskiftSag(skift: AktieavancePar24Principskift, par33a_status: AktieavancePar24Par33AStatus) {
-    | reglen_finder_anvendelse() -> par33a_status == AblIkkeOmfattetAfPar33A && aktieavance_par24_principskift_beløb_kroner(skift) >= 0
+# AktieavancePar24PrincipskiftSag(skift: AktieavancePar24Principskift, par33a_resultat: AktieavancePar33AResultat) {
+    | reglen_finder_anvendelse() -> par33a_resultat.reglen_finder_anvendelse == Falskt && aktieavance_par24_principskift_beløb_kroner(skift) >= 0
     | åbningsværdi_under_lagerprincip_kroner() -> 0
     | exception abl_par24_stk3_realisation_til_lager åbningsværdi_under_lagerprincip_kroner() -> aktieavance_par24_principskift_beløb_kroner(skift) under reglen_finder_anvendelse() && match skift { | AblFraRealisationsprincipTilLagerprincip(_) -> Sandt | _ -> Falskt }
     | anskaffelsessum_under_senere_realisationsprincip_kroner() -> 0
     | exception abl_par24_stk3_lager_til_realisation anskaffelsessum_under_senere_realisationsprincip_kroner() -> aktieavance_par24_principskift_beløb_kroner(skift) under reglen_finder_anvendelse() && match skift { | AblFraLagerprincipTilRealisationsprincip(_) -> Sandt | _ -> Falskt }
     | resultat() -> AktieavancePar24PrincipskiftResultat(
         skift = skift,
-        par33a_status = par33a_status,
+        par33a_resultat = par33a_resultat,
         reglen_finder_anvendelse = reglen_finder_anvendelse(),
         åbningsværdi_under_lagerprincip_kroner = åbningsværdi_under_lagerprincip_kroner(),
         anskaffelsessum_under_senere_realisationsprincip_kroner = anskaffelsessum_under_senere_realisationsprincip_kroner()
     )
 }
 
-| aktieavance_par24_principskift_resultat(skift: AktieavancePar24Principskift, par33a_status: AktieavancePar24Par33AStatus) -> AktieavancePar24PrincipskiftSag(skift, par33a_status).resultat()
+| aktieavance_par24_principskift_resultat(skift: AktieavancePar24Principskift, par33a_resultat: AktieavancePar33AResultat) -> AktieavancePar24PrincipskiftSag(skift, par33a_resultat).resultat()
 
 # AktieavancePar24NæringTilAnlægInput(overgangsår: Heltal, næringsposition: AktieavanceOrdinærPosition, lagerprincip_valgt_efter_par23_stk2: Boolsk, værdi_ultimo_før_overgang_kroner: Heltal)
 # AktieavancePar24NæringTilAnlægResultat(input: AktieavancePar24NæringTilAnlægInput, reglen_finder_anvendelse: Boolsk, første_indkomstår_som_anlægsbeholdning: Heltal, anlægsposition: AktieavanceOrdinærPosition)
