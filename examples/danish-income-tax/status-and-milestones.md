@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-eddd5d`
+Current focus issue: `td-3151e5`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -43,7 +43,7 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Afskrivningslovens aktuelle beregningsslice omfatter nu
-§§ 1-40. § 3 kræver leveret, driftsbestemt og
+§§ 1-40 D. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
@@ -111,8 +111,34 @@ betalinger. Den juridiske vejlednings virksomhedsordningseksempel reducerer
 702.000 kr. opsparet overskud med 409.500 kr. til 292.500 kr.; reduktionen
 begrænses ikke fejlagtigt til det frafaldne skattekrav på 115.500 kr.
 
+§§ 40 A-40 D fortsætter samme kapitel med typede kvotepositioner frem for
+løse beløbs-fixtures. § 40 A fordeler engangskvotens resterende
+anskaffelsessum forholdsmæssigt ved anvendelse, salg og udløb. § 40 B bærer
+aftaleår, udnyttelsesperiode og tidligere afskrivninger gennem et højst
+syvårigt forløb og fordeler anskaffelsessum og tidligere afskrivninger på en
+delvist solgt eller udløbet andel. Begge regler afleder FIFO fra lagerets
+daterede kvotelots,
+sætter vederlagsfri tildeling til nul og afskærer rettigheder knyttet til de
+lovbestemte andelsbeviser; § 40 B afskærer desuden mælkekvoter og
+sukkerroerettigheder. § 40 C modtager nu en typet liste af anskaffelses- og
+afståelsesbevægelser i stedet for tre løse saldotal. § 40 D producerer selv den
+§ 40 C-anskaffelsesbevægelse, der svarer til handelsværdien ved indtræden af
+dansk skattepligt eller dansk DBO-hjemsted. Dermed går § 40 A- og § 40 B-beløb
+til Personskatteloven § 3, stk. 2, nr. 10, mens § 40 D kun når
+kapitalindkomsten gennem § 40 C og Personskatteloven § 4, stk. 1, nr. 16.
+Kvotescenariet kontrollerer 27 betingelser i både interpreter og kompileret
+kode, herunder delvis anvendelse, salg, udløb, afrunding, manglende opsamling af
+fravalgte afskrivninger, forholdsmæssigt salg af en kvoteandel, tidsrækkefølge,
+entydig FIFO, udelukkelser, tilflytningsårets saldoføring og hele § 40 D ->
+§ 40 C -> § 4-kæden.
+
+Det gør endnu ikke § 40 C komplet. De særlige indgangsregler for ældre
+mælkekvoter, ejendomstabs- og acontoskattekæden i stk. 8-10 samt FIFO efter
+stk. 12 er åbne i `td-d44990`; statusgrænsen gennem § 40 D beskriver derfor en
+beregningsegnet slice og ikke fuld dækning af hvert stykke.
+
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
-samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40-resultaterne og
+samt §§ 17-18-, §§ 21-27-, § 32-, § 34- og §§ 38-40 B-resultaterne og
 holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
 adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
 føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
@@ -754,7 +780,7 @@ Current § 4 and § 13 amendment/dependency sources:
     effective 2026-01-01. Den ændring og dens virkning for gensidigt
     bebyrdende aftaler er modelleret som den typede § 40-overgang.
   - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
-    §§ 1-40 with amount-level chapter 2 outcomes, § 17 depreciation, § 18
+    §§ 1-40 B with amount-level chapter 2 outcomes, § 17 depreciation, § 18
     immediate deductions, §§ 21-24 recapture, loss, demolition, damage and
     reconstruction outcomes, §§ 25-26 special-property depreciation and
     disposition outcomes, § 27 succession for drainage and irrigation
@@ -763,7 +789,9 @@ Current § 4 and § 13 amendment/dependency sources:
     payments. Current § 32 deductions and § 34 recapture feed nr. 10; § 35
     remains an explicit prior-year reassessment result instead of being
     misclassified as current income. § 40 keeps payer deductions, recipient
-    income and disposition outcomes as separate Personskatteloven posts.
+    income and disposition outcomes as separate Personskatteloven posts. §§ 40
+    A-40 B add stateful one-time and recurring quota positions, proportional
+    basis allocation, annual depreciation and inventory-derived FIFO outcomes.
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
@@ -775,9 +803,11 @@ Current § 4 and § 13 amendment/dependency sources:
     direkte uden rå aggregerede interval-fixtures. Den juridiske vejlednings
     salgs-, nedrivnings- og skadeeksempler samt samme/anden ejendom og fristsvigt
     efter § 24 er valideret i begge backends.
-  - § 40 C is modeled as the Personskatteloven § 4, stk. 1, nr. 16
-    dependency for taxable/deductible saldo amounts from EU agricultural
-    payment rights, milk quotas and sugar-beet delivery rights.
+  - § 40 C is modeled as the Personskatteloven § 4, stk. 1, nr. 16 dependency
+    for taxable/deductible saldo amounts from EU agricultural payment rights,
+    milk quotas and sugar-beet delivery rights. Its input is a typed movement
+    list, and § 40 D can feed a market-value acquisition movement into that
+    saldo when Danish tax liability or treaty residence begins.
   - SKM `Skatteberegning - hovedtrækkene i personbeskatningen` pages for
     2014, 2016, 2017 and 2018 are used for the historical § 26-relevant
     Ligningsloven deduction rates and pre-2018 absence of §§ 9 K/9 L.
@@ -1497,12 +1527,18 @@ Current decision:
   `Par4Stk1Nr15Sag` consumes the typed result as Personskatteloven § 4,
   stk. 1, nr. 15 capital income rather than taking a bare scalar.
 - `Afskrivningslov40CSag` uses product-scoped `|` rules for Afskrivningsloven
-  § 40 C. It keeps the saldo event, covered asset posture, primo saldo,
-  acquisition sums, disposal sums, ordinary-year saldo treatment, negative-saldo
+  § 40 C. It keeps the saldo event, covered asset posture, primo saldo, typed
+  acquisition/disposal movements, ordinary-year saldo treatment, negative-saldo
   income recognition, final-year gain/loss and net taxable/deductible amount
-  together. `Par4Stk1Nr16Sag` consumes the typed result as
+  together. `Afskrivningslov40DResultat` emits the typed acquisition movement
+  from the entry-date market value, and `Par4Stk1Nr16Sag` consumes the resulting
+  § 40 C result as
   Personskatteloven § 4, stk. 1, nr. 16 capital income rather than taking a
   bare scalar.
+- `Afskrivningslov40ASag` and `Afskrivningslov40BSag` keep each quota's
+  acquisition mode, legal classification, dated lot, remaining quantity and
+  tax basis together. Their FIFO rule is derived from the lot inventory;
+  scenarios do not supply a boolean saying whether FIFO happened to hold.
 - `Par4Stk1Nr17Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 17.
   It keeps the taxpayer's housing role, LL § 15 Q branch, gross rent income,
   LL § 15 Q deduction amount, positive surplus, covered capital-income amount,
@@ -1869,11 +1905,12 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-40 and Statsskatteloven § 6 slice. §§ 40 A-40 B,
-  § 40 D and later recapture/cessation rules must become typed source-law
-  outcomes before nr. 10 can be described as complete. The § 40 transition to
-  Ligningsloven § 12 B is now an end-to-end calculation dependency rather than
-  only a source-correct route.
+  Afskrivningsloven §§ 1-40 D and Statsskatteloven § 6 slice. The remaining
+  § 40 C branches, §§ 41-49 and the transitional rules must become typed
+  source-law outcomes before nr. 10 can be described as complete. The § 40
+  transition to Ligningsloven § 12 B and the § 40 D route through § 40 C are
+  now end-to-end calculation dependencies rather than only source-correct
+  routes.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current

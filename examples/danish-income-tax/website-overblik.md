@@ -108,7 +108,7 @@ Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
 afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
-omfatter §§ 1-40: anskaffelse og benyttelsesændring,
+omfatter §§ 1-40 D: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
@@ -136,6 +136,18 @@ resultater. Skattestyrelsens eksempel med
 ydelse giver 257.500 kr. skattehenstand i begge Futuruna-backends. Vejledningens
 virksomhedsordningseksempel reducerer tilsvarende en konto på 702.000 kr. til
 292.500 kr., når 115.500 kr. virksomhedsskattehenstand frafaldes.
+
+§§ 40 A-40 D føjer kvoter til samme eksekverbare kæde. Engangskvoter fordeler
+den resterende anskaffelsessum forholdsmæssigt ved anvendelse, salg eller
+udløb. Løbende kvoter bærer aftaleår, udnyttelsesperiode og tidligere
+afskrivninger gennem et forløb på højst syv år. Ved salg af en andel fordeles
+både anskaffelsessum og tidligere afskrivninger forholdsmæssigt, mens resten
+fortsætter som en eksekverbar position. FIFO afledes af daterede kvotelots i
+lageret, og vederlagsfri tildeling samt lovens udelukkelser er egne typede
+forhold. § 40 D omsætter handelsværdien ved indtræden af dansk
+skattepligt eller dansk DBO-hjemsted til en anskaffelsesbevægelse på § 40 C-
+saldoen. Derfor går § 40 A- og § 40 B-beløb gennem Personskatteloven § 3, mens
+§ 40 D kun når kapitalindkomsten gennem § 40 C og Personskatteloven § 4.
 
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
@@ -174,7 +186,9 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skattestyrelsens vejledning til §§ 23-24](https://info.skat.dk/data.aspx?oid=2083990),
 [Skattestyrelsens vejledning til § 38](https://info.skat.dk/data.aspx?oid=2083993),
 [Skattestyrelsens vejledning til § 39](https://info.skat.dk/data.aspx?oid=2083992),
-[Skattestyrelsens vejledning til § 40](https://info.skat.dk/data.aspx?oid=2083994)
+[Skattestyrelsens vejledning til § 40](https://info.skat.dk/data.aspx?oid=2083994),
+[Skattestyrelsens kvotevejledning til §§ 40 A-40 D](https://info.skat.dk/data.aspx?oid=2083995),
+[SKM2022.474.SR om CO2-kvoter og afholdt anskaffelsesudgift](https://info.skat.dk/data.aspx?oid=2365032)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
 Den fokuserede scenario-fil fører 8.000 kr. negativ saldo og 70.000 kr.
@@ -191,9 +205,16 @@ Den fokuserede §§ 38-40-scenario validerer 24 grænser og kaskadeudfald i båd
 interpreter og kompileret kode, herunder forskellen mellem § 40-yderens fradrag
 og modtagerens skattepligtige vederlag.
 
+Kvotescenariet validerer yderligere 27 forhold i begge backends: delvis brug af
+engangskvoter, salg og udløb, syvårige og kortere afskrivningsforløb, sidste års
+afrunding, forholdsmæssigt salg af en kvoteandel, tidsrækkefølge, entydig FIFO,
+vederlagsfri tildeling, lovens udelukkelser, tilflytningsårets saldoføring og
+hele § 40 D -> § 40 C -> Personskatteloven § 4-kæden.
+
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
-resterende dependency-arbejde under nr. 10 fortsætter med §§ 40 A-40 B,
-§ 40 D og de senere regler om bl.a. anskaffelsessummer, afståelse og ophør.
+resterende dependency-arbejde omfatter § 40 C's regler om ældre mælkekvoter,
+ejendomstab, acontoskat og FIFO, §§ 41-49 samt de historiske overgangsregler om
+bl.a. anskaffelsessummer, afståelse og ophør.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

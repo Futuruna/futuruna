@@ -9,42 +9,52 @@
 = al40c_negativ_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
     indkomstår = 2026,
     begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
+    saldo_status = Al40CSaldoOmfattet,
     saldo_primo_kroner = 10000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 32000
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 5000),
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 32000)
+    ]
 ))
 = al40c_positiv_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
     indkomstår = 2026,
     begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
+    saldo_status = Al40CSaldoOmfattet,
     saldo_primo_kroner = 40000,
-    anskaffelsessummer_i_året_kroner = 10000,
-    afståelsessummer_i_året_kroner = 20000
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CMælkekvote, anskaffelsessum_kroner = 10000),
+        Al40CAfståelse(kvoteart = Al40CMælkekvote, afståelsessum_kroner = 20000)
+    ]
 ))
 = al40c_afståelsesår_fortjeneste_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
     indkomstår = 2026,
     begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
+    saldo_status = Al40CSaldoOmfattet,
     saldo_primo_kroner = 25000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 42000
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, anskaffelsessum_kroner = 5000),
+        Al40CAfståelse(kvoteart = Al40CLeveringsrettighedForSukkerroer, afståelsessum_kroner = 42000)
+    ]
 ))
 = al40c_afståelsesår_tab_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
     indkomstår = 2026,
     begivenhed = Al40CSidsteAktivAfståetEllerUdløbet,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Sandt,
+    saldo_status = Al40CSaldoOmfattet,
     saldo_primo_kroner = 30000,
-    anskaffelsessummer_i_året_kroner = 10000,
-    afståelsessummer_i_året_kroner = 25000
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 10000),
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 25000)
+    ]
 ))
 = al40c_udenfor_saldo_fixture = afskrivningslov40c_resultat(Afskrivningslov40CInput(
     indkomstår = 2026,
     begivenhed = Al40CÅrligSaldoopgørelse,
-    saldo_omfatter_aktiver_efter_stk1_til_4 = Falskt,
+    saldo_status = Al40CUdenForSaldo,
     saldo_primo_kroner = 10000,
-    anskaffelsessummer_i_året_kroner = 5000,
-    afståelsessummer_i_året_kroner = 32000
+    bevægelser_i_året = [
+        Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 5000),
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 32000)
+    ]
 ))
 
 = par4_stk1_nr16_audit_negativ_saldo = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(

@@ -194,6 +194,18 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_kvoter_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083995",
+    identifier = "Den juridiske vejledning C.C.2.4.5.3, kvoter og betalingsrettigheder",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par40a_skm2022_474 = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2365032",
+    identifier = "SKM2022.474.SR, CO2-kvoter, periodisering og afholdt anskaffelsesudgift",
+    hentet_dato = "2026-07-18"
+)
+
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -4196,7 +4208,271 @@ indgået den 1. januar 2026 eller senere.
 )
 --@end:afskrivningsloven_par40_2026_overgang--
 
---@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
+--@label:afskrivningsloven_par40a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning::practice:afskrivningsloven_par40a_skm2022_474--
+----
+§ 40 A. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
+til erhvervelse af en kvote, der giver ret til at producere, levere, anvende,
+udnytte eller fange en bestemt mængde af et produkt eller en ressource eller at
+udlede en bestemt mængde af produkter eller ressourcer, herunder forurenende
+affaldsprodukter, og som kun kan bruges én gang (en engangskvote), fradrages i
+det indkomstår, hvori kvoten er anvendt i produktionen. Reglerne i 1. pkt.
+finder tilsvarende anvendelse på andele af engangskvoter, der er anvendt i
+produktionen.
+
+Stk. 2. Fortjeneste eller tab ved salg eller udløb af en engangskvote eller en
+andel heraf medregnes ved opgørelsen af den skattepligtige indkomst for det
+indkomstår, hvori kvoten eller en andel heraf sælges eller udløber uden at være
+anvendt i produktionen. Fortjeneste eller tab opgøres som forskellen mellem
+afståelsessummen og anskaffelsessummen.
+
+Stk. 3. Anskaffelsessummen som nævnt i stk. 1 og 2 sættes til nul for en
+engangskvote eller en andel heraf, der er tildelt vederlagsfrit.
+Anskaffelsessummen for en købt engangskvote eller en andel heraf sættes til
+købssummen.
+
+Stk. 4. Afståelsessummen som nævnt i stk. 2 sættes til nul for en engangskvote
+eller en andel heraf, der er anvendt i produktionen. Afståelsessummen for en
+engangskvote eller en andel heraf, der udløber uden at være anvendt i
+produktionen, sættes ligeledes til nul.
+
+Stk. 5. Hvis en skattepligtig ejer engangskvoter eller andele af engangskvoter
+med samme rettigheder, men erhvervet på forskellige tidspunkter, anses de først
+erhvervede kvoter eller andele af kvoter for de først afståede.
+
+Stk. 6. Rettigheder, der er knyttet til andelsbeviser m.v. i foreninger
+omfattet af selskabsskattelovens § 1, stk. 1, nr. 3 og 4, er ikke omfattet af
+stk. 1-5.
+----
+
+--@begin:afskrivningsloven_par40a--
+# AfskrivningslovKvoteAnskaffelse = AlKvoteKøbt(købssum_kroner: Heltal) | AlKvoteVederlagsfritTildelt
+# AfskrivningslovKvoteTilknytning = AlKvoteSelvstændigRettighed | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3 | AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr4
+# AfskrivningslovKvoteLot(lot_id: Tekst, rettighedsnøgle: Tekst, erhvervelsesdato: AfskrivningslovDato, erhvervelsesrækkefølge: Heltal, resterende_enheder: Heltal)
+# Afskrivningslov40APosition(skatteyder: AfskrivningslovSkatteyder, lot: AfskrivningslovKvoteLot, tilknytning: AfskrivningslovKvoteTilknytning, anskaffelse: AfskrivningslovKvoteAnskaffelse, resterende_anskaffelsessum_kroner: Heltal)
+# Afskrivningslov40AHændelse = Al40AAnvendtIProduktion(anvendte_enheder: Heltal) | Al40ASolgt(solgte_enheder: Heltal, afståelsessum_kroner: Heltal) | Al40AUdløbetUdenAnvendelse(udløbne_enheder: Heltal)
+# Afskrivningslov40AInput(indkomstår: Heltal, position: Afskrivningslov40APosition, lager: List(AfskrivningslovKvoteLot), hændelse: Afskrivningslov40AHændelse)
+# Afskrivningslov40AResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov40AHændelse, position_gyldig: Boolsk, lager_gyldigt: Boolsk, omfattet_af_par40a: Boolsk, fifo_betingelse_opfyldt: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_hændelsen_kroner: Heltal, fradrag_for_anvendelse_i_produktionen_kroner: Heltal, afståelsessum_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, resterende_enheder: Heltal, resterende_anskaffelsessum_kroner: Heltal, position_efter: Afskrivningslov40APosition)
+
+| afskrivningslov_kvote_anskaffelsessum_kroner(anskaffelse: AfskrivningslovKvoteAnskaffelse) -> match anskaffelse {
+    | AlKvoteKøbt(købssum_kroner) -> købssum_kroner
+    | AlKvoteVederlagsfritTildelt -> 0
+}
+| afskrivningslov_kvote_tilknytning_udelukket(tilknytning: AfskrivningslovKvoteTilknytning) -> tilknytning == AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3 || tilknytning == AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr4
+| afskrivningslov_kvote_lot_gyldigt(lot: AfskrivningslovKvoteLot) -> afskrivningslov_dato_gyldig(lot.erhvervelsesdato) && lot.erhvervelsesrækkefølge > 0 && lot.resterende_enheder >= 0
+| afskrivningslov_kvote_lot_før(venstre: AfskrivningslovKvoteLot, højre: AfskrivningslovKvoteLot) -> venstre.rettighedsnøgle == højre.rettighedsnøgle && (afskrivningslov_dato_yyyymmdd(venstre.erhvervelsesdato) < afskrivningslov_dato_yyyymmdd(højre.erhvervelsesdato) || afskrivningslov_dato_yyyymmdd(venstre.erhvervelsesdato) == afskrivningslov_dato_yyyymmdd(højre.erhvervelsesdato) && venstre.erhvervelsesrækkefølge < højre.erhvervelsesrækkefølge)
+| afskrivningslov_kvote_lot_samme_fifo_plads(venstre: AfskrivningslovKvoteLot, højre: AfskrivningslovKvoteLot) -> venstre.rettighedsnøgle == højre.rettighedsnøgle && afskrivningslov_dato_yyyymmdd(venstre.erhvervelsesdato) == afskrivningslov_dato_yyyymmdd(højre.erhvervelsesdato) && venstre.erhvervelsesrækkefølge == højre.erhvervelsesrækkefølge
+| afskrivningslov_kvote_lot_med_resterende_enheder(lot: AfskrivningslovKvoteLot, resterende_enheder: Heltal) -> AfskrivningslovKvoteLot(
+    lot_id = lot.lot_id,
+    rettighedsnøgle = lot.rettighedsnøgle,
+    erhvervelsesdato = lot.erhvervelsesdato,
+    erhvervelsesrækkefølge = lot.erhvervelsesrækkefølge,
+    resterende_enheder = resterende_enheder
+)
+| afskrivningslov_kvote_lot_unikt_i_lager(lager: List(AfskrivningslovKvoteLot), lot: AfskrivningslovKvoteLot) -> foldl(lager, 0, |antal, andet_lot| antal + hvis andet_lot.lot_id == lot.lot_id { 1 } ellers { 0 }) == 1 && foldl(lager, 0, |antal, andet_lot| antal + hvis afskrivningslov_kvote_lot_samme_fifo_plads(andet_lot, lot) { 1 } ellers { 0 }) == 1
+| afskrivningslov_kvote_lager_gyldigt(lager: List(AfskrivningslovKvoteLot), lot: AfskrivningslovKvoteLot) -> foldl(lager, Sandt, |alle_gyldige, andet_lot| alle_gyldige && afskrivningslov_kvote_lot_gyldigt(andet_lot) && afskrivningslov_kvote_lot_unikt_i_lager(lager, andet_lot)) && foldl(lager, 0, |antal, andet_lot| antal + hvis andet_lot == lot { 1 } ellers { 0 }) == 1
+| afskrivningslov_kvote_har_tidligere_resterende_lot(lager: List(AfskrivningslovKvoteLot), lot: AfskrivningslovKvoteLot) -> foldl(lager, Falskt, |fundet, andet_lot| fundet || andet_lot.resterende_enheder > 0 && afskrivningslov_kvote_lot_før(andet_lot, lot))
+| afskrivningslov_kvote_fifo_betingelse_opfyldt(lager: List(AfskrivningslovKvoteLot), lot: AfskrivningslovKvoteLot) -> afskrivningslov_kvote_lager_gyldigt(lager, lot) && afskrivningslov_kvote_har_tidligere_resterende_lot(lager, lot) == Falskt
+| afskrivningslov40a_hændelsesenheder(hændelse: Afskrivningslov40AHændelse) -> match hændelse {
+    | Al40AAnvendtIProduktion(anvendte_enheder) -> anvendte_enheder
+    | Al40ASolgt(solgte_enheder, _) -> solgte_enheder
+    | Al40AUdløbetUdenAnvendelse(udløbne_enheder) -> udløbne_enheder
+}
+| afskrivningslov40a_anvendt_i_produktionen(hændelse: Afskrivningslov40AHændelse) -> match hændelse { | Al40AAnvendtIProduktion(_) -> Sandt | _ -> Falskt }
+| afskrivningslov40a_solgt(hændelse: Afskrivningslov40AHændelse) -> match hændelse { | Al40ASolgt(_, _) -> Sandt | _ -> Falskt }
+| afskrivningslov40a_udløbet(hændelse: Afskrivningslov40AHændelse) -> match hændelse { | Al40AUdløbetUdenAnvendelse(_) -> Sandt | _ -> Falskt }
+| afskrivningslov40a_hændelsesbeløb_gyldigt(hændelse: Afskrivningslov40AHændelse) -> match hændelse { | Al40ASolgt(_, afståelsessum_kroner) -> afståelsessum_kroner >= 0 | _ -> Sandt }
+| afskrivningslov40a_afståelsessum_kroner(hændelse: Afskrivningslov40AHændelse) -> match hændelse { | Al40ASolgt(_, afståelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner) | _ -> 0 }
+
+# Afskrivningslov40ASag(input: Afskrivningslov40AInput) {
+    | anskaffelsessum_kroner() -> afskrivningslov_kvote_anskaffelsessum_kroner(input.position.anskaffelse)
+    | position_gyldig() -> afskrivningslov_kvote_lot_gyldigt(input.position.lot) && input.position.lot.resterende_enheder > 0 && match input.position.anskaffelse {
+        | AlKvoteKøbt(købssum_kroner) -> købssum_kroner > 0 && input.position.resterende_anskaffelsessum_kroner >= 0 && input.position.resterende_anskaffelsessum_kroner <= købssum_kroner
+        | AlKvoteVederlagsfritTildelt -> input.position.resterende_anskaffelsessum_kroner == 0
+    }
+    | lager_gyldigt() -> afskrivningslov_kvote_lager_gyldigt(input.lager, input.position.lot)
+    | omfattet_af_par40a() -> position_gyldig() && afskrivningslov_kvote_tilknytning_udelukket(input.position.tilknytning) == Falskt
+    | hændelsesenheder() -> afskrivningslov40a_hændelsesenheder(input.hændelse)
+    | hændelse_gyldig() -> input.indkomstår >= input.position.lot.erhvervelsesdato.år && hændelsesenheder() > 0 && hændelsesenheder() <= input.position.lot.resterende_enheder && afskrivningslov40a_hændelsesbeløb_gyldigt(input.hændelse)
+    | fifo_betingelse_opfyldt() -> afskrivningslov40a_solgt(input.hændelse) == Falskt || afskrivningslov_kvote_fifo_betingelse_opfyldt(input.lager, input.position.lot)
+    | hændelse_behandles() -> omfattet_af_par40a() && lager_gyldigt() && hændelse_gyldig() && fifo_betingelse_opfyldt()
+    | anskaffelsessum_henført_til_hændelsen_kroner() -> hvis hændelse_behandles() { hvis hændelsesenheder() == input.position.lot.resterende_enheder { input.position.resterende_anskaffelsessum_kroner } ellers { input.position.resterende_anskaffelsessum_kroner * hændelsesenheder() / input.position.lot.resterende_enheder } } ellers { 0 }
+    | fradrag_for_anvendelse_i_produktionen_kroner() -> hvis hændelse_behandles() && afskrivningslov40a_anvendt_i_produktionen(input.hændelse) { anskaffelsessum_henført_til_hændelsen_kroner() } ellers { 0 }
+    | afståelsessum_kroner() -> hvis hændelse_behandles() { afskrivningslov40a_afståelsessum_kroner(input.hændelse) } ellers { 0 }
+    | afståelsesresultat_kroner() -> hvis hændelse_behandles() && (afskrivningslov40a_solgt(input.hændelse) || afskrivningslov40a_udløbet(input.hændelse)) { afståelsessum_kroner() - anskaffelsessum_henført_til_hændelsen_kroner() } ellers { 0 }
+    | skattepligtig_fortjeneste_kroner() -> penge_positivt_beløb(afståelsesresultat_kroner())
+    | fradragsberettiget_tab_kroner() -> penge_positivt_beløb(0 - afståelsesresultat_kroner())
+    | resterende_enheder() -> hvis hændelse_behandles() { input.position.lot.resterende_enheder - hændelsesenheder() } ellers { input.position.lot.resterende_enheder }
+    | resterende_anskaffelsessum_kroner() -> hvis hændelse_behandles() { input.position.resterende_anskaffelsessum_kroner - anskaffelsessum_henført_til_hændelsen_kroner() } ellers { input.position.resterende_anskaffelsessum_kroner }
+    | position_efter() -> Afskrivningslov40APosition(
+        skatteyder = input.position.skatteyder,
+        lot = afskrivningslov_kvote_lot_med_resterende_enheder(input.position.lot, resterende_enheder()),
+        tilknytning = input.position.tilknytning,
+        anskaffelse = input.position.anskaffelse,
+        resterende_anskaffelsessum_kroner = resterende_anskaffelsessum_kroner()
+    )
+    | resultat() -> Afskrivningslov40AResultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.skatteyder,
+        hændelse = input.hændelse,
+        position_gyldig = position_gyldig(),
+        lager_gyldigt = lager_gyldigt(),
+        omfattet_af_par40a = omfattet_af_par40a(),
+        fifo_betingelse_opfyldt = fifo_betingelse_opfyldt(),
+        hændelse_gyldig = hændelse_gyldig(),
+        anskaffelsessum_henført_til_hændelsen_kroner = anskaffelsessum_henført_til_hændelsen_kroner(),
+        fradrag_for_anvendelse_i_produktionen_kroner = fradrag_for_anvendelse_i_produktionen_kroner(),
+        afståelsessum_kroner = afståelsessum_kroner(),
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        resterende_enheder = resterende_enheder(),
+        resterende_anskaffelsessum_kroner = resterende_anskaffelsessum_kroner(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov40a_sag(input: Afskrivningslov40AInput) -> Afskrivningslov40ASag(input)
+| afskrivningslov40a_resultat(input: Afskrivningslov40AInput) -> afskrivningslov40a_sag(input).resultat()
+--@end:afskrivningsloven_par40a--
+
+--@label:afskrivningsloven_par40b::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning--
+----
+§ 40 B. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
+til erhvervelse af en kvote, der giver ret til løbende i nærmere afgrænsede
+perioder at producere, levere, anvende, udnytte eller fange en bestemt mængde
+af et produkt eller en ressource eller at udlede en bestemt mængde af produkter
+eller ressourcer, herunder forurenende affaldsprodukter, pr. periode (en løbende
+kvote), fra og med det indkomstår, hvori der er indgået aftale om overdragelsen
+(aftaleåret), afskrives med indtil 1/7 årligt. Reglerne i 1. pkt. finder
+tilsvarende anvendelse på andele af løbende kvoter.
+
+Stk. 2. Ved erhvervelse af en løbende kvote, hvor den periode, som kvoten kan
+udnyttes i, på aftaletidspunktet er mindre end 7 år, erstattes den sats, der er
+nævnt i stk. 1, med en sats, der svarer til, at anskaffelsessummen afskrives
+med lige store årlige beløb over den periode, som kvoten kan udnyttes i, regnet
+fra og med aftaleåret. Reglerne i 1. pkt. finder tilsvarende anvendelse på
+andele af løbende kvoter.
+
+Stk. 3. Fortjeneste eller tab ved salg eller udløb af en løbende kvote eller en
+andel af en løbende kvote medregnes ved opgørelsen af den skattepligtige
+indkomst for det indkomstår, hvori kvoten eller en andel heraf sælges eller
+udløber. Fortjeneste eller tab opgøres som forskellen mellem afståelsessummen
+og den nedskrevne værdi. Sidstnævnte værdi opgøres som anskaffelsessummen med
+fradrag af samtlige foretagne afskrivninger.
+
+Stk. 4. Anskaffelsessummen som nævnt i stk. 1-3 sættes til nul for en løbende
+kvote eller en andel af en løbende kvote, der er tildelt vederlagsfrit.
+
+Stk. 5. Afståelsessummen som nævnt i stk. 3 sættes til nul for en løbende kvote
+eller en andel af en løbende kvote, der er udløbet.
+
+Stk. 6. Hvis en skattepligtig ejer løbende kvoter eller andele af løbende
+kvoter med samme rettigheder, men erhvervet på forskellige tidspunkter, anses
+de først erhvervede kvoter eller andele af kvoter for de først afståede.
+
+Stk. 7. Mælkekvoter og leveringsrettigheder for sukkerroer er ikke omfattet af
+stk. 1-6. Rettigheder, der er knyttet til andelsbeviser m.v. i foreninger
+omfattet af selskabsskattelovens § 1, stk. 1, nr. 3 og 4, er heller ikke
+omfattet af stk. 1-6.
+----
+
+--@begin:afskrivningsloven_par40b--
+# Afskrivningslov40BKvoteart = Al40BAndenLøbendeKvote | Al40BMælkekvote | Al40BLeveringsrettighedForSukkerroer
+# Afskrivningslov40BPosition(skatteyder: AfskrivningslovSkatteyder, lot: AfskrivningslovKvoteLot, tilknytning: AfskrivningslovKvoteTilknytning, kvoteart: Afskrivningslov40BKvoteart, anskaffelse: AfskrivningslovKvoteAnskaffelse, resterende_anskaffelsessum_kroner: Heltal, aftaledato: AfskrivningslovDato, udnyttelsesperiode_år: Heltal, tidligere_afskrivninger_kroner: Heltal)
+# Afskrivningslov40BHændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner: Heltal) | Al40BSolgt(solgte_enheder: Heltal, afståelsessum_kroner: Heltal) | Al40BUdløbet(udløbne_enheder: Heltal)
+# Afskrivningslov40BInput(indkomstår: Heltal, position: Afskrivningslov40BPosition, lager: List(AfskrivningslovKvoteLot), hændelse: Afskrivningslov40BHændelse)
+# Afskrivningslov40BResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov40BHændelse, position_gyldig: Boolsk, lager_gyldigt: Boolsk, omfattet_af_par40b: Boolsk, fifo_betingelse_opfyldt: Boolsk, afskrivningsperiode_år: Heltal, år_i_afskrivningsforløbet: Heltal, anskaffelsessum_kroner: Heltal, nedskrevet_værdi_før_året_kroner: Heltal, højeste_afskrivning_kroner: Heltal, valgt_afskrivning_kroner: Heltal, valg_gyldigt: Boolsk, årlig_afskrivning_kroner: Heltal, disponerede_enheder: Heltal, anskaffelsessum_henført_til_disposition_kroner: Heltal, tidligere_afskrivninger_henført_til_disposition_kroner: Heltal, nedskrevet_værdi_henført_til_disposition_kroner: Heltal, afståelsessum_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, resterende_enheder: Heltal, resterende_anskaffelsessum_kroner: Heltal, nedskrevet_værdi_efter_året_kroner: Heltal, position_efter: Afskrivningslov40BPosition)
+
+| afskrivningslov40b_fortsat_rettighed(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BFortsatRettighed(_) -> Sandt | _ -> Falskt }
+| afskrivningslov40b_solgt(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BSolgt(_, _) -> Sandt | _ -> Falskt }
+| afskrivningslov40b_udløbet(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BUdløbet(_) -> Sandt | _ -> Falskt }
+| afskrivningslov40b_valgt_afskrivning_kroner(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BFortsatRettighed(valgt_afskrivning_kroner) -> valgt_afskrivning_kroner | _ -> 0 }
+| afskrivningslov40b_disponerede_enheder(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BFortsatRettighed(_) -> 0 | Al40BSolgt(solgte_enheder, _) -> solgte_enheder | Al40BUdløbet(udløbne_enheder) -> udløbne_enheder }
+| afskrivningslov40b_afståelsessum_kroner(hændelse: Afskrivningslov40BHændelse) -> match hændelse { | Al40BSolgt(_, afståelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner) | _ -> 0 }
+| afskrivningslov40b_kvoteart_udelukket(kvoteart: Afskrivningslov40BKvoteart) -> kvoteart == Al40BMælkekvote || kvoteart == Al40BLeveringsrettighedForSukkerroer
+
+# Afskrivningslov40BSag(input: Afskrivningslov40BInput) {
+    | anskaffelsessum_kroner() -> input.position.resterende_anskaffelsessum_kroner
+    | position_gyldig() -> afskrivningslov_kvote_lot_gyldigt(input.position.lot) && input.position.lot.resterende_enheder > 0 && afskrivningslov_dato_gyldig(input.position.aftaledato) && afskrivningslov_dato_yyyymmdd(input.position.lot.erhvervelsesdato) == afskrivningslov_dato_yyyymmdd(input.position.aftaledato) && input.position.udnyttelsesperiode_år > 0 && input.position.resterende_anskaffelsessum_kroner >= 0 && input.position.tidligere_afskrivninger_kroner >= 0 && input.position.tidligere_afskrivninger_kroner <= anskaffelsessum_kroner() && match input.position.anskaffelse {
+        | AlKvoteKøbt(købssum_kroner) -> købssum_kroner > 0 && input.position.resterende_anskaffelsessum_kroner <= købssum_kroner
+        | AlKvoteVederlagsfritTildelt -> input.position.resterende_anskaffelsessum_kroner == 0 && input.position.tidligere_afskrivninger_kroner == 0
+    }
+    | lager_gyldigt() -> afskrivningslov_kvote_lager_gyldigt(input.lager, input.position.lot)
+    | omfattet_af_par40b() -> position_gyldig() && afskrivningslov40b_kvoteart_udelukket(input.position.kvoteart) == Falskt && afskrivningslov_kvote_tilknytning_udelukket(input.position.tilknytning) == Falskt
+    | disponerede_enheder() -> afskrivningslov40b_disponerede_enheder(input.hændelse)
+    | hændelse_gyldig() -> input.indkomstår >= input.position.aftaledato.år && match input.hændelse {
+        | Al40BFortsatRettighed(valgt_afskrivning_kroner) -> valgt_afskrivning_kroner >= 0
+        | Al40BSolgt(solgte_enheder, afståelsessum_kroner) -> solgte_enheder > 0 && solgte_enheder <= input.position.lot.resterende_enheder && afståelsessum_kroner >= 0
+        | Al40BUdløbet(udløbne_enheder) -> udløbne_enheder > 0 && udløbne_enheder <= input.position.lot.resterende_enheder
+    }
+    | fifo_betingelse_opfyldt() -> afskrivningslov40b_solgt(input.hændelse) == Falskt || afskrivningslov_kvote_fifo_betingelse_opfyldt(input.lager, input.position.lot)
+    | hændelse_behandles() -> omfattet_af_par40b() && lager_gyldigt() && hændelse_gyldig() && fifo_betingelse_opfyldt()
+    | afskrivningsperiode_år() -> hvis input.position.udnyttelsesperiode_år < 7 { input.position.udnyttelsesperiode_år } ellers { 7 }
+    | år_i_afskrivningsforløbet() -> input.indkomstår - input.position.aftaledato.år + 1
+    | nedskrevet_værdi_før_året_kroner() -> penge_positivt_beløb(anskaffelsessum_kroner() - input.position.tidligere_afskrivninger_kroner)
+    | afskrivning_mulig() -> hændelse_behandles() && afskrivningslov40b_fortsat_rettighed(input.hændelse) && år_i_afskrivningsforløbet() >= 1 && år_i_afskrivningsforløbet() <= afskrivningsperiode_år()
+    | årligt_standardbeløb_kroner() -> hvis afskrivningsperiode_år() > 0 { anskaffelsessum_kroner() / afskrivningsperiode_år() } ellers { 0 }
+    | afrundingsrest_kroner() -> hvis afskrivningsperiode_år() > 0 { anskaffelsessum_kroner() - årligt_standardbeløb_kroner() * afskrivningsperiode_år() } ellers { 0 }
+    | årlig_satsbeløb_kroner() -> årligt_standardbeløb_kroner() + hvis år_i_afskrivningsforløbet() == afskrivningsperiode_år() { afrundingsrest_kroner() } ellers { 0 }
+    | højeste_afskrivning_kroner() -> hvis afskrivning_mulig() { penge_mindste_beløb(nedskrevet_værdi_før_året_kroner(), årlig_satsbeløb_kroner()) } ellers { 0 }
+    | valgt_afskrivning_kroner() -> afskrivningslov40b_valgt_afskrivning_kroner(input.hændelse)
+    | valg_gyldigt() -> hvis afskrivningslov40b_fortsat_rettighed(input.hændelse) { hændelse_behandles() && valgt_afskrivning_kroner() <= højeste_afskrivning_kroner() } ellers { hændelse_behandles() }
+    | årlig_afskrivning_kroner() -> hvis valg_gyldigt() && afskrivning_mulig() { valgt_afskrivning_kroner() } ellers { 0 }
+    | disposition_omfattet() -> hændelse_behandles() && (afskrivningslov40b_solgt(input.hændelse) || afskrivningslov40b_udløbet(input.hændelse))
+    | anskaffelsessum_henført_til_disposition_kroner() -> hvis disposition_omfattet() { hvis disponerede_enheder() == input.position.lot.resterende_enheder { anskaffelsessum_kroner() } ellers { anskaffelsessum_kroner() * disponerede_enheder() / input.position.lot.resterende_enheder } } ellers { 0 }
+    | tidligere_afskrivninger_henført_til_disposition_kroner() -> hvis disposition_omfattet() { hvis disponerede_enheder() == input.position.lot.resterende_enheder { input.position.tidligere_afskrivninger_kroner } ellers { input.position.tidligere_afskrivninger_kroner * disponerede_enheder() / input.position.lot.resterende_enheder } } ellers { 0 }
+    | nedskrevet_værdi_henført_til_disposition_kroner() -> penge_positivt_beløb(anskaffelsessum_henført_til_disposition_kroner() - tidligere_afskrivninger_henført_til_disposition_kroner())
+    | afståelsessum_kroner() -> hvis disposition_omfattet() { afskrivningslov40b_afståelsessum_kroner(input.hændelse) } ellers { 0 }
+    | afståelsesresultat_kroner() -> hvis disposition_omfattet() { afståelsessum_kroner() - nedskrevet_værdi_henført_til_disposition_kroner() } ellers { 0 }
+    | skattepligtig_fortjeneste_kroner() -> penge_positivt_beløb(afståelsesresultat_kroner())
+    | fradragsberettiget_tab_kroner() -> penge_positivt_beløb(0 - afståelsesresultat_kroner())
+    | resterende_enheder() -> hvis disposition_omfattet() { input.position.lot.resterende_enheder - disponerede_enheder() } ellers { input.position.lot.resterende_enheder }
+    | resterende_anskaffelsessum_kroner() -> hvis disposition_omfattet() { anskaffelsessum_kroner() - anskaffelsessum_henført_til_disposition_kroner() } ellers { anskaffelsessum_kroner() }
+    | tidligere_afskrivninger_efter_året_kroner() -> hvis disposition_omfattet() { input.position.tidligere_afskrivninger_kroner - tidligere_afskrivninger_henført_til_disposition_kroner() } ellers { input.position.tidligere_afskrivninger_kroner + årlig_afskrivning_kroner() }
+    | nedskrevet_værdi_efter_året_kroner() -> penge_positivt_beløb(resterende_anskaffelsessum_kroner() - tidligere_afskrivninger_efter_året_kroner())
+    | position_efter() -> Afskrivningslov40BPosition(
+        skatteyder = input.position.skatteyder,
+        lot = afskrivningslov_kvote_lot_med_resterende_enheder(input.position.lot, resterende_enheder()),
+        tilknytning = input.position.tilknytning,
+        kvoteart = input.position.kvoteart,
+        anskaffelse = input.position.anskaffelse,
+        resterende_anskaffelsessum_kroner = resterende_anskaffelsessum_kroner(),
+        aftaledato = input.position.aftaledato,
+        udnyttelsesperiode_år = input.position.udnyttelsesperiode_år,
+        tidligere_afskrivninger_kroner = tidligere_afskrivninger_efter_året_kroner()
+    )
+    | resultat() -> Afskrivningslov40BResultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.position.skatteyder,
+        hændelse = input.hændelse,
+        position_gyldig = position_gyldig(),
+        lager_gyldigt = lager_gyldigt(),
+        omfattet_af_par40b = omfattet_af_par40b(),
+        fifo_betingelse_opfyldt = fifo_betingelse_opfyldt(),
+        afskrivningsperiode_år = afskrivningsperiode_år(),
+        år_i_afskrivningsforløbet = år_i_afskrivningsforløbet(),
+        anskaffelsessum_kroner = anskaffelsessum_kroner(),
+        nedskrevet_værdi_før_året_kroner = nedskrevet_værdi_før_året_kroner(),
+        højeste_afskrivning_kroner = højeste_afskrivning_kroner(),
+        valgt_afskrivning_kroner = valgt_afskrivning_kroner(),
+        valg_gyldigt = valg_gyldigt(),
+        årlig_afskrivning_kroner = årlig_afskrivning_kroner(),
+        disponerede_enheder = disponerede_enheder(),
+        anskaffelsessum_henført_til_disposition_kroner = anskaffelsessum_henført_til_disposition_kroner(),
+        tidligere_afskrivninger_henført_til_disposition_kroner = tidligere_afskrivninger_henført_til_disposition_kroner(),
+        nedskrevet_værdi_henført_til_disposition_kroner = nedskrevet_værdi_henført_til_disposition_kroner(),
+        afståelsessum_kroner = afståelsessum_kroner(),
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        resterende_enheder = resterende_enheder(),
+        resterende_anskaffelsessum_kroner = resterende_anskaffelsessum_kroner(),
+        nedskrevet_værdi_efter_året_kroner = nedskrevet_værdi_efter_året_kroner(),
+        position_efter = position_efter()
+    )
+}
+| afskrivningslov40b_sag(input: Afskrivningslov40BInput) -> Afskrivningslov40BSag(input)
+| afskrivningslov40b_resultat(input: Afskrivningslov40BInput) -> afskrivningslov40b_sag(input).resultat()
+--@end:afskrivningsloven_par40b--
+
+--@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning--
 ----
 § 40 C. Anskaffelsessummen ved erhvervelse og afståelsessummen ved afståelse af
 en betalingsrettighed efter EU-landbrugsstøtteordningen skal indgå på en samlet
@@ -4291,17 +4567,28 @@ eller andele af kvoter for de først afståede.
 ----
 
 --@begin:afskrivningsloven_par40c--
+# Afskrivningslov40CKvoteart = Al40CBetalingsrettighed | Al40CMælkekvote | Al40CLeveringsrettighedForSukkerroer
+# Afskrivningslov40CSaldostatus = Al40CSaldoOmfattet | Al40CUdenForSaldo
+# Afskrivningslov40CSaldobevægelse = Al40CAnskaffelse(kvoteart: Afskrivningslov40CKvoteart, anskaffelsessum_kroner: Heltal) | Al40CAfståelse(kvoteart: Afskrivningslov40CKvoteart, afståelsessum_kroner: Heltal) | Al40CIngenSaldobevægelse
 # Afskrivningslov40CBegivenhed = Al40CÅrligSaldoopgørelse | Al40CSidsteAktivAfståetEllerUdløbet
-# Afskrivningslov40CInput(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_omfatter_aktiver_efter_stk1_til_4: Boolsk, saldo_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, afståelsessummer_i_året_kroner: Heltal)
-# Afskrivningslov40CResultat(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, omfattet_af_par40c: Boolsk, saldoværdi_ultimo_før_regulering_kroner: Heltal, positiv_saldo_uden_fradrag_kroner: Heltal, negativ_saldo_indtægtsført_kroner: Heltal, saldo_efter_regulering_kroner: Heltal, afståelsesår_fortjeneste_kroner: Heltal, afståelsesår_tab_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal, fradragsberettiget_beløb_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
+# Afskrivningslov40CInput(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_status: Afskrivningslov40CSaldostatus, saldo_primo_kroner: Heltal, bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
+# Afskrivningslov40CResultat(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_status: Afskrivningslov40CSaldostatus, input_gyldigt: Boolsk, omfattet_af_par40c: Boolsk, anskaffelsessummer_i_året_kroner: Heltal, afståelsessummer_i_året_kroner: Heltal, saldoværdi_ultimo_før_regulering_kroner: Heltal, positiv_saldo_uden_fradrag_kroner: Heltal, negativ_saldo_indtægtsført_kroner: Heltal, saldo_efter_regulering_kroner: Heltal, afståelsesår_fortjeneste_kroner: Heltal, afståelsesår_tab_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal, fradragsberettiget_beløb_kroner: Heltal, netto_skattepligtigt_eller_fradragsberettiget_kroner: Heltal)
 
 | afskrivningslov40c_årlig_saldoopgørelse(begivenhed: Afskrivningslov40CBegivenhed) -> begivenhed == Al40CÅrligSaldoopgørelse
 | afskrivningslov40c_afståelsesår(begivenhed: Afskrivningslov40CBegivenhed) -> begivenhed == Al40CSidsteAktivAfståetEllerUdløbet
+| afskrivningslov40c_saldobevægelse_gyldig(bevægelse: Afskrivningslov40CSaldobevægelse) -> match bevægelse {
+    | Al40CAnskaffelse(_, anskaffelsessum_kroner) -> anskaffelsessum_kroner >= 0
+    | Al40CAfståelse(_, afståelsessum_kroner) -> afståelsessum_kroner >= 0
+    | Al40CIngenSaldobevægelse -> Sandt
+}
+| afskrivningslov40c_anskaffelsessum_kroner(bevægelse: Afskrivningslov40CSaldobevægelse) -> match bevægelse { | Al40CAnskaffelse(_, anskaffelsessum_kroner) -> penge_positivt_beløb(anskaffelsessum_kroner) | _ -> 0 }
+| afskrivningslov40c_afståelsessum_kroner(bevægelse: Afskrivningslov40CSaldobevægelse) -> match bevægelse { | Al40CAfståelse(_, afståelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner) | _ -> 0 }
 
 # Afskrivningslov40CSag(input: Afskrivningslov40CInput) {
-    | omfattet_af_par40c() -> input.saldo_omfatter_aktiver_efter_stk1_til_4
-    | anskaffelsessummer_i_året_kroner() -> penge_positivt_beløb(input.anskaffelsessummer_i_året_kroner)
-    | afståelsessummer_i_året_kroner() -> penge_positivt_beløb(input.afståelsessummer_i_året_kroner)
+    | input_gyldigt() -> input.indkomstår > 0 && input.saldo_primo_kroner >= 0 && foldl(input.bevægelser_i_året, Sandt, |alle_gyldige, bevægelse| alle_gyldige && afskrivningslov40c_saldobevægelse_gyldig(bevægelse))
+    | omfattet_af_par40c() -> input_gyldigt() && input.saldo_status == Al40CSaldoOmfattet
+    | anskaffelsessummer_i_året_kroner() -> foldl(input.bevægelser_i_året, 0, |sum, bevægelse| sum + afskrivningslov40c_anskaffelsessum_kroner(bevægelse))
+    | afståelsessummer_i_året_kroner() -> foldl(input.bevægelser_i_året, 0, |sum, bevægelse| sum + afskrivningslov40c_afståelsessum_kroner(bevægelse))
     | saldoværdi_ultimo_før_regulering_kroner() -> 0
     | exception al40c_saldo_opgøres saldoværdi_ultimo_før_regulering_kroner() -> input.saldo_primo_kroner + anskaffelsessummer_i_året_kroner() - afståelsessummer_i_året_kroner() under omfattet_af_par40c()
     | positiv_saldo_uden_fradrag_kroner() -> 0
@@ -4320,7 +4607,11 @@ eller andele af kvoter for de først afståede.
     | resultat() -> Afskrivningslov40CResultat(
         indkomstår = input.indkomstår,
         begivenhed = input.begivenhed,
+        saldo_status = input.saldo_status,
+        input_gyldigt = input_gyldigt(),
         omfattet_af_par40c = omfattet_af_par40c(),
+        anskaffelsessummer_i_året_kroner = anskaffelsessummer_i_året_kroner(),
+        afståelsessummer_i_året_kroner = afståelsessummer_i_året_kroner(),
         saldoværdi_ultimo_før_regulering_kroner = saldoværdi_ultimo_før_regulering_kroner(),
         positiv_saldo_uden_fradrag_kroner = positiv_saldo_uden_fradrag_kroner(),
         negativ_saldo_indtægtsført_kroner = negativ_saldo_indtægtsført_kroner(),
@@ -4335,3 +4626,46 @@ eller andele af kvoter for de først afståede.
 | afskrivningslov40c_sag(input: Afskrivningslov40CInput) -> Afskrivningslov40CSag(input)
 | afskrivningslov40c_resultat(input: Afskrivningslov40CInput) -> afskrivningslov40c_sag(input).resultat()
 --@end:afskrivningsloven_par40c--
+
+--@label:afskrivningsloven_par40d::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning--
+----
+§ 40 D. En betalingsrettighed, mælkekvote eller leveringsrettighed for
+sukkerroer, der bliver omfattet af skattepligt her i landet, og som ikke i
+forvejen er omfattet af skattepligt her i landet, indgår på saldoen som nævnt i
+§ 40 C med en anskaffelsessum, der opgøres til handelsværdien på
+tilflytningstidspunktet, jf. selskabsskattelovens § 4 A og kildeskattelovens §
+9. Når en person eller et selskab m.v. efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst indgået mellem Danmark og en fremmed stat,
+Færøerne eller Grønland bliver hjemmehørende i Danmark, sidestilles dette ved
+anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
+----
+
+--@begin:afskrivningsloven_par40d--
+# Afskrivningslov40DSkattepligtsindtræden = Al40DSelskabsskattelovPar4A | Al40DKildeskattelovPar9 | Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst
+# Afskrivningslov40DInput(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet: Boolsk, handelsværdi_på_tilflytningstidspunktet_kroner: Heltal)
+# Afskrivningslov40DResultat(skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, skattepligtsindtræden: Afskrivningslov40DSkattepligtsindtræden, tilflytningstidspunkt: AfskrivningslovDato, input_gyldigt: Boolsk, dobbeltbeskatningsoverenskomst_sidestilles_med_skattepligtsindtræden: Boolsk, omfattet_af_par40d: Boolsk, anskaffelsessum_til_par40c_saldo_kroner: Heltal, par40c_saldobevægelse: Afskrivningslov40CSaldobevægelse)
+# Afskrivningslov40DPar40COverførsel(indkomstår: Heltal, begivenhed: Afskrivningslov40CBegivenhed, saldo_primo_kroner: Heltal, par40d_resultat: Afskrivningslov40DResultat, øvrige_bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
+
+| afskrivningslov40d_dbo_hjemmehørende(indtræden: Afskrivningslov40DSkattepligtsindtræden) -> indtræden == Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst
+| afskrivningslov40d_resultat(input: Afskrivningslov40DInput) -> Afskrivningslov40DResultat(
+    skatteyder = input.skatteyder,
+    kvoteart = input.kvoteart,
+    skattepligtsindtræden = input.skattepligtsindtræden,
+    tilflytningstidspunkt = input.tilflytningstidspunkt,
+    input_gyldigt = afskrivningslov_dato_gyldig(input.tilflytningstidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0,
+    dobbeltbeskatningsoverenskomst_sidestilles_med_skattepligtsindtræden = afskrivningslov40d_dbo_hjemmehørende(input.skattepligtsindtræden),
+    omfattet_af_par40d = afskrivningslov_dato_gyldig(input.tilflytningstidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0 && input.ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet,
+    anskaffelsessum_til_par40c_saldo_kroner = hvis afskrivningslov_dato_gyldig(input.tilflytningstidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0 && input.ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet { input.handelsværdi_på_tilflytningstidspunktet_kroner } ellers { 0 },
+    par40c_saldobevægelse = hvis afskrivningslov_dato_gyldig(input.tilflytningstidspunkt) && input.handelsværdi_på_tilflytningstidspunktet_kroner >= 0 && input.ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet { Al40CAnskaffelse(kvoteart = input.kvoteart, anskaffelsessum_kroner = input.handelsværdi_på_tilflytningstidspunktet_kroner) } ellers { Al40CIngenSaldobevægelse }
+)
+| afskrivningslov40d_overførsel_i_tilflytningsåret(overførsel: Afskrivningslov40DPar40COverførsel) -> overførsel.indkomstår == overførsel.par40d_resultat.tilflytningstidspunkt.år
+| afskrivningslov40d_saldobevægelse_til_par40c(overførsel: Afskrivningslov40DPar40COverførsel) -> hvis afskrivningslov40d_overførsel_i_tilflytningsåret(overførsel) && overførsel.par40d_resultat.omfattet_af_par40d { Al40CAnskaffelse(kvoteart = overførsel.par40d_resultat.kvoteart, anskaffelsessum_kroner = overførsel.par40d_resultat.anskaffelsessum_til_par40c_saldo_kroner) } ellers { Al40CIngenSaldobevægelse }
+| afskrivningslov40d_til_par40c_input(overførsel: Afskrivningslov40DPar40COverførsel) -> Afskrivningslov40CInput(
+    indkomstår = overførsel.indkomstår,
+    begivenhed = overførsel.begivenhed,
+    saldo_status = Al40CSaldoOmfattet,
+    saldo_primo_kroner = overførsel.saldo_primo_kroner,
+    bevægelser_i_året = concat([afskrivningslov40d_saldobevægelse_til_par40c(overførsel)], overførsel.øvrige_bevægelser_i_året)
+)
+| afskrivningslov40d_til_par40c_resultat(overførsel: Afskrivningslov40DPar40COverførsel) -> afskrivningslov40c_resultat(afskrivningslov40d_til_par40c_input(overførsel))
+--@end:afskrivningsloven_par40d--

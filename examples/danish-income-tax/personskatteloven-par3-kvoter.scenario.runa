@@ -1,0 +1,443 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+= kvote_engang_lot_første = AfskrivningslovKvoteLot(
+    lot_id = "co2-2026-1",
+    rettighedsnøgle = "co2-produktionsenhed-a",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 1, dag = 10),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 100
+)
+= kvote_engang_lot_senere = AfskrivningslovKvoteLot(
+    lot_id = "co2-2026-2",
+    rettighedsnøgle = "co2-produktionsenhed-a",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 2, dag = 1),
+    erhvervelsesrækkefølge = 2,
+    resterende_enheder = 100
+)
+= kvote_engang_lager = [kvote_engang_lot_første, kvote_engang_lot_senere]
+= kvote_engang_position_købt = Afskrivningslov40APosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = kvote_engang_lot_første,
+    tilknytning = AlKvoteSelvstændigRettighed,
+    anskaffelse = AlKvoteKøbt(købssum_kroner = 120000),
+    resterende_anskaffelsessum_kroner = 120000
+)
+= kvote_engang_anvendt = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_købt,
+    lager = kvote_engang_lager,
+    hændelse = Al40AAnvendtIProduktion(anvendte_enheder = 25)
+))
+= kvote_engang_solgt = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_købt,
+    lager = kvote_engang_lager,
+    hændelse = Al40ASolgt(solgte_enheder = 25, afståelsessum_kroner = 40000)
+))
+= kvote_engang_negativ_afståelsessum = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_købt,
+    lager = kvote_engang_lager,
+    hændelse = Al40ASolgt(solgte_enheder = 25, afståelsessum_kroner = -1)
+))
+= kvote_engang_salg_før_erhvervelse = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2025,
+    position = kvote_engang_position_købt,
+    lager = kvote_engang_lager,
+    hændelse = Al40ASolgt(solgte_enheder = 25, afståelsessum_kroner = 40000)
+))
+= kvote_engang_lot_fifo_kollision = AfskrivningslovKvoteLot(
+    lot_id = "co2-2026-kollision",
+    rettighedsnøgle = "co2-produktionsenhed-a",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 1, dag = 10),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 100
+)
+= kvote_engang_fifo_kollision = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_købt,
+    lager = [kvote_engang_lot_første, kvote_engang_lot_fifo_kollision],
+    hændelse = Al40ASolgt(solgte_enheder = 25, afståelsessum_kroner = 40000)
+))
+= kvote_engang_udløbet = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_købt,
+    lager = kvote_engang_lager,
+    hændelse = Al40AUdløbetUdenAnvendelse(udløbne_enheder = 100)
+))
+= kvote_engang_position_gratis = Afskrivningslov40APosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = kvote_engang_lot_første,
+    tilknytning = AlKvoteSelvstændigRettighed,
+    anskaffelse = AlKvoteVederlagsfritTildelt,
+    resterende_anskaffelsessum_kroner = 0
+)
+= kvote_engang_gratis_solgt = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_gratis,
+    lager = kvote_engang_lager,
+    hændelse = Al40ASolgt(solgte_enheder = 100, afståelsessum_kroner = 40000)
+))
+= kvote_engang_position_senere = Afskrivningslov40APosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = kvote_engang_lot_senere,
+    tilknytning = AlKvoteSelvstændigRettighed,
+    anskaffelse = AlKvoteKøbt(købssum_kroner = 90000),
+    resterende_anskaffelsessum_kroner = 90000
+)
+= kvote_engang_senere_solgt_før_fifo = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_senere,
+    lager = kvote_engang_lager,
+    hændelse = Al40ASolgt(solgte_enheder = 100, afståelsessum_kroner = 100000)
+))
+= kvote_engang_lager_første_tømt = [
+    afskrivningslov_kvote_lot_med_resterende_enheder(kvote_engang_lot_første, 0),
+    kvote_engang_lot_senere
+]
+= kvote_engang_senere_solgt_efter_fifo = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = kvote_engang_position_senere,
+    lager = kvote_engang_lager_første_tømt,
+    hændelse = Al40ASolgt(solgte_enheder = 100, afståelsessum_kroner = 100000)
+))
+= kvote_engang_andelsbevis_udelukket = afskrivningslov40a_resultat(Afskrivningslov40AInput(
+    indkomstår = 2026,
+    position = Afskrivningslov40APosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_engang_lot_første,
+        tilknytning = AlKvoteKnyttetTilAndelsbevisSelPar1Stk1Nr3,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 120000),
+        resterende_anskaffelsessum_kroner = 120000
+    ),
+    lager = kvote_engang_lager,
+    hændelse = Al40AAnvendtIProduktion(anvendte_enheder = 25)
+))
+= kvote_engang_par3_anvendelse = par3_stk2_nr10_post_resultat(Par3Nr10Al40A(resultat = kvote_engang_anvendt))
+= kvote_engang_par3_salg = par3_stk2_nr10_post_resultat(Par3Nr10Al40A(resultat = kvote_engang_solgt))
+= kvote_engang_par3_udløb = par3_stk2_nr10_post_resultat(Par3Nr10Al40A(resultat = kvote_engang_udløbet))
+
+= kvote_løbende_lot_første = AfskrivningslovKvoteLot(
+    lot_id = "fisk-2026-1",
+    rettighedsnøgle = "sild-farvand-a",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 1
+)
+= kvote_løbende_lot_senere = AfskrivningslovKvoteLot(
+    lot_id = "fisk-2027-1",
+    rettighedsnøgle = "sild-farvand-a",
+    erhvervelsesdato = AfskrivningslovDato(år = 2027, måned = 1, dag = 1),
+    erhvervelsesrækkefølge = 2,
+    resterende_enheder = 1
+)
+= kvote_løbende_lager = [kvote_løbende_lot_første, kvote_løbende_lot_senere]
+= kvote_løbende_position_syvaars = Afskrivningslov40BPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = kvote_løbende_lot_første,
+    tilknytning = AlKvoteSelvstændigRettighed,
+    kvoteart = Al40BAndenLøbendeKvote,
+    anskaffelse = AlKvoteKøbt(købssum_kroner = 700000),
+    resterende_anskaffelsessum_kroner = 700000,
+    aftaledato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+    udnyttelsesperiode_år = 10,
+    tidligere_afskrivninger_kroner = 0
+)
+= kvote_løbende_syvaars_afskrivning = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2026,
+    position = kvote_løbende_position_syvaars,
+    lager = kvote_løbende_lager,
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 100000)
+))
+= kvote_løbende_femaar_lot = AfskrivningslovKvoteLot(
+    lot_id = "makrel-2026-1",
+    rettighedsnøgle = "makrel-farvand-b",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 1
+)
+= kvote_løbende_femaar_afskrivning = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_femaar_lot,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 500000),
+        resterende_anskaffelsessum_kroner = 500000,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+        udnyttelsesperiode_år = 5,
+        tidligere_afskrivninger_kroner = 200000
+    ),
+    lager = [kvote_løbende_femaar_lot],
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 100000)
+))
+= kvote_løbende_treaar_lot = AfskrivningslovKvoteLot(
+    lot_id = "treaar-2026-1",
+    rettighedsnøgle = "treaar-rettighed",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 4, dag = 1),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 1
+)
+= kvote_løbende_treaar_sidste_afrunding = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_treaar_lot,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 100),
+        resterende_anskaffelsessum_kroner = 100,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 4, dag = 1),
+        udnyttelsesperiode_år = 3,
+        tidligere_afskrivninger_kroner = 66
+    ),
+    lager = [kvote_løbende_treaar_lot],
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 34)
+))
+= kvote_løbende_syvende_år_uden_opsamling = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2032,
+    position = kvote_løbende_position_syvaars,
+    lager = kvote_løbende_lager,
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 100000)
+))
+= kvote_løbende_efter_syvende_år = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2033,
+    position = kvote_løbende_position_syvaars,
+    lager = kvote_løbende_lager,
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 0)
+))
+= kvote_løbende_position_delvist_afskrevet = Afskrivningslov40BPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = kvote_løbende_lot_første,
+    tilknytning = AlKvoteSelvstændigRettighed,
+    kvoteart = Al40BAndenLøbendeKvote,
+    anskaffelse = AlKvoteKøbt(købssum_kroner = 700000),
+    resterende_anskaffelsessum_kroner = 700000,
+    aftaledato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+    udnyttelsesperiode_år = 10,
+    tidligere_afskrivninger_kroner = 200000
+)
+= kvote_løbende_solgt = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = kvote_løbende_position_delvist_afskrevet,
+    lager = kvote_løbende_lager,
+    hændelse = Al40BSolgt(solgte_enheder = 1, afståelsessum_kroner = 650000)
+))
+= kvote_løbende_fortsættelse_før_aftaleåret = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2025,
+    position = kvote_løbende_position_syvaars,
+    lager = kvote_løbende_lager,
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 0)
+))
+= kvote_løbende_andelslot = AfskrivningslovKvoteLot(
+    lot_id = "fisk-andel-2026-1",
+    rettighedsnøgle = "fisk-andel-farvand-c",
+    erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 5, dag = 1),
+    erhvervelsesrækkefølge = 1,
+    resterende_enheder = 100
+)
+= kvote_løbende_andel_solgt = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_andelslot,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 700000),
+        resterende_anskaffelsessum_kroner = 700000,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 5, dag = 1),
+        udnyttelsesperiode_år = 7,
+        tidligere_afskrivninger_kroner = 200000
+    ),
+    lager = [kvote_løbende_andelslot],
+    hændelse = Al40BSolgt(solgte_enheder = 25, afståelsessum_kroner = 150000)
+))
+= kvote_løbende_andel_efterfølgende_afskrivning = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2029,
+    position = kvote_løbende_andel_solgt.position_efter,
+    lager = [kvote_løbende_andel_solgt.position_efter.lot],
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 75000)
+))
+= kvote_løbende_udløbet = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2030,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_femaar_lot,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 500000),
+        resterende_anskaffelsessum_kroner = 500000,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+        udnyttelsesperiode_år = 5,
+        tidligere_afskrivninger_kroner = 300000
+    ),
+    lager = [kvote_løbende_femaar_lot],
+    hændelse = Al40BUdløbet(udløbne_enheder = 1)
+))
+= kvote_løbende_gratis_solgt = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_femaar_lot,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteVederlagsfritTildelt,
+        resterende_anskaffelsessum_kroner = 0,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1),
+        udnyttelsesperiode_år = 5,
+        tidligere_afskrivninger_kroner = 0
+    ),
+    lager = [kvote_løbende_femaar_lot],
+    hændelse = Al40BSolgt(solgte_enheder = 1, afståelsessum_kroner = 60000)
+))
+= kvote_løbende_mælk_udelukket = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2026,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_lot_første,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BMælkekvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 700000),
+        resterende_anskaffelsessum_kroner = 700000,
+        aftaledato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+        udnyttelsesperiode_år = 10,
+        tidligere_afskrivninger_kroner = 0
+    ),
+    lager = kvote_løbende_lager,
+    hændelse = Al40BFortsatRettighed(valgt_afskrivning_kroner = 0)
+))
+= kvote_løbende_senere_solgt_før_fifo = afskrivningslov40b_resultat(Afskrivningslov40BInput(
+    indkomstår = 2028,
+    position = Afskrivningslov40BPosition(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        lot = kvote_løbende_lot_senere,
+        tilknytning = AlKvoteSelvstændigRettighed,
+        kvoteart = Al40BAndenLøbendeKvote,
+        anskaffelse = AlKvoteKøbt(købssum_kroner = 350000),
+        resterende_anskaffelsessum_kroner = 350000,
+        aftaledato = AfskrivningslovDato(år = 2027, måned = 1, dag = 1),
+        udnyttelsesperiode_år = 7,
+        tidligere_afskrivninger_kroner = 50000
+    ),
+    lager = kvote_løbende_lager,
+    hændelse = Al40BSolgt(solgte_enheder = 1, afståelsessum_kroner = 400000)
+))
+= kvote_løbende_par3_afskrivning = par3_stk2_nr10_post_resultat(Par3Nr10Al40B(resultat = kvote_løbende_syvaars_afskrivning))
+= kvote_løbende_par3_salg = par3_stk2_nr10_post_resultat(Par3Nr10Al40B(resultat = kvote_løbende_solgt))
+= kvote_løbende_par3_udløb = par3_stk2_nr10_post_resultat(Par3Nr10Al40B(resultat = kvote_løbende_udløbet))
+
+= kvote_par40d_tilflytning = afskrivningslov40d_resultat(Afskrivningslov40DInput(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    kvoteart = Al40CBetalingsrettighed,
+    skattepligtsindtræden = Al40DKildeskattelovPar9,
+    tilflytningstidspunkt = AfskrivningslovDato(år = 2026, måned = 7, dag = 1),
+    ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet = Sandt,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 100000
+))
+= kvote_par40d_dbo = afskrivningslov40d_resultat(Afskrivningslov40DInput(
+    skatteyder = AlSelskabEllerForening,
+    kvoteart = Al40CMælkekvote,
+    skattepligtsindtræden = Al40DHjemmehørendeEfterDobbeltbeskatningsoverenskomst,
+    tilflytningstidspunkt = AfskrivningslovDato(år = 2026, måned = 8, dag = 1),
+    ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet = Sandt,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 80000
+))
+= kvote_par40d_allerede_skattepligtig = afskrivningslov40d_resultat(Afskrivningslov40DInput(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    kvoteart = Al40CBetalingsrettighed,
+    skattepligtsindtræden = Al40DKildeskattelovPar9,
+    tilflytningstidspunkt = AfskrivningslovDato(år = 2026, måned = 7, dag = 1),
+    ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet = Falskt,
+    handelsværdi_på_tilflytningstidspunktet_kroner = 100000
+))
+= kvote_par40d_par40c_salg = afskrivningslov40d_til_par40c_resultat(Afskrivningslov40DPar40COverførsel(
+    indkomstår = 2026,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_primo_kroner = 0,
+    par40d_resultat = kvote_par40d_tilflytning,
+    øvrige_bevægelser_i_året = [
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 130000)
+    ]
+))
+= kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo = afskrivningslov40d_til_par40c_resultat(Afskrivningslov40DPar40COverførsel(
+    indkomstår = 2026,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_primo_kroner = 100000,
+    par40d_resultat = kvote_par40d_allerede_skattepligtig,
+    øvrige_bevægelser_i_året = [
+        Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 130000)
+    ]
+))
+= kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo = afskrivningslov40d_til_par40c_resultat(Afskrivningslov40DPar40COverførsel(
+    indkomstår = 2027,
+    begivenhed = Al40CÅrligSaldoopgørelse,
+    saldo_primo_kroner = 50000,
+    par40d_resultat = kvote_par40d_tilflytning,
+    øvrige_bevægelser_i_året = [Al40CIngenSaldobevægelse]
+))
+= kvote_par40d_par4_kapitalindkomst = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = kvote_par40d_par40c_salg
+))
+
+| scenarie_al40a_anvendelse_fradrages_forholdsmæssigt: kvote_engang_anvendt -> kvote_engang_anvendt.omfattet_af_par40a && kvote_engang_anvendt.anskaffelsessum_henført_til_hændelsen_kroner == 30000 && kvote_engang_anvendt.fradrag_for_anvendelse_i_produktionen_kroner == 30000 && kvote_engang_anvendt.resterende_enheder == 75 && kvote_engang_anvendt.resterende_anskaffelsessum_kroner == 90000
+| scenarie_al40a_salg_opgør_fortjeneste: kvote_engang_solgt -> kvote_engang_solgt.afståelsessum_kroner == 40000 && kvote_engang_solgt.anskaffelsessum_henført_til_hændelsen_kroner == 30000 && kvote_engang_solgt.skattepligtig_fortjeneste_kroner == 10000
+| scenarie_al40a_negativ_afståelsessum_afvises: kvote_engang_negativ_afståelsessum -> kvote_engang_negativ_afståelsessum.hændelse_gyldig == Falskt && kvote_engang_negativ_afståelsessum.afståelsessum_kroner == 0 && kvote_engang_negativ_afståelsessum.resterende_enheder == 100
+| scenarie_al40a_hændelse_før_erhvervelsen_afvises: kvote_engang_salg_før_erhvervelse -> kvote_engang_salg_før_erhvervelse.hændelse_gyldig == Falskt && kvote_engang_salg_før_erhvervelse.skattepligtig_fortjeneste_kroner == 0 && kvote_engang_salg_før_erhvervelse.resterende_enheder == 100
+| scenarie_al40a_fifo_plads_skal_være_entydig: kvote_engang_fifo_kollision -> kvote_engang_fifo_kollision.lager_gyldigt == Falskt && kvote_engang_fifo_kollision.skattepligtig_fortjeneste_kroner == 0
+| scenarie_al40a_udløb_sætter_afståelsessum_til_nul: kvote_engang_udløbet -> kvote_engang_udløbet.afståelsessum_kroner == 0 && kvote_engang_udløbet.fradragsberettiget_tab_kroner == 120000
+| scenarie_al40a_vederlagsfri_tildeling_har_nul_anskaffelsessum: kvote_engang_gratis_solgt -> kvote_engang_gratis_solgt.anskaffelsessum_henført_til_hændelsen_kroner == 0 && kvote_engang_gratis_solgt.skattepligtig_fortjeneste_kroner == 40000
+| scenarie_al40a_fifo_afskærer_senere_lot_indtil_første_er_tømt: kvote_engang_senere_solgt_efter_fifo -> kvote_engang_senere_solgt_før_fifo.fifo_betingelse_opfyldt == Falskt && kvote_engang_senere_solgt_før_fifo.skattepligtig_fortjeneste_kroner == 0 && kvote_engang_senere_solgt_efter_fifo.fifo_betingelse_opfyldt && kvote_engang_senere_solgt_efter_fifo.skattepligtig_fortjeneste_kroner == 10000
+| scenarie_al40a_andelsbevisrettighed_er_udelukket: kvote_engang_andelsbevis_udelukket -> kvote_engang_andelsbevis_udelukket.omfattet_af_par40a == Falskt && kvote_engang_andelsbevis_udelukket.fradrag_for_anvendelse_i_produktionen_kroner == 0
+| scenarie_al40a_personskattelov_par3_skilner_indtægt_fradrag_og_tab: kvote_engang_par3_salg -> kvote_engang_par3_anvendelse.andet_fradrag_kroner == 30000 && kvote_engang_par3_anvendelse.fradrag_i_personlig_indkomst_kroner == 30000 && kvote_engang_par3_salg.indtægtsføring_i_personlig_indkomst_kroner == 10000 && kvote_engang_par3_udløb.tab_kroner == 120000
+| scenarie_al40b_syvaarsprofil: kvote_løbende_syvaars_afskrivning -> kvote_løbende_syvaars_afskrivning.afskrivningsperiode_år == 7 && kvote_løbende_syvaars_afskrivning.højeste_afskrivning_kroner == 100000 && kvote_løbende_syvaars_afskrivning.årlig_afskrivning_kroner == 100000
+| scenarie_al40b_kortere_periode_fordeles_ligeligt: kvote_løbende_femaar_afskrivning -> kvote_løbende_femaar_afskrivning.afskrivningsperiode_år == 5 && kvote_løbende_femaar_afskrivning.år_i_afskrivningsforløbet == 3 && kvote_løbende_femaar_afskrivning.årlig_afskrivning_kroner == 100000
+| scenarie_al40b_sidste_år_bærer_kun_afrundingsrest: kvote_løbende_treaar_sidste_afrunding -> kvote_løbende_treaar_sidste_afrunding.højeste_afskrivning_kroner == 34 && kvote_løbende_treaar_sidste_afrunding.årlig_afskrivning_kroner == 34 && kvote_løbende_treaar_sidste_afrunding.nedskrevet_værdi_efter_året_kroner == 0
+| scenarie_al40b_manglende_tidligere_afskrivning_kan_ikke_opsamles: kvote_løbende_efter_syvende_år -> kvote_løbende_syvende_år_uden_opsamling.højeste_afskrivning_kroner == 100000 && kvote_løbende_efter_syvende_år.højeste_afskrivning_kroner == 0 && kvote_løbende_efter_syvende_år.nedskrevet_værdi_efter_året_kroner == 700000
+| scenarie_al40b_salg_bruger_nedskrevet_værdi: kvote_løbende_solgt -> kvote_løbende_solgt.nedskrevet_værdi_før_året_kroner == 500000 && kvote_løbende_solgt.skattepligtig_fortjeneste_kroner == 150000 && kvote_løbende_solgt.position_efter.lot.resterende_enheder == 0
+| scenarie_al40b_før_aftaleåret_afvises: kvote_løbende_fortsættelse_før_aftaleåret -> kvote_løbende_fortsættelse_før_aftaleåret.valg_gyldigt == Falskt && kvote_løbende_fortsættelse_før_aftaleåret.årlig_afskrivning_kroner == 0
+| scenarie_al40b_andel_sælges_forholdsmæssigt_og_positionen_fortsætter: kvote_løbende_andel_efterfølgende_afskrivning -> kvote_løbende_andel_solgt.disponerede_enheder == 25 && kvote_løbende_andel_solgt.anskaffelsessum_henført_til_disposition_kroner == 175000 && kvote_løbende_andel_solgt.tidligere_afskrivninger_henført_til_disposition_kroner == 50000 && kvote_løbende_andel_solgt.nedskrevet_værdi_henført_til_disposition_kroner == 125000 && kvote_løbende_andel_solgt.skattepligtig_fortjeneste_kroner == 25000 && kvote_løbende_andel_solgt.resterende_enheder == 75 && kvote_løbende_andel_solgt.resterende_anskaffelsessum_kroner == 525000 && kvote_løbende_andel_efterfølgende_afskrivning.højeste_afskrivning_kroner == 75000 && kvote_løbende_andel_efterfølgende_afskrivning.årlig_afskrivning_kroner == 75000
+| scenarie_al40b_udløb_sætter_afståelsessum_til_nul: kvote_løbende_udløbet -> kvote_løbende_udløbet.afståelsessum_kroner == 0 && kvote_løbende_udløbet.fradragsberettiget_tab_kroner == 200000
+| scenarie_al40b_vederlagsfri_tildeling_har_nul_grundlag: kvote_løbende_gratis_solgt -> kvote_løbende_gratis_solgt.anskaffelsessum_kroner == 0 && kvote_løbende_gratis_solgt.skattepligtig_fortjeneste_kroner == 60000
+| scenarie_al40b_mælkekvote_og_senere_fifo_lot_afskæres: kvote_løbende_senere_solgt_før_fifo -> kvote_løbende_mælk_udelukket.omfattet_af_par40b == Falskt && kvote_løbende_senere_solgt_før_fifo.fifo_betingelse_opfyldt == Falskt && kvote_løbende_senere_solgt_før_fifo.skattepligtig_fortjeneste_kroner == 0
+| scenarie_al40b_personskattelov_par3_skilner_afskrivning_indtægt_og_tab: kvote_løbende_par3_salg -> kvote_løbende_par3_afskrivning.skattemæssig_afskrivning_kroner == 100000 && kvote_løbende_par3_afskrivning.fradrag_i_personlig_indkomst_kroner == 100000 && kvote_løbende_par3_salg.indtægtsføring_i_personlig_indkomst_kroner == 150000 && kvote_løbende_par3_udløb.tab_kroner == 200000
+| scenarie_al40d_tilflytningsværdi_bliver_typed_par40c_anskaffelse: kvote_par40d_tilflytning -> kvote_par40d_tilflytning.omfattet_af_par40d && kvote_par40d_tilflytning.anskaffelsessum_til_par40c_saldo_kroner == 100000 && kvote_par40d_tilflytning.par40c_saldobevægelse == Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 100000)
+| scenarie_al40d_dbo_hjemmehørende_sidestilles: kvote_par40d_dbo -> kvote_par40d_dbo.dobbeltbeskatningsoverenskomst_sidestilles_med_skattepligtsindtræden && kvote_par40d_dbo.omfattet_af_par40d && kvote_par40d_dbo.anskaffelsessum_til_par40c_saldo_kroner == 80000
+| scenarie_al40d_forudgående_skattepligt_giver_ingen_saldobevægelse: kvote_par40d_allerede_skattepligtig -> kvote_par40d_allerede_skattepligtig.omfattet_af_par40d == Falskt && kvote_par40d_allerede_skattepligtig.par40c_saldobevægelse == Al40CIngenSaldobevægelse
+| scenarie_al40d_ingen_ny_bevægelse_deaktiverer_ikke_par40c_saldo: kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo -> kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo.omfattet_af_par40c && kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo.negativ_saldo_indtægtsført_kroner == 30000
+| scenarie_al40d_overføres_kun_i_tilflytningsåret: kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo -> kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo.anskaffelsessummer_i_året_kroner == 0 && kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo.positiv_saldo_uden_fradrag_kroner == 50000
+| scenarie_al40d_par40c_par4_kæde: kvote_par40d_par4_kapitalindkomst -> kvote_par40d_par40c_salg.anskaffelsessummer_i_året_kroner == 100000 && kvote_par40d_par40c_salg.afståelsessummer_i_året_kroner == 130000 && kvote_par40d_par40c_salg.negativ_saldo_indtægtsført_kroner == 30000 && kvote_par40d_par4_kapitalindkomst.kapitalindkomst_kroner == 30000
+
+? scenarie_al40a_anvendelse_fradrages_forholdsmæssigt
+? scenarie_al40a_salg_opgør_fortjeneste
+? scenarie_al40a_negativ_afståelsessum_afvises
+? scenarie_al40a_hændelse_før_erhvervelsen_afvises
+? scenarie_al40a_fifo_plads_skal_være_entydig
+? scenarie_al40a_udløb_sætter_afståelsessum_til_nul
+? scenarie_al40a_vederlagsfri_tildeling_har_nul_anskaffelsessum
+? scenarie_al40a_fifo_afskærer_senere_lot_indtil_første_er_tømt
+? scenarie_al40a_andelsbevisrettighed_er_udelukket
+? scenarie_al40a_personskattelov_par3_skilner_indtægt_fradrag_og_tab
+? scenarie_al40b_syvaarsprofil
+? scenarie_al40b_kortere_periode_fordeles_ligeligt
+? scenarie_al40b_sidste_år_bærer_kun_afrundingsrest
+? scenarie_al40b_manglende_tidligere_afskrivning_kan_ikke_opsamles
+? scenarie_al40b_salg_bruger_nedskrevet_værdi
+? scenarie_al40b_før_aftaleåret_afvises
+? scenarie_al40b_andel_sælges_forholdsmæssigt_og_positionen_fortsætter
+? scenarie_al40b_udløb_sætter_afståelsessum_til_nul
+? scenarie_al40b_vederlagsfri_tildeling_har_nul_grundlag
+? scenarie_al40b_mælkekvote_og_senere_fifo_lot_afskæres
+? scenarie_al40b_personskattelov_par3_skilner_afskrivning_indtægt_og_tab
+? scenarie_al40d_tilflytningsværdi_bliver_typed_par40c_anskaffelse
+? scenarie_al40d_dbo_hjemmehørende_sidestilles
+? scenarie_al40d_forudgående_skattepligt_giver_ingen_saldobevægelse
+? scenarie_al40d_ingen_ny_bevægelse_deaktiverer_ikke_par40c_saldo
+? scenarie_al40d_overføres_kun_i_tilflytningsåret
+? scenarie_al40d_par40c_par4_kæde
+
+@ print("AL §40 A anvendelsesfradrag: " + vis(kvote_engang_anvendt.fradrag_for_anvendelse_i_produktionen_kroner))
+@ print("AL §40 B årlig afskrivning: " + vis(kvote_løbende_syvaars_afskrivning.årlig_afskrivning_kroner))
+@ print("AL §40 D via §40 C til kapitalindkomst: " + vis(kvote_par40d_par4_kapitalindkomst.kapitalindkomst_kroner))
