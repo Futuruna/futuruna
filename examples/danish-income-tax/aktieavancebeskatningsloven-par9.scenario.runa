@@ -25,6 +25,17 @@
     obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
     indkomstår_forskelligt_fra_kalenderår = Falskt
 ))
+| par9_scenarie_par5a_resultat_uden_reduktion(bruttotab_ved_afståelse_kroner: Heltal) -> aktieavance_par5a_resultat(AktieavancePar5AInput(
+    bruttotab_ved_afståelse_kroner = bruttotab_ved_afståelse_kroner,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 0,
+        allerede_anvendt_til_tabsreduktion_kroner = 0
+    ),
+    koncernbeløb = []
+))
 | par9_scenarie_lagerpost(input: Par9ScenarieLagerpostInput) -> aktieavance_par9_post_resultat(AktieavancePar9PostInput(
     aktivstatus = input.aktivstatus,
     opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat = aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
@@ -36,7 +47,8 @@
         afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
         ville_være_par17_uden_investeringsstatus = Falskt,
         oplysningsbetingelse_efter_par19d_opfyldt = Sandt
-    )))
+    ))),
+    par5a_behandling = AblPar5ALagerafståelser(resultater = [])
 ))
 | par9_scenarie_realisationspost(input: Par9ScenarieRealisationspostInput) -> aktieavance_par9_post_resultat(AktieavancePar9PostInput(
     aktivstatus = input.aktivstatus,
@@ -44,7 +56,8 @@
         princip_resultat = input.princip_resultat,
         afståelsessum_kroner = input.afståelsessum_kroner,
         anskaffelsessum_kroner = input.anskaffelsessum_kroner
-    )
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par9_scenarie_par5a_resultat_uden_reduktion(penge_positivt_beløb(input.anskaffelsessum_kroner - input.afståelsessum_kroner)))
 ))
 
 = par9_lager_princip_2026 = par9_scenarie_princip_resultat(Par9ScenariePrincipInput(
@@ -206,7 +219,8 @@
             skattemæssig_anskaffelsessum_kroner = 100000,
             hændelse = AblPar23ABeholdesVedÅretsSlutning(værdi_ultimo_kroner = 120000)
         ))
-    )
+    ),
+    par5a_behandling = AblPar5AUdenAfståelsestab
 ))
 = par9_koncerninternt_afståelsestab = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
     aktivstatus = AblPar9KoncerninternKonvertibelObligation,
@@ -217,7 +231,8 @@
             skattemæssig_anskaffelsessum_kroner = 100000,
             hændelse = AblPar23AAfståsIÅret(afståelsessum_kroner = 120000)
         ))
-    )
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par9_scenarie_par5a_resultat_uden_reduktion(30000))
 ))
 = par9_koncerninternt_tabsår = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
     indkomstår = 2026,

@@ -1,0 +1,146 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven
+@ importer ./pengebeloeb
+
+= aktieavancebeskatningsloven_lbk1098_par5a = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 5 A",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lbk1098_par22_stk6 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 22, stk. 6: § 5 A finder ikke anvendelse",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2011/254",
+    identifier = "LOV nr. 254 af 30/03/2011, § 1, nr. 7, og § 14, stk. 5 og 11: § 5 A, virkning fra 24. november 2010 og tidligere statusskifter",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par5a = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1950044",
+    identifier = "Den juridiske vejledning C.B.2.1.7.4: begrænsning af tabsfradrag som følge af skattefrit udbytte",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946340",
+    identifier = "Den juridiske vejledning C.B.2.3.6: § 5 A før modregning efter § 9",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:aktieavancebeskatningsloven_par5a::source:aktieavancebeskatningsloven_lbk1098_par5a::exclusion_source:aktieavancebeskatningsloven_lbk1098_par22_stk6::amendment_source:aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par5a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+----
+§ 5 A. Tab ved afståelse af aktier kan kun fradrages, i det omfang tabet
+overstiger summen af følgende modtagne udbytter:
+1) Modtagne udbytter af de pågældende aktier, som den skattepligtige i
+ejertiden har været fritaget for at medregne ved indkomstopgørelsen.
+2) Modtagne udbytter af de pågældende aktier, hvor den skattepligtige har
+opnået lempelse vedrørende udbytteudlodninger efter en
+dobbeltbeskatningsoverenskomst med et større beløb end den skat, der er betalt
+til den fremmede stat. Der medregnes et beløb, der modsvarer den forøgede
+lempelse.
+
+Stk. 2. Summen af modtagne udbytter i stk. 1 forhøjes, i det omfang den
+skattepligtige af udbyttepræferenceaktier i det pågældende selskab har modtaget
+tilsvarende udbytter, som ikke allerede har reduceret tabsfradrag efter stk. 1.
+
+Stk. 3. Selskaber, der er skattepligtige efter § 17 eller er omfattet af § 43,
+stk. 4, skal til summen af modtagne udbytter efter stk. 1 medregne ethvert
+tilskud og udbytte af udbyttepræferenceaktier ydet af det aktietabsgivende
+koncernselskab og koncernselskaber, som det aktietabsgivende koncernselskab
+direkte eller indirekte har bestemmende indflydelse over, til andre
+koncernselskaber, som det aktietabsgivende koncernselskab ikke har direkte eller
+indirekte bestemmende indflydelse over. Ved koncernselskaber forstås selskaber i
+samme koncern efter selskabsskattelovens § 31 C. 1. pkt. finder tilsvarende
+anvendelse for personer, der er skattepligtige efter § 7, hvis disse direkte
+eller indirekte har bestemmende indflydelse over såvel det tilskudsydende som
+det tilskudsmodtagende selskab.
+
+§ 22.
+
+Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
+13 A, 19 B, 19 C og 44 ikke anvendelse. Stk. 1 finder ikke anvendelse i de i
+§ 17 nævnte tilfælde.
+
+LOV nr. 254 af 30. marts 2011, § 14, stk. 5:
+
+§ 1, nr. 7, 9 og 11, § 4, nr. 2, og § 8, nr. 8, har virkning for afståelser,
+der finder sted den 24. november 2010 eller senere.
+
+Stk. 11. § 1, nr. 23, har virkning fra og med indkomståret 2010.
+Aktieavancebeskatningslovens § 5 A som affattet ved denne lovs § 1, nr. 7,
+finder tilsvarende anvendelse ved opgørelse af tab, hvor det skattemæssige
+statusskifte sker inden den 24. november 2010.
+----
+
+--@begin:aktieavancebeskatningsloven_par5a--
+# AktieavancePar5AAnvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere | AblPar5AAfståelseFørDen24November2010 | AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11 | AblPar5AUndtagetEfterPar22Stk6
+# AktieavancePar5ASkatteydergrundlag = AblPar5ASelskabSkattepligtigtEfterPar17 | AblPar5ASelskabOmfattetAfPar43Stk4 | AblPar5APersonSkattepligtigEfterPar7 | AblPar5AAndenSkattepligtig
+# AktieavancePar5AEjertidsudbytte = AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner: Heltal) | AblPar5AUdbytteMedDobbeltbeskatningslempelse(beløb_kroner: Heltal, lempelse_kroner: Heltal, betalt_skat_i_fremmed_stat_kroner: Heltal) | AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner: Heltal)
+# AktieavancePar5APræferenceposition(modtaget_tilsvarende_udbytte_kroner: Heltal, allerede_anvendt_til_tabsreduktion_kroner: Heltal)
+# AktieavancePar5AKoncernbeløbsart = AblPar5ATilskud | AblPar5AUdbytteAfUdbyttepræferenceaktier | AblPar5AAndetKoncernbeløb
+# AktieavancePar5AYderrelation = AblPar5AAktietabsgivendeKoncernselskab | AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AAndetYdendeSelskab
+# AktieavancePar5AModtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AIkkeKoncernselskabEfterSelskabsskattelovPar31C
+# AktieavancePar5APersonkontrol = AblPar5APersonKontrollererYderOgModtager | AblPar5APersonKontrollererIkkeBådeYderOgModtager | AblPar5APersonkontrolIkkeRelevant
+# AktieavancePar5AKoncernbeløb(art: AktieavancePar5AKoncernbeløbsart, yderrelation: AktieavancePar5AYderrelation, modtagerrelation: AktieavancePar5AModtagerrelation, personkontrol: AktieavancePar5APersonkontrol, beløb_kroner: Heltal)
+# AktieavancePar5AInput(bruttotab_ved_afståelse_kroner: Heltal, anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
+# AktieavancePar5AResultat(input: AktieavancePar5AInput, input_gyldigt: Boolsk, reglen_finder_anvendelse: Boolsk, skattefrie_udbytter_efter_stk1_nr1_kroner: Heltal, forøget_lempelse_efter_stk1_nr2_kroner: Heltal, reduktionsgrundlag_efter_stk1_kroner: Heltal, uudnyttede_præferenceudbytter_efter_stk2_kroner: Heltal, koncernbeløb_efter_stk3_kroner: Heltal, samlet_reduktionsgrundlag_kroner: Heltal, tabsreduktion_efter_par5a_kroner: Heltal, fradragsberettiget_tab_efter_par5a_kroner: Heltal)
+# AktieavancePar5ABehandling = AblPar5AUdenAfståelsestab | AblPar5AEnkeltAfståelse(resultat: AktieavancePar5AResultat) | AblPar5ALagerafståelser(resultater: List(AktieavancePar5AResultat))
+
+| aktieavance_par5a_ejertidsudbytte_gyldigt(udbytte: AktieavancePar5AEjertidsudbytte) -> match udbytte {
+    | AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner) -> beløb_kroner >= 0
+    | AblPar5AUdbytteMedDobbeltbeskatningslempelse(beløb_kroner, lempelse_kroner, betalt_skat_i_fremmed_stat_kroner) -> beløb_kroner >= 0 && lempelse_kroner >= 0 && betalt_skat_i_fremmed_stat_kroner >= 0
+    | AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner) -> beløb_kroner >= 0
+}
+| aktieavance_par5a_skattefrit_udbytte_efter_stk1_nr1_kroner(udbytte: AktieavancePar5AEjertidsudbytte) -> match udbytte { | AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner) -> beløb_kroner | _ -> 0 }
+| aktieavance_par5a_forøget_lempelse_efter_stk1_nr2_kroner(udbytte: AktieavancePar5AEjertidsudbytte) -> match udbytte { | AblPar5AUdbytteMedDobbeltbeskatningslempelse(_, lempelse_kroner, betalt_skat_i_fremmed_stat_kroner) -> penge_positivt_beløb(lempelse_kroner - betalt_skat_i_fremmed_stat_kroner) | _ -> 0 }
+| aktieavance_par5a_præferenceposition_gyldig(position: AktieavancePar5APræferenceposition) -> position.modtaget_tilsvarende_udbytte_kroner >= 0 && position.allerede_anvendt_til_tabsreduktion_kroner >= 0 && position.allerede_anvendt_til_tabsreduktion_kroner <= position.modtaget_tilsvarende_udbytte_kroner
+| aktieavance_par5a_uudnyttede_præferenceudbytter_kroner(position: AktieavancePar5APræferenceposition) -> hvis aktieavance_par5a_præferenceposition_gyldig(position) { position.modtaget_tilsvarende_udbytte_kroner - position.allerede_anvendt_til_tabsreduktion_kroner } ellers { 0 }
+| aktieavance_par5a_koncernbeløb_personkontrol_gyldig(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, personkontrol: AktieavancePar5APersonkontrol) -> hvis skatteydergrundlag == AblPar5APersonSkattepligtigEfterPar7 { personkontrol != AblPar5APersonkontrolIkkeRelevant } ellers { personkontrol == AblPar5APersonkontrolIkkeRelevant }
+| aktieavance_par5a_koncernbeløb_gyldigt(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, koncernbeløb: AktieavancePar5AKoncernbeløb) -> koncernbeløb.beløb_kroner >= 0 && aktieavance_par5a_koncernbeløb_personkontrol_gyldig(skatteydergrundlag, koncernbeløb.personkontrol)
+| aktieavance_par5a_koncernbeløbsart_omfattet(art: AktieavancePar5AKoncernbeløbsart) -> art == AblPar5ATilskud || art == AblPar5AUdbytteAfUdbyttepræferenceaktier
+| aktieavance_par5a_yderrelation_omfattet(relation: AktieavancePar5AYderrelation) -> relation == AblPar5AAktietabsgivendeKoncernselskab || relation == AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab
+| aktieavance_par5a_modtagerrelation_omfattet(relation: AktieavancePar5AModtagerrelation) -> relation == AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab
+| aktieavance_par5a_skatteyder_omfattet_af_stk3(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, personkontrol: AktieavancePar5APersonkontrol) -> skatteydergrundlag == AblPar5ASelskabSkattepligtigtEfterPar17 || skatteydergrundlag == AblPar5ASelskabOmfattetAfPar43Stk4 || skatteydergrundlag == AblPar5APersonSkattepligtigEfterPar7 && personkontrol == AblPar5APersonKontrollererYderOgModtager
+| aktieavance_par5a_koncernbeløb_omfattet_af_stk3(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, koncernbeløb: AktieavancePar5AKoncernbeløb) -> aktieavance_par5a_koncernbeløbsart_omfattet(koncernbeløb.art) && aktieavance_par5a_yderrelation_omfattet(koncernbeløb.yderrelation) && aktieavance_par5a_modtagerrelation_omfattet(koncernbeløb.modtagerrelation) && aktieavance_par5a_skatteyder_omfattet_af_stk3(skatteydergrundlag, koncernbeløb.personkontrol)
+| aktieavance_par5a_koncernbeløb_efter_stk3_kroner(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, koncernbeløb: AktieavancePar5AKoncernbeløb) -> hvis aktieavance_par5a_koncernbeløb_omfattet_af_stk3(skatteydergrundlag, koncernbeløb) { koncernbeløb.beløb_kroner } ellers { 0 }
+
+# AktieavancePar5ASag(input: AktieavancePar5AInput) {
+    | alle_ejertidsudbytter_gyldige() -> foldl(input.ejertidsudbytter, Sandt, |gyldige: Boolsk, udbytte: AktieavancePar5AEjertidsudbytte| gyldige && aktieavance_par5a_ejertidsudbytte_gyldigt(udbytte))
+    | alle_koncernbeløb_gyldige() -> foldl(input.koncernbeløb, Sandt, |gyldige: Boolsk, koncernbeløb: AktieavancePar5AKoncernbeløb| gyldige && aktieavance_par5a_koncernbeløb_gyldigt(input.skatteydergrundlag, koncernbeløb))
+    | input_gyldigt() -> input.bruttotab_ved_afståelse_kroner >= 0 && alle_ejertidsudbytter_gyldige() && aktieavance_par5a_præferenceposition_gyldig(input.præferenceposition) && alle_koncernbeløb_gyldige()
+    | reglen_finder_anvendelse() -> input_gyldigt() && (input.anvendelsesgrundlag == AblPar5AAfståelseDen24November2010EllerSenere || input.anvendelsesgrundlag == AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11)
+    | skattefrie_udbytter_efter_stk1_nr1_kroner() -> hvis input_gyldigt() { foldl(input.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_skattefrit_udbytte_efter_stk1_nr1_kroner(udbytte)) } ellers { 0 }
+    | forøget_lempelse_efter_stk1_nr2_kroner() -> hvis input_gyldigt() { foldl(input.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_forøget_lempelse_efter_stk1_nr2_kroner(udbytte)) } ellers { 0 }
+    | reduktionsgrundlag_efter_stk1_kroner() -> skattefrie_udbytter_efter_stk1_nr1_kroner() + forøget_lempelse_efter_stk1_nr2_kroner()
+    | uudnyttede_præferenceudbytter_efter_stk2_kroner() -> hvis input_gyldigt() { aktieavance_par5a_uudnyttede_præferenceudbytter_kroner(input.præferenceposition) } ellers { 0 }
+    | koncernbeløb_efter_stk3_kroner() -> hvis input_gyldigt() { foldl(input.koncernbeløb, 0, |sum: Heltal, koncernbeløb: AktieavancePar5AKoncernbeløb| sum + aktieavance_par5a_koncernbeløb_efter_stk3_kroner(input.skatteydergrundlag, koncernbeløb)) } ellers { 0 }
+    | samlet_reduktionsgrundlag_kroner() -> reduktionsgrundlag_efter_stk1_kroner() + uudnyttede_præferenceudbytter_efter_stk2_kroner() + koncernbeløb_efter_stk3_kroner()
+    | tabsreduktion_efter_par5a_kroner() -> 0
+    | exception abl_par5a_reducerer_afståelsestabet tabsreduktion_efter_par5a_kroner() -> penge_mindste_beløb(input.bruttotab_ved_afståelse_kroner, samlet_reduktionsgrundlag_kroner()) under reglen_finder_anvendelse()
+    | fradragsberettiget_tab_efter_par5a_kroner() -> 0
+    | exception abl_par5a_gyldigt_tab_efter_reduktion fradragsberettiget_tab_efter_par5a_kroner() -> input.bruttotab_ved_afståelse_kroner - tabsreduktion_efter_par5a_kroner() under input_gyldigt()
+    | resultat() -> AktieavancePar5AResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        reglen_finder_anvendelse = reglen_finder_anvendelse(),
+        skattefrie_udbytter_efter_stk1_nr1_kroner = skattefrie_udbytter_efter_stk1_nr1_kroner(),
+        forøget_lempelse_efter_stk1_nr2_kroner = forøget_lempelse_efter_stk1_nr2_kroner(),
+        reduktionsgrundlag_efter_stk1_kroner = reduktionsgrundlag_efter_stk1_kroner(),
+        uudnyttede_præferenceudbytter_efter_stk2_kroner = uudnyttede_præferenceudbytter_efter_stk2_kroner(),
+        koncernbeløb_efter_stk3_kroner = koncernbeløb_efter_stk3_kroner(),
+        samlet_reduktionsgrundlag_kroner = samlet_reduktionsgrundlag_kroner(),
+        tabsreduktion_efter_par5a_kroner = tabsreduktion_efter_par5a_kroner(),
+        fradragsberettiget_tab_efter_par5a_kroner = fradragsberettiget_tab_efter_par5a_kroner()
+    )
+}
+
+| aktieavance_par5a_resultat(input: AktieavancePar5AInput) -> AktieavancePar5ASag(input).resultat()
+| aktieavance_par5a_resultatliste_gyldig(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, Sandt, |gyldige: Boolsk, resultat: AktieavancePar5AResultat| gyldige && resultat.input_gyldigt)
+| aktieavance_par5a_resultatliste_bruttotab_kroner(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: AktieavancePar5AResultat| sum + resultat.input.bruttotab_ved_afståelse_kroner)
+| aktieavance_par5a_resultatliste_tabsreduktion_kroner(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: AktieavancePar5AResultat| sum + resultat.tabsreduktion_efter_par5a_kroner)
+| aktieavance_par5a_behandling_gyldig(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> Sandt | AblPar5AEnkeltAfståelse(resultat) -> resultat.input_gyldigt | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_gyldig(resultater) }
+| aktieavance_par5a_behandling_bruttotab_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.input.bruttotab_ved_afståelse_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_bruttotab_kroner(resultater) }
+| aktieavance_par5a_behandling_tabsreduktion_kroner(behandling: AktieavancePar5ABehandling) -> match behandling { | AblPar5AUdenAfståelsestab -> 0 | AblPar5AEnkeltAfståelse(resultat) -> resultat.tabsreduktion_efter_par5a_kroner | AblPar5ALagerafståelser(resultater) -> aktieavance_par5a_resultatliste_tabsreduktion_kroner(resultater) }
+--@end:aktieavancebeskatningsloven_par5a--

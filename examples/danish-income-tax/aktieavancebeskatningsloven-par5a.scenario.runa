@@ -1,0 +1,300 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par9
+
+# Par5AScenarieInput(bruttotab_ved_afståelse_kroner: Heltal, anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
+
+= par5a_ingen_præferenceudbytter = AktieavancePar5APræferenceposition(
+    modtaget_tilsvarende_udbytte_kroner = 0,
+    allerede_anvendt_til_tabsreduktion_kroner = 0
+)
+= par5a_intet_stk7_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+
+| par5a_scenarie_resultat(input: Par5AScenarieInput) -> aktieavance_par5a_resultat(AktieavancePar5AInput(
+    bruttotab_ved_afståelse_kroner = input.bruttotab_ved_afståelse_kroner,
+    anvendelsesgrundlag = input.anvendelsesgrundlag,
+    skatteydergrundlag = input.skatteydergrundlag,
+    ejertidsudbytter = input.ejertidsudbytter,
+    præferenceposition = input.præferenceposition,
+    koncernbeløb = input.koncernbeløb
+))
+
+= par5a_kvalificerende_tilskud_25000 = AktieavancePar5AKoncernbeløb(
+    art = AblPar5ATilskud,
+    yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonkontrolIkkeRelevant,
+    beløb_kroner = 25000
+)
+= par5a_kvalificerende_præferenceudbytte_15000 = AktieavancePar5AKoncernbeløb(
+    art = AblPar5AUdbytteAfUdbyttepræferenceaktier,
+    yderrelation = AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonkontrolIkkeRelevant,
+    beløb_kroner = 15000
+)
+= par5a_andet_koncernbeløb_50000 = AktieavancePar5AKoncernbeløb(
+    art = AblPar5AAndetKoncernbeløb,
+    yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonkontrolIkkeRelevant,
+    beløb_kroner = 50000
+)
+= par5a_tilskud_til_kontrolleret_modtager_60000 = AktieavancePar5AKoncernbeløb(
+    art = AblPar5ATilskud,
+    yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonkontrolIkkeRelevant,
+    beløb_kroner = 60000
+)
+
+= par5a_alle_reduktionsled = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 120000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5ASelskabSkattepligtigtEfterPar17,
+    ejertidsudbytter = [
+        AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 30000),
+        AblPar5AUdbytteMedDobbeltbeskatningslempelse(
+            beløb_kroner = 50000,
+            lempelse_kroner = 15000,
+            betalt_skat_i_fremmed_stat_kroner = 10000
+        ),
+        AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner = 20000)
+    ],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 40000,
+        allerede_anvendt_til_tabsreduktion_kroner = 10000
+    ),
+    koncernbeløb = [
+        par5a_kvalificerende_tilskud_25000,
+        par5a_kvalificerende_præferenceudbytte_15000,
+        par5a_andet_koncernbeløb_50000,
+        par5a_tilskud_til_kontrolleret_modtager_60000
+    ]
+))
+= par5a_reduktion_loftet_til_tabet = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 100000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5ASelskabSkattepligtigtEfterPar17,
+    ejertidsudbytter = [
+        AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 30000),
+        AblPar5AUdbytteMedDobbeltbeskatningslempelse(
+            beløb_kroner = 50000,
+            lempelse_kroner = 15000,
+            betalt_skat_i_fremmed_stat_kroner = 10000
+        )
+    ],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 40000,
+        allerede_anvendt_til_tabsreduktion_kroner = 10000
+    ),
+    koncernbeløb = [par5a_kvalificerende_tilskud_25000, par5a_kvalificerende_præferenceudbytte_15000]
+))
+= par5a_lempelse_uden_forøgelse = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 20000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [
+        AblPar5AUdbytteMedDobbeltbeskatningslempelse(
+            beløb_kroner = 30000,
+            lempelse_kroner = 5000,
+            betalt_skat_i_fremmed_stat_kroner = 10000
+        ),
+        AblPar5AAndetUdbytteAfPågældendeAktier(beløb_kroner = 40000)
+    ],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+
+= par5a_person_tilskud_med_kontrol = AktieavancePar5AKoncernbeløb(
+    art = AblPar5ATilskud,
+    yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonKontrollererYderOgModtager,
+    beløb_kroner = 12000
+)
+= par5a_person_tilskud_uden_kontrol = AktieavancePar5AKoncernbeløb(
+    art = AblPar5ATilskud,
+    yderrelation = AblPar5AAktietabsgivendeKoncernselskab,
+    modtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab,
+    personkontrol = AblPar5APersonKontrollererIkkeBådeYderOgModtager,
+    beløb_kroner = 18000
+)
+= par5a_person_stk3 = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+    ejertidsudbytter = [],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = [par5a_person_tilskud_med_kontrol, par5a_person_tilskud_uden_kontrol]
+))
+= par5a_anden_skatteyder_stk3 = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = [par5a_kvalificerende_tilskud_25000]
+))
+
+= par5a_negativt_udbytte_afvises = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 20000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = -1)],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_overforbrugt_præferenceposition_afvises = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 20000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 10000,
+        allerede_anvendt_til_tabsreduktion_kroner = 10001
+    ),
+    koncernbeløb = []
+))
+
+= par5a_før_virkningstidspunkt = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AAfståelseFørDen24November2010,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 20000)],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_undtaget_efter_par22_stk6 = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AUndtagetEfterPar22Stk6,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 20000)],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_tidligt_statusskifte_omfattet_efter_lov254 = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 20000)],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+
+= par5a_par9_princip = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
+    indkomstår = 2026,
+    opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
+    skattepligtig = AblSkattepligtigEfterPar6,
+    aktiv = AblPar9Aktie(
+        selskabsidentifikation = "DK-P5A-P9",
+        markedsstatus = AblIkkeOptagetTilHandel
+    ),
+    stk2_valg = AblIntetPar23Stk2Valg,
+    stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+    stk6_valg = AblRealisationsprincipForAlleUnoteredePar9Aktier(
+        har_tidligere_anvendt_lagerprincip = Falskt
+    ),
+    stk7_valg = par5a_intet_stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+    indkomstår_forskelligt_fra_kalenderår = Falskt
+))
+= par5a_par9_tabsresultat = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 50000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 20000)],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_par9_gevinstresultat = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 0,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_par9_tabspost = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9RealiseretAfståelse(
+        princip_resultat = par5a_par9_princip,
+        afståelsessum_kroner = 50000,
+        anskaffelsessum_kroner = 100000
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_par9_tabsresultat)
+))
+= par5a_par9_gevinstpost = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9RealiseretAfståelse(
+        princip_resultat = par5a_par9_princip,
+        afståelsessum_kroner = 115000,
+        anskaffelsessum_kroner = 100000
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_par9_gevinstresultat)
+))
+= par5a_par9_årsresultat = aktieavance_par9_årsresultat(AktieavancePar9Årsinput(
+    indkomstår = 2026,
+    poster = [par5a_par9_tabspost, par5a_par9_gevinstpost],
+    fremførsel = AblPar9IngenFremførsel,
+    principovergange = []
+))
+= par5a_par9_mismatch_resultat = par5a_scenarie_resultat(Par5AScenarieInput(
+    bruttotab_ved_afståelse_kroner = 40000,
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5AAndenSkattepligtig,
+    ejertidsudbytter = [],
+    præferenceposition = par5a_ingen_præferenceudbytter,
+    koncernbeløb = []
+))
+= par5a_par9_mismatch_post = aktieavance_par9_post_resultat(AktieavancePar9PostInput(
+    aktivstatus = AblPar9SkattepligtigPorteføljeaktie,
+    opgørelsesgrundlag = AblPar9RealiseretAfståelse(
+        princip_resultat = par5a_par9_princip,
+        afståelsessum_kroner = 50000,
+        anskaffelsessum_kroner = 100000
+    ),
+    par5a_behandling = AblPar5AEnkeltAfståelse(resultat = par5a_par9_mismatch_resultat)
+))
+
+| par5a_stk1_nr1_og_nr2_opgøres_særskilt: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.skattefrie_udbytter_efter_stk1_nr1_kroner == 30000 && par5a_alle_reduktionsled.forøget_lempelse_efter_stk1_nr2_kroner == 5000 && par5a_alle_reduktionsled.reduktionsgrundlag_efter_stk1_kroner == 35000
+| par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.uudnyttede_præferenceudbytter_efter_stk2_kroner == 30000
+| par5a_stk3_filtrerer_art_og_koncernrelation: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.koncernbeløb_efter_stk3_kroner == 40000 && par5a_alle_reduktionsled.samlet_reduktionsgrundlag_kroner == 105000
+| par5a_resterende_tab_bevares: par5a_alle_reduktionsled -> par5a_alle_reduktionsled.tabsreduktion_efter_par5a_kroner == 105000 && par5a_alle_reduktionsled.fradragsberettiget_tab_efter_par5a_kroner == 15000
+| par5a_reduktionen_loftes_og_tabet_går_ikke_under_nul: par5a_reduktion_loftet_til_tabet -> par5a_reduktion_loftet_til_tabet.samlet_reduktionsgrundlag_kroner == 105000 && par5a_reduktion_loftet_til_tabet.tabsreduktion_efter_par5a_kroner == 100000 && par5a_reduktion_loftet_til_tabet.fradragsberettiget_tab_efter_par5a_kroner == 0
+| par5a_ingen_forøget_lempelse_og_andet_udbytte_tæller_ikke: par5a_lempelse_uden_forøgelse -> par5a_lempelse_uden_forøgelse.forøget_lempelse_efter_stk1_nr2_kroner == 0 && par5a_lempelse_uden_forøgelse.samlet_reduktionsgrundlag_kroner == 0 && par5a_lempelse_uden_forøgelse.fradragsberettiget_tab_efter_par5a_kroner == 20000
+| par5a_person_stk3_kræver_kontrol_over_begge_selskaber: par5a_person_stk3 -> par5a_person_stk3.input_gyldigt && par5a_person_stk3.koncernbeløb_efter_stk3_kroner == 12000
+| par5a_anden_skatteyder_er_uden_for_stk3: par5a_anden_skatteyder_stk3 -> par5a_anden_skatteyder_stk3.input_gyldigt && par5a_anden_skatteyder_stk3.koncernbeløb_efter_stk3_kroner == 0
+| par5a_negative_beløb_afvises: par5a_negativt_udbytte_afvises -> par5a_negativt_udbytte_afvises.input_gyldigt == Falskt && par5a_negativt_udbytte_afvises.fradragsberettiget_tab_efter_par5a_kroner == 0
+| par5a_præferenceforbrug_kan_ikke_overstige_modtaget_udbytte: par5a_overforbrugt_præferenceposition_afvises -> par5a_overforbrugt_præferenceposition_afvises.input_gyldigt == Falskt
+| par5a_før_virkningstidspunktet_reducerer_ikke: par5a_før_virkningstidspunkt -> par5a_før_virkningstidspunkt.input_gyldigt && par5a_før_virkningstidspunkt.reglen_finder_anvendelse == Falskt && par5a_før_virkningstidspunkt.tabsreduktion_efter_par5a_kroner == 0 && par5a_før_virkningstidspunkt.fradragsberettiget_tab_efter_par5a_kroner == 50000
+| par5a_par22_stk6_undtagelsen_reducerer_ikke: par5a_undtaget_efter_par22_stk6 -> par5a_undtaget_efter_par22_stk6.input_gyldigt && par5a_undtaget_efter_par22_stk6.reglen_finder_anvendelse == Falskt && par5a_undtaget_efter_par22_stk6.fradragsberettiget_tab_efter_par5a_kroner == 50000
+| par5a_tidligt_statusskifte_er_udtrykkeligt_omfattet: par5a_tidligt_statusskifte_omfattet_efter_lov254 -> par5a_tidligt_statusskifte_omfattet_efter_lov254.reglen_finder_anvendelse && par5a_tidligt_statusskifte_omfattet_efter_lov254.tabsreduktion_efter_par5a_kroner == 20000 && par5a_tidligt_statusskifte_omfattet_efter_lov254.fradragsberettiget_tab_efter_par5a_kroner == 30000
+| par5a_par9_post_bruger_reduceret_tab: par5a_par9_tabspost -> par5a_par9_tabspost.input_gyldigt && par5a_par9_tabspost.bruttotab_kroner == 50000 && par5a_par9_tabspost.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_tabspost.tab_efter_par5a_kroner == 30000 && par5a_par9_tabspost.tab_til_modregning_efter_stk3_kroner == 30000
+| par5a_par9_reducerer_før_årets_modregning: par5a_par9_årsresultat -> par5a_par9_årsresultat.årsopgørelse_gyldig && par5a_par9_årsresultat.bruttotab_før_par5a_kroner == 50000 && par5a_par9_årsresultat.tabsreduktion_efter_par5a_kroner == 20000 && par5a_par9_årsresultat.tab_modregnet_efter_stk3_og_stk4_kroner == 15000 && par5a_par9_årsresultat.tab_fremført_efter_stk4_kroner == 15000 && par5a_par9_årsresultat.aktieavancebeskatningslov_resultat.tab_afskåret_kroner == 20000
+| par5a_par9_afviser_et_resultat_for_et_andet_bruttotab: par5a_par9_mismatch_post -> par5a_par9_mismatch_post.input_gyldigt == Falskt && par5a_par9_mismatch_post.tab_til_modregning_efter_stk3_kroner == 0
+
+? par5a_stk1_nr1_og_nr2_opgøres_særskilt
+? par5a_stk2_bruger_kun_endnu_uudnyttede_præferenceudbytter
+? par5a_stk3_filtrerer_art_og_koncernrelation
+? par5a_resterende_tab_bevares
+? par5a_reduktionen_loftes_og_tabet_går_ikke_under_nul
+? par5a_ingen_forøget_lempelse_og_andet_udbytte_tæller_ikke
+? par5a_person_stk3_kræver_kontrol_over_begge_selskaber
+? par5a_anden_skatteyder_er_uden_for_stk3
+? par5a_negative_beløb_afvises
+? par5a_præferenceforbrug_kan_ikke_overstige_modtaget_udbytte
+? par5a_før_virkningstidspunktet_reducerer_ikke
+? par5a_par22_stk6_undtagelsen_reducerer_ikke
+? par5a_tidligt_statusskifte_er_udtrykkeligt_omfattet
+? par5a_par9_post_bruger_reduceret_tab
+? par5a_par9_reducerer_før_årets_modregning
+? par5a_par9_afviser_et_resultat_for_et_andet_bruttotab
+
+@ print("ABL § 5 A reduktionsgrundlag: " + vis(par5a_alle_reduktionsled.samlet_reduktionsgrundlag_kroner))
+@ print("ABL § 5 A tab efter § 9-komposition: " + vis(par5a_par9_tabspost.tab_efter_par5a_kroner))

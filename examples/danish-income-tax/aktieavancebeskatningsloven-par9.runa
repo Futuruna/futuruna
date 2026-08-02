@@ -2,6 +2,7 @@
 
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par23 - 27
+@ importer ./aktieavancebeskatningsloven - par5a
 @ importer ./pengebeloeb
 
 = aktieavancebeskatningsloven_lbk1098_par9 = AktieavancebeskatningslovKildeInfo(
@@ -24,13 +25,7 @@
     beskrivelse = "Loven og LSF 28 beskriver hvert tabs modregningsgrundlag, men angiver ikke en indbyrdes rækkefølge, når både stk. 3-4-tab og stk. 5-6-tab kan rummes i samme realisationsgevinst. Modellen anvender den ældre og snævrere stk. 3-4-beholdning først og bevarer begge saldi særskilt.",
     status = "Fortolkningsvalg kræver administrativ bekræftelse"
 )
-= aktieavance_par9_par5a_afhængighedsgrænse = AktieavancebeskatningslovDækningsgrænse(
-    område = "Aktieavancebeskatningsloven § 5 A før § 9-tabsbehandling",
-    beskrivelse = "De typede § 9-poster anvender opgørte bruttoresultater. § 5 A's reduktion af afståelsestab med skattefrie udbytter, udbyttepræferencebeløb, forøget dobbeltbeskatningslempelse og visse koncernbeløb er endnu ikke komponeret ind i postresultatet.",
-    status = "Resterende beløbsafhængighed"
-)
-
---@label:aktieavancebeskatningsloven_par9::source:aktieavancebeskatningsloven_lbk1098_par9::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23a::warning:aktieavance_par9_samtidige_tabsbeholdninger_advarsel::warning:aktieavance_par9_par5a_afhængighedsgrænse--
+--@label:aktieavancebeskatningsloven_par9::source:aktieavancebeskatningsloven_lbk1098_par9::dependency_source:aktieavancebeskatningsloven_lbk1098_par5a::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a::warning:aktieavance_par9_samtidige_tabsbeholdninger_advarsel--
 ----
 § 9. Gevinst på aktier, der ikke er omfattet af § 8, medregnes ved opgørelsen
 af den skattepligtige indkomst, jf. dog § 10.
@@ -71,14 +66,14 @@ selskaber, jf. selskabsskattelovens § 31 C.
 --@begin:aktieavancebeskatningsloven_par9--
 # AktieavancePar9Aktivstatus = AblPar9SkattepligtigPorteføljeaktie | AblPar9AndenTegningsret | AblPar9AndenKonvertibelObligation | AblPar9AndenTegningsretTilKonvertibelObligation | AblPar9KoncerninternKonvertibelObligation | AblPar9TegningsretTilKoncerninternKonvertibelObligation | AblPar9DatterselskabsaktieEfterPar8 | AblPar9KoncernselskabsaktieEfterPar8 | AblPar9SkattefriPorteføljeaktieEfterPar8 | AblPar9EgenAktieEfterPar10
 # AktieavancePar9Opgørelsesgrundlag = AblPar9Lagerårsopgørelse(resultat: AktieavancePar23LagerÅrsresultat) | AblPar9Par23AOpgørelse(princip_resultat: AktieavancePar23PrincipResultat, resultat: AktieavancePar23AResultat) | AblPar9RealiseretAfståelse(princip_resultat: AktieavancePar23PrincipResultat, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
-# AktieavancePar9PostInput(aktivstatus: AktieavancePar9Aktivstatus, opgørelsesgrundlag: AktieavancePar9Opgørelsesgrundlag)
-# AktieavancePar9PostResultat(input: AktieavancePar9PostInput, input_gyldigt: Boolsk, omfattet_af_par6: Boolsk, undtaget_efter_par8: Boolsk, undtaget_efter_par10: Boolsk, omfattet_af_stk1: Boolsk, princip: AktieavancePar23Princip, principgrundlag: AktieavancePar23Principgrundlag, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, direkte_lagerfradrag_efter_stk2_kroner: Heltal, tab_til_modregning_efter_stk3_kroner: Heltal, tab_til_modregning_efter_stk5_kroner: Heltal, tab_afskåret_efter_stk7_kroner: Heltal)
+# AktieavancePar9PostInput(aktivstatus: AktieavancePar9Aktivstatus, opgørelsesgrundlag: AktieavancePar9Opgørelsesgrundlag, par5a_behandling: AktieavancePar5ABehandling)
+# AktieavancePar9PostResultat(input: AktieavancePar9PostInput, input_gyldigt: Boolsk, omfattet_af_par6: Boolsk, undtaget_efter_par8: Boolsk, undtaget_efter_par10: Boolsk, omfattet_af_stk1: Boolsk, princip: AktieavancePar23Princip, principgrundlag: AktieavancePar23Principgrundlag, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tabsreduktion_efter_par5a_kroner: Heltal, gevinst_efter_par5a_kroner: Heltal, tab_efter_par5a_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, direkte_lagerfradrag_efter_stk2_kroner: Heltal, tab_til_modregning_efter_stk3_kroner: Heltal, tab_til_modregning_efter_stk5_kroner: Heltal, tab_afskåret_efter_stk7_kroner: Heltal)
 # AktieavancePar9Stk4Tabsanvendelse = AblPar9Stk4KunRealisationsbeskattedeGevinster | AblPar9Stk4AlleGevinsterEfterSkiftTilLagerprincip
 # AktieavancePar9Tabsposition(indkomstår: Heltal, fremført_tab_efter_stk4_kroner: Heltal, stk4_tabsanvendelse: AktieavancePar9Stk4Tabsanvendelse, fremført_tab_efter_stk6_kroner: Heltal)
 # AktieavancePar9Fremførsel = AblPar9IngenFremførsel | AblPar9FremførselFraForrigeIndkomstår(position: AktieavancePar9Tabsposition)
 # AktieavancePar9Principovergang(forrige_princip_resultat: AktieavancePar23PrincipResultat, aktuelle_princip_resultat: AktieavancePar23PrincipResultat)
 # AktieavancePar9Årsinput(indkomstår: Heltal, poster: List(AktieavancePar9PostResultat), fremførsel: AktieavancePar9Fremførsel, principovergange: List(AktieavancePar9Principovergang))
-# AktieavancePar9Årsresultat(input: AktieavancePar9Årsinput, årsopgørelse_gyldig: Boolsk, stk6_porteføljevalg_sammenhængende: Boolsk, fremførsel_gyldig: Boolsk, afvist_fremført_tab_efter_stk4_kroner: Heltal, afvist_fremført_tab_efter_stk6_kroner: Heltal, skift_fra_stk6_realisation_til_lagerprincip: Boolsk, skift_fra_stk7_realisation_til_lagerprincip: Boolsk, skattepligtige_gevinster_efter_stk1_kroner: Heltal, realisationsbeskattede_gevinster_efter_stk1_kroner: Heltal, direkte_lagerfradrag_efter_stk2_kroner: Heltal, årets_tab_efter_stk3_kroner: Heltal, tilgængeligt_tab_efter_stk4_kroner: Heltal, tab_modregnet_efter_stk3_og_stk4_kroner: Heltal, tab_fremført_efter_stk4_kroner: Heltal, stk4_tabsanvendelse_ultimo: AktieavancePar9Stk4Tabsanvendelse, årets_tab_efter_stk5_kroner: Heltal, tilgængeligt_tab_efter_stk6_kroner: Heltal, tab_modregnet_efter_stk5_og_stk6_kroner: Heltal, tab_fremført_efter_stk6_kroner: Heltal, tab_afskåret_efter_stk7_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, netto_efter_par9_kroner: Heltal, position_ultimo: AktieavancePar9Tabsposition, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
+# AktieavancePar9Årsresultat(input: AktieavancePar9Årsinput, årsopgørelse_gyldig: Boolsk, stk6_porteføljevalg_sammenhængende: Boolsk, fremførsel_gyldig: Boolsk, afvist_fremført_tab_efter_stk4_kroner: Heltal, afvist_fremført_tab_efter_stk6_kroner: Heltal, skift_fra_stk6_realisation_til_lagerprincip: Boolsk, skift_fra_stk7_realisation_til_lagerprincip: Boolsk, bruttotab_før_par5a_kroner: Heltal, tabsreduktion_efter_par5a_kroner: Heltal, skattepligtige_gevinster_efter_stk1_kroner: Heltal, realisationsbeskattede_gevinster_efter_stk1_kroner: Heltal, direkte_lagerfradrag_efter_stk2_kroner: Heltal, årets_tab_efter_stk3_kroner: Heltal, tilgængeligt_tab_efter_stk4_kroner: Heltal, tab_modregnet_efter_stk3_og_stk4_kroner: Heltal, tab_fremført_efter_stk4_kroner: Heltal, stk4_tabsanvendelse_ultimo: AktieavancePar9Stk4Tabsanvendelse, årets_tab_efter_stk5_kroner: Heltal, tilgængeligt_tab_efter_stk6_kroner: Heltal, tab_modregnet_efter_stk5_og_stk6_kroner: Heltal, tab_fremført_efter_stk6_kroner: Heltal, tab_afskåret_efter_stk7_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, netto_efter_par9_kroner: Heltal, position_ultimo: AktieavancePar9Tabsposition, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 
 | aktieavance_par9_aktivstatus_undtaget_efter_par8(status: AktieavancePar9Aktivstatus) -> status == AblPar9DatterselskabsaktieEfterPar8 || status == AblPar9KoncernselskabsaktieEfterPar8 || status == AblPar9SkattefriPorteføljeaktieEfterPar8
 | aktieavance_par9_aktivstatus_undtaget_efter_par10(status: AktieavancePar9Aktivstatus) -> status == AblPar9EgenAktieEfterPar10
@@ -90,6 +85,16 @@ selskaber, jf. selskabsskattelovens § 31 C.
 | aktieavance_par9_bruttogevinst_kroner(grundlag: AktieavancePar9Opgørelsesgrundlag) -> match grundlag { | AblPar9Lagerårsopgørelse(resultat) -> resultat.bruttogevinst_kroner | AblPar9Par23AOpgørelse(_, resultat) -> resultat.bruttogevinst_kroner | AblPar9RealiseretAfståelse(_, afståelsessum_kroner, anskaffelsessum_kroner) -> penge_positivt_beløb(afståelsessum_kroner - anskaffelsessum_kroner) }
 | aktieavance_par9_bruttotab_kroner(grundlag: AktieavancePar9Opgørelsesgrundlag) -> match grundlag { | AblPar9Lagerårsopgørelse(resultat) -> resultat.bruttotab_kroner | AblPar9Par23AOpgørelse(_, resultat) -> resultat.bruttotab_kroner | AblPar9RealiseretAfståelse(_, afståelsessum_kroner, anskaffelsessum_kroner) -> penge_positivt_beløb(anskaffelsessum_kroner - afståelsessum_kroner) }
 | aktieavance_par9_opgørelsesgrundlag_er_afståelse(grundlag: AktieavancePar9Opgørelsesgrundlag) -> match grundlag { | AblPar9Lagerårsopgørelse(_) -> Falskt | AblPar9Par23AOpgørelse(_, resultat) -> match resultat.input.hændelse { | AblPar23ABeholdesVedÅretsSlutning(_) -> Falskt | AblPar23AAfståsIÅret(_) -> Sandt } | AblPar9RealiseretAfståelse(_, _, _) -> Sandt }
+| aktieavance_par9_par5a_resultat_gyldigt(resultat: AktieavancePar5AResultat) -> resultat.input_gyldigt && resultat.input.anvendelsesgrundlag != AblPar5AUndtagetEfterPar22Stk6
+| aktieavance_par9_par5a_resultatliste_gyldig(resultater: List(AktieavancePar5AResultat)) -> foldl(resultater, Sandt, |gyldige: Boolsk, resultat: AktieavancePar5AResultat| gyldige && aktieavance_par9_par5a_resultat_gyldigt(resultat))
+| aktieavance_par9_par5a_behandling_matcher(grundlag: AktieavancePar9Opgørelsesgrundlag, behandling: AktieavancePar5ABehandling) -> match grundlag {
+    | AblPar9Lagerårsopgørelse(_) -> match behandling { | AblPar5ALagerafståelser(resultater) -> aktieavance_par9_par5a_resultatliste_gyldig(resultater) | _ -> Falskt }
+    | AblPar9Par23AOpgørelse(_, resultat) -> match resultat.input.hændelse {
+        | AblPar23ABeholdesVedÅretsSlutning(_) -> match behandling { | AblPar5AUdenAfståelsestab -> Sandt | _ -> Falskt }
+        | AblPar23AAfståsIÅret(_) -> match behandling { | AblPar5AEnkeltAfståelse(par5a_resultat) -> aktieavance_par9_par5a_resultat_gyldigt(par5a_resultat) && par5a_resultat.input.bruttotab_ved_afståelse_kroner == aktieavance_par9_bruttotab_kroner(grundlag) | _ -> Falskt }
+    }
+    | AblPar9RealiseretAfståelse(_, _, _) -> match behandling { | AblPar5AEnkeltAfståelse(resultat) -> aktieavance_par9_par5a_resultat_gyldigt(resultat) && resultat.input.bruttotab_ved_afståelse_kroner == aktieavance_par9_bruttotab_kroner(grundlag) | _ -> Falskt }
+}
 
 # AktieavancePar9PostSag(input: AktieavancePar9PostInput) {
     | princip_resultat() -> aktieavance_par9_princip_resultat(input.opgørelsesgrundlag)
@@ -98,16 +103,20 @@ selskaber, jf. selskabsskattelovens § 31 C.
     | undtaget_efter_par10() -> aktieavance_par9_aktivstatus_undtaget_efter_par10(input.aktivstatus)
     | status_omfattet_af_stk1() -> aktieavance_par9_aktivstatus_omfattet_af_stk1(input.aktivstatus)
     | princip_gyldigt_for_stk1() -> princip_resultat().princip == AblPar23Lagerprincip || princip_resultat().grundlag == AblPar23Stk6ValgtRealisation || princip_resultat().grundlag == AblPar23Stk7SyvårigtRealisationsvalg
-    | input_gyldigt() -> princip_resultat().input_gyldig && princip_resultat().valganmodning_gyldig && aktieavance_par9_opgørelsesgrundlag_gyldigt(input.opgørelsesgrundlag) && aktieavance_par9_aktivstatus_matcher_principaktiv(input.aktivstatus, princip_resultat().input.aktiv) && hvis omfattet_af_par6() && status_omfattet_af_stk1() { princip_gyldigt_for_stk1() } ellers { Sandt }
+    | input_gyldigt() -> princip_resultat().input_gyldig && princip_resultat().valganmodning_gyldig && aktieavance_par9_opgørelsesgrundlag_gyldigt(input.opgørelsesgrundlag) && aktieavance_par9_aktivstatus_matcher_principaktiv(input.aktivstatus, princip_resultat().input.aktiv) && aktieavance_par9_par5a_behandling_matcher(input.opgørelsesgrundlag, input.par5a_behandling) && hvis omfattet_af_par6() && status_omfattet_af_stk1() { princip_gyldigt_for_stk1() } ellers { Sandt }
     | omfattet_af_stk1() -> input_gyldigt() && omfattet_af_par6() && status_omfattet_af_stk1()
     | bruttogevinst_kroner() -> hvis input_gyldigt() { aktieavance_par9_bruttogevinst_kroner(input.opgørelsesgrundlag) } ellers { 0 }
     | bruttotab_kroner() -> hvis input_gyldigt() { aktieavance_par9_bruttotab_kroner(input.opgørelsesgrundlag) } ellers { 0 }
-    | tab_afskåret_efter_stk7() -> omfattet_af_stk1() && aktieavance_par9_aktivstatus_koncernintern_konvertibel(input.aktivstatus) && aktieavance_par9_opgørelsesgrundlag_er_afståelse(input.opgørelsesgrundlag) && bruttotab_kroner() > 0
-    | skattepligtig_gevinst_kroner() -> hvis omfattet_af_stk1() { bruttogevinst_kroner() } ellers { 0 }
-    | direkte_lagerfradrag_efter_stk2_kroner() -> hvis omfattet_af_stk1() && princip_resultat().princip == AblPar23Lagerprincip && tab_afskåret_efter_stk7() == Falskt { bruttotab_kroner() } ellers { 0 }
-    | tab_til_modregning_efter_stk3_kroner() -> hvis omfattet_af_stk1() && princip_resultat().grundlag == AblPar23Stk6ValgtRealisation && tab_afskåret_efter_stk7() == Falskt { bruttotab_kroner() } ellers { 0 }
-    | tab_til_modregning_efter_stk5_kroner() -> hvis omfattet_af_stk1() && princip_resultat().grundlag == AblPar23Stk7SyvårigtRealisationsvalg && tab_afskåret_efter_stk7() == Falskt { bruttotab_kroner() } ellers { 0 }
-    | tab_afskåret_efter_stk7_kroner() -> hvis tab_afskåret_efter_stk7() { bruttotab_kroner() } ellers { 0 }
+    | tabsreduktion_efter_par5a_kroner() -> hvis input_gyldigt() { aktieavance_par5a_behandling_tabsreduktion_kroner(input.par5a_behandling) } ellers { 0 }
+    | netto_efter_par5a_kroner() -> bruttogevinst_kroner() - bruttotab_kroner() + tabsreduktion_efter_par5a_kroner()
+    | gevinst_efter_par5a_kroner() -> penge_positivt_beløb(netto_efter_par5a_kroner())
+    | tab_efter_par5a_kroner() -> penge_positivt_beløb(0 - netto_efter_par5a_kroner())
+    | tab_afskåret_efter_stk7() -> omfattet_af_stk1() && aktieavance_par9_aktivstatus_koncernintern_konvertibel(input.aktivstatus) && aktieavance_par9_opgørelsesgrundlag_er_afståelse(input.opgørelsesgrundlag) && tab_efter_par5a_kroner() > 0
+    | skattepligtig_gevinst_kroner() -> hvis omfattet_af_stk1() { gevinst_efter_par5a_kroner() } ellers { 0 }
+    | direkte_lagerfradrag_efter_stk2_kroner() -> hvis omfattet_af_stk1() && princip_resultat().princip == AblPar23Lagerprincip && tab_afskåret_efter_stk7() == Falskt { tab_efter_par5a_kroner() } ellers { 0 }
+    | tab_til_modregning_efter_stk3_kroner() -> hvis omfattet_af_stk1() && princip_resultat().grundlag == AblPar23Stk6ValgtRealisation && tab_afskåret_efter_stk7() == Falskt { tab_efter_par5a_kroner() } ellers { 0 }
+    | tab_til_modregning_efter_stk5_kroner() -> hvis omfattet_af_stk1() && princip_resultat().grundlag == AblPar23Stk7SyvårigtRealisationsvalg && tab_afskåret_efter_stk7() == Falskt { tab_efter_par5a_kroner() } ellers { 0 }
+    | tab_afskåret_efter_stk7_kroner() -> hvis tab_afskåret_efter_stk7() { tab_efter_par5a_kroner() } ellers { 0 }
     | resultat() -> AktieavancePar9PostResultat(
         input = input,
         input_gyldigt = input_gyldigt(),
@@ -119,6 +128,9 @@ selskaber, jf. selskabsskattelovens § 31 C.
         principgrundlag = princip_resultat().grundlag,
         bruttogevinst_kroner = bruttogevinst_kroner(),
         bruttotab_kroner = bruttotab_kroner(),
+        tabsreduktion_efter_par5a_kroner = tabsreduktion_efter_par5a_kroner(),
+        gevinst_efter_par5a_kroner = gevinst_efter_par5a_kroner(),
+        tab_efter_par5a_kroner = tab_efter_par5a_kroner(),
         skattepligtig_gevinst_kroner = skattepligtig_gevinst_kroner(),
         direkte_lagerfradrag_efter_stk2_kroner = direkte_lagerfradrag_efter_stk2_kroner(),
         tab_til_modregning_efter_stk3_kroner = tab_til_modregning_efter_stk3_kroner(),
@@ -153,6 +165,8 @@ selskaber, jf. selskabsskattelovens § 31 C.
     | afvist_fremført_tab_efter_stk6_kroner() -> hvis fremførsel_gyldig() { 0 } ellers { penge_positivt_beløb(position_før().fremført_tab_efter_stk6_kroner) }
     | skift_fra_stk6_realisation_til_lagerprincip() -> foldl(input.principovergange, Falskt, |fundet: Boolsk, overgang: AktieavancePar9Principovergang| fundet || aktieavance_par9_principovergang_gyldig(overgang, input.indkomstår, input.poster) && aktieavance_par9_principovergang_er_fra_stk6(overgang))
     | skift_fra_stk7_realisation_til_lagerprincip() -> foldl(input.principovergange, Falskt, |fundet: Boolsk, overgang: AktieavancePar9Principovergang| fundet || aktieavance_par9_principovergang_gyldig(overgang, input.indkomstår, input.poster) && aktieavance_par9_principovergang_er_fra_stk7(overgang))
+    | bruttotab_før_par5a_kroner() -> hvis årsopgørelse_gyldig() { foldl(input.poster, 0, |sum: Heltal, post: AktieavancePar9PostResultat| sum + hvis post.omfattet_af_stk1 { post.bruttotab_kroner } ellers { 0 }) } ellers { 0 }
+    | tabsreduktion_efter_par5a_kroner() -> hvis årsopgørelse_gyldig() { foldl(input.poster, 0, |sum: Heltal, post: AktieavancePar9PostResultat| sum + hvis post.omfattet_af_stk1 { post.tabsreduktion_efter_par5a_kroner } ellers { 0 }) } ellers { 0 }
     | skattepligtige_gevinster_efter_stk1_kroner() -> hvis årsopgørelse_gyldig() { foldl(input.poster, 0, |sum: Heltal, post: AktieavancePar9PostResultat| sum + post.skattepligtig_gevinst_kroner) } ellers { 0 }
     | realisationsbeskattede_gevinster_efter_stk1_kroner() -> hvis årsopgørelse_gyldig() { foldl(input.poster, 0, |sum: Heltal, post: AktieavancePar9PostResultat| sum + hvis post.princip == AblPar23Realisationsprincip { post.skattepligtig_gevinst_kroner } ellers { 0 }) } ellers { 0 }
     | direkte_lagerfradrag_efter_stk2_kroner() -> hvis årsopgørelse_gyldig() { foldl(input.poster, 0, |sum: Heltal, post: AktieavancePar9PostResultat| sum + post.direkte_lagerfradrag_efter_stk2_kroner) } ellers { 0 }
@@ -182,8 +196,8 @@ selskaber, jf. selskabsskattelovens § 31 C.
         indkomstår = input.indkomstår,
         effektiv_aktiv = hvis årsopgørelse_gyldig() { AblSkattepligtigPorteføljeaktiePar9 } ellers { AblUdenforDenneSlice },
         bruttogevinst_kroner = skattepligtige_gevinster_efter_stk1_kroner(),
-        bruttotab_kroner = direkte_lagerfradrag_efter_stk2_kroner() + årets_tab_efter_stk3_kroner() + årets_tab_efter_stk5_kroner() + tab_afskåret_efter_stk7_kroner(),
-        tab_afskåret_kroner = tab_afskåret_efter_stk7_kroner(),
+        bruttotab_kroner = bruttotab_før_par5a_kroner(),
+        tab_afskåret_kroner = tabsreduktion_efter_par5a_kroner() + tab_afskåret_efter_stk7_kroner(),
         skattepligtig_gevinst_kroner = skattepligtige_gevinster_efter_stk1_kroner(),
         fradragsberettiget_tab_kroner = samlet_fradrag_i_skattepligtig_indkomst_kroner(),
         netto_efter_aktieavancebeskatningsloven_kroner = netto_efter_par9_kroner(),
@@ -199,6 +213,8 @@ selskaber, jf. selskabsskattelovens § 31 C.
         afvist_fremført_tab_efter_stk6_kroner = afvist_fremført_tab_efter_stk6_kroner(),
         skift_fra_stk6_realisation_til_lagerprincip = skift_fra_stk6_realisation_til_lagerprincip(),
         skift_fra_stk7_realisation_til_lagerprincip = skift_fra_stk7_realisation_til_lagerprincip(),
+        bruttotab_før_par5a_kroner = bruttotab_før_par5a_kroner(),
+        tabsreduktion_efter_par5a_kroner = tabsreduktion_efter_par5a_kroner(),
         skattepligtige_gevinster_efter_stk1_kroner = skattepligtige_gevinster_efter_stk1_kroner(),
         realisationsbeskattede_gevinster_efter_stk1_kroner = realisationsbeskattede_gevinster_efter_stk1_kroner(),
         direkte_lagerfradrag_efter_stk2_kroner = direkte_lagerfradrag_efter_stk2_kroner(),

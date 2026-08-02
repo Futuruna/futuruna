@@ -126,6 +126,14 @@ sag med § 23's opgørelsesmetode, Kursgevinstloven § 32's kontraktrelation og
 Personskatteloven § 4's personlige indkomstklassifikation for personer.
 Femten scenarier kører ens i interpreter og kompileret kode.
 
+Aktieavancebeskatningslovens § 5 A beregner nu selv den tabsreduktion, der skal
+ske før de almindelige tabsregler. Skattefrie udbytter, forøget
+dobbeltbeskatningslempelse, endnu uudnyttede præferenceudbytter og kvalificerede
+koncernbeløb bevares som særskilte, typede led. Reduktionen kan ikke overstige
+afståelsestabet. § 22, stk. 6-undtagelsen, virkningsgrænsen den 24. november
+2010 og særreglen for tidligere statusskifter er udtrykkelige udfald. Seksten
+scenarier kører ens i interpreter og kompileret kode.
+
 Aktieavancebeskatningslovens § 9 er tilsvarende en typet årsopgørelse for
 selskabers skattepligtige porteføljeaktier. Den bruger § 23's beregnede
 realisations- eller lagerprincip, anvender §§ 8 og 10 som udtrykkelige
@@ -134,9 +142,10 @@ Direkte lagertab og de to forskellige realisationstabsbeholdninger holdes adskil
 tværs af år. Et principskift kan kun udvide et fremført tabs anvendelse, når
 år, aktiv og den aktuelle post faktisk hænger sammen. § 23, stk. 6-valget skal
 desuden være ens for alle kvalificerede poster. Atten scenarier kører ens i
-begge backends. Metadataindekset viser samtidig, at rækkefølgen mellem to
-samtidige tabsbeholdninger er et fortolkningsvalg, og at § 5 A's
-udbyttebaserede tabsreduktion fortsat er en beløbsafhængighed.
+begge backends. Hver post anvender det validerede § 5 A-resultat før stk. 2-7
+og bevarer både bruttotab og tabsreduktion i auditsporet. Metadataindekset viser
+fortsat, at rækkefølgen mellem to samtidige tabsbeholdninger er et
+fortolkningsvalg.
 
 Personaktievejen er nu også eksekverbar fra anskaffelse og gennemsnitlig
 anskaffelsessum til afståelse, noterede og unoterede tab,
@@ -175,11 +184,13 @@ Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
 vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
 saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 181 udfald i
-Aktieavancebeskatningsloven § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 197 udfald i
+Aktieavancebeskatningsloven § 5 A, § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
 §§ 35 G-35 K og §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
+[den oprindelige § 5 A-ændring og overgang, LOV nr. 254/2011](https://www.retsinformation.dk/eli/lta/2011/254),
 [medarbejderejeændringen, LOV nr. 1755/2025](https://www.retsinformation.dk/eli/lta/2025/1755),
+[vejledningen om § 5 A-tabsreduktionen](https://info.skat.dk/data.aspx?oid=1950044),
 [vejledningen om § 9-porteføljeaktier](https://info.skat.dk/data.aspx?oid=1946340),
 [vejledningen om tilflytning](https://info.skat.dk/data.aspx?oid=1946389),
 [vejledningen om fraflytterskattens personkreds](https://info.skat.dk/data.aspx?oid=1946393),
