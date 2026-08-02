@@ -427,6 +427,7 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 200,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 0,
     tidligere_intervaller = []
 ))
 
@@ -437,9 +438,10 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 300,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 10,
     tidligere_intervaller = [
-        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 100000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-        Afskrivningslov19Interval(fra_kroner = 100000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 100000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+        Afskrivningslov19Interval(fra_kroner = 100000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
     ]
 ))
 
@@ -450,9 +452,10 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
     ejerbolig_anskaffelsessum_kroner = 200000,
     ejerbolig_etageareal_kvadratmeter = 200,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 30,
     tidligere_intervaller = [
-        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 9000, maksimalt_mulig_afskrivningsprocent_basispoint = 9000),
-        Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 800000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 30, anvendt_afskrivningsprocent_basispoint = 9000, maksimalt_mulig_afskrivningsprocent_basispoint = 9000),
+        Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 800000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
     ]
 ))
 
@@ -463,6 +466,7 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 0,
     tidligere_intervaller = []
 ))
 

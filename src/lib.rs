@@ -11978,6 +11978,13 @@ impl Interpreter {
         for (name, value) in bindings {
             scoped_env.set(name.clone(), value.clone());
         }
+        scoped_env.set(
+            "__rulescope_self".to_string(),
+            Value::RuleScopeInstance {
+                name: scope_name.to_string(),
+                bindings: bindings.clone(),
+            },
+        );
         self.active_rule_scopes.push(RuleScopeFrame {
             name: scope_name.to_string(),
             bindings: bindings.clone(),
@@ -12005,6 +12012,13 @@ impl Interpreter {
         for (name, value) in &frame.bindings {
             scoped_env.set(name.clone(), value.clone());
         }
+        scoped_env.set(
+            "__rulescope_self".to_string(),
+            Value::RuleScopeInstance {
+                name: frame.name.clone(),
+                bindings: frame.bindings.clone(),
+            },
+        );
         Some(
             self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
                 .unwrap_or(Value::Bool(false)),
@@ -12052,6 +12066,11 @@ impl Interpreter {
             args.to_vec()
         };
         let arg_vals: Vec<Value> = ordered_args.iter().map(|a| self.eval(a, env)).collect();
+        let scoped_binding_names: BTreeSet<String> = self
+            .active_rule_scopes
+            .last()
+            .map(|frame| frame.bindings.keys().cloned().collect())
+            .unwrap_or_default();
 
         // Create a base env: caller's env minus all rule-local variables
         // (variables that appear as params in ANY clause head for this function).
@@ -12081,23 +12100,28 @@ impl Interpreter {
             } = rule
             {
                 let body_goals = match &body_expr.kind {
-                    ExprKind::Conjunction(goals) => goals.clone(),
-                    ExprKind::Disjunction(alts) => alts
-                        .iter()
-                        .flat_map(|a| match &a.kind {
-                            ExprKind::Conjunction(gs) => gs.clone(),
-                            _ => vec![a.clone()],
-                        })
-                        .collect(),
-                    _ => vec![body_expr.clone()],
+                    ExprKind::Conjunction(goals) => Some(goals.clone()),
+                    ExprKind::Disjunction(alts) => Some(
+                        alts.iter()
+                            .flat_map(|a| match &a.kind {
+                                ExprKind::Conjunction(gs) => gs.clone(),
+                                _ => vec![a.clone()],
+                            })
+                            .collect(),
+                    ),
+                    _ => None,
                 };
-                for goal in &body_goals {
-                    if let ExprKind::App(_, goal_args) = &goal.kind {
-                        for ga in goal_args {
-                            let mut local_vars = Vec::new();
-                            Self::collect_rule_head_vars(ga, &mut local_vars);
-                            for name in local_vars {
-                                base_env.remove(&name);
+                if let Some(body_goals) = body_goals {
+                    for goal in &body_goals {
+                        if let ExprKind::App(_, goal_args) = &goal.kind {
+                            for ga in goal_args {
+                                let mut local_vars = Vec::new();
+                                Self::collect_rule_head_vars(ga, &mut local_vars);
+                                for name in local_vars {
+                                    if !scoped_binding_names.contains(&name) {
+                                        base_env.remove(&name);
+                                    }
+                                }
                             }
                         }
                     }
@@ -16837,6 +16861,61 @@ mod tests {
         assert_eq!(
             env.get("decision").map(ToString::to_string),
             Some("Decision(blocked: false, allowed: true)".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_collection_lambda_retains_scope_bindings_and_members() {
+        let source = r#"
+# Case(values: List(Int)) {
+    | base() -> 10
+    | scale() -> 2
+    | results() -> map(values, |value: Int| value * scale() + base())
+}
+
+= results = Case([1, 2]).results()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse RuleScope collection regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("results").map(ToString::to_string),
+            Some("[12, 14]".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_value_rule_retains_structured_lexical_binding() {
+        let source = r#"
+# Payload(value: Int)
+# Wrapper(payload: Payload)
+
+= seed = Payload(value = 42)
+| wrap() -> Wrapper(payload = seed)
+= wrapped = wrap()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse lexical binding regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("wrapped").map(ToString::to_string),
+            Some("Wrapper(payload: Payload(value: 42))".to_string())
         );
     }
 

@@ -1,0 +1,15 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 10
+-- expect-stdout: 2
+-- expect-stdout: [12, 14]
+
+# Case(values: List(Int)) {
+    | base() -> 10
+    | scale() -> 2
+    | results() -> map(values, |value: Int| value * scale() + base())
+}
+
+@ print(show(Case(values = [1, 2]).base()))
+@ print(show(Case(values = [1, 2]).scale()))
+@ print(show(Case(values = [1, 2]).results()))

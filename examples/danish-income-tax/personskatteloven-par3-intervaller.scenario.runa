@@ -14,54 +14,55 @@
     tilknyttet_art = Al14BygningEllerLokale
 ))
 
-| al19_interval_input(afskrivningsberettiget_etageareal_kvadratmeter: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Input(
+| al19_interval_input(afskrivningsberettiget_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Input(
     bygning_resultat = al19_interval_bygning,
     samlet_anskaffelsessum_kroner = 1000000,
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettigede_indkomstår_for_bygningen = tidligere_afskrivningsberettigede_indkomstår_for_bygningen,
     tidligere_intervaller = tidligere_intervaller
 )
 
 = al19_halvtreds_procent_efter_ti_år = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
 
-= al19_forøgelse_til_75 = afskrivningslov19_resultat(al19_interval_input(750, al19_halvtreds_procent_efter_ti_år))
+= al19_forøgelse_til_75 = afskrivningslov19_resultat(al19_interval_input(750, 10, al19_halvtreds_procent_efter_ti_år))
 = al19_forøgelse_til_75_forventet = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 750000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
-    Afskrivningslov19Interval(fra_kroner = 750000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 11, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 750000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 1, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
+    Afskrivningslov19Interval(fra_kroner = 750000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
 
-= al19_reduktion_til_25 = afskrivningslov19_resultat(al19_interval_input(250, al19_halvtreds_procent_efter_ti_år))
+= al19_reduktion_til_25 = afskrivningslov19_resultat(al19_interval_input(250, 10, al19_halvtreds_procent_efter_ti_år))
 = al19_reduktion_til_25_forventet = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 11, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
 
 = al19_efter_fem_år_med_25_procent = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 6000, maksimalt_mulig_afskrivningsprocent_basispoint = 6000),
-    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 15, anvendt_afskrivningsprocent_basispoint = 6000, maksimalt_mulig_afskrivningsprocent_basispoint = 6000),
+    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
 
-= al19_senere_forøgelse_til_35 = afskrivningslov19_resultat(al19_interval_input(350, al19_efter_fem_år_med_25_procent))
+= al19_senere_forøgelse_til_35 = afskrivningslov19_resultat(al19_interval_input(350, 15, al19_efter_fem_år_med_25_procent))
 = al19_senere_forøgelse_til_35_forventet = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 6000, maksimalt_mulig_afskrivningsprocent_basispoint = 6000),
-    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 350000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 350000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 16, anvendt_afskrivningsprocent_basispoint = 6000, maksimalt_mulig_afskrivningsprocent_basispoint = 6000),
+    Afskrivningslov19Interval(fra_kroner = 250000, til_kroner = 350000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 11, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 350000, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
 
 = al19_interval_med_hul = [
-    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
-    Afskrivningslov19Interval(fra_kroner = 300000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 250000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 10, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+    Afskrivningslov19Interval(fra_kroner = 300000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
 ]
-= al19_ugyldig_historik = afskrivningslov19_resultat(al19_interval_input(350, al19_interval_med_hul))
+= al19_ugyldig_historik = afskrivningslov19_resultat(al19_interval_input(350, 10, al19_interval_med_hul))
 
 | scenarie_al19_officiel_forøgelse: al19_forøgelse_til_75 -> al19_forøgelse_til_75.intervaller_gyldige && al19_forøgelse_til_75.intervaller == al19_forøgelse_til_75_forventet && al19_forøgelse_til_75.tidligere_afskrivningsberettiget_grundlag_kroner == 500000 && al19_forøgelse_til_75.aktuelt_afskrivningsberettiget_grundlag_kroner == 750000 && al19_forøgelse_til_75.forøgelse_som_særskilt_grundlag_kroner == 250000 && al19_forøgelse_til_75.samlede_foretagne_afskrivninger_kroner == 200000
 | scenarie_al19_officiel_reduktion: al19_reduktion_til_25 -> al19_reduktion_til_25.intervaller_gyldige && al19_reduktion_til_25.intervaller == al19_reduktion_til_25_forventet && al19_reduktion_til_25.videreført_tidligere_grundlag_kroner == 250000 && al19_reduktion_til_25.reduktion_fra_tidligere_grundlag_kroner == 250000 && al19_reduktion_til_25.samlede_foretagne_afskrivninger_kroner == 200000

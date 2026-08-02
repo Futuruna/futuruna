@@ -1,0 +1,9 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: [Entry(value: 1), Entry(value: 2)]
+
+# Entry(value: Int)
+
+| prepend_entry(entries: List(Entry)) -> concat([Entry(value = 1)], entries)
+
+@ print(show(prepend_entry([Entry(value = 2)])))

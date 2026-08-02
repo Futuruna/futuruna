@@ -108,7 +108,7 @@ Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
 afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
-omfatter §§ 1-20: anskaffelse og benyttelsesændring,
+omfatter §§ 1-24: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
@@ -117,6 +117,10 @@ senere salg, dok- og beddingsanlæg, delvist erhvervsmæssigt benyttede aktiver,
 bygninger og installationer. Bygningsdelen omfatter afgrænsning og tilknytning,
 anskaffelsestidspunkt, 3/4 pct.- og levetidsafskrivning, 5 pct.-straksfradrag,
 herunder ejerens valg af et lavere straksfradrag, delvise bygninger og stopår.
+Den vedvarende § 19-historik bærer hvert særskilt anskaffelsessuminterval og
+dets egen afskrivningsprocent videre til §§ 21-24. Dermed kan samme model
+beregne genvundne afskrivninger og tab ved salg, nedrivnings- og skadefradrag
+samt videreførelse eller senere indtægtsføring ved genopførelse.
 Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
@@ -148,7 +152,10 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792),
 [Skattestyrelsens bygningsafgrænsning til § 14](https://info.skat.dk/data.aspx?oid=2083984),
 [Skattestyrelsens installationsvejledning til § 15](https://info.skat.dk/data.aspx?oid=2083985),
-[Skattestyrelsens afskrivningsmetoder til §§ 16-20](https://info.skat.dk/data.aspx?oid=2083987)
+[Skattestyrelsens afskrivningsmetoder til §§ 16-20](https://info.skat.dk/data.aspx?oid=2083987),
+[Skattestyrelsens vejledning til § 21](https://info.skat.dk/data.aspx?oid=2083989),
+[Skattestyrelsens vejledning til § 22](https://info.skat.dk/data.aspx?oid=2083988),
+[Skattestyrelsens vejledning til §§ 23-24](https://info.skat.dk/data.aspx?oid=2083990)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
 Den fokuserede scenario-fil fører 8.000 kr. negativ saldo og 70.000 kr.
@@ -157,13 +164,13 @@ ophørsfortjeneste frem som indtægt og samler 12.000 kr. skibsafskrivning,
 reparationsfradrag og 30.000 kr. endeligt ophørstab. Det giver 78.000 kr.
 indtægtsføring og 96.000 kr. fradrag gennem den samme § 3-regelkaskade.
 
-Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Den
-resterende opgave begynder med §§ 21-24 om genvundne afskrivninger, tab,
-nedrivning, skade og genopførelse og fortsætter med forskudsafskrivning,
-immaterielle aktiver og senere ophørsregler. De er fortsat udestående
-dependency-arbejde under nr. 10. Før §§ 21-24 kan afsluttes, skal § 19 desuden
-udvides fra den aktuelle forøgelse eller reduktion til en vedvarende historik
-over alle særskilte arealintervaller og deres egne afskrivningsprocenter.
+Den fokuserede afståelses- og skadescenario samler 652.500 kr. i genvundne
+afskrivninger og fristindtægt, 100.000 kr. i salgstab og 172.500 kr. i
+nedrivnings- og skadefradrag uden at skjule dem i et nettobeløb.
+
+Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Det
+resterende dependency-arbejde under nr. 10 fortsætter med
+forskudsafskrivning, immaterielle aktiver og senere ophørsregler.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,

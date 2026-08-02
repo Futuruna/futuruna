@@ -1,0 +1,194 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Afskrivningsloven §§ 21-24.
+-- Lovtekst og typede kildeankre ligger i det importerede lovmodul.
+
+= al21_bygning_resultat = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14AndenErhvervsanvendelse,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al21_ikkeafskrivningsberettiget_bygning = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14Kontor,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al21_blandet_installation_resultat = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15BlandetErhvervOgPrivat,
+    bygning_resultat = al21_ikkeafskrivningsberettiget_bygning,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 75, samlet_benyttelse_enheder = 100),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al21_bygning = AlK3Bygning(resultat = al21_bygning_resultat)
+= al21_blandet_installation = AlK3Installation(resultat = al21_blandet_installation_resultat)
+= al21_tom_par39 = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
+= al21_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(
+    sælgerne_er_en_eller_flere_personer = Sandt,
+    køber_er_selskab_mv = Falskt,
+    kapitalandel_basispoint = 0,
+    stemmerettigheder_basispoint = 0,
+    anden_bestemmende_indflydelse = Falskt
+)
+
+= al21_officiel_bygningsværdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al21_bygning,
+    grundlag = Al21OrdinærtGrundlag(
+        samlede_anskaffelses_og_forbedringsudgifter_kroner = 1500000,
+        straksfradrag_som_ikke_medregnes_kroner = 0,
+        afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 600000, fratrukne_afskrivninger_kroner = 600000)]
+    ),
+    par39_historik = al21_tom_par39
+))
+
+| al21_salg(værdi: Afskrivningslov21NedskrevetVærdiResultat, salgssum_kroner: Heltal, par24_finder_anvendelse: Boolsk) -> afskrivningslov21_resultat(Afskrivningslov21Input(
+    indkomstår = 2009,
+    nedskrevet_værdi_resultat = værdi,
+    salg_gennemført = Sandt,
+    samlet_salgssum_kroner = salgssum_kroner,
+    par24_finder_anvendelse = par24_finder_anvendelse,
+    kontrol = al21_uden_bestemmende_indflydelse
+))
+
+= al21_officiel_bygningsfortjeneste = al21_salg(al21_officiel_bygningsværdi, 2000000, Falskt)
+= al21_officielt_bygningstab = al21_salg(al21_officiel_bygningsværdi, 800000, Falskt)
+
+= al21_officiel_par19_historik = afskrivningslov19_historik(
+    AlSelvstændigErhvervsdrivendePerson,
+    2000000,
+    15,
+    [
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 1200000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 15, anvendt_afskrivningsprocent_basispoint = 7900, maksimalt_mulig_afskrivningsprocent_basispoint = 7900),
+        Afskrivningslov19Interval(fra_kroner = 1200000, til_kroner = 1500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 13, anvendt_afskrivningsprocent_basispoint = 6700, maksimalt_mulig_afskrivningsprocent_basispoint = 6700),
+        Afskrivningslov19Interval(fra_kroner = 1500000, til_kroner = 2000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    ]
+)
+
+= al21_officiel_par19_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al21_bygning,
+    grundlag = Al21Par19Grundlag(bygningshistorik = al21_officiel_par19_historik, forbedringsgrundlag = []),
+    par39_historik = al21_tom_par39
+))
+= al21_officielt_par19_salg = al21_salg(al21_officiel_par19_værdi, 3000000, Falskt)
+
+= al21_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al21_blandet_installation,
+    grundlag = Al21BlandetInstallation(
+        samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
+        straksfradrag_før_salgsåret_som_ikke_medregnes_kroner = 0,
+        forbedringsudgifter_i_salgsåret_kroner = 0,
+        straksfradrag_i_salgsåret_som_ikke_medregnes_kroner = 0,
+        afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 24000, fratrukne_afskrivninger_kroner = 18000)]
+    ),
+    par39_historik = al21_tom_par39
+))
+= al21_officiel_blandet_salg_90000 = al21_salg(al21_officiel_blandet_værdi, 90000, Falskt)
+= al21_officiel_blandet_salg_125000 = al21_salg(al21_officiel_blandet_værdi, 125000, Falskt)
+
+= al22_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al21_blandet_installation,
+    grundlag = Al21BlandetInstallation(
+        samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
+        straksfradrag_før_salgsåret_som_ikke_medregnes_kroner = 0,
+        forbedringsudgifter_i_salgsåret_kroner = 0,
+        straksfradrag_i_salgsåret_som_ikke_medregnes_kroner = 0,
+        afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 20000, fratrukne_afskrivninger_kroner = 15000)]
+    ),
+    par39_historik = al21_tom_par39
+))
+= al22_officielt_installationsfradrag = afskrivningslov22_resultat(Afskrivningslov22Input(
+    indkomstår = 2026,
+    nedskrevet_værdi_resultat = al22_officiel_blandet_værdi,
+    begivenhed = Al22InstallationEndeligtNedtaget,
+    salgssum_for_bygning_installation_eller_materialer_kroner = 0,
+    ejertid_før_nedrivning_år = 5,
+    afskrivningsberettiget_anvendelse_i_ejertiden_år = 5,
+    ejendommen_eller_den_relevante_del_solgt_i_indkomståret = Falskt
+))
+
+= al23_officiel_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+    aktiv = al21_bygning,
+    grundlag = Al21OrdinærtGrundlag(
+        samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,
+        straksfradrag_som_ikke_medregnes_kroner = 0,
+        afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 150000, fratrukne_afskrivninger_kroner = 150000)]
+    ),
+    par39_historik = al21_tom_par39
+))
+= al23_officiel_skade = afskrivningslov23_resultat(Afskrivningslov23Input(
+    indkomstår = 2026,
+    nedskrevet_værdi_resultat = al23_officiel_værdi,
+    skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse = Sandt,
+    værdi_umiddelbart_før_skaden_kroner = 900000,
+    værdi_efter_skaden_kroner = 675000,
+    udgift_til_udbedring_kroner = 200000
+))
+
+= al24_par21_forsikringsresultat = al21_salg(al23_officiel_værdi, 500000, Sandt)
+
+| al24_input(genopførelsesudgifter_kroner: Heltal, genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, genopførelse_foretages: Boolsk, genopførelsesår: Heltal, opgørelsesår: Heltal) -> Afskrivningslov24Input(
+    par21_forsikringsresultat = al24_par21_forsikringsresultat,
+    modtaget_erstatnings_eller_forsikringssum_kroner = 500000,
+    genopførelse_eller_ombygning_foretages = genopførelse_foretages,
+    genopførelsesudgifter_kroner = genopførelsesudgifter_kroner,
+    genopførte_aktiver = genopførte_aktiver,
+    placering = placering,
+    skadeår = 2009,
+    erstatningssum_endeligt_fastsat_år = 2009,
+    genopførelsesår = genopførelsesår,
+    opgørelsesår = opgørelsesår,
+    frist = Al24OrdinærFrist,
+    ejendomsavancebeskatningslov10_anvendes_samtidig = Sandt
+)
+
+= al24_samme_ejendom_lige_store_beløb = afskrivningslov24_resultat(al24_input(500000, [Afskrivningslov24GenopførtAktiv(identifikation = "bygning-a", genopførelsesudgift_kroner = 500000)], Al24SammeEjendom, Sandt, 2010, 2010))
+= al24_samme_ejendom_højere_udgift = afskrivningslov24_resultat(al24_input(600000, [Afskrivningslov24GenopførtAktiv(identifikation = "bygning-a", genopførelsesudgift_kroner = 600000)], Al24SammeEjendom, Sandt, 2010, 2010))
+= al24_samme_ejendom_lavere_udgift = afskrivningslov24_resultat(al24_input(40000, [Afskrivningslov24GenopførtAktiv(identifikation = "bygning-a", genopførelsesudgift_kroner = 40000)], Al24SammeEjendom, Sandt, 2010, 2010))
+= al24_anden_ejendom_to_bygninger = afskrivningslov24_resultat(al24_input(600000, [Afskrivningslov24GenopførtAktiv(identifikation = "bygning-a", genopførelsesudgift_kroner = 300000), Afskrivningslov24GenopførtAktiv(identifikation = "bygning-b", genopførelsesudgift_kroner = 300000)], Al24AndenEjendomHindretAfLovEllerMyndighed, Sandt, 2010, 2010))
+= al24_fristsvigt = afskrivningslov24_resultat(al24_input(0, [], Al24SammeEjendom, Falskt, 0, 2010))
+= al24_året_efter_fristsvigt = afskrivningslov24_resultat(al24_input(0, [], Al24SammeEjendom, Falskt, 0, 2011))
+
+= par3_nr10_afståelse_skade_og_genopførelse = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al21(resultat = al21_officiel_bygningsfortjeneste),
+        Par3Nr10Al21(resultat = al21_officielt_bygningstab),
+        Par3Nr10Al22(resultat = al22_officielt_installationsfradrag),
+        Par3Nr10Al23(resultat = al23_officiel_skade),
+        Par3Nr10Al24(resultat = al24_samme_ejendom_lige_store_beløb),
+        Par3Nr10Al24(resultat = al24_fristsvigt)
+    ]
+))
+
+| scenarie_al21_officiel_fortjeneste_og_tab: al21_officiel_bygningsfortjeneste -> al21_officiel_bygningsfortjeneste.nedskrevet_værdi_kroner == 900000 && al21_officiel_bygningsfortjeneste.rå_fortjeneste_kroner == 1100000 && al21_officiel_bygningsfortjeneste.skattepligtige_genvundne_afskrivninger_kroner == 600000 && al21_officielt_bygningstab.rå_tab_kroner == 100000 && al21_officielt_bygningstab.fradragsberettiget_tab_kroner == 100000
+| scenarie_al21_officiel_par19_intervalhistorik: al21_officielt_par19_salg -> al21_officiel_par19_historik.gyldig && al21_officiel_par19_værdi.afskrivningsberettiget_anskaffelsesgrundlag_kroner == 1460000 && al21_officiel_par19_værdi.samlede_foretagne_afskrivninger_kroner == 1149000 && al21_officielt_par19_salg.salgssum_til_par21_kroner == 2190000 && al21_officielt_par19_salg.rå_fortjeneste_kroner == 1879000 && al21_officielt_par19_salg.skattepligtige_genvundne_afskrivninger_kroner == 1149000
+| scenarie_al21_officiel_blandet_installation: al21_officiel_blandet_salg_90000 -> al21_officiel_blandet_salg_90000.rå_fortjeneste_kroner == 14000 && al21_officiel_blandet_salg_90000.skattepligtige_genvundne_afskrivninger_kroner == 10500 && al21_officiel_blandet_salg_125000.rå_fortjeneste_kroner == 49000 && al21_officiel_blandet_salg_125000.skattepligtige_genvundne_afskrivninger_kroner == 18000
+| scenarie_al22_officielt_nedrivningsfradrag: al22_officielt_installationsfradrag -> al22_officielt_installationsfradrag.nedskrevet_værdi_kroner == 80000 && al22_officielt_installationsfradrag.beregnet_nedrivningstab_kroner == 60000 && al22_officielt_installationsfradrag.fradrag_i_nedrivningsåret_kroner == 60000
+| scenarie_al23_officiel_skade: al23_officiel_skade -> al23_officiel_skade.afskrivningsgrundlag_efter_skade_kroner == 450000 && al23_officiel_skade.nedskrevet_værdi_efter_skade_kroner == 337500 && al23_officiel_skade.fradragsberettiget_værdiforringelse_kroner == 112500 && al23_officiel_skade.udbedringsudgift_henvises_til_par18_stk1
+| scenarie_al24_samme_ejendom: al24_samme_ejendom_lige_store_beløb -> al24_samme_ejendom_lige_store_beløb.par24_finder_anvendelse && al24_samme_ejendom_lige_store_beløb.genvundne_afskrivninger_udskudt_kroner == 50000 && al24_samme_ejendom_lige_store_beløb.samlet_afskrivningsgrundlag_efter_genopførelse_kroner == 600000 && al24_samme_ejendom_højere_udgift.nyt_afskrivningsgrundlag_efter_stk4_eller_stk8_kroner == 100000 && al24_samme_ejendom_højere_udgift.samlet_afskrivningsgrundlag_efter_genopførelse_kroner == 700000 && al24_samme_ejendom_lavere_udgift.forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner == 460000 && al24_samme_ejendom_lavere_udgift.skattepligtigt_overskydende_forskelsbeløb_kroner == 10000
+| scenarie_al24_anden_ejendom_fordeler: al24_anden_ejendom_to_bygninger -> al24_anden_ejendom_to_bygninger.par24_finder_anvendelse && length(al24_anden_ejendom_to_bygninger.fordelinger) == 2 && head(al24_anden_ejendom_to_bygninger.fordelinger).videreført_afskrivningsgrundlag_kroner == 300000 && head(al24_anden_ejendom_to_bygninger.fordelinger).videreførte_foretagne_afskrivninger_kroner == 75000 && head(al24_anden_ejendom_to_bygninger.fordelinger).nyt_afskrivningsgrundlag_for_overskydende_genopførelsesudgift_kroner == 50000
+| scenarie_al24_fristsvigt_med_tillæg: al24_fristsvigt -> al24_fristsvigt.fristsvigt_efter_stk11 && al24_fristsvigt.antal_tillægsår == 1 && al24_fristsvigt.fem_procent_tillæg_kroner == 2500 && al24_fristsvigt.skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner == 52500 && al24_året_efter_fristsvigt.fristsvigt_efter_stk11 == Falskt && al24_året_efter_fristsvigt.samlet_skattepligtigt_beløb_kroner == 0
+| scenarie_par3_nr10_adskiller_afståelsesindkomst_tab_og_særlige_fradrag: par3_nr10_afståelse_skade_og_genopførelse -> length(par3_nr10_afståelse_skade_og_genopførelse.post_resultater) == 6 && par3_nr10_afståelse_skade_og_genopførelse.brutto_indtægtsføringer_efter_afskrivningsloven_kroner == 652500 && par3_nr10_afståelse_skade_og_genopførelse.indtægtsføring_i_personlig_indkomst_kroner == 652500 && par3_nr10_afståelse_skade_og_genopførelse.brutto_tab_kroner == 100000 && par3_nr10_afståelse_skade_og_genopførelse.brutto_andre_fradrag_kroner == 172500 && par3_nr10_afståelse_skade_og_genopførelse.fradrag_i_personlig_indkomst_kroner == 272500
+
+? scenarie_al21_officiel_fortjeneste_og_tab
+? scenarie_al21_officiel_par19_intervalhistorik
+? scenarie_al21_officiel_blandet_installation
+? scenarie_al22_officielt_nedrivningsfradrag
+? scenarie_al23_officiel_skade
+? scenarie_al24_samme_ejendom
+? scenarie_al24_anden_ejendom_fordeler
+? scenarie_al24_fristsvigt_med_tillæg
+? scenarie_par3_nr10_adskiller_afståelsesindkomst_tab_og_særlige_fradrag

@@ -71,6 +71,24 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par21_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083989",
+    identifier = "Den juridiske vejledning, genvundne afskrivninger og tab",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par22_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083988",
+    identifier = "Den juridiske vejledning, nedrivningsfradrag for bygninger og installationer",
+    hentet_dato = "2026-07-18"
+)
+
+= afskrivningsloven_par23_par24_juridisk_vejledning = AfskrivningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2083990",
+    identifier = "Den juridiske vejledning, skade på bygning eller installation og genopførelse",
+    hentet_dato = "2026-07-18"
+)
+
 = afskrivningsloven_saldoprincip_juridisk_vejledning = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2060781",
     identifier = "Den juridiske vejledning, afskrivning efter saldoprincippet",
@@ -1988,44 +2006,52 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 ----
 
 --@begin:afskrivningsloven_par19--
-# Afskrivningslov19Interval(fra_kroner: Heltal, til_kroner: Heltal, afskrivningsberettiget_forrige_indkomstår: Boolsk, afskrivningsberettiget_i_indkomståret: Boolsk, anvendt_afskrivningsprocent_basispoint: Heltal, maksimalt_mulig_afskrivningsprocent_basispoint: Heltal)
+# Afskrivningslov19Interval(fra_kroner: Heltal, til_kroner: Heltal, afskrivningsberettiget_forrige_indkomstår: Boolsk, afskrivningsberettiget_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår: Heltal, anvendt_afskrivningsprocent_basispoint: Heltal, maksimalt_mulig_afskrivningsprocent_basispoint: Heltal)
 # Afskrivningslov19IntervalKontrol(næste_fra_kroner: Heltal, gyldig: Boolsk)
-# Afskrivningslov19Input(bygning_resultat: Afskrivningslov14Resultat, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
-# Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
+# Afskrivningslov19Historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval), gyldig: Boolsk)
+# Afskrivningslov19Input(bygning_resultat: Afskrivningslov14Resultat, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
 
 | afskrivningslov19_interval_beløb_kroner(interval: Afskrivningslov19Interval) -> penge_positivt_beløb(interval.til_kroner - interval.fra_kroner)
-| afskrivningslov19_interval_gyldigt(interval: Afskrivningslov19Interval) -> interval.fra_kroner >= 0 && interval.til_kroner > interval.fra_kroner && interval.anvendt_afskrivningsprocent_basispoint >= 0 && interval.anvendt_afskrivningsprocent_basispoint <= interval.maksimalt_mulig_afskrivningsprocent_basispoint && interval.maksimalt_mulig_afskrivningsprocent_basispoint <= 10000
-| afskrivningslov19_intervaller_gyldige(intervaller: List(Afskrivningslov19Interval), samlet_anskaffelsessum_kroner: Heltal) -> hvis length(intervaller) == 0 { Sandt } ellers {
+| afskrivningslov19_interval_gyldigt(interval: Afskrivningslov19Interval, afskrivningsberettigede_indkomstår_for_bygningen: Heltal) -> interval.fra_kroner >= 0 && interval.til_kroner > interval.fra_kroner && interval.afskrivningsberettigede_indkomstår >= 0 && interval.afskrivningsberettigede_indkomstår <= afskrivningsberettigede_indkomstår_for_bygningen && interval.anvendt_afskrivningsprocent_basispoint >= 0 && interval.anvendt_afskrivningsprocent_basispoint <= interval.maksimalt_mulig_afskrivningsprocent_basispoint && interval.maksimalt_mulig_afskrivningsprocent_basispoint <= 10000
+| afskrivningslov19_intervaller_gyldige(intervaller: List(Afskrivningslov19Interval), samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal) -> hvis length(intervaller) == 0 { afskrivningsberettigede_indkomstår_for_bygningen == 0 } ellers {
     = kontrol = foldl(intervaller, Afskrivningslov19IntervalKontrol(næste_fra_kroner = 0, gyldig = Sandt), |tilstand: Afskrivningslov19IntervalKontrol, interval: Afskrivningslov19Interval| Afskrivningslov19IntervalKontrol(
         næste_fra_kroner = interval.til_kroner,
-        gyldig = tilstand.gyldig && afskrivningslov19_interval_gyldigt(interval) && interval.fra_kroner == tilstand.næste_fra_kroner
+        gyldig = tilstand.gyldig && afskrivningslov19_interval_gyldigt(interval, afskrivningsberettigede_indkomstår_for_bygningen) && interval.fra_kroner == tilstand.næste_fra_kroner
     ))
     kontrol.gyldig && kontrol.næste_fra_kroner == samlet_anskaffelsessum_kroner
 }
 | afskrivningslov19_første_intervaller(samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis samlet_anskaffelsessum_kroner <= 0 { [] } ellers hvis afskrivningsberettiget_grænse_kroner <= 0 {
-    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
+    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
 } ellers hvis afskrivningsberettiget_grænse_kroner >= samlet_anskaffelsessum_kroner {
-    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
+    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 1, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
 } ellers {
     [
-        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
-        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = 1, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
+        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
     ]
 }
 | afskrivningslov19_interval_ved_ny_grænse(interval: Afskrivningslov19Interval, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis interval.til_kroner <= afskrivningsberettiget_grænse_kroner {
-    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
+    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår + 1, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
 } ellers hvis interval.fra_kroner >= afskrivningsberettiget_grænse_kroner {
-    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
+    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
 } ellers {
     [
-        Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint),
-        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)
+        Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår + 1, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint),
+        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)
     ]
 }
 | afskrivningslov19_intervaller_ved_ny_grænse(tidligere_intervaller: List(Afskrivningslov19Interval), samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis length(tidligere_intervaller) == 0 { afskrivningslov19_første_intervaller(samlet_anskaffelsessum_kroner, afskrivningsberettiget_grænse_kroner) } ellers { flat_map(tidligere_intervaller, |interval: Afskrivningslov19Interval| afskrivningslov19_interval_ved_ny_grænse(interval, afskrivningsberettiget_grænse_kroner)) }
 | afskrivningslov19_intervalgrundlag_kroner(intervaller: List(Afskrivningslov19Interval), medregn: Afskrivningslov19Interval -> Boolsk) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + hvis medregn(interval) { afskrivningslov19_interval_beløb_kroner(interval) } ellers { 0 })
 | afskrivningslov19_foretagne_afskrivninger_kroner(intervaller: List(Afskrivningslov19Interval)) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), interval.anvendt_afskrivningsprocent_basispoint))
 | afskrivningslov19_maksimalt_mulige_afskrivninger_kroner(intervaller: List(Afskrivningslov19Interval)) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), interval.maksimalt_mulig_afskrivningsprocent_basispoint))
+| afskrivningslov19_historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Historik(
+    skatteyder = skatteyder,
+    samlet_anskaffelsessum_kroner = penge_positivt_beløb(samlet_anskaffelsessum_kroner),
+    afskrivningsberettigede_indkomstår_for_bygningen = penge_positivt_beløb(afskrivningsberettigede_indkomstår_for_bygningen),
+    intervaller = intervaller,
+    gyldig = afskrivningslov19_intervaller_gyldige(intervaller, penge_positivt_beløb(samlet_anskaffelsessum_kroner), penge_positivt_beløb(afskrivningsberettigede_indkomstår_for_bygningen))
+)
 
 # Afskrivningslov19Sag(input: Afskrivningslov19Input) {
     | samlet_etageareal_kvadratmeter() -> penge_positivt_beløb(input.samlet_etageareal_kvadratmeter)
@@ -2040,12 +2066,13 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     | arealkrav_opfyldt() -> under_25_procent() == Falskt || mindst_300_kvadratmeter_opfyldt()
     | anskaffelsessum_efter_ejerbolig_kroner() -> penge_positivt_beløb(penge_positivt_beløb(input.samlet_anskaffelsessum_kroner) - penge_positivt_beløb(input.ejerbolig_anskaffelsessum_kroner))
     | afskrivning_tilladt_i_indkomståret() -> input.bygning_resultat.omfattet_af_par14 && etageareal_gyldigt() && afskrivningsberettiget_etageareal_kvadratmeter() > 0 && arealkrav_opfyldt()
+    | afskrivningsberettigede_indkomstår_for_bygningen() -> penge_positivt_beløb(input.tidligere_afskrivningsberettigede_indkomstår_for_bygningen) + hvis afskrivning_tilladt_i_indkomståret() { 1 } ellers { 0 }
     | omfattet_af_par19() -> afskrivning_tilladt_i_indkomståret() && afskrivningsberettiget_etageareal_kvadratmeter() < etageareal_efter_ejerbolig_kvadratmeter()
     | forholdsmæssigt_grundlag_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(anskaffelsessum_efter_ejerbolig_kroner(), afskrivningsberettiget_etageareal_kvadratmeter(), etageareal_efter_ejerbolig_kvadratmeter())
     | effektiv_intervalgrænse_kroner() -> hvis afskrivning_tilladt_i_indkomståret() { forholdsmæssigt_grundlag_kroner() } ellers { 0 }
-    | tidligere_intervaller_gyldige() -> afskrivningslov19_intervaller_gyldige(input.tidligere_intervaller, anskaffelsessum_efter_ejerbolig_kroner())
+    | tidligere_intervaller_gyldige() -> afskrivningslov19_intervaller_gyldige(input.tidligere_intervaller, anskaffelsessum_efter_ejerbolig_kroner(), penge_positivt_beløb(input.tidligere_afskrivningsberettigede_indkomstår_for_bygningen))
     | intervaller() -> hvis tidligere_intervaller_gyldige() { afskrivningslov19_intervaller_ved_ny_grænse(input.tidligere_intervaller, anskaffelsessum_efter_ejerbolig_kroner(), effektiv_intervalgrænse_kroner()) } ellers { [] }
-    | intervaller_gyldige() -> tidligere_intervaller_gyldige() && afskrivningslov19_intervaller_gyldige(intervaller(), anskaffelsessum_efter_ejerbolig_kroner())
+    | intervaller_gyldige() -> tidligere_intervaller_gyldige() && afskrivningslov19_intervaller_gyldige(intervaller(), anskaffelsessum_efter_ejerbolig_kroner(), afskrivningsberettigede_indkomstår_for_bygningen())
     | aktuelt_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_i_indkomståret)
     | tidligere_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår)
     | videreført_tidligere_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår && interval.afskrivningsberettiget_i_indkomståret)
@@ -2056,6 +2083,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
         skatteyder = input.bygning_resultat.skatteyder,
         omfattet_af_par19 = omfattet_af_par19(),
         afskrivning_tilladt_i_indkomståret = afskrivning_tilladt_i_indkomståret(),
+        afskrivningsberettigede_indkomstår_for_bygningen = afskrivningsberettigede_indkomstår_for_bygningen(),
         etageareal_efter_ejerbolig_kvadratmeter = etageareal_efter_ejerbolig_kvadratmeter(),
         afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter(),
         afskrivningsberettiget_etageareal_basispoint = afskrivningsberettiget_etageareal_basispoint(),
@@ -2076,6 +2104,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 }
 | afskrivningslov19_sag(input: Afskrivningslov19Input) -> Afskrivningslov19Sag(input)
 | afskrivningslov19_resultat(input: Afskrivningslov19Input) -> afskrivningslov19_sag(input).resultat()
+| afskrivningslov19_historik_fra_resultat(resultat: Afskrivningslov19Resultat) -> afskrivningslov19_historik(resultat.skatteyder, resultat.anskaffelsessum_efter_ejerbolig_kroner, resultat.afskrivningsberettigede_indkomstår_for_bygningen, resultat.intervaller)
 --@end:afskrivningsloven_par19--
 
 --@label:afskrivningsloven_par20::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
@@ -2132,6 +2161,514 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
     kan_afskrives_i_indkomståret = afskrivningslov_kapitel3_aktiv_omfattet(input.aktiv) && afskrivningslov20_begivenhed_matcher_aktiv(input) && input.begivenhed == Al20FortsatErhvervsmæssigAnvendelse && input.erhvervsmæssigt_anvendt_i_indkomståret
 )
 --@end:afskrivningsloven_par20--
+
+--@label:afskrivningsloven_par21::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par21_juridisk_vejledning--
+----
+§ 21. Genvundne afskrivninger eller tab ved salg af bygninger eller
+installationer, hvorpå der er afskrevet efter § 14 eller § 15, medregnes i den
+skattepligtige indkomst for salgsåret efter reglerne i stk. 2-6, medmindre § 24
+finder anvendelse.
+
+Stk. 2. Fortjenesten opgøres for hver bygning eller installation omfattet af §
+15, stk. 2, som forskellen mellem salgssummen og den nedskrevne værdi.
+Sidstnævnte værdi opgøres som de afskrivningsberettigede udgifter til
+anskaffelse, forbedringer m.v. med fradrag af samtlige foretagne afskrivninger,
+herunder forlods afskrivninger og forskudsafskrivninger. For bygninger som nævnt
+i § 19 opgøres den gennemsnitlige andel af den samlede anskaffelsessum, som de
+afskrivningsberettigede udgifter til anskaffelse og forbedringer m.v. udgør. Den
+gennemsnitlige andel kan dog altid fastsættes til mindst det beløb, der kunne
+være afskrevet, såfremt der var foretaget maksimale afskrivninger på bygningen i
+den periode, hvor bygningen har været afskrivningsberettiget. Den andel af den
+samlede salgssum, der skal indgå ved opgørelsen efter 1. pkt. og stk. 3, udgøres
+af den andel, der er opgjort efter 3. og 4. pkt. Som genvundne afskrivninger
+medregnes højst de foretagne afskrivninger, herunder forlods afskrivninger og
+forskudsafskrivninger, på det solgte aktiv.
+
+Stk. 3. Tab opgøres for hver bygning eller installation omfattet af § 15, stk.
+2, som forskellen mellem den nedskrevne værdi og salgssummen.
+
+Stk. 4. For installationer, der er afskrevet efter § 15, stk. 3, opgøres
+fortjeneste eller tab som forskellen mellem salgssummen og den nedskrevne værdi
+ved salgsårets begyndelse forhøjet med eventuelle forbedringsudgifter afholdt i
+salgsåret. Ved opgørelsen af den nedskrevne værdi ved salgsårets begyndelse
+fragår de afskrivninger, der er beregnet for de enkelte indkomstår. Fortjeneste
+eller tab medregnes ved opgørelsen af den skattepligtige indkomst for salgsåret
+med en så stor del, som svarer til forholdet mellem de ved indkomstopgørelsen i
+alt fratrukne afskrivninger og de samlede beregnede afskrivninger. Som genvundne
+afskrivninger beskattes i alt højst de fratrukne afskrivninger.
+
+Stk. 5. Sælges en bygning eller installation ejet af en eller flere personer til
+et selskab m.v., og har sælgerne bestemmende indflydelse på selskabets handlemåde
+på grund af aktiebesiddelse, anden form for ejerskab, vedtægtsbestemmelse, aftale
+eller fælles ledelse, kan tab efter stk. 3 eller 4 ikke fradrages. Ved
+bestemmende indflydelse på grund af aktiebesiddelse forstås ejerskab eller
+rådighed over stemmerettigheder, således at der direkte eller indirekte ejes
+mere end 50 pct. af aktiekapitalen eller rådes over mere end 50 pct. af
+stemmerne. I øvrige tilfælde foreligger der bestemmende indflydelse ved
+ejerskab, såfremt der direkte eller indirekte ejes mere end 50 pct. i ejerandel.
+
+Stk. 6. Ved salg af en bygning, hvorpå den skattepligtige før erhvervelsen af
+bygningen har afskrevet efter reglerne i § 39, medregnes til anskaffelsessummen
+ved opgørelsen af fortjeneste eller tab tillige den del af de afholdte udgifter
+til ombygning af lejede lokaler, der svarer til de i lejeperioden foretagne
+afskrivninger. Ved opgørelsen af samtlige foretagne afskrivninger medregnes de
+efter § 39, stk. 1 og 2, foretagne afskrivninger.
+----
+
+--@begin:afskrivningsloven_par21--
+# Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner: Heltal, fratrukne_afskrivninger_kroner: Heltal)
+# Afskrivningslov21Par19Delgrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsberettigede_indkomstår_for_grundlaget: Heltal, intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov21Grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost)) | Al21Par19Grundlag(bygningshistorik: Afskrivningslov19Historik, forbedringsgrundlag: List(Afskrivningslov21Par19Delgrundlag)) | Al21BlandetInstallation(samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner: Heltal, straksfradrag_før_salgsåret_som_ikke_medregnes_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, straksfradrag_i_salgsåret_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost))
+# Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner: Heltal, foretagne_afskrivninger_kroner: Heltal)
+# Afskrivningslov21NedskrevetVærdiInput(aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, par39_historik: Afskrivningslov21Par39Historik)
+# Afskrivningslov21NedskrevetVærdiResultat(skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, grundlag_gyldigt: Boolsk, blandet_installation_efter_par15_stk3: Boolsk, samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, afskrivningsberettiget_anskaffelsesgrundlag_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal)
+# Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer: Boolsk, køber_er_selskab_mv: Boolsk, kapitalandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, anden_bestemmende_indflydelse: Boolsk)
+# Afskrivningslov21Input(indkomstår: Heltal, nedskrevet_værdi_resultat: Afskrivningslov21NedskrevetVærdiResultat, salg_gennemført: Boolsk, samlet_salgssum_kroner: Heltal, par24_finder_anvendelse: Boolsk, kontrol: Afskrivningslov21Kontrol)
+# Afskrivningslov21Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par21: Boolsk, par24_finder_anvendelse: Boolsk, grundlag_gyldigt: Boolsk, blandet_installation_efter_par15_stk3: Boolsk, samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, afskrivningsberettiget_anskaffelsesgrundlag_kroner: Heltal, samlet_salgssum_kroner: Heltal, salgssum_til_par21_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal, rå_fortjeneste_kroner: Heltal, rå_tab_kroner: Heltal, beregnede_genvundne_afskrivninger_før_par24_kroner: Heltal, beregnet_tab_før_par24_og_kontrol_kroner: Heltal, bestemmende_indflydelse: Boolsk, tab_afskåret_efter_stk5_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+| afskrivningslov21_afskrivningspost_gyldig(post: Afskrivningslov21Afskrivningspost) -> post.beregnede_afskrivninger_kroner >= 0 && post.fratrukne_afskrivninger_kroner >= 0 && post.fratrukne_afskrivninger_kroner <= post.beregnede_afskrivninger_kroner
+| afskrivningslov21_afskrivningsposter_fra_årsopgørelser(årsopgørelser: List(Afskrivningslov17Årsopgørelse)) -> map(årsopgørelser, |årsopgørelse: Afskrivningslov17Årsopgørelse| Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner, fratrukne_afskrivninger_kroner = årsopgørelse.fradraget_afskrivning_kroner))
+| afskrivningslov21_beregnede_afskrivninger_kroner(poster: List(Afskrivningslov21Afskrivningspost)) -> foldl(poster, 0, |sum: Heltal, post: Afskrivningslov21Afskrivningspost| sum + penge_positivt_beløb(post.beregnede_afskrivninger_kroner))
+| afskrivningslov21_fratrukne_afskrivninger_kroner(poster: List(Afskrivningslov21Afskrivningspost)) -> foldl(poster, 0, |sum: Heltal, post: Afskrivningslov21Afskrivningspost| sum + penge_positivt_beløb(post.fratrukne_afskrivninger_kroner))
+| afskrivningslov21_netto_anskaffelsesudgift_kroner(samlede_udgifter_kroner: Heltal, straksfradrag_kroner: Heltal) -> penge_positivt_beløb(penge_positivt_beløb(samlede_udgifter_kroner) - penge_positivt_beløb(straksfradrag_kroner))
+| afskrivningslov21_par19_delgrundlag_fra_historik(historik: Afskrivningslov19Historik) -> Afskrivningslov21Par19Delgrundlag(
+    samlede_anskaffelses_og_forbedringsudgifter_kroner = historik.samlet_anskaffelsessum_kroner,
+    straksfradrag_som_ikke_medregnes_kroner = 0,
+    afskrivningsberettigede_indkomstår_for_grundlaget = historik.afskrivningsberettigede_indkomstår_for_bygningen,
+    intervaller = historik.intervaller
+)
+| afskrivningslov21_par19_delgrundlag_netto_kroner(grundlag: Afskrivningslov21Par19Delgrundlag) -> afskrivningslov21_netto_anskaffelsesudgift_kroner(grundlag.samlede_anskaffelses_og_forbedringsudgifter_kroner, grundlag.straksfradrag_som_ikke_medregnes_kroner)
+| afskrivningslov21_par19_delgrundlag_gyldigt(grundlag: Afskrivningslov21Par19Delgrundlag) -> grundlag.afskrivningsberettigede_indkomstår_for_grundlaget > 0 && afskrivningslov19_intervaller_gyldige(grundlag.intervaller, afskrivningslov21_par19_delgrundlag_netto_kroner(grundlag), grundlag.afskrivningsberettigede_indkomstår_for_grundlaget)
+| afskrivningslov21_par19_vægtet_anskaffelsessum_tæller(grundlag: Afskrivningslov21Par19Delgrundlag) -> foldl(grundlag.intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + afskrivningslov19_interval_beløb_kroner(interval) * interval.afskrivningsberettigede_indkomstår)
+| afskrivningslov21_par19_gennemsnitligt_grundlag_før_minimum_kroner(grundlag: Afskrivningslov21Par19Delgrundlag) -> hvis afskrivningslov21_par19_delgrundlag_gyldigt(grundlag) { (afskrivningslov21_par19_vægtet_anskaffelsessum_tæller(grundlag) + grundlag.afskrivningsberettigede_indkomstår_for_grundlaget / 2) / grundlag.afskrivningsberettigede_indkomstår_for_grundlaget } ellers { 0 }
+| afskrivningslov21_par19_foretagne_afskrivninger_kroner(grundlag: Afskrivningslov21Par19Delgrundlag) -> afskrivningslov19_foretagne_afskrivninger_kroner(grundlag.intervaller)
+| afskrivningslov21_par19_maksimalt_mulige_afskrivninger_kroner(grundlag: Afskrivningslov21Par19Delgrundlag) -> afskrivningslov19_maksimalt_mulige_afskrivninger_kroner(grundlag.intervaller)
+| afskrivningslov21_par19_gennemsnitligt_grundlag_kroner(grundlag: Afskrivningslov21Par19Delgrundlag) -> penge_mindste_beløb(afskrivningslov21_par19_delgrundlag_netto_kroner(grundlag), penge_største_beløb(afskrivningslov21_par19_gennemsnitligt_grundlag_før_minimum_kroner(grundlag), afskrivningslov21_par19_maksimalt_mulige_afskrivninger_kroner(grundlag)))
+| afskrivningslov21_par19_grundlagsposter(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21Par19Grundlag(bygningshistorik, forbedringsgrundlag) -> concat([afskrivningslov21_par19_delgrundlag_fra_historik(bygningshistorik)], forbedringsgrundlag)
+    | _ -> []
+}
+| afskrivningslov21_par19_samlet_netto_anskaffelsessum_kroner(grundlag: Afskrivningslov21Grundlag) -> foldl(afskrivningslov21_par19_grundlagsposter(grundlag), 0, |sum: Heltal, delgrundlag: Afskrivningslov21Par19Delgrundlag| sum + afskrivningslov21_par19_delgrundlag_netto_kroner(delgrundlag))
+| afskrivningslov21_par19_samlet_gennemsnitligt_grundlag_kroner(grundlag: Afskrivningslov21Grundlag) -> foldl(afskrivningslov21_par19_grundlagsposter(grundlag), 0, |sum: Heltal, delgrundlag: Afskrivningslov21Par19Delgrundlag| sum + afskrivningslov21_par19_gennemsnitligt_grundlag_kroner(delgrundlag))
+| afskrivningslov21_par19_samlede_foretagne_afskrivninger_kroner(grundlag: Afskrivningslov21Grundlag) -> foldl(afskrivningslov21_par19_grundlagsposter(grundlag), 0, |sum: Heltal, delgrundlag: Afskrivningslov21Par19Delgrundlag| sum + afskrivningslov21_par19_foretagne_afskrivninger_kroner(delgrundlag))
+| afskrivningslov21_par19_samlede_maksimalt_mulige_afskrivninger_kroner(grundlag: Afskrivningslov21Grundlag) -> foldl(afskrivningslov21_par19_grundlagsposter(grundlag), 0, |sum: Heltal, delgrundlag: Afskrivningslov21Par19Delgrundlag| sum + afskrivningslov21_par19_maksimalt_mulige_afskrivninger_kroner(delgrundlag))
+| afskrivningslov21_par39_gyldig(historik: Afskrivningslov21Par39Historik) -> historik.afholdte_ombygningsudgifter_kroner >= 0 && historik.foretagne_afskrivninger_kroner >= 0 && historik.foretagne_afskrivninger_kroner <= historik.afholdte_ombygningsudgifter_kroner
+| afskrivningslov21_grundlag_matcher_aktiv(aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21OrdinærtGrundlag(_, _, _) -> match aktiv {
+        | AlK3Bygning(_) -> Sandt
+        | AlK3Installation(resultat) -> resultat.omfattet_af_stk2
+        | _ -> Falskt
+    }
+    | Al21Par19Grundlag(bygningshistorik, _) -> match aktiv {
+        | AlK3Bygning(resultat) -> resultat.omfattet_af_par14 && bygningshistorik.gyldig && resultat.skatteyder == bygningshistorik.skatteyder
+        | _ -> Falskt
+    }
+    | Al21BlandetInstallation(_, _, _, _, _) -> match aktiv {
+        | AlK3Installation(resultat) -> resultat.omfattet_af_stk3
+        | _ -> Falskt
+    }
+}
+| afskrivningslov21_grundlag_gyldigt(aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag) -> afskrivningslov21_grundlag_matcher_aktiv(aktiv, grundlag) && match grundlag {
+    | Al21OrdinærtGrundlag(samlede_udgifter, straksfradrag, poster) -> straksfradrag >= 0 && straksfradrag <= samlede_udgifter && all(poster, |post: Afskrivningslov21Afskrivningspost| afskrivningslov21_afskrivningspost_gyldig(post)) && afskrivningslov21_fratrukne_afskrivninger_kroner(poster) <= afskrivningslov21_netto_anskaffelsesudgift_kroner(samlede_udgifter, straksfradrag)
+    | Al21Par19Grundlag(bygningshistorik, _) -> bygningshistorik.gyldig && all(afskrivningslov21_par19_grundlagsposter(grundlag), |delgrundlag: Afskrivningslov21Par19Delgrundlag| afskrivningslov21_par19_delgrundlag_gyldigt(delgrundlag)) && afskrivningslov21_par19_samlede_foretagne_afskrivninger_kroner(grundlag) <= afskrivningslov21_par19_samlet_gennemsnitligt_grundlag_kroner(grundlag)
+    | Al21BlandetInstallation(samlede_udgifter, straksfradrag, forbedringer_i_salgsåret, straksfradrag_i_salgsåret, poster) -> straksfradrag >= 0 && straksfradrag <= samlede_udgifter && straksfradrag_i_salgsåret >= 0 && straksfradrag_i_salgsåret <= forbedringer_i_salgsåret && all(poster, |post: Afskrivningslov21Afskrivningspost| afskrivningslov21_afskrivningspost_gyldig(post)) && afskrivningslov21_beregnede_afskrivninger_kroner(poster) <= afskrivningslov21_netto_anskaffelsesudgift_kroner(samlede_udgifter, straksfradrag)
+}
+| afskrivningslov21_samlede_anskaffelsesudgifter_kroner(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21OrdinærtGrundlag(samlede_udgifter, straksfradrag, _) -> afskrivningslov21_netto_anskaffelsesudgift_kroner(samlede_udgifter, straksfradrag)
+    | Al21Par19Grundlag(_, _) -> afskrivningslov21_par19_samlet_netto_anskaffelsessum_kroner(grundlag)
+    | Al21BlandetInstallation(samlede_udgifter, straksfradrag, forbedringer_i_salgsåret, straksfradrag_i_salgsåret, _) -> afskrivningslov21_netto_anskaffelsesudgift_kroner(samlede_udgifter, straksfradrag) + afskrivningslov21_netto_anskaffelsesudgift_kroner(forbedringer_i_salgsåret, straksfradrag_i_salgsåret)
+}
+| afskrivningslov21_afskrivningsberettiget_anskaffelsesgrundlag_kroner(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21Par19Grundlag(_, _) -> afskrivningslov21_par19_samlet_gennemsnitligt_grundlag_kroner(grundlag)
+    | _ -> afskrivningslov21_samlede_anskaffelsesudgifter_kroner(grundlag)
+}
+| afskrivningslov21_grundlag_beregnede_afskrivninger_kroner(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21OrdinærtGrundlag(_, _, poster) -> afskrivningslov21_fratrukne_afskrivninger_kroner(poster)
+    | Al21Par19Grundlag(_, _) -> afskrivningslov21_par19_samlede_foretagne_afskrivninger_kroner(grundlag)
+    | Al21BlandetInstallation(_, _, _, _, poster) -> afskrivningslov21_beregnede_afskrivninger_kroner(poster)
+}
+| afskrivningslov21_grundlag_foretagne_afskrivninger_kroner(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21OrdinærtGrundlag(_, _, poster) -> afskrivningslov21_fratrukne_afskrivninger_kroner(poster)
+    | Al21Par19Grundlag(_, _) -> afskrivningslov21_par19_samlede_foretagne_afskrivninger_kroner(grundlag)
+    | Al21BlandetInstallation(_, _, _, _, poster) -> afskrivningslov21_fratrukne_afskrivninger_kroner(poster)
+}
+| afskrivningslov21_grundlag_maksimalt_mulige_afskrivninger_kroner(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21Par19Grundlag(_, _) -> afskrivningslov21_par19_samlede_maksimalt_mulige_afskrivninger_kroner(grundlag)
+    | _ -> afskrivningslov21_grundlag_beregnede_afskrivninger_kroner(grundlag)
+}
+| afskrivningslov21_blandet_installation(grundlag: Afskrivningslov21Grundlag) -> match grundlag {
+    | Al21BlandetInstallation(_, _, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+
+# Afskrivningslov21NedskrevetVærdiSag(input: Afskrivningslov21NedskrevetVærdiInput) {
+    | grundlag_gyldigt() -> afskrivningslov21_par39_gyldig(input.par39_historik) && afskrivningslov21_grundlag_gyldigt(input.aktiv, input.grundlag)
+    | par39_afskrivninger_kroner() -> hvis grundlag_gyldigt() { penge_positivt_beløb(input.par39_historik.foretagne_afskrivninger_kroner) } ellers { 0 }
+    | samlede_anskaffelsesudgifter_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_samlede_anskaffelsesudgifter_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
+    | afskrivningsberettiget_anskaffelsesgrundlag_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_afskrivningsberettiget_anskaffelsesgrundlag_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
+    | beregnede_afskrivninger_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_grundlag_beregnede_afskrivninger_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
+    | foretagne_afskrivninger_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_grundlag_foretagne_afskrivninger_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
+    | maksimalt_mulige_afskrivninger_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_grundlag_maksimalt_mulige_afskrivninger_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
+    | nedskrevet_værdi_kroner() -> penge_positivt_beløb(afskrivningsberettiget_anskaffelsesgrundlag_kroner() - beregnede_afskrivninger_kroner())
+    | resultat() -> Afskrivningslov21NedskrevetVærdiResultat(
+        skatteyder = afskrivningslov_kapitel3_aktiv_skatteyder(input.aktiv),
+        aktiv = input.aktiv,
+        grundlag = input.grundlag,
+        grundlag_gyldigt = grundlag_gyldigt(),
+        blandet_installation_efter_par15_stk3 = afskrivningslov21_blandet_installation(input.grundlag),
+        samlede_anskaffelses_og_forbedringsudgifter_kroner = samlede_anskaffelsesudgifter_kroner(),
+        afskrivningsberettiget_anskaffelsesgrundlag_kroner = afskrivningsberettiget_anskaffelsesgrundlag_kroner(),
+        samlede_beregnede_afskrivninger_kroner = beregnede_afskrivninger_kroner(),
+        samlede_foretagne_afskrivninger_kroner = foretagne_afskrivninger_kroner(),
+        samlede_maksimalt_mulige_afskrivninger_kroner = maksimalt_mulige_afskrivninger_kroner(),
+        nedskrevet_værdi_kroner = nedskrevet_værdi_kroner()
+    )
+}
+| afskrivningslov21_nedskrevet_værdi_sag(input: Afskrivningslov21NedskrevetVærdiInput) -> Afskrivningslov21NedskrevetVærdiSag(input)
+| afskrivningslov21_nedskrevet_værdi_resultat(input: Afskrivningslov21NedskrevetVærdiInput) -> afskrivningslov21_nedskrevet_værdi_sag(input).resultat()
+| afskrivningslov21_bestemmende_indflydelse(kontrol: Afskrivningslov21Kontrol) -> kontrol.sælgerne_er_en_eller_flere_personer && kontrol.køber_er_selskab_mv && (kontrol.kapitalandel_basispoint > 5000 || kontrol.stemmerettigheder_basispoint > 5000 || kontrol.anden_bestemmende_indflydelse)
+
+# Afskrivningslov21Sag(input: Afskrivningslov21Input) {
+    | værdi() -> input.nedskrevet_værdi_resultat
+    | omfattet_af_par21() -> input.salg_gennemført && værdi().grundlag_gyldigt
+    | samlet_salgssum_kroner() -> penge_positivt_beløb(input.samlet_salgssum_kroner)
+    | salgssum_til_par21_kroner() -> samlet_salgssum_kroner()
+    | exception al21_par19_forholdsmæssig_salgssum salgssum_til_par21_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(samlet_salgssum_kroner(), værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner, værdi().samlede_anskaffelses_og_forbedringsudgifter_kroner) under omfattet_af_par21() && match værdi().grundlag { | Al21Par19Grundlag(_, _) -> Sandt | _ -> Falskt }
+    | rå_fortjeneste_kroner() -> hvis omfattet_af_par21() { penge_positivt_beløb(salgssum_til_par21_kroner() - værdi().nedskrevet_værdi_kroner) } ellers { 0 }
+    | rå_tab_kroner() -> hvis omfattet_af_par21() { penge_positivt_beløb(værdi().nedskrevet_værdi_kroner - salgssum_til_par21_kroner()) } ellers { 0 }
+    | forholdsmæssig_fortjeneste_kroner() -> rå_fortjeneste_kroner()
+    | exception al21_stk4_blandet_fortjeneste forholdsmæssig_fortjeneste_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(rå_fortjeneste_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
+    | forholdsmæssigt_tab_kroner() -> rå_tab_kroner()
+    | exception al21_stk4_blandet_tab forholdsmæssigt_tab_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(rå_tab_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
+    | beregnede_genvundne_afskrivninger_før_par24_kroner() -> penge_mindste_beløb(værdi().samlede_foretagne_afskrivninger_kroner, forholdsmæssig_fortjeneste_kroner())
+    | beregnet_tab_før_par24_og_kontrol_kroner() -> forholdsmæssigt_tab_kroner()
+    | bestemmende_indflydelse() -> afskrivningslov21_bestemmende_indflydelse(input.kontrol)
+    | tab_afskåret_efter_stk5_kroner() -> hvis bestemmende_indflydelse() { beregnet_tab_før_par24_og_kontrol_kroner() } ellers { 0 }
+    | skattepligtige_genvundne_afskrivninger_kroner() -> hvis omfattet_af_par21() && input.par24_finder_anvendelse == Falskt { beregnede_genvundne_afskrivninger_før_par24_kroner() } ellers { 0 }
+    | fradragsberettiget_tab_kroner() -> hvis omfattet_af_par21() && input.par24_finder_anvendelse == Falskt && bestemmende_indflydelse() == Falskt { beregnet_tab_før_par24_og_kontrol_kroner() } ellers { 0 }
+    | resultat() -> Afskrivningslov21Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = værdi().skatteyder,
+        omfattet_af_par21 = omfattet_af_par21(),
+        par24_finder_anvendelse = input.par24_finder_anvendelse,
+        grundlag_gyldigt = værdi().grundlag_gyldigt,
+        blandet_installation_efter_par15_stk3 = værdi().blandet_installation_efter_par15_stk3,
+        samlede_anskaffelses_og_forbedringsudgifter_kroner = værdi().samlede_anskaffelses_og_forbedringsudgifter_kroner,
+        afskrivningsberettiget_anskaffelsesgrundlag_kroner = værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner,
+        samlet_salgssum_kroner = samlet_salgssum_kroner(),
+        salgssum_til_par21_kroner = salgssum_til_par21_kroner(),
+        samlede_beregnede_afskrivninger_kroner = værdi().samlede_beregnede_afskrivninger_kroner,
+        samlede_foretagne_afskrivninger_kroner = værdi().samlede_foretagne_afskrivninger_kroner,
+        samlede_maksimalt_mulige_afskrivninger_kroner = værdi().samlede_maksimalt_mulige_afskrivninger_kroner,
+        nedskrevet_værdi_kroner = værdi().nedskrevet_værdi_kroner,
+        rå_fortjeneste_kroner = rå_fortjeneste_kroner(),
+        rå_tab_kroner = rå_tab_kroner(),
+        beregnede_genvundne_afskrivninger_før_par24_kroner = beregnede_genvundne_afskrivninger_før_par24_kroner(),
+        beregnet_tab_før_par24_og_kontrol_kroner = beregnet_tab_før_par24_og_kontrol_kroner(),
+        bestemmende_indflydelse = bestemmende_indflydelse(),
+        tab_afskåret_efter_stk5_kroner = tab_afskåret_efter_stk5_kroner(),
+        skattepligtige_genvundne_afskrivninger_kroner = skattepligtige_genvundne_afskrivninger_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner()
+    )
+}
+| afskrivningslov21_sag(input: Afskrivningslov21Input) -> Afskrivningslov21Sag(input)
+| afskrivningslov21_resultat(input: Afskrivningslov21Input) -> afskrivningslov21_sag(input).resultat()
+--@end:afskrivningsloven_par21--
+
+--@label:afskrivningsloven_par22::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par22_juridisk_vejledning--
+----
+§ 22. Når en bygning, hvorpå der er afskrevet efter § 14, nedrives, kan der
+foretages et fradrag i den skattepligtige indkomst for det indkomstår, hvori
+nedrivningen sker. Fradraget opgøres som bygningens nedskrevne værdi efter § 21,
+stk. 2, nedsat med den eventuelle salgssum for bygninger eller materialer m.v.
+Det samme gælder, når en installation, hvorpå der er afskrevet efter § 15, stk.
+2 eller 3, udskiftes eller nedtages endeligt. For installationer, hvorpå der er
+afskrevet efter § 15, stk. 3, opgøres fradraget som den del af den nedskrevne
+værdi efter § 21, stk. 4, nedsat med en eventuel salgssum, som svarer til
+forholdet mellem de afskrivninger, der i alt er fratrukket ved opgørelsen af den
+skattepligtige indkomst, og de samlede beregnede afskrivninger. Fradrag efter 1.
+pkt. kan dog kun foretages, når den skattepligtige i mindst 5 år før nedrivningen
+har ejet bygningen eller installationen og i en periode af mindst samme længde,
+mens den skattepligtige har ejet bygningen eller installationen, har anvendt den
+til et afskrivningsberettiget formål.
+
+Stk. 2. Hvis betingelsen i stk. 1, 5. pkt., ikke er opfyldt, kan tabet fradrages
+i det indkomstår, hvori ejendommen eller den del af ejendommen, hvor bygningen
+eller installationer var beliggende, sælges. Tabet opgøres som bygningens eller
+installationens nedskrevne værdi på tidspunktet for nedrivningen nedsat med den
+eventuelle salgssum for bygninger, installationer eller materialer m.v.
+----
+
+--@begin:afskrivningsloven_par22--
+# Afskrivningslov22Begivenhed = Al22BygningNedrevet | Al22InstallationUdskiftet | Al22InstallationEndeligtNedtaget
+# Afskrivningslov22Input(indkomstår: Heltal, nedskrevet_værdi_resultat: Afskrivningslov21NedskrevetVærdiResultat, begivenhed: Afskrivningslov22Begivenhed, salgssum_for_bygning_installation_eller_materialer_kroner: Heltal, ejertid_før_nedrivning_år: Heltal, afskrivningsberettiget_anvendelse_i_ejertiden_år: Heltal, ejendommen_eller_den_relevante_del_solgt_i_indkomståret: Boolsk)
+# Afskrivningslov22Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par22: Boolsk, begivenhed_matcher_aktiv: Boolsk, femårs_ejertid_opfyldt: Boolsk, femårs_afskrivningsberettiget_anvendelse_opfyldt: Boolsk, nedskrevet_værdi_kroner: Heltal, salgssum_for_bygning_installation_eller_materialer_kroner: Heltal, beregnet_nedrivningstab_kroner: Heltal, fradrag_i_nedrivningsåret_kroner: Heltal, udskudt_tab_efter_stk2_kroner: Heltal, fradrag_ved_senere_ejendomssalg_kroner: Heltal)
+
+| afskrivningslov22_begivenhed_matcher_aktiv(aktiv: AfskrivningslovKapitel3Aktiv, begivenhed: Afskrivningslov22Begivenhed) -> match begivenhed {
+    | Al22BygningNedrevet -> afskrivningslov20_aktiv_behandles_som_bygning(aktiv)
+    | Al22InstallationUdskiftet -> afskrivningslov20_aktiv_er_installation_stk2_eller_stk3(aktiv)
+    | Al22InstallationEndeligtNedtaget -> afskrivningslov20_aktiv_er_installation_stk2_eller_stk3(aktiv)
+}
+
+# Afskrivningslov22Sag(input: Afskrivningslov22Input) {
+    | værdi() -> input.nedskrevet_værdi_resultat
+    | begivenhed_matcher_aktiv() -> afskrivningslov22_begivenhed_matcher_aktiv(værdi().aktiv, input.begivenhed)
+    | omfattet_af_par22() -> værdi().grundlag_gyldigt && begivenhed_matcher_aktiv()
+    | salgssum_kroner() -> penge_positivt_beløb(input.salgssum_for_bygning_installation_eller_materialer_kroner)
+    | tab_før_blandet_forhold_kroner() -> hvis omfattet_af_par22() { penge_positivt_beløb(værdi().nedskrevet_værdi_kroner - salgssum_kroner()) } ellers { 0 }
+    | beregnet_nedrivningstab_kroner() -> tab_før_blandet_forhold_kroner()
+    | exception al22_stk1_blandet_installation beregnet_nedrivningstab_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(tab_før_blandet_forhold_kroner(), værdi().samlede_foretagne_afskrivninger_kroner, værdi().samlede_beregnede_afskrivninger_kroner) under værdi().blandet_installation_efter_par15_stk3 && værdi().samlede_beregnede_afskrivninger_kroner > 0
+    | femårs_ejertid_opfyldt() -> input.ejertid_før_nedrivning_år >= 5
+    | femårs_afskrivningsberettiget_anvendelse_opfyldt() -> input.afskrivningsberettiget_anvendelse_i_ejertiden_år >= 5
+    | fradrag_i_nedrivningsåret_kroner() -> hvis omfattet_af_par22() && femårs_ejertid_opfyldt() && femårs_afskrivningsberettiget_anvendelse_opfyldt() { beregnet_nedrivningstab_kroner() } ellers { 0 }
+    | udskudt_tab_efter_stk2_kroner() -> hvis omfattet_af_par22() && (femårs_ejertid_opfyldt() == Falskt || femårs_afskrivningsberettiget_anvendelse_opfyldt() == Falskt) { beregnet_nedrivningstab_kroner() } ellers { 0 }
+    | fradrag_ved_senere_ejendomssalg_kroner() -> hvis input.ejendommen_eller_den_relevante_del_solgt_i_indkomståret { udskudt_tab_efter_stk2_kroner() } ellers { 0 }
+    | resultat() -> Afskrivningslov22Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = værdi().skatteyder,
+        omfattet_af_par22 = omfattet_af_par22(),
+        begivenhed_matcher_aktiv = begivenhed_matcher_aktiv(),
+        femårs_ejertid_opfyldt = femårs_ejertid_opfyldt(),
+        femårs_afskrivningsberettiget_anvendelse_opfyldt = femårs_afskrivningsberettiget_anvendelse_opfyldt(),
+        nedskrevet_værdi_kroner = værdi().nedskrevet_værdi_kroner,
+        salgssum_for_bygning_installation_eller_materialer_kroner = salgssum_kroner(),
+        beregnet_nedrivningstab_kroner = beregnet_nedrivningstab_kroner(),
+        fradrag_i_nedrivningsåret_kroner = fradrag_i_nedrivningsåret_kroner(),
+        udskudt_tab_efter_stk2_kroner = udskudt_tab_efter_stk2_kroner(),
+        fradrag_ved_senere_ejendomssalg_kroner = fradrag_ved_senere_ejendomssalg_kroner()
+    )
+}
+| afskrivningslov22_sag(input: Afskrivningslov22Input) -> Afskrivningslov22Sag(input)
+| afskrivningslov22_resultat(input: Afskrivningslov22Input) -> afskrivningslov22_sag(input).resultat()
+--@end:afskrivningsloven_par22--
+
+--@label:afskrivningsloven_par23::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par23_par24_juridisk_vejledning--
+----
+§ 23. Hvis der på en bygning eller installation sker en skade, der ikke kan
+udbedres ved normal vedligeholdelse, kan afskrivning fra og med det indkomstår,
+hvori skaden indtræffer, kun beregnes af den del af anskaffelsessummen, som
+svarer til forholdet mellem bygningens eller installationens værdi efter skadens
+indtræden og værdien umiddelbart forinden. Den værdiforringelse, der er sket som
+følge af en skade, kan fradrages i det indkomstår, hvori skaden er sket. Med
+hensyn til udgifter, der anvendes til udbedring af en sådan skade, finder § 18,
+stk. 1, anvendelse.
+----
+
+--@begin:afskrivningsloven_par23--
+# Afskrivningslov23Input(indkomstår: Heltal, nedskrevet_værdi_resultat: Afskrivningslov21NedskrevetVærdiResultat, skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse: Boolsk, værdi_umiddelbart_før_skaden_kroner: Heltal, værdi_efter_skaden_kroner: Heltal, udgift_til_udbedring_kroner: Heltal)
+# Afskrivningslov23Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par23: Boolsk, værdiforhold_basispoint: Heltal, afskrivningsgrundlag_før_skade_kroner: Heltal, afskrivningsgrundlag_efter_skade_kroner: Heltal, nedskrevet_værdi_før_skade_kroner: Heltal, nedskrevet_værdi_efter_skade_kroner: Heltal, fradragsberettiget_værdiforringelse_kroner: Heltal, udgift_til_udbedring_kroner: Heltal, udbedringsudgift_henvises_til_par18_stk1: Boolsk, par19_grundlag_efter_skade: List(Afskrivningslov21Par19Delgrundlag))
+
+| afskrivningslov23_interval_efter_skade(interval: Afskrivningslov19Interval, værdi_efter_skaden_kroner: Heltal, værdi_før_skaden_kroner: Heltal) -> Afskrivningslov19Interval(
+    fra_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(interval.fra_kroner, værdi_efter_skaden_kroner, værdi_før_skaden_kroner),
+    til_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(interval.til_kroner, værdi_efter_skaden_kroner, værdi_før_skaden_kroner),
+    afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_forrige_indkomstår,
+    afskrivningsberettiget_i_indkomståret = interval.afskrivningsberettiget_i_indkomståret,
+    afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår,
+    anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint,
+    maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint
+)
+| afskrivningslov23_par19_delgrundlag_efter_skade(grundlag: Afskrivningslov21Par19Delgrundlag, værdi_efter_skaden_kroner: Heltal, værdi_før_skaden_kroner: Heltal) -> Afskrivningslov21Par19Delgrundlag(
+    samlede_anskaffelses_og_forbedringsudgifter_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(afskrivningslov21_par19_delgrundlag_netto_kroner(grundlag), værdi_efter_skaden_kroner, værdi_før_skaden_kroner),
+    straksfradrag_som_ikke_medregnes_kroner = 0,
+    afskrivningsberettigede_indkomstår_for_grundlaget = grundlag.afskrivningsberettigede_indkomstår_for_grundlaget,
+    intervaller = map(grundlag.intervaller, |interval: Afskrivningslov19Interval| afskrivningslov23_interval_efter_skade(interval, værdi_efter_skaden_kroner, værdi_før_skaden_kroner))
+)
+
+# Afskrivningslov23Sag(input: Afskrivningslov23Input) {
+    | værdi() -> input.nedskrevet_værdi_resultat
+    | værdier_gyldige() -> input.værdi_umiddelbart_før_skaden_kroner > 0 && input.værdi_efter_skaden_kroner >= 0 && input.værdi_efter_skaden_kroner < input.værdi_umiddelbart_før_skaden_kroner
+    | omfattet_af_par23() -> værdi().grundlag_gyldigt && input.skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse && værdier_gyldige()
+    | værdiforhold_basispoint() -> hvis omfattet_af_par23() { input.værdi_efter_skaden_kroner * 10000 / input.værdi_umiddelbart_før_skaden_kroner } ellers { 0 }
+    | afskrivningsgrundlag_efter_skade_kroner() -> hvis omfattet_af_par23() { afskrivningslov_beløb_gange_forhold_afrundet_kroner(værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner, input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner) } ellers { 0 }
+    | nedskrevet_værdi_efter_skade_kroner() -> hvis omfattet_af_par23() { afskrivningslov_beløb_gange_forhold_afrundet_kroner(værdi().nedskrevet_værdi_kroner, input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner) } ellers { 0 }
+    | fradragsberettiget_værdiforringelse_kroner() -> hvis omfattet_af_par23() { penge_positivt_beløb(værdi().nedskrevet_værdi_kroner - nedskrevet_værdi_efter_skade_kroner()) } ellers { 0 }
+    | udgift_til_udbedring_kroner() -> penge_positivt_beløb(input.udgift_til_udbedring_kroner)
+    | udbedringsudgift_henvises_til_par18_stk1() -> omfattet_af_par23() && udgift_til_udbedring_kroner() > 0
+    | par19_grundlag_efter_skade() -> hvis omfattet_af_par23() { map(afskrivningslov21_par19_grundlagsposter(værdi().grundlag), |grundlag: Afskrivningslov21Par19Delgrundlag| afskrivningslov23_par19_delgrundlag_efter_skade(grundlag, input.værdi_efter_skaden_kroner, input.værdi_umiddelbart_før_skaden_kroner)) } ellers { [] }
+    | resultat() -> Afskrivningslov23Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = værdi().skatteyder,
+        omfattet_af_par23 = omfattet_af_par23(),
+        værdiforhold_basispoint = værdiforhold_basispoint(),
+        afskrivningsgrundlag_før_skade_kroner = værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner,
+        afskrivningsgrundlag_efter_skade_kroner = afskrivningsgrundlag_efter_skade_kroner(),
+        nedskrevet_værdi_før_skade_kroner = værdi().nedskrevet_værdi_kroner,
+        nedskrevet_værdi_efter_skade_kroner = nedskrevet_værdi_efter_skade_kroner(),
+        fradragsberettiget_værdiforringelse_kroner = fradragsberettiget_værdiforringelse_kroner(),
+        udgift_til_udbedring_kroner = udgift_til_udbedring_kroner(),
+        udbedringsudgift_henvises_til_par18_stk1 = udbedringsudgift_henvises_til_par18_stk1(),
+        par19_grundlag_efter_skade = par19_grundlag_efter_skade()
+    )
+}
+| afskrivningslov23_sag(input: Afskrivningslov23Input) -> Afskrivningslov23Sag(input)
+| afskrivningslov23_resultat(input: Afskrivningslov23Input) -> afskrivningslov23_sag(input).resultat()
+--@end:afskrivningsloven_par23--
+
+--@label:afskrivningsloven_par24::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par23_par24_juridisk_vejledning--
+----
+§ 24. Såfremt en skattepligtig ved en skade på sin ejendom har modtaget en
+erstatnings- eller forsikringssum og foretager genopførelse eller ombygning af
+den skadelidte bygning, anvendes reglerne i stk. 2-11, når
+
+1) de genopførte bygninger m.v. findes på den samme ejendom som de skaderamte
+bygninger, jf. dog stk. 6, og
+
+2) genopførelsen m.v. sker enten i det indkomstår, hvori skaden indtræffer,
+eller i det nærmest følgende indkomstår, idet fristen for genopførelse dog
+tidligst udløber med det førstkommende indkomstår efter det indkomstår, hvori
+erstatningssummen er fastsat endeligt.
+
+Stk. 2. Når særlige omstændigheder taler derfor, kan fristerne i stk. 1 forlænges
+efter tilladelse fra told- og skatteforvaltningen.
+
+Stk. 3. Afskrivningerne og afskrivningsgrundlaget videreføres uanset den skete
+skade og påvirkes ikke af de udgifter, der afholdes til genopførelsen m.v., eller
+af erstatnings- eller forsikringssummen, såfremt de afholdte udgifter svarer til
+den modtagne erstatnings- eller forsikringssum.
+
+Stk. 4. Er det beløb, der anvendes til genopførelse m.v., større end
+forsikrings- eller erstatningssummen, kan den skattepligtige ud over de i stk. 3
+nævnte afskrivninger foretage afskrivninger på den del af det overskydende
+beløb, der kan anses for anvendt på afskrivningsberettigede bygninger eller
+installationer. Afskrivningerne på det overskydende beløb foretages efter
+reglerne i § 18, stk. 1, om afskrivning på ombygnings- og forbedringsudgifter.
+
+Stk. 5. Er det beløb, der anvendes til genopførelse m.v., mindre end
+forsikrings- eller erstatningssummen, fragår forskelsbeløbet i
+afskrivningsgrundlaget efter stk. 3. Ved senere salg af bygningen anses beløbet
+som en foretagen afskrivning ved opgørelse af genvundne afskrivninger eller tab
+efter § 21. Overstiger forskelsbeløbet den nedskrevne værdi på tidspunktet for
+skadens indtræden, medregnes den overskydende del af forskelsbeløbet i den
+skattepligtige indkomst for det indkomstår, hvori genopførelsen senest skal være
+sket, jf. stk. 1, nr. 2, og stk. 2.
+
+Stk. 6. Uanset bestemmelsen i stk. 1, nr. 1, ikke er opfyldt, finder stk. 2-5
+anvendelse, såfremt
+
+1) en lov eller en offentlig myndigheds bestemmelse hindrer, at genopførelse
+sker på den ejendom, hvor de skaderamte bygninger m.v. fandtes, eller
+
+2) skaden har ramt en eller flere erhvervsejendomme, der tilhører samme ejer og
+udgør en driftsenhed, og ejeren ønsker at foretage genopførelse på en anden af
+disse ejendomme end den skaderamte.
+
+Stk. 7. Bestemmelsen i stk. 6 gælder dog kun, såfremt den skattepligtige inden
+for fristerne efter stk. 1, nr. 2, og stk. 2, foretager genopførelse for et
+beløb, der mindst svarer til erstatnings- eller forsikringssummen.
+
+Stk. 8. Overstiger de samlede udgifter ved en genopførelse på en anden ejendom
+end den ejendom, hvor de skaderamte bygninger fandtes, erstatnings- eller
+forsikringssummen, tillægges det overskydende beløb afskrivningsgrundlaget for
+den genopførte bygning m.v. Sker genopførelse af flere bygninger m.v., fordeles
+det overskydende beløb til afskrivningsgrundlagene for de genopførte bygninger
+m.v. efter andelen af de samlede udgifter til genopførelse af de enkelte
+bygninger m.v.
+
+Stk. 9. Ved genopførelse af bygninger m.v. på en anden ejendom end den ejendom,
+hvor de skaderamte bygninger m.v. fandtes, overføres den del af
+afskrivningsgrundlaget for og de foretagne afskrivninger på bygninger m.v. på
+den skaderamte ejendom, der kan henføres til det skaderamte. Sker genopførelse
+af flere bygninger m.v., fordeles den del af afskrivningsgrundlaget og de
+foretagne afskrivninger, der kan henføres til det skaderamte, efter andelen af
+de samlede udgifter til genopførelse af de enkelte bygninger m.v.
+
+Stk. 10. Ved anvendelse af reglerne i stk. 2-9, skal reglerne i
+ejendomsavancebeskatningslovens § 10 samtidig anvendes.
+
+Stk. 11. Finder genopførelse eller genanskaffelse ikke sted inden for de i stk.
+1 og 2 nævnte frister, skal de genvundne afskrivninger, jf. § 21, med tillæg af
+5 pct. for hvert år fra udløbet af det indkomstår, hvori de genvundne
+afskrivninger konstateres, og indtil udløbet af det indkomstår, hvori
+genopførelsen senest skulle være sket, medregnes i den skattepligtige indkomst
+for sidstnævnte indkomstår.
+----
+
+--@begin:afskrivningsloven_par24--
+# Afskrivningslov24Placering = Al24SammeEjendom | Al24AndenEjendomHindretAfLovEllerMyndighed | Al24AndenEjendomISammeDriftsenhed | Al24AndenEjendomUdenUndtagelse
+# Afskrivningslov24Frist = Al24OrdinærFrist | Al24ForlængetFrist(seneste_genopførelsesår: Heltal)
+# Afskrivningslov24GenopførtAktiv(identifikation: Tekst, genopførelsesudgift_kroner: Heltal)
+# Afskrivningslov24Fordeling(identifikation: Tekst, genopførelsesudgift_kroner: Heltal, videreført_afskrivningsgrundlag_kroner: Heltal, videreførte_foretagne_afskrivninger_kroner: Heltal, nyt_afskrivningsgrundlag_for_overskydende_genopførelsesudgift_kroner: Heltal)
+# Afskrivningslov24Input(par21_forsikringsresultat: Afskrivningslov21Resultat, modtaget_erstatnings_eller_forsikringssum_kroner: Heltal, genopførelse_eller_ombygning_foretages: Boolsk, genopførelsesudgifter_kroner: Heltal, genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, skadeår: Heltal, erstatningssum_endeligt_fastsat_år: Heltal, genopførelsesår: Heltal, opgørelsesår: Heltal, frist: Afskrivningslov24Frist, ejendomsavancebeskatningslov10_anvendes_samtidig: Boolsk)
+# Afskrivningslov24Resultat(skatteyder: AfskrivningslovSkatteyder, par21_forsikringsresultat_matcher: Boolsk, ordinært_seneste_genopførelsesår: Heltal, seneste_genopførelsesår: Heltal, rettidig_genopførelse: Boolsk, placering_omfattet: Boolsk, anden_ejendom: Boolsk, genopførelsesudgifter_mindst_forsikringssum_ved_anden_ejendom: Boolsk, ejendomsavancebeskatningslov10_anvendes_samtidig: Boolsk, par24_finder_anvendelse: Boolsk, genvundne_afskrivninger_udskudt_kroner: Heltal, forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner: Heltal, forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner: Heltal, forskelsbeløb_anses_som_foretaget_afskrivning_kroner: Heltal, skattepligtigt_overskydende_forskelsbeløb_kroner: Heltal, overskydende_genopførelsesudgift_kroner: Heltal, nyt_afskrivningsgrundlag_efter_stk4_eller_stk8_kroner: Heltal, videreført_afskrivningsgrundlag_kroner: Heltal, videreførte_foretagne_afskrivninger_kroner: Heltal, samlet_afskrivningsgrundlag_efter_genopførelse_kroner: Heltal, fordelinger: List(Afskrivningslov24Fordeling), fristsvigt_efter_stk11: Boolsk, antal_tillægsår: Heltal, fem_procent_tillæg_kroner: Heltal, skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner: Heltal, samlet_skattepligtigt_beløb_kroner: Heltal)
+
+| afskrivningslov24_anden_ejendom(placering: Afskrivningslov24Placering) -> placering != Al24SammeEjendom
+| afskrivningslov24_placering_omfattet(placering: Afskrivningslov24Placering) -> placering == Al24SammeEjendom || placering == Al24AndenEjendomHindretAfLovEllerMyndighed || placering == Al24AndenEjendomISammeDriftsenhed
+| afskrivningslov24_ordinært_seneste_genopførelsesår(skadeår: Heltal, erstatningssum_endeligt_fastsat_år: Heltal) -> penge_største_beløb(skadeår + 1, erstatningssum_endeligt_fastsat_år + 1)
+| afskrivningslov24_seneste_genopførelsesår(input: Afskrivningslov24Input) -> match input.frist {
+    | Al24OrdinærFrist -> afskrivningslov24_ordinært_seneste_genopførelsesår(input.skadeår, input.erstatningssum_endeligt_fastsat_år)
+    | Al24ForlængetFrist(seneste_genopførelsesår) -> penge_største_beløb(afskrivningslov24_ordinært_seneste_genopførelsesår(input.skadeår, input.erstatningssum_endeligt_fastsat_år), seneste_genopførelsesår)
+}
+| afskrivningslov24_genopførelsesudgifter_i_liste_kroner(aktiver: List(Afskrivningslov24GenopførtAktiv)) -> foldl(aktiver, 0, |sum: Heltal, aktiv: Afskrivningslov24GenopførtAktiv| sum + penge_positivt_beløb(aktiv.genopførelsesudgift_kroner))
+| afskrivningslov24_genopførte_aktiver_gyldige(input: Afskrivningslov24Input) -> length(input.genopførte_aktiver) > 0 && all(input.genopførte_aktiver, |aktiv: Afskrivningslov24GenopførtAktiv| aktiv.genopførelsesudgift_kroner > 0) && afskrivningslov24_genopførelsesudgifter_i_liste_kroner(input.genopførte_aktiver) == penge_positivt_beløb(input.genopførelsesudgifter_kroner)
+| afskrivningslov24_par21_forsikringsresultat_matcher(input: Afskrivningslov24Input) -> input.par21_forsikringsresultat.omfattet_af_par21 && input.par21_forsikringsresultat.par24_finder_anvendelse && input.par21_forsikringsresultat.samlet_salgssum_kroner == penge_positivt_beløb(input.modtaget_erstatnings_eller_forsikringssum_kroner)
+| afskrivningslov24_rettidig_genopførelse(input: Afskrivningslov24Input) -> input.genopførelse_eller_ombygning_foretages && input.genopførelsesår >= input.skadeår && input.genopførelsesår <= afskrivningslov24_seneste_genopførelsesår(input) && afskrivningslov24_genopførte_aktiver_gyldige(input)
+| afskrivningslov24_anden_ejendom_mindst_forsikringssum(input: Afskrivningslov24Input) -> afskrivningslov24_anden_ejendom(input.placering) == Falskt || penge_positivt_beløb(input.genopførelsesudgifter_kroner) >= penge_positivt_beløb(input.modtaget_erstatnings_eller_forsikringssum_kroner)
+| afskrivningslov24_finder_anvendelse(input: Afskrivningslov24Input) -> afskrivningslov24_par21_forsikringsresultat_matcher(input) && afskrivningslov24_rettidig_genopførelse(input) && afskrivningslov24_placering_omfattet(input.placering) && afskrivningslov24_anden_ejendom_mindst_forsikringssum(input) && input.ejendomsavancebeskatningslov10_anvendes_samtidig
+| afskrivningslov24_forskelsbeløb_kroner(input: Afskrivningslov24Input) -> penge_positivt_beløb(penge_positivt_beløb(input.modtaget_erstatnings_eller_forsikringssum_kroner) - penge_positivt_beløb(input.genopførelsesudgifter_kroner))
+| afskrivningslov24_overskydende_genopførelsesudgift_kroner(input: Afskrivningslov24Input) -> penge_positivt_beløb(penge_positivt_beløb(input.genopførelsesudgifter_kroner) - penge_positivt_beløb(input.modtaget_erstatnings_eller_forsikringssum_kroner))
+| afskrivningslov24_fordeling(aktiv: Afskrivningslov24GenopførtAktiv, samlet_genopførelsesudgift_kroner: Heltal, videreført_afskrivningsgrundlag_kroner: Heltal, videreførte_foretagne_afskrivninger_kroner: Heltal, nyt_afskrivningsgrundlag_kroner: Heltal) -> Afskrivningslov24Fordeling(
+    identifikation = aktiv.identifikation,
+    genopførelsesudgift_kroner = aktiv.genopførelsesudgift_kroner,
+    videreført_afskrivningsgrundlag_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(videreført_afskrivningsgrundlag_kroner, aktiv.genopførelsesudgift_kroner, samlet_genopførelsesudgift_kroner),
+    videreførte_foretagne_afskrivninger_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(videreførte_foretagne_afskrivninger_kroner, aktiv.genopførelsesudgift_kroner, samlet_genopførelsesudgift_kroner),
+    nyt_afskrivningsgrundlag_for_overskydende_genopførelsesudgift_kroner = afskrivningslov_beløb_gange_forhold_afrundet_kroner(nyt_afskrivningsgrundlag_kroner, aktiv.genopførelsesudgift_kroner, samlet_genopførelsesudgift_kroner)
+)
+
+# Afskrivningslov24Sag(input: Afskrivningslov24Input) {
+    | par21() -> input.par21_forsikringsresultat
+    | par21_forsikringsresultat_matcher() -> afskrivningslov24_par21_forsikringsresultat_matcher(input)
+    | ordinært_seneste_genopførelsesår() -> afskrivningslov24_ordinært_seneste_genopførelsesår(input.skadeår, input.erstatningssum_endeligt_fastsat_år)
+    | seneste_genopførelsesår() -> afskrivningslov24_seneste_genopførelsesår(input)
+    | rettidig_genopførelse() -> afskrivningslov24_rettidig_genopførelse(input)
+    | placering_omfattet() -> afskrivningslov24_placering_omfattet(input.placering)
+    | anden_ejendom() -> afskrivningslov24_anden_ejendom(input.placering)
+    | anden_ejendom_mindst_forsikringssum() -> afskrivningslov24_anden_ejendom_mindst_forsikringssum(input)
+    | par24_finder_anvendelse() -> afskrivningslov24_finder_anvendelse(input)
+    | genvundne_afskrivninger_udskudt_kroner() -> hvis par24_finder_anvendelse() { par21().beregnede_genvundne_afskrivninger_før_par24_kroner } ellers { 0 }
+    | forskelsbeløb_kroner() -> hvis par24_finder_anvendelse() { afskrivningslov24_forskelsbeløb_kroner(input) } ellers { 0 }
+    | overskydende_genopførelsesudgift_kroner() -> hvis par24_finder_anvendelse() { afskrivningslov24_overskydende_genopførelsesudgift_kroner(input) } ellers { 0 }
+    | skattepligtigt_overskydende_forskelsbeløb_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(forskelsbeløb_kroner() - par21().nedskrevet_værdi_kroner) } ellers { 0 }
+    | videreført_afskrivningsgrundlag_kroner() -> hvis par24_finder_anvendelse() { penge_positivt_beløb(par21().afskrivningsberettiget_anskaffelsesgrundlag_kroner - forskelsbeløb_kroner()) } ellers { 0 }
+    | videreførte_foretagne_afskrivninger_kroner() -> hvis par24_finder_anvendelse() { par21().samlede_foretagne_afskrivninger_kroner } ellers { 0 }
+    | samlet_afskrivningsgrundlag_efter_genopførelse_kroner() -> videreført_afskrivningsgrundlag_kroner() + overskydende_genopførelsesudgift_kroner()
+    | fordelinger() -> hvis par24_finder_anvendelse() { map(input.genopførte_aktiver, |aktiv: Afskrivningslov24GenopførtAktiv| afskrivningslov24_fordeling(aktiv, penge_positivt_beløb(input.genopførelsesudgifter_kroner), videreført_afskrivningsgrundlag_kroner(), videreførte_foretagne_afskrivninger_kroner(), overskydende_genopførelsesudgift_kroner())) } ellers { [] }
+    | fristsvigt_efter_stk11() -> par21_forsikringsresultat_matcher() && placering_omfattet() && input.ejendomsavancebeskatningslov10_anvendes_samtidig && rettidig_genopførelse() == Falskt && input.opgørelsesår == seneste_genopførelsesår()
+    | antal_tillægsår() -> hvis fristsvigt_efter_stk11() { penge_positivt_beløb(seneste_genopførelsesår() - par21().indkomstår) } ellers { 0 }
+    | fem_procent_tillæg_kroner() -> hvis fristsvigt_efter_stk11() { par21().beregnede_genvundne_afskrivninger_før_par24_kroner * 5 * antal_tillægsår() / 100 } ellers { 0 }
+    | skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner() -> hvis fristsvigt_efter_stk11() { par21().beregnede_genvundne_afskrivninger_før_par24_kroner + fem_procent_tillæg_kroner() } ellers { 0 }
+    | samlet_skattepligtigt_beløb_kroner() -> skattepligtigt_overskydende_forskelsbeløb_kroner() + skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner()
+    | resultat() -> Afskrivningslov24Resultat(
+        skatteyder = par21().skatteyder,
+        par21_forsikringsresultat_matcher = par21_forsikringsresultat_matcher(),
+        ordinært_seneste_genopførelsesår = ordinært_seneste_genopførelsesår(),
+        seneste_genopførelsesår = seneste_genopførelsesår(),
+        rettidig_genopførelse = rettidig_genopførelse(),
+        placering_omfattet = placering_omfattet(),
+        anden_ejendom = anden_ejendom(),
+        genopførelsesudgifter_mindst_forsikringssum_ved_anden_ejendom = anden_ejendom_mindst_forsikringssum(),
+        ejendomsavancebeskatningslov10_anvendes_samtidig = input.ejendomsavancebeskatningslov10_anvendes_samtidig,
+        par24_finder_anvendelse = par24_finder_anvendelse(),
+        genvundne_afskrivninger_udskudt_kroner = genvundne_afskrivninger_udskudt_kroner(),
+        forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner = forskelsbeløb_kroner(),
+        forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner = forskelsbeløb_kroner(),
+        forskelsbeløb_anses_som_foretaget_afskrivning_kroner = forskelsbeløb_kroner(),
+        skattepligtigt_overskydende_forskelsbeløb_kroner = skattepligtigt_overskydende_forskelsbeløb_kroner(),
+        overskydende_genopførelsesudgift_kroner = overskydende_genopførelsesudgift_kroner(),
+        nyt_afskrivningsgrundlag_efter_stk4_eller_stk8_kroner = overskydende_genopførelsesudgift_kroner(),
+        videreført_afskrivningsgrundlag_kroner = videreført_afskrivningsgrundlag_kroner(),
+        videreførte_foretagne_afskrivninger_kroner = videreførte_foretagne_afskrivninger_kroner(),
+        samlet_afskrivningsgrundlag_efter_genopførelse_kroner = samlet_afskrivningsgrundlag_efter_genopførelse_kroner(),
+        fordelinger = fordelinger(),
+        fristsvigt_efter_stk11 = fristsvigt_efter_stk11(),
+        antal_tillægsår = antal_tillægsår(),
+        fem_procent_tillæg_kroner = fem_procent_tillæg_kroner(),
+        skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner = skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner(),
+        samlet_skattepligtigt_beløb_kroner = samlet_skattepligtigt_beløb_kroner()
+    )
+}
+| afskrivningslov24_sag(input: Afskrivningslov24Input) -> Afskrivningslov24Sag(input)
+| afskrivningslov24_resultat(input: Afskrivningslov24Input) -> afskrivningslov24_sag(input).resultat()
+--@end:afskrivningsloven_par24--
 
 --@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222--
 ----

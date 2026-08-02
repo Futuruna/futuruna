@@ -13713,6 +13713,21 @@ impl<'a> LoweringCtx<'a> {
                             };
                         }
                     }
+                    if fn_name == "concat" && fir_args.len() >= 2 {
+                        let list_ty = match (&fir_args[0].ty, &fir_args[1].ty) {
+                            (FirTy::List(left), FirTy::List(right)) => {
+                                Some(FirTy::List(Box::new(FirTy::merge_information(left, right))))
+                            }
+                            _ => None,
+                        };
+                        if let Some(ty) = list_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
                     if matches!(
                         fn_name.as_str(),
                         "sort"
@@ -30108,6 +30123,7 @@ impl RustCodegen {
             .into_iter()
             .filter(|v| {
                 self.lambda_free_var_is_runtime_capture(v.as_str())
+                    && !self.current_rule_scope_methods.contains(v.as_str())
                     && !lsp_builtin_names.contains(v.as_str())
                     && !all_effect_ops.contains(v.as_str())
                     && !matches!(
@@ -32436,6 +32452,7 @@ impl RustCodegen {
                                 .into_iter()
                                 .filter(|v| {
                                     self.lambda_free_var_is_runtime_capture(v.as_str())
+                                        && !self.current_rule_scope_methods.contains(v.as_str())
                                         && !self.copy_vars.contains(v.as_str())
                                         && !lsp_names.contains(v.as_str())
                                         && !matches!(
@@ -32550,6 +32567,7 @@ impl RustCodegen {
                                 .into_iter()
                                 .filter(|v| {
                                     self.lambda_free_var_is_runtime_capture(v.as_str())
+                                        && !self.current_rule_scope_methods.contains(v.as_str())
                                         && !self.copy_vars.contains(v.as_str())
                                         && !lsp_names.contains(v.as_str())
                                         && !matches!(
@@ -43989,6 +44007,21 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_rulescope_lambda_calls_members_without_capturing_them() {
+        let source = r#"
+# Case(values: List(Int)) {
+    | base() -> 10
+    | scale() -> 2
+    | results() -> map(values, |value: Int| value * scale() + base())
+}
+
+@ print(show(Case(values = [1, 2]).results()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "[12, 14]");
+    }
+
+    #[test]
     fn compiled_rulescope_record_projection_clones_captured_input_fields() {
         let source = r#"
 # Region = East | West
@@ -46999,6 +47032,20 @@ routes <- "b"
 "#,
         );
         assert_eq!(output, "1\n1\n1\n");
+    }
+
+    #[test]
+    fn compiled_list_valued_rule_preserves_concat_element_type() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(value: Int)
+
+| prepend_entry(entries: List(Entry)) -> concat([Entry(value = 1)], entries)
+
+@ print(show(length(prepend_entry([Entry(value = 2)]))))
+"#,
+        );
+        assert_eq!(output, "2\n");
     }
 
     #[test]
