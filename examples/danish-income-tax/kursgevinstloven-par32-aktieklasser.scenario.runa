@@ -1,0 +1,469 @@
+@ sprog da
+
+@ importer ./kursgevinstloven - par32
+
+--@label:kursgevinstloven_par32_aktieklasser_scenarier::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:kursgevinstloven_lov1563_par4_par8--
+----
+§ 32.
+
+Stk. 3. Tab på kontrakter, der ikke kan fradrages efter stk. 2, kan fradrages i
+nettogevinster på aktier optaget til handel på et reguleret marked eller en
+multilateral handelsfacilitet, hvis kontrakten udelukkende indeholder ret eller
+pligt til at afstå eller erhverve aktier eller er baseret på et aktieindeks.
+Det er endvidere en betingelse for fradrag efter 1. pkt., at enten kontrakten,
+de underliggende aktier eller de aktier, der indgår i det indeks, kontrakten er
+baseret på, er optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet. Tab, der ikke kan fradrages efter 1. og 2. pkt., kan overføres
+til fradrag i en eventuel ægtefælles nettogevinster i indkomståret på aktier
+optaget til handel på et reguleret marked eller en multilateral
+handelsfacilitet. Det er dog en betingelse, at ægtefællerne er samlevende ved
+indkomstårets udgang, jf. kildeskattelovens § 4. Tab i det pågældende
+indkomstår efter aktieavancebeskatningslovens § 13 A medregnes før tab efter
+1.-4. pkt.
+
+§ 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
+er optaget til handel på et reguleret marked.
+
+§ 19 D. Fradrag efter §§ 19 B eller 19 C er betinget af, at told- og
+skatteforvaltningen inden udløbet af oplysningsfristen efter
+skattekontrollovens § 10, stk. 2, og § 11, jf. § 13, for det indkomstår, hvor
+erhvervelsen har fundet sted, har modtaget oplysninger om erhvervelsen af
+aktierne eller investeringsbeviserne m.v. med angivelse af deres identitet,
+antal, kurs, anskaffelsestidspunkt og anskaffelsessum.
+
+§ 20.
+
+Stk. 2. For skattepligtige omfattet af § 7 medregnes gevinst og tab ved
+afståelse af omsættelige beviser for indskud i akkumulerende
+investeringsforeninger, jf. selskabsskattelovens § 1, stk. 1, nr. 5 a, ved
+opgørelsen af den skattepligtige indkomst efter de regler, der er angivet i
+kapitel 1 og 2, §§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
+§ 21. Gevinst og tab ved afståelse af omsættelige beviser for indskud i
+investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C,
+stk. 1, der er aktiebaserede, jf. stk. 2-5, medregnes ved opgørelsen af den
+skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2,
+§§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
+§ 22.
+Gevinst og tab ved afståelse af omsættelige beviser for indskud i
+investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C,
+stk. 1, der er obligationsbaserede, jf. stk. 2-5, medregnes ved opgørelsen af
+den skattepligtige indkomst. 1. pkt. finder dog alene anvendelse, hvis årets
+nettogevinst eller nettotab sammenlagt med nettogevinster og nettotab på
+fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
+2.000 kr. Reglerne i § 14 finder tilsvarende anvendelse.
+----
+
+--@begin:kursgevinstloven_par32_aktieklasser_scenarier--
+| kgl_par32_aktieklasse_scenarie_intet_stk7_valg() -> AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+| kgl_par32_aktieklasse_scenarie_modregningsgrundlag(ægtefælles_positive_nettobeløb_kroner: Heltal) -> AktieavanceOrdinærPar13AModregningsgrundlag(
+    udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+    udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+    udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+    ægtefælles_positive_nettobeløb_efter_par13a_kroner = ægtefælles_positive_nettobeløb_kroner
+)
+| kgl_par32_aktieklasse_scenarie_par13a_post(art: AktieavanceSkattepostArt, markedsstatus: AktieavanceOrdinærMarkedsstatus, gevinst_kroner: Heltal, tab_kroner: Heltal) -> AktieavanceSkattepost(
+    art = art,
+    markedsstatus = markedsstatus,
+    skattepligtig_gevinst_efter_par12_kroner = gevinst_kroner,
+    bruttotab_kroner = tab_kroner,
+    fradragsberettiget_tab_efter_par13_kroner = 0,
+    tab_til_modregning_efter_par13a_kroner = tab_kroner,
+    tab_afskåret_efter_par14_kroner = 0,
+    gevinst_i_modregningsgrundlag_efter_par13a_kroner = gevinst_kroner
+)
+| kgl_par32_aktieklasse_scenarie_investeringsbevis(indkomstår: Heltal, art: AktieavancePar13AInvesteringsbevisArt, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> aktieavance_par13a_investeringsbevis_resultat(AktieavancePar13AInvesteringsbevisInput(
+    indkomstår = indkomstår,
+    art = art,
+    afståelsessum_kroner = afståelsessum_kroner,
+    anskaffelsessum_kroner = anskaffelsessum_kroner,
+    oplysningsstatus = AblOplystRettidigt
+))
+| kgl_par32_aktieklasse_scenarie_par13a_årsresultat(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), ægtefælles_positive_nettobeløb_kroner: Heltal, gift_og_samlevende: Boolsk) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+    indkomstår = indkomstår,
+    skatteposter = skatteposter,
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = kgl_par32_aktieklasse_scenarie_modregningsgrundlag(ægtefælles_positive_nettobeløb_kroner),
+    gift_og_samlevende_ved_årets_udgang = gift_og_samlevende
+))
+| kgl_par32_aktieklasse_scenarie_lagerårsresultat(indkomstår: Heltal, aktiv: AktieavancePar23Aktiv, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, oplysningsbetingelse_efter_par19d_opfyldt: Boolsk) -> aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
+    princip_resultat = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
+        indkomstår = indkomstår,
+        opgørelsesdato = AktieavancePar23Dato(år = indkomstår, måned = 12, dag = 31),
+        skattepligtig = AblSkattepligtigEfterPar7,
+        aktiv = aktiv,
+        stk2_valg = AblIntetPar23Stk2Valg,
+        stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+        stk6_valg = AblIntetPar23Stk6Valg,
+        stk7_valg = kgl_par32_aktieklasse_scenarie_intet_stk7_valg(),
+        obligationsgevinst_opgøres_efter_lagerprincippet = Falskt,
+        indkomstår_forskelligt_fra_kalenderår = Falskt
+    )),
+    værdi_primo_kroner = værdi_primo_kroner,
+    værdi_ultimo_kroner = værdi_ultimo_kroner,
+    anskaffelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_i_perioden_kroner = 0,
+    afståelsessummer_omfattet_af_ll16b_stk1_kroner = 0,
+    ville_være_par17_uden_investeringsstatus = Falskt,
+    oplysningsbetingelse_efter_par19d_opfyldt = oplysningsbetingelse_efter_par19d_opfyldt
+))
+| kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, årets_netto_med_kgl_par14_23_kroner: Heltal) -> aktieavancebeskatningslov_resultat(AktieavancebeskatningslovInput(
+    indkomstår = indkomstår,
+    aktiv = aktiv,
+    afståelsessum_kroner = afståelsessum_kroner,
+    anskaffelsessum_kroner = anskaffelsessum_kroner,
+    udøver_aktienæring = Falskt,
+    erhvervet_som_led_i_næring = Falskt,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    meddelt_aktiebaseret_status = Falskt,
+    aktieandel_basispoint = 0,
+    resterende_aktivmasse_kun_værdipapirer = Sandt,
+    oplysninger_indsendt_rettidigt = Sandt,
+    ville_være_par17_uden_investeringsstatus = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = årets_netto_med_kgl_par14_23_kroner
+))
+| kgl_par32_aktieklasse_scenarie_aktieårsgrundlag(par13a_årsresultat: AktieavanceOrdinærÅrsresultat, supplerende_årsresultater: List(KursgevinstPar32SupplerendeAktieårsresultat)) -> KursgevinstPar32Aktieårsgrundlag(
+    par13a_årsresultat = par13a_årsresultat,
+    supplerende_årsresultater = supplerende_årsresultater
+)
+| kgl_par32_aktieklasse_scenarie_kontraktresultat(indkomstår: Heltal, tab_kroner: Heltal) -> kursgevinstlov_resultat(KursgevinstlovInput(
+    indkomstår = indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = KursgevinstlovKontraktOpgørelse(
+        kontrakt_art = KglKontraktOmfattetPar29,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = tab_kroner,
+        afståelsesværdi_kroner = 0,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt
+    ),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+))
+| kgl_par32_aktieklasse_scenarie_aktiebaseret_kontraktpost(indkomstår: Heltal, tab_kroner: Heltal) -> KursgevinstPar32Kontraktpost(
+    resultat = kgl_par32_aktieklasse_scenarie_kontraktresultat(indkomstår, tab_kroner),
+    relation = KglPar32AlmindeligKontrakt,
+    aktiegrundlag = KglPar32AktiekontraktPåReguleretMarked
+)
+| kgl_par32_aktieklasse_scenarie_person(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), aktieårsgrundlag: KursgevinstPar32Aktieårsgrundlag, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg) -> KursgevinstPar32PersonÅrsinput(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    kontrakter = kontrakter,
+    aktieårsgrundlag = aktieårsgrundlag,
+    fremførsel = KglPar32IngenFremførsel,
+    tabsprioritet = KglPar32AlmindeligeTabFørst,
+    fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
+    aktiemodregningsvalg = aktiemodregningsvalg
+)
+| kgl_par32_aktieklasse_scenarie_tom_person(identifikation: Tekst, indkomstår: Heltal) -> kgl_par32_aktieklasse_scenarie_person(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    kontrakter = [],
+    aktieårsgrundlag = kgl_par32_tomt_aktieårsgrundlag(indkomstår),
+    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning()
+)
+| kgl_par32_aktieklasse_scenarie_har_kvalificeret_klasse(resultat: KursgevinstPar32Aktiegevinstgrundlagsresultat, klasse: KursgevinstPar32Aktiegevinstklasse) -> any(resultat.klassificerede_supplerende_resultater, |klassifikation: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| klassifikation.klasse == klasse && klassifikation.kvalificerer_til_par32_stk3)
+| kgl_par32_aktieklasse_scenarie_har_abl3_klassifikation(resultat: KursgevinstPar32Aktiegevinstgrundlagsresultat) -> any(resultat.klassificerede_supplerende_resultater, |klassifikation: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| klassifikation.anset_optaget_efter_abl3 && klassifikation.markedsgrundlag == KglPar32AktiePåReguleretMarked && klassifikation.kvalificerer_til_par32_stk3)
+
+= kgl_par32_par20_resultat = kgl_par32_aktieklasse_scenarie_investeringsbevis(
+    indkomstår = 2026,
+    art = AblPar20Stk2AkkumulerendeInvesteringsbevis,
+    afståelsessum_kroner = 17000,
+    anskaffelsessum_kroner = 10000
+)
+= kgl_par32_par21_resultat = kgl_par32_aktieklasse_scenarie_investeringsbevis(
+    indkomstår = 2026,
+    art = AblPar21AktiebaseretMinimumsbevis,
+    afståelsessum_kroner = 15000,
+    anskaffelsessum_kroner = 10000
+)
+= kgl_par32_par20_par21_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = kgl_par32_aktieklasse_scenarie_aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+            indkomstår = 2026,
+            skatteposter = [kgl_par32_par20_resultat.skattepost, kgl_par32_par21_resultat.skattepost],
+            ægtefælles_positive_nettobeløb_kroner = 0,
+            gift_og_samlevende = Falskt
+        ),
+        supplerende_årsresultater = []
+    ),
+    indkomstår = 2026
+)
+
+= kgl_par32_19b_reguleret_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2026,
+    aktiv = AblPar19BInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        registreret_i_værdipapircentral = Sandt
+    ),
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 19000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_19b_reguleret_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_reguleret_lager)]
+    ),
+    indkomstår = 2026
+)
+
+= kgl_par32_19c_mtf_2023_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2023,
+    aktiv = AblPar19CInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet,
+        registreret_i_værdipapircentral = Sandt
+    ),
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 17000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_19c_mtf_2024_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2024,
+    aktiv = AblPar19CInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblOptagetTilHandelPåMultilateralHandelsfacilitet,
+        registreret_i_værdipapircentral = Sandt
+    ),
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 17000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_19c_mtf_2023_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2023),
+        supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19c_mtf_2023_lager)]
+    ),
+    indkomstår = 2023
+)
+= kgl_par32_19c_mtf_2024_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2024),
+        supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19c_mtf_2024_lager)]
+    ),
+    indkomstår = 2024
+)
+
+= kgl_par32_19b_omsætteligt_unoteret_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2026,
+    aktiv = AblPar19BInvesteringsselskabsaktiv(
+        papirart = AblOmsætteligtInvesteringsbevis,
+        markedsstatus = AblIkkeOptagetTilHandel,
+        registreret_i_værdipapircentral = Falskt
+    ),
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 16000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_19b_omsætteligt_unoteret_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_omsætteligt_unoteret_lager)]
+    ),
+    indkomstår = 2026
+)
+= kgl_par32_19b_unoteret_aktie_lager = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2026,
+    aktiv = AblPar19BInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblIkkeOptagetTilHandel,
+        registreret_i_værdipapircentral = Falskt
+    ),
+    værdi_primo_kroner = 10000,
+    værdi_ultimo_kroner = 16000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_19b_unoteret_aktie_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_unoteret_aktie_lager)]
+    ),
+    indkomstår = 2026
+)
+
+= kgl_par32_par22_resultat = kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(
+    indkomstår = 2026,
+    aktiv = AblMinimumsbevis22,
+    afståelsessum_kroner = 18000,
+    anskaffelsessum_kroner = 10000,
+    årets_netto_med_kgl_par14_23_kroner = 8000
+)
+= kgl_par32_par18_resultat = kgl_par32_aktieklasse_scenarie_generisk_abl_resultat(
+    indkomstår = 2026,
+    aktiv = AblAndelsbevisPar18,
+    afståelsessum_kroner = 17000,
+    anskaffelsessum_kroner = 10000,
+    årets_netto_med_kgl_par14_23_kroner = 7000
+)
+= kgl_par32_par22_og_par18_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [
+            KglPar32AblResultat(resultat = kgl_par32_par22_resultat),
+            KglPar32AblResultat(resultat = kgl_par32_par18_resultat)
+        ]
+    ),
+    indkomstår = 2026
+)
+
+= kgl_par32_par13a_tabspost_4000 = kgl_par32_aktieklasse_scenarie_par13a_post(
+    art = AblSkattepostOrdinærAktie,
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    gevinst_kroner = 0,
+    tab_kroner = 4000
+)
+= kgl_par32_par13a_tab_før_kontrakttab_grundlag = KursgevinstPar32Aktieårsgrundlag(
+    par13a_årsresultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+        indkomstår = 2026,
+        skatteposter = [kgl_par32_par13a_tabspost_4000],
+        ægtefælles_positive_nettobeløb_kroner = 0,
+        gift_og_samlevende = Falskt
+    ),
+    supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_reguleret_lager)]
+)
+= kgl_par32_par13a_tab_før_kontrakttab_resultat = kursgevinst_par32_ægtefællepar_resultat(KursgevinstPar32ÆgtefælleparInput(
+    venstre = kgl_par32_aktieklasse_scenarie_person(
+        identifikation = "par13a-først",
+        indkomstår = 2026,
+        kontrakter = [kgl_par32_aktieklasse_scenarie_aktiebaseret_kontraktpost(2026, 10000)],
+        aktieårsgrundlag = kgl_par32_par13a_tab_før_kontrakttab_grundlag,
+        aktiemodregningsvalg = KursgevinstPar32Aktiemodregningsvalg(
+            omfang = KglPar32KunEgneAktiegevinster,
+            beløb = KglPar32MaksimalAktiemodregning
+        )
+    ),
+    højre = kgl_par32_aktieklasse_scenarie_tom_person("tom-par13a-først", 2026),
+    gift_og_samlevende_ved_indkomstårets_udgang = Falskt
+)).venstre
+
+= kgl_par32_19c_tab_uden_par19d = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2026,
+    aktiv = AblPar19CInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        registreret_i_værdipapircentral = Sandt
+    ),
+    værdi_primo_kroner = 14000,
+    værdi_ultimo_kroner = 10000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Falskt
+)
+= kgl_par32_19c_tab_med_par19d = kgl_par32_aktieklasse_scenarie_lagerårsresultat(
+    indkomstår = 2026,
+    aktiv = AblPar19CInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        registreret_i_værdipapircentral = Sandt
+    ),
+    værdi_primo_kroner = 14000,
+    værdi_ultimo_kroner = 10000,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+)
+= kgl_par32_par19d_uden_oplysninger_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [
+            KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_reguleret_lager),
+            KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19c_tab_uden_par19d)
+        ]
+    ),
+    indkomstår = 2026
+)
+= kgl_par32_par19d_med_oplysninger_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(
+    grundlag = KursgevinstPar32Aktieårsgrundlag(
+        par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+        supplerende_årsresultater = [
+            KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_reguleret_lager),
+            KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19c_tab_med_par19d)
+        ]
+    ),
+    indkomstår = 2026
+)
+
+= kgl_par32_ægtefælle_venstre_par13a_resultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+    indkomstår = 2026,
+    skatteposter = [kgl_par32_aktieklasse_scenarie_par13a_post(
+        art = AblSkattepostOrdinærAktie,
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        gevinst_kroner = 0,
+        tab_kroner = 8000
+    )],
+    ægtefælles_positive_nettobeløb_kroner = 10000,
+    gift_og_samlevende = Sandt
+)
+= kgl_par32_ægtefælle_højre_par13a_resultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+    indkomstår = 2026,
+    skatteposter = [kgl_par32_aktieklasse_scenarie_par13a_post(
+        art = AblSkattepostOrdinærAktie,
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        gevinst_kroner = 10000,
+        tab_kroner = 0
+    )],
+    ægtefælles_positive_nettobeløb_kroner = 0,
+    gift_og_samlevende = Sandt
+)
+= kgl_par32_ægtefælle_par13a_før_kgl_resultat = kursgevinst_par32_ægtefællepar_resultat(KursgevinstPar32ÆgtefælleparInput(
+    venstre = kgl_par32_aktieklasse_scenarie_person(
+        identifikation = "abl-tabshaver",
+        indkomstår = 2026,
+        kontrakter = [kgl_par32_aktieklasse_scenarie_aktiebaseret_kontraktpost(2026, 10000)],
+        aktieårsgrundlag = KursgevinstPar32Aktieårsgrundlag(
+            par13a_årsresultat = kgl_par32_ægtefælle_venstre_par13a_resultat,
+            supplerende_årsresultater = []
+        ),
+        aktiemodregningsvalg = KursgevinstPar32Aktiemodregningsvalg(
+            omfang = KglPar32EgneOgÆgtefællesAktiegevinster,
+            beløb = KglPar32MaksimalAktiemodregning
+        )
+    ),
+    højre = kgl_par32_aktieklasse_scenarie_person(
+        identifikation = "aktiegevinsthaver",
+        indkomstår = 2026,
+        kontrakter = [],
+        aktieårsgrundlag = KursgevinstPar32Aktieårsgrundlag(
+            par13a_årsresultat = kgl_par32_ægtefælle_højre_par13a_resultat,
+            supplerende_årsresultater = []
+        ),
+        aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning()
+    ),
+    gift_og_samlevende_ved_indkomstårets_udgang = Sandt
+))
+
+| kgl_par32_par20_og_par21_indgår_i_det_typede_grundlag: kgl_par32_par20_par21_grundlag -> kgl_par32_par20_resultat.input_gyldigt && kgl_par32_par21_resultat.input_gyldigt && contains(kgl_par32_par20_par21_grundlag.klasser, KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis) && contains(kgl_par32_par20_par21_grundlag.klasser, KglPar32Abl21AktiebaseretMinimumsbevis) && kgl_par32_par20_par21_grundlag.aktiegevinstkapacitet_kroner == 12000
+| kgl_par32_par19b_reguleret_marked_kvalificerer: kgl_par32_19b_reguleret_grundlag -> kgl_par32_aktieklasse_scenarie_har_kvalificeret_klasse(kgl_par32_19b_reguleret_grundlag, KglPar32Abl19BInvesteringsselskab) && kgl_par32_19b_reguleret_grundlag.aktiegevinstkapacitet_kroner == 9000
+| kgl_par32_par19c_mtf_kvalificerer_først_fra_2024: kgl_par32_19c_mtf_2024_grundlag -> kgl_par32_19c_mtf_2023_grundlag.aktiegevinstkapacitet_kroner == 0 && kgl_par32_19c_mtf_2023_grundlag.supplerende_udeladt_ikke_kvalificeret_netto_kroner == 7000 && kgl_par32_aktieklasse_scenarie_har_kvalificeret_klasse(kgl_par32_19c_mtf_2024_grundlag, KglPar32Abl19CInvesteringsselskab) && kgl_par32_19c_mtf_2024_grundlag.aktiegevinstkapacitet_kroner == 7000
+| kgl_par32_omsætteligt_investeringsbevis_anses_for_reguleret_efter_abl3: kgl_par32_19b_omsætteligt_unoteret_grundlag -> kgl_par32_aktieklasse_scenarie_har_abl3_klassifikation(kgl_par32_19b_omsætteligt_unoteret_grundlag) && kgl_par32_19b_omsætteligt_unoteret_grundlag.aktiegevinstkapacitet_kroner == 6000
+| kgl_par32_unoteret_investeringsselskabsaktie_udelades: kgl_par32_19b_unoteret_aktie_grundlag -> kgl_par32_19b_unoteret_aktie_grundlag.aktiegevinstkapacitet_kroner == 0 && kgl_par32_19b_unoteret_aktie_grundlag.supplerende_udeladt_ikke_kvalificeret_netto_kroner == 6000
+| kgl_par32_par22_kvalificerer_mens_par18_udelades: kgl_par32_par22_og_par18_grundlag -> kgl_par32_aktieklasse_scenarie_har_kvalificeret_klasse(kgl_par32_par22_og_par18_grundlag, KglPar32Abl22ObligationsbaseretMinimumsbevis) && contains(kgl_par32_par22_og_par18_grundlag.klasser, KglPar32AndenIkkeKvalificeretAktieklasse) && kgl_par32_par22_og_par18_grundlag.aktiegevinstkapacitet_kroner == 8000 && kgl_par32_par22_og_par18_grundlag.supplerende_udeladt_ikke_kvalificeret_netto_kroner == 7000
+| kgl_par32_årets_par13a_tab_forbruges_før_kontrakttab: kgl_par32_par13a_tab_før_kontrakttab_resultat -> kgl_par32_par13a_tab_før_kontrakttab_resultat.aktiegevinstgrundlag.aktiegevinstkapacitet_kroner == 5000 && kgl_par32_par13a_tab_før_kontrakttab_resultat.tab_modregnet_i_egne_aktiegevinster_kroner == 5000 && kgl_par32_par13a_tab_før_kontrakttab_resultat.aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner == 5000
+| kgl_par32_par19d_afskåret_tab_reducerer_ikke_grundlaget: kgl_par32_par19d_uden_oplysninger_grundlag -> kgl_par32_19c_tab_uden_par19d.tab_afskåret_efter_par19d_kroner == 4000 && kgl_par32_par19d_uden_oplysninger_grundlag.aktiegevinstkapacitet_kroner == 9000 && kgl_par32_par19d_med_oplysninger_grundlag.aktiegevinstkapacitet_kroner == 5000
+| kgl_par32_ægtefælles_par13a_tab_forbruges_før_kontrakttab: kgl_par32_ægtefælle_par13a_før_kgl_resultat -> kgl_par32_ægtefælle_venstre_par13a_resultat.tab_overført_til_ægtefælle_kroner == 8000 && kgl_par32_ægtefælle_par13a_før_kgl_resultat.højre.ægtefælles_par13a_tab_modtaget_før_kontrakttab_kroner == 8000 && kgl_par32_ægtefælle_par13a_før_kgl_resultat.højre.aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner == 2000 && kgl_par32_ægtefælle_par13a_før_kgl_resultat.venstre.tab_overført_til_ægtefælles_aktiegevinster_kroner == 2000 && kgl_par32_ægtefælle_par13a_før_kgl_resultat.venstre.aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner == 8000 && kgl_par32_ægtefælle_par13a_før_kgl_resultat.højre.ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner == 2000
+
+? kgl_par32_par20_og_par21_indgår_i_det_typede_grundlag
+? kgl_par32_par19b_reguleret_marked_kvalificerer
+? kgl_par32_par19c_mtf_kvalificerer_først_fra_2024
+? kgl_par32_omsætteligt_investeringsbevis_anses_for_reguleret_efter_abl3
+? kgl_par32_unoteret_investeringsselskabsaktie_udelades
+? kgl_par32_par22_kvalificerer_mens_par18_udelades
+? kgl_par32_årets_par13a_tab_forbruges_før_kontrakttab
+? kgl_par32_par19d_afskåret_tab_reducerer_ikke_grundlaget
+? kgl_par32_ægtefælles_par13a_tab_forbruges_før_kontrakttab
+--@end:kursgevinstloven_par32_aktieklasser_scenarier--

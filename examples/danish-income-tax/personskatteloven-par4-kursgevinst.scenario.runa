@@ -60,7 +60,7 @@ skattepligtig nettogevinst på finansielle kontrakter i et tidligere indkomstår
     identifikation = identifikation,
     indkomstår = indkomstår,
     kontrakter = kontrakter,
-    aktieårsresultat = kgl_par32_tomt_aktieårsresultat(indkomstår),
+    aktieårsgrundlag = kgl_par32_tomt_aktieårsgrundlag(indkomstår),
     fremførsel = fremførsel,
     tabsprioritet = KglPar32AlmindeligeTabFørst,
     fast_ejendomstabsprioritet = KglPar32SælgertabFørst,

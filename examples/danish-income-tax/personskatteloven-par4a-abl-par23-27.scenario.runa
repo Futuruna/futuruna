@@ -131,6 +131,7 @@
     opgørelsesdato = AktieavancePar23Dato(år = 2026, måned = 12, dag = 31),
     skattepligtig = AblSkattepligtigEfterPar7,
     aktiv = AblPar19BInvesteringsselskabsaktiv(
+        papirart = AblInvesteringsselskabsaktie,
         markedsstatus = AblIkkeOptagetTilHandel,
         registreret_i_værdipapircentral = Falskt
     ),
@@ -155,7 +156,8 @@
     anskaffelsessummer_i_perioden_kroner = 30000,
     afståelsessummer_i_perioden_kroner = 25000,
     afståelsessummer_omfattet_af_ll16b_stk1_kroner = 5000,
-    ville_være_par17_uden_investeringsstatus = Falskt
+    ville_være_par17_uden_investeringsstatus = Falskt,
+    oplysningsbetingelse_efter_par19d_opfyldt = Sandt
 ))
 = abl_par23_19b_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(
     aktieavancebeskatningslov_resultat = abl_par23_19b_lager.aktieavancebeskatningslov_resultat

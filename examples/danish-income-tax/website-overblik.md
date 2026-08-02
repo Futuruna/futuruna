@@ -51,14 +51,20 @@ afgrænsede skatteberegning.
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige
 nettogevinster, en samlevende ægtefælles kontraktgevinster og kvalificerede
-ordinære § 12-aktiegevinster. Aktieavancebeskatningslovens § 13 A-tab bruges først, et helt
-eller delvist aktiemodregningsvalg er eksplicit, og kun en identitets- og
-årsbundet rest kan fremføres. Tab på fast-ejendomsaftaler kan kun møde gevinster
+aktiegevinster. Det typede grundlag omfatter ABL § 12-aktier og § 25-rettigheder,
+§ 20, stk. 2- og § 21-beviser samt §§ 19 B, 19 C og 22. Omsættelige
+investeringsbeviser anses for optaget på et reguleret marked efter ABL § 3;
+andre unoterede investeringsselskabsaktier og ikke-kvalificerede klasser
+udelades. § 19 D's oplysningsbetingelse anvendes før nettogevinsten når § 32.
+Aktieavancebeskatningslovens § 13 A-tab bruges først hos personen og derefter hos
+en samlevende ægtefælle. Først derefter kan kontrakttab bruge den resterende
+aktiegevinst. Et helt eller delvist aktiemodregningsvalg er eksplicit, og kun en
+identitets- og årsbundet rest kan fremføres. Tab på fast-ejendomsaftaler kan kun møde gevinster
 på sådanne aftaler; resten bliver til nedsat afståelsessum for sælgeren eller
 forhøjet anskaffelsessum for køberen. Tab fra før 2010 bevarer samtidig deres
 ældre, snævrere anvendelse og kan ikke senere modregnes i aktiegevinster.
 MTF-kontrakter og gevinster på MTF-aktier indgår først i § 32-modregningen fra
-1. januar 2024. Sytten scenarier kører ens i interpreter og kompileret kode.
+1. januar 2024. Seksogtyve scenarier kører ens i interpreter og kompileret kode.
 Personskattelovens § 4-bro bruger nu det samlede § 32-årsresultat og bevarer hver
 kontraktposts klassifikation som kapital- eller personlig indkomst. Blandede
 sager bliver opdelt, når fordelingen er entydig; ellers bliver den tværgående
@@ -67,10 +73,9 @@ som kapitalindkomst. Ni fokuserede § 4-scenarier kører ens i begge backends.
 Den rå enkeltkontraktbro er fortsat tilgængelig og mærket som før
 årsopgørelsen. Kilderne er
 [Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176),
+[Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 [LOV nr. 1563/2023, § 4 og § 8](https://www.retsinformation.dk/eli/lta/2023/1563)
 og [Skattestyrelsens juridiske vejledning C.B.1.8.4.2](https://info.skat.dk/data.aspx?oid=1946050).
-De yderligere aktie- og investeringsbevisklasser, som vejledningen tillader,
-udvides i det efterfølgende korpussnit `td-0f81a6`.
 
 Personskatteloven § 13 a er nu også en lukket, typet regelkaskade. Ved
 gældssanering eller akkord kan modellen kun modtage fremførte tab gennem de

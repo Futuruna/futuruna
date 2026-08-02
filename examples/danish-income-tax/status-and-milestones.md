@@ -3,8 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-ae4c63`
-Latest completed implementation slice: `td-db8bc5`
+Current focus issue: `td-0f81a6`
+Latest implementation slice submitted for review: `td-ae4c63`
+Latest approved implementation slice: `td-db8bc5`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -51,19 +52,23 @@ Latest integration: Kursgevinstloven § 32 er nu en kildebundet, typet
 årsopgørelse frem for et egnethedsflag leveret af kalderen. Den fordeler årets
 og fremførte kontrakttab i lovens rækkefølge mellem egne gevinster i året,
 egne skattepligtige nettogevinster fra tidligere år, en samlevende ægtefælles
-kontraktgevinster og kvalificerede egne eller ægtefællens ordinære
-§ 12-aktiegevinster. Den
-anvender Aktieavancebeskatningslovens § 13 A-tab først, respekterer et
-udtrykkeligt helt eller delvist modregningsvalg og fører kun en identitets- og
-årsbundet rest videre. Fast-ejendomstab holdes i en særskilt saldo og bliver
-efter modregning til nedsat afståelsessum eller forhøjet anskaffelsessum uden
-fremførsel. ABL-årsresultatet bevarer nu reguleret marked og MTF som særskilte
-gevinstgrundlag, så virkningen fra 1. januar 2024 i LOV nr. 1563/2023 gælder
-både kontraktens marked og de aktiegevinster, tabet møder. Sytten scenarier passerer
-i både interpreter og kompileret kode, herunder to ægtefæller med samtidige tab
-uden dobbelt anvendelse af aktiegevinster, 2023/2024-grænsen på begge sider af
-MTF-modregningen og overgangsværnet, der holder tab fra før 2010 ude af senere
-aktiegevinster. Personskattelovens § 4-bro forbruger nu det samlede § 32-årsresultat
+kontraktgevinster og et samlet, typet aktiegevinstgrundlag. Grundlaget omfatter
+ABL § 12-aktier og § 25-rettigheder samt § 20, stk. 2- og § 21-beviser gennem
+§ 13 A-årsresultatet; ABL §§ 19 B, 19 C og 22 tilføres som typede supplerende
+årsresultater. Ikke-kvalificerede klasser og unoterede
+investeringsselskabsaktier udskilles, mens omsættelige investeringsbeviser anses
+for optaget på et reguleret marked efter ABL § 3. § 19 D's
+oplysningsbetingelse anvendes før nettogevinsten når § 32.
+
+ABL § 13 A-tab anvendes først hos personen og derefter hos en samlevende
+ægtefælle, før et kontrakttab kan bruge den resterende aktiegevinstkapacitet.
+Det helt eller delvise modregningsvalg er udtrykkeligt, og kun en identitets- og
+årsbundet rest føres videre. Fast-ejendomstab holdes i en særskilt saldo og
+bliver efter modregning til nedsat afståelsessum eller forhøjet anskaffelsessum
+uden fremførsel. Reguleret marked og MTF bevares som særskilte grundlag, så
+virkningen fra 1. januar 2024 i LOV nr. 1563/2023 gælder på begge sider af
+modregningen. Sytten hovedscenarier og ni aktieklassescenarier passerer i både
+interpreter og kompileret kode. Personskattelovens § 4-bro forbruger nu det samlede § 32-årsresultat
 og bevarer de enkelte kontraktposters kapital- eller
 personlig-indkomstklassifikation. Entydige årsresultater bliver til én typet post,
 mens en dokumenterbart blandet sag bliver opdelt i flere poster. Hvis en
@@ -878,11 +883,14 @@ Current § 4 and § 13 amendment/dependency sources:
     financial contracts, including thresholding, statutory loss blocks, debt
     forgiveness, foreign-currency debt and contract-loss limitation.
   - `kursgevinstloven-par32.runa` contains the complete current § 32 text and a
-    typed annual ledger for stk. 1-5. Its current share-gain dependency is the
-    ordinary ABL § 12 annual result. The allocation order, taxpayer election,
-    spouse transfer, ABL § 13 A priority, carry continuity, real-estate basis
-    adjustments, the pre-2010 transition and both sides of the 2024 MTF
-    transition are covered by seventeen interpreted and compiled scenarios.
+    typed annual ledger for stk. 1-5. Its share-gain basis covers ABL § 12 and
+    § 25, § 20, stk. 2, § 21, §§ 19 B-19 C and § 22 through typed annual
+    results. It applies ABL § 3, § 19 D and § 13 A before KGL contract losses,
+    excludes nonqualifying classes, and preserves the regulated-market/MTF
+    distinction. Allocation order, taxpayer election, spouse transfer, carry
+    continuity, real-estate basis adjustments, the pre-2010 transition and
+    both sides of the 2024 MTF transition are covered by 26 interpreted and
+    compiled scenarios.
   - MTF amendment and effective date:
     `https://www.retsinformation.dk/eli/lta/2023/1563`, § 4, nr. 1, and § 8,
     stk. 1.
@@ -1317,14 +1325,16 @@ encoded as a temporal rule on top of the consolidation.
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
-- `kursgevinstloven-par32.runa` and
-  `kursgevinstloven-par32.scenario.runa` exist and pass interpreted and compiled
+- `kursgevinstloven-par32.runa`, `kursgevinstloven-par32.scenario.runa` and
+  `kursgevinstloven-par32-aktieklasser.scenario.runa` exist and pass interpreted and compiled
   execution. They implement the complete current § 32 annual contract-loss
   ledger, including own and spouse offsets, ABL § 13 A priority, explicit
   full/partial share-offset elections, dated carry, the pre-2010 transition,
   the 2024 MTF transition for both contracts and share gains, and real-estate
-  seller/buyer basis adjustments. Seventeen focused scenarios cover these
-  branches in both runtimes.
+  seller/buyer basis adjustments. The typed share-gain basis covers ABL § 12
+  and § 25, § 20, stk. 2, § 21, §§ 19 B-19 C and § 22, including ABL § 3,
+  § 19 D, exclusions and spouse ordering. Twenty-six focused scenarios cover
+  these branches in both runtimes.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
   it covers the ordinary ABL §§ 12-15/23/24/26 nominal-share calculation path
   consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22

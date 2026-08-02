@@ -37,6 +37,16 @@ EndDate: 2026-07-01
     identifier = "Aktieavancebeskatningsloven §§ 12-15",
     hentet_dato = "2026-07-18"
 )
+= aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven § 3, § 20, stk. 2, og § 21, stk. 1",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_lbk1098_par17_til_par22 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1098",
+    identifier = "Aktieavancebeskatningsloven §§ 17-22",
+    hentet_dato = "2026-07-18"
+)
 = aktieavancebeskatningsloven_lbk1098_par23_par24_par26 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
     identifier = "Aktieavancebeskatningsloven § 23, stk. 1, § 24, stk. 1, og § 26, stk. 1, 2 og 5",
@@ -68,8 +78,11 @@ EndDate: 2026-07-01
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
 ----
+§ 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
+er optaget til handel på et reguleret marked.
+
 § 12. Gevinst ved afståelse af aktier medregnes ved opgørelsen af den
 skattepligtige indkomst.
 
@@ -157,6 +170,20 @@ Stk. 2. Gevinst og tab ved udlodning af likvidationsprovenu af aktier m.v. som
 nævnt i stk. 1 er skattefri under samme betingelser som nævnt i stk. 1, når
 udlodningen finder sted i det kalenderår, hvori selskabet m.v. endeligt opløses.
 
+§ 20.
+
+Stk. 2. For skattepligtige omfattet af § 7 medregnes gevinst og tab ved
+afståelse af omsættelige beviser for indskud i akkumulerende
+investeringsforeninger, jf. selskabsskattelovens § 1, stk. 1, nr. 5 a, ved
+opgørelsen af den skattepligtige indkomst efter de regler, der er angivet i
+kapitel 1 og 2, §§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
+§ 21. Gevinst og tab ved afståelse af omsættelige beviser for indskud i
+investeringsinstitutter med minimumsbeskatning, jf. ligningslovens § 16 C,
+stk. 1, der er aktiebaserede, jf. stk. 2-5, medregnes ved opgørelsen af den
+skattepligtige indkomst efter de regler, der er angivet i kapitel 1 og 2,
+§§ 12, 13 A, 14 og 17 og kapitel 6-9.
+
 § 23. Gevinst og tab på aktier, der skal medregnes ved
 opgørelsen af den skattepligtige indkomst, medregnes i det indkomstår, hvori
 gevinsten eller tabet realiseres (realisationsprincippet).
@@ -229,11 +256,14 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
 # AktieavanceOrdinærHændelsesforløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, alle_hændelser_gyldige: Boolsk)
-# AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25
+# AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25 | AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2 | AblSkattepostAktiebaseretMinimumsbevisEfterPar21
 # AktieavanceSkattepost(art: AktieavanceSkattepostArt, markedsstatus: AktieavanceOrdinærMarkedsstatus, skattepligtig_gevinst_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, gevinst_i_modregningsgrundlag_efter_par13a_kroner: Heltal)
+# AktieavancePar13AInvesteringsbevisArt = AblPar20Stk2AkkumulerendeInvesteringsbevis | AblPar21AktiebaseretMinimumsbevis
+# AktieavancePar13AInvesteringsbevisInput(indkomstår: Heltal, art: AktieavancePar13AInvesteringsbevisArt, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
+# AktieavancePar13AInvesteringsbevisResultat(input: AktieavancePar13AInvesteringsbevisInput, input_gyldigt: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, skattepost: AktieavanceSkattepost)
 # AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner: Heltal, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner: Heltal, udbytter_for_aktier_omfattet_af_par44_kroner: Heltal, ægtefælles_positive_nettobeløb_efter_par13a_kroner: Heltal)
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
-# AktieavanceOrdinærÅrsresultat(indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
+# AktieavanceOrdinærÅrsresultat(input: AktieavanceOrdinærÅrsinput, indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 
 | aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
 | aktieavance_ordinaer_kapitalvægt_normaliser(tæller: Heltal, nævner: Heltal) -> hvis tæller == 0 { AktieavanceOrdinærKapitalvægt(tæller = 0, nævner = 1) } ellers { AktieavanceOrdinærKapitalvægt(tæller = tæller / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner), nævner = nævner / aktieavance_ordinaer_største_fælles_divisor(tæller, nævner)) }
@@ -335,6 +365,40 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 | aktieavance_ordinaer_er_optaget_til_handel(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> markedsstatus != AblIkkeOptagetTilHandel
 | aktieavance_ordinaer_tab_behandles_efter_par13a(vilkår: AktieavanceOrdinærAfståelsesvilkår) -> aktieavance_ordinaer_er_optaget_til_handel(vilkår.markedsstatus) || vilkår.har_tidligere_været_optaget_til_handel
 | aktieavance_ordinaer_skattefri_efter_par15(boligret: AktieavanceOrdinærBoligretInput) -> boligret.forbundet_med_brugsret_til_beboelseslejlighed && boligret.beboelseskrav_opfyldt && (boligret.likvidationsprovenu == Falskt || boligret.udloddet_i_endeligt_opløsningsår)
+
+| aktieavance_par13a_investeringsbevis_skattepostart(art: AktieavancePar13AInvesteringsbevisArt) -> match art {
+    | AblPar20Stk2AkkumulerendeInvesteringsbevis -> AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2
+    | AblPar21AktiebaseretMinimumsbevis -> AblSkattepostAktiebaseretMinimumsbevisEfterPar21
+}
+
+# AktieavancePar13AInvesteringsbevisSag(input: AktieavancePar13AInvesteringsbevisInput) {
+    | input_gyldigt() -> input.indkomstår > 0 && input.afståelsessum_kroner >= 0 && input.anskaffelsessum_kroner >= 0
+    | bruttogevinst_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(input.afståelsessum_kroner - input.anskaffelsessum_kroner) } ellers { 0 }
+    | bruttotab_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(input.anskaffelsessum_kroner - input.afståelsessum_kroner) } ellers { 0 }
+    | oplysningsbetingelse_efter_par14_opfyldt() -> aktieavance_ordinaer_oplysningsbetingelse_opfyldt(input.oplysningsstatus)
+    | tab_til_modregning_efter_par13a_kroner() -> hvis oplysningsbetingelse_efter_par14_opfyldt() { bruttotab_kroner() } ellers { 0 }
+    | tab_afskåret_efter_par14_kroner() -> hvis oplysningsbetingelse_efter_par14_opfyldt() { 0 } ellers { bruttotab_kroner() }
+    | skattepost() -> AktieavanceSkattepost(
+        art = aktieavance_par13a_investeringsbevis_skattepostart(input.art),
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        skattepligtig_gevinst_efter_par12_kroner = bruttogevinst_kroner(),
+        bruttotab_kroner = bruttotab_kroner(),
+        fradragsberettiget_tab_efter_par13_kroner = 0,
+        tab_til_modregning_efter_par13a_kroner = tab_til_modregning_efter_par13a_kroner(),
+        tab_afskåret_efter_par14_kroner = tab_afskåret_efter_par14_kroner(),
+        gevinst_i_modregningsgrundlag_efter_par13a_kroner = bruttogevinst_kroner()
+    )
+    | resultat() -> AktieavancePar13AInvesteringsbevisResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        bruttogevinst_kroner = bruttogevinst_kroner(),
+        bruttotab_kroner = bruttotab_kroner(),
+        tab_afskåret_efter_par14_kroner = tab_afskåret_efter_par14_kroner(),
+        skattepost = skattepost()
+    )
+}
+
+| aktieavance_par13a_investeringsbevis_resultat(input: AktieavancePar13AInvesteringsbevisInput) -> AktieavancePar13AInvesteringsbevisSag(input).resultat()
 
 # AktieavanceOrdinærHændelsesSag(position: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse) {
     | position_gyldig() -> aktieavance_ordinaer_position_gyldig(position)
@@ -467,6 +531,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | netto_aktieindkomst_fra_ordinære_aktier_kroner() -> skattepligtige_gevinster_efter_par12_kroner() - fradragsberettiget_tab_i_egen_aktieindkomst_kroner()
     | medregnes_i_skattepligtig_indkomst() -> skattepligtige_gevinster_efter_par12_kroner() > 0 || fradragsberettiget_tab_i_egen_aktieindkomst_kroner() > 0
     | resultat() -> AktieavanceOrdinærÅrsresultat(
+        input = input,
         indkomstår = input.indkomstår,
         skattepligtige_gevinster_efter_par12_kroner = skattepligtige_gevinster_efter_par12_kroner(),
         gevinster_for_aktier_optaget_til_handel_efter_par12_kroner = gevinster_for_aktier_optaget_til_handel_efter_par12_kroner(),
@@ -748,6 +813,7 @@ regler anvendelse.
 )
 --@end:aktieavancebeskatningsloven_par25_rettigheder--
 
+--@label:aktieavancebeskatningsloven_par17_til_par22::source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
 ----
 § 17.
 Hvis den skattepligtige udøver næring ved køb og salg af aktier, medregnes
@@ -924,6 +990,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 § 17 nævnte tilfælde.
 ----
 
+--@begin:aktieavancebeskatningsloven_par17_til_par22--
 # AktieavancebeskatningslovAktiv = AblOrdinærAktiePar12Til15 | AblNæringsaktiePar17 | AblAndelsbevisPar18 | AblInvesteringsselskab19B | AblInvesteringsselskab19C | AblMinimumsbevis21 | AblMinimumsbevis22 | AblUdenforDenneSlice
 # AktieavancebeskatningslovPslKategori = AblIkkeMedregnetISlice | AblKapitalindkomstEfterPslPar4Nr5 | AblAktieindkomstEfterPslPar4a | AblPersonligIndkomstEfterPslUndtagelse
 # AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, udøver_aktienæring: Boolsk, erhvervet_som_led_i_næring: Boolsk, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, meddelt_aktiebaseret_status: Boolsk, aktieandel_basispoint: Heltal, resterende_aktivmasse_kun_værdipapirer: Boolsk, oplysninger_indsendt_rettidigt: Boolsk, ville_være_par17_uden_investeringsstatus: Boolsk, årets_netto_med_kgl_par14_23_kroner: Heltal)
@@ -1124,3 +1191,4 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | abl19b_aktieindkomstklassifikation: abl19b_aktieindkomst_fixture -> abl19b_aktieindkomst_fixture.effektiv_aktiv == AblInvesteringsselskab19B && abl19b_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 20000 && abl19b_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
 | abl19b_hvis_par17_bliver_personlig: abl19b_hvis17_fixture -> abl19b_hvis17_fixture.skattepligtig_gevinst_kroner == 7000 && abl19b_hvis17_fixture.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
 | abl21_aktieindkomstklassifikation: abl21_aktieindkomst_fixture -> abl21_aktieindkomst_fixture.effektiv_aktiv == AblMinimumsbevis21 && abl21_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 10000 && abl21_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+--@end:aktieavancebeskatningsloven_par17_til_par22--

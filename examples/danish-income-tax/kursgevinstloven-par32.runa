@@ -3,6 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
+@ importer ./aktieavancebeskatningsloven - par23 - 27
 
 # KursgevinstlovPar32KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -23,7 +24,7 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::amendment_source:kursgevinstloven_lov1563_par4_par8--
+--@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:kursgevinstloven_lov1563_par4_par8--
 ----
 § 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
 omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten
@@ -98,12 +99,18 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Tabsmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32FastEjendomsmodregningsresultat(sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32Kontraktmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinster: KursgevinstPar32Gevinstsaldo)
-# KursgevinstPar32PersonÅrsresultat(identifikation: Tekst, indkomstår: Heltal, input_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, klassificerede_kontraktposter: List(KursgevinstPar32KlassificeretKontraktpost), indkomstklassifikationer: List(KursgevinstlovPersonligReklassifikation), indkomstklassifikation_entydig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_almindelige_tab_kroner: Heltal, årets_aktiebaserede_tab_kroner: Heltal, årets_fast_ejendom_sælgertab_kroner: Heltal, årets_fast_ejendom_købertab_kroner: Heltal, gyldigt_fremførte_almindelige_tab_kroner: Heltal, gyldigt_fremførte_aktiebaserede_tab_kroner: Heltal, årets_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_indkomstårsgevinster_kroner: Heltal, tab_modregnet_i_egne_tidligere_gevinster_kroner: Heltal, tab_overført_til_ægtefælles_kontraktgevinster_kroner: Heltal, ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, tab_overført_til_ægtefælles_aktiegevinster_kroner: Heltal, ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner: Heltal, afståelsessum_nedsat_med_fast_ejendomstab_kroner: Heltal, anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner: Heltal, almindelige_tab_fremført_til_følgende_indkomstår_kroner: Heltal, aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fradragsberettigede_tab_i_egen_kontraktindkomst_kroner: Heltal, netto_kontraktindkomst_efter_par32_kroner: Heltal)
+# KursgevinstPar32Aktiegevinstklasse = KglPar32Abl12OrdinæreAktierOgRettigheder | KglPar32Abl19BInvesteringsselskab | KglPar32Abl19CInvesteringsselskab | KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis | KglPar32Abl21AktiebaseretMinimumsbevis | KglPar32Abl22ObligationsbaseretMinimumsbevis | KglPar32AndenIkkeKvalificeretAktieklasse
+# KursgevinstPar32Aktiemarkedsgrundlag = KglPar32AktiePåReguleretMarked | KglPar32AktiePåMultilateralHandelsfacilitet | KglPar32AktieUdenKvalificeretMarked
+# KursgevinstPar32SupplerendeAktieårsresultat = KglPar32AblLagerÅrsresultat(resultat: AktieavancePar23LagerÅrsresultat) | KglPar32AblResultat(resultat: AktieavancebeskatningslovResultat)
+# KursgevinstPar32Aktieårsgrundlag(par13a_årsresultat: AktieavanceOrdinærÅrsresultat, supplerende_årsresultater: List(KursgevinstPar32SupplerendeAktieårsresultat))
+# KursgevinstPar32KlassificeretSupplerendeAktieårsresultat(kilde: KursgevinstPar32SupplerendeAktieårsresultat, klasse: KursgevinstPar32Aktiegevinstklasse, markedsgrundlag: KursgevinstPar32Aktiemarkedsgrundlag, anset_optaget_efter_abl3: Boolsk, strukturelt_gyldigt: Boolsk, kvalificerer_til_par32_stk3: Boolsk, nettogevinst_efter_abl_kroner: Heltal, medregnet_nettoaktiegevinst_kroner: Heltal, udeladt_ikke_kvalificeret_netto_kroner: Heltal, afvist_ugyldigt_netto_kroner: Heltal)
+# KursgevinstPar32Aktiegevinstgrundlagsresultat(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal, input_gyldigt: Boolsk, klasser: List(KursgevinstPar32Aktiegevinstklasse), klassificerede_supplerende_resultater: List(KursgevinstPar32KlassificeretSupplerendeAktieårsresultat), par13a_gevinster_på_reguleret_marked_kroner: Heltal, par13a_gevinster_på_multilateral_handelsfacilitet_kroner: Heltal, årets_par13a_tab_kroner: Heltal, supplerende_medregnet_nettoaktiegevinst_kroner: Heltal, supplerende_udeladt_ikke_kvalificeret_netto_kroner: Heltal, supplerende_afvist_ugyldigt_netto_kroner: Heltal, samlet_nettoaktiegevinst_før_nulgrænse_kroner: Heltal, aktiegevinstkapacitet_kroner: Heltal)
+# KursgevinstPar32PersonÅrsresultat(identifikation: Tekst, indkomstår: Heltal, input_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, aktiegevinstgrundlag: KursgevinstPar32Aktiegevinstgrundlagsresultat, ægtefælles_par13a_tab_modtaget_før_kontrakttab_kroner: Heltal, aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner: Heltal, klassificerede_kontraktposter: List(KursgevinstPar32KlassificeretKontraktpost), indkomstklassifikationer: List(KursgevinstlovPersonligReklassifikation), indkomstklassifikation_entydig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_almindelige_tab_kroner: Heltal, årets_aktiebaserede_tab_kroner: Heltal, årets_fast_ejendom_sælgertab_kroner: Heltal, årets_fast_ejendom_købertab_kroner: Heltal, gyldigt_fremførte_almindelige_tab_kroner: Heltal, gyldigt_fremførte_aktiebaserede_tab_kroner: Heltal, årets_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_indkomstårsgevinster_kroner: Heltal, tab_modregnet_i_egne_tidligere_gevinster_kroner: Heltal, tab_overført_til_ægtefælles_kontraktgevinster_kroner: Heltal, ægtefælles_tab_modtaget_i_egne_kontraktgevinster_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, tab_overført_til_ægtefælles_aktiegevinster_kroner: Heltal, ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner: Heltal, afståelsessum_nedsat_med_fast_ejendomstab_kroner: Heltal, anskaffelsessum_forhøjet_med_fast_ejendomstab_kroner: Heltal, almindelige_tab_fremført_til_følgende_indkomstår_kroner: Heltal, aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, øvrig_gevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fast_ejendomsgevinstkapacitet_til_følgende_indkomstår_kroner: Heltal, fradragsberettigede_tab_i_egen_kontraktindkomst_kroner: Heltal, netto_kontraktindkomst_efter_par32_kroner: Heltal)
 # KursgevinstPar32Fremførsel = KglPar32IngenFremførsel | KglPar32FremførselFraForrigeIndkomstår(resultat: KursgevinstPar32PersonÅrsresultat)
-# KursgevinstPar32PersonÅrsinput(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), aktieårsresultat: AktieavanceOrdinærÅrsresultat, fremførsel: KursgevinstPar32Fremførsel, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
+# KursgevinstPar32PersonÅrsinput(identifikation: Tekst, indkomstår: Heltal, kontrakter: List(KursgevinstPar32Kontraktpost), aktieårsgrundlag: KursgevinstPar32Aktieårsgrundlag, fremførsel: KursgevinstPar32Fremførsel, tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
 # KursgevinstPar32ÆgtefælleparInput(venstre: KursgevinstPar32PersonÅrsinput, højre: KursgevinstPar32PersonÅrsinput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 # KursgevinstPar32EgenÅrsopgørelsesresultat(input: KursgevinstPar32PersonÅrsinput, kontraktinput_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_tab: KursgevinstPar32Tabsaldo, årets_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gyldigt_fremført_tab: KursgevinstPar32Tabsaldo, årets_gevinster_før_direkte_tab: KursgevinstPar32Gevinstsaldo, årets_gevinster_efter_direkte_tab: KursgevinstPar32Gevinstsaldo, modregning_i_indkomstårets_gevinster: KursgevinstPar32Kontraktmodregningsresultat, modregning_i_tidligere_gevinster: KursgevinstPar32Kontraktmodregningsresultat)
-# KursgevinstPar32Aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, tab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32Tabsaldo, fast_ejendomstab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32FastEjendomstabsaldo, valgt_aktiemodregningsloft_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, aktiebaseret_tab_efter_egne_aktiegevinster_kroner: Heltal, valgt_loft_efter_egne_aktiegevinster_kroner: Heltal, resterende_egen_aktiegevinstkapacitet_kroner: Heltal)
+# KursgevinstPar32Aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, aktiegevinstgrundlag: KursgevinstPar32Aktiegevinstgrundlagsresultat, ægtefælles_par13a_tab_modtaget_kroner: Heltal, aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner: Heltal, tab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32Tabsaldo, fast_ejendomstab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32FastEjendomstabsaldo, valgt_aktiemodregningsloft_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, aktiebaseret_tab_efter_egne_aktiegevinster_kroner: Heltal, valgt_loft_efter_egne_aktiegevinster_kroner: Heltal, resterende_egen_aktiegevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32ÆgtefælleparResultat(venstre: KursgevinstPar32PersonÅrsresultat, højre: KursgevinstPar32PersonÅrsresultat, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 
 | kgl_par32_tom_tabsaldo() -> KursgevinstPar32Tabsaldo(almindelige_tab_kroner = 0, aktiebaserede_tab_kroner = 0)
@@ -290,29 +297,135 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | KglPar32MaksimalAktiemodregning -> penge_positivt_beløb(tilgængeligt_tab_kroner)
     | KglPar32AktiemodregningOpTil(beløb_kroner) -> penge_mindste_beløb(penge_positivt_beløb(tilgængeligt_tab_kroner), penge_positivt_beløb(beløb_kroner))
 }
-| kgl_par32_aktiegevinstgrundlag_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> hvis resultat.indkomstår == indkomstår { resultat.gevinster_på_reguleret_marked_efter_par12_kroner + hvis indkomstår >= 2024 { resultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner } ellers { 0 } } ellers { 0 }
-| kgl_par32_aktiegevinstkapacitet_kroner(resultat: AktieavanceOrdinærÅrsresultat, indkomstår: Heltal) -> penge_positivt_beløb(kgl_par32_aktiegevinstgrundlag_kroner(resultat, indkomstår) - penge_positivt_beløb(resultat.årets_tab_efter_par13a_kroner))
+| kgl_par32_aktieklasse_fra_par13a_skattepost(post: AktieavanceSkattepost) -> match post.art {
+    | AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2 -> KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis
+    | AblSkattepostAktiebaseretMinimumsbevisEfterPar21 -> KglPar32Abl21AktiebaseretMinimumsbevis
+    | _ -> KglPar32Abl12OrdinæreAktierOgRettigheder
+}
+| kgl_par32_par13a_skattepost_har_indkomstgrundlag(post: AktieavanceSkattepost) -> post.skattepligtig_gevinst_efter_par12_kroner > 0 || post.bruttotab_kroner > 0
+| kgl_par32_par13a_aktieklasser(resultat: AktieavanceOrdinærÅrsresultat) -> distinct(map(filter(resultat.input.skatteposter, kgl_par32_par13a_skattepost_har_indkomstgrundlag), kgl_par32_aktieklasse_fra_par13a_skattepost))
+| kgl_par32_supplerende_aktieklasse(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
+    | KglPar32AblLagerÅrsresultat(resultat) -> match resultat.input.princip_resultat.input.aktiv {
+        | AblPar19BInvesteringsselskabsaktiv(_, _, _) -> KglPar32Abl19BInvesteringsselskab
+        | AblPar19CInvesteringsselskabsaktiv(_, _, _) -> KglPar32Abl19CInvesteringsselskab
+        | _ -> KglPar32AndenIkkeKvalificeretAktieklasse
+    }
+    | KglPar32AblResultat(resultat) -> hvis resultat.effektiv_aktiv == AblMinimumsbevis22 { KglPar32Abl22ObligationsbaseretMinimumsbevis } ellers { KglPar32AndenIkkeKvalificeretAktieklasse }
+}
+| kgl_par32_supplerende_anset_optaget_efter_abl3(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
+    | KglPar32AblLagerÅrsresultat(resultat) -> aktieavance_par23_investeringsselskab_papirart(resultat.input.princip_resultat.input.aktiv) == AblOmsætteligtInvesteringsbevis
+    | KglPar32AblResultat(resultat) -> resultat.effektiv_aktiv == AblMinimumsbevis22
+}
+| kgl_par32_markedsgrundlag_fra_markedsstatus(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> match markedsstatus {
+    | AblOptagetTilHandelPåReguleretMarked -> KglPar32AktiePåReguleretMarked
+    | AblOptagetTilHandelPåMultilateralHandelsfacilitet -> KglPar32AktiePåMultilateralHandelsfacilitet
+    | AblIkkeOptagetTilHandel -> KglPar32AktieUdenKvalificeretMarked
+}
+| kgl_par32_supplerende_markedsgrundlag(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> hvis kgl_par32_supplerende_anset_optaget_efter_abl3(kilde) { KglPar32AktiePåReguleretMarked } ellers { match kilde {
+    | KglPar32AblLagerÅrsresultat(resultat) -> kgl_par32_markedsgrundlag_fra_markedsstatus(aktieavance_par23_aktiv_markedsstatus(resultat.input.princip_resultat.input.aktiv))
+    | KglPar32AblResultat(_) -> KglPar32AktieUdenKvalificeretMarked
+} }
+| kgl_par32_abl_resultat_strukturelt_gyldigt(resultat: AktieavancebeskatningslovResultat, indkomstår: Heltal) -> resultat.indkomstår == indkomstår && resultat.bruttogevinst_kroner >= 0 && resultat.bruttotab_kroner >= 0 && resultat.tab_afskåret_kroner >= 0 && resultat.skattepligtig_gevinst_kroner >= 0 && resultat.fradragsberettiget_tab_kroner >= 0 && resultat.netto_efter_aktieavancebeskatningsloven_kroner == resultat.skattepligtig_gevinst_kroner - resultat.fradragsberettiget_tab_kroner
+| kgl_par32_supplerende_strukturelt_gyldigt(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> match kilde {
+    | KglPar32AblLagerÅrsresultat(resultat) -> resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtig == AblSkattepligtigEfterPar7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
+    | KglPar32AblResultat(resultat) -> kgl_par32_abl_resultat_strukturelt_gyldigt(resultat, indkomstår)
+}
+| kgl_par32_supplerende_netto_efter_abl_kroner(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
+    | KglPar32AblLagerÅrsresultat(resultat) -> resultat.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner
+    | KglPar32AblResultat(resultat) -> resultat.netto_efter_aktieavancebeskatningsloven_kroner
+}
+| kgl_par32_aktiemarkedsgrundlag_kvalificerer(markedsgrundlag: KursgevinstPar32Aktiemarkedsgrundlag, indkomstår: Heltal) -> match markedsgrundlag {
+    | KglPar32AktiePåReguleretMarked -> Sandt
+    | KglPar32AktiePåMultilateralHandelsfacilitet -> indkomstår >= 2024
+    | KglPar32AktieUdenKvalificeretMarked -> Falskt
+}
+| kgl_par32_supplerende_klasse_kvalificerer(klasse: KursgevinstPar32Aktiegevinstklasse) -> klasse == KglPar32Abl19BInvesteringsselskab || klasse == KglPar32Abl19CInvesteringsselskab || klasse == KglPar32Abl22ObligationsbaseretMinimumsbevis
+| kgl_par32_supplerende_kvalificerer(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> kgl_par32_supplerende_klasse_kvalificerer(kgl_par32_supplerende_aktieklasse(kilde)) && kgl_par32_aktiemarkedsgrundlag_kvalificerer(kgl_par32_supplerende_markedsgrundlag(kilde), indkomstår)
+
+# KursgevinstPar32SupplerendeAktieklassifikationssag(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) {
+    | klasse() -> kgl_par32_supplerende_aktieklasse(kilde)
+    | markedsgrundlag() -> kgl_par32_supplerende_markedsgrundlag(kilde)
+    | strukturelt_gyldigt() -> kgl_par32_supplerende_strukturelt_gyldigt(kilde, indkomstår)
+    | kvalificerer_til_par32_stk3() -> strukturelt_gyldigt() && kgl_par32_supplerende_kvalificerer(kilde, indkomstår)
+    | nettogevinst_efter_abl_kroner() -> kgl_par32_supplerende_netto_efter_abl_kroner(kilde)
+    | medregnet_nettoaktiegevinst_kroner() -> hvis kvalificerer_til_par32_stk3() { nettogevinst_efter_abl_kroner() } ellers { 0 }
+    | udeladt_ikke_kvalificeret_netto_kroner() -> hvis strukturelt_gyldigt() && kvalificerer_til_par32_stk3() == Falskt { nettogevinst_efter_abl_kroner() } ellers { 0 }
+    | afvist_ugyldigt_netto_kroner() -> hvis strukturelt_gyldigt() { 0 } ellers { nettogevinst_efter_abl_kroner() }
+    | resultat() -> KursgevinstPar32KlassificeretSupplerendeAktieårsresultat(
+        kilde = kilde,
+        klasse = klasse(),
+        markedsgrundlag = markedsgrundlag(),
+        anset_optaget_efter_abl3 = kgl_par32_supplerende_anset_optaget_efter_abl3(kilde),
+        strukturelt_gyldigt = strukturelt_gyldigt(),
+        kvalificerer_til_par32_stk3 = kvalificerer_til_par32_stk3(),
+        nettogevinst_efter_abl_kroner = nettogevinst_efter_abl_kroner(),
+        medregnet_nettoaktiegevinst_kroner = medregnet_nettoaktiegevinst_kroner(),
+        udeladt_ikke_kvalificeret_netto_kroner = udeladt_ikke_kvalificeret_netto_kroner(),
+        afvist_ugyldigt_netto_kroner = afvist_ugyldigt_netto_kroner()
+    )
+}
+| kgl_par32_klassificer_supplerende_aktieårsresultat(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> KursgevinstPar32SupplerendeAktieklassifikationssag(kilde, indkomstår).resultat()
+| kgl_par32_klassificerede_supplerende_aktieårsresultater(kilder: List(KursgevinstPar32SupplerendeAktieårsresultat), indkomstår: Heltal) -> map(kilder, |kilde: KursgevinstPar32SupplerendeAktieårsresultat| kgl_par32_klassificer_supplerende_aktieårsresultat(kilde, indkomstår))
+| kgl_par32_klassificeret_supplerende_resultat_gyldigt(resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat) -> resultat.strukturelt_gyldigt
+
+# KursgevinstPar32AktiegevinstgrundlagSag(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal) {
+    | klassificerede_supplerende_resultater() -> kgl_par32_klassificerede_supplerende_aktieårsresultater(grundlag.supplerende_årsresultater, indkomstår)
+    | input_gyldigt() -> grundlag.par13a_årsresultat.indkomstår == indkomstår && all(klassificerede_supplerende_resultater(), kgl_par32_klassificeret_supplerende_resultat_gyldigt)
+    | supplerende_klasser() -> map(klassificerede_supplerende_resultater(), |resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| resultat.klasse)
+    | klasser() -> distinct(concat(kgl_par32_par13a_aktieklasser(grundlag.par13a_årsresultat), supplerende_klasser()))
+    | par13a_gevinster_på_reguleret_marked_kroner() -> grundlag.par13a_årsresultat.gevinster_på_reguleret_marked_efter_par12_kroner
+    | par13a_gevinster_på_multilateral_handelsfacilitet_kroner() -> grundlag.par13a_årsresultat.gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner
+    | årets_par13a_tab_kroner() -> penge_positivt_beløb(grundlag.par13a_årsresultat.årets_tab_efter_par13a_kroner)
+    | supplerende_medregnet_nettoaktiegevinst_kroner() -> foldl(klassificerede_supplerende_resultater(), 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.medregnet_nettoaktiegevinst_kroner)
+    | supplerende_udeladt_ikke_kvalificeret_netto_kroner() -> foldl(klassificerede_supplerende_resultater(), 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.udeladt_ikke_kvalificeret_netto_kroner)
+    | supplerende_afvist_ugyldigt_netto_kroner() -> foldl(klassificerede_supplerende_resultater(), 0, |sum: Heltal, resultat: KursgevinstPar32KlassificeretSupplerendeAktieårsresultat| sum + resultat.afvist_ugyldigt_netto_kroner)
+    | kvalificerede_par13a_gevinster_kroner() -> par13a_gevinster_på_reguleret_marked_kroner() + hvis indkomstår >= 2024 { par13a_gevinster_på_multilateral_handelsfacilitet_kroner() } ellers { 0 }
+    | samlet_nettoaktiegevinst_før_nulgrænse_kroner() -> kvalificerede_par13a_gevinster_kroner() + supplerende_medregnet_nettoaktiegevinst_kroner() - årets_par13a_tab_kroner()
+    | aktiegevinstkapacitet_kroner() -> hvis input_gyldigt() { penge_positivt_beløb(samlet_nettoaktiegevinst_før_nulgrænse_kroner()) } ellers { 0 }
+    | resultat() -> KursgevinstPar32Aktiegevinstgrundlagsresultat(
+        grundlag = grundlag,
+        indkomstår = indkomstår,
+        input_gyldigt = input_gyldigt(),
+        klasser = klasser(),
+        klassificerede_supplerende_resultater = klassificerede_supplerende_resultater(),
+        par13a_gevinster_på_reguleret_marked_kroner = par13a_gevinster_på_reguleret_marked_kroner(),
+        par13a_gevinster_på_multilateral_handelsfacilitet_kroner = par13a_gevinster_på_multilateral_handelsfacilitet_kroner(),
+        årets_par13a_tab_kroner = årets_par13a_tab_kroner(),
+        supplerende_medregnet_nettoaktiegevinst_kroner = supplerende_medregnet_nettoaktiegevinst_kroner(),
+        supplerende_udeladt_ikke_kvalificeret_netto_kroner = supplerende_udeladt_ikke_kvalificeret_netto_kroner(),
+        supplerende_afvist_ugyldigt_netto_kroner = supplerende_afvist_ugyldigt_netto_kroner(),
+        samlet_nettoaktiegevinst_før_nulgrænse_kroner = samlet_nettoaktiegevinst_før_nulgrænse_kroner(),
+        aktiegevinstkapacitet_kroner = aktiegevinstkapacitet_kroner()
+    )
+}
+| kgl_par32_aktiegevinstgrundlagsresultat(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal) -> KursgevinstPar32AktiegevinstgrundlagSag(grundlag, indkomstår).resultat()
 | kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0, ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0)
-| kgl_par32_tomt_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag(), gift_og_samlevende_ved_årets_udgang = Falskt))
+| kgl_par32_tomt_par13a_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag(), gift_og_samlevende_ved_årets_udgang = Falskt))
+| kgl_par32_tomt_aktieårsgrundlag(indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(indkomstår), supplerende_årsresultater = [])
 | kgl_par32_ingen_aktiemodregning() -> KursgevinstPar32Aktiemodregningsvalg(omfang = KglPar32IngenAktiemodregning, beløb = KglPar32MaksimalAktiemodregning)
 
-# KursgevinstPar32AktiemodregningsforberedelseSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat) {
+# KursgevinstPar32AktiemodregningsforberedelseSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, ægtefælles_par13a_tab_overført_kroner: Heltal) {
     | aktiebaseret_tab_til_aktiemodregning_kroner() -> udgående_kontraktmodregning.resterende_tab.aktiebaserede_tab_kroner
     | valgt_aktiemodregningsloft_kroner() -> kgl_par32_valgt_aktiemodregningsloft_kroner(egen.input.aktiemodregningsvalg, aktiebaseret_tab_til_aktiemodregning_kroner())
-    | egen_aktiegevinstkapacitet_kroner() -> kgl_par32_aktiegevinstkapacitet_kroner(egen.input.aktieårsresultat, egen.input.indkomstår)
-    | tab_modregnet_i_egne_aktiegevinster_kroner() -> hvis kgl_par32_må_modregne_i_egne_aktiegevinster(egen.input.aktiemodregningsvalg) { penge_mindste_beløb(valgt_aktiemodregningsloft_kroner(), egen_aktiegevinstkapacitet_kroner()) } ellers { 0 }
+    | aktiegevinstgrundlag() -> kgl_par32_aktiegevinstgrundlagsresultat(egen.input.aktieårsgrundlag, egen.input.indkomstår)
+    | ægtefælles_par13a_tab_modtaget_kroner() -> penge_mindste_beløb(penge_positivt_beløb(ægtefælles_par13a_tab_overført_kroner), aktiegevinstgrundlag().aktiegevinstkapacitet_kroner)
+    | aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner() -> aktiegevinstgrundlag().aktiegevinstkapacitet_kroner - ægtefælles_par13a_tab_modtaget_kroner()
+    | tab_modregnet_i_egne_aktiegevinster_kroner() -> hvis kgl_par32_må_modregne_i_egne_aktiegevinster(egen.input.aktiemodregningsvalg) { penge_mindste_beløb(valgt_aktiemodregningsloft_kroner(), aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner()) } ellers { 0 }
     | resultat() -> KursgevinstPar32Aktiemodregningsforberedelse(
         egen = egen,
+        aktiegevinstgrundlag = aktiegevinstgrundlag(),
+        ægtefælles_par13a_tab_modtaget_kroner = ægtefælles_par13a_tab_modtaget_kroner(),
+        aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner = aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner(),
         tab_efter_ægtefælles_kontraktgevinster = udgående_kontraktmodregning.resterende_tab,
         fast_ejendomstab_efter_ægtefælles_kontraktgevinster = udgående_kontraktmodregning.resterende_fast_ejendomstab,
         valgt_aktiemodregningsloft_kroner = valgt_aktiemodregningsloft_kroner(),
         tab_modregnet_i_egne_aktiegevinster_kroner = tab_modregnet_i_egne_aktiegevinster_kroner(),
         aktiebaseret_tab_efter_egne_aktiegevinster_kroner = aktiebaseret_tab_til_aktiemodregning_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner(),
         valgt_loft_efter_egne_aktiegevinster_kroner = valgt_aktiemodregningsloft_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner(),
-        resterende_egen_aktiegevinstkapacitet_kroner = egen_aktiegevinstkapacitet_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner()
+        resterende_egen_aktiegevinstkapacitet_kroner = aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner() - tab_modregnet_i_egne_aktiegevinster_kroner()
     )
 }
-| kgl_par32_aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat) -> KursgevinstPar32AktiemodregningsforberedelseSag(egen, udgående_kontraktmodregning).resultat()
+| kgl_par32_aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, ægtefælles_par13a_tab_overført_kroner: Heltal) -> KursgevinstPar32AktiemodregningsforberedelseSag(egen, udgående_kontraktmodregning, ægtefælles_par13a_tab_overført_kroner).resultat()
 | kgl_par32_aktietab_til_ægtefælle_kroner(egen: KursgevinstPar32Aktiemodregningsforberedelse, ægtefælle: KursgevinstPar32Aktiemodregningsforberedelse, gift_og_samlevende: Boolsk) -> hvis gift_og_samlevende && kgl_par32_må_modregne_i_ægtefælles_aktiegevinster(egen.egen.input.aktiemodregningsvalg) { penge_mindste_beløb(penge_mindste_beløb(egen.aktiebaseret_tab_efter_egne_aktiegevinster_kroner, egen.valgt_loft_efter_egne_aktiegevinster_kroner), ægtefælle.resterende_egen_aktiegevinstkapacitet_kroner) } ellers { 0 }
 
 # KursgevinstPar32EfterÆgtefælleSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, ægtefælle: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, indgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, aktiemodregning: KursgevinstPar32Aktiemodregningsforberedelse, udgående_aktiemodregning_kroner: Heltal, indgående_aktiemodregning_kroner: Heltal) {
@@ -333,12 +446,15 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | netto_kontraktindkomst_efter_par32_kroner() -> årets_kontraktgevinster_kroner() - fradragsberettigede_tab_i_egen_kontraktindkomst_kroner()
     | indkomstårets_gevinstkapacitet_til_følgende_indkomstår() -> hvis egen.input.indkomstår >= 2002 { indgående_kontraktmodregning.resterende_gevinster } ellers { kgl_par32_tom_gevinstsaldo() }
     | gevinstkapacitet_til_følgende_indkomstår() -> kgl_par32_gevinstsaldo_plus(egen.modregning_i_tidligere_gevinster.resterende_gevinster, indkomstårets_gevinstkapacitet_til_følgende_indkomstår())
-    | input_gyldigt() -> egen.input.identifikation != "" && egen.input.identifikation != ægtefælle.input.identifikation && egen.kontraktinput_gyldigt && egen.fremførsel_gyldig && egen.input.aktieårsresultat.indkomstår == egen.input.indkomstår && egen.input.indkomstår == ægtefælle.input.indkomstår
+    | input_gyldigt() -> egen.input.identifikation != "" && egen.input.identifikation != ægtefælle.input.identifikation && egen.kontraktinput_gyldigt && egen.fremførsel_gyldig && aktiemodregning.aktiegevinstgrundlag.input_gyldigt && aktiemodregning.aktiegevinstgrundlag.indkomstår == egen.input.indkomstår && egen.input.indkomstår == ægtefælle.input.indkomstår
     | resultat() -> KursgevinstPar32PersonÅrsresultat(
         identifikation = egen.input.identifikation,
         indkomstår = egen.input.indkomstår,
         input_gyldigt = input_gyldigt(),
         fremførsel_gyldig = egen.fremførsel_gyldig,
+        aktiegevinstgrundlag = aktiemodregning.aktiegevinstgrundlag,
+        ægtefælles_par13a_tab_modtaget_før_kontrakttab_kroner = aktiemodregning.ægtefælles_par13a_tab_modtaget_kroner,
+        aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner = aktiemodregning.aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner,
         klassificerede_kontraktposter = klassificerede_kontraktposter(),
         indkomstklassifikationer = indkomstklassifikationer(),
         indkomstklassifikation_entydig = indkomstklassifikation_entydig(),
@@ -377,8 +493,10 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | ægtefæller_kan_overføre() -> input.gift_og_samlevende_ved_indkomstårets_udgang && input.venstre.indkomstår == input.højre.indkomstår && input.venstre.identifikation != "" && input.venstre.identifikation != input.højre.identifikation
     | venstre_til_højre() -> kgl_par32_ægtefællekontraktmodregning(venstre_egen().modregning_i_tidligere_gevinster.resterende_tab, venstre_egen().modregning_i_tidligere_gevinster.resterende_fast_ejendomstab, højre_egen().modregning_i_indkomstårets_gevinster.resterende_gevinster, input.venstre.tabsprioritet, input.venstre.fast_ejendomstabsprioritet, ægtefæller_kan_overføre())
     | højre_til_venstre() -> kgl_par32_ægtefællekontraktmodregning(højre_egen().modregning_i_tidligere_gevinster.resterende_tab, højre_egen().modregning_i_tidligere_gevinster.resterende_fast_ejendomstab, venstre_egen().modregning_i_indkomstårets_gevinster.resterende_gevinster, input.højre.tabsprioritet, input.højre.fast_ejendomstabsprioritet, ægtefæller_kan_overføre())
-    | venstre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(venstre_egen(), venstre_til_højre())
-    | højre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(højre_egen(), højre_til_venstre())
+    | venstre_par13a_tab_til_højre_kroner() -> hvis ægtefæller_kan_overføre() { input.venstre.aktieårsgrundlag.par13a_årsresultat.tab_overført_til_ægtefælle_kroner } ellers { 0 }
+    | højre_par13a_tab_til_venstre_kroner() -> hvis ægtefæller_kan_overføre() { input.højre.aktieårsgrundlag.par13a_årsresultat.tab_overført_til_ægtefælle_kroner } ellers { 0 }
+    | venstre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(venstre_egen(), venstre_til_højre(), højre_par13a_tab_til_venstre_kroner())
+    | højre_aktieforberedelse() -> kgl_par32_aktiemodregningsforberedelse(højre_egen(), højre_til_venstre(), venstre_par13a_tab_til_højre_kroner())
     | venstre_aktietab_til_højre_kroner() -> kgl_par32_aktietab_til_ægtefælle_kroner(venstre_aktieforberedelse(), højre_aktieforberedelse(), ægtefæller_kan_overføre())
     | højre_aktietab_til_venstre_kroner() -> kgl_par32_aktietab_til_ægtefælle_kroner(højre_aktieforberedelse(), venstre_aktieforberedelse(), ægtefæller_kan_overføre())
     | venstre_resultat() -> KursgevinstPar32EfterÆgtefælleSag(
