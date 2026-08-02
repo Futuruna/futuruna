@@ -1,0 +1,21 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 13
+
+# Adjustment(base: Int, addition: Int, deduction: Int)
+
+> keep(value: Int) -> Int { value }
+
+| adjusted_amount(input: Adjustment) -> keep(
+    input.base
+        + input.addition
+        - input.deduction
+)
+
+= result = adjusted_amount(Adjustment(
+    base = 10,
+    addition = 7,
+    deduction = 4
+))
+
+@ print(show(result))

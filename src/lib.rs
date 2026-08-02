@@ -6057,6 +6057,11 @@ impl Parser {
         let mut lhs = self.parse_atom()?;
 
         loop {
+            if self.newline_continues_grouped_infix_expression() {
+                while self.peek_kind() == TokenKind::Semi && self.peek().text == "\n" {
+                    self.advance();
+                }
+            }
             // Check for postfix / infix operations
             match self.peek_kind() {
                 // Postfix ? operator (try/error propagation) — must be before generic Op
@@ -6190,6 +6195,45 @@ impl Parser {
         }
 
         Ok(lhs)
+    }
+
+    fn newline_continues_grouped_infix_expression(&self) -> bool {
+        if self.peek_kind() != TokenKind::Semi
+            || self.peek().text != "\n"
+            || !self.inside_expression_delimiter()
+        {
+            return false;
+        }
+
+        let mut next = self.pos;
+        while self
+            .tokens
+            .get(next)
+            .is_some_and(|token| token.kind == TokenKind::Semi && token.text == "\n")
+        {
+            next += 1;
+        }
+        let Some(token) = self.tokens.get(next) else {
+            return false;
+        };
+        token.kind == TokenKind::Op
+            || matches!(token.kind, TokenKind::PipeGt | TokenKind::Elvis)
+            || (token.kind == TokenKind::Ident && token.text == "and" && !self.in_rule_body)
+    }
+
+    fn inside_expression_delimiter(&self) -> bool {
+        let mut paren_depth = 0usize;
+        let mut bracket_depth = 0usize;
+        for token in self.tokens.iter().take(self.pos) {
+            match token.kind {
+                TokenKind::LParen => paren_depth += 1,
+                TokenKind::RParen => paren_depth = paren_depth.saturating_sub(1),
+                TokenKind::LBracket => bracket_depth += 1,
+                TokenKind::RBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                _ => {}
+            }
+        }
+        paren_depth > 0 || bracket_depth > 0
     }
 
     pub fn parse_atom(&mut self) -> Result<Expr, String> {
