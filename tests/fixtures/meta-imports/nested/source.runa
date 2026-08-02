@@ -1,0 +1,6 @@
+# SourceInfo(url: String, section: String)
+
+= imported_source = SourceInfo(
+    url = "https://example.invalid/imported",
+    section = "nested"
+)

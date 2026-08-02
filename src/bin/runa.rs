@@ -3877,6 +3877,7 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         "type": reference.qualified_type,
         "value": reference.static_value,
         "data": reference.static_data.as_ref().map(meta_value_json),
+        "definition_file": reference.definition_file,
         "definition_line": reference.definition_line,
         "comment_line": reference.comment_line,
     })
@@ -3948,10 +3949,11 @@ fn meta_value_json(value: &MetaValue) -> serde_json::Value {
 fn print_meta_reference(reference: &MetaReference) {
     let qualified_type = reference.qualified_type.as_deref().unwrap_or("-");
     let static_value = reference.static_value.as_deref().unwrap_or("-");
-    let definition_line = reference
-        .definition_line
-        .map(|line| line.to_string())
-        .unwrap_or_else(|| "-".to_string());
+    let definition = match (&reference.definition_file, reference.definition_line) {
+        (Some(file), Some(line)) => format!("{}:{}", file, line),
+        (None, Some(line)) => line.to_string(),
+        _ => "-".to_string(),
+    };
     println!(
         "reference {} role {} binding {} type {} value {} definition {} comment {}",
         reference.label,
@@ -3959,7 +3961,7 @@ fn print_meta_reference(reference: &MetaReference) {
         reference.binding_name,
         qualified_type,
         static_value,
-        definition_line,
+        definition,
         reference.comment_line
     );
 }

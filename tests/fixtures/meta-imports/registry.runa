@@ -1,0 +1,3 @@
+@ import ./nested/source
+
+= registry_source = imported_source

@@ -81,7 +81,11 @@ of the product value. This is the RuleScope model: a pure calculation object
 whose constructor inputs are visible inside scoped rules. Rule members can call
 sibling rule members, ordinary global functions/rules, and use `under` /
 `exception` with the same priority semantics as top-level rules. Rule member
-names do not leak globally.
+names do not leak globally. Scoped dispatch matches both name and arity, so a
+same-named member with a different parameter count does not hide an ordinary
+global rule. Pure zero-argument rule members are memoized for the duration of
+one root member evaluation; repeated dependencies therefore retain value
+semantics without repeatedly evaluating the same rule cascade.
 
 The same product body may contain ordinary `>` methods. Methods share the
 product instance and can call rule members with `tax_due()` or `self.tax_due()`.

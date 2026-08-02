@@ -3408,6 +3408,11 @@ fn ResearchPersonskatteloven() -> Element {
                             strong { "Lovtekst først, regler bagefter" }
                             p { "I repoet gentages strukturen: original dansk lovtekst i flerlinjeblok, kun en note hvis nødvendigt, og derefter egentlige Futuruna-regler. Websitet gengiver ikke hele korpusset." }
                         }
+                        div { class: "tax-status-item research",
+                            span { class: "tax-status-label", "Input" }
+                            strong { "Typet JSON, TOML og XLSX" }
+                            p { "Lønmodtagerberegningen har nu én kildebundet kontrakt, som kan generere inputskabeloner, validere udfyldte sager og returnere det fulde skatteresultat. Relaterede regnearksfaner oprettes kun for faktiske samlinger i domænemodellen." }
+                        }
                     }
                 }
 

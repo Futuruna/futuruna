@@ -175,9 +175,12 @@ The earlier `--@begin::LABEL--` and `--@end::LABEL--` spellings remain accepted.
 `runa meta --type Shape file.runa` finds all references whose binding has type
 `Shape`. `runa meta --role warning file.runa` finds warning references, and the
 filters can be combined. Pure ground bindings also expose a static value and
-definition line. Dynamic or unresolved bindings produce metadata diagnostics;
-they do not make `runa check`, interpretation, or generated code fail because
-the parser still treats every meta marker as a comment.
+definition location. A reference may point to a binding in the current file or
+in any recursively reachable plain import; imported references retain the file
+and line where the binding is actually defined. Dynamic or unresolved bindings
+produce metadata diagnostics; they do not make `runa check`, interpretation, or
+generated code fail because the parser still treats every meta marker as a
+comment.
 
 Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 `futuruna.meta.v1` document contains typed references, quoted source anchors,

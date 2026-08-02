@@ -36,6 +36,12 @@ The command emits `futuruna.calculate.v1` JSON with input and output types,
 reachable type definitions, linked metadata, and a SHA-256 schema fingerprint.
 Use `--entry` when a file declares more than one calculation.
 
+Linked metadata may reference ground bindings in the calculation file or in a
+recursively reachable plain import. The contract includes stable metadata type
+and value data in its fingerprint. Definition file paths and line numbers stay
+in `runa meta --json` and do not make a portable calculation contract
+machine-dependent.
+
 ## Generate Input
 
 ```sh

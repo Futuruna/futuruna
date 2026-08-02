@@ -1,0 +1,10 @@
+@ sprog da
+
+@ importer ./source - status
+@ importer ./loenmodtager_beregning
+
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424--
+--@begin:personskat_lønmodtagerberegning--
+@ calculate
+| beregn_personskat(input: LønmodtagerInput) -> beregn_lønmodtager(input)
+--@end:personskat_lønmodtagerberegning--

@@ -1,0 +1,10 @@
+@ import ./registry
+
+# Input(value: Int)
+# Output(value: Int)
+
+--@label:imported_calculation::source:registry_source::source:imported_source--
+--@begin:imported_calculation--
+@ calculate
+| calculate_imported(input: Input) -> Output(value = input.value)
+--@end:imported_calculation--

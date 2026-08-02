@@ -1507,6 +1507,7 @@ pub struct MetaReference {
     pub qualified_type: Option<String>,
     pub static_value: Option<String>,
     pub static_data: Option<MetaValue>,
+    pub definition_file: Option<String>,
     pub definition_line: Option<usize>,
     pub comment_line: usize,
 }
@@ -1844,6 +1845,7 @@ fn meta_anchor_for_comment(
             qualified_type: None,
             static_value: None,
             static_data: None,
+            definition_file: None,
             definition_line: None,
             comment_line: comment.line,
         })
@@ -1865,8 +1867,98 @@ fn meta_anchor_for_comment(
     )
 }
 
+#[derive(Debug, Clone)]
+struct MetaBindingDefinition {
+    expr: Expr,
+    annotated_type: Option<String>,
+    definition_file: Option<String>,
+    definition_line: usize,
+}
+
+fn collect_local_meta_bindings(
+    source: &str,
+    stmts: &[Stmt],
+    definition_file: Option<&str>,
+    bindings: &mut BTreeMap<String, MetaBindingDefinition>,
+) {
+    for stmt in stmts {
+        if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
+            bindings
+                .entry(name.clone())
+                .or_insert_with(|| MetaBindingDefinition {
+                    expr: expr.clone(),
+                    annotated_type: ty.as_ref().map(ToString::to_string),
+                    definition_file: definition_file.map(str::to_string),
+                    definition_line: meta_binding_definition_line(source, name, expr),
+                });
+        }
+    }
+}
+
+fn collect_imported_meta_bindings(
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    sought_bindings: &BTreeSet<String>,
+    bindings: &mut BTreeMap<String, MetaBindingDefinition>,
+    visited: &mut BTreeSet<String>,
+) {
+    let Some(source_dir) = source_dir else {
+        return;
+    };
+
+    for stmt in stmts {
+        if sought_bindings
+            .iter()
+            .all(|name| bindings.contains_key(name))
+        {
+            break;
+        }
+        let Stmt::Import(import_path) = stmt else {
+            continue;
+        };
+        let Some(file_path) = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+        else {
+            continue;
+        };
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.clone());
+        if !visited.insert(canonical) {
+            continue;
+        }
+        let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
+            continue;
+        };
+        let mut lexer = Lexer::new(&imported_source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &imported_source);
+        let Ok(imported_stmts) = parser.parse_program() else {
+            continue;
+        };
+
+        collect_local_meta_bindings(
+            &imported_source,
+            &imported_stmts,
+            Some(&file_path),
+            bindings,
+        );
+        let nested_dir = std::path::Path::new(&file_path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+        collect_imported_meta_bindings(
+            &imported_stmts,
+            Some(&nested_dir),
+            sought_bindings,
+            bindings,
+            visited,
+        );
+    }
+}
+
 fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut MetaIndex) {
     let mut has_valid_reference = false;
+    let mut sought_bindings = BTreeSet::new();
     for anchor in &index.anchors {
         for reference in &anchor.references {
             if reference.role.is_empty() {
@@ -1887,6 +1979,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                 });
             } else {
                 has_valid_reference = true;
+                sought_bindings.insert(reference.binding_name.clone());
             }
         }
     }
@@ -1909,27 +2002,25 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
     };
 
     let mut checker = TypeChecker::new();
-    checker.source_dir = source_dir;
+    checker.source_dir = source_dir.clone();
     checker.source_text = source.to_string();
     checker.collect_declarations(&stmts);
     checker.infer_rule_return_types(&stmts);
     checker.infer_top_level_binding_types(&stmts);
 
-    let mut bindings: BTreeMap<String, (&Expr, Option<String>, usize)> = BTreeMap::new();
-    for stmt in &stmts {
-        if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
-            let qualified_type = ty
-                .as_ref()
-                .map(ToString::to_string)
-                .or_else(|| checker.binding_type_name(name).map(str::to_string));
-            let line = meta_binding_definition_line(source, name, expr);
-            bindings.insert(name.clone(), (expr, qualified_type, line));
-        }
-    }
+    let mut bindings = BTreeMap::new();
+    collect_local_meta_bindings(source, &stmts, None, &mut bindings);
+    collect_imported_meta_bindings(
+        &stmts,
+        source_dir.as_deref(),
+        &sought_bindings,
+        &mut bindings,
+        &mut BTreeSet::new(),
+    );
 
     let value_bindings: BTreeMap<String, &Expr> = bindings
         .iter()
-        .map(|(name, (expr, _, _))| (name.clone(), *expr))
+        .map(|(name, definition)| (name.clone(), &definition.expr))
         .collect();
 
     for anchor in &mut index.anchors {
@@ -1937,8 +2028,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
             if reference.role.is_empty() || reference.binding_name.is_empty() {
                 continue;
             }
-            let Some((_, qualified_type, definition_line)) = bindings.get(&reference.binding_name)
-            else {
+            let Some(definition) = bindings.get(&reference.binding_name) else {
                 index.diagnostics.push(MetaDiagnostic {
                     line: reference.comment_line,
                     message: format!(
@@ -1949,8 +2039,13 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                 continue;
             };
 
-            reference.qualified_type = qualified_type.clone();
-            reference.definition_line = Some(*definition_line);
+            reference.qualified_type = definition.annotated_type.clone().or_else(|| {
+                checker
+                    .binding_type_name(&reference.binding_name)
+                    .map(str::to_string)
+            });
+            reference.definition_file = definition.definition_file.clone();
+            reference.definition_line = Some(definition.definition_line);
             if reference.qualified_type.is_none() {
                 index.diagnostics.push(MetaDiagnostic {
                     line: reference.comment_line,
@@ -3133,6 +3228,7 @@ pub struct RuleScopeDef {
 pub struct RuleScopeFrame {
     pub name: String,
     pub bindings: HashMap<String, Value>,
+    pub memoized_zero_arg_rules: HashMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -9057,7 +9153,7 @@ impl Interpreter {
                 if let ExprKind::Field(obj, method) = &func.as_ref().kind {
                     let obj_val = self.eval(obj, env);
                     if let Value::RuleScopeInstance { name, bindings } = obj_val {
-                        if self.rule_scope_has_rule_method(&name, method) {
+                        if self.rule_scope_has_rule_method(&name, method, args.len()) {
                             return self
                                 .eval_rule_scope_method(&name, &bindings, method, args, env);
                         }
@@ -9432,8 +9528,11 @@ impl Interpreter {
                 }
                 let rulescope_self = base_env.get("__rulescope_self").cloned();
                 if let Some(Value::RuleScopeInstance { name, bindings }) = rulescope_self {
-                    self.active_rule_scopes
-                        .push(RuleScopeFrame { name, bindings });
+                    self.active_rule_scopes.push(RuleScopeFrame {
+                        name,
+                        bindings,
+                        memoized_zero_arg_rules: HashMap::new(),
+                    });
                     let result = self.eval(body, &call);
                     self.active_rule_scopes.pop();
                     result
@@ -11942,7 +12041,21 @@ impl Interpreter {
         }
     }
 
-    fn rule_scope_matching_rules(def: &RuleScopeDef, fn_name: &str) -> Vec<Rule> {
+    fn rule_arity(rule: &Rule) -> Option<usize> {
+        let head = match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
+            Rule::ReactiveScope { .. } => return None,
+        };
+        match &head.kind {
+            ExprKind::App(_, args) => Some(args.len()),
+            ExprKind::Var(_) => Some(0),
+            _ => None,
+        }
+    }
+
+    fn rule_scope_matching_rules(def: &RuleScopeDef, fn_name: &str, arity: usize) -> Vec<Rule> {
         def.body
             .iter()
             .filter_map(|stmt| match stmt {
@@ -11958,16 +12071,16 @@ impl Interpreter {
                     | Rule::Exception { head, .. } => Self::expr_name_static(head),
                     Rule::ReactiveScope { .. } => "?".to_string(),
                 };
-                name == fn_name
+                name == fn_name && Self::rule_arity(rule) == Some(arity)
             })
             .cloned()
             .collect()
     }
 
-    fn rule_scope_has_rule_method(&self, scope_name: &str, method: &str) -> bool {
+    fn rule_scope_has_rule_method(&self, scope_name: &str, method: &str, arity: usize) -> bool {
         self.rule_scopes
             .get(scope_name)
-            .map(|def| !Self::rule_scope_matching_rules(def, method).is_empty())
+            .map(|def| !Self::rule_scope_matching_rules(def, method, arity).is_empty())
             .unwrap_or(false)
     }
 
@@ -11990,7 +12103,7 @@ impl Interpreter {
         let Some(def) = self.rule_scopes.get(scope_name).cloned() else {
             return Value::Unit;
         };
-        let matching = Self::rule_scope_matching_rules(&def, method);
+        let matching = Self::rule_scope_matching_rules(&def, method, args.len());
         if matching.is_empty() {
             return Value::Unit;
         }
@@ -12008,6 +12121,7 @@ impl Interpreter {
         self.active_rule_scopes.push(RuleScopeFrame {
             name: scope_name.to_string(),
             bindings: bindings.clone(),
+            memoized_zero_arg_rules: HashMap::new(),
         });
         let result = self
             .try_rule_call_from_rules(method, args, &scoped_env, matching)
@@ -12024,9 +12138,18 @@ impl Interpreter {
     ) -> Option<Value> {
         let frame = self.active_rule_scopes.last().cloned()?;
         let def = self.rule_scopes.get(&frame.name).cloned()?;
-        let matching = Self::rule_scope_matching_rules(&def, fn_name);
+        let matching = Self::rule_scope_matching_rules(&def, fn_name, args.len());
         if matching.is_empty() {
             return None;
+        }
+        if args.is_empty() {
+            if let Some(value) = self
+                .active_rule_scopes
+                .last()
+                .and_then(|active| active.memoized_zero_arg_rules.get(fn_name))
+            {
+                return Some(value.clone());
+            }
         }
         let mut scoped_env = env.child();
         for (name, value) in &frame.bindings {
@@ -12039,10 +12162,17 @@ impl Interpreter {
                 bindings: frame.bindings.clone(),
             },
         );
-        Some(
-            self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
-                .unwrap_or(Value::Bool(false)),
-        )
+        let result = self
+            .try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
+            .unwrap_or(Value::Bool(false));
+        if args.is_empty() {
+            if let Some(active) = self.active_rule_scopes.last_mut() {
+                active
+                    .memoized_zero_arg_rules
+                    .insert(fn_name.to_string(), result.clone());
+            }
+        }
+        Some(result)
     }
 
     /// Try to evaluate a rule call. Returns Some(value) if a rule with the given
@@ -12072,6 +12202,10 @@ impl Interpreter {
         env: &Env,
         matching: Vec<Rule>,
     ) -> Option<Value> {
+        let matching: Vec<Rule> = matching
+            .into_iter()
+            .filter(|rule| Self::rule_arity(rule) == Some(args.len()))
+            .collect();
         if matching.is_empty() {
             return None;
         }
@@ -12188,6 +12322,7 @@ impl Interpreter {
 
         // Clauses with backtracking (Prolog-style):
         // Try each clause; if the body evaluates to false, try the next one.
+        let mut matched_false_clause = false;
         for rule in &matching {
             if let Rule::Clause { head, body } = rule {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
@@ -12198,6 +12333,7 @@ impl Interpreter {
                                 if self.eval_conjunction(goals, &rule_env) {
                                     return Some(Value::Bool(true));
                                 }
+                                matched_false_clause = true;
                             } else if let ExprKind::Disjunction(alts) = &body_expr.kind {
                                 // Disjunction: succeed if ANY alternative succeeds
                                 let ok = alts.iter().any(|alt| match &alt.kind {
@@ -12209,11 +12345,13 @@ impl Interpreter {
                                 if ok {
                                     return Some(Value::Bool(true));
                                 }
+                                matched_false_clause = true;
                             } else {
                                 let result = self.eval(body_expr, &rule_env);
                                 if !matches!(result, Value::Bool(false)) {
                                     return Some(result);
                                 }
+                                matched_false_clause = true;
                                 // Body returned false — backtrack to next clause
                             }
                         }
@@ -12236,7 +12374,7 @@ impl Interpreter {
             }
         }
 
-        None
+        matched_false_clause.then_some(Value::Bool(false))
     }
 
     /// Match a rule head against argument values.
@@ -12247,6 +12385,9 @@ impl Interpreter {
         // Use the provided env (base_env from try_rule_call, clean of conjunction vars)
         let mut rule_env = env.clone();
         if let ExprKind::App(_, params) = &head.kind {
+            if params.len() != args.len() {
+                return None;
+            }
             for (param, val) in params.iter().zip(args.iter()) {
                 if !self.match_rule_param(param, val, &mut rule_env) {
                     return None;
@@ -12254,8 +12395,8 @@ impl Interpreter {
             }
             Some(rule_env)
         } else {
-            // No-arg rule head — always matches
-            Some(rule_env)
+            // A bare rule head only matches a no-argument call.
+            args.is_empty().then_some(rule_env)
         }
     }
 
@@ -16892,6 +17033,38 @@ mod tests {
     }
 
     #[test]
+    fn interpreted_global_rule_boolean_false_remains_a_value() {
+        let source = r#"
+# Coverage = Covered | NotCovered
+
+| is_covered(status: Coverage) -> False
+| exception covered is_covered(status: Coverage) -> True under status == Covered
+
+= covered = is_covered(Covered)
+= not_covered = is_covered(NotCovered)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse Boolean value rule regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("covered").map(ToString::to_string),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            env.get("not_covered").map(ToString::to_string),
+            Some("false".to_string())
+        );
+    }
+
+    #[test]
     fn interpreted_rulescope_collection_lambda_retains_scope_bindings_and_members() {
         let source = r#"
 # Case(values: List(Int)) {
@@ -16916,6 +17089,71 @@ mod tests {
         assert_eq!(
             env.get("results").map(ToString::to_string),
             Some("[12, 14]".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_falls_back_to_global_rule_when_scoped_arity_differs() {
+        let source = r#"
+| amount(value: Int) -> value + 1
+
+# Case(input: Int) {
+    | amount() -> amount(input)
+    | result() -> amount()
+}
+
+= result = Case(4).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse RuleScope arity regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("5".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_memoizes_zero_argument_sibling_rules() {
+        let source = r#"
+# Case(input: Int) {
+    | doubled() -> input + input
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse RuleScope memoization regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&stmts, &mut env);
+        interpreter.active_rule_scopes.push(RuleScopeFrame {
+            name: "Case".to_string(),
+            bindings: HashMap::from([("input".to_string(), Value::Int(21))]),
+            memoized_zero_arg_rules: HashMap::new(),
+        });
+
+        let result = interpreter
+            .try_active_rule_scope_call("doubled", &[], &env)
+            .expect("scoped rule result");
+
+        assert_eq!(result.to_string(), "42");
+        assert_eq!(
+            interpreter.active_rule_scopes[0]
+                .memoized_zero_arg_rules
+                .get("doubled")
+                .map(ToString::to_string),
+            Some("42".to_string())
         );
     }
 

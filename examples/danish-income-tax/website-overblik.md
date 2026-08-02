@@ -40,6 +40,14 @@ kommunal skat, kirkeskat, aktieindkomst, kapitalindkomst, personfradrag,
 underskud, delår, skatteloft, indeholdelse, slutopgørelse og dele af
 Ligningslovens fradragsregler.
 
+Den almindelige lønmodtagervej er også udstillet som en typet
+beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
+`LønmodtagerInput`, validere det mod samme kontrakt og returnere det fulde
+`LønmodtagerBreakdown`. Regnearket bruger særskilte relaterede faner, når en
+inputtype faktisk indeholder lister, maps eller sæt; den nuværende
+lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
+afgrænsede skatteberegning.
+
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til
 kildebundne beløbsregler.
@@ -256,8 +264,10 @@ binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
 lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
 semantik. Ground metadata udstilles både som læsbar Futuruna-værdi og som et
 struktureret `data`-træ, så audits kan læse fx URL- eller advarselsfelter uden
-at parse visningstekst. JSON-indekset adskiller desuden `----`-markørernes linjer
-fra den ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges
+at parse visningstekst. En meta-reference kan ligge ved beregningsreglen og pege
+på en typet kildebinding i et rekursivt importeret kilderegister; indekset
+bevarer den faktiske definitionsfil og linje. JSON-indekset adskiller desuden
+`----`-markørernes linjer fra den ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges
 rekursivt efter vilkårlig type eller rolle, f.eks.
 `--type HusdyrbeskatningslovKildeInfo` eller `--role warning`. Den historiske
 korpusadvarsel til § 40 C kan derfor findes både via rollen `warning` og typen

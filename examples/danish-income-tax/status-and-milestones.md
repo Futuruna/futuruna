@@ -1916,6 +1916,13 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- `personskat.calculate.runa` exposes the ordinary wage-earner route as the
+  typed `beregn_personskat(LønmodtagerInput) -> LønmodtagerBreakdown` boundary.
+  `runa schema`, JSON/TOML/XLSX templates, and `runa call` now carry the same
+  source-linked contract; `personskat-calculate.scenario.runa` fixes the 2026
+  Copenhagen 600.000 kr. case at 208.726 kr. including AM contribution. XLSX
+  schema v2 uses related child worksheets only when the domain input actually
+  contains `List`, `Map`, or `Set` fields.
 - Close the Personskatteloven implementation gaps before deeper audits. The next
   work should identify the remaining posture-only/first-slice legal areas and
   turn the highest-value ones into source-backed calculation rules.

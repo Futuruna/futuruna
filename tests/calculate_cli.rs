@@ -73,6 +73,30 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
 }
 
 #[test]
+fn schema_resolves_metadata_from_plain_imports() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/meta-imports/model.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let schema = parse_stdout(&output);
+    let metadata = schema["metadata"].as_array().expect("metadata");
+    assert_eq!(metadata.len(), 2);
+    for reference in metadata {
+        assert_eq!(reference["type"], "SourceInfo");
+        assert!(reference["value"]
+            .as_str()
+            .expect("imported metadata value")
+            .starts_with("SourceInfo("));
+        assert!(reference.get("definition_file").is_none());
+    }
+}
+
+#[test]
 fn json_batch_invokes_conditions_and_exceptions() {
     let fixture = fixture();
     let input_path = temp_path("json");
@@ -281,6 +305,71 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
 
     std::fs::remove_file(&input_path).ok();
     std::fs::remove_file(&output_path).ok();
+}
+
+#[test]
+fn personskatteloven_xlsx_boundary_round_trips_wage_earner_case() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat.calculate.runa");
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    edit_workbook(&input_path, |sheets| {
+        let values = [
+            Data::String("personskat-2026".to_string()),
+            Data::String("2026".to_string()),
+            Data::String("København".to_string()),
+            Data::String("600000".to_string()),
+            Data::String("0".to_string()),
+            Data::String("0".to_string()),
+            Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
+            Data::String("0".to_string()),
+            Data::String("0".to_string()),
+            Data::String("0".to_string()),
+            Data::String("0".to_string()),
+            Data::String("Ll9lIngenPbl20Udbetaling".to_string()),
+            Data::String("Fyldt18EllerGift".to_string()),
+            Data::Bool(false),
+        ];
+        for (column, value) in values.into_iter().enumerate() {
+            set_workbook_cell(sheets, "cases", 1, column, value);
+        }
+    });
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .is_empty());
+    assert_eq!(
+        result["results"][0]["result"]["samlet_inkl_am_efter_personfradrag_kroner"],
+        208_726
+    );
 }
 
 #[test]

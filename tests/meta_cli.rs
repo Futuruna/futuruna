@@ -113,6 +113,50 @@ fn directory_meta_human_output_reports_a_collection_summary() {
 }
 
 #[test]
+fn imported_meta_bindings_retain_types_values_and_definition_locations() {
+    let target = fixture_dir("meta-imports").join("model.calculate.runa");
+    let output = run_meta(&["--json"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["diagnostics"], 0);
+    let references = document["references"].as_array().expect("references");
+    assert_eq!(references.len(), 2);
+
+    let direct = references
+        .iter()
+        .find(|reference| reference["binding"] == "registry_source")
+        .expect("direct imported reference");
+    assert_eq!(direct["type"], "SourceInfo");
+    assert_eq!(direct["data"]["name"], "SourceInfo");
+    assert!(direct["definition_file"]
+        .as_str()
+        .expect("direct definition file")
+        .ends_with("meta-imports/registry.runa"));
+    assert_eq!(direct["definition_line"], 3);
+
+    let nested = references
+        .iter()
+        .find(|reference| reference["binding"] == "imported_source")
+        .expect("nested imported reference");
+    assert_eq!(nested["type"], "SourceInfo");
+    assert_eq!(nested["data"]["arguments"][0]["field"], "url");
+    assert_eq!(
+        nested["data"]["arguments"][0]["value"]["value"],
+        "https://example.invalid/imported"
+    );
+    assert!(nested["definition_file"]
+        .as_str()
+        .expect("nested definition file")
+        .ends_with("meta-imports/nested/source.runa"));
+    assert_eq!(nested["definition_line"], 3);
+}
+
+#[test]
 fn directory_meta_json_qualifies_diagnostics_with_their_file() {
     let output = run_meta(&["--json"], &fixture_dir("meta-corpus-invalid"));
     assert!(!output.status.success());
