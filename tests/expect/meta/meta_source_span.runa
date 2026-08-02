@@ -3,7 +3,7 @@
 -- expect-stdout: comments: 3
 -- expect-stdout: sources: 1
 -- expect-stdout: spans: 1
--- expect-stdout: source kommunal_par5_stk3 line 15 meta ksl_2019_935_par5_stk3 text 16-18
+-- expect-stdout: source kommunal_par5_stk3 line 15 meta ksl_2019_935_par5_stk3 text 17-17
 -- expect-stdout: span kommunal_par5_stk3 lines 21-24 source ksl_2019_935_par5_stk3
 -- expect-stdout: symbol type KommunalPar5DelårsInput line 21
 -- expect-stdout: symbol rule kommunal_par5_delårsskat line 23

@@ -57,6 +57,10 @@ fn directory_meta_json_sweeps_typed_sources_recursively() {
         .ends_with("meta-corpus/alpha.runa"));
     assert_eq!(files[0]["references"][0]["binding"], "circle_source");
     assert_eq!(files[0]["references"][0]["type"], "Shape");
+    assert_eq!(files[0]["anchors"][0]["text_begin_marker_line"], 6);
+    assert_eq!(files[0]["anchors"][0]["text_end_marker_line"], 8);
+    assert_eq!(files[0]["anchors"][0]["text_start_line"], 7);
+    assert_eq!(files[0]["anchors"][0]["text_end_line"], 7);
     assert!(files[1]["file"]
         .as_str()
         .expect("second file")

@@ -2,8 +2,8 @@
 -- expect-status: pass
 -- expect-stdout: anchors: 2
 -- expect-stdout: sources: 2
--- expect-stdout: source geometry line 24 meta comment_shape text 25-27
--- expect-stdout: source geometry line 24 meta alternate_shape text 25-27
+-- expect-stdout: source geometry line 24 meta comment_shape text 26-26
+-- expect-stdout: source geometry line 24 meta alternate_shape text 26-26
 -- expect-stdout: references: 4
 -- expect-stdout: reference geometry role source binding comment_shape type Shape value Circle
 -- expect-stdout: reference geometry role source binding alternate_shape type Shape value Triangle

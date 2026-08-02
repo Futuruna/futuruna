@@ -187,6 +187,12 @@ symbols. `--type` and `--role` apply to JSON output as well, so a warning sweep
 can use `runa meta --json --role warning file.runa` without parsing presentation
 text.
 
+Raw-text anchors report `text_begin_marker_line` and `text_end_marker_line` for
+the `----` delimiters. `text_start_line` and `text_end_line` identify only the
+verbatim content between them, matching the way code spans separate marker and
+content lines. Empty blocks have no content range, and an unterminated attached
+block is reported as a metadata diagnostic.
+
 Pass a directory to sweep a complete source tree recursively:
 
 ```sh

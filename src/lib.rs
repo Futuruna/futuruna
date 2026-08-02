@@ -1430,6 +1430,8 @@ pub struct MetaAnchor {
     pub label: String,
     pub references: Vec<MetaReference>,
     pub comment_line: usize,
+    pub text_begin_marker_line: Option<usize>,
+    pub text_end_marker_line: Option<usize>,
     pub text_start_line: Option<usize>,
     pub text_end_line: Option<usize>,
     pub text: String,
@@ -1566,7 +1568,11 @@ fn scan_meta_comment_structure(source: &str) -> MetaIndex {
 
         match comment.kind.as_str() {
             "source" | "meta" => {
-                anchors.push(meta_anchor_for_comment(&comment, &lines, idx + 1));
+                let (anchor, diagnostic) = meta_anchor_for_comment(&comment, &lines, idx + 1);
+                anchors.push(anchor);
+                if let Some(diagnostic) = diagnostic {
+                    diagnostics.push(diagnostic);
+                }
             }
             "begin" => {
                 active.push(ActiveMetaCodeSpan {
@@ -1691,10 +1697,13 @@ fn meta_anchor_for_comment(
     comment: &MetaComment,
     lines: &[&str],
     next_line_idx: usize,
-) -> MetaAnchor {
+) -> (MetaAnchor, Option<MetaDiagnostic>) {
+    let mut text_begin_marker_line = None;
+    let mut text_end_marker_line = None;
     let mut text_start_line = None;
     let mut text_end_line = None;
     let mut text_lines = Vec::new();
+    let mut diagnostic = None;
 
     let mut idx = next_line_idx;
     while idx < lines.len() && lines[idx].trim().is_empty() {
@@ -1702,19 +1711,35 @@ fn meta_anchor_for_comment(
     }
 
     if idx < lines.len() && lines[idx].trim_start().starts_with("----") {
-        text_start_line = Some(idx + 1);
+        let begin_marker_line = idx + 1;
+        text_begin_marker_line = Some(begin_marker_line);
         idx += 1;
         while idx < lines.len() {
             let trimmed = lines[idx].trim_start();
             if trimmed.starts_with("----") {
-                text_end_line = Some(idx + 1);
+                text_end_marker_line = Some(idx + 1);
                 break;
             }
             text_lines.push(lines[idx].to_string());
             idx += 1;
         }
-        if text_end_line.is_none() {
-            text_end_line = Some(lines.len());
+
+        if text_lines.is_empty() {
+            text_start_line = None;
+            text_end_line = None;
+        } else {
+            text_start_line = Some(begin_marker_line + 1);
+            text_end_line = Some(begin_marker_line + text_lines.len());
+        }
+
+        if text_end_marker_line.is_none() {
+            diagnostic = Some(MetaDiagnostic {
+                line: begin_marker_line,
+                message: format!(
+                    "meta text block for `{}` has no closing `----` marker",
+                    comment.label
+                ),
+            });
         }
     }
 
@@ -1736,15 +1761,20 @@ fn meta_anchor_for_comment(
         })
         .collect();
 
-    MetaAnchor {
-        kind: comment.kind.clone(),
-        label: comment.label.clone(),
-        references,
-        comment_line: comment.line,
-        text_start_line,
-        text_end_line,
-        text: text_lines.join("\n").trim().to_string(),
-    }
+    (
+        MetaAnchor {
+            kind: comment.kind.clone(),
+            label: comment.label.clone(),
+            references,
+            comment_line: comment.line,
+            text_begin_marker_line,
+            text_end_marker_line,
+            text_start_line,
+            text_end_line,
+            text: text_lines.join("\n"),
+        },
+        diagnostic,
+    )
 }
 
 fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut MetaIndex) {
@@ -2198,6 +2228,10 @@ Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et å
         assert!(index.anchors[0]
             .text
             .contains("Omfatter indkomstansættelsen"));
+        assert_eq!(index.anchors[0].text_begin_marker_line, Some(8));
+        assert_eq!(index.anchors[0].text_end_marker_line, Some(11));
+        assert_eq!(index.anchors[0].text_start_line, Some(9));
+        assert_eq!(index.anchors[0].text_end_line, Some(10));
 
         assert_eq!(index.spans.len(), 1);
         assert_eq!(index.comments.len(), 3);
@@ -2363,6 +2397,66 @@ Raw additions
         assert!(messages
             .iter()
             .any(|message| message.contains("must end with `--`")));
+    }
+
+    #[test]
+    fn attached_text_ranges_separate_content_from_delimiters() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+= comment_shape = Circle
+
+--@label:geometry::source:comment_shape--
+----
+Raw additions
+----
+
+--@label:empty::source:comment_shape--
+----
+----
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let geometry = &index.anchors[0];
+        assert_eq!(geometry.text_begin_marker_line, Some(6));
+        assert_eq!(geometry.text_end_marker_line, Some(8));
+        assert_eq!(geometry.text_start_line, Some(7));
+        assert_eq!(geometry.text_end_line, Some(7));
+        assert_eq!(geometry.text, "Raw additions");
+
+        let empty = &index.anchors[1];
+        assert_eq!(empty.text_begin_marker_line, Some(11));
+        assert_eq!(empty.text_end_marker_line, Some(12));
+        assert_eq!(empty.text_start_line, None);
+        assert_eq!(empty.text_end_line, None);
+        assert_eq!(empty.text, "");
+    }
+
+    #[test]
+    fn unterminated_attached_text_is_a_meta_diagnostic() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+= comment_shape = Circle
+
+--@label:geometry::source:comment_shape--
+----
+Raw additions
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert_eq!(index.anchors.len(), 1);
+        assert_eq!(index.anchors[0].text_begin_marker_line, Some(6));
+        assert_eq!(index.anchors[0].text_end_marker_line, None);
+        assert_eq!(index.anchors[0].text_start_line, Some(7));
+        assert_eq!(index.anchors[0].text_end_line, Some(7));
+        assert!(index.diagnostics.iter().any(|diagnostic| {
+            diagnostic.line == 6
+                && diagnostic
+                    .message
+                    .contains("meta text block for `geometry` has no closing `----` marker")
+        }));
     }
 }
 

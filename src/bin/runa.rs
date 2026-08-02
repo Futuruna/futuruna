@@ -1827,6 +1827,8 @@ fn meta_index_json_value(
                 "kind": anchor.kind,
                 "label": anchor.label,
                 "comment_line": anchor.comment_line,
+                "text_begin_marker_line": anchor.text_begin_marker_line,
+                "text_end_marker_line": anchor.text_end_marker_line,
                 "text_start_line": anchor.text_start_line,
                 "text_end_line": anchor.text_end_line,
                 "text": anchor.text,
