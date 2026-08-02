@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-aa14a7`
+Current focus issue: `td-6bb128` (under `td-aa14a7`)
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -55,7 +55,10 @@ beddingsanlæg. §§ 11-13 dækker de blandet benyttede aktiver, salg og skade.
 tilknytningsregler, installationer, anskaffelsestidspunkt, valgfrie 3/4 pct.- og
 levetidsafskrivninger, valgfrit straksfradrag op til 5 pct. med vedligeholdelse
 først, delvise bygninger og stopår ved salg, nedrivning eller ophørt
-erhvervsbrug.
+erhvervsbrug. § 19 bærer nu en vedvarende, valideret liste af særskilte
+anskaffelsessumintervaller med faktisk og maksimalt mulig afskrivningshistorik.
+Den gengiver Den juridiske vejlednings forøgelses-, reduktions- og senere
+genforøgelseseksempler i både interpreter og kompileret kode.
 
 Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
 samt §§ 17-18-resultaterne og
@@ -685,11 +688,12 @@ Current § 4 and § 13 amendment/dependency sources:
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
-  - § 19 beregner den aktuelle forholdsmæssige anskaffelsessum og første
-    forøgelse/reduktion. Gentagne arealforskydninger kræver en vedvarende liste
-    af særskilte intervaller med hver sin anvendte afskrivningsprocent. Den
-    historik er fortsat en udtrykkelig grænse og skal på plads, før §§ 21-24 kan
-    forbruge § 19-resultatet ved salg, tab og genvundne afskrivninger.
+  - § 19 beregner den aktuelle forholdsmæssige anskaffelsessum og bevarer
+    gentagne arealforskydninger som en vedvarende liste af særskilte intervaller
+    med faktisk og maksimalt mulig afskrivningsprocent. Den juridiske vejlednings
+    forøgelses-, reduktions- og senere genforøgelsesforløb er selvstændige
+    kompilerede scenarier. §§ 21-24 kan derfor nu forbruge den nødvendige
+    historik ved salg, tab og genvundne afskrivninger.
   - § 40 C is modeled as the Personskatteloven § 4, stk. 1, nr. 16
     dependency for taxable/deductible saldo amounts from EU agricultural
     payment rights, milk quotas and sugar-beet delivery rights.

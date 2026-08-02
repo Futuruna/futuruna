@@ -1,0 +1,23 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 1
+-- expect-stdout: 1
+-- expect-stdout: 1
+
+# Entry(value: Int)
+# EntryChoice = NoEntries | HasEntries
+
+| entries_for(flag: Bool) -> if flag { [Entry(value = 1)] } else { [] }
+| entries_for_choice(choice: EntryChoice) -> match choice {
+    | NoEntries -> []
+    | HasEntries -> [Entry(value = 2)]
+}
+
+# EntryCase(flag: Bool) {
+    | entries() -> entries_for(flag)
+    | entry_count() -> length(entries())
+}
+
+@ print(show(length(entries_for(True))))
+@ print(show(length(entries_for_choice(HasEntries))))
+@ print(show(EntryCase(flag = True).entry_count()))

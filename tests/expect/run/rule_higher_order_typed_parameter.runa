@@ -1,0 +1,16 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 3
+
+# Entry(value: Int)
+
+| selected_total(entries: List(Entry), include: Entry -> Bool) -> foldl(
+    entries,
+    0,
+    |sum: Int, entry: Entry| sum + if include(entry) { entry.value } else { 0 }
+)
+
+@ print(show(selected_total(
+    [Entry(value = 1), Entry(value = 3)],
+    |entry: Entry| entry.value > 1
+)))

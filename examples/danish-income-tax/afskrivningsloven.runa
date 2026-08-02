@@ -1941,7 +1941,7 @@ stk. 2.
 | afskrivningslov18_resultat(input: Afskrivningslov18Input) -> afskrivningslov18_sag(input).resultat()
 --@end:afskrivningsloven_par18--
 
---@label:afskrivningsloven_par19::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_bygningsgrundlag_juridisk_vejledning--
+--@label:afskrivningsloven_par19::source:afskrivningsloven_lbk1222::basis_guidance:afskrivningsloven_bygningsgrundlag_juridisk_vejledning::interval_guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
 ----
 § 19. Anvendes kun en del af en bygning til formål, der berettiger til
 afskrivning efter § 14, kan der kun afskrives på den del af anskaffelsessummen,
@@ -1988,8 +1988,44 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 ----
 
 --@begin:afskrivningsloven_par19--
-# Afskrivningslov19Input(bygning_resultat: Afskrivningslov14Resultat, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_anvendt_afskrivningsprocent_basispoint: Heltal)
-# Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, tidligere_anvendt_afskrivningsprocent_basispoint: Heltal, resterende_afskrivningsprocent_basispoint: Heltal)
+# Afskrivningslov19Interval(fra_kroner: Heltal, til_kroner: Heltal, afskrivningsberettiget_forrige_indkomstår: Boolsk, afskrivningsberettiget_i_indkomståret: Boolsk, anvendt_afskrivningsprocent_basispoint: Heltal, maksimalt_mulig_afskrivningsprocent_basispoint: Heltal)
+# Afskrivningslov19IntervalKontrol(næste_fra_kroner: Heltal, gyldig: Boolsk)
+# Afskrivningslov19Input(bygning_resultat: Afskrivningslov14Resultat, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
+
+| afskrivningslov19_interval_beløb_kroner(interval: Afskrivningslov19Interval) -> penge_positivt_beløb(interval.til_kroner - interval.fra_kroner)
+| afskrivningslov19_interval_gyldigt(interval: Afskrivningslov19Interval) -> interval.fra_kroner >= 0 && interval.til_kroner > interval.fra_kroner && interval.anvendt_afskrivningsprocent_basispoint >= 0 && interval.anvendt_afskrivningsprocent_basispoint <= interval.maksimalt_mulig_afskrivningsprocent_basispoint && interval.maksimalt_mulig_afskrivningsprocent_basispoint <= 10000
+| afskrivningslov19_intervaller_gyldige(intervaller: List(Afskrivningslov19Interval), samlet_anskaffelsessum_kroner: Heltal) -> hvis length(intervaller) == 0 { Sandt } ellers {
+    = kontrol = foldl(intervaller, Afskrivningslov19IntervalKontrol(næste_fra_kroner = 0, gyldig = Sandt), |tilstand: Afskrivningslov19IntervalKontrol, interval: Afskrivningslov19Interval| Afskrivningslov19IntervalKontrol(
+        næste_fra_kroner = interval.til_kroner,
+        gyldig = tilstand.gyldig && afskrivningslov19_interval_gyldigt(interval) && interval.fra_kroner == tilstand.næste_fra_kroner
+    ))
+    kontrol.gyldig && kontrol.næste_fra_kroner == samlet_anskaffelsessum_kroner
+}
+| afskrivningslov19_første_intervaller(samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis samlet_anskaffelsessum_kroner <= 0 { [] } ellers hvis afskrivningsberettiget_grænse_kroner <= 0 {
+    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
+} ellers hvis afskrivningsberettiget_grænse_kroner >= samlet_anskaffelsessum_kroner {
+    [Afskrivningslov19Interval(fra_kroner = 0, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)]
+} ellers {
+    [
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
+        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = samlet_anskaffelsessum_kroner, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    ]
+}
+| afskrivningslov19_interval_ved_ny_grænse(interval: Afskrivningslov19Interval, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis interval.til_kroner <= afskrivningsberettiget_grænse_kroner {
+    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
+} ellers hvis interval.fra_kroner >= afskrivningsberettiget_grænse_kroner {
+    [Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)]
+} ellers {
+    [
+        Afskrivningslov19Interval(fra_kroner = interval.fra_kroner, til_kroner = afskrivningsberettiget_grænse_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint),
+        Afskrivningslov19Interval(fra_kroner = afskrivningsberettiget_grænse_kroner, til_kroner = interval.til_kroner, afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_i_indkomståret, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint, maksimalt_mulig_afskrivningsprocent_basispoint = interval.maksimalt_mulig_afskrivningsprocent_basispoint)
+    ]
+}
+| afskrivningslov19_intervaller_ved_ny_grænse(tidligere_intervaller: List(Afskrivningslov19Interval), samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettiget_grænse_kroner: Heltal) -> hvis length(tidligere_intervaller) == 0 { afskrivningslov19_første_intervaller(samlet_anskaffelsessum_kroner, afskrivningsberettiget_grænse_kroner) } ellers { flat_map(tidligere_intervaller, |interval: Afskrivningslov19Interval| afskrivningslov19_interval_ved_ny_grænse(interval, afskrivningsberettiget_grænse_kroner)) }
+| afskrivningslov19_intervalgrundlag_kroner(intervaller: List(Afskrivningslov19Interval), medregn: Afskrivningslov19Interval -> Boolsk) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + hvis medregn(interval) { afskrivningslov19_interval_beløb_kroner(interval) } ellers { 0 })
+| afskrivningslov19_foretagne_afskrivninger_kroner(intervaller: List(Afskrivningslov19Interval)) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), interval.anvendt_afskrivningsprocent_basispoint))
+| afskrivningslov19_maksimalt_mulige_afskrivninger_kroner(intervaller: List(Afskrivningslov19Interval)) -> foldl(intervaller, 0, |sum: Heltal, interval: Afskrivningslov19Interval| sum + penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), interval.maksimalt_mulig_afskrivningsprocent_basispoint))
 
 # Afskrivningslov19Sag(input: Afskrivningslov19Input) {
     | samlet_etageareal_kvadratmeter() -> penge_positivt_beløb(input.samlet_etageareal_kvadratmeter)
@@ -2003,31 +2039,39 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     | mindst_300_kvadratmeter_opfyldt() -> afskrivningsberettiget_etageareal_kvadratmeter() >= 300
     | arealkrav_opfyldt() -> under_25_procent() == Falskt || mindst_300_kvadratmeter_opfyldt()
     | anskaffelsessum_efter_ejerbolig_kroner() -> penge_positivt_beløb(penge_positivt_beløb(input.samlet_anskaffelsessum_kroner) - penge_positivt_beløb(input.ejerbolig_anskaffelsessum_kroner))
-    | omfattet_af_par19() -> input.bygning_resultat.omfattet_af_par14 && etageareal_gyldigt() && afskrivningsberettiget_etageareal_kvadratmeter() > 0 && afskrivningsberettiget_etageareal_kvadratmeter() < etageareal_efter_ejerbolig_kvadratmeter() && arealkrav_opfyldt()
-    | aktuelt_afskrivningsberettiget_grundlag_kroner() -> 0
-    | exception al19_forholdsmæssigt_bygningsgrundlag aktuelt_afskrivningsberettiget_grundlag_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(anskaffelsessum_efter_ejerbolig_kroner(), afskrivningsberettiget_etageareal_kvadratmeter(), etageareal_efter_ejerbolig_kvadratmeter()) under omfattet_af_par19()
-    | tidligere_grundlag_kroner() -> penge_positivt_beløb(input.tidligere_afskrivningsberettiget_grundlag_kroner)
-    | videreført_tidligere_grundlag_kroner() -> penge_mindste_beløb(tidligere_grundlag_kroner(), aktuelt_afskrivningsberettiget_grundlag_kroner())
-    | forøgelse_kroner() -> penge_positivt_beløb(aktuelt_afskrivningsberettiget_grundlag_kroner() - tidligere_grundlag_kroner())
-    | reduktion_kroner() -> penge_positivt_beløb(tidligere_grundlag_kroner() - aktuelt_afskrivningsberettiget_grundlag_kroner())
-    | tidligere_procent_gyldig() -> input.tidligere_anvendt_afskrivningsprocent_basispoint >= 0 && input.tidligere_anvendt_afskrivningsprocent_basispoint <= 10000
-    | tidligere_anvendt_procent_basispoint() -> hvis tidligere_procent_gyldig() { input.tidligere_anvendt_afskrivningsprocent_basispoint } ellers { 0 }
+    | afskrivning_tilladt_i_indkomståret() -> input.bygning_resultat.omfattet_af_par14 && etageareal_gyldigt() && afskrivningsberettiget_etageareal_kvadratmeter() > 0 && arealkrav_opfyldt()
+    | omfattet_af_par19() -> afskrivning_tilladt_i_indkomståret() && afskrivningsberettiget_etageareal_kvadratmeter() < etageareal_efter_ejerbolig_kvadratmeter()
+    | forholdsmæssigt_grundlag_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(anskaffelsessum_efter_ejerbolig_kroner(), afskrivningsberettiget_etageareal_kvadratmeter(), etageareal_efter_ejerbolig_kvadratmeter())
+    | effektiv_intervalgrænse_kroner() -> hvis afskrivning_tilladt_i_indkomståret() { forholdsmæssigt_grundlag_kroner() } ellers { 0 }
+    | tidligere_intervaller_gyldige() -> afskrivningslov19_intervaller_gyldige(input.tidligere_intervaller, anskaffelsessum_efter_ejerbolig_kroner())
+    | intervaller() -> hvis tidligere_intervaller_gyldige() { afskrivningslov19_intervaller_ved_ny_grænse(input.tidligere_intervaller, anskaffelsessum_efter_ejerbolig_kroner(), effektiv_intervalgrænse_kroner()) } ellers { [] }
+    | intervaller_gyldige() -> tidligere_intervaller_gyldige() && afskrivningslov19_intervaller_gyldige(intervaller(), anskaffelsessum_efter_ejerbolig_kroner())
+    | aktuelt_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_i_indkomståret)
+    | tidligere_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår)
+    | videreført_tidligere_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår && interval.afskrivningsberettiget_i_indkomståret)
+    | forøgelse_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår == Falskt && interval.afskrivningsberettiget_i_indkomståret)
+    | reduktion_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår && interval.afskrivningsberettiget_i_indkomståret == Falskt)
+    | ikkeafskrivningsberettiget_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_i_indkomståret == Falskt)
     | resultat() -> Afskrivningslov19Resultat(
         skatteyder = input.bygning_resultat.skatteyder,
         omfattet_af_par19 = omfattet_af_par19(),
+        afskrivning_tilladt_i_indkomståret = afskrivning_tilladt_i_indkomståret(),
         etageareal_efter_ejerbolig_kvadratmeter = etageareal_efter_ejerbolig_kvadratmeter(),
         afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter(),
         afskrivningsberettiget_etageareal_basispoint = afskrivningsberettiget_etageareal_basispoint(),
         under_25_procent = under_25_procent(),
         mindst_300_kvadratmeter_opfyldt = mindst_300_kvadratmeter_opfyldt(),
         anskaffelsessum_efter_ejerbolig_kroner = anskaffelsessum_efter_ejerbolig_kroner(),
-        aktuelt_afskrivningsberettiget_grundlag_kroner = aktuelt_afskrivningsberettiget_grundlag_kroner(),
+        aktuelt_afskrivningsberettiget_grundlag_kroner = aktuelt_grundlag_kroner(),
+        tidligere_afskrivningsberettiget_grundlag_kroner = tidligere_grundlag_kroner(),
         videreført_tidligere_grundlag_kroner = videreført_tidligere_grundlag_kroner(),
         forøgelse_som_særskilt_grundlag_kroner = forøgelse_kroner(),
         reduktion_fra_tidligere_grundlag_kroner = reduktion_kroner(),
-        ikkeafskrivningsberettiget_særskilt_grundlag_kroner = penge_positivt_beløb(anskaffelsessum_efter_ejerbolig_kroner() - aktuelt_afskrivningsberettiget_grundlag_kroner()),
-        tidligere_anvendt_afskrivningsprocent_basispoint = tidligere_anvendt_procent_basispoint(),
-        resterende_afskrivningsprocent_basispoint = penge_positivt_beløb(10000 - tidligere_anvendt_procent_basispoint())
+        ikkeafskrivningsberettiget_særskilt_grundlag_kroner = ikkeafskrivningsberettiget_grundlag_kroner(),
+        intervaller_gyldige = intervaller_gyldige(),
+        intervaller = intervaller(),
+        samlede_foretagne_afskrivninger_kroner = afskrivningslov19_foretagne_afskrivninger_kroner(intervaller()),
+        samlede_maksimalt_mulige_afskrivninger_kroner = afskrivningslov19_maksimalt_mulige_afskrivninger_kroner(intervaller())
     )
 }
 | afskrivningslov19_sag(input: Afskrivningslov19Input) -> Afskrivningslov19Sag(input)

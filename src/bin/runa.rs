@@ -12363,6 +12363,57 @@ enum FirTy {
     Unknown,
 }
 
+impl FirTy {
+    /// Preserve concrete information nested inside otherwise compatible types.
+    /// Empty collections commonly contribute `Unknown` element types while a
+    /// sibling branch supplies the concrete type needed by code generation.
+    fn merge_information(left: &FirTy, right: &FirTy) -> FirTy {
+        if left == right {
+            return left.clone();
+        }
+
+        match (left, right) {
+            (FirTy::Unknown | FirTy::Var(_), other) | (other, FirTy::Unknown | FirTy::Var(_)) => {
+                other.clone()
+            }
+            (FirTy::List(left), FirTy::List(right)) => {
+                FirTy::List(Box::new(Self::merge_information(left, right)))
+            }
+            (FirTy::Option(left), FirTy::Option(right)) => {
+                FirTy::Option(Box::new(Self::merge_information(left, right)))
+            }
+            (FirTy::Set(left), FirTy::Set(right)) => {
+                FirTy::Set(Box::new(Self::merge_information(left, right)))
+            }
+            (FirTy::Result(left_ok, left_err), FirTy::Result(right_ok, right_err)) => {
+                FirTy::Result(
+                    Box::new(Self::merge_information(left_ok, right_ok)),
+                    Box::new(Self::merge_information(left_err, right_err)),
+                )
+            }
+            (FirTy::Map(left_key, left_value), FirTy::Map(right_key, right_value)) => FirTy::Map(
+                Box::new(Self::merge_information(left_key, right_key)),
+                Box::new(Self::merge_information(left_value, right_value)),
+            ),
+            (FirTy::Arrow(left_param, left_ret), FirTy::Arrow(right_param, right_ret)) => {
+                FirTy::Arrow(
+                    Box::new(Self::merge_information(left_param, right_param)),
+                    Box::new(Self::merge_information(left_ret, right_ret)),
+                )
+            }
+            (FirTy::Tuple(left), FirTy::Tuple(right)) if left.len() == right.len() => FirTy::Tuple(
+                left.iter()
+                    .zip(right)
+                    .map(|(left, right)| Self::merge_information(left, right))
+                    .collect(),
+            ),
+            // Incompatible concrete branches are diagnosed by type checking.
+            // Retaining the first type keeps lowering deterministic.
+            _ => left.clone(),
+        }
+    }
+}
+
 /// Type inference engine — union-find unification with occurs check.
 struct TypeInference {
     /// Next fresh type variable ID
@@ -13949,11 +14000,7 @@ impl<'a> LoweringCtx<'a> {
                     let _ = inf.unify(&fir_cond.ty, &FirTy::Bool);
                     let _ = inf.unify(&fir_then.ty, &fir_else.ty);
                 }
-                let ty = if fir_then.ty != FirTy::Unknown {
-                    fir_then.ty.clone()
-                } else {
-                    fir_else.ty.clone()
-                };
+                let ty = FirTy::merge_information(&fir_then.ty, &fir_else.ty);
                 FirExpr {
                     kind: FirExprKind::If(
                         Box::new(fir_cond),
@@ -13982,9 +14029,7 @@ impl<'a> LoweringCtx<'a> {
                             let _ = inference.unify(&ty, &body.ty);
                         }
                     }
-                    if ty == FirTy::Unknown && body.ty != FirTy::Unknown {
-                        ty = body.ty.clone();
-                    }
+                    ty = FirTy::merge_information(&ty, &body.ty);
                     fir_arms.push(FirMatchArm {
                         pat: arm.pat.clone(),
                         guard,
@@ -26843,7 +26888,7 @@ impl RustCodegen {
         let inferred_param_tys = self.infer_rule_param_fir_tys(&params, rules);
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
-            .map(|ty| Self::fir_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
+            .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
             .collect();
         let param_str = params
             .iter()
@@ -29591,6 +29636,23 @@ impl RustCodegen {
             )),
             FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown => None,
         }
+    }
+
+    fn fir_rule_param_type_to_rust(ty: &FirTy) -> Option<String> {
+        let FirTy::Arrow(_, _) = ty else {
+            return Self::fir_type_to_rust(ty);
+        };
+
+        let mut params = Vec::new();
+        let mut current = ty;
+        while let FirTy::Arrow(param, ret) = current {
+            if !matches!(param.as_ref(), FirTy::Unit) {
+                params.push(Self::fir_type_to_rust(param)?);
+            }
+            current = ret;
+        }
+        let ret = Self::fir_type_to_rust(current)?;
+        Some(format!("impl Fn({}) -> {} + Clone", params.join(", "), ret))
     }
 
     fn current_type_env(&self) -> BTreeMap<String, FirTy> {
@@ -46872,6 +46934,92 @@ routes <- "b"
             RustCodegen::typed_rule_arg_fir_ty(head_arg),
             Some(FirTy::List(Box::new(FirTy::Named("ImportedEntry".into()))))
         );
+    }
+
+    #[test]
+    fn higher_order_rule_annotation_lowers_to_arrow_fir_type() {
+        let stmts = parse_test_program(
+            r#"
+# Entry(value: Int)
+| selected_total(entries: List(Entry), include: Entry -> Bool) -> 0
+"#,
+        );
+        let head_args = stmts
+            .iter()
+            .find_map(|stmt| match stmt {
+                Stmt::Rule(Rule::Clause { head, .. }) => match &head.kind {
+                    ExprKind::App(_, args) => Some(args),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("typed rule head arguments");
+
+        assert_eq!(
+            RustCodegen::typed_rule_arg_fir_ty(&head_args[1]),
+            Some(FirTy::Arrow(
+                Box::new(FirTy::Named("Entry".into())),
+                Box::new(FirTy::Bool)
+            ))
+        );
+    }
+
+    #[test]
+    fn branch_type_merge_preserves_nested_collection_information() {
+        assert_eq!(
+            FirTy::merge_information(
+                &FirTy::List(Box::new(FirTy::Unknown)),
+                &FirTy::List(Box::new(FirTy::Named("Entry".into())))
+            ),
+            FirTy::List(Box::new(FirTy::Named("Entry".into())))
+        );
+    }
+
+    #[test]
+    fn compiled_list_valued_rules_support_empty_branches_and_rulescope_delegation() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(value: Int)
+# EntryChoice = NoEntries | HasEntries
+
+| entries_for(flag: Bool) -> if flag { [Entry(value = 1)] } else { [] }
+| entries_for_choice(choice: EntryChoice) -> match choice {
+    | NoEntries -> []
+    | HasEntries -> [Entry(value = 2)]
+}
+
+# EntryCase(flag: Bool) {
+    | entries() -> entries_for(flag)
+    | entry_count() -> length(entries())
+}
+
+@ print(show(length(entries_for(True))))
+@ print(show(length(entries_for_choice(HasEntries))))
+@ print(show(EntryCase(flag = True).entry_count()))
+"#,
+        );
+        assert_eq!(output, "1\n1\n1\n");
+    }
+
+    #[test]
+    fn compiled_higher_order_typed_rule_parameter_is_callable() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(value: Int)
+
+| selected_total(entries: List(Entry), include: Entry -> Bool) -> foldl(
+    entries,
+    0,
+    |sum: Int, entry: Entry| sum + if include(entry) { entry.value } else { 0 }
+)
+
+@ print(show(selected_total(
+    [Entry(value = 1), Entry(value = 3)],
+    |entry: Entry| entry.value > 1
+)))
+"#,
+        );
+        assert_eq!(output, "3\n");
     }
 
     fn parse_test_program(source: &str) -> Vec<Stmt> {

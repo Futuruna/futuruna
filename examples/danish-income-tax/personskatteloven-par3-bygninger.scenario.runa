@@ -427,8 +427,7 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 200,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
-    tidligere_afskrivningsberettiget_grundlag_kroner = 0,
-    tidligere_anvendt_afskrivningsprocent_basispoint = 0
+    tidligere_intervaller = []
 ))
 
 = al19_under_25_men_mindst_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
@@ -438,8 +437,10 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 300,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
-    tidligere_afskrivningsberettiget_grundlag_kroner = 100000,
-    tidligere_anvendt_afskrivningsprocent_basispoint = 4000
+    tidligere_intervaller = [
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 100000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 4000, maksimalt_mulig_afskrivningsprocent_basispoint = 4000),
+        Afskrivningslov19Interval(fra_kroner = 100000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    ]
 ))
 
 = al19_ejerbolig_udgår = afskrivningslov19_resultat(Afskrivningslov19Input(
@@ -449,8 +450,10 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
     ejerbolig_anskaffelsessum_kroner = 200000,
     ejerbolig_etageareal_kvadratmeter = 200,
-    tidligere_afskrivningsberettiget_grundlag_kroner = 500000,
-    tidligere_anvendt_afskrivningsprocent_basispoint = 9000
+    tidligere_intervaller = [
+        Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, anvendt_afskrivningsprocent_basispoint = 9000, maksimalt_mulig_afskrivningsprocent_basispoint = 9000),
+        Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 800000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0)
+    ]
 ))
 
 = al19_stk2_udelukket_bygning_afskæres = afskrivningslov19_resultat(Afskrivningslov19Input(
@@ -460,8 +463,7 @@
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
     ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
-    tidligere_afskrivningsberettiget_grundlag_kroner = 0,
-    tidligere_anvendt_afskrivningsprocent_basispoint = 0
+    tidligere_intervaller = []
 ))
 
 = al17_ideel_andel_fifo = afskrivningslov17_ideel_andel_resultat(Sandt, Sandt, Sandt)
@@ -483,7 +485,7 @@
 | scenarie_al17_historik_og_stopår: al17_historik_begrænser_sidste_år -> al17_historik_begrænser_sidste_år.højeste_afskrivning_før_erhvervsandel_kroner == 1000 && al17_historik_begrænser_sidste_år.samlede_beregnede_afskrivninger_kroner == 100000 && al17_historik_begrænser_sidste_år.resterende_afskrivningsgrundlag_kroner == 0 && al17_salg_afskærer_året.kan_afskrives_i_indkomståret == Falskt && al17_salg_afskærer_året.valg_gyldigt == Falskt && al17_salg_afskærer_året.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al18_fem_procent_vedligeholdelse_først: al18_vedligeholdelse_først -> al18_vedligeholdelse_først.fem_procent_grænse_kroner == 5000 && al18_vedligeholdelse_først.vedligeholdelse_forbruger_grænse_først_kroner == 2000 && al18_vedligeholdelse_først.højeste_straksfradrag_før_fordeling_kroner == 3000 && al18_vedligeholdelse_først.valg_gyldigt && al18_vedligeholdelse_først.straksfradrag_i_skattepligtig_indkomst_kroner == 3000 && al18_vedligeholdelse_først.rest_til_særskilt_afskrivning_efter_par17_kroner == 3000 && al18_vedligeholdelse_først.straksfradrag_anses_ikke_som_afskrivning && al18_valgt_mindre_end_maksimum.valg_gyldigt && al18_valgt_mindre_end_maksimum.straksfradrag_i_skattepligtig_indkomst_kroner == 1000 && al18_valgt_mindre_end_maksimum.rest_til_særskilt_afskrivning_efter_par17_kroner == 5000
 | scenarie_al18_blandet_andel_og_anskaffelsesår: al18_blandet_installation -> al18_blandet_installation.straksfradrag_før_fordeling_kroner == 3000 && al18_blandet_installation.straksfradrag_i_skattepligtig_indkomst_kroner == 1800 && al18_blandet_installation.rest_til_særskilt_afskrivning_efter_par17_kroner == 3000 && al18_anskaffelsesår_afskåret.kan_straksfradrage == Falskt && al18_anskaffelsesår_afskåret.straksfradrag_i_skattepligtig_indkomst_kroner == 0
-| scenarie_al19_arealgrænse_og_ejerbolig: al19_under_25_og_under_300 -> al19_under_25_og_under_300.under_25_procent && al19_under_25_og_under_300.mindst_300_kvadratmeter_opfyldt == Falskt && al19_under_25_og_under_300.omfattet_af_par19 == Falskt && al19_under_25_men_mindst_300.omfattet_af_par19 && al19_under_25_men_mindst_300.aktuelt_afskrivningsberettiget_grundlag_kroner == 200000 && al19_under_25_men_mindst_300.forøgelse_som_særskilt_grundlag_kroner == 100000 && al19_ejerbolig_udgår.etageareal_efter_ejerbolig_kvadratmeter == 800 && al19_ejerbolig_udgår.anskaffelsessum_efter_ejerbolig_kroner == 800000 && al19_ejerbolig_udgår.aktuelt_afskrivningsberettiget_grundlag_kroner == 400000 && al19_ejerbolig_udgår.reduktion_fra_tidligere_grundlag_kroner == 100000 && al19_ejerbolig_udgår.resterende_afskrivningsprocent_basispoint == 1000
+| scenarie_al19_arealgrænse_og_ejerbolig: al19_under_25_og_under_300 -> al19_under_25_og_under_300.under_25_procent && al19_under_25_og_under_300.mindst_300_kvadratmeter_opfyldt == Falskt && al19_under_25_og_under_300.omfattet_af_par19 == Falskt && al19_under_25_og_under_300.aktuelt_afskrivningsberettiget_grundlag_kroner == 0 && al19_under_25_men_mindst_300.omfattet_af_par19 && al19_under_25_men_mindst_300.intervaller_gyldige && al19_under_25_men_mindst_300.aktuelt_afskrivningsberettiget_grundlag_kroner == 200000 && al19_under_25_men_mindst_300.forøgelse_som_særskilt_grundlag_kroner == 100000 && al19_ejerbolig_udgår.etageareal_efter_ejerbolig_kvadratmeter == 800 && al19_ejerbolig_udgår.anskaffelsessum_efter_ejerbolig_kroner == 800000 && al19_ejerbolig_udgår.aktuelt_afskrivningsberettiget_grundlag_kroner == 400000 && al19_ejerbolig_udgår.reduktion_fra_tidligere_grundlag_kroner == 100000 && al19_ejerbolig_udgår.samlede_foretagne_afskrivninger_kroner == 450000
 | scenarie_al20_stopstatus_og_ideel_andel: al20_hotel_solgt_2026 -> al20_hotel_solgt_2026.afskrivning_afskåret_efter_stk1 && al20_hotel_solgt_2026.kan_afskrives_i_indkomståret == Falskt && al17_ideel_andel_fifo.først_erhvervede_andel_anses_først_afstået
 | scenarie_par3_nr10_adskiller_afskrivning_og_straksfradrag: par3_nr10_bygning_og_straksfradrag -> par3_nr10_bygning_og_straksfradrag.brutto_skattemæssige_afskrivninger_kroner == 6250 && par3_nr10_bygning_og_straksfradrag.brutto_andre_fradrag_kroner == 3000 && par3_nr10_bygning_og_straksfradrag.brutto_fradrag_efter_kildelovene_kroner == 9250 && par3_nr10_bygning_og_straksfradrag.fradrag_i_personlig_indkomst_kroner == 9250
 | scenarie_krydsobjekt_invarianter_afskærer_fremmede_statusser: al17_fremmed_stopstatus_afskæres -> al17_fremmed_stopstatus_afskæres.kan_afskrives_i_indkomståret == Falskt && al17_fremmed_stopstatus_afskæres.fradrag_i_skattepligtig_indkomst_kroner == 0 && al18_blandet_må_ikke_bruges_som_fuld.kan_straksfradrage == Falskt && al18_blandet_må_ikke_bruges_som_fuld.straksfradrag_i_skattepligtig_indkomst_kroner == 0 && al18_blandet_må_ikke_bruges_som_fuld.rest_til_særskilt_afskrivning_efter_par17_kroner == 0
