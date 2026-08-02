@@ -17,6 +17,7 @@
 @ importer ./varelagerloven
 @ importer ./ejendomsavancebeskatningsloven
 @ importer ./ejendomsskatteloven
+@ importer ./kildeskatteloven
 
 -- Personskatteloven — indkomsttaxonomi (§§ 1-4 b).
 --
@@ -156,6 +157,13 @@ iværksætterkonto
 # Par3PersonligIndkomstResultat(brutto_personlig_indkomst_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, netto_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr1UdgiftInput(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
 # Par3Stk2Nr1UdgiftResultat(fradragsberettiget_i_personlig_indkomst: Boolsk, fradrag_kroner: Heltal, afskåret_til_anden_regel_kroner: Heltal)
+# Par3Stk2Nr2Hjemmel = Par3Nr2Ligningslov8Stk1 | Par3Nr2Ligningslov8B | Par3Nr2Ligningslov8K | Par3Nr2Ligningslov8L | Par3Nr2Ligningslov8N | Par3Nr2Ligningslov14Stk1 | Par3Nr2Ligningslov14F | Par3Nr2Ligningslov30A | Par3Nr2Kildeskattelov25AStk3Til5
+# Par3Stk2Nr2Grundlag = Par3Nr2Ll8Stk1(resultat: Ligningslov8Stk1Resultat) | Par3Nr2Ll8B(resultat: Ligningslov8BResultat) | Par3Nr2Ll8K(resultat: Ligningslov8KResultat) | Par3Nr2Ll8L(resultat: Ligningslov8LResultat) | Par3Nr2Ll8N(resultat: Ligningslov8NResultat) | Par3Nr2Ll14Stk1(resultat: Ligningslov14Resultat) | Par3Nr2Ll14F(resultat: Ligningslov14FResultat) | Par3Nr2Ll30A(resultat: Ligningslov30AResultat) | Par3Nr2Ksl25AStk3Til5(resultat: Kildeskat25AStk3Resultat)
+# Par3Stk2Nr2Post(grundlag: Par3Stk2Nr2Grundlag, ved_selvstændig_erhvervsvirksomhed: Boolsk)
+# Par3Stk2Nr2PostResultat(hjemmel: Par3Stk2Nr2Hjemmel, ved_selvstændig_erhvervsvirksomhed: Boolsk, fradrag_eller_overført_indkomst_efter_henvisningen_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner: Heltal)
+# Par3Stk2Nr2Input(poster: List(Par3Stk2Nr2Post))
+# Par3Stk2Nr2Resultat(post_resultater: List(Par3Stk2Nr2PostResultat), fradrag_eller_overført_indkomst_efter_henvisningerne_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner: Heltal)
+# Par3PersonligIndkomstMedNr2Input(grundinput: Par3PersonligIndkomstInput, nr2_input: Par3Stk2Nr2Input)
 # Par3Stk2Nr3Grundlag = Par3Nr3Pbl18(resultat: Pbl18Resultat) | Par3Nr3Pbl52(resultat: Pbl52Resultat)
 # Par3Stk2Nr3Hjemmel = Par3Nr3Pensionsbeskatningslov18 | Par3Nr3Pensionsbeskatningslov52
 # Par3Stk2Nr3Input(grundlag: Par3Stk2Nr3Grundlag, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat)
@@ -204,6 +212,63 @@ iværksætterkonto
 }
 | par3_stk2_nr1_udgift_sag(input: Par3Stk2Nr1UdgiftInput) -> Par3Stk2Nr1UdgiftSag(input)
 | par3_stk2_nr1_udgift_resultat(input: Par3Stk2Nr1UdgiftInput) -> par3_stk2_nr1_udgift_sag(input).resultat()
+
+| par3_stk2_nr2_hjemmel(grundlag: Par3Stk2Nr2Grundlag) -> match grundlag {
+    | Par3Nr2Ll8Stk1(_) -> Par3Nr2Ligningslov8Stk1
+    | Par3Nr2Ll8B(_) -> Par3Nr2Ligningslov8B
+    | Par3Nr2Ll8K(_) -> Par3Nr2Ligningslov8K
+    | Par3Nr2Ll8L(_) -> Par3Nr2Ligningslov8L
+    | Par3Nr2Ll8N(_) -> Par3Nr2Ligningslov8N
+    | Par3Nr2Ll14Stk1(_) -> Par3Nr2Ligningslov14Stk1
+    | Par3Nr2Ll14F(_) -> Par3Nr2Ligningslov14F
+    | Par3Nr2Ll30A(_) -> Par3Nr2Ligningslov30A
+    | Par3Nr2Ksl25AStk3Til5(_) -> Par3Nr2Kildeskattelov25AStk3Til5
+}
+| par3_stk2_nr2_henvist_beløb_kroner(grundlag: Par3Stk2Nr2Grundlag) -> match grundlag {
+    | Par3Nr2Ll8Stk1(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll8B(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll8K(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll8L(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll8N(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll14Stk1(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll14F(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ll30A(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr2Ksl25AStk3Til5(resultat) -> resultat.drivende_ægtefælles_personlige_indkomst_nedsættelse_kroner
+}
+
+# Par3Stk2Nr2PostSag(post: Par3Stk2Nr2Post) {
+    | henvist_beløb_kroner() -> penge_positivt_beløb(par3_stk2_nr2_henvist_beløb_kroner(post.grundlag))
+    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | exception nr2_henvisning_ved_selvstændig_erhvervsvirksomhed fradrag_i_personlig_indkomst_kroner() -> henvist_beløb_kroner() under post.ved_selvstændig_erhvervsvirksomhed
+    | afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner() -> henvist_beløb_kroner() - fradrag_i_personlig_indkomst_kroner()
+    | resultat() -> Par3Stk2Nr2PostResultat(
+        hjemmel = par3_stk2_nr2_hjemmel(post.grundlag),
+        ved_selvstændig_erhvervsvirksomhed = post.ved_selvstændig_erhvervsvirksomhed,
+        fradrag_eller_overført_indkomst_efter_henvisningen_kroner = henvist_beløb_kroner(),
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner(),
+        afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner = afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner()
+    )
+}
+
+| par3_stk2_nr2_post_sag(post: Par3Stk2Nr2Post) -> Par3Stk2Nr2PostSag(post)
+| par3_stk2_nr2_post_resultat(post: Par3Stk2Nr2Post) -> par3_stk2_nr2_post_sag(post).resultat()
+| par3_stk2_nr2_post_resultater(input: Par3Stk2Nr2Input) -> map(input.poster, |post: Par3Stk2Nr2Post| par3_stk2_nr2_post_resultat(post))
+| par3_stk2_nr2_sum_henvist_beløb_kroner(resultater: List(Par3Stk2Nr2PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.fradrag_eller_overført_indkomst_efter_henvisningen_kroner)
+| par3_stk2_nr2_sum_personligt_fradrag_kroner(resultater: List(Par3Stk2Nr2PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.fradrag_i_personlig_indkomst_kroner)
+| par3_stk2_nr2_sum_afskåret_kroner(resultater: List(Par3Stk2Nr2PostResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner)
+
+# Par3Stk2Nr2Sag(input: Par3Stk2Nr2Input) {
+    | post_resultater() -> par3_stk2_nr2_post_resultater(input)
+    | resultat() -> Par3Stk2Nr2Resultat(
+        post_resultater = post_resultater(),
+        fradrag_eller_overført_indkomst_efter_henvisningerne_kroner = par3_stk2_nr2_sum_henvist_beløb_kroner(post_resultater()),
+        fradrag_i_personlig_indkomst_kroner = par3_stk2_nr2_sum_personligt_fradrag_kroner(post_resultater()),
+        afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner = par3_stk2_nr2_sum_afskåret_kroner(post_resultater())
+    )
+}
+
+| par3_stk2_nr2_sag(input: Par3Stk2Nr2Input) -> Par3Stk2Nr2Sag(input)
+| par3_stk2_nr2_resultat(input: Par3Stk2Nr2Input) -> par3_stk2_nr2_sag(input).resultat()
 
 | par3_stk2_nr3_hjemmel(grundlag: Par3Stk2Nr3Grundlag) -> match grundlag {
     | Par3Nr3Pbl18(_) -> Par3Nr3Pensionsbeskatningslov18
@@ -723,7 +788,7 @@ iværksætterkonto
     afgrænsning = post.stk2_nr1_afgrænsning,
     beløb_kroner = post.beløb_kroner
 )).fradrag_kroner() under post.art == ErhverveSikreVedligeholdeSelvstændigIndkomst
-| exception par3_stk2_nr2_til_11_fradrag par3_fradragspost_kroner(post: Par3Fradragspost) -> penge_positivt_beløb(post.beløb_kroner) under post.art != ErhverveSikreVedligeholdeSelvstændigIndkomst && par3_fradragstype_nævnt_i_stk2(post.art)
+| exception par3_stk2_nr3_til_11_fradrag par3_fradragspost_kroner(post: Par3Fradragspost) -> penge_positivt_beløb(post.beløb_kroner) under post.art != ErhverveSikreVedligeholdeSelvstændigIndkomst && post.art != LigningslovsudgiftVedSelvstændigErhverv && par3_fradragstype_nævnt_i_stk2(post.art)
 | par3_brutto_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> foldl(input.indkomstposter, 0, |sum, post| sum + par3_indkomstpost_personlig_kroner(post))
 | par3_fradrag_i_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> foldl(input.fradragsposter, 0, |sum, post| sum + par3_fradragspost_kroner(post))
 | par3_netto_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> par3_brutto_personlig_indkomst_kroner(input) - par3_fradrag_i_personlig_indkomst_kroner(input)
@@ -731,6 +796,11 @@ iværksætterkonto
     brutto_personlig_indkomst_kroner = par3_brutto_personlig_indkomst_kroner(input),
     fradrag_i_personlig_indkomst_kroner = par3_fradrag_i_personlig_indkomst_kroner(input),
     netto_personlig_indkomst_kroner = par3_netto_personlig_indkomst_kroner(input)
+)
+| par3_personlig_indkomst_med_nr2_resultat(input: Par3PersonligIndkomstMedNr2Input) -> Par3PersonligIndkomstResultat(
+    brutto_personlig_indkomst_kroner = par3_brutto_personlig_indkomst_kroner(input.grundinput),
+    fradrag_i_personlig_indkomst_kroner = par3_fradrag_i_personlig_indkomst_kroner(input.grundinput) + par3_stk2_nr2_resultat(input.nr2_input).fradrag_i_personlig_indkomst_kroner,
+    netto_personlig_indkomst_kroner = par3_brutto_personlig_indkomst_kroner(input.grundinput) - par3_fradrag_i_personlig_indkomst_kroner(input.grundinput) - par3_stk2_nr2_resultat(input.nr2_input).fradrag_i_personlig_indkomst_kroner
 )
 
 = par3_personlig_default = er_personlig_indkomst(IndkomstVurdering(

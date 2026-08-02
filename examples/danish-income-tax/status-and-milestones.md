@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-748d7e`
+Current focus issue: `td-2d84ec`
+Active implementation slice: `td-7ed1ee`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -46,7 +47,18 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 30,
+Latest integration: Personskatteloven § 3, stk. 2, nr. 2 har nu en lukket,
+typet resultatunion for Ligningsloven §§ 8, stk. 1, 8 B, 8 K, 8 L, 8 N, 14,
+stk. 1, 14 F og 30 A samt Kildeskatteloven § 25 A, stk. 3-5. De afhængige love
+beregner selv beløbene, betingelserne og undtagelserne; Personskatteloven
+kontrollerer derefter, at posten vedrører selvstændig erhvervsvirksomhed. Den
+tidligere generiske nr. 2-kategori kan derfor ikke længere skabe et fradrag ved
+at modtage et løst beløb. § 8 B bruger en lukket erhvervsstartstype, så en
+endnu ukendt start ikke kan ligne et straksfradragsberettiget år. Den fokuserede
+scenario-fil validerer 31 positive, begrænsende og afskærende udfald i både
+interpreter og kompileret kode.
+
+Aktieavancebeskatningsloven §§ 12-15, §§ 23-27, § 30,
 stk. 1, § 33 A og §§ 37-40 har nu typede beregningsveje for ordinære
 personaktier, lageropgørelser, aktie- og tegningsretter, statusskifter samt
 indgangs- og fraflytterbeskatning.
@@ -646,10 +658,12 @@ is broader rate-table coverage across years and transport modalities, not the
 Distance to full implementation: the Personskatteloven corpus is broad and the
 ordinary wage-earner/slutopgørelse path is already calculation useful.
 Afskrivningsloven now has a contiguous executable source corpus for §§ 1-69,
-including repealed and transitional provisions. The remaining full-corpus work
-is in Personskatteloven's other posture-only clauses, dependent statutes and
-edge cases that still need amount-level, source-backed rules. This is well past
-the structural phase, but it is not yet the complete Danish income-tax system.
+including repealed and transitional provisions, and § 3, stk. 2, nr. 2-11 now
+have typed amount paths for their principal named dependencies. The remaining
+full-corpus work is in Personskatteloven's other posture-only clauses,
+dependent statutes, annual parameters and edge cases that still need
+amount-level, source-backed rules. This is well past the structural phase, but
+it is not yet the complete Danish income-tax system.
 
 ## Source Status
 
@@ -737,6 +751,33 @@ Current Personskatteloven amendment sources:
   - § 12 changes § 4, stk. 1, nr. 6's Ejendomsskatteloven § 3 reference from
     nr. 1-5, 9 and 10 to nr. 1-4, 8 and 9.
   - § 16, stk. 5 gives the § 12 change effect from income year 2027.
+
+Current § 3, stk. 2, nr. 2 dependency sources:
+
+- Ligningsloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1500`
+  - XML and the current official print checked on 2026-07-14. Retsinformation
+    still marks LBK nr. 1500/2025 as current; the print lists amendments through
+    LOV nr. 1775 of 29/12/2025.
+  - §§ 8, stk. 1-4, 8 B, 8 K, 8 L, 8 N, 14, 14 F and 30 A now have
+    source-linked typed result objects for sales and representation expenses,
+    research and raw-material exploration, planting, Landsbyggefonden
+    payments, employment expenses, property-related charges, employee funds
+    and treatment/cessation expenses.
+  - The implementation preserves the relevant timing rules, elections,
+    percentage limits, regulated caps, asset-law referrals, employee and
+    property exceptions, medical-documentation requirements and explicit
+    non-deduction outcomes.
+- Kildeskatteloven:
+  `https://www.retsinformation.dk/eli/lta/2024/460`
+  - XML and the current official print checked on 2026-07-14. Retsinformation
+    still marks LBK nr. 460/2024 as current; the print incorporates amendments
+    through LOV nr. 615 of 30/06/2026, and § 25 A, stk. 3-8 is unchanged.
+  - § 25 A, stk. 3-8 now supplies the typed spouse-transfer result consumed by
+    Personskatteloven: corrected business profit, the 50 pct. limit, the
+    § 20-regulated 2010-level cap, the work-effort ceiling, cohabitation,
+    salary-agreement and equal-participation exclusions, mirrored recipient
+    income and operating-spouse reductions.
 
 Current § 3, stk. 2, nr. 4-5 dependency sources:
 
@@ -2086,9 +2127,11 @@ Review candidates to revisit deliberately, not as broad churn:
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
   reduction. The multi-period state remains a separate typed module instead of
   being folded into § 39's one-time eligibility decision.
-- Close the Personskatteloven implementation gaps before deeper audits. The next
-  work should identify the remaining posture-only/first-slice legal areas and
-  turn the highest-value ones into source-backed calculation rules.
+- Close the Personskatteloven implementation gaps before deeper audits.
+  § 3, stk. 2, nr. 2 is now converted from a raw amount bridge to nine typed
+  dependency outcomes. The next bounded review should rank the remaining raw
+  § 3 nr. 3-11 adapters and posture-only clauses by material calculation impact
+  before choosing the next source-backed slice.
 - Continue deepening dependency laws such as Kildeskatteloven, AM-law,
   municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
   unblock Personskatteloven calculation completeness or validate a newly
@@ -2115,6 +2158,10 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
+- Preserve the new § 3, stk. 2, nr. 2 typed boundary while constraining the
+  remaining generic nr. 3-11 amount adapters to their existing dependency
+  result objects. Do this incrementally so established scenarios keep exposing
+  which caller still relies on an untyped bridge.
 - Continue Aktieavancebeskatningsloven from the now-executable §§ 37-40 path:
   complete the remaining dependent classifications and employee-ownership
   provisions before calling the ABL dependency complete. Mixed nominal/no-par

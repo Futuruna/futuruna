@@ -1,25 +1,141 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
 
--- Kildeskatteloven — afhængig lovkilde for A-indkomst og A-skat.
+-- Kildeskatteloven — afhængig lovkilde for ægtefælleoverførsel, A-indkomst og A-skat.
 --
 -- Kilde: Retsinformation, LBK nr. 460 af 03/05/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
 -- XML: https://www.retsinformation.dk/eli/lta/2024/460/dan/xml
 
 ----
-Officiel XML-metadata for 2024/460, hentet 2026-07-18:
+Officiel kildestatus kontrolleret 2026-07-18: Retsinformation markerer fortsat
+LBK nr. 460 af 03/05/2024 som gældende. Den dagsaktuelle officielle udskrift
+medtager senere ændringer gennem LOV nr. 615 af 30/06/2026. § 25 A, stk. 3-8,
+er uændret i den aktuelle udskrift.
+
+XML-versionens metadata, genkontrolleret 2026-07-18:
 DocumentTitle: Bekendtgørelse af kildeskatteloven
 PopularTitle: Kildeskatteloven
 Status: Valid
 StartDate: 2024-05-16
 EndDate: 2026-07-01
 
-Retsinformation metadata viser senere ændringer i 2024 og 2025, herunder LOV
-nr. 333 af 09/04/2024, LOV nr. 1214 af 26/11/2024, LOV nr. 1694 af 30/12/2024
-og senere ændringer i 2025.
+EndDate er XML-versionens metadatahorisont; den formelle status og den aktuelle
+lovtekst kontrolleres særskilt i source-status.runa.
 ----
+
+# KildeskatKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kildeskatteloven_lbk460_par25a = KildeskatKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven § 25 A, stk. 3-8",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:kildeskatteloven_par25a::source:kildeskatteloven_lbk460_par25a--
+----
+§ 25 A.
+
+Stk. 3. Hvis ægtefæller, der er samlevende ved indkomstårets udgang, begge har
+deltaget i væsentligt omfang i driften af den ene ægtefælles eller begges
+erhvervsvirksomhed, kan ægtefællerne anmode om, at indtil 50 pct., dog højst et
+grundbeløb på 215.500 kr. (2010-niveau), af virksomhedens overskud opgjort
+efter stk. 4 overføres til den ægtefælle, der ikke i overvejende grad driver
+virksomheden, som skattepligtig indkomst, personlig indkomst og
+arbejdsmarkedsbidragspligtig indkomst hos denne, jf. dog stk. 7 og 8. Det
+overførte beløb må dog ikke stå i åbenbart misforhold til den medarbejdende
+ægtefælles arbejdsindsats i erhvervsvirksomheden. Grundbeløbet reguleres efter
+personskattelovens § 20.
+
+Stk. 4. Ved beregningen af den del af overskuddet, der efter stk. 3 overføres
+til den anden ægtefælle, opgøres virksomhedens overskud efter reglerne for
+opgørelsen af skattepligtig almindelig indkomst med tillæg af renteudgifter og
+kurstab på fordringer og gæld og med fradrag af rente- og udbytteindtægter,
+samt kursgevinster på fordringer og gæld, som indgår i opgørelsen af dette
+overskud.
+
+Stk. 5. Den skattepligtige indkomst, den personlige indkomst og den
+arbejdsmarkedsbidragspligtige indkomst efter stk. 1 nedsættes med det beløb,
+der overføres til den medarbejdende ægtefælle efter stk. 3.
+
+Stk. 6. Er samlivet mellem ægtefællerne ophørt i løbet af indkomståret, gælder
+stk. 1-5 ikke. Er samlivet ophørt af anden grund end en ægtefælles død,
+medregnes den i stk. 1 nævnte indkomst fra virksomheden indtil samlivets ophør
+dog ved indkomstopgørelsen for den ægtefælle, der i overvejende grad har drevet
+virksomheden.
+
+Stk. 7. En lønaftale mellem ægtefæller, der begge deltager i driften af den ene
+ægtefælles eller begges erhvervsvirksomhed, kan tillægges skattemæssig virkning,
+hvis pligterne efter denne lov og lov om arbejdsmarkedsbidrag til at indeholde
+og indbetale A-skat og arbejdsmarkedsbidrag samt beløb, som skal indeholdes
+efter reglerne i § 10 i lov om inddrivelse af gæld til det offentlige,
+overholdes. I de indkomstår, hvor en lønaftale finder anvendelse i hele året
+eller en del af året, kan stk. 3 og 8 ikke anvendes. Lønaftalen kan først
+tillægges skattemæssig virkning fra det tidspunkt, hvor aftalen træder i kraft.
+Lønnen til den ægtefælle, der ikke i overvejende grad driver virksomheden, må
+ikke stå i åbenbart misforhold til ægtefællens arbejdsindsats i
+erhvervsvirksomheden. Den ægtefælle, der efter stk. 1 skal medregne indkomst
+vedrørende erhvervsvirksomheden, betragtes som arbejdsgiver med de pligter, der
+følger af skattelovgivningens almindelige regler. Den anden ægtefælle betragtes
+som lønmodtager.
+
+Stk. 8. Deltager begge ægtefæller i væsentligt og ligeligt omfang i driften af
+den enes eller begges erhvervsvirksomhed, og hæfter ægtefællerne i samme omfang
+for virksomhedens forpligtelser, kan ægtefællerne efter anmodning fordele
+virksomhedens resultat mellem sig, i det omfang fordelingen sagligt kan
+begrundes i virksomhedens drift. Ved opgørelsen af skattepligtig indkomst,
+personlig indkomst, kapitalindkomst og arbejdsmarkedsbidragspligtig indkomst
+fordeles virksomhedens aktiver og passiver mellem ægtefællerne efter samme
+forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
+----
+
+--@begin::kildeskatteloven_par25a--
+# Kildeskat25AStk3Input(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
+# Kildeskat25AStk3Resultat(indkomstår: Heltal, overskud_efter_stk4_kroner: Heltal, halvdelen_af_overskuddet_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, højeste_overførsel_kroner: Heltal, stk3_betingelser_opfyldt: Boolsk, anmodet_beløb_begrænset: Boolsk, overført_til_medarbejdende_ægtefælle_kroner: Heltal, medarbejdende_ægtefælles_skattepligtige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_personlige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_kroner: Heltal, drivende_ægtefælles_skattepligtige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_personlige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_nedsættelse_kroner: Heltal)
+
+| kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
+| exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = 215500,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+)) under indkomstår >= 2009 && indkomstår <= 2026
+
+# Kildeskat25AStk3Sag(input: Kildeskat25AStk3Input) {
+    | overskud_efter_stk4_før_nulgrænse_kroner() -> input.skattepligtigt_almindeligt_overskud_kroner + penge_positivt_beløb(input.renteudgifter_kroner) + penge_positivt_beløb(input.kurstab_på_fordringer_og_gæld_kroner) - penge_positivt_beløb(input.renteindtægter_kroner) - penge_positivt_beløb(input.udbytteindtægter_kroner) - penge_positivt_beløb(input.kursgevinster_på_fordringer_og_gæld_kroner)
+    | overskud_efter_stk4_kroner() -> penge_positivt_beløb(overskud_efter_stk4_før_nulgrænse_kroner())
+    | halvdelen_af_overskuddet_kroner() -> overskud_efter_stk4_kroner() / 2
+    | reguleret_grundbeløb_kroner() -> kildeskat25a_stk3_reguleret_grundbeløb_kroner(input.indkomstår)
+    | arbejdsindsats_forsvarligt_maksimum_kroner() -> penge_positivt_beløb(input.arbejdsindsats_forsvarligt_maksimum_kroner)
+    | lovbestemt_loft_før_arbejdsindsats_kroner() -> penge_mindste_beløb(halvdelen_af_overskuddet_kroner(), reguleret_grundbeløb_kroner())
+    | højeste_overførsel_kroner() -> penge_mindste_beløb(lovbestemt_loft_før_arbejdsindsats_kroner(), arbejdsindsats_forsvarligt_maksimum_kroner())
+    | stk3_betingelser_opfyldt() -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && input.begge_deltaget_i_væsentligt_omfang && input.en_ægtefælle_driver_i_overvejende_grad && input.lønaftale_finder_anvendelse == Falskt && input.fordeling_efter_stk8_finder_anvendelse == Falskt && reguleret_grundbeløb_kroner() > 0
+    | anmodet_overførsel_kroner() -> penge_positivt_beløb(input.anmodet_overførsel_kroner)
+    | anmodet_beløb_begrænset() -> stk3_betingelser_opfyldt() && anmodet_overførsel_kroner() > højeste_overførsel_kroner()
+    | overført_til_medarbejdende_ægtefælle_kroner() -> 0
+    | exception stk3_overfører_anmodet_beløb_inden_for_lofter overført_til_medarbejdende_ægtefælle_kroner() -> penge_mindste_beløb(anmodet_overførsel_kroner(), højeste_overførsel_kroner()) under stk3_betingelser_opfyldt()
+    | resultat() -> Kildeskat25AStk3Resultat(
+        indkomstår = input.indkomstår,
+        overskud_efter_stk4_kroner = overskud_efter_stk4_kroner(),
+        halvdelen_af_overskuddet_kroner = halvdelen_af_overskuddet_kroner(),
+        reguleret_grundbeløb_kroner = reguleret_grundbeløb_kroner(),
+        arbejdsindsats_forsvarligt_maksimum_kroner = arbejdsindsats_forsvarligt_maksimum_kroner(),
+        højeste_overførsel_kroner = højeste_overførsel_kroner(),
+        stk3_betingelser_opfyldt = stk3_betingelser_opfyldt(),
+        anmodet_beløb_begrænset = anmodet_beløb_begrænset(),
+        overført_til_medarbejdende_ægtefælle_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        medarbejdende_ægtefælles_skattepligtige_indkomst_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        medarbejdende_ægtefælles_personlige_indkomst_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        medarbejdende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        drivende_ægtefælles_skattepligtige_indkomst_nedsættelse_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        drivende_ægtefælles_personlige_indkomst_nedsættelse_kroner = overført_til_medarbejdende_ægtefælle_kroner(),
+        drivende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_nedsættelse_kroner = overført_til_medarbejdende_ægtefælle_kroner()
+    )
+}
+
+| kildeskat25a_stk3_sag(input: Kildeskat25AStk3Input) -> Kildeskat25AStk3Sag(input)
+| kildeskat25a_stk3_resultat(input: Kildeskat25AStk3Input) -> kildeskat25a_stk3_sag(input).resultat()
+--@end::kildeskatteloven_par25a--
 
 ----
 § 41. Indkomstskat til staten, virksomhedsskat, konjunkturudligningsskat,

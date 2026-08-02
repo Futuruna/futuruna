@@ -1,0 +1,435 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+----
+Personskatteloven § 3, stk. 2:
+
+Ved opgørelsen af den personlige indkomst fradrages
+2) udgifter, som nævnt i ligningslovens §§ 8, stk. 1, 8 B, 8 K, 8 L, 8 N,
+14, stk. 1, 14 F og 30 A, og overført indkomst efter kildeskattelovens § 25 A,
+stk. 3-5, ved selvstændig erhvervsvirksomhed,
+----
+
+= nr2_ll8_reklame = ligningslov8_stk1_resultat(Ligningslov8Stk1Input(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    udgiftsart = Ll8Stk1Reklame,
+    afholdt_udgift_kroner = 12000,
+    afholdt_i_forbindelse_med_skattepligtiges_erhverv = Sandt,
+    formål_at_opnå_salg_af_varer_eller_tjenesteydelser = Sandt,
+    foreningsindkomst_opgjort_som_procent_af_formue = Falskt
+))
+
+= nr2_ll8_repræsentation = ligningslov8_stk1_resultat(Ligningslov8Stk1Input(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    udgiftsart = Ll8Stk1Repræsentation,
+    afholdt_udgift_kroner = 40000,
+    afholdt_i_forbindelse_med_skattepligtiges_erhverv = Sandt,
+    formål_at_opnå_salg_af_varer_eller_tjenesteydelser = Sandt,
+    foreningsindkomst_opgjort_som_procent_af_formue = Falskt
+))
+
+= nr2_ll8_forening_afskåret = ligningslov8_stk1_resultat(Ligningslov8Stk1Input(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    udgiftsart = Ll8Stk1Reklame,
+    afholdt_udgift_kroner = 12000,
+    afholdt_i_forbindelse_med_skattepligtiges_erhverv = Sandt,
+    formål_at_opnå_salg_af_varer_eller_tjenesteydelser = Sandt,
+    foreningsindkomst_opgjort_som_procent_af_formue = Sandt
+))
+
+| nr2_ll8b_input(indkomstår: Heltal, valg: Ligningslov8BValg, art: Ligningslov8BUdgiftsart, udgift_kroner: Heltal) -> Ligningslov8BInput(
+    indkomstår = indkomstår,
+    afholdelsesår = 2026,
+    erhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(2024),
+    udgiftsart = art,
+    valg = valg,
+    afholdt_udgift_kroner = udgift_kroner,
+    tilknytning_til_skattepligtiges_erhverv = Sandt,
+    igangværende_virksomhed = Sandt,
+    aktie_eller_anpartsselskab = Falskt,
+    told_skat_tillader_fradrag_før_erhvervsstart = Falskt,
+    selvstændigt_overskud_før_stk2_fradrag_kroner = 100000,
+    renteudgifter_og_valutakurstab_i_overskud_kroner = 0,
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
+    tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
+    reguleringstal_tiendedele = 1373
+)
+
+= nr2_ll8b_straks = ligningslov8b_resultat(nr2_ll8b_input(2026, Ll8BStraksfradrag, Ll8BForsøgsOgForskningsvirksomhed, 100000))
+= nr2_ll8b_lineær_2027 = ligningslov8b_resultat(nr2_ll8b_input(2027, Ll8BLineærAfskrivningOverFemÅr, Ll8BForsøgsOgForskningsvirksomhed, 100000))
+= nr2_ll8b_råstof_tvangsafskrivning = ligningslov8b_resultat(nr2_ll8b_input(2026, Ll8BStraksfradrag, Ll8BRåstofefterforskning, 50000))
+= nr2_ll8b_driftsmiddel_henvist = ligningslov8b_resultat(nr2_ll8b_input(2026, Ll8BStraksfradrag, Ll8BMaskineInventarEllerDriftsmiddel, 60000))
+
+= nr2_ll8b_ukendt_erhvervsstart_afventer = ligningslov8b_resultat(Ligningslov8BInput(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    erhvervsstart = Ll8BErhvervEndnuIkkePåbegyndt,
+    udgiftsart = Ll8BForsøgsOgForskningsvirksomhed,
+    valg = Ll8BStraksfradrag,
+    afholdt_udgift_kroner = 50000,
+    tilknytning_til_skattepligtiges_erhverv = Sandt,
+    igangværende_virksomhed = Falskt,
+    aktie_eller_anpartsselskab = Falskt,
+    told_skat_tillader_fradrag_før_erhvervsstart = Falskt,
+    selvstændigt_overskud_før_stk2_fradrag_kroner = 0,
+    renteudgifter_og_valutakurstab_i_overskud_kroner = 0,
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
+    tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
+    reguleringstal_tiendedele = 1373
+))
+
+= nr2_ll8b_råstof_tilladelse_lineær_før_start = ligningslov8b_resultat(Ligningslov8BInput(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    erhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(2028),
+    udgiftsart = Ll8BRåstofefterforskning,
+    valg = Ll8BLineærAfskrivningOverFemÅr,
+    afholdt_udgift_kroner = 50000,
+    tilknytning_til_skattepligtiges_erhverv = Sandt,
+    igangværende_virksomhed = Falskt,
+    aktie_eller_anpartsselskab = Falskt,
+    told_skat_tillader_fradrag_før_erhvervsstart = Sandt,
+    selvstændigt_overskud_før_stk2_fradrag_kroner = 1000000,
+    renteudgifter_og_valutakurstab_i_overskud_kroner = 0,
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
+    tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
+    reguleringstal_tiendedele = 1373
+))
+
+= nr2_ll8b_negativt_ordinært_overskud_bevares = ligningslov8b_resultat(Ligningslov8BInput(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    erhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(2024),
+    udgiftsart = Ll8BRåstofefterforskning,
+    valg = Ll8BStraksfradrag,
+    afholdt_udgift_kroner = 10000,
+    tilknytning_til_skattepligtiges_erhverv = Sandt,
+    igangværende_virksomhed = Sandt,
+    aktie_eller_anpartsselskab = Falskt,
+    told_skat_tillader_fradrag_før_erhvervsstart = Falskt,
+    selvstændigt_overskud_før_stk2_fradrag_kroner = -100000,
+    renteudgifter_og_valutakurstab_i_overskud_kroner = 120000,
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
+    tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
+    reguleringstal_tiendedele = 1373
+))
+
+| nr2_ll8k_input(indkomstår: Heltal, plantningsart: Ligningslov8KPlantningsart, hændelse: Ligningslov8KHændelse, udgift_kroner: Heltal, tidligere_fradraget_kroner: Heltal, årets_udgifter_kroner: Heltal, valgt_fradrag_kroner: Heltal, areal_kvadratmeter: Heltal, lejet_jord: Boolsk) -> Ligningslov8KInput(
+    indkomstår = indkomstår,
+    afholdelsesår = 2026,
+    plantningsart = plantningsart,
+    hændelse = hændelse,
+    område = Ll8KEuEøs,
+    afholdt_udgift_kroner = udgift_kroner,
+    tidligere_fradraget_kroner = tidligere_fradraget_kroner,
+    årets_samlede_udgifter_pr_ejendom_kroner = årets_udgifter_kroner,
+    valgt_fradrag_kroner = valgt_fradrag_kroner,
+    fredskovspligt_pålagt_og_registreret = Sandt,
+    energiafgrødeareal_kvadratmeter = areal_kvadratmeter,
+    lejet_eller_forpagtet_jord = lejet_jord,
+    udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom = Falskt
+)
+
+= nr2_ll8k_fredskov_tyve_procent = ligningslov8k_resultat(nr2_ll8k_input(2026, Ll8KNyplantningAfFredskov, Ll8KIngenSærhændelse, 100000, 0, 100000, 20000, 0, Falskt))
+= nr2_ll8k_lejet_lille_udgift_ikke_straks = ligningslov8k_resultat(nr2_ll8k_input(2026, Ll8KNyplantningAfFredskov, Ll8KIngenSærhændelse, 20000, 0, 20000, 20000, 0, Sandt))
+= nr2_ll8k_lejeophør_rest = ligningslov8k_resultat(nr2_ll8k_input(2028, Ll8KNyplantningAfFredskov, Ll8KLejeEllerForpagtningOphørt, 100000, 40000, 100000, 60000, 0, Sandt))
+= nr2_ll8k_energiafgrøde = ligningslov8k_resultat(nr2_ll8k_input(2026, Ll8KEnergiafgrødePil, Ll8KIngenSærhændelse, 30000, 0, 30000, 30000, 3000, Falskt))
+= nr2_ll8k_for_lille_areal = ligningslov8k_resultat(nr2_ll8k_input(2026, Ll8KEnergiafgrødePil, Ll8KIngenSærhændelse, 30000, 0, 30000, 30000, 2999, Falskt))
+
+= nr2_ll8l_landsbyggefonden = ligningslov8l_resultat(Ligningslov8LInput(
+    indkomstår = 2026,
+    indbetalingsår = 2026,
+    indbetalingsgrundlag = Ll8LHuslejeindtægterOverstigerBygningsudgifter,
+    indbetalt_til_landsbyggefonden_kroner = 15000,
+    omfattet_af_lov_om_friplejeboliger = Sandt
+))
+
+= nr2_ll8n_loft = ligningslov8n_resultat(Ligningslov8NInput(
+    indkomstår = 2026,
+    udgiftsart = Ll8NErhvervsmæssigLøn,
+    udgift_kroner = 10000,
+    erhvervsmæssig = Sandt,
+    betalende_selskab_fradrager_for_modtagende_selskab = Falskt,
+    betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes = Falskt,
+    personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse = Sandt,
+    ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig = Falskt,
+    samlede_omfattede_udgifter_før_denne_kroner = 8700000,
+    grundbeløbsandel_basispoint = 10000,
+    køberet_eller_tegningsret_oprindelig_udstedt_til_personen = Falskt
+))
+
+= nr2_ll8n_befordring_medregnes_under_loftet = ligningslov8n_resultat(Ligningslov8NInput(
+    indkomstår = 2026,
+    udgiftsart = Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7,
+    udgift_kroner = 10000,
+    erhvervsmæssig = Sandt,
+    betalende_selskab_fradrager_for_modtagende_selskab = Falskt,
+    betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes = Falskt,
+    personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse = Falskt,
+    ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig = Falskt,
+    samlede_omfattede_udgifter_før_denne_kroner = 0,
+    grundbeløbsandel_basispoint = 10000,
+    køberet_eller_tegningsret_oprindelig_udstedt_til_personen = Falskt
+))
+
+= nr2_ll14_erhvervsandel = ligningslov14_resultat(Ligningslov14Input(
+    indkomstår = 2026,
+    anvendelsesår = 2026,
+    udgiftsart = Ll14Ejendomsskat,
+    ejendomsart = Ll14EnEllerToLejlighederTjentTilEjerbolig,
+    fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45,
+    anvendt_beløb_kroner = 20000,
+    erhvervsandel_basispoint = 3000,
+    fordeling_fortsat_retvisende = Sandt
+))
+
+= nr2_ll14_uvæsentlig_erhvervsandel = ligningslov14_resultat(Ligningslov14Input(
+    indkomstår = 2026,
+    anvendelsesår = 2026,
+    udgiftsart = Ll14Ejendomsskat,
+    ejendomsart = Ll14EnEllerToLejlighederTjentTilEjerbolig,
+    fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45,
+    anvendt_beløb_kroner = 20000,
+    erhvervsandel_basispoint = 900,
+    fordeling_fortsat_retvisende = Sandt
+))
+
+= nr2_ll14_ejendomsværdiskat = ligningslov14_resultat(Ligningslov14Input(
+    indkomstår = 2026,
+    anvendelsesår = 2026,
+    udgiftsart = Ll14Ejendomsværdiskat,
+    ejendomsart = Ll14IngenStk2Begrænsning,
+    fordelingsgrundlag = Ll14IngenBlandetFordeling,
+    anvendt_beløb_kroner = 20000,
+    erhvervsandel_basispoint = 10000,
+    fordeling_fortsat_retvisende = Sandt
+))
+
+= nr2_ll14_udenlandsk_ejendom_ikke_omfattet_af_stk3 = ligningslov14_resultat(Ligningslov14Input(
+    indkomstår = 2026,
+    anvendelsesår = 2026,
+    udgiftsart = Ll14Ejendomsskat,
+    ejendomsart = Ll14TilsvarendeEjendomIUlandetFærøerneEllerGrønland,
+    fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45,
+    anvendt_beløb_kroner = 20000,
+    erhvervsandel_basispoint = 10000,
+    fordeling_fortsat_retvisende = Sandt
+))
+
+= nr2_ll14f_gældsbidrag = ligningslov14f_resultat(Ligningslov14FInput(
+    indkomstår = 2026,
+    bidragsform = Ll14FGældsforpligtelseOverForFonden,
+    kontant_bidrag_kroner = 100000,
+    fordringens_kursværdi_ved_stiftelsen_kroner = 80000,
+    fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår = Sandt,
+    fonden_udbetaler_pensionslignende_ydelser = Falskt,
+    bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte = Sandt,
+    samme_bidrag_fradraget_efter_par12_stk2 = Falskt
+))
+
+= nr2_ll14f_pensionsydelse_afskåret = ligningslov14f_resultat(Ligningslov14FInput(
+    indkomstår = 2026,
+    bidragsform = Ll14FKontantBidrag,
+    kontant_bidrag_kroner = 100000,
+    fordringens_kursværdi_ved_stiftelsen_kroner = 0,
+    fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår = Sandt,
+    fonden_udbetaler_pensionslignende_ydelser = Sandt,
+    bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte = Sandt,
+    samme_bidrag_fradraget_efter_par12_stk2 = Falskt
+))
+
+| nr2_ll30a_input(person: Ligningslov30APerson, udgiftsart: Ligningslov30AUdgiftsart, udgift_kroner: Heltal, medicinforhold: Ligningslov30AMedicinforhold) -> Ligningslov30AInput(
+    indkomstår = 2026,
+    afholdelsesår = 2026,
+    person = person,
+    udgiftsart = udgiftsart,
+    afholdt_udgift_kroner = udgift_kroner,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3 = Sandt,
+    ægtefælle_driver_ikke_i_overvejende_grad = Sandt,
+    personlig_arbejdsindsats_ikke_uvæsentlig = Sandt,
+    har_eventuelle_medarbejdere = Falskt,
+    virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere = Falskt,
+    tilsvarende_ordning_tilbudt_medarbejderne_rettidigt = Falskt,
+    generelt_anciennitetskrav_opfyldt = Sandt,
+    selvstændige_har_valgt_forsikringsordning = Falskt,
+    tilsvarende_forsikring_tegnet_for_medarbejderne = Falskt,
+    person_kan_ikke_forsikres_af_forsikringsmæssige_grunde = Falskt,
+    ydelse_svarer_til_medarbejderforsikringens_ydelser = Falskt,
+    medicinforhold = medicinforhold,
+    skriftlig_lægeerklæring_om_behandlingsbehov = Sandt,
+    forsikringsbetingelser_kræver_lægeerklæring = Falskt,
+    præmieandel_for_medicin_ud_over_seks_måneder_kroner = 0
+)
+
+= nr2_ll30a_alkoholbehandling = ligningslov30a_resultat(nr2_ll30a_input(Ll30ASelvstændigtErhvervsdrivende, Ll30ABehandlingAfAlkoholmisbrug, 25000, Ll30AIngenMedicinudgift))
+= nr2_ll30a_medicin_efter_seksmånedersperioden = ligningslov30a_resultat(nr2_ll30a_input(Ll30ASelvstændigtErhvervsdrivende, Ll30AMedicinudgiftVedMisbrugsbehandling, 5000, Ll30AMedicinudgiftEfterSeksMånedersperioden))
+= nr2_ll30a_ægtefælle_rygeafvænning = ligningslov30a_resultat(nr2_ll30a_input(Ll30AMedarbejdendeÆgtefælleEfterKildeskattelov25AStk3, Ll30ARygeafvænning, 5000, Ll30AIngenMedicinudgift))
+
+= nr2_ksl25a_ægtefælleoverførsel = kildeskat25a_stk3_resultat(Kildeskat25AStk3Input(
+    indkomstår = 2026,
+    samlevende_ved_indkomstårets_udgang = Sandt,
+    samliv_ophoert_i_indkomståret = Falskt,
+    begge_deltaget_i_væsentligt_omfang = Sandt,
+    en_ægtefælle_driver_i_overvejende_grad = Sandt,
+    anmodet_overførsel_kroner = 250000,
+    arbejdsindsats_forsvarligt_maksimum_kroner = 200000,
+    skattepligtigt_almindeligt_overskud_kroner = 600000,
+    renteudgifter_kroner = 20000,
+    kurstab_på_fordringer_og_gæld_kroner = 10000,
+    renteindtægter_kroner = 5000,
+    udbytteindtægter_kroner = 5000,
+    kursgevinster_på_fordringer_og_gæld_kroner = 0,
+    lønaftale_finder_anvendelse = Falskt,
+    fordeling_efter_stk8_finder_anvendelse = Falskt
+))
+
+= nr2_ksl25a_lønaftale_afskærer = kildeskat25a_stk3_resultat(Kildeskat25AStk3Input(
+    indkomstår = 2026,
+    samlevende_ved_indkomstårets_udgang = Sandt,
+    samliv_ophoert_i_indkomståret = Falskt,
+    begge_deltaget_i_væsentligt_omfang = Sandt,
+    en_ægtefælle_driver_i_overvejende_grad = Sandt,
+    anmodet_overførsel_kroner = 100000,
+    arbejdsindsats_forsvarligt_maksimum_kroner = 100000,
+    skattepligtigt_almindeligt_overskud_kroner = 600000,
+    renteudgifter_kroner = 0,
+    kurstab_på_fordringer_og_gæld_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_på_fordringer_og_gæld_kroner = 0,
+    lønaftale_finder_anvendelse = Sandt,
+    fordeling_efter_stk8_finder_anvendelse = Falskt
+))
+
+= nr2_ksl25a_negativt_ordinært_resultat_bevares = kildeskat25a_stk3_resultat(Kildeskat25AStk3Input(
+    indkomstår = 2026,
+    samlevende_ved_indkomstårets_udgang = Sandt,
+    samliv_ophoert_i_indkomståret = Falskt,
+    begge_deltaget_i_væsentligt_omfang = Sandt,
+    en_ægtefælle_driver_i_overvejende_grad = Sandt,
+    anmodet_overførsel_kroner = 50000,
+    arbejdsindsats_forsvarligt_maksimum_kroner = 50000,
+    skattepligtigt_almindeligt_overskud_kroner = -100000,
+    renteudgifter_kroner = 120000,
+    kurstab_på_fordringer_og_gæld_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_på_fordringer_og_gæld_kroner = 0,
+    lønaftale_finder_anvendelse = Falskt,
+    fordeling_efter_stk8_finder_anvendelse = Falskt
+))
+
+= nr2_samlet = par3_stk2_nr2_resultat(Par3Stk2Nr2Input(poster = [
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8Stk1(nr2_ll8_reklame), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8B(nr2_ll8b_straks), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8K(nr2_ll8k_fredskov_tyve_procent), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8L(nr2_ll8l_landsbyggefonden), ved_selvstændig_erhvervsvirksomhed = Falskt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8N(nr2_ll8n_loft), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll14Stk1(nr2_ll14_erhvervsandel), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll14F(nr2_ll14f_gældsbidrag), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ll30A(nr2_ll30a_alkoholbehandling), ved_selvstændig_erhvervsvirksomhed = Sandt),
+    Par3Stk2Nr2Post(grundlag = Par3Nr2Ksl25AStk3Til5(nr2_ksl25a_ægtefælleoverførsel), ved_selvstændig_erhvervsvirksomhed = Sandt)
+]))
+
+= nr2_råt_beløb_afskåret = par3_fradragspost_kroner(Par3Fradragspost(
+    art = LigningslovsudgiftVedSelvstændigErhverv,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = 999999
+))
+
+= nr2_personlig_indkomst = par3_personlig_indkomst_med_nr2_resultat(Par3PersonligIndkomstMedNr2Input(
+    grundinput = Par3PersonligIndkomstInput(
+        indkomstposter = [Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 1000000
+        )],
+        fradragsposter = []
+    ),
+    nr2_input = Par3Stk2Nr2Input(poster = [
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8Stk1(nr2_ll8_reklame), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8B(nr2_ll8b_straks), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8K(nr2_ll8k_fredskov_tyve_procent), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8L(nr2_ll8l_landsbyggefonden), ved_selvstændig_erhvervsvirksomhed = Falskt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll8N(nr2_ll8n_loft), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll14Stk1(nr2_ll14_erhvervsandel), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll14F(nr2_ll14f_gældsbidrag), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ll30A(nr2_ll30a_alkoholbehandling), ved_selvstændig_erhvervsvirksomhed = Sandt),
+        Par3Stk2Nr2Post(grundlag = Par3Nr2Ksl25AStk3Til5(nr2_ksl25a_ægtefælleoverførsel), ved_selvstændig_erhvervsvirksomhed = Sandt)
+    ])
+))
+
+| scenarie_nr2_ll8_reklame_fradrages_fuldt: nr2_ll8_reklame -> nr2_ll8_reklame.udgift_omfattet_af_stk1 && nr2_ll8_reklame.fradrag_i_skattepligtig_indkomst_kroner == 12000
+| scenarie_nr2_ll8_repræsentation_begrænses: nr2_ll8_repræsentation -> nr2_ll8_repræsentation.begrænset_som_repræsentation_efter_stk4 && nr2_ll8_repræsentation.fradrag_i_skattepligtig_indkomst_kroner == 10000
+| scenarie_nr2_ll8_forening_afskæres: nr2_ll8_forening_afskåret -> nr2_ll8_forening_afskåret.afskåret_efter_stk2 && nr2_ll8_forening_afskåret.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll8b_straksfradrag_forhøjes_til_114_procent: nr2_ll8b_straks -> nr2_ll8b_straks.forhøjet_fradragsgrundlag_kroner == 114000 && nr2_ll8b_straks.fradrag_i_skattepligtig_indkomst_kroner == 114000
+| scenarie_nr2_ll8b_lineær_afskrivning: nr2_ll8b_lineær_2027 -> nr2_ll8b_lineær_2027.lineær_afskrivning_påkrævet_eller_valgt && nr2_ll8b_lineær_2027.fradrag_i_skattepligtig_indkomst_kroner == 22800
+| scenarie_nr2_ll8b_råstof_over_tredive_procent: nr2_ll8b_råstof_tvangsafskrivning -> nr2_ll8b_råstof_tvangsafskrivning.råstofudgift_over_tredive_procent_af_overskud && nr2_ll8b_råstof_tvangsafskrivning.lineær_afskrivning_påkrævet_eller_valgt && nr2_ll8b_råstof_tvangsafskrivning.fradrag_i_skattepligtig_indkomst_kroner == 10000
+| scenarie_nr2_ll8b_driftsmiddel_henvises_til_afskrivningsloven: nr2_ll8b_driftsmiddel_henvist -> nr2_ll8b_driftsmiddel_henvist.henvist_til_afskrivningsloven_efter_stk3 && nr2_ll8b_driftsmiddel_henvist.fradrag_i_skattepligtig_indkomst_kroner == 0 && nr2_ll8b_driftsmiddel_henvist.henvist_til_afskrivningsloven_kroner == 60000
+| scenarie_nr2_ll8b_ukendt_erhvervsstart_kan_ikke_skabe_straksfradrag: nr2_ll8b_ukendt_erhvervsstart_afventer -> nr2_ll8b_ukendt_erhvervsstart_afventer.afholdt_før_erhvervsstart && nr2_ll8b_ukendt_erhvervsstart_afventer.afventer_fastlagt_erhvervspåbegyndelsesår && nr2_ll8b_ukendt_erhvervsstart_afventer.fradragsstartår == 0 && nr2_ll8b_ukendt_erhvervsstart_afventer.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll8b_tilladelse_før_start_respekterer_lineært_valg: nr2_ll8b_råstof_tilladelse_lineær_før_start -> nr2_ll8b_råstof_tilladelse_lineær_før_start.afholdt_før_erhvervsstart && nr2_ll8b_råstof_tilladelse_lineær_før_start.fradragsstartår == 2026 && nr2_ll8b_råstof_tilladelse_lineær_før_start.lineær_afskrivning_påkrævet_eller_valgt && nr2_ll8b_råstof_tilladelse_lineær_før_start.fradrag_i_skattepligtig_indkomst_kroner == 10000
+| scenarie_nr2_ll8b_bevarer_negativt_ordinært_overskud_under_korrektion: nr2_ll8b_negativt_ordinært_overskud_bevares -> nr2_ll8b_negativt_ordinært_overskud_bevares.råstofudgift_over_tredive_procent_af_overskud && nr2_ll8b_negativt_ordinært_overskud_bevares.lineær_afskrivning_påkrævet_eller_valgt && nr2_ll8b_negativt_ordinært_overskud_bevares.fradrag_i_skattepligtig_indkomst_kroner == 2000
+| scenarie_nr2_ll8k_ordinært_tyve_procent: nr2_ll8k_fredskov_tyve_procent -> nr2_ll8k_fredskov_tyve_procent.omfattet_af_stk1 && nr2_ll8k_fredskov_tyve_procent.fradrag_i_skattepligtig_indkomst_kroner == 20000
+| scenarie_nr2_ll8k_lejet_jord_udelukker_lille_straksfradrag: nr2_ll8k_lejet_lille_udgift_ikke_straks -> nr2_ll8k_lejet_lille_udgift_ikke_straks.straksfradrag_tilladt == Falskt && nr2_ll8k_lejet_lille_udgift_ikke_straks.valgt_fradrag_begrænset && nr2_ll8k_lejet_lille_udgift_ikke_straks.fradrag_i_skattepligtig_indkomst_kroner == 4000
+| scenarie_nr2_ll8k_lejeophør_fradrager_resten: nr2_ll8k_lejeophør_rest -> nr2_ll8k_lejeophør_rest.straksfradrag_tilladt && nr2_ll8k_lejeophør_rest.fradrag_i_skattepligtig_indkomst_kroner == 60000
+| scenarie_nr2_ll8k_energiafgrøde_arealkrav: nr2_ll8k_energiafgrøde -> nr2_ll8k_energiafgrøde.omfattet_af_stk4 && nr2_ll8k_energiafgrøde.fradrag_i_skattepligtig_indkomst_kroner == 30000 && nr2_ll8k_for_lille_areal.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll8l_landsbyggefondsindbetaling: nr2_ll8l_landsbyggefonden -> nr2_ll8l_landsbyggefonden.omfattet_af_stk1 && nr2_ll8l_landsbyggefonden.fradrag_i_skattepligtig_indkomst_kroner == 15000
+| scenarie_nr2_ll8n_reguleret_loft: nr2_ll8n_loft -> nr2_ll8n_loft.reguleret_grundbeløb_kroner == 8704600 && nr2_ll8n_loft.resterende_loft_før_udgiften_kroner == 4600 && nr2_ll8n_loft.fradrag_i_skattepligtig_indkomst_kroner == 4600 && nr2_ll8n_loft.afskåret_efter_stk3_kroner == 5400
+| scenarie_nr2_ll8n_befordring_medregnes_under_loftet: nr2_ll8n_befordring_medregnes_under_loftet -> nr2_ll8n_befordring_medregnes_under_loftet.omfattet_af_stk1 && nr2_ll8n_befordring_medregnes_under_loftet.stk3_loft_finder_anvendelse && nr2_ll8n_befordring_medregnes_under_loftet.fradrag_i_skattepligtig_indkomst_kroner == 10000
+| scenarie_nr2_ll14_fradrager_væsentlig_erhvervsandel: nr2_ll14_erhvervsandel -> nr2_ll14_erhvervsandel.erhvervsmæssig_benyttelse_væsentlig && nr2_ll14_erhvervsandel.fradrag_i_skattepligtig_indkomst_kroner == 6000
+| scenarie_nr2_ll14_afskærer_uvæsentlig_andel_og_ejendomsværdiskat: nr2_ll14_uvæsentlig_erhvervsandel -> nr2_ll14_uvæsentlig_erhvervsandel.fradrag_i_skattepligtig_indkomst_kroner == 0 && nr2_ll14_ejendomsværdiskat.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll14_stk3_undtager_ikke_udenlandsk_ejendom: nr2_ll14_udenlandsk_ejendom_ikke_omfattet_af_stk3 -> nr2_ll14_udenlandsk_ejendom_ikke_omfattet_af_stk3.stk2_begrænsning_finder_anvendelse && nr2_ll14_udenlandsk_ejendom_ikke_omfattet_af_stk3.erhvervsmæssig_benyttelse_væsentlig && nr2_ll14_udenlandsk_ejendom_ikke_omfattet_af_stk3.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll14f_gældsbidrag_bruger_kursværdi: nr2_ll14f_gældsbidrag -> nr2_ll14f_gældsbidrag.bidragsværdi_kroner == 80000 && nr2_ll14f_gældsbidrag.fradrag_i_skattepligtig_indkomst_kroner == 80000
+| scenarie_nr2_ll14f_pensionslignende_ydelse_afskæres: nr2_ll14f_pensionsydelse_afskåret -> nr2_ll14f_pensionsydelse_afskåret.betingelser_opfyldt == Falskt && nr2_ll14f_pensionsydelse_afskåret.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll30a_behandling_fradrages: nr2_ll30a_alkoholbehandling -> nr2_ll30a_alkoholbehandling.behandlingsydelse_omfattet && nr2_ll30a_alkoholbehandling.fradrag_i_skattepligtig_indkomst_kroner == 25000
+| scenarie_nr2_ll30a_seksmånedersgrænse: nr2_ll30a_medicin_efter_seksmånedersperioden -> nr2_ll30a_medicin_efter_seksmånedersperioden.seksmånedersgrænse_opfyldt == Falskt && nr2_ll30a_medicin_efter_seksmånedersperioden.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_nr2_ll30a_ægtefælleydelse_ikke_medregnet: nr2_ll30a_ægtefælle_rygeafvænning -> nr2_ll30a_ægtefælle_rygeafvænning.fradrag_i_skattepligtig_indkomst_kroner == 5000 && nr2_ll30a_ægtefælle_rygeafvænning.ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner == 5000
+| scenarie_nr2_ksl25a_korrigerer_overskud_og_begrænser_efter_arbejdsindsats: nr2_ksl25a_ægtefælleoverførsel -> nr2_ksl25a_ægtefælleoverførsel.overskud_efter_stk4_kroner == 620000 && nr2_ksl25a_ægtefælleoverførsel.reguleret_grundbeløb_kroner == 295900 && nr2_ksl25a_ægtefælleoverførsel.højeste_overførsel_kroner == 200000 && nr2_ksl25a_ægtefælleoverførsel.anmodet_beløb_begrænset && nr2_ksl25a_ægtefælleoverførsel.overført_til_medarbejdende_ægtefælle_kroner == 200000
+| scenarie_nr2_ksl25a_lønaftale_afskærer_stk3: nr2_ksl25a_lønaftale_afskærer -> nr2_ksl25a_lønaftale_afskærer.stk3_betingelser_opfyldt == Falskt && nr2_ksl25a_lønaftale_afskærer.overført_til_medarbejdende_ægtefælle_kroner == 0
+| scenarie_nr2_ksl25a_bevarer_negativt_ordinært_resultat_under_korrektion: nr2_ksl25a_negativt_ordinært_resultat_bevares -> nr2_ksl25a_negativt_ordinært_resultat_bevares.overskud_efter_stk4_kroner == 20000 && nr2_ksl25a_negativt_ordinært_resultat_bevares.halvdelen_af_overskuddet_kroner == 10000 && nr2_ksl25a_negativt_ordinært_resultat_bevares.overført_til_medarbejdende_ægtefælle_kroner == 10000
+| scenarie_nr2_typed_union_og_selvstændighedsgrænse: nr2_samlet -> length(nr2_samlet.post_resultater) == 9 && nr2_samlet.fradrag_eller_overført_indkomst_efter_henvisningerne_kroner == 476600 && nr2_samlet.fradrag_i_personlig_indkomst_kroner == 461600 && nr2_samlet.afskåret_fordi_ikke_ved_selvstændig_erhvervsvirksomhed_kroner == 15000
+| scenarie_nr2_råt_beløb_kan_ikke_skabe_fradrag: nr2_råt_beløb_afskåret -> nr2_råt_beløb_afskåret == 0
+| scenarie_nr2_indgår_i_personlig_indkomst: nr2_personlig_indkomst -> nr2_personlig_indkomst.brutto_personlig_indkomst_kroner == 1000000 && nr2_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 461600 && nr2_personlig_indkomst.netto_personlig_indkomst_kroner == 538400
+
+? scenarie_nr2_ll8_reklame_fradrages_fuldt
+? scenarie_nr2_ll8_repræsentation_begrænses
+? scenarie_nr2_ll8_forening_afskæres
+? scenarie_nr2_ll8b_straksfradrag_forhøjes_til_114_procent
+? scenarie_nr2_ll8b_lineær_afskrivning
+? scenarie_nr2_ll8b_råstof_over_tredive_procent
+? scenarie_nr2_ll8b_driftsmiddel_henvises_til_afskrivningsloven
+? scenarie_nr2_ll8b_ukendt_erhvervsstart_kan_ikke_skabe_straksfradrag
+? scenarie_nr2_ll8b_tilladelse_før_start_respekterer_lineært_valg
+? scenarie_nr2_ll8b_bevarer_negativt_ordinært_overskud_under_korrektion
+? scenarie_nr2_ll8k_ordinært_tyve_procent
+? scenarie_nr2_ll8k_lejet_jord_udelukker_lille_straksfradrag
+? scenarie_nr2_ll8k_lejeophør_fradrager_resten
+? scenarie_nr2_ll8k_energiafgrøde_arealkrav
+? scenarie_nr2_ll8l_landsbyggefondsindbetaling
+? scenarie_nr2_ll8n_reguleret_loft
+? scenarie_nr2_ll8n_befordring_medregnes_under_loftet
+? scenarie_nr2_ll14_fradrager_væsentlig_erhvervsandel
+? scenarie_nr2_ll14_afskærer_uvæsentlig_andel_og_ejendomsværdiskat
+? scenarie_nr2_ll14_stk3_undtager_ikke_udenlandsk_ejendom
+? scenarie_nr2_ll14f_gældsbidrag_bruger_kursværdi
+? scenarie_nr2_ll14f_pensionslignende_ydelse_afskæres
+? scenarie_nr2_ll30a_behandling_fradrages
+? scenarie_nr2_ll30a_seksmånedersgrænse
+? scenarie_nr2_ll30a_ægtefælleydelse_ikke_medregnet
+? scenarie_nr2_ksl25a_korrigerer_overskud_og_begrænser_efter_arbejdsindsats
+? scenarie_nr2_ksl25a_lønaftale_afskærer_stk3
+? scenarie_nr2_ksl25a_bevarer_negativt_ordinært_resultat_under_korrektion
+? scenarie_nr2_typed_union_og_selvstændighedsgrænse
+? scenarie_nr2_råt_beløb_kan_ikke_skabe_fradrag
+? scenarie_nr2_indgår_i_personlig_indkomst
+
+@ print("§ 3, stk. 2, nr. 2, typed fradrag i personlig indkomst: " + vis(nr2_samlet.fradrag_i_personlig_indkomst_kroner))

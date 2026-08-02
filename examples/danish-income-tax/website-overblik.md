@@ -48,6 +48,22 @@ inputtype faktisk indeholder lister, maps eller sæt; den nuværende
 lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
 afgrænsede skatteberegning.
 
+Personskatteloven § 3, stk. 2, nr. 2 er nu også en egentlig regelkaskade.
+Ligningslovens regler om salgs- og repræsentationsudgifter, forskning,
+råstofefterforskning, skov og andre plantninger, friplejeboliger,
+ansættelsesudgifter, ejendomsskatter, medarbejderfonde og behandling eller
+rygeafvænning beregner hver deres typede resultat. Kildeskatteloven § 25 A
+beregner tilsvarende overførsel til en medarbejdende ægtefælle med
+overskudskorrektion, 50 pct.-grænse, reguleret loft og arbejdsindsats som
+særskilte led. Først derefter afgør Personskatteloven, om beløbet vedrører
+selvstændig erhvervsvirksomhed. Et løst beløb mærket som nr. 2 kan derfor ikke
+længere skabe et fradrag. Forskningsreglen skelner desuden eksplicit mellem et
+kendt påbegyndelsesår og en virksomhed, der endnu ikke er påbegyndt, så en
+ukendt start ikke kan blive til et straksfradrag. De 31 fokusinvarianter kører
+ens i interpreter og kompileret kode. Kilderne er
+[Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500)
+og [Kildeskatteloven, LBK nr. 460/2024](https://www.retsinformation.dk/eli/lta/2024/460).
+
 Personaktievejen er nu også eksekverbar fra anskaffelse og gennemsnitlig
 anskaffelsessum til afståelse, noterede og unoterede tab,
 ægtefælleoverførsel og den endelige aktieindkomstpost efter Personskatteloven

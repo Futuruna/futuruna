@@ -3,7 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
--- Ligningsloven — fradrag efter §§ 8 M, 8 O, 9 B, 9 C, 9 J, 9 K, 9 L, 15 P og 15 Q.
+-- Ligningsloven — fradragsregler og afhængige henvisninger fra personskatteloven.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -35,16 +35,430 @@
 -- https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2024-2025
 
 ----
-Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
+Officiel kildestatus kontrolleret 2026-07-18: Retsinformation markerer fortsat
+LBK nr. 1500 af 24/11/2025 som gældende. Den dagsaktuelle officielle
+udskrift medtager senere ændringer gennem LOV nr. 1775 af 29/12/2025.
+
+XML-versionens metadata, genkontrolleret 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten
 (ligningsloven)
 PopularTitle: Ligningsloven
 Status: Valid
 StartDate: 2025-12-04
 EndDate: 2026-07-01
+
+EndDate er XML-versionens metadatahorisont; den formelle status og den aktuelle
+lovtekst kontrolleres særskilt i source-status.runa.
 ----
 
 # LigningslovFradragKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par8 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par8::source:ligningsloven_lbk1500_par8--
+----
+§ 8. Ved opgørelsen af den skattepligtige indkomst fradrages udgifter, som i
+forbindelse med den skattepligtiges erhverv er afholdt til rejser, reklame og
+lignende med det formål at opnå salg af varer og tjenesteydelser i det
+pågældende og senere indkomstår.
+
+Stk. 2. Bestemmelserne i stk. 1 finder ikke anvendelse i de tilfælde, hvor den
+skattepligtige indkomst opgøres som en procentdel af en forenings formue efter
+reglerne i selskabsskatteloven.
+
+Stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages:
+a) løbende provisioner eller præmier for lån, som den skattepligtige optager,
+eller for sikring af hans tilgodehavende,
+b) præmier og lignende løbende ydelser for kaution for den skattepligtiges
+gæld, og
+c) stiftelsesprovisioner, engangspræmier og lignende engangsydelser for lån,
+sikring af tilgodehavender eller kaution, som nævnt under a) og b), såfremt
+løbetiden er mindre end 2 år.
+
+Stk. 4. Ved opgørelsen af den skattepligtige indkomst fradrages udgifter til
+repræsentation dog kun med et beløb svarende til 25 pct. af de afholdte
+udgifter.
+----
+
+--@begin::ligningsloven_par8--
+# Ligningslov8Stk1Udgiftsart = Ll8Stk1Rejse | Ll8Stk1Reklame | Ll8Stk1LignendeSalgsudgift | Ll8Stk1Repræsentation | Ll8Stk1AndenUdgift
+# Ligningslov8Stk1Input(indkomstår: Heltal, afholdelsesår: Heltal, udgiftsart: Ligningslov8Stk1Udgiftsart, afholdt_udgift_kroner: Heltal, afholdt_i_forbindelse_med_skattepligtiges_erhverv: Boolsk, formål_at_opnå_salg_af_varer_eller_tjenesteydelser: Boolsk, foreningsindkomst_opgjort_som_procent_af_formue: Boolsk)
+# Ligningslov8Stk1Resultat(indkomstår: Heltal, udgiftsart: Ligningslov8Stk1Udgiftsart, udgift_omfattet_af_stk1: Boolsk, afskåret_efter_stk2: Boolsk, begrænset_som_repræsentation_efter_stk4: Boolsk, fradragssats_basispoint: Heltal, afholdt_udgift_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+
+# Ligningslov8Stk1Sag(input: Ligningslov8Stk1Input) {
+    | udgiftsart_nævnt_i_stk1() -> input.udgiftsart == Ll8Stk1Rejse || input.udgiftsart == Ll8Stk1Reklame || input.udgiftsart == Ll8Stk1LignendeSalgsudgift || input.udgiftsart == Ll8Stk1Repræsentation
+    | afholdt_i_indkomståret() -> input.afholdelsesår == input.indkomstår
+    | afskåret_efter_stk2() -> input.foreningsindkomst_opgjort_som_procent_af_formue
+    | udgift_omfattet_af_stk1() -> udgiftsart_nævnt_i_stk1() && afholdt_i_indkomståret() && input.afholdt_i_forbindelse_med_skattepligtiges_erhverv && input.formål_at_opnå_salg_af_varer_eller_tjenesteydelser && afskåret_efter_stk2() == Falskt
+    | begrænset_som_repræsentation_efter_stk4() -> udgift_omfattet_af_stk1() && input.udgiftsart == Ll8Stk1Repræsentation
+    | fradragssats_basispoint() -> 10000
+    | exception repræsentation_fradrages_med_femogtyve_procent fradragssats_basispoint() -> 2500 under begrænset_som_repræsentation_efter_stk4()
+    | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception stk1_erhvervsmæssig_salgsudgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> penge_beløb_gange_basispoint_kroner(afholdt_udgift_kroner(), fradragssats_basispoint()) under udgift_omfattet_af_stk1()
+    | ikke_fradraget_kroner() -> afholdt_udgift_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
+    | resultat() -> Ligningslov8Stk1Resultat(
+        indkomstår = input.indkomstår,
+        udgiftsart = input.udgiftsart,
+        udgift_omfattet_af_stk1 = udgift_omfattet_af_stk1(),
+        afskåret_efter_stk2 = afskåret_efter_stk2(),
+        begrænset_som_repræsentation_efter_stk4 = begrænset_som_repræsentation_efter_stk4(),
+        fradragssats_basispoint = fradragssats_basispoint(),
+        afholdt_udgift_kroner = afholdt_udgift_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        ikke_fradraget_kroner = ikke_fradraget_kroner()
+    )
+}
+
+| ligningslov8_stk1_sag(input: Ligningslov8Stk1Input) -> Ligningslov8Stk1Sag(input)
+| ligningslov8_stk1_resultat(input: Ligningslov8Stk1Input) -> ligningslov8_stk1_sag(input).resultat()
+--@end::ligningsloven_par8--
+
+= ligningsloven_lbk1500_par8b = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 B",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par8b::source:ligningsloven_lbk1500_par8b--
+----
+§ 8 B. Ved opgørelsen af den skattepligtige indkomst kan udgifter, som
+afholdes til forsøgs- og forskningsvirksomhed i tilknytning til den
+skattepligtiges erhverv, bortset fra udgifter til efterforskning efter
+råstoffer, jf. stk. 2, efter den skattepligtiges valg enten fradrages fuldt ud
+i det indkomstår, hvori de er afholdt, eller afskrives med lige store årlige
+beløb over dette og de følgende 4 indkomstår. Det samme gælder udgifter til
+grundforskning, der afholdes af en igangværende virksomhed. Hvis udgifter som
+nævnt i 1. pkt. er afholdt, før den skattepligtige påbegyndte erhvervet, kan
+udgifterne først fradrages i det indkomstår, hvori erhvervet er påbegyndt,
+eller afskrives som anført fra og med dette indkomstår, medmindre der er tale
+om et aktie- eller anpartsselskab. Told- og skatteforvaltningen kan dog
+tillade, at udgifterne fradrages eller afskrives som anført før påbegyndelsen
+af erhvervet.
+
+Stk. 2. Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter,
+som afholdes til efterforskning efter råstoffer i tilknytning til den
+skattepligtiges erhverv. Hvis udgifterne er afholdt, før den skattepligtige
+påbegyndte erhvervet, afskrives udgifterne dog med lige store årlige beløb over
+5 år fra og med det indkomstår, hvori erhvervet blev påbegyndt. Det samme
+gælder, hvis udgifterne i det indkomstår, hvori de er afholdt, overstiger 30
+pct. af den skattepligtiges overskud ved selvstændig erhvervsvirksomhed,
+opgjort uden fradrag og afskrivning efter dette stykke, men med tillæg af
+renteudgifter og valutakurstab og med fradrag af rente- og udbytteindtægter,
+samt valutakursgevinst, som indgår i opgørelsen af overskuddet. Told- og
+skatteforvaltningen kan tillade, at udgifter som omhandlet i 2. pkt. fradrages
+eller afskrives før igangsættelsen af den erhvervsvirksomhed, hvorpå
+efterforskningen tager sigte. Når omstændighederne taler derfor, kan told- og
+skatteforvaltningen desuden tillade, at udgifter som omhandlet i 3. pkt.
+fradrages på én gang.
+
+Stk. 3. Uanset stk. 1 og 2 kan udgifter til anskaffelse af maskiner, inventar
+og lignende driftsmidler, skibe og fast ejendom kun fradrages eller afskrives
+efter lov om skattemæssige afskrivninger m.v.
+
+Stk. 4. Fradrag eller afskrivninger efter stk. 1 kan for udgifter afholdt i
+indkomstårene 2018 og 2019 foretages med et beløb svarende til 101,5 pct. af
+den afholdte udgift, for indkomståret 2020 med 103 pct., for indkomstårene 2021
+og 2022 med 105 pct. og for indkomstårene 2023-2025 med 108 pct. For
+indkomstårene 2020-2022 kan der ud over fradrag eller afskrivninger efter 1.
+pkt. foretages fradrag eller afskrivninger på 27 pct. for indkomståret 2020 og
+25 pct. for indkomstårene 2021 og 2022 af udgiften. Fradrag eller afskrivninger
+som nævnt i 1. pkt. kan for indkomståret 2026 foretages med et beløb svarende
+til 114 pct. af den afholdte udgift, for indkomståret 2027 med et beløb
+svarende til 116 pct. af den afholdte udgift og fra og med indkomståret 2028
+med et beløb svarende til 120 pct. af den afholdte udgift. Fradrag eller
+afskrivninger efter 2. pkt. og fradrag efter afskrivningslovens § 6, stk. 1,
+nr. 3, 3. pkt., kan højst foretages for samlede udgifter på 845 mio. kr. i
+indkomståret 2020 og 910 mio. kr. i indkomstårene 2021 og 2022. Fradrag eller
+afskrivning efter 3. pkt. og fradrag efter afskrivningslovens § 6, stk. 1, nr.
+3, 4. pkt., kan højst foretages for samlede udgifter på 793 mio. kr.
+(2010-niveau). Udgifter over loftet i 5. pkt. kan fra og med indkomståret 2026
+fradrages med 110 pct. Begrænsningerne efter 4. og 5. pkt. gælder samlet for
+sambeskattede selskaber i samme koncern, idet den samlede begrænsning fordeles
+forholdsmæssigt mellem de sambeskattede selskabers udgifter omfattet af 4. og
+5. pkt. Grundbeløbet i 5. pkt. reguleres efter personskattelovens § 20, dog
+således at det regulerede beløb afrundes opad til nærmeste kronebeløb, der kan
+deles med 100.000.
+----
+
+--@begin::ligningsloven_par8b--
+# Ligningslov8BUdgiftsart = Ll8BForsøgsOgForskningsvirksomhed | Ll8BGrundforskning | Ll8BRåstofefterforskning | Ll8BMaskineInventarEllerDriftsmiddel | Ll8BSkib | Ll8BFastEjendom | Ll8BAndenUdgift
+# Ligningslov8BValg = Ll8BStraksfradrag | Ll8BLineærAfskrivningOverFemÅr
+# Ligningslov8BErhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(år: Heltal) | Ll8BErhvervEndnuIkkePåbegyndt
+# Ligningslov8BInput(indkomstår: Heltal, afholdelsesår: Heltal, erhvervsstart: Ligningslov8BErhvervsstart, udgiftsart: Ligningslov8BUdgiftsart, valg: Ligningslov8BValg, afholdt_udgift_kroner: Heltal, tilknytning_til_skattepligtiges_erhverv: Boolsk, igangværende_virksomhed: Boolsk, aktie_eller_anpartsselskab: Boolsk, told_skat_tillader_fradrag_før_erhvervsstart: Boolsk, selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal, renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal, rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal, told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk, tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal, reguleringstal_tiendedele: Heltal)
+# Ligningslov8BResultat(indkomstår: Heltal, afholdelsesår: Heltal, udgiftsart: Ligningslov8BUdgiftsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, henvist_til_afskrivningsloven_efter_stk3: Boolsk, afholdt_før_erhvervsstart: Boolsk, afventer_fastlagt_erhvervspåbegyndelsesår: Boolsk, råstofudgift_over_tredive_procent_af_overskud: Boolsk, fradragsstartår: Heltal, lineær_afskrivning_påkrævet_eller_valgt: Boolsk, stk4_loft_kroner: Heltal, udgift_under_stk4_loft_kroner: Heltal, udgift_over_stk4_loft_kroner: Heltal, forhøjet_fradragsgrundlag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, henvist_til_afskrivningsloven_kroner: Heltal)
+
+| ligningslov8b_afrund_op_til_hundrede_tusinde_kroner(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { (beløb_kroner + 99999) / 100000 * 100000 } ellers { 0 }
+| ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 0
+| exception ligningslov8b_loft_2020 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 845000000 under afholdelsesår == 2020
+| exception ligningslov8b_loft_2021_2022 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> 910000000 under afholdelsesår == 2021 || afholdelsesår == 2022
+| exception ligningslov8b_reguleret_loft_fra_2026 ligningslov8b_stk4_loft_kroner(afholdelsesår: Heltal, reguleringstal_tiendedele: Heltal) -> ligningslov8b_afrund_op_til_hundrede_tusinde_kroner(793000000 * reguleringstal_tiendedele / 1000) under afholdelsesår >= 2026 && reguleringstal_tiendedele > 0
+
+# Ligningslov8BSag(input: Ligningslov8BInput) {
+    | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
+    | henvist_til_afskrivningsloven_efter_stk3() -> input.udgiftsart == Ll8BMaskineInventarEllerDriftsmiddel || input.udgiftsart == Ll8BSkib || input.udgiftsart == Ll8BFastEjendom
+    | omfattet_af_stk1_art() -> input.udgiftsart == Ll8BForsøgsOgForskningsvirksomhed || input.udgiftsart == Ll8BGrundforskning
+    | grundforskning_opfylder_igangværende_krav() -> input.udgiftsart != Ll8BGrundforskning || input.igangværende_virksomhed
+    | erhvervsstart_oplysning_gyldig() -> match input.erhvervsstart {
+        | Ll8BKendtErhvervspåbegyndelsesår(år) -> år > 0
+        | Ll8BErhvervEndnuIkkePåbegyndt -> Sandt
+    }
+    | kendt_erhvervspåbegyndelsesår() -> match input.erhvervsstart {
+        | Ll8BKendtErhvervspåbegyndelsesår(år) -> penge_positivt_beløb(år)
+        | Ll8BErhvervEndnuIkkePåbegyndt -> 0
+    }
+    | erhverv_endnu_ikke_påbegyndt() -> input.erhvervsstart == Ll8BErhvervEndnuIkkePåbegyndt
+    | omfattet_af_stk1() -> omfattet_af_stk1_art() && grundforskning_opfylder_igangværende_krav() && input.tilknytning_til_skattepligtiges_erhverv && erhvervsstart_oplysning_gyldig() && henvist_til_afskrivningsloven_efter_stk3() == Falskt
+    | omfattet_af_stk2() -> input.udgiftsart == Ll8BRåstofefterforskning && input.tilknytning_til_skattepligtiges_erhverv && erhvervsstart_oplysning_gyldig() && henvist_til_afskrivningsloven_efter_stk3() == Falskt
+    | afholdt_før_erhvervsstart() -> erhverv_endnu_ikke_påbegyndt() || kendt_erhvervspåbegyndelsesår() > 0 && input.afholdelsesår < kendt_erhvervspåbegyndelsesår()
+    | afventer_fastlagt_erhvervspåbegyndelsesår() -> (omfattet_af_stk1() || omfattet_af_stk2()) && erhverv_endnu_ikke_påbegyndt() && input.aktie_eller_anpartsselskab == Falskt && input.told_skat_tillader_fradrag_før_erhvervsstart == Falskt
+    | stk1_må_fradrages_fra_afholdelsesåret() -> input.aktie_eller_anpartsselskab || afholdt_før_erhvervsstart() == Falskt || input.told_skat_tillader_fradrag_før_erhvervsstart
+    | stk2_overskud_før_nulgrænse_kroner() -> input.selvstændigt_overskud_før_stk2_fradrag_kroner + penge_positivt_beløb(input.renteudgifter_og_valutakurstab_i_overskud_kroner) - penge_positivt_beløb(input.rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner)
+    | stk2_overskud_efter_lovens_korrektioner_kroner() -> penge_positivt_beløb(stk2_overskud_før_nulgrænse_kroner())
+    | stk2_tredive_procent_af_overskud_kroner() -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(stk2_overskud_efter_lovens_korrektioner_kroner()), 3000)
+    | råstofudgift_over_tredive_procent_af_overskud() -> omfattet_af_stk2() && afholdt_udgift_kroner() > stk2_tredive_procent_af_overskud_kroner()
+    | fradragsstartår() -> input.afholdelsesår
+    | exception stk1_udgift_venter_til_kendt_erhvervsstart fradragsstartår() -> kendt_erhvervspåbegyndelsesår() under omfattet_af_stk1() && afholdt_før_erhvervsstart() && kendt_erhvervspåbegyndelsesår() > 0 && stk1_må_fradrages_fra_afholdelsesåret() == Falskt
+    | exception stk2_udgift_venter_til_kendt_erhvervsstart fradragsstartår() -> kendt_erhvervspåbegyndelsesår() under omfattet_af_stk2() && afholdt_før_erhvervsstart() && kendt_erhvervspåbegyndelsesår() > 0 && input.told_skat_tillader_fradrag_før_erhvervsstart == Falskt
+    | exception udgift_afventer_endnu_ukendt_erhvervsstart fradragsstartår() -> 0 under afventer_fastlagt_erhvervspåbegyndelsesår()
+    | lineær_afskrivning_påkrævet_eller_valgt() -> Falskt
+    | exception stk1_vælger_lineær_afskrivning lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk1() && input.valg == Ll8BLineærAfskrivningOverFemÅr
+    | exception stk2_før_start_afskrives_lineært lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk2() && afholdt_før_erhvervsstart() && input.told_skat_tillader_fradrag_før_erhvervsstart == Falskt
+    | exception stk2_før_start_med_tilladelse_vælger_lineær_afskrivning lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk2() && afholdt_før_erhvervsstart() && input.told_skat_tillader_fradrag_før_erhvervsstart && input.valg == Ll8BLineærAfskrivningOverFemÅr
+    | exception stk2_stort_beløb_afskrives_lineært lineær_afskrivning_påkrævet_eller_valgt() -> Sandt under omfattet_af_stk2() && råstofudgift_over_tredive_procent_af_overskud() && input.told_skat_tillader_straksfradrag_for_stort_råstofbeløb == Falskt
+    | stk4_loft_kroner() -> ligningslov8b_stk4_loft_kroner(input.afholdelsesår, input.reguleringstal_tiendedele)
+    | tidligere_stk4_udgifter_under_koncernloft_kroner() -> penge_positivt_beløb(input.tidligere_stk4_udgifter_under_koncernloft_kroner)
+    | resterende_stk4_loft_kroner() -> penge_positivt_beløb(stk4_loft_kroner() - tidligere_stk4_udgifter_under_koncernloft_kroner())
+    | udgift_under_stk4_loft_kroner() -> afholdt_udgift_kroner()
+    | exception stk4_loft_fordeler_udgiften udgift_under_stk4_loft_kroner() -> penge_mindste_beløb(afholdt_udgift_kroner(), resterende_stk4_loft_kroner()) under omfattet_af_stk1() && stk4_loft_kroner() > 0
+    | udgift_over_stk4_loft_kroner() -> afholdt_udgift_kroner() - udgift_under_stk4_loft_kroner()
+    | stk4_grundsats_basispoint() -> 10000
+    | exception stk4_2018_2019_sats stk4_grundsats_basispoint() -> 10150 under input.afholdelsesår == 2018 || input.afholdelsesår == 2019
+    | exception stk4_2020_sats stk4_grundsats_basispoint() -> 10300 under input.afholdelsesår == 2020
+    | exception stk4_2021_2022_sats stk4_grundsats_basispoint() -> 10500 under input.afholdelsesår == 2021 || input.afholdelsesår == 2022
+    | exception stk4_2023_2025_sats stk4_grundsats_basispoint() -> 10800 under input.afholdelsesår >= 2023 && input.afholdelsesår <= 2025
+    | exception stk4_2026_sats stk4_grundsats_basispoint() -> 11400 under input.afholdelsesår == 2026
+    | exception stk4_2027_sats stk4_grundsats_basispoint() -> 11600 under input.afholdelsesår == 2027
+    | exception stk4_fra_2028_sats stk4_grundsats_basispoint() -> 12000 under input.afholdelsesår >= 2028
+    | stk4_ekstra_sats_under_loft_basispoint() -> 0
+    | exception stk4_2020_ekstra_sats stk4_ekstra_sats_under_loft_basispoint() -> 2700 under input.afholdelsesår == 2020
+    | exception stk4_2021_2022_ekstra_sats stk4_ekstra_sats_under_loft_basispoint() -> 2500 under input.afholdelsesår == 2021 || input.afholdelsesår == 2022
+    | stk4_over_loft_sats_basispoint() -> stk4_grundsats_basispoint()
+    | exception stk4_fra_2026_over_loft_110_procent stk4_over_loft_sats_basispoint() -> 11000 under input.afholdelsesår >= 2026
+    | forhøjet_stk1_fradragsgrundlag_kroner() -> penge_beløb_gange_basispoint_kroner(udgift_under_stk4_loft_kroner(), stk4_grundsats_basispoint() + stk4_ekstra_sats_under_loft_basispoint()) + penge_beløb_gange_basispoint_kroner(udgift_over_stk4_loft_kroner(), stk4_over_loft_sats_basispoint())
+    | forhøjet_fradragsgrundlag_kroner() -> afholdt_udgift_kroner()
+    | exception stk1_forhøjes_efter_stk4 forhøjet_fradragsgrundlag_kroner() -> forhøjet_stk1_fradragsgrundlag_kroner() under omfattet_af_stk1()
+    | indkomstår_i_femårsperiode() -> input.indkomstår >= fradragsstartår() && input.indkomstår <= fradragsstartår() + 4
+    | lineært_årsfradrag_kroner() -> 0
+    | exception første_fire_lineære_år lineært_årsfradrag_kroner() -> forhøjet_fradragsgrundlag_kroner() / 5 under indkomstår_i_femårsperiode() && input.indkomstår < fradragsstartår() + 4
+    | exception sidste_lineære_år_bevarer_resten lineært_årsfradrag_kroner() -> forhøjet_fradragsgrundlag_kroner() - forhøjet_fradragsgrundlag_kroner() / 5 * 4 under indkomstår_i_femårsperiode() && input.indkomstår == fradragsstartår() + 4
+    | straksfradrag_i_indkomståret_kroner() -> 0
+    | exception straksfradrag_i_startåret straksfradrag_i_indkomståret_kroner() -> forhøjet_fradragsgrundlag_kroner() under input.indkomstår == fradragsstartår()
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception omfattet_lineær_udgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> lineært_årsfradrag_kroner() under (omfattet_af_stk1() || omfattet_af_stk2()) && lineær_afskrivning_påkrævet_eller_valgt()
+    | exception omfattet_straksudgift_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> straksfradrag_i_indkomståret_kroner() under (omfattet_af_stk1() || omfattet_af_stk2()) && lineær_afskrivning_påkrævet_eller_valgt() == Falskt
+    | henvist_til_afskrivningsloven_kroner() -> 0
+    | exception stk3_henviser_anskaffelsen_til_afskrivningsloven henvist_til_afskrivningsloven_kroner() -> afholdt_udgift_kroner() under henvist_til_afskrivningsloven_efter_stk3()
+    | resultat() -> Ligningslov8BResultat(
+        indkomstår = input.indkomstår,
+        afholdelsesår = input.afholdelsesår,
+        udgiftsart = input.udgiftsart,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        omfattet_af_stk2 = omfattet_af_stk2(),
+        henvist_til_afskrivningsloven_efter_stk3 = henvist_til_afskrivningsloven_efter_stk3(),
+        afholdt_før_erhvervsstart = afholdt_før_erhvervsstart(),
+        afventer_fastlagt_erhvervspåbegyndelsesår = afventer_fastlagt_erhvervspåbegyndelsesår(),
+        råstofudgift_over_tredive_procent_af_overskud = råstofudgift_over_tredive_procent_af_overskud(),
+        fradragsstartår = fradragsstartår(),
+        lineær_afskrivning_påkrævet_eller_valgt = lineær_afskrivning_påkrævet_eller_valgt(),
+        stk4_loft_kroner = stk4_loft_kroner(),
+        udgift_under_stk4_loft_kroner = udgift_under_stk4_loft_kroner(),
+        udgift_over_stk4_loft_kroner = udgift_over_stk4_loft_kroner(),
+        forhøjet_fradragsgrundlag_kroner = forhøjet_fradragsgrundlag_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        henvist_til_afskrivningsloven_kroner = henvist_til_afskrivningsloven_kroner()
+    )
+}
+
+| ligningslov8b_sag(input: Ligningslov8BInput) -> Ligningslov8BSag(input)
+| ligningslov8b_resultat(input: Ligningslov8BInput) -> ligningslov8b_sag(input).resultat()
+--@end::ligningsloven_par8b--
+
+= ligningsloven_lbk1500_par8k = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 K",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par8k::source:ligningsloven_lbk1500_par8k--
+----
+§ 8 K. Ved opgørelsen af den skattepligtige indkomst kan udgifter, der
+afholdes til nyplantning af fredskov, fradrages med indtil 20 pct. årligt.
+Overstiger udgifterne ikke 25.000 kr. pr. år pr. ejendom, kan beløbet dog
+fradrages i det indkomstår, hvori udgiften er afholdt. Såfremt ejendommen
+sælges eller det tilplantede areal ryddes efter brand, kan udgifter, der endnu
+ikke er fradraget efter 1. pkt., fratrækkes i det indkomstår, hvori salget
+eller rydningen sker. Det er en betingelse for fradrag, at det tilplantede
+areal pålægges fredskovspligt efter skovlovens bestemmelser herom, og at
+fredskovspligten registreres i matrikelregisteret og på matrikelkortet.
+Udgifter til genplantning af skov kan fradrages straks.
+
+Stk. 2. Ved opgørelsen af den skattepligtige indkomst kan udgifter til
+plantning af træer, der er bestemt til erhvervsmæssig anvendelse som juletræer
+eller pyntegrønt i kort omdrift, samt frugttræer og frugtbuske fradrages med
+indtil 20 pct. årligt. Overstiger udgifterne ikke 25.000 kr. pr. år pr.
+ejendom, kan beløbet dog fradrages i det indkomstår, hvori udgiften er afholdt.
+Udgifter til genplantning i skov af træer, der er bestemt til erhvervsmæssig
+anvendelse som juletræer eller pyntegrønt, kan dog uanset 1. pkt. fradrages
+straks. Såfremt ejendommen sælges, eller det tilplantede areal ryddes, kan
+udgifter, der endnu ikke er fradraget efter 1. pkt., fratrækkes i det
+indkomstår, hvori salget eller rydningen sker.
+
+Stk. 3. Ved opgørelsen af den skattepligtige indkomst kan udgifter, der
+afholdes til anlæg af læhegn samt supplerende lægivende løvtræplantning, jf.
+lov om læhegn og tilskud til læplantning, fradrages fuldt ud i den
+skattepligtige indkomst i det indkomstår, hvori udgiften er afholdt. Tilskud
+til læplantning ydet efter lov om læhegn medregnes i den skattepligtige
+indkomst i samme indkomstår, hvori udgifter efter 1. pkt. afholdes.
+
+Stk. 4. Ved opgørelsen af den skattepligtige indkomst kan udgifter til
+plantning af flerårige energiafgrøder i form af ask, el, elefantgræs, hassel,
+pil, poppel og præriegræs fradrages fuldt ud i den skattepligtige indkomst for
+det indkomstår, hvori udgiften er afholdt. Det er en betingelse, at den
+skattepligtiges areal med planter af de arter, som er nævnt i 1. pkt., i ren
+eller blandet bestand er på mindst 0,30 ha. Der kan dog ikke opnås fradrag for
+udgifter, der afholdes til plantning af flerårige energiafgrøder uden for
+EU/EØS, Grønland og Færøerne.
+
+Stk. 5. Anskaffelsessummer og afståelsessummer for træer mv. omfattet af stk.
+1-4 omregnes til kontantværdi.
+
+Stk. 6. Stk. 1-5 finder tilsvarende anvendelse på udgifter til plantning på
+lejet eller forpagtet jord. Det gælder dog ikke adgangen til straksfradrag for
+udgifter, der ikke overstiger 25.000 kr. pr. år pr. ejendom, jf. stk. 1, 2.
+pkt., og stk. 2, 2. pkt., samt adgangen til at fratrække udgifter, der endnu
+ikke er fradraget ved salg af ejendommen, jf. stk. 1, 3. pkt., og stk. 2, 4.
+pkt. Ophører et leje- eller forpagtningsforhold, kan lejeren eller forpagteren
+fratrække udgifter, der endnu ikke er fradraget efter stk. 1 eller stk. 2, 1.
+pkt., i det år, hvori leje- eller forpagtningsforholdet ophører.
+
+Stk. 7. Udgifter, der er fratrukket efter stk. 1-5, medregnes ikke til
+anskaffelsessummen ved opgørelsen af skattepligtig fortjeneste eller tab ved
+afståelse af fast ejendom.
+
+Stk. 8. Uanset stk. 1-4 kan udgifter til anskaffelse af maskiner, inventar og
+lignende driftsmidler og fast ejendom kun fradrages eller afskrives efter lov
+om skattemæssige afskrivninger mv.
+----
+
+--@begin::ligningsloven_par8k--
+# Ligningslov8KPlantningsart = Ll8KNyplantningAfFredskov | Ll8KGenplantningAfSkov | Ll8KKortOmdriftJuletræEllerPyntegrønt | Ll8KFrugttræEllerFrugtbusk | Ll8KGenplantningAfJuletræEllerPyntegrøntISkov | Ll8KLæhegnEllerSupplerendeLæplantning | Ll8KEnergiafgrødeAsk | Ll8KEnergiafgrødeEl | Ll8KEnergiafgrødeElefantgræs | Ll8KEnergiafgrødeHassel | Ll8KEnergiafgrødePil | Ll8KEnergiafgrødePoppel | Ll8KEnergiafgrødePræriegræs | Ll8KAndenPlantning
+# Ligningslov8KHændelse = Ll8KIngenSærhændelse | Ll8KEjendomSolgt | Ll8KArealRyddetEfterBrand | Ll8KArealRyddetAfAndenGrund | Ll8KLejeEllerForpagtningOphørt
+# Ligningslov8KOmråde = Ll8KEuEøs | Ll8KGrønlandEllerFærøerne | Ll8KUdenforTilladtOmråde
+# Ligningslov8KInput(indkomstår: Heltal, afholdelsesår: Heltal, plantningsart: Ligningslov8KPlantningsart, hændelse: Ligningslov8KHændelse, område: Ligningslov8KOmråde, afholdt_udgift_kroner: Heltal, tidligere_fradraget_kroner: Heltal, årets_samlede_udgifter_pr_ejendom_kroner: Heltal, valgt_fradrag_kroner: Heltal, fredskovspligt_pålagt_og_registreret: Boolsk, energiafgrødeareal_kvadratmeter: Heltal, lejet_eller_forpagtet_jord: Boolsk, udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom: Boolsk)
+# Ligningslov8KResultat(indkomstår: Heltal, plantningsart: Ligningslov8KPlantningsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, omfattet_af_stk3: Boolsk, omfattet_af_stk4: Boolsk, straksfradrag_tilladt: Boolsk, højeste_fradrag_i_indkomståret_kroner: Heltal, valgt_fradrag_kroner: Heltal, valgt_fradrag_begrænset: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, resterende_ikke_fradraget_kroner: Heltal, fradrag_udelukket_fra_ejendommens_anskaffelsessum: Boolsk, henvist_til_afskrivningsloven_kroner: Heltal)
+
+# Ligningslov8KSag(input: Ligningslov8KInput) {
+    | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
+    | tidligere_fradraget_kroner() -> penge_mindste_beløb(penge_positivt_beløb(input.tidligere_fradraget_kroner), afholdt_udgift_kroner())
+    | resterende_før_årets_fradrag_kroner() -> afholdt_udgift_kroner() - tidligere_fradraget_kroner()
+    | henvist_til_afskrivningsloven() -> input.udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom
+    | omfattet_af_stk1() -> (input.plantningsart == Ll8KNyplantningAfFredskov || input.plantningsart == Ll8KGenplantningAfSkov) && input.fredskovspligt_pålagt_og_registreret && henvist_til_afskrivningsloven() == Falskt
+    | omfattet_af_stk2() -> (input.plantningsart == Ll8KKortOmdriftJuletræEllerPyntegrønt || input.plantningsart == Ll8KFrugttræEllerFrugtbusk || input.plantningsart == Ll8KGenplantningAfJuletræEllerPyntegrøntISkov) && henvist_til_afskrivningsloven() == Falskt
+    | omfattet_af_stk3() -> input.plantningsart == Ll8KLæhegnEllerSupplerendeLæplantning && henvist_til_afskrivningsloven() == Falskt
+    | er_energiafgrøde_nævnt_i_stk4() -> input.plantningsart == Ll8KEnergiafgrødeAsk || input.plantningsart == Ll8KEnergiafgrødeEl || input.plantningsart == Ll8KEnergiafgrødeElefantgræs || input.plantningsart == Ll8KEnergiafgrødeHassel || input.plantningsart == Ll8KEnergiafgrødePil || input.plantningsart == Ll8KEnergiafgrødePoppel || input.plantningsart == Ll8KEnergiafgrødePræriegræs
+    | energiafgrøde_i_tilladt_område() -> input.område == Ll8KEuEøs || input.område == Ll8KGrønlandEllerFærøerne
+    | omfattet_af_stk4() -> er_energiafgrøde_nævnt_i_stk4() && input.energiafgrødeareal_kvadratmeter >= 3000 && energiafgrøde_i_tilladt_område() && henvist_til_afskrivningsloven() == Falskt
+    | omfattet_af_stk1_eller_stk2() -> omfattet_af_stk1() || omfattet_af_stk2()
+    | afholdt_i_indkomståret() -> input.indkomstår == input.afholdelsesår
+    | årets_samlede_udgifter_pr_ejendom_kroner() -> penge_største_beløb(afholdt_udgift_kroner(), penge_positivt_beløb(input.årets_samlede_udgifter_pr_ejendom_kroner))
+    | under_femogtyve_tusinde_pr_ejendom() -> årets_samlede_udgifter_pr_ejendom_kroner() <= 25000
+    | straksfradrag_for_lille_ejerudgift() -> omfattet_af_stk1_eller_stk2() && afholdt_i_indkomståret() && under_femogtyve_tusinde_pr_ejendom() && input.lejet_eller_forpagtet_jord == Falskt
+    | straksfradrag_for_genplantning() -> afholdt_i_indkomståret() && (input.plantningsart == Ll8KGenplantningAfSkov || input.plantningsart == Ll8KGenplantningAfJuletræEllerPyntegrøntISkov) && (omfattet_af_stk1() || omfattet_af_stk2())
+    | stk1_terminal_hændelse() -> omfattet_af_stk1() && input.plantningsart == Ll8KNyplantningAfFredskov && input.lejet_eller_forpagtet_jord == Falskt && (input.hændelse == Ll8KEjendomSolgt || input.hændelse == Ll8KArealRyddetEfterBrand)
+    | stk2_terminal_hændelse() -> omfattet_af_stk2() && (input.plantningsart == Ll8KKortOmdriftJuletræEllerPyntegrønt || input.plantningsart == Ll8KFrugttræEllerFrugtbusk) && input.lejet_eller_forpagtet_jord == Falskt && (input.hændelse == Ll8KEjendomSolgt || input.hændelse == Ll8KArealRyddetEfterBrand || input.hændelse == Ll8KArealRyddetAfAndenGrund)
+    | lejeophør_udløser_restfradrag() -> omfattet_af_stk1_eller_stk2() && input.lejet_eller_forpagtet_jord && input.hændelse == Ll8KLejeEllerForpagtningOphørt
+    | stk3_eller_stk4_straksfradrag() -> afholdt_i_indkomståret() && (omfattet_af_stk3() || omfattet_af_stk4())
+    | straksfradrag_tilladt() -> straksfradrag_for_lille_ejerudgift() || straksfradrag_for_genplantning() || stk1_terminal_hændelse() || stk2_terminal_hændelse() || lejeophør_udløser_restfradrag() || stk3_eller_stk4_straksfradrag()
+    | ordinært_tyve_procent_fradrag_kroner() -> penge_beløb_gange_basispoint_kroner(afholdt_udgift_kroner(), 2000)
+    | højeste_fradrag_i_indkomståret_kroner() -> 0
+    | exception stk1_stk2_ordinært_tyve_procent_fradrag højeste_fradrag_i_indkomståret_kroner() -> penge_mindste_beløb(ordinært_tyve_procent_fradrag_kroner(), resterende_før_årets_fradrag_kroner()) under omfattet_af_stk1_eller_stk2() && input.indkomstår >= input.afholdelsesår && straksfradrag_tilladt() == Falskt
+    | exception straksfradrag_omfatter_resten højeste_fradrag_i_indkomståret_kroner() -> resterende_før_årets_fradrag_kroner() under straksfradrag_tilladt()
+    | valgt_fradrag_kroner() -> penge_positivt_beløb(input.valgt_fradrag_kroner)
+    | valgt_fradrag_begrænset() -> valgt_fradrag_kroner() > højeste_fradrag_i_indkomståret_kroner()
+    | fradrag_i_skattepligtig_indkomst_kroner() -> penge_mindste_beløb(valgt_fradrag_kroner(), højeste_fradrag_i_indkomståret_kroner())
+    | resterende_ikke_fradraget_kroner() -> resterende_før_årets_fradrag_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
+    | fradrag_udelukket_fra_ejendommens_anskaffelsessum() -> fradrag_i_skattepligtig_indkomst_kroner() > 0
+    | henvist_til_afskrivningsloven_kroner() -> 0
+    | exception stk8_henviser_aktivudgift_til_afskrivningsloven henvist_til_afskrivningsloven_kroner() -> afholdt_udgift_kroner() under henvist_til_afskrivningsloven()
+    | resultat() -> Ligningslov8KResultat(
+        indkomstår = input.indkomstår,
+        plantningsart = input.plantningsart,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        omfattet_af_stk2 = omfattet_af_stk2(),
+        omfattet_af_stk3 = omfattet_af_stk3(),
+        omfattet_af_stk4 = omfattet_af_stk4(),
+        straksfradrag_tilladt = straksfradrag_tilladt(),
+        højeste_fradrag_i_indkomståret_kroner = højeste_fradrag_i_indkomståret_kroner(),
+        valgt_fradrag_kroner = valgt_fradrag_kroner(),
+        valgt_fradrag_begrænset = valgt_fradrag_begrænset(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        resterende_ikke_fradraget_kroner = resterende_ikke_fradraget_kroner(),
+        fradrag_udelukket_fra_ejendommens_anskaffelsessum = fradrag_udelukket_fra_ejendommens_anskaffelsessum(),
+        henvist_til_afskrivningsloven_kroner = henvist_til_afskrivningsloven_kroner()
+    )
+}
+
+| ligningslov8k_sag(input: Ligningslov8KInput) -> Ligningslov8KSag(input)
+| ligningslov8k_resultat(input: Ligningslov8KInput) -> ligningslov8k_sag(input).resultat()
+--@end::ligningsloven_par8k--
+
+= ligningsloven_lbk1500_par8l = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 L",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par8l::source:ligningsloven_lbk1500_par8l--
+----
+§ 8 L. Ved opgørelsen af den skattepligtige indkomst kan fradrages beløb, som
+efter lov om friplejeboliger er indbetalt til Landsbyggefonden som følge af,
+at huslejeindtægterne overstiger udgifterne på bygningerne opgjort efter
+reglerne i lov om friplejeboliger.
+
+Stk. 2. Ved opgørelsen af den skattepligtige indkomst fradrages beløb, som er
+indbetalt til Landsbyggefonden i forbindelse med, at friplejeboliger eller
+servicearealer tilknyttet friplejeboliger er solgt eller taget i brug til
+anden anvendelse efter kapitel 9 i lov om friplejeboliger.
+----
+
+--@begin::ligningsloven_par8l--
+# Ligningslov8LIndbetalingsgrundlag = Ll8LHuslejeindtægterOverstigerBygningsudgifter | Ll8LSalgAfFriplejeboligEllerServiceareal | Ll8LAndenAnvendelseAfFriplejeboligEllerServiceareal | Ll8LAndenIndbetaling
+# Ligningslov8LInput(indkomstår: Heltal, indbetalingsår: Heltal, indbetalingsgrundlag: Ligningslov8LIndbetalingsgrundlag, indbetalt_til_landsbyggefonden_kroner: Heltal, omfattet_af_lov_om_friplejeboliger: Boolsk)
+# Ligningslov8LResultat(indkomstår: Heltal, indbetalingsgrundlag: Ligningslov8LIndbetalingsgrundlag, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+# Ligningslov8LSag(input: Ligningslov8LInput) {
+    | indbetalt_i_indkomståret() -> input.indbetalingsår == input.indkomstår
+    | omfattet_af_stk1() -> input.omfattet_af_lov_om_friplejeboliger && indbetalt_i_indkomståret() && input.indbetalingsgrundlag == Ll8LHuslejeindtægterOverstigerBygningsudgifter
+    | omfattet_af_stk2() -> input.omfattet_af_lov_om_friplejeboliger && indbetalt_i_indkomståret() && (input.indbetalingsgrundlag == Ll8LSalgAfFriplejeboligEllerServiceareal || input.indbetalingsgrundlag == Ll8LAndenAnvendelseAfFriplejeboligEllerServiceareal)
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception landsbyggefondsindbetaling_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> penge_positivt_beløb(input.indbetalt_til_landsbyggefonden_kroner) under omfattet_af_stk1() || omfattet_af_stk2()
+    | resultat() -> Ligningslov8LResultat(
+        indkomstår = input.indkomstår,
+        indbetalingsgrundlag = input.indbetalingsgrundlag,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        omfattet_af_stk2 = omfattet_af_stk2(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner()
+    )
+}
+
+| ligningslov8l_sag(input: Ligningslov8LInput) -> Ligningslov8LSag(input)
+| ligningslov8l_resultat(input: Ligningslov8LInput) -> ligningslov8l_sag(input).resultat()
+--@end::ligningsloven_par8l--
 
 = ligningsloven_lbk1500_par8m = LigningslovFradragKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -136,6 +550,99 @@ af bidrag efter stk. 4.
 | ligningslov8m_sag(input: Ligningslov8MInput) -> Ligningslov8MSag(input)
 | ligningslov8m_resultat(input: Ligningslov8MInput) -> ligningslov8m_sag(input).resultat()
 --@end::ligningsloven_par8m--
+
+= ligningsloven_lbk1500_par8n = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 N",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par8n::source:ligningsloven_lbk1500_par8n--
+----
+§ 8 N. Ved opgørelsen af den skattepligtige indkomst kan fradrages
+erhvervsmæssige lønudgifter til personer i ansættelsesforhold,
+bestyrelseshonorarer og erhvervsmæssige udgifter tilknyttet ansættelsesforholdet
+eller bestyrelseserhvervet, jf. dog stk. 3-5.
+
+Stk. 2. Betaling for erhvervsmæssige udgifter omfattet af stk. 1 kan fradrages
+ved opgørelsen af den skattepligtige indkomst hos det betalende selskab, hvis
+det betalende og det modtagende selskab sambeskattes eller ville kunne
+sambeskattes efter selskabsskattelovens § 31 A.
+
+Stk. 3. Der kan dog ikke efter stk. 1 og 2 samlet fradrages udgifter for mere
+end et grundbeløb på 6.339.800 kr. (i 2010-niveau) for en person i et
+indkomstår. 1. pkt. gælder for de udgifter omfattet af stk. 1 og 2, der hos
+personen, som udgiften vedrører, skal medregnes ved opgørelsen af den
+skattepligtige indkomst eller beskattes som en arbejdsmarkedsbidragspligtig
+ydelse efter arbejdsmarkedsbidragsloven, eller, såfremt personen ikke er
+skattepligtig her til landet, som ville have været beskattet som en
+arbejdsmarkedsbidragspligtig ydelse efter arbejdsmarkedsbidragsloven, såfremt
+personen var skattepligtig her til landet. Til udgifterne nævnt i 2. pkt.
+medregnes tillige befordring, der er betalt af arbejdsgiveren, og som hos
+modtageren er skattefri efter § 9 C, stk. 7. Grundbeløbet reguleres efter
+personskattelovens § 20.
+
+Stk. 4. Stk. 3 finder anvendelse samlet for alle skattepligtige, der har en
+forbindelse som omhandlet i § 2. Grundbeløbet i stk. 3 fordeles forholdsmæssigt
+mellem de skattepligtige, som har en forbindelse som omhandlet i § 2, såfremt
+flere skattepligtige har udgifter som nævnt i stk. 3 til den samme person i
+samme indkomstår.
+
+Stk. 5. For køberetter til aktier og tegningsretter til aktier, der er
+omfattet af stk. 1 og 2, og hvor udgiften for det selskab, der har ydet
+køberetterne eller tegningsretterne, fradrages efter § 28, stk. 3, finder stk.
+3 anvendelse for værdien af køberetten eller tegningsretten på
+udnyttelsestidspunktet, og værdien tillægges de udgifter, der er omfattet af
+stk. 3, for den person, som køberetten eller tegningsretten oprindelig er
+udstedt til.
+----
+
+--@begin::ligningsloven_par8n--
+# Ligningslov8NUdgiftsart = Ll8NErhvervsmæssigLøn | Ll8NBestyrelseshonorar | Ll8NErhvervsmæssigUdgiftTilknyttetAnsættelse | Ll8NErhvervsmæssigUdgiftTilknyttetBestyrelseserhverv | Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7 | Ll8NKøberetEllerTegningsretEfterPar28Stk3 | Ll8NAndenUdgift
+# Ligningslov8NInput(indkomstår: Heltal, udgiftsart: Ligningslov8NUdgiftsart, udgift_kroner: Heltal, erhvervsmæssig: Boolsk, betalende_selskab_fradrager_for_modtagende_selskab: Boolsk, betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes: Boolsk, personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse: Boolsk, ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig: Boolsk, samlede_omfattede_udgifter_før_denne_kroner: Heltal, grundbeløbsandel_basispoint: Heltal, køberet_eller_tegningsret_oprindelig_udstedt_til_personen: Boolsk)
+# Ligningslov8NResultat(indkomstår: Heltal, udgiftsart: Ligningslov8NUdgiftsart, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, stk3_loft_finder_anvendelse: Boolsk, reguleret_grundbeløb_kroner: Heltal, fordelt_grundbeløb_kroner: Heltal, resterende_loft_før_udgiften_kroner: Heltal, udgift_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, afskåret_efter_stk3_kroner: Heltal)
+
+# Ligningslov8NSag(input: Ligningslov8NInput) {
+    | udgift_kroner() -> penge_positivt_beløb(input.udgift_kroner)
+    | almindelig_stk1_udgiftsart() -> input.udgiftsart == Ll8NErhvervsmæssigLøn || input.udgiftsart == Ll8NBestyrelseshonorar || input.udgiftsart == Ll8NErhvervsmæssigUdgiftTilknyttetAnsættelse || input.udgiftsart == Ll8NErhvervsmæssigUdgiftTilknyttetBestyrelseserhverv || input.udgiftsart == Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7
+    | stk5_aktieret_omfattet() -> input.udgiftsart == Ll8NKøberetEllerTegningsretEfterPar28Stk3 && input.køberet_eller_tegningsret_oprindelig_udstedt_til_personen
+    | udgiftsart_omfattet() -> almindelig_stk1_udgiftsart() || stk5_aktieret_omfattet()
+    | omfattet_af_stk1() -> udgiftsart_omfattet() && input.erhvervsmæssig && input.betalende_selskab_fradrager_for_modtagende_selskab == Falskt
+    | omfattet_af_stk2() -> udgiftsart_omfattet() && input.erhvervsmæssig && input.betalende_selskab_fradrager_for_modtagende_selskab && input.betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes
+    | grundlæggende_fradragsret() -> omfattet_af_stk1() || omfattet_af_stk2()
+    | befordring_omfattet_af_stk3() -> input.udgiftsart == Ll8NArbejdsgiverbetaltBefordringEfterPar9CStk7 && input.erhvervsmæssig
+    | stk3_loft_finder_anvendelse() -> grundlæggende_fradragsret() && (input.personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse || input.ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig || stk5_aktieret_omfattet() || befordring_omfattet_af_stk3())
+    | reguleret_grundbeløb_kroner() -> 0
+    | exception stk3_grundbeløb_reguleres_efter_par20 reguleret_grundbeløb_kroner() -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+        grundbeløb_2010_niveau_kroner = 6339800,
+        reguleringstal_tiendedele = par20_reguleringstal_tiendedele(input.indkomstår)
+    )) under input.indkomstår >= 2009 && input.indkomstår <= 2026
+    | grundbeløbsandel_basispoint() -> penge_mindste_beløb(penge_positivt_beløb(input.grundbeløbsandel_basispoint), 10000)
+    | fordelt_grundbeløb_kroner() -> penge_beløb_gange_basispoint_kroner(reguleret_grundbeløb_kroner(), grundbeløbsandel_basispoint())
+    | samlede_omfattede_udgifter_før_denne_kroner() -> penge_positivt_beløb(input.samlede_omfattede_udgifter_før_denne_kroner)
+    | resterende_loft_før_udgiften_kroner() -> penge_positivt_beløb(fordelt_grundbeløb_kroner() - samlede_omfattede_udgifter_før_denne_kroner())
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception stk1_stk2_udgift_uden_loft_fradrages_fuldt fradrag_i_skattepligtig_indkomst_kroner() -> udgift_kroner() under grundlæggende_fradragsret() && stk3_loft_finder_anvendelse() == Falskt
+    | exception stk3_begrænser_omfattet_udgift fradrag_i_skattepligtig_indkomst_kroner() -> penge_mindste_beløb(udgift_kroner(), resterende_loft_før_udgiften_kroner()) under grundlæggende_fradragsret() && stk3_loft_finder_anvendelse()
+    | afskåret_efter_stk3_kroner() -> hvis grundlæggende_fradragsret() { udgift_kroner() - fradrag_i_skattepligtig_indkomst_kroner() } ellers { 0 }
+    | resultat() -> Ligningslov8NResultat(
+        indkomstår = input.indkomstår,
+        udgiftsart = input.udgiftsart,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        omfattet_af_stk2 = omfattet_af_stk2(),
+        stk3_loft_finder_anvendelse = stk3_loft_finder_anvendelse(),
+        reguleret_grundbeløb_kroner = reguleret_grundbeløb_kroner(),
+        fordelt_grundbeløb_kroner = fordelt_grundbeløb_kroner(),
+        resterende_loft_før_udgiften_kroner = resterende_loft_før_udgiften_kroner(),
+        udgift_kroner = udgift_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        afskåret_efter_stk3_kroner = afskåret_efter_stk3_kroner()
+    )
+}
+
+| ligningslov8n_sag(input: Ligningslov8NInput) -> Ligningslov8NSag(input)
+| ligningslov8n_resultat(input: Ligningslov8NInput) -> ligningslov8n_sag(input).resultat()
+--@end::ligningsloven_par8n--
 
 = ligningsloven_lbk1500_par8o = LigningslovFradragKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -1570,6 +2077,138 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
 | ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
 
+= ligningsloven_lbk1500_par14 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 14",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par14::source:ligningsloven_lbk1500_par14--
+----
+§ 14. Ved opgørelsen af den skattepligtige indkomst kan fradrages beløb, som i
+indkomståret er anvendt til skatter og afgifter, bortset fra
+ejendomsværdiskatter, på fast ejendom og næring, til forpagtningsafgifter og
+lignende byrder, jf. dog stk. 2 og 3.
+
+Stk. 2. Udgifter til ejendomsskatter på ejendomme, der indeholder en eller to
+selvstændige lejligheder, kan ikke fradrages, hvis ejendommen i indkomståret
+har tjent til bolig for ejeren. Fradrag indrømmes endvidere ikke for udgifter
+til ejendomsskatter, som vedrører et stuehus med tilhørende grund og have, hvis
+stuehuset i indkomståret har tjent til bolig for ejeren. Begrænsningen i 2.
+pkt. gælder, når stuehuset er beliggende på en ejendom, der efter
+ejendomsvurderingsloven anses for en landbrugsejendom. Fradrag indrømmes
+tilsvarende ikke for ejendomme omfattet af ejendomsskattelovens § 3, stk. 1,
+nr. 4 og 6-10. Tilsvarende gælder ejendomme af den art, der er nævnt i
+ejendomsskattelovens § 3, stk. 1, nr. 4, 9 og 10, som er beliggende i
+udlandet, på Færøerne eller i Grønland. Fradrag indrømmes heller ikke for
+udgifter til ejendomsskatter på ubebyggede grunde, der er erhvervet med
+henblik på privat benyttelse, og som ikke senere er overgået til
+erhvervsmæssig benyttelse.
+
+Stk. 3. Begrænsningen i stk. 2, 1.-4. pkt., gælder ikke i det omfang,
+ejendommen eller stuehuset er benyttet erhvervsmæssigt i indkomståret. Der
+bortses dog fra uvæsentlig erhvervsmæssig benyttelse. Som uvæsentligt
+erhvervsmæssigt benyttet, jf. 2. pkt., anses en ejendom, der kun anvendes af
+ejeren til boligformål og erhvervsmæssige formål, når den erhvervsmæssigt
+benyttede del af ejendommen i henhold til en fordeling efter
+ejendomsavancebeskatningslovens § 4, stk. 5, eller afskrivningslovens § 45,
+stk. 2, der fortsat anses for retvisende, udgør mindre end 10 pct. af
+ejendommens kontante anskaffelsessum. I andre tilfælde anses en ejendom, der
+kun anvendes af ejeren til boligformål og erhvervsmæssige formål, som
+uvæsentligt erhvervsmæssigt benyttet, jf. 2. pkt., når ejendomsværdien for den
+del af ejendommen, der anvendes til boligformål, udgør mere end 90 pct. af
+ejendommens kontante anskaffelsessum. Virksomhedsskattelovens § 1, stk. 3, 5.
+og 6. pkt., finder tilsvarende anvendelse.
+----
+
+--@begin::ligningsloven_par14--
+# Ligningslov14Udgiftsart = Ll14Ejendomsskat | Ll14AndenSkatEllerAfgiftPåFastEjendomOgNæring | Ll14Forpagtningsafgift | Ll14LignendeByrde | Ll14Ejendomsværdiskat | Ll14AndenUdgift
+# Ligningslov14Stk2Ejendomsart = Ll14IngenStk2Begrænsning | Ll14EnEllerToLejlighederTjentTilEjerbolig | Ll14StuehusPåLandbrugsejendomTjentTilEjerbolig | Ll14EjendomOmfattetAfEjendomsskattelov3 | Ll14TilsvarendeEjendomIUlandetFærøerneEllerGrønland | Ll14UbebyggetGrundErhvervetTilPrivatBrug
+# Ligningslov14Fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45 | Ll14BoligdelensEjendomsværdiModKontantAnskaffelsessum | Ll14IngenBlandetFordeling
+# Ligningslov14Input(indkomstår: Heltal, anvendelsesår: Heltal, udgiftsart: Ligningslov14Udgiftsart, ejendomsart: Ligningslov14Stk2Ejendomsart, fordelingsgrundlag: Ligningslov14Fordelingsgrundlag, anvendt_beløb_kroner: Heltal, erhvervsandel_basispoint: Heltal, fordeling_fortsat_retvisende: Boolsk)
+# Ligningslov14Resultat(indkomstår: Heltal, udgiftsart: Ligningslov14Udgiftsart, stk1_udgift_omfattet: Boolsk, stk2_begrænsning_finder_anvendelse: Boolsk, erhvervsmæssig_benyttelse_væsentlig: Boolsk, fradragsandel_basispoint: Heltal, anvendt_beløb_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+
+# Ligningslov14Sag(input: Ligningslov14Input) {
+    | anvendt_i_indkomståret() -> input.anvendelsesår == input.indkomstår
+    | stk1_udgiftsart_omfattet() -> input.udgiftsart == Ll14Ejendomsskat || input.udgiftsart == Ll14AndenSkatEllerAfgiftPåFastEjendomOgNæring || input.udgiftsart == Ll14Forpagtningsafgift || input.udgiftsart == Ll14LignendeByrde
+    | stk1_udgift_omfattet() -> anvendt_i_indkomståret() && stk1_udgiftsart_omfattet()
+    | stk2_begrænsning_finder_anvendelse() -> input.udgiftsart == Ll14Ejendomsskat && input.ejendomsart != Ll14IngenStk2Begrænsning
+    | stk3_kan_undtage_stk2_begrænsningen() -> input.ejendomsart == Ll14EnEllerToLejlighederTjentTilEjerbolig || input.ejendomsart == Ll14StuehusPåLandbrugsejendomTjentTilEjerbolig || input.ejendomsart == Ll14EjendomOmfattetAfEjendomsskattelov3
+    | erhvervsandel_basispoint() -> penge_mindste_beløb(penge_positivt_beløb(input.erhvervsandel_basispoint), 10000)
+    | fordeling_kan_anvendes() -> input.fordelingsgrundlag == Ll14BoligdelensEjendomsværdiModKontantAnskaffelsessum || (input.fordelingsgrundlag == Ll14FordelingEfterEabl4EllerAfskrivningslov45 && input.fordeling_fortsat_retvisende)
+    | erhvervsmæssig_benyttelse_væsentlig() -> fordeling_kan_anvendes() && erhvervsandel_basispoint() >= 1000
+    | fradragsandel_basispoint() -> 0
+    | exception stk1_udgift_uden_stk2_begrænsning_fradrages_fuldt fradragsandel_basispoint() -> 10000 under stk1_udgift_omfattet() && stk2_begrænsning_finder_anvendelse() == Falskt
+    | exception stk3_fradrager_den_væsentlige_erhvervsandel fradragsandel_basispoint() -> erhvervsandel_basispoint() under stk1_udgift_omfattet() && stk2_begrænsning_finder_anvendelse() && stk3_kan_undtage_stk2_begrænsningen() && erhvervsmæssig_benyttelse_væsentlig()
+    | anvendt_beløb_kroner() -> penge_positivt_beløb(input.anvendt_beløb_kroner)
+    | fradrag_i_skattepligtig_indkomst_kroner() -> penge_beløb_gange_basispoint_kroner(anvendt_beløb_kroner(), fradragsandel_basispoint())
+    | ikke_fradraget_kroner() -> anvendt_beløb_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
+    | resultat() -> Ligningslov14Resultat(
+        indkomstår = input.indkomstår,
+        udgiftsart = input.udgiftsart,
+        stk1_udgift_omfattet = stk1_udgift_omfattet(),
+        stk2_begrænsning_finder_anvendelse = stk2_begrænsning_finder_anvendelse(),
+        erhvervsmæssig_benyttelse_væsentlig = erhvervsmæssig_benyttelse_væsentlig(),
+        fradragsandel_basispoint = fradragsandel_basispoint(),
+        anvendt_beløb_kroner = anvendt_beløb_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        ikke_fradraget_kroner = ikke_fradraget_kroner()
+    )
+}
+
+| ligningslov14_sag(input: Ligningslov14Input) -> Ligningslov14Sag(input)
+| ligningslov14_resultat(input: Ligningslov14Input) -> ligningslov14_sag(input).resultat()
+--@end::ligningsloven_par14--
+
+= ligningsloven_lbk1500_par14f = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 14 F",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par14f::source:ligningsloven_lbk1500_par14f--
+----
+§ 14 F. Ved opgørelsen af en arbejdsgivers skattepligtige indkomst kan
+fradrages bidrag til en fond, hvis formål er at betrygge eller forbedre kårene
+for personer, der er eller har været ansat i arbejdsgiverens virksomhed, eller
+deres pårørende. Fonden må ikke udbetale ydelser af pensionslignende karakter.
+Hvis arbejdsgiveren yder bidraget ved at påtage sig en gældsforpligtelse over
+for fonden, fradrages et beløb svarende til fordringens kursværdi ved
+stiftelsen.
+
+Stk. 2. Et flertal af fondsbestyrelsens medlemmer skal vælges af og blandt de
+af virksomhedens ansatte, der kan nyde godt af fondens virke.
+
+Stk. 3. Bidrag til fonde efter stk. 1 kan ikke fradrages efter reglerne i § 12,
+stk. 2.
+----
+
+--@begin::ligningsloven_par14f--
+# Ligningslov14FBidragsform = Ll14FKontantBidrag | Ll14FGældsforpligtelseOverForFonden
+# Ligningslov14FInput(indkomstår: Heltal, bidragsform: Ligningslov14FBidragsform, kontant_bidrag_kroner: Heltal, fordringens_kursværdi_ved_stiftelsen_kroner: Heltal, fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår: Boolsk, fonden_udbetaler_pensionslignende_ydelser: Boolsk, bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte: Boolsk, samme_bidrag_fradraget_efter_par12_stk2: Boolsk)
+# Ligningslov14FResultat(indkomstår: Heltal, bidragsform: Ligningslov14FBidragsform, betingelser_opfyldt: Boolsk, bidragsværdi_kroner: Heltal, dobbeltfradrag_efter_par12_stk2_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+# Ligningslov14FSag(input: Ligningslov14FInput) {
+    | bidragsværdi_kroner() -> penge_positivt_beløb(input.kontant_bidrag_kroner)
+    | exception gældsforpligtelse_værdiansættes_til_kursværdi bidragsværdi_kroner() -> penge_positivt_beløb(input.fordringens_kursværdi_ved_stiftelsen_kroner) under input.bidragsform == Ll14FGældsforpligtelseOverForFonden
+    | dobbeltfradrag_efter_par12_stk2_afskåret() -> input.samme_bidrag_fradraget_efter_par12_stk2 && bidragsværdi_kroner() > 0
+    | betingelser_opfyldt() -> input.fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår && input.fonden_udbetaler_pensionslignende_ydelser == Falskt && input.bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte && dobbeltfradrag_efter_par12_stk2_afskåret() == Falskt
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception arbejdsgiverbidrag_til_medarbejderfond_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> bidragsværdi_kroner() under betingelser_opfyldt()
+    | resultat() -> Ligningslov14FResultat(
+        indkomstår = input.indkomstår,
+        bidragsform = input.bidragsform,
+        betingelser_opfyldt = betingelser_opfyldt(),
+        bidragsværdi_kroner = bidragsværdi_kroner(),
+        dobbeltfradrag_efter_par12_stk2_afskåret = dobbeltfradrag_efter_par12_stk2_afskåret(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner()
+    )
+}
+
+| ligningslov14f_sag(input: Ligningslov14FInput) -> Ligningslov14FSag(input)
+| ligningslov14f_resultat(input: Ligningslov14FInput) -> ligningslov14f_sag(input).resultat()
+--@end::ligningsloven_par14f--
+
 ----
 § 15 P. Lejere, der fremlejer en del af værelserne i egen lejet lejlighed til
 beboelse, kan ved indkomstopgørelsen vælge kun at medregne den del af
@@ -2114,3 +2753,123 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
 | ll15q_stk4_eksempel1_forholdsmæssig_q: ll15q_stk4_eksempel1_fixture -> ll15q_stk4_eksempel1_fixture.stk4.par15q_andel_basispoint == 1800 && ll15q_stk4_eksempel1_fixture.stk4.par15p_andel_basispoint == 8200 && ll15q_stk4_eksempel1_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 6318 && ll15q_stk4_eksempel1_fixture.stk4.loft_aktiveret == Falskt && ll15q_stk4_eksempel1_fixture.overskud_efter_ligningslov15q_kroner == 15709
 | ll15q_stk4_eksempel3_bevarer_q_andel: ll15q_stk4_eksempel3_bevar_q_fixture -> ll15q_stk4_eksempel3_bevar_q_fixture.stk4.par15q_andel_basispoint == 500 && ll15q_stk4_eksempel3_bevar_q_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 1755 && ll15q_stk4_eksempel3_bevar_q_fixture.stk4.loft_aktiveret == Sandt && ll15q_stk4_eksempel3_bevar_q_fixture.overskud_efter_ligningslov15q_kroner == 4947
 | ll15q_stk4_eksempel3_prioriterer_par15p: ll15q_stk4_eksempel3_prioriter_p_fixture -> ll15q_stk4_eksempel3_prioriter_p_fixture.stk4.loft_aktiveret == Sandt && ll15q_stk4_eksempel3_prioriter_p_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 0 && ll15q_stk4_eksempel3_prioriter_p_fixture.overskud_efter_ligningslov15q_kroner == 6000
+
+= ligningsloven_lbk1500_par30a = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 30 A",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par30a::source:ligningsloven_lbk1500_par30a--
+----
+§ 30 A. Ved opgørelsen af den skattepligtige indkomst kan skattepligtige
+personer, der driver selvstændig erhvervsvirksomhed, fradrage udgifter til
+behandling af misbrug af medicin, alkohol eller andre rusmidler eller til
+rygeafvænning for sig selv og for en ægtefælle, som ikke i overvejende grad
+driver virksomheden, men som modtager en del af virksomhedens overskud, jf.
+kildeskattelovens § 25 A, stk. 3, efter reglerne i stk. 2-6. Fradragsretten er
+betinget af, at
+1) den person, som behandlingen vedrører, deltager i virksomhedens drift med
+en personlig arbejdsindsats af ikke uvæsentligt omfang og
+2) eventuelle medarbejdere i virksomheder, der drives af den selvstændigt
+erhvervsdrivende, bortset fra virksomheder omfattet af personskattelovens § 4,
+stk. 1, nr. 9 eller 11, med mindst to ejere som led i virksomhedernes generelle
+personalepolitik senest samtidig med etableringen af ordningen for den
+selvstændigt erhvervsdrivende er tilbudt en tilsvarende ordning med
+skattefrihed for arbejdsgiverbetalt behandling for misbrug af medicin, alkohol
+eller andre rusmidler eller rygeafvænning, jf. § 30. Hvis der efter § 30, stk.
+3, 2. pkt., er fastsat generelle anciennitetskrav, skal den selvstændigt
+erhvervsdrivende og en eventuel ægtefælle opfylde et tilsvarende
+anciennitetskrav.
+
+Stk. 2. Fradragsretten efter stk. 1 omfatter ydelser, som afholdes til
+behandling for misbrug af medicin, alkohol eller andre rusmidler eller
+rygeafvænning. Hvis den selvstændigt erhvervsdrivende har valgt at tegne en
+forsikring til dækning af udgifter i forbindelse med sådan behandling eller
+rygeafvænning og der for eventuelle medarbejdere i virksomheden er tegnet en
+tilsvarende forsikring efter § 30, stk. 1, 3. pkt., er forsikringspræmien
+fradragsberettiget. Hvis der for medarbejderne i en virksomhed er tegnet en
+forsikring som nævnt i § 30, stk. 1, 3. pkt., og den selvstændigt
+erhvervsdrivende eller en eventuel ægtefælle omfattet af kildeskattelovens § 25
+A, stk. 3, af forsikringsmæssige grunde ikke kan blive omfattet af
+forsikringen, kan der fradrages ydelser som nævnt i 1. og 2. pkt., forudsat at
+disse ydelser svarer til de ydelser, der for medarbejdernes vedkommende er
+omfattet af forsikringen.
+
+Stk. 3. Fradragsretten for udgifter til medicin, som afholdes i forbindelse
+med en behandling for misbrug af medicin, alkohol eller andre rusmidler, er
+begrænset til udgifter afholdt i en periode på højst 6 måneder fra første
+behandlingsdag bortset fra udgifter afholdt under indlæggelse på hospital,
+klinik el.lign. Tilsvarende gælder for fradragsretten for
+forsikringspræmier, i det omfang medicinudgifter dækkes af forsikringen ud over
+den nævnte periode.
+
+Stk. 4. Det er en betingelse for fradragsretten for ydelser, som afholdes
+efter stk. 2, 1. pkt., til behandling for misbrug af medicin, alkohol eller
+andre rusmidler, at der foreligger en skriftlig lægeerklæring om, at den
+pågældende har behov for behandlingen.
+
+Stk. 5. Det er en betingelse for fradragsretten for forsikringspræmier efter
+stk. 2, 2. pkt., at det af forsikringsbetingelserne fremgår, at forsikringen
+kun dækker behandling efter stk. 2, 1. pkt., der opfylder kravene i stk. 4.
+
+Stk. 6. Ved opgørelsen af den skattepligtige indkomst for en ægtefælle, der
+ikke i overvejende grad driver virksomheden, men som modtager en del af
+virksomhedens overskud, jf. kildeskattelovens § 25 A, stk. 3, medregnes ikke
+ydelser fra den anden ægtefælle eller udbetalinger fra forsikringer som nævnt
+i stk. 1, 2, 4 og 5. § 30, stk. 2, finder tilsvarende anvendelse.
+----
+
+--@begin::ligningsloven_par30a--
+# Ligningslov30APerson = Ll30ASelvstændigtErhvervsdrivende | Ll30AMedarbejdendeÆgtefælleEfterKildeskattelov25AStk3 | Ll30AAndenPerson
+# Ligningslov30AUdgiftsart = Ll30ABehandlingAfMedicinmisbrug | Ll30ABehandlingAfAlkoholmisbrug | Ll30ABehandlingAfAndetRusmiddelmisbrug | Ll30ARygeafvænning | Ll30AMedicinudgiftVedMisbrugsbehandling | Ll30AForsikringspræmieTilOmfattetBehandling | Ll30AAndenUdgift
+# Ligningslov30AMedicinforhold = Ll30AIngenMedicinudgift | Ll30AMedicinudgiftIndenForSeksMånedersperioden | Ll30AMedicinudgiftEfterSeksMånedersperioden | Ll30AMedicinudgiftUnderIndlæggelse
+# Ligningslov30AInput(indkomstår: Heltal, afholdelsesår: Heltal, person: Ligningslov30APerson, udgiftsart: Ligningslov30AUdgiftsart, afholdt_udgift_kroner: Heltal, driver_selvstændig_erhvervsvirksomhed: Boolsk, ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3: Boolsk, ægtefælle_driver_ikke_i_overvejende_grad: Boolsk, personlig_arbejdsindsats_ikke_uvæsentlig: Boolsk, har_eventuelle_medarbejdere: Boolsk, virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere: Boolsk, tilsvarende_ordning_tilbudt_medarbejderne_rettidigt: Boolsk, generelt_anciennitetskrav_opfyldt: Boolsk, selvstændige_har_valgt_forsikringsordning: Boolsk, tilsvarende_forsikring_tegnet_for_medarbejderne: Boolsk, person_kan_ikke_forsikres_af_forsikringsmæssige_grunde: Boolsk, ydelse_svarer_til_medarbejderforsikringens_ydelser: Boolsk, medicinforhold: Ligningslov30AMedicinforhold, skriftlig_lægeerklæring_om_behandlingsbehov: Boolsk, forsikringsbetingelser_kræver_lægeerklæring: Boolsk, præmieandel_for_medicin_ud_over_seks_måneder_kroner: Heltal)
+# Ligningslov30AResultat(indkomstår: Heltal, person: Ligningslov30APerson, udgiftsart: Ligningslov30AUdgiftsart, person_omfattet: Boolsk, personalepolitisk_betingelse_opfyldt: Boolsk, behandlingsydelse_omfattet: Boolsk, forsikringspræmie_omfattet: Boolsk, seksmånedersgrænse_opfyldt: Boolsk, lægeerklæringskrav_opfyldt: Boolsk, afholdt_udgift_kroner: Heltal, ikke_fradragsberettiget_præmieandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner: Heltal)
+
+# Ligningslov30ASag(input: Ligningslov30AInput) {
+    | afholdt_i_indkomståret() -> input.afholdelsesår == input.indkomstår
+    | selvstændig_person_omfattet() -> input.person == Ll30ASelvstændigtErhvervsdrivende && input.driver_selvstændig_erhvervsvirksomhed
+    | medarbejdende_ægtefælle_omfattet() -> input.person == Ll30AMedarbejdendeÆgtefælleEfterKildeskattelov25AStk3 && input.driver_selvstændig_erhvervsvirksomhed && input.ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3 && input.ægtefælle_driver_ikke_i_overvejende_grad
+    | person_omfattet() -> (selvstændig_person_omfattet() || medarbejdende_ægtefælle_omfattet()) && input.personlig_arbejdsindsats_ikke_uvæsentlig
+    | medarbejderordning_påkrævet() -> input.har_eventuelle_medarbejdere && input.virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere == Falskt
+    | personalepolitisk_betingelse_opfyldt() -> medarbejderordning_påkrævet() == Falskt || input.tilsvarende_ordning_tilbudt_medarbejderne_rettidigt
+    | behandlingsydelse_efter_stk2_første_punktum() -> input.udgiftsart == Ll30ABehandlingAfMedicinmisbrug || input.udgiftsart == Ll30ABehandlingAfAlkoholmisbrug || input.udgiftsart == Ll30ABehandlingAfAndetRusmiddelmisbrug || input.udgiftsart == Ll30ARygeafvænning || input.udgiftsart == Ll30AMedicinudgiftVedMisbrugsbehandling
+    | misbrugsbehandling_eller_medicinudgift() -> input.udgiftsart == Ll30ABehandlingAfMedicinmisbrug || input.udgiftsart == Ll30ABehandlingAfAlkoholmisbrug || input.udgiftsart == Ll30ABehandlingAfAndetRusmiddelmisbrug || input.udgiftsart == Ll30AMedicinudgiftVedMisbrugsbehandling
+    | er_medicinudgift() -> input.udgiftsart == Ll30AMedicinudgiftVedMisbrugsbehandling
+    | medicinforhold_stemmer_med_udgiftsart() -> hvis er_medicinudgift() { input.medicinforhold != Ll30AIngenMedicinudgift } ellers { input.medicinforhold == Ll30AIngenMedicinudgift }
+    | seksmånedersgrænse_opfyldt() -> Sandt
+    | exception medicinudgift_efter_seksmånedersperioden_afskæres seksmånedersgrænse_opfyldt() -> Falskt under er_medicinudgift() && input.medicinforhold == Ll30AMedicinudgiftEfterSeksMånedersperioden
+    | lægeerklæringskrav_opfyldt() -> misbrugsbehandling_eller_medicinudgift() == Falskt || input.skriftlig_lægeerklæring_om_behandlingsbehov
+    | forsikringsmæssig_direkte_ydelse_opfyldt() -> input.selvstændige_har_valgt_forsikringsordning == Falskt || input.person_kan_ikke_forsikres_af_forsikringsmæssige_grunde == Falskt || input.tilsvarende_forsikring_tegnet_for_medarbejderne && input.ydelse_svarer_til_medarbejderforsikringens_ydelser
+    | behandlingsydelse_omfattet() -> behandlingsydelse_efter_stk2_første_punktum() && medicinforhold_stemmer_med_udgiftsart() && seksmånedersgrænse_opfyldt() && lægeerklæringskrav_opfyldt() && forsikringsmæssig_direkte_ydelse_opfyldt()
+    | forsikringspræmie_omfattet() -> input.udgiftsart == Ll30AForsikringspræmieTilOmfattetBehandling && input.selvstændige_har_valgt_forsikringsordning && (input.har_eventuelle_medarbejdere == Falskt || input.tilsvarende_forsikring_tegnet_for_medarbejderne) && input.forsikringsbetingelser_kræver_lægeerklæring
+    | afholdt_udgift_kroner() -> penge_positivt_beløb(input.afholdt_udgift_kroner)
+    | ikke_fradragsberettiget_præmieandel_kroner() -> 0
+    | exception præmieandel_for_medicin_efter_seks_måneder_afskæres ikke_fradragsberettiget_præmieandel_kroner() -> penge_mindste_beløb(penge_positivt_beløb(input.præmieandel_for_medicin_ud_over_seks_måneder_kroner), afholdt_udgift_kroner()) under input.udgiftsart == Ll30AForsikringspræmieTilOmfattetBehandling
+    | fradragsrelevant_beløb_kroner() -> afholdt_udgift_kroner() - ikke_fradragsberettiget_præmieandel_kroner()
+    | fælles_betingelser_opfyldt() -> afholdt_i_indkomståret() && person_omfattet() && personalepolitisk_betingelse_opfyldt() && input.generelt_anciennitetskrav_opfyldt
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception behandling_eller_forsikringspræmie_fradrages fradrag_i_skattepligtig_indkomst_kroner() -> fradragsrelevant_beløb_kroner() under fælles_betingelser_opfyldt() && (behandlingsydelse_omfattet() || forsikringspræmie_omfattet())
+    | ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner() -> 0
+    | exception medarbejdende_ægtefælles_ydelse_er_skattefri ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner() -> fradrag_i_skattepligtig_indkomst_kroner() under medarbejdende_ægtefælle_omfattet()
+    | resultat() -> Ligningslov30AResultat(
+        indkomstår = input.indkomstår,
+        person = input.person,
+        udgiftsart = input.udgiftsart,
+        person_omfattet = person_omfattet(),
+        personalepolitisk_betingelse_opfyldt = personalepolitisk_betingelse_opfyldt(),
+        behandlingsydelse_omfattet = behandlingsydelse_omfattet(),
+        forsikringspræmie_omfattet = forsikringspræmie_omfattet(),
+        seksmånedersgrænse_opfyldt = seksmånedersgrænse_opfyldt(),
+        lægeerklæringskrav_opfyldt = lægeerklæringskrav_opfyldt(),
+        afholdt_udgift_kroner = afholdt_udgift_kroner(),
+        ikke_fradragsberettiget_præmieandel_kroner = ikke_fradragsberettiget_præmieandel_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner = ægtefælleydelse_ikke_medregnet_i_skattepligtig_indkomst_kroner()
+    )
+}
+
+| ligningslov30a_sag(input: Ligningslov30AInput) -> Ligningslov30ASag(input)
+| ligningslov30a_resultat(input: Ligningslov30AInput) -> ligningslov30a_sag(input).resultat()
+--@end::ligningsloven_par30a--
