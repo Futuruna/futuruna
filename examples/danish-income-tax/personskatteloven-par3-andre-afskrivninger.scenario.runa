@@ -384,7 +384,7 @@
 | scenarie_al40_henstand_fra_2026_henvises_til_ll12b: al_andre_henstand_2026 -> al_andre_henstand_2026.henvises_til_ligningslov12b_fra_2026 && al_andre_henstand_2026.regime == Al40Ligningslov12BHenstandFra2026
 | scenarie_par3_modtager_al38_afskrivning: al_andre_par3_par38 -> al_andre_par3_par38.hjemmel == Par3Nr10Afskrivningslov38 && al_andre_par3_par38.skattemæssig_afskrivning_kroner == 60000 && al_andre_par3_par38.fradrag_i_personlig_indkomst_kroner == 60000
 | scenarie_par3_modtager_al39_afskrivning: al_andre_par3_par39 -> al_andre_par3_par39.hjemmel == Par3Nr10Afskrivningslov39 && al_andre_par3_par39.skattemæssig_afskrivning_kroner == 50000 && al_andre_par3_par39.fradrag_i_personlig_indkomst_kroner == 50000
-| scenarie_par3_adskiller_al40_yder_og_modtager: al_andre_par3_par40_skatteyder -> al_andre_par3_par40_skatteyder.andet_fradrag_kroner == 40000 && al_andre_par3_par40_skatteyder.skattepligtig_indtægtsføring_kroner == 0 && al_andre_par3_par40_modtager.skattepligtig_indtægtsføring_kroner == 40000 && al_andre_par3_par40_modtager.brutto_fradrag_efter_kildeloven_kroner == 0
+| scenarie_par3_adskiller_al40_yder_og_modtager: al_andre_par3_par40_skatteyder -> al_andre_par3_par40_skatteyder.andet_fradrag_kroner == 40000 && al_andre_par3_par40_skatteyder.skattepligtig_indtægtsføring_kroner == 0 && al_andre_par3_par40_modtager.skattepligtig_indtægtsføring_kroner == 40000 && al_andre_par3_par40_modtager.brutto_fradrag_efter_afskrivningsloven_kroner == 0
 | scenarie_par3_modtager_al40_fortjeneste: al_andre_par3_par40_salg -> al_andre_par3_par40_salg.skattepligtig_indtægtsføring_kroner == 50000 && al_andre_par3_par40_salg.indtægtsføring_i_personlig_indkomst_kroner == 50000
 
 ? scenarie_al38_følger_dokumenteret_værdiforringelse
