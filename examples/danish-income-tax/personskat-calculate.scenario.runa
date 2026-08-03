@@ -115,6 +115,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6a = MedLigningslov6AFradrag(input = personskat_calculate_ll6a_input)
     ),
     ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
     omkostninger = [
         PersonskatKapitalomkostningInput(identifikation = "bankgebyr", beløb_kroner = 2000)
     ]
@@ -128,6 +129,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6a = UdenLigningslov6AFradrag
     ),
     ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
     omkostninger = [
         PersonskatKapitalomkostningInput(identifikation = "finansieringsomkostning", beløb_kroner = 3000)
     ]
@@ -160,6 +162,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6a = UdenLigningslov6AFradrag
     ),
     ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
     omkostninger = []
 )))
 
@@ -208,6 +211,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6a = UdenLigningslov6AFradrag
     ),
     ejendomsavance = ejendomsavance,
+    kursgevinst = UdenKursgevinst,
     omkostninger = []
 )
 = personskat_calculate_ejendomsavance_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(

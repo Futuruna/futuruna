@@ -44,8 +44,8 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
-nåbare domænegraf som beregningen og har aktuelt 117 typede inputkolonner plus
-sags-id og 25 relationelle kildetabeller. Variantvalg gør særlige
+nåbare domænegraf som beregningen og har aktuelt 119 typede inputkolonner plus
+sags-id og 27 relationelle kildetabeller. Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
@@ -53,8 +53,9 @@ kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
 renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, identificerede omkostninger efter Personskattelovens
-§ 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser samt ordinære
-eller særlige ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
+§ 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser,
+KGL-kildefakta for EBL § 6 D-sælgerpantebreve samt ordinære eller særlige
+ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
 aftrapningsindkomst samt § 9 D-resultatet afledes af reglerne og er ikke
 borgerfelter.
 
@@ -125,7 +126,8 @@ reglerne frem for at blive håndskrevet ved siden af dem.
 Den stærkeste brugerflade er ikke nødvendigvis manuel udfyldning af et stort
 regneark. En AI kan interviewe borgeren, bygge det samme typede input og bruge
 Futurunas regler til den deterministiske beregning og den efterfølgende
-forklaring.
+forklaring. Arbejdsbogen er dermed også et stabilt udvekslingsformat mellem
+interviewet og beregningsmotoren, ikke kun en formular til manuel indtastning.
 Kolonnestierne er stabile maskinnøgler, mens generisk, typet feltmetadata nu kan
 give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
 kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
@@ -143,20 +145,24 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 316 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 335 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
 sælgerpantebrev har samme menneskelige lag: pantebrevets vilkår, parternes
 faktiske brug, meddelelsen til Skatteforvaltningen og hvert efterfølgende års
-hændelser har egne etiketter og spørgsmål. 66 af posterne dækker § 11, stk. 2
+hændelser har egne etiketter og spørgsmål. KGL-sporet navngiver desuden
+pantebrevslisten, identiteten, skatteyderens kildefakta, § 14-grundlaget og
+senere afståelser eller indfrielser med år, art, hovedstol og faktisk provenu.
+66 af posterne dækker § 11, stk. 2
 for personen og ægtefællen: valget om ny genanbringelse, anvendelse,
 selskabsforhold, investering, udenlandsforhold, begæringsdatoer, ejerskab og
 hjemmel efter §§ 6 A eller 6 C. AI'en kan dermed indsamle fakta;
 Futuruna afleder selv, om betingelserne er opfyldt, og hvilke beløb der skal
 medregnes i hvert indkomstår. En verificeret XLSX/JSON-sag fører en afståelse
-i 2025, sælgerpantebrevets tiårige afdragsplan og årsforholdene frem til
-300.000 kr. i medregnet ejendomsavance i 2026. En anden verificeret sag
+i 2025, sælgerpantebrevets tiårige afdragsplan, KGL-kildefakta og
+årsforholdene frem til 300.000 kr. i medregnet ejendomsavance og 75.000 kr. i
+kursgevinst i 2026, i alt 375.000 kr. i kapitalindkomst. En anden verificeret sag
 rekonstruerer en tidligere § 6 A-genanbringelse ved en § 11-afståelse. Begge
 inputformater lader det gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde
 og medregner den gamle fortjeneste på 200.000 kr. præcis én gang.
@@ -164,6 +170,21 @@ Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en
 erstatning for det juridisk præcise interviewspørgsmål.
+
+Sælgerpantebrevets kursgevinst behandles særskilt fra EBL § 6 D-fordelingen.
+Kontantværdien er pantebrevets anskaffelsessum, mens hovedstolen frigives
+forholdsmæssigt ved hvert afdrag. I Skattestyrelsens eksempel har pantebrevet en
+hovedstol på 3.750.000 kr. og en kontantværdi på 3.000.000 kr. Et årligt afdrag
+på 375.000 kr. frigiver derfor 300.000 kr. af anskaffelsessummen og giver en
+kursgevinst på 75.000 kr. Ved hel eller delvis afståelse eller ekstraordinær
+indfrielse bruger EBL den berørte restgæld til at fremrykke ejendomsavancen,
+mens KGL sammenholder den frigivne anskaffelsessum med det faktiske provenu.
+Futuruna holder de to regelkaskader og deres delresultater adskilt og samler
+først de gyldige poster i Personskattelovens kapitalindkomst. Ufordelt
+ægtefællesuccession eller dødsfald fejler lukket i KGL-sporet. Kilderne er
+[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176)
+og
+[Den juridiske vejledning C.H.2.1.11.9](https://info.skat.dk/data.aspx?oid=2292757).
 
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige

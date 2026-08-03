@@ -3,8 +3,9 @@
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
+@ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -25,9 +26,12 @@
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
 # PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
+# PersonskatKursgevinstÅrsfakta(sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal)
+# PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
+# PersonskatKursgevinstResultat(input: PersonskatKursgevinstInput, input_gyldigt: Boolsk, sælgerpantebrevsresultater: List(KglEblPar6DSælgerpantebrevsresultat), årets_samlede_netto_efter_par14_kroner: Heltal, kursgevinstlov_resultater: List(KursgevinstlovResultat), kapitalposter: List(Par4Kapitalpost))
 # PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
-# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
@@ -2091,6 +2095,130 @@
     help = Some("Vælg den konkrete hændelse. En ikke-understøttet hændelse får beregningen til at afvise inputtet i stedet for at gætte."),
     unit = None
 )
+= personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    label = "Provenu ved afståelse eller indfrielse",
+    question = "Hvilket beløb modtog du ved afståelsen eller indfrielsen af sælgerpantebrevet?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    label = "Provenu ved afståelse eller indfrielse",
+    question = "Hvilket beløb modtog din ægtefælle ved afståelsen eller indfrielsen af sælgerpantebrevet?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    label = "Provenu ved afståelse eller indfrielse",
+    question = "Hvilket beløb modtog du ved afståelsen eller indfrielsen af sælgerpantebrevet i dette indkomstår?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    label = "Provenu ved afståelse eller indfrielse",
+    question = "Hvilket beløb modtog din ægtefælle ved afståelsen eller indfrielsen af sælgerpantebrevet i dette indkomstår?",
+    unit = "kr."
+)
+
+= personskat_felt_kursgevinst = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.$variant",
+    label = "Kursgevinster og kurstab",
+    question = Some("Har du sælgerpantebreve fra et ejendomssalg, som skal behandles efter kursgevinstloven?"),
+    help = Some("Oplysningerne kobles til sælgerpantebrevet under ejendomssalget, så afdrag, afståelse og indfrielse behandles deterministisk efter kursgevinstloven."),
+    unit = None
+)
+= personskat_felt_kgl_sælgerpantebreve = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve",
+    label = "Dine sælgerpantebreve",
+    question = Some("Hvilke af dine sælgerpantebreve efter EBL § 6 D skal indgå i beregningen?"),
+    help = Some("Tilføj ét sæt skatteforhold pr. sælgerpantebrev. Identifikationen skal være den samme som under det tilknyttede ejendomssalg."),
+    unit = None
+)
+= personskat_felt_kgl_øvrigt_bagatelgrundlag = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+    label = "Andre gevinster og tab i bagatelgrundlaget",
+    question = "Hvad er årets samlede nettobeløb for øvrige fordringer, valutagæld og obligationsbaserede investeringsbeviser, som indgår i KGL § 14-grænsen?",
+    unit = "kr./år"
+)
+= personskat_felt_kgl_pantebrev = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.sælgerpantebrev_identifikation",
+    label = "Sælgerpantebrev",
+    question = "Hvilket sælgerpantebrev vedrører disse kursgevinstforhold?"
+)
+= personskat_felt_kgl_fordringsnæring = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.udøver_næring_ved_køb_og_salg_af_fordringer",
+    label = "Næring med fordringer",
+    question = Some("Driver du erhvervsmæssig næring med køb og salg af fordringer?"),
+    help = Some("Et ja kan medføre, at gevinst eller tab henføres til personlig indkomst efter reglerne om fordringsnæring."),
+    unit = None
+)
+= personskat_felt_kgl_fordring_udenfor_næring = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.fordringen_erhvervet_uden_for_fordringsnæring",
+    label = "Fordring uden for næring",
+    question = Some("Kan du godtgøre, at sælgerpantebrevet blev erhvervet uden for din fordringsnæring og ikke senere indgik i den?"),
+    help = Some("Spørgsmålet er kun relevant, hvis du driver næring med fordringer."),
+    unit = None
+)
+= personskat_felt_kgl_vederlag_for_leverancer = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser",
+    label = "Vederlag for varer eller ydelser",
+    question = Some("Modtog du sælgerpantebrevet som betaling for varer eller tjenesteydelser leveret i din virksomhed?"),
+    help = Some("Et tab kan i så fald være omfattet af KGL § 17 og statsskattelovens § 6 a."),
+    unit = None
+)
+= personskat_felt_kgl_driftstilknytning = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift",
+    label = "Direkte tilknytning til virksomheden",
+    question = Some("Blev sælgerpantebrevet erhvervet i direkte tilknytning til din erhvervsmæssige drift?"),
+    help = Some("Et tab kan i så fald være omfattet af KGL § 17 og statsskattelovens § 6 a."),
+    unit = None
+)
+= personskat_felt_kgl_kontrol_eller_nærtstående = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2",
+    label = "Kontrolleret eller nærtstående debitor",
+    question = Some("Er debitor et selskab, du kontrollerer, eller en person omfattet af KGL § 14, stk. 2?"),
+    help = Some("Tab på sådanne fordringer kan være afskåret, medmindre en særregel som KGL § 17 finder anvendelse."),
+    unit = None
+)
+= personskat_felt_kgl_dba_fritagelse = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.skatteyderfakta.renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst",
+    label = "Fritagelse efter skatteaftale",
+    question = Some("Er renter eller gevinster på sælgerpantebrevet fritaget efter en dobbeltbeskatningsoverenskomst?"),
+    help = Some("Denne gren kræver særskilt traktatbehandling og afvises derfor, indtil den relevante overenskomst er modelleret."),
+    unit = None
+)
+= personskat_felt_kgl_efterfølgende_dispositioner = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet",
+    label = "Dispositioner efter EBL-forløbet",
+    question = Some("Skete der noget med restfordringen efter, at EBL § 6 D-forløbet var afsluttet?"),
+    help = Some("Tilføj kun dispositioner efter det sidste år i EBL-forløbet, eksempelvis betaling, afståelse, indfrielse eller konstateret nedskrivning af en restfordring."),
+    unit = None
+)
+= personskat_felt_kgl_dispositionsår = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.indkomstår",
+    label = "Dispositionens indkomstår",
+    question = "I hvilket indkomstår skete dispositionen med restfordringen?",
+    unit = "år"
+)
+= personskat_felt_kgl_dispositionsart = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.art.$variant",
+    label = "Disposition med restfordringen",
+    question = Some("Hvad skete der med den berørte del af restfordringen?"),
+    help = Some("Vælg betaling, afståelse, indfrielse eller nedskrivning. Ukendte dispositioner afvises frem for at blive fortolket."),
+    unit = None
+)
+= personskat_felt_kgl_berørt_hovedstol = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.berørt_hovedstol_kroner",
+    label = "Berørt hovedstol",
+    question = "Hvor stor en nominel del af restfordringens hovedstol vedrører dispositionen?",
+    unit = "kr."
+)
+= personskat_felt_kgl_provenu = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.afståelses_eller_indfrielsessum_kroner",
+    label = "Modtaget beløb",
+    question = "Hvilket beløb modtog du for den berørte del af restfordringen?",
+    unit = "kr."
+)
 = personskat_felt_ordinært_aktieår = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.$variant",
     label = "Ordinært aktieår",
@@ -2317,6 +2445,8 @@
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev::field:personskat_felt_ægtefælles_par6d_pantebrev::field:personskat_felt_egen_par6d_pantebrev_kontantværdi::field:personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi::field:personskat_felt_egen_par6d_pantebrev_hovedstol::field:personskat_felt_ægtefælles_par6d_pantebrev_hovedstol::field:personskat_felt_egen_par6d_pantebrev_løbetid::field:personskat_felt_ægtefælles_par6d_pantebrev_løbetid::field:personskat_felt_egen_par6d_afdragsplan::field:personskat_felt_ægtefælles_par6d_afdragsplan::field:personskat_felt_egen_par6d_afdragsplan_år::field:personskat_felt_ægtefælles_par6d_afdragsplan_år::field:personskat_felt_egen_par6d_afdragsplan_beløb::field:personskat_felt_ægtefælles_par6d_afdragsplan_beløb::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_meddelelse::field:personskat_felt_ægtefælles_par6d_meddelelse::field:personskat_felt_egen_par6d_skattepligt::field:personskat_felt_ægtefælles_par6d_skattepligt::field:personskat_felt_egen_par6d_sikkerhed::field:personskat_felt_ægtefælles_par6d_sikkerhed::field:personskat_felt_egen_par6d_ejendomsplacering::field:personskat_felt_ægtefælles_par6d_ejendomsplacering::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_kursgevinst::field:personskat_felt_kgl_sælgerpantebreve::field:personskat_felt_kgl_øvrigt_bagatelgrundlag::field:personskat_felt_kgl_pantebrev::field:personskat_felt_kgl_fordringsnæring::field:personskat_felt_kgl_fordring_udenfor_næring::field:personskat_felt_kgl_vederlag_for_leverancer::field:personskat_felt_kgl_driftstilknytning::field:personskat_felt_kgl_kontrol_eller_nærtstående::field:personskat_felt_kgl_dba_fritagelse::field:personskat_felt_kgl_efterfølgende_dispositioner::field:personskat_felt_kgl_dispositionsår::field:personskat_felt_kgl_dispositionsart::field:personskat_felt_kgl_berørt_hovedstol::field:personskat_felt_kgl_provenu::source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
 --@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
 --@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
@@ -2550,6 +2680,59 @@
     | BeregnetEjendomsavance(_, _, _, _, _, par4_resultat) -> [par4_stk1_nr14_års_kapitalpost(par4_resultat)]
     | _ -> []
 }
+| personskat_egne_ejendomsavance_resultater(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _) -> egne_afståelsesresultater
+    | _ -> []
+}
+| personskat_ejendomsavance_har_par6d_sælgerpantebrev(resultat: EjendomsavancebeskatningslovResultat) -> match resultat.par6d_resultat.valg {
+    | EblMedPar6DValg(_) -> Sandt
+    | EblUdenPar6DValg -> Falskt
+}
+| personskat_egne_par6d_sælgerpantebrevsresultater(resultat: PersonskatEjendomsavanceResultat) -> filter(personskat_egne_ejendomsavance_resultater(resultat), personskat_ejendomsavance_har_par6d_sælgerpantebrev)
+| personskat_kgl_fakta_matcher_par6d_resultat(fakta: KglEblPar6DSælgerpantebrevsfakta, resultat: EjendomsavancebeskatningslovResultat) -> fakta.sælgerpantebrev_identifikation != "" && fakta.sælgerpantebrev_identifikation == kgl_ebl_par6d_sælgerpantebrev(resultat.par6d_resultat).identifikation
+| personskat_kgl_matchende_par6d_resultater(fakta: KglEblPar6DSælgerpantebrevsfakta, resultater: List(EjendomsavancebeskatningslovResultat)) -> filter(resultater, |resultat: EjendomsavancebeskatningslovResultat| personskat_kgl_fakta_matcher_par6d_resultat(fakta, resultat))
+| personskat_kgl_matchende_fakta(resultat: EjendomsavancebeskatningslovResultat, fakta: List(KglEblPar6DSælgerpantebrevsfakta)) -> filter(fakta, |pantebrevsfakta: KglEblPar6DSælgerpantebrevsfakta| personskat_kgl_fakta_matcher_par6d_resultat(pantebrevsfakta, resultat))
+| personskat_kgl_alle_fakta_matcher_entydigt(fakta: List(KglEblPar6DSælgerpantebrevsfakta), resultater: List(EjendomsavancebeskatningslovResultat)) -> all(fakta, |pantebrevsfakta: KglEblPar6DSælgerpantebrevsfakta| length(personskat_kgl_matchende_par6d_resultater(pantebrevsfakta, resultater)) == 1)
+| personskat_kgl_alle_par6d_resultater_matcher_entydigt(resultater: List(EjendomsavancebeskatningslovResultat), fakta: List(KglEblPar6DSælgerpantebrevsfakta)) -> all(resultater, |resultat: EjendomsavancebeskatningslovResultat| length(personskat_kgl_matchende_fakta(resultat, fakta)) == 1)
+| personskat_kgl_sælgerpantebrevsresultater(fakta: List(KglEblPar6DSælgerpantebrevsfakta), resultater: List(EjendomsavancebeskatningslovResultat)) -> flat_map(fakta, |pantebrevsfakta: KglEblPar6DSælgerpantebrevsfakta| map(personskat_kgl_matchende_par6d_resultater(pantebrevsfakta, resultater), |resultat: EjendomsavancebeskatningslovResultat| kgl_ebl_par6d_resultat(pantebrevsfakta, resultat.par6d_resultat)))
+| personskat_kgl_rå_netto_i_indkomstår_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat, skatteår: Heltal) -> kgl_sælgerpantebrev_rå_netto_i_indkomstår_kroner(resultat.kursgevinstresultat, skatteår)
+| personskat_kgl_årets_samlede_netto_kroner(resultater: List(KglEblPar6DSælgerpantebrevsresultat), skatteår: Heltal, øvrigt_netto_kroner: Heltal) -> foldl(resultater, øvrigt_netto_kroner, |sum: Heltal, resultat: KglEblPar6DSælgerpantebrevsresultat| sum + personskat_kgl_rå_netto_i_indkomstår_kroner(resultat, skatteår))
+| personskat_kgl_resultater_i_indkomstår(resultat: KglEblPar6DSælgerpantebrevsresultat, skatteår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(kgl_sælgerpantebrev_dispositionsresultater_i_indkomstår(resultat.kursgevinstresultat, skatteår), |disposition: KglSælgerpantebrevDispositionsresultat| kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition, årets_samlede_netto_kroner, resultat.skatteforhold))
+| personskat_kgl_alle_resultater_i_indkomstår(resultater: List(KglEblPar6DSælgerpantebrevsresultat), skatteår: Heltal, årets_samlede_netto_kroner: Heltal) -> flat_map(resultater, |resultat: KglEblPar6DSælgerpantebrevsresultat| personskat_kgl_resultater_i_indkomstår(resultat, skatteår, årets_samlede_netto_kroner))
+| personskat_kgl_kapitalpost(resultat: KursgevinstlovResultat) -> par4_stk1_nr2_kapitalpost(Par4Stk1Nr2Input(kursgevinstlov_resultat = resultat))
+
+# PersonskatKursgevinstSag(input: PersonskatKursgevinstInput, skatteår: Heltal, ejendomsavance_resultat: PersonskatEjendomsavanceResultat) {
+    | par6d_resultater() -> personskat_egne_par6d_sælgerpantebrevsresultater(ejendomsavance_resultat)
+    | sælgerpantebrevsfakta() -> match input {
+        | UdenKursgevinst -> []
+        | MedKursgevinst(fakta) -> fakta.sælgerpantebreve
+    }
+    | øvrigt_netto_kroner() -> match input {
+        | UdenKursgevinst -> 0
+        | MedKursgevinst(fakta) -> fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner
+    }
+    | inputvariant_matcher_ebl() -> match input {
+        | UdenKursgevinst -> length(par6d_resultater()) == 0
+        | MedKursgevinst(_) -> length(sælgerpantebrevsfakta()) > 0 && personskat_kgl_alle_fakta_matcher_entydigt(sælgerpantebrevsfakta(), par6d_resultater()) && personskat_kgl_alle_par6d_resultater_matcher_entydigt(par6d_resultater(), sælgerpantebrevsfakta())
+    }
+    | sælgerpantebrevsresultater() -> personskat_kgl_sælgerpantebrevsresultater(sælgerpantebrevsfakta(), par6d_resultater())
+    | alle_sælgerpantebrevsresultater_gyldige() -> all(sælgerpantebrevsresultater(), |resultat: KglEblPar6DSælgerpantebrevsresultat| resultat.input_gyldigt)
+    | input_gyldigt() -> skatteår > 0 && inputvariant_matcher_ebl() && alle_sælgerpantebrevsresultater_gyldige()
+    | årets_samlede_netto_efter_par14_kroner() -> personskat_kgl_årets_samlede_netto_kroner(sælgerpantebrevsresultater(), skatteår, øvrigt_netto_kroner())
+    | kursgevinstlov_resultater_før_validering() -> personskat_kgl_alle_resultater_i_indkomstår(sælgerpantebrevsresultater(), skatteår, årets_samlede_netto_efter_par14_kroner())
+    | kursgevinstlov_resultater() -> hvis input_gyldigt() { kursgevinstlov_resultater_før_validering() } ellers { [] }
+    | kapitalposter() -> map(kursgevinstlov_resultater(), personskat_kgl_kapitalpost)
+    | resultat() -> PersonskatKursgevinstResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        sælgerpantebrevsresultater = sælgerpantebrevsresultater(),
+        årets_samlede_netto_efter_par14_kroner = årets_samlede_netto_efter_par14_kroner(),
+        kursgevinstlov_resultater = kursgevinstlov_resultater(),
+        kapitalposter = kapitalposter()
+    )
+}
+
+| personskat_kursgevinst_resultat(input: PersonskatKursgevinstInput, skatteår: Heltal, ejendomsavance_resultat: PersonskatEjendomsavanceResultat) -> PersonskatKursgevinstSag(input, skatteår, ejendomsavance_resultat).resultat()
 | personskat_kapitalomkostning_identifikation_unik(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> length(filter(omkostninger, |anden: PersonskatKapitalomkostningInput| anden.identifikation == omkostning.identifikation)) == 1
 | personskat_kapitalomkostning_gyldig(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> omkostning.identifikation != "" && omkostning.beløb_kroner >= 0 && personskat_kapitalomkostning_identifikation_unik(omkostninger, omkostning)
 | personskat_par4_kapitalomkostning(omkostning: PersonskatKapitalomkostningInput, reklassifikation: KapitalPersonligReklassifikation) -> Par4Kapitalomkostning(
@@ -2620,8 +2803,10 @@
     | ligningslov6a_input_gyldigt() -> personskat_ligningslov6a_input_gyldigt(input.renter.ligningslov6a, skatteår)
     | ejendomsavance_resultat() -> personskat_ejendomsavance_resultat(input.ejendomsavance, skatteår)
     | ejendomsavance_input_gyldigt() -> personskat_ejendomsavance_input_gyldigt(ejendomsavance_resultat())
+    | kursgevinst_resultat() -> personskat_kursgevinst_resultat(input.kursgevinst, skatteår, ejendomsavance_resultat())
+    | kursgevinst_input_gyldigt() -> kursgevinst_resultat().input_gyldigt
     | omkostninger_gyldige() -> all(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostning_gyldig(input.omkostninger, omkostning))
-    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && ejendomsavance_input_gyldigt() && omkostninger_gyldige()
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && omkostninger_gyldige()
     | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
     | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -2636,9 +2821,10 @@
     | rente_resultat() -> par4_stk1_nr1_resultat(rente_par4_input())
     | renteposter() -> hvis rentegrundlag_gyldigt() { [par4_stk1_nr1_kapitalpost(rente_par4_input())] } ellers { [] }
     | ejendomsavanceposter() -> personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat())
+    | kursgevinstposter() -> kursgevinst_resultat().kapitalposter
     | kapitalomkostninger() -> hvis omkostninger_gyldige() { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation())) } ellers { [] }
     | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-        poster = concat(concat(renteposter(), ejendomsavanceposter()), aktieavance.kapitalposter),
+        poster = concat(concat(concat(renteposter(), ejendomsavanceposter()), kursgevinstposter()), aktieavance.kapitalposter),
         omkostninger = kapitalomkostninger()
     ))
     | resultat() -> PersonskatKapitalindkomstResultat(
@@ -2647,12 +2833,14 @@
         ligningslov6_input_gyldigt = ligningslov6_input_gyldigt(),
         ligningslov6a_input_gyldigt = ligningslov6a_input_gyldigt(),
         ejendomsavance_input_gyldigt = ejendomsavance_input_gyldigt(),
+        kursgevinst_input_gyldigt = kursgevinst_input_gyldigt(),
         omkostninger_gyldige = omkostninger_gyldige(),
         alle_input_gyldige = alle_input_gyldige(),
         ligningslov6_resultat = ligningslov6_resultat(),
         ligningslov6a_resultat = ligningslov6a_resultat(),
         rente_resultat = rente_resultat(),
         ejendomsavance_resultat = ejendomsavance_resultat(),
+        kursgevinst_resultat = kursgevinst_resultat(),
         kapitalindkomst_resultat = kapitalindkomst_resultat()
     )
 }
@@ -2667,6 +2855,7 @@
         ligningslov6a = UdenLigningslov6AFradrag
     ),
     ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
     omkostninger = []
 )
 | personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(

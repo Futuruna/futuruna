@@ -1,0 +1,108 @@
+@ sprog da
+
+@ importer ./kursgevinstloven - saelgerpantebrev
+@ importer ./ejendomsavancebeskatningsloven - par6d
+
+# KglEblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kgl_ebl_par6d_vejledning_2026 = KglEblPar6DKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2292757",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: EBL § 6 D-sælgerpantebreve og kursgevinstloven",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:kgl_ebl_par6d_samspil::guidance:kgl_ebl_par6d_vejledning_2026--
+----
+Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
+betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.
+
+Ved en afståelse af sælgerpantebrevet i løbetiden, skal en eventuel resterende
+udskudt fortjeneste medregnes ved opgørelsen af den skattepligtige indkomst som
+ejendomsavance i afståelsesåret, og en gevinst eller et tab på pantebrevet vil
+være henholdsvis skattepligtig og fradragsberettiget efter reglerne i
+kursgevinstloven.
+
+Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
+----
+
+--@begin:kgl_ebl_par6d_samspil--
+# KglEblPar6DSkatteyderfakta(udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk, fordringen_erhvervet_uden_for_fordringsnæring: Boolsk, fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk, fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk, debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk, renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk)
+# KglEblPar6DSælgerpantebrevsfakta(sælgerpantebrev_identifikation: Tekst, skatteyderfakta: KglEblPar6DSkatteyderfakta, dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition))
+# KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, kursgevinstresultat: KglSælgerpantebrevResultat)
+
+| kgl_ebl_par6d_par17_fordring(fakta: KglEblPar6DSkatteyderfakta) -> fakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser || fakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift
+| kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabAlmindelig
+| exception kgl_ebl_par6d_kontrol_eller_nærtstående kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabKontrolEllerNærtstående under fakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2 && kgl_ebl_par6d_par17_fordring(fakta) == Falskt
+| exception kgl_ebl_par6d_par17_driftstilknytning kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabPar17Statsskattelov6A under kgl_ebl_par6d_par17_fordring(fakta)
+| kgl_ebl_par6d_skatteforhold(fakta: KglEblPar6DSkatteyderfakta) -> KglSælgerpantebrevSkatteforhold(
+    tab_status = kgl_ebl_par6d_tab_status(fakta),
+    udøver_fordringsnæring = fakta.udøver_næring_ved_køb_og_salg_af_fordringer,
+    fordring_erhvervet_udenfor_næring = fakta.fordringen_erhvervet_uden_for_fordringsnæring
+)
+| kgl_ebl_par6d_skatteyderfakta_understøttet(fakta: KglEblPar6DSkatteyderfakta) -> fakta.renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst == Falskt
+
+| kgl_ebl_par6d_ordinær_disposition(årsresultat: EblPar6DÅrsresultat) -> KglSælgerpantebrevDisposition(
+    indkomstår = årsresultat.årsforhold.indkomstår,
+    art = KglSælgerpantebrevAfdrag,
+    berørt_hovedstol_kroner = årsresultat.ordinært_hovedstolsafdrag_kroner,
+    afståelses_eller_indfrielsessum_kroner = årsresultat.ordinært_hovedstolsafdrag_kroner
+)
+| kgl_ebl_par6d_ordinære_dispositioner(årsresultat: EblPar6DÅrsresultat) -> hvis årsresultat.år_gyldigt && årsresultat.ordinært_hovedstolsafdrag_kroner > 0 { [kgl_ebl_par6d_ordinær_disposition(årsresultat)] } ellers { [] }
+| kgl_ebl_par6d_pantebrev_dispositionstype(art: EblPar6DPantebrevshændelsesart) -> KglSælgerpantebrevAfståelse
+| exception kgl_ebl_par6d_pantebrev_indfrielse kgl_ebl_par6d_pantebrev_dispositionstype(art: EblPar6DPantebrevshændelsesart) -> KglSælgerpantebrevIndfrielse under art == EblPar6DPantebrevIndfriet
+| kgl_ebl_par6d_ekstraordinære_dispositioner(årsresultat: EblPar6DÅrsresultat) -> match årsresultat.årsforhold.hændelse {
+    | EblPar6DPantebrevAfståetEllerIndfriet(art, berørt, provenu, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) {
+        [KglSælgerpantebrevDisposition(indkomstår = årsresultat.årsforhold.indkomstår, art = KglSælgerpantebrevÆgtefællesuccession, berørt_hovedstol_kroner = berørt, afståelses_eller_indfrielsessum_kroner = 0)]
+    } ellers {
+        [KglSælgerpantebrevDisposition(indkomstår = årsresultat.årsforhold.indkomstår, art = kgl_ebl_par6d_pantebrev_dispositionstype(art), berørt_hovedstol_kroner = berørt, afståelses_eller_indfrielsessum_kroner = provenu)]
+    }
+    | EblPar6DSælgerDød(_) -> [KglSælgerpantebrevDisposition(indkomstår = årsresultat.årsforhold.indkomstår, art = KglSælgerpantebrevIkkeUnderstøttet(beskrivelse = "Sælgers død kræver fordeling til bo eller succederende ægtefælle"), berørt_hovedstol_kroner = årsresultat.tilstand_før.sælgerpantebrev_restgæld_kroner - årsresultat.ordinært_hovedstolsafdrag_kroner, afståelses_eller_indfrielsessum_kroner = 0)]
+    | _ -> []
+}
+| kgl_ebl_par6d_dispositioner_i_år(årsresultat: EblPar6DÅrsresultat) -> concat(kgl_ebl_par6d_ordinære_dispositioner(årsresultat), kgl_ebl_par6d_ekstraordinære_dispositioner(årsresultat))
+| kgl_ebl_par6d_dispositioner_i_forløb(resultat: EblPar6DResultat) -> foldl(resultat.årsresultater, [], |dispositioner: List(KglSælgerpantebrevDisposition), årsresultat: EblPar6DÅrsresultat| concat(dispositioner, kgl_ebl_par6d_dispositioner_i_år(årsresultat)))
+| kgl_ebl_par6d_efterfølgende_disposition_efter_forløbet(resultat: EblPar6DResultat, disposition: KglSælgerpantebrevDisposition) -> disposition.indkomstår > ebl_par6d_sidst_behandlede_indkomstår(resultat)
+| kgl_ebl_par6d_efterfølgende_dispositioner_gyldige(resultat: EblPar6DResultat, dispositioner: List(KglSælgerpantebrevDisposition)) -> length(dispositioner) == 0 || (resultat.tilstand_ultimo.ordning_aktiv == Falskt && all(dispositioner, |disposition: KglSælgerpantebrevDisposition| kgl_ebl_par6d_efterfølgende_disposition_efter_forløbet(resultat, disposition)))
+| kgl_ebl_par6d_sælgerpantebrev(resultat: EblPar6DResultat) -> match resultat.valg {
+    | EblMedPar6DValg(fakta) -> fakta.sælgerpantebrev
+    | EblUdenPar6DValg -> EblPar6DSælgerpantebrev(identifikation = "", fordring_mod_erhververen = Falskt, pant_i_den_overdragne_ejendom = Falskt, kontantværdi_kroner = 0, hovedstol_kroner = 0, løbetid_år = 0, afdragsplan = [])
+}
+| kgl_ebl_par6d_sælgers_skattepligtsstatus(resultat: EblPar6DResultat) -> match resultat.valg {
+    | EblMedPar6DValg(fakta) -> fakta.sælgers_skatteforhold.skattepligtsstatus
+    | EblUdenPar6DValg -> EblPar6DAndenSkattepligtsstatus
+}
+| kgl_ebl_par6d_personskatteyder_understøttet(resultat: EblPar6DResultat) -> kgl_ebl_par6d_sælgers_skattepligtsstatus(resultat) == EblPar6DFuldtSkattepligtigTilDanmark || kgl_ebl_par6d_sælgers_skattepligtsstatus(resultat) == EblPar6DBegrænsetSkattepligtigEfterKildeskattelovensPar2Stk1Nr5
+| kgl_ebl_par6d_kursgevinstinput(resultat: EblPar6DResultat, efterfølgende_dispositioner: List(KglSælgerpantebrevDisposition)) -> {
+    = pantebrev = kgl_ebl_par6d_sælgerpantebrev(resultat)
+    KglSælgerpantebrevInput(
+        identifikation = pantebrev.identifikation,
+        erhvervelsesår = resultat.tilstand_ultimo.afståelsesår,
+        hovedstol_kroner = pantebrev.hovedstol_kroner,
+        kursværdi_ved_erhvervelsen_kroner = pantebrev.kontantværdi_kroner,
+        dispositioner = concat(kgl_ebl_par6d_dispositioner_i_forløb(resultat), efterfølgende_dispositioner)
+    )
+}
+
+# KglEblPar6DSag(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) {
+    | pantebrev() -> kgl_ebl_par6d_sælgerpantebrev(par6d_resultat)
+    | identifikation_matcher() -> fakta.sælgerpantebrev_identifikation != "" && fakta.sælgerpantebrev_identifikation == pantebrev().identifikation
+    | skatteyder_understøttet() -> kgl_ebl_par6d_personskatteyder_understøttet(par6d_resultat) && kgl_ebl_par6d_skatteyderfakta_understøttet(fakta.skatteyderfakta)
+    | efterfølgende_dispositioner_gyldige() -> kgl_ebl_par6d_efterfølgende_dispositioner_gyldige(par6d_resultat, fakta.dispositioner_efter_ebl_forløbet)
+    | skatteforhold() -> kgl_ebl_par6d_skatteforhold(fakta.skatteyderfakta)
+    | kursgevinstresultat() -> kgl_sælgerpantebrev_resultat(kgl_ebl_par6d_kursgevinstinput(par6d_resultat, fakta.dispositioner_efter_ebl_forløbet))
+    | input_gyldigt() -> par6d_resultat.input_gyldigt && identifikation_matcher() && skatteyder_understøttet() && efterfølgende_dispositioner_gyldige() && kursgevinstresultat().input_gyldigt
+    | resultat() -> KglEblPar6DSælgerpantebrevsresultat(
+        fakta = fakta,
+        par6d_resultat = par6d_resultat,
+        identifikation_matcher = identifikation_matcher(),
+        skatteyder_understøttet = skatteyder_understøttet(),
+        efterfølgende_dispositioner_gyldige = efterfølgende_dispositioner_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        skatteforhold = skatteforhold(),
+        kursgevinstresultat = kursgevinstresultat()
+    )
+}
+
+| kgl_ebl_par6d_sag(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) -> KglEblPar6DSag(fakta, par6d_resultat)
+| kgl_ebl_par6d_resultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) -> kgl_ebl_par6d_sag(fakta, par6d_resultat).resultat()
+--@end:kgl_ebl_par6d_samspil--

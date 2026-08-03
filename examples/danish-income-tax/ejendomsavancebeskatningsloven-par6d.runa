@@ -122,7 +122,7 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 # EblPar6DHenstandsresultat(henstand_valgt: Boolsk, henstandsbetingelser_opfyldt: Boolsk, input_gyldigt: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, skat_forfalder_ved_skattepligtsophør_kroner: Heltal, årsresultater: List(EblPar6DHenstandsårsresultat), tilstand_ultimo: EblPar6DHenstandstilstand)
 # EblPar6DSkattepligtsophørFakta(skatteyder: EblPar6DHenstandsskatteyder, nyt_hjemstedsområde: EblPar6DHjemstedsområde, informationsudveksling_med_danmark: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, henstandsvalg: EblPar6DHenstandsvalg)
 # EblPar6DPantebrevshændelsesart = EblPar6DPantebrevAfstået | EblPar6DPantebrevIndfriet
-# EblPar6DHændelse = EblPar6DIngenFremrykningshændelse | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DPantebrevAfståetEllerIndfriet(art: EblPar6DPantebrevshændelsesart, berørt_restgæld_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DSælgerDød(succession: EblPar6DDødsbosuccession) | EblPar6DSkattepligtOphørt(fakta: EblPar6DSkattepligtsophørFakta) | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed: EblPar6DSikkerhed) | EblPar6DFlyttetTilLandMedInddrivelsesbistand(frigivelse_af_sikkerhed_anmodet: Boolsk) | EblPar6DIkkeUnderstøttetHændelse(beskrivelse: Tekst)
+# EblPar6DHændelse = EblPar6DIngenFremrykningshændelse | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DPantebrevAfståetEllerIndfriet(art: EblPar6DPantebrevshændelsesart, berørt_restgæld_kroner: Heltal, afståelses_eller_indfrielsesprovenu_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DSælgerDød(succession: EblPar6DDødsbosuccession) | EblPar6DSkattepligtOphørt(fakta: EblPar6DSkattepligtsophørFakta) | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed: EblPar6DSikkerhed) | EblPar6DFlyttetTilLandMedInddrivelsesbistand(frigivelse_af_sikkerhed_anmodet: Boolsk) | EblPar6DIkkeUnderstøttetHændelse(beskrivelse: Tekst)
 # EblPar6DÅrsforhold(indkomstår: Heltal, betalt_ordinært_hovedstolsafdrag_kroner: Heltal, hændelse: EblPar6DHændelse)
 # EblPar6DValgfakta(valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, fordelingsår: Heltal, erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk, partrelation: EblPar6DPartrelationFakta, overdragerens_anvendelse: EblPar6DErhvervsanvendelse, erhververens_anvendelse_ved_overdragelsen: EblPar6DErhvervsanvendelse, sælgerpantebrev: EblPar6DSælgerpantebrev, meddelelse: EblPar6DValgmeddelelse, sælgers_skatteforhold: EblPar6DSælgerskatteforhold, ejendomsplacering: EblPar6DEjendomsplacering, afståelsesårets_hændelse: EblPar6DHændelse, efterfølgende_årsforhold: List(EblPar6DÅrsforhold))
 # EblPar6DValg = EblUdenPar6DValg | EblMedPar6DValg(fakta: EblPar6DValgfakta)
@@ -238,7 +238,7 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 | ebl_par6d_hændelse_gyldig(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
     | EblPar6DIngenFremrykningshændelse -> Sandt
     | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, _) -> berørt > 0 && hel > 0 && berørt <= hel
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, _) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, provenu, _) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner && provenu >= 0
     | EblPar6DSælgerDød(_) -> Sandt
     | EblPar6DSkattepligtOphørt(fakta) -> fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0
     | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> ebl_par6d_sikkerhed_gyldig(sikkerhed)
@@ -248,7 +248,7 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 | ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(tilstand: EblPar6DTilstand, resterende_efter_ordinær_kroner: Heltal, hændelse: EblPar6DHændelse) -> match hændelse {
     | EblPar6DIngenFremrykningshændelse -> 0
     | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner * berørt / hel }
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
     | EblPar6DSælgerDød(succession) -> hvis ebl_par6d_dødsbosuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner }
     | EblPar6DSkattepligtOphørt(_) -> resterende_efter_ordinær_kroner
     | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> hvis ebl_par6d_sikkerhed_godkendt(sikkerhed) { 0 } ellers { resterende_efter_ordinær_kroner }
@@ -256,7 +256,7 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     | EblPar6DIkkeUnderstøttetHændelse(_) -> 0
 }
 | ebl_par6d_hændelse_gældsnedskrivning_kroner(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { penge_mindste_beløb(tilstand.sælgerpantebrev_restgæld_kroner, berørt) }
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { penge_mindste_beløb(tilstand.sælgerpantebrev_restgæld_kroner, berørt) }
     | _ -> 0
 }
 

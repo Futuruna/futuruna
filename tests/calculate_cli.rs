@@ -509,7 +509,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 118);
+        assert_eq!(case_headers.len(), 120);
         for expected in [
             "Skatteår",
             "Bopælskommune",
@@ -519,6 +519,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Kirkeskat",
             "Årets renteindtægter",
             "Årets renteudgifter",
+            "Kursgevinster og kurstab",
             "Årsopgørelse",
             "Ordinært aktieår",
         ] {
@@ -563,6 +564,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.MedFremførtEjendomstab.tab_kroner",
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_fremførte_tab.$variant",
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
+            "kapitalindkomst.kursgevinst.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
@@ -666,6 +669,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par6d_valg.EblMedPar6DValg.fakta.meddelelse.$variant",
                 "par6d_valg.EblMedPar6DValg.fakta.ejendomsplacering.$variant",
                 "par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.$variant",
+                "par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
             ] {
                 assert!(
                     property_paths.iter().any(|path| path == expected),
@@ -731,6 +735,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Meddelelse om fordelingsvalget",
                 "Ejendommens beliggenhed",
                 "Hændelse i afståelsesåret",
+                "Provenu ved afståelse eller indfrielse",
             ] {
                 assert!(
                     property_headers.iter().any(|header| header == expected),
@@ -841,6 +846,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "indkomstår",
                 "betalt_ordinært_hovedstolsafdrag_kroner",
                 "hændelse.$variant",
+                "hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
             ] {
                 assert!(
                     par6d_year_paths.iter().any(|path| path == expected),
@@ -852,12 +858,79 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Indkomstår",
                 "Faktisk ordinært hovedstolsafdrag",
                 "Hændelse i indkomståret",
+                "Provenu ved afståelse eller indfrielse",
             ] {
                 assert!(
                     par6d_year_headers.iter().any(|header| header == expected),
                     "missing human EBL § 6 D annual label {expected} on {par6d_years_sheet}"
                 );
             }
+        }
+        let kgl_seller_note_path =
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve";
+        let kgl_seller_note_sheet =
+            workbook_collection_sheet_name(&mut workbook, kgl_seller_note_path);
+        let kgl_seller_note_paths = workbook_column_paths(&mut workbook, &kgl_seller_note_sheet);
+        for expected in [
+            "sælgerpantebrev_identifikation",
+            "skatteyderfakta.udøver_næring_ved_køb_og_salg_af_fordringer",
+            "skatteyderfakta.fordringen_erhvervet_uden_for_fordringsnæring",
+            "skatteyderfakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser",
+            "skatteyderfakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift",
+            "skatteyderfakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2",
+            "skatteyderfakta.renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst",
+        ] {
+            assert!(
+                kgl_seller_note_paths.iter().any(|path| path == expected),
+                "missing canonical KGL seller-note path {expected} on {kgl_seller_note_sheet}"
+            );
+        }
+        let kgl_seller_note_headers = workbook_headers(&mut workbook, &kgl_seller_note_sheet);
+        for expected in [
+            "Sælgerpantebrev",
+            "Næring med fordringer",
+            "Fordring uden for næring",
+            "Vederlag for varer eller ydelser",
+            "Direkte tilknytning til virksomheden",
+            "Kontrolleret eller nærtstående debitor",
+            "Fritagelse efter skatteaftale",
+        ] {
+            assert!(
+                kgl_seller_note_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human KGL seller-note label {expected} on {kgl_seller_note_sheet}"
+            );
+        }
+        let kgl_disposition_path =
+            format!("{kgl_seller_note_path}.dispositioner_efter_ebl_forløbet");
+        let kgl_disposition_sheet =
+            workbook_collection_sheet_name(&mut workbook, &kgl_disposition_path);
+        let kgl_disposition_paths = workbook_column_paths(&mut workbook, &kgl_disposition_sheet);
+        for expected in [
+            "indkomstår",
+            "art.$variant",
+            "berørt_hovedstol_kroner",
+            "afståelses_eller_indfrielsessum_kroner",
+        ] {
+            assert!(
+                kgl_disposition_paths.iter().any(|path| path == expected),
+                "missing canonical post-EBL KGL disposition path {expected} on {kgl_disposition_sheet}"
+            );
+        }
+        let kgl_disposition_headers = workbook_headers(&mut workbook, &kgl_disposition_sheet);
+        for expected in [
+            "Dispositionens indkomstår",
+            "Disposition med restfordringen",
+            "Berørt hovedstol",
+            "Modtaget beløb",
+        ] {
+            assert!(
+                kgl_disposition_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human post-EBL KGL disposition label {expected} on {kgl_disposition_sheet}"
+            );
         }
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
@@ -1006,6 +1079,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "kapitalindkomst.ejendomsavance.$variant",
                         Data::String("UdenEjendomsavance".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.kursgevinst.$variant",
+                        Data::String("UdenKursgevinst".to_string()),
                     ),
                     (
                         "skatteforhold.$variant",
@@ -1329,6 +1406,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
                 Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.kursgevinst.$variant",
+                Data::String("MedKursgevinst".to_string()),
+            ),
+            (
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+                Data::Int(0),
             ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 5, header, value);
@@ -1915,13 +2000,61 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("item_id", Data::String("ebl6d-år-2026".to_string())),
             ("position", Data::Int(1)),
             ("indkomstår", Data::Int(2026)),
-            ("betalt_ordinært_hovedstolsafdrag_kroner", Data::Int(0)),
+            (
+                "betalt_ordinært_hovedstolsafdrag_kroner",
+                Data::Int(375_000),
+            ),
             (
                 "hændelse.$variant",
                 Data::String("EblPar6DIngenFremrykningshændelse".to_string()),
             ),
         ] {
             set_workbook_cell_by_header(sheets, &own_par6d_years_sheet, 1, header, value);
+        }
+        let kgl_seller_note_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-ebl6d-historisk-2026".to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("kgl-sælgerpantebrev-2025".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "sælgerpantebrev_identifikation",
+                Data::String("sælgerpantebrev-2025".to_string()),
+            ),
+            (
+                "skatteyderfakta.udøver_næring_ved_køb_og_salg_af_fordringer",
+                Data::Bool(false),
+            ),
+            (
+                "skatteyderfakta.fordringen_erhvervet_uden_for_fordringsnæring",
+                Data::Bool(false),
+            ),
+            (
+                "skatteyderfakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser",
+                Data::Bool(false),
+            ),
+            (
+                "skatteyderfakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift",
+                Data::Bool(false),
+            ),
+            (
+                "skatteyderfakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2",
+                Data::Bool(false),
+            ),
+            (
+                "skatteyderfakta.renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &kgl_seller_note_sheet, 1, header, value);
         }
         let own_milk_quota_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -2429,6 +2562,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
             },
             "ejendomsavance": { "$variant": "UdenEjendomsavance" },
+            "kursgevinst": { "$variant": "UdenKursgevinst" },
             "omkostninger": []
         },
         "aktieavance": {
@@ -2649,6 +2783,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "gift_samlevende_ved_indkomstårets_udgang": true
             }
         },
+        "kursgevinst": { "$variant": "UdenKursgevinst" },
         "omkostninger": [{
             "identifikation": "bankgebyr",
             "beløb_kroner": 2_000
@@ -2847,6 +2982,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "gift_samlevende_ved_indkomstårets_udgang": false
             }
         },
+        "kursgevinst": { "$variant": "UdenKursgevinst" },
         "omkostninger": []
     });
     ebl5_case["input"]["aktieavance"] = serde_json::json!({
@@ -2923,7 +3059,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "efterfølgende_årsforhold": [{
                 "indkomstår": 2026,
-                "betalt_ordinært_hovedstolsafdrag_kroner": 0,
+                "betalt_ordinært_hovedstolsafdrag_kroner": 375_000,
                 "hændelse": {
                     "$variant": "EblPar6DIngenFremrykningshændelse"
                 }
@@ -2978,6 +3114,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ægtefælles_afståelser": [],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": false
+            }
+        },
+        "kursgevinst": {
+            "$variant": "MedKursgevinst",
+            "fakta": {
+                "sælgerpantebreve": [{
+                    "sælgerpantebrev_identifikation": "sælgerpantebrev-2025",
+                    "skatteyderfakta": {
+                        "udøver_næring_ved_køb_og_salg_af_fordringer": false,
+                        "fordringen_erhvervet_uden_for_fordringsnæring": false,
+                        "fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser": false,
+                        "fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift": false,
+                        "debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2": false,
+                        "renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst": false
+                    },
+                    "dispositioner_efter_ebl_forløbet": []
+                }],
+                "øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner": 0
             }
         },
         "omkostninger": []
@@ -3074,6 +3228,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "gift_samlevende_ved_indkomstårets_udgang": false
             }
         },
+        "kursgevinst": { "$variant": "UdenKursgevinst" },
         "omkostninger": []
     });
     ebl11_case["input"]["aktieavance"] = serde_json::json!({
@@ -3306,7 +3461,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][4]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
+        375_000
+    );
+    assert_eq!(
+        result["results"][4]["result"]["kapitalindkomst"]["kursgevinst_input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        result["results"][4]["result"]["kapitalindkomst"]["kursgevinst_resultat"]
+            ["årets_samlede_netto_efter_par14_kroner"],
+        75_000
+    );
+    assert_eq!(
+        result["results"][4]["result"]["kapitalindkomst"]["kursgevinst_resultat"]
+            ["sælgerpantebrevsresultater"][0]["kursgevinstresultat"]["dispositionsresultater"][0]
+            ["frigivet_anskaffelsessum_kroner"],
         300_000
+    );
+    assert_eq!(
+        result["results"][4]["result"]["kapitalindkomst"]["kursgevinst_resultat"]
+            ["kursgevinstlov_resultater"][0]["netto_efter_kursgevinstloven_kroner"],
+        75_000
     );
     assert_eq!(
         result["results"][5]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]

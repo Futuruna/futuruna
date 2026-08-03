@@ -150,6 +150,7 @@
         EblPar6DPantebrevAfståetEllerIndfriet(
             art = EblPar6DPantebrevIndfriet,
             berørt_restgæld_kroner = 375000,
+            afståelses_eller_indfrielsesprovenu_kroner = 375000,
             succession = EblPar6DIngenÆgtefællesuccession
         )
     )]

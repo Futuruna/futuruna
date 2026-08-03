@@ -1,0 +1,204 @@
+@ sprog da
+
+@ importer ./kursgevinstloven
+
+# KglSælgerpantebrevKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kgl_sælgerpantebrev_lbk1176 = KglSælgerpantebrevKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12, 14, 17, 25 og 26",
+    hentet_dato = "2026-07-18"
+)
+
+= kgl_sælgerpantebrev_vejledning_2026 = KglSælgerpantebrevKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2292757",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: Samspillet mellem EBL § 6 D og kursgevinstloven",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:kgl_sælgerpantebrev_lovgrundlag::source:kgl_sælgerpantebrev_lbk1176--
+----
+§ 1. Denne lov omfatter
+1) gevinst og tab ved afståelse eller indfrielse af pengefordringer herunder
+obligationer, pantebreve og gældsbreve,
+2) gevinst og tab ved frigørelse for gæld og
+3) gevinst og tab på terminskontrakter og aftaler om køberetter og salgsretter
+uden hensyn til de regler, der gælder for det underliggende aktiv.
+
+§ 12. Personer, der er skattepligtige efter kildeskatteloven, og dødsboer, der
+er skattepligtige efter dødsboskatteloven, skal ved opgørelsen af den
+skattepligtige indkomst medregne gevinst og tab på fordringer og gæld, som
+omfattes af § 1, efter de regler, der er angivet i dette kapitel og § 29 samt i
+kapitel 4, 5 og 7.
+
+§ 14. Gevinst og tab på fordringer medregnes ved opgørelsen af den
+skattepligtige indkomst, jf. dog stk. 2 og §§ 15, 17 og 18. 1. pkt. finder dog
+alene anvendelse, hvis årets nettogevinst eller nettotab sammenlagt med
+nettogevinster og nettotab omfattet af § 23 og gevinst og tab på
+investeringsbeviser i obligationsbaserede investeringsinstitutter med
+minimumsbeskatning, jf. aktieavancebeskatningslovens § 22, overstiger 2.000 kr.
+
+Stk. 2. Tab på fordringer på selskaber, hvorover den skattepligtige har eller
+har haft en indflydelse som omhandlet i aktieavancebeskatningslovens § 4, eller
+tab på fordringer på den skattepligtiges ægtefælle, forældre og bedsteforældre
+samt børn og børnebørn og disses ægtefæller eller dødsboer efter de nævnte
+personer kan ikke fradrages. Stedbarns- og adoptivforhold sidestilles med
+naturligt slægtskabsforhold. For fordringer i fremmed valuta opgøres det
+ikkefradragsberettigede tab efter 1. og 2. pkt. på grundlag af valutakurserne
+på tidspunktet for fordringens erhvervelse.
+
+§ 17. For tab på fordringer, der er erhvervet som vederlag i næring og for tab
+på fordringer, der i øvrigt er erhvervet i tilknytning til den erhvervsmæssige
+drift af virksomheden, finder reglerne i statsskattelovens § 6 a anvendelse,
+jf. dog § 18.
+
+§ 25. Gevinst og tab på fordringer og gæld, der skal medregnes ved opgørelsen af
+den skattepligtige indkomst, medregnes i det indkomstår, hvori gevinsten eller
+tabet realiseres (realisationsprincippet), jf. dog stk. 2-10, og § 22, stk. 1,
+samt §§ 36 og 37.
+
+§ 26. Gevinst og tab på fordringer og gæld opgøres efter reglerne i stk. 2-5,
+jf. dog § 25, stk. 2-5, om lagerprincippet og § 25, stk. 7-10.
+
+Stk. 2. Gevinst eller tab på fordringer opgøres som forskellen mellem
+anskaffelsessummen og afståelsessummen. Som anskaffelsessum anvendes kursværdien
+på erhvervelsestidspunktet, medmindre den skattepligtige godtgør at have
+erhvervet fordringen for et højere beløb.
+----
+
+--@begin:kgl_sælgerpantebrev_lovgrundlag--
+# KglSælgerpantebrevDispositionstype = KglSælgerpantebrevAfdrag | KglSælgerpantebrevAfståelse | KglSælgerpantebrevIndfrielse | KglSælgerpantebrevNedskrivning | KglSælgerpantebrevÆgtefællesuccession | KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
+# KglSælgerpantebrevDisposition(indkomstår: Heltal, art: KglSælgerpantebrevDispositionstype, berørt_hovedstol_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal)
+# KglSælgerpantebrevInput(identifikation: Tekst, erhvervelsesår: Heltal, hovedstol_kroner: Heltal, kursværdi_ved_erhvervelsen_kroner: Heltal, dispositioner: List(KglSælgerpantebrevDisposition))
+# KglSælgerpantebrevTilstand(resterende_hovedstol_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, seneste_indkomstår: Heltal, aktiv: Boolsk)
+# KglSælgerpantebrevDispositionsresultat(tilstand_før: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, disposition_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, frigivet_anskaffelsessum_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal, rå_gevinst_kroner: Heltal, rå_tab_kroner: Heltal, rå_netto_kroner: Heltal, tilstand_efter: KglSælgerpantebrevTilstand)
+# KglSælgerpantebrevForløbstilstand(tilstand: KglSælgerpantebrevTilstand, resultater: List(KglSælgerpantebrevDispositionsresultat), alle_dispositioner_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk)
+# KglSælgerpantebrevResultat(input: KglSælgerpantebrevInput, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, dispositionsresultater: List(KglSælgerpantebrevDispositionsresultat), samlet_rå_gevinst_kroner: Heltal, samlet_rå_tab_kroner: Heltal, samlet_rå_netto_kroner: Heltal, tilstand_ultimo: KglSælgerpantebrevTilstand)
+# KglSælgerpantebrevSkatteforhold(tab_status: KursgevinstlovFordringTabStatus, udøver_fordringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk)
+
+| kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Sandt
+| exception kgl_sælgerpantebrev_succession_kræver_skatteyderfordeling kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under art == KglSælgerpantebrevÆgtefællesuccession
+| exception kgl_sælgerpantebrev_ukendt_disposition_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevIkkeUnderstøttet(_) -> Sandt | _ -> Falskt }
+
+| kgl_sælgerpantebrev_dispositionsbeløb_gyldigt(disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
+    | KglSælgerpantebrevAfdrag -> disposition.afståelses_eller_indfrielsessum_kroner == disposition.berørt_hovedstol_kroner
+    | KglSælgerpantebrevNedskrivning -> disposition.afståelses_eller_indfrielsessum_kroner == 0
+    | KglSælgerpantebrevÆgtefællesuccession -> disposition.afståelses_eller_indfrielsessum_kroner == 0
+    | _ -> disposition.afståelses_eller_indfrielsessum_kroner >= 0
+}
+| kgl_sælgerpantebrev_disposition_gyldig(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> kgl_sælgerpantebrev_disposition_understøttet(disposition.art) && tilstand.aktiv && disposition.indkomstår >= tilstand.seneste_indkomstår && disposition.berørt_hovedstol_kroner > 0 && disposition.berørt_hovedstol_kroner <= tilstand.resterende_hovedstol_kroner && kgl_sælgerpantebrev_dispositionsbeløb_gyldigt(disposition)
+| kgl_sælgerpantebrev_frigivet_anskaffelsessum_kroner(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> hvis disposition.berørt_hovedstol_kroner == tilstand.resterende_hovedstol_kroner { tilstand.resterende_anskaffelsessum_kroner } ellers { tilstand.resterende_anskaffelsessum_kroner * disposition.berørt_hovedstol_kroner / tilstand.resterende_hovedstol_kroner }
+| kgl_sælgerpantebrev_tilstand_efter(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, frigivet_anskaffelsessum_kroner: Heltal) -> {
+    = resterende_hovedstol_kroner = tilstand.resterende_hovedstol_kroner - disposition.berørt_hovedstol_kroner
+    KglSælgerpantebrevTilstand(
+        resterende_hovedstol_kroner = resterende_hovedstol_kroner,
+        resterende_anskaffelsessum_kroner = tilstand.resterende_anskaffelsessum_kroner - frigivet_anskaffelsessum_kroner,
+        seneste_indkomstår = disposition.indkomstår,
+        aktiv = resterende_hovedstol_kroner > 0
+    )
+}
+| kgl_sælgerpantebrev_dispositionsresultat(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> {
+    = regelgrundlag_understøttet = kgl_sælgerpantebrev_disposition_understøttet(disposition.art)
+    = disposition_gyldig = kgl_sælgerpantebrev_disposition_gyldig(tilstand, disposition)
+    = frigivet_anskaffelsessum_kroner = hvis disposition_gyldig { kgl_sælgerpantebrev_frigivet_anskaffelsessum_kroner(tilstand, disposition) } ellers { 0 }
+    = afståelses_eller_indfrielsessum_kroner = hvis disposition_gyldig { disposition.afståelses_eller_indfrielsessum_kroner } ellers { 0 }
+    = rå_netto_kroner = afståelses_eller_indfrielsessum_kroner - frigivet_anskaffelsessum_kroner
+    KglSælgerpantebrevDispositionsresultat(
+        tilstand_før = tilstand,
+        disposition = disposition,
+        disposition_gyldig = disposition_gyldig,
+        regelgrundlag_understøttet = regelgrundlag_understøttet,
+        frigivet_anskaffelsessum_kroner = frigivet_anskaffelsessum_kroner,
+        afståelses_eller_indfrielsessum_kroner = afståelses_eller_indfrielsessum_kroner,
+        rå_gevinst_kroner = penge_positivt_beløb(rå_netto_kroner),
+        rå_tab_kroner = penge_positivt_beløb(0 - rå_netto_kroner),
+        rå_netto_kroner = rå_netto_kroner,
+        tilstand_efter = hvis disposition_gyldig { kgl_sælgerpantebrev_tilstand_efter(tilstand, disposition, frigivet_anskaffelsessum_kroner) } ellers { tilstand }
+    )
+}
+| kgl_sælgerpantebrev_forløbstrin(forløb: KglSælgerpantebrevForløbstilstand, disposition: KglSælgerpantebrevDisposition) -> {
+    = resultat = kgl_sælgerpantebrev_dispositionsresultat(forløb.tilstand, disposition)
+    KglSælgerpantebrevForløbstilstand(
+        tilstand = resultat.tilstand_efter,
+        resultater = concat(forløb.resultater, [resultat]),
+        alle_dispositioner_gyldige = forløb.alle_dispositioner_gyldige && resultat.disposition_gyldig,
+        regelgrundlag_understøttet = forløb.regelgrundlag_understøttet && resultat.regelgrundlag_understøttet
+    )
+}
+--@end:kgl_sælgerpantebrev_lovgrundlag--
+
+--@label:kgl_sælgerpantebrev_ebl_par6d_samspil::guidance:kgl_sælgerpantebrev_vejledning_2026--
+----
+Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
+betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.
+
+Et sælgerpantebrev skal ved opgørelsen af sælgerens fortjeneste ved afståelse af
+ejendommen kursansættes til handelsværdien. Er pantebrevets kursværdi fx ansat
+til kurs 80, skal kursnedslaget på 20 pct. beskattes hos sælger (kreditor ifølge
+sælgerpantebrevet) efter reglerne i kursgevinstloven, i takt med at pantebrevet
+afdrages.
+
+Sælgerpantebrevet afdrages over 10 år med 375.000 kr. årligt. Ved hvert af de
+årlige afdrag på 375.000 kr. skal 20 pct. af afdraget (75.000 kr.) beskattes som
+kursgevinst hos kreditor (sælger) efter reglerne i kursgevinstloven. Sælgeren
+skal desuden medregne 300.000 kr. årligt som udskudt fortjeneste ved afståelse
+af ejendommen.
+----
+
+--@begin:kgl_sælgerpantebrev_ebl_par6d_samspil--
+# KglSælgerpantebrevSag(input: KglSælgerpantebrevInput) {
+    | grundfakta_gyldige() -> input.identifikation != "" && input.erhvervelsesår > 0 && input.hovedstol_kroner > 0 && input.kursværdi_ved_erhvervelsen_kroner >= 0
+    | initial_tilstand() -> KglSælgerpantebrevTilstand(
+        resterende_hovedstol_kroner = input.hovedstol_kroner,
+        resterende_anskaffelsessum_kroner = input.kursværdi_ved_erhvervelsen_kroner,
+        seneste_indkomstår = input.erhvervelsesår,
+        aktiv = grundfakta_gyldige()
+    )
+    | forløb() -> foldl(input.dispositioner, KglSælgerpantebrevForløbstilstand(
+        tilstand = initial_tilstand(),
+        resultater = [],
+        alle_dispositioner_gyldige = Sandt,
+        regelgrundlag_understøttet = Sandt
+        ), kgl_sælgerpantebrev_forløbstrin)
+    | samlet_rå_gevinst_kroner() -> foldl(forløb().resultater, 0, |sum: Heltal, resultat: KglSælgerpantebrevDispositionsresultat| sum + resultat.rå_gevinst_kroner)
+    | samlet_rå_tab_kroner() -> foldl(forløb().resultater, 0, |sum: Heltal, resultat: KglSælgerpantebrevDispositionsresultat| sum + resultat.rå_tab_kroner)
+    | resultat() -> KglSælgerpantebrevResultat(
+        input = input,
+        grundfakta_gyldige = grundfakta_gyldige(),
+        input_gyldigt = grundfakta_gyldige() && forløb().alle_dispositioner_gyldige && forløb().regelgrundlag_understøttet,
+        regelgrundlag_understøttet = forløb().regelgrundlag_understøttet,
+        dispositionsresultater = forløb().resultater,
+        samlet_rå_gevinst_kroner = samlet_rå_gevinst_kroner(),
+        samlet_rå_tab_kroner = samlet_rå_tab_kroner(),
+        samlet_rå_netto_kroner = samlet_rå_gevinst_kroner() - samlet_rå_tab_kroner(),
+        tilstand_ultimo = forløb().tilstand
+    )
+}
+
+| kgl_sælgerpantebrev_sag(input: KglSælgerpantebrevInput) -> KglSælgerpantebrevSag(input)
+| kgl_sælgerpantebrev_resultat(input: KglSælgerpantebrevInput) -> kgl_sælgerpantebrev_sag(input).resultat()
+| kgl_sælgerpantebrev_dispositionsresultater_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal) -> filter(resultat.dispositionsresultater, |disposition: KglSælgerpantebrevDispositionsresultat| disposition.disposition.indkomstår == indkomstår)
+| kgl_sælgerpantebrev_rå_netto_i_indkomstår_kroner(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal) -> foldl(kgl_sælgerpantebrev_dispositionsresultater_i_indkomstår(resultat, indkomstår), 0, |sum: Heltal, disposition: KglSælgerpantebrevDispositionsresultat| sum + disposition.rå_netto_kroner)
+| kgl_sælgerpantebrev_kursgevinstlov_input(disposition: KglSælgerpantebrevDispositionsresultat, årets_samlede_netto_efter_par14_kroner: Heltal, skatteforhold: KglSælgerpantebrevSkatteforhold) -> KursgevinstlovInput(
+    indkomstår = disposition.disposition.indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = årets_samlede_netto_efter_par14_kroner
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = skatteforhold.tab_status,
+        anskaffelsessum_kroner = disposition.frigivet_anskaffelsessum_kroner,
+        afståelsessum_kroner = disposition.afståelses_eller_indfrielsessum_kroner
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = skatteforhold.udøver_fordringsnæring,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = skatteforhold.fordring_erhvervet_udenfor_næring,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+| kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition: KglSælgerpantebrevDispositionsresultat, årets_samlede_netto_efter_par14_kroner: Heltal, skatteforhold: KglSælgerpantebrevSkatteforhold) -> kursgevinstlov_resultat(kgl_sælgerpantebrev_kursgevinstlov_input(disposition, årets_samlede_netto_efter_par14_kroner, skatteforhold))
+--@end:kgl_sælgerpantebrev_ebl_par6d_samspil--

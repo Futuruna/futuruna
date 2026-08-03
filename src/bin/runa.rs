@@ -16189,10 +16189,24 @@ impl<'a> LoweringCtx<'a> {
                         };
                     }
                     if fn_name == "foldl" && fir_args.len() >= 2 {
+                        let mut accumulator_ty = fir_args[1].ty.clone();
+                        if let Some(callback) = fir_args.get(2) {
+                            if let FirTy::Arrow(callback_accumulator, callback_rest) = &callback.ty
+                            {
+                                accumulator_ty =
+                                    FirTy::merge_information(&accumulator_ty, callback_accumulator);
+                                let mut callback_return = callback_rest.as_ref();
+                                while let FirTy::Arrow(_, next) = callback_return {
+                                    callback_return = next.as_ref();
+                                }
+                                accumulator_ty =
+                                    FirTy::merge_information(&accumulator_ty, callback_return);
+                            }
+                        }
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
                             span: expr.span,
-                            ty: fir_args[1].ty.clone(),
+                            ty: accumulator_ty,
                         };
                     }
                     if fn_name == "map" && fir_args.len() >= 2 {
@@ -46144,6 +46158,46 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn legacy_emit_rule_function_infers_foldl_list_return_type_from_typed_accumulator() {
+        let source = r#"
+# Item(value: Heltal)
+# TotalInput(items: List(Item))
+| collected(input: TotalInput) -> foldl(input.items, [], |items: List(Item), item: Item| concat(items, [item]))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .filter(|rule| {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => return false,
+                };
+                matches!(&head.kind, ExprKind::App(func, _) if matches!(&func.kind, ExprKind::Var(name) if name == "collected"))
+            })
+            .collect();
+        let rust = cg.emit_rule_function("collected", &rules);
+        assert!(
+            rust.contains("fn collected(input: TotalInput) -> Vec<Item> {"),
+            "typed fold accumulator should refine an empty-list seed: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("-> bool"),
+            "list-valued fold rule must not fall back to predicate codegen: {}",
+            rust
+        );
+    }
+
+    #[test]
     fn legacy_emit_rule_function_infers_distinct_flat_map_list_return_type() {
         let source = r#"
 # Member(groups: List(String))
@@ -49642,6 +49696,24 @@ routes <- "b"
 "#,
         );
         assert_eq!(output, "3\n15\n0\n");
+    }
+
+    #[test]
+    fn compiled_list_valued_rule_infers_foldl_empty_seed_from_typed_accumulator() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(value: Int)
+
+| collect_entries(entries: List(Entry)) -> foldl(
+    entries,
+    [],
+    |collected: List(Entry), entry: Entry| concat(collected, [entry])
+)
+
+@ print(show(length(collect_entries([Entry(value = 1), Entry(value = 2)]))))
+"#,
+        );
+        assert_eq!(output, "2\n");
     }
 
     #[test]

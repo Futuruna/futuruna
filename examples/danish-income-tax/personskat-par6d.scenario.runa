@@ -2,7 +2,7 @@
 
 @ importer ./personskat.calculate
 
---@label:personskat_par6d_scenarier::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:personskat_par6d_scenarier::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
 --@begin:personskat_par6d_scenarier--
 | personskat_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
@@ -79,6 +79,22 @@
     par6d_valg = personskat_par6d_scenarie_valg(årsforhold)
 )
 
+| personskat_par6d_scenarie_kursgevinst() -> MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+    sælgerpantebreve = [KglEblPar6DSælgerpantebrevsfakta(
+        sælgerpantebrev_identifikation = "Sælgerpantebrev 2025",
+        skatteyderfakta = KglEblPar6DSkatteyderfakta(
+            udøver_næring_ved_køb_og_salg_af_fordringer = Falskt,
+            fordringen_erhvervet_uden_for_fordringsnæring = Falskt,
+            fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser = Falskt,
+            fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift = Falskt,
+            debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2 = Falskt,
+            renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst = Falskt
+        ),
+        dispositioner_efter_ebl_forløbet = []
+    )],
+    øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner = 0
+))
+
 | personskat_par6d_scenarie_input(årsforhold: List(EblPar6DÅrsforhold)) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
@@ -104,6 +120,7 @@
             ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
             gift_samlevende_ved_indkomstårets_udgang = Falskt
         )),
+        kursgevinst = personskat_par6d_scenarie_kursgevinst(),
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),
@@ -114,13 +131,13 @@
 
 = personskat_par6d_scenarie_2026_årsforhold = EblPar6DÅrsforhold(
     indkomstår = 2026,
-    betalt_ordinært_hovedstolsafdrag_kroner = 0,
+    betalt_ordinært_hovedstolsafdrag_kroner = 375000,
     hændelse = EblPar6DIngenFremrykningshændelse
 )
 = personskat_par6d_scenarie_resultat = beregn_personskat(personskat_par6d_scenarie_input([personskat_par6d_scenarie_2026_årsforhold]))
 = personskat_par6d_scenarie_udækket_resultat = beregn_personskat(personskat_par6d_scenarie_input([]))
 
-| personskat_par6d_scenarie_medregner_historisk_årsbeløb: personskat_par6d_scenarie_resultat -> personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_par6d_scenarie_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 300000 && personskat_par6d_scenarie_resultat.skat.nettokapitalindkomst_kroner == 300000 && match personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_resultat {
+| personskat_par6d_scenarie_medregner_ebl_og_kgl: personskat_par6d_scenarie_resultat -> personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_par6d_scenarie_resultat.kapitalindkomst.kursgevinst_input_gyldigt && personskat_par6d_scenarie_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 375000 && personskat_par6d_scenarie_resultat.skat.nettokapitalindkomst_kroner == 375000 && personskat_par6d_scenarie_resultat.kapitalindkomst.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 75000 && length(personskat_par6d_scenarie_resultat.kapitalindkomst.kursgevinst_resultat.kursgevinstlov_resultater) == 1 && head(personskat_par6d_scenarie_resultat.kapitalindkomst.kursgevinst_resultat.kursgevinstlov_resultater).netto_efter_kursgevinstloven_kroner == 75000 && match personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_resultat {
     | BeregnetEjendomsavance(_, egne_resultater, _, eget_tabsår, _, _) -> head(egne_resultater).indkomstår == 2025 && head(egne_resultater).skattepligtig_fortjeneste_før_par6d_kroner == 4990000 && head(egne_resultater).skattepligtig_fortjeneste_kroner == 1990000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(head(egne_resultater).par6d_resultat, 2026) == 300000 && eget_tabsår.egne_skattepligtige_fortjenester_kroner == 300000
     | _ -> Falskt
 }
@@ -129,7 +146,7 @@
     | _ -> Falskt
 }
 
-? personskat_par6d_scenarie_medregner_historisk_årsbeløb
+? personskat_par6d_scenarie_medregner_ebl_og_kgl
 ? personskat_par6d_scenarie_afviser_udækket_skatteår
 
 @ print("Personskat EBL § 6 D scenarios passed")
