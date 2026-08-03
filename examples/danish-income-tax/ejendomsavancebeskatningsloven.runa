@@ -183,6 +183,23 @@ efter reglerne i §§ 6 A eller 6 C.
         | _ -> Falskt
     }
 }
+| ebl_par5_stk6_kategori_svarer_til_par9_kategori(stk6_kategori: EblPar5Stk6Ejendomskategori, par9_kategori: EblPar9Ejendomskategori) -> match par9_kategori {
+    | EblPar9Landbrugsejendom -> stk6_kategori == EblPar5Stk6Landbrugsejendom
+    | EblPar9Skovejendom -> stk6_kategori == EblPar5Stk6Skovejendom
+    | EblPar9Naturejendom -> stk6_kategori == EblPar5Stk6Naturejendom
+    | _ -> Falskt
+}
+| ebl_par5_stk6_passer_til_ejendomstype(stk6_overførsel: EblPar5Stk6Overførsel, ejendomstype: EjendomsavanceEjendomstype) -> match stk6_overførsel {
+    | EblPar5UdenStk6Overførsel -> Sandt
+    | EblPar5MedStk6Overførsel(stk6_fakta) -> match ejendomstype {
+        | EblLandbrugSkovNaturEllerBlandetEjendom(par9_fakta) -> ebl_par5_stk6_kategori_svarer_til_par9_kategori(stk6_fakta.ejendomskategori, par9_fakta.kategori)
+        | _ -> Falskt
+    }
+}
+| ebl_par5_mælkekvoter_passer_til_ejendomstype(mælkekvoter: List(EblPar5MælkekvoteFakta), ejendomstype: EjendomsavanceEjendomstype) -> hvis length(mælkekvoter) == 0 { Sandt } ellers { match ejendomstype {
+    | EblLandbrugSkovNaturEllerBlandetEjendom(par9_fakta) -> par9_fakta.kategori == EblPar9Landbrugsejendom
+    | _ -> Falskt
+} }
 | ebl_par8_par9_input_gyldigt(behandling: EblPar8Par9Behandling) -> match behandling {
     | EblIngenPar8EllerPar9 -> Sandt
     | EblPar8Behandling(resultat) -> resultat.input_gyldigt
@@ -254,7 +271,7 @@ efter reglerne i §§ 6 A eller 6 C.
         | EblBoligejendom(fakta) -> EblPar8Behandling(ebl_par8_resultat(fakta, input.afståelsesdato, almindelig_fortjeneste_eller_tab_kroner()))
         | EblLandbrugSkovNaturEllerBlandetEjendom(fakta) -> EblPar9Behandling(ebl_par9_resultat(fakta, input.afståelsesdato, par9_beløbsgrundlag()))
     }
-    | grundbeløb_gyldige() -> input.indkomstår > 0 && ebl_dato_gyldig(input.afståelsesdato) && input.afståelsesdato.år == input.indkomstår && input.kontant_anskaffelsessum_kroner >= 0 && input.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner <= anskaffelsessum_kontantværdi_kroner() && bolig_anskaffelsessum_kroner() <= anskaffelsessum_efter_par4_stk8_kroner() && input.kontant_afståelsessum_kroner >= 0 && input.overdragne_gældsposter_kursværdi_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner <= afståelsessum_før_par4_stk8_kroner() && bolig_afståelsessum_kroner() <= afståelsessum_kontantværdi_kroner() && ebl_par5a_valg_passer_til_ejendomstype(input.par5_fakta.reguleringsvalg, input.ejendomstype)
+    | grundbeløb_gyldige() -> input.indkomstår > 0 && ebl_dato_gyldig(input.afståelsesdato) && input.afståelsesdato.år == input.indkomstår && input.kontant_anskaffelsessum_kroner >= 0 && input.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner <= anskaffelsessum_kontantværdi_kroner() && bolig_anskaffelsessum_kroner() <= anskaffelsessum_efter_par4_stk8_kroner() && input.kontant_afståelsessum_kroner >= 0 && input.overdragne_gældsposter_kursværdi_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner <= afståelsessum_før_par4_stk8_kroner() && bolig_afståelsessum_kroner() <= afståelsessum_kontantværdi_kroner() && ebl_par5a_valg_passer_til_ejendomstype(input.par5_fakta.reguleringsvalg, input.ejendomstype) && ebl_par5_stk6_passer_til_ejendomstype(input.par5_fakta.stk6_overførsel, input.ejendomstype) && ebl_par5_mælkekvoter_passer_til_ejendomstype(input.par5_fakta.mælkekvoter, input.ejendomstype)
     | input_gyldigt() -> grundbeløb_gyldige() && par5_resultat().input_gyldigt && ebl_par8_par9_input_gyldigt(par8_par9_behandling())
     | regelgrundlag_understøttet() -> par5_resultat().regelgrundlag_understøttet && ebl_par8_par9_regelgrundlag_understøttet(par8_par9_behandling())
     | omfattet_af_loven() -> input.erhvervet_som_led_i_næring == Falskt && ebl_par8_par9_omfattet_af_loven(par8_par9_behandling())

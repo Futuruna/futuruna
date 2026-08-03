@@ -45,7 +45,7 @@ beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte f
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
 nåbare domænegraf som beregningen og har aktuelt 117 typede inputkolonner plus
-sags-id og femten relationelle kildetabeller. Variantvalg gør særlige skatteforhold,
+sags-id og sytten relationelle kildetabeller. Variantvalg gør særlige skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
@@ -59,7 +59,18 @@ borgerfelter.
 
 Ejendomsavancebeskatningslovens §§ 5 og 5 A udleder nu
 anskaffelsessummens årlige tillæg, forbedringsudgifter, nedsættelser og
-eventuel indeksering fra de faktiske datoer og hændelser. § 8 udleder
+eventuel indeksering fra de faktiske datoer og hændelser. Ejerandel og
+delafståelse er adskilte fakta. Historiske mælkekvoter udleder
+anskaffelsestillæg, afståelsesnedsættelse, udløb til 0 kr.,
+toldningsundtagelsen og de korrekte § 5 A-år. Ved delafståelse bruger de
+almindelige § 5-beløb hele ejendommens anskaffelsessum, mens
+mælkekvotevederlag bruger anskaffelsessummen for den del, der ikke udgør
+boligdelen. § 5, stk. 6 er obligatorisk, når betingelserne er opfyldt, og
+omfatter både de to nummererede 1993-indgangsværdier og en vurdering efter den
+dagældende vurderingslovs § 4 B. Reglen udleder den højeste af
+tillægsparcelværdien og den tekniske værdi, fratrækker de relevante
+bygningsbeløb og fordeler resten efter ejerandel og den afståede jords
+anskaffelsessum; samme rå beløb nedsætter restejendommen. § 8 udleder
 parcelhusfritagelsen, og § 9 fordeler en blandet ejendoms bolig- og
 erhvervsdel, så skattefri boligfortjeneste og skattepligtig
 erhvervsfortjeneste ikke blandes sammen. Genanbringelse efter §§ 6 A, 6 C og
@@ -74,8 +85,10 @@ modregner derefter egne og
 fremførte tab og kan overføre en samlevende ægtefælles overskydende tab, før
 Personskattelovens § 4, stk. 1, nr. 14-post dannes. Overførslen kan højst bruge
 modtagerens fortjeneste efter dennes egne tab; resten bevares til fremførsel.
-Ikke færdigmodellerede særforhold er synlige og fail-closed i stedet for at
-blive beskattet af en smallere standardregel. Værdipapirer med brugsret til en
+Mælkekvoter og § 5, stk. 6 er kombinerbare, kildeafledte grene med synlige
+delresultater. De resterende ikke færdigmodellerede særforhold er fortsat
+synlige og fail-closed i stedet for at blive beskattet af en smallere
+standardregel. Værdipapirer med brugsret til en
 bolig efter § 8, stk. 4, er nu koblet til Aktieavancebeskatningslovens § 15.
 Futuruna udleder fritagelsen af udstederens direkte ejerskab af
 flerlejlighedsejendommen, boligbrug i den kvalificerende ejerperiode, et
@@ -84,6 +97,8 @@ opfyldt, fortsætter gevinst eller tab gennem de almindelige ABL-regler; grenen
 giver derfor ikke længere et fail-closed nulresultat. Kilderne er
 [Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132),
 [lov nr. 308/2006](https://www.retsinformation.dk/eli/lta/2006/308),
+[Den juridiske vejledning C.H.2.1.9.10](https://info.skat.dk/data.aspx?oid=1948630),
+[C.H.2.1.9.11](https://info.skat.dk/data.aspx?oid=1948631),
 [Den juridiske vejledning C.H.2.1.11.2](https://info.skat.dk/data.aspx?oid=1948642),
 [C.H.2.1.11.4](https://info.skat.dk/data.aspx?oid=1948713),
 [C.H.2.1.11.6](https://info.skat.dk/data.aspx?oid=1948715),
@@ -120,7 +135,10 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 98 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 170 eksplicitte feltmetadata-poster,
+herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
+anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
+ægtefællen.
 Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en

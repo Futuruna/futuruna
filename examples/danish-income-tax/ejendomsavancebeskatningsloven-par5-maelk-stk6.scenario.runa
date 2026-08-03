@@ -1,0 +1,391 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+--@label:ebl_par5_mælk_stk6_scenarier::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026::amendment_source:ebl_par5_lov615--
+--@begin:ebl_par5_mælk_stk6_scenarier--
+| ebl_par5_scenarie_fakta(
+    anskaffelsesdato: EblDato,
+    anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag,
+    fordeling: EblPar5Fordeling,
+    mælkekvoter: List(EblPar5MælkekvoteFakta),
+    stk6_overførsel: EblPar5Stk6Overførsel,
+    reguleringsvalg: EblPar5Reguleringsvalg
+) -> EblPar5Fakta(
+    anskaffelsesdato = anskaffelsesdato,
+    anskaffelsesgrundlag = anskaffelsesgrundlag,
+    fordeling = fordeling,
+    vedligeholdelses_og_forbedringsudgifter = [],
+    nedsættelser = [],
+    mælkekvoter = mælkekvoter,
+    stk6_overførsel = stk6_overførsel,
+    reguleringsvalg = reguleringsvalg
+)
+
+= ebl_par5_scenarie_hel_fordeling = EblPar5Fordeling(
+    ejerandel_promille = 1000,
+    afståelsesomfang = EblPar5HeleEjendommen
+)
+
+= ebl_par5_scenarie_del_fordeling_uden_boligdel = EblPar5Fordeling(
+    ejerandel_promille = 500,
+    afståelsesomfang = EblPar5DelAfEjendommen(
+        afstået_del_anskaffelsessum_før_par5_kroner = 200000,
+        hele_ejendommens_anskaffelsessum_før_par5_kroner = 800000,
+        ikke_boligdelens_anskaffelsessum_før_par5_kroner = Some(800000)
+    )
+)
+
+= ebl_par5_scenarie_del_fordeling_uden_mælkekvoter = EblPar5Fordeling(
+    ejerandel_promille = 500,
+    afståelsesomfang = EblPar5DelAfEjendommen(
+        afstået_del_anskaffelsessum_før_par5_kroner = 200000,
+        hele_ejendommens_anskaffelsessum_før_par5_kroner = 800000,
+        ikke_boligdelens_anskaffelsessum_før_par5_kroner = None
+    )
+)
+
+= ebl_par5_scenarie_del_fordeling_med_boligdel = EblPar5Fordeling(
+    ejerandel_promille = 500,
+    afståelsesomfang = EblPar5DelAfEjendommen(
+        afstået_del_anskaffelsessum_før_par5_kroner = 200000,
+        hele_ejendommens_anskaffelsessum_før_par5_kroner = 800000,
+        ikke_boligdelens_anskaffelsessum_før_par5_kroner = Some(400000)
+    )
+)
+
+= ebl_par5_scenarie_mælkekvote = EblPar5MælkekvoteFakta(
+    identifikation = "mælk-2000",
+    anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+    oprindelige_enheder = 100,
+    disponerede_enheder = 100,
+    anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+        vederlag_kroner = 80000
+    ),
+    disposition = EblPar5MælkekvoteAfstået(
+        afståelsesdato = EblDato(år = 2010, måned = 6, dag = 1),
+        vederlag_kroner = 120000
+    )
+)
+
+= ebl_par5_mælk_uden_indeksering = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1999, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [ebl_par5_scenarie_mælkekvote],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_med_indeksering = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1999, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [ebl_par5_scenarie_mælkekvote],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5AMedIndeksering(
+            kategori = EblPar5ALandbrugsejendom
+        )
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_delafståelse_og_sameje = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_med_boligdel,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-del",
+            anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 50,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+                vederlag_kroner = 80000
+            ),
+            disposition = EblPar5MælkekvoteAfstået(
+                afståelsesdato = EblDato(år = 2010, måned = 6, dag = 1),
+                vederlag_kroner = 60000
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_mælk_toldet_uden_modsvarende_vederlag = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-toldet",
+            anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 20,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+                vederlag_kroner = 100000
+            ),
+            disposition = EblPar5MælkekvoteToldetUdenErstatning(
+                toldningsdato = EblDato(år = 2005, måned = 1, dag = 1)
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_udløbet_til_nul = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-udløbet",
+            anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 100,
+            anskaffelsesgrundlag = EblPar5MælkekvoteVederlagsfritTildelt(
+                beskattet_værdi_ved_tildeling_kroner = 40000
+            ),
+            disposition = EblPar5MælkekvoteUdløbet(
+                udløbsdato = EblDato(år = 2015, måned = 3, dag = 31)
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_afstået_efter_ejendommen = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-efter-ejendom",
+            anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 100,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+                vederlag_kroner = 80000
+            ),
+            disposition = EblPar5MælkekvoteAfstået(
+                afståelsesdato = EblDato(år = 2027, måned = 1, dag = 1),
+                vederlag_kroner = 120000
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_vurderingslov4b_før_skæringsdato = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_hel_fordeling,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-vurderingslov4b",
+            anskaffelsesdato = EblDato(år = 1990, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 100,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+                vederlag_kroner = 80000
+            ),
+            disposition = EblPar5MælkekvoteAfstået(
+                afståelsesdato = EblDato(år = 1993, måned = 6, dag = 17),
+                vederlag_kroner = 120000
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [EblPar5MælkekvoteFakta(
+            identifikation = "mælk-efter-2004",
+            anskaffelsesdato = EblDato(år = 2005, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 100,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(
+                vederlag_kroner = 80000
+            ),
+            disposition = EblPar5MælkekvoteAfstået(
+                afståelsesdato = EblDato(år = 2010, måned = 6, dag = 1),
+                vederlag_kroner = 120000
+            )
+        )],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_scenarie_stk6_fakta_landbrug = EblPar5Stk6Fakta(
+    ejendomskategori = EblPar5Stk6Landbrugsejendom,
+    tillægsparcelværdi_kroner = 500000,
+    teknisk_værdi_kroner = 600000,
+    afskrivninger_på_vurderingsomfattede_bygninger_kroner = 100000,
+    stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner = 50000,
+    nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner = 150000,
+    afstået_jord_anskaffelsessum_før_overførsel_kroner = 200000,
+    samlet_jord_anskaffelsessum_før_overførsel_kroner = 800000
+)
+
+= ebl_par5_stk6_landbrug = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(
+            fakta = ebl_par5_scenarie_stk6_fakta_landbrug
+        ),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_stk6_landbrug_med_indeksering = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(
+            fakta = ebl_par5_scenarie_stk6_fakta_landbrug
+        ),
+        reguleringsvalg = EblPar5AMedIndeksering(
+            kategori = EblPar5ALandbrugsejendom
+        )
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_stk6_vurderingslov4b = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(
+            fakta = ebl_par5_scenarie_stk6_fakta_landbrug
+        ),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_stk6_skov_før_2027 = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(fakta = EblPar5Stk6Fakta(
+            ejendomskategori = EblPar5Stk6Skovejendom,
+            tillægsparcelværdi_kroner = 500000,
+            teknisk_værdi_kroner = 600000,
+            afskrivninger_på_vurderingsomfattede_bygninger_kroner = 100000,
+            stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner = 50000,
+            nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner = 150000,
+            afstået_jord_anskaffelsessum_før_overførsel_kroner = 200000,
+            samlet_jord_anskaffelsessum_før_overførsel_kroner = 800000
+        )),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_stk6_skov_fra_2027 = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(fakta = EblPar5Stk6Fakta(
+            ejendomskategori = EblPar5Stk6Skovejendom,
+            tillægsparcelværdi_kroner = 500000,
+            teknisk_værdi_kroner = 600000,
+            afskrivninger_på_vurderingsomfattede_bygninger_kroner = 100000,
+            stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner = 50000,
+            nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner = 150000,
+            afstået_jord_anskaffelsessum_før_overførsel_kroner = 200000,
+            samlet_jord_anskaffelsessum_før_overførsel_kroner = 800000
+        )),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2027, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par5_mælk_og_stk6_samme_delafståelse = ebl_par5_resultat(
+    ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_boligdel,
+        mælkekvoter = [ebl_par5_scenarie_mælkekvote],
+        stk6_overførsel = EblPar5MedStk6Overførsel(
+            fakta = ebl_par5_scenarie_stk6_fakta_landbrug
+        ),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+| ebl_par5_mælk_forhøjer_og_nedsætter_anskaffelsessummen: ebl_par5_mælk_uden_indeksering -> ebl_par5_mælk_uden_indeksering.input_gyldigt && ebl_par5_mælk_uden_indeksering.regelgrundlag_understøttet && ebl_par5_mælk_uden_indeksering.beregning_anvendt && ebl_par5_mælk_uden_indeksering.mælkekvoteforhøjelse_efter_stk3_kroner == 80000 && ebl_par5_mælk_uden_indeksering.nedsættelser_efter_stk4_til_8_kroner == 120000
+| ebl_par5a_mælk_bruger_anskaffelses_og_afståelsesåret: ebl_par5_mælk_med_indeksering -> ebl_par5_mælk_med_indeksering.indeksering_anvendt && ebl_par5_mælk_med_indeksering.reguleret_mælkekvoteforhøjelse_efter_par5a_kroner == ebl_par5a_reguler_beløb_kroner(80000, 2000, 2026) && ebl_par5_mælk_med_indeksering.regulerede_nedsættelser_efter_par5a_kroner == ebl_par5a_reguler_beløb_kroner(120000, 2010, 2026)
+| ebl_par5_delafståelse_sameje_og_mælkefordeling_er_adskilte: ebl_par5_mælk_delafståelse_og_sameje -> ebl_par5_mælk_delafståelse_og_sameje.fast_tillæg_efter_stk1_kroner == 32500 && head(ebl_par5_mælk_delafståelse_og_sameje.mælkekvote_resultater).anskaffelsesgrundlag_for_disponerede_enheder_kroner == 40000 && ebl_par5_mælk_delafståelse_og_sameje.mælkekvoteforhøjelse_efter_stk3_kroner == 20000 && ebl_par5_mælk_delafståelse_og_sameje.nedsættelser_efter_stk4_til_8_kroner == 30000
+| ebl_par5_mælk_toldning_bevarer_anskaffelsesgrundlaget: ebl_par5_mælk_toldet_uden_modsvarende_vederlag -> head(ebl_par5_mælk_toldet_uden_modsvarende_vederlag.mælkekvote_resultater).forhøjelsesbetingelse_opfyldt && ebl_par5_mælk_toldet_uden_modsvarende_vederlag.mælkekvoteforhøjelse_efter_stk3_kroner == 20000 && ebl_par5_mælk_toldet_uden_modsvarende_vederlag.nedsættelser_efter_stk4_til_8_kroner == 0
+| ebl_par5_mælk_udløb_har_nulvederlag: ebl_par5_mælk_udløbet_til_nul -> head(ebl_par5_mælk_udløbet_til_nul.mælkekvote_resultater).omfattet_af_ejendomsavancebeskatningsloven && ebl_par5_mælk_udløbet_til_nul.mælkekvoteforhøjelse_efter_stk3_kroner == 40000 && ebl_par5_mælk_udløbet_til_nul.nedsættelser_efter_stk4_til_8_kroner == 0
+| ebl_par5_mælk_efter_ejendom_hører_ikke_til_ebl: ebl_par5_mælk_afstået_efter_ejendommen -> ebl_par5_mælk_afstået_efter_ejendommen.input_gyldigt && head(ebl_par5_mælk_afstået_efter_ejendommen.mælkekvote_resultater).omfattet_af_ejendomsavancebeskatningsloven == Falskt && ebl_par5_mælk_afstået_efter_ejendommen.mælkekvoteforhøjelse_efter_stk3_kroner == 0 && ebl_par5_mælk_afstået_efter_ejendommen.nedsættelser_efter_stk4_til_8_kroner == 0
+| ebl_par5_mælk_stk8_omfatter_vurdering_efter_dagældende_vurderingslov4b: ebl_par5_mælk_vurderingslov4b_før_skæringsdato -> ebl_par5_mælk_vurderingslov4b_før_skæringsdato.mælkekvoteforhøjelse_efter_stk3_kroner == 80000 && ebl_par5_mælk_vurderingslov4b_før_skæringsdato.nedsættelser_efter_stk4_til_8_kroner == 0
+| ebl_par5_mælk_udenfor_ebl_kræver_ikke_unødvendigt_boliggrundlag: ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag -> ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.input_gyldigt && head(ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.mælkekvote_resultater).omfattet_af_ejendomsavancebeskatningsloven == Falskt && ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.mælkekvoteforhøjelse_efter_stk3_kroner == 0 && ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.nedsættelser_efter_stk4_til_8_kroner == 0
+| ebl_par5_stk6_udleder_højeste_værdi_og_restejendomsnedslag: ebl_par5_stk6_landbrug -> ebl_par5_stk6_landbrug.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_landbrug.stk6_resultat.højeste_vurderingsværdi_kroner == 600000 && ebl_par5_stk6_landbrug.stk6_resultat.vurderingsomfattede_nedsættelser_kroner == 300000 && ebl_par5_stk6_landbrug.stk6_resultat.overførselsberettiget_beløb_for_hele_ejendommen_kroner == 300000 && ebl_par5_stk6_landbrug.stk6_overført_til_afstået_jord_kroner == 37500 && ebl_par5_stk6_landbrug.stk6_resultat.restejendommens_anskaffelsessum_nedsættes_kroner == 37500
+| ebl_par5a_stk6_regulerer_fra_indgangsåret: ebl_par5_stk6_landbrug_med_indeksering -> ebl_par5_stk6_landbrug_med_indeksering.indeksering_anvendt && ebl_par5_stk6_landbrug_med_indeksering.reguleret_stk6_overførsel_efter_par5a_kroner == ebl_par5a_reguler_beløb_kroner(37500, 1993, 2026)
+| ebl_par5_stk6_omfatter_vurdering_efter_dagældende_vurderingslov4b: ebl_par5_stk6_vurderingslov4b -> ebl_par5_stk6_vurderingslov4b.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_vurderingslov4b.stk6_overført_til_afstået_jord_kroner == 37500
+| ebl_par5_stk6_skov_får_først_virkning_fra_2027: ebl_par5_stk6_skov_før_2027 -> ebl_par5_stk6_skov_før_2027.stk6_resultat.betingelser_opfyldt == Falskt && ebl_par5_stk6_skov_før_2027.stk6_overført_til_afstået_jord_kroner == 0 && ebl_par5_stk6_skov_fra_2027.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_skov_fra_2027.stk6_overført_til_afstået_jord_kroner == 37500
+| ebl_par5_mælk_og_stk6_kan_anvendes_samtidigt: ebl_par5_mælk_og_stk6_samme_delafståelse -> ebl_par5_mælk_og_stk6_samme_delafståelse.beregning_anvendt && ebl_par5_mælk_og_stk6_samme_delafståelse.mælkekvoteforhøjelse_efter_stk3_kroner == 20000 && ebl_par5_mælk_og_stk6_samme_delafståelse.stk6_overført_til_afstået_jord_kroner == 37500 && ebl_par5_mælk_og_stk6_samme_delafståelse.nedsættelser_efter_stk4_til_8_kroner == 30000
+
+? ebl_par5_mælk_forhøjer_og_nedsætter_anskaffelsessummen
+? ebl_par5a_mælk_bruger_anskaffelses_og_afståelsesåret
+? ebl_par5_delafståelse_sameje_og_mælkefordeling_er_adskilte
+? ebl_par5_mælk_toldning_bevarer_anskaffelsesgrundlaget
+? ebl_par5_mælk_udløb_har_nulvederlag
+? ebl_par5_mælk_efter_ejendom_hører_ikke_til_ebl
+? ebl_par5_mælk_stk8_omfatter_vurdering_efter_dagældende_vurderingslov4b
+? ebl_par5_mælk_udenfor_ebl_kræver_ikke_unødvendigt_boliggrundlag
+? ebl_par5_stk6_udleder_højeste_værdi_og_restejendomsnedslag
+? ebl_par5a_stk6_regulerer_fra_indgangsåret
+? ebl_par5_stk6_omfatter_vurdering_efter_dagældende_vurderingslov4b
+? ebl_par5_stk6_skov_får_først_virkning_fra_2027
+? ebl_par5_mælk_og_stk6_kan_anvendes_samtidigt
+--@end:ebl_par5_mælk_stk6_scenarier--

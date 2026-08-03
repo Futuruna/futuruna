@@ -31,7 +31,10 @@
     par5_fakta = EblPar5Fakta(
         anskaffelsesdato = EblDato(år = 2026, måned = 1, dag = 1),
         anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-        forholdsmæssig_andel_promille = 1000,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5HeleEjendommen
+        ),
         vedligeholdelses_og_forbedringsudgifter = [EblPar5Udgift(
             afholdelsesdato = EblDato(år = 2026, måned = 6, dag = 1),
             fuldførelsesår = 2026,
@@ -39,7 +42,8 @@
             status = EblPar5UdgiftMedregningsberettiget
         )],
         nedsættelser = [],
-        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
         reguleringsvalg = EblPar5UdenIndeksering
     ),
     par4_stk8_anskaffelse_udeladt_kroner = 0,

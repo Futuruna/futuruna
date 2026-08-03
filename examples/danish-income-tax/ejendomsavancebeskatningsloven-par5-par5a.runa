@@ -23,7 +23,19 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par5_par5a::source:ebl_par5_lbk132::guidance:ebl_par5_vejledning_2026--
+= ebl_par5_mælkekvote_vejledning_2026 = EblPar5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948631",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.9.11",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par5_stk6_vejledning_2026 = EblPar5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948630",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.9.10",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par5_par5a::source:ebl_par5_lbk132::guidance:ebl_par5_vejledning_2026::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026--
 ----
 § 5. Anskaffelsessummen forhøjes med et tillæg på 10.000 kr. for
 anskaffelsesåret og hvert af de efterfølgende kalenderår, hvori den
@@ -238,13 +250,22 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 # EblPar5Udgift(afholdelsesdato: EblDato, fuldførelsesår: Heltal, beløb_for_afstået_del_kroner: Heltal, status: EblPar5Udgiftsstatus)
 # EblPar5Nedsættelsesgrund = EblPar5Stk4Nr1AfskrivningIkkeBeskattetSomGenvunden | EblPar5Stk4Nr1AfskrivningBeskattetSomGenvunden | EblPar5Stk4Nr2NedrevetBygningEllerInstallation | EblPar5Stk4Nr3TabEllerVærdiforringelse | EblPar5Stk4Nr4RåstofEllerJordværdiforringelse | EblPar5Stk4Nr5DræningEllerMarkvanding
 # EblPar5Nedsættelse(indkomstår: Heltal, beløb_for_afstået_del_kroner: Heltal, grund: EblPar5Nedsættelsesgrund)
-# EblPar5Særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel | EblPar5MedMælkekvote | EblPar5MedStk6TillægsparcelEllerTekniskVærdi
+# EblPar5Afståelsesomfang = EblPar5HeleEjendommen | EblPar5DelAfEjendommen(afstået_del_anskaffelsessum_før_par5_kroner: Heltal, hele_ejendommens_anskaffelsessum_før_par5_kroner: Heltal, ikke_boligdelens_anskaffelsessum_før_par5_kroner: Heltal?)
+# EblPar5Fordeling(ejerandel_promille: Heltal, afståelsesomfang: EblPar5Afståelsesomfang)
+# EblPar5MælkekvoteAnskaffelsesgrundlag = EblPar5MælkekvoteKøbt(vederlag_kroner: Heltal) | EblPar5MælkekvoteVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner: Heltal)
+# EblPar5MælkekvoteDisposition = EblPar5MælkekvoteAfstået(afståelsesdato: EblDato, vederlag_kroner: Heltal) | EblPar5MælkekvoteUdløbet(udløbsdato: EblDato) | EblPar5MælkekvoteToldetUdenErstatning(toldningsdato: EblDato)
+# EblPar5MælkekvoteFakta(identifikation: Tekst, anskaffelsesdato: EblDato, oprindelige_enheder: Heltal, disponerede_enheder: Heltal, anskaffelsesgrundlag: EblPar5MælkekvoteAnskaffelsesgrundlag, disposition: EblPar5MælkekvoteDisposition)
+# EblPar5MælkekvoteResultat(fakta: EblPar5MælkekvoteFakta, input_gyldigt: Boolsk, omfattet_af_ejendomsavancebeskatningsloven: Boolsk, forhøjelsesbetingelse_opfyldt: Boolsk, anskaffelsesgrundlag_for_disponerede_enheder_kroner: Heltal, forhøjelse_efter_stk3_kroner: Heltal, reguleret_forhøjelse_efter_par5a_kroner: Heltal, afståelsesvederlag_kroner: Heltal, nedsættelse_efter_stk4_nr6_kroner: Heltal, reguleret_nedsættelse_efter_par5a_kroner: Heltal)
+# EblPar5Stk6Ejendomskategori = EblPar5Stk6Landbrugsejendom | EblPar5Stk6Skovejendom | EblPar5Stk6Naturejendom
+# EblPar5Stk6Fakta(ejendomskategori: EblPar5Stk6Ejendomskategori, tillægsparcelværdi_kroner: Heltal, teknisk_værdi_kroner: Heltal, afskrivninger_på_vurderingsomfattede_bygninger_kroner: Heltal, stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner: Heltal, nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner: Heltal, afstået_jord_anskaffelsessum_før_overførsel_kroner: Heltal, samlet_jord_anskaffelsessum_før_overførsel_kroner: Heltal)
+# EblPar5Stk6Overførsel = EblPar5UdenStk6Overførsel | EblPar5MedStk6Overførsel(fakta: EblPar5Stk6Fakta)
+# EblPar5Stk6Resultat(forhold: EblPar5Stk6Overførsel, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk, højeste_vurderingsværdi_kroner: Heltal, vurderingsomfattede_nedsættelser_kroner: Heltal, overførselsberettiget_beløb_for_hele_ejendommen_kroner: Heltal, skattepligtiges_overførselsberettigede_beløb_kroner: Heltal, overført_til_afstået_jord_kroner: Heltal, reguleret_overførsel_efter_par5a_kroner: Heltal, restejendommens_anskaffelsessum_nedsættes_kroner: Heltal)
 # EblPar5AIndekseringskategori = EblPar5ALandbrugsejendom | EblPar5ASkovejendom | EblPar5ANaturejendom
 # EblPar5Reguleringsvalg = EblPar5UdenIndeksering | EblPar5AMedIndeksering(kategori: EblPar5AIndekseringskategori)
-# EblPar5Fakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, forholdsmæssig_andel_promille: Heltal, vedligeholdelses_og_forbedringsudgifter: List(EblPar5Udgift), nedsættelser: List(EblPar5Nedsættelse), særforhold: EblPar5Særforhold, reguleringsvalg: EblPar5Reguleringsvalg)
+# EblPar5Fakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, fordeling: EblPar5Fordeling, vedligeholdelses_og_forbedringsudgifter: List(EblPar5Udgift), nedsættelser: List(EblPar5Nedsættelse), mælkekvoter: List(EblPar5MælkekvoteFakta), stk6_overførsel: EblPar5Stk6Overførsel, reguleringsvalg: EblPar5Reguleringsvalg)
 # EblPar5ÅrsudgiftResultat(indkomstår: Heltal, medregningsberettigede_udgifter_kroner: Heltal, årlig_grænse_kroner: Heltal, tillæg_efter_stk2_kroner: Heltal, reguleret_tillæg_efter_par5a_kroner: Heltal)
 # EblPar5Nedsættelsesresultat(nedsættelse: EblPar5Nedsættelse, nedsættelse_efter_stk4_til_8_kroner: Heltal, reguleret_nedsættelse_efter_par5a_kroner: Heltal)
-# EblPar5Resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, indeksering_anvendt: Boolsk, reguleringsprocent_tiendedele: Heltal, tillægsår: List(Heltal), fast_tillæg_efter_stk1_kroner: Heltal, reguleret_fast_tillæg_efter_par5a_kroner: Heltal, årsudgift_resultater: List(EblPar5ÅrsudgiftResultat), vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner: Heltal, reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner: Heltal, nedsættelsesresultater: List(EblPar5Nedsættelsesresultat), nedsættelser_efter_stk4_til_8_kroner: Heltal, regulerede_nedsættelser_efter_par5a_kroner: Heltal, reguleret_anskaffelsessum_kroner: Heltal, regulering_efter_par5_og_par5a_kroner: Heltal)
+# EblPar5Resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, indeksering_anvendt: Boolsk, reguleringsprocent_tiendedele: Heltal, tillægsår: List(Heltal), fast_tillæg_efter_stk1_kroner: Heltal, reguleret_fast_tillæg_efter_par5a_kroner: Heltal, årsudgift_resultater: List(EblPar5ÅrsudgiftResultat), vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner: Heltal, reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner: Heltal, mælkekvote_resultater: List(EblPar5MælkekvoteResultat), mælkekvoteforhøjelse_efter_stk3_kroner: Heltal, reguleret_mælkekvoteforhøjelse_efter_par5a_kroner: Heltal, stk6_resultat: EblPar5Stk6Resultat, stk6_overført_til_afstået_jord_kroner: Heltal, reguleret_stk6_overførsel_efter_par5a_kroner: Heltal, nedsættelsesresultater: List(EblPar5Nedsættelsesresultat), nedsættelser_efter_stk4_til_8_kroner: Heltal, regulerede_nedsættelser_efter_par5a_kroner: Heltal, reguleret_anskaffelsessum_kroner: Heltal, regulering_efter_par5_og_par5a_kroner: Heltal)
 
 | ebl_dato_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
 | ebl_dato_dage_i_måned(år: Heltal, måned: Heltal) -> match måned {
@@ -276,10 +297,37 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner) -> tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner >= 0
     | _ -> Sandt
 }
+| ebl_par5_afståelsesomfang_gyldigt(omfang: EblPar5Afståelsesomfang) -> match omfang {
+    | EblPar5HeleEjendommen -> Sandt
+    | EblPar5DelAfEjendommen(afstået_del_anskaffelsessum_før_par5_kroner, hele_ejendommens_anskaffelsessum_før_par5_kroner, ikke_boligdelens_anskaffelsessum_før_par5_kroner) -> afstået_del_anskaffelsessum_før_par5_kroner > 0 && hele_ejendommens_anskaffelsessum_før_par5_kroner > 0 && afstået_del_anskaffelsessum_før_par5_kroner <= hele_ejendommens_anskaffelsessum_før_par5_kroner && match ikke_boligdelens_anskaffelsessum_før_par5_kroner {
+        | None -> Sandt
+        | Some(ikke_boligdel_kroner) -> ikke_boligdel_kroner > 0 && afstået_del_anskaffelsessum_før_par5_kroner <= ikke_boligdel_kroner && ikke_boligdel_kroner <= hele_ejendommens_anskaffelsessum_før_par5_kroner
+    }
+}
+| ebl_par5_fordeling_gyldig(fordeling: EblPar5Fordeling) -> fordeling.ejerandel_promille > 0 && fordeling.ejerandel_promille <= 1000 && ebl_par5_afståelsesomfang_gyldigt(fordeling.afståelsesomfang)
+| ebl_par5_delafståelse(fordeling: EblPar5Fordeling) -> match fordeling.afståelsesomfang {
+    | EblPar5DelAfEjendommen(_, _, _) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par5_fordel_på_afstået_del_kroner(fordeling: EblPar5Fordeling, beløb_kroner: Heltal) -> match fordeling.afståelsesomfang {
+    | EblPar5HeleEjendommen -> penge_positivt_beløb(beløb_kroner)
+    | EblPar5DelAfEjendommen(afstået_del_anskaffelsessum_før_par5_kroner, hele_ejendommens_anskaffelsessum_før_par5_kroner, _) -> penge_positivt_beløb(beløb_kroner) * afstået_del_anskaffelsessum_før_par5_kroner / hele_ejendommens_anskaffelsessum_før_par5_kroner
+}
+| ebl_par5_fordel_mælkekvote_på_afstået_del_kroner(fordeling: EblPar5Fordeling, beløb_kroner: Heltal) -> match fordeling.afståelsesomfang {
+    | EblPar5HeleEjendommen -> penge_positivt_beløb(beløb_kroner)
+    | EblPar5DelAfEjendommen(afstået_del_anskaffelsessum_før_par5_kroner, _, Some(ikke_boligdelens_anskaffelsessum_før_par5_kroner)) -> penge_positivt_beløb(beløb_kroner) * afstået_del_anskaffelsessum_før_par5_kroner / ikke_boligdelens_anskaffelsessum_før_par5_kroner
+    | EblPar5DelAfEjendommen(_, _, None) -> 0
+}
+| ebl_par5_mælkekvote_fordelingsgrundlag_tilgængeligt(fordeling: EblPar5Fordeling) -> match fordeling.afståelsesomfang {
+    | EblPar5HeleEjendommen -> Sandt
+    | EblPar5DelAfEjendommen(_, _, Some(_)) -> Sandt
+    | EblPar5DelAfEjendommen(_, _, None) -> Falskt
+}
+| ebl_par5_fordel_ejerandel_kroner(fordeling: EblPar5Fordeling, beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner) * fordeling.ejerandel_promille / 1000
 | ebl_par5_første_tillægsår(fakta: EblPar5Fakta) -> hvis ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) { 1993 } ellers { fakta.anskaffelsesdato.år }
 | ebl_par5_sidste_tillægsår(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> hvis fakta.anskaffelsesdato.år == afståelsesdato.år { afståelsesdato.år } ellers { afståelsesdato.år - 1 }
 | ebl_par5_tillægsår(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> hvis ebl_par5_første_tillægsår(fakta) <= ebl_par5_sidste_tillægsår(fakta, afståelsesdato) { range(ebl_par5_første_tillægsår(fakta), ebl_par5_sidste_tillægsår(fakta, afståelsesdato) + 1) } ellers { [] }
-| ebl_par5_årligt_tillæg_kroner(fakta: EblPar5Fakta) -> 10000 * fakta.forholdsmæssig_andel_promille / 1000
+| ebl_par5_årligt_tillæg_kroner(fakta: EblPar5Fakta) -> ebl_par5_fordel_på_afstået_del_kroner(fakta.fordeling, ebl_par5_fordel_ejerandel_kroner(fakta.fordeling, 10000))
 | ebl_par5_fast_tillæg_efter_stk1_kroner(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> length(ebl_par5_tillægsår(fakta, afståelsesdato)) * ebl_par5_årligt_tillæg_kroner(fakta)
 
 | ebl_par5_udgiftsstatus_medregningsberettiget(status: EblPar5Udgiftsstatus) -> match status {
@@ -304,6 +352,61 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 
 | ebl_par5_nedsættelse_medregnes(nedsættelse: EblPar5Nedsættelse) -> nedsættelse.grund != EblPar5Stk4Nr1AfskrivningBeskattetSomGenvunden
 | ebl_par5_nedsættelse_efter_stk4_til_8_kroner(fakta: EblPar5Fakta, nedsættelse: EblPar5Nedsættelse) -> hvis ebl_par5_nedsættelse_medregnes(nedsættelse) && (ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) == Falskt || nedsættelse.indkomstår >= 1993) { penge_positivt_beløb(nedsættelse.beløb_for_afstået_del_kroner) } ellers { 0 }
+
+| ebl_par5_mælkekvote_anskaffelsesgrundlag_kroner(grundlag: EblPar5MælkekvoteAnskaffelsesgrundlag) -> match grundlag {
+    | EblPar5MælkekvoteKøbt(vederlag_kroner) -> penge_positivt_beløb(vederlag_kroner)
+    | EblPar5MælkekvoteVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner) -> penge_positivt_beløb(beskattet_værdi_ved_tildeling_kroner)
+}
+| ebl_par5_mælkekvote_anskaffelsesgrundlag_gyldigt(grundlag: EblPar5MælkekvoteAnskaffelsesgrundlag) -> match grundlag {
+    | EblPar5MælkekvoteKøbt(vederlag_kroner) -> vederlag_kroner > 0
+    | EblPar5MælkekvoteVederlagsfritTildelt(beskattet_værdi_ved_tildeling_kroner) -> beskattet_værdi_ved_tildeling_kroner >= 0
+}
+| ebl_par5_mælkekvote_dispositionsdato(disposition: EblPar5MælkekvoteDisposition) -> match disposition {
+    | EblPar5MælkekvoteAfstået(afståelsesdato, _) -> afståelsesdato
+    | EblPar5MælkekvoteUdløbet(udløbsdato) -> udløbsdato
+    | EblPar5MælkekvoteToldetUdenErstatning(toldningsdato) -> toldningsdato
+}
+| ebl_par5_mælkekvote_afståelsesvederlag_kroner(disposition: EblPar5MælkekvoteDisposition) -> match disposition {
+    | EblPar5MælkekvoteAfstået(_, vederlag_kroner) -> penge_positivt_beløb(vederlag_kroner)
+    | _ -> 0
+}
+| ebl_par5_mælkekvote_toldet(disposition: EblPar5MælkekvoteDisposition) -> match disposition {
+    | EblPar5MælkekvoteToldetUdenErstatning(_) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par5_mælkekvote_disposition_gyldig(disposition: EblPar5MælkekvoteDisposition) -> ebl_dato_gyldig(ebl_par5_mælkekvote_dispositionsdato(disposition)) && match disposition {
+    | EblPar5MælkekvoteAfstået(_, vederlag_kroner) -> vederlag_kroner >= 0
+    | _ -> Sandt
+}
+| ebl_par5_mælkekvote_input_gyldigt(fakta: EblPar5MælkekvoteFakta) -> fakta.identifikation != "" && ebl_dato_gyldig(fakta.anskaffelsesdato) && ebl_par5_mælkekvote_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag) && ebl_par5_mælkekvote_disposition_gyldig(fakta.disposition) && ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, ebl_par5_mælkekvote_dispositionsdato(fakta.disposition)) && fakta.oprindelige_enheder > 0 && fakta.disponerede_enheder > 0 && fakta.disponerede_enheder <= fakta.oprindelige_enheder
+| ebl_par5_mælkekvote_identifikation_unik(mælkekvoter: List(EblPar5MælkekvoteFakta), fakta: EblPar5MælkekvoteFakta) -> length(filter(mælkekvoter, |anden: EblPar5MælkekvoteFakta| anden.identifikation == fakta.identifikation)) == 1
+| ebl_par5_mælkekvoter_gyldige(mælkekvoter: List(EblPar5MælkekvoteFakta)) -> all(mælkekvoter, |fakta: EblPar5MælkekvoteFakta| ebl_par5_mælkekvote_input_gyldigt(fakta) && ebl_par5_mælkekvote_identifikation_unik(mælkekvoter, fakta))
+| ebl_par5_mælkekvote_omfattet_af_ebl(fakta: EblPar5MælkekvoteFakta, ejendommens_afståelsesdato: EblDato) -> ebl_dato_yyyymmdd(fakta.anskaffelsesdato) < 20050101 && ebl_dato_før_eller_lig_med(ebl_par5_mælkekvote_dispositionsdato(fakta.disposition), ejendommens_afståelsesdato)
+| ebl_par5_mælkekvote_fordelingsgrundlag_påkrævet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> any(fakta.mælkekvoter, |mælkekvote: EblPar5MælkekvoteFakta| ebl_par5_mælkekvote_omfattet_af_ebl(mælkekvote, afståelsesdato))
+| ebl_par5_mælkekvote_datoafgrænset_indgangsværdi(grundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> match grundlag {
+    | EblPar4Stk3Nr1Anskaffelsesgrundlag -> Sandt
+    | EblPar4Stk3Nr2Anskaffelsesgrundlag -> Sandt
+    | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag -> Sandt
+    | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag -> Sandt
+    | _ -> Falskt
+}
+| ebl_par5_mælkekvote_nedsættelse_anvendes(fakta: EblPar5MælkekvoteFakta, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> ebl_par5_mælkekvote_toldet(fakta.disposition) == Falskt && (ebl_par5_mælkekvote_datoafgrænset_indgangsværdi(anskaffelsesgrundlag) == Falskt || ebl_dato_yyyymmdd(ebl_par5_mælkekvote_dispositionsdato(fakta.disposition)) >= 19930618)
+| ebl_par5_mælkekvote_forhøjelsesbetingelse_opfyldt(fakta: EblPar5MælkekvoteFakta, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> ebl_par5_mælkekvote_toldet(fakta.disposition) || ebl_dato_yyyymmdd(fakta.anskaffelsesdato) < 19930519 || ebl_dato_yyyymmdd(ebl_par5_mælkekvote_dispositionsdato(fakta.disposition)) < 19930618 || ebl_par5_mælkekvote_nedsættelse_anvendes(fakta, anskaffelsesgrundlag)
+| ebl_par5_mælkekvote_anskaffelsesgrundlag_for_disponerede_enheder_kroner(fakta: EblPar5MælkekvoteFakta) -> ebl_par5_mælkekvote_anskaffelsesgrundlag_kroner(fakta.anskaffelsesgrundlag) * fakta.disponerede_enheder / fakta.oprindelige_enheder
+
+| ebl_par5_stk6_kategori_berettiget(kategori: EblPar5Stk6Ejendomskategori, afståelsesdato: EblDato) -> match kategori {
+    | EblPar5Stk6Landbrugsejendom -> Sandt
+    | EblPar5Stk6Skovejendom -> ebl_dato_yyyymmdd(afståelsesdato) >= 20270101
+    | EblPar5Stk6Naturejendom -> ebl_dato_yyyymmdd(afståelsesdato) >= 20270101
+}
+| ebl_par5_stk6_anskaffelsesgrundlag_berettiget(grundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> grundlag == EblPar4Stk3Nr1Anskaffelsesgrundlag || grundlag == EblPar4Stk3Nr2Anskaffelsesgrundlag || grundlag == EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag
+| ebl_par5_stk6_højeste_vurderingsværdi_kroner(fakta: EblPar5Stk6Fakta) -> penge_største_beløb(fakta.tillægsparcelværdi_kroner, fakta.teknisk_værdi_kroner)
+| ebl_par5_stk6_vurderingsomfattede_nedsættelser_kroner(fakta: EblPar5Stk6Fakta) -> fakta.afskrivninger_på_vurderingsomfattede_bygninger_kroner + fakta.stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner + fakta.nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner
+| ebl_par5_stk6_input_gyldigt(fakta: EblPar5Stk6Fakta) -> fakta.tillægsparcelværdi_kroner >= 0 && fakta.teknisk_værdi_kroner >= 0 && fakta.afskrivninger_på_vurderingsomfattede_bygninger_kroner >= 0 && fakta.stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner >= 0 && fakta.nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner >= 0 && ebl_par5_stk6_vurderingsomfattede_nedsættelser_kroner(fakta) <= ebl_par5_stk6_højeste_vurderingsværdi_kroner(fakta) && fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner > 0 && fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner > 0 && fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner <= fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner
+| ebl_par5_stk6_forhold_input_gyldigt(forhold: EblPar5Stk6Overførsel) -> match forhold {
+    | EblPar5UdenStk6Overførsel -> Sandt
+    | EblPar5MedStk6Overførsel(fakta) -> ebl_par5_stk6_input_gyldigt(fakta)
+}
 
 | ebl_par5a_gammelt_reguleringstal_tiendedele(år: Heltal) -> match år {
     | 1993 -> 1200
@@ -343,6 +446,7 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 | ebl_par5a_reguleringsprocent_tiendedele(fra_år: Heltal, til_år: Heltal) -> penge_positivt_beløb(ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) - 1000)
 | ebl_par5a_reguler_beløb_kroner(beløb_kroner: Heltal, fra_år: Heltal, til_år: Heltal) -> hvis beløb_kroner > 0 && ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) > 0 { (beløb_kroner * ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) + 500) / 1000 } ellers { 0 }
 | ebl_par5a_startår(fakta: EblPar5Fakta) -> hvis ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) { 1993 } ellers { fakta.anskaffelsesdato.år }
+| ebl_par5a_henføringsår(fakta: EblPar5Fakta, indkomstår: Heltal) -> penge_største_beløb(ebl_par5a_startår(fakta), indkomstår)
 | ebl_par5a_valgt(fakta: EblPar5Fakta) -> fakta.reguleringsvalg != EblPar5UdenIndeksering
 | ebl_par5a_kategori_berettiget(kategori: EblPar5AIndekseringskategori, afståelsesdato: EblDato) -> match kategori {
     | EblPar5ALandbrugsejendom -> Sandt
@@ -353,7 +457,71 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     | EblPar5UdenIndeksering -> Sandt
     | EblPar5AMedIndeksering(kategori) -> ebl_par5a_kategori_berettiget(kategori, afståelsesdato)
 }
-| ebl_par5a_kilder_tilgængelige(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5a_reguleringsfaktor_tusindedele(ebl_par5a_startår(fakta), afståelsesdato.år) > 0 && all(ebl_par5_tillægsår(fakta, afståelsesdato), |år: Heltal| ebl_par5a_reguleringsfaktor_tusindedele(år, afståelsesdato.år) > 0) && all(ebl_par5_medregningsberettigede_udgifter(fakta, afståelsesdato), |udgift: EblPar5Udgift| ebl_par5a_reguleringsfaktor_tusindedele(udgift.fuldførelsesår, afståelsesdato.år) > 0) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5a_reguleringsfaktor_tusindedele(nedsættelse.indkomstår, afståelsesdato.år) > 0)
+| ebl_par5a_mælkekvote_kilder_tilgængelige(fakta: EblPar5Fakta, mælkekvote: EblPar5MælkekvoteFakta, afståelsesdato: EblDato) -> ebl_par5_mælkekvote_omfattet_af_ebl(mælkekvote, afståelsesdato) == Falskt || ebl_par5a_reguleringsfaktor_tusindedele(ebl_par5a_henføringsår(fakta, mælkekvote.anskaffelsesdato.år), afståelsesdato.år) > 0 && ebl_par5a_reguleringsfaktor_tusindedele(ebl_par5a_henføringsår(fakta, ebl_par5_mælkekvote_dispositionsdato(mælkekvote.disposition).år), afståelsesdato.år) > 0
+| ebl_par5a_kilder_tilgængelige(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5a_reguleringsfaktor_tusindedele(ebl_par5a_startår(fakta), afståelsesdato.år) > 0 && all(ebl_par5_tillægsår(fakta, afståelsesdato), |år: Heltal| ebl_par5a_reguleringsfaktor_tusindedele(år, afståelsesdato.år) > 0) && all(ebl_par5_medregningsberettigede_udgifter(fakta, afståelsesdato), |udgift: EblPar5Udgift| ebl_par5a_reguleringsfaktor_tusindedele(udgift.fuldførelsesår, afståelsesdato.år) > 0) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5a_reguleringsfaktor_tusindedele(nedsættelse.indkomstår, afståelsesdato.år) > 0) && all(fakta.mælkekvoter, |mælkekvote: EblPar5MælkekvoteFakta| ebl_par5a_mælkekvote_kilder_tilgængelige(fakta, mælkekvote, afståelsesdato))
+
+| ebl_par5_mælkekvote_resultat(fakta: EblPar5Fakta, mælkekvote: EblPar5MælkekvoteFakta, afståelsesdato: EblDato) -> {
+    = input_gyldigt = ebl_par5_mælkekvote_input_gyldigt(mælkekvote)
+    = omfattet_af_ejendomsavancebeskatningsloven = input_gyldigt && ebl_par5_mælkekvote_omfattet_af_ebl(mælkekvote, afståelsesdato)
+    = forhøjelsesbetingelse_opfyldt = omfattet_af_ejendomsavancebeskatningsloven && ebl_par5_mælkekvote_forhøjelsesbetingelse_opfyldt(mælkekvote, fakta.anskaffelsesgrundlag)
+    = anskaffelsesgrundlag_for_disponerede_enheder_kroner = hvis input_gyldigt { ebl_par5_mælkekvote_anskaffelsesgrundlag_for_disponerede_enheder_kroner(mælkekvote) } ellers { 0 }
+    = forhøjelse_efter_stk3_kroner = hvis forhøjelsesbetingelse_opfyldt { ebl_par5_fordel_mælkekvote_på_afstået_del_kroner(fakta.fordeling, anskaffelsesgrundlag_for_disponerede_enheder_kroner) } ellers { 0 }
+    = reguleret_forhøjelse_efter_par5a_kroner = hvis ebl_par5a_valgt(fakta) { ebl_par5a_reguler_beløb_kroner(forhøjelse_efter_stk3_kroner, ebl_par5a_henføringsår(fakta, mælkekvote.anskaffelsesdato.år), afståelsesdato.år) } ellers { forhøjelse_efter_stk3_kroner }
+    = afståelsesvederlag_kroner = hvis input_gyldigt { ebl_par5_mælkekvote_afståelsesvederlag_kroner(mælkekvote.disposition) } ellers { 0 }
+    = nedsættelse_efter_stk4_nr6_kroner = hvis omfattet_af_ejendomsavancebeskatningsloven && ebl_par5_mælkekvote_nedsættelse_anvendes(mælkekvote, fakta.anskaffelsesgrundlag) { ebl_par5_fordel_mælkekvote_på_afstået_del_kroner(fakta.fordeling, afståelsesvederlag_kroner) } ellers { 0 }
+    = reguleret_nedsættelse_efter_par5a_kroner = hvis ebl_par5a_valgt(fakta) { ebl_par5a_reguler_beløb_kroner(nedsættelse_efter_stk4_nr6_kroner, ebl_par5a_henføringsår(fakta, ebl_par5_mælkekvote_dispositionsdato(mælkekvote.disposition).år), afståelsesdato.år) } ellers { nedsættelse_efter_stk4_nr6_kroner }
+    EblPar5MælkekvoteResultat(
+        fakta = mælkekvote,
+        input_gyldigt = input_gyldigt,
+        omfattet_af_ejendomsavancebeskatningsloven = omfattet_af_ejendomsavancebeskatningsloven,
+        forhøjelsesbetingelse_opfyldt = forhøjelsesbetingelse_opfyldt,
+        anskaffelsesgrundlag_for_disponerede_enheder_kroner = anskaffelsesgrundlag_for_disponerede_enheder_kroner,
+        forhøjelse_efter_stk3_kroner = forhøjelse_efter_stk3_kroner,
+        reguleret_forhøjelse_efter_par5a_kroner = reguleret_forhøjelse_efter_par5a_kroner,
+        afståelsesvederlag_kroner = afståelsesvederlag_kroner,
+        nedsættelse_efter_stk4_nr6_kroner = nedsættelse_efter_stk4_nr6_kroner,
+        reguleret_nedsættelse_efter_par5a_kroner = reguleret_nedsættelse_efter_par5a_kroner
+    )
+}
+| ebl_par5_mælkekvote_resultater(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> map(fakta.mælkekvoter, |mælkekvote: EblPar5MælkekvoteFakta| ebl_par5_mælkekvote_resultat(fakta, mælkekvote, afståelsesdato))
+
+| ebl_par5_ingen_stk6_resultat() -> EblPar5Stk6Resultat(
+    forhold = EblPar5UdenStk6Overførsel,
+    input_gyldigt = Sandt,
+    betingelser_opfyldt = Falskt,
+    højeste_vurderingsværdi_kroner = 0,
+    vurderingsomfattede_nedsættelser_kroner = 0,
+    overførselsberettiget_beløb_for_hele_ejendommen_kroner = 0,
+    skattepligtiges_overførselsberettigede_beløb_kroner = 0,
+    overført_til_afstået_jord_kroner = 0,
+    reguleret_overførsel_efter_par5a_kroner = 0,
+    restejendommens_anskaffelsessum_nedsættes_kroner = 0
+)
+| ebl_par5_stk6_resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> match fakta.stk6_overførsel {
+    | EblPar5UdenStk6Overførsel -> ebl_par5_ingen_stk6_resultat()
+    | EblPar5MedStk6Overførsel(stk6_fakta) -> {
+        = input_gyldigt = ebl_par5_stk6_input_gyldigt(stk6_fakta)
+        = betingelser_opfyldt = input_gyldigt && ebl_par5_delafståelse(fakta.fordeling) && ebl_par5_stk6_anskaffelsesgrundlag_berettiget(fakta.anskaffelsesgrundlag) && ebl_par5_stk6_kategori_berettiget(stk6_fakta.ejendomskategori, afståelsesdato)
+        = højeste_vurderingsværdi_kroner = hvis input_gyldigt { ebl_par5_stk6_højeste_vurderingsværdi_kroner(stk6_fakta) } ellers { 0 }
+        = vurderingsomfattede_nedsættelser_kroner = hvis input_gyldigt { ebl_par5_stk6_vurderingsomfattede_nedsættelser_kroner(stk6_fakta) } ellers { 0 }
+        = overførselsberettiget_beløb_for_hele_ejendommen_kroner = hvis betingelser_opfyldt { højeste_vurderingsværdi_kroner - vurderingsomfattede_nedsættelser_kroner } ellers { 0 }
+        = skattepligtiges_overførselsberettigede_beløb_kroner = ebl_par5_fordel_ejerandel_kroner(fakta.fordeling, overførselsberettiget_beløb_for_hele_ejendommen_kroner)
+        = overført_til_afstået_jord_kroner = hvis betingelser_opfyldt { skattepligtiges_overførselsberettigede_beløb_kroner * stk6_fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner / stk6_fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner } ellers { 0 }
+        = reguleret_overførsel_efter_par5a_kroner = hvis ebl_par5a_valgt(fakta) { ebl_par5a_reguler_beløb_kroner(overført_til_afstået_jord_kroner, ebl_par5a_startår(fakta), afståelsesdato.år) } ellers { overført_til_afstået_jord_kroner }
+        EblPar5Stk6Resultat(
+            forhold = fakta.stk6_overførsel,
+            input_gyldigt = input_gyldigt,
+            betingelser_opfyldt = betingelser_opfyldt,
+            højeste_vurderingsværdi_kroner = højeste_vurderingsværdi_kroner,
+            vurderingsomfattede_nedsættelser_kroner = vurderingsomfattede_nedsættelser_kroner,
+            overførselsberettiget_beløb_for_hele_ejendommen_kroner = overførselsberettiget_beløb_for_hele_ejendommen_kroner,
+            skattepligtiges_overførselsberettigede_beløb_kroner = skattepligtiges_overførselsberettigede_beløb_kroner,
+            overført_til_afstået_jord_kroner = overført_til_afstået_jord_kroner,
+            reguleret_overførsel_efter_par5a_kroner = reguleret_overførsel_efter_par5a_kroner,
+            restejendommens_anskaffelsessum_nedsættes_kroner = overført_til_afstået_jord_kroner
+        )
+    }
+}
 
 | ebl_par5_årsudgift_resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, indkomstår: Heltal) -> EblPar5ÅrsudgiftResultat(
     indkomstår = indkomstår,
@@ -372,16 +540,20 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 
 | ebl_par5_udgift_gyldig(udgift: EblPar5Udgift) -> ebl_dato_gyldig(udgift.afholdelsesdato) && udgift.fuldførelsesår >= udgift.afholdelsesdato.år && udgift.beløb_for_afstået_del_kroner >= 0
 | ebl_par5_nedsættelse_gyldig(nedsættelse: EblPar5Nedsættelse, fakta: EblPar5Fakta, afståelsesdato: EblDato) -> nedsættelse.indkomstår >= fakta.anskaffelsesdato.år && nedsættelse.indkomstår <= afståelsesdato.år && nedsættelse.beløb_for_afstået_del_kroner >= 0
-| ebl_par5_input_gyldigt(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_dato_gyldig(fakta.anskaffelsesdato) && ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, afståelsesdato) && anskaffelsessum_før_par5_kroner >= 0 && fakta.forholdsmæssig_andel_promille > 0 && fakta.forholdsmæssig_andel_promille <= 1000 && ebl_par4_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag) && all(fakta.vedligeholdelses_og_forbedringsudgifter, ebl_par5_udgift_gyldig) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelse_gyldig(nedsættelse, fakta, afståelsesdato))
+| ebl_par5_input_gyldigt(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_dato_gyldig(fakta.anskaffelsesdato) && ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, afståelsesdato) && anskaffelsessum_før_par5_kroner >= 0 && ebl_par5_fordeling_gyldig(fakta.fordeling) && (ebl_par5_mælkekvote_fordelingsgrundlag_påkrævet(fakta, afståelsesdato) == Falskt || ebl_par5_mælkekvote_fordelingsgrundlag_tilgængeligt(fakta.fordeling)) && ebl_par4_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag) && all(fakta.vedligeholdelses_og_forbedringsudgifter, ebl_par5_udgift_gyldig) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelse_gyldig(nedsættelse, fakta, afståelsesdato)) && ebl_par5_mælkekvoter_gyldige(fakta.mælkekvoter) && ebl_par5_stk6_forhold_input_gyldigt(fakta.stk6_overførsel)
 | ebl_par5_udgiftsfuldførelse_understøttet(fakta: EblPar5Fakta) -> all(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| udgift.fuldførelsesår == udgift.afholdelsesdato.år)
-| ebl_par5_regelgrundlag_understøttet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> fakta.særforhold == EblPar5UdenMælkekvoteEllerStk6Overførsel && ebl_par5_udgiftsfuldførelse_understøttet(fakta) && ebl_par5a_valg_berettiget(fakta, afståelsesdato) && (ebl_par5a_valgt(fakta) == Falskt || ebl_par5a_kilder_tilgængelige(fakta, afståelsesdato))
+| ebl_par5_regelgrundlag_understøttet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5_udgiftsfuldførelse_understøttet(fakta) && ebl_par5a_valg_berettiget(fakta, afståelsesdato) && (ebl_par5a_valgt(fakta) == Falskt || ebl_par5a_kilder_tilgængelige(fakta, afståelsesdato))
 | ebl_par5_standardfakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> EblPar5Fakta(
     anskaffelsesdato = anskaffelsesdato,
     anskaffelsesgrundlag = anskaffelsesgrundlag,
-    forholdsmæssig_andel_promille = 1000,
+    fordeling = EblPar5Fordeling(
+        ejerandel_promille = 1000,
+        afståelsesomfang = EblPar5HeleEjendommen
+    ),
     vedligeholdelses_og_forbedringsudgifter = [],
     nedsættelser = [],
-    særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+    mælkekvoter = [],
+    stk6_overførsel = EblPar5UdenStk6Overførsel,
     reguleringsvalg = EblPar5UdenIndeksering
 )
 
@@ -396,11 +568,19 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     | årsudgift_resultater() -> ebl_par5_årsudgift_resultater(fakta, afståelsesdato)
     | vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner() -> foldl(årsudgift_resultater(), 0, |sum: Heltal, resultat: EblPar5ÅrsudgiftResultat| sum + resultat.tillæg_efter_stk2_kroner)
     | reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner() -> foldl(årsudgift_resultater(), 0, |sum: Heltal, resultat: EblPar5ÅrsudgiftResultat| sum + resultat.reguleret_tillæg_efter_par5a_kroner)
+    | mælkekvote_resultater() -> ebl_par5_mælkekvote_resultater(fakta, afståelsesdato)
+    | mælkekvoteforhøjelse_efter_stk3_kroner() -> foldl(mælkekvote_resultater(), 0, |sum: Heltal, resultat: EblPar5MælkekvoteResultat| sum + resultat.forhøjelse_efter_stk3_kroner)
+    | reguleret_mælkekvoteforhøjelse_efter_par5a_kroner() -> foldl(mælkekvote_resultater(), 0, |sum: Heltal, resultat: EblPar5MælkekvoteResultat| sum + resultat.reguleret_forhøjelse_efter_par5a_kroner)
+    | stk6_resultat() -> ebl_par5_stk6_resultat(fakta, afståelsesdato)
+    | stk6_overført_til_afstået_jord_kroner() -> stk6_resultat().overført_til_afstået_jord_kroner
+    | reguleret_stk6_overførsel_efter_par5a_kroner() -> stk6_resultat().reguleret_overførsel_efter_par5a_kroner
     | nedsættelsesresultater() -> ebl_par5_nedsættelsesresultater(fakta, afståelsesdato)
-    | nedsættelser_efter_stk4_til_8_kroner() -> foldl(nedsættelsesresultater(), 0, |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.nedsættelse_efter_stk4_til_8_kroner)
-    | regulerede_nedsættelser_efter_par5a_kroner() -> foldl(nedsættelsesresultater(), 0, |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.reguleret_nedsættelse_efter_par5a_kroner)
+    | mælkekvotenedsættelser_efter_stk4_nr6_kroner() -> foldl(mælkekvote_resultater(), 0, |sum: Heltal, resultat: EblPar5MælkekvoteResultat| sum + resultat.nedsættelse_efter_stk4_nr6_kroner)
+    | regulerede_mælkekvotenedsættelser_efter_par5a_kroner() -> foldl(mælkekvote_resultater(), 0, |sum: Heltal, resultat: EblPar5MælkekvoteResultat| sum + resultat.reguleret_nedsættelse_efter_par5a_kroner)
+    | nedsættelser_efter_stk4_til_8_kroner() -> foldl(nedsættelsesresultater(), mælkekvotenedsættelser_efter_stk4_nr6_kroner(), |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.nedsættelse_efter_stk4_til_8_kroner)
+    | regulerede_nedsættelser_efter_par5a_kroner() -> foldl(nedsættelsesresultater(), regulerede_mælkekvotenedsættelser_efter_par5a_kroner(), |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.reguleret_nedsættelse_efter_par5a_kroner)
     | reguleringsprocent_tiendedele() -> hvis indeksering_anvendt() { ebl_par5a_reguleringsprocent_tiendedele(ebl_par5a_startår(fakta), afståelsesdato.år) } ellers { 0 }
-    | anskaffelsessum_efter_valgt_regulering_kroner() -> hvis indeksering_anvendt() { ebl_par5a_reguler_beløb_kroner(anskaffelsessum_før_par5_kroner, ebl_par5a_startår(fakta), afståelsesdato.år) + reguleret_fast_tillæg_efter_par5a_kroner() + reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner() - regulerede_nedsættelser_efter_par5a_kroner() } ellers { anskaffelsessum_før_par5_kroner + fast_tillæg_efter_stk1_kroner() + vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner() - nedsættelser_efter_stk4_til_8_kroner() }
+    | anskaffelsessum_efter_valgt_regulering_kroner() -> hvis indeksering_anvendt() { ebl_par5a_reguler_beløb_kroner(anskaffelsessum_før_par5_kroner, ebl_par5a_startår(fakta), afståelsesdato.år) + reguleret_fast_tillæg_efter_par5a_kroner() + reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner() + reguleret_mælkekvoteforhøjelse_efter_par5a_kroner() + reguleret_stk6_overførsel_efter_par5a_kroner() - regulerede_nedsættelser_efter_par5a_kroner() } ellers { anskaffelsessum_før_par5_kroner + fast_tillæg_efter_stk1_kroner() + vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner() + mælkekvoteforhøjelse_efter_stk3_kroner() + stk6_overført_til_afstået_jord_kroner() - nedsættelser_efter_stk4_til_8_kroner() }
     | reguleret_anskaffelsessum_kroner() -> hvis beregning_anvendt() { penge_positivt_beløb(anskaffelsessum_efter_valgt_regulering_kroner()) } ellers { penge_positivt_beløb(anskaffelsessum_før_par5_kroner) }
     | regulering_efter_par5_og_par5a_kroner() -> reguleret_anskaffelsessum_kroner() - penge_positivt_beløb(anskaffelsessum_før_par5_kroner)
     | resultat() -> EblPar5Resultat(
@@ -418,6 +598,12 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
         årsudgift_resultater = årsudgift_resultater(),
         vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner = vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner(),
         reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner = reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner(),
+        mælkekvote_resultater = mælkekvote_resultater(),
+        mælkekvoteforhøjelse_efter_stk3_kroner = mælkekvoteforhøjelse_efter_stk3_kroner(),
+        reguleret_mælkekvoteforhøjelse_efter_par5a_kroner = reguleret_mælkekvoteforhøjelse_efter_par5a_kroner(),
+        stk6_resultat = stk6_resultat(),
+        stk6_overført_til_afstået_jord_kroner = stk6_overført_til_afstået_jord_kroner(),
+        reguleret_stk6_overførsel_efter_par5a_kroner = reguleret_stk6_overførsel_efter_par5a_kroner(),
         nedsættelsesresultater = nedsættelsesresultater(),
         nedsættelser_efter_stk4_til_8_kroner = nedsættelser_efter_stk4_til_8_kroner(),
         regulerede_nedsættelser_efter_par5a_kroner = regulerede_nedsættelser_efter_par5a_kroner(),

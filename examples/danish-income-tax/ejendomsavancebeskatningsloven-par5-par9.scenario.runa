@@ -138,7 +138,10 @@
     EblPar5Fakta(
         anskaffelsesdato = ebl_scenarie_anskaffelsesdato_2026,
         anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-        forholdsmæssig_andel_promille = 1000,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5HeleEjendommen
+        ),
         vedligeholdelses_og_forbedringsudgifter = [
             EblPar5Udgift(
                 afholdelsesdato = EblDato(år = 2026, måned = 2, dag = 1),
@@ -154,7 +157,8 @@
             )
         ],
         nedsættelser = [],
-        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
         reguleringsvalg = EblPar5UdenIndeksering
     ),
     ebl_scenarie_afståelsesdato_2026,
@@ -165,10 +169,14 @@
     EblPar5Fakta(
         anskaffelsesdato = EblDato(år = 2006, måned = 1, dag = 1),
         anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-        forholdsmæssig_andel_promille = 1000,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5HeleEjendommen
+        ),
         vedligeholdelses_og_forbedringsudgifter = [],
         nedsættelser = [],
-        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
         reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
     ),
     ebl_scenarie_afståelsesdato_2026,
@@ -179,10 +187,14 @@
     EblPar5Fakta(
         anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
         anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-        forholdsmæssig_andel_promille = 1000,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5HeleEjendommen
+        ),
         vedligeholdelses_og_forbedringsudgifter = [],
         nedsættelser = [],
-        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
         reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ANaturejendom)
     ),
     ebl_scenarie_afståelsesdato_2026,
@@ -347,10 +359,14 @@
         par5_fakta = EblPar5Fakta(
             anskaffelsesdato = EblDato(år = 2006, måned = 1, dag = 1),
             anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-            forholdsmæssig_andel_promille = 1000,
+            fordeling = EblPar5Fordeling(
+                ejerandel_promille = 1000,
+                afståelsesomfang = EblPar5HeleEjendommen
+            ),
             vedligeholdelses_og_forbedringsudgifter = [],
             nedsættelser = [],
-            særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            mælkekvoter = [],
+            stk6_overførsel = EblPar5UdenStk6Overførsel,
             reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
         ),
         par4_stk8_anskaffelse_udeladt_kroner = 0,

@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-1eb62d` (in review)
-Latest implementation slice submitted for review: `td-1eb62d`
+Current focus issue: `td-defe9f` (in review)
+Latest implementation slice submitted for review: `td-defe9f`
 Latest approved implementation slice: `td-638478`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -56,9 +56,23 @@ Reglerne beregner hver afståelse efter Ejendomsavancebeskatningslovens §§ 1,
 ægtefælleoverførsel og fremførsel og danner derefter Personskattelovens § 4,
 stk. 1, nr. 14-kapitalpost. Det tidligere rå input for regulering efter §§ 5 og
 5 A er fjernet. Borgeren oplyser i stedet anskaffelsesdato og -grundlag,
-forholdsmæssig andel, vedligeholdelses- og forbedringsudgifter, nedsættelser og
-eventuelt indekseringsvalg; reglerne udleder det regulerede
-anskaffelsesgrundlag. Ejendomstypen og dens kildefakta udleder tilsvarende
+ejerandel, om hele eller en del af ejendommen afstås, vedligeholdelses- og
+forbedringsudgifter, nedsættelser, eventuelle mælkekvoter, § 5, stk. 6-fakta og
+indekseringsvalg; reglerne udleder det regulerede anskaffelsesgrundlag.
+Mælkekvoter købt eller tildelt senest i 2004 får deres anskaffelsesgrundlag og
+afståelsesvederlag fordelt efter disponerede enheder og en eventuel
+delafståelse. Ved en delafståelse bruger det almindelige § 5-tillæg
+anskaffelsessummen for hele ejendommen, mens mælkekvotevederlag bruger den
+særskilte anskaffelsessum for den del, der ikke udgør boligdelen. Udløb
+behandles som afståelse til 0 kr., mens toldning uden erstatning bevarer lovens
+undtagelse. § 5, stk. 6 er obligatorisk, når betingelserne er opfyldt, og
+omfatter både de to nummererede 1993-indgangsværdier og en vurdering efter den
+dagældende vurderingslovs § 4 B. Reglen vælger den højeste af
+tillægsparcelværdien og den tekniske værdi, fratrækker de
+vurderingsomfattede bygningsbeløb og fordeler resten efter ejerandel og den
+afståede jords anskaffelsessum. Det overførte rå beløb nedsætter samtidig
+restejendommens anskaffelsessum. Ejendomstypen og dens kildefakta udleder
+tilsvarende
 parcelhusfritagelsen efter § 8 eller fordelingen mellem bolig- og erhvervsdel
 efter § 9. Sommerhusgrenen kræver samme grundbetingelse som § 8, stk. 1, og
 kan derfor ikke fritages alene på baggrund af privat anvendelse. Skattefri
@@ -85,9 +99,10 @@ skattefri. § 9, stk. 4 udleder selv, om erhvervsdelen kan bære hele den
 genanbragte fortjeneste; hvis ikke, beskattes den gamle fortjeneste særskilt,
 og det tilsvarende nedslag i anskaffelsessummen bortfalder. Den gamle gevinst
 og den nye ejendoms gevinst eller tab holdes dermed adskilt uden
-dobbeltbeskatning. Ikke færdigmodellerede særforhold, blandt andet mælkekvoter,
-§ 5, stk. 6-overførsler, fordeling af § 10-genopførelse på flere andre
-ejendomme og erhvervserstatning anvendt til ejerbolig, er fortsat
+dobbeltbeskatning. Mælkekvoter og § 5, stk. 6-overførsler er ikke længere
+fail-closed særforhold; de er selvstændige, kombinerbare kildefaktagrene med
+synlige delresultater og § 5 A-henføringsår. Fordeling af § 10-genopførelse på
+flere andre ejendomme og erhvervserstatning anvendt til ejerbolig er fortsat
 udtrykkelige og fail-closed. Værdipapirer med boligret efter
 § 8, stk. 4, er derimod nu flyttet ud af ejendomsavancegrenen og ind i
 Aktieavancebeskatningslovens § 15-spor. Beboelse, ejendom med flere
@@ -97,9 +112,13 @@ likvidationsåret afgør fritagelsen. Hvis en betingelse ikke er opfyldt,
 fortsætter gevinst eller tab gennem de almindelige ABL-regler i stedet for at
 blive nulstillet. Et fokuseret scenarie dækker de årlige 10.000 kr.-tillæg,
 årsaggregering af forbedringsudgifter, § 5 A-indeksering, § 8-fritagelsen,
-§ 9-fordelingen og ABL § 15's boligretsgren. En separat `.audit.runa`-fil
-kontrollerer afstemning, direkte ejerskab, grundbetingelsen og de resterende
-fail-closed-invarianter.
+§ 9-fordelingen og ABL § 15's boligretsgren. Et nyt fokuseret scenarie dækker
+desuden mælkekvotekøb, vederlagsfri tildeling, delvis disposition, udløb,
+toldning, § 5 A-år, § 5, stk. 6-værdiansættelse, 2027-overgangen for skov og
+natur samt samtidig anvendelse af begge grene. En separat `.audit.runa`-fil
+kontrollerer afstemning, direkte ejerskab, grundbetingelsen,
+mælkekvoternes stk. 3/stk. 4, nr. 6-bevægelser og identiteten mellem § 5,
+stk. 6-overførslen og restejendommens nedsættelse.
 
 Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu
 kildefakta for befordring efter Ligningslovens § 9 C og den valgfri
@@ -121,18 +140,21 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-117 typede inputkolonner på `cases`-arket plus `case_id` og femten relationelle
-kildeark. Kontrakten når nu 177 domænedefinitioner. De to ejendomsark rummer
+117 typede inputkolonner på `cases`-arket plus `case_id` og sytten relationelle
+kildeark. Kontrakten når nu 186 domænedefinitioner. De to ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem § 8, stk. 5 eller § 9, stk. 4 uden beregnede mellemfelter fra
 brugeren.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
 rummer egne og ægtefællens ejendomsafståelser, og de indlejrede § 5-fakta giver
 selvstændige relationelle tabeller for vedligeholdelses- og
-forbedringsudgifter samt nedsættelser. De øvrige relationelle ark kommer blandt
-andet fra de ordinære og særlige ABL-grene. Den udfyldte kombinationssag giver
-samme fulde resultat fra XLSX og kanonisk JSON for renter, fradrag, befordring,
-to egne ejendomsafståelser, ægtefællens ejendomstab og fremført tab.
+forbedringsudgifter, nedsættelser og egne eller ægtefællens mælkekvoter. De
+øvrige relationelle ark kommer blandt andet fra de ordinære og særlige
+ABL-grene. Den udfyldte kombinationssag giver samme fulde resultat fra XLSX og
+kanonisk JSON for renter, fradrag, befordring, to egne ejendomsafståelser,
+ægtefællens ejendomstab og fremført tab. En særskilt roundtrip-sag bærer
+ejerandel, delafståelse, en faktisk mælkekvote og § 5, stk. 6 gennem begge
+adaptere.
 Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
 og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
@@ -146,7 +168,12 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 98 eksplicitte feltmetadata-poster. Genanbringelsens
+Kontrakten har aktuelt 170 eksplicitte feltmetadata-poster. De nye poster
+navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
+anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
+anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
+jordfordeling for både personen og ægtefællen.
+Genanbringelsens
 lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
 geninvesteringsår, erhvervsmæssige anskaffelsesgrundlag, anvendelse, placering,
 begæring, ejerskab og overgangsforhold har nu egne menneskelige etiketter og
@@ -2573,8 +2600,8 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 177 nåbare definitioner, 117 typede
-  inputkolonner plus `case_id` og femten relationelle kildeark. XLSX/JSON-
+- Det genererede Personskat-regneark har nu 186 nåbare definitioner, 117 typede
+  inputkolonner plus `case_id` og sytten relationelle kildeark. XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
   kapitalomkostning, et kildefaktabåret § 9 C-befordringsfradrag og en
@@ -2584,9 +2611,16 @@ Review candidates to revisit deliberately, not as broad churn:
   erhvervsfortjeneste på 190.000 kr. beskattes. Efter eget tab, fremført tab og
   ægtefællens overførte tab afledes fortsat 65.000 kr. i ejendomsavance; renter
   og øvrige fradrag giver derefter 75.000 kr. i nettokapitalindkomst.
-  Kontrakten har 98 eksplicitte menneskelige feltetiketter og
-  interviewspørgsmål. De dækker nu også genanbringelsesvalg og centrale
-  §§ 6 A/8/9-kildefakta for begge ægtefæller. Store enum-/variantvalg bruger et
+  En fjerde sag fører en 50 pct. ejerandel, en delafståelse, en historisk
+  mælkekvote og en § 5, stk. 6-overførsel gennem både XLSX og JSON. Den afleder
+  41.250 kr. i årligt § 5-tillæg, 20.000 kr. i mælkekvoteforhøjelse,
+  30.000 kr. i mælkekvotenedsættelse, 37.500 kr. i § 5, stk. 6-overførsel og
+  en reguleret anskaffelsessum på 268.750 kr.
+  Kontrakten har 170 eksplicitte menneskelige feltetiketter og
+  interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
+  §§ 6 A/8/9-kildefakta, delafståelsernes særskilte
+  anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
+  Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
@@ -2711,13 +2745,12 @@ Review candidates to revisit deliberately, not as broad churn:
   tax/deficit conditions and optional annual settlement. Keep the generated
   workbook downstream of that graph so scalar cells, enum dropdowns, variant
   payloads and related collection sheets cannot drift from the executable law.
-- Complete the current Ejendomsavancebeskatningsloven dependency before treating
-  property sales as generally supported. The aggregate now derives ordinary
-  taxable gains and § 6 current/carried/spouse loss allocation from fact rows,
-  but EBL §§ 5/5 A acquisition adjustments and the current §§ 8/9 gain
-  exemptions still require their own source-fact rules. Until then, a claimed
-  § 8/§ 9 gain branch fails closed and contributes zero rather than being taxed
-  under the narrower §§ 1/4 path.
+- Continue the current Ejendomsavancebeskatningsloven dependency from the
+  source-backed §§ 5/5 A, 6, 8 and 9 paths. Milk quotas and § 5, stk. 6 are now
+  executable and round-trip through the canonical Personskat contract.
+  Remaining bounded work includes § 6 D seller-note installment taxation,
+  active reinvestment basis on ordinary property sales and the still
+  fail-closed multi-property § 10 allocation edges.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same

@@ -2,38 +2,89 @@
 
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par5_par9_konsistensaudit::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
+--@label:ebl_par5_par9_konsistensaudit::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026::source:ebl_par8_par9_lbk132::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
 --@begin:ebl_par5_par9_konsistensaudit--
-| ebl_audit_par5_fakta(særforhold: EblPar5Særforhold, reguleringsvalg: EblPar5Reguleringsvalg) -> EblPar5Fakta(
-    anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
+| ebl_audit_par5_fakta(mælkekvoter: List(EblPar5MælkekvoteFakta), stk6_overførsel: EblPar5Stk6Overførsel, reguleringsvalg: EblPar5Reguleringsvalg) -> EblPar5Fakta(
+    anskaffelsesdato = EblDato(år = 1999, måned = 1, dag = 1),
     anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-    forholdsmæssig_andel_promille = 1000,
+    fordeling = EblPar5Fordeling(
+        ejerandel_promille = 1000,
+        afståelsesomfang = EblPar5HeleEjendommen
+    ),
     vedligeholdelses_og_forbedringsudgifter = [],
     nedsættelser = [],
-    særforhold = særforhold,
+    mælkekvoter = mælkekvoter,
+    stk6_overførsel = stk6_overførsel,
     reguleringsvalg = reguleringsvalg
+)
+
+= ebl_audit_par5_mælk_resultat = ebl_par5_resultat(
+    ebl_audit_par5_fakta(
+        [EblPar5MælkekvoteFakta(
+            identifikation = "audit-mælk",
+            anskaffelsesdato = EblDato(år = 2000, måned = 1, dag = 1),
+            oprindelige_enheder = 100,
+            disponerede_enheder = 100,
+            anskaffelsesgrundlag = EblPar5MælkekvoteKøbt(vederlag_kroner = 80000),
+            disposition = EblPar5MælkekvoteAfstået(
+                afståelsesdato = EblDato(år = 2010, måned = 1, dag = 1),
+                vederlag_kroner = 120000
+            )
+        )],
+        EblPar5UdenStk6Overførsel,
+        EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    1000000
+)
+
+= ebl_audit_par5_stk6_resultat = ebl_par5_resultat(
+    EblPar5Fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 500,
+            afståelsesomfang = EblPar5DelAfEjendommen(
+                afstået_del_anskaffelsessum_før_par5_kroner = 200000,
+                hele_ejendommens_anskaffelsessum_før_par5_kroner = 800000,
+                ikke_boligdelens_anskaffelsessum_før_par5_kroner = None
+            )
+        ),
+        vedligeholdelses_og_forbedringsudgifter = [],
+        nedsættelser = [],
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5MedStk6Overførsel(fakta = EblPar5Stk6Fakta(
+            ejendomskategori = EblPar5Stk6Landbrugsejendom,
+            tillægsparcelværdi_kroner = 500000,
+            teknisk_værdi_kroner = 600000,
+            afskrivninger_på_vurderingsomfattede_bygninger_kroner = 100000,
+            stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner = 50000,
+            nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner = 150000,
+            afstået_jord_anskaffelsessum_før_overførsel_kroner = 200000,
+            samlet_jord_anskaffelsessum_før_overførsel_kroner = 800000
+        )),
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
 )
 
 = ebl_audit_par5_resultater = [
     ebl_par5_resultat(
         ebl_audit_par5_fakta(
-            EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            [],
+            EblPar5UdenStk6Overførsel,
             EblPar5UdenIndeksering
         ),
         EblDato(år = 2026, måned = 12, dag = 31),
         1000000
     ),
+    ebl_audit_par5_mælk_resultat,
+    ebl_audit_par5_stk6_resultat,
     ebl_par5_resultat(
         ebl_audit_par5_fakta(
-            EblPar5MedMælkekvote,
-            EblPar5UdenIndeksering
-        ),
-        EblDato(år = 2026, måned = 12, dag = 31),
-        1000000
-    ),
-    ebl_par5_resultat(
-        ebl_audit_par5_fakta(
-            EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            [],
+            EblPar5UdenStk6Overførsel,
             EblPar5AMedIndeksering(kategori = EblPar5ANaturejendom)
         ),
         EblDato(år = 2026, måned = 12, dag = 31),
@@ -185,10 +236,14 @@
     par5_fakta = EblPar5Fakta(
         anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
         anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
-        forholdsmæssig_andel_promille = 1000,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5HeleEjendommen
+        ),
         vedligeholdelses_og_forbedringsudgifter = [],
         nedsættelser = [],
-        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
         reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
     ),
     par4_stk8_anskaffelse_udeladt_kroner = 0,
@@ -249,6 +304,8 @@
 
 | ebl_par5_audit_beregning_er_enten_kildeunderstøttet_eller_fail_closed: ebl_audit_par5_resultater -> all(ebl_audit_par5_resultater, |resultat: EblPar5Resultat| hvis resultat.beregning_anvendt { resultat.input_gyldigt && resultat.regelgrundlag_understøttet } ellers { resultat.reguleret_anskaffelsessum_kroner == resultat.anskaffelsessum_før_par5_kroner && resultat.regulering_efter_par5_og_par5a_kroner == 0 })
 | ebl_par5_audit_regulering_afstemmer_til_anskaffelsessummen: ebl_audit_par5_resultater -> all(ebl_audit_par5_resultater, |resultat: EblPar5Resultat| resultat.regulering_efter_par5_og_par5a_kroner == resultat.reguleret_anskaffelsessum_kroner - resultat.anskaffelsessum_før_par5_kroner)
+| ebl_par5_audit_mælkekvoter_afstemmer_til_stk3_og_stk4_nr6: ebl_audit_par5_mælk_resultat -> ebl_audit_par5_mælk_resultat.beregning_anvendt && ebl_audit_par5_mælk_resultat.mælkekvoteforhøjelse_efter_stk3_kroner == 80000 && ebl_audit_par5_mælk_resultat.nedsættelser_efter_stk4_til_8_kroner == 120000 && ebl_audit_par5_mælk_resultat.reguleret_anskaffelsessum_kroner == ebl_audit_par5_mælk_resultat.anskaffelsessum_før_par5_kroner + ebl_audit_par5_mælk_resultat.fast_tillæg_efter_stk1_kroner + ebl_audit_par5_mælk_resultat.vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner + ebl_audit_par5_mælk_resultat.mælkekvoteforhøjelse_efter_stk3_kroner + ebl_audit_par5_mælk_resultat.stk6_overført_til_afstået_jord_kroner - ebl_audit_par5_mælk_resultat.nedsættelser_efter_stk4_til_8_kroner
+| ebl_par5_audit_stk6_overførsel_og_restejendomsnedslag_er_samme_beløb: ebl_audit_par5_stk6_resultat -> ebl_audit_par5_stk6_resultat.beregning_anvendt && ebl_audit_par5_stk6_resultat.stk6_resultat.højeste_vurderingsværdi_kroner == 600000 && ebl_audit_par5_stk6_resultat.stk6_resultat.vurderingsomfattede_nedsættelser_kroner == 300000 && ebl_audit_par5_stk6_resultat.stk6_resultat.skattepligtiges_overførselsberettigede_beløb_kroner == 150000 && ebl_audit_par5_stk6_resultat.stk6_overført_til_afstået_jord_kroner == 37500 && ebl_audit_par5_stk6_resultat.stk6_resultat.restejendommens_anskaffelsessum_nedsættes_kroner == ebl_audit_par5_stk6_resultat.stk6_overført_til_afstået_jord_kroner
 | ebl_par9_audit_delresultater_afstemmer: ebl_audit_par9_resultater -> all(ebl_audit_par9_resultater, |resultat: EblPar9Resultat| resultat.samlet_fortjeneste_eller_tab_kroner == resultat.bolig_fortjeneste_eller_tab_kroner + resultat.erhvervsdel_fortjeneste_eller_tab_kroner)
 | ebl_par9_audit_boligdelen_bliver_ikke_skattepligtig: ebl_audit_par9_resultater -> all(ebl_audit_par9_resultater, |resultat: EblPar9Resultat| resultat.betingelser_for_skattefri_boligdel_opfyldt && resultat.skattepligtig_fortjeneste_kroner == penge_positivt_beløb(resultat.erhvervsdel_fortjeneste_eller_tab_kroner) && resultat.tab_kroner == penge_positivt_beløb(0 - resultat.erhvervsdel_fortjeneste_eller_tab_kroner))
 | ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed: ebl_audit_par9_ikke_understøttet_genanbringelse -> ebl_audit_par9_ikke_understøttet_genanbringelse.input_gyldigt && ebl_audit_par9_ikke_understøttet_genanbringelse.regelgrundlag_understøttet == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.beregning_anvendt == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_par9_ikke_understøttet_genanbringelse.tab_kroner == 0
@@ -262,6 +319,8 @@
 
 ? ebl_par5_audit_beregning_er_enten_kildeunderstøttet_eller_fail_closed
 ? ebl_par5_audit_regulering_afstemmer_til_anskaffelsessummen
+? ebl_par5_audit_mælkekvoter_afstemmer_til_stk3_og_stk4_nr6
+? ebl_par5_audit_stk6_overførsel_og_restejendomsnedslag_er_samme_beløb
 ? ebl_par9_audit_delresultater_afstemmer
 ? ebl_par9_audit_boligdelen_bliver_ikke_skattepligtig
 ? ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed

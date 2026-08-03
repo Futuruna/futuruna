@@ -240,6 +240,510 @@
     help = Some("Indeksering er kun tilgængelig for de ejendomskategorier og år, som loven omfatter."),
     unit = None
 )
+= personskat_felt_egen_ejendoms_ejerandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.fordeling.ejerandel_promille",
+    label = "Ejerandel",
+    question = Some("Hvor stor en ejerandel havde du i ejendommen?"),
+    help = Some("Angiv ejerandelen i promille, eksempelvis 1000 for 100 pct. eller 500 for 50 pct."),
+    unit = Some("promille")
+)
+= personskat_felt_ægtefælles_ejendoms_ejerandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.fordeling.ejerandel_promille",
+    label = "Ejerandel",
+    question = Some("Hvor stor en ejerandel havde din ægtefælle i ejendommen?"),
+    help = Some("Angiv ejerandelen i promille, eksempelvis 1000 for 100 pct. eller 500 for 50 pct."),
+    unit = Some("promille")
+)
+= personskat_felt_egen_ejendoms_afståelsesomfang = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.fordeling.afståelsesomfang.$variant",
+    label = "Hele eller en del af ejendommen",
+    question = Some("Blev hele ejendommen eller kun en del af ejendommen afstået?"),
+    help = Some("Ved en delafståelse fordeles de relevante § 5-beløb efter anskaffelsessummen for den afståede del i forhold til hele ejendommen."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendoms_afståelsesomfang = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.fordeling.afståelsesomfang.$variant",
+    label = "Hele eller en del af ejendommen",
+    question = Some("Blev hele din ægtefælles ejendom eller kun en del af ejendommen afstået?"),
+    help = Some("Ved en delafståelse fordeles de relevante § 5-beløb efter anskaffelsessummen for den afståede del i forhold til hele ejendommen."),
+    unit = None
+)
+= personskat_felt_egen_delafståelses_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.afstået_del_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum for den afståede del",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for den del af ejendommen, der blev afstået?"),
+    help = Some("Beløbet bruges som tæller ved den forholdsmæssige fordeling for en delafståelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_delafståelses_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.afstået_del_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum for den afståede del",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for den del af din ægtefælles ejendom, der blev afstået?"),
+    help = Some("Beløbet bruges som tæller ved den forholdsmæssige fordeling for en delafståelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_hele_ejendommens_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.hele_ejendommens_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum for hele ejendommen",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for hele ejendommen?"),
+    help = Some("Beløbet bruges som nævner ved fordelingen af det årlige tillæg og andre almindelige § 5-beløb ved en delafståelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.hele_ejendommens_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum for hele ejendommen",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for hele din ægtefælles ejendom?"),
+    help = Some("Beløbet bruges som nævner ved fordelingen af det årlige tillæg og andre almindelige § 5-beløb ved en delafståelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ikke_boligdelens_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.ikke_boligdelens_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum uden boligdel",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for den del af hele ejendommen, der ikke udgjorde boligdelen?"),
+    help = Some("Beløbet er den særskilte nævner for fordelingen af mælkekvotevederlag efter EBL § 5, stk. 3 og 5. Feltet kræves kun ved en delafståelse med mindst én mælkekvote, der faktisk er omfattet af EBL."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.ikke_boligdelens_anskaffelsessum_før_par5_kroner",
+    label = "Anskaffelsessum uden boligdel",
+    question = Some("Hvad var anskaffelsessummen før § 5-regulering for den del af hele din ægtefælles ejendom, der ikke udgjorde boligdelen?"),
+    help = Some("Beløbet er den særskilte nævner for fordelingen af mælkekvotevederlag efter EBL § 5, stk. 3 og 5. Feltet kræves kun ved en delafståelse med mindst én mælkekvote, der faktisk er omfattet af EBL."),
+    unit = Some("kr.")
+)
+= personskat_felt_egne_mælkekvoter = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter",
+    label = "Mælkekvoter",
+    question = Some("Var der mælkekvoter, som blev afstået, udløb eller blev toldet i forbindelse med ejendommen?"),
+    help = Some("Tilføj én række pr. mælkekvote. Futuruna udleder selv anskaffelsestillæg, afståelsesnedsættelse, delafståelsesandel og eventuel § 5 A-indeksering."),
+    unit = None
+)
+= personskat_felt_ægtefælles_mælkekvoter = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter",
+    label = "Mælkekvoter",
+    question = Some("Var der mælkekvoter, som blev afstået, udløb eller blev toldet i forbindelse med din ægtefælles ejendom?"),
+    help = Some("Tilføj én række pr. mælkekvote. Futuruna udleder selv anskaffelsestillæg, afståelsesnedsættelse, delafståelsesandel og eventuel § 5 A-indeksering."),
+    unit = None
+)
+= personskat_felt_egen_stk6_overførsel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.$variant",
+    label = "Overførsel efter EBL § 5, stk. 6",
+    question = Some("Foreligger der tillægsparcelværdi eller teknisk værdi, som er omfattet af EBL § 5, stk. 6 ved delafståelsen?"),
+    help = Some("Reglen er obligatorisk, når betingelserne er opfyldt. Vælg forhold med overførsel ved en kvalificerende delafståelse med et anskaffelsesgrundlag efter § 4, stk. 3, 1. eller 2. pkt.; det omfatter også en vurdering efter den dagældende vurderingslovs § 4 B."),
+    unit = None
+)
+= personskat_felt_ægtefælles_stk6_overførsel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.$variant",
+    label = "Overførsel efter EBL § 5, stk. 6",
+    question = Some("Foreligger der tillægsparcelværdi eller teknisk værdi, som er omfattet af EBL § 5, stk. 6 ved din ægtefælles delafståelse?"),
+    help = Some("Reglen er obligatorisk, når betingelserne er opfyldt. Vælg forhold med overførsel ved en kvalificerende delafståelse med et anskaffelsesgrundlag efter § 4, stk. 3, 1. eller 2. pkt.; det omfatter også en vurdering efter den dagældende vurderingslovs § 4 B."),
+    unit = None
+)
+= personskat_felt_egen_stk6_ejendomskategori = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.ejendomskategori",
+    label = "Ejendomskategori for § 5, stk. 6",
+    question = Some("Er den delafståede ejendom en landbrugs-, skov- eller naturejendom efter § 5, stk. 6?"),
+    help = Some("Skov- og naturejendomme omfattes først af denne gren ved afståelser fra 2027."),
+    unit = None
+)
+= personskat_felt_ægtefælles_stk6_ejendomskategori = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.ejendomskategori",
+    label = "Ejendomskategori for § 5, stk. 6",
+    question = Some("Er din ægtefælles delafståede ejendom en landbrugs-, skov- eller naturejendom efter § 5, stk. 6?"),
+    help = Some("Skov- og naturejendomme omfattes først af denne gren ved afståelser fra 2027."),
+    unit = None
+)
+= personskat_felt_egen_stk6_tillægsparcelværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.tillægsparcelværdi_kroner",
+    label = "Tillægsparcelværdi",
+    question = Some("Hvad var ejendommens tillægsparcelværdi ved vurderingen i 1993?"),
+    help = Some("Futuruna anvender den højeste værdi af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_tillægsparcelværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.tillægsparcelværdi_kroner",
+    label = "Tillægsparcelværdi",
+    question = Some("Hvad var din ægtefælles ejendoms tillægsparcelværdi ved vurderingen i 1993?"),
+    help = Some("Futuruna anvender den højeste værdi af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_teknisk_værdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.teknisk_værdi_kroner",
+    label = "Teknisk værdi",
+    question = Some("Hvad var ejendommens tekniske værdi ved vurderingen i 1993?"),
+    help = Some("Futuruna anvender den højeste værdi af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_teknisk_værdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.teknisk_værdi_kroner",
+    label = "Teknisk værdi",
+    question = Some("Hvad var din ægtefælles ejendoms tekniske værdi ved vurderingen i 1993?"),
+    help = Some("Futuruna anvender den højeste værdi af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_bygningsafskrivninger = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afskrivninger_på_vurderingsomfattede_bygninger_kroner",
+    label = "Afskrivninger på vurderingsomfattede bygninger",
+    question = Some("Hvor store afskrivninger vedrører bygninger, der indgik i 1993-vurderingen?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_bygningsafskrivninger = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afskrivninger_på_vurderingsomfattede_bygninger_kroner",
+    label = "Afskrivninger på vurderingsomfattede bygninger",
+    question = Some("Hvor store afskrivninger vedrører bygninger på din ægtefælles ejendom, der indgik i 1993-vurderingen?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_nedrevne_bygninger = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner",
+    label = "Afskrivninger på nedrevne vurderingsbygninger",
+    question = Some("Hvor store afskrivninger efter § 5, stk. 4, nr. 2 vedrører vurderingsomfattede bygninger, der er revet ned?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_nedrevne_bygninger = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner",
+    label = "Afskrivninger på nedrevne vurderingsbygninger",
+    question = Some("Hvor store afskrivninger efter § 5, stk. 4, nr. 2 vedrører vurderingsomfattede bygninger på din ægtefælles ejendom, der er revet ned?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_nedskrevet_bygningsværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner",
+    label = "Nedskrevet værdi af vurderingsbygninger",
+    question = Some("Hvad var den nedskrevne værdi af bygninger, der indgik i 1993-vurderingen?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner",
+    label = "Nedskrevet værdi af vurderingsbygninger",
+    question = Some("Hvad var den nedskrevne værdi af bygninger på din ægtefælles ejendom, der indgik i 1993-vurderingen?"),
+    help = Some("Beløbet trækkes fra den højeste af tillægsparcelværdien og den tekniske værdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_afstået_jord_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner",
+    label = "Anskaffelsessum for den afståede jord",
+    question = Some("Hvad var anskaffelsessummen for den afståede jord før overførslen efter § 5, stk. 6?"),
+    help = Some("Beløbet bruges som tæller ved fordelingen af overførselsbeløbet til den afståede jord."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner",
+    label = "Anskaffelsessum for den afståede jord",
+    question = Some("Hvad var anskaffelsessummen for din ægtefælles afståede jord før overførslen efter § 5, stk. 6?"),
+    help = Some("Beløbet bruges som tæller ved fordelingen af overførselsbeløbet til den afståede jord."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_stk6_samlet_jord_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner",
+    label = "Anskaffelsessum for al jord",
+    question = Some("Hvad var den samlede anskaffelsessum for ejendommens jord før overførslen efter § 5, stk. 6?"),
+    help = Some("Beløbet bruges som nævner ved fordelingen af overførselsbeløbet til den afståede jord."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner",
+    label = "Anskaffelsessum for al jord",
+    question = Some("Hvad var den samlede anskaffelsessum for jorden på din ægtefælles ejendom før overførslen efter § 5, stk. 6?"),
+    help = Some("Beløbet bruges som nævner ved fordelingen af overførselsbeløbet til den afståede jord."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_par5a_ejendomskategori = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.reguleringsvalg.EblPar5AMedIndeksering.kategori",
+    label = "Ejendomskategori for § 5 A",
+    question = Some("Hvilken ejendomskategori skal bruges ved indekseringen efter § 5 A?"),
+    help = Some("Kategorien skal svare til ejendommens typede klassifikation og det relevante afståelsesår."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par5a_ejendomskategori = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.reguleringsvalg.EblPar5AMedIndeksering.kategori",
+    label = "Ejendomskategori for § 5 A",
+    question = Some("Hvilken ejendomskategori skal bruges ved indekseringen af din ægtefælles ejendom efter § 5 A?"),
+    help = Some("Kategorien skal svare til ejendommens typede klassifikation og det relevante afståelsesår."),
+    unit = None
+)
+= personskat_felt_egen_mælkekvote_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.identifikation",
+    label = "Mælkekvote",
+    question = Some("Hvordan skal mælkekvoten identificeres?"),
+    help = Some("Brug en entydig betegnelse, så flere kvoter på samme ejendom kan følges hver for sig."),
+    unit = None
+)
+= personskat_felt_ægtefælles_mælkekvote_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.identifikation",
+    label = "Mælkekvote",
+    question = Some("Hvordan skal din ægtefælles mælkekvote identificeres?"),
+    help = Some("Brug en entydig betegnelse, så flere kvoter på samme ejendom kan følges hver for sig."),
+    unit = None
+)
+= personskat_felt_egen_mælkekvote_anskaffelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.år",
+    label = "Anskaffelsesår",
+    question = Some("I hvilket år blev mælkekvoten købt eller tildelt?"),
+    help = Some("Anskaffelsesdatoen afgør blandt andet, om kvoten hører til ejendomsavancebeskatningsloven eller afskrivningslovens § 40 C."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_mælkekvote_anskaffelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.år",
+    label = "Anskaffelsesår",
+    question = Some("I hvilket år blev din ægtefælles mælkekvote købt eller tildelt?"),
+    help = Some("Anskaffelsesdatoen afgør blandt andet, om kvoten hører til ejendomsavancebeskatningsloven eller afskrivningslovens § 40 C."),
+    unit = Some("år")
+)
+= personskat_felt_egen_mælkekvote_anskaffelsesmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.måned",
+    label = "Anskaffelsesmåned",
+    question = Some("I hvilken måned blev mælkekvoten købt eller tildelt?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.måned",
+    label = "Anskaffelsesmåned",
+    question = Some("I hvilken måned blev din ægtefælles mælkekvote købt eller tildelt?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_egen_mælkekvote_anskaffelsesdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.dag",
+    label = "Anskaffelsesdag",
+    question = Some("På hvilken dag i måneden blev mælkekvoten købt eller tildelt?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesdato.dag",
+    label = "Anskaffelsesdag",
+    question = Some("På hvilken dag i måneden blev din ægtefælles mælkekvote købt eller tildelt?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_egen_mælkekvote_oprindelige_enheder = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.oprindelige_enheder",
+    label = "Oprindelige kvoteenheder",
+    question = Some("Hvor mange enheder omfattede mælkekvoten oprindeligt?"),
+    help = Some("Antallet bruges til at fordele anskaffelsesgrundlaget ved en delvis disposition."),
+    unit = Some("kvoteenheder")
+)
+= personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.oprindelige_enheder",
+    label = "Oprindelige kvoteenheder",
+    question = Some("Hvor mange enheder omfattede din ægtefælles mælkekvote oprindeligt?"),
+    help = Some("Antallet bruges til at fordele anskaffelsesgrundlaget ved en delvis disposition."),
+    unit = Some("kvoteenheder")
+)
+= personskat_felt_egen_mælkekvote_disponerede_enheder = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disponerede_enheder",
+    label = "Disponerede kvoteenheder",
+    question = Some("Hvor mange kvoteenheder blev afstået, udløb eller blev toldet?"),
+    help = Some("Antallet kan højst være det oprindelige antal enheder."),
+    unit = Some("kvoteenheder")
+)
+= personskat_felt_ægtefælles_mælkekvote_disponerede_enheder = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disponerede_enheder",
+    label = "Disponerede kvoteenheder",
+    question = Some("Hvor mange af din ægtefælles kvoteenheder blev afstået, udløb eller blev toldet?"),
+    help = Some("Antallet kan højst være det oprindelige antal enheder."),
+    unit = Some("kvoteenheder")
+)
+= personskat_felt_egen_mælkekvote_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.$variant",
+    label = "Køb eller vederlagsfri tildeling",
+    question = Some("Blev mælkekvoten købt eller tildelt vederlagsfrit?"),
+    help = Some("Ved køb bruges vederlaget. Ved vederlagsfri tildeling bruges den værdi, som blev beskattet ved tildelingen."),
+    unit = None
+)
+= personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.$variant",
+    label = "Køb eller vederlagsfri tildeling",
+    question = Some("Blev din ægtefælles mælkekvote købt eller tildelt vederlagsfrit?"),
+    help = Some("Ved køb bruges vederlaget. Ved vederlagsfri tildeling bruges den værdi, som blev beskattet ved tildelingen."),
+    unit = None
+)
+= personskat_felt_egen_mælkekvote_købsvederlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.EblPar5MælkekvoteKøbt.vederlag_kroner",
+    label = "Købsvederlag",
+    question = Some("Hvad blev der betalt for mælkekvoten?"),
+    help = Some("Angiv det samlede vederlag for den oprindelige kvote. Futuruna fordeler beløbet efter de disponerede enheder."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_mælkekvote_købsvederlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.EblPar5MælkekvoteKøbt.vederlag_kroner",
+    label = "Købsvederlag",
+    question = Some("Hvad blev der betalt for din ægtefælles mælkekvote?"),
+    help = Some("Angiv det samlede vederlag for den oprindelige kvote. Futuruna fordeler beløbet efter de disponerede enheder."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.EblPar5MælkekvoteVederlagsfritTildelt.beskattet_værdi_ved_tildeling_kroner",
+    label = "Beskattet værdi ved tildeling",
+    question = Some("Hvilken værdi blev beskattet, da mælkekvoten blev tildelt vederlagsfrit?"),
+    help = Some("Angiv værdien for den oprindelige kvote. Futuruna fordeler beløbet efter de disponerede enheder."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.anskaffelsesgrundlag.EblPar5MælkekvoteVederlagsfritTildelt.beskattet_værdi_ved_tildeling_kroner",
+    label = "Beskattet værdi ved tildeling",
+    question = Some("Hvilken værdi blev beskattet, da din ægtefælles mælkekvote blev tildelt vederlagsfrit?"),
+    help = Some("Angiv værdien for den oprindelige kvote. Futuruna fordeler beløbet efter de disponerede enheder."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_mælkekvote_disposition = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.$variant",
+    label = "Disposition over mælkekvoten",
+    question = Some("Blev mælkekvoten afstået, udløb den, eller blev den toldet uden erstatning?"),
+    help = Some("Dispositionstypen afgør datoen, afståelsesvederlaget og den lovbestemte toldningsundtagelse."),
+    unit = None
+)
+= personskat_felt_ægtefælles_mælkekvote_disposition = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.$variant",
+    label = "Disposition over mælkekvoten",
+    question = Some("Blev din ægtefælles mælkekvote afstået, udløb den, eller blev den toldet uden erstatning?"),
+    help = Some("Dispositionstypen afgør datoen, afståelsesvederlaget og den lovbestemte toldningsundtagelse."),
+    unit = None
+)
+= personskat_felt_egen_mælkekvote_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.år",
+    label = "Afståelsesår",
+    question = Some("I hvilket år blev mælkekvoten afstået?"),
+    help = Some("Afståelsen skal ske før eller samtidig med ejendommens afståelse for at indgå i denne EBL-gren."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_mælkekvote_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.år",
+    label = "Afståelsesår",
+    question = Some("I hvilket år blev din ægtefælles mælkekvote afstået?"),
+    help = Some("Afståelsen skal ske før eller samtidig med ejendommens afståelse for at indgå i denne EBL-gren."),
+    unit = Some("år")
+)
+= personskat_felt_egen_mælkekvote_afståelsesmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.måned",
+    label = "Afståelsesmåned",
+    question = Some("I hvilken måned blev mælkekvoten afstået?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_ægtefælles_mælkekvote_afståelsesmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.måned",
+    label = "Afståelsesmåned",
+    question = Some("I hvilken måned blev din ægtefælles mælkekvote afstået?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_egen_mælkekvote_afståelsesdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.dag",
+    label = "Afståelsesdag",
+    question = Some("På hvilken dag i måneden blev mælkekvoten afstået?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_ægtefælles_mælkekvote_afståelsesdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.afståelsesdato.dag",
+    label = "Afståelsesdag",
+    question = Some("På hvilken dag i måneden blev din ægtefælles mælkekvote afstået?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_egen_mælkekvote_afståelsesvederlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.vederlag_kroner",
+    label = "Afståelsesvederlag",
+    question = Some("Hvilket vederlag blev modtaget for mælkekvoten?"),
+    help = Some("Vederlaget nedsætter anskaffelsessummen efter § 5, stk. 4, nr. 6, når betingelserne er opfyldt."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteAfstået.vederlag_kroner",
+    label = "Afståelsesvederlag",
+    question = Some("Hvilket vederlag modtog din ægtefælle for mælkekvoten?"),
+    help = Some("Vederlaget nedsætter anskaffelsessummen efter § 5, stk. 4, nr. 6, når betingelserne er opfyldt."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_mælkekvote_udløbsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.år",
+    label = "Udløbsår",
+    question = Some("I hvilket år udløb mælkekvoten?"),
+    help = Some("Udløb behandles som en afståelse til 0 kr."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_mælkekvote_udløbsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.år",
+    label = "Udløbsår",
+    question = Some("I hvilket år udløb din ægtefælles mælkekvote?"),
+    help = Some("Udløb behandles som en afståelse til 0 kr."),
+    unit = Some("år")
+)
+= personskat_felt_egen_mælkekvote_udløbsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.måned",
+    label = "Udløbsmåned",
+    question = Some("I hvilken måned udløb mælkekvoten?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_ægtefælles_mælkekvote_udløbsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.måned",
+    label = "Udløbsmåned",
+    question = Some("I hvilken måned udløb din ægtefælles mælkekvote?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_egen_mælkekvote_udløbsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.dag",
+    label = "Udløbsdag",
+    question = Some("På hvilken dag i måneden udløb mælkekvoten?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_ægtefælles_mælkekvote_udløbsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteUdløbet.udløbsdato.dag",
+    label = "Udløbsdag",
+    question = Some("På hvilken dag i måneden udløb din ægtefælles mælkekvote?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_egen_mælkekvote_toldningsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.år",
+    label = "Toldningsår",
+    question = Some("I hvilket år blev mælkekvoten toldet uden erstatning?"),
+    help = Some("Toldning uden erstatning kan bevare anskaffelsesgrundlaget uden en modsvarende vederlagsnedsættelse."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_mælkekvote_toldningsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.år",
+    label = "Toldningsår",
+    question = Some("I hvilket år blev din ægtefælles mælkekvote toldet uden erstatning?"),
+    help = Some("Toldning uden erstatning kan bevare anskaffelsesgrundlaget uden en modsvarende vederlagsnedsættelse."),
+    unit = Some("år")
+)
+= personskat_felt_egen_mælkekvote_toldningsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.måned",
+    label = "Toldningsmåned",
+    question = Some("I hvilken måned blev mælkekvoten toldet uden erstatning?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_ægtefælles_mælkekvote_toldningsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.måned",
+    label = "Toldningsmåned",
+    question = Some("I hvilken måned blev din ægtefælles mælkekvote toldet uden erstatning?"),
+    help = Some("Angiv måneden som et tal fra 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_egen_mælkekvote_toldningsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.dag",
+    label = "Toldningsdag",
+    question = Some("På hvilken dag i måneden blev mælkekvoten toldet uden erstatning?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_ægtefælles_mælkekvote_toldningsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.mælkekvoter.disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.dag",
+    label = "Toldningsdag",
+    question = Some("På hvilken dag i måneden blev din ægtefælles mælkekvote toldet uden erstatning?"),
+    help = Some("Angiv den faktiske kalenderdag."),
+    unit = Some("dag")
+)
 = personskat_felt_egen_ejendomstype = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.$variant",
     label = "Ejendomstype",
@@ -753,6 +1257,42 @@
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132--
 --@label:beregn_personskat::field:personskat_felt_egen_ejendoms_indeksering::source:ebl_par5_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_indeksering::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_ejerandel::field:personskat_felt_ægtefælles_ejendoms_ejerandel::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsesomfang::field:personskat_felt_ægtefælles_ejendoms_afståelsesomfang::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_delafståelses_anskaffelsessum::field:personskat_felt_ægtefælles_delafståelses_anskaffelsessum::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_hele_ejendommens_anskaffelsessum::field:personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ikke_boligdelens_anskaffelsessum::field:personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egne_mælkekvoter::field:personskat_felt_ægtefælles_mælkekvoter::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_overførsel::field:personskat_felt_ægtefælles_stk6_overførsel::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_ejendomskategori::field:personskat_felt_ægtefælles_stk6_ejendomskategori::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_tillægsparcelværdi::field:personskat_felt_ægtefælles_stk6_tillægsparcelværdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_teknisk_værdi::field:personskat_felt_ægtefælles_stk6_teknisk_værdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_bygningsafskrivninger::field:personskat_felt_ægtefælles_stk6_bygningsafskrivninger::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_nedrevne_bygninger::field:personskat_felt_ægtefælles_stk6_nedrevne_bygninger::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_nedskrevet_bygningsværdi::field:personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_afstået_jord_anskaffelsessum::field:personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_stk6_samlet_jord_anskaffelsessum::field:personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par5a_ejendomskategori::field:personskat_felt_ægtefælles_par5a_ejendomskategori::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_identifikation::field:personskat_felt_ægtefælles_mælkekvote_identifikation::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesår::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesmåned::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesdag::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_oprindelige_enheder::field:personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_disponerede_enheder::field:personskat_felt_ægtefælles_mælkekvote_disponerede_enheder::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesgrundlag::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_købsvederlag::field:personskat_felt_ægtefælles_mælkekvote_købsvederlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi::field:personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_disposition::field:personskat_felt_ægtefælles_mælkekvote_disposition::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesår::field:personskat_felt_ægtefælles_mælkekvote_afståelsesår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesmåned::field:personskat_felt_ægtefælles_mælkekvote_afståelsesmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesdag::field:personskat_felt_ægtefælles_mælkekvote_afståelsesdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesvederlag::field:personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsår::field:personskat_felt_ægtefælles_mælkekvote_udløbsår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsmåned::field:personskat_felt_ægtefælles_mælkekvote_udløbsmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsdag::field:personskat_felt_ægtefælles_mælkekvote_udløbsdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsår::field:personskat_felt_ægtefælles_mælkekvote_toldningsår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsmåned::field:personskat_felt_ægtefælles_mælkekvote_toldningsmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsdag::field:personskat_felt_ægtefælles_mælkekvote_toldningsdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_ejendomstype::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomstype::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_egen_par8_ejendomsart::source:ebl_par8_par9_lbk132--

@@ -617,8 +617,17 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par5_fakta.anskaffelsesdato.dag",
                 "par5_fakta.anskaffelsesgrundlag.$variant",
                 "par5_fakta.anskaffelsesgrundlag.EblPar4Stk3TredjePktAnskaffelsesgrundlag.tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner",
-                "par5_fakta.forholdsmæssig_andel_promille",
-                "par5_fakta.særforhold",
+                "par5_fakta.fordeling.ejerandel_promille",
+                "par5_fakta.fordeling.afståelsesomfang.$variant",
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.afstået_del_anskaffelsessum_før_par5_kroner",
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.hele_ejendommens_anskaffelsessum_før_par5_kroner",
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.ikke_boligdelens_anskaffelsessum_før_par5_kroner",
+                "par5_fakta.stk6_overførsel.$variant",
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.ejendomskategori",
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.tillægsparcelværdi_kroner",
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.teknisk_værdi_kroner",
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner",
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner",
                 "par5_fakta.reguleringsvalg.$variant",
                 "par5_fakta.reguleringsvalg.EblPar5AMedIndeksering.kategori",
                 "kontant_afståelsessum_kroner",
@@ -652,6 +661,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Kontant anskaffelsessum",
                 "Kontant afståelsessum",
                 "Anskaffelsesgrundlag",
+                "Ejerandel",
+                "Hele eller en del af ejendommen",
+                "Anskaffelsessum for den afståede del",
+                "Anskaffelsessum for hele ejendommen",
+                "Anskaffelsessum uden boligdel",
+                "Overførsel efter EBL § 5, stk. 6",
+                "Ejendomskategori for § 5, stk. 6",
+                "Tillægsparcelværdi",
+                "Teknisk værdi",
+                "Ejendomskategori for § 5 A",
                 "Indeksering efter § 5 A",
                 "Ejendomstype",
                 "Boligejendommens art",
@@ -701,6 +720,50 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 assert!(
                     reduction_paths.iter().any(|path| path == expected),
                     "missing canonical § 5 reduction path {expected} on {reduction_sheet}"
+                );
+            }
+
+            let milk_quota_path = format!("{property_path}.par5_fakta.mælkekvoter");
+            let milk_quota_sheet = workbook_collection_sheet_name(&mut workbook, &milk_quota_path);
+            let milk_quota_paths = workbook_column_paths(&mut workbook, &milk_quota_sheet);
+            for expected in [
+                "identifikation",
+                "anskaffelsesdato.år",
+                "anskaffelsesdato.måned",
+                "anskaffelsesdato.dag",
+                "oprindelige_enheder",
+                "disponerede_enheder",
+                "anskaffelsesgrundlag.$variant",
+                "anskaffelsesgrundlag.EblPar5MælkekvoteKøbt.vederlag_kroner",
+                "anskaffelsesgrundlag.EblPar5MælkekvoteVederlagsfritTildelt.beskattet_værdi_ved_tildeling_kroner",
+                "disposition.$variant",
+                "disposition.EblPar5MælkekvoteAfstået.afståelsesdato.år",
+                "disposition.EblPar5MælkekvoteAfstået.vederlag_kroner",
+                "disposition.EblPar5MælkekvoteUdløbet.udløbsdato.år",
+                "disposition.EblPar5MælkekvoteToldetUdenErstatning.toldningsdato.år",
+            ] {
+                assert!(
+                    milk_quota_paths.iter().any(|path| path == expected),
+                    "missing canonical milk-quota path {expected} on {milk_quota_sheet}"
+                );
+            }
+            let milk_quota_headers = workbook_headers(&mut workbook, &milk_quota_sheet);
+            for expected in [
+                "Mælkekvote",
+                "Anskaffelsesår",
+                "Oprindelige kvoteenheder",
+                "Disponerede kvoteenheder",
+                "Køb eller vederlagsfri tildeling",
+                "Købsvederlag",
+                "Disposition over mælkekvoten",
+                "Afståelsesår",
+                "Afståelsesvederlag",
+                "Udløbsår",
+                "Toldningsår",
+            ] {
+                assert!(
+                    milk_quota_headers.iter().any(|header| header == expected),
+                    "missing human milk-quota label {expected} on {milk_quota_sheet}"
                 );
             }
         }
@@ -876,6 +939,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 1, "personskat-årsopgørelse-2026");
         fill_wage_case(sheets, 2, "personskat-abl-personlig-2026");
         fill_wage_case(sheets, 3, "personskat-renter-befordring-2026");
+        fill_wage_case(sheets, 4, "personskat-ebl5-kildefakta-2026");
         for (header, value) in [
             (
                 "aktieavance.ordinært_aktieår.$variant",
@@ -1135,6 +1199,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ] {
             set_workbook_cell_by_header(sheets, "cases", 3, header, value);
         }
+        for (header, value) in [
+            (
+                "kapitalindkomst.ejendomsavance.$variant",
+                Data::String("MedEjendomsavance".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.$variant",
+                Data::String("UdenFremførtEjendomstab".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_fremførte_tab.$variant",
+                Data::String("UdenFremførtEjendomstab".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 4, header, value);
+        }
         let own_property_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
@@ -1178,10 +1262,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "par5_fakta.anskaffelsesgrundlag.$variant",
                     Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
                 ),
-                ("par5_fakta.forholdsmæssig_andel_promille", Data::Int(1000)),
+                ("par5_fakta.fordeling.ejerandel_promille", Data::Int(1000)),
                 (
-                    "par5_fakta.særforhold",
-                    Data::String("EblPar5UdenMælkekvoteEllerStk6Overførsel".to_string()),
+                    "par5_fakta.fordeling.afståelsesomfang.$variant",
+                    Data::String("EblPar5HeleEjendommen".to_string()),
+                ),
+                (
+                    "par5_fakta.stk6_overførsel.$variant",
+                    Data::String("EblPar5UdenStk6Overførsel".to_string()),
                 ),
                 (
                     "par5_fakta.reguleringsvalg.$variant",
@@ -1199,6 +1287,184 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ] {
                 set_workbook_cell_by_header(sheets, &own_property_sheet, row, header, value);
             }
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-ebl5-kildefakta-2026".to_string()),
+            ),
+            ("item_id", Data::String("ebl5-landbrug-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("landbrug-med-mælk-og-stk6".to_string()),
+            ),
+            ("afståelsesdato.år", Data::Int(2026)),
+            ("afståelsesdato.måned", Data::Int(12)),
+            ("afståelsesdato.dag", Data::Int(31)),
+            (
+                "afståelse",
+                Data::String("EblAlmindeligAfståelse".to_string()),
+            ),
+            ("erhvervet_som_led_i_næring", Data::Bool(false)),
+            ("kontant_anskaffelsessum_kroner", Data::Int(200_000)),
+            ("gæld_kursværdi_ved_anskaffelse_kroner", Data::Int(0)),
+            ("par5_fakta.anskaffelsesdato.år", Data::Int(1985)),
+            ("par5_fakta.anskaffelsesdato.måned", Data::Int(1)),
+            ("par5_fakta.anskaffelsesdato.dag", Data::Int(1)),
+            (
+                "par5_fakta.anskaffelsesgrundlag.$variant",
+                Data::String("EblPar4Stk3Nr1Anskaffelsesgrundlag".to_string()),
+            ),
+            ("par5_fakta.fordeling.ejerandel_promille", Data::Int(500)),
+            (
+                "par5_fakta.fordeling.afståelsesomfang.$variant",
+                Data::String("EblPar5DelAfEjendommen".to_string()),
+            ),
+            (
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.afstået_del_anskaffelsessum_før_par5_kroner",
+                Data::Int(200_000),
+            ),
+            (
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.hele_ejendommens_anskaffelsessum_før_par5_kroner",
+                Data::Int(800_000),
+            ),
+            (
+                "par5_fakta.fordeling.afståelsesomfang.EblPar5DelAfEjendommen.ikke_boligdelens_anskaffelsessum_før_par5_kroner",
+                Data::Int(800_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.$variant",
+                Data::String("EblPar5MedStk6Overførsel".to_string()),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.ejendomskategori",
+                Data::String("EblPar5Stk6Landbrugsejendom".to_string()),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.tillægsparcelværdi_kroner",
+                Data::Int(500_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.teknisk_værdi_kroner",
+                Data::Int(600_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afskrivninger_på_vurderingsomfattede_bygninger_kroner",
+                Data::Int(100_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner",
+                Data::Int(50_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner",
+                Data::Int(150_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.afstået_jord_anskaffelsessum_før_overførsel_kroner",
+                Data::Int(200_000),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.EblPar5MedStk6Overførsel.fakta.samlet_jord_anskaffelsessum_før_overførsel_kroner",
+                Data::Int(800_000),
+            ),
+            (
+                "par5_fakta.reguleringsvalg.$variant",
+                Data::String("EblPar5UdenIndeksering".to_string()),
+            ),
+            ("par4_stk8_anskaffelse_udeladt_kroner", Data::Int(0)),
+            ("kontant_afståelsessum_kroner", Data::Int(500_000)),
+            ("overdragne_gældsposter_kursværdi_kroner", Data::Int(0)),
+            ("par4_stk8_afståelsesværdi_udeladt_kroner", Data::Int(0)),
+            ("par11_stk2_genanbragt_erhvervsejendom", Data::Bool(false)),
+            (
+                "ejendomstype.$variant",
+                Data::String("EblLandbrugSkovNaturEllerBlandetEjendom".to_string()),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.kategori.$variant",
+                Data::String("EblPar9Landbrugsejendom".to_string()),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_har_tjent_til_bolig_for_ejer_eller_husstand",
+                Data::Bool(false),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.boligbetingelser_opfyldt_i_ejerperioden",
+                Data::Bool(false),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.grundbetingelse",
+                Data::String("EblPar8GrundbetingelseIkkeOpfyldt".to_string()),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_anskaffelsessum_kroner",
+                Data::Int(0),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_afståelsessum_kroner",
+                Data::Int(0),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.skadeforhold.$variant",
+                Data::String("EblPar9IngenVæsentligSkade".to_string()),
+            ),
+            (
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.$variant",
+                Data::String("EblPar9IngenGenanbringelseEfterStk4".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &own_property_sheet, 3, header, value);
+        }
+        let own_milk_quota_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.mælkekvoter",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-ebl5-kildefakta-2026".to_string()),
+            ),
+            ("parent_id", Data::String("ebl5-landbrug-1".to_string())),
+            ("item_id", Data::String("mælkekvote-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("mælk-2000".to_string())),
+            ("anskaffelsesdato.år", Data::Int(2000)),
+            ("anskaffelsesdato.måned", Data::Int(1)),
+            ("anskaffelsesdato.dag", Data::Int(1)),
+            ("oprindelige_enheder", Data::Int(100)),
+            ("disponerede_enheder", Data::Int(100)),
+            (
+                "anskaffelsesgrundlag.$variant",
+                Data::String("EblPar5MælkekvoteKøbt".to_string()),
+            ),
+            (
+                "anskaffelsesgrundlag.EblPar5MælkekvoteKøbt.vederlag_kroner",
+                Data::Int(80_000),
+            ),
+            (
+                "disposition.$variant",
+                Data::String("EblPar5MælkekvoteAfstået".to_string()),
+            ),
+            (
+                "disposition.EblPar5MælkekvoteAfstået.afståelsesdato.år",
+                Data::Int(2010),
+            ),
+            (
+                "disposition.EblPar5MælkekvoteAfstået.afståelsesdato.måned",
+                Data::Int(6),
+            ),
+            (
+                "disposition.EblPar5MælkekvoteAfstået.afståelsesdato.dag",
+                Data::Int(1),
+            ),
+            (
+                "disposition.EblPar5MælkekvoteAfstået.vederlag_kroner",
+                Data::Int(120_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &own_milk_quota_sheet, 1, header, value);
         }
         for (header, value) in [
             (
@@ -1316,10 +1582,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par5_fakta.anskaffelsesgrundlag.$variant",
                 Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
             ),
-            ("par5_fakta.forholdsmæssig_andel_promille", Data::Int(1000)),
+            ("par5_fakta.fordeling.ejerandel_promille", Data::Int(1000)),
             (
-                "par5_fakta.særforhold",
-                Data::String("EblPar5UdenMælkekvoteEllerStk6Overførsel".to_string()),
+                "par5_fakta.fordeling.afståelsesomfang.$variant",
+                Data::String("EblPar5HeleEjendommen".to_string()),
+            ),
+            (
+                "par5_fakta.stk6_overførsel.$variant",
+                Data::String("EblPar5UdenStk6Overførsel".to_string()),
             ),
             (
                 "par5_fakta.reguleringsvalg.$variant",
@@ -1774,10 +2044,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "par5_fakta": {
                         "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
                         "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
-                        "forholdsmæssig_andel_promille": 1000,
+                        "fordeling": {
+                            "ejerandel_promille": 1000,
+                            "afståelsesomfang": { "$variant": "EblPar5HeleEjendommen" }
+                        },
                         "vedligeholdelses_og_forbedringsudgifter": [],
                         "nedsættelser": [],
-                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "mælkekvoter": [],
+                        "stk6_overførsel": { "$variant": "EblPar5UdenStk6Overførsel" },
                         "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
                     },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
@@ -1796,10 +2070,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "par5_fakta": {
                         "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
                         "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
-                        "forholdsmæssig_andel_promille": 1000,
+                        "fordeling": {
+                            "ejerandel_promille": 1000,
+                            "afståelsesomfang": { "$variant": "EblPar5HeleEjendommen" }
+                        },
                         "vedligeholdelses_og_forbedringsudgifter": [],
                         "nedsættelser": [],
-                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "mælkekvoter": [],
+                        "stk6_overførsel": { "$variant": "EblPar5UdenStk6Overførsel" },
                         "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
                     },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
@@ -1824,10 +2102,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "par5_fakta": {
                         "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
                         "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
-                        "forholdsmæssig_andel_promille": 1000,
+                        "fordeling": {
+                            "ejerandel_promille": 1000,
+                            "afståelsesomfang": { "$variant": "EblPar5HeleEjendommen" }
+                        },
                         "vedligeholdelses_og_forbedringsudgifter": [],
                         "nedsættelser": [],
-                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "mælkekvoter": [],
+                        "stk6_overførsel": { "$variant": "EblPar5UdenStk6Overførsel" },
                         "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
                     },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
@@ -1935,6 +2217,119 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(interest_case);
+    let mut ebl5_case = json_input["cases"][0].clone();
+    ebl5_case["case_id"] = Value::String("personskat-ebl5-kildefakta-2026".into());
+    ebl5_case["input"]["kapitalindkomst"] = serde_json::json!({
+        "renter": {
+            "renteindtægter_kroner": 0,
+            "renteudgifter_kroner": 0,
+            "næringsstatus": { "$variant": "IkkeNæring" },
+            "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
+            "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
+        },
+        "ejendomsavance": {
+            "$variant": "MedEjendomsavance",
+            "fakta": {
+                "egne_afståelser": [{
+                    "identifikation": "landbrug-med-mælk-og-stk6",
+                    "afståelsesdato": { "år": 2026, "måned": 12, "dag": 31 },
+                    "afståelse": { "$variant": "EblAlmindeligAfståelse" },
+                    "erhvervet_som_led_i_næring": false,
+                    "kontant_anskaffelsessum_kroner": 200_000,
+                    "gæld_kursværdi_ved_anskaffelse_kroner": 0,
+                    "par5_fakta": {
+                        "anskaffelsesdato": { "år": 1985, "måned": 1, "dag": 1 },
+                        "anskaffelsesgrundlag": {
+                            "$variant": "EblPar4Stk3Nr1Anskaffelsesgrundlag"
+                        },
+                        "fordeling": {
+                            "ejerandel_promille": 500,
+                            "afståelsesomfang": {
+                                "$variant": "EblPar5DelAfEjendommen",
+                                "afstået_del_anskaffelsessum_før_par5_kroner": 200_000,
+                                "hele_ejendommens_anskaffelsessum_før_par5_kroner": 800_000,
+                                "ikke_boligdelens_anskaffelsessum_før_par5_kroner": 800_000
+                            }
+                        },
+                        "vedligeholdelses_og_forbedringsudgifter": [],
+                        "nedsættelser": [],
+                        "mælkekvoter": [{
+                            "identifikation": "mælk-2000",
+                            "anskaffelsesdato": { "år": 2000, "måned": 1, "dag": 1 },
+                            "oprindelige_enheder": 100,
+                            "disponerede_enheder": 100,
+                            "anskaffelsesgrundlag": {
+                                "$variant": "EblPar5MælkekvoteKøbt",
+                                "vederlag_kroner": 80_000
+                            },
+                            "disposition": {
+                                "$variant": "EblPar5MælkekvoteAfstået",
+                                "afståelsesdato": { "år": 2010, "måned": 6, "dag": 1 },
+                                "vederlag_kroner": 120_000
+                            }
+                        }],
+                        "stk6_overførsel": {
+                            "$variant": "EblPar5MedStk6Overførsel",
+                            "fakta": {
+                                "ejendomskategori": {
+                                    "$variant": "EblPar5Stk6Landbrugsejendom"
+                                },
+                                "tillægsparcelværdi_kroner": 500_000,
+                                "teknisk_værdi_kroner": 600_000,
+                                "afskrivninger_på_vurderingsomfattede_bygninger_kroner": 100_000,
+                                "stk4_nr2_afskrivninger_på_vurderingsomfattede_nedrevne_bygninger_kroner": 50_000,
+                                "nedskrevet_værdi_af_vurderingsomfattede_bygninger_kroner": 150_000,
+                                "afstået_jord_anskaffelsessum_før_overførsel_kroner": 200_000,
+                                "samlet_jord_anskaffelsessum_før_overførsel_kroner": 800_000
+                            }
+                        },
+                        "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
+                    },
+                    "par4_stk8_anskaffelse_udeladt_kroner": 0,
+                    "kontant_afståelsessum_kroner": 500_000,
+                    "overdragne_gældsposter_kursværdi_kroner": 0,
+                    "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
+                    "par11_stk2_genanbragt_erhvervsejendom": false,
+                    "ejendomstype": {
+                        "$variant": "EblLandbrugSkovNaturEllerBlandetEjendom",
+                        "fakta": {
+                            "kategori": { "$variant": "EblPar9Landbrugsejendom" },
+                            "bolig_har_tjent_til_bolig_for_ejer_eller_husstand": false,
+                            "boligbetingelser_opfyldt_i_ejerperioden": false,
+                            "grundbetingelse": {
+                                "$variant": "EblPar8GrundbetingelseIkkeOpfyldt"
+                            },
+                            "bolig_anskaffelsessum_kroner": 0,
+                            "bolig_afståelsessum_kroner": 0,
+                            "skadeforhold": {
+                                "$variant": "EblPar9IngenVæsentligSkade"
+                            },
+                            "genanbringelsesforhold": {
+                                "$variant": "EblPar9IngenGenanbringelseEfterStk4"
+                            }
+                        }
+                    }
+                }],
+                "eget_fremført_tab": {
+                    "$variant": "UdenFremførtEjendomstab"
+                },
+                "ægtefælles_afståelser": [],
+                "ægtefælles_fremførte_tab": {
+                    "$variant": "UdenFremførtEjendomstab"
+                },
+                "gift_samlevende_ved_indkomstårets_udgang": false
+            }
+        },
+        "omkostninger": []
+    });
+    ebl5_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(ebl5_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -1961,6 +2356,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"],
         json_result["results"][1]["result"]
+    );
+    assert_eq!(
+        result["results"][3]["result"],
+        json_result["results"][2]["result"]
     );
 
     assert_eq!(
@@ -2093,6 +2492,39 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["skat"]["øvrige_ligningsmæssige_fradrag_kroner"],
         23_166
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par5_resultat"]["fast_tillæg_efter_stk1_kroner"],
+        41_250
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par5_resultat"]
+            ["mælkekvoteforhøjelse_efter_stk3_kroner"],
+        20_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par5_resultat"]
+            ["nedsættelser_efter_stk4_til_8_kroner"],
+        30_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par5_resultat"]
+            ["stk6_overført_til_afstået_jord_kroner"],
+        37_500
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["reguleret_anskaffelsessum_kroner"],
+        268_750
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["skattepligtig_fortjeneste_kroner"],
+        231_250
     );
 }
 
