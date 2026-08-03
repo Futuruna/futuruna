@@ -62,8 +62,8 @@ underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
-renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 B-fakta om erhvervsmæssig
-kørsel og godtgørelse, § 9 C-befordringsfakta,
+renteudgifter, Ligningslovens §§ 6/6 A-fradrag, identificerede § 9 B-sager om
+erhvervsmæssig kørsel og godtgørelse, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
 driftsresultater fra bolig-, fritids- og lignende ejendomme efter
 Personskattelovens § 4, stk. 1, nr. 6,
@@ -176,9 +176,10 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 430 eksplicitte feltmetadata-poster.
-Syvogtyve beskriver erhvervsmæssig kørsel efter Ligningslovens § 9 B med
-køretøj, kilometer, 60-dages-forhold, udgifter og godtgørelsesforhold. Seks
+interviewoplysninger. Kontrakten har nu 432 eksplicitte feltmetadata-poster.
+Niogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter
+Ligningslovens § 9 B med sagsidentifikation, godtgørende arbejdsgiver, køretøj,
+kilometer, 60-dages-forhold, udgifter og godtgørelsesforhold. Seks
 beskriver ejendomsdriftens variant, ejendomstype, beliggenhed,
 erhvervsmæssig udlejning, særlige betingelser og årets underskud eller
 overskud. Herunder er også otte for ABL § 15's udsteder- og
@@ -461,10 +462,16 @@ resultater fra Ligningsloven §§ 9 B og 8 O. § 9 B-reglerne afgør bl.a.
 60-dages-perioder, Skatterådets kilometersatser, skattefri eller personlig
 godtgørelse, § 9 C-henvisning og den kundeopsøgende undtagelse for flere
 arbejdsgivere. Den kanoniske lønmodtagerberegning modtager de faktiske kilometer,
-udgifter og godtgørelsesforhold, men afleder selv skatteår, personrolle og den
-lovbestemte fradragsmetode. En skattepligtig godtgørelse behandles som løn med
-AM-bidrag, mens et direkte fradrag føres særskilt gennem Personskattelovens § 3,
-stk. 2, nr. 8. Begge mellemresultater bevares i beregningssporet.
+udgifter og godtgørelsesforhold som nul eller flere identificerede sager. Hver
+sag bevarer den godtgørende arbejdsgiver og dennes hidtidige kilometer, så
+20.000-kilometergrænsen ikke blandes sammen mellem arbejdsgivere. Skatteår,
+personrolle og den lovbestemte fradragsmetode afledes fortsat af reglerne. En
+skattepligtig godtgørelse behandles som løn med AM-bidrag, mens et direkte
+fradrag føres særskilt gennem Personskattelovens § 3, stk. 2, nr. 8. Begge
+mellemresultater bevares pr. sag og summeres kun, når hele årslisten er gyldig.
+Et verificeret XLSX/JSON-eksempel med to arbejdsgivere giver delresultaterne
+3.940/560 kr. og 3.110/390 kr. og dermed samlet 7.050 kr. skattefri
+godtgørelse og 950 kr. AM-bidragspligtig løn.
 § 8 O-reglerne skelner mellem ydelseskredsen før 2026 og den
 udvidede kreds fra 2026, begrænser fradraget til tidligere beskattede beløb og
 afskærer dobbeltfradrag. Kilderne er [Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500),

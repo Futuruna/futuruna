@@ -523,10 +523,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skatteår",
             "Bopælskommune",
             "Årlig bruttoløn",
-            "Erhvervsmæssig kørsel (§ 9 B)",
-            "Køretøj til erhvervskørsel",
-            "Kilometer i denne erhvervskørsel",
-            "Udbetalt kørselsgodtgørelse",
             "Befordringsfradrag",
             "Aldersstatus for personfradrag",
             "Kirkeskat",
@@ -574,6 +570,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             })
             .count();
         assert_eq!(case_headers.len(), case_column_count + 1);
+        let business_travel_path = "lønmodtager.erhvervsbefordring.sager";
+        let business_travel_sheet =
+            workbook_collection_sheet_name(&mut workbook, business_travel_path);
+        let business_travel_paths = workbook_column_paths(&mut workbook, &business_travel_sheet);
+        for expected in [
+            "identifikation",
+            "godtgørende_arbejdsgiver_identifikation",
+            "køretøj",
+            "befordring.art",
+            "befordring.kilometer_i_sagen",
+            "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
+            "godtgørelsesforhold.udbetalt_godtgørelse_kroner",
+        ] {
+            assert!(
+                business_travel_paths.iter().any(|path| path == expected),
+                "missing canonical § 9 B source-fact path {expected} on {business_travel_sheet}"
+            );
+        }
+        let business_travel_headers = workbook_headers(&mut workbook, &business_travel_sheet);
+        for expected in [
+            "case_id",
+            "item_id",
+            "position",
+            "Kørselssag",
+            "Godtgørende arbejdsgiver",
+            "Køretøj til erhvervskørsel",
+            "Kilometer i denne erhvervskørsel",
+            "Udbetalt kørselsgodtgørelse",
+        ] {
+            assert!(
+                business_travel_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human § 9 B input label {expected} on {business_travel_sheet}"
+            );
+        }
         let canonical_input_paths = column_metadata
             .rows()
             .skip(1)
@@ -598,10 +630,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
-            "lønmodtager.erhvervsbefordring.$variant",
-            "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.køretøj",
-            "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometer_i_sagen",
-            "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
+            "lønmodtager.erhvervsbefordring.sager.identifikation",
+            "lønmodtager.erhvervsbefordring.sager.godtgørende_arbejdsgiver_identifikation",
+            "lønmodtager.erhvervsbefordring.sager.køretøj",
+            "lønmodtager.erhvervsbefordring.sager.befordring.kilometer_i_sagen",
+            "lønmodtager.erhvervsbefordring.sager.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
             "kapitalindkomst.renter.renteindtægter_kroner",
             "kapitalindkomst.renter.renteudgifter_kroner",
             "kapitalindkomst.renter.næringsstatus",
@@ -1128,12 +1161,48 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .iter()
             .position(|cell| cell.to_string() == "question")
             .expect("question metadata column");
+        for (path, expected_label, expected_question_fragment) in [
+            (
+                "lønmodtager.erhvervsbefordring.sager.identifikation",
+                "Kørselssag",
+                "entydig identifikation",
+            ),
+            (
+                "lønmodtager.erhvervsbefordring.sager.godtgørende_arbejdsgiver_identifikation",
+                "Godtgørende arbejdsgiver",
+                "Hvilken arbejdsgiver",
+            ),
+        ] {
+            let row = metadata
+                .rows()
+                .skip(1)
+                .find(|row| {
+                    row.get(input_path_column)
+                        .map(ToString::to_string)
+                        .as_deref()
+                        == Some(path)
+                })
+                .unwrap_or_else(|| panic!("missing § 9 B metadata for {path}"));
+            assert_eq!(
+                row.get(label_column).map(ToString::to_string).as_deref(),
+                Some(expected_label)
+            );
+            assert!(
+                row.get(question_column)
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+                    .contains(expected_question_fragment),
+                "missing human interview question for {path}"
+            );
+        }
         let business_travel_row = metadata
             .rows()
             .skip(1)
             .find(|row| {
-                row.get(2).map(ToString::to_string).as_deref()
-                    == Some("lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner")
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.erhvervsbefordring.sager.godtgørelsesforhold.udbetalt_godtgørelse_kroner")
             })
             .expect("business-travel reimbursement metadata");
         assert_eq!(
@@ -1201,10 +1270,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "lønmodtager.bruttoløn_kroner",
                         Data::String("600000".to_string()),
-                    ),
-                    (
-                        "lønmodtager.erhvervsbefordring.$variant",
-                        Data::String("UdenErhvervsbefordringEfterLigningslov9B".to_string()),
                     ),
                     (
                         "lønmodtager.ligningsfradrag.befordring.$variant",
@@ -1305,117 +1370,124 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 7, "personskat-fremleje-2026");
         fill_wage_case(sheets, 8, "personskat-ejendomsdrift-2026");
         fill_wage_case(sheets, 9, "personskat-erhvervsbefordring-2026");
-        for (header, value) in [
-            (
-                "lønmodtager.erhvervsbefordring.$variant",
-                Data::String("MedErhvervsbefordringEfterLigningslov9B".to_string()),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.køretøj",
-                Data::String("Ll9BEgenBil".to_string()),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.art",
-                Data::String("Ll9BMellemArbejdspladser".to_string()),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometer_i_sagen",
-                Data::Int(1_000),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
-                Data::Int(0),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret",
-                Data::Int(0),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder",
-                Data::Int(0),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen",
-                Data::Int(0),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.mange_forskellige_arbejdspladser",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.ikke_sandsynligt_over_60_dage",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.skriftligt_kørselsregnskabspålæg_aktivt",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.kørselsregnskab_dokumenterer_erhvervsmæssig_befordring",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.har_afholdt_befordringsudgifter",
-                Data::Bool(true),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner",
-                Data::Int(4_000),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.dokumenterede_bro_tunnel_udgifter_kroner",
-                Data::Int(500),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.kundeopsøgende_aktivitet",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang",
-                Data::Int(1),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
-                Data::Int(4_500),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.form",
-                Data::String("Ll9BKilometerafregnet".to_string()),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.arbejdsgiver_har_kontrolleret_kilometer",
-                Data::Bool(true),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.bogføringsbilag_opfylder_par6",
-                Data::Bool(true),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.modregnet_i_forud_aftalt_bruttoløn",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.firmabil_stillet_til_rådighed",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj",
-                Data::Bool(true),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver",
-                Data::Bool(false),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse",
-                Data::Bool(true),
-            ),
-            (
-                "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.eventuel_godtgørelse_valgt_medregnet_i_indkomsten",
-                Data::Bool(false),
-            ),
+        let business_travel_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "lønmodtager.erhvervsbefordring.sager",
+        );
+        for (row, item_id, employer_id, previous_employer_kilometres, reimbursement) in [
+            (1, "arbejdsgiver-a-kørsel", "arbejdsgiver-a", 0, 4_500),
+            (2, "arbejdsgiver-b-kørsel", "arbejdsgiver-b", 19_500, 3_500),
         ] {
-            set_workbook_cell_by_header(sheets, "cases", 9, header, value);
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-erhvervsbefordring-2026".to_string()),
+                ),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("identifikation", Data::String(item_id.to_string())),
+                (
+                    "godtgørende_arbejdsgiver_identifikation",
+                    Data::String(employer_id.to_string()),
+                ),
+                ("køretøj", Data::String("Ll9BEgenBil".to_string())),
+                (
+                    "befordring.art",
+                    Data::String("Ll9BMellemArbejdspladser".to_string()),
+                ),
+                ("befordring.kilometer_i_sagen", Data::Int(1_000)),
+                (
+                    "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
+                    Data::Int(previous_employer_kilometres),
+                ),
+                (
+                    "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret",
+                    Data::Int(0),
+                ),
+                (
+                    "befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder",
+                    Data::Int(0),
+                ),
+                (
+                    "befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen",
+                    Data::Int(0),
+                ),
+                (
+                    "befordring.tres_dages_forhold.mange_forskellige_arbejdspladser",
+                    Data::Bool(false),
+                ),
+                (
+                    "befordring.tres_dages_forhold.ikke_sandsynligt_over_60_dage",
+                    Data::Bool(false),
+                ),
+                (
+                    "befordring.tres_dages_forhold.skriftligt_kørselsregnskabspålæg_aktivt",
+                    Data::Bool(false),
+                ),
+                (
+                    "befordring.tres_dages_forhold.kørselsregnskab_dokumenterer_erhvervsmæssig_befordring",
+                    Data::Bool(false),
+                ),
+                (
+                    "udgifter.har_afholdt_befordringsudgifter",
+                    Data::Bool(true),
+                ),
+                (
+                    "udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner",
+                    Data::Int(4_000),
+                ),
+                (
+                    "udgifter.dokumenterede_bro_tunnel_udgifter_kroner",
+                    Data::Int(500),
+                ),
+                ("kundeopsøgende_aktivitet", Data::Bool(false)),
+                (
+                    "antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang",
+                    Data::Int(1),
+                ),
+                (
+                    "godtgørelsesforhold.udbetalt_godtgørelse_kroner",
+                    Data::Int(reimbursement),
+                ),
+                (
+                    "godtgørelsesforhold.form",
+                    Data::String("Ll9BKilometerafregnet".to_string()),
+                ),
+                (
+                    "godtgørelsesforhold.arbejdsgiver_har_kontrolleret_kilometer",
+                    Data::Bool(true),
+                ),
+                (
+                    "godtgørelsesforhold.bogføringsbilag_opfylder_par6",
+                    Data::Bool(true),
+                ),
+                (
+                    "godtgørelsesforhold.modregnet_i_forud_aftalt_bruttoløn",
+                    Data::Bool(false),
+                ),
+                (
+                    "godtgørelsesforhold.firmabil_stillet_til_rådighed",
+                    Data::Bool(false),
+                ),
+                (
+                    "godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj",
+                    Data::Bool(true),
+                ),
+                (
+                    "godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver",
+                    Data::Bool(false),
+                ),
+                (
+                    "godtgørelsesforhold.overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse",
+                    Data::Bool(true),
+                ),
+                (
+                    "godtgørelsesforhold.eventuel_godtgørelse_valgt_medregnet_i_indkomsten",
+                    Data::Bool(false),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, &business_travel_sheet, row, header, value);
+            }
         }
         for (header, value) in [
             (
@@ -2960,9 +3032,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skatteår": 2026,
             "kommune": { "$variant": "København" },
             "bruttoløn_kroner": 600_000,
-            "erhvervsbefordring": {
-                "$variant": "UdenErhvervsbefordringEfterLigningslov9B"
-            },
+            "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
                 "befordring": { "$variant": "UdenBefordringsfradrag" }
             },
@@ -3755,46 +3825,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .push(property_income_case);
     let mut business_travel_case = json_input["cases"][0].clone();
     business_travel_case["case_id"] = Value::String("personskat-erhvervsbefordring-2026".into());
-    business_travel_case["input"]["lønmodtager"]["erhvervsbefordring"] = serde_json::json!({
-        "$variant": "MedErhvervsbefordringEfterLigningslov9B",
-        "fakta": {
-            "køretøj": { "$variant": "Ll9BEgenBil" },
-            "befordring": {
-                "art": { "$variant": "Ll9BMellemArbejdspladser" },
-                "kilometer_i_sagen": 1_000,
-                "kilometerhistorik": {
-                    "tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret": 0,
-                    "tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret": 0
-                },
-                "tres_dages_forhold": {
-                    "arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder": 0,
-                    "sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen": 0,
-                    "mange_forskellige_arbejdspladser": false,
-                    "ikke_sandsynligt_over_60_dage": false,
-                    "skriftligt_kørselsregnskabspålæg_aktivt": false,
-                    "kørselsregnskab_dokumenterer_erhvervsmæssig_befordring": false
-                }
+    let business_travel_a = serde_json::json!({
+        "identifikation": "arbejdsgiver-a-kørsel",
+        "godtgørende_arbejdsgiver_identifikation": "arbejdsgiver-a",
+        "køretøj": { "$variant": "Ll9BEgenBil" },
+        "befordring": {
+            "art": { "$variant": "Ll9BMellemArbejdspladser" },
+            "kilometer_i_sagen": 1_000,
+            "kilometerhistorik": {
+                "tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret": 0,
+                "tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret": 0
             },
-            "udgifter": {
-                "har_afholdt_befordringsudgifter": true,
-                "dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner": 4_000,
-                "dokumenterede_bro_tunnel_udgifter_kroner": 500
-            },
-            "kundeopsøgende_aktivitet": false,
-            "antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang": 1,
-            "godtgørelsesforhold": {
-                "udbetalt_godtgørelse_kroner": 4_500,
-                "form": { "$variant": "Ll9BKilometerafregnet" },
-                "arbejdsgiver_har_kontrolleret_kilometer": true,
-                "bogføringsbilag_opfylder_par6": true,
-                "modregnet_i_forud_aftalt_bruttoløn": false,
-                "firmabil_stillet_til_rådighed": false,
-                "dokumenteret_kørsel_i_eget_køretøj": true,
-                "fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver": false,
-                "overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse": true,
-                "eventuel_godtgørelse_valgt_medregnet_i_indkomsten": false
+            "tres_dages_forhold": {
+                "arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder": 0,
+                "sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen": 0,
+                "mange_forskellige_arbejdspladser": false,
+                "ikke_sandsynligt_over_60_dage": false,
+                "skriftligt_kørselsregnskabspålæg_aktivt": false,
+                "kørselsregnskab_dokumenterer_erhvervsmæssig_befordring": false
             }
+        },
+        "udgifter": {
+            "har_afholdt_befordringsudgifter": true,
+            "dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner": 4_000,
+            "dokumenterede_bro_tunnel_udgifter_kroner": 500
+        },
+        "kundeopsøgende_aktivitet": false,
+        "antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang": 1,
+        "godtgørelsesforhold": {
+            "udbetalt_godtgørelse_kroner": 4_500,
+            "form": { "$variant": "Ll9BKilometerafregnet" },
+            "arbejdsgiver_har_kontrolleret_kilometer": true,
+            "bogføringsbilag_opfylder_par6": true,
+            "modregnet_i_forud_aftalt_bruttoløn": false,
+            "firmabil_stillet_til_rådighed": false,
+            "dokumenteret_kørsel_i_eget_køretøj": true,
+            "fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver": false,
+            "overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse": true,
+            "eventuel_godtgørelse_valgt_medregnet_i_indkomsten": false
         }
+    });
+    let mut business_travel_b = business_travel_a.clone();
+    business_travel_b["identifikation"] = Value::String("arbejdsgiver-b-kørsel".into());
+    business_travel_b["godtgørende_arbejdsgiver_identifikation"] =
+        Value::String("arbejdsgiver-b".into());
+    business_travel_b["befordring"]["kilometerhistorik"]
+        ["tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret"] =
+        Value::from(19_500);
+    business_travel_b["godtgørelsesforhold"]["udbetalt_godtgørelse_kroner"] = Value::from(3_500);
+    business_travel_case["input"]["lønmodtager"]["erhvervsbefordring"] = serde_json::json!({
+        "sager": [business_travel_a, business_travel_b]
     });
     business_travel_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
@@ -3918,27 +3998,62 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ["par4_resultat"]["kapitalindkomst_kroner"],
         25_000
     );
+    let business_travel_result = &result["results"][8]["result"]["erhvervsbefordring"];
+    assert_eq!(business_travel_result["identifikationer_entydige"], true);
+    assert_eq!(business_travel_result["alle_input_gyldige"], true);
     assert_eq!(
-        result["results"][8]["result"]["erhvervsbefordring"]["$variant"],
-        "BeregnetErhvervsbefordringEfterLigningslov9B"
+        business_travel_result["samlet_skattefri_godtgørelse_kroner"],
+        7_050
     );
     assert_eq!(
-        result["results"][8]["result"]["erhvervsbefordring"]["ligningslov9b_resultat"]
-            ["skattefri_godtgørelse_kroner"],
-        3_940
+        business_travel_result["samlet_skattepligtig_godtgørelse_kroner"],
+        950
     );
     assert_eq!(
-        result["results"][8]["result"]["erhvervsbefordring"]["ligningslov9b_resultat"]
-            ["godtgørelse_personlig_indkomst_kroner"],
-        560
+        business_travel_result["samlet_fradrag_i_personlig_indkomst_kroner"],
+        0
     );
+    assert_eq!(
+        business_travel_result["sagsresultater"]
+            .as_array()
+            .expect("§ 9 B per-case traces")
+            .len(),
+        2
+    );
+    for (index, expected_employer, expected_previous, expected_free, expected_taxable) in [
+        (0, "arbejdsgiver-a", 0, 3_940, 560),
+        (1, "arbejdsgiver-b", 19_500, 3_110, 390),
+    ] {
+        let case_result = &business_travel_result["sagsresultater"][index];
+        assert_eq!(
+            case_result["$variant"],
+            "BeregnetErhvervsbefordringEfterLigningslov9B"
+        );
+        assert_eq!(
+            case_result["fakta"]["godtgørende_arbejdsgiver_identifikation"],
+            expected_employer
+        );
+        assert_eq!(
+            case_result["fakta"]["befordring"]["kilometerhistorik"]
+                ["tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret"],
+            expected_previous
+        );
+        assert_eq!(
+            case_result["ligningslov9b_resultat"]["skattefri_godtgørelse_kroner"],
+            expected_free
+        );
+        assert_eq!(
+            case_result["ligningslov9b_resultat"]["godtgørelse_personlig_indkomst_kroner"],
+            expected_taxable
+        );
+    }
     assert_eq!(
         result["results"][8]["result"]["skat"]["bruttoløn_kroner"],
-        600_560
+        600_950
     );
     assert_eq!(
         result["results"][8]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
-        48_044
+        48_076
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

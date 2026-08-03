@@ -19,7 +19,7 @@ Futuruna.
         skatteår = skatteår,
         kommune = København,
         bruttoløn_kroner = 600000,
-        erhvervsbefordring = UdenErhvervsbefordringEfterLigningslov9B,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
         personfradrag_alder_status = Fyldt18EllerGift,

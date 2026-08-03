@@ -5,12 +5,13 @@
 --@label:personskat_erhvervsbefordring_scenarier::source:ligningsloven_lbk1500_par9b::source:personskatteloven_lbk1284_par3::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske beregningskæde fra
-rå kørsels- og godtgørelsesfakta gennem ligningslovens § 9 B og
-personskattelovens § 3, stk. 2, nr. 8 til den samlede lønmodtagerberegning.
+flere identificerede kørsels- og godtgørelsessager gennem ligningslovens § 9 B
+og personskattelovens § 3, stk. 2, nr. 8 til den samlede
+lønmodtagerberegning.
 ----
 
-| personskat_erhvervsbefordring_kilometerhistorik() -> Ligningslov9BKilometerhistorik(
-    tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret = 0,
+| personskat_erhvervsbefordring_kilometerhistorik(tidligere_godtgørelseskilometer: Heltal) -> Ligningslov9BKilometerhistorik(
+    tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret = tidligere_godtgørelseskilometer,
     tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret = 0
 )
 | personskat_erhvervsbefordring_tres_dages_forhold() -> Ligningslov9B60DagesForhold(
@@ -33,12 +34,14 @@ personskattelovens § 3, stk. 2, nr. 8 til den samlede lønmodtagerberegning.
     overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse = overskud_som_løn,
     eventuel_godtgørelse_valgt_medregnet_i_indkomsten = medregnes_i_indkomsten
 )
-| personskat_erhvervsbefordring_fakta(kilometer: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> PersonskatErhvervsbefordringFakta(
+| personskat_erhvervsbefordring_fakta(identifikation: Tekst, arbejdsgiver: Tekst, kilometer: Heltal, tidligere_godtgørelseskilometer: Heltal, udbetalt_godtgørelse_kroner: Heltal, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> PersonskatErhvervsbefordringFakta(
+    identifikation = identifikation,
+    godtgørende_arbejdsgiver_identifikation = arbejdsgiver,
     køretøj = Ll9BEgenBil,
     befordring = Ligningslov9BBefordring(
         art = Ll9BMellemArbejdspladser,
         kilometer_i_sagen = kilometer,
-        kilometerhistorik = personskat_erhvervsbefordring_kilometerhistorik(),
+        kilometerhistorik = personskat_erhvervsbefordring_kilometerhistorik(tidligere_godtgørelseskilometer),
         tres_dages_forhold = personskat_erhvervsbefordring_tres_dages_forhold()
     ),
     udgifter = Ligningslov9BUdgifter(
@@ -48,14 +51,18 @@ personskattelovens § 3, stk. 2, nr. 8 til den samlede lønmodtagerberegning.
     ),
     kundeopsøgende_aktivitet = kundeopsøgende,
     antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = antal_arbejdsgivere,
-    godtgørelsesforhold = godtgørelsesforhold
+    godtgørelsesforhold = personskat_erhvervsbefordring_godtgørelse(
+        udbetalt_kroner = udbetalt_godtgørelse_kroner,
+        overskud_som_løn = Sandt,
+        medregnes_i_indkomsten = Falskt
+    )
 )
-| personskat_erhvervsbefordring_input(skatteår: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput) -> PersonskatInput(
+| personskat_erhvervsbefordring_input(skatteår: Heltal, sager: List(PersonskatErhvervsbefordringFakta)) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = skatteår,
         kommune = København,
         bruttoløn_kroner = 600000,
-        erhvervsbefordring = erhvervsbefordring,
+        erhvervsbefordring = PersonskatErhvervsbefordringInput(sager = sager),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
         personfradrag_alder_status = Fyldt18EllerGift,
@@ -67,88 +74,86 @@ personskattelovens § 3, stk. 2, nr. 8 til den samlede lønmodtagerberegning.
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
 )
-| personskat_erhvervsbefordring_beregn(skatteår: Heltal, fakta: PersonskatErhvervsbefordringFakta) -> beregn_personskat(personskat_erhvervsbefordring_input(
-    skatteår,
-    MedErhvervsbefordringEfterLigningslov9B(fakta = fakta)
-))
+| personskat_erhvervsbefordring_beregn(skatteår: Heltal, sager: List(PersonskatErhvervsbefordringFakta)) -> beregn_personskat(personskat_erhvervsbefordring_input(skatteår, sager))
 
-= personskat_erhvervsbefordring_ingen_resultat = beregn_personskat(personskat_erhvervsbefordring_input(
-    skatteår = 2026,
-    erhvervsbefordring = UdenErhvervsbefordringEfterLigningslov9B
-))
-= personskat_erhvervsbefordring_direkte_fradrag_resultat = personskat_erhvervsbefordring_beregn(
-    skatteår = 2026,
-    fakta = personskat_erhvervsbefordring_fakta(
-        kilometer = 1000,
-        godtgørelsesforhold = personskat_erhvervsbefordring_godtgørelse(
-            udbetalt_kroner = 0,
-            overskud_som_løn = Falskt,
-            medregnes_i_indkomsten = Falskt
-        ),
-        kundeopsøgende = Sandt,
-        antal_arbejdsgivere = 2
-    )
+= personskat_erhvervsbefordring_arbejdsgiver_a = personskat_erhvervsbefordring_fakta(
+    identifikation = "arbejdsgiver-a-kørsel",
+    arbejdsgiver = "Arbejdsgiver A",
+    kilometer = 1000,
+    tidligere_godtgørelseskilometer = 0,
+    udbetalt_godtgørelse_kroner = 4500,
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
 )
-= personskat_erhvervsbefordring_godtgørelse_resultat = personskat_erhvervsbefordring_beregn(
-    skatteår = 2026,
-    fakta = personskat_erhvervsbefordring_fakta(
-        kilometer = 1000,
-        godtgørelsesforhold = personskat_erhvervsbefordring_godtgørelse(
-            udbetalt_kroner = 4500,
-            overskud_som_løn = Sandt,
-            medregnes_i_indkomsten = Falskt
-        ),
-        kundeopsøgende = Falskt,
-        antal_arbejdsgivere = 1
-    )
+= personskat_erhvervsbefordring_arbejdsgiver_b = personskat_erhvervsbefordring_fakta(
+    identifikation = "arbejdsgiver-b-kørsel",
+    arbejdsgiver = "Arbejdsgiver B",
+    kilometer = 1000,
+    tidligere_godtgørelseskilometer = 19500,
+    udbetalt_godtgørelse_kroner = 3500,
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
 )
-= personskat_erhvervsbefordring_negativt_resultat = personskat_erhvervsbefordring_beregn(
-    skatteår = 2026,
-    fakta = personskat_erhvervsbefordring_fakta(
-        kilometer = -1,
-        godtgørelsesforhold = personskat_erhvervsbefordring_godtgørelse(
-            udbetalt_kroner = 4500,
-            overskud_som_løn = Sandt,
-            medregnes_i_indkomsten = Falskt
-        ),
-        kundeopsøgende = Falskt,
-        antal_arbejdsgivere = 1
-    )
+= personskat_erhvervsbefordring_direkte_fradrag = personskat_erhvervsbefordring_fakta(
+    identifikation = "kundeopsøgende-kørsel",
+    arbejdsgiver = "",
+    kilometer = 1000,
+    tidligere_godtgørelseskilometer = 0,
+    udbetalt_godtgørelse_kroner = 0,
+    kundeopsøgende = Sandt,
+    antal_arbejdsgivere = 2
 )
-= personskat_erhvervsbefordring_ikke_understøttet_resultat = personskat_erhvervsbefordring_beregn(
-    skatteår = 2025,
-    fakta = personskat_erhvervsbefordring_fakta(
-        kilometer = 1000,
-        godtgørelsesforhold = personskat_erhvervsbefordring_godtgørelse(
-            udbetalt_kroner = 4500,
-            overskud_som_løn = Sandt,
-            medregnes_i_indkomsten = Falskt
-        ),
-        kundeopsøgende = Falskt,
-        antal_arbejdsgivere = 1
-    )
+= personskat_erhvervsbefordring_negativ = personskat_erhvervsbefordring_fakta(
+    identifikation = "negativ-kørsel",
+    arbejdsgiver = "Arbejdsgiver C",
+    kilometer = -1,
+    tidligere_godtgørelseskilometer = 0,
+    udbetalt_godtgørelse_kroner = 1000,
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
 )
 
-| personskat_erhvervsbefordring_standard_er_neutral: personskat_erhvervsbefordring_ingen_resultat -> personskat_erhvervsbefordring_ingen_resultat.erhvervsbefordring == IngenErhvervsbefordringEfterLigningslov9B && personskat_erhvervsbefordring_ingen_resultat.skat.bruttoløn_kroner == 600000 && personskat_erhvervsbefordring_ingen_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_erhvervsbefordring_ingen_resultat.skat.personlig_indkomst_efter_am_kroner == 552000
-| personskat_erhvervsbefordring_direkte_fradrag_trækkes_en_gang: personskat_erhvervsbefordring_direkte_fradrag_resultat -> personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.bruttoløn_kroner == 600000 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.øvrig_personlig_indkomst_kroner == -4440 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.personlig_indkomst_efter_am_kroner == 547560 && match personskat_erhvervsbefordring_direkte_fradrag_resultat.erhvervsbefordring {
+= personskat_erhvervsbefordring_ingen_resultat = personskat_erhvervsbefordring_beregn(2026, [])
+= personskat_erhvervsbefordring_direkte_fradrag_resultat = personskat_erhvervsbefordring_beregn(2026, [personskat_erhvervsbefordring_direkte_fradrag])
+= personskat_erhvervsbefordring_flere_arbejdsgivere_resultat = personskat_erhvervsbefordring_beregn(2026, [personskat_erhvervsbefordring_arbejdsgiver_a, personskat_erhvervsbefordring_arbejdsgiver_b])
+= personskat_erhvervsbefordring_delvist_ugyldigt_resultat = personskat_erhvervsbefordring_beregn(2026, [personskat_erhvervsbefordring_arbejdsgiver_a, personskat_erhvervsbefordring_negativ])
+= personskat_erhvervsbefordring_dublet_resultat = personskat_erhvervsbefordring_beregn(2026, [personskat_erhvervsbefordring_arbejdsgiver_a, PersonskatErhvervsbefordringFakta(
+    identifikation = "arbejdsgiver-a-kørsel",
+    godtgørende_arbejdsgiver_identifikation = personskat_erhvervsbefordring_arbejdsgiver_b.godtgørende_arbejdsgiver_identifikation,
+    køretøj = personskat_erhvervsbefordring_arbejdsgiver_b.køretøj,
+    befordring = personskat_erhvervsbefordring_arbejdsgiver_b.befordring,
+    udgifter = personskat_erhvervsbefordring_arbejdsgiver_b.udgifter,
+    kundeopsøgende_aktivitet = personskat_erhvervsbefordring_arbejdsgiver_b.kundeopsøgende_aktivitet,
+    antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = personskat_erhvervsbefordring_arbejdsgiver_b.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang,
+    godtgørelsesforhold = personskat_erhvervsbefordring_arbejdsgiver_b.godtgørelsesforhold
+)])
+= personskat_erhvervsbefordring_ikke_understøttet_resultat = personskat_erhvervsbefordring_beregn(2025, [personskat_erhvervsbefordring_arbejdsgiver_a])
+
+| personskat_erhvervsbefordring_standard_er_neutral: personskat_erhvervsbefordring_ingen_resultat -> personskat_erhvervsbefordring_ingen_resultat.erhvervsbefordring.alle_input_gyldige && personskat_erhvervsbefordring_ingen_resultat.erhvervsbefordring.identifikationer_entydige && length(personskat_erhvervsbefordring_ingen_resultat.erhvervsbefordring.sagsresultater) == 0 && personskat_erhvervsbefordring_ingen_resultat.skat.bruttoløn_kroner == 600000 && personskat_erhvervsbefordring_ingen_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_erhvervsbefordring_ingen_resultat.skat.personlig_indkomst_efter_am_kroner == 552000
+| personskat_erhvervsbefordring_direkte_fradrag_trækkes_en_gang: personskat_erhvervsbefordring_direkte_fradrag_resultat -> personskat_erhvervsbefordring_direkte_fradrag_resultat.erhvervsbefordring.alle_input_gyldige && personskat_erhvervsbefordring_direkte_fradrag_resultat.erhvervsbefordring.samlet_fradrag_i_personlig_indkomst_kroner == 4440 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.bruttoløn_kroner == 600000 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.øvrig_personlig_indkomst_kroner == -4440 && personskat_erhvervsbefordring_direkte_fradrag_resultat.skat.personlig_indkomst_efter_am_kroner == 547560 && match personskat_erhvervsbefordring_direkte_fradrag_resultat.erhvervsbefordring.sagsresultater[0] {
     | BeregnetErhvervsbefordringEfterLigningslov9B(_, ligningslov9b_input, ligningslov9b_resultat, par3_stk2_nr8_resultat) -> ligningslov9b_input.indkomstår == 2026 && ligningslov9b_input.fradragsforhold.personrolle == Ll9BLønmodtager && ligningslov9b_input.fradragsforhold.metode == Ll9BSkatteraadetsKilometersatser && ligningslov9b_resultat.fradrag_i_personlig_indkomst_kroner == 4440 && par3_stk2_nr8_resultat.fradrag_i_personlig_indkomst_kroner == 4440
     | _ -> Falskt
 }
-| personskat_erhvervsbefordring_skattepligtig_godtgørelse_er_am_løn: personskat_erhvervsbefordring_godtgørelse_resultat -> personskat_erhvervsbefordring_godtgørelse_resultat.skat.bruttoløn_kroner == 600560 && personskat_erhvervsbefordring_godtgørelse_resultat.skat.arbejdsmarkedsbidrag_kroner == 48044 && personskat_erhvervsbefordring_godtgørelse_resultat.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_erhvervsbefordring_godtgørelse_resultat.skat.personlig_indkomst_efter_am_kroner == 552516 && match personskat_erhvervsbefordring_godtgørelse_resultat.erhvervsbefordring {
-    | BeregnetErhvervsbefordringEfterLigningslov9B(_, _, ligningslov9b_resultat, par3_stk2_nr8_resultat) -> ligningslov9b_resultat.skattefri_godtgørelse_kroner == 3940 && ligningslov9b_resultat.godtgørelse_personlig_indkomst_kroner == 560 && par3_stk2_nr8_resultat.fradrag_i_personlig_indkomst_kroner == 0
+| personskat_erhvervsbefordring_flere_arbejdsgivere_aggregeres_en_gang: personskat_erhvervsbefordring_flere_arbejdsgivere_resultat -> personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.alle_input_gyldige && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.identifikationer_entydige && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.samlet_skattefri_godtgørelse_kroner == 7050 && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner == 950 && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.skat.bruttoløn_kroner == 600950 && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.skat.arbejdsmarkedsbidrag_kroner == 48076 && personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.skat.personlig_indkomst_efter_am_kroner == 552874 && match personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.sagsresultater[0] {
+    | BeregnetErhvervsbefordringEfterLigningslov9B(fakta, _, ligningslov9b_resultat, _) -> fakta.godtgørende_arbejdsgiver_identifikation == "Arbejdsgiver A" && ligningslov9b_resultat.godtgørelses_høj_sats_kilometer == 1000 && ligningslov9b_resultat.skattefri_godtgørelse_kroner == 3940 && ligningslov9b_resultat.godtgørelse_personlig_indkomst_kroner == 560
+    | _ -> Falskt
+} && match personskat_erhvervsbefordring_flere_arbejdsgivere_resultat.erhvervsbefordring.sagsresultater[1] {
+    | BeregnetErhvervsbefordringEfterLigningslov9B(fakta, _, ligningslov9b_resultat, _) -> fakta.godtgørende_arbejdsgiver_identifikation == "Arbejdsgiver B" && ligningslov9b_resultat.godtgørelses_høj_sats_kilometer == 500 && ligningslov9b_resultat.godtgørelses_lav_sats_kilometer == 500 && ligningslov9b_resultat.skattefri_godtgørelse_kroner == 3110 && ligningslov9b_resultat.godtgørelse_personlig_indkomst_kroner == 390
     | _ -> Falskt
 }
-| personskat_erhvervsbefordring_negative_fakta_afvises: personskat_erhvervsbefordring_negativt_resultat -> personskat_erhvervsbefordring_negativt_resultat.skat.bruttoløn_kroner == 600000 && personskat_erhvervsbefordring_negativt_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && match personskat_erhvervsbefordring_negativt_resultat.erhvervsbefordring {
-    | UgyldigtErhvervsbefordringsgrundlag(fakta, skatteår_understøttet, grundfakta_gyldige) -> fakta.befordring.kilometer_i_sagen == -1 && skatteår_understøttet && grundfakta_gyldige == Falskt
+| personskat_erhvervsbefordring_ugyldig_sag_fejler_hele_aggregatet_lukket: personskat_erhvervsbefordring_delvist_ugyldigt_resultat -> personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.alle_input_gyldige == Falskt && personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.identifikationer_entydige && personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.samlet_skattefri_godtgørelse_kroner == 0 && personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner == 0 && personskat_erhvervsbefordring_delvist_ugyldigt_resultat.skat.bruttoløn_kroner == 600000 && length(personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.sagsresultater) == 2 && match personskat_erhvervsbefordring_delvist_ugyldigt_resultat.erhvervsbefordring.sagsresultater[1] {
+    | UgyldigtErhvervsbefordringsgrundlag(fakta, skatteår_understøttet, grundfakta_gyldige) -> fakta.identifikation == "negativ-kørsel" && skatteår_understøttet && grundfakta_gyldige == Falskt
     | _ -> Falskt
 }
-| personskat_erhvervsbefordring_ikke_understøttet_år_afvises: personskat_erhvervsbefordring_ikke_understøttet_resultat -> personskat_erhvervsbefordring_ikke_understøttet_resultat.skat.bruttoløn_kroner == 600000 && match personskat_erhvervsbefordring_ikke_understøttet_resultat.erhvervsbefordring {
+| personskat_erhvervsbefordring_dublet_identifikation_fejler_lukket: personskat_erhvervsbefordring_dublet_resultat -> personskat_erhvervsbefordring_dublet_resultat.erhvervsbefordring.identifikationer_entydige == Falskt && personskat_erhvervsbefordring_dublet_resultat.erhvervsbefordring.alle_input_gyldige == Falskt && personskat_erhvervsbefordring_dublet_resultat.erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner == 0 && personskat_erhvervsbefordring_dublet_resultat.skat.bruttoløn_kroner == 600000
+| personskat_erhvervsbefordring_ikke_understøttet_år_afvises: personskat_erhvervsbefordring_ikke_understøttet_resultat -> personskat_erhvervsbefordring_ikke_understøttet_resultat.erhvervsbefordring.alle_input_gyldige == Falskt && personskat_erhvervsbefordring_ikke_understøttet_resultat.skat.bruttoløn_kroner == 600000 && match personskat_erhvervsbefordring_ikke_understøttet_resultat.erhvervsbefordring.sagsresultater[0] {
     | UgyldigtErhvervsbefordringsgrundlag(_, skatteår_understøttet, grundfakta_gyldige) -> skatteår_understøttet == Falskt && grundfakta_gyldige
     | _ -> Falskt
 }
 
 ? personskat_erhvervsbefordring_standard_er_neutral
 ? personskat_erhvervsbefordring_direkte_fradrag_trækkes_en_gang
-? personskat_erhvervsbefordring_skattepligtig_godtgørelse_er_am_løn
-? personskat_erhvervsbefordring_negative_fakta_afvises
+? personskat_erhvervsbefordring_flere_arbejdsgivere_aggregeres_en_gang
+? personskat_erhvervsbefordring_ugyldig_sag_fejler_hele_aggregatet_lukket
+? personskat_erhvervsbefordring_dublet_identifikation_fejler_lukket
 ? personskat_erhvervsbefordring_ikke_understøttet_år_afvises
