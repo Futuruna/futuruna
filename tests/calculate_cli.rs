@@ -585,8 +585,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "case_id",
                 "item_id",
                 "position",
-                "identifikation",
-                "beløb_kroner"
+                "Identifikation",
+                "Beløb (DKK)"
             ]
         );
         let own_property_sheet = workbook_collection_sheet_name(
@@ -598,7 +598,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser",
         );
         for sheet in [&own_property_sheet, &spouse_property_sheet] {
-            let property_headers = workbook_headers(&mut workbook, sheet);
+            let property_paths = workbook_column_paths(&mut workbook, sheet);
             for expected in [
                 "identifikation",
                 "afståelse",
@@ -613,12 +613,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "anskaffelsesgrundlag.EblPar4Stk3TredjePktAnskaffelsesgrundlag.tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner",
             ] {
                 assert!(
-                    property_headers.iter().any(|header| header == expected),
-                    "missing property source-fact column {expected} on {sheet}"
+                    property_paths.iter().any(|path| path == expected),
+                    "missing canonical property source-fact path {expected} on {sheet}"
                 );
             }
+            let property_headers = workbook_headers(&mut workbook, sheet);
+            assert!(property_headers
+                .iter()
+                .any(|header| header == "Identifikation"));
+            assert!(property_headers.iter().any(|header| header == "Afståelse"));
+            assert!(property_headers
+                .iter()
+                .any(|header| header == "Kontant anskaffelsessum (DKK)"));
         }
-        let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
+        let special_asset_paths =
+            workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
             "aktiv",
             "par17_modprøve.næringsstatus",
@@ -626,10 +635,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "investeringsklassifikation.$variant",
         ] {
             assert!(
-                special_asset_headers
-                    .iter()
-                    .any(|header| header == expected),
-                "missing source-level ABL input column {expected}"
+                special_asset_paths.iter().any(|path| path == expected),
+                "missing canonical source-level ABL input path {expected}"
             );
         }
 
@@ -1559,7 +1566,7 @@ fn investment_classification_xlsx_expands_payloads_and_round_trips_template() {
 
     {
         let mut workbook = open_workbook_auto(&input_path).expect("input workbook");
-        let case_headers = workbook_headers(&mut workbook, "cases");
+        let case_paths = workbook_column_paths(&mut workbook, "cases");
         for expected in [
             "meddelelse.$variant",
             "meddelelse.AblPar19BOrdinærMeddelelse.virkningsår",
@@ -1567,19 +1574,19 @@ fn investment_classification_xlsx_expands_payloads_and_round_trips_template() {
             "oplysninger.$variant",
         ] {
             assert!(
-                case_headers.iter().any(|header| header == expected),
-                "missing typed investment input column {expected}"
+                case_paths.iter().any(|path| path == expected),
+                "missing canonical investment input path {expected}"
             );
         }
-        let owner_headers = workbook_headers(&mut workbook, "aktivmasse_ejerposter");
+        let owner_paths = workbook_column_paths(&mut workbook, "aktivmasse_ejerposter");
         for expected in [
             "$variant",
             "AblEjerpostIPar19B.ejerandel.ejede_kapitalenheder",
             "AblEjerpostIPar21.klassifikationsinput.oplysninger.$variant",
         ] {
             assert!(
-                owner_headers.iter().any(|header| header == expected),
-                "missing typed owner input column {expected}"
+                owner_paths.iter().any(|path| path == expected),
+                "missing canonical owner input path {expected}"
             );
         }
 
@@ -1899,11 +1906,11 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
             workbook_headers(&mut workbook, "cases"),
             [
                 "case_id",
-                "selection.$variant",
-                "selection.Fixed.amount",
-                "selection.Pair._0",
-                "selection.Pair._1",
-                "selection.Family.label",
+                "Selection / Variant",
+                "Selection / Fixed / Amount",
+                "Selection / Pair / 0",
+                "Selection / Pair / 1",
+                "Selection / Family / Label",
             ]
         );
         assert_eq!(
@@ -1912,20 +1919,20 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
                 "case_id",
                 "item_id",
                 "position",
-                "$variant",
-                "Fixed.amount",
-                "Pair._0",
-                "Pair._1",
-                "Family.label",
+                "Variant",
+                "Fixed / Amount",
+                "Pair / 0",
+                "Pair / 1",
+                "Family / Label",
             ]
         );
         assert_eq!(
             workbook_headers(&mut workbook, "selection_Family_children"),
-            ["case_id", "item_id", "position", "name", "age"]
+            ["case_id", "item_id", "position", "Name", "Age"]
         );
         assert_eq!(
             workbook_headers(&mut workbook, "history_Family_children"),
-            ["case_id", "parent_id", "item_id", "position", "name", "age",]
+            ["case_id", "parent_id", "item_id", "position", "Name", "Age",]
         );
     }
 
@@ -2530,6 +2537,34 @@ fn workbook_headers(
         .collect()
 }
 
+fn workbook_column_paths(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    sheet: &str,
+) -> Vec<String> {
+    let metadata = workbook
+        .worksheet_range("_columns")
+        .expect("column metadata");
+    let headers = metadata.rows().next().expect("column metadata headers");
+    let sheet_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "sheet")
+        .expect("sheet metadata column");
+    let path_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "path")
+        .expect("path metadata column");
+    metadata
+        .rows()
+        .skip(1)
+        .filter(|row| {
+            row.get(sheet_column)
+                .is_some_and(|cell| cell.to_string() == sheet)
+        })
+        .filter_map(|row| row.get(path_column))
+        .map(ToString::to_string)
+        .collect()
+}
+
 fn workbook_collection_sheet_name(
     workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
     path: &str,
@@ -2699,31 +2734,24 @@ fn calculation_workbook_display_header(
     let sheet_column = column("sheet")?;
     let path_column = column("path")?;
     let input_path_column = column("input_path")?;
-    let label_column = column("label")?;
-    rows.iter()
+    let sheet_rows = rows
+        .iter()
         .skip(1)
-        .find(|row| {
-            row.get(sheet_column).map(ToString::to_string).as_deref() == Some(sheet)
-                && (row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
-                    || row
-                        .get(input_path_column)
-                        .map(ToString::to_string)
-                        .as_deref()
-                        == Some(path))
-        })
-        .map(|row| {
-            let label = row
-                .get(label_column)
+        .filter(|row| row.get(sheet_column).map(ToString::to_string).as_deref() == Some(sheet))
+        .collect::<Vec<_>>();
+    let field_column = sheet_rows.iter().position(|row| {
+        row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
+            || row
+                .get(input_path_column)
                 .map(ToString::to_string)
-                .unwrap_or_default();
-            if label.is_empty() {
-                row.get(path_column)
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| path.to_string())
-            } else {
-                label
-            }
-        })
+                .as_deref()
+                == Some(path)
+    })?;
+    let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.first()?;
+    let technical_columns = visible_headers.len().checked_sub(sheet_rows.len())?;
+    visible_headers
+        .get(technical_columns + field_column)
+        .map(ToString::to_string)
 }
 
 fn write_workbook_data(
