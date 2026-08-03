@@ -69,9 +69,12 @@ reglerne frem for at blive håndskrevet ved siden af dem.
 Den stærkeste brugerflade behøver ikke være manuel udfyldning af 117 kolonner.
 En AI kan interviewe borgeren, bygge det samme typede input og bruge Futurunas
 regler til den deterministiske beregning og den efterfølgende forklaring.
-Kolonnestierne er allerede stabile maskinnøgler; menneskelige feltetiketter,
-interviewspørgsmål, hjælp, enheder og kilder skal tilføjes som generisk, typet
-metadata uden at gøre formuleringerne til en del af skattereglernes gyldighed.
+Kolonnestierne er stabile maskinnøgler, mens generisk, typet feltmetadata nu kan
+give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
+kildespor. Den første Personskat-kontrakt bruger dette for skatteår, kommune,
+bruttoløn, befordring, aldersstatus, kirkeskat, renter og årsopgørelse. En AI kan
+læse metadataene og indsamle fakta, men formuleringerne ændrer ikke felternes
+gyldighed eller skattereglernes deterministiske resultat.
 
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige

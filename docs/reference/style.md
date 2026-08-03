@@ -153,7 +153,25 @@ The generic form is `--@label:LABEL::ROLE:BINDING--`. The explicit
 `source`, `warning`, and `assumption` are conventions rather than privileged
 types.
 
-References may repeat, including the same role, and their order is preserved:
+References may repeat, including the same role, and their order is preserved.
+Calculation files conventionally use `--@label:ENTRY::field:BINDING--` for a
+typed field-target record; see [Typed Calculations](calculations.md) for the
+required path and presentation fields.
+
+```runa
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+= amount_field = CalculationField(
+    path = "amount",
+    label = "Amount",
+    question = Some("What amount should be calculated?"),
+    help = None,
+    unit = Some("currency")
+)
+
+--@label:calculate_amount::field:amount_field--
+```
+
+Other references may repeat as before:
 
 ```runa
 # Shape = Circle | Triangle | Square

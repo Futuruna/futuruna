@@ -107,10 +107,28 @@ pub struct CalculationMetadataReference {
     pub qualified_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<JsonValue>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub text: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub symbols: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalculationFieldMetadata {
+    pub path: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub question: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+    pub anchor: String,
+    pub binding: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sources: Vec<CalculationMetadataReference>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +142,8 @@ pub struct CalculationContract {
     pub definitions: Vec<CalculationTypeDefinition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<CalculationMetadataReference>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub field_metadata: Vec<CalculationFieldMetadata>,
     pub schema_hash: String,
 }
 
@@ -183,13 +203,24 @@ impl CalculationContract {
         if root_columns.is_empty() && builder.tables.is_empty() {
             root_columns.push(CalculationColumn {
                 path: "input".to_string(),
+                input_path: "input".to_string(),
                 value_path: "input".to_string(),
                 ty: self.input.clone(),
                 encoding: CalculationColumnEncoding::Json,
                 required: true,
                 choices: Vec::new(),
                 variant_guards: Vec::new(),
+                metadata: self.field_metadata_for_path("input").cloned(),
             });
+        }
+        for column in &mut root_columns {
+            column.metadata = self.field_metadata_for_path(&column.input_path).cloned();
+        }
+        for table in &mut builder.tables {
+            table.metadata = self.field_metadata_for_path(&table.path).cloned();
+            for column in &mut table.columns {
+                column.metadata = self.field_metadata_for_path(&column.input_path).cloned();
+            }
         }
         builder.tables.sort_by(|left, right| {
             left.path
@@ -206,6 +237,12 @@ impl CalculationContract {
 
     pub fn input_columns(&self) -> Vec<CalculationColumn> {
         self.input_layout().root_columns
+    }
+
+    pub fn field_metadata_for_path(&self, path: &str) -> Option<&CalculationFieldMetadata> {
+        self.field_metadata
+            .iter()
+            .find(|metadata| metadata.path == path)
     }
 }
 
@@ -308,6 +345,7 @@ pub struct CalculationVariantGuard {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalculationColumn {
     pub path: String,
+    pub input_path: String,
     pub value_path: String,
     #[serde(rename = "type")]
     pub ty: CalculationTypeRef,
@@ -315,6 +353,8 @@ pub struct CalculationColumn {
     pub required: bool,
     pub choices: Vec<String>,
     pub variant_guards: Vec<CalculationVariantGuard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CalculationFieldMetadata>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -347,6 +387,8 @@ pub struct CalculationCollectionTable {
     pub item_value_column: bool,
     pub variant_guards: Vec<CalculationVariantGuard>,
     pub columns: Vec<CalculationColumn>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<CalculationFieldMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -616,6 +658,7 @@ pub fn extract_calculation_contracts(
 
     let meta_index = scan_meta_comments_with_dir(source, source_dir.clone());
     let mut contracts = Vec::new();
+    let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {
         let input = ty_to_contract_ref(&candidate.input, false).expect("validated input type");
         let output = ty_to_contract_ref(&candidate.output, false).expect("validated output type");
@@ -633,20 +676,26 @@ pub fn extract_calculation_contracts(
         let mut relevant = reachable;
         relevant.insert(candidate.name.clone());
         let metadata = contract_metadata(&meta_index, &relevant);
-        contracts.push(
-            CalculationContract {
-                schema: CONTRACT_SCHEMA.to_string(),
-                schema_version: 1,
-                entry: candidate.name,
-                parameter: candidate.parameter,
-                input,
-                output,
-                definitions,
-                metadata,
-                schema_hash: String::new(),
-            }
-            .finish_hash(),
-        );
+        let mut contract = CalculationContract {
+            schema: CONTRACT_SCHEMA.to_string(),
+            schema_version: 1,
+            entry: candidate.name,
+            parameter: candidate.parameter,
+            input,
+            output,
+            definitions,
+            metadata,
+            field_metadata: Vec::new(),
+            schema_hash: String::new(),
+        };
+        match contract_field_metadata(&meta_index, &contract) {
+            Ok(field_metadata) => contract.field_metadata = field_metadata,
+            Err(mut diagnostics) => metadata_diagnostics.append(&mut diagnostics),
+        }
+        contracts.push(contract.finish_hash());
+    }
+    if !metadata_diagnostics.is_empty() {
+        return Err(metadata_diagnostics);
     }
     contracts.sort_by(|left, right| left.entry.cmp(&right.entry));
     Ok(contracts)
@@ -1197,18 +1246,337 @@ fn contract_metadata(
                 .into_iter()
                 .flat_map(|span| span.symbols.iter().map(|symbol| symbol.name.clone()))
                 .collect();
-            result.push(CalculationMetadataReference {
-                label: anchor.label.clone(),
-                role: reference.role.clone(),
-                binding: reference.binding_name.clone(),
-                qualified_type: reference.qualified_type.clone(),
-                value: reference.static_value.clone(),
-                text: anchor.text.clone(),
-                symbols,
-            });
+            result.push(calculation_metadata_reference(anchor, reference, symbols));
         }
     }
     result
+}
+
+fn calculation_metadata_reference(
+    anchor: &MetaAnchor,
+    reference: &MetaReference,
+    symbols: Vec<String>,
+) -> CalculationMetadataReference {
+    CalculationMetadataReference {
+        label: anchor.label.clone(),
+        role: reference.role.clone(),
+        binding: reference.binding_name.clone(),
+        qualified_type: reference.qualified_type.clone(),
+        value: reference.static_value.clone(),
+        data: reference
+            .static_data
+            .as_ref()
+            .map(calculation_meta_value_json),
+        text: anchor.text.clone(),
+        symbols,
+    }
+}
+
+fn calculation_meta_value_json(value: &MetaValue) -> JsonValue {
+    match value {
+        MetaValue::Integer(value) => serde_json::json!({
+            "kind": "integer",
+            "value": value,
+        }),
+        MetaValue::Float(value) => serde_json::json!({
+            "kind": "float",
+            "value": value.parse::<f64>().ok(),
+            "source": value,
+        }),
+        MetaValue::String(value) => serde_json::json!({
+            "kind": "string",
+            "value": value,
+        }),
+        MetaValue::Character(value) => serde_json::json!({
+            "kind": "character",
+            "value": value.to_string(),
+        }),
+        MetaValue::Boolean(value) => serde_json::json!({
+            "kind": "boolean",
+            "value": value,
+        }),
+        MetaValue::Unit => serde_json::json!({
+            "kind": "unit",
+        }),
+        MetaValue::Constructor {
+            name,
+            applied,
+            arguments,
+        } => serde_json::json!({
+            "kind": "constructor",
+            "name": name,
+            "applied": applied,
+            "arguments": arguments
+                .iter()
+                .map(|argument| serde_json::json!({
+                    "field": argument.field,
+                    "value": calculation_meta_value_json(&argument.value),
+                }))
+                .collect::<Vec<_>>(),
+        }),
+        MetaValue::List(items) => serde_json::json!({
+            "kind": "list",
+            "items": items
+                .iter()
+                .map(calculation_meta_value_json)
+                .collect::<Vec<_>>(),
+        }),
+        MetaValue::Tuple(items) => serde_json::json!({
+            "kind": "tuple",
+            "items": items
+                .iter()
+                .map(calculation_meta_value_json)
+                .collect::<Vec<_>>(),
+        }),
+        MetaValue::Unary { operator, value } => serde_json::json!({
+            "kind": "unary",
+            "operator": operator,
+            "value": calculation_meta_value_json(value),
+        }),
+    }
+}
+
+fn contract_field_metadata(
+    index: &MetaIndex,
+    contract: &CalculationContract,
+) -> Result<Vec<CalculationFieldMetadata>, Vec<Diagnostic>> {
+    let layout = contract.input_layout();
+    let mut valid_paths = BTreeSet::new();
+    valid_paths.extend(
+        layout
+            .root_columns
+            .iter()
+            .map(|column| column.input_path.clone()),
+    );
+    for table in &layout.collection_tables {
+        valid_paths.insert(table.path.clone());
+        valid_paths.extend(table.columns.iter().map(|column| column.input_path.clone()));
+    }
+
+    let span_labels: BTreeSet<String> = index
+        .spans
+        .iter()
+        .filter(|span| {
+            span.symbols
+                .iter()
+                .any(|symbol| symbol.name == contract.entry)
+        })
+        .map(|span| span.label.clone())
+        .collect();
+    let mut result = Vec::new();
+    let mut bindings_by_path = BTreeMap::new();
+    let mut diagnostics = Vec::new();
+
+    for anchor in &index.anchors {
+        if anchor.label != contract.entry && !span_labels.contains(&anchor.label) {
+            continue;
+        }
+        let sources = anchor
+            .references
+            .iter()
+            .filter(|reference| reference.role != "field")
+            .map(|reference| calculation_metadata_reference(anchor, reference, Vec::new()))
+            .collect::<Vec<_>>();
+        for reference in anchor
+            .references
+            .iter()
+            .filter(|reference| reference.role == "field")
+        {
+            match calculation_field_metadata_from_reference(
+                contract,
+                reference,
+                anchor,
+                &valid_paths,
+                &sources,
+            ) {
+                Ok(metadata) => {
+                    if let Some(previous) =
+                        bindings_by_path.insert(metadata.path.clone(), metadata.binding.clone())
+                    {
+                        diagnostics.push(Diagnostic::error(format!(
+                            "calculation `{}` has duplicate field metadata for `{}` in bindings `{}` and `{}`",
+                            contract.entry, metadata.path, previous, metadata.binding
+                        )));
+                    } else {
+                        result.push(metadata);
+                    }
+                }
+                Err(diagnostic) => diagnostics.push(diagnostic),
+            }
+        }
+    }
+
+    if diagnostics.is_empty() {
+        result.sort_by(|left, right| left.path.cmp(&right.path));
+        Ok(result)
+    } else {
+        Err(diagnostics)
+    }
+}
+
+fn calculation_field_metadata_from_reference(
+    contract: &CalculationContract,
+    reference: &MetaReference,
+    anchor: &MetaAnchor,
+    valid_paths: &BTreeSet<String>,
+    sources: &[CalculationMetadataReference],
+) -> Result<CalculationFieldMetadata, Diagnostic> {
+    if reference.qualified_type.is_none() {
+        return Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` has no statically known type",
+            reference.binding_name
+        )));
+    }
+    let Some(MetaValue::Constructor { arguments, .. }) = reference.static_data.as_ref() else {
+        return Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` must be a pure ground named record",
+            reference.binding_name
+        )));
+    };
+    let mut fields = BTreeMap::new();
+    for argument in arguments {
+        let Some(name) = argument.field.as_deref() else {
+            return Err(Diagnostic::error(format!(
+                "calculation field metadata binding `{}` must use named fields",
+                reference.binding_name
+            )));
+        };
+        if fields.insert(name, &argument.value).is_some() {
+            return Err(Diagnostic::error(format!(
+                "calculation field metadata binding `{}` repeats field `{}`",
+                reference.binding_name, name
+            )));
+        }
+    }
+    let supported = ["path", "label", "question", "help", "unit"];
+    if let Some(unknown) = fields
+        .keys()
+        .find(|field| !supported.contains(field))
+        .copied()
+    {
+        return Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` has unsupported field `{}`",
+            reference.binding_name, unknown
+        )));
+    }
+
+    let declared_path = required_meta_string(&fields, "path", &reference.binding_name)?;
+    let path = normalize_calculation_field_path(contract, &declared_path, valid_paths).ok_or_else(
+        || {
+            let examples = valid_paths.iter().take(8).cloned().collect::<Vec<_>>();
+            Diagnostic::error(format!(
+                "calculation field metadata binding `{}` targets unknown input path `{}` for `{}`",
+                reference.binding_name, declared_path, contract.entry
+            ))
+            .with_note(format!(
+                "use an exact canonical path such as {}",
+                examples.join(", ")
+            ))
+        },
+    )?;
+    let label = required_meta_string(&fields, "label", &reference.binding_name)?;
+    if label.trim().is_empty() {
+        return Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` has an empty label",
+            reference.binding_name
+        )));
+    }
+
+    Ok(CalculationFieldMetadata {
+        path,
+        label: label.trim().to_string(),
+        question: optional_meta_string(&fields, "question", &reference.binding_name)?,
+        help: optional_meta_string(&fields, "help", &reference.binding_name)?,
+        unit: optional_meta_string(&fields, "unit", &reference.binding_name)?,
+        anchor: anchor.label.clone(),
+        binding: reference.binding_name.clone(),
+        sources: sources.to_vec(),
+    })
+}
+
+fn normalize_calculation_field_path(
+    contract: &CalculationContract,
+    declared: &str,
+    valid_paths: &BTreeSet<String>,
+) -> Option<String> {
+    let declared = declared.trim();
+    let mut candidates = vec![declared];
+    if let Some(path) = declared.strip_prefix("$.") {
+        candidates.push(path);
+    }
+    if let Some(path) = declared.strip_prefix(&format!("{}.", contract.parameter)) {
+        candidates.push(path);
+    }
+    if let CalculationTypeRef::Named { name, .. } = &contract.input {
+        if let Some(path) = declared.strip_prefix(&format!("{}.", name)) {
+            candidates.push(path);
+        }
+    }
+    candidates
+        .into_iter()
+        .find(|path| valid_paths.contains(*path))
+        .map(str::to_string)
+}
+
+fn required_meta_string(
+    fields: &BTreeMap<&str, &MetaValue>,
+    field: &str,
+    binding: &str,
+) -> Result<String, Diagnostic> {
+    let value = fields.get(field).ok_or_else(|| {
+        Diagnostic::error(format!(
+            "calculation field metadata binding `{}` is missing `{}`",
+            binding, field
+        ))
+    })?;
+    match value {
+        MetaValue::String(value) => Ok(value.clone()),
+        _ => Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` field `{}` must be a string",
+            binding, field
+        ))),
+    }
+}
+
+fn optional_meta_string(
+    fields: &BTreeMap<&str, &MetaValue>,
+    field: &str,
+    binding: &str,
+) -> Result<Option<String>, Diagnostic> {
+    let Some(value) = fields.get(field) else {
+        return Ok(None);
+    };
+    let value = match value {
+        MetaValue::String(value) => Some(value.clone()),
+        MetaValue::Constructor {
+            name,
+            arguments,
+            ..
+        } if name == "None" && arguments.is_empty() => None,
+        MetaValue::Constructor {
+            name,
+            arguments,
+            ..
+        } if name == "Some" && arguments.len() == 1 => match &arguments[0].value {
+            MetaValue::String(value) => Some(value.clone()),
+            _ => {
+                return Err(Diagnostic::error(format!(
+                    "calculation field metadata binding `{}` field `{}` must contain a string",
+                    binding, field
+                )))
+            }
+        },
+        _ => {
+            return Err(Diagnostic::error(format!(
+                "calculation field metadata binding `{}` field `{}` must be a string or optional string",
+                binding, field
+            )))
+        }
+    };
+    Ok(value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    }))
 }
 
 fn definition_substitutions(
@@ -2034,6 +2402,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
             CalculationTypeRef::Primitive { name } => {
                 columns.push(scalar_column(
                     layout_column_path(column_path, parent_table),
+                    normalized_input_path(absolute_path),
                     normalized_value_path(value_path),
                     resolved.clone(),
                     name,
@@ -2064,6 +2433,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 } else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_input_path(absolute_path),
                         &normalized_value_path(value_path),
                         resolved,
                         false,
@@ -2075,6 +2445,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 let Some(definition) = self.contract.definition(name) else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_input_path(absolute_path),
                         &normalized_value_path(value_path),
                         resolved,
                         required,
@@ -2085,6 +2456,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 if !active.insert(name.clone()) {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_input_path(absolute_path),
                         &normalized_value_path(value_path),
                         resolved,
                         required,
@@ -2117,6 +2489,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 {
                     columns.push(CalculationColumn {
                         path: layout_column_path(column_path, parent_table),
+                        input_path: normalized_input_path(absolute_path),
                         value_path: normalized_value_path(value_path),
                         ty: resolved.clone(),
                         encoding: CalculationColumnEncoding::Enum,
@@ -2127,12 +2500,17 @@ impl<'a> CalculationLayoutBuilder<'a> {
                             .map(|variant| variant.name.clone())
                             .collect(),
                         variant_guards: variant_guards.to_vec(),
+                        metadata: None,
                     });
                 } else if !definition.variants.is_empty() {
                     let discriminator_path = joined_column_path(column_path, "$variant");
                     let discriminator_value_path = joined_column_path(value_path, "$variant");
                     columns.push(CalculationColumn {
                         path: layout_column_path(&discriminator_path, parent_table),
+                        input_path: normalized_input_path(&joined_column_path(
+                            absolute_path,
+                            "$variant",
+                        )),
                         value_path: normalized_value_path(&discriminator_value_path),
                         ty: resolved.clone(),
                         encoding: CalculationColumnEncoding::Variant,
@@ -2143,6 +2521,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                             .map(|variant| variant.name.clone())
                             .collect(),
                         variant_guards: variant_guards.to_vec(),
+                        metadata: None,
                     });
 
                     for variant in &definition.variants {
@@ -2181,6 +2560,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
                 } else {
                     columns.push(json_column(
                         &layout_column_path(column_path, parent_table),
+                        &normalized_input_path(absolute_path),
                         &normalized_value_path(value_path),
                         resolved.clone(),
                         required,
@@ -2191,6 +2571,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
             }
             _ => columns.push(json_column(
                 &layout_column_path(column_path, parent_table),
+                &normalized_input_path(absolute_path),
                 &normalized_value_path(value_path),
                 resolved,
                 required,
@@ -2253,6 +2634,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
             item_value_column,
             variant_guards: variant_guards.to_vec(),
             columns,
+            metadata: None,
         });
     }
 
@@ -2294,6 +2676,7 @@ impl<'a> CalculationLayoutBuilder<'a> {
 
 fn scalar_column(
     path: String,
+    input_path: String,
     value_path: String,
     ty: CalculationTypeRef,
     primitive: &str,
@@ -2302,6 +2685,7 @@ fn scalar_column(
 ) -> CalculationColumn {
     CalculationColumn {
         path,
+        input_path,
         value_path,
         ty,
         encoding: match primitive {
@@ -2318,6 +2702,7 @@ fn scalar_column(
             Vec::new()
         },
         variant_guards: variant_guards.to_vec(),
+        metadata: None,
     }
 }
 
@@ -2390,6 +2775,7 @@ fn is_scalar_column_type(ty: &CalculationTypeRef, contract: &CalculationContract
 
 fn json_column(
     path: &str,
+    input_path: &str,
     value_path: &str,
     ty: CalculationTypeRef,
     required: bool,
@@ -2397,12 +2783,14 @@ fn json_column(
 ) -> CalculationColumn {
     CalculationColumn {
         path: normalized_column_path(path),
+        input_path: normalized_input_path(input_path),
         value_path: normalized_value_path(value_path),
         ty,
         encoding: CalculationColumnEncoding::Json,
         required,
         choices: Vec::new(),
         variant_guards: variant_guards.to_vec(),
+        metadata: None,
     }
 }
 
@@ -2415,6 +2803,14 @@ fn joined_column_path(parent: &str, field: &str) -> String {
 }
 
 fn normalized_column_path(path: &str) -> String {
+    if path.is_empty() {
+        "input".to_string()
+    } else {
+        path.to_string()
+    }
+}
+
+fn normalized_input_path(path: &str) -> String {
     if path.is_empty() {
         "input".to_string()
     } else {

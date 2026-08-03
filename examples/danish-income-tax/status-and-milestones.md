@@ -92,11 +92,15 @@ Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
 og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
 
-De synlige kolonneoverskrifter er fortsat stabile maskinstier fra den typede
-kontrakt. Generisk feltmetadata til menneskelige etiketter, interviewspørgsmål,
-hjælp, enhed og kilde følges i `td-72e114`. Det skal gøre samme kontrakt egnet
-til et AI-interview, hvor AI'en indsamler fakta og udfylder inputtet, mens
-Futuruna beregner deterministisk og bevarer den juridiske forklaringskæde.
+Generisk feltmetadata er nu integreret i beregningskontrakten og regnearket.
+Synlige kolonneoverskrifter bruger en udtrykkelig menneskelig etiket, mens den
+stabile maskinsti, interviewspørgsmål, hjælp, enhed og typede kildereferencer
+bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har den
+første etiketslice for skatteår, kommune, bruttoløn, befordring, aldersstatus,
+kirkeskat, renter og årsopgørelse. En AI kan dermed indsamle fakta og udfylde de
+kanoniske stier, mens Futuruna beregner deterministisk og bevarer den juridiske
+forklaringskæde. En metadataændring ændrer kontraktens fingerprint, så gamle
+interview- og regnearksskabeloner afvises som forældede.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen
@@ -2642,10 +2646,10 @@ Review candidates to revisit deliberately, not as broad churn:
   exemptions still require their own source-fact rules. Until then, a claimed
   § 8/§ 9 gain branch fails closed and contributes zero rather than being taxed
   under the narrower §§ 1/4 path.
-- Add generic field-target metadata from `td-72e114` to calculation schemas and
-  workbooks. Preserve canonical paths as machine keys, and expose labels,
-  interview questions, help, units and sources so an AI can collect citizen
-  facts conversationally without becoming the tax calculator itself.
+- Expand the first Personskat field-metadata slice as new source-fact branches
+  reach the canonical calculation. Preserve canonical paths as machine keys and
+  add human labels, interview questions, help, units and sources at the same
+  time, so an AI can collect citizen facts without becoming the tax calculator.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already

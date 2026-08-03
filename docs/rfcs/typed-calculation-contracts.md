@@ -92,6 +92,8 @@ not to the calculation boundary.
 - reachable named type `definitions`, including type parameters, variants,
   positional status, and fields;
 - matching typed meta-comment references and source spans;
+- normalized `field_metadata` entries with canonical input paths, labels,
+  interview questions, help, units, and companion source references;
 - `schema_hash`, a lowercase SHA-256 fingerprint of the semantic document with
   the hash field empty.
 
@@ -195,20 +197,45 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v3`. Earlier workbooks are rejected rather than
+`futuruna.calculate.xlsx.input.v4`. Earlier workbooks are rejected rather than
 silently interpreting their older topology or payload encoding.
 
 ## Metadata
 
 Meta comments remain comments. For a contract, tooling includes resolved
 references and spans whose symbols intersect the entry or reachable type names.
-Roles such as `source`, `warning`, `label`, `unit`, and `help` are conventions.
-They can drive explanations, audit indexes, workbook notes, and labels, but the
-typed contract remains complete and valid when metadata is absent.
+Roles such as `source`, `warning`, `label`, `unit`, and `help` remain general
+conventions.
 
-Future field-target metadata may enrich a path such as `TaxInput.monthly_income`.
-It must use the generic typed meta-index and cannot add requiredness, alternatives,
-or defaults that contradict the Futuruna type.
+The calculation adapter additionally recognizes a `field` reference when its
+meta-anchor label is the calculation entry or its code span contains that entry.
+The referenced pure ground record uses named fields:
+
+- `path: String` and `label: String` are required;
+- `question`, `help`, and `unit` are optional string values;
+- other fields are rejected so misspelled presentation data does not disappear.
+
+The path is normalized to the exact layout path. Root columns, collection paths,
+and columns inside related tables are valid targets. Parameter-prefixed and input
+type-prefixed spellings are accepted, but the schema emits only the canonical
+path. Unknown targets and duplicate metadata for one path fail contract
+extraction. Non-`field` references on the same anchor are retained as typed
+source/context links for that field.
+
+Field metadata cannot add requiredness, alternatives, defaults, or constraints
+that contradict the Futuruna type. It is nevertheless part of the contract hash,
+because a generated interview or workbook must not silently keep stale labels or
+questions after the source changes.
+
+XLSX uses the label as the visible header and stores canonical paths plus all
+field metadata in hidden topology sheets. A header note exposes the path,
+question, help, unit, and source bindings. JSON and TOML remain canonical value
+formats and do not replace keys with labels.
+
+This supports an AI interview without making the AI a second tax or policy
+engine: the client reads `field_metadata`, asks the questions, writes answers to
+canonical paths, invokes Futuruna, and explains the deterministic result and its
+source references.
 
 ## Commands
 

@@ -70,11 +70,33 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
         .any(|definition| definition["name"] == "FilingStatus"));
     assert_eq!(schema["metadata"][0]["role"], "source");
     assert_eq!(schema["metadata"][0]["binding"], "tax_source");
+    assert_eq!(schema["metadata"][0]["data"]["name"], "SourceInfo");
     assert!(schema["metadata"][0]["symbols"]
         .as_array()
         .expect("metadata symbols")
         .iter()
         .any(|symbol| symbol == "calculate_tax"));
+
+    let field_metadata = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(field_metadata.len(), 5);
+    let monthly_income = field_metadata
+        .iter()
+        .find(|metadata| metadata["path"] == "monthly_income")
+        .expect("monthly income metadata");
+    assert_eq!(monthly_income["label"], "Monthly income");
+    assert_eq!(
+        monthly_income["question"],
+        "What is your income before tax each month?"
+    );
+    assert_eq!(monthly_income["unit"], "currency/month");
+    assert_eq!(monthly_income["sources"][0]["binding"], "tax_source");
+    assert_eq!(
+        monthly_income["sources"][0]["data"]["arguments"][0]["value"]["value"],
+        "https://example.invalid/tax"
+    );
+    assert!(field_metadata
+        .iter()
+        .any(|metadata| metadata["path"] == "children.age"));
 }
 
 #[test]
@@ -315,12 +337,37 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         );
         assert_eq!(
             workbook_headers(&mut workbook, "cases"),
-            ["case_id", "monthly_income", "filing_status", "deduction"]
+            ["case_id", "Monthly income", "Filing status", "deduction"]
         );
         assert_eq!(
             workbook_headers(&mut workbook, "children"),
-            ["case_id", "item_id", "position", "name", "age"]
+            ["case_id", "item_id", "position", "Child name", "Child age"]
         );
+        let columns = workbook
+            .worksheet_range("_columns")
+            .expect("column metadata");
+        let monthly_income = columns
+            .rows()
+            .skip(1)
+            .find(|row| row.get(9).map(ToString::to_string).as_deref() == Some("monthly_income"))
+            .expect("monthly income column metadata");
+        assert_eq!(
+            monthly_income.get(2).map(ToString::to_string).as_deref(),
+            Some("monthly_income")
+        );
+        assert_eq!(
+            monthly_income.get(10).map(ToString::to_string).as_deref(),
+            Some("Monthly income")
+        );
+        assert_eq!(
+            monthly_income.get(11).map(ToString::to_string).as_deref(),
+            Some("What is your income before tax each month?")
+        );
+        assert!(monthly_income
+            .get(14)
+            .map(ToString::to_string)
+            .expect("source metadata")
+            .contains("tax_source"));
     }
 
     edit_workbook(&input_path, |sheets| {
@@ -453,6 +500,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let case_headers = workbook_headers(&mut workbook, "cases");
         assert_eq!(case_headers.len(), 118);
         for expected in [
+            "Skatteår",
+            "Bopælskommune",
+            "Årlig bruttoløn",
+            "Befordringsfradrag",
+            "Aldersstatus for personfradrag",
+            "Kirkeskat",
+            "Årets renteindtægter",
+            "Årets renteudgifter",
+            "Årsopgørelse",
+        ] {
+            assert!(
+                case_headers.iter().any(|header| header == expected),
+                "missing human Personskatteloven input label {expected}"
+            );
+        }
+        let column_metadata = workbook
+            .worksheet_range("_columns")
+            .expect("column metadata");
+        let metadata_headers = column_metadata.rows().next().expect("metadata headers");
+        let input_path_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "input_path")
+            .expect("input_path metadata column");
+        let canonical_input_paths = column_metadata
+            .rows()
+            .skip(1)
+            .filter_map(|row| row.get(input_path_column))
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        for expected in [
             "aktieavance.ordinært_aktieår.$variant",
             "lønmodtager.ligningsfradrag.befordring.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
@@ -478,19 +555,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "årsopgørelse.MedÅrsopgørelse.kreditter.a_skat_og_am_indeholdt_kroner",
         ] {
             assert!(
-                case_headers.iter().any(|header| header == expected),
+                canonical_input_paths.iter().any(|path| path == expected),
                 "missing typed Personskatteloven input column {expected}"
             );
         }
-        assert!(!case_headers
+        assert!(!canonical_input_paths
             .iter()
-            .any(|header| header == "lønmodtager.ligningsmæssige_fradrag_kroner"));
-        assert!(!case_headers
+            .any(|path| path == "lønmodtager.ligningsmæssige_fradrag_kroner"));
+        assert!(!canonical_input_paths
             .iter()
-            .any(|header| header.contains("aftrapningsindkomst_kroner")));
-        assert!(!case_headers
+            .any(|path| path.contains("aftrapningsindkomst_kroner")));
+        assert!(!canonical_input_paths
             .iter()
-            .any(|header| header.contains("ligningslov9d_resultat")));
+            .any(|path| path.contains("ligningslov9d_resultat")));
         assert_eq!(
             workbook_headers(&mut workbook, "kapitalindkomst_omkostninger"),
             [
@@ -2011,6 +2088,90 @@ fn calculate_with_prompt_argument_is_a_parse_error() {
 }
 
 #[test]
+fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
+    let unknown_path = temp_path("runa");
+    std::fs::write(
+        &unknown_path,
+        "# Input(value: Int)\n\
+# CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
+= bad_field = CalculationField(path = \"missing\", label = \"Missing\", question = \"\", help = \"\", unit = \"\")\n\
+--@label:calculate::field:bad_field--\n\
+@ calculate\n\
+| calculate(input: Input) -> input.value\n",
+    )
+    .expect("write unknown field metadata source");
+    let output = run(&["check", unknown_path.to_str().expect("source path")]);
+    std::fs::remove_file(&unknown_path).ok();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown input path `missing`"));
+
+    let duplicate_path = temp_path("runa");
+    std::fs::write(
+        &duplicate_path,
+        "# Input(value: Int)\n\
+# CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
+= first_field = CalculationField(path = \"value\", label = \"First\", question = \"\", help = \"\", unit = \"\")\n\
+= second_field = CalculationField(path = \"Input.value\", label = \"Second\", question = \"\", help = \"\", unit = \"\")\n\
+--@label:calculate::field:first_field::field:second_field--\n\
+@ calculate\n\
+| calculate(input: Input) -> input.value\n",
+    )
+    .expect("write duplicate field metadata source");
+    let output = run(&["check", duplicate_path.to_str().expect("source path")]);
+    std::fs::remove_file(&duplicate_path).ok();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("duplicate field metadata for `value`")
+    );
+}
+
+#[test]
+fn changing_field_metadata_makes_an_xlsx_template_stale() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    let source = |label: &str| {
+        format!(
+            "# Input(value: Int)\n\
+# CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
+= value_field = CalculationField(path = \"value\", label = {label:?}, question = \"What is the value?\", help = \"\", unit = \"\")\n\
+--@label:calculate::field:value_field--\n\
+@ calculate\n\
+| calculate(input: Input) -> input.value\n"
+        )
+    };
+    std::fs::write(&source_path, source("Original label")).expect("write calculation source");
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    std::fs::write(&source_path, source("Updated label")).expect("update calculation source");
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"][0]["message"]
+        .as_str()
+        .expect("diagnostic")
+        .contains("stale calculation template"));
+}
+
+#[test]
 fn typed_function_is_a_calculation_boundary_too() {
     let source_path = temp_path("runa");
     let input_path = temp_path("json");
@@ -2225,7 +2386,7 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v3"),
+        ("schema", "futuruna.calculate.xlsx.input.v4"),
         ("contract_schema", "futuruna.calculate.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),
@@ -2409,13 +2570,17 @@ fn set_workbook_cell_by_header(
     header: &str,
     value: Data,
 ) {
+    let display_header = calculation_workbook_display_header(sheets, sheet, header)
+        .unwrap_or_else(|| header.to_string());
     let rows = workbook_sheet_mut(sheets, sheet);
     let column = rows
         .first()
         .expect("header row")
         .iter()
-        .position(|cell| cell.to_string() == header)
-        .unwrap_or_else(|| panic!("missing column {header} on sheet {sheet}"));
+        .position(|cell| cell.to_string() == display_header)
+        .unwrap_or_else(|| {
+            panic!("missing column {header} (displayed as {display_header}) on sheet {sheet}")
+        });
     while rows.len() <= row {
         rows.push(Vec::new());
     }
@@ -2423,6 +2588,44 @@ fn set_workbook_cell_by_header(
         rows[row].resize(column + 1, Data::Empty);
     }
     rows[row][column] = value;
+}
+
+fn calculation_workbook_display_header(
+    sheets: &[(String, Vec<Vec<Data>>)],
+    sheet: &str,
+    path: &str,
+) -> Option<String> {
+    let rows = &sheets.iter().find(|(name, _)| name == "_columns")?.1;
+    let headers = rows.first()?;
+    let column = |name: &str| headers.iter().position(|cell| cell.to_string() == name);
+    let sheet_column = column("sheet")?;
+    let path_column = column("path")?;
+    let input_path_column = column("input_path")?;
+    let label_column = column("label")?;
+    rows.iter()
+        .skip(1)
+        .find(|row| {
+            row.get(sheet_column).map(ToString::to_string).as_deref() == Some(sheet)
+                && (row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
+                    || row
+                        .get(input_path_column)
+                        .map(ToString::to_string)
+                        .as_deref()
+                        == Some(path))
+        })
+        .map(|row| {
+            let label = row
+                .get(label_column)
+                .map(ToString::to_string)
+                .unwrap_or_default();
+            if label.is_empty() {
+                row.get(path_column)
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| path.to_string())
+            } else {
+                label
+            }
+        })
 }
 
 fn write_workbook_data(

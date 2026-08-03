@@ -25,6 +25,56 @@ matches, rule scopes, and ordinary rule dependencies continue to work normally.
 Use plain `@ calculate`. The annotation does not accept a prompt string. Labels,
 help, units, and sources belong in typed meta comments.
 
+## Describe Human Input
+
+Keep the calculation boundary machine-stable and attach presentation metadata to
+individual canonical input paths. A field binding is an ordinary pure ground
+record. The `field` role gives it calculation meaning; the anchor label names the
+calculation entry.
+
+```runa
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# SourceInfo(url: String, section: String)
+
+= tax_source = SourceInfo(
+    url = "https://example.invalid/tax",
+    section = "income"
+)
+= monthly_income_field = CalculationField(
+    path = "monthly_income",
+    label = "Monthly income before tax",
+    question = Some("What do you earn before tax each month?"),
+    help = Some("Use the gross amount before deductions."),
+    unit = Some("currency/month")
+)
+
+--@label:calculate_tax::field:monthly_income_field::source:tax_source--
+```
+
+`path` uses the exact canonical path emitted by the calculation layout. Root
+fields use paths such as `monthly_income`; a field in a related list table uses
+a path such as `children.age`, while `children` can describe the collection
+itself. `input.monthly_income` and `TaxInput.monthly_income` are accepted and
+normalized to the canonical path. Unknown paths and duplicate metadata for one
+path are errors.
+
+The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
+`path` and `label` are required strings. The other fields may be strings,
+optional strings, or omitted by a record type that does not declare them.
+Companion references on the same anchor, such as `source`, remain typed metadata
+and are copied into that field's source trace.
+
+Field metadata appears structurally in `runa schema` and participates in the
+schema fingerprint. In XLSX, the human label is the visible column header; the
+exact canonical path and all presentation data remain in the hidden `_columns`
+or `_tables` sheet. Header notes expose the path, interview question, help, unit,
+and source bindings. None of this prose changes requiredness, alternatives,
+validation, or rule evaluation.
+
+An AI client can therefore read the schema, ask each field's `question`, map the
+answer to `path`, and submit canonical JSON or XLSX. The AI gathers facts and
+explains the returned rule trace; Futuruna remains the deterministic calculator.
+
 ## Inspect The Contract
 
 ```sh
@@ -58,7 +108,8 @@ choice plus typed variant-qualified columns, and puts each `List`, string-keyed
 are text-formatted so all `i64` values remain exact.
 
 `cases` is the first visible worksheet and contains scalar fields for the named
-input record. Every collection row
+input record. Explicit field labels replace machine paths only in visible
+headers; hidden topology retains the paths. Every collection row
 uses `case_id` and `item_id`; nested collection sheets add `parent_id`. List rows
 use one-based `position`, map rows use `key`, and set rows have neither. Leave a
 collection sheet without matching rows to supply an empty collection. Hidden

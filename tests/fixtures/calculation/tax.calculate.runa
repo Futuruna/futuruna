@@ -3,8 +3,50 @@
 # TaxInput(monthly_income: Int, filing_status: FilingStatus, deduction: Int?, children: List(Child))
 # TaxResult(annual_income: Int, taxable_income: Int, annual_tax: Int)
 # SourceInfo(url: String, section: String)
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
 
 = tax_source = SourceInfo(url = "https://example.invalid/tax", section = "fixture")
+= monthly_income_field = CalculationField(
+    path = "monthly_income",
+    label = "Monthly income",
+    question = Some("What is your income before tax each month?"),
+    help = Some("Enter the gross amount before deductions."),
+    unit = Some("currency/month")
+)
+= filing_status_field = CalculationField(
+    path = "filing_status",
+    label = "Filing status",
+    question = Some("What is your filing status?"),
+    help = None,
+    unit = None
+)
+= children_field = CalculationField(
+    path = "children",
+    label = "Children",
+    question = Some("Do you have children to include?"),
+    help = Some("Add one row per child in the Children sheet."),
+    unit = None
+)
+= child_name_field = CalculationField(
+    path = "children.name",
+    label = "Child name",
+    question = Some("What is the child's name?"),
+    help = None,
+    unit = None
+)
+= child_age_field = CalculationField(
+    path = "children.age",
+    label = "Child age",
+    question = Some("How old is the child?"),
+    help = None,
+    unit = Some("years")
+)
+
+--@label:calculate_tax::field:monthly_income_field::source:tax_source--
+--@label:calculate_tax::field:filing_status_field::source:tax_source--
+--@label:calculate_tax::field:children_field::source:tax_source--
+--@label:calculate_tax::field:child_name_field::source:tax_source--
+--@label:calculate_tax::field:child_age_field::source:tax_source--
 
 | annual_income(input: TaxInput) -> input.monthly_income * 12
 

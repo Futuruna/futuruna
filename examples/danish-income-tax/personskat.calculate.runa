@@ -35,6 +35,81 @@
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatBeregningResultat(skat: LønmodtagerBreakdown, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
+
+= personskat_felt_skatteår = Beregningsfelt(
+    path = "lønmodtager.skatteår",
+    label = "Skatteår",
+    question = Some("Hvilket indkomstår skal skatten beregnes for?"),
+    help = Some("Satser, beløbsgrænser og lovregler afhænger af skatteåret."),
+    unit = Some("år")
+)
+= personskat_felt_kommune = Beregningsfelt(
+    path = "lønmodtager.kommune",
+    label = "Bopælskommune",
+    question = Some("Hvilken kommune bor du i?"),
+    help = Some("Kommunen bestemmer kommuneskatten og er relevant for kirkeskatten."),
+    unit = None
+)
+= personskat_felt_bruttoløn = Beregningsfelt(
+    path = "lønmodtager.bruttoløn_kroner",
+    label = "Årlig bruttoløn",
+    question = Some("Hvor meget modtager du i løn før skat i hele indkomståret?"),
+    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_befordring = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.$variant",
+    label = "Befordringsfradrag",
+    question = Some("Vil du oplyse transport mellem hjem og arbejde?"),
+    help = Some("Vælg kun befordringsfradrag, når de underliggende afstande og arbejdsdage skal medregnes."),
+    unit = None
+)
+= personskat_felt_alder = Beregningsfelt(
+    path = "lønmodtager.personfradrag_alder_status",
+    label = "Aldersstatus for personfradrag",
+    question = Some("Er du fyldt 18 år ved indkomstårets udgang?"),
+    help = Some("Aldersstatus bruges til at vælge årets personfradrag."),
+    unit = None
+)
+= personskat_felt_kirkeskat = Beregningsfelt(
+    path = "lønmodtager.betaler_kirkeskat",
+    label = "Kirkeskat",
+    question = Some("Betaler du kirkeskat?"),
+    help = Some("Kirkeskat beregnes kun, når dette felt er sandt."),
+    unit = None
+)
+= personskat_felt_renteindtægter = Beregningsfelt(
+    path = "kapitalindkomst.renter.renteindtægter_kroner",
+    label = "Årets renteindtægter",
+    question = Some("Hvor store renteindtægter har du i indkomståret?"),
+    help = Some("Angiv den samlede positive renteindtægt, der indgår i kapitalindkomsten."),
+    unit = Some("kr./år")
+)
+= personskat_felt_renteudgifter = Beregningsfelt(
+    path = "kapitalindkomst.renter.renteudgifter_kroner",
+    label = "Årets renteudgifter",
+    question = Some("Hvor store fradragsberettigede renteudgifter har du i indkomståret?"),
+    help = Some("Angiv den samlede renteudgift, der indgår i kapitalindkomsten."),
+    unit = Some("kr./år")
+)
+= personskat_felt_årsopgørelse = Beregningsfelt(
+    path = "årsopgørelse.$variant",
+    label = "Årsopgørelse",
+    question = Some("Skal allerede betalt skat, restskat og kreditter indgå i resultatet?"),
+    help = Some("Vælg årsopgørelse for at beregne slutskat efter indeholdt skat og øvrige kreditter."),
+    unit = None
+)
+
+--@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
+--@label:beregn_personskat::field:personskat_felt_bruttoløn::source:personskatteloven_2021_1284::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
+--@label:beregn_personskat::field:personskat_felt_befordring::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_alder::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_kirkeskat::source:folkekirkens_økonomilov_2023_424::dependency_source:kommuneskatteloven_2019_935--
+--@label:beregn_personskat::field:personskat_felt_renteindtægter::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_renteudgifter::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_årsopgørelse::source:kildeskatteloven_2024_460--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,

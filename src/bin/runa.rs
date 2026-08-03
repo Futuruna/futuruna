@@ -680,7 +680,7 @@ fn main_inner() {
     }
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v3";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v4";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
 
 fn run_calculation_command(
@@ -1170,6 +1170,11 @@ fn write_calculation_xlsx_layout_metadata(
         "item_type",
         "item_value_column",
         "active_when",
+        "label",
+        "question",
+        "help",
+        "unit",
+        "sources",
     ]
     .into_iter()
     .enumerate()
@@ -1190,10 +1195,13 @@ fn write_calculation_xlsx_layout_metadata(
             7,
             calculation_variant_guards_metadata(&table.variant_guards),
         )?;
+        write_calculation_xlsx_field_metadata(tables, row, 8, table.metadata.as_ref())?;
     }
-    for (column, width) in [28.0, 24.0, 28.0, 28.0, 12.0, 32.0, 20.0, 48.0]
-        .into_iter()
-        .enumerate()
+    for (column, width) in [
+        28.0, 24.0, 28.0, 28.0, 12.0, 32.0, 20.0, 48.0, 32.0, 48.0, 64.0, 18.0, 64.0,
+    ]
+    .into_iter()
+    .enumerate()
     {
         tables.set_column_width(column as u16, width)?;
     }
@@ -1210,6 +1218,12 @@ fn write_calculation_xlsx_layout_metadata(
         "required",
         "choices",
         "active_when",
+        "input_path",
+        "label",
+        "question",
+        "help",
+        "unit",
+        "sources",
     ]
     .into_iter()
     .enumerate()
@@ -1233,9 +1247,11 @@ fn write_calculation_xlsx_layout_metadata(
             row += 1;
         }
     }
-    for (column, width) in [24.0, 28.0, 36.0, 36.0, 32.0, 14.0, 12.0, 48.0, 48.0]
-        .into_iter()
-        .enumerate()
+    for (column, width) in [
+        24.0, 28.0, 36.0, 36.0, 32.0, 14.0, 12.0, 48.0, 48.0, 48.0, 32.0, 48.0, 64.0, 18.0, 64.0,
+    ]
+    .into_iter()
+    .enumerate()
     {
         columns.set_column_width(column as u16, width)?;
     }
@@ -1263,6 +1279,44 @@ fn write_calculation_xlsx_column_metadata(
         8,
         calculation_variant_guards_metadata(&column.variant_guards),
     )?;
+    worksheet.write_string(row, 9, &column.input_path)?;
+    write_calculation_xlsx_field_metadata(worksheet, row, 10, column.metadata.as_ref())?;
+    Ok(())
+}
+
+fn write_calculation_xlsx_field_metadata(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    row: u32,
+    start_column: u16,
+    metadata: Option<&calculate::CalculationFieldMetadata>,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let Some(metadata) = metadata else {
+        for offset in 0..5 {
+            worksheet.write_string(row, start_column + offset, "")?;
+        }
+        return Ok(());
+    };
+    worksheet.write_string(row, start_column, &metadata.label)?;
+    worksheet.write_string(
+        row,
+        start_column + 1,
+        metadata.question.as_deref().unwrap_or(""),
+    )?;
+    worksheet.write_string(
+        row,
+        start_column + 2,
+        metadata.help.as_deref().unwrap_or(""),
+    )?;
+    worksheet.write_string(
+        row,
+        start_column + 3,
+        metadata.unit.as_deref().unwrap_or(""),
+    )?;
+    worksheet.write_string(
+        row,
+        start_column + 4,
+        calculation_xlsx_field_sources_metadata(metadata),
+    )?;
     Ok(())
 }
 
@@ -1283,7 +1337,13 @@ fn write_calculation_xlsx_cases(
     worksheet.write_string_with_format(0, 0, "case_id", &header)?;
     for (index, column) in columns.iter().enumerate() {
         let excel_column = index as u16 + 1;
-        worksheet.write_string_with_format(0, excel_column, &column.path, &header)?;
+        worksheet.write_string_with_format(
+            0,
+            excel_column,
+            calculation_xlsx_column_header(column),
+            &header,
+        )?;
+        add_calculation_xlsx_column_note(worksheet, excel_column, column)?;
         worksheet.set_column_width(excel_column, calculation_column_width(column))?;
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
@@ -1345,7 +1405,12 @@ fn calculation_xlsx_collection_headers(
         calculate::CalculationCollectionKind::Map => headers.push("key".to_string()),
         calculate::CalculationCollectionKind::Set => {}
     }
-    headers.extend(table.columns.iter().map(|column| column.path.clone()));
+    headers.extend(
+        table
+            .columns
+            .iter()
+            .map(|column| calculation_xlsx_column_header(column).to_string()),
+    );
     headers
 }
 
@@ -1383,6 +1448,7 @@ fn write_calculation_xlsx_collection_sheet(
     }
     for (index, column) in table.columns.iter().enumerate() {
         let excel_column = payload_start + index as u16;
+        add_calculation_xlsx_column_note(worksheet, excel_column, column)?;
         worksheet.set_column_width(excel_column, calculation_column_width(column))?;
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
@@ -1610,13 +1676,64 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
         calculate::CalculationColumnEncoding::Json => 48.0,
         calculate::CalculationColumnEncoding::String => 28.0,
     };
-    let header_width = column.path.chars().count() as f64 + 2.0;
+    let header_width = calculation_xlsx_column_header(column).chars().count() as f64 + 2.0;
     let choice_width = column
         .choices
         .iter()
         .map(|choice| choice.chars().count() as f64 + 4.0)
         .fold(0.0_f64, f64::max);
     content_width.max(header_width).max(choice_width).min(48.0)
+}
+
+fn calculation_xlsx_column_header(column: &calculate::CalculationColumn) -> &str {
+    column
+        .metadata
+        .as_ref()
+        .map(|metadata| metadata.label.as_str())
+        .unwrap_or(&column.path)
+}
+
+fn add_calculation_xlsx_column_note(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    excel_column: u16,
+    column: &calculate::CalculationColumn,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let Some(metadata) = column.metadata.as_ref() else {
+        return Ok(());
+    };
+    let mut lines = vec![format!("Futuruna path: {}", column.input_path)];
+    if let Some(question) = &metadata.question {
+        lines.push(format!("Question: {question}"));
+    }
+    if let Some(help) = &metadata.help {
+        lines.push(format!("Help: {help}"));
+    }
+    if let Some(unit) = &metadata.unit {
+        lines.push(format!("Unit: {unit}"));
+    }
+    if !metadata.sources.is_empty() {
+        lines.push("Sources:".to_string());
+        for source in &metadata.sources {
+            let value = source.value.as_deref().unwrap_or(&source.binding);
+            lines.push(format!(
+                "- {}: {} ({})",
+                source.role,
+                source.binding,
+                truncate_calculation_note_text(value, 500)
+            ));
+        }
+    }
+    let note = rust_xlsxwriter::Note::new(lines.join("\n")).set_author("Futuruna");
+    worksheet.insert_note(0, excel_column, &note)?;
+    Ok(())
+}
+
+fn truncate_calculation_note_text(value: &str, limit: usize) -> String {
+    if value.chars().count() <= limit {
+        value.to_string()
+    } else {
+        format!("{}...", value.chars().take(limit).collect::<String>())
+    }
 }
 
 fn calculation_value_at_column_path<'a>(
@@ -1838,7 +1955,12 @@ fn read_calculation_xlsx(
         .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
     let actual_headers: Vec<String> = header.iter().map(calculation_cell_text).collect();
     let expected_headers: Vec<String> = std::iter::once("case_id".to_string())
-        .chain(layout.root_columns.iter().map(|column| column.path.clone()))
+        .chain(
+            layout
+                .root_columns
+                .iter()
+                .map(|column| calculation_xlsx_column_header(column).to_string()),
+        )
         .collect();
     if actual_headers != expected_headers {
         return Err(format!(
@@ -2263,9 +2385,14 @@ fn calculation_xlsx_expected_tables_metadata(
         "item_type".to_string(),
         "item_value_column".to_string(),
         "active_when".to_string(),
+        "label".to_string(),
+        "question".to_string(),
+        "help".to_string(),
+        "unit".to_string(),
+        "sources".to_string(),
     ]];
     rows.extend(layout.collection_tables.iter().map(|table| {
-        vec![
+        let mut row = vec![
             table.path.clone(),
             table.sheet.clone(),
             table.parent_path.clone().unwrap_or_default(),
@@ -2274,7 +2401,11 @@ fn calculation_xlsx_expected_tables_metadata(
             table.item_type.display_name(),
             table.item_value_column.to_string(),
             calculation_variant_guards_metadata(&table.variant_guards),
-        ]
+        ];
+        row.extend(calculation_xlsx_expected_field_metadata(
+            table.metadata.as_ref(),
+        ));
+        row
     }));
     rows
 }
@@ -2292,6 +2423,12 @@ fn calculation_xlsx_expected_columns_metadata(
         "required".to_string(),
         "choices".to_string(),
         "active_when".to_string(),
+        "input_path".to_string(),
+        "label".to_string(),
+        "question".to_string(),
+        "help".to_string(),
+        "unit".to_string(),
+        "sources".to_string(),
     ]];
     rows.extend(
         layout
@@ -2314,7 +2451,7 @@ fn calculation_xlsx_expected_column_row(
     table_path: &str,
     column: &calculate::CalculationColumn,
 ) -> Vec<String> {
-    vec![
+    let mut row = vec![
         sheet.to_string(),
         table_path.to_string(),
         column.path.clone(),
@@ -2324,7 +2461,47 @@ fn calculation_xlsx_expected_column_row(
         column.required.to_string(),
         column.choices.join(" | "),
         calculation_variant_guards_metadata(&column.variant_guards),
+        column.input_path.clone(),
+    ];
+    row.extend(calculation_xlsx_expected_field_metadata(
+        column.metadata.as_ref(),
+    ));
+    row
+}
+
+fn calculation_xlsx_expected_field_metadata(
+    metadata: Option<&calculate::CalculationFieldMetadata>,
+) -> Vec<String> {
+    let Some(metadata) = metadata else {
+        return vec![String::new(); 5];
+    };
+    vec![
+        metadata.label.clone(),
+        metadata.question.clone().unwrap_or_default(),
+        metadata.help.clone().unwrap_or_default(),
+        metadata.unit.clone().unwrap_or_default(),
+        calculation_xlsx_field_sources_metadata(metadata),
     ]
+}
+
+fn calculation_xlsx_field_sources_metadata(
+    metadata: &calculate::CalculationFieldMetadata,
+) -> String {
+    let sources = metadata
+        .sources
+        .iter()
+        .map(|source| {
+            serde_json::json!({
+                "label": source.label,
+                "role": source.role,
+                "binding": source.binding,
+                "type": source.qualified_type,
+                "value": source.value,
+                "data": source.data,
+            })
+        })
+        .collect::<Vec<_>>();
+    serde_json::to_string(&sources).expect("calculation field sources are JSON serializable")
 }
 
 fn validate_calculation_xlsx_metadata_matrix(
