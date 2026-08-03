@@ -1,0 +1,351 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+
+# EblPar8Par9KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ebl_par8_par9_lbk132 = EblPar8Par9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/132",
+    identifier = "Ejendomsavancebeskatningsloven §§ 8 og 9",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par9_lov1580 = EblPar8Par9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/1580",
+    identifier = "LOV nr. 1580 af 27/12/2019 § 2",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par9_lov562 = EblPar8Par9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/562",
+    identifier = "LOV nr. 562 af 27/05/2025 §§ 6 og 16",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par9_lov615 = EblPar8Par9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026 §§ 7 og 16",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par9_vejledning_2026 = EblPar8Par9KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948727",
+    identifier = "Den juridiske vejledning 2026-1, EBL § 9",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par8::source:ebl_par8_par9_lbk132--
+----
+§ 8. Fortjeneste ved afståelse af en- og tofamilieshuse og ejerlejligheder skal
+ikke medregnes, hvis huset eller lejligheden har tjent til bolig for ejeren
+eller dennes husstand i en del af eller hele den periode, hvori denne har ejet
+ejendommen, og hvor ejendommen har opfyldt betingelserne for at kunne afstås
+skattefrit efter nærværende stykke.
+Med hensyn til en- og tofamilieshuse gælder denne fritagelse dog kun, såfremt
+1) ejendommens samlede grundareal er mindre end 1.400 m² eller
+2) der ifølge offentlig myndigheds bestemmelse ikke fra ejendommen kan
+udstykkes grund til selvstændig bebyggelse eller
+3) udstykning ifølge erklæring fra told- og skatteforvaltningen vil medføre
+værdiforringelse på mere end 20 pct. af restarealet eller den bestående
+bebyggelse.
+
+Stk. 2. Reglerne i stk. 1 gælder også for sommerhusejendomme og lign., som
+ejeren eller dennes husstand har benyttet til privat formål i en del af eller
+hele den periode, hvori denne har ejet ejendommen, og hvor ejendommen har
+opfyldt betingelserne for at kunne afstås skattefrit efter nærværende stykke.
+
+Stk. 3. Reglerne i stk. 1 gælder også ved afståelse af en anpart af en fast
+ejendom med flere beboelseslejligheder, såfremt anparten er forbundet med
+brugsret til en beboelseslejlighed i ejendommen, og lejligheden har tjent til
+bolig for ejeren af anparten eller dennes husstand i en del af eller hele den
+periode, hvori denne har ejet anparten, og hvor betingelserne for at kunne
+afstå anparten skattefrit efter nærværende stykke har været opfyldt.
+
+Stk. 4. Fortjeneste eller tab ved afståelse, herunder ved udlodning af
+likvidationsprovenu i det kalenderår, hvori selskabet m.v. endeligt opløses, af
+aktier, andelsbeviser og lignende værdipapirer, der er forbundet med brugsret
+til en beboelseslejlighed i en ejendom med flere beboelseslejligheder,
+medregnes ikke ved opgørelsen af skattepligtig indkomst efter
+aktieavancebeskatningsloven, hvis lejligheden har tjent til bolig for ejeren af
+værdipapiret eller dennes husstand i en del af eller hele den periode, hvori
+denne har ejet værdipapiret, og hvor betingelserne for at kunne afstå
+værdipapiret skattefrit efter nærværende stykke har været opfyldt.
+Stk. 1, 2. pkt., finder tilsvarende anvendelse, såfremt der hører et bestemt
+grundareal til lejligheden.
+
+Stk. 5. Reglerne i stk. 1-3 og 8 gælder ikke for fortjeneste ved afståelse af
+en erhvervsejendom, der efter § 6 A, § 6 C eller § 10 er genanbragt i en
+ejendom omfattet af stk. 1-3.
+Fortjenesten ved afståelsen af erhvervsejendommen beskattes i det indkomstår,
+hvor den ejendom, som fortjenesten er genanbragt i, afstås.
+Den skattepligtige fortjeneste opgøres med de tillæg og nedslag efter denne lov,
+som erhvervsejendommen havde været berettiget til, hvis fortjenesten var blevet
+beskattet på tidspunktet for afståelsen af erhvervsejendommen.
+
+Stk. 6. Fortjeneste eller tab ved afståelse af en ejendom medregnes ikke til den
+skattepligtige indkomst, hvis
+1) der på ejendommen har været opført et hus, der er blevet væsentligt
+beskadiget,
+2) beskadigelsen ikke skyldes forsæt eller grov uagtsomhed fra ejeren eller
+personer i ejerens husstand og
+3) ejendommen på tidspunktet umiddelbart forud for beskadigelsen kunne været
+afstået skattefrit efter stk. 1-3.
+
+Stk. 7. Det er en forudsætning for skattefriheden efter stk. 6, at hele
+ejendommen afstås senest 1 år efter, at skaden er indtruffet.
+Told- og skatteforvaltningen kan i ganske særlige tilfælde dispensere fra denne
+frist.
+
+Stk. 8. Fortjeneste eller tab ved afståelse af ejerbolig inkl.
+et grundareal på under 1.400 m2 medregnes ikke til den skattepligtige indkomst,
+hvis
+1) ejeren har anmodet om, at der vedrørende ejendommen foretages en matrikulær
+udstykning af et grundareal efter lov om udstykning og anden registrering i
+matriklen,
+2) ejeren, inden sagsbehandlingen af anmodningen om udstykning er
+færdigbehandlet, ifølge erklæring fra de sociale myndigheder er flyttet fra
+ejendommen til en beskyttet bolig eller til et plejehjem og
+3) der er tale om et en- eller tofamilieshus som nævnt i stk. 1, der har tjent
+til bolig for ejeren umiddelbart forud for fraflytningen.
+----
+
+--@label:ebl_par9::source:ebl_par8_par9_lbk132::amendment_source:ebl_par9_lov1580::amendment_source:ebl_par9_lov562::guidance:ebl_par9_vejledning_2026--
+----
+§ 9. Ved afståelse af en ejendom, der på afståelsestidspunktet anses for
+landbrugs- eller skovejendom efter ejendomsvurderingsloven, skal den del af
+fortjenesten, som vedrører stuehuset med tilhørende grund og have, ikke
+medregnes.
+Tilsvarende gælder for den del af fortjenesten, som vedrører ejerboligen, ved
+afståelse af en ejendom, der indeholder en eller to selvstændige lejligheder,
+hvor ejendommen både tjener eller har tjent til bolig for ejeren og i
+væsentligt omfang benyttes erhvervsmæssigt, jf. ejendomsvurderingslovens § 35,
+stk. 1.
+Anvendelse af reglen i 1. pkt. er betinget af, at ejendommen har tjent til bolig
+for ejeren eller dennes husstand i en del af eller hele den periode, hvori denne
+har ejet ejendommen, og hvor ejendommen har været omfattet af
+ejendomsvurderingslovens § 2, stk. 2, § 3, stk. 1, nr. 2 eller 3, eller § 35,
+stk. 1.
+§ 8, stk. 1, 2. pkt., finder tilsvarende anvendelse.
+
+Stk. 2. Den del af fortjenesten, der ikke skal medregnes, jf. stk. 1, opgøres
+som forskellen mellem den del af den samlede kontantomregnede afståelsessum,
+der vedrører stuehuset med tilhørende grund og have eller ejerboligen, og den
+del af den samlede anskaffelsessum opgjort efter § 4, stk. 2 eller 3, der
+vedrører stuehuset med tilhørende grund og have eller ejerboligen.
+
+Stk. 3. Den del af fortjenesten, der skal medregnes, opgøres som forskellen
+mellem på den ene side den del af afståelsessummen omregnet efter § 4, stk. 4,
+der vedrører den del af ejendommen, der ikke omfattes af stk. 1 og 2, og på den
+anden side anskaffelsessummen for den del af ejendommen, der ikke omfattes af
+stk. 1 og 2, opgjort efter § 4, stk. 2 eller 3, og reguleret efter § 5 eller
+§ 5 A.
+
+Stk. 4. Reglerne i stk. 1-3 gælder ikke for fortjeneste ved afståelse af en
+erhvervsejendom, der efter § 6 A, § 6 C eller § 10 er genanbragt i en ejendom
+omfattet af stk. 1-3, hvis boligandelen efter genanbringelsen er forøget og det
+ikke er muligt at beskatte hele den genanbragte fortjeneste ved afståelsen af
+den erhvervsmæssige del af den ejendom, hvori fortjenesten er genanbragt.
+Fortjenesten ved afståelsen af erhvervsejendommen beskattes i det indkomstår,
+hvor den ejendom, som fortjenesten er genanbragt i, afstås.
+Den skattepligtige fortjeneste opgøres med de tillæg og nedslag efter denne lov,
+som erhvervsejendommen havde været berettiget til, hvis fortjenesten var blevet
+beskattet på tidspunktet for afståelsen af erhvervsejendommen.
+Hvis en afståelse er omfattet af 1. pkt., bortfalder ved beregning af den
+skattepligtige indkomst af fortjenesten ved afståelsen af den ejendom, hvori
+fortjenesten oprindelig har været anbragt, nedslag i denne ejendoms
+anskaffelsessum efter § 6 A, § 6 C eller § 10.
+
+Stk. 5. Fortjeneste ved afståelse af en ejendom medregnes ikke til den
+skattepligtige indkomst, hvis
+1) der på ejendommen har været opført et hus, der er blevet væsentligt
+beskadiget,
+2) beskadigelsen ikke skyldes forsæt eller grov uagtsomhed fra ejeren eller
+personer i ejerens husstand og
+3) fortjeneste ved afståelse af stuehuset med tilhørende grund og have eller
+boligdelen af blandet benyttet ejendom på tidspunktet umiddelbart forud for
+beskadigelsen ikke skulle være medregnet til den skattepligtige indkomst efter
+stk. 1.
+
+Stk. 6. Skattefritagelsen efter stk. 5 omfatter kun den del af en ejendom, der
+er omfattet af stk. 5, nr. 3.
+
+Stk. 7. Det er en forudsætning for skattefriheden efter stk. 5, at hele
+ejendommen afstås senest 1 år efter, at skaden er indtruffet.
+Told- og skatteforvaltningen kan i ganske særlige tilfælde dispensere fra denne
+frist.
+----
+
+--@label:ebl_par9_stk1_tredje_pkt_2020::amendment_source:ebl_par9_lov1580--
+----
+I § 9, stk. 1, 3. pkt., ændres »§ 2, stk. 2« til: »§ 2, stk. 3«.
+----
+
+--@label:ebl_par9_erhverv_og_overgang_fra_2025::amendment_source:ebl_par9_lov562--
+----
+I § 9, stk. 1, 2. pkt., ændres », der indeholder en eller to selvstændige
+lejligheder, hvor ejendommen både tjener eller har tjent til bolig for ejeren og
+i væsentligt omfang benyttes erhvervsmæssigt, jf. ejendomsvurderingslovens § 35,
+stk. 1« til: »omfattet af ejendomsvurderingslovens § 35, stk. 1, og som på
+afståelsestidspunktet anses som en erhvervsejendom efter
+ejendomsvurderingsloven«.
+
+I § 9 indsættes som stk. 8:
+
+Stk. 8. Hvad angår ejendomme omfattet af ejendomsvurderingslovens § 35, stk. 1,
+som på afståelsestidspunktet anses som en ejerbolig efter
+ejendomsvurderingsloven, og som var omfattet af § 9, stk. 1, 2. pkt., jf.
+lovbekendtgørelse nr. 132 af 25. januar 2019, kan ejeren ved henvendelse til
+told- og skatteforvaltningen vælge, at ejendommen skal behandles efter
+stk. 1-7.
+1. pkt. forudsætter, at der ikke er foretaget omvurdering efter
+ejendomsvurderingslovens § 6, stk. 1, som følge af ændringer, der er sket på
+ejerens foranledning.
+
+Loven træder i kraft den 1. juli 2025.
+----
+
+--@label:ebl_par9_natur_fra_2027::amendment_source:ebl_par9_lov615--
+----
+I § 5 A, stk. 1, 1. pkt., og § 9, stk. 1, 1. pkt., ændres »landbrugs- eller
+skovejendom« til: »landbrugs-, skov- og naturejendom«.
+
+§§ 3-12 har virkning fra og med den 1. januar 2027.
+----
+
+--@begin:ebl_par8--
+# EblPar8Grundbetingelse = EblPar8GrundarealUnder1400M2 | EblPar8IngenMuligUdstykningEfterOffentligMyndighed | EblPar8UdstykningMedVærdiforringelseOver20Procent | EblPar8GrundbetingelseIkkeOpfyldt
+# EblPar8Ejendomsart = EblPar8EnEllerTofamilieshus(grundbetingelse: EblPar8Grundbetingelse) | EblPar8Ejerlejlighed | EblPar8SommerhusEllerLignende(grundbetingelse: EblPar8Grundbetingelse) | EblPar8AnpartMedBrugsretTilBeboelseslejlighed(grundbetingelse: EblPar8Grundbetingelse) | EblPar8VærdipapirMedBrugsretTilBeboelseslejlighed(grundbetingelse: EblPar8Grundbetingelse)
+# EblPar8Skadefakta(skadedato: EblDato, hus_væsentligt_beskadiget: Boolsk, ingen_forsæt_eller_grov_uagtsomhed: Boolsk, kunne_afstås_skattefrit_umiddelbart_før_skaden: Boolsk, hele_ejendommen_afstået: Boolsk, dispensation_fra_etårsfrist: Boolsk)
+# EblPar8Plejehjemsfakta(grundareal_under_1400_m2: Boolsk, matrikulær_udstykning_anmodet: Boolsk, sagsbehandling_ikke_færdig_ved_flytning: Boolsk, socialmyndighedserklæring_foreligger: Boolsk, flyttet_til_beskyttet_bolig_eller_plejehjem: Boolsk, tjente_til_bolig_umiddelbart_før_fraflytning: Boolsk)
+# EblPar8Afståelsesforhold = EblPar8AlmindeligAfståelse | EblPar8AfståelseEfterVæsentligSkade(fakta: EblPar8Skadefakta) | EblPar8PlejehjemUnderUdstykning(fakta: EblPar8Plejehjemsfakta)
+# EblPar8Fakta(ejendomsart: EblPar8Ejendomsart, tjent_til_bolig_eller_privat_formål: Boolsk, betingelser_opfyldt_i_ejerperioden: Boolsk, afståelsesforhold: EblPar8Afståelsesforhold, genanbragt_erhvervsfortjeneste_kroner: Heltal)
+# EjendomsavancePar6Ejendomsafgrænsning = EblPar6AlmindeligEjendom | EblPar8Ejendom | EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner: Heltal)
+# EblPar8Resultat(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_ejendomsavancebeskatningsloven: Boolsk, betingelser_for_skattefrihed_opfyldt: Boolsk, skattefri_fortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_tab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
+
+| ebl_par8_grundbetingelse_opfyldt(grundbetingelse: EblPar8Grundbetingelse) -> grundbetingelse != EblPar8GrundbetingelseIkkeOpfyldt
+| ebl_par8_værdipapir(ejendomsart: EblPar8Ejendomsart) -> match ejendomsart {
+    | EblPar8VærdipapirMedBrugsretTilBeboelseslejlighed(_) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par8_normale_betingelser_opfyldt(fakta: EblPar8Fakta) -> match fakta.ejendomsart {
+    | EblPar8EnEllerTofamilieshus(grundbetingelse) -> fakta.tjent_til_bolig_eller_privat_formål && fakta.betingelser_opfyldt_i_ejerperioden && ebl_par8_grundbetingelse_opfyldt(grundbetingelse)
+    | EblPar8Ejerlejlighed -> fakta.tjent_til_bolig_eller_privat_formål && fakta.betingelser_opfyldt_i_ejerperioden
+    | EblPar8SommerhusEllerLignende(grundbetingelse) -> fakta.tjent_til_bolig_eller_privat_formål && fakta.betingelser_opfyldt_i_ejerperioden && ebl_par8_grundbetingelse_opfyldt(grundbetingelse)
+    | EblPar8AnpartMedBrugsretTilBeboelseslejlighed(grundbetingelse) -> fakta.tjent_til_bolig_eller_privat_formål && fakta.betingelser_opfyldt_i_ejerperioden && ebl_par8_grundbetingelse_opfyldt(grundbetingelse)
+    | EblPar8VærdipapirMedBrugsretTilBeboelseslejlighed(grundbetingelse) -> fakta.tjent_til_bolig_eller_privat_formål && fakta.betingelser_opfyldt_i_ejerperioden && ebl_par8_grundbetingelse_opfyldt(grundbetingelse)
+}
+| ebl_par8_skadefrist_opfyldt(skadefakta: EblPar8Skadefakta, afståelsesdato: EblDato) -> ebl_dato_før_eller_lig_med(afståelsesdato, ebl_dato_plus_et_år(skadefakta.skadedato)) || skadefakta.dispensation_fra_etårsfrist
+| ebl_par8_skadebetingelser_opfyldt(skadefakta: EblPar8Skadefakta, afståelsesdato: EblDato) -> ebl_dato_gyldig(skadefakta.skadedato) && skadefakta.hus_væsentligt_beskadiget && skadefakta.ingen_forsæt_eller_grov_uagtsomhed && skadefakta.kunne_afstås_skattefrit_umiddelbart_før_skaden && skadefakta.hele_ejendommen_afstået && ebl_par8_skadefrist_opfyldt(skadefakta, afståelsesdato)
+| ebl_par8_en_eller_tofamilieshus(ejendomsart: EblPar8Ejendomsart) -> match ejendomsart {
+    | EblPar8EnEllerTofamilieshus(_) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par8_plejehjemsbetingelser_opfyldt(ejendomsart: EblPar8Ejendomsart, plejehjemsfakta: EblPar8Plejehjemsfakta) -> ebl_par8_en_eller_tofamilieshus(ejendomsart) && plejehjemsfakta.grundareal_under_1400_m2 && plejehjemsfakta.matrikulær_udstykning_anmodet && plejehjemsfakta.sagsbehandling_ikke_færdig_ved_flytning && plejehjemsfakta.socialmyndighedserklæring_foreligger && plejehjemsfakta.flyttet_til_beskyttet_bolig_eller_plejehjem && plejehjemsfakta.tjente_til_bolig_umiddelbart_før_fraflytning
+| ebl_par8_betingelser_opfyldt(fakta: EblPar8Fakta, afståelsesdato: EblDato) -> match fakta.afståelsesforhold {
+    | EblPar8AlmindeligAfståelse -> ebl_par8_normale_betingelser_opfyldt(fakta)
+    | EblPar8AfståelseEfterVæsentligSkade(skadefakta) -> ebl_par8_skadebetingelser_opfyldt(skadefakta, afståelsesdato)
+    | EblPar8PlejehjemUnderUdstykning(plejehjemsfakta) -> ebl_par8_plejehjemsbetingelser_opfyldt(fakta.ejendomsart, plejehjemsfakta)
+}
+| ebl_par8_skadefakta_gyldige(afståelsesforhold: EblPar8Afståelsesforhold, afståelsesdato: EblDato) -> match afståelsesforhold {
+    | EblPar8AfståelseEfterVæsentligSkade(skadefakta) -> ebl_dato_gyldig(skadefakta.skadedato) && ebl_dato_før_eller_lig_med(skadefakta.skadedato, afståelsesdato)
+    | _ -> Sandt
+}
+| ebl_par8_input_gyldigt(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal) -> ebl_dato_gyldig(afståelsesdato) && fakta.genanbragt_erhvervsfortjeneste_kroner >= 0 && fakta.genanbragt_erhvervsfortjeneste_kroner <= penge_positivt_beløb(fortjeneste_eller_tab_før_par8_kroner) && ebl_par8_skadefakta_gyldige(fakta.afståelsesforhold, afståelsesdato)
+| ebl_par8_regelgrundlag_understøttet(fakta: EblPar8Fakta) -> ebl_par8_værdipapir(fakta.ejendomsart) == Falskt
+| ebl_par8_resultat(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal) -> {
+    = input_gyldigt = ebl_par8_input_gyldigt(fakta, afståelsesdato, fortjeneste_eller_tab_før_par8_kroner)
+    = regelgrundlag_understøttet = ebl_par8_regelgrundlag_understøttet(fakta)
+    = omfattet_af_ejendomsavancebeskatningsloven = ebl_par8_værdipapir(fakta.ejendomsart) == Falskt
+    = beregning_anvendt = input_gyldigt && regelgrundlag_understøttet && omfattet_af_ejendomsavancebeskatningsloven
+    = betingelser_for_skattefrihed_opfyldt = beregning_anvendt && ebl_par8_betingelser_opfyldt(fakta, afståelsesdato)
+    = brutto_fortjeneste_kroner = penge_positivt_beløb(fortjeneste_eller_tab_før_par8_kroner)
+    = brutto_tab_kroner = penge_positivt_beløb(0 - fortjeneste_eller_tab_før_par8_kroner)
+    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefrihed_opfyldt { penge_mindste_beløb(brutto_fortjeneste_kroner, fakta.genanbragt_erhvervsfortjeneste_kroner) } ellers { brutto_fortjeneste_kroner } } ellers { 0 }
+    = skattefri_fortjeneste_kroner = hvis betingelser_for_skattefrihed_opfyldt { brutto_fortjeneste_kroner - skattepligtig_fortjeneste_kroner } ellers { 0 }
+    = tab_kroner = hvis beregning_anvendt && betingelser_for_skattefrihed_opfyldt == Falskt { brutto_tab_kroner } ellers { 0 }
+    = afskåret_tab_efter_par6_stk4_kroner = hvis betingelser_for_skattefrihed_opfyldt { brutto_tab_kroner } ellers { 0 }
+    EblPar8Resultat(
+        fakta = fakta,
+        afståelsesdato = afståelsesdato,
+        fortjeneste_eller_tab_før_par8_kroner = fortjeneste_eller_tab_før_par8_kroner,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet,
+        omfattet_af_ejendomsavancebeskatningsloven = omfattet_af_ejendomsavancebeskatningsloven,
+        betingelser_for_skattefrihed_opfyldt = betingelser_for_skattefrihed_opfyldt,
+        skattefri_fortjeneste_kroner = skattefri_fortjeneste_kroner,
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner,
+        tab_kroner = tab_kroner,
+        afskåret_tab_efter_par6_stk4_kroner = afskåret_tab_efter_par6_stk4_kroner,
+        ejendomsafgrænsning = hvis betingelser_for_skattefrihed_opfyldt { EblPar8Ejendom } ellers { EblPar6AlmindeligEjendom }
+    )
+}
+--@end:ebl_par8--
+
+--@begin:ebl_par9--
+# EblPar9Overgangsvalg(var_omfattet_af_tidligere_par9_stk1_2pkt: Boolsk, valg_meddelt_skatteforvaltningen: Boolsk, ejerinitieret_omvurdering_efter_evl6_stk1: Boolsk)
+# EblPar9Ejendomskategori = EblPar9Landbrugsejendom | EblPar9Skovejendom | EblPar9Naturejendom | EblPar9Evl35Erhvervsejendom | EblPar9Evl35EjerboligMedOvergangsvalg(valg: EblPar9Overgangsvalg)
+# EblPar9Skadeforhold = EblPar9IngenVæsentligSkade | EblPar9VæsentligSkade(skadedato: EblDato, hus_væsentligt_beskadiget: Boolsk, ingen_forsæt_eller_grov_uagtsomhed: Boolsk, boligdel_skattefri_umiddelbart_før_skaden: Boolsk, hele_ejendommen_afstået: Boolsk, dispensation_fra_etårsfrist: Boolsk)
+# EblPar9Genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4 | EblPar9GenanbringelseEfterStk4(boligandel_forøget: Boolsk, hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel: Boolsk, genanbragt_fortjeneste_kroner: Heltal)
+# EblPar9Fakta(kategori: EblPar9Ejendomskategori, bolig_har_tjent_til_bolig_for_ejer_eller_husstand: Boolsk, boligbetingelser_opfyldt_i_ejerperioden: Boolsk, grundbetingelse: EblPar8Grundbetingelse, bolig_anskaffelsessum_kroner: Heltal, bolig_afståelsessum_kroner: Heltal, skadeforhold: EblPar9Skadeforhold, genanbringelsesforhold: EblPar9Genanbringelsesforhold)
+# EblPar9Beløbsgrundlag(erhvervsdel_reguleret_anskaffelsessum_kroner: Heltal, erhvervsdel_afståelsessum_kroner: Heltal, samlet_reguleret_anskaffelsessum_kroner: Heltal, samlet_afståelsessum_kroner: Heltal)
+# EblPar9Resultat(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, betingelser_for_skattefri_boligdel_opfyldt: Boolsk, bolig_fortjeneste_eller_tab_kroner: Heltal, erhvervsdel_fortjeneste_eller_tab_kroner: Heltal, samlet_fortjeneste_eller_tab_kroner: Heltal, skattefri_boligfortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
+# EjendomsavanceEjendomstype = EblAndenFastEjendom | EblBoligejendom(fakta: EblPar8Fakta) | EblLandbrugSkovNaturEllerBlandetEjendom(fakta: EblPar9Fakta)
+
+| ebl_par9_overgangsvalg_opfyldt(valg: EblPar9Overgangsvalg) -> valg.var_omfattet_af_tidligere_par9_stk1_2pkt && valg.valg_meddelt_skatteforvaltningen && valg.ejerinitieret_omvurdering_efter_evl6_stk1 == Falskt
+| ebl_par9_kategori_berettiget(kategori: EblPar9Ejendomskategori, afståelsesdato: EblDato) -> match kategori {
+    | EblPar9Landbrugsejendom -> Sandt
+    | EblPar9Skovejendom -> Sandt
+    | EblPar9Naturejendom -> ebl_dato_yyyymmdd(afståelsesdato) >= 20270101
+    | EblPar9Evl35Erhvervsejendom -> ebl_dato_yyyymmdd(afståelsesdato) >= 20250701
+    | EblPar9Evl35EjerboligMedOvergangsvalg(valg) -> ebl_dato_yyyymmdd(afståelsesdato) >= 20250701 && ebl_par9_overgangsvalg_opfyldt(valg)
+}
+| ebl_par9_skadefrist_opfyldt(skadedato: EblDato, afståelsesdato: EblDato, dispensation_fra_etårsfrist: Boolsk) -> ebl_dato_før_eller_lig_med(afståelsesdato, ebl_dato_plus_et_år(skadedato)) || dispensation_fra_etårsfrist
+| ebl_par9_normale_boligbetingelser_opfyldt(fakta: EblPar9Fakta, afståelsesdato: EblDato) -> ebl_par9_kategori_berettiget(fakta.kategori, afståelsesdato) && fakta.bolig_har_tjent_til_bolig_for_ejer_eller_husstand && fakta.boligbetingelser_opfyldt_i_ejerperioden && ebl_par8_grundbetingelse_opfyldt(fakta.grundbetingelse)
+| ebl_par9_boligbetingelser_opfyldt(fakta: EblPar9Fakta, afståelsesdato: EblDato) -> match fakta.skadeforhold {
+    | EblPar9IngenVæsentligSkade -> ebl_par9_normale_boligbetingelser_opfyldt(fakta, afståelsesdato)
+    | EblPar9VæsentligSkade(skadedato, hus_væsentligt_beskadiget, ingen_forsæt_eller_grov_uagtsomhed, boligdel_skattefri_umiddelbart_før_skaden, hele_ejendommen_afstået, dispensation_fra_etårsfrist) -> ebl_par9_kategori_berettiget(fakta.kategori, afståelsesdato) && ebl_dato_gyldig(skadedato) && hus_væsentligt_beskadiget && ingen_forsæt_eller_grov_uagtsomhed && boligdel_skattefri_umiddelbart_før_skaden && hele_ejendommen_afstået && ebl_par9_skadefrist_opfyldt(skadedato, afståelsesdato, dispensation_fra_etårsfrist)
+}
+| ebl_par9_skadeforhold_gyldigt(skadeforhold: EblPar9Skadeforhold, afståelsesdato: EblDato) -> match skadeforhold {
+    | EblPar9IngenVæsentligSkade -> Sandt
+    | EblPar9VæsentligSkade(skadedato, _, _, _, _, _) -> ebl_dato_gyldig(skadedato) && ebl_dato_før_eller_lig_med(skadedato, afståelsesdato)
+}
+| ebl_par9_genanbringelsesforhold_gyldigt(genanbringelsesforhold: EblPar9Genanbringelsesforhold) -> match genanbringelsesforhold {
+    | EblPar9IngenGenanbringelseEfterStk4 -> Sandt
+    | EblPar9GenanbringelseEfterStk4(_, _, genanbragt_fortjeneste_kroner) -> genanbragt_fortjeneste_kroner >= 0
+}
+| ebl_par9_beløbsgrundlag_afstemmer(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> fakta.bolig_afståelsessum_kroner + beløbsgrundlag.erhvervsdel_afståelsessum_kroner == beløbsgrundlag.samlet_afståelsessum_kroner && hvis ebl_par9_boligbetingelser_opfyldt(fakta, afståelsesdato) { fakta.bolig_anskaffelsessum_kroner + beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner == beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner } ellers { Sandt }
+| ebl_par9_input_gyldigt(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> ebl_dato_gyldig(afståelsesdato) && fakta.bolig_anskaffelsessum_kroner >= 0 && fakta.bolig_afståelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_afståelsessum_kroner >= 0 && beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.samlet_afståelsessum_kroner >= 0 && ebl_par9_beløbsgrundlag_afstemmer(fakta, afståelsesdato, beløbsgrundlag) && ebl_par9_skadeforhold_gyldigt(fakta.skadeforhold, afståelsesdato) && ebl_par9_genanbringelsesforhold_gyldigt(fakta.genanbringelsesforhold)
+| ebl_par9_regelgrundlag_understøttet(fakta: EblPar9Fakta) -> fakta.genanbringelsesforhold == EblPar9IngenGenanbringelseEfterStk4
+| ebl_par9_resultat(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> {
+    = input_gyldigt = ebl_par9_input_gyldigt(fakta, afståelsesdato, beløbsgrundlag)
+    = regelgrundlag_understøttet = ebl_par9_regelgrundlag_understøttet(fakta)
+    = beregning_anvendt = input_gyldigt && regelgrundlag_understøttet
+    = betingelser_for_skattefri_boligdel_opfyldt = beregning_anvendt && ebl_par9_boligbetingelser_opfyldt(fakta, afståelsesdato)
+    = bolig_fortjeneste_eller_tab_kroner = fakta.bolig_afståelsessum_kroner - fakta.bolig_anskaffelsessum_kroner
+    = erhvervsdel_fortjeneste_eller_tab_kroner = beløbsgrundlag.erhvervsdel_afståelsessum_kroner - beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner
+    = samlet_fortjeneste_eller_tab_før_par9_kroner = beløbsgrundlag.samlet_afståelsessum_kroner - beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner
+    = samlet_fortjeneste_eller_tab_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { bolig_fortjeneste_eller_tab_kroner + erhvervsdel_fortjeneste_eller_tab_kroner } ellers { samlet_fortjeneste_eller_tab_før_par9_kroner }
+    = skattefri_boligfortjeneste_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(bolig_fortjeneste_eller_tab_kroner) } ellers { 0 }
+    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(erhvervsdel_fortjeneste_eller_tab_kroner) } ellers { penge_positivt_beløb(samlet_fortjeneste_eller_tab_kroner) } } ellers { 0 }
+    = afskåret_boligtab_efter_par6_stk4_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(0 - bolig_fortjeneste_eller_tab_kroner) } ellers { 0 }
+    = tab_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(0 - erhvervsdel_fortjeneste_eller_tab_kroner) } ellers { penge_positivt_beløb(0 - samlet_fortjeneste_eller_tab_kroner) } } ellers { 0 }
+    EblPar9Resultat(
+        fakta = fakta,
+        afståelsesdato = afståelsesdato,
+        beløbsgrundlag = beløbsgrundlag,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet,
+        beregning_anvendt = beregning_anvendt,
+        betingelser_for_skattefri_boligdel_opfyldt = betingelser_for_skattefri_boligdel_opfyldt,
+        bolig_fortjeneste_eller_tab_kroner = bolig_fortjeneste_eller_tab_kroner,
+        erhvervsdel_fortjeneste_eller_tab_kroner = erhvervsdel_fortjeneste_eller_tab_kroner,
+        samlet_fortjeneste_eller_tab_kroner = samlet_fortjeneste_eller_tab_kroner,
+        skattefri_boligfortjeneste_kroner = skattefri_boligfortjeneste_kroner,
+        skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner,
+        tab_kroner = tab_kroner,
+        afskåret_boligtab_efter_par6_stk4_kroner = afskåret_boligtab_efter_par6_stk4_kroner,
+        ejendomsafgrænsning = hvis betingelser_for_skattefri_boligdel_opfyldt { EblPar9Ejendom(afskåret_boligtab_efter_par6_stk4_kroner) } ellers { EblPar6AlmindeligEjendom }
+    )
+}
+--@end:ebl_par9--

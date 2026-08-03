@@ -1,0 +1,430 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
+
+# EblPar5KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ebl_par5_lbk132 = EblPar5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/132",
+    identifier = "Ejendomsavancebeskatningsloven §§ 5 og 5 A",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par5_lov615 = EblPar5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026 §§ 7 og 16",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par5_vejledning_2026 = EblPar5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948617",
+    identifier = "Den juridiske vejledning 2026-1, EBL § 5 A",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par5_par5a::source:ebl_par5_lbk132::guidance:ebl_par5_vejledning_2026--
+----
+§ 5. Anskaffelsessummen forhøjes med et tillæg på 10.000 kr. for
+anskaffelsesåret og hvert af de efterfølgende kalenderår, hvori den
+skattepligtige har ejet ejendommen.
+For ejendomme, som er omfattet af § 4, stk. 3, ydes tillægget fra og med 1993.
+Tillægget gives dog ikke for det kalenderår, hvori ejendommen afstås, medmindre
+afståelsen sker i samme kalenderår som anskaffelsen.
+Såfremt den skattepligtige kun afstår en del af en fast ejendom, nedsættes
+tillægget efter forholdet mellem anskaffelsessummen for hele ejendommen og
+anskaffelsessummen for den del af ejendommen, der afstås, jf. dog § 9, stk. 3.
+Såfremt den skattepligtige ejede ejendommen i sameje med andre, udgør tillægget
+kun så stor en del af 10.000 kr. årlig, som svarer til den skattepligtiges andel
+af ejendommen.
+
+Stk. 2. Anskaffelsessummen forhøjes endvidere med afholdte udgifter til
+vedligeholdelse eller forbedring, i det omfang disse har oversteget 10.000 kr.
+pr. kalenderår.
+For ejendomme, som er omfattet af § 4, stk. 3, medtages alene udgifter, der er
+afholdt den 1. januar 1993 eller senere.
+Såfremt ejendommen er vurderet efter den dagældende bestemmelse i
+vurderingslovens § 4 B eller er omfattet af § 4, stk. 3, 5. pkt., medtages
+alene udgifter, der er afholdt efter 19. maj 1993.
+Vedligeholdelses- og forbedringsudgifter, der har kunnet fradrages ved
+opgørelsen af den skattepligtige indkomst, samt udgifter, der er straksfradraget
+eller straksafskrevet, og som ikke er omfattet af afskrivningslovens § 21,
+stk. 2, samt forbedringsudgifter på fredede bygninger, der kan fradrages i
+efterfølgende indkomstår, kan ikke medregnes.
+Ved afgørelsen af, om udgifter har kunnet fradrages ved opgørelsen af den
+skattepligtige indkomst, ses der bort fra standardfradrag, der er foretaget frem
+til og med indkomståret 1999 efter den dagældende bestemmelse i ligningslovens
+§ 15 J.
+Udgifter, der modsvares af tilskud m.v., der er skattefrie, kan heller ikke
+medregnes.
+Tilsvarende gælder udgifter, der er fradraget i 1992 og 1993 efter den
+dagældende bestemmelse i ligningslovens § 15 N.
+Såfremt den skattepligtige kun afstår en del af en fast ejendom, medregnes kun
+udgifter til vedligeholdelse og forbedring, der vedrører den afståede del af
+ejendommen.
+Udgifterne medregnes i disse tilfælde i det omfang, de i det enkelte kalenderår
+overstiger tillægget efter stk. 1, 4. pkt. Reglerne i 4.-7. pkt. gælder
+tilsvarende.
+Såfremt den skattepligtige ejede ejendommen i sameje med andre, medregnes kun
+udgifter til vedligeholdelse og forbedring, som den skattepligtige har afholdt.
+Udgifterne medregnes i disse tilfælde i det omfang, de i det enkelte kalenderår
+overstiger tillægget efter stk. 1, 5. pkt. Reglerne i 4.-7. pkt. gælder
+tilsvarende.
+For ejendomme, der er eller har været omfattet af ligningslovens § 16, stk. 9,
+eller § 16 A, stk. 5, kan anskaffelsessummen kun forhøjes med forbedringer, der
+er tillagt ved opgørelsen af beregningsgrundlaget efter ligningslovens § 16,
+stk. 9.
+Dette gælder dog ikke for forbedringer foretaget efter det tidspunkt, hvor
+ejendommen senest har været omfattet af ligningslovens § 16, stk. 9, eller
+§ 16 A, stk. 5.
+14. pkt. finder dog ikke anvendelse for vedligeholdelses- og
+forbedringsudgifter på bygninger, der er undergivet fredning i henhold til
+bygningsfredningsloven, og som ikke kan fradrages ved indkomstopgørelsen.
+
+Stk. 3. Anskaffelsessummen forhøjes tillige med vederlag betalt ved køb eller
+tildeling af mælkekvoter, der ikke er omfattet af afskrivningslovens § 40 C.
+Såfremt den skattepligtige er blevet beskattet af kvotens værdi ved tildelingen,
+kan det beskattede beløb tillægges anskaffelsessummen.
+Er ejendommen omfattet af § 5 A, forhøjes den regulerede anskaffelsessum efter
+§ 5 A, stk. 1, i det år, hvor mælkekvoten erhverves.
+Forhøjelse af anskaffelsessummen efter 1. pkt., jf. 3. pkt., er betinget af, at
+der for den pågældende mælkekvote samtidig skal ske en nedsættelse af
+anskaffelsessummen efter reglerne i stk. 4, nr. 6, stk. 5, nr. 5, stk. 6 eller
+stk. 7.
+Reglen i 4. pkt., finder kun anvendelse, såfremt mælkekvoten er købt eller
+tildelt den 19. maj 1993 eller senere og afstås den 18. juni 1993 eller senere.
+Såfremt den skattepligtige kun afstår en del af en fast ejendom, nedsættes det
+betalte vederlag efter forholdet mellem anskaffelsessummen for den del af
+ejendommen, der ikke udgør boligdelen, og anskaffelsessummen for den del af
+ejendommen, der afstås.
+
+Stk. 4. Anskaffelsessummen nedsættes i afståelsesåret på samme ejendom med
+1) foretagne afskrivninger, herunder forskudsafskrivninger efter
+afskrivningsloven, fradragsbeløb efter afskrivningslovens § 24, stk. 5, 1. og
+2. pkt., og forlods afskrivninger efter etableringskontoloven eller dagældende
+investeringsfondslov, jf. lovbekendtgørelse nr. 1152 af 7. oktober 2014, på
+bygninger og installationer, såfremt de nævnte afskrivninger m.v. ikke er
+beskattet som genvundne afskrivninger,
+2) foretagne afskrivninger, herunder forskudsafskrivninger efter
+afskrivningsloven, fradragsbeløb efter afskrivningslovens § 24, stk. 5, 1. og
+2. pkt., og forlods afskrivninger efter etableringskontoloven eller dagældende
+investeringsfondslov, jf. lovbekendtgørelse nr. 1152 af 7. oktober 2014, og
+værdiforringelser fradraget efter afskrivningslovens § 23, på nedrevne bygninger
+og installationer samt nedrivningsfradrag efter afskrivningslovens § 22,
+3) tab efter afskrivningslovens § 21 og værdiforringelser fradraget efter
+afskrivningslovens § 23, der ikke er omfattet af nr. 2,
+4) beløb, som er fradraget ved opgørelsen af den skattepligtige indkomst som
+værdiforringelse af ejendommen som følge af udnyttelse af forekomster af grus,
+ler og kalk m.v. på ejendommen, jf. afskrivningslovens § 38, eller som følge af
+nedgang i jordens landbrugsmæssige værdi ved den nævnte udnyttelse,
+5) udgifter afskrevet efter afskrivningslovens § 27,
+6) vederlag, der modtages for afståelsen af en mælkekvote, der ikke er omfattet
+af afskrivningslovens § 40 C, og
+7) værdien nul for en udløbet mælkekvote, der ikke er omfattet af
+afskrivningslovens § 40 C, idet vederlag for en sådan kvote anses for modtaget
+på tidspunktet for kvotens udløb med et beløb på nul.
+
+Stk. 5. Stk. 4 finder tilsvarende anvendelse i tilfælde, hvor der afstås en del
+af en ejendom.
+Nedsættelse foretages efter følgende principper:
+1) Nedsættelse efter stk. 4, nr. 1 og 3, foretages kun, hvis der afstås en
+afskrivningsberettiget bygning eller installation, hvorpå der er foretaget
+afskrivninger, herunder forskudsafskrivninger efter afskrivningsloven,
+fradragsbeløb efter afskrivningslovens § 24, stk. 5, 1. og 2. pkt., og forlods
+afskrivninger efter etableringskontoloven eller dagældende
+investeringsfondslov, jf. lovbekendtgørelse nr. 1152 af 7. oktober 2014, eller
+givet fradrag for tab eller værdiforringelse.
+Det nedsættelsespligtige beløb henføres til den del af ejendommen, hvorpå
+afskrivningerne m.v. er foretaget eller tabet eller værdiforringelsen vedrører.
+2) Nedsættelse efter stk. 4, nr. 2, foretages kun, hvis der afstås jordarealer,
+hvor de nedrevne bygninger og installationer har været beliggende.
+Det nedsættelsespligtige beløb henføres til denne del af jorden.
+3) Nedsættelse efter stk. 4, nr. 4, foretages kun, hvis der afstås jordarealer,
+hvorpå der er sket udnyttelse af forekomster af grus, ler og kalk m.v. Det
+nedsættelsespligtige beløb henføres til denne del af jorden.
+4) Nedsættelse efter stk. 4, nr. 5, foretages kun, hvis der afstås jordarealer,
+hvorpå der er opført drænings- og markvandingsanlæg, som er afskrevet efter
+afskrivningslovens § 27.
+Det nedsættelsespligtige beløb henføres til denne del af jorden.
+5) Nedsættelse efter stk. 4, nr. 6 og 7, foretages ved, at det
+nedsættelsespligtige beløb forholdsmæssigt henføres til den afståede del af
+ejendommen og den del af restejendommen, der ikke udgør boligdelen, efter
+forholdet mellem anskaffelsessummen for den afståede del af ejendommen og
+anskaffelsessummen for den del af ejendommen, der ikke udgør boligdelen.
+
+Stk. 6. Afstås en del af en fast ejendom, der på afståelsestidspunktet helt
+eller delvis efter ejendomsvurderingsloven anses for landbrugsejendom, og
+anvendes reglerne i § 4, stk. 3, 1. eller 2. pkt., ved opgørelsen af
+anskaffelsessummen, overføres en forholdsmæssig andel af tillægsparcelværdien
+eller den tekniske værdi, hvis denne er højere, til anskaffelsessummen for
+jorden.
+Det overførselsberettigede beløb opgøres som tillægsparcelværdien/den tekniske
+værdi nedsat med
+1) foretagne afskrivninger, herunder forskudsafskrivninger efter
+afskrivningsloven, fradragsbeløb efter afskrivningslovens § 24, stk. 5, 1. og
+2. pkt., og forlodsafskrivninger efter etableringskontoloven eller dagældende
+investeringsfondslov, jf. lovbekendtgørelse nr. 1152 af 7. oktober 2014, på
+bygninger og installationer beliggende på ejendommen,
+2) foretagne afskrivninger m.v. som nævnt i stk. 4, nr. 2, og
+3) den nedskrevne værdi på ejendommens bygninger og installationer.
+Nedsættelse efter nr. 1-3 foretages alene med afskrivninger m.v. og den
+nedskrevne værdi på bygninger og installationer, der er indgået i
+ejendomsværdien pr. 1. januar 1993 eller en vurdering efter den dagældende
+bestemmelse i vurderingslovens § 4 B.
+Anskaffelsessummen for den del af ejendommen, hvorfra der overføres en del af
+anskaffelsessummen, nedsættes med det overførte beløb.
+Stk. 4 og 5 finder tilsvarende anvendelse, idet nedsættelsen efter stk. 5,
+nr. 5, foretages efter overførslen efter 1. og 2. pkt.
+
+Stk. 7. Er ejendommen omfattet af § 5 A, foretages nedsættelsen med beløb efter
+stk. 4-6, jf. stk. 8, i den regulerede anskaffelsessum efter § 5 A i det år,
+hvori beløbet er fradraget ved opgørelsen af den skattepligtige indkomst.
+Nedsættelsespligtige beløb efter stk. 4, nr. 1, henføres til de år, hvor der er
+afskrevet på ejendommens bygninger eller installationer efter forholdet mellem
+de samlede foretagne afskrivninger m.v. i de pågældende år.
+Nedsættelse efter stk. 4, nr. 6, ved afståelse af mælkekvoter foretages dog i
+det år, hvor mælkekvoten afstås.
+
+Stk. 8. For ejendomme omfattet af § 4, stk. 3, 1., 2., eller 5. pkt., skal
+nedsættelse af anskaffelsessummen efter stk. 4, nr. 1, jf. stk. 5-7, med
+foretagne afskrivninger, herunder forskudsafskrivninger efter
+afskrivningsloven, fradragsbeløb efter afskrivningslovens § 24, stk. 5, 1. og
+2. pkt., og forlods afskrivninger efter etableringskontoloven eller dagældende
+investeringsfondslov, jf. lovbekendtgørelse nr. 1152 af 7. oktober 2014, kun ske
+med afskrivninger m.v. foretaget i indkomståret 1993 eller senere.
+Nedsættelsespligtige beløb efter stk. 4, nr. 1, jf. stk. 5-7, henføres til
+indkomståret 1993 eller senere efter forholdet mellem de samlede foretagne
+afskrivninger m.v. på ejendommens bygninger og installationer og de
+afskrivninger m.v., der er foretaget i indkomståret 1993 eller senere.
+1. pkt. finder tilsvarende anvendelse for nedsættelsespligtige beløb efter
+stk. 4, nr. 2-5, jf. stk. 5-7.
+Nedsættelse af anskaffelsessummen med vederlag for afståelse af en mælkekvote,
+jf. stk. 4, nr. 6, og stk. 5-7, skal kun ske for mælkekvoter afstået den
+18. juni 1993 eller senere.
+
+§ 5 A. Den skattepligtige kan regulere anskaffelsessummen efter § 4, stk. 2,
+med den procent beregnet med en decimal, hvormed reguleringstallet i
+personskattelovens § 20 er ændret fra anskaffelsesåret til indkomståret 2009
+ganget med ændringen fra indkomståret 2013 til afståelsesåret for ejendomme,
+der på afståelsestidspunktet efter ejendomsvurderingsloven anses for landbrugs-
+eller skovejendom.
+For ejendomme, der er omfattet af § 4, stk. 3, reguleres anskaffelsessummen fra
+og med kalenderåret 1993.
+
+Stk. 2. Det beløb, som anskaffelsessummen forhøjes med efter § 5, stk. 1,
+reguleres efter stk. 1 fra det kalenderår, tillægget vedrører, til det
+kalenderår, hvori ejendommen afstås.
+
+Stk. 3. Det beløb, som anskaffelsessummen forhøjes med efter § 5, stk. 2,
+reguleres efter stk. 1 fra kalenderåret for vedligeholdelsesarbejdets eller
+forbedringens fuldførelse til det kalenderår, hvori ejendommen afstås.
+----
+
+--@label:ebl_par5_par5a_natur_fra_2027::amendment_source:ebl_par5_lov615--
+----
+I § 5, stk. 6, 1. pkt., ændres »landbrugsejendom« til: »landbrugs-, skov- og
+naturejendom«.
+
+I § 5 A, stk. 1, 1. pkt., og § 9, stk. 1, 1. pkt., ændres »landbrugs- eller
+skovejendom« til: »landbrugs-, skov- og naturejendom«.
+
+§§ 3-12 har virkning fra og med den 1. januar 2027.
+----
+
+--@begin:ebl_par5_par5a--
+# EblDato(år: Heltal, måned: Heltal, dag: Heltal)
+# EjendomsavancePar4Anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag | EblPar4Stk3Nr1Anskaffelsesgrundlag | EblPar4Stk3Nr2Anskaffelsesgrundlag | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner: Heltal) | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag | EblPar4Stk3SjettePktUdenlandskFaktiskAnskaffelsesgrundlag
+# EblPar5Udgiftsstatus = EblPar5UdgiftMedregningsberettiget | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J | EblPar5UdgiftFradragsberettiget | EblPar5UdgiftStraksfradragetEllerStraksafskrevet | EblPar5UdgiftFredetBygningMedFremtidigtFradrag | EblPar5UdgiftModsvaretAfSkattefritTilskud | EblPar5UdgiftFradragetEfterTidligereLigningslov15N | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag | EblPar5UdgiftLigningslov16IkkeTillagtBeregningsgrundlag | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse | EblPar5UdgiftFredetBygningUdenIndkomstfradrag
+# EblPar5Udgift(afholdelsesdato: EblDato, fuldførelsesår: Heltal, beløb_for_afstået_del_kroner: Heltal, status: EblPar5Udgiftsstatus)
+# EblPar5Nedsættelsesgrund = EblPar5Stk4Nr1AfskrivningIkkeBeskattetSomGenvunden | EblPar5Stk4Nr1AfskrivningBeskattetSomGenvunden | EblPar5Stk4Nr2NedrevetBygningEllerInstallation | EblPar5Stk4Nr3TabEllerVærdiforringelse | EblPar5Stk4Nr4RåstofEllerJordværdiforringelse | EblPar5Stk4Nr5DræningEllerMarkvanding
+# EblPar5Nedsættelse(indkomstår: Heltal, beløb_for_afstået_del_kroner: Heltal, grund: EblPar5Nedsættelsesgrund)
+# EblPar5Særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel | EblPar5MedMælkekvote | EblPar5MedStk6TillægsparcelEllerTekniskVærdi
+# EblPar5AIndekseringskategori = EblPar5ALandbrugsejendom | EblPar5ASkovejendom | EblPar5ANaturejendom
+# EblPar5Reguleringsvalg = EblPar5UdenIndeksering | EblPar5AMedIndeksering(kategori: EblPar5AIndekseringskategori)
+# EblPar5Fakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, forholdsmæssig_andel_promille: Heltal, vedligeholdelses_og_forbedringsudgifter: List(EblPar5Udgift), nedsættelser: List(EblPar5Nedsættelse), særforhold: EblPar5Særforhold, reguleringsvalg: EblPar5Reguleringsvalg)
+# EblPar5ÅrsudgiftResultat(indkomstår: Heltal, medregningsberettigede_udgifter_kroner: Heltal, årlig_grænse_kroner: Heltal, tillæg_efter_stk2_kroner: Heltal, reguleret_tillæg_efter_par5a_kroner: Heltal)
+# EblPar5Nedsættelsesresultat(nedsættelse: EblPar5Nedsættelse, nedsættelse_efter_stk4_til_8_kroner: Heltal, reguleret_nedsættelse_efter_par5a_kroner: Heltal)
+# EblPar5Resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, indeksering_anvendt: Boolsk, reguleringsprocent_tiendedele: Heltal, tillægsår: List(Heltal), fast_tillæg_efter_stk1_kroner: Heltal, reguleret_fast_tillæg_efter_par5a_kroner: Heltal, årsudgift_resultater: List(EblPar5ÅrsudgiftResultat), vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner: Heltal, reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner: Heltal, nedsættelsesresultater: List(EblPar5Nedsættelsesresultat), nedsættelser_efter_stk4_til_8_kroner: Heltal, regulerede_nedsættelser_efter_par5a_kroner: Heltal, reguleret_anskaffelsessum_kroner: Heltal, regulering_efter_par5_og_par5a_kroner: Heltal)
+
+| ebl_dato_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
+| ebl_dato_dage_i_måned(år: Heltal, måned: Heltal) -> match måned {
+    | 1 -> 31
+    | 2 -> hvis ebl_dato_skudår(år) { 29 } ellers { 28 }
+    | 3 -> 31
+    | 4 -> 30
+    | 5 -> 31
+    | 6 -> 30
+    | 7 -> 31
+    | 8 -> 31
+    | 9 -> 30
+    | 10 -> 31
+    | 11 -> 30
+    | 12 -> 31
+    | _ -> 0
+}
+| ebl_dato_gyldig(dato: EblDato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= ebl_dato_dage_i_måned(dato.år, dato.måned)
+| ebl_dato_yyyymmdd(dato: EblDato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
+| ebl_dato_før_eller_lig_med(venstre: EblDato, højre: EblDato) -> ebl_dato_yyyymmdd(venstre) <= ebl_dato_yyyymmdd(højre)
+| ebl_dato_plus_et_år(dato: EblDato) -> EblDato(
+    år = dato.år + 1,
+    måned = dato.måned,
+    dag = hvis dato.måned == 2 && dato.dag == 29 && ebl_dato_skudår(dato.år + 1) == Falskt { 28 } ellers { dato.dag }
+)
+
+| ebl_par4_anskaffelsesgrundlag_er_stk3(grundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> grundlag != EblPar4AlmindeligtAnskaffelsesgrundlag
+| ebl_par4_anskaffelsesgrundlag_gyldigt(grundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> match grundlag {
+    | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner) -> tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner >= 0
+    | _ -> Sandt
+}
+| ebl_par5_første_tillægsår(fakta: EblPar5Fakta) -> hvis ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) { 1993 } ellers { fakta.anskaffelsesdato.år }
+| ebl_par5_sidste_tillægsår(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> hvis fakta.anskaffelsesdato.år == afståelsesdato.år { afståelsesdato.år } ellers { afståelsesdato.år - 1 }
+| ebl_par5_tillægsår(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> hvis ebl_par5_første_tillægsår(fakta) <= ebl_par5_sidste_tillægsår(fakta, afståelsesdato) { range(ebl_par5_første_tillægsår(fakta), ebl_par5_sidste_tillægsår(fakta, afståelsesdato) + 1) } ellers { [] }
+| ebl_par5_årligt_tillæg_kroner(fakta: EblPar5Fakta) -> 10000 * fakta.forholdsmæssig_andel_promille / 1000
+| ebl_par5_fast_tillæg_efter_stk1_kroner(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> length(ebl_par5_tillægsår(fakta, afståelsesdato)) * ebl_par5_årligt_tillæg_kroner(fakta)
+
+| ebl_par5_udgiftsstatus_medregningsberettiget(status: EblPar5Udgiftsstatus) -> match status {
+    | EblPar5UdgiftMedregningsberettiget -> Sandt
+    | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J -> Sandt
+    | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag -> Sandt
+    | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse -> Sandt
+    | EblPar5UdgiftFredetBygningUdenIndkomstfradrag -> Sandt
+    | _ -> Falskt
+}
+| ebl_par5_udgift_efter_startdato(fakta: EblPar5Fakta, udgift: EblPar5Udgift) -> match fakta.anskaffelsesgrundlag {
+    | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag -> ebl_dato_yyyymmdd(udgift.afholdelsesdato) > 19930519
+    | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag -> ebl_dato_yyyymmdd(udgift.afholdelsesdato) > 19930519
+    | EblPar4AlmindeligtAnskaffelsesgrundlag -> ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, udgift.afholdelsesdato)
+    | _ -> ebl_dato_yyyymmdd(udgift.afholdelsesdato) >= 19930101
+}
+| ebl_par5_udgift_medregningsberettiget(fakta: EblPar5Fakta, udgift: EblPar5Udgift, afståelsesdato: EblDato) -> ebl_dato_gyldig(udgift.afholdelsesdato) && ebl_par5_udgift_efter_startdato(fakta, udgift) && ebl_dato_før_eller_lig_med(udgift.afholdelsesdato, afståelsesdato) && ebl_par5_udgiftsstatus_medregningsberettiget(udgift.status)
+| ebl_par5_medregningsberettigede_udgifter(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> filter(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| ebl_par5_udgift_medregningsberettiget(fakta, udgift, afståelsesdato))
+| ebl_par5_udgiftsår(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> distinct(map(ebl_par5_medregningsberettigede_udgifter(fakta, afståelsesdato), |udgift: EblPar5Udgift| udgift.afholdelsesdato.år))
+| ebl_par5_udgifter_for_år_kroner(fakta: EblPar5Fakta, afståelsesdato: EblDato, indkomstår: Heltal) -> foldl(ebl_par5_medregningsberettigede_udgifter(fakta, afståelsesdato), 0, |sum: Heltal, udgift: EblPar5Udgift| sum + hvis udgift.afholdelsesdato.år == indkomstår { penge_positivt_beløb(udgift.beløb_for_afstået_del_kroner) } ellers { 0 })
+| ebl_par5_årsudgift_tillæg_kroner(fakta: EblPar5Fakta, afståelsesdato: EblDato, indkomstår: Heltal) -> penge_positivt_beløb(ebl_par5_udgifter_for_år_kroner(fakta, afståelsesdato, indkomstår) - ebl_par5_årligt_tillæg_kroner(fakta))
+
+| ebl_par5_nedsættelse_medregnes(nedsættelse: EblPar5Nedsættelse) -> nedsættelse.grund != EblPar5Stk4Nr1AfskrivningBeskattetSomGenvunden
+| ebl_par5_nedsættelse_efter_stk4_til_8_kroner(fakta: EblPar5Fakta, nedsættelse: EblPar5Nedsættelse) -> hvis ebl_par5_nedsættelse_medregnes(nedsættelse) && (ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) == Falskt || nedsættelse.indkomstår >= 1993) { penge_positivt_beløb(nedsættelse.beløb_for_afstået_del_kroner) } ellers { 0 }
+
+| ebl_par5a_gammelt_reguleringstal_tiendedele(år: Heltal) -> match år {
+    | 1993 -> 1200
+    | 1994 -> 1236
+    | 1995 -> 1245
+    | 1996 -> 1279
+    | 1997 -> 1287
+    | 1998 -> 1322
+    | 1999 -> 1360
+    | 2000 -> 1408
+    | 2001 -> 1457
+    | 2002 -> 1501
+    | 2003 -> 1554
+    | 2004 -> 1604
+    | 2005 -> 1639
+    | 2006 -> 1677
+    | 2007 -> 1722
+    | 2008 -> 1767
+    | 2009 -> 1827
+    | _ -> 0
+}
+| ebl_par5a_reguleringstal_tiendedele(år: Heltal) -> hvis år <= 2009 { ebl_par5a_gammelt_reguleringstal_tiendedele(år) } ellers { par20_reguleringstal_tiendedele(år) }
+| ebl_par5a_reguleringsfaktor_tusindedele(fra_år: Heltal, til_år: Heltal) -> {
+    = fra_indeks = ebl_par5a_reguleringstal_tiendedele(fra_år)
+    = til_indeks = par20_reguleringstal_tiendedele(til_år)
+    hvis fra_indeks <= 0 || til_indeks <= 0 || fra_år > til_år {
+        0
+    } ellers {
+        hvis fra_år <= 2009 {
+            = nævner = fra_indeks * 1000
+            (ebl_par5a_gammelt_reguleringstal_tiendedele(2009) * til_indeks * 1000 + nævner / 2) / nævner
+        } ellers {
+            (til_indeks * 1000 + fra_indeks / 2) / fra_indeks
+        }
+    }
+}
+| ebl_par5a_reguleringsprocent_tiendedele(fra_år: Heltal, til_år: Heltal) -> penge_positivt_beløb(ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) - 1000)
+| ebl_par5a_reguler_beløb_kroner(beløb_kroner: Heltal, fra_år: Heltal, til_år: Heltal) -> hvis beløb_kroner > 0 && ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) > 0 { (beløb_kroner * ebl_par5a_reguleringsfaktor_tusindedele(fra_år, til_år) + 500) / 1000 } ellers { 0 }
+| ebl_par5a_startår(fakta: EblPar5Fakta) -> hvis ebl_par4_anskaffelsesgrundlag_er_stk3(fakta.anskaffelsesgrundlag) { 1993 } ellers { fakta.anskaffelsesdato.år }
+| ebl_par5a_valgt(fakta: EblPar5Fakta) -> fakta.reguleringsvalg != EblPar5UdenIndeksering
+| ebl_par5a_kategori_berettiget(kategori: EblPar5AIndekseringskategori, afståelsesdato: EblDato) -> match kategori {
+    | EblPar5ALandbrugsejendom -> Sandt
+    | EblPar5ASkovejendom -> Sandt
+    | EblPar5ANaturejendom -> ebl_dato_yyyymmdd(afståelsesdato) >= 20270101
+}
+| ebl_par5a_valg_berettiget(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> match fakta.reguleringsvalg {
+    | EblPar5UdenIndeksering -> Sandt
+    | EblPar5AMedIndeksering(kategori) -> ebl_par5a_kategori_berettiget(kategori, afståelsesdato)
+}
+| ebl_par5a_kilder_tilgængelige(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5a_reguleringsfaktor_tusindedele(ebl_par5a_startår(fakta), afståelsesdato.år) > 0 && all(ebl_par5_tillægsår(fakta, afståelsesdato), |år: Heltal| ebl_par5a_reguleringsfaktor_tusindedele(år, afståelsesdato.år) > 0) && all(ebl_par5_medregningsberettigede_udgifter(fakta, afståelsesdato), |udgift: EblPar5Udgift| ebl_par5a_reguleringsfaktor_tusindedele(udgift.fuldførelsesår, afståelsesdato.år) > 0) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5a_reguleringsfaktor_tusindedele(nedsættelse.indkomstår, afståelsesdato.år) > 0)
+
+| ebl_par5_årsudgift_resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, indkomstår: Heltal) -> EblPar5ÅrsudgiftResultat(
+    indkomstår = indkomstår,
+    medregningsberettigede_udgifter_kroner = ebl_par5_udgifter_for_år_kroner(fakta, afståelsesdato, indkomstår),
+    årlig_grænse_kroner = ebl_par5_årligt_tillæg_kroner(fakta),
+    tillæg_efter_stk2_kroner = ebl_par5_årsudgift_tillæg_kroner(fakta, afståelsesdato, indkomstår),
+    reguleret_tillæg_efter_par5a_kroner = hvis ebl_par5a_valgt(fakta) { ebl_par5a_reguler_beløb_kroner(ebl_par5_årsudgift_tillæg_kroner(fakta, afståelsesdato, indkomstår), indkomstår, afståelsesdato.år) } ellers { ebl_par5_årsudgift_tillæg_kroner(fakta, afståelsesdato, indkomstår) }
+)
+| ebl_par5_årsudgift_resultater(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> map(ebl_par5_udgiftsår(fakta, afståelsesdato), |år: Heltal| ebl_par5_årsudgift_resultat(fakta, afståelsesdato, år))
+| ebl_par5_nedsættelsesresultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, nedsættelse: EblPar5Nedsættelse) -> EblPar5Nedsættelsesresultat(
+    nedsættelse = nedsættelse,
+    nedsættelse_efter_stk4_til_8_kroner = ebl_par5_nedsættelse_efter_stk4_til_8_kroner(fakta, nedsættelse),
+    reguleret_nedsættelse_efter_par5a_kroner = hvis ebl_par5a_valgt(fakta) { ebl_par5a_reguler_beløb_kroner(ebl_par5_nedsættelse_efter_stk4_til_8_kroner(fakta, nedsættelse), nedsættelse.indkomstår, afståelsesdato.år) } ellers { ebl_par5_nedsættelse_efter_stk4_til_8_kroner(fakta, nedsættelse) }
+)
+| ebl_par5_nedsættelsesresultater(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> map(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelsesresultat(fakta, afståelsesdato, nedsættelse))
+
+| ebl_par5_udgift_gyldig(udgift: EblPar5Udgift) -> ebl_dato_gyldig(udgift.afholdelsesdato) && udgift.fuldførelsesår >= udgift.afholdelsesdato.år && udgift.beløb_for_afstået_del_kroner >= 0
+| ebl_par5_nedsættelse_gyldig(nedsættelse: EblPar5Nedsættelse, fakta: EblPar5Fakta, afståelsesdato: EblDato) -> nedsættelse.indkomstår >= fakta.anskaffelsesdato.år && nedsættelse.indkomstår <= afståelsesdato.år && nedsættelse.beløb_for_afstået_del_kroner >= 0
+| ebl_par5_input_gyldigt(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_dato_gyldig(fakta.anskaffelsesdato) && ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, afståelsesdato) && anskaffelsessum_før_par5_kroner >= 0 && fakta.forholdsmæssig_andel_promille > 0 && fakta.forholdsmæssig_andel_promille <= 1000 && ebl_par4_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag) && all(fakta.vedligeholdelses_og_forbedringsudgifter, ebl_par5_udgift_gyldig) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelse_gyldig(nedsættelse, fakta, afståelsesdato))
+| ebl_par5_udgiftsfuldførelse_understøttet(fakta: EblPar5Fakta) -> all(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| udgift.fuldførelsesår == udgift.afholdelsesdato.år)
+| ebl_par5_regelgrundlag_understøttet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> fakta.særforhold == EblPar5UdenMælkekvoteEllerStk6Overførsel && ebl_par5_udgiftsfuldførelse_understøttet(fakta) && ebl_par5a_valg_berettiget(fakta, afståelsesdato) && (ebl_par5a_valgt(fakta) == Falskt || ebl_par5a_kilder_tilgængelige(fakta, afståelsesdato))
+| ebl_par5_standardfakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> EblPar5Fakta(
+    anskaffelsesdato = anskaffelsesdato,
+    anskaffelsesgrundlag = anskaffelsesgrundlag,
+    forholdsmæssig_andel_promille = 1000,
+    vedligeholdelses_og_forbedringsudgifter = [],
+    nedsættelser = [],
+    særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+    reguleringsvalg = EblPar5UdenIndeksering
+)
+
+# EblPar5Sag(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) {
+    | input_gyldigt() -> ebl_par5_input_gyldigt(fakta, afståelsesdato, anskaffelsessum_før_par5_kroner)
+    | regelgrundlag_understøttet() -> ebl_par5_regelgrundlag_understøttet(fakta, afståelsesdato)
+    | beregning_anvendt() -> input_gyldigt() && regelgrundlag_understøttet()
+    | indeksering_anvendt() -> beregning_anvendt() && ebl_par5a_valgt(fakta)
+    | tillægsår() -> ebl_par5_tillægsår(fakta, afståelsesdato)
+    | fast_tillæg_efter_stk1_kroner() -> ebl_par5_fast_tillæg_efter_stk1_kroner(fakta, afståelsesdato)
+    | reguleret_fast_tillæg_efter_par5a_kroner() -> hvis indeksering_anvendt() { foldl(tillægsår(), 0, |sum: Heltal, år: Heltal| sum + ebl_par5a_reguler_beløb_kroner(ebl_par5_årligt_tillæg_kroner(fakta), år, afståelsesdato.år)) } ellers { fast_tillæg_efter_stk1_kroner() }
+    | årsudgift_resultater() -> ebl_par5_årsudgift_resultater(fakta, afståelsesdato)
+    | vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner() -> foldl(årsudgift_resultater(), 0, |sum: Heltal, resultat: EblPar5ÅrsudgiftResultat| sum + resultat.tillæg_efter_stk2_kroner)
+    | reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner() -> foldl(årsudgift_resultater(), 0, |sum: Heltal, resultat: EblPar5ÅrsudgiftResultat| sum + resultat.reguleret_tillæg_efter_par5a_kroner)
+    | nedsættelsesresultater() -> ebl_par5_nedsættelsesresultater(fakta, afståelsesdato)
+    | nedsættelser_efter_stk4_til_8_kroner() -> foldl(nedsættelsesresultater(), 0, |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.nedsættelse_efter_stk4_til_8_kroner)
+    | regulerede_nedsættelser_efter_par5a_kroner() -> foldl(nedsættelsesresultater(), 0, |sum: Heltal, resultat: EblPar5Nedsættelsesresultat| sum + resultat.reguleret_nedsættelse_efter_par5a_kroner)
+    | reguleringsprocent_tiendedele() -> hvis indeksering_anvendt() { ebl_par5a_reguleringsprocent_tiendedele(ebl_par5a_startår(fakta), afståelsesdato.år) } ellers { 0 }
+    | anskaffelsessum_efter_valgt_regulering_kroner() -> hvis indeksering_anvendt() { ebl_par5a_reguler_beløb_kroner(anskaffelsessum_før_par5_kroner, ebl_par5a_startår(fakta), afståelsesdato.år) + reguleret_fast_tillæg_efter_par5a_kroner() + reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner() - regulerede_nedsættelser_efter_par5a_kroner() } ellers { anskaffelsessum_før_par5_kroner + fast_tillæg_efter_stk1_kroner() + vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner() - nedsættelser_efter_stk4_til_8_kroner() }
+    | reguleret_anskaffelsessum_kroner() -> hvis beregning_anvendt() { penge_positivt_beløb(anskaffelsessum_efter_valgt_regulering_kroner()) } ellers { penge_positivt_beløb(anskaffelsessum_før_par5_kroner) }
+    | regulering_efter_par5_og_par5a_kroner() -> reguleret_anskaffelsessum_kroner() - penge_positivt_beløb(anskaffelsessum_før_par5_kroner)
+    | resultat() -> EblPar5Resultat(
+        fakta = fakta,
+        afståelsesdato = afståelsesdato,
+        anskaffelsessum_før_par5_kroner = anskaffelsessum_før_par5_kroner,
+        input_gyldigt = input_gyldigt(),
+        regelgrundlag_understøttet = regelgrundlag_understøttet(),
+        beregning_anvendt = beregning_anvendt(),
+        indeksering_anvendt = indeksering_anvendt(),
+        reguleringsprocent_tiendedele = reguleringsprocent_tiendedele(),
+        tillægsår = tillægsår(),
+        fast_tillæg_efter_stk1_kroner = fast_tillæg_efter_stk1_kroner(),
+        reguleret_fast_tillæg_efter_par5a_kroner = reguleret_fast_tillæg_efter_par5a_kroner(),
+        årsudgift_resultater = årsudgift_resultater(),
+        vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner = vedligeholdelses_og_forbedringstillæg_efter_stk2_kroner(),
+        reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner = reguleret_vedligeholdelses_og_forbedringstillæg_efter_par5a_kroner(),
+        nedsættelsesresultater = nedsættelsesresultater(),
+        nedsættelser_efter_stk4_til_8_kroner = nedsættelser_efter_stk4_til_8_kroner(),
+        regulerede_nedsættelser_efter_par5a_kroner = regulerede_nedsættelser_efter_par5a_kroner(),
+        reguleret_anskaffelsessum_kroner = reguleret_anskaffelsessum_kroner(),
+        regulering_efter_par5_og_par5a_kroner = regulering_efter_par5_og_par5a_kroner()
+    )
+}
+| ebl_par5_sag(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> EblPar5Sag(fakta, afståelsesdato, anskaffelsessum_før_par5_kroner)
+| ebl_par5_resultat(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_par5_sag(fakta, afståelsesdato, anskaffelsessum_før_par5_kroner).resultat()
+--@end:ebl_par5_par5a--

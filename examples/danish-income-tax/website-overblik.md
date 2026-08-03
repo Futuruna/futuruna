@@ -43,37 +43,54 @@ Ligningslovens fradragsregler.
 Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
-skatteresultat og en valgfri årsopgørelse. Den nuværende arbejdsbog afledes fra
-124 nåbare definitioner og har 117 typede inputkolonner plus sags-id. Variantvalg
-gør særlige skatteforhold, underskudsforhold, årsopgørelse og valgfri
-fradragsgrene eksplicitte; kun den valgte grens felter skal udfyldes. Regnearket
-bruger elleve særskilte relaterede kildefaner, fordi de tilsvarende inputtyper
-faktisk indeholder lister. Den kanoniske graf modtager nu renteindtægter,
+skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
+nåbare domænegraf som beregningen og har aktuelt 117 typede inputkolonner plus
+sags-id og femten relationelle kildetabeller. Variantvalg gør særlige skatteforhold,
+underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
+valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
+kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
+graf modtager nu renteindtægter,
 renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, identificerede omkostninger efter Personskattelovens
 § 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser samt ordinære
 eller særlige ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
 aftrapningsindkomst samt § 9 D-resultatet afledes af reglerne og er ikke
-borgerfelter. Ejendomsavancebeskatningslovens § 6 modregner egne og fremførte
-tab og kan overføre en samlevende ægtefælles overskydende tab, før § 4, stk. 1,
-nr. 14-posten dannes. Overførslen kan højst bruge modtagerens fortjeneste efter
-dennes egne tab; resten bevares til fremførsel. Fortjenester angivet under de endnu ikke fuldt modellerede
-EBL §§ 8/9-fritagelser afvises uden skattevirkning frem for at blive beskattet
-af den smallere model. Fri arbejdsgiverbetalt befordring bliver personlig
-indkomst uden at blive gjort til AM-bidragspligtig løn.
+borgerfelter.
+
+Ejendomsavancebeskatningslovens §§ 5 og 5 A udleder nu
+anskaffelsessummens årlige tillæg, forbedringsudgifter, nedsættelser og
+eventuel indeksering fra de faktiske datoer og hændelser. § 8 udleder
+parcelhusfritagelsen, og § 9 fordeler en blandet ejendoms bolig- og
+erhvervsdel, så skattefri boligfortjeneste og skattepligtig
+erhvervsfortjeneste ikke blandes sammen. § 6 modregner derefter egne og
+fremførte tab og kan overføre en samlevende ægtefælles overskydende tab, før
+Personskattelovens § 4, stk. 1, nr. 14-post dannes. Overførslen kan højst bruge
+modtagerens fortjeneste efter dennes egne tab; resten bevares til fremførsel.
+Ikke færdigmodellerede særforhold er synlige og fail-closed i stedet for at
+blive beskattet af en smallere standardregel. Det gælder også værdipapirer med
+brugsret til en bolig efter § 8, stk. 4, indtil de er koblet korrekt til
+aktieavanceberegningen. Kilden er
+[Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132)
+med de relevante senere ændringer bevaret ved de enkelte lovblokke.
+
+Fri arbejdsgiverbetalt befordring bliver personlig indkomst uden at blive
+gjort til AM-bidragspligtig løn.
 § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre
 dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene
 kobles fortsat på det samme input, så den samlede borgerarbejdsbog udbygges fra
 reglerne frem for at blive håndskrevet ved siden af dem.
 
-Den stærkeste brugerflade behøver ikke være manuel udfyldning af 117 kolonner.
-En AI kan interviewe borgeren, bygge det samme typede input og bruge Futurunas
-regler til den deterministiske beregning og den efterfølgende forklaring.
+Den stærkeste brugerflade er ikke nødvendigvis manuel udfyldning af et stort
+regneark. En AI kan interviewe borgeren, bygge det samme typede input og bruge
+Futurunas regler til den deterministiske beregning og den efterfølgende
+forklaring.
 Kolonnestierne er stabile maskinnøgler, mens generisk, typet feltmetadata nu kan
 give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
-kildespor. Den første Personskat-kontrakt bruger dette for skatteår, kommune,
-bruttoløn, befordring, aldersstatus, kirkeskat, renter og årsopgørelse. En AI kan
-læse metadataene og indsamle fakta, men formuleringerne ændrer ikke felternes
+kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
+befordring, aldersstatus, kirkeskat, renter, årsopgørelse og centrale
+ejendomsavancefakta som anskaffelsesår, afståelsesår, kontante summer,
+anskaffelsesgrundlag, indekseringsvalg og ejendomstype. En AI kan læse
+metadataene og indsamle fakta, men formuleringerne ændrer ikke felternes
 gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`. Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile

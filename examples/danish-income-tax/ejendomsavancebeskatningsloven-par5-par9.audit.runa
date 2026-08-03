@@ -1,0 +1,191 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+--@label:ebl_par5_par9_konsistensaudit::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132--
+--@begin:ebl_par5_par9_konsistensaudit--
+| ebl_audit_par5_fakta(særforhold: EblPar5Særforhold, reguleringsvalg: EblPar5Reguleringsvalg) -> EblPar5Fakta(
+    anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
+    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+    forholdsmæssig_andel_promille = 1000,
+    vedligeholdelses_og_forbedringsudgifter = [],
+    nedsættelser = [],
+    særforhold = særforhold,
+    reguleringsvalg = reguleringsvalg
+)
+
+= ebl_audit_par5_resultater = [
+    ebl_par5_resultat(
+        ebl_audit_par5_fakta(
+            EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            EblPar5UdenIndeksering
+        ),
+        EblDato(år = 2026, måned = 12, dag = 31),
+        1000000
+    ),
+    ebl_par5_resultat(
+        ebl_audit_par5_fakta(
+            EblPar5MedMælkekvote,
+            EblPar5UdenIndeksering
+        ),
+        EblDato(år = 2026, måned = 12, dag = 31),
+        1000000
+    ),
+    ebl_par5_resultat(
+        ebl_audit_par5_fakta(
+            EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            EblPar5AMedIndeksering(kategori = EblPar5ANaturejendom)
+        ),
+        EblDato(år = 2026, måned = 12, dag = 31),
+        1000000
+    )
+]
+
+| ebl_audit_par9_fakta(bolig_anskaffelsessum_kroner: Heltal, bolig_afståelsessum_kroner: Heltal) -> EblPar9Fakta(
+    kategori = EblPar9Landbrugsejendom,
+    bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+    boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+    grundbetingelse = EblPar8GrundarealUnder1400M2,
+    bolig_anskaffelsessum_kroner = bolig_anskaffelsessum_kroner,
+    bolig_afståelsessum_kroner = bolig_afståelsessum_kroner,
+    skadeforhold = EblPar9IngenVæsentligSkade,
+    genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+)
+
+= ebl_audit_par9_resultater = [
+    ebl_par9_resultat(
+        ebl_audit_par9_fakta(100000, 150000),
+        EblDato(år = 2026, måned = 12, dag = 31),
+        EblPar9Beløbsgrundlag(
+            erhvervsdel_reguleret_anskaffelsessum_kroner = 200000,
+            erhvervsdel_afståelsessum_kroner = 260000,
+            samlet_reguleret_anskaffelsessum_kroner = 300000,
+            samlet_afståelsessum_kroner = 410000
+        )
+    ),
+    ebl_par9_resultat(
+        ebl_audit_par9_fakta(50000, 20000),
+        EblDato(år = 2026, måned = 12, dag = 31),
+        EblPar9Beløbsgrundlag(
+            erhvervsdel_reguleret_anskaffelsessum_kroner = 150000,
+            erhvervsdel_afståelsessum_kroner = 80000,
+            samlet_reguleret_anskaffelsessum_kroner = 200000,
+            samlet_afståelsessum_kroner = 100000
+        )
+    )
+]
+
+= ebl_audit_par9_ikke_understøttet_genanbringelse = ebl_par9_resultat(
+    EblPar9Fakta(
+        kategori = EblPar9Landbrugsejendom,
+        bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+        boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+        grundbetingelse = EblPar8GrundarealUnder1400M2,
+        bolig_anskaffelsessum_kroner = 100000,
+        bolig_afståelsessum_kroner = 150000,
+        skadeforhold = EblPar9IngenVæsentligSkade,
+        genanbringelsesforhold = EblPar9GenanbringelseEfterStk4(
+            boligandel_forøget = Sandt,
+            hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel = Falskt,
+            genanbragt_fortjeneste_kroner = 40000
+        )
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    EblPar9Beløbsgrundlag(
+        erhvervsdel_reguleret_anskaffelsessum_kroner = 200000,
+        erhvervsdel_afståelsessum_kroner = 260000,
+        samlet_reguleret_anskaffelsessum_kroner = 300000,
+        samlet_afståelsessum_kroner = 410000
+    )
+)
+
+= ebl_audit_par9_uafstemt_beløbsgrundlag = ebl_par9_resultat(
+    ebl_audit_par9_fakta(100000, 150000),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    EblPar9Beløbsgrundlag(
+        erhvervsdel_reguleret_anskaffelsessum_kroner = 200000,
+        erhvervsdel_afståelsessum_kroner = 260000,
+        samlet_reguleret_anskaffelsessum_kroner = 310000,
+        samlet_afståelsessum_kroner = 410000
+    )
+)
+
+= ebl_audit_modstridende_par5a_kategori = ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = EblPar5Fakta(
+        anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        forholdsmæssig_andel_promille = 1000,
+        vedligeholdelses_og_forbedringsudgifter = [],
+        nedsættelser = [],
+        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 1500000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblAndenFastEjendom,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+))
+
+= ebl_audit_par8_værdipapir_kræver_aktieavancespor = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8VærdipapirMedBrugsretTilBeboelseslejlighed(
+            grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
+        ),
+        tjent_til_bolig_eller_privat_formål = Falskt,
+        betingelser_opfyldt_i_ejerperioden = Falskt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8Ejerlejlighed,
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8PlejehjemUnderUdstykning(fakta = EblPar8Plejehjemsfakta(
+            grundareal_under_1400_m2 = Sandt,
+            matrikulær_udstykning_anmodet = Sandt,
+            sagsbehandling_ikke_færdig_ved_flytning = Sandt,
+            socialmyndighedserklæring_foreligger = Sandt,
+            flyttet_til_beskyttet_bolig_eller_plejehjem = Sandt,
+            tjente_til_bolig_umiddelbart_før_fraflytning = Sandt
+        )),
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+| ebl_par5_audit_beregning_er_enten_kildeunderstøttet_eller_fail_closed: ebl_audit_par5_resultater -> all(ebl_audit_par5_resultater, |resultat: EblPar5Resultat| hvis resultat.beregning_anvendt { resultat.input_gyldigt && resultat.regelgrundlag_understøttet } ellers { resultat.reguleret_anskaffelsessum_kroner == resultat.anskaffelsessum_før_par5_kroner && resultat.regulering_efter_par5_og_par5a_kroner == 0 })
+| ebl_par5_audit_regulering_afstemmer_til_anskaffelsessummen: ebl_audit_par5_resultater -> all(ebl_audit_par5_resultater, |resultat: EblPar5Resultat| resultat.regulering_efter_par5_og_par5a_kroner == resultat.reguleret_anskaffelsessum_kroner - resultat.anskaffelsessum_før_par5_kroner)
+| ebl_par9_audit_delresultater_afstemmer: ebl_audit_par9_resultater -> all(ebl_audit_par9_resultater, |resultat: EblPar9Resultat| resultat.samlet_fortjeneste_eller_tab_kroner == resultat.bolig_fortjeneste_eller_tab_kroner + resultat.erhvervsdel_fortjeneste_eller_tab_kroner)
+| ebl_par9_audit_boligdelen_bliver_ikke_skattepligtig: ebl_audit_par9_resultater -> all(ebl_audit_par9_resultater, |resultat: EblPar9Resultat| resultat.betingelser_for_skattefri_boligdel_opfyldt && resultat.skattepligtig_fortjeneste_kroner == penge_positivt_beløb(resultat.erhvervsdel_fortjeneste_eller_tab_kroner) && resultat.tab_kroner == penge_positivt_beløb(0 - resultat.erhvervsdel_fortjeneste_eller_tab_kroner))
+| ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed: ebl_audit_par9_ikke_understøttet_genanbringelse -> ebl_audit_par9_ikke_understøttet_genanbringelse.input_gyldigt && ebl_audit_par9_ikke_understøttet_genanbringelse.regelgrundlag_understøttet == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.beregning_anvendt == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_par9_ikke_understøttet_genanbringelse.tab_kroner == 0
+| ebl_par9_audit_uafstemt_beløbsgrundlag_er_fail_closed: ebl_audit_par9_uafstemt_beløbsgrundlag -> ebl_audit_par9_uafstemt_beløbsgrundlag.input_gyldigt == Falskt && ebl_audit_par9_uafstemt_beløbsgrundlag.beregning_anvendt == Falskt && ebl_audit_par9_uafstemt_beløbsgrundlag.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_par9_uafstemt_beløbsgrundlag.tab_kroner == 0
+| ebl_audit_modstridende_par5a_kategori_afvises: ebl_audit_modstridende_par5a_kategori -> ebl_audit_modstridende_par5a_kategori.input_gyldigt == Falskt && ebl_audit_modstridende_par5a_kategori.skattepligtig_efter_par1 == Falskt && ebl_audit_modstridende_par5a_kategori.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_modstridende_par5a_kategori.tab_kroner == 0
+| ebl_audit_par8_værdipapir_er_synligt_fail_closed: ebl_audit_par8_værdipapir_kræver_aktieavancespor -> ebl_audit_par8_værdipapir_kræver_aktieavancespor.input_gyldigt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.regelgrundlag_understøttet == Falskt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.omfattet_af_ejendomsavancebeskatningsloven == Falskt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.skattefri_fortjeneste_kroner == 0 && ebl_audit_par8_værdipapir_kræver_aktieavancespor.skattepligtig_fortjeneste_kroner == 0
+| ebl_audit_plejehjemsregel_afledes_af_ejendomstypen: ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus -> ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.input_gyldigt && ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.betingelser_for_skattefrihed_opfyldt == Falskt && ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.skattepligtig_fortjeneste_kroner == 200000
+
+? ebl_par5_audit_beregning_er_enten_kildeunderstøttet_eller_fail_closed
+? ebl_par5_audit_regulering_afstemmer_til_anskaffelsessummen
+? ebl_par9_audit_delresultater_afstemmer
+? ebl_par9_audit_boligdelen_bliver_ikke_skattepligtig
+? ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed
+? ebl_par9_audit_uafstemt_beløbsgrundlag_er_fail_closed
+? ebl_audit_modstridende_par5a_kategori_afvises
+? ebl_audit_par8_værdipapir_er_synligt_fail_closed
+? ebl_audit_plejehjemsregel_afledes_af_ejendomstypen
+
+@ print("EBL §§ 5-9 consistency audit passed")
+--@end:ebl_par5_par9_konsistensaudit--

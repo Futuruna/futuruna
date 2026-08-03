@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-2d84ec` (in progress)
-Latest implementation slice submitted for review: `td-7b2320`
-Latest approved implementation slice: `td-d471d3`
+Current focus issue: `td-1eb62d` (in review)
+Latest implementation slice submitted for review: `td-1eb62d`
+Latest approved implementation slice: `td-638478`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -52,15 +52,38 @@ Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu egne og
 en samlevende ægtefælles faktiske ejendomsafståelser, tidligere års uudnyttede
 ejendomstab og samlivsstatus. Skatteåret afledes fra den omgivende skattesag.
 Reglerne beregner hver afståelse efter Ejendomsavancebeskatningslovens §§ 1,
-1 A, 2, 4 og 11, anvender § 6's tabsafgrænsning, egen modregning,
+1 A, 2, 4, 5, 5 A, 8, 9 og 11, anvender § 6's tabsafgrænsning, egen modregning,
 ægtefælleoverførsel og fremførsel og danner derefter Personskattelovens § 4,
-stk. 1, nr. 14-kapitalpost. Flere afståelser ligger i to relationelle
-regnearksfaner frem for brede gentagne kolonner. Ægtefælleoverførsel begrænses
-af modtagerens nettofortjeneste efter egne tab, så et overskydende tab ikke
-forsvinder i en allerede forbrugt bruttofortjeneste. Fortjenester på ejendomme, der
-angives som omfattet af EBL §§ 8 eller 9, afvises fortsat uden skattemæssig
-virkning, indtil de aktuelle fritagelsesregler er kildekopieret og modelleret;
-de bliver ikke stiltiende beskattet af den smallere §§ 1/4-model.
+stk. 1, nr. 14-kapitalpost. Det tidligere rå input for regulering efter §§ 5 og
+5 A er fjernet. Borgeren oplyser i stedet anskaffelsesdato og -grundlag,
+forholdsmæssig andel, vedligeholdelses- og forbedringsudgifter, nedsættelser og
+eventuelt indekseringsvalg; reglerne udleder det regulerede
+anskaffelsesgrundlag. Ejendomstypen og dens kildefakta udleder tilsvarende
+parcelhusfritagelsen efter § 8 eller fordelingen mellem bolig- og erhvervsdel
+efter § 9. Sommerhusgrenen kræver samme grundbetingelse som § 8, stk. 1, og
+kan derfor ikke fritages alene på baggrund af privat anvendelse. Skattefri
+boligfortjeneste, skattepligtig erhvervsfortjeneste og
+afskåret boligtab bevares særskilt i auditsporet. Hvis boligbetingelserne i
+§ 9 ikke er opfyldt, regulerer § 5 A i stedet hele ejendommens
+anskaffelsesgrundlag; denne gren er dækket særskilt i både interpreter og
+kompileret scenariekørsel. Modsat fortegn på bolig- og erhvervsdelen holdes
+ligeledes adskilt: en skattefri boliggevinst udligner ikke et fradragsberettiget
+erhvervstab, og et afskåret boligtab udligner ikke en skattepligtig
+erhvervsgevinst. Et § 5 A-valg afvises som modstridende input, hvis den valgte
+landbrugs-, skov- eller naturkategori ikke svarer til ejendommens typede
+klassifikation.
+
+Flere afståelser ligger i to relationelle regnearksfaner frem for brede
+gentagne kolonner. Ægtefælleoverførsel begrænses af modtagerens
+nettofortjeneste efter egne tab, så et overskydende tab ikke forsvinder i en
+allerede forbrugt bruttofortjeneste. Ikke færdigmodellerede særforhold, blandt
+andet mælkekvoter, § 5, stk. 6-overførsler, § 8, stk. 4-værdipapirer, der skal
+videre til aktieavancesporet, og § 9, stk. 4-genanbringelse, er fortsat
+udtrykkelige og fail-closed: de får ingen skattemæssig virkning og kan ikke
+glide ind i den almindelige beregning. Et fokuseret scenarie dækker de
+årlige 10.000 kr.-tillæg, årsaggregering af forbedringsudgifter, § 5 A-
+indeksering, § 8-fritagelsen og § 9-fordelingen. En separat `.audit.runa`-fil
+kontrollerer afstemning og fail-closed-invarianter.
 
 Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu
 kildefakta for befordring efter Ligningslovens § 9 C og den valgfri
@@ -81,13 +104,16 @@ tilhørende omkostninger til personlig indkomst ved fordrings-, kontrakt- eller
 finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
-Det typede input genererer nu et regneark fra 124 nåbare definitioner med 117
-inputkolonner på `cases`-arket plus `case_id` og elleve relationelle kildeark.
+Det typede input genererer et regneark direkte fra den nåbare domænegraf med
+117 typede inputkolonner på `cases`-arket plus `case_id` og femten relationelle
+kildeark.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
-rummer egne og ægtefællens ejendomsafståelser, og de otte øvrige relationelle
-ark kommer fra de ordinære og særlige ABL-grene. Den udfyldte kombinationssag
-giver samme fulde resultat fra XLSX og kanonisk JSON for renter, fradrag,
-befordring, to egne ejendomsafståelser, ægtefællens ejendomstab og fremført tab.
+rummer egne og ægtefællens ejendomsafståelser, og de indlejrede § 5-fakta giver
+selvstændige relationelle tabeller for vedligeholdelses- og
+forbedringsudgifter samt nedsættelser. De øvrige relationelle ark kommer blandt
+andet fra de ordinære og særlige ABL-grene. Den udfyldte kombinationssag giver
+samme fulde resultat fra XLSX og kanonisk JSON for renter, fradrag, befordring,
+to egne ejendomsafståelser, ægtefællens ejendomstab og fremført tab.
 Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
 og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
@@ -97,16 +123,24 @@ Den kanoniske grænse hedder `@ calculate("Dansk personskat")`, så kontrakt og
 regneark også har en menneskelig titel uden at ændre den stabile entry-nøgle.
 Synlige kolonneoverskrifter bruger en udtrykkelig menneskelig etiket, mens den
 stabile maskinsti, interviewspørgsmål, hjælp, enhed og typede kildereferencer
-bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har den
-første etiketslice for skatteår, kommune, bruttoløn, befordring, aldersstatus,
-kirkeskat, renter og årsopgørelse. En AI kan dermed indsamle fakta og udfylde de
-kanoniske stier, mens Futuruna beregner deterministisk og bevarer den juridiske
-forklaringskæde. En metadataændring ændrer kontraktens fingerprint, så gamle
-interview- og regnearksskabeloner afvises som forældede.
+bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
+etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
+aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
+ejendomsavancefakta. En AI kan dermed spørge til ejendommen, afståelses- og
+anskaffelsesår, kontante summer, anskaffelsesgrundlag, § 5 A-valg og
+ejendomstype og derefter udfylde de kanoniske stier, mens Futuruna beregner
+deterministisk og bevarer den juridiske forklaringskæde. En metadataændring
+ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
+afvises som forældede.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål.
+Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
+nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
+tre-sagers XLSX/JSON-afstemning passerer på 2.688,51 sekunder. `td-6659f1`
+følger op på kontraktcache eller et kompileret beregningsspor, så samme
+deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen

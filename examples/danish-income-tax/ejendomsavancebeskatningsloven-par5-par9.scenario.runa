@@ -1,0 +1,245 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+--@label:ebl_par5_par9_scenarier::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132--
+--@begin:ebl_par5_par9_scenarier--
+= ebl_scenarie_anskaffelsesdato_2026 = EblDato(år = 2026, måned = 1, dag = 1)
+= ebl_scenarie_afståelsesdato_2026 = EblDato(år = 2026, måned = 12, dag = 31)
+
+= ebl_par5_samme_år = ebl_par5_resultat(
+    ebl_par5_standardfakta(
+        ebl_scenarie_anskaffelsesdato_2026,
+        EblPar4AlmindeligtAnskaffelsesgrundlag
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    1000000
+)
+
+= ebl_par5_årlig_udgiftsaggregering = ebl_par5_resultat(
+    EblPar5Fakta(
+        anskaffelsesdato = ebl_scenarie_anskaffelsesdato_2026,
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        forholdsmæssig_andel_promille = 1000,
+        vedligeholdelses_og_forbedringsudgifter = [
+            EblPar5Udgift(
+                afholdelsesdato = EblDato(år = 2026, måned = 2, dag = 1),
+                fuldførelsesår = 2026,
+                beløb_for_afstået_del_kroner = 12000,
+                status = EblPar5UdgiftMedregningsberettiget
+            ),
+            EblPar5Udgift(
+                afholdelsesdato = EblDato(år = 2026, måned = 8, dag = 1),
+                fuldførelsesår = 2026,
+                beløb_for_afstået_del_kroner = 20000,
+                status = EblPar5UdgiftMedregningsberettiget
+            )
+        ],
+        nedsættelser = [],
+        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    1000000
+)
+
+= ebl_par5a_landbrug_2006_til_2026 = ebl_par5_resultat(
+    EblPar5Fakta(
+        anskaffelsesdato = EblDato(år = 2006, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        forholdsmæssig_andel_promille = 1000,
+        vedligeholdelses_og_forbedringsudgifter = [],
+        nedsættelser = [],
+        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    1000000
+)
+
+= ebl_par5a_naturejendom_før_2027 = ebl_par5_resultat(
+    EblPar5Fakta(
+        anskaffelsesdato = EblDato(år = 2020, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        forholdsmæssig_andel_promille = 1000,
+        vedligeholdelses_og_forbedringsudgifter = [],
+        nedsættelser = [],
+        særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+        reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ANaturejendom)
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    1000000
+)
+
+= ebl_par8_parcelhusfortjeneste = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8EnEllerTofamilieshus(
+            grundbetingelse = EblPar8GrundarealUnder1400M2
+        ),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    200000
+)
+
+= ebl_par8_genanbragt_erhvervsfortjeneste = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8EnEllerTofamilieshus(
+            grundbetingelse = EblPar8GrundarealUnder1400M2
+        ),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 40000
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    200000
+)
+
+= ebl_par8_sommerhus_med_stor_udstykkelig_grund = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8SommerhusEllerLignende(
+            grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
+        ),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par8_anpartslejlighed_med_stor_udstykkelig_grund = ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8AnpartMedBrugsretTilBeboelseslejlighed(
+            grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
+        ),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    ),
+    EblDato(år = 2026, måned = 12, dag = 31),
+    200000
+)
+
+= ebl_par9_blandet_fortjeneste = ebl_par9_resultat(
+    EblPar9Fakta(
+        kategori = EblPar9Landbrugsejendom,
+        bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+        boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+        grundbetingelse = EblPar8GrundarealUnder1400M2,
+        bolig_anskaffelsessum_kroner = 100000,
+        bolig_afståelsessum_kroner = 150000,
+        skadeforhold = EblPar9IngenVæsentligSkade,
+        genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    EblPar9Beløbsgrundlag(
+        erhvervsdel_reguleret_anskaffelsessum_kroner = 200000,
+        erhvervsdel_afståelsessum_kroner = 260000,
+        samlet_reguleret_anskaffelsessum_kroner = 300000,
+        samlet_afståelsessum_kroner = 410000
+    )
+)
+
+= ebl_par9_blandet_tab = ebl_par9_resultat(
+    EblPar9Fakta(
+        kategori = EblPar9Landbrugsejendom,
+        bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+        boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+        grundbetingelse = EblPar8GrundarealUnder1400M2,
+        bolig_anskaffelsessum_kroner = 50000,
+        bolig_afståelsessum_kroner = 20000,
+        skadeforhold = EblPar9IngenVæsentligSkade,
+        genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+    ),
+    ebl_scenarie_afståelsesdato_2026,
+    EblPar9Beløbsgrundlag(
+        erhvervsdel_reguleret_anskaffelsessum_kroner = 150000,
+        erhvervsdel_afståelsessum_kroner = 80000,
+        samlet_reguleret_anskaffelsessum_kroner = 200000,
+        samlet_afståelsessum_kroner = 100000
+    )
+)
+
+= ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen = ejendomsavancebeskatningslov_resultat(
+    EjendomsavancebeskatningslovInput(
+        indkomstår = 2026,
+        afståelsesdato = ebl_scenarie_afståelsesdato_2026,
+        afståelse = EblAlmindeligAfståelse,
+        erhvervet_som_led_i_næring = Falskt,
+        kontant_anskaffelsessum_kroner = 1000000,
+        gæld_kursværdi_ved_anskaffelse_kroner = 0,
+        par5_fakta = EblPar5Fakta(
+            anskaffelsesdato = EblDato(år = 2006, måned = 1, dag = 1),
+            anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+            forholdsmæssig_andel_promille = 1000,
+            vedligeholdelses_og_forbedringsudgifter = [],
+            nedsættelser = [],
+            særforhold = EblPar5UdenMælkekvoteEllerStk6Overførsel,
+            reguleringsvalg = EblPar5AMedIndeksering(kategori = EblPar5ALandbrugsejendom)
+        ),
+        par4_stk8_anskaffelse_udeladt_kroner = 0,
+        kontant_afståelsessum_kroner = 2000000,
+        overdragne_gældsposter_kursværdi_kroner = 0,
+        par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+        ejendomstype = EblLandbrugSkovNaturEllerBlandetEjendom(
+            fakta = EblPar9Fakta(
+                kategori = EblPar9Landbrugsejendom,
+                bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Falskt,
+                boligbetingelser_opfyldt_i_ejerperioden = Falskt,
+                grundbetingelse = EblPar8GrundarealUnder1400M2,
+                bolig_anskaffelsessum_kroner = 400000,
+                bolig_afståelsessum_kroner = 500000,
+                skadeforhold = EblPar9IngenVæsentligSkade,
+                genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+            )
+        ),
+        par11_stk2_genanbragt_erhvervsejendom = Falskt
+    )
+)
+
+= ebl_par9_overgangsvalg_opfyldt_2026 = EblPar9Evl35EjerboligMedOvergangsvalg(
+    valg = EblPar9Overgangsvalg(
+        var_omfattet_af_tidligere_par9_stk1_2pkt = Sandt,
+        valg_meddelt_skatteforvaltningen = Sandt,
+        ejerinitieret_omvurdering_efter_evl6_stk1 = Falskt
+    )
+)
+
+| ebl_par5_giver_fast_tillæg_i_anskaffelsesåret: ebl_par5_samme_år -> ebl_par5_samme_år.input_gyldigt && ebl_par5_samme_år.regelgrundlag_understøttet && ebl_par5_samme_år.tillægsår == [2026] && ebl_par5_samme_år.fast_tillæg_efter_stk1_kroner == 10000 && ebl_par5_samme_år.reguleret_anskaffelsessum_kroner == 1010000
+| ebl_par5_aggregerer_årets_udgifter_før_grænsen: ebl_par5_årlig_udgiftsaggregering -> length(ebl_par5_årlig_udgiftsaggregering.årsudgift_resultater) == 1 && head(ebl_par5_årlig_udgiftsaggregering.årsudgift_resultater).medregningsberettigede_udgifter_kroner == 32000 && head(ebl_par5_årlig_udgiftsaggregering.årsudgift_resultater).tillæg_efter_stk2_kroner == 22000 && ebl_par5_årlig_udgiftsaggregering.regulering_efter_par5_og_par5a_kroner == 32000
+| ebl_par5a_indekserer_med_kildebestemt_faktor: ebl_par5a_landbrug_2006_til_2026 -> ebl_par5a_landbrug_2006_til_2026.indeksering_anvendt && ebl_par5a_landbrug_2006_til_2026.reguleringsprocent_tiendedele == 496 && ebl_par5a_landbrug_2006_til_2026.reguleret_anskaffelsessum_kroner > 1496000
+| ebl_par5a_natur_før_ikrafttræden_afvises_synligt: ebl_par5a_naturejendom_før_2027 -> ebl_par5a_naturejendom_før_2027.input_gyldigt && ebl_par5a_naturejendom_før_2027.regelgrundlag_understøttet == Falskt && ebl_par5a_naturejendom_før_2027.beregning_anvendt == Falskt && ebl_par5a_naturejendom_før_2027.reguleret_anskaffelsessum_kroner == 1000000
+| ebl_par8_fritager_parcelhusfortjenesten: ebl_par8_parcelhusfortjeneste -> ebl_par8_parcelhusfortjeneste.input_gyldigt && ebl_par8_parcelhusfortjeneste.betingelser_for_skattefrihed_opfyldt && ebl_par8_parcelhusfortjeneste.skattefri_fortjeneste_kroner == 200000 && ebl_par8_parcelhusfortjeneste.skattepligtig_fortjeneste_kroner == 0 && ebl_par8_parcelhusfortjeneste.ejendomsafgrænsning == EblPar8Ejendom
+| ebl_par8_beskatter_genanbragt_erhvervsfortjeneste: ebl_par8_genanbragt_erhvervsfortjeneste -> ebl_par8_genanbragt_erhvervsfortjeneste.betingelser_for_skattefrihed_opfyldt && ebl_par8_genanbragt_erhvervsfortjeneste.skattefri_fortjeneste_kroner == 160000 && ebl_par8_genanbragt_erhvervsfortjeneste.skattepligtig_fortjeneste_kroner == 40000
+| ebl_par8_sommerhus_kræver_grundbetingelsen: ebl_par8_sommerhus_med_stor_udstykkelig_grund -> ebl_par8_sommerhus_med_stor_udstykkelig_grund.input_gyldigt && ebl_par8_sommerhus_med_stor_udstykkelig_grund.betingelser_for_skattefrihed_opfyldt == Falskt && ebl_par8_sommerhus_med_stor_udstykkelig_grund.skattepligtig_fortjeneste_kroner == 200000
+| ebl_par8_anpartslejlighed_kræver_grundbetingelsen: ebl_par8_anpartslejlighed_med_stor_udstykkelig_grund -> ebl_par8_anpartslejlighed_med_stor_udstykkelig_grund.input_gyldigt && ebl_par8_anpartslejlighed_med_stor_udstykkelig_grund.betingelser_for_skattefrihed_opfyldt == Falskt && ebl_par8_anpartslejlighed_med_stor_udstykkelig_grund.skattepligtig_fortjeneste_kroner == 200000
+| ebl_par9_fritager_boligdelen_og_beskatter_erhvervsdelen: ebl_par9_blandet_fortjeneste -> ebl_par9_blandet_fortjeneste.betingelser_for_skattefri_boligdel_opfyldt && ebl_par9_blandet_fortjeneste.skattefri_boligfortjeneste_kroner == 50000 && ebl_par9_blandet_fortjeneste.skattepligtig_fortjeneste_kroner == 60000 && ebl_par9_blandet_fortjeneste.samlet_fortjeneste_eller_tab_kroner == 110000
+| ebl_par9_afskærer_kun_boligdelens_tab: ebl_par9_blandet_tab -> ebl_par9_blandet_tab.betingelser_for_skattefri_boligdel_opfyldt && ebl_par9_blandet_tab.afskåret_boligtab_efter_par6_stk4_kroner == 30000 && ebl_par9_blandet_tab.tab_kroner == 70000 && ebl_par9_blandet_tab.ejendomsafgrænsning == EblPar9Ejendom(30000)
+| ebl_par9_uden_boligfritagelse_regulerer_hele_anskaffelsessummen: ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen -> match ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen.par8_par9_behandling {
+    | EblPar9Behandling(resultat) -> ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen.par5_resultat.anskaffelsessum_før_par5_kroner == 1000000 && ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen.reguleret_anskaffelsessum_kroner == 1753940 && resultat.betingelser_for_skattefri_boligdel_opfyldt == Falskt && resultat.samlet_fortjeneste_eller_tab_kroner == 246060 && resultat.skattepligtig_fortjeneste_kroner == 246060
+    | _ -> Falskt
+}
+| ebl_par9_overgangsvalg_kan_aktivere_ejerboligen: ebl_par9_overgangsvalg_opfyldt_2026 -> ebl_par9_kategori_berettiget(ebl_par9_overgangsvalg_opfyldt_2026, EblDato(år = 2026, måned = 7, dag = 1))
+
+? ebl_par5_giver_fast_tillæg_i_anskaffelsesåret
+? ebl_par5_aggregerer_årets_udgifter_før_grænsen
+? ebl_par5a_indekserer_med_kildebestemt_faktor
+? ebl_par5a_natur_før_ikrafttræden_afvises_synligt
+? ebl_par8_fritager_parcelhusfortjenesten
+? ebl_par8_beskatter_genanbragt_erhvervsfortjeneste
+? ebl_par8_sommerhus_kræver_grundbetingelsen
+? ebl_par8_anpartslejlighed_kræver_grundbetingelsen
+? ebl_par9_fritager_boligdelen_og_beskatter_erhvervsdelen
+? ebl_par9_afskærer_kun_boligdelens_tab
+? ebl_par9_uden_boligfritagelse_regulerer_hele_anskaffelsessummen
+? ebl_par9_overgangsvalg_kan_aktivere_ejerboligen
+
+@ print("EBL §§ 5-9 source-fact scenarios passed")
+--@end:ebl_par5_par9_scenarier--

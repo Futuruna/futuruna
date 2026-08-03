@@ -35,25 +35,26 @@ indkomstårets udgang.
 ----
 
 --@begin:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie--
-| ebl_par6_scenarie_ejendomsresultat(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+| ebl_par6_scenarie_anskaffelsesdato(indkomstår: Heltal, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> hvis anskaffelsesgrundlag == EblPar4AlmindeligtAnskaffelsesgrundlag { EblDato(år = indkomstår, måned = 1, dag = 1) } ellers { EblDato(år = 1992, måned = 1, dag = 1) }
+| ebl_par6_scenarie_ejendomsresultat(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, ejendomstype: EjendomsavanceEjendomstype) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
     indkomstår = indkomstår,
+    afståelsesdato = EblDato(år = indkomstår, måned = 12, dag = 31),
     afståelse = EblAlmindeligAfståelse,
     erhvervet_som_led_i_næring = Falskt,
     kontant_anskaffelsessum_kroner = anskaffelsessum_kroner,
     gæld_kursværdi_ved_anskaffelse_kroner = 0,
-    regulering_efter_par5_og_5a_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(ebl_par6_scenarie_anskaffelsesdato(indkomstår, anskaffelsesgrundlag), anskaffelsesgrundlag),
     par4_stk8_anskaffelse_udeladt_kroner = 0,
     kontant_afståelsessum_kroner = afståelsessum_kroner,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = ejendomstype,
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 | ebl_par6_scenarie_tabsår_uden_fortjeneste(tab: EjendomsavancebeskatningslovResultat) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
     indkomstår = tab.indkomstår,
     tabsposter = [EjendomsavancePar6Tabspost(
-        resultat = tab,
-        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+        resultat = tab
     )],
     fortjenester = [],
     fremførsel = EblIngenFremførsel,
@@ -61,43 +62,77 @@ indkomstårets udgang.
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 
-= ebl_par6_tab_2024 = ebl_par6_scenarie_ejendomsresultat(2024, 7000, 0)
-= ebl_par6_tab_2025 = ebl_par6_scenarie_ejendomsresultat(2025, 20000, 0)
-= ebl_par6_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 100000)
-= ebl_par6_egen_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 130000)
-= ebl_par6_ægtefælles_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 140000)
+= ebl_par6_tab_2024 = ebl_par6_scenarie_ejendomsresultat(2024, 7000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+= ebl_par6_tab_2025 = ebl_par6_scenarie_ejendomsresultat(2025, 20000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+= ebl_par6_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+= ebl_par6_par8_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblBoligejendom(fakta = EblPar8Fakta(
+    ejendomsart = EblPar8EnEllerTofamilieshus(grundbetingelse = EblPar8GrundarealUnder1400M2),
+    tjent_til_bolig_eller_privat_formål = Sandt,
+    betingelser_opfyldt_i_ejerperioden = Sandt,
+    afståelsesforhold = EblPar8AlmindeligAfståelse,
+    genanbragt_erhvervsfortjeneste_kroner = 0
+)))
+= ebl_par6_par9_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblLandbrugSkovNaturEllerBlandetEjendom(fakta = EblPar9Fakta(
+    kategori = EblPar9Landbrugsejendom,
+    bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+    boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+    grundbetingelse = EblPar8GrundarealUnder1400M2,
+    bolig_anskaffelsessum_kroner = 50000,
+    bolig_afståelsessum_kroner = 20000,
+    skadeforhold = EblPar9IngenVæsentligSkade,
+    genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+)))
+= ebl_par6_par9_boliggevinst_erhvervstab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 210000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblLandbrugSkovNaturEllerBlandetEjendom(fakta = EblPar9Fakta(
+    kategori = EblPar9Landbrugsejendom,
+    bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+    boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+    grundbetingelse = EblPar8GrundarealUnder1400M2,
+    bolig_anskaffelsessum_kroner = 50000,
+    bolig_afståelsessum_kroner = 100000,
+    skadeforhold = EblPar9IngenVæsentligSkade,
+    genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+)))
+= ebl_par6_par9_boligtab_erhvervsgevinst_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 210000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblLandbrugSkovNaturEllerBlandetEjendom(fakta = EblPar9Fakta(
+    kategori = EblPar9Landbrugsejendom,
+    bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+    boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+    grundbetingelse = EblPar8GrundarealUnder1400M2,
+    bolig_anskaffelsessum_kroner = 50000,
+    bolig_afståelsessum_kroner = 0,
+    skadeforhold = EblPar9IngenVæsentligSkade,
+    genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+)))
+= ebl_par6_par4_stk3_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 430000, EblPar4Stk3TredjePktAnskaffelsesgrundlag(
+    tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner = 40000
+    ), EblAndenFastEjendom)
+= ebl_par6_egen_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 140000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+= ebl_par6_ægtefælles_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 150000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
 = ebl_par6_tabsår_2024 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2024)
 = ebl_par6_tabsår_2025 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2025)
 
 = ebl_par6_almindeligt_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
-    resultat = ebl_par6_tab_2026,
-    ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    resultat = ebl_par6_tab_2026
 ))
 = ebl_par6_par8_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
-    resultat = ebl_par6_tab_2026,
-    ejendomsafgrænsning = EblPar8Ejendom,
-    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    resultat = ebl_par6_par8_tab_2026
 ))
 = ebl_par6_par9_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
-    resultat = ebl_par6_tab_2026,
-    ejendomsafgrænsning = EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner = 30000),
-    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    resultat = ebl_par6_par9_tab_2026
+))
+= ebl_par6_par9_boliggevinst_erhvervstab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_par9_boliggevinst_erhvervstab_2026
+))
+= ebl_par6_par9_boligtab_erhvervsgevinst = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
+    resultat = ebl_par6_par9_boligtab_erhvervsgevinst_2026
 ))
 = ebl_par6_par4_stk3_tab = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(
-    resultat = ebl_par6_tab_2026,
-    ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-    anskaffelsesgrundlag = EblPar4Stk3TredjePktAnskaffelsesgrundlag(
-        tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner = 40000
-    )
+    resultat = ebl_par6_par4_stk3_tab_2026
 ))
 
 = ebl_par6_tabsår_med_samlevende_ægtefælle = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
     indkomstår = 2026,
     tabsposter = [EjendomsavancePar6Tabspost(
-        resultat = ebl_par6_tab_2026,
-        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+        resultat = ebl_par6_tab_2026
     )],
     fortjenester = [ebl_par6_egen_fortjeneste_2026],
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
@@ -108,9 +143,7 @@ indkomstårets udgang.
 = ebl_par6_tabsår_uden_samlevende_ægtefælle = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
     indkomstår = 2026,
     tabsposter = [EjendomsavancePar6Tabspost(
-        resultat = ebl_par6_tab_2026,
-        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+        resultat = ebl_par6_tab_2026
     )],
     fortjenester = [ebl_par6_egen_fortjeneste_2026],
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
@@ -130,6 +163,8 @@ indkomstårets udgang.
 | ebl_par6_almindeligt_tab_kan_fradrages: ebl_par6_almindeligt_tab -> ebl_par6_almindeligt_tab.brutto_tab_kroner == 100000 && ebl_par6_almindeligt_tab.fradragsberettiget_tab_kroner == 100000
 | ebl_par6_par8_tab_afskæres: ebl_par6_par8_tab -> ebl_par6_par8_tab.afskåret_efter_par8_kroner == 100000 && ebl_par6_par8_tab.fradragsberettiget_tab_kroner == 0
 | ebl_par6_par9_boligdel_afskæres: ebl_par6_par9_tab -> ebl_par6_par9_tab.afskåret_boligdel_efter_par9_kroner == 30000 && ebl_par6_par9_tab.fradragsberettiget_tab_kroner == 70000
+| ebl_par6_par9_boliggevinst_udligner_ikke_erhvervstab: ebl_par6_par9_boliggevinst_erhvervstab -> ebl_par6_par9_boliggevinst_erhvervstab.brutto_tab_kroner == 50000 && ebl_par6_par9_boliggevinst_erhvervstab.afskåret_boligdel_efter_par9_kroner == 0 && ebl_par6_par9_boliggevinst_erhvervstab.fradragsberettiget_tab_kroner == 50000
+| ebl_par6_par9_boligtab_udligner_ikke_erhvervsgevinst: ebl_par6_par9_boligtab_erhvervsgevinst -> ebl_par6_par9_boligtab_erhvervsgevinst.brutto_tab_kroner == 50000 && ebl_par6_par9_boligtab_erhvervsgevinst.afskåret_boligdel_efter_par9_kroner == 50000 && ebl_par6_par9_boligtab_erhvervsgevinst.fradragsberettiget_tab_kroner == 0 && ebl_par6_par9_boligtab_erhvervsgevinst_2026.skattepligtig_fortjeneste_kroner == 50000
 | ebl_par6_par4_stk3_lofter_tabet: ebl_par6_par4_stk3_tab -> ebl_par6_par4_stk3_tab.afskåret_efter_par4_stk3_tredje_pkt_kroner == 60000 && ebl_par6_par4_stk3_tab.fradragsberettiget_tab_kroner == 40000
 | ebl_par6_modregner_først_egen_og_siden_ægtefælles_fortjeneste: ebl_par6_tabsår_med_samlevende_ægtefælle -> ebl_par6_tabsår_med_samlevende_ægtefælle.årets_fradragsberettigede_tab_kroner == 100000 && ebl_par6_tabsår_med_samlevende_ægtefælle.gyldigt_fremført_tab_fra_tidligere_år_kroner == 20000 && ebl_par6_tabsår_med_samlevende_ægtefælle.afvist_fremførsel_kroner == 0 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_modregnet_i_egne_fortjenester_kroner == 30000 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_overført_til_ægtefælle_kroner == 40000 && ebl_par6_tabsår_med_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner == 50000
 | ebl_par6_uden_samliv_overføres_intet_til_ægtefællen: ebl_par6_tabsår_uden_samlevende_ægtefælle -> ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_modregnet_i_egne_fortjenester_kroner == 30000 && ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_overført_til_ægtefælle_kroner == 0 && ebl_par6_tabsår_uden_samlevende_ægtefælle.tab_fremført_til_følgende_indkomstår_kroner == 90000
@@ -138,6 +173,8 @@ indkomstårets udgang.
 ? ebl_par6_almindeligt_tab_kan_fradrages
 ? ebl_par6_par8_tab_afskæres
 ? ebl_par6_par9_boligdel_afskæres
+? ebl_par6_par9_boliggevinst_udligner_ikke_erhvervstab
+? ebl_par6_par9_boligtab_udligner_ikke_erhvervsgevinst
 ? ebl_par6_par4_stk3_lofter_tabet
 ? ebl_par6_modregner_først_egen_og_siden_ægtefælles_fortjeneste
 ? ebl_par6_uden_samliv_overføres_intet_til_ægtefællen

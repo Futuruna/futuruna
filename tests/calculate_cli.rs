@@ -601,16 +601,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             let property_paths = workbook_column_paths(&mut workbook, sheet);
             for expected in [
                 "identifikation",
+                "afståelsesdato.år",
+                "afståelsesdato.måned",
+                "afståelsesdato.dag",
                 "afståelse",
                 "erhvervet_som_led_i_næring",
                 "kontant_anskaffelsessum_kroner",
-                "regulering_efter_par5_og_5a_kroner",
+                "par5_fakta.anskaffelsesdato.år",
+                "par5_fakta.anskaffelsesdato.måned",
+                "par5_fakta.anskaffelsesdato.dag",
+                "par5_fakta.anskaffelsesgrundlag.$variant",
+                "par5_fakta.anskaffelsesgrundlag.EblPar4Stk3TredjePktAnskaffelsesgrundlag.tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner",
+                "par5_fakta.forholdsmæssig_andel_promille",
+                "par5_fakta.særforhold",
+                "par5_fakta.reguleringsvalg.$variant",
+                "par5_fakta.reguleringsvalg.EblPar5AMedIndeksering.kategori",
                 "kontant_afståelsessum_kroner",
                 "par11_stk2_genanbragt_erhvervsejendom",
-                "ejendomsafgrænsning.$variant",
-                "ejendomsafgrænsning.EblPar9Ejendom.tab_vedrørende_stuehus_ejerbolig_kroner",
-                "anskaffelsesgrundlag.$variant",
-                "anskaffelsesgrundlag.EblPar4Stk3TredjePktAnskaffelsesgrundlag.tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner",
+                "ejendomstype.$variant",
+                "ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.kategori.$variant",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_anskaffelsessum_kroner",
             ] {
                 assert!(
                     property_paths.iter().any(|path| path == expected),
@@ -618,13 +629,53 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 );
             }
             let property_headers = workbook_headers(&mut workbook, sheet);
-            assert!(property_headers
-                .iter()
-                .any(|header| header == "Identifikation"));
-            assert!(property_headers.iter().any(|header| header == "Afståelse"));
-            assert!(property_headers
-                .iter()
-                .any(|header| header == "Kontant anskaffelsessum (DKK)"));
+            for expected in [
+                "Ejendom",
+                "Afståelsesår",
+                "Anskaffelsesår",
+                "Kontant anskaffelsessum",
+                "Kontant afståelsessum",
+                "Anskaffelsesgrundlag",
+                "Indeksering efter § 5 A",
+                "Ejendomstype",
+            ] {
+                assert!(
+                    property_headers.iter().any(|header| header == expected),
+                    "missing human property input label {expected} on {sheet}"
+                );
+            }
+        }
+        for property_path in [
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser",
+        ] {
+            let expense_path =
+                format!("{property_path}.par5_fakta.vedligeholdelses_og_forbedringsudgifter");
+            let expense_sheet = workbook_collection_sheet_name(&mut workbook, &expense_path);
+            let expense_paths = workbook_column_paths(&mut workbook, &expense_sheet);
+            for expected in [
+                "afholdelsesdato.år",
+                "afholdelsesdato.måned",
+                "afholdelsesdato.dag",
+                "fuldførelsesår",
+                "beløb_for_afstået_del_kroner",
+                "status",
+            ] {
+                assert!(
+                    expense_paths.iter().any(|path| path == expected),
+                    "missing canonical § 5 expense path {expected} on {expense_sheet}"
+                );
+            }
+
+            let reduction_path = format!("{property_path}.par5_fakta.nedsættelser");
+            let reduction_sheet = workbook_collection_sheet_name(&mut workbook, &reduction_path);
+            let reduction_paths = workbook_column_paths(&mut workbook, &reduction_sheet);
+            for expected in ["indkomstår", "beløb_for_afstået_del_kroner", "grund"] {
+                assert!(
+                    reduction_paths.iter().any(|path| path == expected),
+                    "missing canonical § 5 reduction path {expected} on {reduction_sheet}"
+                );
+            }
         }
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
@@ -901,6 +952,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ("item_id", Data::String(item_id.to_string())),
                 ("position", Data::Int(row as i64)),
                 ("identifikation", Data::String(identification.to_string())),
+                ("afståelsesdato.år", Data::Int(2026)),
+                ("afståelsesdato.måned", Data::Int(12)),
+                ("afståelsesdato.dag", Data::Int(31)),
                 (
                     "afståelse",
                     Data::String("EblAlmindeligAfståelse".to_string()),
@@ -908,19 +962,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ("erhvervet_som_led_i_næring", Data::Bool(false)),
                 ("kontant_anskaffelsessum_kroner", Data::Int(acquisition)),
                 ("gæld_kursværdi_ved_anskaffelse_kroner", Data::Int(0)),
-                ("regulering_efter_par5_og_5a_kroner", Data::Int(0)),
+                ("par5_fakta.anskaffelsesdato.år", Data::Int(2026)),
+                ("par5_fakta.anskaffelsesdato.måned", Data::Int(1)),
+                ("par5_fakta.anskaffelsesdato.dag", Data::Int(1)),
+                (
+                    "par5_fakta.anskaffelsesgrundlag.$variant",
+                    Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+                ),
+                ("par5_fakta.forholdsmæssig_andel_promille", Data::Int(1000)),
+                (
+                    "par5_fakta.særforhold",
+                    Data::String("EblPar5UdenMælkekvoteEllerStk6Overførsel".to_string()),
+                ),
+                (
+                    "par5_fakta.reguleringsvalg.$variant",
+                    Data::String("EblPar5UdenIndeksering".to_string()),
+                ),
                 ("par4_stk8_anskaffelse_udeladt_kroner", Data::Int(0)),
                 ("kontant_afståelsessum_kroner", Data::Int(disposal)),
                 ("overdragne_gældsposter_kursværdi_kroner", Data::Int(0)),
                 ("par4_stk8_afståelsesværdi_udeladt_kroner", Data::Int(0)),
                 ("par11_stk2_genanbragt_erhvervsejendom", Data::Bool(false)),
                 (
-                    "ejendomsafgrænsning.$variant",
-                    Data::String("EblPar6AlmindeligEjendom".to_string()),
-                ),
-                (
-                    "anskaffelsesgrundlag.$variant",
-                    Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+                    "ejendomstype.$variant",
+                    Data::String("EblAndenFastEjendom".to_string()),
                 ),
             ] {
                 set_workbook_cell_by_header(sheets, &own_property_sheet, row, header, value);
@@ -934,6 +999,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("item_id", Data::String("ægtefælles-tab-1".to_string())),
             ("position", Data::Int(1)),
             ("identifikation", Data::String("ægtefælles-tab".to_string())),
+            ("afståelsesdato.år", Data::Int(2026)),
+            ("afståelsesdato.måned", Data::Int(12)),
+            ("afståelsesdato.dag", Data::Int(31)),
             (
                 "afståelse",
                 Data::String("EblAlmindeligAfståelse".to_string()),
@@ -941,19 +1009,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("erhvervet_som_led_i_næring", Data::Bool(false)),
             ("kontant_anskaffelsessum_kroner", Data::Int(300_000)),
             ("gæld_kursværdi_ved_anskaffelse_kroner", Data::Int(0)),
-            ("regulering_efter_par5_og_5a_kroner", Data::Int(0)),
+            ("par5_fakta.anskaffelsesdato.år", Data::Int(2026)),
+            ("par5_fakta.anskaffelsesdato.måned", Data::Int(1)),
+            ("par5_fakta.anskaffelsesdato.dag", Data::Int(1)),
+            (
+                "par5_fakta.anskaffelsesgrundlag.$variant",
+                Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+            ),
+            ("par5_fakta.forholdsmæssig_andel_promille", Data::Int(1000)),
+            (
+                "par5_fakta.særforhold",
+                Data::String("EblPar5UdenMælkekvoteEllerStk6Overførsel".to_string()),
+            ),
+            (
+                "par5_fakta.reguleringsvalg.$variant",
+                Data::String("EblPar5UdenIndeksering".to_string()),
+            ),
             ("par4_stk8_anskaffelse_udeladt_kroner", Data::Int(0)),
             ("kontant_afståelsessum_kroner", Data::Int(270_000)),
             ("overdragne_gældsposter_kursværdi_kroner", Data::Int(0)),
             ("par4_stk8_afståelsesværdi_udeladt_kroner", Data::Int(0)),
             ("par11_stk2_genanbragt_erhvervsejendom", Data::Bool(false)),
             (
-                "ejendomsafgrænsning.$variant",
-                Data::String("EblPar6AlmindeligEjendom".to_string()),
-            ),
-            (
-                "anskaffelsesgrundlag.$variant",
-                Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+                "ejendomstype.$variant",
+                Data::String("EblAndenFastEjendom".to_string()),
             ),
         ] {
             set_workbook_cell_by_header(sheets, &spouse_property_sheet, 1, header, value);
@@ -1339,32 +1418,48 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "fakta": {
                 "egne_afståelser": [{
                     "identifikation": "egen-fortjeneste",
+                    "afståelsesdato": { "år": 2026, "måned": 12, "dag": 31 },
                     "afståelse": { "$variant": "EblAlmindeligAfståelse" },
                     "erhvervet_som_led_i_næring": false,
                     "kontant_anskaffelsessum_kroner": 1_000_000,
                     "gæld_kursværdi_ved_anskaffelse_kroner": 0,
-                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par5_fakta": {
+                        "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
+                        "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
+                        "forholdsmæssig_andel_promille": 1000,
+                        "vedligeholdelses_og_forbedringsudgifter": [],
+                        "nedsættelser": [],
+                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
+                    },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
                     "kontant_afståelsessum_kroner": 1_200_000,
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
-                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
                 }, {
                     "identifikation": "eget-tab",
+                    "afståelsesdato": { "år": 2026, "måned": 12, "dag": 31 },
                     "afståelse": { "$variant": "EblAlmindeligAfståelse" },
                     "erhvervet_som_led_i_næring": false,
                     "kontant_anskaffelsessum_kroner": 500_000,
                     "gæld_kursværdi_ved_anskaffelse_kroner": 0,
-                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par5_fakta": {
+                        "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
+                        "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
+                        "forholdsmæssig_andel_promille": 1000,
+                        "vedligeholdelses_og_forbedringsudgifter": [],
+                        "nedsættelser": [],
+                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
+                    },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
                     "kontant_afståelsessum_kroner": 450_000,
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
-                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
                 }],
                 "eget_fremført_tab": {
                     "$variant": "MedFremførtEjendomstab",
@@ -1373,18 +1468,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "ægtefælles_afståelser": [{
                     "identifikation": "ægtefælles-tab",
+                    "afståelsesdato": { "år": 2026, "måned": 12, "dag": 31 },
                     "afståelse": { "$variant": "EblAlmindeligAfståelse" },
                     "erhvervet_som_led_i_næring": false,
                     "kontant_anskaffelsessum_kroner": 300_000,
                     "gæld_kursværdi_ved_anskaffelse_kroner": 0,
-                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par5_fakta": {
+                        "anskaffelsesdato": { "år": 2026, "måned": 1, "dag": 1 },
+                        "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" },
+                        "forholdsmæssig_andel_promille": 1000,
+                        "vedligeholdelses_og_forbedringsudgifter": [],
+                        "nedsættelser": [],
+                        "særforhold": { "$variant": "EblPar5UdenMælkekvoteEllerStk6Overførsel" },
+                        "reguleringsvalg": { "$variant": "EblPar5UdenIndeksering" }
+                    },
                     "par4_stk8_anskaffelse_udeladt_kroner": 0,
                     "kontant_afståelsessum_kroner": 270_000,
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
-                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
                 }],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": true
@@ -1499,7 +1602,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
-        105_000
+        75_000
     );
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]["$variant"],
@@ -1513,12 +1616,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
             ["ægtefælles_tabsårsresultat"]["tab_overført_til_ægtefælle_kroner"],
-        30_000
+        40_000
     );
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
             ["par4_resultat"]["kapitalindkomst_kroner"],
-        95_000
+        65_000
     );
     assert_eq!(
         result["results"][2]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],

@@ -107,23 +107,23 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 )).venstre
 | par13a_audit_ebl_tab(indkomstår: Heltal, tab_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
     indkomstår = indkomstår,
+    afståelsesdato = EblDato(år = indkomstår, måned = 12, dag = 31),
     afståelse = EblAlmindeligAfståelse,
     erhvervet_som_led_i_næring = Falskt,
     kontant_anskaffelsessum_kroner = tab_kroner,
     gæld_kursværdi_ved_anskaffelse_kroner = 0,
-    regulering_efter_par5_og_5a_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(EblDato(år = indkomstår, måned = 1, dag = 1), EblPar4AlmindeligtAnskaffelsesgrundlag),
     par4_stk8_anskaffelse_udeladt_kroner = 0,
-    kontant_afståelsessum_kroner = 0,
+    kontant_afståelsessum_kroner = 10000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblAndenFastEjendom,
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 | par13a_audit_ebl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
     indkomstår = indkomstår,
     tabsposter = [EjendomsavancePar6Tabspost(
-        resultat = par13a_audit_ebl_tab(indkomstår, tab_kroner),
-        ejendomsafgrænsning = EblPar6AlmindeligEjendom,
-        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+        resultat = par13a_audit_ebl_tab(indkomstår, tab_kroner)
     )],
     fortjenester = [],
     fremførsel = EblIngenFremførsel,

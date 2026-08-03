@@ -163,20 +163,20 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     omkostninger = []
 )))
 
-| personskat_calculate_ejendomsavancefakta(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning) -> PersonskatEjendomsavanceFakta(
+| personskat_calculate_ejendomsavancefakta(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype) -> PersonskatEjendomsavanceFakta(
     identifikation = identifikation,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
     afståelse = EblAlmindeligAfståelse,
     erhvervet_som_led_i_næring = Falskt,
     kontant_anskaffelsessum_kroner = anskaffelsessum_kroner,
     gæld_kursværdi_ved_anskaffelse_kroner = 0,
-    regulering_efter_par5_og_5a_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(EblDato(år = 2026, måned = 1, dag = 1), EblPar4AlmindeligtAnskaffelsesgrundlag),
     par4_stk8_anskaffelse_udeladt_kroner = 0,
     kontant_afståelsessum_kroner = afståelsessum_kroner,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
-    ejendomsafgrænsning = ejendomsafgrænsning,
-    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    ejendomstype = ejendomstype,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
 )
 | personskat_calculate_kapitalindkomst_med_ejendomsavance(ejendomsavance: PersonskatEjendomsavanceInput) -> PersonskatKapitalindkomstInput(
     renter = PersonskatRenteInput(
@@ -191,30 +191,36 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ejendomsavance_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
     egne_afståelser = [
-        personskat_calculate_ejendomsavancefakta("egen-fortjeneste", 1000000, 1200000, EblPar6AlmindeligEjendom),
-        personskat_calculate_ejendomsavancefakta("eget-tab", 500000, 450000, EblPar6AlmindeligEjendom)
+        personskat_calculate_ejendomsavancefakta("egen-fortjeneste", 1000000, 1200000, EblAndenFastEjendom),
+        personskat_calculate_ejendomsavancefakta("eget-tab", 500000, 450000, EblAndenFastEjendom)
     ],
     eget_fremført_tab = MedFremførtEjendomstab(fra_indkomstår = 2025, tab_kroner = 25000),
     ægtefælles_afståelser = [
-        personskat_calculate_ejendomsavancefakta("ægtefælles-tab", 300000, 270000, EblPar6AlmindeligEjendom)
+        personskat_calculate_ejendomsavancefakta("ægtefælles-tab", 300000, 270000, EblAndenFastEjendom)
     ],
     ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
     gift_samlevende_ved_indkomstårets_udgang = Sandt
 )))))
 = personskat_calculate_ejendomsavance_overførselsloft_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
     egne_afståelser = [
-        personskat_calculate_ejendomsavancefakta("egen-fortjeneste-loft", 1000000, 1200000, EblPar6AlmindeligEjendom),
-        personskat_calculate_ejendomsavancefakta("eget-tab-loft", 500000, 450000, EblPar6AlmindeligEjendom)
+        personskat_calculate_ejendomsavancefakta("egen-fortjeneste-loft", 1000000, 1200000, EblAndenFastEjendom),
+        personskat_calculate_ejendomsavancefakta("eget-tab-loft", 500000, 450000, EblAndenFastEjendom)
     ],
     eget_fremført_tab = MedFremførtEjendomstab(fra_indkomstår = 2025, tab_kroner = 25000),
     ægtefælles_afståelser = [
-        personskat_calculate_ejendomsavancefakta("ægtefælles-tab-loft", 300000, 150000, EblPar6AlmindeligEjendom)
+        personskat_calculate_ejendomsavancefakta("ægtefælles-tab-loft", 300000, 150000, EblAndenFastEjendom)
     ],
     ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
     gift_samlevende_ved_indkomstårets_udgang = Sandt
 )))))
 = personskat_calculate_par8_fortjeneste_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
-    egne_afståelser = [personskat_calculate_ejendomsavancefakta("par8-fortjeneste", 1000000, 1200000, EblPar8Ejendom)],
+    egne_afståelser = [personskat_calculate_ejendomsavancefakta("par8-fortjeneste", 1000000, 1200000, EblBoligejendom(fakta = EblPar8Fakta(
+        ejendomsart = EblPar8EnEllerTofamilieshus(grundbetingelse = EblPar8GrundarealUnder1400M2),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbragt_erhvervsfortjeneste_kroner = 0
+    )))],
     eget_fremført_tab = UdenFremførtEjendomstab,
     ægtefælles_afståelser = [],
     ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
@@ -358,16 +364,16 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_renter_og_ll_fradrag_afledes: personskat_calculate_rente_resultat -> personskat_calculate_rente_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6_resultat.fradrag_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6a_resultat.fradrag_kroner == 1000 && personskat_calculate_rente_resultat.kapitalindkomst.rente_resultat.kapitalindkomst_kroner == 12000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.fradragsberettigede_omkostninger_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_finansieringsnæring_reklassificeres: personskat_calculate_finansieringsnæring_resultat -> personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificerede_personlige_omkostninger_kroner == 3000 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.øvrig_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_ll6_forkert_år_afvises: personskat_calculate_ll6_forkert_år_resultat -> personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.ligningslov6_input_gyldigt == Falskt && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.alle_input_gyldige == Falskt && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.ligningslov6_resultat.fradrag_kroner == 2000 && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.rente_resultat.ligningslov6_fradrag_kroner == 0 && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 15000 && personskat_calculate_ll6_forkert_år_resultat.skat.nettokapitalindkomst_kroner == 15000
-| personskat_calculate_ejendomsavance_afledes_årligt: personskat_calculate_ejendomsavance_resultat -> personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_ejendomsavance_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 95000 && personskat_calculate_ejendomsavance_resultat.skat.nettokapitalindkomst_kroner == 95000 && match personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_resultat {
-    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, eget_tabsårsresultat, ægtefælles_tabsårsresultat, par4_resultat) -> head(egne_afståelsesresultater).indkomstår == 2026 && eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner == 200000 && eget_tabsårsresultat.årets_fradragsberettigede_tab_kroner == 50000 && eget_tabsårsresultat.gyldigt_fremført_tab_fra_tidligere_år_kroner == 25000 && eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 75000 && ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner == 30000 && par4_resultat.kapitalindkomst_kroner == 95000
+| personskat_calculate_ejendomsavance_afledes_årligt: personskat_calculate_ejendomsavance_resultat -> personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_ejendomsavance_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 65000 && personskat_calculate_ejendomsavance_resultat.skat.nettokapitalindkomst_kroner == 65000 && match personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, eget_tabsårsresultat, ægtefælles_tabsårsresultat, par4_resultat) -> head(egne_afståelsesresultater).indkomstår == 2026 && eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner == 190000 && eget_tabsårsresultat.årets_fradragsberettigede_tab_kroner == 60000 && eget_tabsårsresultat.gyldigt_fremført_tab_fra_tidligere_år_kroner == 25000 && eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 85000 && ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner == 40000 && par4_resultat.kapitalindkomst_kroner == 65000
     | _ -> Falskt
 }
 | personskat_calculate_ægtefælles_tab_begrænses_af_egen_nettofortjeneste: personskat_calculate_ejendomsavance_overførselsloft_resultat -> personskat_calculate_ejendomsavance_overførselsloft_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match personskat_calculate_ejendomsavance_overførselsloft_resultat.kapitalindkomst.ejendomsavance_resultat {
-    | BeregnetEjendomsavance(_, _, _, eget_tabsårsresultat, ægtefælles_tabsårsresultat, par4_resultat) -> eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 75000 && ægtefælles_tabsårsresultat.ægtefælles_nettofortjeneste_efter_egne_tab_kroner == 125000 && ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner == 125000 && ægtefælles_tabsårsresultat.tab_fremført_til_følgende_indkomstår_kroner == 25000 && par4_resultat.kapitalindkomst_kroner == 0
+    | BeregnetEjendomsavance(_, _, _, eget_tabsårsresultat, ægtefælles_tabsårsresultat, par4_resultat) -> eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 85000 && ægtefælles_tabsårsresultat.ægtefælles_nettofortjeneste_efter_egne_tab_kroner == 105000 && ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner == 105000 && ægtefælles_tabsårsresultat.tab_fremført_til_følgende_indkomstår_kroner == 55000 && par4_resultat.kapitalindkomst_kroner == 0
     | _ -> Falskt
 }
-| personskat_calculate_par8_fortjeneste_afvises_indtil_undtagelsen_er_modelleret: personskat_calculate_par8_fortjeneste_resultat -> personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.ejendomsavance_input_gyldigt == Falskt && personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.ejendomsavance_resultat {
-    | UgyldigtEjendomsavancegrundlag(_, grundfakta_gyldige, fortjenesteafgrænsninger_understøttet, fremførsler_gyldige, ægtefælledata_relevant) -> grundfakta_gyldige && fortjenesteafgrænsninger_understøttet == Falskt && fremførsler_gyldige && ægtefælledata_relevant
+| personskat_calculate_par8_fortjeneste_fritages: personskat_calculate_par8_fortjeneste_resultat -> personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match personskat_calculate_par8_fortjeneste_resultat.kapitalindkomst.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, par4_resultat) -> head(egne_afståelsesresultater).skattefri_fortjeneste_efter_par8_eller_par9_kroner == 190000 && head(egne_afståelsesresultater).ejendomsafgrænsning == EblPar8Ejendom && par4_resultat.kapitalindkomst_kroner == 0
     | _ -> Falskt
 }
 | personskat_calculate_befordring_afledes: personskat_calculate_befordring_resultat -> personskat_calculate_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 0 && personskat_calculate_befordring_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 23166 && personskat_calculate_befordring_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 203308
@@ -398,7 +404,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ll6_forkert_år_afvises
 ? personskat_calculate_ejendomsavance_afledes_årligt
 ? personskat_calculate_ægtefælles_tab_begrænses_af_egen_nettofortjeneste
-? personskat_calculate_par8_fortjeneste_afvises_indtil_undtagelsen_er_modelleret
+? personskat_calculate_par8_fortjeneste_fritages
 ? personskat_calculate_befordring_afledes
 ? personskat_calculate_fri_befordring_føder_personlig_indkomst
 ? personskat_calculate_ll9d_betingelser_erstatter_ll9c

@@ -4,7 +4,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -21,7 +21,7 @@
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
 # PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
-# PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, regulering_efter_par5_og_5a_kroner: Heltal, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, par11_stk2_genanbragt_erhvervsejendom: Boolsk, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, anskaffelsesgrundlag: EjendomsavancePar6Anskaffelsesgrundlag)
+# PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_genanbragt_erhvervsejendom: Boolsk)
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
 # PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
@@ -100,6 +100,160 @@
     help = Some("Vælg årsopgørelse for at beregne slutskat efter indeholdt skat og øvrige kreditter."),
     unit = None
 )
+= personskat_felt_egne_ejendomssalg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
+    label = "Dine ejendomssalg",
+    question = Some("Har du afstået fast ejendom i indkomståret?"),
+    help = Some("Tilføj én række pr. ejendom. Futuruna udleder reguleringer, skattefrihed og tabsbegrænsninger af de underliggende fakta."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomssalg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser",
+    label = "Din ægtefælles ejendomssalg",
+    question = Some("Har din ægtefælle afstået fast ejendom i indkomståret?"),
+    help = Some("Oplysningerne bruges til den lovbestemte overførsel af ejendomstab mellem samlevende ægtefæller."),
+    unit = None
+)
+= personskat_felt_egne_ejendomsudgifter = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.vedligeholdelses_og_forbedringsudgifter",
+    label = "Vedligeholdelses- og forbedringsudgifter",
+    question = Some("Har du afholdt vedligeholdelses- eller forbedringsudgifter på ejendommen, som kan påvirke anskaffelsessummen?"),
+    help = Some("Tilføj hver udgift med dato, fuldførelsesår, beløb for den afståede del og skattemæssig status. Reglerne aggregerer beløbene pr. år før 10.000 kr.-grænsen anvendes."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomsudgifter = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.vedligeholdelses_og_forbedringsudgifter",
+    label = "Vedligeholdelses- og forbedringsudgifter",
+    question = Some("Har din ægtefælle afholdt vedligeholdelses- eller forbedringsudgifter på ejendommen, som kan påvirke anskaffelsessummen?"),
+    help = Some("Tilføj hver udgift med dato, fuldførelsesår, beløb for den afståede del og skattemæssig status. Reglerne aggregerer beløbene pr. år før 10.000 kr.-grænsen anvendes."),
+    unit = None
+)
+= personskat_felt_egne_ejendomsnedsættelser = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.nedsættelser",
+    label = "Nedsættelser af anskaffelsessummen",
+    question = Some("Skal ejendommens anskaffelsessum nedsættes efter § 5, stk. 4-8?"),
+    help = Some("Tilføj hvert beløb med indkomstår og lovgrund, eksempelvis ikke genvundne afskrivninger, nedrivning eller værdiforringelse."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomsnedsættelser = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.nedsættelser",
+    label = "Nedsættelser af anskaffelsessummen",
+    question = Some("Skal din ægtefælles ejendoms anskaffelsessum nedsættes efter § 5, stk. 4-8?"),
+    help = Some("Tilføj hvert beløb med indkomstår og lovgrund, eksempelvis ikke genvundne afskrivninger, nedrivning eller værdiforringelse."),
+    unit = None
+)
+= personskat_felt_egen_ejendomsidentifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.identifikation",
+    label = "Ejendom",
+    question = Some("Hvilken ejendom vedrører afståelsen?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomsidentifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.identifikation",
+    label = "Ejendom",
+    question = Some("Hvilken af din ægtefælles ejendomme vedrører afståelsen?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_egen_ejendoms_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.afståelsesdato.år",
+    label = "Afståelsesår",
+    question = Some("I hvilket år blev ejendommen afstået?"),
+    help = Some("Året skal svare til det indkomstår, hvor afståelsen skal behandles."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ejendoms_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.afståelsesdato.år",
+    label = "Afståelsesår",
+    question = Some("I hvilket år blev din ægtefælles ejendom afstået?"),
+    help = Some("Året skal svare til det indkomstår, hvor afståelsen skal behandles."),
+    unit = Some("år")
+)
+= personskat_felt_egen_ejendoms_anskaffelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.anskaffelsesdato.år",
+    label = "Anskaffelsesår",
+    question = Some("I hvilket år blev ejendommen anskaffet?"),
+    help = Some("Anskaffelsesåret bestemmer blandt andet de årlige tillæg og eventuel indeksering efter § 5 A."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ejendoms_anskaffelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.anskaffelsesdato.år",
+    label = "Anskaffelsesår",
+    question = Some("I hvilket år blev din ægtefælles ejendom anskaffet?"),
+    help = Some("Anskaffelsesåret bestemmer blandt andet de årlige tillæg og eventuel indeksering efter § 5 A."),
+    unit = Some("år")
+)
+= personskat_felt_egen_ejendoms_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.kontant_anskaffelsessum_kroner",
+    label = "Kontant anskaffelsessum",
+    question = Some("Hvad var ejendommens kontante anskaffelsessum?"),
+    help = Some("Angiv kontantværdien før regulering efter ejendomsavancebeskatningslovens §§ 5 og 5 A."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ejendoms_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.kontant_anskaffelsessum_kroner",
+    label = "Kontant anskaffelsessum",
+    question = Some("Hvad var din ægtefælles ejendoms kontante anskaffelsessum?"),
+    help = Some("Angiv kontantværdien før regulering efter ejendomsavancebeskatningslovens §§ 5 og 5 A."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ejendoms_afståelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.kontant_afståelsessum_kroner",
+    label = "Kontant afståelsessum",
+    question = Some("Hvad var ejendommens kontante afståelsessum?"),
+    help = Some("Angiv afståelsessummens kontantværdi før de øvrige lovbestemte korrektioner."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ejendoms_afståelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.kontant_afståelsessum_kroner",
+    label = "Kontant afståelsessum",
+    question = Some("Hvad var din ægtefælles ejendoms kontante afståelsessum?"),
+    help = Some("Angiv afståelsessummens kontantværdi før de øvrige lovbestemte korrektioner."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ejendoms_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.anskaffelsesgrundlag.$variant",
+    label = "Anskaffelsesgrundlag",
+    question = Some("Hvilket lovbestemt anskaffelsesgrundlag gælder for ejendommen?"),
+    help = Some("Valget skelner mellem almindelig anskaffelse og overgangsgrundlagene i § 4, stk. 3."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.anskaffelsesgrundlag.$variant",
+    label = "Anskaffelsesgrundlag",
+    question = Some("Hvilket lovbestemt anskaffelsesgrundlag gælder for din ægtefælles ejendom?"),
+    help = Some("Valget skelner mellem almindelig anskaffelse og overgangsgrundlagene i § 4, stk. 3."),
+    unit = None
+)
+= personskat_felt_egen_ejendoms_indeksering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.reguleringsvalg.$variant",
+    label = "Indeksering efter § 5 A",
+    question = Some("Skal anskaffelsessummen indekseres efter § 5 A?"),
+    help = Some("Indeksering er kun tilgængelig for de ejendomskategorier og år, som loven omfatter."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendoms_indeksering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.reguleringsvalg.$variant",
+    label = "Indeksering efter § 5 A",
+    question = Some("Skal din ægtefælles anskaffelsessum indekseres efter § 5 A?"),
+    help = Some("Indeksering er kun tilgængelig for de ejendomskategorier og år, som loven omfatter."),
+    unit = None
+)
+= personskat_felt_egen_ejendomstype = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.$variant",
+    label = "Ejendomstype",
+    question = Some("Hvilken lovmæssig ejendomstype blev afstået?"),
+    help = Some("Ejendomstypen åbner de relevante fakta for parcelhusreglen eller en blandet landbrugs-, skov-, natur- eller erhvervsejendom."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomstype = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.$variant",
+    label = "Ejendomstype",
+    question = Some("Hvilken lovmæssig ejendomstype blev din ægtefælles ejendom afstået som?"),
+    help = Some("Ejendomstypen åbner de relevante fakta for parcelhusreglen eller en blandet landbrugs-, skov-, natur- eller erhvervsejendom."),
+    unit = None
+)
 
 --@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
@@ -110,6 +264,28 @@
 --@label:beregn_personskat::field:personskat_felt_renteindtægter::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_renteudgifter::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_årsopgørelse::source:kildeskatteloven_2024_460--
+--@label:beregn_personskat::field:personskat_felt_egne_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
+--@label:beregn_personskat::field:personskat_felt_egne_ejendomsudgifter::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsudgifter::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egne_ejendomsnedsættelser::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsnedsættelser::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendomsidentifikation::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsidentifikation::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsesår::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_afståelsesår::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsesår::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsesår::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_afståelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsesgrundlag::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendoms_indeksering::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_indeksering::source:ebl_par5_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ejendomstype::source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomstype::source:ebl_par8_par9_lbk132--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,
@@ -244,37 +420,28 @@
 }
 | personskat_ejendomsavance_input(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancebeskatningslovInput(
     indkomstår = skatteår,
+    afståelsesdato = fakta.afståelsesdato,
     afståelse = fakta.afståelse,
     erhvervet_som_led_i_næring = fakta.erhvervet_som_led_i_næring,
     kontant_anskaffelsessum_kroner = fakta.kontant_anskaffelsessum_kroner,
     gæld_kursværdi_ved_anskaffelse_kroner = fakta.gæld_kursværdi_ved_anskaffelse_kroner,
-    regulering_efter_par5_og_5a_kroner = fakta.regulering_efter_par5_og_5a_kroner,
+    par5_fakta = fakta.par5_fakta,
     par4_stk8_anskaffelse_udeladt_kroner = fakta.par4_stk8_anskaffelse_udeladt_kroner,
     kontant_afståelsessum_kroner = fakta.kontant_afståelsessum_kroner,
     overdragne_gældsposter_kursværdi_kroner = fakta.overdragne_gældsposter_kursværdi_kroner,
     par4_stk8_afståelsesværdi_udeladt_kroner = fakta.par4_stk8_afståelsesværdi_udeladt_kroner,
+    ejendomstype = fakta.ejendomstype,
     par11_stk2_genanbragt_erhvervsejendom = fakta.par11_stk2_genanbragt_erhvervsejendom
 )
 | personskat_ejendomsavance_afståelsesresultat(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> ejendomsavancebeskatningslov_resultat(personskat_ejendomsavance_input(fakta, skatteår))
 | personskat_ejendomsavance_afståelsesresultater(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_afståelsesresultat(fakta, skatteår))
 | personskat_ejendomsavance_identifikation_unik(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta) -> length(filter(afståelser, |anden: PersonskatEjendomsavanceFakta| anden.identifikation == fakta.identifikation)) == 1
-| personskat_ejendomsavance_ejendomsafgrænsning_grundfakta_gyldige(afgrænsning: EjendomsavancePar6Ejendomsafgrænsning, resultat: EjendomsavancebeskatningslovResultat) -> match afgrænsning {
-    | EblPar6AlmindeligEjendom -> Sandt
-    | EblPar8Ejendom -> Sandt
-    | EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner) -> tab_vedrørende_stuehus_ejerbolig_kroner >= 0 && tab_vedrørende_stuehus_ejerbolig_kroner <= resultat.tab_kroner
-}
-| personskat_ejendomsavance_anskaffelsesgrundlag_gyldigt(grundlag: EjendomsavancePar6Anskaffelsesgrundlag) -> match grundlag {
-    | EblPar4AlmindeligtAnskaffelsesgrundlag -> Sandt
-    | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner) -> tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner >= 0
-}
-| personskat_ejendomsavance_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> fakta.identifikation != "" && personskat_ejendomsavance_identifikation_unik(afståelser, fakta) && fakta.kontant_anskaffelsessum_kroner >= 0 && fakta.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && fakta.par4_stk8_anskaffelse_udeladt_kroner >= 0 && fakta.par4_stk8_anskaffelse_udeladt_kroner <= fakta.kontant_anskaffelsessum_kroner + fakta.gæld_kursværdi_ved_anskaffelse_kroner && fakta.kontant_anskaffelsessum_kroner + fakta.gæld_kursværdi_ved_anskaffelse_kroner - fakta.par4_stk8_anskaffelse_udeladt_kroner + fakta.regulering_efter_par5_og_5a_kroner >= 0 && fakta.kontant_afståelsessum_kroner >= 0 && fakta.overdragne_gældsposter_kursværdi_kroner >= 0 && fakta.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && fakta.par4_stk8_afståelsesværdi_udeladt_kroner <= fakta.kontant_afståelsessum_kroner + fakta.overdragne_gældsposter_kursværdi_kroner && personskat_ejendomsavance_ejendomsafgrænsning_grundfakta_gyldige(fakta.ejendomsafgrænsning, resultat) && personskat_ejendomsavance_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag)
+| personskat_ejendomsavance_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> fakta.identifikation != "" && personskat_ejendomsavance_identifikation_unik(afståelser, fakta) && resultat.input_gyldigt
 | personskat_ejendomsavance_afståelser_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_grundfakta_gyldige(afståelser, fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
-| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> resultat.skattepligtig_fortjeneste_kroner == 0 || fakta.ejendomsafgrænsning == EblPar6AlmindeligEjendom
+| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> resultat.regelgrundlag_understøttet && (resultat.omfattet_af_loven || fakta.erhvervet_som_led_i_næring)
 | personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
 | personskat_ejendomsavance_tabspost(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancePar6Tabspost(
-    resultat = personskat_ejendomsavance_afståelsesresultat(fakta, skatteår),
-    ejendomsafgrænsning = fakta.ejendomsafgrænsning,
-    anskaffelsesgrundlag = fakta.anskaffelsesgrundlag
+    resultat = personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)
 )
 | personskat_ejendomsavance_tabsposter(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_tabspost(fakta, skatteår))
 | personskat_ejendomsavance_tabsårsgrundlag(afståelser: List(PersonskatEjendomsavanceFakta), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(

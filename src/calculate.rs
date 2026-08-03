@@ -2979,7 +2979,8 @@ pub fn validate_input_envelope(
     }
 }
 
-/// Decode, invoke, and encode a batch. Each case receives an isolated interpreter.
+/// Decode, invoke, and encode a batch. The pure program is initialized once,
+/// while each case receives an isolated environment and runtime state.
 pub fn invoke_calculation_cases(
     contract: &CalculationContract,
     stmts: &[Stmt],
@@ -3000,6 +3001,14 @@ pub fn invoke_calculation_cases(
         return output;
     }
 
+    let mut interpreter = Interpreter::new();
+    interpreter.suppress_output = true;
+    interpreter.source_dir = source_dir;
+    let mut base_env = interpreter.default_env();
+    interpreter.run_program(stmts, &mut base_env);
+    let base_actor_instances = interpreter.actor_instances.clone();
+    let base_rng_state = interpreter.rng_state;
+
     for case in &envelope.cases {
         let input = match contract.decode_input(&case.input) {
             Ok(input) => input,
@@ -3013,11 +3022,15 @@ pub fn invoke_calculation_cases(
             }
         };
 
-        let mut interpreter = Interpreter::new();
-        interpreter.suppress_output = true;
-        interpreter.source_dir = source_dir.clone();
-        let mut runtime_env = interpreter.default_env();
-        interpreter.run_program(stmts, &mut runtime_env);
+        interpreter.active_rule_scopes.clear();
+        interpreter.output.clear();
+        interpreter.handler_stack.clear();
+        interpreter.actor_instances = base_actor_instances.clone();
+        interpreter.step_count = 0;
+        interpreter.budget_exceeded = false;
+        interpreter.rng_state = base_rng_state;
+
+        let mut runtime_env = base_env.clone();
         let input_binding = "__futuruna_calculation_input".to_string();
         runtime_env.set(input_binding.clone(), input);
         let call: Expr = ExprKind::App(
