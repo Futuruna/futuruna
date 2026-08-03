@@ -4,8 +4,8 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
 Current focus issue: `td-2d84ec` (in progress)
-Latest implementation slice submitted for review: `td-d471d3`
-Latest approved implementation slice: `td-2d3fb1`
+Latest implementation slice submitted for review: `td-59e722`
+Latest approved implementation slice: `td-d471d3`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -49,22 +49,30 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
-kildefakta for renteindtægter, renteudgifter, valgfri fradrag efter
+kildefakta for befordring efter Ligningslovens § 9 C og den valgfri
+erstatningsregel i § 9 D. Borgeren angiver arbejdsdage, afstand,
+befordringsformål, godtgørelser, bropassager, særlig transport og eventuelle
+§ 9 D-forhold. Skatteåret og § 9 C's aftrapningsindkomst afledes i den
+nuværende almindelige lønmodtagervej fra det omgivende skatteår og
+AM-bidragsgrundlaget; de er ikke regnearksfelter. § 9 D-resultatet afledes også
+internt. Ugyldige eller årsmæssigt forkerte fakta bevares i resultatets
+auditspor, men får ingen skattemæssig virkning. Arbejdsgiverbetalt fri
+befordring føres til personlig indkomst uden at forhøje lønnens AM-grundlag,
+mens et gyldigt § 9 D-fradrag erstatter det ordinære § 9 C-fradrag.
+
+Den samme graf modtager renteindtægter, renteudgifter, valgfri fradrag efter
 Ligningslovens §§ 6 og 6 A samt identificerede omkostninger efter
 Personskattelovens § 4, stk. 2. § 4, stk. 3 omklassificerer både posterne og de
 tilhørende omkostninger til personlig indkomst ved fordrings-, kontrakt- eller
-finansieringsnæring. En ugyldig eller årsmæssigt forkert fradragspåstand
-bevares i resultatets auditspor, men får ingen skattemæssig virkning. Rente- og
-ABL-kapitalposter går gennem den samme § 4-opgørelse i stedet for parallelle
-nettobeløb.
+finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
+§ 4-opgørelse i stedet for parallelle nettobeløb.
 
-Det samme typede input genererer nu et regneark fra 95 nåbare definitioner med
-84 inputkolonner på `cases`-arket plus `case_id` og ni relationelle kildeark.
+Det typede input genererer nu et regneark fra 112 nåbare definitioner med 109
+inputkolonner på `cases`-arket plus `case_id` og ni relationelle kildeark.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel; de otte
-øvrige relationelle ark kommer fra de ordinære og særlige ABL-grene. Et
-udfyldt renteeksempel afleder 2.000 kr. efter Ligningslovens § 6, 1.000 kr.
-efter § 6 A og 10.000 kr. i nettokapitalindkomst. Hele resultatet er identisk
-med resultatet for de samme kildefakta leveret som kanonisk JSON.
+øvrige relationelle ark kommer fra de ordinære og særlige ABL-grene. De
+udfyldte rente- og befordringseksempler giver samme fulde resultat fra XLSX og
+kanonisk JSON.
 Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
 og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
@@ -2460,18 +2468,22 @@ Review candidates to revisit deliberately, not as broad churn:
 ## Now
 
 - `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
-  kildefakta for almindelige renter, Ligningslovens §§ 6/6 A-fradrag,
-  § 4, stk. 2-omkostninger, ordinære ABL-hændelsesforløb og særlige ABL-aktiver.
+  kildefakta for befordring efter Ligningslovens §§ 9 C/9 D, almindelige renter,
+  §§ 6/6 A-fradrag, § 4, stk. 2-omkostninger, ordinære ABL-hændelsesforløb og
+  særlige ABL-aktiver. § 9 C's skatteår og aftrapningsindkomst samt § 9 D's
+  juridiske resultat afledes internt og er derfor ikke borgerfelter.
   De juridiske PSL § 4-/§ 4 a-poster afledes internt og bevares i resultatet;
   kalderen leverer hverken beregnede skatteposter eller indkomstkategorier.
   Ugyldige kildekæder giver ingen skattemæssig virkning og er fortsat synlige
   som ugyldige. Personlig indkomst fra § 4, stk. 3 og ABL er særskilt fra
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
-- Det genererede Personskat-regneark har nu 95 nåbare definitioner, 84 typede
-  inputkolonner plus `case_id` og ni relationelle kildeark. Et fire-sagers
-  XLSX-roundtrip fastholder den almindelige København-beregning,
-  årsopgørelsen, en kildebaseret § 17-gevinst og rente-/fradragssagen med en
-  relateret kapitalomkostning. Store enum-/variantvalg bruger et skjult
+  Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
+  uden at blive gjort til AM-bidragspligtig løn.
+- Det genererede Personskat-regneark har nu 112 nåbare definitioner, 109 typede
+  inputkolonner plus `case_id` og ni relationelle kildeark. XLSX/JSON-roundtrip
+  fastholder den almindelige København-beregning, årsopgørelsen, en kildebaseret
+  § 17-gevinst, rente-/fradragssagen med en relateret kapitalomkostning og et
+  kildefaktabåret § 9 C-befordringsfradrag. Store enum-/variantvalg bruger et skjult
   `_choices`-ark med navngivne områder, så alle domænevalg kan blive dropdowns
   uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme

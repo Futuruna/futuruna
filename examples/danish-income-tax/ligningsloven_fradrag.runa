@@ -984,6 +984,28 @@ stk. 5.
 | ligningslov9b_resultat(input: Ligningslov9BInput) -> ligningslov9b_sag(input).resultat()
 --@end::ligningsloven_par9b--
 
+= ligningsloven_lbk1500_par9c_par9d = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven §§ 9 C-9 D",
+    hentet_dato = "2026-07-18"
+)
+= ligningsloven_lov616_par1 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/616",
+    identifier = "LOV nr. 616 af 30/06/2026, § 1",
+    hentet_dato = "2026-07-18"
+)
+= ligningsloven_bek1333_par1_par4 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1333",
+    identifier = "BEK nr. 1333 af 20/11/2025, §§ 1-4",
+    hentet_dato = "2026-07-18"
+)
+= ligningsloven_vejledning_par9c_fri_befordring = LigningslovFradragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976848",
+    identifier = "Den juridiske vejledning, C.A.5.14.4.3",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par9c_par9d::source:ligningsloven_lbk1500_par9c_par9d::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring--
 ----
 § 9 C. Ved opgørelsen af den skattepligtige indkomst kan fradrag for
 befordring frem og tilbage mellem sædvanlig bopæl og arbejdsplads foretages
@@ -1188,6 +1210,7 @@ Eksempel 2: 25.000 km giver normal udgift 57.000 kr., faktisk udgift
 Kilde: https://info.skat.dk/data.aspx?oid=2061747
 ----
 
+--@begin:ligningsloven_par9c_par9d--
 # Ligningslov9CKilde = LigningslovLbk1500Af2025Par9C | SkatteraadetBek1333Af2025Par1Par3 | Lov616Af2026Par1 | SkatDkKoerselsfradrag2026
 # Ligningslov9CBefordringsformål = IndtægtsgivendeArbejdsplads | SuUddannelsessted | AndetBefordringsformål
 # Ligningslov9CBroPassager(storebælt_bil_motorcykel_passager: Heltal, storebælt_kollektiv_passager: Heltal, øresund_bil_motorcykel_passager: Heltal, øresund_kollektiv_passager: Heltal, dokumenteret_og_afholdt_af_skattepligtige: Boolsk)
@@ -1258,15 +1281,18 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
     fradrag_kroner = ll9d_fradrag_kroner(input),
     satskilde = ll9d_satskilde(input)
 )
-| ll9d_ikke_omfattet_resultat() -> ll9d_resultat(Ligningslov9DInput(
-    skatteår = 2026,
-    befordringsformål = Par9DIkkeOmfattet,
-    godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom = Falskt,
-    særlige_udgifter_til_befordring = Falskt,
-    offentlig_befordring_kan_anvendes = Falskt,
-    billigste_offentlige_befordring_kroner = 0,
-    befordringsudgifter = ll9d_ingen_befordringsudgifter()
-))
+| ll9d_ikke_omfattet_resultat_for(skatteår: Heltal) -> Ligningslov9DResultat(
+    omfattet_af_par9d = Falskt,
+    afskærer_par9c_stk1_8 = Falskt,
+    afskærer_par9c_stk10 = Falskt,
+    normal_befordringsudgift_kroner = 0,
+    normal_befordringsudgift_over_2000_kroner = 0,
+    faktisk_befordringsudgift_kroner = 0,
+    faktisk_udgift_over_normal_kroner = 0,
+    fradrag_kroner = 0,
+    satskilde = Ll9dLigningslovLbk1500Af2025Par9D
+)
+| ll9d_ikke_omfattet_resultat() -> ll9d_ikke_omfattet_resultat_for(2026)
 | ll9c_øre_afrundet_til_kroner(øre: Heltal) -> 0
 | exception ll9c_positive_øre_afrundes ll9c_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
 | ll9c_satser_for(skatteår: Heltal) -> Ligningslov9CSatser(
@@ -1591,6 +1617,7 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
 | ll9c_2026_arbejdsplads_par9d_afskærer_fradrag: ll9c_2026_arbejdsplads_par9d_afskærer_resultat -> ll9c_2026_arbejdsplads_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 | ll9c_2026_arbejdsplads_par9d_bevarer_brofradrag: ll9c_2026_arbejdsplads_par9d_bro_resultat -> ll9c_2026_arbejdsplads_par9d_bro_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_bro_resultat.afstandsfradrag_kroner == 0 && ll9c_2026_arbejdsplads_par9d_bro_resultat.brofradrag_kroner == 1100 && ll9c_2026_arbejdsplads_par9d_bro_resultat.lavindkomst_tillæg_kroner == 0 && ll9c_2026_arbejdsplads_par9d_bro_resultat.samlet_befordringsfradrag_kroner == 1100
 | ll9c_2026_su_par9d_afskærer_fradrag: ll9c_2026_su_par9d_afskærer_resultat -> ll9c_2026_su_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
+--@end:ligningsloven_par9c_par9d--
 
 ----
 § 9 J. Ved opgørelsen af den skattepligtige indkomst kan lønmodtagere m.fl. og

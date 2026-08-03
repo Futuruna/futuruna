@@ -451,9 +451,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 85);
+        assert_eq!(case_headers.len(), 110);
         for expected in [
             "aktieavance.ordinært_aktieår.$variant",
+            "lønmodtager.ligningsfradrag.befordring.$variant",
+            "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
+            "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
+            "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
             "kapitalindkomst.renter.renteindtægter_kroner",
             "kapitalindkomst.renter.renteudgifter_kroner",
             "kapitalindkomst.renter.næringsstatus",
@@ -473,6 +477,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing typed Personskatteloven input column {expected}"
             );
         }
+        assert!(!case_headers
+            .iter()
+            .any(|header| header == "lønmodtager.ligningsmæssige_fradrag_kroner"));
+        assert!(!case_headers
+            .iter()
+            .any(|header| header.contains("aftrapningsindkomst_kroner")));
+        assert!(!case_headers
+            .iter()
+            .any(|header| header.contains("ligningslov9d_resultat")));
         assert_eq!(
             workbook_headers(&mut workbook, "kapitalindkomst_omkostninger"),
             [
@@ -522,6 +535,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .map(ToString::to_string)
             .expect("variant guard")
             .contains("MedÅrsopgørelse"));
+        let commuting_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(2).map(ToString::to_string).as_deref()
+                    == Some("lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage")
+            })
+            .expect("commuting payload metadata");
+        assert!(commuting_row
+            .get(8)
+            .map(ToString::to_string)
+            .expect("commuting variant guard")
+            .contains("MedBefordringsfradrag"));
     }
 
     edit_workbook(&input_path, |sheets| {
@@ -540,8 +566,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("600000".to_string()),
                     ),
                     (
-                        "lønmodtager.ligningsmæssige_fradrag_kroner",
-                        Data::String("0".to_string()),
+                        "lønmodtager.ligningsfradrag.befordring.$variant",
+                        Data::String("UdenBefordringsfradrag".to_string()),
                     ),
                     (
                         "lønmodtager.pensionsfradrag.pensionsalder_status",
@@ -613,10 +639,81 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
         };
 
-        fill_wage_case(sheets, 1, "personskat-standard-2026");
-        fill_wage_case(sheets, 2, "personskat-årsopgørelse-2026");
-        fill_wage_case(sheets, 3, "personskat-abl-personlig-2026");
-        fill_wage_case(sheets, 4, "personskat-renter-2026");
+        fill_wage_case(sheets, 1, "personskat-årsopgørelse-2026");
+        fill_wage_case(sheets, 2, "personskat-abl-personlig-2026");
+        fill_wage_case(sheets, 3, "personskat-renter-befordring-2026");
+        for (header, value) in [
+            (
+                "lønmodtager.ligningsfradrag.befordring.$variant",
+                Data::String("MedBefordringsfradrag".to_string()),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
+                Data::Int(203),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.daglige_befordringskilometer",
+                Data::Int(60),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.bopæl_i_yderkommune_eller_lille_ø",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.befordringsformål",
+                Data::String("IndtægtsgivendeArbejdsplads".to_string()),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.modtaget_skattefri_befordringsgodtgørelse_for_strækning",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
+                Data::String("UdenLigningslov9D".to_string()),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.fradrag_udelukket_folketingshverv_m_v",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.storebælt_bil_motorcykel_passager",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.storebælt_kollektiv_passager",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.øresund_bil_motorcykel_passager",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.øresund_kollektiv_passager",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.dokumenteret_og_afholdt_af_skattepligtige",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.særlig_transport.geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 3, header, value);
+        }
         for (header, value) in [
             (
                 "kapitalindkomst.renter.renteindtægter_kroner",
@@ -727,12 +824,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::Bool(false),
             ),
         ] {
-            set_workbook_cell_by_header(sheets, "cases", 4, header, value);
+            set_workbook_cell_by_header(sheets, "cases", 3, header, value);
         }
         for (header, value) in [
             (
                 "case_id",
-                Data::String("personskat-renter-2026".to_string()),
+                Data::String("personskat-renter-befordring-2026".to_string()),
             ),
             ("item_id", Data::String("kapitalomkostning-1".to_string())),
             ("position", Data::Int(1)),
@@ -780,7 +877,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         set_workbook_cell_by_header(
             sheets,
             "cases",
-            2,
+            1,
             "årsopgørelse.$variant",
             Data::String("MedÅrsopgørelse".to_string()),
         );
@@ -845,7 +942,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             set_workbook_cell_by_header(
                 sheets,
                 "cases",
-                2,
+                1,
                 header,
                 Data::String(value.to_string()),
             );
@@ -895,7 +992,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skatteår": 2026,
             "kommune": { "$variant": "København" },
             "bruttoløn_kroner": 600_000,
-            "ligningsmæssige_fradrag_kroner": 0,
+            "ligningsfradrag": {
+                "befordring": { "$variant": "UdenBefordringsfradrag" }
+            },
             "pensionsfradrag": {
                 "pensionsalder_status": {
                     "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
@@ -950,7 +1049,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
     });
     let mut interest_case = json_input["cases"][0].clone();
-    interest_case["case_id"] = Value::String("personskat-renter-2026".into());
+    interest_case["case_id"] = Value::String("personskat-renter-befordring-2026".into());
     interest_case["input"]["kapitalindkomst"] = serde_json::json!({
         "renter": {
             "renteindtægter_kroner": 20_000,
@@ -999,6 +1098,33 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
         "særlige_aktiver": []
     });
+    interest_case["input"]["lønmodtager"]["ligningsfradrag"] = serde_json::json!({
+        "befordring": {
+            "$variant": "MedBefordringsfradrag",
+            "fakta": {
+                "arbejdsdage": 203,
+                "daglige_befordringskilometer": 60,
+                "bopæl_i_yderkommune_eller_lille_ø": false,
+                "befordringsformål": { "$variant": "IndtægtsgivendeArbejdsplads" },
+                "modtaget_skattefri_befordringsgodtgørelse_for_strækning": false,
+                "modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning": false,
+                "ligningslov9d": { "$variant": "UdenLigningslov9D" },
+                "fradrag_udelukket_folketingshverv_m_v": false,
+                "fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen": false,
+                "broer": {
+                    "storebælt_bil_motorcykel_passager": 0,
+                    "storebælt_kollektiv_passager": 0,
+                    "øresund_bil_motorcykel_passager": 0,
+                    "øresund_kollektiv_passager": 0,
+                    "dokumenteret_og_afholdt_af_skattepligtige": false
+                },
+                "særlig_transport": {
+                    "faktisk_dokumenteret_udgift_kroner": 0,
+                    "geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten": false
+                }
+            }
+        }
+    });
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -1023,11 +1149,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     assert_eq!(
-        result["results"][2]["result"],
+        result["results"][1]["result"],
         json_result["results"][0]["result"]
     );
     assert_eq!(
-        result["results"][3]["result"],
+        result["results"][2]["result"],
         json_result["results"][1]["result"]
     );
 
@@ -1037,50 +1163,63 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     assert_eq!(
         result["results"][0]["result"]["årsopgørelse"]["$variant"],
-        "IngenÅrsopgørelse"
-    );
-    assert_eq!(
-        result["results"][1]["result"]["årsopgørelse"]["$variant"],
         "BeregnetÅrsopgørelse"
     );
     assert_eq!(
-        result["results"][1]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_kroner"],
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_kroner"],
         210_226
     );
     assert_eq!(
-        result["results"][1]["result"]["årsopgørelse"]["resultat"]["restskat_kroner"],
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_kroner"],
         210_226
     );
     assert_eq!(
-        result["results"][2]["result"]["aktieavance"]["personlig_indkomst_kroner"],
+        result["results"][1]["result"]["aktieavance"]["personlig_indkomst_kroner"],
         7_000
     );
     assert_eq!(
-        result["results"][2]["result"]["skat"]["øvrig_personlig_indkomst_kroner"],
+        result["results"][1]["result"]["skat"]["øvrig_personlig_indkomst_kroner"],
         7_000
+    );
+    assert_eq!(
+        result["results"][1]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        48_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ligningslov6_resultat"]
+            ["fradrag_kroner"],
+        2_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ligningslov6a_resultat"]
+            ["fradrag_kroner"],
+        1_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        10_000
     );
     assert_eq!(
         result["results"][2]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
         48_000
     );
     assert_eq!(
-        result["results"][3]["result"]["kapitalindkomst"]["ligningslov6_resultat"]
-            ["fradrag_kroner"],
-        2_000
+        result["results"][2]["result"]["ligningsfradrag"]["samlet_ligningsfradrag_kroner"],
+        23_166
     );
     assert_eq!(
-        result["results"][3]["result"]["kapitalindkomst"]["ligningslov6a_resultat"]
-            ["fradrag_kroner"],
-        1_000
+        result["results"][2]["result"]["ligningsfradrag"]["befordring"]["$variant"],
+        "BeregnetBefordringsfradrag"
     );
     assert_eq!(
-        result["results"][3]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
-            ["nettokapitalindkomst_kroner"],
-        10_000
+        result["results"][2]["result"]["ligningsfradrag"]["befordring"]["ligningslov9c_input"]
+            ["aftrapningsindkomst_kroner"],
+        600_000
     );
     assert_eq!(
-        result["results"][3]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
-        48_000
+        result["results"][2]["result"]["skat"]["øvrige_ligningsmæssige_fradrag_kroner"],
+        23_166
     );
 }
 

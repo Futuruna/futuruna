@@ -44,13 +44,17 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Den nuværende arbejdsbog afledes fra
-95 nåbare definitioner og har 84 typede inputkolonner plus sags-id. Variantvalg
+112 nåbare definitioner og har 109 typede inputkolonner plus sags-id. Variantvalg
 gør særlige skatteforhold, underskudsforhold, årsopgørelse og valgfri
 fradragsgrene eksplicitte; kun den valgte grens felter skal udfyldes. Regnearket
 bruger ni særskilte relaterede kildefaner, fordi de tilsvarende inputtyper
 faktisk indeholder lister. Den kanoniske graf modtager nu renteindtægter,
-renteudgifter, Ligningslovens §§ 6/6 A-fradrag, identificerede omkostninger
-efter Personskattelovens § 4, stk. 2 og ordinære eller særlige ABL-forløb.
+renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
+valgfri § 9 D-forhold, identificerede omkostninger efter Personskattelovens
+§ 4, stk. 2 og ordinære eller særlige ABL-forløb. § 9 C's skatteår og
+aftrapningsindkomst samt § 9 D-resultatet afledes af reglerne og er ikke
+borgerfelter. Fri arbejdsgiverbetalt befordring bliver personlig indkomst uden
+at blive gjort til AM-bidragspligtig løn.
 § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre
 dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene
 kobles fortsat på det samme input, så den samlede borgerarbejdsbog udbygges fra
