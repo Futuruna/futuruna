@@ -625,8 +625,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par11_stk2_genanbragt_erhvervsejendom",
                 "ejendomstype.$variant",
                 "ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.$variant",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.$variant",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.afståelsesindkomstår",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.placering.EblPar6AEjendomIUdlandet.begæringsforhold.$variant",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.kategori.$variant",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_anskaffelsessum_kroner",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.$variant",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.genanbringelse.$variant",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget_før_15_december_2005",
             ] {
                 assert!(
                     property_paths.iter().any(|path| path == expected),
@@ -643,6 +654,17 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Anskaffelsesgrundlag",
                 "Indeksering efter § 5 A",
                 "Ejendomstype",
+                "Boligejendommens art",
+                "Genanbringelse ved boligejendom",
+                "Lovgrundlag for genanbringelse (§ 8)",
+                "Oprindelig erhvervsfortjeneste",
+                "Geninvesteringsår",
+                "Udenlandsk geninvestering i tilladt område",
+                "Begæringsforløb for udenlandsk geninvestering",
+                "Oplysninger og driftsbudget ved fraflytning",
+                "Genanbringelse ved blandet ejendom",
+                "Lovgrundlag for genanbringelse (§ 9)",
+                "Boligandel forøget efter genanbringelsen",
             ] {
                 assert!(
                     property_headers.iter().any(|header| header == expected),
@@ -1180,6 +1202,97 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         for (header, value) in [
             (
+                "ejendomstype.$variant",
+                Data::String("EblBoligejendom".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
+                Data::String("EblPar8Ejerlejlighed".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.tjent_til_bolig_eller_privat_formål",
+                Data::Bool(true),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.betingelser_opfyldt_i_ejerperioden",
+                Data::Bool(true),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.afståelsesforhold.$variant",
+                Data::String("EblPar8AlmindeligAfståelse".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.$variant",
+                Data::String("EblPar8GenanbringelseEfterStk5".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.$variant",
+                Data::String("EblMedGenanbringelseEfterPar6A".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.afståelsesindkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+                Data::Int(190_000),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.regulering.tillæg_for_genanbragt_del_kroner",
+                Data::Int(0),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.regulering.nedslag_for_genanbragt_del_kroner",
+                Data::Int(0),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.afstået_ejendoms_erhvervsanvendelse.$variant",
+                Data::String(
+                    "EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed".to_string(),
+                ),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+                Data::Int(1_000_000),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.ejendomsstatus",
+                Data::String("EblPar6AEjendomOmfattetAfLovenIkkePar8".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.$variant",
+                Data::String(
+                    "EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed".to_string(),
+                ),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.placering.$variant",
+                Data::String("EblPar6AEjendomIDanmark".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.begæring.$variant",
+                Data::String(
+                    "EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2"
+                        .to_string(),
+                ),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.ejerskab.$variant",
+                Data::String("EblPar6ASammeSkattepligtige".to_string()),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &own_property_sheet, 1, header, value);
+        }
+        for (header, value) in [
+            (
                 "case_id",
                 Data::String("personskat-renter-befordring-2026".to_string()),
             ),
@@ -1561,6 +1674,54 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     let mut interest_case = json_input["cases"][0].clone();
     interest_case["case_id"] = Value::String("personskat-renter-befordring-2026".into());
+    let reinvested_home = serde_json::json!({
+        "$variant": "EblBoligejendom",
+        "fakta": {
+            "ejendomsart": { "$variant": "EblPar8Ejerlejlighed" },
+            "tjent_til_bolig_eller_privat_formål": true,
+            "betingelser_opfyldt_i_ejerperioden": true,
+            "afståelsesforhold": { "$variant": "EblPar8AlmindeligAfståelse" },
+            "genanbringelsesforhold": {
+                "$variant": "EblPar8GenanbringelseEfterStk5",
+                "genanbringelse": {
+                    "$variant": "EblMedGenanbringelseEfterPar6A",
+                    "fakta": {
+                        "oprindelig_fortjeneste": {
+                            "afståelsesindkomstår": 2025,
+                            "erhvervsfortjeneste_før_par6_stk2_kroner": 190_000,
+                            "regulering": {
+                                "tillæg_for_genanbragt_del_kroner": 0,
+                                "nedslag_for_genanbragt_del_kroner": 0
+                            }
+                        },
+                        "afstået_ejendoms_erhvervsanvendelse": {
+                            "$variant": "EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed"
+                        },
+                        "investering": {
+                            "indkomstår": 2026,
+                            "erhvervsmæssigt_anskaffelsesgrundlag_kroner": 1_000_000,
+                            "ejendomsstatus": {
+                                "$variant": "EblPar6AEjendomOmfattetAfLovenIkkePar8"
+                            },
+                            "erhvervsanvendelse": {
+                                "$variant": "EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed"
+                            },
+                            "placering": {
+                                "$variant": "EblPar6AEjendomIDanmark"
+                            }
+                        },
+                        "begæring": {
+                            "$variant": "EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2"
+                        },
+                        "ejerskab": {
+                            "$variant": "EblPar6ASammeSkattepligtige"
+                        }
+                    }
+                },
+                "ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005": false
+            }
+        }
+    });
     interest_case["input"]["kapitalindkomst"] = serde_json::json!({
         "renter": {
             "renteindtægter_kroner": 20_000,
@@ -1624,7 +1785,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
+                    "ejendomstype": reinvested_home
                 }, {
                     "identifikation": "eget-tab",
                     "afståelsesdato": { "år": 2026, "måned": 12, "dag": 31 },
@@ -1869,6 +2030,33 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]["$variant"],
         "BeregnetEjendomsavance"
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par8_par9_behandling"]["$variant"],
+        "EblPar8Behandling"
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par8_par9_behandling"]["resultat"]["stk5_anvendt"],
+        true
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par8_par9_behandling"]["resultat"]
+            ["skattefri_fortjeneste_kroner"],
+        190_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["par8_par9_behandling"]["resultat"]
+            ["genanbragt_fortjeneste_til_beskatning_kroner"],
+        190_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["egne_afståelsesresultater"][0]["skattepligtig_fortjeneste_kroner"],
+        190_000
     );
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]

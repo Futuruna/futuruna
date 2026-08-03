@@ -70,7 +70,7 @@ indkomstårets udgang.
     tjent_til_bolig_eller_privat_formål = Sandt,
     betingelser_opfyldt_i_ejerperioden = Sandt,
     afståelsesforhold = EblPar8AlmindeligAfståelse,
-    genanbragt_erhvervsfortjeneste_kroner = 0
+    genanbringelsesforhold = EblPar8UdenGenanbringelseEfterStk5
 )))
 = ebl_par6_par9_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblLandbrugSkovNaturEllerBlandetEjendom(fakta = EblPar9Fakta(
     kategori = EblPar9Landbrugsejendom,

@@ -1,0 +1,444 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+
+# EblGenanbringelseKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ebl_genanbringelse_lbk132 = EblGenanbringelseKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/132",
+    identifier = "Ejendomsavancebeskatningsloven §§ 6 A, 6 C og 10",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_genanbringelse_lov308 = EblGenanbringelseKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2006/308",
+    identifier = "LOV nr. 308 af 19/04/2006 §§ 3 og 12",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_genanbringelse_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948713",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.4",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par6a_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948642",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.2",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par6a_udland_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948715",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.6",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par10_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948739",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.17.5",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par6c_afg10051 = EblGenanbringelseKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2006/10051",
+    identifier = "SKM2006.696.SR om genanbringelse efter EBL § 6 C",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par6a::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026::guidance:ebl_par6a_udland_vejledning_2026--
+----
+§ 6 A. Såfremt den skattepligtige erhverver en ejendom, der er omfattet af
+lovens regler, med undtagelse af ejendomme, der er omfattet af § 8, kan den
+skattepligtige i stedet for at medregne fortjeneste ved afståelse af fast
+ejendom til den skattepligtige indkomst, vælge at nedsætte anskaffelsessummen
+for den erhvervede ejendom med fortjenesten.
+Reglerne i 1. pkt. gælder alene for fortjeneste, der vedrører den del af den
+afståede ejendom, som blev anvendt erhvervsmæssigt i ejerens eller den
+samlevede ægtefælles erhvervsvirksomhed, og det er kun den del af
+anskaffelsessummen, der vedrører den del af den erhvervede ejendom, som skal
+anvendes erhvervsmæssigt i ejerens eller den samlevende ægtefælles
+erhvervsvirksomhed, der kan nedsættes med fortjenesten.
+Stk. 3, 2. pkt., gælder tilsvarende.
+Udlejning af fast ejendom anses i denne forbindelse ikke for
+erhvervsvirksomhed.
+Den erhvervede ejendom anses ikke for udlejet, selv om den er udlejet på
+tidspunktet for erhvervelsen, hvis udlejningen er ophørt inden udløbet af
+fristerne i stk. 2, nr. 2.
+Endvidere anses den del af den afståede ejendom henholdsvis den erhvervede
+ejendom, som udgør boligdelen, ikke i denne forbindelse for anvendt
+erhvervsmæssigt.
+Nedsættelsen efter 1. pkt. skal ske med hele den del af fortjenesten opgjort
+uden fradrag efter § 6, stk. 2, der vedrører den erhvervsmæssigt anvendte del
+af den afståede ejendom, dog højst med et beløb svarende til den del af den
+kontante anskaffelsessum for den erhvervede ejendom, der vedrører den del, der
+skal anvendes erhvervsmæssigt.
+Overstiger den opgjorte fortjeneste den kontante anskaffelsessum, beskattes den
+overskydende fortjeneste efter lovens almindelige regler.
+
+Stk. 2. Nedsættelse af anskaffelsessummen efter stk. 1 er betinget af, at
+1) den skattepligtige enten erhverver fast ejendom i samme indkomstår, hvori
+den skattepligtige afstår fast ejendom, eller erhverver fast ejendom senest i
+det indkomstår, der følger efter afståelsesåret, eller erhverver fast ejendom i
+det seneste indkomstår forud for afståelsesåret og
+2) den skattepligtige senest for det indkomstår, hvori erhvervelsen finder
+sted, begærer reglen i stk. 1 anvendt ved rettidig afgivelse af oplysninger
+efter skattekontrollovens § 2 eller, såfremt erhvervelsen af fast ejendom
+finder sted i det seneste indkomstår forud for afståelsesåret, begærer reglen i
+stk. 1 anvendt senest ved rettidig afgivelse af oplysninger efter
+skattekontrollovens § 2 for afståelsesåret.
+Hvis skattemyndighederne ændrer ansættelse vedrørende afståelse af fast
+ejendom, kan den skattepligtige begære reglen i stk. 1 anvendt, dog senest
+3 måneder efter, at meddelelsen om ansættelsesændringen er modtaget.
+
+Stk. 3. Stk. 1 og 2 finder tilsvarende anvendelse, hvis den ene ægtefælle
+afstår fast ejendom og den anden ægtefælle erhverver fast ejendom.
+Det er en betingelse, at ægtefællerne er samlevende ved udgangen af både det
+indkomstår, hvori afståelsen finder sted, og det indkomstår, hvori
+erhvervelsen finder sted.
+
+Stk. 4. Nedsættelse af anskaffelsessummen efter stk. 1 er betinget af, at den
+erhvervede faste ejendom ikke er beliggende i en fremmed stat, på Færøerne
+eller i Grønland.
+Hvis ejeren på nedsættelsestidspunktet er skattepligtig til Danmark efter
+kildeskattelovens § 1, selskabsskattelovens § 1 eller fondsbeskatningslovens
+§ 1 uden at være hjemmehørende i en fremmed stat, på Færøerne eller i Grønland
+i henhold til bestemmelserne i en dobbeltbeskatningsoverenskomst, kan der dog
+ske nedsættelse af anskaffelsessummen, når den erhvervede faste ejendom er
+beliggende i en stat, der er medlem af EU/EØS, på Færøerne eller i Grønland.
+Det er en betingelse for nedsættelse af anskaffelsessummen efter 2. pkt., at
+den fremmede stat, Færøerne eller Grønland udveksler oplysninger med de danske
+myndigheder efter en dobbeltbeskatningsoverenskomst, en anden international
+overenskomst eller konvention eller en administrativt indgået aftale om
+bistand i skattesager.
+Den fortjeneste, der stammer fra nedsættelse af anskaffelsessummen, er
+fortjeneste fra fast ejendom beliggende i den stat, hvor den afståede ejendom
+lå.
+En skatteyder, der ønsker at genanbringe en fortjeneste i en ejendom i en
+fremmed stat, på Færøerne eller i Grønland, kan inden ophør af den fulde
+skattepligt efter kildeskattelovens § 1 begære reglen i stk. 1 anvendt på en
+erhvervet udenlandsk ejendom.
+Begæringen skal være ledsaget af nødvendige oplysninger om de implicerede
+ejendomme, herunder et driftsbudget for den erhvervede ejendom.
+
+Stk. 5. Uanset stk. 1, 4. pkt., anses udlejning af fast ejendom til et
+selskab, hvori ejeren af den faste ejendom og dennes ægtefælle direkte eller
+indirekte har bestemmende indflydelse, for erhvervsmæssig virksomhed.
+Det er en betingelse, at selskabet skal anvende ejendommen erhvervsmæssigt, jf.
+stk. 1.
+Ved bestemmende indflydelse forstås ejerskab eller rådighed over
+stemmerettigheder, således at der direkte eller indirekte ejes mere end 50 pct.
+af aktiekapitalen eller rådes over mere end 50 pct. af stemmerne.
+Ophører den bestemmende indflydelse i selskabet, sker der beskatning af den
+genanbragte fortjeneste på dette tidspunkt.
+Beskattes den genanbragte fortjeneste efter 4. pkt., bortfalder nedsættelsen af
+anskaffelsessummen efter stk. 1, 1. pkt.
+
+Stk. 6. Skatteministeren kan fastsætte nærmere regler om indgivelse af og
+indholdet i begæringer efter stk. 2.
+----
+
+--@begin:ebl_par6a--
+# EblGenanbringelsesHjemmel = EblIngenGenanbringelse | EblGenanbringelseEfterPar6A | EblGenanbringelseEfterPar6C | EblGenanbringelseEfterPar10
+# EblGenanbragtFortjenesteregulering(tillæg_for_genanbragt_del_kroner: Heltal, nedslag_for_genanbragt_del_kroner: Heltal)
+# EblOprindeligErhvervsfortjeneste(afståelsesindkomstår: Heltal, erhvervsfortjeneste_før_par6_stk2_kroner: Heltal, regulering: EblGenanbragtFortjenesteregulering)
+# EblPar6AEjendomsstatus = EblPar6AEjendomOmfattetAfLovenIkkePar8 | EblPar6AEjendomOmfattetAfPar8 | EblPar6AEjendomUdenForLoven
+# EblPar6AErhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed | EblPar6AMidlertidigtUdlejetVedErhvervelsenOgOphørtIndenBegæringsfristen | EblPar6AUdlejetTilKontrolleretSelskab(kapitalandel_ved_genanbringelse_promille: Heltal, stemmeandel_ved_genanbringelse_promille: Heltal, selskabet_anvender_ejendommen_erhvervsmæssigt: Boolsk, bestemmende_indflydelse_består: Boolsk) | EblPar6AAlmindeligtUdlejet | EblPar6ABoligdel | EblPar6AIkkeErhvervsmæssigtAnvendt
+# EblPar6ABegæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2 | EblPar6ABegæringEfterAnsættelsesændring(meddelelse_modtaget: EblDato, begæring_indgivet: EblDato) | EblPar6ABegæringForSen
+# EblPar6AEjerskab = EblPar6ASammeSkattepligtige | EblPar6AÆgtefæller(samlevende_ved_afståelsesårets_udgang: Boolsk, samlevende_ved_investeringsårets_udgang: Boolsk)
+# EblPar6AUdenlandskBegæring = EblPar6AOrdinærBegæringUdenForudgåendeFraflytning | EblPar6ABegæringIndenOphørAfFuldSkattepligt(nødvendige_oplysninger_inklusive_driftsbudget: Boolsk)
+# EblPar6AEjendomsplacering = EblPar6AEjendomIDanmark | EblPar6AEjendomIUdlandet(eu_eøs_færøerne_eller_grønland: Boolsk, fuldt_skattepligtig_til_danmark_uden_dba_hjemsted_i_udlandet: Boolsk, informationsudveksling_med_danmark: Boolsk, begæringsforhold: EblPar6AUdenlandskBegæring)
+# EblPar6AInvestering(indkomstår: Heltal, erhvervsmæssigt_anskaffelsesgrundlag_kroner: Heltal, ejendomsstatus: EblPar6AEjendomsstatus, erhvervsanvendelse: EblPar6AErhvervsanvendelse, placering: EblPar6AEjendomsplacering)
+# EblPar6AFakta(oprindelig_fortjeneste: EblOprindeligErhvervsfortjeneste, afstået_ejendoms_erhvervsanvendelse: EblPar6AErhvervsanvendelse, investering: EblPar6AInvestering, begæring: EblPar6ABegæring, ejerskab: EblPar6AEjerskab)
+# EblGenanbringelsesResultat(hjemmel: EblGenanbringelsesHjemmel, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, betingelser_opfyldt: Boolsk, oprindelig_erhvervsfortjeneste_kroner: Heltal, genanbragt_fortjeneste_kroner: Heltal, straks_beskattet_fortjeneste_kroner: Heltal, beskattet_ved_kontrolophør_kroner: Heltal, aktivt_anskaffelsessumsnedslag_kroner: Heltal, skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner: Heltal)
+
+# EblDatoPlusMånederSag(dato: EblDato, antal_måneder: Heltal) {
+    | månedsindeks() -> dato.år * 12 + dato.måned - 1 + antal_måneder
+    | resultatår() -> månedsindeks() / 12
+    | resultatmåned() -> månedsindeks() % 12 + 1
+    | månedens_sidste_dag() -> ebl_dato_dage_i_måned(resultatår(), resultatmåned())
+    | resultat() -> EblDato(
+        år = resultatår(),
+        måned = resultatmåned(),
+        dag = penge_mindste_beløb(dato.dag, månedens_sidste_dag())
+    )
+}
+| ebl_dato_plus_måneder(dato: EblDato, antal_måneder: Heltal) -> EblDatoPlusMånederSag(dato, antal_måneder).resultat()
+| ebl_genanbragt_regulering_gyldig(regulering: EblGenanbragtFortjenesteregulering, genanbragt_fortjeneste_kroner: Heltal) -> regulering.tillæg_for_genanbragt_del_kroner >= 0 && regulering.nedslag_for_genanbragt_del_kroner >= 0 && regulering.nedslag_for_genanbragt_del_kroner <= genanbragt_fortjeneste_kroner + regulering.tillæg_for_genanbragt_del_kroner
+| ebl_genanbragt_skattepligtig_fortjeneste_kroner(genanbragt_fortjeneste_kroner: Heltal, regulering: EblGenanbragtFortjenesteregulering) -> penge_positivt_beløb(genanbragt_fortjeneste_kroner + regulering.tillæg_for_genanbragt_del_kroner - regulering.nedslag_for_genanbragt_del_kroner)
+| ebl_par6a_kontrolleret_selskab_forhold_gyldigt(anvendelse: EblPar6AErhvervsanvendelse) -> match anvendelse {
+    | EblPar6AUdlejetTilKontrolleretSelskab(kapitalandel_promille, stemmeandel_promille, _, _) -> kapitalandel_promille >= 0 && kapitalandel_promille <= 1000 && stemmeandel_promille >= 0 && stemmeandel_promille <= 1000
+    | _ -> Sandt
+}
+| ebl_par6a_kontrolleret_selskab_betingelse_opfyldt(anvendelse: EblPar6AErhvervsanvendelse) -> match anvendelse {
+    | EblPar6AUdlejetTilKontrolleretSelskab(kapitalandel_promille, stemmeandel_promille, selskabet_anvender_ejendommen_erhvervsmæssigt, _) -> (kapitalandel_promille > 500 || stemmeandel_promille > 500) && selskabet_anvender_ejendommen_erhvervsmæssigt
+    | _ -> Falskt
+}
+| ebl_par6a_afstået_erhvervsanvendelse_berettiget(anvendelse: EblPar6AErhvervsanvendelse) -> match anvendelse {
+    | EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed -> Sandt
+    | EblPar6AUdlejetTilKontrolleretSelskab(_, _, _, _) -> ebl_par6a_kontrolleret_selskab_betingelse_opfyldt(anvendelse)
+    | _ -> Falskt
+}
+| ebl_par6a_investering_erhvervsanvendelse_berettiget(anvendelse: EblPar6AErhvervsanvendelse) -> match anvendelse {
+    | EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed -> Sandt
+    | EblPar6AMidlertidigtUdlejetVedErhvervelsenOgOphørtIndenBegæringsfristen -> Sandt
+    | EblPar6AUdlejetTilKontrolleretSelskab(_, _, _, _) -> ebl_par6a_kontrolleret_selskab_betingelse_opfyldt(anvendelse)
+    | _ -> Falskt
+}
+| ebl_par6a_bestemmende_indflydelse_ophørt(anvendelse: EblPar6AErhvervsanvendelse) -> match anvendelse {
+    | EblPar6AUdlejetTilKontrolleretSelskab(_, _, _, bestemmende_indflydelse_består) -> ebl_par6a_kontrolleret_selskab_betingelse_opfyldt(anvendelse) && bestemmende_indflydelse_består == Falskt
+    | _ -> Falskt
+}
+| ebl_par6a_begæring_gyldig(begæring: EblPar6ABegæring) -> match begæring {
+    | EblPar6ABegæringEfterAnsættelsesændring(meddelelse_modtaget, begæring_indgivet) -> ebl_dato_gyldig(meddelelse_modtaget) && ebl_dato_gyldig(begæring_indgivet) && ebl_dato_før_eller_lig_med(meddelelse_modtaget, begæring_indgivet)
+    | _ -> Sandt
+}
+| ebl_par6a_begæring_rettidig(begæring: EblPar6ABegæring) -> match begæring {
+    | EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2 -> Sandt
+    | EblPar6ABegæringEfterAnsættelsesændring(meddelelse_modtaget, begæring_indgivet) -> ebl_par6a_begæring_gyldig(begæring) && ebl_dato_før_eller_lig_med(begæring_indgivet, ebl_dato_plus_måneder(meddelelse_modtaget, 3))
+    | EblPar6ABegæringForSen -> Falskt
+}
+| ebl_par6a_ejerskab_berettiget(ejerskab: EblPar6AEjerskab) -> match ejerskab {
+    | EblPar6ASammeSkattepligtige -> Sandt
+    | EblPar6AÆgtefæller(samlevende_ved_afståelsesårets_udgang, samlevende_ved_investeringsårets_udgang) -> samlevende_ved_afståelsesårets_udgang && samlevende_ved_investeringsårets_udgang
+}
+| ebl_par6a_udenlandsk_begæring_berettiget(begæringsforhold: EblPar6AUdenlandskBegæring) -> match begæringsforhold {
+    | EblPar6AOrdinærBegæringUdenForudgåendeFraflytning -> Sandt
+    | EblPar6ABegæringIndenOphørAfFuldSkattepligt(nødvendige_oplysninger_inklusive_driftsbudget) -> nødvendige_oplysninger_inklusive_driftsbudget
+}
+| ebl_par6a_placering_berettiget(placering: EblPar6AEjendomsplacering) -> match placering {
+    | EblPar6AEjendomIDanmark -> Sandt
+    | EblPar6AEjendomIUdlandet(eu_eøs_færøerne_eller_grønland, fuldt_skattepligtig_til_danmark_uden_dba_hjemsted_i_udlandet, informationsudveksling_med_danmark, begæringsforhold) -> eu_eøs_færøerne_eller_grønland && fuldt_skattepligtig_til_danmark_uden_dba_hjemsted_i_udlandet && informationsudveksling_med_danmark && ebl_par6a_udenlandsk_begæring_berettiget(begæringsforhold)
+}
+| ebl_par6a_investeringsår_berettiget(afståelsesindkomstår: Heltal, investeringsindkomstår: Heltal) -> investeringsindkomstår >= afståelsesindkomstår - 1 && investeringsindkomstår <= afståelsesindkomstår + 1
+| ebl_par6a_grundinput_gyldigt(fakta: EblPar6AFakta) -> fakta.oprindelig_fortjeneste.afståelsesindkomstår > 0 && fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner >= 0 && fakta.investering.indkomstår > 0 && fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner >= 0 && ebl_par6a_kontrolleret_selskab_forhold_gyldigt(fakta.afstået_ejendoms_erhvervsanvendelse) && ebl_par6a_kontrolleret_selskab_forhold_gyldigt(fakta.investering.erhvervsanvendelse) && ebl_par6a_begæring_gyldig(fakta.begæring)
+| ebl_par6a_fælles_betingelser_opfyldt(fakta: EblPar6AFakta) -> ebl_par6a_grundinput_gyldigt(fakta) && fakta.investering.ejendomsstatus == EblPar6AEjendomOmfattetAfLovenIkkePar8 && ebl_par6a_afstået_erhvervsanvendelse_berettiget(fakta.afstået_ejendoms_erhvervsanvendelse) && ebl_par6a_investering_erhvervsanvendelse_berettiget(fakta.investering.erhvervsanvendelse) && ebl_par6a_investeringsår_berettiget(fakta.oprindelig_fortjeneste.afståelsesindkomstår, fakta.investering.indkomstår) && ebl_par6a_begæring_rettidig(fakta.begæring) && ebl_par6a_ejerskab_berettiget(fakta.ejerskab) && ebl_par6a_placering_berettiget(fakta.investering.placering)
+| ebl_par6a_genanbringelsesresultat(fakta: EblPar6AFakta, hjemmel: EblGenanbringelsesHjemmel, ekstra_betingelse_opfyldt: Boolsk) -> {
+    = grundinput_gyldigt = ebl_par6a_grundinput_gyldigt(fakta)
+    = fælles_betingelser_opfyldt = ebl_par6a_fælles_betingelser_opfyldt(fakta) && ekstra_betingelse_opfyldt
+    = mulig_genanbringelse_kroner = penge_mindste_beløb(fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner, fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner)
+    = regulering_gyldig = ebl_genanbragt_regulering_gyldig(fakta.oprindelig_fortjeneste.regulering, hvis fælles_betingelser_opfyldt { mulig_genanbringelse_kroner } ellers { 0 })
+    = input_gyldigt = grundinput_gyldigt && regulering_gyldig
+    = betingelser_opfyldt = input_gyldigt && fælles_betingelser_opfyldt
+    = genanbragt_fortjeneste_kroner = hvis betingelser_opfyldt { mulig_genanbringelse_kroner } ellers { 0 }
+    = straks_beskattet_fortjeneste_kroner = hvis input_gyldigt { fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner - genanbragt_fortjeneste_kroner } ellers { 0 }
+    = beskattet_ved_kontrolophør_kroner = hvis betingelser_opfyldt && ebl_par6a_bestemmende_indflydelse_ophørt(fakta.investering.erhvervsanvendelse) { genanbragt_fortjeneste_kroner } ellers { 0 }
+    = aktivt_anskaffelsessumsnedslag_kroner = genanbragt_fortjeneste_kroner - beskattet_ved_kontrolophør_kroner
+    EblGenanbringelsesResultat(
+        hjemmel = hjemmel,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = Sandt,
+        betingelser_opfyldt = betingelser_opfyldt,
+        oprindelig_erhvervsfortjeneste_kroner = fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner,
+        genanbragt_fortjeneste_kroner = genanbragt_fortjeneste_kroner,
+        straks_beskattet_fortjeneste_kroner = straks_beskattet_fortjeneste_kroner,
+        beskattet_ved_kontrolophør_kroner = beskattet_ved_kontrolophør_kroner,
+        aktivt_anskaffelsessumsnedslag_kroner = aktivt_anskaffelsessumsnedslag_kroner,
+        skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = hvis aktivt_anskaffelsessumsnedslag_kroner > 0 { ebl_genanbragt_skattepligtig_fortjeneste_kroner(aktivt_anskaffelsessumsnedslag_kroner, fakta.oprindelig_fortjeneste.regulering) } ellers { 0 }
+    )
+}
+| ebl_par6a_resultat(fakta: EblPar6AFakta) -> ebl_par6a_genanbringelsesresultat(fakta, EblGenanbringelseEfterPar6A, Sandt)
+--@end:ebl_par6a--
+
+--@label:ebl_par6c::source:ebl_genanbringelse_lbk132::guidance:ebl_par6c_afg10051--
+----
+§ 6 C. Såfremt den skattepligtige ombygger, tilbygger eller nybygger på en
+ejendom, der er omfattet af § 6 A, kan den skattepligtige i stedet for at
+medregne fortjeneste ved afståelse af fast ejendom til den skattepligtige
+indkomst vælge at nedsætte anskaffelsessummen for ombygningen, tilbygningen
+eller nybygningen med fortjenesten.
+§ 6 A finder tilsvarende anvendelse.
+----
+
+--@begin:ebl_par6c--
+# EblPar6CArbejdsart = EblPar6COmbygning | EblPar6CTilbygning | EblPar6CNybygning
+# EblPar6CFakta(par6a_fakta: EblPar6AFakta, arbejdsart: EblPar6CArbejdsart, arbejde_påbegyndt: Boolsk)
+
+| ebl_par6c_resultat(fakta: EblPar6CFakta) -> ebl_par6a_genanbringelsesresultat(fakta.par6a_fakta, EblGenanbringelseEfterPar6C, fakta.arbejde_påbegyndt)
+--@end:ebl_par6c--
+
+--@label:ebl_par10::source:ebl_genanbringelse_lbk132::guidance:ebl_par10_vejledning_2026--
+----
+§ 10. Såfremt en skattepligtig i anledning af en indtruffen skade på en
+ejendom, der ikke er omfattet af § 8, har modtaget en erstatnings- eller
+forsikringssum og foretager genopførelse af den skadelidte ejendom, kan den
+skattepligtige for den del af erstatnings- eller forsikringssummen, der ikke er
+skattefri efter § 9, i stedet for at anvende reglerne i § 4, jf. § 2, stk. 1,
+anvende reglerne i stk. 2-6, såfremt
+1) de genopførte bygninger eller installationer findes på den samme ejendom som
+de skaderamte bygninger, jf. dog stk. 5, og
+2) genopførelsen sker enten i det indkomstår, hvori skaden indtræffer, eller i
+det nærmest følgende indkomstår, dog således, at fristen for genopførelse
+tidligst udløber med det indkomstår, som følger nærmest efter det, hvori
+erstatningssummen er fastsat endeligt.
+
+Stk. 2. Når særlige omstændigheder taler derfor, kan fristerne i stk. 1
+forlænges efter tilladelse fra told- og skatteforvaltningen.
+
+Stk. 3. Er det beløb, der anvendes til genopførelse m.v., mindre end
+forsikrings- eller erstatningssummen, fradrages forskelsbeløbet i ejendommens
+anskaffelsessum i det indkomstår, hvori skaden sker.
+Der kan dog højst fradrages et beløb svarende til ejendommens anskaffelsessum
+på tidspunktet for skadens indtræden.
+Et overskydende beløb beskattes i det indkomstår, hvori genopførelsen senest
+skal være sket, jf. stk. 1, nr. 2, og stk. 2.
+Forskelsbeløb, der fragår i afskrivningsgrundlaget eller beskattes efter
+afskrivningslovens § 24, stk. 5, påvirker ikke ejendommens anskaffelsessum, jf.
+dog § 5, stk. 4-8.
+
+Stk. 4. Ved senere afståelse af den genopførte ejendom kan den skattepligtige
+ved opgørelsen af den regulerede anskaffelsessum efter § 5 og § 5 A kun
+medregne
+1) anskaffelsesudgifter, der er afholdt før skaden,
+2) vedligeholdelses- og forbedringsudgifter, der er afholdt før skaden, i det
+omfang de kan medregnes efter § 5, stk. 2,
+3) beløb, hvormed udgifterne til genopførelsen måtte overstige forsikrings-
+eller erstatningssummen, og
+4) udgifter til vedligeholdelse og forbedring af den genopførte ejendom, i det
+omfang de kan medregnes efter § 5, stk. 2.
+
+Stk. 5. Uanset bestemmelsen i stk. 1, nr. 1, ikke er opfyldt, finder reglerne i
+stk. 2-4 anvendelse, såfremt
+1) en lov eller en offentlig myndigheds bestemmelse hindrer, at genopførelse
+sker på den ejendom, hvor de skaderamte goder fandtes, eller
+2) skaden har ramt en eller flere erhvervsejendomme, som tilhører samme ejer,
+og som udgør en driftsenhed, og ejeren ønsker at foretage genopførelse på en
+anden af disse ejendomme end den skaderamte.
+
+Stk. 6. Bestemmelsen i stk. 5 gælder dog kun, såfremt den skattepligtige inden
+for de i stk. 1, nr. 2, og stk. 2 nævnte frister foretager genopførelse på en
+anden ejendom, der mindst svarer til erstatnings- eller forsikringssummen.
+Den skattepligtige skal efter genopførelse indgive meddelelse herom sammen med
+oplysninger efter skattekontrollovens § 2.
+Hvis skattemyndighederne ændrer ansættelse vedrørende afståelse af en fast
+ejendom, kan ejeren begære reglen anvendt, dog senest 3 måneder efter, at
+meddelelsen om ansættelsesændringen er modtaget.
+
+Stk. 7. Overstiger de samlede udgifter ved en genopførelse på en anden ejendom
+erstatnings- eller forsikringssummen, tillægges det overskydende beløb
+anskaffelsessummen for den genopførte bygning m.v.
+Sker genopførelse på flere ejendomme, fordeles det overskydende beløb til
+anskaffelsessummerne for de pågældende ejendomme efter andelen af de samlede
+udgifter til genopførelse på de enkelte ejendomme.
+
+Stk. 8. Ved genopførelse af bygninger m.v. på en anden ejendom, overføres til
+denne anden ejendom den del af anskaffelsessummen for den oprindelige ejendom,
+der kan henføres til det skaderamte.
+Sker genopførelse på flere ejendomme, fordeles den del af anskaffelsessummen
+for den oprindelige ejendom, der kan henføres til det skaderamte, efter andelen
+af de samlede udgifter til genopførelse på de enkelte ejendomme.
+
+Stk. 9. Erstatnings- og forsikringssummer, der vedrører den del af ejendommen,
+der ikke tjener eller har tjent som bolig for ejeren eller dennes husstand, og
+som anvendes til opførelse af bygninger, der tjener til bolig for ejeren eller
+dennes husstand, skal uanset bestemmelsen i stk. 1 medregnes til den
+skattepligtige indkomst.
+
+Stk. 10. Såfremt en skattepligtig anvender reglerne i stk. 1-9 og en eller
+flere af ejendommens bygninger er afskrivningsberettigede, skal reglerne i
+afskrivningslovens § 24 samtidig anvendes.
+----
+
+--@begin:ebl_par10--
+# EblPar10Fristforhold = EblPar10UdenFristforlængelse | EblPar10FristforlængelseTilladt(til_indkomstår: Heltal)
+# EblPar10Meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2 | EblPar10BegæringEfterAnsættelsesændring(meddelelse_modtaget: EblDato, begæring_indgivet: EblDato) | EblPar10MeddelelseForSen
+# EblPar10Genopførelsessted = EblPar10GenopførelsePåSammeEjendom | EblPar10GenopførelsePåAndenEjendomHindretAfLovEllerMyndighed(meddelelse: EblPar10Meddelelse) | EblPar10GenopførelsePåAndenEjendomISammeDriftsenhed(meddelelse: EblPar10Meddelelse) | EblPar10GenopførelsePåFlereAndreEjendomme(antal_ejendomme: Heltal)
+# EblPar10Fakta(skadedato: EblDato, erstatningssum_endeligt_fastsat_indkomstår: Heltal, genopførelsesindkomstår: Heltal, skadelidt_ejendom_omfattet_af_par8: Boolsk, erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner: Heltal, reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner: Heltal, genopførelsesudgifter_kroner: Heltal, genopførelsessted: EblPar10Genopførelsessted, fristforhold: EblPar10Fristforhold, erhvervserstatning_anvendt_til_ejerbolig_kroner: Heltal, bygninger_afskrivningsberettigede: Boolsk, afskrivningslov_par24_anvendt: Boolsk, regulering: EblGenanbragtFortjenesteregulering)
+
+| ebl_par10_meddelelse_gyldig(meddelelse: EblPar10Meddelelse) -> match meddelelse {
+    | EblPar10BegæringEfterAnsættelsesændring(meddelelse_modtaget, begæring_indgivet) -> ebl_dato_gyldig(meddelelse_modtaget) && ebl_dato_gyldig(begæring_indgivet) && ebl_dato_før_eller_lig_med(meddelelse_modtaget, begæring_indgivet)
+    | _ -> Sandt
+}
+| ebl_par10_meddelelse_rettidig(meddelelse: EblPar10Meddelelse) -> match meddelelse {
+    | EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2 -> Sandt
+    | EblPar10BegæringEfterAnsættelsesændring(meddelelse_modtaget, begæring_indgivet) -> ebl_par10_meddelelse_gyldig(meddelelse) && ebl_dato_før_eller_lig_med(begæring_indgivet, ebl_dato_plus_måneder(meddelelse_modtaget, 3))
+    | EblPar10MeddelelseForSen -> Falskt
+}
+| ebl_par10_genopførelsessted_gyldigt(sted: EblPar10Genopførelsessted) -> match sted {
+    | EblPar10GenopførelsePåAndenEjendomHindretAfLovEllerMyndighed(meddelelse) -> ebl_par10_meddelelse_gyldig(meddelelse)
+    | EblPar10GenopførelsePåAndenEjendomISammeDriftsenhed(meddelelse) -> ebl_par10_meddelelse_gyldig(meddelelse)
+    | EblPar10GenopførelsePåFlereAndreEjendomme(antal_ejendomme) -> antal_ejendomme > 1
+    | _ -> Sandt
+}
+| ebl_par10_regelgrundlag_understøttet(fakta: EblPar10Fakta) -> match fakta.genopførelsessted {
+    | EblPar10GenopførelsePåFlereAndreEjendomme(_) -> Falskt
+    | _ -> fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner == 0
+}
+| ebl_par10_ordinær_sidste_genopførelsesår(fakta: EblPar10Fakta) -> penge_største_beløb(fakta.skadedato.år + 1, fakta.erstatningssum_endeligt_fastsat_indkomstår + 1)
+| ebl_par10_sidste_genopførelsesår(fakta: EblPar10Fakta) -> match fakta.fristforhold {
+    | EblPar10UdenFristforlængelse -> ebl_par10_ordinær_sidste_genopførelsesår(fakta)
+    | EblPar10FristforlængelseTilladt(til_indkomstår) -> til_indkomstår
+}
+| ebl_par10_fristforhold_gyldigt(fakta: EblPar10Fakta) -> match fakta.fristforhold {
+    | EblPar10UdenFristforlængelse -> Sandt
+    | EblPar10FristforlængelseTilladt(til_indkomstår) -> til_indkomstår >= ebl_par10_ordinær_sidste_genopførelsesår(fakta)
+}
+| ebl_par10_genopførelsessted_betingelser_opfyldt(fakta: EblPar10Fakta) -> match fakta.genopførelsessted {
+    | EblPar10GenopførelsePåSammeEjendom -> Sandt
+    | EblPar10GenopførelsePåAndenEjendomHindretAfLovEllerMyndighed(meddelelse) -> fakta.genopførelsesudgifter_kroner >= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_meddelelse_rettidig(meddelelse)
+    | EblPar10GenopførelsePåAndenEjendomISammeDriftsenhed(meddelelse) -> fakta.genopførelsesudgifter_kroner >= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_meddelelse_rettidig(meddelelse)
+    | EblPar10GenopførelsePåFlereAndreEjendomme(_) -> Falskt
+}
+| ebl_par10_grundinput_gyldigt(fakta: EblPar10Fakta) -> ebl_dato_gyldig(fakta.skadedato) && fakta.erstatningssum_endeligt_fastsat_indkomstår >= fakta.skadedato.år && fakta.genopførelsesindkomstår >= fakta.skadedato.år && fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner >= 0 && fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner >= 0 && fakta.genopførelsesudgifter_kroner > 0 && fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner >= 0 && fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_genopførelsessted_gyldigt(fakta.genopførelsessted) && ebl_par10_fristforhold_gyldigt(fakta) && (fakta.bygninger_afskrivningsberettigede == Falskt || fakta.afskrivningslov_par24_anvendt)
+| ebl_par10_betingelser_opfyldt(fakta: EblPar10Fakta) -> ebl_par10_grundinput_gyldigt(fakta) && ebl_par10_regelgrundlag_understøttet(fakta) && fakta.skadelidt_ejendom_omfattet_af_par8 == Falskt && fakta.genopførelsesindkomstår <= ebl_par10_sidste_genopførelsesår(fakta) && ebl_par10_genopførelsessted_betingelser_opfyldt(fakta)
+| ebl_par10_oprindelig_erhvervsfortjeneste_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner - fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner)
+| ebl_par10_overskydende_forskelsbeløb_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner - fakta.genopførelsesudgifter_kroner - fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner)
+| ebl_par10_resultat(fakta: EblPar10Fakta) -> {
+    = grundinput_gyldigt = ebl_par10_grundinput_gyldigt(fakta)
+    = regelgrundlag_understøttet = ebl_par10_regelgrundlag_understøttet(fakta)
+    = betingelser_opfyldt_før_regulering = ebl_par10_betingelser_opfyldt(fakta)
+    = oprindelig_erhvervsfortjeneste_kroner = ebl_par10_oprindelig_erhvervsfortjeneste_kroner(fakta)
+    = mulig_genanbringelse_kroner = hvis betingelser_opfyldt_før_regulering { penge_positivt_beløb(oprindelig_erhvervsfortjeneste_kroner - ebl_par10_overskydende_forskelsbeløb_kroner(fakta)) } ellers { 0 }
+    = regulering_gyldig = ebl_genanbragt_regulering_gyldig(fakta.regulering, mulig_genanbringelse_kroner)
+    = input_gyldigt = grundinput_gyldigt && regulering_gyldig
+    = betingelser_opfyldt = input_gyldigt && betingelser_opfyldt_før_regulering
+    = genanbragt_fortjeneste_kroner = hvis betingelser_opfyldt { mulig_genanbringelse_kroner } ellers { 0 }
+    EblGenanbringelsesResultat(
+        hjemmel = EblGenanbringelseEfterPar10,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet,
+        betingelser_opfyldt = betingelser_opfyldt,
+        oprindelig_erhvervsfortjeneste_kroner = oprindelig_erhvervsfortjeneste_kroner,
+        genanbragt_fortjeneste_kroner = genanbragt_fortjeneste_kroner,
+        straks_beskattet_fortjeneste_kroner = hvis input_gyldigt && regelgrundlag_understøttet { oprindelig_erhvervsfortjeneste_kroner - genanbragt_fortjeneste_kroner } ellers { 0 },
+        beskattet_ved_kontrolophør_kroner = 0,
+        aktivt_anskaffelsessumsnedslag_kroner = genanbragt_fortjeneste_kroner,
+        skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = hvis genanbragt_fortjeneste_kroner > 0 { ebl_genanbragt_skattepligtig_fortjeneste_kroner(genanbragt_fortjeneste_kroner, fakta.regulering) } ellers { 0 }
+    )
+}
+--@end:ebl_par10--
+
+--@label:ebl_genanbringelse_klassifikationsskifte::amendment_source:ebl_genanbringelse_lov308::guidance:ebl_genanbringelse_vejledning_2026::guidance:ebl_par10_vejledning_2026--
+----
+Bestemmelserne i § 8, stk. 5, og § 9, stk. 4, har virkning for ejendomme, der
+afstås den 14. december 2005 eller senere.
+Bestemmelserne har dog ikke virkning for ejendomme, der før den 15. december
+2005 har ændret anvendelse til beboelsesejendomme, der er omfattet af § 8,
+stk. 1-3, og for ejendomme omfattet af § 9, i det omfang boligandelen er
+forøget før den 15. december 2005.
+----
+
+--@begin:ebl_genanbringelse_klassifikationsskifte--
+# EblGenanbringelse = EblUdenAktivGenanbringelse | EblMedGenanbringelseEfterPar6A(fakta: EblPar6AFakta) | EblMedGenanbringelseEfterPar6C(fakta: EblPar6CFakta) | EblMedGenanbringelseEfterPar10(fakta: EblPar10Fakta)
+
+| ebl_ingen_genanbringelsesresultat() -> EblGenanbringelsesResultat(
+    hjemmel = EblIngenGenanbringelse,
+    input_gyldigt = Sandt,
+    regelgrundlag_understøttet = Sandt,
+    betingelser_opfyldt = Falskt,
+    oprindelig_erhvervsfortjeneste_kroner = 0,
+    genanbragt_fortjeneste_kroner = 0,
+    straks_beskattet_fortjeneste_kroner = 0,
+    beskattet_ved_kontrolophør_kroner = 0,
+    aktivt_anskaffelsessumsnedslag_kroner = 0,
+    skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = 0
+)
+| ebl_genanbringelsesresultat(genanbringelse: EblGenanbringelse) -> match genanbringelse {
+    | EblUdenAktivGenanbringelse -> ebl_ingen_genanbringelsesresultat()
+    | EblMedGenanbringelseEfterPar6A(fakta) -> ebl_par6a_resultat(fakta)
+    | EblMedGenanbringelseEfterPar6C(fakta) -> ebl_par6c_resultat(fakta)
+    | EblMedGenanbringelseEfterPar10(fakta) -> ebl_par10_resultat(fakta)
+}
+| ebl_genanbringelse_klassifikationsregel_virker(afståelsesdato: EblDato, ændring_før_15_december_2005: Boolsk) -> ebl_dato_yyyymmdd(afståelsesdato) >= 20051214 && ændring_før_15_december_2005 == Falskt
+--@end:ebl_genanbringelse_klassifikationsskifte--

@@ -62,7 +62,15 @@ anskaffelsessummens årlige tillæg, forbedringsudgifter, nedsættelser og
 eventuel indeksering fra de faktiske datoer og hændelser. § 8 udleder
 parcelhusfritagelsen, og § 9 fordeler en blandet ejendoms bolig- og
 erhvervsdel, så skattefri boligfortjeneste og skattepligtig
-erhvervsfortjeneste ikke blandes sammen. § 6 modregner derefter egne og
+erhvervsfortjeneste ikke blandes sammen. Genanbringelse efter §§ 6 A, 6 C og
+10 er nu kildeafledt fra den oprindelige erhvervsfortjeneste, investeringen,
+anvendelsen, fristerne, ejerskabet, placeringen og eventuelle
+genopførelsesfakta. Når den nye ejendom senere bliver solgt, beskatter § 8,
+stk. 5 den gamle erhvervsfortjeneste særskilt fra boligejendommens egen
+skattefri fortjeneste. § 9, stk. 4 kan tilsvarende beskatte den gamle
+fortjeneste særskilt og fjerne anskaffelsessumsnedslaget, hvis en forøget
+boligandel betyder, at erhvervsdelen ikke kan bære hele fortjenesten. § 6
+modregner derefter egne og
 fremførte tab og kan overføre en samlevende ægtefælles overskydende tab, før
 Personskattelovens § 4, stk. 1, nr. 14-post dannes. Overførslen kan højst bruge
 modtagerens fortjeneste efter dennes egne tab; resten bevares til fremførsel.
@@ -74,7 +82,12 @@ flerlejlighedsejendommen, boligbrug i den kvalificerende ejerperiode, et
 eventuelt bestemt grundareal og likvidationsåret. Hvis betingelserne ikke er
 opfyldt, fortsætter gevinst eller tab gennem de almindelige ABL-regler; grenen
 giver derfor ikke længere et fail-closed nulresultat. Kilderne er
-[Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132)
+[Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132),
+[lov nr. 308/2006](https://www.retsinformation.dk/eli/lta/2006/308),
+[Den juridiske vejledning C.H.2.1.11.2](https://info.skat.dk/data.aspx?oid=1948642),
+[C.H.2.1.11.4](https://info.skat.dk/data.aspx?oid=1948713),
+[C.H.2.1.11.6](https://info.skat.dk/data.aspx?oid=1948715),
+[C.H.2.1.17.5](https://info.skat.dk/data.aspx?oid=1948739)
 og
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 med de relevante senere ændringer bevaret ved de enkelte lovblokke.
@@ -95,13 +108,20 @@ give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
 kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
 befordring, aldersstatus, kirkeskat, renter, årsopgørelse og centrale
 ejendomsavancefakta som anskaffelsesår, afståelsesår, kontante summer,
-anskaffelsesgrundlag, indekseringsvalg og ejendomstype. Det samme gælder nu
+anskaffelsesgrundlag, indekseringsvalg og ejendomstype. Genanbringelsens
+lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
+geninvesteringsår, anskaffelsesgrundlag, anvendelse, placering, begæring,
+ejerskab og overgangsforhold har også egne menneskelige etiketter og
+interviewspørgsmål for både personen og ægtefællen. Det samme gælder
 ordinære aktiebeholdninger og boligretsfakta efter ABL § 15: værdipapirets
 tilknytning til lejligheden, boligbrug, grundforhold, afståelsesform og
 likvidationsår har hver sin menneskelige etiket og sit interviewspørgsmål. En AI
 kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
-Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`. Felter,
+Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
+tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
+interviewoplysninger. Kontrakten har nu 98 eksplicitte feltmetadata-poster.
+Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en
 erstatning for det juridisk præcise interviewspørgsmål.

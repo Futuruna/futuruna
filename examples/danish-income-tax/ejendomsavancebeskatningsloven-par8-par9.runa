@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+@ importer ./ejendomsavancebeskatningsloven - genanbringelse
 
 # EblPar8Par9KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -41,7 +42,7 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par8::source:ebl_par8_par9_lbk132::guidance:ebl_par8_stk4_vejledning_2026--
+--@label:ebl_par8::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308::guidance:ebl_par8_stk4_vejledning_2026::guidance:ebl_genanbringelse_vejledning_2026--
 ----
 § 8. Fortjeneste ved afståelse af en- og tofamilieshuse og ejerlejligheder skal
 ikke medregnes, hvis huset eller lejligheden har tjent til bolig for ejeren
@@ -116,7 +117,7 @@ ejendommen til en beskyttet bolig eller til et plejehjem og
 til bolig for ejeren umiddelbart forud for fraflytningen.
 ----
 
---@label:ebl_par9::source:ebl_par8_par9_lbk132::amendment_source:ebl_par9_lov1580::amendment_source:ebl_par9_lov562::guidance:ebl_par9_vejledning_2026--
+--@label:ebl_par9::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308::amendment_source:ebl_par9_lov1580::amendment_source:ebl_par9_lov562::guidance:ebl_par9_vejledning_2026::guidance:ebl_genanbringelse_vejledning_2026--
 ----
 § 9. Ved afståelse af en ejendom, der på afståelsestidspunktet anses for
 landbrugs- eller skovejendom efter ejendomsvurderingsloven, skal den del af
@@ -228,9 +229,10 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 # EblPar8Skadefakta(skadedato: EblDato, hus_væsentligt_beskadiget: Boolsk, ingen_forsæt_eller_grov_uagtsomhed: Boolsk, kunne_afstås_skattefrit_umiddelbart_før_skaden: Boolsk, hele_ejendommen_afstået: Boolsk, dispensation_fra_etårsfrist: Boolsk)
 # EblPar8Plejehjemsfakta(grundareal_under_1400_m2: Boolsk, matrikulær_udstykning_anmodet: Boolsk, sagsbehandling_ikke_færdig_ved_flytning: Boolsk, socialmyndighedserklæring_foreligger: Boolsk, flyttet_til_beskyttet_bolig_eller_plejehjem: Boolsk, tjente_til_bolig_umiddelbart_før_fraflytning: Boolsk)
 # EblPar8Afståelsesforhold = EblPar8AlmindeligAfståelse | EblPar8AfståelseEfterVæsentligSkade(fakta: EblPar8Skadefakta) | EblPar8PlejehjemUnderUdstykning(fakta: EblPar8Plejehjemsfakta)
-# EblPar8Fakta(ejendomsart: EblPar8Ejendomsart, tjent_til_bolig_eller_privat_formål: Boolsk, betingelser_opfyldt_i_ejerperioden: Boolsk, afståelsesforhold: EblPar8Afståelsesforhold, genanbragt_erhvervsfortjeneste_kroner: Heltal)
+# EblPar8Genanbringelsesforhold = EblPar8UdenGenanbringelseEfterStk5 | EblPar8GenanbringelseEfterStk5(genanbringelse: EblGenanbringelse, ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005: Boolsk)
+# EblPar8Fakta(ejendomsart: EblPar8Ejendomsart, tjent_til_bolig_eller_privat_formål: Boolsk, betingelser_opfyldt_i_ejerperioden: Boolsk, afståelsesforhold: EblPar8Afståelsesforhold, genanbringelsesforhold: EblPar8Genanbringelsesforhold)
 # EjendomsavancePar6Ejendomsafgrænsning = EblPar6AlmindeligEjendom | EblPar8Ejendom | EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner: Heltal)
-# EblPar8Resultat(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_ejendomsavancebeskatningsloven: Boolsk, betingelser_for_skattefrihed_opfyldt: Boolsk, skattefri_fortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_tab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
+# EblPar8Resultat(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal, genanbringelsesresultat: EblGenanbringelsesResultat, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_ejendomsavancebeskatningsloven: Boolsk, betingelser_for_skattefrihed_opfyldt: Boolsk, stk5_anvendt: Boolsk, fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner: Heltal, genanbragt_fortjeneste_til_beskatning_kroner: Heltal, skattefri_fortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_tab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
 
 | ebl_par8_grundbetingelse_opfyldt(grundbetingelse: EblPar8Grundbetingelse) -> grundbetingelse != EblPar8GrundbetingelseIkkeOpfyldt
 | ebl_par8_stk4_grundkrav_opfyldt(grundforhold: EblPar8Stk4Grundforhold) -> match grundforhold {
@@ -271,9 +273,18 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     | EblPar8AfståelseEfterVæsentligSkade(skadefakta) -> ebl_dato_gyldig(skadefakta.skadedato) && ebl_dato_før_eller_lig_med(skadefakta.skadedato, afståelsesdato)
     | _ -> Sandt
 }
-| ebl_par8_input_gyldigt(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal) -> ebl_dato_gyldig(afståelsesdato) && fakta.genanbragt_erhvervsfortjeneste_kroner >= 0 && fakta.genanbragt_erhvervsfortjeneste_kroner <= penge_positivt_beløb(fortjeneste_eller_tab_før_par8_kroner) && ebl_par8_skadefakta_gyldige(fakta.afståelsesforhold, afståelsesdato)
-| ebl_par8_regelgrundlag_understøttet(fakta: EblPar8Fakta) -> Sandt
+| ebl_par8_genanbringelsesresultat(forhold: EblPar8Genanbringelsesforhold) -> match forhold {
+    | EblPar8UdenGenanbringelseEfterStk5 -> ebl_ingen_genanbringelsesresultat()
+    | EblPar8GenanbringelseEfterStk5(genanbringelse, _) -> ebl_genanbringelsesresultat(genanbringelse)
+}
+| ebl_par8_stk5_anvendt(forhold: EblPar8Genanbringelsesforhold, afståelsesdato: EblDato, genanbringelsesresultat: EblGenanbringelsesResultat) -> match forhold {
+    | EblPar8UdenGenanbringelseEfterStk5 -> Falskt
+    | EblPar8GenanbringelseEfterStk5(_, ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005) -> genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner > 0 && ebl_genanbringelse_klassifikationsregel_virker(afståelsesdato, ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005)
+}
+| ebl_par8_input_gyldigt(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal) -> ebl_dato_gyldig(afståelsesdato) && ebl_par8_genanbringelsesresultat(fakta.genanbringelsesforhold).input_gyldigt && ebl_par8_skadefakta_gyldige(fakta.afståelsesforhold, afståelsesdato)
+| ebl_par8_regelgrundlag_understøttet(fakta: EblPar8Fakta) -> ebl_par8_genanbringelsesresultat(fakta.genanbringelsesforhold).regelgrundlag_understøttet
 | ebl_par8_resultat(fakta: EblPar8Fakta, afståelsesdato: EblDato, fortjeneste_eller_tab_før_par8_kroner: Heltal) -> {
+    = genanbringelsesresultat = ebl_par8_genanbringelsesresultat(fakta.genanbringelsesforhold)
     = input_gyldigt = ebl_par8_input_gyldigt(fakta, afståelsesdato, fortjeneste_eller_tab_før_par8_kroner)
     = regelgrundlag_understøttet = ebl_par8_regelgrundlag_understøttet(fakta)
     = omfattet_af_ejendomsavancebeskatningsloven = Sandt
@@ -281,18 +292,25 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     = betingelser_for_skattefrihed_opfyldt = beregning_anvendt && ebl_par8_betingelser_opfyldt(fakta, afståelsesdato)
     = brutto_fortjeneste_kroner = penge_positivt_beløb(fortjeneste_eller_tab_før_par8_kroner)
     = brutto_tab_kroner = penge_positivt_beløb(0 - fortjeneste_eller_tab_før_par8_kroner)
-    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefrihed_opfyldt { penge_mindste_beløb(brutto_fortjeneste_kroner, fakta.genanbragt_erhvervsfortjeneste_kroner) } ellers { brutto_fortjeneste_kroner } } ellers { 0 }
-    = skattefri_fortjeneste_kroner = hvis betingelser_for_skattefrihed_opfyldt { brutto_fortjeneste_kroner - skattepligtig_fortjeneste_kroner } ellers { 0 }
-    = tab_kroner = hvis beregning_anvendt && betingelser_for_skattefrihed_opfyldt == Falskt { brutto_tab_kroner } ellers { 0 }
+    = stk5_anvendt = betingelser_for_skattefrihed_opfyldt && ebl_par8_stk5_anvendt(fakta.genanbringelsesforhold, afståelsesdato, genanbringelsesresultat)
+    = fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner = fortjeneste_eller_tab_før_par8_kroner + genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner
+    = genanbragt_fortjeneste_til_beskatning_kroner = hvis stk5_anvendt { genanbringelsesresultat.skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner } ellers { 0 }
+    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefrihed_opfyldt { genanbragt_fortjeneste_til_beskatning_kroner } ellers { penge_positivt_beløb(fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner) } } ellers { 0 }
+    = skattefri_fortjeneste_kroner = hvis betingelser_for_skattefrihed_opfyldt { brutto_fortjeneste_kroner } ellers { 0 }
+    = tab_kroner = hvis beregning_anvendt && betingelser_for_skattefrihed_opfyldt == Falskt { penge_positivt_beløb(0 - fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner) } ellers { 0 }
     = afskåret_tab_efter_par6_stk4_kroner = hvis betingelser_for_skattefrihed_opfyldt { brutto_tab_kroner } ellers { 0 }
     EblPar8Resultat(
         fakta = fakta,
         afståelsesdato = afståelsesdato,
         fortjeneste_eller_tab_før_par8_kroner = fortjeneste_eller_tab_før_par8_kroner,
+        genanbringelsesresultat = genanbringelsesresultat,
         input_gyldigt = input_gyldigt,
         regelgrundlag_understøttet = regelgrundlag_understøttet,
         omfattet_af_ejendomsavancebeskatningsloven = omfattet_af_ejendomsavancebeskatningsloven,
         betingelser_for_skattefrihed_opfyldt = betingelser_for_skattefrihed_opfyldt,
+        stk5_anvendt = stk5_anvendt,
+        fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner = fortjeneste_eller_tab_efter_aktivt_anskaffelsessumsnedslag_kroner,
+        genanbragt_fortjeneste_til_beskatning_kroner = genanbragt_fortjeneste_til_beskatning_kroner,
         skattefri_fortjeneste_kroner = skattefri_fortjeneste_kroner,
         skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner,
         tab_kroner = tab_kroner,
@@ -306,10 +324,10 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 # EblPar9Overgangsvalg(var_omfattet_af_tidligere_par9_stk1_2pkt: Boolsk, valg_meddelt_skatteforvaltningen: Boolsk, ejerinitieret_omvurdering_efter_evl6_stk1: Boolsk)
 # EblPar9Ejendomskategori = EblPar9Landbrugsejendom | EblPar9Skovejendom | EblPar9Naturejendom | EblPar9Evl35Erhvervsejendom | EblPar9Evl35EjerboligMedOvergangsvalg(valg: EblPar9Overgangsvalg)
 # EblPar9Skadeforhold = EblPar9IngenVæsentligSkade | EblPar9VæsentligSkade(skadedato: EblDato, hus_væsentligt_beskadiget: Boolsk, ingen_forsæt_eller_grov_uagtsomhed: Boolsk, boligdel_skattefri_umiddelbart_før_skaden: Boolsk, hele_ejendommen_afstået: Boolsk, dispensation_fra_etårsfrist: Boolsk)
-# EblPar9Genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4 | EblPar9GenanbringelseEfterStk4(boligandel_forøget: Boolsk, hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel: Boolsk, genanbragt_fortjeneste_kroner: Heltal)
+# EblPar9Genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4 | EblPar9GenanbringelseEfterStk4(genanbringelse: EblGenanbringelse, boligandel_forøget: Boolsk, boligandel_forøget_før_15_december_2005: Boolsk)
 # EblPar9Fakta(kategori: EblPar9Ejendomskategori, bolig_har_tjent_til_bolig_for_ejer_eller_husstand: Boolsk, boligbetingelser_opfyldt_i_ejerperioden: Boolsk, grundbetingelse: EblPar8Grundbetingelse, bolig_anskaffelsessum_kroner: Heltal, bolig_afståelsessum_kroner: Heltal, skadeforhold: EblPar9Skadeforhold, genanbringelsesforhold: EblPar9Genanbringelsesforhold)
 # EblPar9Beløbsgrundlag(erhvervsdel_reguleret_anskaffelsessum_kroner: Heltal, erhvervsdel_afståelsessum_kroner: Heltal, samlet_reguleret_anskaffelsessum_kroner: Heltal, samlet_afståelsessum_kroner: Heltal)
-# EblPar9Resultat(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, betingelser_for_skattefri_boligdel_opfyldt: Boolsk, bolig_fortjeneste_eller_tab_kroner: Heltal, erhvervsdel_fortjeneste_eller_tab_kroner: Heltal, samlet_fortjeneste_eller_tab_kroner: Heltal, skattefri_boligfortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
+# EblPar9Resultat(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag, genanbringelsesresultat: EblGenanbringelsesResultat, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, beregning_anvendt: Boolsk, betingelser_for_skattefri_boligdel_opfyldt: Boolsk, aktivt_anskaffelsessumsnedslag_kroner: Heltal, erhvervsdel_reguleret_anskaffelsessum_efter_aktivt_nedslag_kroner: Heltal, erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner: Heltal, hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel: Boolsk, stk4_anvendt: Boolsk, bortfaldet_anskaffelsessumsnedslag_kroner: Heltal, særskilt_skattepligtig_genanbragt_fortjeneste_kroner: Heltal, bolig_fortjeneste_eller_tab_kroner: Heltal, erhvervsdel_fortjeneste_eller_tab_kroner: Heltal, samlet_fortjeneste_eller_tab_kroner: Heltal, skattefri_boligfortjeneste_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning)
 # EjendomsavanceEjendomstype = EblAndenFastEjendom | EblBoligejendom(fakta: EblPar8Fakta) | EblLandbrugSkovNaturEllerBlandetEjendom(fakta: EblPar9Fakta)
 
 | ebl_par9_overgangsvalg_opfyldt(valg: EblPar9Overgangsvalg) -> valg.var_omfattet_af_tidligere_par9_stk1_2pkt && valg.valg_meddelt_skatteforvaltningen && valg.ejerinitieret_omvurdering_efter_evl6_stk1 == Falskt
@@ -330,34 +348,62 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
     | EblPar9IngenVæsentligSkade -> Sandt
     | EblPar9VæsentligSkade(skadedato, _, _, _, _, _) -> ebl_dato_gyldig(skadedato) && ebl_dato_før_eller_lig_med(skadedato, afståelsesdato)
 }
+| ebl_par9_genanbringelsesresultat(genanbringelsesforhold: EblPar9Genanbringelsesforhold) -> match genanbringelsesforhold {
+    | EblPar9IngenGenanbringelseEfterStk4 -> ebl_ingen_genanbringelsesresultat()
+    | EblPar9GenanbringelseEfterStk4(genanbringelse, _, _) -> ebl_genanbringelsesresultat(genanbringelse)
+}
 | ebl_par9_genanbringelsesforhold_gyldigt(genanbringelsesforhold: EblPar9Genanbringelsesforhold) -> match genanbringelsesforhold {
     | EblPar9IngenGenanbringelseEfterStk4 -> Sandt
-    | EblPar9GenanbringelseEfterStk4(_, _, genanbragt_fortjeneste_kroner) -> genanbragt_fortjeneste_kroner >= 0
+    | EblPar9GenanbringelseEfterStk4(_, _, _) -> ebl_par9_genanbringelsesresultat(genanbringelsesforhold).input_gyldigt
+}
+| ebl_par9_boligandel_forøget(genanbringelsesforhold: EblPar9Genanbringelsesforhold) -> match genanbringelsesforhold {
+    | EblPar9IngenGenanbringelseEfterStk4 -> Falskt
+    | EblPar9GenanbringelseEfterStk4(_, boligandel_forøget, _) -> boligandel_forøget
+}
+| ebl_par9_boligandel_forøget_før_15_december_2005(genanbringelsesforhold: EblPar9Genanbringelsesforhold) -> match genanbringelsesforhold {
+    | EblPar9IngenGenanbringelseEfterStk4 -> Falskt
+    | EblPar9GenanbringelseEfterStk4(_, _, boligandel_forøget_før_15_december_2005) -> boligandel_forøget_før_15_december_2005
 }
 | ebl_par9_beløbsgrundlag_afstemmer(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> fakta.bolig_afståelsessum_kroner + beløbsgrundlag.erhvervsdel_afståelsessum_kroner == beløbsgrundlag.samlet_afståelsessum_kroner && hvis ebl_par9_boligbetingelser_opfyldt(fakta, afståelsesdato) { fakta.bolig_anskaffelsessum_kroner + beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner == beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner } ellers { Sandt }
-| ebl_par9_input_gyldigt(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> ebl_dato_gyldig(afståelsesdato) && fakta.bolig_anskaffelsessum_kroner >= 0 && fakta.bolig_afståelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_afståelsessum_kroner >= 0 && beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.samlet_afståelsessum_kroner >= 0 && ebl_par9_beløbsgrundlag_afstemmer(fakta, afståelsesdato, beløbsgrundlag) && ebl_par9_skadeforhold_gyldigt(fakta.skadeforhold, afståelsesdato) && ebl_par9_genanbringelsesforhold_gyldigt(fakta.genanbringelsesforhold)
-| ebl_par9_regelgrundlag_understøttet(fakta: EblPar9Fakta) -> fakta.genanbringelsesforhold == EblPar9IngenGenanbringelseEfterStk4
+| ebl_par9_input_gyldigt(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> ebl_dato_gyldig(afståelsesdato) && fakta.bolig_anskaffelsessum_kroner >= 0 && fakta.bolig_afståelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.erhvervsdel_afståelsessum_kroner >= 0 && beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner >= 0 && beløbsgrundlag.samlet_afståelsessum_kroner >= 0 && ebl_par9_beløbsgrundlag_afstemmer(fakta, afståelsesdato, beløbsgrundlag) && ebl_par9_skadeforhold_gyldigt(fakta.skadeforhold, afståelsesdato) && ebl_par9_genanbringelsesforhold_gyldigt(fakta.genanbringelsesforhold) && ebl_par9_genanbringelsesresultat(fakta.genanbringelsesforhold).aktivt_anskaffelsessumsnedslag_kroner <= beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner
+| ebl_par9_regelgrundlag_understøttet(fakta: EblPar9Fakta) -> ebl_par9_genanbringelsesresultat(fakta.genanbringelsesforhold).regelgrundlag_understøttet
 | ebl_par9_resultat(fakta: EblPar9Fakta, afståelsesdato: EblDato, beløbsgrundlag: EblPar9Beløbsgrundlag) -> {
+    = genanbringelsesresultat = ebl_par9_genanbringelsesresultat(fakta.genanbringelsesforhold)
     = input_gyldigt = ebl_par9_input_gyldigt(fakta, afståelsesdato, beløbsgrundlag)
     = regelgrundlag_understøttet = ebl_par9_regelgrundlag_understøttet(fakta)
     = beregning_anvendt = input_gyldigt && regelgrundlag_understøttet
     = betingelser_for_skattefri_boligdel_opfyldt = beregning_anvendt && ebl_par9_boligbetingelser_opfyldt(fakta, afståelsesdato)
+    = aktivt_anskaffelsessumsnedslag_kroner = genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner
+    = erhvervsdel_reguleret_anskaffelsessum_efter_aktivt_nedslag_kroner = beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner - aktivt_anskaffelsessumsnedslag_kroner
+    = erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner = beløbsgrundlag.erhvervsdel_afståelsessum_kroner - erhvervsdel_reguleret_anskaffelsessum_efter_aktivt_nedslag_kroner
+    = hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel = aktivt_anskaffelsessumsnedslag_kroner == 0 || penge_positivt_beløb(erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner) >= aktivt_anskaffelsessumsnedslag_kroner
+    = stk4_anvendt = betingelser_for_skattefri_boligdel_opfyldt && aktivt_anskaffelsessumsnedslag_kroner > 0 && ebl_par9_boligandel_forøget(fakta.genanbringelsesforhold) && hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel == Falskt && ebl_genanbringelse_klassifikationsregel_virker(afståelsesdato, ebl_par9_boligandel_forøget_før_15_december_2005(fakta.genanbringelsesforhold))
+    = bortfaldet_anskaffelsessumsnedslag_kroner = hvis stk4_anvendt { aktivt_anskaffelsessumsnedslag_kroner } ellers { 0 }
+    = særskilt_skattepligtig_genanbragt_fortjeneste_kroner = hvis stk4_anvendt { genanbringelsesresultat.skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner } ellers { 0 }
     = bolig_fortjeneste_eller_tab_kroner = fakta.bolig_afståelsessum_kroner - fakta.bolig_anskaffelsessum_kroner
-    = erhvervsdel_fortjeneste_eller_tab_kroner = beløbsgrundlag.erhvervsdel_afståelsessum_kroner - beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner
+    = erhvervsdel_fortjeneste_eller_tab_kroner = hvis stk4_anvendt { beløbsgrundlag.erhvervsdel_afståelsessum_kroner - beløbsgrundlag.erhvervsdel_reguleret_anskaffelsessum_kroner } ellers { erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner }
     = samlet_fortjeneste_eller_tab_før_par9_kroner = beløbsgrundlag.samlet_afståelsessum_kroner - beløbsgrundlag.samlet_reguleret_anskaffelsessum_kroner
-    = samlet_fortjeneste_eller_tab_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { bolig_fortjeneste_eller_tab_kroner + erhvervsdel_fortjeneste_eller_tab_kroner } ellers { samlet_fortjeneste_eller_tab_før_par9_kroner }
+    = samlet_fortjeneste_eller_tab_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { bolig_fortjeneste_eller_tab_kroner + erhvervsdel_fortjeneste_eller_tab_kroner } ellers { samlet_fortjeneste_eller_tab_før_par9_kroner + aktivt_anskaffelsessumsnedslag_kroner }
     = skattefri_boligfortjeneste_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(bolig_fortjeneste_eller_tab_kroner) } ellers { 0 }
-    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(erhvervsdel_fortjeneste_eller_tab_kroner) } ellers { penge_positivt_beløb(samlet_fortjeneste_eller_tab_kroner) } } ellers { 0 }
+    = skattepligtig_fortjeneste_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(erhvervsdel_fortjeneste_eller_tab_kroner) + særskilt_skattepligtig_genanbragt_fortjeneste_kroner } ellers { penge_positivt_beløb(samlet_fortjeneste_eller_tab_kroner) } } ellers { 0 }
     = afskåret_boligtab_efter_par6_stk4_kroner = hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(0 - bolig_fortjeneste_eller_tab_kroner) } ellers { 0 }
     = tab_kroner = hvis beregning_anvendt { hvis betingelser_for_skattefri_boligdel_opfyldt { penge_positivt_beløb(0 - erhvervsdel_fortjeneste_eller_tab_kroner) } ellers { penge_positivt_beløb(0 - samlet_fortjeneste_eller_tab_kroner) } } ellers { 0 }
     EblPar9Resultat(
         fakta = fakta,
         afståelsesdato = afståelsesdato,
         beløbsgrundlag = beløbsgrundlag,
+        genanbringelsesresultat = genanbringelsesresultat,
         input_gyldigt = input_gyldigt,
         regelgrundlag_understøttet = regelgrundlag_understøttet,
         beregning_anvendt = beregning_anvendt,
         betingelser_for_skattefri_boligdel_opfyldt = betingelser_for_skattefri_boligdel_opfyldt,
+        aktivt_anskaffelsessumsnedslag_kroner = aktivt_anskaffelsessumsnedslag_kroner,
+        erhvervsdel_reguleret_anskaffelsessum_efter_aktivt_nedslag_kroner = erhvervsdel_reguleret_anskaffelsessum_efter_aktivt_nedslag_kroner,
+        erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner = erhvervsdel_fortjeneste_eller_tab_med_aktivt_nedslag_kroner,
+        hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel = hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel,
+        stk4_anvendt = stk4_anvendt,
+        bortfaldet_anskaffelsessumsnedslag_kroner = bortfaldet_anskaffelsessumsnedslag_kroner,
+        særskilt_skattepligtig_genanbragt_fortjeneste_kroner = særskilt_skattepligtig_genanbragt_fortjeneste_kroner,
         bolig_fortjeneste_eller_tab_kroner = bolig_fortjeneste_eller_tab_kroner,
         erhvervsdel_fortjeneste_eller_tab_kroner = erhvervsdel_fortjeneste_eller_tab_kroner,
         samlet_fortjeneste_eller_tab_kroner = samlet_fortjeneste_eller_tab_kroner,

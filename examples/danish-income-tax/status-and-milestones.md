@@ -76,10 +76,19 @@ klassifikation.
 Flere afståelser ligger i to relationelle regnearksfaner frem for brede
 gentagne kolonner. Ægtefælleoverførsel begrænses af modtagerens
 nettofortjeneste efter egne tab, så et overskydende tab ikke forsvinder i en
-allerede forbrugt bruttofortjeneste. Ikke færdigmodellerede særforhold, blandt
-andet mælkekvoter, § 5, stk. 6-overførsler og § 9, stk. 4-genanbringelse, er
-fortsat udtrykkelige og fail-closed: de får ingen skattemæssig virkning og kan
-ikke glide ind i den almindelige beregning. Værdipapirer med boligret efter
+allerede forbrugt bruttofortjeneste. Genanbringelse efter §§ 6 A, 6 C og 10 er
+nu et fælles typet domæne med oprindelig erhvervsfortjeneste, frister,
+erhvervsanvendelse, ejerskab, placering, begæring, investeringsgrundlag,
+genopførelsesfakta og senere reguleringer. § 8, stk. 5 beskatter den tidligere
+genanbragte fortjeneste særskilt, når den nye ejendoms egen boligfortjeneste er
+skattefri. § 9, stk. 4 udleder selv, om erhvervsdelen kan bære hele den
+genanbragte fortjeneste; hvis ikke, beskattes den gamle fortjeneste særskilt,
+og det tilsvarende nedslag i anskaffelsessummen bortfalder. Den gamle gevinst
+og den nye ejendoms gevinst eller tab holdes dermed adskilt uden
+dobbeltbeskatning. Ikke færdigmodellerede særforhold, blandt andet mælkekvoter,
+§ 5, stk. 6-overførsler, fordeling af § 10-genopførelse på flere andre
+ejendomme og erhvervserstatning anvendt til ejerbolig, er fortsat
+udtrykkelige og fail-closed. Værdipapirer med boligret efter
 § 8, stk. 4, er derimod nu flyttet ud af ejendomsavancegrenen og ind i
 Aktieavancebeskatningslovens § 15-spor. Beboelse, ejendom med flere
 beboelseslejligheder, udstederens direkte ejerskab, tidsmæssigt overlap mellem
@@ -113,7 +122,10 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
 117 typede inputkolonner på `cases`-arket plus `case_id` og femten relationelle
-kildeark.
+kildeark. Kontrakten når nu 177 domænedefinitioner. De to ejendomsark rummer
+også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
+kan følges gennem § 8, stk. 5 eller § 9, stk. 4 uden beregnede mellemfelter fra
+brugeren.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
 rummer egne og ægtefællens ejendomsafståelser, og de indlejrede § 5-fakta giver
 selvstændige relationelle tabeller for vedligeholdelses- og
@@ -134,11 +146,16 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 42 eksplicitte feltmetadata-poster. En AI kan dermed
-spørge til ejendommen, afståelses- og anskaffelsesår, kontante summer,
-anskaffelsesgrundlag, § 5 A-valg, ejendomstype, boligbrug, grundforhold og
-likvidationsår og derefter udfylde de kanoniske stier, mens Futuruna beregner
-deterministisk og bevarer den juridiske forklaringskæde. En metadataændring
+Kontrakten har aktuelt 98 eksplicitte feltmetadata-poster. Genanbringelsens
+lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
+geninvesteringsår, erhvervsmæssige anskaffelsesgrundlag, anvendelse, placering,
+begæring, ejerskab og overgangsforhold har nu egne menneskelige etiketter og
+interviewspørgsmål for både personen og ægtefællen. Det samme gælder de
+udenlandske betingelser om EU/EØS-område, fuld dansk skattepligt,
+informationsudveksling og den særskilte begæring med oplysninger og
+driftsbudget før fraflytning. En AI kan dermed indsamle kildedata i
+menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
+deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
@@ -2556,20 +2573,22 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 157 nåbare definitioner, 117 typede
+- Det genererede Personskat-regneark har nu 177 nåbare definitioner, 117 typede
   inputkolonner plus `case_id` og femten relationelle kildeark. XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
   kapitalomkostning, et kildefaktabåret § 9 C-befordringsfradrag og en
-  skattefri ABL § 15-afståelse med boligret. Samme sag afleder 65.000 kr. i
-  ejendomsavance efter et eget tab, fremført tab og ægtefællens overførte tab;
-  renter og øvrige fradrag giver derefter 75.000 kr. i nettokapitalindkomst.
-  Kontrakten har 42 eksplicitte menneskelige feltetiketter og
-  interviewspørgsmål; de nye ABL-felter dækker værdipapirets boligret,
-  udstederens direkte ejerskab, den kvalificerende boligperiode, grundforhold,
-  afståelsesform og likvidationsår. Store enum-/variantvalg bruger et skjult
-  `_choices`-ark med navngivne områder, så alle domænevalg kan blive dropdowns
-  uden Excels 255-tegnsgrænse for indlejrede lister.
+  skattefri ABL § 15-afståelse med boligret. Ejendomsavancesagen fører samtidig
+  en tidligere § 6 A-fortjeneste gennem § 8, stk. 5: boligejendommens egen
+  fortjeneste på 190.000 kr. er skattefri, mens den gamle genanbragte
+  erhvervsfortjeneste på 190.000 kr. beskattes. Efter eget tab, fremført tab og
+  ægtefællens overførte tab afledes fortsat 65.000 kr. i ejendomsavance; renter
+  og øvrige fradrag giver derefter 75.000 kr. i nettokapitalindkomst.
+  Kontrakten har 98 eksplicitte menneskelige feltetiketter og
+  interviewspørgsmål. De dækker nu også genanbringelsesvalg og centrale
+  §§ 6 A/8/9-kildefakta for begge ægtefæller. Store enum-/variantvalg bruger et
+  skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
+  dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
