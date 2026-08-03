@@ -166,9 +166,15 @@ udtrykkelige og fail-closed. Værdipapirer med boligret efter
 Aktieavancebeskatningslovens § 15-spor. Beboelse, ejendom med flere
 beboelseslejligheder, udstederens direkte ejerskab, tidsmæssigt overlap mellem
 boligbrug og den kvalificerende periode, eventuelt bestemt grundareal og
-likvidationsåret afgør fritagelsen. Hvis en betingelse ikke er opfyldt,
-fortsætter gevinst eller tab gennem de almindelige ABL-regler i stedet for at
-blive nulstillet. Et fokuseret scenarie dækker de årlige 10.000 kr.-tillæg,
+likvidationsåret afgør fritagelsen. Udstederens selskabsform eller
+foreningstype, danske skattemæssige hjemsted og undtagelser efter
+Selskabsskattelovens §§ 1 og 3 samt værdipapirets ABL-status afleder først, om
+udstederen er et selvstændigt skattesubjekt, og om værdipapiret er omfattet af
+ABL. En transparent udsteder eller et værdipapir uden for ABL gør hændelsen
+ugyldig. Hvis et ellers gyldigt ABL-forløb alene ikke opfylder en
+fritagelsesbetingelse, fortsætter gevinst eller tab gennem de almindelige
+ABL-regler i stedet for at blive nulstillet. Et fokuseret scenarie dækker de
+årlige 10.000 kr.-tillæg,
 årsaggregering af forbedringsudgifter, § 5 A-indeksering, § 8-fritagelsen,
 § 9-fordelingen og ABL § 15's boligretsgren. Et særskilt ordinært
 genanbringelsesscenarie og en `.audit.runa`-fil kontrollerer, at det aktive
@@ -203,7 +209,7 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
 140 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
-relationelle kildeark. Kontrakten når nu 279 domænedefinitioner. De to
+relationelle kildeark. Kontrakten når nu 291 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -231,7 +237,12 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 389 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 397 eksplicitte feltmetadata-poster. De otte nye
+ABL § 15-poster spørger til udstedervariant, registreret selskabsform,
+selskabets og foreningens danske skattemæssige hjemsted, foreningstype,
+SEL § 3-undtagelse, Fondsbeskatningsloven og værdipapirets ABL-status. AI'en
+leverer dermed de juridiske kildefakta; Futuruna afleder udstederens
+skattesubjektstatus og fritagelsens sporbare resultat. De øvrige nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -270,7 +281,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`0af23c58746658cf890264100aebb61df90ba0f5b3200a2f904c31838b50b924`.
+`e54ec5a3fdec7d047eb001c7a5d9529ab86a56edf21acdf766adebd87b056b82`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -282,7 +293,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.719 domænekolonner; 371 materialiserer en eksplicit etiket,
+projektmappe har 1.727 domænekolonner; 379 materialiserer en eksplicit etiket,
 mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -522,7 +533,7 @@ derfor blive en relateret tabel i et genereret regneark og kobles entydigt til
 § 24's principskift og næringsaktiernes overgang til anlægsbeholdning,
 MTF-rettigheder erhvervet før 2024, § 26's 0-basis, handelsværdiregel og
 adskilte § 7 N-beholdninger samt § 27's daterede anskaffelsessumtillæg er
-eksekverbare. De fokuserede scenarier validerer nu 27 ordinære aktieudfald,
+eksekverbare. De fokuserede scenarier validerer nu 36 ordinære aktieudfald,
 11 rettighedsudfald og 22 §§ 23-27-udfald i både interpreter og kompileret kode.
 
 `aktieavancebeskatningsloven-par33a.runa` gør § 33 A's skattemæssige
@@ -2738,7 +2749,7 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 279 nåbare definitioner, 140
+- Det genererede Personskat-regneark har nu 291 nåbare definitioner, 140
   synlige overskriftsceller inklusive `case_id` og 29 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2762,7 +2773,7 @@ Review candidates to revisit deliberately, not as broad churn:
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
   fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 389 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 397 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2773,6 +2784,11 @@ Review candidates to revisit deliberately, not as broad churn:
   også beregningens person, pantebrevets
   oprindelige skatteyder og alle fakta i de understøttede ægtefælle- og
   dødsboskifter.
+  Otte af posterne beskriver ABL § 15's udsteder og værdipapir: selskabsform,
+  foreningstype, dansk skattemæssigt hjemsted, SEL § 3-undtagelse,
+  Fondsbeskatningsloven og ABL-status. Reglerne afleder herfra, om udstederen
+  er et selvstændigt skattesubjekt, og holder denne klassifikation synlig i
+  beregningssporet.
   Heraf beskriver 66 poster § 11, stk. 2-valget og en eventuel ny
   genanbringelse for personen eller ægtefællen.
   Store enum-/variantvalg bruger et

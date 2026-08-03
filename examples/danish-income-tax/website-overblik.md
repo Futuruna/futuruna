@@ -140,14 +140,22 @@ geninvesteringsår, anskaffelsesgrundlag, anvendelse, placering, begæring,
 ejerskab og overgangsforhold har også egne menneskelige etiketter og
 interviewspørgsmål for både personen og ægtefællen. Det samme gælder
 ordinære aktiebeholdninger og boligretsfakta efter ABL § 15: værdipapirets
-tilknytning til lejligheden, boligbrug, grundforhold, afståelsesform og
-likvidationsår har hver sin menneskelige etiket og sit interviewspørgsmål. En AI
-kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
-felternes gyldighed eller skattereglernes deterministiske resultat.
+tilknytning til lejligheden, udstedervariant, registreret selskabsform eller
+foreningstype, dansk skattemæssigt hjemsted, SEL § 3- og
+Fondsbeskatningslovsstatus, værdipapirets ABL-status, boligbrug, grundforhold,
+afståelsesform og likvidationsår har hver sin menneskelige etiket og sit
+interviewspørgsmål. En AI kan læse metadataene og indsamle fakta, men
+formuleringerne ændrer ikke felternes gyldighed eller skattereglernes
+deterministiske resultat. Futuruna afleder selv, om udstederen er et
+selvstændigt skattesubjekt, og om værdipapiret er omfattet af ABL. En
+transparent udsteder eller et værdipapir uden for ABL gør hændelsen ugyldig;
+et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
+fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 389 eksplicitte feltmetadata-poster,
-herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
+interviewoplysninger. Kontrakten har nu 397 eksplicitte feltmetadata-poster,
+herunder otte for ABL § 15's udsteder- og værdipapirklassifikation og alle nye
+ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
 sælgerpantebrev har samme menneskelige lag: pantebrevets vilkår, parternes
@@ -372,10 +380,12 @@ Valg, negativ anskaffelsessum, overdragerskattesaldo, FIFO-afståelser,
 vedvarende forløb. De 17 scenarier omfatter både virkningsgrænsen og et kædet
 saldo-, udbytte-, salgs- og betalingsforløb i begge backends.
 Resultaterne går videre gennem den samme
-ABL/Personskattelov-bro. De fokuserede scenarier dækker nu 212 udfald i
+ABL/Personskattelov-bro. De fokuserede scenarier dækker nu mere end 200 udfald i
 Aktieavancebeskatningsloven § 5 A, §§ 6-7, § 9, §§ 12-15, § 17, §§ 23-27, § 33 A,
 §§ 35 G-35 K og §§ 37-40. Kilderne er
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
+[Selskabsskatteloven, LBK nr. 279/2025](https://www.retsinformation.dk/eli/lta/2025/279),
+[Den juridiske vejledning C.H.2.1.15.6 om selvstændige skattesubjekter](https://info.skat.dk/data.aspx?oid=1948728),
 [den oprindelige § 5 A-ændring og overgang, LOV nr. 254/2011](https://www.retsinformation.dk/eli/lta/2011/254),
 [medarbejderejeændringen, LOV nr. 1755/2025](https://www.retsinformation.dk/eli/lta/2025/1755),
 [vejledningen om § 5 A-tabsreduktionen](https://info.skat.dk/data.aspx?oid=1950044),

@@ -3,6 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./aktieavancebeskatningsloven - par19b - 22
 @ importer ./ejendomsavancebeskatningsloven - par8 - par9
+@ importer ./selskabsskatteloven
 
 -- Aktieavancebeskatningsloven -- Personskatteloven § 4, stk. 1, nr. 5, og § 4 a.
 --
@@ -74,6 +75,11 @@ EndDate: 2026-07-01
     identifier = "Den juridiske vejledning C.B.2.6: aktier og andelsbeviser med boligret",
     hentet_dato = "2026-07-18"
 )
+= aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948728",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.15.6: boligejendomme ejet via aktier eller andelsbeviser",
+    hentet_dato = "2026-07-18"
+)
 = selskabsloven_lbk331_par47 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/331",
     identifier = "Selskabsloven § 47, stk. 1-3: kapitalandele med nominel værdi og stykkapitalandele",
@@ -85,7 +91,7 @@ EndDate: 2026-07-01
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:ebl_par8_par9_lbk132::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligret::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:ebl_par8_par9_lbk132::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligret::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
 ----
 § 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
 er optaget til handel på et reguleret marked.
@@ -249,12 +255,21 @@ kapitalandele). Det er fortsat et krav, at det skal fremgå af selskabets
 vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 ----
 
+----
+Den juridiske vejledning 2026-1, C.H.2.1.15.6 kræver et selvstændigt
+skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
+----
+
 --@begin:aktieavancebeskatningsloven_ordinaere_aktier--
 # AktieavanceOrdinærMarkedsstatus = AblIkkeOptagetTilHandel | AblOptagetTilHandelPåReguleretMarked | AblOptagetTilHandelPåMultilateralHandelsfacilitet
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
 # AktieavanceOrdinærBoligretAfståelsesform = AblPar15AlmindeligAfståelse | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår: Boolsk)
-# AktieavanceOrdinærBoligretInput = AblUdenBoligret | AblBoligretEfterPar15(fakta: EblPar8Stk4VærdipapirFakta, afståelsesform: AktieavanceOrdinærBoligretAfståelsesform)
-# AktieavanceOrdinærPar15Resultat = AblPar15IkkeRelevant | AblPar15Vurderet(ebl_par8_stk4_resultat: EblPar8Stk4VærdipapirResultat, afståelsesform_opfyldt: Boolsk, skattefri_efter_par15: Boolsk)
+# AktieavanceOrdinærPar15UdstederInput = AblPar15Kapitalselskabsudsteder(sel_input: Selskabsskattelov1Stk1Nr1Input) | AblPar15Foreningsudsteder(sel_input: Selskabsskattelov1Stk1Nr6Input) | AblPar15TransparentEllerAndenUdsteder
+# AktieavanceOrdinærPar15Værdipapirstatus = AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven | AblPar15VærdipapirUdenForAktieavancebeskatningsloven
+# AktieavanceOrdinærPar15UdstederResultat = AblPar15KapitalselskabsudstederVurderet(sel_resultat: Selskabsskattelov1Stk1Nr1Resultat) | AblPar15ForeningsudstederVurderet(sel_resultat: Selskabsskattelov1Stk1Nr6Resultat) | AblPar15TransparentEllerAndenUdstederVurderet
+# AktieavanceOrdinærPar15Klassifikationsresultat(udsteder_resultat: AktieavanceOrdinærPar15UdstederResultat, udsteder_selvstændigt_skattesubjekt: Boolsk, værdipapir_omfattet_af_aktieavancebeskatningsloven: Boolsk, input_gyldigt: Boolsk)
+# AktieavanceOrdinærBoligretInput = AblUdenBoligret | AblBoligretEfterPar15(udsteder: AktieavanceOrdinærPar15UdstederInput, værdipapirstatus: AktieavanceOrdinærPar15Værdipapirstatus, fakta: EblPar8Stk4VærdipapirFakta, afståelsesform: AktieavanceOrdinærBoligretAfståelsesform)
+# AktieavanceOrdinærPar15Resultat = AblPar15IkkeRelevant | AblPar15Vurderet(klassifikation: AktieavanceOrdinærPar15Klassifikationsresultat, ebl_par8_stk4_resultat: EblPar8Stk4VærdipapirResultat, afståelsesform_opfyldt: Boolsk, skattefri_efter_par15: Boolsk)
 # AktieavanceOrdinærAfståelsesvilkår(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, hovedaktionæraktier: Boolsk, afståede_aktiers_handelsværdi_kroner: Heltal, beholdte_aktiers_handelsværdi_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, boligret: AktieavanceOrdinærBoligretInput)
 # AktieavanceOrdinærKapitalvægt(tæller: Heltal, nævner: Heltal)
 # AktieavanceOrdinærPålydendeKapitaldel(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal)
@@ -380,21 +395,52 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | AblPar15AlmindeligAfståelse -> Sandt
     | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår) -> udloddet_i_endeligt_opløsningsår
 }
+| aktieavance_ordinaer_par15_udsteder_resultat(udsteder: AktieavanceOrdinærPar15UdstederInput) -> match udsteder {
+    | AblPar15Kapitalselskabsudsteder(sel_input) -> AblPar15KapitalselskabsudstederVurderet(sel_resultat = selskabsskattelov1_stk1_nr1_resultat(sel_input))
+    | AblPar15Foreningsudsteder(sel_input) -> AblPar15ForeningsudstederVurderet(sel_resultat = selskabsskattelov1_stk1_nr6_resultat(sel_input))
+    | AblPar15TransparentEllerAndenUdsteder -> AblPar15TransparentEllerAndenUdstederVurderet
+}
+| aktieavance_ordinaer_par15_udsteder_selvstændigt_skattesubjekt(resultat: AktieavanceOrdinærPar15UdstederResultat) -> match resultat {
+    | AblPar15KapitalselskabsudstederVurderet(sel_resultat) -> sel_resultat.skattepligtig_efter_par1_stk1_nr1
+    | AblPar15ForeningsudstederVurderet(sel_resultat) -> sel_resultat.skattepligtig_efter_par1_stk1_nr6
+    | AblPar15TransparentEllerAndenUdstederVurderet -> Falskt
+}
+| aktieavance_ordinaer_par15_udsteder_kan_behandles_efter_aktieavancebeskatningsloven(udsteder: AktieavanceOrdinærPar15UdstederInput) -> match udsteder {
+    | AblPar15TransparentEllerAndenUdsteder -> Falskt
+    | _ -> Sandt
+}
+| aktieavance_ordinaer_par15_værdipapir_omfattet(status: AktieavanceOrdinærPar15Værdipapirstatus) -> status == AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven
+| aktieavance_ordinaer_par15_klassifikationsresultat(udsteder: AktieavanceOrdinærPar15UdstederInput, værdipapirstatus: AktieavanceOrdinærPar15Værdipapirstatus) -> {
+    = udsteder_resultat = aktieavance_ordinaer_par15_udsteder_resultat(udsteder)
+    = værdipapir_omfattet = aktieavance_ordinaer_par15_værdipapir_omfattet(værdipapirstatus)
+    AktieavanceOrdinærPar15Klassifikationsresultat(
+        udsteder_resultat = udsteder_resultat,
+        udsteder_selvstændigt_skattesubjekt = aktieavance_ordinaer_par15_udsteder_selvstændigt_skattesubjekt(udsteder_resultat),
+        værdipapir_omfattet_af_aktieavancebeskatningsloven = værdipapir_omfattet,
+        input_gyldigt = aktieavance_ordinaer_par15_udsteder_kan_behandles_efter_aktieavancebeskatningsloven(udsteder) && værdipapir_omfattet
+    )
+}
+| aktieavance_ordinaer_boligret_input_gyldigt(boligret: AktieavanceOrdinærBoligretInput) -> match boligret {
+    | AblUdenBoligret -> Sandt
+    | AblBoligretEfterPar15(udsteder, værdipapirstatus, _, _) -> aktieavance_ordinaer_par15_klassifikationsresultat(udsteder, værdipapirstatus).input_gyldigt
+}
 | aktieavance_ordinaer_par15_resultat(boligret: AktieavanceOrdinærBoligretInput) -> match boligret {
     | AblUdenBoligret -> AblPar15IkkeRelevant
-    | AblBoligretEfterPar15(fakta, afståelsesform) -> {
+    | AblBoligretEfterPar15(udsteder, værdipapirstatus, fakta, afståelsesform) -> {
+        = klassifikation = aktieavance_ordinaer_par15_klassifikationsresultat(udsteder, værdipapirstatus)
         = ebl_resultat = ebl_par8_stk4_værdipapir_resultat(fakta)
         = afståelsesform_opfyldt = aktieavance_ordinaer_par15_afståelsesform_opfyldt(afståelsesform)
         AblPar15Vurderet(
+            klassifikation = klassifikation,
             ebl_par8_stk4_resultat = ebl_resultat,
             afståelsesform_opfyldt = afståelsesform_opfyldt,
-            skattefri_efter_par15 = ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt
+            skattefri_efter_par15 = klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt
         )
     }
 }
 | aktieavance_ordinaer_par15_skattefri(resultat: AktieavanceOrdinærPar15Resultat) -> match resultat {
     | AblPar15IkkeRelevant -> Falskt
-    | AblPar15Vurderet(_, _, skattefri_efter_par15) -> skattefri_efter_par15
+    | AblPar15Vurderet(_, _, _, skattefri_efter_par15) -> skattefri_efter_par15
 }
 
 | aktieavance_par13a_investeringsbevis_skattepostart(art: AktieavancePar13AInvesteringsbevisArt) -> match art {
@@ -446,7 +492,8 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | afstået_kapitalvægt() -> aktieavance_ordinaer_kapitalmængde_afstået_kapitalvægt(position.kapitalmængde, kapitalmængde())
     | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && anskaffelseskapital_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
     | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || afstår_hele_beholdningen_efter_mængde() || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
-    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && afståelseskapital_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig()
+    | boligret_input_gyldigt() -> aktieavance_ordinaer_boligret_input_gyldigt(afståelsesvilkår().boligret)
+    | afståelse_gyldig() -> aktieavance_ordinaer_er_afståelse(hændelse) && afståelseskapital_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig() && boligret_input_gyldigt()
     | hændelse_gyldig() -> position_gyldig() && (anskaffelse_gyldig() || afståelse_gyldig())
     | anskaffelsessum_henført_til_afståelse_kroner() -> 0
     | exception abl_par26_stk5_hele_beholdningen anskaffelsessum_henført_til_afståelse_kroner() -> position.anskaffelsessum_kroner under afståelse_gyldig() && afstår_hele_beholdningen_efter_mængde()

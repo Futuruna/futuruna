@@ -8,6 +8,49 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/279
 -- XML: https://www.retsinformation.dk/eli/lta/2025/279/dan/xml
 
+# SelskabsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= selskabsskatteloven_lbk279_par1_stk1_nr1_nr6 = SelskabsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/279",
+    identifier = "Selskabsskatteloven § 1, stk. 1, nr. 1 og 6",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:selskabsskatteloven_par1_stk1_nr1::source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6--
+----
+§ 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
+foreninger m.v., der er hjemmehørende her i landet:
+
+1) indregistrerede aktieselskaber og anpartsselskaber,
+----
+
+--@begin:selskabsskatteloven_par1_stk1_nr1--
+# Selskabsskattelov1Stk1Nr1Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr1
+# Selskabsskattelov1Stk1Nr1Selskabsform = Sel1Stk1Nr1IndregistreretAktieselskab | Sel1Stk1Nr1IndregistreretAnpartsselskab | Sel1Stk1Nr1AndenSelskabsform
+# Selskabsskattelov1Stk1Nr1Input(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, hjemmehørende_i_danmark: Boolsk)
+# Selskabsskattelov1Stk1Nr1Resultat(kilde: Selskabsskattelov1Stk1Nr1Kilde, selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform, selskabsform_omfattet_af_nr1: Boolsk, hjemmehørende_i_danmark: Boolsk, skattepligtig_efter_par1_stk1_nr1: Boolsk)
+
+| selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Falskt
+| exception sel1_stk1_nr1_aktieselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAktieselskab
+| exception sel1_stk1_nr1_anpartsselskab selskabsskattelov1_stk1_nr1_selskabsform_omfattet(selskabsform: Selskabsskattelov1Stk1Nr1Selskabsform) -> Sandt under selskabsform == Sel1Stk1Nr1IndregistreretAnpartsselskab
+
+# Selskabsskattelov1Stk1Nr1Sag(input: Selskabsskattelov1Stk1Nr1Input) {
+    | kilde() -> SelskabsskattelovenLbk279Af2025Par1Stk1Nr1
+    | selskabsform_omfattet_af_nr1() -> selskabsskattelov1_stk1_nr1_selskabsform_omfattet(input.selskabsform)
+    | skattepligtig_efter_par1_stk1_nr1() -> selskabsform_omfattet_af_nr1() && input.hjemmehørende_i_danmark
+    | resultat() -> Selskabsskattelov1Stk1Nr1Resultat(
+        kilde = kilde(),
+        selskabsform = input.selskabsform,
+        selskabsform_omfattet_af_nr1 = selskabsform_omfattet_af_nr1(),
+        hjemmehørende_i_danmark = input.hjemmehørende_i_danmark,
+        skattepligtig_efter_par1_stk1_nr1 = skattepligtig_efter_par1_stk1_nr1()
+    )
+}
+| selskabsskattelov1_stk1_nr1_sag(input: Selskabsskattelov1Stk1Nr1Input) -> Selskabsskattelov1Stk1Nr1Sag(input)
+| selskabsskattelov1_stk1_nr1_resultat(input: Selskabsskattelov1Stk1Nr1Input) -> selskabsskattelov1_stk1_nr1_sag(input).resultat()
+--@end:selskabsskatteloven_par1_stk1_nr1--
+
+--@label:selskabsskatteloven_par1_stk1_nr6::source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6--
 ----
 § 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
 foreninger m.v., der er hjemmehørende her i landet:
@@ -28,11 +71,12 @@ ikke foreninger m.v., hvis midler ifølge vedtægter el.lign. udelukkende kan
 anvendes til almenvelgørende eller på anden måde almennyttige formål.
 ----
 
+--@begin:selskabsskatteloven_par1_stk1_nr6--
 # Selskabsskattelov1Stk1Nr6Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
 # Selskabsskattelov1Stk1Nr6Enhed = Ssl1Stk1Nr6AndenForening | Ssl1Stk1Nr6Korporation | Ssl1Stk1Nr6Stiftelse | Ssl1Stk1Nr6Legat | Ssl1Stk1Nr6SelvejendeInstitution | Ssl1Stk1Nr6Investeringsforening | Ssl1Stk1Nr6AndenEnhed
 # Selskabsskattelov1Stk1Nr6IndkomstArt = Ssl1Stk1Nr6ErhvervsmæssigVirksomhed | Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning | Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst | Ssl1Stk1Nr6AndenIndkomst
-# Selskabsskattelov1Stk1Nr6Input(enhed: Selskabsskattelov1Stk1Nr6Enhed, omfattet_af_par3_undtagelse: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk)
-# Selskabsskattelov1Stk1Nr6Resultat(kilde: Selskabsskattelov1Stk1Nr6Kilde, enhed: Selskabsskattelov1Stk1Nr6Enhed, enhed_omfattet_af_nr6: Boolsk, investeringsforening: Boolsk, undtaget_efter_par3: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk, skattepligtig_efter_par1_stk1_nr6: Boolsk)
+# Selskabsskattelov1Stk1Nr6Input(enhed: Selskabsskattelov1Stk1Nr6Enhed, hjemmehørende_i_danmark: Boolsk, omfattet_af_par3_undtagelse: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk)
+# Selskabsskattelov1Stk1Nr6Resultat(kilde: Selskabsskattelov1Stk1Nr6Kilde, enhed: Selskabsskattelov1Stk1Nr6Enhed, enhed_omfattet_af_nr6: Boolsk, investeringsforening: Boolsk, hjemmehørende_i_danmark: Boolsk, undtaget_efter_par3: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk, skattepligtig_efter_par1_stk1_nr6: Boolsk)
 # Selskabsskattelov1Stk1Nr6IndkomstInput(nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat, indkomst_art: Selskabsskattelov1Stk1Nr6IndkomstArt, beløb_kroner: Heltal)
 # Selskabsskattelov1Stk1Nr6IndkomstResultat(skattepligtig_efter_par1_stk1_nr6: Boolsk, indkomst_omfattet_af_nr6: Boolsk, skattepligtig_indkomst_kroner: Heltal)
 
@@ -49,12 +93,13 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
     | enhed_omfattet_af_nr6() -> selskabsskattelov1_stk1_nr6_enhed_omfattet(input.enhed)
     | investeringsforening() -> input.enhed == Ssl1Stk1Nr6Investeringsforening
     | undtaget_efter_par3() -> input.omfattet_af_par3_undtagelse
-    | skattepligtig_efter_par1_stk1_nr6() -> enhed_omfattet_af_nr6() && undtaget_efter_par3() == Falskt && input.omfattet_af_fondsbeskatningsloven == Falskt
+    | skattepligtig_efter_par1_stk1_nr6() -> enhed_omfattet_af_nr6() && input.hjemmehørende_i_danmark && undtaget_efter_par3() == Falskt && input.omfattet_af_fondsbeskatningsloven == Falskt
     | resultat() -> Selskabsskattelov1Stk1Nr6Resultat(
         kilde = kilde(),
         enhed = input.enhed,
         enhed_omfattet_af_nr6 = enhed_omfattet_af_nr6(),
         investeringsforening = investeringsforening(),
+        hjemmehørende_i_danmark = input.hjemmehørende_i_danmark,
         undtaget_efter_par3 = undtaget_efter_par3(),
         omfattet_af_fondsbeskatningsloven = input.omfattet_af_fondsbeskatningsloven,
         skattepligtig_efter_par1_stk1_nr6 = skattepligtig_efter_par1_stk1_nr6()
@@ -83,25 +128,36 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 
 = ssl1_stk1_nr6_forening_input = Selskabsskattelov1Stk1Nr6Input(
     enhed = Ssl1Stk1Nr6AndenForening,
+    hjemmehørende_i_danmark = Sandt,
+    omfattet_af_par3_undtagelse = Falskt,
+    omfattet_af_fondsbeskatningsloven = Falskt
+)
+= ssl1_stk1_nr6_udenlandsk_forening_input = Selskabsskattelov1Stk1Nr6Input(
+    enhed = Ssl1Stk1Nr6AndenForening,
+    hjemmehørende_i_danmark = Falskt,
     omfattet_af_par3_undtagelse = Falskt,
     omfattet_af_fondsbeskatningsloven = Falskt
 )
 = ssl1_stk1_nr6_investeringsforening_input = Selskabsskattelov1Stk1Nr6Input(
     enhed = Ssl1Stk1Nr6Investeringsforening,
+    hjemmehørende_i_danmark = Sandt,
     omfattet_af_par3_undtagelse = Falskt,
     omfattet_af_fondsbeskatningsloven = Falskt
 )
 = ssl1_stk1_nr6_fondsbeskatning_input = Selskabsskattelov1Stk1Nr6Input(
     enhed = Ssl1Stk1Nr6Stiftelse,
+    hjemmehørende_i_danmark = Sandt,
     omfattet_af_par3_undtagelse = Falskt,
     omfattet_af_fondsbeskatningsloven = Sandt
 )
 = ssl1_stk1_nr6_par3_undtagelse_input = Selskabsskattelov1Stk1Nr6Input(
     enhed = Ssl1Stk1Nr6SelvejendeInstitution,
+    hjemmehørende_i_danmark = Sandt,
     omfattet_af_par3_undtagelse = Sandt,
     omfattet_af_fondsbeskatningsloven = Falskt
 )
 = ssl1_stk1_nr6_forening_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_forening_input)
+= ssl1_stk1_nr6_udenlandsk_forening_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_udenlandsk_forening_input)
 = ssl1_stk1_nr6_investeringsforening_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_investeringsforening_input)
 = ssl1_stk1_nr6_fondsbeskatning_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_fondsbeskatning_input)
 = ssl1_stk1_nr6_par3_undtagelse_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_par3_undtagelse_input)
@@ -112,12 +168,12 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 ))
 
 | ssl1_stk1_nr6_forening_skattepligtig: ssl1_stk1_nr6_forening_fixture -> ssl1_stk1_nr6_forening_fixture.kilde == SelskabsskattelovenLbk279Af2025Par1Stk1Nr6 && ssl1_stk1_nr6_forening_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_forening_fixture.skattepligtig_efter_par1_stk1_nr6 == Sandt
+| ssl1_stk1_nr6_udenlandsk_forening_ikke_skattepligtig: ssl1_stk1_nr6_udenlandsk_forening_fixture -> ssl1_stk1_nr6_udenlandsk_forening_fixture.enhed_omfattet_af_nr6 && ssl1_stk1_nr6_udenlandsk_forening_fixture.hjemmehørende_i_danmark == Falskt && ssl1_stk1_nr6_udenlandsk_forening_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_investeringsforening_identificeres: ssl1_stk1_nr6_investeringsforening_fixture -> ssl1_stk1_nr6_investeringsforening_fixture.skattepligtig_efter_par1_stk1_nr6 == Sandt && ssl1_stk1_nr6_investeringsforening_fixture.investeringsforening == Sandt
 | ssl1_stk1_nr6_fondsbeskatning_afskærer: ssl1_stk1_nr6_fondsbeskatning_fixture -> ssl1_stk1_nr6_fondsbeskatning_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_fondsbeskatning_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_par3_afskærer: ssl1_stk1_nr6_par3_undtagelse_fixture -> ssl1_stk1_nr6_par3_undtagelse_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_par3_undtagelse_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_erhvervsindkomst_skattepligtig: ssl1_stk1_nr6_erhvervsindkomst_fixture -> ssl1_stk1_nr6_erhvervsindkomst_fixture.indkomst_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_erhvervsindkomst_fixture.skattepligtig_indkomst_kroner == 17000
-
-# SelskabsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+--@end:selskabsskatteloven_par1_stk1_nr6--
 
 = selskabsskatteloven_lbk279_par17_stk1 = SelskabsskattelovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/279",

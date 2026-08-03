@@ -2463,6 +2463,62 @@
     help = Some("Boligretten kan gøre både gevinst og tab skattefri, når betingelserne i ejendomsavancebeskatningslovens § 8, stk. 4, er opfyldt."),
     unit = None
 )
+= personskat_felt_aktie_boligret_udsteder = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant",
+    label = "Udsteder af værdipapiret med boligret",
+    question = Some("Er udstederen et registreret kapitalselskab, en forening eller en skattemæssigt transparent eller anden enhed?"),
+    help = Some("Skattefrihed efter ABL § 15 forudsætter, at udstederen er et selvstændigt skattesubjekt efter selskabsskattelovens § 1, stk. 1, nr. 1 eller 6."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_kapitalselskabsform = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.selskabsform",
+    label = "Kapitalselskabets registrerede form",
+    question = Some("Hvilken registreret selskabsform har udstederen?"),
+    help = Some("Registrerede aktie- og anpartsselskaber kan være selvstændige skattesubjekter efter selskabsskattelovens § 1, stk. 1, nr. 1."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_kapitalselskab_hjemsted = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.hjemmehørende_i_danmark",
+    label = "Kapitalselskabets skattemæssige hjemsted",
+    question = Some("Er kapitalselskabet hjemmehørende i Danmark?"),
+    help = Some("Selskabsskattelovens § 1 omfatter de opregnede selskaber og foreninger, der er hjemmehørende her i landet."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_foreningstype = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.enhed",
+    label = "Foreningens juridiske type",
+    question = Some("Hvilken juridisk type har den forening eller institution, der har udstedt andelsbeviset?"),
+    help = Some("Typen indgår i vurderingen efter selskabsskattelovens § 1, stk. 1, nr. 6."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_forening_hjemsted = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.hjemmehørende_i_danmark",
+    label = "Foreningens skattemæssige hjemsted",
+    question = Some("Er foreningen hjemmehørende i Danmark?"),
+    help = Some("Selskabsskattelovens § 1, stk. 1, nr. 6, omfatter kun de opregnede foreninger m.v., der er hjemmehørende her i landet."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_forening_par3 = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_par3_undtagelse",
+    label = "Undtagelse efter selskabsskattelovens § 3",
+    question = Some("Er foreningen omfattet af en skattefri undtagelse i selskabsskattelovens § 3?"),
+    help = Some("En § 3-undtagelse afskærer skattepligt efter selskabsskattelovens § 1, stk. 1, nr. 6."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_forening_fondsbeskatning = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_fondsbeskatningsloven",
+    label = "Foreningen er omfattet af fondsbeskatningsloven",
+    question = Some("Er foreningen omfattet af fondsbeskatningsloven?"),
+    help = Some("En forening omfattet af fondsbeskatningsloven er ikke skattepligtig efter selskabsskattelovens § 1, stk. 1, nr. 6."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_værdipapirstatus = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.værdipapirstatus",
+    label = "Værdipapirets ABL-status",
+    question = Some("Er aktien, anparten eller andelsbeviset omfattet af aktieavancebeskatningsloven ved afståelse?"),
+    help = Some("Et værdipapir uden for aktieavancebeskatningsloven kan ikke behandles som en ordinær ABL-afståelse eller fritages efter ABL § 15."),
+    unit = None
+)
 = personskat_felt_aktie_boligret_værdipapir = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed",
     label = "Værdipapir med boligret",
@@ -2812,6 +2868,14 @@
 --@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
 --@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
 --@label:beregn_personskat::field:personskat_felt_aktie_boligret::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_udsteder::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_kapitalselskabsform::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_kapitalselskab_hjemsted::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_foreningstype::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_hjemsted::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_par3::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_fondsbeskatning::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_værdipapirstatus::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
 --@label:beregn_personskat::field:personskat_felt_aktie_boligret_værdipapir::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_aktie_boligret_flerlejlighedsejendom::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_aktie_boligret_beboelse::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--

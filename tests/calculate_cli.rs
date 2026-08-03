@@ -563,6 +563,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "aktieavance.ordinært_aktieår.$variant",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.selskabsform",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.hjemmehørende_i_danmark",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.enhed",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.hjemmehørende_i_danmark",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_par3_undtagelse",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_fondsbeskatningsloven",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.værdipapirstatus",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
@@ -1007,6 +1015,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Boligret efter ABL § 15",
             "Værdipapir med boligret",
+            "Udsteder af værdipapiret med boligret",
+            "Kapitalselskabets registrerede form",
+            "Kapitalselskabets skattemæssige hjemsted",
+            "Foreningens juridiske type",
+            "Foreningens skattemæssige hjemsted",
+            "Undtagelse efter selskabsskattelovens § 3",
+            "Foreningen er omfattet af fondsbeskatningsloven",
+            "Værdipapirets ABL-status",
             "Udstederens ejendom med flere boliger",
             "Boligbrug i kvalificerende periode",
             "Grundareal knyttet til lejligheden",
@@ -1348,6 +1364,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.$variant"),
                 Data::String("AblBoligretEfterPar15".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant"),
+                Data::String("AblPar15Kapitalselskabsudsteder".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.selskabsform"),
+                Data::String("Sel1Stk1Nr1IndregistreretAktieselskab".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.hjemmehørende_i_danmark"),
+                Data::Bool(true),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.værdipapirstatus"),
+                Data::String(
+                    "AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven".to_string(),
+                ),
             ),
             (
                 format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed"),
@@ -2952,6 +2986,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "oplysningsstatus": { "$variant": "AblOplystRettidigt" },
                             "boligret": {
                                 "$variant": "AblBoligretEfterPar15",
+                                "udsteder": {
+                                    "$variant": "AblPar15Kapitalselskabsudsteder",
+                                    "sel_input": {
+                                        "selskabsform": {
+                                            "$variant": "Sel1Stk1Nr1IndregistreretAktieselskab"
+                                        },
+                                        "hjemmehørende_i_danmark": true
+                                    }
+                                },
+                                "værdipapirstatus": {
+                                    "$variant": "AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven"
+                                },
                                 "fakta": {
                                     "værdipapir_forbundet_med_brugsret_til_beboelseslejlighed": true,
                                     "udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder": true,
@@ -3519,6 +3565,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
             ["$variant"],
         "AblPar15Vurderet"
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
+            ["klassifikation"]["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
+            ["klassifikation"]["udsteder_selvstændigt_skattesubjekt"],
+        true
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
+            ["klassifikation"]["værdipapir_omfattet_af_aktieavancebeskatningsloven"],
+        true
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]

@@ -26,23 +26,79 @@
         grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
     )
 )
+= abl_ordinaer_par15_kapitalselskabsudsteder = AblPar15Kapitalselskabsudsteder(
+    sel_input = Selskabsskattelov1Stk1Nr1Input(
+        selskabsform = Sel1Stk1Nr1IndregistreretAktieselskab,
+        hjemmehørende_i_danmark = Sandt
+    )
+)
+= abl_ordinaer_par15_foreningsudsteder = AblPar15Foreningsudsteder(
+    sel_input = Selskabsskattelov1Stk1Nr6Input(
+        enhed = Ssl1Stk1Nr6AndenForening,
+        hjemmehørende_i_danmark = Sandt,
+        omfattet_af_par3_undtagelse = Falskt,
+        omfattet_af_fondsbeskatningsloven = Falskt
+    )
+)
+= abl_ordinaer_par15_fondsbeskattet_foreningsudsteder = AblPar15Foreningsudsteder(
+    sel_input = Selskabsskattelov1Stk1Nr6Input(
+        enhed = Ssl1Stk1Nr6AndenForening,
+        hjemmehørende_i_danmark = Sandt,
+        omfattet_af_par3_undtagelse = Falskt,
+        omfattet_af_fondsbeskatningsloven = Sandt
+    )
+)
+= abl_ordinaer_par15_værdipapir_omfattet = AblPar15VærdipapirOmfattetAfAktieavancebeskatningsloven
+= abl_ordinaer_par15_værdipapir_uden_for_abl = AblPar15VærdipapirUdenForAktieavancebeskatningsloven
 = abl_ordinaer_boligret_opfyldt = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_kapitalselskabsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
     fakta = abl_ordinaer_boligret_fakta_opfyldt,
     afståelsesform = AblPar15AlmindeligAfståelse
 )
 = abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_kapitalselskabsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
     fakta = abl_ordinaer_boligret_fakta_uden_tidsmæssigt_sammenfald,
     afståelsesform = AblPar15AlmindeligAfståelse
 )
 = abl_ordinaer_boligret_med_uopfyldt_grundkrav = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_kapitalselskabsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
     fakta = abl_ordinaer_boligret_fakta_med_uopfyldt_grundkrav,
     afståelsesform = AblPar15AlmindeligAfståelse
 )
 = abl_ordinaer_boligret_likvidation_før_endelig_opløsning = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_kapitalselskabsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
     fakta = abl_ordinaer_boligret_fakta_opfyldt,
     afståelsesform = AblPar15Likvidationsprovenu(
         udloddet_i_endeligt_opløsningsår = Falskt
     )
+)
+= abl_ordinaer_boligret_forening_opfyldt = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_foreningsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_fondsbeskattet_forening = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_fondsbeskattet_foreningsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_transparent_udsteder = AblBoligretEfterPar15(
+    udsteder = AblPar15TransparentEllerAndenUdsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_omfattet,
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_uden_for_abl = AblBoligretEfterPar15(
+    udsteder = abl_ordinaer_par15_kapitalselskabsudsteder,
+    værdipapirstatus = abl_ordinaer_par15_værdipapir_uden_for_abl,
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15AlmindeligAfståelse
 )
 = abl_ordinaer_noteret_vilkår = AktieavanceOrdinærAfståelsesvilkår(
     markedsstatus = AblOptagetTilHandelPåReguleretMarked,
@@ -106,6 +162,17 @@
     beholdte_aktiers_handelsværdi_kroner = 0,
     oplysningsstatus = AblOplystRettidigt,
     boligret = boligret
+)
+| abl_ordinaer_boligret_gevinst_resultat_for(position: AktieavanceOrdinærPosition, boligret: AktieavanceOrdinærBoligretInput) -> aktieavance_ordinaer_hændelsesresultat(
+    position,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 180000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(boligret)
+    )
 )
 
 = abl_ordinaer_position_primo = AktieavanceOrdinærPosition(
@@ -299,6 +366,10 @@
         vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt)
     )
 )
+= abl_ordinaer_boligret_forening_gevinst = abl_ordinaer_boligret_gevinst_resultat_for(abl_ordinaer_position_primo, abl_ordinaer_boligret_forening_opfyldt)
+= abl_ordinaer_boligret_fondsbeskattet_forening_gevinst = abl_ordinaer_boligret_gevinst_resultat_for(abl_ordinaer_position_primo, abl_ordinaer_boligret_fondsbeskattet_forening)
+= abl_ordinaer_boligret_transparent_udsteder_gevinst = abl_ordinaer_boligret_gevinst_resultat_for(abl_ordinaer_position_primo, abl_ordinaer_boligret_transparent_udsteder)
+= abl_ordinaer_boligret_uden_for_abl_gevinst = abl_ordinaer_boligret_gevinst_resultat_for(abl_ordinaer_position_primo, abl_ordinaer_boligret_uden_for_abl)
 = abl_ordinaer_boligret_tab = aktieavance_ordinaer_hændelsesresultat(
     abl_ordinaer_position_primo,
     AblOrdinærAfståelse(
@@ -534,21 +605,40 @@
 | scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a: abl_ordinaer_par13a_ægtefælle_par4a_post -> abl_ordinaer_par13a_ægtefælle_par4a_post.medregnes_i_aktieindkomst && abl_ordinaer_par13a_ægtefælle_par4a_post.aktieindkomst_kroner == -12000 && abl_ordinaer_par13a_ægtefælle_par4a_post.personlig_indkomst_kroner == 0
 | scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab: abl_ordinaer_noteret_tab_uden_oplysning -> abl_ordinaer_noteret_tab_uden_oplysning.oplysningsbetingelse_efter_par14_opfyldt == Falskt && abl_ordinaer_noteret_tab_uden_oplysning.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_noteret_tab_uden_oplysning.tab_afskåret_efter_par14_kroner == 30000
 | scenarie_abl_par15_boligret_gevinst_er_skattefri: abl_ordinaer_boligret_gevinst -> abl_ordinaer_boligret_gevinst.bruttogevinst_kroner == 80000 && abl_ordinaer_boligret_gevinst.skattefri_efter_par15 && abl_ordinaer_boligret_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0 && match abl_ordinaer_boligret_gevinst.par15_resultat {
-    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
+    | AblPar15Vurderet(klassifikation, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
+    | _ -> Falskt
+}
+| scenarie_abl_par15_sel_nr6_forening_er_skattefri: abl_ordinaer_boligret_forening_gevinst -> abl_ordinaer_boligret_forening_gevinst.hændelse_gyldig && abl_ordinaer_boligret_forening_gevinst.skattefri_efter_par15 && match abl_ordinaer_boligret_forening_gevinst.par15_resultat {
+    | AblPar15Vurderet(klassifikation, _, _, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && match klassifikation.udsteder_resultat {
+        | AblPar15ForeningsudstederVurderet(sel_resultat) -> sel_resultat.skattepligtig_efter_par1_stk1_nr6 && skattefri_efter_par15
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
+| scenarie_abl_par15_fondsbeskattet_forening_falder_tilbage_til_par12: abl_ordinaer_boligret_fondsbeskattet_forening_gevinst -> abl_ordinaer_boligret_fondsbeskattet_forening_gevinst.hændelse_gyldig && abl_ordinaer_boligret_fondsbeskattet_forening_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_fondsbeskattet_forening_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_fondsbeskattet_forening_gevinst.par15_resultat {
+    | AblPar15Vurderet(klassifikation, _, _, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt == Falskt && skattefri_efter_par15 == Falskt
+    | _ -> Falskt
+}
+| scenarie_abl_par15_transparent_udsteder_afvises_før_abl_beregning: abl_ordinaer_boligret_transparent_udsteder_gevinst -> abl_ordinaer_boligret_transparent_udsteder_gevinst.hændelse_gyldig == Falskt && abl_ordinaer_boligret_transparent_udsteder_gevinst.bruttogevinst_kroner == 0 && abl_ordinaer_boligret_transparent_udsteder_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_transparent_udsteder_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0 && abl_ordinaer_boligret_transparent_udsteder_gevinst.position_efter == abl_ordinaer_position_primo && match abl_ordinaer_boligret_transparent_udsteder_gevinst.par15_resultat {
+    | AblPar15Vurderet(klassifikation, _, _, skattefri_efter_par15) -> klassifikation.input_gyldigt == Falskt && klassifikation.udsteder_selvstændigt_skattesubjekt == Falskt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && skattefri_efter_par15 == Falskt
+    | _ -> Falskt
+}
+| scenarie_abl_par15_værdipapir_uden_for_abl_afvises_uafhængigt: abl_ordinaer_boligret_uden_for_abl_gevinst -> abl_ordinaer_boligret_uden_for_abl_gevinst.hændelse_gyldig == Falskt && abl_ordinaer_boligret_uden_for_abl_gevinst.bruttogevinst_kroner == 0 && abl_ordinaer_boligret_uden_for_abl_gevinst.position_efter == abl_ordinaer_position_primo && match abl_ordinaer_boligret_uden_for_abl_gevinst.par15_resultat {
+    | AblPar15Vurderet(klassifikation, _, _, skattefri_efter_par15) -> klassifikation.input_gyldigt == Falskt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven == Falskt && skattefri_efter_par15 == Falskt
     | _ -> Falskt
 }
 | scenarie_abl_par15_boligret_tab_er_ikke_fradragsberettiget: abl_ordinaer_boligret_tab -> abl_ordinaer_boligret_tab.bruttotab_kroner == 30000 && abl_ordinaer_boligret_tab.skattefri_efter_par15 && abl_ordinaer_boligret_tab.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_boligret_tab.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_boligret_tab.tab_afskåret_efter_par14_kroner == 0
 | scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par12: abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst -> abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.par15_resultat {
-    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt == Falskt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
+    | AblPar15Vurderet(_, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt == Falskt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
     | _ -> Falskt
 }
 | scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par13: abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab -> abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.bruttotab_kroner == 30000 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.fradragsberettiget_tab_efter_par13_kroner == 30000 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.tab_afskåret_efter_par14_kroner == 0
 | scenarie_abl_par15_uopfyldt_grundkrav_falder_tilbage_til_par12: abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst -> abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.par15_resultat {
-    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt == Falskt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
+    | AblPar15Vurderet(_, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt == Falskt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
     | _ -> Falskt
 }
 | scenarie_abl_par15_likvidation_før_endelig_opløsning_falder_tilbage_til_par12: abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst -> abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.par15_resultat {
-    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt == Falskt && skattefri_efter_par15 == Falskt
+    | AblPar15Vurderet(_, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt == Falskt && skattefri_efter_par15 == Falskt
     | _ -> Falskt
 }
 | scenarie_abl_ugyldig_afståelse_bevarer_position: abl_ordinaer_ugyldigt_salg -> abl_ordinaer_ugyldigt_salg.hændelse_gyldig == Falskt && abl_ordinaer_ugyldigt_salg.bruttogevinst_kroner == 0 && abl_ordinaer_ugyldigt_salg.bruttotab_kroner == 0 && abl_ordinaer_ugyldigt_salg.position_efter == abl_ordinaer_position_primo
@@ -579,6 +669,10 @@
 ? scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a
 ? scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab
 ? scenarie_abl_par15_boligret_gevinst_er_skattefri
+? scenarie_abl_par15_sel_nr6_forening_er_skattefri
+? scenarie_abl_par15_fondsbeskattet_forening_falder_tilbage_til_par12
+? scenarie_abl_par15_transparent_udsteder_afvises_før_abl_beregning
+? scenarie_abl_par15_værdipapir_uden_for_abl_afvises_uafhængigt
 ? scenarie_abl_par15_boligret_tab_er_ikke_fradragsberettiget
 ? scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par12
 ? scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par13
