@@ -5,17 +5,44 @@
 -- Fokus-scenarier for ordinære personaktier efter
 -- Aktieavancebeskatningslovens §§ 12-15 og §§ 23-26.
 
-= abl_ordinaer_ingen_boligret = AktieavanceOrdinærBoligretInput(
-    forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
-    beboelseskrav_opfyldt = Falskt,
-    likvidationsprovenu = Falskt,
-    udloddet_i_endeligt_opløsningsår = Falskt
+= abl_ordinaer_ingen_boligret = AblUdenBoligret
+= abl_ordinaer_boligret_fakta_opfyldt = EblPar8Stk4VærdipapirFakta(
+    værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+    udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Sandt,
+    lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Sandt,
+    grundforhold = EblPar8Stk4UdenBestemtGrundareal
 )
-= abl_ordinaer_boligret_opfyldt = AktieavanceOrdinærBoligretInput(
-    forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
-    beboelseskrav_opfyldt = Sandt,
-    likvidationsprovenu = Falskt,
-    udloddet_i_endeligt_opløsningsår = Falskt
+= abl_ordinaer_boligret_fakta_uden_tidsmæssigt_sammenfald = EblPar8Stk4VærdipapirFakta(
+    værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+    udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Sandt,
+    lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Falskt,
+    grundforhold = EblPar8Stk4UdenBestemtGrundareal
+)
+= abl_ordinaer_boligret_fakta_med_uopfyldt_grundkrav = EblPar8Stk4VærdipapirFakta(
+    værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+    udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Sandt,
+    lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Sandt,
+    grundforhold = EblPar8Stk4MedBestemtGrundareal(
+        grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
+    )
+)
+= abl_ordinaer_boligret_opfyldt = AblBoligretEfterPar15(
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald = AblBoligretEfterPar15(
+    fakta = abl_ordinaer_boligret_fakta_uden_tidsmæssigt_sammenfald,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_med_uopfyldt_grundkrav = AblBoligretEfterPar15(
+    fakta = abl_ordinaer_boligret_fakta_med_uopfyldt_grundkrav,
+    afståelsesform = AblPar15AlmindeligAfståelse
+)
+= abl_ordinaer_boligret_likvidation_før_endelig_opløsning = AblBoligretEfterPar15(
+    fakta = abl_ordinaer_boligret_fakta_opfyldt,
+    afståelsesform = AblPar15Likvidationsprovenu(
+        udloddet_i_endeligt_opløsningsår = Falskt
+    )
 )
 = abl_ordinaer_noteret_vilkår = AktieavanceOrdinærAfståelsesvilkår(
     markedsstatus = AblOptagetTilHandelPåReguleretMarked,
@@ -71,14 +98,14 @@
     oplysningsstatus = AblOplystRettidigt,
     boligret = abl_ordinaer_ingen_boligret
 )
-= abl_ordinaer_boligret_vilkår = AktieavanceOrdinærAfståelsesvilkår(
+| abl_ordinaer_boligret_vilkår_for(boligret: AktieavanceOrdinærBoligretInput) -> AktieavanceOrdinærAfståelsesvilkår(
     markedsstatus = AblIkkeOptagetTilHandel,
     har_tidligere_været_optaget_til_handel = Falskt,
     hovedaktionæraktier = Falskt,
     afståede_aktiers_handelsværdi_kroner = 0,
     beholdte_aktiers_handelsværdi_kroner = 0,
     oplysningsstatus = AblOplystRettidigt,
-    boligret = abl_ordinaer_boligret_opfyldt
+    boligret = boligret
 )
 
 = abl_ordinaer_position_primo = AktieavanceOrdinærPosition(
@@ -269,7 +296,62 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt)
+    )
+)
+= abl_ordinaer_boligret_tab = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 70000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt)
+    )
+)
+= abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 180000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald)
+    )
+)
+= abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 70000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald)
+    )
+)
+= abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 180000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_med_uopfyldt_grundkrav)
+    )
+)
+= abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 180000,
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_likvidation_før_endelig_opløsning)
     )
 )
 = abl_ordinaer_ugyldigt_salg = aktieavance_ordinaer_hændelsesresultat(
@@ -451,7 +533,24 @@
 | scenarie_abl_par13a_ægtefælle_og_fremførsel: abl_ordinaer_par13a_ægtefælle_årsresultat -> abl_ordinaer_par13a_ægtefælle_årsresultat.årets_og_fremførte_tab_efter_par13a_kroner == 50000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 30000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_overført_til_ægtefælle_kroner == 12000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 8000
 | scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a: abl_ordinaer_par13a_ægtefælle_par4a_post -> abl_ordinaer_par13a_ægtefælle_par4a_post.medregnes_i_aktieindkomst && abl_ordinaer_par13a_ægtefælle_par4a_post.aktieindkomst_kroner == -12000 && abl_ordinaer_par13a_ægtefælle_par4a_post.personlig_indkomst_kroner == 0
 | scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab: abl_ordinaer_noteret_tab_uden_oplysning -> abl_ordinaer_noteret_tab_uden_oplysning.oplysningsbetingelse_efter_par14_opfyldt == Falskt && abl_ordinaer_noteret_tab_uden_oplysning.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_noteret_tab_uden_oplysning.tab_afskåret_efter_par14_kroner == 30000
-| scenarie_abl_par15_boligret_gevinst_er_skattefri: abl_ordinaer_boligret_gevinst -> abl_ordinaer_boligret_gevinst.bruttogevinst_kroner == 80000 && abl_ordinaer_boligret_gevinst.skattefri_efter_par15 && abl_ordinaer_boligret_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0
+| scenarie_abl_par15_boligret_gevinst_er_skattefri: abl_ordinaer_boligret_gevinst -> abl_ordinaer_boligret_gevinst.bruttogevinst_kroner == 80000 && abl_ordinaer_boligret_gevinst.skattefri_efter_par15 && abl_ordinaer_boligret_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0 && match abl_ordinaer_boligret_gevinst.par15_resultat {
+    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
+    | _ -> Falskt
+}
+| scenarie_abl_par15_boligret_tab_er_ikke_fradragsberettiget: abl_ordinaer_boligret_tab -> abl_ordinaer_boligret_tab.bruttotab_kroner == 30000 && abl_ordinaer_boligret_tab.skattefri_efter_par15 && abl_ordinaer_boligret_tab.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_boligret_tab.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_boligret_tab.tab_afskåret_efter_par14_kroner == 0
+| scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par12: abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst -> abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst.par15_resultat {
+    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt == Falskt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
+    | _ -> Falskt
+}
+| scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par13: abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab -> abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.bruttotab_kroner == 30000 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.fradragsberettiget_tab_efter_par13_kroner == 30000 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab.tab_afskåret_efter_par14_kroner == 0
+| scenarie_abl_par15_uopfyldt_grundkrav_falder_tilbage_til_par12: abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst -> abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst.par15_resultat {
+    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt == Falskt && ebl_resultat.betingelser_for_skattefrihed_opfyldt == Falskt && afståelsesform_opfyldt && skattefri_efter_par15 == Falskt
+    | _ -> Falskt
+}
+| scenarie_abl_par15_likvidation_før_endelig_opløsning_falder_tilbage_til_par12: abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst -> abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.skattefri_efter_par15 == Falskt && abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.skattepligtig_gevinst_efter_par12_kroner == 80000 && match abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst.par15_resultat {
+    | AblPar15Vurderet(ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt == Falskt && skattefri_efter_par15 == Falskt
+    | _ -> Falskt
+}
 | scenarie_abl_ugyldig_afståelse_bevarer_position: abl_ordinaer_ugyldigt_salg -> abl_ordinaer_ugyldigt_salg.hændelse_gyldig == Falskt && abl_ordinaer_ugyldigt_salg.bruttogevinst_kroner == 0 && abl_ordinaer_ugyldigt_salg.bruttotab_kroner == 0 && abl_ordinaer_ugyldigt_salg.position_efter == abl_ordinaer_position_primo
 | scenarie_abl_usammenhængende_fuldt_salg_bevarer_position: abl_ordinaer_usammenhængende_fuldt_salg -> abl_ordinaer_usammenhængende_fuldt_salg.hændelse_gyldig == Falskt && abl_ordinaer_usammenhængende_fuldt_salg.anskaffelsessum_henført_til_afståelse_kroner == 0 && abl_ordinaer_usammenhængende_fuldt_salg.position_efter == abl_ordinaer_position_primo
 | scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten: abl_ordinaer_uden_pålydende_anskaffelse -> abl_ordinaer_uden_pålydende_anskaffelse.hændelse_gyldig && aktieavance_ordinaer_position_antal_aktier(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 400 && aktieavance_ordinaer_position_pålydende_kroner(abl_ordinaer_uden_pålydende_anskaffelse.position_efter) == 0 && abl_ordinaer_uden_pålydende_anskaffelse.position_efter.anskaffelsessum_kroner == 650000
@@ -480,6 +579,11 @@
 ? scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a
 ? scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab
 ? scenarie_abl_par15_boligret_gevinst_er_skattefri
+? scenarie_abl_par15_boligret_tab_er_ikke_fradragsberettiget
+? scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par12
+? scenarie_abl_par15_manglende_tidsmæssigt_sammenfald_falder_tilbage_til_par13
+? scenarie_abl_par15_uopfyldt_grundkrav_falder_tilbage_til_par12
+? scenarie_abl_par15_likvidation_før_endelig_opløsning_falder_tilbage_til_par12
 ? scenarie_abl_ugyldig_afståelse_bevarer_position
 ? scenarie_abl_usammenhængende_fuldt_salg_bevarer_position
 ? scenarie_abl_par26_uden_pålydende_anskaffelse_bevarer_kapitalarten

@@ -134,18 +134,33 @@
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 
-= ebl_audit_par8_værdipapir_kræver_aktieavancespor = ebl_par8_resultat(
-    EblPar8Fakta(
-        ejendomsart = EblPar8VærdipapirMedBrugsretTilBeboelseslejlighed(
+= ebl_audit_par8_stk4_uden_bestemt_grundareal = ebl_par8_stk4_værdipapir_resultat(
+    EblPar8Stk4VærdipapirFakta(
+        værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+        udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Sandt,
+        lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Sandt,
+        grundforhold = EblPar8Stk4UdenBestemtGrundareal
+    )
+)
+
+= ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal = ebl_par8_stk4_værdipapir_resultat(
+    EblPar8Stk4VærdipapirFakta(
+        værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+        udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Sandt,
+        lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Sandt,
+        grundforhold = EblPar8Stk4MedBestemtGrundareal(
             grundbetingelse = EblPar8GrundbetingelseIkkeOpfyldt
-        ),
-        tjent_til_bolig_eller_privat_formål = Falskt,
-        betingelser_opfyldt_i_ejerperioden = Falskt,
-        afståelsesforhold = EblPar8AlmindeligAfståelse,
-        genanbragt_erhvervsfortjeneste_kroner = 0
-    ),
-    EblDato(år = 2026, måned = 12, dag = 31),
-    200000
+        )
+    )
+)
+
+= ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab = ebl_par8_stk4_værdipapir_resultat(
+    EblPar8Stk4VærdipapirFakta(
+        værdipapir_forbundet_med_brugsret_til_beboelseslejlighed = Sandt,
+        udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder = Falskt,
+        lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden = Sandt,
+        grundforhold = EblPar8Stk4UdenBestemtGrundareal
+    )
 )
 
 = ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus = ebl_par8_resultat(
@@ -174,7 +189,9 @@
 | ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed: ebl_audit_par9_ikke_understøttet_genanbringelse -> ebl_audit_par9_ikke_understøttet_genanbringelse.input_gyldigt && ebl_audit_par9_ikke_understøttet_genanbringelse.regelgrundlag_understøttet == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.beregning_anvendt == Falskt && ebl_audit_par9_ikke_understøttet_genanbringelse.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_par9_ikke_understøttet_genanbringelse.tab_kroner == 0
 | ebl_par9_audit_uafstemt_beløbsgrundlag_er_fail_closed: ebl_audit_par9_uafstemt_beløbsgrundlag -> ebl_audit_par9_uafstemt_beløbsgrundlag.input_gyldigt == Falskt && ebl_audit_par9_uafstemt_beløbsgrundlag.beregning_anvendt == Falskt && ebl_audit_par9_uafstemt_beløbsgrundlag.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_par9_uafstemt_beløbsgrundlag.tab_kroner == 0
 | ebl_audit_modstridende_par5a_kategori_afvises: ebl_audit_modstridende_par5a_kategori -> ebl_audit_modstridende_par5a_kategori.input_gyldigt == Falskt && ebl_audit_modstridende_par5a_kategori.skattepligtig_efter_par1 == Falskt && ebl_audit_modstridende_par5a_kategori.skattepligtig_fortjeneste_kroner == 0 && ebl_audit_modstridende_par5a_kategori.tab_kroner == 0
-| ebl_audit_par8_værdipapir_er_synligt_fail_closed: ebl_audit_par8_værdipapir_kræver_aktieavancespor -> ebl_audit_par8_værdipapir_kræver_aktieavancespor.input_gyldigt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.regelgrundlag_understøttet == Falskt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.omfattet_af_ejendomsavancebeskatningsloven == Falskt && ebl_audit_par8_værdipapir_kræver_aktieavancespor.skattefri_fortjeneste_kroner == 0 && ebl_audit_par8_værdipapir_kræver_aktieavancespor.skattepligtig_fortjeneste_kroner == 0
+| ebl_audit_par8_stk4_uden_bestemt_grundareal_kræver_ikke_grundprøve: ebl_audit_par8_stk4_uden_bestemt_grundareal -> ebl_audit_par8_stk4_uden_bestemt_grundareal.værdipapir_og_ejendom_omfattet && ebl_audit_par8_stk4_uden_bestemt_grundareal.beboelseskrav_opfyldt && ebl_audit_par8_stk4_uden_bestemt_grundareal.grundkrav_opfyldt && ebl_audit_par8_stk4_uden_bestemt_grundareal.betingelser_for_skattefrihed_opfyldt
+| ebl_audit_par8_stk4_bestemt_grundareal_anvender_stk1_grundkrav: ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal -> ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal.værdipapir_og_ejendom_omfattet && ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal.beboelseskrav_opfyldt && ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal.grundkrav_opfyldt == Falskt && ebl_audit_par8_stk4_uopfyldt_bestemt_grundareal.betingelser_for_skattefrihed_opfyldt == Falskt
+| ebl_audit_par8_stk4_kræver_udsteders_direkte_ejerskab: ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab -> ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab.værdipapir_og_ejendom_omfattet == Falskt && ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab.beboelseskrav_opfyldt && ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab.grundkrav_opfyldt && ebl_audit_par8_stk4_uden_udsteders_direkte_ejerskab.betingelser_for_skattefrihed_opfyldt == Falskt
 | ebl_audit_plejehjemsregel_afledes_af_ejendomstypen: ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus -> ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.input_gyldigt && ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.betingelser_for_skattefrihed_opfyldt == Falskt && ebl_audit_plejehjemsregel_kræver_en_eller_tofamilieshus.skattepligtig_fortjeneste_kroner == 200000
 
 ? ebl_par5_audit_beregning_er_enten_kildeunderstøttet_eller_fail_closed
@@ -184,7 +201,9 @@
 ? ebl_par9_audit_ikke_understøttet_genanbringelse_er_fail_closed
 ? ebl_par9_audit_uafstemt_beløbsgrundlag_er_fail_closed
 ? ebl_audit_modstridende_par5a_kategori_afvises
-? ebl_audit_par8_værdipapir_er_synligt_fail_closed
+? ebl_audit_par8_stk4_uden_bestemt_grundareal_kræver_ikke_grundprøve
+? ebl_audit_par8_stk4_bestemt_grundareal_anvender_stk1_grundkrav
+? ebl_audit_par8_stk4_kræver_udsteders_direkte_ejerskab
 ? ebl_audit_plejehjemsregel_afledes_af_ejendomstypen
 
 @ print("EBL §§ 5-9 consistency audit passed")

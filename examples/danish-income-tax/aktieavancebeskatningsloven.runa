@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./aktieavancebeskatningsloven - par19b - 22
+@ importer ./ejendomsavancebeskatningsloven - par8 - par9
 
 -- Aktieavancebeskatningsloven -- Personskatteloven § 4, stk. 1, nr. 5, og § 4 a.
 --
@@ -68,6 +69,11 @@ EndDate: 2026-07-01
     identifier = "Den juridiske vejledning C.B.2.1.7.3: aktie for aktie-metoden, FIFO og gennemsnitsmetoden",
     hentet_dato = "2026-07-18"
 )
+= aktieavancebeskatningsloven_juridisk_vejledning_boligret = AktieavancebeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946364",
+    identifier = "Den juridiske vejledning C.B.2.6: aktier og andelsbeviser med boligret",
+    hentet_dato = "2026-07-18"
+)
 = selskabsloven_lbk331_par47 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/331",
     identifier = "Selskabsloven § 47, stk. 1-3: kapitalandele med nominel værdi og stykkapitalandele",
@@ -79,7 +85,7 @@ EndDate: 2026-07-01
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:ebl_par8_par9_lbk132::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligret::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
 ----
 § 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
 er optaget til handel på et reguleret marked.
@@ -246,7 +252,9 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 --@begin:aktieavancebeskatningsloven_ordinaere_aktier--
 # AktieavanceOrdinærMarkedsstatus = AblIkkeOptagetTilHandel | AblOptagetTilHandelPåReguleretMarked | AblOptagetTilHandelPåMultilateralHandelsfacilitet
 # AktieavanceOrdinærOplysningsstatus = AblOplystRettidigt | AblIndberettetAfAndenIndberetningspligtig | AblSkatteyderPåviserUkorrektIndberetning | AblTilflytningsbeholdningOplystRettidigt | AblIndgårIBeholdningsoversigtPar39A | AblOptagelseTilHandelOplystRettidigt | AblOptagelseTilHandelIndberettet | AblDødsboudlodningOplystMedBoopgørelse | AblOplysningsbetingelseIkkeOpfyldt
-# AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed: Boolsk, beboelseskrav_opfyldt: Boolsk, likvidationsprovenu: Boolsk, udloddet_i_endeligt_opløsningsår: Boolsk)
+# AktieavanceOrdinærBoligretAfståelsesform = AblPar15AlmindeligAfståelse | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår: Boolsk)
+# AktieavanceOrdinærBoligretInput = AblUdenBoligret | AblBoligretEfterPar15(fakta: EblPar8Stk4VærdipapirFakta, afståelsesform: AktieavanceOrdinærBoligretAfståelsesform)
+# AktieavanceOrdinærPar15Resultat = AblPar15IkkeRelevant | AblPar15Vurderet(ebl_par8_stk4_resultat: EblPar8Stk4VærdipapirResultat, afståelsesform_opfyldt: Boolsk, skattefri_efter_par15: Boolsk)
 # AktieavanceOrdinærAfståelsesvilkår(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, hovedaktionæraktier: Boolsk, afståede_aktiers_handelsværdi_kroner: Heltal, beholdte_aktiers_handelsværdi_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, boligret: AktieavanceOrdinærBoligretInput)
 # AktieavanceOrdinærKapitalvægt(tæller: Heltal, nævner: Heltal)
 # AktieavanceOrdinærPålydendeKapitaldel(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal)
@@ -254,7 +262,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 # AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal) | AblDokumenteretStykkapital(stykkapital_del: AktieavanceOrdinærStykkapitaldel) | AblBlandetAktiekapital(pålydende_del: AktieavanceOrdinærPålydendeKapitaldel, stykkapital_del: AktieavanceOrdinærStykkapitaldel)
 # AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
 # AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår)
-# AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
+# AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, par15_resultat: AktieavanceOrdinærPar15Resultat, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
 # AktieavanceOrdinærHændelsesforløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, alle_hændelser_gyldige: Boolsk)
 # AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25 | AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2 | AblSkattepostAktiebaseretMinimumsbevisEfterPar21
@@ -364,11 +372,30 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
 | aktieavance_ordinaer_pålydende_kroner(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(aktieavance_ordinaer_kapitalmængde(hændelse))
 | aktieavance_ordinaer_anskaffelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, anskaffelsessum_kroner) -> anskaffelsessum_kroner | _ -> 0 }
 | aktieavance_ordinaer_afståelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, afståelsessum_kroner, _) -> afståelsessum_kroner | _ -> 0 }
-| aktieavance_ordinaer_afståelsesvilkår(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, vilkår) -> vilkår | _ -> AktieavanceOrdinærAfståelsesvilkår(markedsstatus = AblIkkeOptagetTilHandel, har_tidligere_været_optaget_til_handel = Falskt, hovedaktionæraktier = Falskt, afståede_aktiers_handelsværdi_kroner = 0, beholdte_aktiers_handelsværdi_kroner = 0, oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt, boligret = AktieavanceOrdinærBoligretInput(forbundet_med_brugsret_til_beboelseslejlighed = Falskt, beboelseskrav_opfyldt = Falskt, likvidationsprovenu = Falskt, udloddet_i_endeligt_opløsningsår = Falskt)) }
+| aktieavance_ordinaer_afståelsesvilkår(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, vilkår) -> vilkår | _ -> AktieavanceOrdinærAfståelsesvilkår(markedsstatus = AblIkkeOptagetTilHandel, har_tidligere_været_optaget_til_handel = Falskt, hovedaktionæraktier = Falskt, afståede_aktiers_handelsværdi_kroner = 0, beholdte_aktiers_handelsværdi_kroner = 0, oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt, boligret = AblUdenBoligret) }
 | aktieavance_ordinaer_oplysningsbetingelse_opfyldt(status: AktieavanceOrdinærOplysningsstatus) -> status != AblOplysningsbetingelseIkkeOpfyldt
 | aktieavance_ordinaer_er_optaget_til_handel(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> markedsstatus != AblIkkeOptagetTilHandel
 | aktieavance_ordinaer_tab_behandles_efter_par13a(vilkår: AktieavanceOrdinærAfståelsesvilkår) -> aktieavance_ordinaer_er_optaget_til_handel(vilkår.markedsstatus) || vilkår.har_tidligere_været_optaget_til_handel
-| aktieavance_ordinaer_skattefri_efter_par15(boligret: AktieavanceOrdinærBoligretInput) -> boligret.forbundet_med_brugsret_til_beboelseslejlighed && boligret.beboelseskrav_opfyldt && (boligret.likvidationsprovenu == Falskt || boligret.udloddet_i_endeligt_opløsningsår)
+| aktieavance_ordinaer_par15_afståelsesform_opfyldt(afståelsesform: AktieavanceOrdinærBoligretAfståelsesform) -> match afståelsesform {
+    | AblPar15AlmindeligAfståelse -> Sandt
+    | AblPar15Likvidationsprovenu(udloddet_i_endeligt_opløsningsår) -> udloddet_i_endeligt_opløsningsår
+}
+| aktieavance_ordinaer_par15_resultat(boligret: AktieavanceOrdinærBoligretInput) -> match boligret {
+    | AblUdenBoligret -> AblPar15IkkeRelevant
+    | AblBoligretEfterPar15(fakta, afståelsesform) -> {
+        = ebl_resultat = ebl_par8_stk4_værdipapir_resultat(fakta)
+        = afståelsesform_opfyldt = aktieavance_ordinaer_par15_afståelsesform_opfyldt(afståelsesform)
+        AblPar15Vurderet(
+            ebl_par8_stk4_resultat = ebl_resultat,
+            afståelsesform_opfyldt = afståelsesform_opfyldt,
+            skattefri_efter_par15 = ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt
+        )
+    }
+}
+| aktieavance_ordinaer_par15_skattefri(resultat: AktieavanceOrdinærPar15Resultat) -> match resultat {
+    | AblPar15IkkeRelevant -> Falskt
+    | AblPar15Vurderet(_, _, skattefri_efter_par15) -> skattefri_efter_par15
+}
 
 | aktieavance_par13a_investeringsbevis_skattepostart(art: AktieavancePar13AInvesteringsbevisArt) -> match art {
     | AblPar20Stk2AkkumulerendeInvesteringsbevis -> AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2
@@ -430,7 +457,8 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
     | exception abl_par12_realiseret_gevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktieavance_ordinaer_afståelsessum_kroner(hændelse) - anskaffelsessum_henført_til_afståelse_kroner()) under afståelse_gyldig()
     | bruttotab_kroner() -> 0
     | exception abl_par13_realiseret_tab bruttotab_kroner() -> penge_positivt_beløb(anskaffelsessum_henført_til_afståelse_kroner() - aktieavance_ordinaer_afståelsessum_kroner(hændelse)) under afståelse_gyldig()
-    | skattefri_efter_par15() -> afståelse_gyldig() && aktieavance_ordinaer_skattefri_efter_par15(afståelsesvilkår().boligret)
+    | par15_resultat() -> aktieavance_ordinaer_par15_resultat(afståelsesvilkår().boligret)
+    | skattefri_efter_par15() -> afståelse_gyldig() && aktieavance_ordinaer_par15_skattefri(par15_resultat())
     | tab_behandles_efter_par13a() -> afståelse_gyldig() && aktieavance_ordinaer_tab_behandles_efter_par13a(afståelsesvilkår())
     | oplysningsbetingelse_efter_par14_opfyldt() -> aktieavance_ordinaer_oplysningsbetingelse_opfyldt(afståelsesvilkår().oplysningsstatus)
     | skattepligtig_gevinst_efter_par12_kroner() -> hvis skattefri_efter_par15() { 0 } ellers { bruttogevinst_kroner() }
@@ -461,6 +489,7 @@ vedtægter, hvilke typer kapitalandele selskabet har udstedt.
         anskaffelsessum_henført_til_afståelse_kroner = anskaffelsessum_henført_til_afståelse_kroner(),
         bruttogevinst_kroner = bruttogevinst_kroner(),
         bruttotab_kroner = bruttotab_kroner(),
+        par15_resultat = par15_resultat(),
         skattefri_efter_par15 = skattefri_efter_par15(),
         tab_behandles_efter_par13a = tab_behandles_efter_par13a(),
         oplysningsbetingelse_efter_par14_opfyldt = oplysningsbetingelse_efter_par14_opfyldt(),

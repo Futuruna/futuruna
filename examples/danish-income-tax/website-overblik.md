@@ -67,10 +67,16 @@ fremførte tab og kan overføre en samlevende ægtefælles overskydende tab, fø
 Personskattelovens § 4, stk. 1, nr. 14-post dannes. Overførslen kan højst bruge
 modtagerens fortjeneste efter dennes egne tab; resten bevares til fremførsel.
 Ikke færdigmodellerede særforhold er synlige og fail-closed i stedet for at
-blive beskattet af en smallere standardregel. Det gælder også værdipapirer med
-brugsret til en bolig efter § 8, stk. 4, indtil de er koblet korrekt til
-aktieavanceberegningen. Kilden er
+blive beskattet af en smallere standardregel. Værdipapirer med brugsret til en
+bolig efter § 8, stk. 4, er nu koblet til Aktieavancebeskatningslovens § 15.
+Futuruna udleder fritagelsen af udstederens direkte ejerskab af
+flerlejlighedsejendommen, boligbrug i den kvalificerende ejerperiode, et
+eventuelt bestemt grundareal og likvidationsåret. Hvis betingelserne ikke er
+opfyldt, fortsætter gevinst eller tab gennem de almindelige ABL-regler; grenen
+giver derfor ikke længere et fail-closed nulresultat. Kilderne er
 [Ejendomsavancebeskatningsloven, LBK nr. 132/2019](https://www.retsinformation.dk/eli/lta/2019/132)
+og
+[Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 med de relevante senere ændringer bevaret ved de enkelte lovblokke.
 
 Fri arbejdsgiverbetalt befordring bliver personlig indkomst uden at blive
@@ -89,9 +95,12 @@ give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
 kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
 befordring, aldersstatus, kirkeskat, renter, årsopgørelse og centrale
 ejendomsavancefakta som anskaffelsesår, afståelsesår, kontante summer,
-anskaffelsesgrundlag, indekseringsvalg og ejendomstype. En AI kan læse
-metadataene og indsamle fakta, men formuleringerne ændrer ikke felternes
-gyldighed eller skattereglernes deterministiske resultat.
+anskaffelsesgrundlag, indekseringsvalg og ejendomstype. Det samme gælder nu
+ordinære aktiebeholdninger og boligretsfakta efter ABL § 15: værdipapirets
+tilknytning til lejligheden, boligbrug, grundforhold, afståelsesform og
+likvidationsår har hver sin menneskelige etiket og sit interviewspørgsmål. En AI
+kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
+felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`. Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en

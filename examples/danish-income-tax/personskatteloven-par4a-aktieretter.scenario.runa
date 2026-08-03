@@ -203,12 +203,7 @@
             afståede_aktiers_handelsværdi_kroner = 0,
             beholdte_aktiers_handelsværdi_kroner = 0,
             oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
-            boligret = AktieavanceOrdinærBoligretInput(
-                forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
-                beboelseskrav_opfyldt = Falskt,
-                likvidationsprovenu = Falskt,
-                udloddet_i_endeligt_opløsningsår = Falskt
-            )
+            boligret = AblUdenBoligret
         )
     )
 )

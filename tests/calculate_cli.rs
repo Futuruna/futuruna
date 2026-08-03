@@ -520,6 +520,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årets renteindtægter",
             "Årets renteudgifter",
             "Årsopgørelse",
+            "Ordinært aktieår",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -542,6 +543,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .collect::<Vec<_>>();
         for expected in [
             "aktieavance.ordinært_aktieår.$variant",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant",
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
             "lønmodtager.ligningsfradrag.befordring.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
@@ -690,6 +695,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing canonical source-level ABL input path {expected}"
             );
         }
+        let ordinary_holdings_path =
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb";
+        let ordinary_events_path = format!("{ordinary_holdings_path}.hændelser");
+        let ordinary_events_sheet =
+            workbook_collection_sheet_name(&mut workbook, &ordinary_events_path);
+        let ordinary_event_headers = workbook_headers(&mut workbook, &ordinary_events_sheet);
+        for expected in [
+            "Boligret efter ABL § 15",
+            "Værdipapir med boligret",
+            "Udstederens ejendom med flere boliger",
+            "Boligbrug i kvalificerende periode",
+            "Grundareal knyttet til lejligheden",
+            "Grundbetingelse efter EBL § 8",
+            "Afståelsesform for boligret",
+            "Udloddet i endeligt opløsningsår",
+        ] {
+            assert!(
+                ordinary_event_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ABL § 15 input label {expected} on {ordinary_events_sheet}"
+            );
+        }
 
         let choices = workbook
             .worksheet_range("_choices")
@@ -826,6 +854,165 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 1, "personskat-årsopgørelse-2026");
         fill_wage_case(sheets, 2, "personskat-abl-personlig-2026");
         fill_wage_case(sheets, 3, "personskat-renter-befordring-2026");
+        for (header, value) in [
+            (
+                "aktieavance.ordinært_aktieår.$variant",
+                Data::String("MedOrdinærtAktieår".to_string()),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.fremført_tab_efter_par13a_kroner",
+                Data::Int(0),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_for_aktier_med_gevinst_efter_par12_kroner",
+                Data::Int(0),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner",
+                Data::Int(0),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_for_aktier_omfattet_af_par44_kroner",
+                Data::Int(0),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.ægtefælles_positive_nettobeløb_efter_par13a_kroner",
+                Data::Int(0),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.gift_og_samlevende_ved_årets_udgang",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 3, header, value);
+        }
+        let ordinary_holdings_path =
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb";
+        let ordinary_events_path = format!("{ordinary_holdings_path}.hændelser");
+        let ordinary_holdings_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, ordinary_holdings_path);
+        let ordinary_events_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &ordinary_events_path);
+        for (header, value) in [
+            (
+                "case_id".to_string(),
+                Data::String("personskat-renter-befordring-2026".to_string()),
+            ),
+            (
+                "item_id".to_string(),
+                Data::String("boligret-beholdning-1".to_string()),
+            ),
+            ("position".to_string(), Data::Int(1)),
+            (
+                format!("{ordinary_holdings_path}.position_primo.selskabsidentifikation"),
+                Data::String("DK-BOLIGRET-1".to_string()),
+            ),
+            (
+                format!("{ordinary_holdings_path}.position_primo.kapitalmængde.$variant"),
+                Data::String("AblAktiekapitalUdenPålydendeVærdi".to_string()),
+            ),
+            (
+                format!("{ordinary_holdings_path}.position_primo.kapitalmængde.AblAktiekapitalUdenPålydendeVærdi.antal_aktier"),
+                Data::Int(10),
+            ),
+            (
+                format!("{ordinary_holdings_path}.position_primo.anskaffelsessum_kroner"),
+                Data::Int(10_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                &ordinary_holdings_sheet,
+                1,
+                &header,
+                value,
+            );
+        }
+        for (header, value) in [
+            (
+                "case_id".to_string(),
+                Data::String("personskat-renter-befordring-2026".to_string()),
+            ),
+            (
+                "parent_id".to_string(),
+                Data::String("boligret-beholdning-1".to_string()),
+            ),
+            (
+                "item_id".to_string(),
+                Data::String("boligret-afståelse-1".to_string()),
+            ),
+            ("position".to_string(), Data::Int(1)),
+            (
+                format!("{ordinary_events_path}.$variant"),
+                Data::String("AblOrdinærAfståelse".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.kapitalmængde.$variant"),
+                Data::String("AblAktiekapitalUdenPålydendeVærdi".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.kapitalmængde.AblAktiekapitalUdenPålydendeVærdi.antal_aktier"),
+                Data::Int(10),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.afståelsessum_kroner"),
+                Data::Int(15_000),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.markedsstatus"),
+                Data::String("AblIkkeOptagetTilHandel".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.har_tidligere_været_optaget_til_handel"),
+                Data::Bool(false),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.hovedaktionæraktier"),
+                Data::Bool(false),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.afståede_aktiers_handelsværdi_kroner"),
+                Data::Int(0),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.beholdte_aktiers_handelsværdi_kroner"),
+                Data::Int(0),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.oplysningsstatus"),
+                Data::String("AblOplystRettidigt".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.$variant"),
+                Data::String("AblBoligretEfterPar15".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed"),
+                Data::Bool(true),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder"),
+                Data::Bool(true),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden"),
+                Data::Bool(true),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant"),
+                Data::String("EblPar8Stk4UdenBestemtGrundareal".to_string()),
+            ),
+            (
+                format!("{ordinary_events_path}.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant"),
+                Data::String("AblPar15AlmindeligAfståelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &ordinary_events_sheet, 1, &header, value);
+        }
         for (header, value) in [
             (
                 "lønmodtager.ligningsfradrag.befordring.$variant",
@@ -1499,7 +1686,61 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }]
     });
     interest_case["input"]["aktieavance"] = serde_json::json!({
-        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "ordinært_aktieår": {
+            "$variant": "MedOrdinærtAktieår",
+            "input": {
+                "indkomstår": 2026,
+                "hændelsesforløb": [{
+                    "position_primo": {
+                        "selskabsidentifikation": "DK-BOLIGRET-1",
+                        "kapitalmængde": {
+                            "$variant": "AblAktiekapitalUdenPålydendeVærdi",
+                            "antal_aktier": 10
+                        },
+                        "anskaffelsessum_kroner": 10_000
+                    },
+                    "hændelser": [{
+                        "$variant": "AblOrdinærAfståelse",
+                        "kapitalmængde": {
+                            "$variant": "AblAktiekapitalUdenPålydendeVærdi",
+                            "antal_aktier": 10
+                        },
+                        "afståelsessum_kroner": 15_000,
+                        "vilkår": {
+                            "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" },
+                            "har_tidligere_været_optaget_til_handel": false,
+                            "hovedaktionæraktier": false,
+                            "afståede_aktiers_handelsværdi_kroner": 0,
+                            "beholdte_aktiers_handelsværdi_kroner": 0,
+                            "oplysningsstatus": { "$variant": "AblOplystRettidigt" },
+                            "boligret": {
+                                "$variant": "AblBoligretEfterPar15",
+                                "fakta": {
+                                    "værdipapir_forbundet_med_brugsret_til_beboelseslejlighed": true,
+                                    "udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder": true,
+                                    "lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden": true,
+                                    "grundforhold": {
+                                        "$variant": "EblPar8Stk4UdenBestemtGrundareal"
+                                    }
+                                },
+                                "afståelsesform": {
+                                    "$variant": "AblPar15AlmindeligAfståelse"
+                                }
+                            }
+                        }
+                    }]
+                }],
+                "investeringsbeviser": [],
+                "fremført_tab_efter_par13a_kroner": 0,
+                "modregningsgrundlag": {
+                    "udbytter_for_aktier_med_gevinst_efter_par12_kroner": 0,
+                    "udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner": 0,
+                    "udbytter_for_aktier_omfattet_af_par44_kroner": 0,
+                    "ægtefælles_positive_nettobeløb_efter_par13a_kroner": 0
+                },
+                "gift_og_samlevende_ved_årets_udgang": false
+            }
+        },
         "særlige_aktiver": []
     });
     interest_case["input"]["lønmodtager"]["ligningsfradrag"] = serde_json::json!({
@@ -1603,6 +1844,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         result["results"][2]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         75_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],
+        0
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["skattefri_efter_par15"],
+        true
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
+            ["$variant"],
+        "AblPar15Vurderet"
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]
+            ["hændelsesforløbsresultater"][0]["hændelsesresultater"][0]["par15_resultat"]
+            ["ebl_par8_stk4_resultat"]["betingelser_for_skattefrihed_opfyldt"],
+        true
     );
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]["$variant"],

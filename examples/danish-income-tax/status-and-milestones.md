@@ -77,13 +77,20 @@ Flere afståelser ligger i to relationelle regnearksfaner frem for brede
 gentagne kolonner. Ægtefælleoverførsel begrænses af modtagerens
 nettofortjeneste efter egne tab, så et overskydende tab ikke forsvinder i en
 allerede forbrugt bruttofortjeneste. Ikke færdigmodellerede særforhold, blandt
-andet mælkekvoter, § 5, stk. 6-overførsler, § 8, stk. 4-værdipapirer, der skal
-videre til aktieavancesporet, og § 9, stk. 4-genanbringelse, er fortsat
-udtrykkelige og fail-closed: de får ingen skattemæssig virkning og kan ikke
-glide ind i den almindelige beregning. Et fokuseret scenarie dækker de
-årlige 10.000 kr.-tillæg, årsaggregering af forbedringsudgifter, § 5 A-
-indeksering, § 8-fritagelsen og § 9-fordelingen. En separat `.audit.runa`-fil
-kontrollerer afstemning og fail-closed-invarianter.
+andet mælkekvoter, § 5, stk. 6-overførsler og § 9, stk. 4-genanbringelse, er
+fortsat udtrykkelige og fail-closed: de får ingen skattemæssig virkning og kan
+ikke glide ind i den almindelige beregning. Værdipapirer med boligret efter
+§ 8, stk. 4, er derimod nu flyttet ud af ejendomsavancegrenen og ind i
+Aktieavancebeskatningslovens § 15-spor. Beboelse, ejendom med flere
+beboelseslejligheder, udstederens direkte ejerskab, tidsmæssigt overlap mellem
+boligbrug og den kvalificerende periode, eventuelt bestemt grundareal og
+likvidationsåret afgør fritagelsen. Hvis en betingelse ikke er opfyldt,
+fortsætter gevinst eller tab gennem de almindelige ABL-regler i stedet for at
+blive nulstillet. Et fokuseret scenarie dækker de årlige 10.000 kr.-tillæg,
+årsaggregering af forbedringsudgifter, § 5 A-indeksering, § 8-fritagelsen,
+§ 9-fordelingen og ABL § 15's boligretsgren. En separat `.audit.runa`-fil
+kontrollerer afstemning, direkte ejerskab, grundbetingelsen og de resterende
+fail-closed-invarianter.
 
 Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu
 kildefakta for befordring efter Ligningslovens § 9 C og den valgfri
@@ -126,9 +133,11 @@ stabile maskinsti, interviewspørgsmål, hjælp, enhed og typede kildereferencer
 bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
-ejendomsavancefakta. En AI kan dermed spørge til ejendommen, afståelses- og
-anskaffelsesår, kontante summer, anskaffelsesgrundlag, § 5 A-valg og
-ejendomstype og derefter udfylde de kanoniske stier, mens Futuruna beregner
+ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
+Kontrakten har aktuelt 42 eksplicitte feltmetadata-poster. En AI kan dermed
+spørge til ejendommen, afståelses- og anskaffelsesår, kontante summer,
+anskaffelsesgrundlag, § 5 A-valg, ejendomstype, boligbrug, grundforhold og
+likvidationsår og derefter udfylde de kanoniske stier, mens Futuruna beregner
 deterministisk og bevarer den juridiske forklaringskæde. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede.
@@ -2547,14 +2556,18 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 124 nåbare definitioner, 117 typede
-  inputkolonner plus `case_id` og elleve relationelle kildeark. XLSX/JSON-roundtrip
-  fastholder den almindelige København-beregning, årsopgørelsen, en kildebaseret
-  § 17-gevinst, rente-/fradragssagen med en relateret kapitalomkostning og et
-  kildefaktabåret § 9 C-befordringsfradrag. Samme sag afleder 95.000 kr. i
+- Det genererede Personskat-regneark har nu 157 nåbare definitioner, 117 typede
+  inputkolonner plus `case_id` og femten relationelle kildeark. XLSX/JSON-
+  roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
+  kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
+  kapitalomkostning, et kildefaktabåret § 9 C-befordringsfradrag og en
+  skattefri ABL § 15-afståelse med boligret. Samme sag afleder 65.000 kr. i
   ejendomsavance efter et eget tab, fremført tab og ægtefællens overførte tab;
-  renter og øvrige fradrag giver derefter 105.000 kr. i nettokapitalindkomst.
-  Store enum-/variantvalg bruger et skjult
+  renter og øvrige fradrag giver derefter 75.000 kr. i nettokapitalindkomst.
+  Kontrakten har 42 eksplicitte menneskelige feltetiketter og
+  interviewspørgsmål; de nye ABL-felter dækker værdipapirets boligret,
+  udstederens direkte ejerskab, den kvalificerende boligperiode, grundforhold,
+  afståelsesform og likvidationsår. Store enum-/variantvalg bruger et skjult
   `_choices`-ark med navngivne områder, så alle domænevalg kan blive dropdowns
   uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme

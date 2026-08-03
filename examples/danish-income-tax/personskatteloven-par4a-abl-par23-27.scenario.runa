@@ -249,12 +249,7 @@
     2024
 )
 
-= abl_tom_boligret = AktieavanceOrdinærBoligretInput(
-    forbundet_med_brugsret_til_beboelseslejlighed = Falskt,
-    beboelseskrav_opfyldt = Falskt,
-    likvidationsprovenu = Falskt,
-    udloddet_i_endeligt_opløsningsår = Falskt
-)
+= abl_tom_boligret = AblUdenBoligret
 = abl_unoteret_vilkår = AktieavanceOrdinærAfståelsesvilkår(
     markedsstatus = AblIkkeOptagetTilHandel,
     har_tidligere_været_optaget_til_handel = Falskt,

@@ -4,7 +4,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -254,6 +254,83 @@
     help = Some("Ejendomstypen åbner de relevante fakta for parcelhusreglen eller en blandet landbrugs-, skov-, natur- eller erhvervsejendom."),
     unit = None
 )
+= personskat_felt_ordinært_aktieår = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.$variant",
+    label = "Ordinært aktieår",
+    question = Some("Skal køb, salg eller andre hændelser for ordinære aktier indgå i beregningen?"),
+    help = Some("Vælg et ordinært aktieår for at oplyse beholdninger, hændelser, tab og modregningsgrundlag efter aktieavancebeskatningsloven."),
+    unit = None
+)
+= personskat_felt_aktiebeholdninger = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb",
+    label = "Aktiebeholdninger",
+    question = Some("Hvilke aktiebeholdninger har haft anskaffelser eller afståelser i indkomståret?"),
+    help = Some("Tilføj ét hændelsesforløb pr. selskab og beholdning, så gennemsnitsmetoden kan følge positionen gennem året."),
+    unit = None
+)
+= personskat_felt_aktiehændelser = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser",
+    label = "Aktiehændelser",
+    question = Some("Hvilke anskaffelser eller afståelser skete for denne aktiebeholdning?"),
+    help = Some("Tilføj hændelserne i den rækkefølge, de skal behandles for beholdningen."),
+    unit = None
+)
+= personskat_felt_aktie_boligret = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
+    label = "Boligret efter ABL § 15",
+    question = Some("Er værdipapiret forbundet med brugsret til en beboelseslejlighed?"),
+    help = Some("Boligretten kan gøre både gevinst og tab skattefri, når betingelserne i ejendomsavancebeskatningslovens § 8, stk. 4, er opfyldt."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_værdipapir = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed",
+    label = "Værdipapir med boligret",
+    question = Some("Er aktien, andelsbeviset eller det lignende værdipapir knyttet til brugsretten til lejligheden?"),
+    help = Some("ABL § 15 og EBL § 8, stk. 4, omfatter kun værdipapirer, som er forbundet med den konkrete boligret."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_flerlejlighedsejendom = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder",
+    label = "Udstederens ejendom med flere boliger",
+    question = Some("Ejer selskabet eller foreningen direkte den ejendom med flere beboelseslejligheder, som boligretten vedrører?"),
+    help = Some("Boligretsfritagelsen forudsætter, at udstederen direkte ejer ejendommen med de flere beboelseslejligheder."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_beboelse = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden",
+    label = "Boligbrug i kvalificerende periode",
+    question = Some("Har lejligheden tjent til bolig for ejeren eller husstanden i en del af den ejerperiode, hvor skattefrihedsbetingelserne var opfyldt?"),
+    help = Some("Feltet kræver tidsmæssigt overlap mellem boligbrug og den periode, hvor værdipapiret kunne afstås skattefrit efter EBL § 8, stk. 4."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_grundforhold = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant",
+    label = "Grundareal knyttet til lejligheden",
+    question = Some("Hører der et bestemt grundareal til lejligheden?"),
+    help = Some("Hvis et bestemt grundareal hører til lejligheden, skal grundbetingelsen i EBL § 8, stk. 1, også prøves."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_grundbetingelse = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.EblPar8Stk4MedBestemtGrundareal.grundbetingelse",
+    label = "Grundbetingelse efter EBL § 8",
+    question = Some("Hvilken grundbetingelse er opfyldt for det bestemte grundareal?"),
+    help = Some("Vælg under 1.400 m², manglende udstykningsmulighed, værdiforringelse over 20 pct. eller at ingen betingelse er opfyldt."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_afståelsesform = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
+    label = "Afståelsesform for boligret",
+    question = Some("Er værdipapiret afstået almindeligt eller som likvidationsprovenu?"),
+    help = Some("Likvidationsprovenu er kun skattefrit efter ABL § 15, stk. 2, når det udloddes i selskabets endelige opløsningsår."),
+    unit = None
+)
+= personskat_felt_aktie_boligret_endeligt_opløsningsår = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.AblPar15Likvidationsprovenu.udloddet_i_endeligt_opløsningsår",
+    label = "Udloddet i endeligt opløsningsår",
+    question = Some("Blev likvidationsprovenuet udloddet i det kalenderår, hvor selskabet endeligt blev opløst?"),
+    help = Some("Et nej betyder, at gevinst eller tab fortsætter gennem de almindelige regler i aktieavancebeskatningsloven."),
+    unit = None
+)
 
 --@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
@@ -286,6 +363,17 @@
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_indeksering::source:ebl_par5_lbk132--
 --@label:beregn_personskat::field:personskat_felt_egen_ejendomstype::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomstype::source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
+--@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
+--@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_værdipapir::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_flerlejlighedsejendom::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_beboelse::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_grundforhold::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_grundbetingelse::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_afståelsesform::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_aktie_boligret_endeligt_opløsningsår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,
