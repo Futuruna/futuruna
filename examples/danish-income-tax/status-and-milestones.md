@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-c44ff7` (ready for review)
+Current focus issue: `td-940bbb` (in progress)
 Latest implementation slice submitted for review: `td-c44ff7`
 Latest approved implementation slice: `td-02a78d`
 
@@ -80,8 +80,13 @@ grundlaget hos ægtefællen. Den kanoniske
 Personskat-graf medregner kun realisationer, der både tilhører beregningens
 skatteyder og har personrollen; boets indkomst kan derfor ikke glide ind i
 afdødes eller ægtefællens personskat. Delvise ægtefælleoverførsler opdeler
-hovedstol og grundlag præcist i identificerede pantebrevsdele. Andre modtagere
-end de modellerede ægtefælle- og bogrene fejler fortsat lukket.
+hovedstol, grundlag og den resterende udskudte EBL-fortjeneste præcist i
+identificerede pantebrevsdele. Hver årlig EBL-medregning bærer derefter
+KGL-positionens ejeridentitet ind i Personskat. 2028-scenariet fordeler derfor
+210.000 kr. til sælgeren og 90.000 kr. til ægtefællen og afstemmer de to beløb
+til årets samlede 300.000 kr. Boets poster holdes uden for begge personers
+beregning. Andre modtagere end de modellerede ægtefælle- og bogrene fejler
+fortsat lukket.
 
 Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu egne og
 en samlevende ægtefælles faktiske ejendomsafståelser, tidligere års uudnyttede
@@ -226,7 +231,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 370 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 371 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -242,8 +247,9 @@ senere afståelser eller indfrielser med år, art, berørt hovedstol og provenu.
 Både den berørte pantebrevstranche og en modtagers nye tranche har en
 menneskelig etiket, et interviewspørgsmål og hjælp til at bevare den stabile
 identitet gennem senere betalinger og ejerskifter.
-Beregningens person, pantebrevets oprindelige skatteyder og de typede fakta om
-ægtefælle- eller dødsbosuccession har også egne etiketter og spørgsmål. Det
+Beregningens person, den valgfrie ægtefælleidentitet, pantebrevets oprindelige
+skatteyder og de typede fakta om ægtefælle- eller dødsbosuccession har også egne
+etiketter og spørgsmål. Det
 omfatter modtageridentiteter, bopæl, boets identitet og skattefritagelse,
 salgsvalg, fortsat dansk beskatningsret og boopgørelsesværdien.
 EBL § 11, stk. 2 har yderligere 66 poster for personen og ægtefællen. De dækker
@@ -264,17 +270,32 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`432e86e500070c9599e1eddf62c835fa2a76f06d7b758e91af2e16d149ca563e`.
+`4f0573366afd170eb008be8e12d15510d0fb8acc06565a5b3d96ad8ecbf01e20`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
-sin præcise juridiske etiket og sit interviewspørgsmål.
+sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
+projektmappe har 1.701 domænekolonner; 353 materialiserer en eksplicit etiket,
+mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
+synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
-passerer på 610,42 sekunder i den aktuelle debug-gate. `td-6659f1`
+passerer på 534,26 sekunder i den aktuelle debug-gate. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
+
+Personskat-resultatet materialiserer nu sit kapitalindkomstforløb som en
+enkelt afhængighedsgraf: rå EBL, KGL-broen, ejerfordelt EBL, valideringer og
+kapitalposter beregnes én gang og genbruges i resultatet. Den fokuserede
+ægtefællesuccession ligger i en selvstændig `.scenario.runa`-fil med delte,
+regelbaserede fixtures. Den kompilerede scenario validerer 210.000 kr. hos
+sælgeren, 90.000 kr. hos ægtefællen, samlet 300.000 kr. og nul
+kapitalindkomst, når den nødvendige ægtefælleidentifikation mangler. Den
+tidligere gentagne RuleScope-evaluering brugte mere end 22 minutter uden at nå
+assertionerne; den materialiserede graf afslutter samme fokuserede scenario på
+omkring fire minutter inklusive generering, kompilering og kørsel. Generisk
+RuleScope-memoisering og kontraktcache er fortsat selvstændigt performancearbejde.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen
@@ -2734,7 +2755,7 @@ Review candidates to revisit deliberately, not as broad churn:
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
   fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 370 eksplicitte menneskelige feltetiketter og
+  Kontrakten har 371 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2778,9 +2799,11 @@ Review candidates to revisit deliberately, not as broad churn:
   identificerede trancher uden dobbeltregning. Fordelingen skal kunne ske
   præcist i hele kroner; ellers afvises dispositionen. KGL kan derefter føre
   hver ejers betalinger videre gennem den samme ordnede EBL/KGL-postrække.
-  Personskat filtrerer på skatteyderidentitet og personrolle. Den fortsat
-  uafklarede fordeling af selve den årlige udskudte EBL-fortjeneste efter en
-  delvis succession spores særskilt i `td-940bbb`.
+  Personskat filtrerer på skatteyderidentitet og personrolle. Den årlige
+  udskudte EBL-fortjeneste følger nu den samme delte ejerposition: et verificeret
+  30-procents ægtefælleskifte fordeler 90.000 kr. til ægtefællen og 210.000 kr.
+  til sælgeren, og de to Personskat-grene afstemmer til 300.000 kr. Udelelige
+  kronefordelinger afvises fortsat.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
@@ -2906,11 +2929,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Continue the current Ejendomsavancebeskatningsloven dependency from the
   source-backed §§ 5/5 A, 6, 8 and 9 paths. Milk quotas and § 5, stk. 6 are now
   executable and round-trip through the canonical Personskat contract, and
-  § 6 D now carries seller-note installment taxation and the separate KGL
-  realization across years. Remaining bounded work includes the still
-  fail-closed multi-property § 10 allocation edges, allocation of annual EBL
-  gain after partial succession (`td-940bbb`), non-spouse beneficiaries and
-  remaining bounded dependency rules.
+  § 6 D now carries seller-note installment taxation, owner-attributed annual
+  EBL gain after partial succession and the separate KGL realization across
+  years. Remaining bounded work includes the still fail-closed multi-property
+  § 10 allocation edges, non-spouse beneficiaries and remaining bounded
+  dependency rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same

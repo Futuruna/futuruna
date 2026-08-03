@@ -229,7 +229,7 @@
             kgl_ebl_par6d_scenarie_hændelse(EblPar6DPantebrevAfståetEllerIndfriet(
                 berørt_fordringsdel_identifikation = "Sælgerpantebrev kurs 80",
                 art = EblPar6DPantebrevAfstået,
-                berørt_restgæld_kroner = 1000000,
+                berørt_restgæld_kroner = 1095000,
                 afståelses_eller_indfrielsesprovenu_kroner = 0,
                 succession = EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(
                     modtagers_fordringsdel_identifikation = "Ægtefællens pantebrevsdel",
@@ -240,6 +240,31 @@
             )),
             kgl_ebl_par6d_scenarie_betaling("Ægtefællens pantebrevsdel", 100000),
             kgl_ebl_par6d_scenarie_betaling("Sælgerpantebrev kurs 80", 175000)
+        ]
+    ),
+    EblPar6DÅrsforhold(
+        indkomstår = 2028,
+        forløbsposter = []
+    )
+])
+
+= kgl_ebl_par6d_scenarie_uafrundelig_delvis_ægtefællesuccession = kgl_ebl_par6d_scenarie_resultat([
+    EblPar6DÅrsforhold(
+        indkomstår = 2027,
+        forløbsposter = [
+            kgl_ebl_par6d_scenarie_betaling("Sælgerpantebrev kurs 80", 100000),
+            kgl_ebl_par6d_scenarie_hændelse(EblPar6DPantebrevAfståetEllerIndfriet(
+                berørt_fordringsdel_identifikation = "Sælgerpantebrev kurs 80",
+                art = EblPar6DPantebrevAfstået,
+                berørt_restgæld_kroner = 1000000,
+                afståelses_eller_indfrielsesprovenu_kroner = 0,
+                succession = EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(
+                    modtagers_fordringsdel_identifikation = "Uafrundelig ægtefælledel",
+                    modtagers_skatteyder_identifikation = "Ægtefælle",
+                    overdrager_hjemmehørende_i_danmark = Sandt,
+                    modtager_hjemmehørende_i_danmark = Sandt
+                )
+            ))
         ]
     )
 ])
@@ -274,7 +299,9 @@
 | kgl_ebl_par6d_scenarie_dødsbo_overtager_før_samme_års_afdrag: kgl_ebl_par6d_scenarie_dødsbo -> kgl_ebl_par6d_scenarie_dødsbo.input_gyldigt && kgl_ebl_par6d_scenarie_dødsbo.tranchefordeling_entydig && kgl_ebl_par6d_scenarie_dødsbo.ebl_kgl_realisering_sammenhæng_gyldig && kgl_ebl_par6d_scenarie_dødsbo.par6d_resultat.årsresultater[1].fremrykket_fortjeneste_kroner == 2700000 && kgl_ebl_par6d_scenarie_dødsbo.kursgevinstresultat.dispositionsresultater[0].berørt_tranche_før.skatteyder.identifikation == "Sælger" && kgl_ebl_par6d_scenarie_dødsbo.kursgevinstresultat.dispositionsresultater[0].rå_gevinst_kroner == 20000 && head(kgl_ebl_par6d_scenarie_dødsbo.kursgevinstresultat.dispositionsresultater[1].ændrede_trancher_efter).skatteyder.rolle == KglDødsboEfterDødsboskatteloven && kgl_ebl_par6d_scenarie_dødsbo.kursgevinstresultat.dispositionsresultater[2].berørt_tranche_før.skatteyder.identifikation == "Boet efter Sælger" && kgl_ebl_par6d_scenarie_dødsbo.kursgevinstresultat.dispositionsresultater[2].rå_gevinst_kroner == 55000
 | kgl_ebl_par6d_scenarie_uskiftet_bo_bevarer_grundlaget: kgl_ebl_par6d_scenarie_uskiftet_bo -> kgl_ebl_par6d_scenarie_uskiftet_bo.input_gyldigt && kgl_ebl_par6d_scenarie_uskiftet_bo.tranchefordeling_entydig && kgl_ebl_par6d_scenarie_uskiftet_bo.par6d_resultat.årsresultater[1].fremrykket_fortjeneste_kroner == 0 && head(kgl_ebl_par6d_scenarie_uskiftet_bo.kursgevinstresultat.dispositionsresultater[1].ændrede_trancher_efter).skatteyder.identifikation == "Efterlevende ægtefælle" && head(kgl_ebl_par6d_scenarie_uskiftet_bo.kursgevinstresultat.dispositionsresultater[1].ændrede_trancher_efter).skattemæssigt_erhvervelsesår == 2026 && kgl_ebl_par6d_scenarie_uskiftet_bo.kursgevinstresultat.dispositionsresultater[2].rå_gevinst_kroner == 75000
 | kgl_ebl_par6d_scenarie_udlodning_går_gennem_boet: kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle -> kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.input_gyldigt && kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.tranchefordeling_entydig && length(kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater) == 4 && head(kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater[1].ændrede_trancher_efter).skatteyder.rolle == KglDødsboEfterDødsboskatteloven && kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater[2].realisering_sker == Falskt && head(kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater[2].ændrede_trancher_efter).skatteyder.identifikation == "Efterlevende ægtefælle" && head(kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater[2].ændrede_trancher_efter).resterende_anskaffelsessum_kroner == 2700000 && kgl_ebl_par6d_scenarie_udloddet_til_ægtefælle.kursgevinstresultat.dispositionsresultater[3].rå_gevinst_kroner == 75000
-| kgl_ebl_par6d_scenarie_delvis_succession_fordeler_samme_års_betalinger: kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession -> kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.input_gyldigt && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.tranchefordeling_entydig && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.ebl_kgl_realisering_sammenhæng_gyldig && length(kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater) == 4 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[0].berørt_tranche_før.skatteyder.identifikation == "Sælger" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[0].rå_gevinst_kroner == 20000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[2].berørt_tranche_før.skatteyder.identifikation == "Ægtefælle" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[2].rå_gevinst_kroner == 20000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[3].berørt_tranche_før.skatteyder.identifikation == "Sælger" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[3].rå_gevinst_kroner == 35000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.samlet_rå_gevinst_kroner == 75000
+| kgl_ebl_par6d_scenarie_delvis_succession_fordeler_samme_års_betalinger: kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession -> kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.input_gyldigt && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.tranchefordeling_entydig && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.fortjenestefordeling_entydig && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.ebl_kgl_realisering_sammenhæng_gyldig && length(kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater) == 4 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[0].berørt_tranche_før.skatteyder.identifikation == "Sælger" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[0].rå_gevinst_kroner == 20000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[2].berørt_tranche_før.skatteyder.identifikation == "Ægtefælle" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[2].rå_gevinst_kroner == 20000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[3].berørt_tranche_før.skatteyder.identifikation == "Sælger" && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.dispositionsresultater[3].rå_gevinst_kroner == 35000 && kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession.kursgevinstresultat.samlet_rå_gevinst_kroner == 75000 && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession, 2028, "Sælger") == 210000 && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession, 2028, "Ægtefælle") == 90000 && kgl_ebl_par6d_samlet_fordelt_fortjeneste_kroner(kgl_ebl_par6d_scenarie_delvis_ægtefællesuccession) == 600000
+| kgl_ebl_par6d_scenarie_uafrundelig_succession_fejler_lukket: kgl_ebl_par6d_scenarie_uafrundelig_delvis_ægtefællesuccession -> kgl_ebl_par6d_scenarie_uafrundelig_delvis_ægtefællesuccession.input_gyldigt == Falskt && kgl_ebl_par6d_scenarie_uafrundelig_delvis_ægtefællesuccession.par6d_resultat.input_gyldigt == Falskt
+| kgl_ebl_par6d_scenarie_dødsbo_får_fremrykket_fortjeneste: kgl_ebl_par6d_scenarie_dødsbo -> kgl_ebl_par6d_scenarie_dødsbo.input_gyldigt && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(kgl_ebl_par6d_scenarie_dødsbo, 2027, "Sælger") == 300000 && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(kgl_ebl_par6d_scenarie_dødsbo, 2027, "Boet efter Sælger") == 2700000 && kgl_ebl_par6d_samlet_fordelt_fortjeneste_kroner(kgl_ebl_par6d_scenarie_dødsbo) == 3000000
 | kgl_ebl_par6d_scenarie_tab_udløser_både_ebl_og_kgl_realisering: kgl_ebl_par6d_scenarie_udlodning_med_tab -> kgl_ebl_par6d_scenarie_udlodning_med_tab.input_gyldigt && kgl_ebl_par6d_scenarie_udlodning_med_tab.ebl_kgl_realisering_sammenhæng_gyldig && kgl_ebl_par6d_scenarie_udlodning_med_tab.par6d_resultat.årsresultater[1].fremrykket_fortjeneste_kroner == 2700000 && kgl_ebl_par6d_scenarie_udlodning_med_tab.kursgevinstresultat.dispositionsresultater[0].realisering_sker == Falskt && kgl_ebl_par6d_scenarie_udlodning_med_tab.kursgevinstresultat.dispositionsresultater[1].realisering_sker && kgl_ebl_par6d_scenarie_udlodning_med_tab.kursgevinstresultat.dispositionsresultater[1].rå_tab_kroner == 100000
 | kgl_ebl_par6d_scenarie_salgsvalg_udløser_både_ebl_og_kgl_realisering: kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning -> kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning.input_gyldigt && kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning.ebl_kgl_realisering_sammenhæng_gyldig && kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning.par6d_resultat.årsresultater[1].fremrykket_fortjeneste_kroner == 2700000 && kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning.kursgevinstresultat.dispositionsresultater[1].realisering_sker && kgl_ebl_par6d_scenarie_udlodning_med_salgsbeskatning.kursgevinstresultat.dispositionsresultater[1].rå_gevinst_kroner == 100000
 
@@ -285,6 +312,8 @@
 ? kgl_ebl_par6d_scenarie_uskiftet_bo_bevarer_grundlaget
 ? kgl_ebl_par6d_scenarie_udlodning_går_gennem_boet
 ? kgl_ebl_par6d_scenarie_delvis_succession_fordeler_samme_års_betalinger
+? kgl_ebl_par6d_scenarie_uafrundelig_succession_fejler_lukket
+? kgl_ebl_par6d_scenarie_dødsbo_får_fremrykket_fortjeneste
 ? kgl_ebl_par6d_scenarie_tab_udløser_både_ebl_og_kgl_realisering
 ? kgl_ebl_par6d_scenarie_salgsvalg_udløser_både_ebl_og_kgl_realisering
 

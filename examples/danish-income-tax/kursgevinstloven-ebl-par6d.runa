@@ -28,7 +28,9 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 --@begin:kgl_ebl_par6d_samspil--
 # KglEblPar6DSkatteyderfakta(udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk, fordringen_erhvervet_uden_for_fordringsnæring: Boolsk, fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk, fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk, debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk, renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk)
 # KglEblPar6DSælgerpantebrevsfakta(sælgerpantebrev_identifikation: Tekst, oprindelig_skatteyder_identifikation: Tekst, skatteyderfakta: KglEblPar6DSkatteyderfakta, dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition))
-# KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, tranchefordeling_entydig: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, ebl_kgl_realisering_sammenhæng_gyldig: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, kursgevinstresultat: KglSælgerpantebrevResultat)
+# KglEblPar6DFordringsdelejer(fordringsdel_identifikation: Tekst, skatteyder: KglSælgerpantebrevSkatteyder)
+# KglEblPar6DFortjenestemedregning(medregning: EblPar6DFortjenestemedregning, skatteyder: KglSælgerpantebrevSkatteyder)
+# KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, tranchefordeling_entydig: Boolsk, fortjenestefordeling_entydig: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, ebl_kgl_realisering_sammenhæng_gyldig: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, fortjenestemedregninger: List(KglEblPar6DFortjenestemedregning), kursgevinstresultat: KglSælgerpantebrevResultat)
 # KglEblPar6DPostdispositioner(dispositioner: List(KglSælgerpantebrevDisposition), forventede_realiseringer: List(Boolsk), identifikationer_entydige: Boolsk)
 # KglEblPar6DDispositionsforløbstilstand(dispositioner: List(KglSælgerpantebrevDisposition), forventede_realiseringer: List(Boolsk), tranchefordeling_entydig: Boolsk)
 
@@ -182,6 +184,25 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
         dispositioner = concat(kgl_ebl_par6d_dispositioner_i_forløb(resultat), efterfølgende_dispositioner)
     )
 }
+| kgl_ebl_par6d_tom_skatteyder() -> KglSælgerpantebrevSkatteyder(identifikation = "", rolle = KglUdenforPersonkapitlet)
+| kgl_ebl_par6d_nye_fordringsdelejere(dispositionsresultat: KglSælgerpantebrevDispositionsresultat) -> hvis dispositionsresultat.disposition_gyldig == Falskt { [] } ellers { match dispositionsresultat.disposition.art {
+    | KglSælgerpantebrevEjerskifte(_, modtagers_tranche_identifikation) -> {
+        = modtagertrancher = filter(dispositionsresultat.ændrede_trancher_efter, |tranche: KglSælgerpantebrevTranche| tranche.identifikation == modtagers_tranche_identifikation)
+        hvis length(modtagertrancher) == 1 { [KglEblPar6DFordringsdelejer(fordringsdel_identifikation = modtagers_tranche_identifikation, skatteyder = head(modtagertrancher).skatteyder)] } ellers { [] }
+    }
+    | _ -> []
+} }
+| kgl_ebl_par6d_fordringsdelejere(fakta: KglEblPar6DSælgerpantebrevsfakta, kursgevinstresultat: KglSælgerpantebrevResultat) -> concat(
+    [KglEblPar6DFordringsdelejer(fordringsdel_identifikation = fakta.sælgerpantebrev_identifikation, skatteyder = kgl_ebl_par6d_personskatteyder(fakta.oprindelig_skatteyder_identifikation))],
+    flat_map(kursgevinstresultat.dispositionsresultater, kgl_ebl_par6d_nye_fordringsdelejere)
+)
+| kgl_ebl_par6d_matchende_fordringsdelejere(ejere: List(KglEblPar6DFordringsdelejer), fordringsdel_identifikation: Tekst) -> filter(ejere, |ejer: KglEblPar6DFordringsdelejer| ejer.fordringsdel_identifikation == fordringsdel_identifikation)
+| kgl_ebl_par6d_fordringsdelejere_entydige(ejere: List(KglEblPar6DFordringsdelejer)) -> all(ejere, |ejer: KglEblPar6DFordringsdelejer| length(kgl_ebl_par6d_matchende_fordringsdelejere(ejere, ejer.fordringsdel_identifikation)) == 1)
+| kgl_ebl_par6d_medregning_har_entydig_ejer(ejere: List(KglEblPar6DFordringsdelejer), medregning: EblPar6DFortjenestemedregning) -> length(kgl_ebl_par6d_matchende_fordringsdelejere(ejere, medregning.fordringsdel_identifikation)) == 1
+| kgl_ebl_par6d_medregning_skatteyder(ejere: List(KglEblPar6DFordringsdelejer), medregning: EblPar6DFortjenestemedregning) -> hvis kgl_ebl_par6d_medregning_har_entydig_ejer(ejere, medregning) { head(kgl_ebl_par6d_matchende_fordringsdelejere(ejere, medregning.fordringsdel_identifikation)).skatteyder } ellers { kgl_ebl_par6d_tom_skatteyder() }
+| kgl_ebl_par6d_fordelt_fortjenestemedregning(ejere: List(KglEblPar6DFordringsdelejer), medregning: EblPar6DFortjenestemedregning) -> KglEblPar6DFortjenestemedregning(medregning = medregning, skatteyder = kgl_ebl_par6d_medregning_skatteyder(ejere, medregning))
+| kgl_ebl_par6d_fortjenestefordeling_entydig(ejere: List(KglEblPar6DFordringsdelejer), medregninger: List(EblPar6DFortjenestemedregning)) -> kgl_ebl_par6d_fordringsdelejere_entydige(ejere) && all(medregninger, |medregning: EblPar6DFortjenestemedregning| kgl_ebl_par6d_medregning_har_entydig_ejer(ejere, medregning))
+| kgl_ebl_par6d_fordelte_fortjenestemedregninger(ejere: List(KglEblPar6DFordringsdelejer), medregninger: List(EblPar6DFortjenestemedregning)) -> map(medregninger, |medregning: EblPar6DFortjenestemedregning| kgl_ebl_par6d_fordelt_fortjenestemedregning(ejere, medregning))
 
 # KglEblPar6DSag(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) {
     | pantebrev() -> kgl_ebl_par6d_sælgerpantebrev(par6d_resultat)
@@ -191,24 +212,32 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
     | efterfølgende_dispositioner_gyldige() -> kgl_ebl_par6d_efterfølgende_dispositioner_gyldige(par6d_resultat, fakta.dispositioner_efter_ebl_forløbet)
     | skatteforhold() -> kgl_ebl_par6d_skatteforhold(fakta.skatteyderfakta)
     | kursgevinstresultat() -> kgl_sælgerpantebrev_resultat(kgl_ebl_par6d_kursgevinstinput(par6d_resultat, fakta.oprindelig_skatteyder_identifikation, fakta.dispositioner_efter_ebl_forløbet))
+    | fordringsdelejere() -> kgl_ebl_par6d_fordringsdelejere(fakta, kursgevinstresultat())
+    | ebl_fortjenestemedregninger() -> ebl_par6d_fortjenestemedregninger(par6d_resultat)
+    | fortjenestefordeling_entydig() -> kgl_ebl_par6d_fortjenestefordeling_entydig(fordringsdelejere(), ebl_fortjenestemedregninger())
+    | fortjenestemedregninger() -> hvis fortjenestefordeling_entydig() { kgl_ebl_par6d_fordelte_fortjenestemedregninger(fordringsdelejere(), ebl_fortjenestemedregninger()) } ellers { [] }
     | forventede_realiseringer() -> kgl_ebl_par6d_dispositionsforløb(par6d_resultat).forventede_realiseringer
     | faktiske_realiseringer_for_ebl_forløbet() -> collect(map(take(kursgevinstresultat().dispositionsresultater, length(forventede_realiseringer())), |resultat: KglSælgerpantebrevDispositionsresultat| resultat.realisering_sker))
     | ebl_kgl_realisering_sammenhæng_gyldig() -> length(kursgevinstresultat().dispositionsresultater) >= length(forventede_realiseringer()) && faktiske_realiseringer_for_ebl_forløbet() == forventede_realiseringer()
-    | input_gyldigt() -> par6d_resultat.input_gyldigt && identifikation_matcher() && skatteyder_understøttet() && tranchefordeling_entydig() && efterfølgende_dispositioner_gyldige() && kursgevinstresultat().input_gyldigt && ebl_kgl_realisering_sammenhæng_gyldig()
+    | input_gyldigt() -> par6d_resultat.input_gyldigt && identifikation_matcher() && skatteyder_understøttet() && tranchefordeling_entydig() && fortjenestefordeling_entydig() && efterfølgende_dispositioner_gyldige() && kursgevinstresultat().input_gyldigt && ebl_kgl_realisering_sammenhæng_gyldig()
     | resultat() -> KglEblPar6DSælgerpantebrevsresultat(
         fakta = fakta,
         par6d_resultat = par6d_resultat,
         identifikation_matcher = identifikation_matcher(),
         skatteyder_understøttet = skatteyder_understøttet(),
         tranchefordeling_entydig = tranchefordeling_entydig(),
+        fortjenestefordeling_entydig = fortjenestefordeling_entydig(),
         efterfølgende_dispositioner_gyldige = efterfølgende_dispositioner_gyldige(),
         ebl_kgl_realisering_sammenhæng_gyldig = ebl_kgl_realisering_sammenhæng_gyldig(),
         input_gyldigt = input_gyldigt(),
         skatteforhold = skatteforhold(),
+        fortjenestemedregninger = fortjenestemedregninger(),
         kursgevinstresultat = kursgevinstresultat()
     )
 }
 
 | kgl_ebl_par6d_sag(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) -> KglEblPar6DSag(fakta, par6d_resultat)
 | kgl_ebl_par6d_resultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat) -> kgl_ebl_par6d_sag(fakta, par6d_resultat).resultat()
+| kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> foldl(resultat.fortjenestemedregninger, 0, |sum: Heltal, medregning: KglEblPar6DFortjenestemedregning| sum + hvis medregning.medregning.indkomstår == indkomstår && medregning.skatteyder.identifikation == skatteyder_identifikation { medregning.medregning.beløb_kroner } ellers { 0 })
+| kgl_ebl_par6d_samlet_fordelt_fortjeneste_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat) -> foldl(resultat.fortjenestemedregninger, 0, |sum: Heltal, medregning: KglEblPar6DFortjenestemedregning| sum + medregning.medregning.beløb_kroner)
 --@end:kgl_ebl_par6d_samspil--

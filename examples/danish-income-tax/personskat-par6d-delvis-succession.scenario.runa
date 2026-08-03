@@ -1,0 +1,61 @@
+@ sprog da
+
+@ importer ./personskat - par6d - fixtures
+
+--@label:personskat_par6d_delvis_succession_scenarier::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
+--@begin:personskat_par6d_delvis_succession_scenarier--
+= personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold = [
+    EblPar6DÅrsforhold(
+        indkomstår = 2027,
+        forløbsposter = [
+            personskat_par6d_scenarie_betaling("Sælgerpantebrev 2025", 100000),
+            EblPar6DFremrykningshændelse(hændelse = EblPar6DPantebrevAfståetEllerIndfriet(
+                berørt_fordringsdel_identifikation = "Sælgerpantebrev 2025",
+                art = EblPar6DPantebrevAfstået,
+                berørt_restgæld_kroner = 1095000,
+                afståelses_eller_indfrielsesprovenu_kroner = 0,
+                succession = EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(
+                    modtagers_fordringsdel_identifikation = "Ægtefællens pantebrevsdel",
+                    modtagers_skatteyder_identifikation = "Ægtefælle",
+                    overdrager_hjemmehørende_i_danmark = Sandt,
+                    modtager_hjemmehørende_i_danmark = Sandt
+                )
+            )),
+            personskat_par6d_scenarie_betaling("Ægtefællens pantebrevsdel", 100000),
+            personskat_par6d_scenarie_betaling("Sælgerpantebrev 2025", 175000)
+        ]
+    ),
+    EblPar6DÅrsforhold(indkomstår = 2028, forløbsposter = [])
+]
+| personskat_par6d_scenarie_tom_aktieavance(skatteår: Heltal) -> personskat_aktieavance_resultat(personskat_ingen_aktieavance(), skatteår)
+| personskat_par6d_scenarie_kapitalindkomst(input: PersonskatInput) -> personskat_kapitalindkomst_resultat(
+    input.kapitalindkomst,
+    input.lønmodtager.skatteår,
+    personskat_par6d_scenarie_tom_aktieavance(input.lønmodtager.skatteår)
+)
+
+= personskat_par6d_scenarie_delvis_succession_sælger_input = personskat_par6d_scenarie_input(2028, "Sælger", 2026, personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold)
+= personskat_par6d_scenarie_delvis_succession_sælger_resultat = personskat_par6d_scenarie_kapitalindkomst(personskat_par6d_scenarie_delvis_succession_sælger_input)
+= personskat_par6d_scenarie_delvis_succession_ægtefælle_input = personskat_par6d_scenarie_input(2028, "Ægtefælle", 2026, personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold)
+= personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat = personskat_par6d_scenarie_kapitalindkomst(personskat_par6d_scenarie_delvis_succession_ægtefælle_input)
+= personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation_input = personskat_par6d_scenarie_input_med_ægtefælleidentifikation(2028, "Sælger", None, 2026, personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold)
+= personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation = personskat_par6d_scenarie_kapitalindkomst(personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation_input)
+
+| personskat_par6d_scenarie_delvis_succession_fordeler_ebl_til_sælger: personskat_par6d_scenarie_delvis_succession_sælger_resultat -> personskat_par6d_scenarie_delvis_succession_sælger_resultat.alle_input_gyldige && personskat_par6d_scenarie_delvis_succession_sælger_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 210000 && personskat_par6d_scenarie_delvis_succession_sælger_resultat.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 0 && match personskat_par6d_scenarie_delvis_succession_sælger_resultat.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, _, _, eget_tabsår, ægtefælles_tabsår, par4_resultat) -> eget_tabsår.egne_skattepligtige_fortjenester_kroner == 210000 && ægtefælles_tabsår.egne_skattepligtige_fortjenester_kroner == 90000 && par4_resultat.kapitalindkomst_kroner == 210000
+    | _ -> Falskt
+}
+| personskat_par6d_scenarie_delvis_succession_fordeler_ebl_til_ægtefælle: personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat -> personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat.alle_input_gyldige && personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 90000 && personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 0 && match personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, _, _, eget_tabsår, ægtefælles_tabsår, par4_resultat) -> eget_tabsår.egne_skattepligtige_fortjenester_kroner == 90000 && ægtefælles_tabsår.egne_skattepligtige_fortjenester_kroner == 210000 && par4_resultat.kapitalindkomst_kroner == 90000
+    | _ -> Falskt
+}
+| personskat_par6d_scenarie_delvis_succession_bevarer_samlet_ebl: personskat_par6d_scenarie_delvis_succession_sælger_resultat -> personskat_par6d_scenarie_delvis_succession_sælger_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner + personskat_par6d_scenarie_delvis_succession_ægtefælle_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 300000 && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(head(personskat_par6d_scenarie_delvis_succession_sælger_resultat.kursgevinst_resultat.sælgerpantebrevsresultater), 2028, "Sælger") == 210000 && kgl_ebl_par6d_medregnet_fortjeneste_for_skatteyder_i_indkomstår_kroner(head(personskat_par6d_scenarie_delvis_succession_sælger_resultat.kursgevinst_resultat.sælgerpantebrevsresultater), 2028, "Ægtefælle") == 90000
+| personskat_par6d_scenarie_manglende_ægtefælleidentifikation_fejler_uden_skattevirkning: personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation -> personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation.ejendomsavance_input_gyldigt && personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation.kursgevinst_input_gyldigt == Falskt && personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation.alle_input_gyldige == Falskt && personskat_par6d_scenarie_delvis_succession_uden_ægtefælleidentifikation.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+
+? personskat_par6d_scenarie_delvis_succession_fordeler_ebl_til_sælger
+? personskat_par6d_scenarie_delvis_succession_fordeler_ebl_til_ægtefælle
+? personskat_par6d_scenarie_delvis_succession_bevarer_samlet_ebl
+? personskat_par6d_scenarie_manglende_ægtefælleidentifikation_fejler_uden_skattevirkning
+
+@ print("Personskat EBL § 6 D partial succession scenarios passed")
+--@end:personskat_par6d_delvis_succession_scenarier--

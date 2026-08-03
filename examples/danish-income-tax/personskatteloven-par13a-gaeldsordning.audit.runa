@@ -126,7 +126,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     tabsposter = [EjendomsavancePar6Tabspost(
         resultat = par13a_audit_ebl_tab(indkomstår, tab_kroner)
     )],
-    fortjenester = [],
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = []),
     fremførsel = EblIngenFremførsel,
     ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt

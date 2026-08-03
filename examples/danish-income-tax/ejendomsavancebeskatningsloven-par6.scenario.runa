@@ -57,7 +57,7 @@ indkomstårets udgang.
     tabsposter = [EjendomsavancePar6Tabspost(
         resultat = tab
     )],
-    fortjenester = [],
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = []),
     fremførsel = EblIngenFremførsel,
     ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
@@ -135,7 +135,7 @@ indkomstårets udgang.
     tabsposter = [EjendomsavancePar6Tabspost(
         resultat = ebl_par6_tab_2026
     )],
-    fortjenester = [ebl_par6_egen_fortjeneste_2026],
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = [ebl_par6_egen_fortjeneste_2026]),
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
     ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ebl_par6_ægtefælles_fortjeneste_2026.skattepligtig_fortjeneste_kroner,
     gift_samlevende_ved_indkomstårets_udgang = Sandt
@@ -146,7 +146,7 @@ indkomstårets udgang.
     tabsposter = [EjendomsavancePar6Tabspost(
         resultat = ebl_par6_tab_2026
     )],
-    fortjenester = [ebl_par6_egen_fortjeneste_2026],
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = [ebl_par6_egen_fortjeneste_2026]),
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
     ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ebl_par6_ægtefælles_fortjeneste_2026.skattepligtig_fortjeneste_kroner,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
@@ -155,7 +155,7 @@ indkomstårets udgang.
 = ebl_par6_tabsår_med_sprunget_fremførsel = ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(
     indkomstår = 2026,
     tabsposter = [],
-    fortjenester = [],
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = []),
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2024),
     ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt

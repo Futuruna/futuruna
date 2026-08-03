@@ -97,6 +97,11 @@ Stk. 14. Henstand er betinget af, at der gives oplysninger efter skattekontrollo
 Samtidig med afgivelsen af disse oplysninger skal der gives oplysninger om de forhold i stk. 3, nr. 1-3, der medfører forfald af henstandsbeløbet, og oplysning om, i hvilket land sælgeren er skattemæssigt hjemmehørende ultimo indkomståret.
 Afgives oplysningerne efter skattekontrollovens § 2 ikke rettidigt, bortfalder henstanden, og det beløb, der står på henstandssaldoen, forfalder til betaling.
 Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
+
+Bemærkningerne til L 36 2019-20 om stk. 4:
+
+I de anførte tilfælde sker der skattemæssig succession vedrørende ejendommen eller sælgerpantebrevet, således at den løbende beskatning sker hos ægtefællen i den resterende løbetid af den udskudte beskatning.
+Tilsvarende sker der ikke fremrykket beskatning, når ejendommen i de anførte tilfælde overtages med succession af en ægtefælle.
 ----
 
 --@begin:ebl_par6d--
@@ -134,10 +139,13 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 # EblPar6DValgfakta(valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, fordelingsår: Heltal, erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk, partrelation: EblPar6DPartrelationFakta, overdragerens_anvendelse: EblPar6DErhvervsanvendelse, erhververens_anvendelse_ved_overdragelsen: EblPar6DErhvervsanvendelse, sælgerpantebrev: EblPar6DSælgerpantebrev, meddelelse: EblPar6DValgmeddelelse, sælgers_skatteforhold: EblPar6DSælgerskatteforhold, ejendomsplacering: EblPar6DEjendomsplacering, afståelsesårets_hændelse: EblPar6DHændelse, efterfølgende_årsforhold: List(EblPar6DÅrsforhold))
 # EblPar6DValg = EblUdenPar6DValg | EblMedPar6DValg(fakta: EblPar6DValgfakta)
 # EblPar6DKontekst(afståelsesdato: EblDato, skattepligtig_fortjeneste_før_par6d_kroner: Heltal, kvalificerende_erhvervsfortjeneste_efter_par6_kroner: Heltal, kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner: Heltal, ejendom_omfattet_af_par8: Boolsk)
-# EblPar6DTilstand(afståelsesår: Heltal, fordelingsår: Heltal, årligt_beløb_kroner: Heltal, resterende_udskudt_fortjeneste_kroner: Heltal, sælgerpantebrev_restgæld_kroner: Heltal, sælgerpantebrev_resterende_anskaffelsessum_kroner: Heltal, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner: Heltal, næste_indkomstår: Heltal, ordning_aktiv: Boolsk)
-# EblPar6DÅrsforløbspostresultat(tilstand_før: EblPar6DTilstand, post: EblPar6DÅrsforløbspost, post_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, ordinært_hovedstolsafdrag_kroner: Heltal, frigivet_anskaffelsessum_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, ekstraordinær_gældsnedskrivning_kroner: Heltal, sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat, tilstand_efter: EblPar6DTilstand)
+# EblPar6DMedregningsart = EblPar6DOrdinærMedregning | EblPar6DFremrykketMedregning
+# EblPar6DFortjenesteposition(fordringsdel_identifikation: Tekst, resterende_hovedstol_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, resterende_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal)
+# EblPar6DFortjenestemedregning(indkomstår: Heltal, fordringsdel_identifikation: Tekst, art: EblPar6DMedregningsart, beløb_kroner: Heltal)
+# EblPar6DTilstand(afståelsesår: Heltal, fordelingsår: Heltal, årligt_beløb_kroner: Heltal, resterende_udskudt_fortjeneste_kroner: Heltal, sælgerpantebrev_restgæld_kroner: Heltal, sælgerpantebrev_resterende_anskaffelsessum_kroner: Heltal, fortjenestepositioner: List(EblPar6DFortjenesteposition), kumuleret_betalt_ordinært_hovedstolsafdrag_kroner: Heltal, næste_indkomstår: Heltal, ordning_aktiv: Boolsk)
+# EblPar6DÅrsforløbspostresultat(tilstand_før: EblPar6DTilstand, post: EblPar6DÅrsforløbspost, post_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, ordinært_hovedstolsafdrag_kroner: Heltal, frigivet_anskaffelsessum_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, fortjenestemedregninger: List(EblPar6DFortjenestemedregning), ekstraordinær_gældsnedskrivning_kroner: Heltal, sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat, tilstand_efter: EblPar6DTilstand)
 # EblPar6DÅrspostforløbstilstand(tilstand: EblPar6DTilstand, resultater: List(EblPar6DÅrsforløbspostresultat), alle_poster_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk, hændelse_behandlet: Boolsk, ordinært_hovedstolsafdrag_kroner: Heltal, frigivet_anskaffelsessum_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, ekstraordinær_gældsnedskrivning_kroner: Heltal, sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat)
-# EblPar6DÅrsresultat(tilstand_før: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold, år_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, ordinært_medregnet_fortjeneste_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, samlet_medregnet_fortjeneste_kroner: Heltal, ordinært_hovedstolsafdrag_kroner: Heltal, ekstraordinær_gældsnedskrivning_kroner: Heltal, forløbspostresultater: List(EblPar6DÅrsforløbspostresultat), sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat, tilstand_efter: EblPar6DTilstand)
+# EblPar6DÅrsresultat(tilstand_før: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold, år_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, ordinært_medregnet_fortjeneste_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, samlet_medregnet_fortjeneste_kroner: Heltal, fortjenestemedregninger: List(EblPar6DFortjenestemedregning), ordinært_hovedstolsafdrag_kroner: Heltal, ekstraordinær_gældsnedskrivning_kroner: Heltal, forløbspostresultater: List(EblPar6DÅrsforløbspostresultat), sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat, tilstand_efter: EblPar6DTilstand)
 # EblPar6DForløbstilstand(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsresultater: List(EblPar6DÅrsresultat), alle_år_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk)
 # EblPar6DResultat(valg: EblPar6DValg, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, betingelser_opfyldt: Boolsk, valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, skattepligtig_fortjeneste_i_afståelsesåret_kroner: Heltal, årsresultater: List(EblPar6DÅrsresultat), tilstand_ultimo: EblPar6DTilstand)
 
@@ -201,6 +209,71 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 }
 | ebl_par6d_anskaffelsessum_kan_fordeles_præcist(restgæld_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, berørt_restgæld_kroner: Heltal) -> restgæld_kroner > 0 && berørt_restgæld_kroner > 0 && berørt_restgæld_kroner <= restgæld_kroner && (berørt_restgæld_kroner == restgæld_kroner || (resterende_anskaffelsessum_kroner * berørt_restgæld_kroner) % restgæld_kroner == 0)
 | ebl_par6d_fordelt_anskaffelsessum_kroner(restgæld_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, berørt_restgæld_kroner: Heltal) -> hvis berørt_restgæld_kroner == restgæld_kroner { resterende_anskaffelsessum_kroner } ellers { resterende_anskaffelsessum_kroner * berørt_restgæld_kroner / restgæld_kroner }
+| ebl_par6d_tom_fortjenesteposition() -> EblPar6DFortjenesteposition(fordringsdel_identifikation = "", resterende_hovedstol_kroner = 0, resterende_anskaffelsessum_kroner = 0, resterende_udskudt_fortjeneste_kroner = 0, årligt_beløb_kroner = 0)
+| ebl_par6d_fortjenesteposition_gyldig(position: EblPar6DFortjenesteposition) -> position.fordringsdel_identifikation != "" && position.resterende_hovedstol_kroner >= 0 && position.resterende_anskaffelsessum_kroner >= 0 && position.resterende_udskudt_fortjeneste_kroner >= 0 && position.årligt_beløb_kroner >= 0 && (position.resterende_hovedstol_kroner > 0 || position.resterende_udskudt_fortjeneste_kroner > 0)
+| ebl_par6d_matchende_fortjenestepositioner(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst) -> filter(positioner, |position: EblPar6DFortjenesteposition| position.fordringsdel_identifikation == fordringsdel_identifikation)
+| ebl_par6d_fortjenesteposition_entydig(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst) -> length(ebl_par6d_matchende_fortjenestepositioner(positioner, fordringsdel_identifikation)) == 1
+| ebl_par6d_fortjenesteposition(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst) -> hvis ebl_par6d_fortjenesteposition_entydig(positioner, fordringsdel_identifikation) { head(ebl_par6d_matchende_fortjenestepositioner(positioner, fordringsdel_identifikation)) } ellers { ebl_par6d_tom_fortjenesteposition() }
+| ebl_par6d_fortjenestepositioner_entydige(positioner: List(EblPar6DFortjenesteposition)) -> all(positioner, |position: EblPar6DFortjenesteposition| ebl_par6d_fortjenesteposition_entydig(positioner, position.fordringsdel_identifikation))
+| ebl_par6d_fortjenestepositioner_restgæld_kroner(positioner: List(EblPar6DFortjenesteposition)) -> foldl(positioner, 0, |sum: Heltal, position: EblPar6DFortjenesteposition| sum + position.resterende_hovedstol_kroner)
+| ebl_par6d_fortjenestepositioner_anskaffelsessum_kroner(positioner: List(EblPar6DFortjenesteposition)) -> foldl(positioner, 0, |sum: Heltal, position: EblPar6DFortjenesteposition| sum + position.resterende_anskaffelsessum_kroner)
+| ebl_par6d_fortjenestepositioner_udskudt_fortjeneste_kroner(positioner: List(EblPar6DFortjenesteposition)) -> foldl(positioner, 0, |sum: Heltal, position: EblPar6DFortjenesteposition| sum + position.resterende_udskudt_fortjeneste_kroner)
+| ebl_par6d_fortjenestepositioner_gyldige(positioner: List(EblPar6DFortjenesteposition)) -> all(positioner, ebl_par6d_fortjenesteposition_gyldig) && ebl_par6d_fortjenestepositioner_entydige(positioner)
+| ebl_par6d_tilstand_fortjenestepositioner_gyldige(tilstand: EblPar6DTilstand) -> ebl_par6d_fortjenestepositioner_gyldige(tilstand.fortjenestepositioner) && ebl_par6d_fortjenestepositioner_restgæld_kroner(tilstand.fortjenestepositioner) == tilstand.sælgerpantebrev_restgæld_kroner && ebl_par6d_fortjenestepositioner_anskaffelsessum_kroner(tilstand.fortjenestepositioner) == tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner && ebl_par6d_fortjenestepositioner_udskudt_fortjeneste_kroner(tilstand.fortjenestepositioner) == tilstand.resterende_udskudt_fortjeneste_kroner
+| ebl_par6d_fortjenestefordeling_kan_fordeles_præcist(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal) -> position.resterende_hovedstol_kroner > 0 && berørt_hovedstol_kroner > 0 && berørt_hovedstol_kroner <= position.resterende_hovedstol_kroner && (berørt_hovedstol_kroner == position.resterende_hovedstol_kroner || ((position.resterende_anskaffelsessum_kroner * berørt_hovedstol_kroner) % position.resterende_hovedstol_kroner == 0 && (position.resterende_udskudt_fortjeneste_kroner * berørt_hovedstol_kroner) % position.resterende_hovedstol_kroner == 0))
+| ebl_par6d_successionsfordeling_kan_fordeles_præcist(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal) -> ebl_par6d_fortjenestefordeling_kan_fordeles_præcist(position, berørt_hovedstol_kroner) && (berørt_hovedstol_kroner == position.resterende_hovedstol_kroner || (position.årligt_beløb_kroner * berørt_hovedstol_kroner) % position.resterende_hovedstol_kroner == 0)
+| ebl_par6d_fordelt_fortjeneste_kroner(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal) -> hvis berørt_hovedstol_kroner == position.resterende_hovedstol_kroner { position.resterende_udskudt_fortjeneste_kroner } ellers { position.resterende_udskudt_fortjeneste_kroner * berørt_hovedstol_kroner / position.resterende_hovedstol_kroner }
+| ebl_par6d_fordelt_årligt_beløb_kroner(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal) -> hvis berørt_hovedstol_kroner == position.resterende_hovedstol_kroner { position.årligt_beløb_kroner } ellers { position.årligt_beløb_kroner * berørt_hovedstol_kroner / position.resterende_hovedstol_kroner }
+| ebl_par6d_fordelt_positionsanskaffelsessum_kroner(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal) -> ebl_par6d_fordelt_anskaffelsessum_kroner(position.resterende_hovedstol_kroner, position.resterende_anskaffelsessum_kroner, berørt_hovedstol_kroner)
+| ebl_par6d_resterende_fortjenesteposition(position: EblPar6DFortjenesteposition, berørt_hovedstol_kroner: Heltal, årligt_beløb_fordeles: Boolsk) -> EblPar6DFortjenesteposition(
+    fordringsdel_identifikation = position.fordringsdel_identifikation,
+    resterende_hovedstol_kroner = position.resterende_hovedstol_kroner - berørt_hovedstol_kroner,
+    resterende_anskaffelsessum_kroner = position.resterende_anskaffelsessum_kroner - ebl_par6d_fordelt_positionsanskaffelsessum_kroner(position, berørt_hovedstol_kroner),
+    resterende_udskudt_fortjeneste_kroner = position.resterende_udskudt_fortjeneste_kroner - ebl_par6d_fordelt_fortjeneste_kroner(position, berørt_hovedstol_kroner),
+    årligt_beløb_kroner = position.årligt_beløb_kroner - hvis årligt_beløb_fordeles { ebl_par6d_fordelt_årligt_beløb_kroner(position, berørt_hovedstol_kroner) } ellers { 0 }
+)
+| ebl_par6d_modtagers_fortjenesteposition(position: EblPar6DFortjenesteposition, modtagers_fordringsdel_identifikation: Tekst, berørt_hovedstol_kroner: Heltal, fortjeneste_succederer: Boolsk) -> EblPar6DFortjenesteposition(
+    fordringsdel_identifikation = modtagers_fordringsdel_identifikation,
+    resterende_hovedstol_kroner = berørt_hovedstol_kroner,
+    resterende_anskaffelsessum_kroner = ebl_par6d_fordelt_positionsanskaffelsessum_kroner(position, berørt_hovedstol_kroner),
+    resterende_udskudt_fortjeneste_kroner = hvis fortjeneste_succederer { ebl_par6d_fordelt_fortjeneste_kroner(position, berørt_hovedstol_kroner) } ellers { 0 },
+    årligt_beløb_kroner = hvis fortjeneste_succederer { ebl_par6d_fordelt_årligt_beløb_kroner(position, berørt_hovedstol_kroner) } ellers { 0 }
+)
+| ebl_par6d_fortjenesteposition_bevares(position: EblPar6DFortjenesteposition) -> position.resterende_hovedstol_kroner > 0 || position.resterende_udskudt_fortjeneste_kroner > 0
+| ebl_par6d_fortjenesteposition_hvis_aktiv(position: EblPar6DFortjenesteposition) -> hvis ebl_par6d_fortjenesteposition_bevares(position) { [position] } ellers { [] }
+| ebl_par6d_uberørte_fortjenestepositioner(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst) -> filter(positioner, |position: EblPar6DFortjenesteposition| position.fordringsdel_identifikation != fordringsdel_identifikation)
+| ebl_par6d_fortjenestepositioner_efter_fordeling(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst, modtagers_fordringsdel_identifikation: Tekst, berørt_hovedstol_kroner: Heltal, opret_modtager: Boolsk, fortjeneste_succederer: Boolsk) -> {
+    = position = ebl_par6d_fortjenesteposition(positioner, fordringsdel_identifikation)
+    = resterende = ebl_par6d_resterende_fortjenesteposition(position, berørt_hovedstol_kroner, opret_modtager)
+    = modtager = ebl_par6d_modtagers_fortjenesteposition(position, modtagers_fordringsdel_identifikation, berørt_hovedstol_kroner, fortjeneste_succederer)
+    concat(concat(ebl_par6d_uberørte_fortjenestepositioner(positioner, fordringsdel_identifikation), ebl_par6d_fortjenesteposition_hvis_aktiv(resterende)), hvis opret_modtager && ebl_par6d_fortjenesteposition_bevares(modtager) { [modtager] } ellers { [] })
+}
+| ebl_par6d_fortjenestepositioner_efter_hovedstolsafdrag(positioner: List(EblPar6DFortjenesteposition), fordringsdel_identifikation: Tekst, betalt_kroner: Heltal) -> {
+    = position = ebl_par6d_fortjenesteposition(positioner, fordringsdel_identifikation)
+    = resterende = EblPar6DFortjenesteposition(
+        fordringsdel_identifikation = position.fordringsdel_identifikation,
+        resterende_hovedstol_kroner = position.resterende_hovedstol_kroner - betalt_kroner,
+        resterende_anskaffelsessum_kroner = position.resterende_anskaffelsessum_kroner - ebl_par6d_fordelt_positionsanskaffelsessum_kroner(position, betalt_kroner),
+        resterende_udskudt_fortjeneste_kroner = position.resterende_udskudt_fortjeneste_kroner,
+        årligt_beløb_kroner = position.årligt_beløb_kroner
+    )
+    concat(ebl_par6d_uberørte_fortjenestepositioner(positioner, fordringsdel_identifikation), ebl_par6d_fortjenesteposition_hvis_aktiv(resterende))
+}
+| ebl_par6d_ægtefællesuccession_modtagers_fordringsdel(succession: EblPar6DÆgtefællesuccession) -> match succession {
+    | EblPar6DIngenÆgtefællesuccession -> ""
+    | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(modtagers_fordringsdel, _, _, _) -> modtagers_fordringsdel
+    | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse(modtagers_fordringsdel, _, _, _) -> modtagers_fordringsdel
+}
+| ebl_par6d_dødsbooverdragelse_modtagers_fordringsdel(overdragelse: EblPar6DDødsbooverdragelse) -> match overdragelse {
+    | EblPar6DBoetOvertagerPantebrevet(boets_fordringsdel, _) -> boets_fordringsdel
+    | EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo(modtagers_fordringsdel, _) -> modtagers_fordringsdel
+    | EblPar6DUdlodningTilEfterlevendeÆgtefælle(_, _, modtagers_fordringsdel, _, _, _, _, _, _) -> modtagers_fordringsdel
+}
+| ebl_par6d_dødsbooverdragelse_boets_fordringsdel(overdragelse: EblPar6DDødsbooverdragelse) -> match overdragelse {
+    | EblPar6DBoetOvertagerPantebrevet(boets_fordringsdel, _) -> boets_fordringsdel
+    | EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo(modtagers_fordringsdel, _) -> modtagers_fordringsdel
+    | EblPar6DUdlodningTilEfterlevendeÆgtefælle(boets_fordringsdel, _, _, _, _, _, _, _, _) -> boets_fordringsdel
+}
 | ebl_par6d_dødsbooverdragelse_undtager(restgæld_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, berørt_restgæld_kroner: Heltal, overdragelse: EblPar6DDødsbooverdragelse) -> match overdragelse {
     | EblPar6DBoetOvertagerPantebrevet(_, _) -> Falskt
     | EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo(_, _) -> ebl_par6d_dødsbooverdragelse_gyldig(overdragelse)
@@ -266,33 +339,77 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     EblPar6DHenstandsresultat(henstand_valgt = henstand_valgt, henstandsbetingelser_opfyldt = henstandsbetingelser_opfyldt, input_gyldigt = input_gyldigt, beregnet_skat_af_fremrykket_fortjeneste_kroner = fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner, skat_forfalder_ved_skattepligtsophør_kroner = hvis henstand_valgt && henstandsbetingelser_opfyldt { 0 } ellers { fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner }, årsresultater = forløb.resultater, tilstand_ultimo = forløb.tilstand)
 }
 
-| ebl_par6d_hændelse_understøttet(hændelse: EblPar6DHændelse) -> match hændelse { | EblPar6DIkkeUnderstøttetHændelse(_) -> Falskt | _ -> Sandt }
+| ebl_par6d_ejendomsandel_kan_fordeles_præcist(position: EblPar6DFortjenesteposition, berørt_handelsværdi_kroner: Heltal, samlet_handelsværdi_kroner: Heltal) -> samlet_handelsværdi_kroner > 0 && berørt_handelsværdi_kroner > 0 && berørt_handelsværdi_kroner <= samlet_handelsværdi_kroner && (berørt_handelsværdi_kroner == samlet_handelsværdi_kroner || ((position.resterende_udskudt_fortjeneste_kroner * berørt_handelsværdi_kroner) % samlet_handelsværdi_kroner == 0 && (position.årligt_beløb_kroner * berørt_handelsværdi_kroner) % samlet_handelsværdi_kroner == 0))
+| ebl_par6d_ejendomsandel_fortjeneste_kroner(position: EblPar6DFortjenesteposition, berørt_handelsværdi_kroner: Heltal, samlet_handelsværdi_kroner: Heltal) -> hvis berørt_handelsværdi_kroner == samlet_handelsværdi_kroner { position.resterende_udskudt_fortjeneste_kroner } ellers { position.resterende_udskudt_fortjeneste_kroner * berørt_handelsværdi_kroner / samlet_handelsværdi_kroner }
+| ebl_par6d_ejendomsandel_årligt_beløb_kroner(position: EblPar6DFortjenesteposition, berørt_handelsværdi_kroner: Heltal, samlet_handelsværdi_kroner: Heltal) -> hvis berørt_handelsværdi_kroner == samlet_handelsværdi_kroner { position.årligt_beløb_kroner } ellers { position.årligt_beløb_kroner * berørt_handelsværdi_kroner / samlet_handelsværdi_kroner }
+| ebl_par6d_fortjenesteposition_efter_ejendomshændelse(position: EblPar6DFortjenesteposition, berørt_handelsværdi_kroner: Heltal, samlet_handelsværdi_kroner: Heltal) -> EblPar6DFortjenesteposition(
+    fordringsdel_identifikation = position.fordringsdel_identifikation,
+    resterende_hovedstol_kroner = position.resterende_hovedstol_kroner,
+    resterende_anskaffelsessum_kroner = position.resterende_anskaffelsessum_kroner,
+    resterende_udskudt_fortjeneste_kroner = position.resterende_udskudt_fortjeneste_kroner - ebl_par6d_ejendomsandel_fortjeneste_kroner(position, berørt_handelsværdi_kroner, samlet_handelsværdi_kroner),
+    årligt_beløb_kroner = position.årligt_beløb_kroner - ebl_par6d_ejendomsandel_årligt_beløb_kroner(position, berørt_handelsværdi_kroner, samlet_handelsværdi_kroner)
+)
+| ebl_par6d_fortjenesteposition_uden_udskudt_fortjeneste(position: EblPar6DFortjenesteposition) -> EblPar6DFortjenesteposition(fordringsdel_identifikation = position.fordringsdel_identifikation, resterende_hovedstol_kroner = position.resterende_hovedstol_kroner, resterende_anskaffelsessum_kroner = position.resterende_anskaffelsessum_kroner, resterende_udskudt_fortjeneste_kroner = 0, årligt_beløb_kroner = 0)
+| ebl_par6d_fortjenestebærende_positioner(positioner: List(EblPar6DFortjenesteposition)) -> filter(positioner, |position: EblPar6DFortjenesteposition| position.resterende_udskudt_fortjeneste_kroner > 0)
+| ebl_par6d_fremrykket_medregning(indkomstår: Heltal, fordringsdel_identifikation: Tekst, beløb_kroner: Heltal) -> EblPar6DFortjenestemedregning(indkomstår = indkomstår, fordringsdel_identifikation = fordringsdel_identifikation, art = EblPar6DFremrykketMedregning, beløb_kroner = beløb_kroner)
+| ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår: Heltal, fordringsdel_identifikation: Tekst, beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { [ebl_par6d_fremrykket_medregning(indkomstår, fordringsdel_identifikation, beløb_kroner)] } ellers { [] }
+| ebl_par6d_fortjenestemedregninger_beløb_kroner(medregninger: List(EblPar6DFortjenestemedregning)) -> foldl(medregninger, 0, |sum: Heltal, medregning: EblPar6DFortjenestemedregning| sum + medregning.beløb_kroner)
+| ebl_par6d_hændelse_understøttet(hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(_, _, succession) -> succession == EblPar6DIngenÆgtefællesuccession
+    | EblPar6DIkkeUnderstøttetHændelse(_) -> Falskt
+    | _ -> Sandt
+}
 | ebl_par6d_hændelse_gyldig(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
-    | EblPar6DIngenFremrykningshændelse -> Sandt
-    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> berørt > 0 && hel > 0 && berørt <= hel && ebl_par6d_ægtefællesuccession_gyldig(succession)
-    | EblPar6DPantebrevAfståetEllerIndfriet(fordringsdel, _, berørt, provenu, succession) -> fordringsdel != "" && provenu >= 0 && ebl_par6d_ægtefællesuccession_gyldig(succession) && ebl_par6d_anskaffelsessum_kan_fordeles_præcist(tilstand.sælgerpantebrev_restgæld_kroner, tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, berørt)
-    | EblPar6DSælgerDød(fordringsdel, berørt, overdragelse) -> fordringsdel != "" && ebl_par6d_dødsbooverdragelse_gyldig(overdragelse) && ebl_par6d_anskaffelsessum_kan_fordeles_præcist(tilstand.sælgerpantebrev_restgæld_kroner, tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, berørt)
-    | EblPar6DSkattepligtOphørt(fakta) -> fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0
-    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> ebl_par6d_sikkerhed_gyldig(sikkerhed)
+    | EblPar6DIngenFremrykningshændelse -> ebl_par6d_tilstand_fortjenestepositioner_gyldige(tilstand)
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> succession == EblPar6DIngenÆgtefællesuccession && all(tilstand.fortjenestepositioner, |position: EblPar6DFortjenesteposition| ebl_par6d_ejendomsandel_kan_fordeles_præcist(position, berørt, hel))
+    | EblPar6DPantebrevAfståetEllerIndfriet(fordringsdel, _, berørt, provenu, succession) -> {
+        = position = ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel)
+        = modtagers_fordringsdel = ebl_par6d_ægtefællesuccession_modtagers_fordringsdel(succession)
+        ebl_par6d_tilstand_fortjenestepositioner_gyldige(tilstand) && provenu >= 0 && ebl_par6d_ægtefællesuccession_gyldig(succession) && ebl_par6d_fortjenesteposition_entydig(tilstand.fortjenestepositioner, fordringsdel) && hvis ebl_par6d_ægtefællesuccession_undtager(succession) { ebl_par6d_successionsfordeling_kan_fordeles_præcist(position, berørt) && modtagers_fordringsdel != fordringsdel && length(ebl_par6d_matchende_fortjenestepositioner(tilstand.fortjenestepositioner, modtagers_fordringsdel)) == 0 } ellers { ebl_par6d_fortjenestefordeling_kan_fordeles_præcist(position, berørt) }
+    }
+    | EblPar6DSælgerDød(fordringsdel, berørt, overdragelse) -> {
+        = position = ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel)
+        = modtagers_fordringsdel = ebl_par6d_dødsbooverdragelse_modtagers_fordringsdel(overdragelse)
+        ebl_par6d_tilstand_fortjenestepositioner_gyldige(tilstand) && ebl_par6d_dødsbooverdragelse_gyldig(overdragelse) && ebl_par6d_fortjenesteposition_entydig(tilstand.fortjenestepositioner, fordringsdel) && ebl_par6d_successionsfordeling_kan_fordeles_præcist(position, berørt) && modtagers_fordringsdel != fordringsdel && length(ebl_par6d_matchende_fortjenestepositioner(tilstand.fortjenestepositioner, modtagers_fordringsdel)) == 0
+    }
+    | EblPar6DSkattepligtOphørt(fakta) -> fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0 && length(ebl_par6d_fortjenestebærende_positioner(tilstand.fortjenestepositioner)) == 1
+    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> ebl_par6d_sikkerhed_gyldig(sikkerhed) && (ebl_par6d_sikkerhed_godkendt(sikkerhed) || length(ebl_par6d_fortjenestebærende_positioner(tilstand.fortjenestepositioner)) == 1)
     | EblPar6DFlyttetTilLandMedInddrivelsesbistand(_) -> Sandt
     | EblPar6DIkkeUnderstøttetHændelse(beskrivelse) -> beskrivelse != ""
 }
-| ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
-    | EblPar6DIngenFremrykningshændelse -> 0
-    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { tilstand.resterende_udskudt_fortjeneste_kroner * berørt / hel }
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { tilstand.resterende_udskudt_fortjeneste_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
-    | EblPar6DSælgerDød(_, berørt, overdragelse) -> hvis ebl_par6d_dødsbooverdragelse_undtager(tilstand.sælgerpantebrev_restgæld_kroner, tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, berørt, overdragelse) { 0 } ellers { tilstand.resterende_udskudt_fortjeneste_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
-    | EblPar6DSkattepligtOphørt(_) -> tilstand.resterende_udskudt_fortjeneste_kroner
-    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> hvis ebl_par6d_sikkerhed_godkendt(sikkerhed) { 0 } ellers { tilstand.resterende_udskudt_fortjeneste_kroner }
-    | EblPar6DFlyttetTilLandMedInddrivelsesbistand(_) -> 0
-    | EblPar6DIkkeUnderstøttetHændelse(_) -> 0
+| ebl_par6d_hændelse_fortjenestemedregninger(indkomstår: Heltal, tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, _) -> flat_map(tilstand.fortjenestepositioner, |position: EblPar6DFortjenesteposition| ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår, position.fordringsdel_identifikation, ebl_par6d_ejendomsandel_fortjeneste_kroner(position, berørt, hel)))
+    | EblPar6DPantebrevAfståetEllerIndfriet(fordringsdel, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { [] } ellers {
+        = position = ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel)
+        ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår, fordringsdel, ebl_par6d_fordelt_fortjeneste_kroner(position, berørt))
+    }
+    | EblPar6DSælgerDød(fordringsdel, berørt, overdragelse) -> {
+        = position = ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel)
+        hvis ebl_par6d_dødsbooverdragelse_undtager(position.resterende_hovedstol_kroner, position.resterende_anskaffelsessum_kroner, berørt, overdragelse) { [] } ellers { ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår, ebl_par6d_dødsbooverdragelse_boets_fordringsdel(overdragelse), ebl_par6d_fordelt_fortjeneste_kroner(position, berørt)) }
+    }
+    | EblPar6DSkattepligtOphørt(_) -> flat_map(tilstand.fortjenestepositioner, |position: EblPar6DFortjenesteposition| ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår, position.fordringsdel_identifikation, position.resterende_udskudt_fortjeneste_kroner))
+    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> hvis ebl_par6d_sikkerhed_godkendt(sikkerhed) { [] } ellers { flat_map(tilstand.fortjenestepositioner, |position: EblPar6DFortjenesteposition| ebl_par6d_fremrykket_medregning_hvis_positiv(indkomstår, position.fordringsdel_identifikation, position.resterende_udskudt_fortjeneste_kroner)) }
+    | _ -> []
+}
+| ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(indkomstår: Heltal, tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> ebl_par6d_fortjenestemedregninger_beløb_kroner(ebl_par6d_hændelse_fortjenestemedregninger(indkomstår, tilstand, hændelse))
+| ebl_par6d_hændelse_fortjenestepositioner_efter(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, _) -> map(tilstand.fortjenestepositioner, |position: EblPar6DFortjenesteposition| ebl_par6d_fortjenesteposition_efter_ejendomshændelse(position, berørt, hel))
+    | EblPar6DPantebrevAfståetEllerIndfriet(fordringsdel, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { ebl_par6d_fortjenestepositioner_efter_fordeling(tilstand.fortjenestepositioner, fordringsdel, ebl_par6d_ægtefællesuccession_modtagers_fordringsdel(succession), berørt, Sandt, Sandt) } ellers { ebl_par6d_fortjenestepositioner_efter_fordeling(tilstand.fortjenestepositioner, fordringsdel, "", berørt, Falskt, Falskt) }
+    | EblPar6DSælgerDød(fordringsdel, berørt, overdragelse) -> {
+        = position = ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel)
+        = succession = ebl_par6d_dødsbooverdragelse_undtager(position.resterende_hovedstol_kroner, position.resterende_anskaffelsessum_kroner, berørt, overdragelse)
+        ebl_par6d_fortjenestepositioner_efter_fordeling(tilstand.fortjenestepositioner, fordringsdel, ebl_par6d_dødsbooverdragelse_modtagers_fordringsdel(overdragelse), berørt, Sandt, succession)
+    }
+    | EblPar6DSkattepligtOphørt(_) -> map(tilstand.fortjenestepositioner, ebl_par6d_fortjenesteposition_uden_udskudt_fortjeneste)
+    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> hvis ebl_par6d_sikkerhed_godkendt(sikkerhed) { tilstand.fortjenestepositioner } ellers { map(tilstand.fortjenestepositioner, ebl_par6d_fortjenesteposition_uden_udskudt_fortjeneste) }
+    | _ -> tilstand.fortjenestepositioner
 }
 | ebl_par6d_hændelse_gældsnedskrivning_kroner(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
     | EblPar6DPantebrevAfståetEllerIndfriet(_, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { berørt }
     | _ -> 0
 }
 | ebl_par6d_hændelse_anskaffelsessumsnedskrivning_kroner(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { ebl_par6d_fordelt_anskaffelsessum_kroner(tilstand.sælgerpantebrev_restgæld_kroner, tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, berørt) }
+    | EblPar6DPantebrevAfståetEllerIndfriet(fordringsdel, _, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { ebl_par6d_fordelt_positionsanskaffelsessum_kroner(ebl_par6d_fortjenesteposition(tilstand.fortjenestepositioner, fordringsdel), berørt) }
     | _ -> 0
 }
 
@@ -305,16 +422,25 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 
 # EblPar6DÅrsforløbspostSag(fakta: EblPar6DValgfakta, indkomstår: Heltal, afståelsesåret: Boolsk, planlagt_kumuleret_afdrag_kroner: Heltal, forløb: EblPar6DÅrspostforløbstilstand, post: EblPar6DÅrsforløbspost) {
     | post_gyldig() -> match post {
-        | EblPar6DOrdinærtHovedstolsafdrag(fordringsdel, betalt) -> afståelsesåret == Falskt && fordringsdel != "" && betalt > 0 && forløb.tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + betalt <= planlagt_kumuleret_afdrag_kroner && ebl_par6d_anskaffelsessum_kan_fordeles_præcist(forløb.tilstand.sælgerpantebrev_restgæld_kroner, forløb.tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, betalt)
+        | EblPar6DOrdinærtHovedstolsafdrag(fordringsdel, betalt) -> {
+            = position = ebl_par6d_fortjenesteposition(forløb.tilstand.fortjenestepositioner, fordringsdel)
+            afståelsesåret == Falskt && ebl_par6d_tilstand_fortjenestepositioner_gyldige(forløb.tilstand) && ebl_par6d_fortjenesteposition_entydig(forløb.tilstand.fortjenestepositioner, fordringsdel) && betalt > 0 && forløb.tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + betalt <= planlagt_kumuleret_afdrag_kroner && ebl_par6d_anskaffelsessum_kan_fordeles_præcist(position.resterende_hovedstol_kroner, position.resterende_anskaffelsessum_kroner, betalt)
+        }
         | EblPar6DFremrykningshændelse(hændelse) -> forløb.hændelse_behandlet == Falskt && hændelse != EblPar6DIngenFremrykningshændelse && ebl_par6d_hændelse_gyldig(forløb.tilstand, hændelse)
         | EblPar6DUafklaretBetalingstidspunkt(_, _) -> Falskt
     }
     | ordinært_hovedstolsafdrag_kroner() -> match post { | EblPar6DOrdinærtHovedstolsafdrag(_, betalt) -> hvis post_gyldig() { betalt } ellers { 0 } | _ -> 0 }
-    | fremrykket_fortjeneste_kroner() -> match post { | EblPar6DFremrykningshændelse(hændelse) -> hvis post_gyldig() { ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(forløb.tilstand, hændelse) } ellers { 0 } | _ -> 0 }
+    | fortjenestemedregninger() -> match post { | EblPar6DFremrykningshændelse(hændelse) -> hvis post_gyldig() { ebl_par6d_hændelse_fortjenestemedregninger(indkomstår, forløb.tilstand, hændelse) } ellers { [] } | _ -> [] }
+    | fremrykket_fortjeneste_kroner() -> ebl_par6d_fortjenestemedregninger_beløb_kroner(fortjenestemedregninger())
     | ekstraordinær_gældsnedskrivning_kroner() -> match post { | EblPar6DFremrykningshændelse(hændelse) -> hvis post_gyldig() { ebl_par6d_hændelse_gældsnedskrivning_kroner(forløb.tilstand, hændelse) } ellers { 0 } | _ -> 0 }
-    | frigivet_anskaffelsessum_ved_betaling_kroner() -> hvis ordinært_hovedstolsafdrag_kroner() > 0 { ebl_par6d_fordelt_anskaffelsessum_kroner(forløb.tilstand.sælgerpantebrev_restgæld_kroner, forløb.tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, ordinært_hovedstolsafdrag_kroner()) } ellers { 0 }
+    | frigivet_anskaffelsessum_ved_betaling_kroner() -> match post { | EblPar6DOrdinærtHovedstolsafdrag(fordringsdel, betalt) -> hvis post_gyldig() { ebl_par6d_fordelt_positionsanskaffelsessum_kroner(ebl_par6d_fortjenesteposition(forløb.tilstand.fortjenestepositioner, fordringsdel), betalt) } ellers { 0 } | _ -> 0 }
     | frigivet_anskaffelsessum_ved_hændelse_kroner() -> match post { | EblPar6DFremrykningshændelse(hændelse) -> hvis post_gyldig() { ebl_par6d_hændelse_anskaffelsessumsnedskrivning_kroner(forløb.tilstand, hændelse) } ellers { 0 } | _ -> 0 }
     | frigivet_anskaffelsessum_kroner() -> frigivet_anskaffelsessum_ved_betaling_kroner() + frigivet_anskaffelsessum_ved_hændelse_kroner()
+    | fortjenestepositioner_efter() -> match post {
+        | EblPar6DOrdinærtHovedstolsafdrag(fordringsdel, betalt) -> hvis post_gyldig() { ebl_par6d_fortjenestepositioner_efter_hovedstolsafdrag(forløb.tilstand.fortjenestepositioner, fordringsdel, betalt) } ellers { forløb.tilstand.fortjenestepositioner }
+        | EblPar6DFremrykningshændelse(hændelse) -> hvis post_gyldig() { ebl_par6d_hændelse_fortjenestepositioner_efter(forløb.tilstand, hændelse) } ellers { forløb.tilstand.fortjenestepositioner }
+        | EblPar6DUafklaretBetalingstidspunkt(_, _) -> forløb.tilstand.fortjenestepositioner
+    }
     | henstandsresultat() -> match post {
         | EblPar6DFremrykningshændelse(EblPar6DSkattepligtOphørt(ophørsfakta)) -> hvis post_gyldig() { ebl_par6d_henstandsresultat(ophørsfakta, indkomstår, forløb.tilstand.afståelsesår + forløb.tilstand.fordelingsår, forløb.tilstand.resterende_udskudt_fortjeneste_kroner, forløb.tilstand.sælgerpantebrev_restgæld_kroner, forløb.tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner) } ellers { ebl_par6d_tomt_henstandsresultat() }
         | _ -> ebl_par6d_tomt_henstandsresultat()
@@ -324,9 +450,10 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
         afståelsesår = forløb.tilstand.afståelsesår,
         fordelingsår = forløb.tilstand.fordelingsår,
         årligt_beløb_kroner = forløb.tilstand.årligt_beløb_kroner,
-        resterende_udskudt_fortjeneste_kroner = forløb.tilstand.resterende_udskudt_fortjeneste_kroner - fremrykket_fortjeneste_kroner(),
-        sælgerpantebrev_restgæld_kroner = forløb.tilstand.sælgerpantebrev_restgæld_kroner - ordinært_hovedstolsafdrag_kroner() - ekstraordinær_gældsnedskrivning_kroner(),
-        sælgerpantebrev_resterende_anskaffelsessum_kroner = forløb.tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner - frigivet_anskaffelsessum_kroner(),
+        resterende_udskudt_fortjeneste_kroner = ebl_par6d_fortjenestepositioner_udskudt_fortjeneste_kroner(fortjenestepositioner_efter()),
+        sælgerpantebrev_restgæld_kroner = ebl_par6d_fortjenestepositioner_restgæld_kroner(fortjenestepositioner_efter()),
+        sælgerpantebrev_resterende_anskaffelsessum_kroner = ebl_par6d_fortjenestepositioner_anskaffelsessum_kroner(fortjenestepositioner_efter()),
+        fortjenestepositioner = fortjenestepositioner_efter(),
         kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = forløb.tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + ordinært_hovedstolsafdrag_kroner(),
         næste_indkomstår = forløb.tilstand.næste_indkomstår,
         ordning_aktiv = forløb.tilstand.ordning_aktiv
@@ -339,6 +466,7 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
         ordinært_hovedstolsafdrag_kroner = ordinært_hovedstolsafdrag_kroner(),
         frigivet_anskaffelsessum_kroner = frigivet_anskaffelsessum_kroner(),
         fremrykket_fortjeneste_kroner = fremrykket_fortjeneste_kroner(),
+        fortjenestemedregninger = fortjenestemedregninger(),
         ekstraordinær_gældsnedskrivning_kroner = ekstraordinær_gældsnedskrivning_kroner(),
         sikkerhed_frigives_efter_anmodning = sikkerhed_frigives_efter_anmodning(),
         henstandsresultat = henstandsresultat(),
@@ -364,18 +492,33 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     )
 }
 
+| ebl_par6d_ordinært_positionsbeløb_kroner(position: EblPar6DFortjenesteposition) -> penge_mindste_beløb(position.resterende_udskudt_fortjeneste_kroner, position.årligt_beløb_kroner)
+| ebl_par6d_ordinær_fortjenestemedregning(indkomstår: Heltal, position: EblPar6DFortjenesteposition) -> EblPar6DFortjenestemedregning(indkomstår = indkomstår, fordringsdel_identifikation = position.fordringsdel_identifikation, art = EblPar6DOrdinærMedregning, beløb_kroner = ebl_par6d_ordinært_positionsbeløb_kroner(position))
+| ebl_par6d_ordinære_fortjenestemedregninger(indkomstår: Heltal, positioner: List(EblPar6DFortjenesteposition)) -> map(filter(positioner, |position: EblPar6DFortjenesteposition| ebl_par6d_ordinært_positionsbeløb_kroner(position) > 0), |position: EblPar6DFortjenesteposition| ebl_par6d_ordinær_fortjenestemedregning(indkomstår, position))
+| ebl_par6d_fortjenesteposition_efter_ordinær_medregning(position: EblPar6DFortjenesteposition) -> EblPar6DFortjenesteposition(
+    fordringsdel_identifikation = position.fordringsdel_identifikation,
+    resterende_hovedstol_kroner = position.resterende_hovedstol_kroner,
+    resterende_anskaffelsessum_kroner = position.resterende_anskaffelsessum_kroner,
+    resterende_udskudt_fortjeneste_kroner = position.resterende_udskudt_fortjeneste_kroner - ebl_par6d_ordinært_positionsbeløb_kroner(position),
+    årligt_beløb_kroner = position.årligt_beløb_kroner
+)
+
 # EblPar6DÅrSag(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold) {
     | afståelsesåret() -> årsforhold.indkomstår == tilstand.afståelsesår
     | år_efter_afståelsen() -> årsforhold.indkomstår - tilstand.afståelsesår
-    | ordinært_medregnet_fortjeneste_kroner() -> hvis afståelsesåret() { 0 } ellers { penge_mindste_beløb(tilstand.resterende_udskudt_fortjeneste_kroner, tilstand.årligt_beløb_kroner) }
+    | ordinære_fortjenestemedregninger() -> hvis afståelsesåret() { [] } ellers { ebl_par6d_ordinære_fortjenestemedregninger(årsforhold.indkomstår, tilstand.fortjenestepositioner) }
+    | ordinært_medregnet_fortjeneste_kroner() -> ebl_par6d_fortjenestemedregninger_beløb_kroner(ordinære_fortjenestemedregninger())
+    | fortjenestepositioner_efter_ordinær_medregning() -> hvis afståelsesåret() { tilstand.fortjenestepositioner } ellers { map(tilstand.fortjenestepositioner, ebl_par6d_fortjenesteposition_efter_ordinær_medregning) }
     | planlagt_kumuleret_afdrag_kroner() -> ebl_par6d_planlagt_kumuleret_hovedstolsafdrag_kroner(fakta.sælgerpantebrev, år_efter_afståelsen())
-    | arbejdstilstand() -> EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = tilstand.resterende_udskudt_fortjeneste_kroner - ordinært_medregnet_fortjeneste_kroner(), sælgerpantebrev_restgæld_kroner = tilstand.sælgerpantebrev_restgæld_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = tilstand.næste_indkomstår, ordning_aktiv = tilstand.ordning_aktiv)
+    | arbejdstilstand() -> EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = ebl_par6d_fortjenestepositioner_udskudt_fortjeneste_kroner(fortjenestepositioner_efter_ordinær_medregning()), sælgerpantebrev_restgæld_kroner = tilstand.sælgerpantebrev_restgæld_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, fortjenestepositioner = fortjenestepositioner_efter_ordinær_medregning(), kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = tilstand.næste_indkomstår, ordning_aktiv = tilstand.ordning_aktiv)
     | initialt_postforløb() -> EblPar6DÅrspostforløbstilstand(tilstand = arbejdstilstand(), resultater = [], alle_poster_gyldige = Sandt, regelgrundlag_understøttet = Sandt, hændelse_behandlet = Falskt, ordinært_hovedstolsafdrag_kroner = 0, frigivet_anskaffelsessum_kroner = 0, fremrykket_fortjeneste_kroner = 0, ekstraordinær_gældsnedskrivning_kroner = 0, sikkerhed_frigives_efter_anmodning = Falskt, henstandsresultat = ebl_par6d_tomt_henstandsresultat())
     | postforløb() -> foldl(årsforhold.forløbsposter, initialt_postforløb(), |forløb: EblPar6DÅrspostforløbstilstand, post: EblPar6DÅrsforløbspost| ebl_par6d_årsforløbsposttrin(fakta, årsforhold.indkomstår, afståelsesåret(), planlagt_kumuleret_afdrag_kroner(), forløb, post))
-    | år_gyldigt() -> tilstand.ordning_aktiv && årsforhold.indkomstår == tilstand.næste_indkomstår && årsforhold.indkomstår <= tilstand.afståelsesår + tilstand.fordelingsår && postforløb().alle_poster_gyldige && postforløb().henstandsresultat.input_gyldigt
+    | post_fortjenestemedregninger() -> flat_map(postforløb().resultater, |resultat: EblPar6DÅrsforløbspostresultat| resultat.fortjenestemedregninger)
+    | fortjenestemedregninger() -> concat(ordinære_fortjenestemedregninger(), post_fortjenestemedregninger())
+    | år_gyldigt() -> tilstand.ordning_aktiv && ebl_par6d_tilstand_fortjenestepositioner_gyldige(tilstand) && årsforhold.indkomstår == tilstand.næste_indkomstår && årsforhold.indkomstår <= tilstand.afståelsesår + tilstand.fordelingsår && postforløb().alle_poster_gyldige && postforløb().henstandsresultat.input_gyldigt && ebl_par6d_tilstand_fortjenestepositioner_gyldige(postforløb().tilstand)
     | næste_indkomstår() -> hvis afståelsesåret() { tilstand.afståelsesår + 1 } ellers { tilstand.næste_indkomstår + 1 }
-    | tilstand_efter() -> hvis år_gyldigt() { EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = postforløb().tilstand.resterende_udskudt_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = postforløb().tilstand.sælgerpantebrev_restgæld_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = postforløb().tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = postforløb().tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = næste_indkomstår(), ordning_aktiv = postforløb().tilstand.resterende_udskudt_fortjeneste_kroner > 0) } ellers { tilstand }
-    | resultat() -> EblPar6DÅrsresultat(tilstand_før = tilstand, årsforhold = årsforhold, år_gyldigt = år_gyldigt(), regelgrundlag_understøttet = postforløb().regelgrundlag_understøttet, ordinært_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() } ellers { 0 }, fremrykket_fortjeneste_kroner = hvis år_gyldigt() { postforløb().fremrykket_fortjeneste_kroner } ellers { 0 }, samlet_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() + postforløb().fremrykket_fortjeneste_kroner } ellers { 0 }, ordinært_hovedstolsafdrag_kroner = hvis år_gyldigt() { postforløb().ordinært_hovedstolsafdrag_kroner } ellers { 0 }, ekstraordinær_gældsnedskrivning_kroner = hvis år_gyldigt() { postforløb().ekstraordinær_gældsnedskrivning_kroner } ellers { 0 }, forløbspostresultater = postforløb().resultater, sikkerhed_frigives_efter_anmodning = år_gyldigt() && postforløb().sikkerhed_frigives_efter_anmodning, henstandsresultat = postforløb().henstandsresultat, tilstand_efter = tilstand_efter())
+    | tilstand_efter() -> hvis år_gyldigt() { EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = postforløb().tilstand.resterende_udskudt_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = postforløb().tilstand.sælgerpantebrev_restgæld_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = postforløb().tilstand.sælgerpantebrev_resterende_anskaffelsessum_kroner, fortjenestepositioner = postforløb().tilstand.fortjenestepositioner, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = postforløb().tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = næste_indkomstår(), ordning_aktiv = postforløb().tilstand.resterende_udskudt_fortjeneste_kroner > 0) } ellers { tilstand }
+    | resultat() -> EblPar6DÅrsresultat(tilstand_før = tilstand, årsforhold = årsforhold, år_gyldigt = år_gyldigt(), regelgrundlag_understøttet = postforløb().regelgrundlag_understøttet, ordinært_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() } ellers { 0 }, fremrykket_fortjeneste_kroner = hvis år_gyldigt() { postforløb().fremrykket_fortjeneste_kroner } ellers { 0 }, samlet_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() + postforløb().fremrykket_fortjeneste_kroner } ellers { 0 }, fortjenestemedregninger = hvis år_gyldigt() { fortjenestemedregninger() } ellers { [] }, ordinært_hovedstolsafdrag_kroner = hvis år_gyldigt() { postforløb().ordinært_hovedstolsafdrag_kroner } ellers { 0 }, ekstraordinær_gældsnedskrivning_kroner = hvis år_gyldigt() { postforløb().ekstraordinær_gældsnedskrivning_kroner } ellers { 0 }, forløbspostresultater = postforløb().resultater, sikkerhed_frigives_efter_anmodning = år_gyldigt() && postforløb().sikkerhed_frigives_efter_anmodning, henstandsresultat = postforløb().henstandsresultat, tilstand_efter = tilstand_efter())
 }
 
 | ebl_par6d_årsresultat(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold) -> EblPar6DÅrSag(fakta, tilstand, årsforhold).resultat()
@@ -383,13 +526,13 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     = resultat = ebl_par6d_årsresultat(forløb.fakta, forløb.tilstand, årsforhold)
     EblPar6DForløbstilstand(fakta = forløb.fakta, tilstand = resultat.tilstand_efter, årsresultater = concat(forløb.årsresultater, [resultat]), alle_år_gyldige = forløb.alle_år_gyldige && resultat.år_gyldigt, regelgrundlag_understøttet = forløb.regelgrundlag_understøttet && resultat.regelgrundlag_understøttet)
 }
-| ebl_par6d_tom_tilstand(afståelsesår: Heltal) -> EblPar6DTilstand(afståelsesår = afståelsesår, fordelingsår = 0, årligt_beløb_kroner = 0, resterende_udskudt_fortjeneste_kroner = 0, sælgerpantebrev_restgæld_kroner = 0, sælgerpantebrev_resterende_anskaffelsessum_kroner = 0, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = afståelsesår, ordning_aktiv = Falskt)
+| ebl_par6d_tom_tilstand(afståelsesår: Heltal) -> EblPar6DTilstand(afståelsesår = afståelsesår, fordelingsår = 0, årligt_beløb_kroner = 0, resterende_udskudt_fortjeneste_kroner = 0, sælgerpantebrev_restgæld_kroner = 0, sælgerpantebrev_resterende_anskaffelsessum_kroner = 0, fortjenestepositioner = [], kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = afståelsesår, ordning_aktiv = Falskt)
 
 # EblPar6DValgSag(kontekst: EblPar6DKontekst, fakta: EblPar6DValgfakta) {
     | grundfakta_gyldige() -> ebl_dato_gyldig(kontekst.afståelsesdato) && kontekst.skattepligtig_fortjeneste_før_par6d_kroner > 0 && kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner > 0 && kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner <= kontekst.skattepligtig_fortjeneste_før_par6d_kroner && kontekst.kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner > 0 && fakta.valgt_udskudt_fortjeneste_kroner > 0 && fakta.årligt_beløb_kroner > 0 && fakta.fordelingsår >= 1 && fakta.fordelingsår <= 10 && fakta.årligt_beløb_kroner * fakta.fordelingsår == fakta.valgt_udskudt_fortjeneste_kroner && ebl_par6d_partrelation_gyldig(fakta.partrelation) && ebl_par6d_erhvervsanvendelse_gyldig(fakta.overdragerens_anvendelse) && ebl_par6d_erhvervsanvendelse_gyldig(fakta.erhververens_anvendelse_ved_overdragelsen) && ebl_par6d_sælgerpantebrev_gyldigt(fakta.sælgerpantebrev, fakta.valgt_udskudt_fortjeneste_kroner, fakta.fordelingsår) && ebl_par6d_sælgers_skatteforhold_gyldige(fakta.sælgers_skatteforhold) && ebl_par6d_ejendomsplacering_gyldig(fakta.ejendomsplacering)
     | beløbsgrænser_opfyldt() -> fakta.valgt_udskudt_fortjeneste_kroner <= kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner && fakta.valgt_udskudt_fortjeneste_kroner * 10 <= kontekst.kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner
     | betingelser_opfyldt_før_årsforløb() -> ebl_par6d_har_virkning(kontekst.afståelsesdato) && kontekst.ejendom_omfattet_af_par8 == Falskt && fakta.erhververen_erhvervede_ejendommen_som_led_i_næring == Falskt && ebl_par6d_parter_forbundet_efter_ligningslovens_par2(fakta.partrelation) == Falskt && ebl_par6d_erhvervsanvendelse_kvalificerer(fakta.overdragerens_anvendelse) && ebl_par6d_erhvervsanvendelse_kvalificerer(fakta.erhververens_anvendelse_ved_overdragelsen) && beløbsgrænser_opfyldt() && ebl_par6d_meddelelse_gyldig(fakta.meddelelse, kontekst, fakta) && ebl_par6d_sikkerhedsbetingelse_opfyldt(fakta.sælgers_skatteforhold) && ebl_par6d_ejendomsplacering_tilladt(fakta.ejendomsplacering)
-    | initial_tilstand() -> EblPar6DTilstand(afståelsesår = kontekst.afståelsesdato.år, fordelingsår = fakta.fordelingsår, årligt_beløb_kroner = fakta.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = fakta.valgt_udskudt_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = fakta.sælgerpantebrev.hovedstol_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = fakta.sælgerpantebrev.kontantværdi_kroner, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = kontekst.afståelsesdato.år, ordning_aktiv = grundfakta_gyldige() && betingelser_opfyldt_før_årsforløb())
+    | initial_tilstand() -> EblPar6DTilstand(afståelsesår = kontekst.afståelsesdato.år, fordelingsår = fakta.fordelingsår, årligt_beløb_kroner = fakta.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = fakta.valgt_udskudt_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = fakta.sælgerpantebrev.hovedstol_kroner, sælgerpantebrev_resterende_anskaffelsessum_kroner = fakta.sælgerpantebrev.kontantværdi_kroner, fortjenestepositioner = [EblPar6DFortjenesteposition(fordringsdel_identifikation = fakta.sælgerpantebrev.identifikation, resterende_hovedstol_kroner = fakta.sælgerpantebrev.hovedstol_kroner, resterende_anskaffelsessum_kroner = fakta.sælgerpantebrev.kontantværdi_kroner, resterende_udskudt_fortjeneste_kroner = fakta.valgt_udskudt_fortjeneste_kroner, årligt_beløb_kroner = fakta.årligt_beløb_kroner)], kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = kontekst.afståelsesdato.år, ordning_aktiv = grundfakta_gyldige() && betingelser_opfyldt_før_årsforløb())
     | afståelsesårets_forløbsposter() -> match fakta.afståelsesårets_hændelse { | EblPar6DIngenFremrykningshændelse -> [] | hændelse -> [EblPar6DFremrykningshændelse(hændelse = hændelse)] }
     | afståelsesårets_forhold() -> EblPar6DÅrsforhold(indkomstår = kontekst.afståelsesdato.år, forløbsposter = afståelsesårets_forløbsposter())
     | efter_afståelsesåret() -> ebl_par6d_forløbstrin(EblPar6DForløbstilstand(fakta = fakta, tilstand = initial_tilstand(), årsresultater = [], alle_år_gyldige = Sandt, regelgrundlag_understøttet = Sandt), afståelsesårets_forhold())
@@ -404,6 +547,8 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     | EblMedPar6DValg(fakta) -> EblPar6DValgSag(kontekst, fakta).resultat()
 }
 | ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(resultat: EblPar6DResultat, indkomstår: Heltal) -> foldl(resultat.årsresultater, 0, |sum: Heltal, årsresultat: EblPar6DÅrsresultat| sum + hvis årsresultat.årsforhold.indkomstår == indkomstår { årsresultat.samlet_medregnet_fortjeneste_kroner } ellers { 0 })
+| ebl_par6d_fortjenestemedregninger(resultat: EblPar6DResultat) -> flat_map(resultat.årsresultater, |årsresultat: EblPar6DÅrsresultat| årsresultat.fortjenestemedregninger)
+| ebl_par6d_fortjenestemedregninger_i_indkomstår(resultat: EblPar6DResultat, indkomstår: Heltal) -> filter(ebl_par6d_fortjenestemedregninger(resultat), |medregning: EblPar6DFortjenestemedregning| medregning.indkomstår == indkomstår)
 | ebl_par6d_sidst_behandlede_indkomstår(resultat: EblPar6DResultat) -> hvis length(resultat.årsresultater) == 0 { resultat.tilstand_ultimo.afståelsesår } ellers { last(resultat.årsresultater).årsforhold.indkomstår }
 | ebl_par6d_forløb_dækker_indkomstår(resultat: EblPar6DResultat, indkomstår: Heltal) -> match resultat.valg {
     | EblUdenPar6DValg -> Sandt

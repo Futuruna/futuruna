@@ -17079,7 +17079,7 @@ fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
 /// Count only CONSUMING uses of variables — places where ownership is required.
 /// A consuming use is: argument to a non-borrow function call, or constructor argument.
 /// Non-consuming: show() args (emitted as .to_string(), which borrows), BinOp operands,
-/// if conditions, field access, match scrutinees.
+/// if conditions, and field access. Match scrutinees consume when destructuring can move fields.
 fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match &expr.kind {
         ExprKind::App(func, args) => {
@@ -17108,6 +17108,12 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
             count_consuming_uses(else_, counts);
         }
         ExprKind::Match(scrutinee, arms) => {
+            // Matching an owned value may move fields out of it. Count the
+            // scrutinee itself as consuming so a later arm use preserves the
+            // original Futuruna value with a clone.
+            if let ExprKind::Var(name) = &scrutinee.kind {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
             count_consuming_uses(scrutinee, counts);
             for arm in arms {
                 count_consuming_uses(&arm.body, counts);
@@ -17354,6 +17360,12 @@ fn count_consuming_uses_borrow_aware_impl(
             }
         }
         ExprKind::Match(scrutinee, arms) => {
+            // Rust patterns can partially move an owned ADT. Futuruna values
+            // remain reusable after a match, so include that move in the
+            // ownership count and clone only when an arm also needs the value.
+            if let ExprKind::Var(name) = &scrutinee.kind {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
             count_consuming_uses_borrow_aware_impl(
                 scrutinee,
                 counts,
@@ -25636,20 +25648,15 @@ impl RustCodegen {
         let prev_var_consuming_counts = self.var_consuming_counts.clone();
         let prev_in_self_method = self.in_self_method;
         let method_ownership = self.analyze_rule_group_ownership(rules);
+        // RuleScope bodies can introduce block-local values. Install the full
+        // method analysis so those locals receive the same value-semantics
+        // clone decisions as locals in ordinary rules.
+        self.var_use_counts = method_ownership.var_uses.clone();
+        self.var_consuming_counts = method_ownership.consuming_uses.clone();
         for (name, ty) in all_names.iter().zip(all_tys.iter()) {
             self.local_bindings.insert(name.clone());
             if Self::fir_ty_is_copy(ty) {
                 self.copy_vars.insert(name.clone());
-            }
-            if let Some(count) = method_ownership.var_uses.get(name).copied() {
-                self.var_use_counts.insert(name.clone(), count);
-            } else {
-                self.var_use_counts.remove(name);
-            }
-            if let Some(count) = method_ownership.consuming_uses.get(name).copied() {
-                self.var_consuming_counts.insert(name.clone(), count);
-            } else {
-                self.var_consuming_counts.remove(name);
             }
         }
         self.in_self_method = true;
@@ -35806,7 +35813,18 @@ impl RustCodegen {
             }
             ExprKind::Match(scrut, arms) => {
                 let scrutinee_ty = self.infer_expr_fir_ty(scrut);
-                let s = self.emit_expr(scrut);
+                let emitted_scrutinee = self.emit_expr(scrut);
+                let s = if let ExprKind::Var(name) = &scrut.kind {
+                    if self.match_scrutinee_var_needs_clone(name)
+                        && !emitted_scrutinee.trim_end().ends_with(".clone()")
+                    {
+                        format!("({}).clone()", emitted_scrutinee)
+                    } else {
+                        emitted_scrutinee
+                    }
+                } else {
+                    emitted_scrutinee
+                };
                 let refined_subject = self.match_uses_refined_variant_subject(scrut, arms);
                 let match_subject = if refined_subject {
                     if let ExprKind::Var(name) = &scrut.kind {
@@ -37614,6 +37632,10 @@ impl RustCodegen {
             && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
     }
 
+    fn match_scrutinee_var_needs_clone(&self, name: &str) -> bool {
+        !self.current_borrow_params.contains(name) && self.if_branch_var_needs_clone(name)
+    }
+
     fn emit_block_body_lines_with_expected_ty(
         &mut self,
         stmts: &[Stmt],
@@ -37834,7 +37856,18 @@ impl RustCodegen {
                 out
             }
             ExprKind::Match(scrutinee, arms) => {
-                let scrut_str = self.emit_expr(scrutinee);
+                let emitted_scrutinee = self.emit_expr(scrutinee);
+                let scrut_str = if let ExprKind::Var(name) = &scrutinee.kind {
+                    if self.match_scrutinee_var_needs_clone(name)
+                        && !emitted_scrutinee.trim_end().ends_with(".clone()")
+                    {
+                        format!("({}).clone()", emitted_scrutinee)
+                    } else {
+                        emitted_scrutinee
+                    }
+                } else {
+                    emitted_scrutinee
+                };
                 let refined_subject = self.match_uses_refined_variant_subject(scrutinee, arms);
                 let match_subject = if refined_subject {
                     if let ExprKind::Var(name) = &scrutinee.kind {
@@ -46726,6 +46759,28 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_rulescope_clones_reused_block_local_values() {
+        let source = r#"
+# Payload(value: Int)
+# Carrier(payload: Payload)
+# Combined(payload: Payload, carrier: Carrier)
+
+# Case(seed: Int) {
+    | result() -> {
+        = payload = Payload(value = seed)
+        = carrier = Carrier(payload = payload)
+        Combined(payload = payload, carrier = carrier)
+    }
+}
+
+= result = Case(seed = 41).result()
+@ print(show(result.payload.value + result.carrier.payload.value))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "82");
+    }
+
+    #[test]
     fn compiled_rulescope_match_arm_clones_reused_adt_binding() {
         let source = r#"
 # Usage(business: Int, total: Int)
@@ -46746,6 +46801,27 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "true");
+    }
+
+    #[test]
+    fn compiled_rulescope_match_preserves_reused_scrutinee_after_field_move() {
+        let source = r#"
+# Payload(value: Int)
+# Choice = Wrapped(payload: Payload) | Empty
+
+# Case(choice: Choice) {
+    | result() -> match choice {
+        | Wrapped(payload) -> if payload.value > 0 { choice } else { Wrapped(payload = payload) }
+        | Empty -> choice
+    }
+}
+
+= result = Case(choice = Wrapped(payload = Payload(value = 41))).result()
+= value = match result { | Wrapped(payload) -> payload.value | Empty -> 0 }
+@ print(show(value))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "41");
     }
 
     #[test]

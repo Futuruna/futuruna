@@ -509,7 +509,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 121);
         for expected in [
             "Skatteår",
             "Bopælskommune",
@@ -521,6 +520,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årets renteudgifter",
             "Kursgevinster og kurstab",
             "Personen, som beregningen vedrører",
+            "Din ægtefælles identifikation",
             "Årsopgørelse",
             "Ordinært aktieår",
         ] {
@@ -533,10 +533,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .worksheet_range("_columns")
             .expect("column metadata");
         let metadata_headers = column_metadata.rows().next().expect("metadata headers");
+        let sheet_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "sheet")
+            .expect("sheet metadata column");
         let input_path_column = metadata_headers
             .iter()
             .position(|cell| cell.to_string() == "input_path")
             .expect("input_path metadata column");
+        let case_column_count = column_metadata
+            .rows()
+            .skip(1)
+            .filter(|row| {
+                row.get(sheet_column)
+                    .is_some_and(|cell| cell.to_string() == "cases")
+            })
+            .count();
+        assert_eq!(case_headers.len(), case_column_count + 1);
         let canonical_input_paths = column_metadata
             .rows()
             .skip(1)
@@ -567,6 +580,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
             "kapitalindkomst.kursgevinst.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.ægtefælles_skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
