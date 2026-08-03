@@ -16233,6 +16233,114 @@ impl<'a> LoweringCtx<'a> {
                             }
                         }
                     }
+                    if fn_name == "map_new" {
+                        let key_ty = if let Some(ref mut inf) = self.inference {
+                            inf.fresh()
+                        } else {
+                            FirTy::Unknown
+                        };
+                        let value_ty = if let Some(ref mut inf) = self.inference {
+                            inf.fresh()
+                        } else {
+                            FirTy::Unknown
+                        };
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Map(Box::new(key_ty), Box::new(value_ty)),
+                        };
+                    }
+                    if fn_name == "map_insert" && fir_args.len() >= 3 {
+                        let (existing_key_ty, existing_value_ty) = match &fir_args[0].ty {
+                            FirTy::Map(key, value) => ((**key).clone(), (**value).clone()),
+                            _ => (FirTy::Unknown, FirTy::Unknown),
+                        };
+                        let key_ty = FirTy::merge_information(&existing_key_ty, &fir_args[1].ty);
+                        let value_ty =
+                            FirTy::merge_information(&existing_value_ty, &fir_args[2].ty);
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Map(Box::new(key_ty), Box::new(value_ty)),
+                        };
+                    }
+                    if fn_name == "map_get" && fir_args.len() >= 2 {
+                        let value_ty = match &fir_args[0].ty {
+                            FirTy::Map(_, value) => (**value).clone(),
+                            _ => FirTy::Unknown,
+                        };
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Option(Box::new(value_ty)),
+                        };
+                    }
+                    if fn_name == "map_get_or" && fir_args.len() >= 3 {
+                        let map_value_ty = match &fir_args[0].ty {
+                            FirTy::Map(_, value) => (**value).clone(),
+                            _ => FirTy::Unknown,
+                        };
+                        let value_ty = FirTy::merge_information(&map_value_ty, &fir_args[2].ty);
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: value_ty,
+                        };
+                    }
+                    if fn_name == "map_remove" && fir_args.len() >= 2 {
+                        let map_ty = match &fir_args[0].ty {
+                            FirTy::Map(key, value) => Some(FirTy::Map(key.clone(), value.clone())),
+                            _ => None,
+                        };
+                        if let Some(ty) = map_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    if fn_name == "map_merge" && fir_args.len() >= 2 {
+                        let map_ty = match (&fir_args[0].ty, &fir_args[1].ty) {
+                            (
+                                FirTy::Map(left_key, left_value),
+                                FirTy::Map(right_key, right_value),
+                            ) => Some(FirTy::Map(
+                                Box::new(FirTy::merge_information(left_key, right_key)),
+                                Box::new(FirTy::merge_information(left_value, right_value)),
+                            )),
+                            (FirTy::Map(key, value), _) | (_, FirTy::Map(key, value)) => {
+                                Some(FirTy::Map(key.clone(), value.clone()))
+                            }
+                            _ => None,
+                        };
+                        if let Some(ty) = map_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    if fn_name == "map_from" && !fir_args.is_empty() {
+                        let map_ty = match &fir_args[0].ty {
+                            FirTy::List(item) => match item.as_ref() {
+                                FirTy::Tuple(items) if items.len() == 2 => Some(FirTy::Map(
+                                    Box::new(items[0].clone()),
+                                    Box::new(items[1].clone()),
+                                )),
+                                _ => None,
+                            },
+                            _ => None,
+                        };
+                        if let Some(ty) = map_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
                     // map_entries(Map(K, V)) -> List(Tuple(K, V))
                     if fn_name == "map_entries" && !fir_args.is_empty() {
                         let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {
@@ -46618,6 +46726,22 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    #[test]
+    fn interpreted_rulescope_map_get_or_body_returns_map_value_type() {
+        let output = interpret_test_file(std::path::Path::new(
+            "tests/rulescope_map_get_or_value_test.runa",
+        ));
+        assert_eq!(output.trim(), "40\n42");
+    }
+
+    #[test]
+    fn compiled_rulescope_map_get_or_body_returns_map_value_type() {
+        let output = compile_and_run_test_file(std::path::Path::new(
+            "tests/rulescope_map_get_or_value_test.runa",
+        ));
+        assert_eq!(output.trim(), "40\n42");
     }
 
     #[test]

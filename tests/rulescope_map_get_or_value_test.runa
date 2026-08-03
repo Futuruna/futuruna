@@ -1,0 +1,13 @@
+# History(values: Map(String, Int))
+# LookupResult(value: Int)
+
+# Case(history: History, key: String) {
+    | previous() -> map_get_or(history.values, key, 0)
+    | result() -> LookupResult(value = previous() + 2)
+}
+
+= values: Map(String, Int) = map_insert(map_new(), "known", 40)
+= case = Case(history = History(values = values), key = "known")
+
+@ print(show(case.previous()))
+@ print(show(case.result().value))
