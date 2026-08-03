@@ -231,11 +231,11 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
     | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtager, overdrager_i_danmark, modtager_i_danmark) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && overdrager_i_danmark && modtager_i_danmark
     | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(bo) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && bo != "" && bo != tranche.skatteyder.identifikation
     | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtager) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation
-    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtager, bo_ikke_fritaget, _, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> tranche.skatteyder.rolle == KglDødsboEfterDødsboskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && bo_ikke_fritaget && (modtager_i_danmark || fortsat_dansk_beskatning) && boopgørelsesværdi >= 0
+    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtager, _, _, _, _, boopgørelsesværdi) -> tranche.skatteyder.rolle == KglDødsboEfterDødsboskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && boopgørelsesværdi >= 0
     | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_) -> Falskt
 }
 | kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(fordelt_anskaffelsessum_kroner: Heltal, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
-    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(_, _, bo_har_valgt_salgsbeskatning, _, _, boopgørelsesværdi) -> bo_har_valgt_salgsbeskatning == Falskt && boopgørelsesværdi > fordelt_anskaffelsessum_kroner
+    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(_, bo_ikke_fritaget, bo_har_valgt_salgsbeskatning, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> bo_ikke_fritaget && bo_har_valgt_salgsbeskatning == Falskt && (modtager_i_danmark || fortsat_dansk_beskatning) && boopgørelsesværdi > fordelt_anskaffelsessum_kroner
     | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_) -> Falskt
     | _ -> Sandt
 }

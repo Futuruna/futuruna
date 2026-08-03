@@ -83,8 +83,10 @@
 
 | ebl_par6d_scenarie_årsforhold(indkomstår: Heltal, betalt_kroner: Heltal, hændelse: EblPar6DHændelse) -> EblPar6DÅrsforhold(
     indkomstår = indkomstår,
-    betalt_ordinært_hovedstolsafdrag_kroner = betalt_kroner,
-    hændelse = hændelse
+    forløbsposter = concat(
+        hvis betalt_kroner > 0 { [EblPar6DOrdinærtHovedstolsafdrag(fordringsdel_identifikation = "Sælgerpantebrev 1", betalt_kroner = betalt_kroner)] } ellers { [] },
+        match hændelse { | EblPar6DIngenFremrykningshændelse -> [] | valgt_hændelse -> [EblPar6DFremrykningshændelse(hændelse = valgt_hændelse)] }
+    )
 )
 
 | ebl_par6d_scenarie_standardår() -> [
@@ -148,6 +150,7 @@
         2027,
         375000,
         EblPar6DPantebrevAfståetEllerIndfriet(
+            berørt_fordringsdel_identifikation = "Sælgerpantebrev 1",
             art = EblPar6DPantebrevIndfriet,
             berørt_restgæld_kroner = 375000,
             afståelses_eller_indfrielsesprovenu_kroner = 375000,
@@ -279,7 +282,8 @@
     ophørsår = 2026,
     sidste_fordelingsår = 2036,
     resterende_fortjeneste_kroner = 2700000,
-    sælgerpantebrev_restgæld_kroner = 3750000
+    sælgerpantebrev_restgæld_kroner = 3750000,
+    sælgerpantebrev_resterende_anskaffelsessum_kroner = 3000000
 )
 
 = ebl_par6d_scenarie_manglende_årlig_oplysning = ebl_par6d_henstandsresultat(
@@ -295,7 +299,23 @@
     ophørsår = 2026,
     sidste_fordelingsår = 2036,
     resterende_fortjeneste_kroner = 2700000,
-    sælgerpantebrev_restgæld_kroner = 3750000
+    sælgerpantebrev_restgæld_kroner = 3750000,
+    sælgerpantebrev_resterende_anskaffelsessum_kroner = 3000000
+)
+
+= ebl_par6d_scenarie_uafklaret_betalingsrækkefølge = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = [EblPar6DÅrsforhold(
+        indkomstår = 2027,
+        forløbsposter = [EblPar6DUafklaretBetalingstidspunkt(betalt_kroner = 375000, beskrivelse = "Betalingen kan ligge på begge sider af ægtefælleoverdragelsen")]
+    )]
 )
 
 | ebl_par6d_scenarie_følger_officielt_eksempel: ebl_par6d_scenarie_vejledning -> ebl_par6d_scenarie_vejledning.input_gyldigt && ebl_par6d_scenarie_vejledning.valgt_udskudt_fortjeneste_kroner == 3000000 && ebl_par6d_scenarie_vejledning.skattepligtig_fortjeneste_i_afståelsesåret_kroner == 2000000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(ebl_par6d_scenarie_vejledning, 2027) == 300000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(ebl_par6d_scenarie_vejledning, 2036) == 300000 && ebl_par6d_scenarie_vejledning.tilstand_ultimo.resterende_udskudt_fortjeneste_kroner == 0
@@ -311,6 +331,7 @@
 | ebl_par6d_scenarie_tillader_kontrolleret_selskab_ved_kontrolskifte: ebl_par6d_scenarie_kontrolleret_selskab -> ebl_par6d_scenarie_kontrolleret_selskab.input_gyldigt
 | ebl_par6d_scenarie_selskab_afdrager_præcist_over_fem_år: ebl_par6d_scenarie_selskab_henstand -> ebl_par6d_scenarie_selskab_henstand.input_gyldigt && length(ebl_par6d_scenarie_selskab_henstand.årsresultater) == 5 && ebl_par6d_scenarie_selskab_henstand.årsresultater[4].ordinært_afdrag_kroner == 21 && ebl_par6d_scenarie_selskab_henstand.tilstand_ultimo.henstandssaldo_kroner == 0
 | ebl_par6d_scenarie_manglende_oplysning_forfalder_saldoen: ebl_par6d_scenarie_manglende_årlig_oplysning -> ebl_par6d_scenarie_manglende_årlig_oplysning.input_gyldigt && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].ordinært_afdrag_kroner == 20 && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].bortfald_for_manglende_oplysninger_kroner == 81 && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].samlet_nyt_forfald_kroner == 101 && ebl_par6d_scenarie_manglende_årlig_oplysning.tilstand_ultimo.henstandssaldo_kroner == 0
+| ebl_par6d_scenarie_afviser_uafklaret_betalingsrækkefølge: ebl_par6d_scenarie_uafklaret_betalingsrækkefølge -> ebl_par6d_scenarie_uafklaret_betalingsrækkefølge.input_gyldigt == Falskt && ebl_par6d_scenarie_uafklaret_betalingsrækkefølge.regelgrundlag_understøttet == Falskt
 
 ? ebl_par6d_scenarie_følger_officielt_eksempel
 ? ebl_par6d_scenarie_beskatter_uanset_faktisk_betaling
@@ -325,6 +346,7 @@
 ? ebl_par6d_scenarie_tillader_kontrolleret_selskab_ved_kontrolskifte
 ? ebl_par6d_scenarie_selskab_afdrager_præcist_over_fem_år
 ? ebl_par6d_scenarie_manglende_oplysning_forfalder_saldoen
+? ebl_par6d_scenarie_afviser_uafklaret_betalingsrækkefølge
 
 @ print("EBL § 6 D scenarios passed")
 --@end:ebl_par6d_scenarier--

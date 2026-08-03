@@ -2069,27 +2069,83 @@
     question = "Hvilket indkomstår vedrører denne række for din ægtefælle?",
     unit = "år"
 )
+= personskat_felt_egen_par6d_årsforhold_poster = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter",
+    label = "Årets kronologiske poster",
+    question = Some("Hvilke betalinger og hændelser skete i dette indkomstår, og i hvilken rækkefølge?"),
+    help = Some("Tilføj posterne i faktisk rækkefølge. Betalinger før og efter et ejerskifte kan tilhøre forskellige fordringsdele."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_poster = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter",
+    label = "Årets kronologiske poster",
+    question = Some("Hvilke betalinger og hændelser skete for din ægtefælles ordning i dette indkomstår, og i hvilken rækkefølge?"),
+    help = Some("Tilføj posterne i faktisk rækkefølge. Betalinger før og efter et ejerskifte kan tilhøre forskellige fordringsdele."),
+    unit = None
+)
+= personskat_felt_egen_par6d_årsforhold_posttype = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.$variant",
+    label = "Posttype",
+    question = "Er denne post en hovedstolsbetaling eller en hændelse, som kan fremrykke fortjenesten?"
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_posttype = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.$variant",
+    label = "Posttype",
+    question = "Er denne post en hovedstolsbetaling eller en hændelse, som kan fremrykke din ægtefælles fortjeneste?"
+)
+= personskat_felt_egen_par6d_årsforhold_afdrag_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DOrdinærtHovedstolsafdrag.fordringsdel_identifikation",
+    label = "Betalt fordringsdel",
+    question = "Hvilken entydigt navngivet del af sælgerpantebrevet blev betalingen foretaget på?"
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_afdrag_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DOrdinærtHovedstolsafdrag.fordringsdel_identifikation",
+    label = "Betalt fordringsdel",
+    question = "Hvilken entydigt navngivet del af din ægtefælles sælgerpantebrev blev betalingen foretaget på?"
+)
 = personskat_felt_egen_par6d_årsforhold_afdrag = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.betalt_ordinært_hovedstolsafdrag_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DOrdinærtHovedstolsafdrag.betalt_kroner",
     label = "Faktisk ordinært hovedstolsafdrag",
     question = "Hvor meget ordinær hovedstol blev faktisk betalt på sælgerpantebrevet i dette indkomstår?",
     unit = "kr."
 )
+= personskat_felt_egen_par6d_årsforhold_pantebrev_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.berørt_fordringsdel_identifikation",
+    label = "Berørt fordringsdel",
+    question = "Hvilken entydigt navngivet del af sælgerpantebrevet blev afstået eller indfriet?"
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.berørt_fordringsdel_identifikation",
+    label = "Berørt fordringsdel",
+    question = "Hvilken entydigt navngivet del af din ægtefælles sælgerpantebrev blev afstået eller indfriet?"
+)
+= personskat_felt_egen_par6d_årsforhold_pantebrev_restgæld = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.berørt_restgæld_kroner",
+    label = "Berørt restgæld",
+    question = "Hvor stor en hovedstol blev berørt af afståelsen eller indfrielsen?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_restgæld = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.berørt_restgæld_kroner",
+    label = "Berørt restgæld",
+    question = "Hvor stor en hovedstol blev berørt af afståelsen eller indfrielsen af din ægtefælles pantebrev?",
+    unit = "kr."
+)
 = personskat_felt_ægtefælles_par6d_årsforhold_afdrag = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.betalt_ordinært_hovedstolsafdrag_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DOrdinærtHovedstolsafdrag.betalt_kroner",
     label = "Faktisk ordinært hovedstolsafdrag",
     question = "Hvor meget ordinær hovedstol blev faktisk betalt på din ægtefælles sælgerpantebrev i dette indkomstår?",
     unit = "kr."
 )
 = personskat_felt_egen_par6d_årsforhold_hændelse = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.$variant",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.$variant",
     label = "Hændelse i indkomståret",
     question = Some("Indtraf der i dette indkomstår en hændelse, som påvirker den resterende udskudte fortjeneste?"),
     help = Some("Vælg den konkrete hændelse. En ikke-understøttet hændelse får beregningen til at afvise inputtet i stedet for at gætte."),
     unit = None
 )
 = personskat_felt_ægtefælles_par6d_årsforhold_hændelse = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.$variant",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.$variant",
     label = "Hændelse i indkomståret",
     question = Some("Indtraf der i dette indkomstår en hændelse, som påvirker din ægtefælles resterende udskudte fortjeneste?"),
     help = Some("Vælg den konkrete hændelse. En ikke-understøttet hændelse får beregningen til at afvise inputtet i stedet for at gætte."),
@@ -2108,100 +2164,136 @@
     unit = "kr."
 )
 = personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
     label = "Provenu ved afståelse eller indfrielse",
     question = "Hvilket beløb modtog du ved afståelsen eller indfrielsen af sælgerpantebrevet i dette indkomstår?",
     unit = "kr."
 )
 = personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
     label = "Provenu ved afståelse eller indfrielse",
     question = "Hvilket beløb modtog din ægtefælle ved afståelsen eller indfrielsen af sælgerpantebrevet i dette indkomstår?",
     unit = "kr."
 )
 = personskat_felt_egen_par6d_pantebrev_succession = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.$variant",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.$variant",
     label = "Ejerskifte af sælgerpantebrevet",
     question = Some("Blev pantebrevet overdraget uden beskatning til en ægtefælle efter KSL § 26 B eller ved bodeling?"),
     help = Some("Vælg kun succession, når modtageren indtræder i samme anskaffelsestidspunkt, anskaffelsessum og formål."),
     unit = None
 )
+= personskat_felt_egen_par6d_ksl26b_modtagers_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.modtagers_fordringsdel_identifikation",
+    label = "Ægtefællens nye fordringsdel",
+    question = "Hvilken ny og entydig identifikation skal den overtagne del af pantebrevet have?"
+)
 = personskat_felt_egen_par6d_ksl26b_modtager = Beregningsspørgsmål(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.modtagers_skatteyder_identifikation",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.modtagers_skatteyder_identifikation",
     label = "Modtagende ægtefælle",
     question = "Hvilken entydig identifikation har den ægtefælle, som overtog sælgerpantebrevet?"
 )
 = personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.overdrager_hjemmehørende_i_danmark",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.overdrager_hjemmehørende_i_danmark",
     label = "Overdrager hjemmehørende i Danmark",
     question = Some("Var overdrageren skattemæssigt hjemmehørende i Danmark ved overdragelsen?"),
     help = Some("KSL § 27 afskærer ægtefællesuccession, hvis en af ægtefællerne er skattemæssigt hjemmehørende i udlandet, på Færøerne eller i Grønland."),
     unit = None
 )
 = personskat_felt_egen_par6d_ksl26b_modtager_i_danmark = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.modtager_hjemmehørende_i_danmark",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.succession.EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B.modtager_hjemmehørende_i_danmark",
     label = "Modtager hjemmehørende i Danmark",
     question = Some("Var den modtagende ægtefælle skattemæssigt hjemmehørende i Danmark ved overdragelsen?"),
     help = Some("KSL § 27 afskærer ægtefællesuccession, hvis en af ægtefællerne er skattemæssigt hjemmehørende i udlandet, på Færøerne eller i Grønland."),
     unit = None
 )
+= personskat_felt_egen_par6d_død_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.berørt_fordringsdel_identifikation",
+    label = "Afdødes fordringsdel",
+    question = "Hvilken entydigt navngivet del af sælgerpantebrevet tilhørte afdøde ved dødsfaldet?"
+)
+= personskat_felt_egen_par6d_død_restgæld = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.berørt_restgæld_kroner",
+    label = "Hovedstol ved dødsfaldet",
+    question = "Hvor stor var hovedstolen på afdødes berørte fordringsdel?",
+    unit = "kr."
+)
 = personskat_felt_egen_par6d_død_succession = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.$variant",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.$variant",
     label = "Fordeling af pantebrevet ved dødsfald",
     question = Some("Overtog et skattepligtigt dødsbo eller en efterlevende ægtefælle sælgerpantebrevet?"),
     help = Some("Valget bestemmer, hvem der ejer det resterende KGL-grundlag efter dødsfaldet."),
     unit = None
 )
+= personskat_felt_egen_par6d_dødsbo_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DBoetOvertagerPantebrevet.boets_fordringsdel_identifikation",
+    label = "Dødsboets fordringsdel",
+    question = "Hvilken ny og entydig identifikation skal pantebrevsdelen have i dødsboet?"
+)
 = personskat_felt_egen_par6d_dødsbo_identifikation = Beregningsspørgsmål(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DIngenEfterlevendeÆgtefællesuccession.boets_skatteyder_identifikation",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DBoetOvertagerPantebrevet.boets_skatteyder_identifikation",
     label = "Dødsboets identifikation",
     question = "Hvilken entydig identifikation har dødsboet, som overtog sælgerpantebrevet?"
 )
+= personskat_felt_egen_par6d_uskiftet_bo_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo.modtagers_fordringsdel_identifikation",
+    label = "Efterlevendes fordringsdel",
+    question = "Hvilken ny og entydig identifikation skal pantebrevsdelen have hos den efterlevende ægtefælle?"
+)
 = personskat_felt_egen_par6d_uskiftet_bo_modtager = Beregningsspørgsmål(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleIUskiftetBo.modtagers_skatteyder_identifikation",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DEfterlevendeÆgtefælleOvertagerIUskiftetBo.modtagers_skatteyder_identifikation",
     label = "Efterlevende ægtefælle",
     question = "Hvilken entydig identifikation har den efterlevende ægtefælle, som overtog pantebrevet?"
 )
+= personskat_felt_egen_par6d_udlodning_bo_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.boets_fordringsdel_identifikation",
+    label = "Fordringsdel i dødsboet",
+    question = "Hvilken entydig identifikation havde pantebrevsdelen, mens den lå i dødsboet?"
+)
 = personskat_felt_egen_par6d_udlodning_bo = Beregningsspørgsmål(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.boets_skatteyder_identifikation",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.boets_skatteyder_identifikation",
     label = "Udloddende dødsbo",
     question = "Hvilken entydig identifikation har dødsboet, som udloddede pantebrevet?"
 )
+= personskat_felt_egen_par6d_udlodning_modtagers_fordringsdel = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.modtagers_fordringsdel_identifikation",
+    label = "Fordringsdel hos den efterlevende",
+    question = "Hvilken ny og entydig identifikation skal den udloddede pantebrevsdel have hos den efterlevende ægtefælle?"
+)
 = personskat_felt_egen_par6d_udlodning_modtager = Beregningsspørgsmål(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.modtagers_skatteyder_identifikation",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.modtagers_skatteyder_identifikation",
     label = "Modtagende ægtefælle",
     question = "Hvilken entydig identifikation har den efterlevende ægtefælle, som fik pantebrevet udloddet?"
 )
 = personskat_felt_egen_par6d_udlodning_bo_skattepligtigt = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.bo_ikke_fritaget_for_beskatning_efter_par6",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.bo_ikke_fritaget_for_beskatning_efter_par6",
     label = "Dødsboet er ikke skattefritaget",
     question = Some("Var dødsboet omfattet af beskatning og dermed ikke fritaget efter dødsboskattelovens § 6?"),
     help = Some("Succession efter dødsboskattelovens § 36 forudsætter et bo, der ikke er fritaget for beskatning."),
     unit = None
 )
 = personskat_felt_egen_par6d_udlodning_salgsvalg = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.bo_har_valgt_salgsbeskatning_efter_par28_stk3",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.bo_har_valgt_salgsbeskatning_efter_par28_stk3",
     label = "Boet valgte salgsbeskatning",
     question = Some("Valgte dødsboet at blive beskattet som ved salg efter dødsboskattelovens § 28, stk. 3?"),
     help = Some("Et sådant valg afskærer succession og udløser i stedet realisation i boet."),
     unit = None
 )
 = personskat_felt_egen_par6d_udlodning_modtager_i_danmark = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.modtager_hjemmehørende_i_danmark",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.modtager_hjemmehørende_i_danmark",
     label = "Modtager hjemmehørende i Danmark",
     question = Some("Var den efterlevende ægtefælle skattemæssigt hjemmehørende i Danmark ved udlodningen?"),
     help = Some("En udenlandsk modtager kan kun succedere, hvis aktivet fortsat kan beskattes i Danmark."),
     unit = None
 )
 = personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.fordringen_kan_fortsat_beskattes_i_danmark",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.fordringen_kan_fortsat_beskattes_i_danmark",
     label = "Fordringen forbliver under dansk beskatning",
     question = Some("Kan Danmark fortsat beskatte fordringen efter udlodningen?"),
     help = Some("Oplysningen er afgørende efter dødsboskattelovens § 38, hvis modtageren ikke er hjemmehørende i Danmark."),
     unit = None
 )
 = personskat_felt_egen_par6d_udlodning_boopgørelsesværdi = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.EblPar6DSælgerDød.succession.EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29.fordringens_værdi_i_boopgørelsen_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter.EblPar6DFremrykningshændelse.hændelse.EblPar6DSælgerDød.overdragelse.EblPar6DUdlodningTilEfterlevendeÆgtefælle.fordringens_værdi_i_boopgørelsen_kroner",
     label = "Pantebrevets værdi i boopgørelsen",
     question = "Til hvilken værdi blev sælgerpantebrevet medtaget i boopgørelsen?",
     unit = "kr."
@@ -2555,9 +2647,9 @@
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_overdrageranvendelse::field:personskat_felt_ægtefælles_par6d_overdrageranvendelse::field:personskat_felt_egen_par6d_erhververanvendelse::field:personskat_felt_ægtefælles_par6d_erhververanvendelse::field:personskat_felt_egen_par6d_overdrager_fysisk_person::field:personskat_felt_ægtefælles_par6d_overdrager_fysisk_person::field:personskat_felt_egen_par6d_erhverver_fysisk_person::field:personskat_felt_ægtefælles_par6d_erhverver_fysisk_person::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev::field:personskat_felt_ægtefælles_par6d_pantebrev::field:personskat_felt_egen_par6d_pantebrev_kontantværdi::field:personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi::field:personskat_felt_egen_par6d_pantebrev_hovedstol::field:personskat_felt_ægtefælles_par6d_pantebrev_hovedstol::field:personskat_felt_egen_par6d_pantebrev_løbetid::field:personskat_felt_ægtefælles_par6d_pantebrev_løbetid::field:personskat_felt_egen_par6d_afdragsplan::field:personskat_felt_ægtefælles_par6d_afdragsplan::field:personskat_felt_egen_par6d_afdragsplan_år::field:personskat_felt_ægtefælles_par6d_afdragsplan_år::field:personskat_felt_egen_par6d_afdragsplan_beløb::field:personskat_felt_ægtefælles_par6d_afdragsplan_beløb::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_meddelelse::field:personskat_felt_ægtefælles_par6d_meddelelse::field:personskat_felt_egen_par6d_skattepligt::field:personskat_felt_ægtefælles_par6d_skattepligt::field:personskat_felt_egen_par6d_sikkerhed::field:personskat_felt_ægtefælles_par6d_sikkerhed::field:personskat_felt_egen_par6d_ejendomsplacering::field:personskat_felt_ægtefælles_par6d_ejendomsplacering::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_poster::field:personskat_felt_ægtefælles_par6d_årsforhold_poster::field:personskat_felt_egen_par6d_årsforhold_posttype::field:personskat_felt_ægtefælles_par6d_årsforhold_posttype::field:personskat_felt_egen_par6d_årsforhold_afdrag_fordringsdel::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag_fordringsdel::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::field:personskat_felt_egen_par6d_årsforhold_pantebrev_fordringsdel::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_fordringsdel::field:personskat_felt_egen_par6d_årsforhold_pantebrev_restgæld::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_restgæld::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev_succession::field:personskat_felt_egen_par6d_ksl26b_modtager::field:personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark::field:personskat_felt_egen_par6d_ksl26b_modtager_i_danmark::field:personskat_felt_egen_par6d_død_succession::field:personskat_felt_egen_par6d_dødsbo_identifikation::field:personskat_felt_egen_par6d_uskiftet_bo_modtager::field:personskat_felt_egen_par6d_udlodning_bo::field:personskat_felt_egen_par6d_udlodning_modtager::field:personskat_felt_egen_par6d_udlodning_bo_skattepligtigt::field:personskat_felt_egen_par6d_udlodning_salgsvalg::field:personskat_felt_egen_par6d_udlodning_modtager_i_danmark::field:personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning::field:personskat_felt_egen_par6d_udlodning_boopgørelsesværdi::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev_succession::field:personskat_felt_egen_par6d_ksl26b_modtagers_fordringsdel::field:personskat_felt_egen_par6d_ksl26b_modtager::field:personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark::field:personskat_felt_egen_par6d_ksl26b_modtager_i_danmark::field:personskat_felt_egen_par6d_død_fordringsdel::field:personskat_felt_egen_par6d_død_restgæld::field:personskat_felt_egen_par6d_død_succession::field:personskat_felt_egen_par6d_dødsbo_fordringsdel::field:personskat_felt_egen_par6d_dødsbo_identifikation::field:personskat_felt_egen_par6d_uskiftet_bo_fordringsdel::field:personskat_felt_egen_par6d_uskiftet_bo_modtager::field:personskat_felt_egen_par6d_udlodning_bo_fordringsdel::field:personskat_felt_egen_par6d_udlodning_bo::field:personskat_felt_egen_par6d_udlodning_modtagers_fordringsdel::field:personskat_felt_egen_par6d_udlodning_modtager::field:personskat_felt_egen_par6d_udlodning_bo_skattepligtigt::field:personskat_felt_egen_par6d_udlodning_salgsvalg::field:personskat_felt_egen_par6d_udlodning_modtager_i_danmark::field:personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning::field:personskat_felt_egen_par6d_udlodning_boopgørelsesværdi::source:ebl_par6d_lov1578::preparatory_source:ebl_par6d_lovforslag36::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426--
 --@label:beregn_personskat::field:personskat_felt_kursgevinst::field:personskat_felt_kgl_sælgerpantebreve::field:personskat_felt_kgl_skatteyder_identifikation::field:personskat_felt_kgl_øvrigt_bagatelgrundlag::field:personskat_felt_kgl_pantebrev::field:personskat_felt_kgl_oprindelig_skatteyder::field:personskat_felt_kgl_fordringsnæring::field:personskat_felt_kgl_fordring_udenfor_næring::field:personskat_felt_kgl_vederlag_for_leverancer::field:personskat_felt_kgl_driftstilknytning::field:personskat_felt_kgl_kontrol_eller_nærtstående::field:personskat_felt_kgl_dba_fritagelse::field:personskat_felt_kgl_efterfølgende_dispositioner::field:personskat_felt_kgl_dispositionsår::field:personskat_felt_kgl_berørt_tranche::field:personskat_felt_kgl_dispositionsart::field:personskat_felt_kgl_modtagers_tranche::field:personskat_felt_kgl_berørt_hovedstol::field:personskat_felt_kgl_provenu::source:kgl_sælgerpantebrev_lbk1176::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426::guidance:kgl_ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
 --@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--

@@ -16176,9 +16176,13 @@ impl<'a> LoweringCtx<'a> {
                             | "sort_by"
                             | "filter"
                             | "distinct"
+                            | "take"
+                            | "skip"
                             | "take_while"
                             | "drop_while"
+                            | "reverse"
                             | "shuffle"
+                            | "collect"
                     ) && !fir_args.is_empty()
                         && matches!(fir_args[0].ty, FirTy::List(_))
                     {
@@ -25380,7 +25384,7 @@ impl RustCodegen {
 
         let saved_fn_types = self.types.fn_types.clone();
         let saved_rule_scope_member_fn_types = self.types.rule_scope_member_fn_types.clone();
-        for _ in 0..6 {
+        for _ in 0..rule_groups.len().max(1) {
             self.types.fn_types = saved_fn_types.clone();
             self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types.clone();
             for (method, param_tys) in &method_param_tys {
@@ -46581,6 +46585,32 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    #[test]
+    fn compiled_rulescope_deep_delegation_infers_collected_field_projection() {
+        let source = r#"
+# Item(accepted: Bool)
+
+# Case(items: List(Item)) {
+    | level_zero() -> items
+    | level_one() -> level_zero()
+    | level_two() -> level_one()
+    | level_three() -> level_two()
+    | level_four() -> level_three()
+    | level_five() -> level_four()
+    | level_six() -> level_five()
+    | level_seven() -> level_six()
+    | accepted_flags() -> collect(map(take(level_seven(), 2), |item: Item| item.accepted))
+    | all_accepted() -> accepted_flags() == [True, True]
+}
+
+= case = Case(items = [Item(accepted = True), Item(accepted = True)])
+@ print(show(case.accepted_flags()))
+@ print(show(case.all_accepted()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "[true, true]\ntrue");
     }
 
     #[test]

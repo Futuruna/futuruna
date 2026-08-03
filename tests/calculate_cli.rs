@@ -844,27 +844,47 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             let par6d_years_sheet =
                 workbook_collection_sheet_name(&mut workbook, &par6d_years_path);
             let par6d_year_paths = workbook_column_paths(&mut workbook, &par6d_years_sheet);
-            for expected in [
-                "indkomstår",
-                "betalt_ordinært_hovedstolsafdrag_kroner",
-                "hændelse.$variant",
-                "hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
-            ] {
+            for expected in ["indkomstår"] {
                 assert!(
                     par6d_year_paths.iter().any(|path| path == expected),
                     "missing canonical EBL § 6 D annual path {expected} on {par6d_years_sheet}"
                 );
             }
             let par6d_year_headers = workbook_headers(&mut workbook, &par6d_years_sheet);
+            for expected in ["Indkomstår"] {
+                assert!(
+                    par6d_year_headers.iter().any(|header| header == expected),
+                    "missing human EBL § 6 D annual label {expected} on {par6d_years_sheet}"
+                );
+            }
+
+            let par6d_posts_path = format!("{par6d_years_path}.forløbsposter");
+            let par6d_posts_sheet =
+                workbook_collection_sheet_name(&mut workbook, &par6d_posts_path);
+            let par6d_post_paths = workbook_column_paths(&mut workbook, &par6d_posts_sheet);
             for expected in [
-                "Indkomstår",
+                "$variant",
+                "EblPar6DOrdinærtHovedstolsafdrag.fordringsdel_identifikation",
+                "EblPar6DOrdinærtHovedstolsafdrag.betalt_kroner",
+                "EblPar6DFremrykningshændelse.hændelse.$variant",
+                "EblPar6DFremrykningshændelse.hændelse.EblPar6DPantebrevAfståetEllerIndfriet.afståelses_eller_indfrielsesprovenu_kroner",
+            ] {
+                assert!(
+                    par6d_post_paths.iter().any(|path| path == expected),
+                    "missing canonical EBL § 6 D ordered-post path {expected} on {par6d_posts_sheet}"
+                );
+            }
+            let par6d_post_headers = workbook_headers(&mut workbook, &par6d_posts_sheet);
+            for expected in [
+                "Posttype",
+                "Betalt fordringsdel",
                 "Faktisk ordinært hovedstolsafdrag",
                 "Hændelse i indkomståret",
                 "Provenu ved afståelse eller indfrielse",
             ] {
                 assert!(
-                    par6d_year_headers.iter().any(|header| header == expected),
-                    "missing human EBL § 6 D annual label {expected} on {par6d_years_sheet}"
+                    par6d_post_headers.iter().any(|header| header == expected),
+                    "missing human EBL § 6 D ordered-post label {expected} on {par6d_posts_sheet}"
                 );
             }
         }
@@ -2012,16 +2032,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("item_id", Data::String("ebl6d-år-2026".to_string())),
             ("position", Data::Int(1)),
             ("indkomstår", Data::Int(2026)),
-            (
-                "betalt_ordinært_hovedstolsafdrag_kroner",
-                Data::Int(375_000),
-            ),
-            (
-                "hændelse.$variant",
-                Data::String("EblPar6DIngenFremrykningshændelse".to_string()),
-            ),
         ] {
             set_workbook_cell_by_header(sheets, &own_par6d_years_sheet, 1, header, value);
+        }
+        let own_par6d_posts_path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.forløbsposter";
+        let own_par6d_posts_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, own_par6d_posts_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-ebl6d-historisk-2026".to_string()),
+            ),
+            ("parent_id", Data::String("ebl6d-år-2026".to_string())),
+            (
+                "item_id",
+                Data::String("ebl6d-år-2026-afdrag-1".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "$variant",
+                Data::String("EblPar6DOrdinærtHovedstolsafdrag".to_string()),
+            ),
+            (
+                "EblPar6DOrdinærtHovedstolsafdrag.fordringsdel_identifikation",
+                Data::String("sælgerpantebrev-2025".to_string()),
+            ),
+            (
+                "EblPar6DOrdinærtHovedstolsafdrag.betalt_kroner",
+                Data::Int(375_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &own_par6d_posts_sheet, 1, header, value);
         }
         let kgl_seller_note_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -2051,7 +2092,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             (
                 "skatteyderfakta.fordringen_erhvervet_uden_for_fordringsnæring",
-                Data::Bool(false),
+                Data::Bool(true),
             ),
             (
                 "skatteyderfakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser",
@@ -3075,10 +3116,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "efterfølgende_årsforhold": [{
                 "indkomstår": 2026,
-                "betalt_ordinært_hovedstolsafdrag_kroner": 375_000,
-                "hændelse": {
-                    "$variant": "EblPar6DIngenFremrykningshændelse"
-                }
+                "forløbsposter": [{
+                    "$variant": "EblPar6DOrdinærtHovedstolsafdrag",
+                    "fordringsdel_identifikation": "sælgerpantebrev-2025",
+                    "betalt_kroner": 375_000
+                }]
             }]
         }
     });
@@ -3141,7 +3183,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "oprindelig_skatteyder_identifikation": "Sælger",
                     "skatteyderfakta": {
                         "udøver_næring_ved_køb_og_salg_af_fordringer": false,
-                        "fordringen_erhvervet_uden_for_fordringsnæring": false,
+                        "fordringen_erhvervet_uden_for_fordringsnæring": true,
                         "fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser": false,
                         "fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift": false,
                         "debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2": false,

@@ -5,6 +5,7 @@ website/target/
 
 # Deploy output
 /deploy/
+/outputs/
 
 # Wrangler / Cloudflare cache
 .wrangler/
