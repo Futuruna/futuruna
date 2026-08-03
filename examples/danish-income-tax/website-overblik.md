@@ -145,15 +145,18 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 351 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 353 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
 sælgerpantebrev har samme menneskelige lag: pantebrevets vilkår, parternes
 faktiske brug, meddelelsen til Skatteforvaltningen og hvert efterfølgende års
 hændelser har egne etiketter og spørgsmål. KGL-sporet navngiver desuden
-pantebrevslisten, identiteten, skatteyderens kildefakta, § 14-grundlaget og
-senere afståelser eller indfrielser med år, art, hovedstol og faktisk provenu.
+pantebrevslisten, identiteten, skatteyderens kildefakta, § 14-grundlaget, den
+berørte pantebrevstranche og senere afståelser eller indfrielser med år, art,
+hovedstol og faktisk provenu. Ved ejerskifte får modtagerens nye tranche også
+sin egen menneskelige etiket og sit eget interviewspørgsmål, så en AI kan
+forbinde senere betalinger med det korrekte skattemæssige grundlag.
 Det navngiver også personen, som beregningen vedrører, pantebrevets oprindelige
 skatteyder og de fakta, der fordeler pantebrevet ved ægtefællesuccession eller
 dødsfald.
@@ -188,8 +191,12 @@ først de gyldige poster i Personskattelovens kapitalindkomst. En dansk
 skattemæssige position, hvor Kildeskatteloven eller Dødsboskatteloven foreskriver
 succession. Hvis en udlodning i stedet udløser realisation, beskattes resultatet
 i boet, og ægtefællen fortsætter fra boopgørelsesværdien. Personskat medregner
-kun personens egne realisationer; ikke-understøttede modtagere og delvise
-ejerskifter fejler fortsat lukket. Kilderne er
+kun personens egne realisationer. Delvise ejerskifter opdeler hovedstol og
+anskaffelsessum i stabile, entydigt identificerede trancher; en fordeling, der
+ikke kan opgøres præcist i hele kroner, fejler lukket. Den direkte KGL-model kan
+derefter føre betalinger for hver ejer særskilt. EBL-broen fejler kun lukket,
+når en delvis succession efterlader senere betalinger uden en entydig
+ejerfordeling. Ikke-understøttede modtagere afvises tilsvarende. Kilderne er
 [Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176),
 [Kildeskatteloven, LBK nr. 460/2024](https://www.retsinformation.dk/eli/lta/2024/460),
 [Dødsboskatteloven, LBK nr. 426/2019](https://www.retsinformation.dk/eli/lta/2019/426)

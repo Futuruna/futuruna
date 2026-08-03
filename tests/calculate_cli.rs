@@ -913,7 +913,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let kgl_disposition_paths = workbook_column_paths(&mut workbook, &kgl_disposition_sheet);
         for expected in [
             "indkomstår",
+            "berørt_tranche_identifikation",
             "art.$variant",
+            "art.KglSælgerpantebrevEjerskifte.modtagers_tranche_identifikation",
             "berørt_hovedstol_kroner",
             "afståelses_eller_indfrielsessum_kroner",
         ] {
@@ -925,7 +927,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let kgl_disposition_headers = workbook_headers(&mut workbook, &kgl_disposition_sheet);
         for expected in [
             "Dispositionens indkomstår",
+            "Berørt del af sælgerpantebrevet",
             "Disposition med restfordringen",
+            "Ny del efter ejerskifte",
             "Berørt hovedstol",
             "Modtaget beløb",
         ] {

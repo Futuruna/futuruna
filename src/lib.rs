@@ -16604,6 +16604,7 @@ impl TypeChecker {
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 let mut first_arm_type = None;
                 for (index, arm) in arms.iter().enumerate() {
+                    self.check_pattern_constructor_arity(&arm.pat, &arm.body);
                     self.push_scope();
                     self.define_pat_vars(&arm.pat);
                     for (name, type_name) in
@@ -16818,6 +16819,40 @@ impl TypeChecker {
                 "bare fielded variant refinement cannot be mixed with destructuring pattern `{}` in the same match",
                 Self::pattern_label(&arm.pat)
             ));
+        }
+    }
+
+    fn check_pattern_constructor_arity(&mut self, pat: &Pat, anchor: &Expr) {
+        match pat {
+            Pat::Con(name, args) => {
+                // A fielded variant with no arguments is the separate tag-only
+                // refinement form checked by check_refined_variant_match.
+                if !args.is_empty() {
+                    if let Some((_, expected)) = self.constructors.get(name) {
+                        if args.len() != *expected {
+                            self.error_at_expr(
+                                anchor,
+                                format!(
+                                    "constructor pattern `{}` expects {} fields but got {}; use an explicit wildcard for every ignored positional field",
+                                    name,
+                                    expected,
+                                    args.len()
+                                ),
+                            );
+                        }
+                    }
+                }
+                for arg in args {
+                    self.check_pattern_constructor_arity(arg, anchor);
+                }
+            }
+            Pat::NamedCon(_, fields) => {
+                for (_, field_pat) in fields {
+                    self.check_pattern_constructor_arity(field_pat, anchor);
+                }
+            }
+            Pat::As(inner, _) => self.check_pattern_constructor_arity(inner, anchor),
+            Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
     }
 
@@ -18177,6 +18212,27 @@ mod tests {
                 .message
                 .contains("mixes named and positional arguments")),
             "mixed named/positional constructor args should be rejected, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_rejects_under_arity_positional_constructor_pattern() {
+        let source = r#"
+# TransferEvent = Transfer(from: Int, to: Int) | NoTransfer
+
+= event = Transfer(from = 1, to = 2)
+= result = match event {
+    | Transfer(_) -> True
+    | NoTransfer -> False
+}
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.iter().any(|diag| diag.message.contains(
+                "constructor pattern `Transfer` expects 2 fields but got 1"
+            )),
+            "under-arity positional constructor patterns should be rejected before codegen, got: {:?}",
             diags
         );
     }

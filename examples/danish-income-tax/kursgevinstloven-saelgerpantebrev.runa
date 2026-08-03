@@ -190,20 +190,34 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 --@begin:kgl_sælgerpantebrev_lovgrundlag--
 # KglSælgerpantebrevSkatteyder(identifikation: Tekst, rolle: KursgevinstlovPersonrolle)
 # KglSælgerpantebrevEjerskiftegrundlag = KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(boets_skatteyder_identifikation: Tekst) | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtagers_skatteyder_identifikation: Tekst) | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtagers_skatteyder_identifikation: Tekst, bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk, bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk, fordringen_kan_fortsat_beskattes_i_danmark: Boolsk, værdi_i_boopgørelsen_kroner: Heltal) | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(beskrivelse: Tekst)
-# KglSælgerpantebrevDispositionstype = KglSælgerpantebrevAfdrag | KglSælgerpantebrevAfståelse | KglSælgerpantebrevIndfrielse | KglSælgerpantebrevNedskrivning | KglSælgerpantebrevEjerskifte(grundlag: KglSælgerpantebrevEjerskiftegrundlag) | KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
-# KglSælgerpantebrevDisposition(indkomstår: Heltal, art: KglSælgerpantebrevDispositionstype, berørt_hovedstol_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal)
+# KglSælgerpantebrevDispositionstype = KglSælgerpantebrevAfdrag | KglSælgerpantebrevAfståelse | KglSælgerpantebrevIndfrielse | KglSælgerpantebrevNedskrivning | KglSælgerpantebrevEjerskifte(grundlag: KglSælgerpantebrevEjerskiftegrundlag, modtagers_tranche_identifikation: Tekst) | KglSælgerpantebrevIkkeUnderstøttet(beskrivelse: Tekst)
+# KglSælgerpantebrevDisposition(indkomstår: Heltal, berørt_tranche_identifikation: Tekst, art: KglSælgerpantebrevDispositionstype, berørt_hovedstol_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal)
 # KglSælgerpantebrevInput(identifikation: Tekst, oprindelig_skatteyder: KglSælgerpantebrevSkatteyder, erhvervelsesår: Heltal, hovedstol_kroner: Heltal, kursværdi_ved_erhvervelsen_kroner: Heltal, dispositioner: List(KglSælgerpantebrevDisposition))
-# KglSælgerpantebrevTilstand(skatteyder: KglSælgerpantebrevSkatteyder, skattemæssigt_erhvervelsesår: Heltal, resterende_hovedstol_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, seneste_indkomstår: Heltal, aktiv: Boolsk)
-# KglSælgerpantebrevDispositionsresultat(tilstand_før: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, disposition_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, realisering_sker: Boolsk, frigivet_anskaffelsessum_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal, rå_gevinst_kroner: Heltal, rå_tab_kroner: Heltal, rå_netto_kroner: Heltal, tilstand_efter: KglSælgerpantebrevTilstand)
+# KglSælgerpantebrevTranche(identifikation: Tekst, skatteyder: KglSælgerpantebrevSkatteyder, skattemæssigt_erhvervelsesår: Heltal, resterende_hovedstol_kroner: Heltal, resterende_anskaffelsessum_kroner: Heltal, seneste_indkomstår: Heltal, aktiv: Boolsk)
+# KglSælgerpantebrevTilstand(trancher: List(KglSælgerpantebrevTranche), seneste_indkomstår: Heltal, aktiv: Boolsk)
+# KglSælgerpantebrevDispositionsresultat(tilstand_før: KglSælgerpantebrevTilstand, berørt_tranche_før: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, disposition_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, realisering_sker: Boolsk, fordelt_anskaffelsessum_kroner: Heltal, frigivet_anskaffelsessum_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal, rå_gevinst_kroner: Heltal, rå_tab_kroner: Heltal, rå_netto_kroner: Heltal, ændrede_trancher_efter: List(KglSælgerpantebrevTranche), tilstand_efter: KglSælgerpantebrevTilstand)
 # KglSælgerpantebrevForløbstilstand(tilstand: KglSælgerpantebrevTilstand, resultater: List(KglSælgerpantebrevDispositionsresultat), alle_dispositioner_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk)
 # KglSælgerpantebrevResultat(input: KglSælgerpantebrevInput, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, dispositionsresultater: List(KglSælgerpantebrevDispositionsresultat), samlet_rå_gevinst_kroner: Heltal, samlet_rå_tab_kroner: Heltal, samlet_rå_netto_kroner: Heltal, tilstand_ultimo: KglSælgerpantebrevTilstand)
 # KglSælgerpantebrevSkatteforhold(tab_status: KursgevinstlovFordringTabStatus, udøver_fordringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk)
 
 | kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Sandt
 | exception kgl_sælgerpantebrev_ukendt_disposition_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevIkkeUnderstøttet(_) -> Sandt | _ -> Falskt }
-| exception kgl_sælgerpantebrev_ukendt_ejerskifte_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevEjerskifte(KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_)) -> Sandt | _ -> Falskt }
+| exception kgl_sælgerpantebrev_ukendt_ejerskifte_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevEjerskifte(KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_), _) -> Sandt | _ -> Falskt }
 
 | kgl_sælgerpantebrev_skatteyder_gyldig(skatteyder: KglSælgerpantebrevSkatteyder) -> skatteyder.identifikation != "" && skatteyder.rolle != KglUdenforPersonkapitlet
+| kgl_sælgerpantebrev_tom_tranche() -> KglSælgerpantebrevTranche(
+    identifikation = "",
+    skatteyder = KglSælgerpantebrevSkatteyder(identifikation = "", rolle = KglUdenforPersonkapitlet),
+    skattemæssigt_erhvervelsesår = 0,
+    resterende_hovedstol_kroner = 0,
+    resterende_anskaffelsessum_kroner = 0,
+    seneste_indkomstår = 0,
+    aktiv = Falskt
+)
+| kgl_sælgerpantebrev_tranche_gyldig(tranche: KglSælgerpantebrevTranche) -> tranche.identifikation != "" && kgl_sælgerpantebrev_skatteyder_gyldig(tranche.skatteyder) && tranche.skattemæssigt_erhvervelsesår > 0 && tranche.resterende_hovedstol_kroner > 0 && tranche.resterende_anskaffelsessum_kroner >= 0 && tranche.seneste_indkomstår >= tranche.skattemæssigt_erhvervelsesår && tranche.aktiv
+| kgl_sælgerpantebrev_matchende_trancher(tilstand: KglSælgerpantebrevTilstand, identifikation: Tekst) -> filter(tilstand.trancher, |tranche: KglSælgerpantebrevTranche| tranche.identifikation == identifikation)
+| kgl_sælgerpantebrev_berørt_tranche(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> hvis length(kgl_sælgerpantebrev_matchende_trancher(tilstand, disposition.berørt_tranche_identifikation)) == 1 { head(kgl_sælgerpantebrev_matchende_trancher(tilstand, disposition.berørt_tranche_identifikation)) } ellers { kgl_sælgerpantebrev_tom_tranche() }
+| kgl_sælgerpantebrev_tranche_identifikation_findes(tilstand: KglSælgerpantebrevTilstand, identifikation: Tekst) -> length(kgl_sælgerpantebrev_matchende_trancher(tilstand, identifikation)) > 0
 | kgl_sælgerpantebrev_ny_skatteyder(grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
     | KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtager, _, _) -> KglSælgerpantebrevSkatteyder(identifikation = modtager, rolle = KglPersonEfterKildeskatteloven)
     | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtager, _, _) -> KglSælgerpantebrevSkatteyder(identifikation = modtager, rolle = KglPersonEfterKildeskatteloven)
@@ -212,16 +226,16 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
     | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtager, _, _, _, _, _) -> KglSælgerpantebrevSkatteyder(identifikation = modtager, rolle = KglPersonEfterKildeskatteloven)
     | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_) -> KglSælgerpantebrevSkatteyder(identifikation = "", rolle = KglUdenforPersonkapitlet)
 }
-| kgl_sælgerpantebrev_ejerskifte_betingelser_opfyldt(tilstand: KglSælgerpantebrevTilstand, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
-    | KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtager, overdrager_i_danmark, modtager_i_danmark) -> tilstand.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tilstand.skatteyder.identifikation && overdrager_i_danmark && modtager_i_danmark
-    | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtager, overdrager_i_danmark, modtager_i_danmark) -> tilstand.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tilstand.skatteyder.identifikation && overdrager_i_danmark && modtager_i_danmark
-    | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(bo) -> tilstand.skatteyder.rolle == KglPersonEfterKildeskatteloven && bo != "" && bo != tilstand.skatteyder.identifikation
-    | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtager) -> tilstand.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tilstand.skatteyder.identifikation
-    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtager, bo_ikke_fritaget, _, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> tilstand.skatteyder.rolle == KglDødsboEfterDødsboskatteloven && modtager != "" && modtager != tilstand.skatteyder.identifikation && bo_ikke_fritaget && (modtager_i_danmark || fortsat_dansk_beskatning) && boopgørelsesværdi >= 0
+| kgl_sælgerpantebrev_ejerskifte_betingelser_opfyldt(tranche: KglSælgerpantebrevTranche, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
+    | KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(modtager, overdrager_i_danmark, modtager_i_danmark) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && overdrager_i_danmark && modtager_i_danmark
+    | KglSælgerpantebrevÆgtefælleVedBodelingEfterSeparationEllerSkilsmisse(modtager, overdrager_i_danmark, modtager_i_danmark) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && overdrager_i_danmark && modtager_i_danmark
+    | KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(bo) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && bo != "" && bo != tranche.skatteyder.identifikation
+    | KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtager) -> tranche.skatteyder.rolle == KglPersonEfterKildeskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation
+    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(modtager, bo_ikke_fritaget, _, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> tranche.skatteyder.rolle == KglDødsboEfterDødsboskatteloven && modtager != "" && modtager != tranche.skatteyder.identifikation && bo_ikke_fritaget && (modtager_i_danmark || fortsat_dansk_beskatning) && boopgørelsesværdi >= 0
     | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_) -> Falskt
 }
-| kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(tilstand: KglSælgerpantebrevTilstand, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
-    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(_, _, bo_har_valgt_salgsbeskatning, _, _, boopgørelsesværdi) -> bo_har_valgt_salgsbeskatning == Falskt && boopgørelsesværdi > tilstand.resterende_anskaffelsessum_kroner
+| kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(fordelt_anskaffelsessum_kroner: Heltal, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> match grundlag {
+    | KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(_, _, bo_har_valgt_salgsbeskatning, _, _, boopgørelsesværdi) -> bo_har_valgt_salgsbeskatning == Falskt && boopgørelsesværdi > fordelt_anskaffelsessum_kroner
     | KglSælgerpantebrevIkkeUnderstøttetEjerskifte(_) -> Falskt
     | _ -> Sandt
 }
@@ -233,64 +247,88 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 | kgl_sælgerpantebrev_dispositionsbeløb_gyldigt(disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
     | KglSælgerpantebrevAfdrag -> disposition.afståelses_eller_indfrielsessum_kroner == disposition.berørt_hovedstol_kroner
     | KglSælgerpantebrevNedskrivning -> disposition.afståelses_eller_indfrielsessum_kroner == 0
-    | KglSælgerpantebrevEjerskifte(_) -> disposition.afståelses_eller_indfrielsessum_kroner == 0
+    | KglSælgerpantebrevEjerskifte(_, _) -> disposition.afståelses_eller_indfrielsessum_kroner == 0
     | _ -> disposition.afståelses_eller_indfrielsessum_kroner >= 0
 }
-| kgl_sælgerpantebrev_ejerskifte_gyldigt(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
-    | KglSælgerpantebrevEjerskifte(grundlag) -> disposition.berørt_hovedstol_kroner == tilstand.resterende_hovedstol_kroner && kgl_sælgerpantebrev_ejerskifte_betingelser_opfyldt(tilstand, grundlag)
+| kgl_sælgerpantebrev_anskaffelsessum_kan_fordeles_præcist(tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition) -> disposition.berørt_hovedstol_kroner == tranche.resterende_hovedstol_kroner || (tranche.resterende_anskaffelsessum_kroner * disposition.berørt_hovedstol_kroner) % tranche.resterende_hovedstol_kroner == 0
+| kgl_sælgerpantebrev_ejerskifte_gyldigt(tilstand: KglSælgerpantebrevTilstand, tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
+    | KglSælgerpantebrevEjerskifte(grundlag, modtagers_tranche_identifikation) -> modtagers_tranche_identifikation != "" && modtagers_tranche_identifikation != tranche.identifikation && kgl_sælgerpantebrev_tranche_identifikation_findes(tilstand, modtagers_tranche_identifikation) == Falskt && kgl_sælgerpantebrev_ejerskifte_betingelser_opfyldt(tranche, grundlag)
     | _ -> Sandt
 }
-| kgl_sælgerpantebrev_disposition_gyldig(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> kgl_sælgerpantebrev_disposition_understøttet(disposition.art) && tilstand.aktiv && disposition.indkomstår >= tilstand.seneste_indkomstår && disposition.berørt_hovedstol_kroner > 0 && disposition.berørt_hovedstol_kroner <= tilstand.resterende_hovedstol_kroner && kgl_sælgerpantebrev_dispositionsbeløb_gyldigt(disposition) && kgl_sælgerpantebrev_ejerskifte_gyldigt(tilstand, disposition)
-| kgl_sælgerpantebrev_realisering_sker(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
-    | KglSælgerpantebrevEjerskifte(grundlag) -> kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(tilstand, grundlag) == Falskt
+| kgl_sælgerpantebrev_disposition_gyldig(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> {
+    = matchende_trancher = kgl_sælgerpantebrev_matchende_trancher(tilstand, disposition.berørt_tranche_identifikation)
+    hvis length(matchende_trancher) == 1 {
+        = tranche = head(matchende_trancher)
+        kgl_sælgerpantebrev_disposition_understøttet(disposition.art) && tilstand.aktiv && disposition.indkomstår >= tilstand.seneste_indkomstår && disposition.indkomstår >= tranche.seneste_indkomstår && kgl_sælgerpantebrev_tranche_gyldig(tranche) && disposition.berørt_hovedstol_kroner > 0 && disposition.berørt_hovedstol_kroner <= tranche.resterende_hovedstol_kroner && kgl_sælgerpantebrev_dispositionsbeløb_gyldigt(disposition) && kgl_sælgerpantebrev_anskaffelsessum_kan_fordeles_præcist(tranche, disposition) && kgl_sælgerpantebrev_ejerskifte_gyldigt(tilstand, tranche, disposition)
+    } ellers { Falskt }
+}
+| kgl_sælgerpantebrev_fordelt_anskaffelsessum_kroner(tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition) -> hvis disposition.berørt_hovedstol_kroner == tranche.resterende_hovedstol_kroner { tranche.resterende_anskaffelsessum_kroner } ellers { tranche.resterende_anskaffelsessum_kroner * disposition.berørt_hovedstol_kroner / tranche.resterende_hovedstol_kroner }
+| kgl_sælgerpantebrev_realisering_sker(fordelt_anskaffelsessum_kroner: Heltal, disposition: KglSælgerpantebrevDisposition) -> match disposition.art {
+    | KglSælgerpantebrevEjerskifte(grundlag, _) -> kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(fordelt_anskaffelsessum_kroner, grundlag) == Falskt
     | _ -> Sandt
 }
-| kgl_sælgerpantebrev_frigivet_anskaffelsessum_kroner(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> hvis disposition.berørt_hovedstol_kroner == tilstand.resterende_hovedstol_kroner { tilstand.resterende_anskaffelsessum_kroner } ellers { tilstand.resterende_anskaffelsessum_kroner * disposition.berørt_hovedstol_kroner / tilstand.resterende_hovedstol_kroner }
-| kgl_sælgerpantebrev_tilstand_efter_realisering(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, frigivet_anskaffelsessum_kroner: Heltal) -> {
-    = resterende_hovedstol_kroner = tilstand.resterende_hovedstol_kroner - disposition.berørt_hovedstol_kroner
-    KglSælgerpantebrevTilstand(
-        skatteyder = tilstand.skatteyder,
-        skattemæssigt_erhvervelsesår = tilstand.skattemæssigt_erhvervelsesår,
+| kgl_sælgerpantebrev_resterende_kildetranche(tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, fordelt_anskaffelsessum_kroner: Heltal) -> {
+    = resterende_hovedstol_kroner = tranche.resterende_hovedstol_kroner - disposition.berørt_hovedstol_kroner
+    KglSælgerpantebrevTranche(
+        identifikation = tranche.identifikation,
+        skatteyder = tranche.skatteyder,
+        skattemæssigt_erhvervelsesår = tranche.skattemæssigt_erhvervelsesår,
         resterende_hovedstol_kroner = resterende_hovedstol_kroner,
-        resterende_anskaffelsessum_kroner = tilstand.resterende_anskaffelsessum_kroner - frigivet_anskaffelsessum_kroner,
+        resterende_anskaffelsessum_kroner = tranche.resterende_anskaffelsessum_kroner - fordelt_anskaffelsessum_kroner,
         seneste_indkomstår = disposition.indkomstår,
         aktiv = resterende_hovedstol_kroner > 0
     )
 }
-| kgl_sælgerpantebrev_tilstand_efter_ejerskifte(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> {
-    = bevarer_skattemæssig_stilling = kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(tilstand, grundlag)
-    KglSælgerpantebrevTilstand(
+| kgl_sælgerpantebrev_modtagertranche(tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, grundlag: KglSælgerpantebrevEjerskiftegrundlag, modtagers_tranche_identifikation: Tekst, fordelt_anskaffelsessum_kroner: Heltal) -> {
+    = bevarer_skattemæssig_stilling = kgl_sælgerpantebrev_ejerskifte_bevarer_skattemæssig_stilling(fordelt_anskaffelsessum_kroner, grundlag)
+    KglSælgerpantebrevTranche(
+        identifikation = modtagers_tranche_identifikation,
         skatteyder = kgl_sælgerpantebrev_ny_skatteyder(grundlag),
-        skattemæssigt_erhvervelsesår = hvis bevarer_skattemæssig_stilling { tilstand.skattemæssigt_erhvervelsesår } ellers { disposition.indkomstår },
-        resterende_hovedstol_kroner = tilstand.resterende_hovedstol_kroner,
-        resterende_anskaffelsessum_kroner = hvis bevarer_skattemæssig_stilling { tilstand.resterende_anskaffelsessum_kroner } ellers { kgl_sælgerpantebrev_ejerskifte_boopgørelsesværdi_kroner(grundlag) },
+        skattemæssigt_erhvervelsesår = hvis bevarer_skattemæssig_stilling { tranche.skattemæssigt_erhvervelsesår } ellers { disposition.indkomstår },
+        resterende_hovedstol_kroner = disposition.berørt_hovedstol_kroner,
+        resterende_anskaffelsessum_kroner = hvis bevarer_skattemæssig_stilling { fordelt_anskaffelsessum_kroner } ellers { kgl_sælgerpantebrev_ejerskifte_boopgørelsesværdi_kroner(grundlag) },
         seneste_indkomstår = disposition.indkomstår,
-        aktiv = tilstand.aktiv
+        aktiv = Sandt
     )
 }
-| kgl_sælgerpantebrev_tilstand_efter(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition, frigivet_anskaffelsessum_kroner: Heltal) -> match disposition.art {
-    | KglSælgerpantebrevEjerskifte(grundlag) -> kgl_sælgerpantebrev_tilstand_efter_ejerskifte(tilstand, disposition, grundlag)
-    | _ -> kgl_sælgerpantebrev_tilstand_efter_realisering(tilstand, disposition, frigivet_anskaffelsessum_kroner)
+| kgl_sælgerpantebrev_ændrede_trancher_efter(tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, fordelt_anskaffelsessum_kroner: Heltal) -> {
+    = resterende_kildetranche = kgl_sælgerpantebrev_resterende_kildetranche(tranche, disposition, fordelt_anskaffelsessum_kroner)
+    = kildetranche = hvis resterende_kildetranche.aktiv { [resterende_kildetranche] } ellers { [] }
+    match disposition.art {
+        | KglSælgerpantebrevEjerskifte(grundlag, modtagers_tranche_identifikation) -> concat(kildetranche, [kgl_sælgerpantebrev_modtagertranche(tranche, disposition, grundlag, modtagers_tranche_identifikation, fordelt_anskaffelsessum_kroner)])
+        | _ -> kildetranche
+    }
+}
+| kgl_sælgerpantebrev_tilstand_efter(tilstand: KglSælgerpantebrevTilstand, tranche: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, ændrede_trancher_efter: List(KglSælgerpantebrevTranche)) -> {
+    = uberørte_trancher = filter(tilstand.trancher, |anden: KglSælgerpantebrevTranche| anden.identifikation != tranche.identifikation)
+    = trancher = concat(uberørte_trancher, ændrede_trancher_efter)
+    KglSælgerpantebrevTilstand(trancher = trancher, seneste_indkomstår = disposition.indkomstår, aktiv = length(trancher) > 0)
 }
 | kgl_sælgerpantebrev_dispositionsresultat(tilstand: KglSælgerpantebrevTilstand, disposition: KglSælgerpantebrevDisposition) -> {
     = regelgrundlag_understøttet = kgl_sælgerpantebrev_disposition_understøttet(disposition.art)
     = disposition_gyldig = kgl_sælgerpantebrev_disposition_gyldig(tilstand, disposition)
-    = realisering_sker = disposition_gyldig && kgl_sælgerpantebrev_realisering_sker(tilstand, disposition)
-    = frigivet_anskaffelsessum_kroner = hvis realisering_sker { kgl_sælgerpantebrev_frigivet_anskaffelsessum_kroner(tilstand, disposition) } ellers { 0 }
-    = afståelses_eller_indfrielsessum_kroner = hvis realisering_sker { match disposition.art { | KglSælgerpantebrevEjerskifte(grundlag) -> kgl_sælgerpantebrev_ejerskifte_boopgørelsesværdi_kroner(grundlag) | _ -> disposition.afståelses_eller_indfrielsessum_kroner } } ellers { 0 }
+    = berørt_tranche_før = kgl_sælgerpantebrev_berørt_tranche(tilstand, disposition)
+    = fordelt_anskaffelsessum_kroner = hvis disposition_gyldig { kgl_sælgerpantebrev_fordelt_anskaffelsessum_kroner(berørt_tranche_før, disposition) } ellers { 0 }
+    = realisering_sker = disposition_gyldig && kgl_sælgerpantebrev_realisering_sker(fordelt_anskaffelsessum_kroner, disposition)
+    = frigivet_anskaffelsessum_kroner = hvis realisering_sker { fordelt_anskaffelsessum_kroner } ellers { 0 }
+    = afståelses_eller_indfrielsessum_kroner = hvis realisering_sker { match disposition.art { | KglSælgerpantebrevEjerskifte(grundlag, _) -> kgl_sælgerpantebrev_ejerskifte_boopgørelsesværdi_kroner(grundlag) | _ -> disposition.afståelses_eller_indfrielsessum_kroner } } ellers { 0 }
     = rå_netto_kroner = afståelses_eller_indfrielsessum_kroner - frigivet_anskaffelsessum_kroner
+    = ændrede_trancher_efter = hvis disposition_gyldig { kgl_sælgerpantebrev_ændrede_trancher_efter(berørt_tranche_før, disposition, fordelt_anskaffelsessum_kroner) } ellers { [] }
     KglSælgerpantebrevDispositionsresultat(
         tilstand_før = tilstand,
+        berørt_tranche_før = berørt_tranche_før,
         disposition = disposition,
         disposition_gyldig = disposition_gyldig,
         regelgrundlag_understøttet = regelgrundlag_understøttet,
         realisering_sker = realisering_sker,
+        fordelt_anskaffelsessum_kroner = fordelt_anskaffelsessum_kroner,
         frigivet_anskaffelsessum_kroner = frigivet_anskaffelsessum_kroner,
         afståelses_eller_indfrielsessum_kroner = afståelses_eller_indfrielsessum_kroner,
         rå_gevinst_kroner = penge_positivt_beløb(rå_netto_kroner),
         rå_tab_kroner = penge_positivt_beløb(0 - rå_netto_kroner),
         rå_netto_kroner = rå_netto_kroner,
-        tilstand_efter = hvis disposition_gyldig { kgl_sælgerpantebrev_tilstand_efter(tilstand, disposition, frigivet_anskaffelsessum_kroner) } ellers { tilstand }
+        ændrede_trancher_efter = ændrede_trancher_efter,
+        tilstand_efter = hvis disposition_gyldig { kgl_sælgerpantebrev_tilstand_efter(tilstand, berørt_tranche_før, disposition, ændrede_trancher_efter) } ellers { tilstand }
     )
 }
 | kgl_sælgerpantebrev_forløbstrin(forløb: KglSælgerpantebrevForløbstilstand, disposition: KglSælgerpantebrevDisposition) -> {
@@ -326,10 +364,15 @@ af ejendommen.
 # KglSælgerpantebrevSag(input: KglSælgerpantebrevInput) {
     | grundfakta_gyldige() -> input.identifikation != "" && kgl_sælgerpantebrev_skatteyder_gyldig(input.oprindelig_skatteyder) && input.erhvervelsesår > 0 && input.hovedstol_kroner > 0 && input.kursværdi_ved_erhvervelsen_kroner >= 0
     | initial_tilstand() -> KglSælgerpantebrevTilstand(
-        skatteyder = input.oprindelig_skatteyder,
-        skattemæssigt_erhvervelsesår = input.erhvervelsesår,
-        resterende_hovedstol_kroner = input.hovedstol_kroner,
-        resterende_anskaffelsessum_kroner = input.kursværdi_ved_erhvervelsen_kroner,
+        trancher = [KglSælgerpantebrevTranche(
+            identifikation = input.identifikation,
+            skatteyder = input.oprindelig_skatteyder,
+            skattemæssigt_erhvervelsesår = input.erhvervelsesår,
+            resterende_hovedstol_kroner = input.hovedstol_kroner,
+            resterende_anskaffelsessum_kroner = input.kursværdi_ved_erhvervelsen_kroner,
+            seneste_indkomstår = input.erhvervelsesår,
+            aktiv = grundfakta_gyldige()
+        )],
         seneste_indkomstår = input.erhvervelsesår,
         aktiv = grundfakta_gyldige()
     )
@@ -356,15 +399,20 @@ af ejendommen.
 
 | kgl_sælgerpantebrev_sag(input: KglSælgerpantebrevInput) -> KglSælgerpantebrevSag(input)
 | kgl_sælgerpantebrev_resultat(input: KglSælgerpantebrevInput) -> kgl_sælgerpantebrev_sag(input).resultat()
+| kgl_sælgerpantebrev_resterende_hovedstol_kroner(tilstand: KglSælgerpantebrevTilstand) -> foldl(tilstand.trancher, 0, |sum: Heltal, tranche: KglSælgerpantebrevTranche| sum + tranche.resterende_hovedstol_kroner)
+| kgl_sælgerpantebrev_resterende_anskaffelsessum_kroner(tilstand: KglSælgerpantebrevTilstand) -> foldl(tilstand.trancher, 0, |sum: Heltal, tranche: KglSælgerpantebrevTranche| sum + tranche.resterende_anskaffelsessum_kroner)
+| kgl_sælgerpantebrev_trancher_for_skatteyder(tilstand: KglSælgerpantebrevTilstand, skatteyder_identifikation: Tekst) -> filter(tilstand.trancher, |tranche: KglSælgerpantebrevTranche| tranche.skatteyder.identifikation == skatteyder_identifikation)
+| kgl_sælgerpantebrev_resterende_hovedstol_for_skatteyder_kroner(tilstand: KglSælgerpantebrevTilstand, skatteyder_identifikation: Tekst) -> foldl(kgl_sælgerpantebrev_trancher_for_skatteyder(tilstand, skatteyder_identifikation), 0, |sum: Heltal, tranche: KglSælgerpantebrevTranche| sum + tranche.resterende_hovedstol_kroner)
+| kgl_sælgerpantebrev_resterende_anskaffelsessum_for_skatteyder_kroner(tilstand: KglSælgerpantebrevTilstand, skatteyder_identifikation: Tekst) -> foldl(kgl_sælgerpantebrev_trancher_for_skatteyder(tilstand, skatteyder_identifikation), 0, |sum: Heltal, tranche: KglSælgerpantebrevTranche| sum + tranche.resterende_anskaffelsessum_kroner)
 | kgl_sælgerpantebrev_dispositionsresultater_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal) -> filter(resultat.dispositionsresultater, |disposition: KglSælgerpantebrevDispositionsresultat| disposition.disposition.indkomstår == indkomstår)
 | kgl_sælgerpantebrev_realiseringer_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal) -> filter(kgl_sælgerpantebrev_dispositionsresultater_i_indkomstår(resultat, indkomstår), |disposition: KglSælgerpantebrevDispositionsresultat| disposition.realisering_sker)
-| kgl_sælgerpantebrev_realiseringer_for_skatteyder_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> filter(kgl_sælgerpantebrev_realiseringer_i_indkomstår(resultat, indkomstår), |disposition: KglSælgerpantebrevDispositionsresultat| disposition.tilstand_før.skatteyder.identifikation == skatteyder_identifikation)
-| kgl_sælgerpantebrev_personrealiseringer_for_skatteyder_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> filter(kgl_sælgerpantebrev_realiseringer_for_skatteyder_i_indkomstår(resultat, indkomstår, skatteyder_identifikation), |disposition: KglSælgerpantebrevDispositionsresultat| disposition.tilstand_før.skatteyder.rolle == KglPersonEfterKildeskatteloven)
+| kgl_sælgerpantebrev_realiseringer_for_skatteyder_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> filter(kgl_sælgerpantebrev_realiseringer_i_indkomstår(resultat, indkomstår), |disposition: KglSælgerpantebrevDispositionsresultat| disposition.berørt_tranche_før.skatteyder.identifikation == skatteyder_identifikation)
+| kgl_sælgerpantebrev_personrealiseringer_for_skatteyder_i_indkomstår(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> filter(kgl_sælgerpantebrev_realiseringer_for_skatteyder_i_indkomstår(resultat, indkomstår, skatteyder_identifikation), |disposition: KglSælgerpantebrevDispositionsresultat| disposition.berørt_tranche_før.skatteyder.rolle == KglPersonEfterKildeskatteloven)
 | kgl_sælgerpantebrev_rå_netto_i_indkomstår_kroner(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal) -> foldl(kgl_sælgerpantebrev_realiseringer_i_indkomstår(resultat, indkomstår), 0, |sum: Heltal, disposition: KglSælgerpantebrevDispositionsresultat| sum + disposition.rå_netto_kroner)
 | kgl_sælgerpantebrev_rå_netto_for_skatteyder_i_indkomstår_kroner(resultat: KglSælgerpantebrevResultat, indkomstår: Heltal, skatteyder_identifikation: Tekst) -> foldl(kgl_sælgerpantebrev_personrealiseringer_for_skatteyder_i_indkomstår(resultat, indkomstår, skatteyder_identifikation), 0, |sum: Heltal, disposition: KglSælgerpantebrevDispositionsresultat| sum + disposition.rå_netto_kroner)
 | kgl_sælgerpantebrev_kursgevinstlov_input(disposition: KglSælgerpantebrevDispositionsresultat, årets_samlede_netto_efter_par14_kroner: Heltal, skatteforhold: KglSælgerpantebrevSkatteforhold) -> KursgevinstlovInput(
     indkomstår = disposition.disposition.indkomstår,
-    rolle = disposition.tilstand_før.skatteyder.rolle,
+    rolle = disposition.berørt_tranche_før.skatteyder.rolle,
     aktiv = KglFordring,
     par1_afgrænsning = KglPar1Omfattet,
     bagatelgrundlag = KursgevinstlovBagatelOpgørelse(

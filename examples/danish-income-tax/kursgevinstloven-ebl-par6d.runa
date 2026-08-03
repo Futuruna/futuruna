@@ -28,7 +28,8 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 --@begin:kgl_ebl_par6d_samspil--
 # KglEblPar6DSkatteyderfakta(udøver_næring_ved_køb_og_salg_af_fordringer: Boolsk, fordringen_erhvervet_uden_for_fordringsnæring: Boolsk, fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser: Boolsk, fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift: Boolsk, debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2: Boolsk, renter_eller_gevinster_fritaget_efter_dobbeltbeskatningsoverenskomst: Boolsk)
 # KglEblPar6DSælgerpantebrevsfakta(sælgerpantebrev_identifikation: Tekst, oprindelig_skatteyder_identifikation: Tekst, skatteyderfakta: KglEblPar6DSkatteyderfakta, dispositioner_efter_ebl_forløbet: List(KglSælgerpantebrevDisposition))
-# KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, kursgevinstresultat: KglSælgerpantebrevResultat)
+# KglEblPar6DSælgerpantebrevsresultat(fakta: KglEblPar6DSælgerpantebrevsfakta, par6d_resultat: EblPar6DResultat, identifikation_matcher: Boolsk, skatteyder_understøttet: Boolsk, tranchefordeling_entydig: Boolsk, efterfølgende_dispositioner_gyldige: Boolsk, input_gyldigt: Boolsk, skatteforhold: KglSælgerpantebrevSkatteforhold, kursgevinstresultat: KglSælgerpantebrevResultat)
+# KglEblPar6DDispositionsforløbstilstand(aktiv_tranche_identifikation: Tekst, dispositioner: List(KglSælgerpantebrevDisposition), tranchefordeling_entydig: Boolsk)
 
 | kgl_ebl_par6d_par17_fordring(fakta: KglEblPar6DSkatteyderfakta) -> fakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser || fakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift
 | kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabAlmindelig
@@ -44,13 +45,14 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
     identifikation = identifikation,
     rolle = KglPersonEfterKildeskatteloven
 )
-| kgl_ebl_par6d_ordinær_disposition(årsresultat: EblPar6DÅrsresultat) -> KglSælgerpantebrevDisposition(
+| kgl_ebl_par6d_ordinær_disposition(aktiv_tranche_identifikation: Tekst, årsresultat: EblPar6DÅrsresultat) -> KglSælgerpantebrevDisposition(
     indkomstår = årsresultat.årsforhold.indkomstår,
+    berørt_tranche_identifikation = aktiv_tranche_identifikation,
     art = KglSælgerpantebrevAfdrag,
     berørt_hovedstol_kroner = årsresultat.ordinært_hovedstolsafdrag_kroner,
     afståelses_eller_indfrielsessum_kroner = årsresultat.ordinært_hovedstolsafdrag_kroner
 )
-| kgl_ebl_par6d_ordinære_dispositioner(årsresultat: EblPar6DÅrsresultat) -> hvis årsresultat.år_gyldigt && årsresultat.ordinært_hovedstolsafdrag_kroner > 0 { [kgl_ebl_par6d_ordinær_disposition(årsresultat)] } ellers { [] }
+| kgl_ebl_par6d_ordinære_dispositioner(aktiv_tranche_identifikation: Tekst, årsresultat: EblPar6DÅrsresultat) -> hvis årsresultat.år_gyldigt && årsresultat.ordinært_hovedstolsafdrag_kroner > 0 { [kgl_ebl_par6d_ordinær_disposition(aktiv_tranche_identifikation, årsresultat)] } ellers { [] }
 | kgl_ebl_par6d_pantebrev_dispositionstype(art: EblPar6DPantebrevshændelsesart) -> KglSælgerpantebrevAfståelse
 | exception kgl_ebl_par6d_pantebrev_indfrielse kgl_ebl_par6d_pantebrev_dispositionstype(art: EblPar6DPantebrevshændelsesart) -> KglSælgerpantebrevIndfrielse under art == EblPar6DPantebrevIndfriet
 | kgl_ebl_par6d_ægtefælle_ejerskiftegrundlag(succession: EblPar6DÆgtefællesuccession) -> match succession {
@@ -66,31 +68,40 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
     )
     | EblPar6DIngenÆgtefællesuccession -> KglSælgerpantebrevIkkeUnderstøttetEjerskifte(beskrivelse = "Ejerskifte mangler et ægtefællesuccessionsgrundlag")
 }
-| kgl_ebl_par6d_ejerskiftedisposition(indkomstår: Heltal, berørt_hovedstol_kroner: Heltal, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> KglSælgerpantebrevDisposition(
+| kgl_ebl_par6d_ejerskifte_modtagers_identifikation(grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> kgl_sælgerpantebrev_ny_skatteyder(grundlag).identifikation
+| kgl_ebl_par6d_ejerskiftedisposition(indkomstår: Heltal, berørt_tranche_identifikation: Tekst, berørt_hovedstol_kroner: Heltal, grundlag: KglSælgerpantebrevEjerskiftegrundlag) -> KglSælgerpantebrevDisposition(
     indkomstår = indkomstår,
-    art = KglSælgerpantebrevEjerskifte(grundlag = grundlag),
+    berørt_tranche_identifikation = berørt_tranche_identifikation,
+    art = KglSælgerpantebrevEjerskifte(
+        grundlag = grundlag,
+        modtagers_tranche_identifikation = kgl_ebl_par6d_ejerskifte_modtagers_identifikation(grundlag)
+    ),
     berørt_hovedstol_kroner = berørt_hovedstol_kroner,
     afståelses_eller_indfrielsessum_kroner = 0
 )
-| kgl_ebl_par6d_dødsbodispositioner(indkomstår: Heltal, berørt_hovedstol_kroner: Heltal, succession: EblPar6DDødsbosuccession) -> match succession {
+| kgl_ebl_par6d_dødsbodispositioner(indkomstår: Heltal, berørt_tranche_identifikation: Tekst, berørt_hovedstol_kroner: Heltal, succession: EblPar6DDødsbosuccession) -> match succession {
     | EblPar6DIngenEfterlevendeÆgtefællesuccession(bo) -> [kgl_ebl_par6d_ejerskiftedisposition(
         indkomstår,
+        berørt_tranche_identifikation,
         berørt_hovedstol_kroner,
         KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(boets_skatteyder_identifikation = bo)
     )]
     | EblPar6DEfterlevendeÆgtefælleIUskiftetBo(modtager) -> [kgl_ebl_par6d_ejerskiftedisposition(
         indkomstår,
+        berørt_tranche_identifikation,
         berørt_hovedstol_kroner,
         KglSælgerpantebrevEfterlevendeÆgtefælleEfterDødsboskattelovensPar59(modtagers_skatteyder_identifikation = modtager)
     )]
     | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29(bo, modtager, bo_ikke_fritaget, bo_har_valgt_salgsbeskatning, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> [
         kgl_ebl_par6d_ejerskiftedisposition(
             indkomstår,
+            berørt_tranche_identifikation,
             berørt_hovedstol_kroner,
             KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(boets_skatteyder_identifikation = bo)
         ),
         kgl_ebl_par6d_ejerskiftedisposition(
             indkomstår,
+            bo,
             berørt_hovedstol_kroner,
             KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(
                 modtagers_skatteyder_identifikation = modtager,
@@ -103,17 +114,38 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
         )
     ]
 }
-| kgl_ebl_par6d_ekstraordinære_dispositioner(årsresultat: EblPar6DÅrsresultat) -> match årsresultat.årsforhold.hændelse {
+| kgl_ebl_par6d_ekstraordinære_dispositioner(aktiv_tranche_identifikation: Tekst, årsresultat: EblPar6DÅrsresultat) -> match årsresultat.årsforhold.hændelse {
     | EblPar6DPantebrevAfståetEllerIndfriet(art, berørt, provenu, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) {
-        [kgl_ebl_par6d_ejerskiftedisposition(årsresultat.årsforhold.indkomstår, berørt, kgl_ebl_par6d_ægtefælle_ejerskiftegrundlag(succession))]
+        [kgl_ebl_par6d_ejerskiftedisposition(årsresultat.årsforhold.indkomstår, aktiv_tranche_identifikation, berørt, kgl_ebl_par6d_ægtefælle_ejerskiftegrundlag(succession))]
     } ellers {
-        [KglSælgerpantebrevDisposition(indkomstår = årsresultat.årsforhold.indkomstår, art = kgl_ebl_par6d_pantebrev_dispositionstype(art), berørt_hovedstol_kroner = berørt, afståelses_eller_indfrielsessum_kroner = provenu)]
+        [KglSælgerpantebrevDisposition(indkomstår = årsresultat.årsforhold.indkomstår, berørt_tranche_identifikation = aktiv_tranche_identifikation, art = kgl_ebl_par6d_pantebrev_dispositionstype(art), berørt_hovedstol_kroner = berørt, afståelses_eller_indfrielsessum_kroner = provenu)]
     }
-    | EblPar6DSælgerDød(succession) -> kgl_ebl_par6d_dødsbodispositioner(årsresultat.årsforhold.indkomstår, årsresultat.tilstand_før.sælgerpantebrev_restgæld_kroner - årsresultat.ordinært_hovedstolsafdrag_kroner, succession)
+    | EblPar6DSælgerDød(succession) -> kgl_ebl_par6d_dødsbodispositioner(årsresultat.årsforhold.indkomstår, aktiv_tranche_identifikation, årsresultat.tilstand_før.sælgerpantebrev_restgæld_kroner - årsresultat.ordinært_hovedstolsafdrag_kroner, succession)
     | _ -> []
 }
-| kgl_ebl_par6d_dispositioner_i_år(årsresultat: EblPar6DÅrsresultat) -> concat(kgl_ebl_par6d_ordinære_dispositioner(årsresultat), kgl_ebl_par6d_ekstraordinære_dispositioner(årsresultat))
-| kgl_ebl_par6d_dispositioner_i_forløb(resultat: EblPar6DResultat) -> foldl(resultat.årsresultater, [], |dispositioner: List(KglSælgerpantebrevDisposition), årsresultat: EblPar6DÅrsresultat| concat(dispositioner, kgl_ebl_par6d_dispositioner_i_år(årsresultat)))
+| kgl_ebl_par6d_dispositioner_i_år(aktiv_tranche_identifikation: Tekst, årsresultat: EblPar6DÅrsresultat) -> concat(kgl_ebl_par6d_ordinære_dispositioner(aktiv_tranche_identifikation, årsresultat), kgl_ebl_par6d_ekstraordinære_dispositioner(aktiv_tranche_identifikation, årsresultat))
+| kgl_ebl_par6d_tranche_efter_hændelse(aktiv_tranche_identifikation: Tekst, årsresultat: EblPar6DÅrsresultat) -> match årsresultat.årsforhold.hændelse {
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, _, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) {
+        hvis berørt == årsresultat.tilstand_før.sælgerpantebrev_restgæld_kroner - årsresultat.ordinært_hovedstolsafdrag_kroner { kgl_ebl_par6d_ejerskifte_modtagers_identifikation(kgl_ebl_par6d_ægtefælle_ejerskiftegrundlag(succession)) } ellers { "" }
+    } ellers { hvis berørt == årsresultat.tilstand_før.sælgerpantebrev_restgæld_kroner - årsresultat.ordinært_hovedstolsafdrag_kroner { "" } ellers { aktiv_tranche_identifikation } }
+    | EblPar6DSælgerDød(succession) -> match succession {
+        | EblPar6DIngenEfterlevendeÆgtefællesuccession(bo) -> bo
+        | EblPar6DEfterlevendeÆgtefælleIUskiftetBo(modtager) -> modtager
+        | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29(_, modtager, _, _, _, _, _) -> modtager
+    }
+    | _ -> aktiv_tranche_identifikation
+}
+| kgl_ebl_par6d_dispositionsforløbstrin(forløb: KglEblPar6DDispositionsforløbstilstand, årsresultat: EblPar6DÅrsresultat) -> {
+    = dispositioner_i_år = kgl_ebl_par6d_dispositioner_i_år(forløb.aktiv_tranche_identifikation, årsresultat)
+    = aktiv_tranche_identifikation = kgl_ebl_par6d_tranche_efter_hændelse(forløb.aktiv_tranche_identifikation, årsresultat)
+    KglEblPar6DDispositionsforløbstilstand(
+        aktiv_tranche_identifikation = aktiv_tranche_identifikation,
+        dispositioner = concat(forløb.dispositioner, dispositioner_i_år),
+        tranchefordeling_entydig = forløb.tranchefordeling_entydig && (length(dispositioner_i_år) == 0 || forløb.aktiv_tranche_identifikation != "") && (aktiv_tranche_identifikation != "" || årsresultat.tilstand_efter.sælgerpantebrev_restgæld_kroner == 0)
+    )
+}
+| kgl_ebl_par6d_dispositionsforløb(resultat: EblPar6DResultat) -> foldl(resultat.årsresultater, KglEblPar6DDispositionsforløbstilstand(aktiv_tranche_identifikation = kgl_ebl_par6d_sælgerpantebrev(resultat).identifikation, dispositioner = [], tranchefordeling_entydig = Sandt), kgl_ebl_par6d_dispositionsforløbstrin)
+| kgl_ebl_par6d_dispositioner_i_forløb(resultat: EblPar6DResultat) -> kgl_ebl_par6d_dispositionsforløb(resultat).dispositioner
 | kgl_ebl_par6d_efterfølgende_disposition_efter_forløbet(resultat: EblPar6DResultat, disposition: KglSælgerpantebrevDisposition) -> disposition.indkomstår > ebl_par6d_sidst_behandlede_indkomstår(resultat)
 | kgl_ebl_par6d_efterfølgende_dispositioner_gyldige(resultat: EblPar6DResultat, dispositioner: List(KglSælgerpantebrevDisposition)) -> length(dispositioner) == 0 || (resultat.tilstand_ultimo.ordning_aktiv == Falskt && all(dispositioner, |disposition: KglSælgerpantebrevDisposition| kgl_ebl_par6d_efterfølgende_disposition_efter_forløbet(resultat, disposition)))
 | kgl_ebl_par6d_sælgerpantebrev(resultat: EblPar6DResultat) -> match resultat.valg {
@@ -141,15 +173,17 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
     | pantebrev() -> kgl_ebl_par6d_sælgerpantebrev(par6d_resultat)
     | identifikation_matcher() -> fakta.sælgerpantebrev_identifikation != "" && fakta.sælgerpantebrev_identifikation == pantebrev().identifikation
     | skatteyder_understøttet() -> fakta.oprindelig_skatteyder_identifikation != "" && kgl_ebl_par6d_personskatteyder_understøttet(par6d_resultat) && kgl_ebl_par6d_skatteyderfakta_understøttet(fakta.skatteyderfakta)
+    | tranchefordeling_entydig() -> kgl_ebl_par6d_dispositionsforløb(par6d_resultat).tranchefordeling_entydig
     | efterfølgende_dispositioner_gyldige() -> kgl_ebl_par6d_efterfølgende_dispositioner_gyldige(par6d_resultat, fakta.dispositioner_efter_ebl_forløbet)
     | skatteforhold() -> kgl_ebl_par6d_skatteforhold(fakta.skatteyderfakta)
     | kursgevinstresultat() -> kgl_sælgerpantebrev_resultat(kgl_ebl_par6d_kursgevinstinput(par6d_resultat, fakta.oprindelig_skatteyder_identifikation, fakta.dispositioner_efter_ebl_forløbet))
-    | input_gyldigt() -> par6d_resultat.input_gyldigt && identifikation_matcher() && skatteyder_understøttet() && efterfølgende_dispositioner_gyldige() && kursgevinstresultat().input_gyldigt
+    | input_gyldigt() -> par6d_resultat.input_gyldigt && identifikation_matcher() && skatteyder_understøttet() && tranchefordeling_entydig() && efterfølgende_dispositioner_gyldige() && kursgevinstresultat().input_gyldigt
     | resultat() -> KglEblPar6DSælgerpantebrevsresultat(
         fakta = fakta,
         par6d_resultat = par6d_resultat,
         identifikation_matcher = identifikation_matcher(),
         skatteyder_understøttet = skatteyder_understøttet(),
+        tranchefordeling_entydig = tranchefordeling_entydig(),
         efterfølgende_dispositioner_gyldige = efterfølgende_dispositioner_gyldige(),
         input_gyldigt = input_gyldigt(),
         skatteforhold = skatteforhold(),

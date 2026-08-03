@@ -2297,11 +2297,25 @@
     question = "I hvilket indkomstår skete dispositionen med restfordringen?",
     unit = "år"
 )
+= personskat_felt_kgl_berørt_tranche = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.berørt_tranche_identifikation",
+    label = "Berørt del af sælgerpantebrevet",
+    question = Some("Hvilken entydigt identificeret del af sælgerpantebrevet vedrører dispositionen?"),
+    help = Some("Brug samme identifikation på alle senere dispositioner, der vedrører denne del. Ved et ejerskifte får den overdragne del en ny identifikation."),
+    unit = None
+)
 = personskat_felt_kgl_dispositionsart = Beregningsfelt(
     path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.art.$variant",
     label = "Disposition med restfordringen",
     question = Some("Hvad skete der med den berørte del af restfordringen?"),
     help = Some("Vælg betaling, afståelse, indfrielse eller nedskrivning. Ukendte dispositioner afvises frem for at blive fortolket."),
+    unit = None
+)
+= personskat_felt_kgl_modtagers_tranche = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.dispositioner_efter_ebl_forløbet.art.KglSælgerpantebrevEjerskifte.modtagers_tranche_identifikation",
+    label = "Ny del efter ejerskifte",
+    question = Some("Hvilken ny entydig identifikation skal den overdragne del af sælgerpantebrevet have hos modtageren?"),
+    help = Some("Identifikationen forbinder modtagerens senere betalinger, afståelser og indfrielser med det skattemæssige grundlag, der følger den overdragne del."),
     unit = None
 )
 = personskat_felt_kgl_berørt_hovedstol = Beregningsbeløbsfelt(
@@ -2544,7 +2558,7 @@
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev_succession::field:personskat_felt_egen_par6d_ksl26b_modtager::field:personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark::field:personskat_felt_egen_par6d_ksl26b_modtager_i_danmark::field:personskat_felt_egen_par6d_død_succession::field:personskat_felt_egen_par6d_dødsbo_identifikation::field:personskat_felt_egen_par6d_uskiftet_bo_modtager::field:personskat_felt_egen_par6d_udlodning_bo::field:personskat_felt_egen_par6d_udlodning_modtager::field:personskat_felt_egen_par6d_udlodning_bo_skattepligtigt::field:personskat_felt_egen_par6d_udlodning_salgsvalg::field:personskat_felt_egen_par6d_udlodning_modtager_i_danmark::field:personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning::field:personskat_felt_egen_par6d_udlodning_boopgørelsesværdi::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426--
---@label:beregn_personskat::field:personskat_felt_kursgevinst::field:personskat_felt_kgl_sælgerpantebreve::field:personskat_felt_kgl_skatteyder_identifikation::field:personskat_felt_kgl_øvrigt_bagatelgrundlag::field:personskat_felt_kgl_pantebrev::field:personskat_felt_kgl_oprindelig_skatteyder::field:personskat_felt_kgl_fordringsnæring::field:personskat_felt_kgl_fordring_udenfor_næring::field:personskat_felt_kgl_vederlag_for_leverancer::field:personskat_felt_kgl_driftstilknytning::field:personskat_felt_kgl_kontrol_eller_nærtstående::field:personskat_felt_kgl_dba_fritagelse::field:personskat_felt_kgl_efterfølgende_dispositioner::field:personskat_felt_kgl_dispositionsår::field:personskat_felt_kgl_dispositionsart::field:personskat_felt_kgl_berørt_hovedstol::field:personskat_felt_kgl_provenu::source:kgl_sælgerpantebrev_lbk1176::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426::guidance:kgl_ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_kursgevinst::field:personskat_felt_kgl_sælgerpantebreve::field:personskat_felt_kgl_skatteyder_identifikation::field:personskat_felt_kgl_øvrigt_bagatelgrundlag::field:personskat_felt_kgl_pantebrev::field:personskat_felt_kgl_oprindelig_skatteyder::field:personskat_felt_kgl_fordringsnæring::field:personskat_felt_kgl_fordring_udenfor_næring::field:personskat_felt_kgl_vederlag_for_leverancer::field:personskat_felt_kgl_driftstilknytning::field:personskat_felt_kgl_kontrol_eller_nærtstående::field:personskat_felt_kgl_dba_fritagelse::field:personskat_felt_kgl_efterfølgende_dispositioner::field:personskat_felt_kgl_dispositionsår::field:personskat_felt_kgl_berørt_tranche::field:personskat_felt_kgl_dispositionsart::field:personskat_felt_kgl_modtagers_tranche::field:personskat_felt_kgl_berørt_hovedstol::field:personskat_felt_kgl_provenu::source:kgl_sælgerpantebrev_lbk1176::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426::guidance:kgl_ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
 --@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
 --@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--

@@ -184,7 +184,7 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
 121 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 27
-relationelle kildeark. Kontrakten når nu 248 domænedefinitioner. De to
+relationelle kildeark. Kontrakten når nu 249 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -212,7 +212,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 351 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 353 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -222,6 +222,9 @@ ejendommens placering og de efterfølgende års hændelser har tilsvarende egne
 etiketter og interviewspørgsmål. Det samme gælder KGL-valget, pantebrevets
 identifikation, skatteyderens seks kildefakta, årets øvrige § 14-grundlag og
 senere afståelser eller indfrielser med år, art, berørt hovedstol og provenu.
+Både den berørte pantebrevstranche og en modtagers nye tranche har en
+menneskelig etiket, et interviewspørgsmål og hjælp til at bevare den stabile
+identitet gennem senere betalinger og ejerskifter.
 Beregningens person, pantebrevets oprindelige skatteyder og de typede fakta om
 ægtefælle- eller dødsbosuccession har også egne etiketter og spørgsmål. Det
 omfatter modtageridentiteter, bopæl, boets identitet og skattefritagelse,
@@ -244,7 +247,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`5619b405a8ec50f1987fef54f93b79cca476e2a0cccffe26ac11f8bd764e1b97`.
+`fb43f1da73d12c2c25db90e055a5448e69edba8221954bf6c8c923d321cb6bc8`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
@@ -2687,7 +2690,7 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 248 nåbare definitioner, 121
+- Det genererede Personskat-regneark har nu 249 nåbare definitioner, 121
   synlige overskriftsceller inklusive `case_id` og 27 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2711,14 +2714,15 @@ Review candidates to revisit deliberately, not as broad churn:
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
   fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 351 eksplicitte menneskelige feltetiketter og
+  Kontrakten har 353 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
   anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
   KGL-posterne navngiver pantebrevslisten, pantebrevsidentiteten,
-  skatteyderfakta, § 14-grundlaget og senere dispositioners år, art, hovedstol
-  og provenu. Den navngiver nu også beregningens person, pantebrevets
+  skatteyderfakta, § 14-grundlaget og senere dispositioners år, berørte
+  tranche, art, modtagers nye tranche, hovedstol og provenu. Den navngiver nu
+  også beregningens person, pantebrevets
   oprindelige skatteyder og alle fakta i de understøttede ægtefælle- og
   dødsboskifter.
   Heraf beskriver 66 poster § 11, stk. 2-valget og en eventuel ny
@@ -2746,7 +2750,12 @@ Review candidates to revisit deliberately, not as broad churn:
   bevaret grundlag og erhvervelsesår, hvor loven foreskriver succession. Hvis
   boets udlodning i stedet udløser realisation, beskattes gevinst eller tab hos
   boet til boopgørelsesværdien, og ægtefællen fortsætter fra det nye grundlag.
-  Personskat filtrerer derefter på skatteyderidentitet og personrolle.
+  Et delvist ejerskifte opdeler hovedstol og anskaffelsessum i entydigt
+  identificerede trancher uden dobbeltregning. Fordelingen skal kunne ske
+  præcist i hele kroner; ellers afvises dispositionen. KGL kan derefter føre
+  hver ejers betalinger videre, mens den grovere EBL-bro afviser et delvist
+  successionsforløb, hvis senere betalinger ikke er fordelt mellem ejerne.
+  Personskat filtrerer på skatteyderidentitet og personrolle.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende

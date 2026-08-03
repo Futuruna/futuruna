@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: constructor pattern `Transfer` expects 2 fields but got 1
+-- expect-stderr: use an explicit wildcard for every ignored positional field
+# TransferEvent = Transfer(from: Int, to: Int) | NoTransfer
+
+= event = Transfer(from = 1, to = 2)
+= result = match event {
+    | Transfer(_) -> True
+    | NoTransfer -> False
+}
