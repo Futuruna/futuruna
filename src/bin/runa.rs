@@ -680,7 +680,7 @@ fn main_inner() {
     }
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v4";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v5";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
 
 fn run_calculation_command(
@@ -1030,6 +1030,19 @@ fn calculation_metadata_format() -> rust_xlsxwriter::Format {
         .set_background_color(rust_xlsxwriter::Color::RGB(0xDDEBE7))
 }
 
+fn set_calculation_xlsx_properties(
+    workbook: &mut rust_xlsxwriter::Workbook,
+    contract: &calculate::CalculationContract,
+    subject: &str,
+) {
+    let title = contract.label.as_deref().unwrap_or(&contract.entry);
+    let properties = rust_xlsxwriter::DocProperties::new()
+        .set_title(title)
+        .set_subject(subject)
+        .set_author("Futuruna");
+    workbook.set_properties(&properties);
+}
+
 fn write_calculation_xlsx_metadata(
     workbook: &mut rust_xlsxwriter::Workbook,
     schema: &str,
@@ -1040,16 +1053,17 @@ fn write_calculation_xlsx_metadata(
     let worksheet = workbook.add_worksheet().set_name("_futuruna")?;
     worksheet.write_string_with_format(0, 0, "key", &header)?;
     worksheet.write_string_with_format(0, 1, "value", &header)?;
-    for (row, (key, value)) in [
+    let mut metadata = vec![
         ("schema", schema),
         ("contract_schema", calculate::CONTRACT_SCHEMA),
         ("schema_hash", contract.schema_hash.as_str()),
         ("entry", contract.entry.as_str()),
         ("encoding", "futuruna-canonical-json-v1"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    ];
+    if let Some(label) = &contract.label {
+        metadata.push(("label", label.as_str()));
+    }
+    for (row, (key, value)) in metadata.into_iter().enumerate() {
         let row = row as u32 + 1;
         worksheet.write_string_with_format(row, 0, key, &key_format)?;
         worksheet.write_string(row, 1, value)?;
@@ -1069,6 +1083,11 @@ fn write_calculation_xlsx_template(
     let layout = contract.input_layout();
     let collection_rows = calculation_xlsx_collection_rows(&layout, envelope)?;
     let mut workbook = rust_xlsxwriter::Workbook::new();
+    set_calculation_xlsx_properties(
+        &mut workbook,
+        contract,
+        "Futuruna calculation input workbook",
+    );
     write_calculation_xlsx_metadata(&mut workbook, CALCULATION_XLSX_INPUT_SCHEMA, contract)
         .map_err(|error| error.to_string())?;
     write_calculation_xlsx_layout_metadata(&mut workbook, &layout)
@@ -1077,6 +1096,7 @@ fn write_calculation_xlsx_template(
         .map_err(|error| error.to_string())?;
     write_calculation_xlsx_cases(
         &mut workbook,
+        contract,
         &layout.root_columns,
         envelope,
         &validation_ranges,
@@ -1326,6 +1346,7 @@ fn calculation_variant_guards_metadata(guards: &[calculate::CalculationVariantGu
 
 fn write_calculation_xlsx_cases(
     workbook: &mut rust_xlsxwriter::Workbook,
+    contract: &calculate::CalculationContract,
     columns: &[calculate::CalculationColumn],
     envelope: &calculate::CalculationInputEnvelope,
     validation_ranges: &CalculationXlsxValidationRanges,
@@ -1335,6 +1356,7 @@ fn write_calculation_xlsx_cases(
     let worksheet = workbook.add_worksheet().set_name("cases")?;
     worksheet.set_active(true);
     worksheet.write_string_with_format(0, 0, "case_id", &header)?;
+    add_calculation_xlsx_entry_note(worksheet, contract)?;
     for (index, column) in columns.iter().enumerate() {
         let excel_column = index as u16 + 1;
         worksheet.write_string_with_format(
@@ -1685,12 +1707,66 @@ fn calculation_column_width(column: &calculate::CalculationColumn) -> f64 {
     content_width.max(header_width).max(choice_width).min(48.0)
 }
 
-fn calculation_xlsx_column_header(column: &calculate::CalculationColumn) -> &str {
-    column
-        .metadata
-        .as_ref()
-        .map(|metadata| metadata.label.as_str())
-        .unwrap_or(&column.path)
+fn calculation_xlsx_column_header(
+    column: &calculate::CalculationColumn,
+) -> std::borrow::Cow<'_, str> {
+    if let Some(metadata) = &column.metadata {
+        std::borrow::Cow::Borrowed(metadata.label.as_str())
+    } else {
+        std::borrow::Cow::Owned(calculation_humanize_input_path(&column.path))
+    }
+}
+
+fn calculation_humanize_input_path(path: &str) -> String {
+    path.split('.')
+        .map(calculation_humanize_input_segment)
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
+fn calculation_humanize_input_segment(segment: &str) -> String {
+    if segment == "$variant" {
+        return "Variant".to_string();
+    }
+
+    let (identifier, unit) = [
+        ("_yyyymmdd", "YYYYMMDD"),
+        ("_procent", "%"),
+        ("_kroner", "DKK"),
+    ]
+    .into_iter()
+    .find_map(|(suffix, unit)| segment.strip_suffix(suffix).map(|name| (name, Some(unit))))
+    .unwrap_or((segment, None));
+
+    let mut words = String::new();
+    let mut previous_was_lowercase = false;
+    for character in identifier.chars() {
+        if character == '_' {
+            if !words.ends_with(' ') {
+                words.push(' ');
+            }
+            previous_was_lowercase = false;
+            continue;
+        }
+        if character.is_uppercase() && previous_was_lowercase && !words.ends_with(' ') {
+            words.push(' ');
+        }
+        words.push(character);
+        previous_was_lowercase = character.is_lowercase();
+    }
+
+    let words = words.trim();
+    let mut characters = words.chars();
+    let mut label = characters
+        .next()
+        .map(|first| first.to_uppercase().collect::<String>() + characters.as_str())
+        .unwrap_or_else(|| segment.to_string());
+    if let Some(unit) = unit {
+        label.push_str(" (");
+        label.push_str(unit);
+        label.push(')');
+    }
+    label
 }
 
 fn add_calculation_xlsx_column_note(
@@ -1698,33 +1774,46 @@ fn add_calculation_xlsx_column_note(
     excel_column: u16,
     column: &calculate::CalculationColumn,
 ) -> Result<(), rust_xlsxwriter::XlsxError> {
-    let Some(metadata) = column.metadata.as_ref() else {
-        return Ok(());
-    };
     let mut lines = vec![format!("Futuruna path: {}", column.input_path)];
-    if let Some(question) = &metadata.question {
-        lines.push(format!("Question: {question}"));
-    }
-    if let Some(help) = &metadata.help {
-        lines.push(format!("Help: {help}"));
-    }
-    if let Some(unit) = &metadata.unit {
-        lines.push(format!("Unit: {unit}"));
-    }
-    if !metadata.sources.is_empty() {
-        lines.push("Sources:".to_string());
-        for source in &metadata.sources {
-            let value = source.value.as_deref().unwrap_or(&source.binding);
-            lines.push(format!(
-                "- {}: {} ({})",
-                source.role,
-                source.binding,
-                truncate_calculation_note_text(value, 500)
-            ));
+    if let Some(metadata) = column.metadata.as_ref() {
+        if let Some(question) = &metadata.question {
+            lines.push(format!("Question: {question}"));
+        }
+        if let Some(help) = &metadata.help {
+            lines.push(format!("Help: {help}"));
+        }
+        if let Some(unit) = &metadata.unit {
+            lines.push(format!("Unit: {unit}"));
+        }
+        if !metadata.sources.is_empty() {
+            lines.push("Sources:".to_string());
+            for source in &metadata.sources {
+                let value = source.value.as_deref().unwrap_or(&source.binding);
+                lines.push(format!(
+                    "- {}: {} ({})",
+                    source.role,
+                    source.binding,
+                    truncate_calculation_note_text(value, 500)
+                ));
+            }
         }
     }
     let note = rust_xlsxwriter::Note::new(lines.join("\n")).set_author("Futuruna");
     worksheet.insert_note(0, excel_column, &note)?;
+    Ok(())
+}
+
+fn add_calculation_xlsx_entry_note(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    contract: &calculate::CalculationContract,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let mut lines = Vec::new();
+    if let Some(label) = &contract.label {
+        lines.push(format!("Calculation: {label}"));
+    }
+    lines.push(format!("Futuruna entry: {}", contract.entry));
+    let note = rust_xlsxwriter::Note::new(lines.join("\n")).set_author("Futuruna");
+    worksheet.insert_note(0, 0, &note)?;
     Ok(())
 }
 
@@ -1912,7 +2001,6 @@ fn read_calculation_xlsx(
             ));
         }
     }
-
     let workbook_hash = metadata.get("schema_hash").cloned().unwrap_or_default();
     if workbook_hash != contract.schema_hash {
         return Ok((
@@ -1925,6 +2013,14 @@ fn read_calculation_xlsx(
                 cases: Vec::new(),
             },
             Vec::new(),
+        ));
+    }
+    let workbook_label = metadata.get("label").map(String::as_str).unwrap_or("");
+    let expected_label = contract.label.as_deref().unwrap_or("");
+    if workbook_label != expected_label {
+        return Err(format!(
+            "workbook metadata `label` is `{}`, expected `{}`",
+            workbook_label, expected_label
         ));
     }
 
@@ -2752,6 +2848,11 @@ fn write_calculation_xlsx_output(
     path: &str,
 ) -> Result<(), String> {
     let mut workbook = rust_xlsxwriter::Workbook::new();
+    set_calculation_xlsx_properties(
+        &mut workbook,
+        contract,
+        "Futuruna calculation result workbook",
+    );
     write_calculation_xlsx_metadata(&mut workbook, CALCULATION_XLSX_OUTPUT_SCHEMA, contract)
         .map_err(|error| error.to_string())?;
     let header = calculation_header_format();
@@ -2765,6 +2866,7 @@ fn write_calculation_xlsx_output(
     results
         .write_string_with_format(0, 0, "case_id", &header)
         .map_err(|error| error.to_string())?;
+    add_calculation_xlsx_entry_note(results, contract).map_err(|error| error.to_string())?;
     results
         .write_string_with_format(0, 1, "result", &header)
         .map_err(|error| error.to_string())?;
@@ -38919,6 +39021,28 @@ fn sanitize_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn calculation_input_paths_have_readable_fallback_labels() {
+        assert_eq!(
+            calculation_humanize_input_path("sailor_income_kroner"),
+            "Sailor income (DKK)"
+        );
+        assert_eq!(
+            calculation_humanize_input_path(
+                "lønmodtager.ligningsfradrag.MedBefordringsfradrag.$variant"
+            ),
+            "Lønmodtager / Ligningsfradrag / Med Befordringsfradrag / Variant"
+        );
+        assert_eq!(
+            calculation_humanize_input_path("personfradrag_valg_dato_yyyymmdd"),
+            "Personfradrag valg dato (YYYYMMDD)"
+        );
+        assert_eq!(
+            calculation_humanize_input_path("MedLigningslov9D"),
+            "Med Ligningslov9D"
+        );
+    }
 
     #[test]
     fn formatter_indents_multiline_named_constructors_and_lists() {

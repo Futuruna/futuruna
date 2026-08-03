@@ -75,6 +75,10 @@ kildespor. Den første Personskat-kontrakt bruger dette for skatteår, kommune,
 bruttoløn, befordring, aldersstatus, kirkeskat, renter og årsopgørelse. En AI kan
 læse metadataene og indsamle fakta, men formuleringerne ændrer ikke felternes
 gyldighed eller skattereglernes deterministiske resultat.
+Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`. Felter,
+der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
+sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en
+erstatning for det juridisk præcise interviewspørgsmål.
 
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige

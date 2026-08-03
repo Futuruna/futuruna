@@ -57,6 +57,7 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
     let schema = parse_stdout(&output);
     assert_eq!(schema["schema"], "futuruna.calculate.v1");
     assert_eq!(schema["entry"], "calculate_tax");
+    assert_eq!(schema["label"], "Household tax calculation");
     assert_eq!(schema["input"]["name"], "TaxInput");
     assert_eq!(schema["output"]["name"], "TaxResult");
     assert_eq!(schema["schema_hash"].as_str().expect("hash").len(), 64);
@@ -337,12 +338,22 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         );
         assert_eq!(
             workbook_headers(&mut workbook, "cases"),
-            ["case_id", "Monthly income", "Filing status", "deduction"]
+            ["case_id", "Monthly income", "Filing status", "Deduction"]
         );
         assert_eq!(
             workbook_headers(&mut workbook, "children"),
             ["case_id", "item_id", "position", "Child name", "Child age"]
         );
+        let metadata = workbook
+            .worksheet_range("_futuruna")
+            .expect("workbook metadata");
+        let label = metadata
+            .rows()
+            .skip(1)
+            .find(|row| row.first().map(ToString::to_string).as_deref() == Some("label"))
+            .and_then(|row| row.get(1))
+            .map(ToString::to_string);
+        assert_eq!(label.as_deref(), Some("Household tax calculation"));
         let columns = workbook
             .worksheet_range("_columns")
             .expect("column metadata");
@@ -2074,17 +2085,66 @@ fn xlsx_rejects_tampered_collection_topology() {
 }
 
 #[test]
-fn calculate_with_prompt_argument_is_a_parse_error() {
+fn calculate_accepts_one_human_label() {
     let path = temp_path("runa");
     std::fs::write(
         &path,
-        "# Input(value: Int)\n@ calculate(\"Value\")\n| calculate(input: Input) -> input.value\n",
+        "# Input(value: Int)\n@ calculate(\"Income from sailor activities\")\n| calculate(input: Input) -> input.value\n",
     )
-    .expect("write invalid source");
-    let output = run(&["check", path.to_str().expect("source path")]);
+    .expect("write labelled calculation source");
+    let output = run(&["schema", path.to_str().expect("source path")]);
     std::fs::remove_file(&path).ok();
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("does not take arguments"));
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    assert_eq!(schema["label"], "Income from sailor activities");
+
+    std::fs::write(
+        &path,
+        "# Input(value: Int)\n@ calculate(\"Sailor income\")\n| calculate(input: Input) -> input.value\n",
+    )
+    .expect("rewrite labelled calculation source");
+    let changed = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(changed.status.success());
+    let changed_schema = parse_stdout(&changed);
+    assert_eq!(changed_schema["label"], "Sailor income");
+    assert_ne!(schema["schema_hash"], changed_schema["schema_hash"]);
+}
+
+#[test]
+fn calculate_rejects_invalid_human_labels() {
+    for (annotation, expected) in [
+        ("@ calculate(42)", "accepts one human-readable string label"),
+        ("@ calculate(\"\")", "label must not be empty"),
+        (
+            "@ calculate(\"First\", \"Second\")",
+            "accepts at most one human-readable string label",
+        ),
+    ] {
+        let path = temp_path("runa");
+        std::fs::write(
+            &path,
+            format!(
+                "# Input(value: Int)\n{annotation}\n| calculate(input: Input) -> input.value\n"
+            ),
+        )
+        .expect("write invalid labelled calculation source");
+        let output = run(&["check", path.to_str().expect("source path")]);
+        std::fs::remove_file(&path).ok();
+        assert!(
+            !output.status.success(),
+            "annotation unexpectedly passed: {annotation}"
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(expected),
+            "stderr for {annotation}:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
 
 #[test]
@@ -2155,6 +2215,43 @@ fn changing_field_metadata_makes_an_xlsx_template_stale() {
     );
 
     std::fs::write(&source_path, source("Updated label")).expect("update calculation source");
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"][0]["message"]
+        .as_str()
+        .expect("diagnostic")
+        .contains("stale calculation template"));
+}
+
+#[test]
+fn changing_calculation_label_makes_an_xlsx_template_stale() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    let source = |label: &str| {
+        format!(
+            "# Input(value: Int)\n@ calculate({label:?})\n| calculate(input: Input) -> input.value\n"
+        )
+    };
+    std::fs::write(&source_path, source("Original calculation")).expect("write calculation source");
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(template.status.success());
+
+    std::fs::write(&source_path, source("Updated calculation")).expect("update calculation source");
     let output = run(&[
         "call",
         source_path.to_str().expect("source path"),
@@ -2386,11 +2483,12 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v4"),
+        ("schema", "futuruna.calculate.xlsx.input.v5"),
         ("contract_schema", "futuruna.calculate.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),
         ("encoding", "futuruna-canonical-json-v1"),
+        ("label", "Household tax calculation"),
     ]
     .into_iter()
     .enumerate()

@@ -62,7 +62,7 @@ Synthetic calculation source used to verify typed calculation provenance.
 ----
 
 --@begin:tax_calculation--
-@ calculate
+@ calculate("Household tax calculation")
 | calculate_tax(input: TaxInput) -> TaxResult(
     annual_income = annual_income(input),
     taxable_income = taxable_income(input),

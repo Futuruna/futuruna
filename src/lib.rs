@@ -5801,12 +5801,11 @@ impl Parser {
             return Ok(Stmt::Expr(ExprKind::Effect(name, vec![]).into()));
         }
 
+        // `@ calculate` is a declaration marker, even when it carries the
+        // optional human-readable calculation title.
         if name == "calculate" && self.peek_kind() == TokenKind::LParen {
-            let p = self.peek();
-            return Err(format!(
-                "{}:{}: `@ calculate` does not take arguments.\n  Attach prompts, labels, units, and sources through typed meta comments.",
-                p.line, p.col
-            ));
+            let args = self.parse_arg_list()?;
+            return Ok(Stmt::Annot(name, args));
         }
 
         // If followed by ( it's an effect invocation: @ print("hello")

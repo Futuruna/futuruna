@@ -13,7 +13,7 @@ calculation boundary. It does not change rule evaluation and is not an effect.
 # Input(monthly_income: Int, status: FilingStatus)
 # Result(annual_tax: Int)
 
-@ calculate
+@ calculate("Household tax calculation")
 | calculate(input: Input) -> Result(annual_tax = annual_tax(input))
 ```
 
@@ -22,8 +22,11 @@ must infer to one concrete serializable type; a function must declare its result
 type. The input is one named domain type. Conditions, defaults, exceptions,
 matches, rule scopes, and ordinary rule dependencies continue to work normally.
 
-Use plain `@ calculate`. The annotation does not accept a prompt string. Labels,
-help, units, and sources belong in typed meta comments.
+Use plain `@ calculate` when the rule name is sufficient, or provide one
+human-readable title with `@ calculate("Household tax calculation")`. The title
+names the whole calculation and appears in its schema and generated workbook.
+It does not label every nested input field. Field labels, interview questions,
+help, units, and sources belong in typed field metadata.
 
 ## Describe Human Input
 
@@ -67,13 +70,18 @@ and are copied into that field's source trace.
 Field metadata appears structurally in `runa schema` and participates in the
 schema fingerprint. In XLSX, the human label is the visible column header; the
 exact canonical path and all presentation data remain in the hidden `_columns`
-or `_tables` sheet. Header notes expose the path, interview question, help, unit,
-and source bindings. None of this prose changes requiredness, alternatives,
-validation, or rule evaluation.
+or `_tables` sheet. A field without explicit metadata receives a deterministic
+humanized path as its visible fallback. Header notes always expose the canonical
+path and add the interview question, help, unit, and source bindings when
+present. None of this prose changes requiredness, alternatives, validation, or
+rule evaluation.
 
-An AI client can therefore read the schema, ask each field's `question`, map the
-answer to `path`, and submit canonical JSON or XLSX. The AI gathers facts and
-explains the returned rule trace; Futuruna remains the deterministic calculator.
+An AI client can therefore present the calculation title, ask each field's
+`question`, map the answer to `path`, and submit canonical JSON or XLSX. The AI
+gathers facts and explains the returned rule trace; Futuruna remains the
+deterministic calculator. A visible machine path in a generated workbook means
+that field still lacks explicit presentation metadata; it is a stable fallback,
+not the intended final interview wording.
 
 ## Inspect The Contract
 

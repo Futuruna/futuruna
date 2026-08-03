@@ -93,6 +93,8 @@ og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
 
 Generisk feltmetadata er nu integreret i beregningskontrakten og regnearket.
+Den kanoniske grænse hedder `@ calculate("Dansk personskat")`, så kontrakt og
+regneark også har en menneskelig titel uden at ændre den stabile entry-nøgle.
 Synlige kolonneoverskrifter bruger en udtrykkelig menneskelig etiket, mens den
 stabile maskinsti, interviewspørgsmål, hjælp, enhed og typede kildereferencer
 bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har den
@@ -101,6 +103,10 @@ kirkeskat, renter og årsopgørelse. En AI kan dermed indsamle fakta og udfylde 
 kanoniske stier, mens Futuruna beregner deterministisk og bevarer den juridiske
 forklaringskæde. En metadataændring ændrer kontraktens fingerprint, så gamle
 interview- og regnearksskabeloner afvises som forældede.
+Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
+sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
+fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
+sin præcise juridiske etiket og sit interviewspørgsmål.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen

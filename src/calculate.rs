@@ -1,7 +1,8 @@
 //! Typed calculation contracts and canonical value interchange.
 //!
 //! `@ calculate` does not alter evaluation. It selects an ordinary typed rule
-//! or function as a discoverable input/output boundary for external adapters.
+//! or function as a discoverable input/output boundary for external adapters
+//! and may carry one human-readable title for that boundary.
 
 use super::*;
 use serde::{Deserialize, Serialize};
@@ -136,6 +137,8 @@ pub struct CalculationContract {
     pub schema: String,
     pub schema_version: u32,
     pub entry: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     pub parameter: String,
     pub input: CalculationTypeRef,
     pub output: CalculationTypeRef,
@@ -565,9 +568,26 @@ impl TypeCatalog {
 #[derive(Clone)]
 struct EndpointCandidate {
     name: String,
+    label: Option<String>,
     parameter: String,
     input: Ty,
     output: Ty,
+}
+
+fn calculation_label_from_args(args: &[Expr]) -> Result<Option<String>, String> {
+    match args {
+        [] => Ok(None),
+        [arg] => match &arg.kind {
+            ExprKind::Lit(Literal::Str(label)) if !label.trim().is_empty() => {
+                Ok(Some(label.clone()))
+            }
+            ExprKind::Lit(Literal::Str(_)) => {
+                Err("`@ calculate` label must not be empty".to_string())
+            }
+            _ => Err("`@ calculate` accepts one human-readable string label".to_string()),
+        },
+        _ => Err("`@ calculate` accepts at most one human-readable string label".to_string()),
+    }
 }
 
 /// Extract and validate every `@ calculate` contract in a parsed program.
@@ -597,38 +617,43 @@ pub fn extract_calculation_contracts(
 
     let mut candidates = Vec::new();
     let mut diagnostics = Vec::new();
-    let mut pending_markers = 0usize;
+    let mut pending_markers = Vec::new();
 
     for stmt in stmts {
         if let Stmt::Annot(name, args) = stmt {
             if name == "calculate" {
-                if !args.is_empty() {
-                    diagnostics.push(Diagnostic::error(
-                        "`@ calculate` does not take arguments; attach prompts and labels through typed meta comments",
-                    ));
+                match calculation_label_from_args(args) {
+                    Ok(label) => pending_markers.push(label),
+                    Err(message) => {
+                        diagnostics.push(Diagnostic::error(message));
+                        pending_markers.push(None);
+                    }
                 }
-                pending_markers += 1;
             }
             continue;
         }
 
-        if pending_markers == 0 {
+        if pending_markers.is_empty() {
             continue;
         }
-        if pending_markers > 1 {
+        if pending_markers.len() > 1 {
             diagnostics.push(Diagnostic::error(
                 "duplicate `@ calculate` marker before the same callable",
             ));
         }
-        pending_markers = 0;
+        let label = pending_markers.first().cloned().flatten();
+        pending_markers.clear();
 
         match endpoint_from_stmt(stmt, stmts, &checker) {
-            Ok(candidate) => candidates.push(candidate),
+            Ok(mut candidate) => {
+                candidate.label = label;
+                candidates.push(candidate);
+            }
             Err(message) => diagnostics.push(Diagnostic::error(&message)),
         }
     }
 
-    if pending_markers > 0 {
+    if !pending_markers.is_empty() {
         diagnostics.push(Diagnostic::error(
             "`@ calculate` must be followed by a top-level typed rule or function",
         ));
@@ -680,6 +705,7 @@ pub fn extract_calculation_contracts(
             schema: CONTRACT_SCHEMA.to_string(),
             schema_version: 1,
             entry: candidate.name,
+            label: candidate.label,
             parameter: candidate.parameter,
             input,
             output,
@@ -748,6 +774,7 @@ fn endpoint_from_stmt(
             reject_direct_effects(name, body)?;
             Ok(EndpointCandidate {
                 name: name.clone(),
+                label: None,
                 parameter: params[0].name.clone(),
                 input,
                 output,
@@ -818,6 +845,7 @@ fn endpoint_from_stmt(
             })?;
             Ok(EndpointCandidate {
                 name,
+                label: None,
                 parameter: parameter.clone(),
                 input,
                 output,

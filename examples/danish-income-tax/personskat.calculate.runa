@@ -503,6 +503,6 @@
 }
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
 
-@ calculate
+@ calculate("Dansk personskat")
 | beregn_personskat(input: PersonskatInput) -> personskat_beregning_resultat(input)
 --@end:personskat_lønmodtagerberegning--

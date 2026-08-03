@@ -21,7 +21,7 @@ semantics to the language.
 # TaxInput(monthly_income: Int, municipality: Municipality, children: List(Child))
 # TaxResult(annual_tax: Int, effective_rate: Float)
 
-@ calculate
+@ calculate("Danish personal income tax")
 | calculate_tax(input: TaxInput) -> TaxResult(
     annual_tax = annual_tax(input),
     effective_rate = effective_rate(input),
@@ -79,15 +79,18 @@ selection is ambiguous. A missing marker, duplicate marker on the same callable,
 misplaced marker, untyped input, unknown result, or requested unknown entry is a
 Futuruna diagnostic.
 
-`@ calculate(...)` is deliberately not syntax. Prompts belong to field metadata,
-not to the calculation boundary.
+The marker accepts either no arguments or one non-empty string literal. The
+string is a human-readable title for the whole calculation, not a prompt for its
+single parameter or any nested field. Per-field labels, questions, help, units,
+and sources remain field-targeted metadata so large domain graphs do not confuse
+presentation text with canonical paths.
 
 ## Contract document
 
 `runa schema` emits `futuruna.calculate.v1`. Its stable semantic fields are:
 
 - `schema` and `schema_version`;
-- `entry` and the single parameter name;
+- `entry`, the optional human-readable `label`, and the single parameter name;
 - structured `input` and `output` type references;
 - reachable named type `definitions`, including type parameters, variants,
   positional status, and fields;
@@ -147,7 +150,8 @@ cases from being evaluated unless the envelope or schema itself is invalid.
 
 Generated workbooks contain:
 
-- `_futuruna`: hidden adapter schema, entry, contract hash, and encoding metadata;
+- `_futuruna`: hidden adapter schema, entry, optional calculation label, contract
+  hash, and encoding metadata;
 - `cases`: one row per case with a required `case_id` column;
 - `_tables`: hidden collection topology, including worksheet names, parent
   paths, attachment paths, collection kinds, item types, and variant guards;
@@ -197,8 +201,10 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v4`. Earlier workbooks are rejected rather than
-silently interpreting their older topology or payload encoding.
+`futuruna.calculate.xlsx.input.v5`. Version 5 humanizes visible fallback headers
+and places the canonical path in every input header note. Earlier workbooks are
+rejected rather than silently interpreting their older topology or payload
+encoding.
 
 ## Metadata
 
