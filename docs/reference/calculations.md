@@ -116,8 +116,10 @@ choice plus typed variant-qualified columns, and puts each `List`, string-keyed
 are text-formatted so all `i64` values remain exact.
 
 `cases` is the first visible worksheet and contains scalar fields for the named
-input record. Explicit field labels replace machine paths only in visible
-headers; hidden topology retains the paths. Every collection row
+input record. Its first row visibly shows the `@ calculate` title, and every
+related collection sheet combines that title with the collection's field label.
+Explicit field labels replace machine paths only in visible headers; hidden
+topology retains the paths. Every collection row
 uses `case_id` and `item_id`; nested collection sheets add `parent_id`. List rows
 use one-based `position`, map rows use `key`, and set rows have neither. Leave a
 collection sheet without matching rows to supply an empty collection. Hidden

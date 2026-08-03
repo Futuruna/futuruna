@@ -680,7 +680,7 @@ fn main_inner() {
     }
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v5";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
 
 fn run_calculation_command(
@@ -1030,6 +1030,51 @@ fn calculation_metadata_format() -> rust_xlsxwriter::Format {
         .set_background_color(rust_xlsxwriter::Color::RGB(0xDDEBE7))
 }
 
+fn calculation_title_format() -> rust_xlsxwriter::Format {
+    rust_xlsxwriter::Format::new()
+        .set_bold()
+        .set_font_size(14.0)
+        .set_font_color(rust_xlsxwriter::Color::RGB(0x123B38))
+        .set_background_color(rust_xlsxwriter::Color::RGB(0xE6F1EF))
+        .set_border(rust_xlsxwriter::FormatBorder::Thin)
+}
+
+fn calculation_xlsx_entry_title(contract: &calculate::CalculationContract) -> &str {
+    contract.label.as_deref().unwrap_or(&contract.entry)
+}
+
+fn calculation_xlsx_collection_title(
+    contract: &calculate::CalculationContract,
+    table: &calculate::CalculationCollectionTable,
+) -> String {
+    let table_title = table
+        .metadata
+        .as_ref()
+        .map(|metadata| metadata.label.clone())
+        .unwrap_or_else(|| calculation_humanize_input_path(&table.path));
+    format!(
+        "{} - {}",
+        calculation_xlsx_entry_title(contract),
+        table_title
+    )
+}
+
+fn write_calculation_xlsx_title(
+    worksheet: &mut rust_xlsxwriter::Worksheet,
+    title: &str,
+    last_column: u16,
+) -> Result<(), rust_xlsxwriter::XlsxError> {
+    let format = calculation_title_format();
+    let title_last_column = last_column.min(7);
+    if title_last_column == 0 {
+        worksheet.write_string_with_format(0, 0, title, &format)?;
+    } else {
+        worksheet.merge_range(0, 0, 0, title_last_column, title, &format)?;
+    }
+    worksheet.set_row_height(0, 24.0)?;
+    Ok(())
+}
+
 fn set_calculation_xlsx_properties(
     workbook: &mut rust_xlsxwriter::Workbook,
     contract: &calculate::CalculationContract,
@@ -1107,8 +1152,14 @@ fn write_calculation_xlsx_template(
             .get(&table.path)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        write_calculation_xlsx_collection_sheet(&mut workbook, table, rows, &validation_ranges)
-            .map_err(|error| error.to_string())?;
+        write_calculation_xlsx_collection_sheet(
+            &mut workbook,
+            contract,
+            table,
+            rows,
+            &validation_ranges,
+        )
+        .map_err(|error| error.to_string())?;
     }
     workbook.save(path).map_err(|error| error.to_string())
 }
@@ -1354,13 +1405,18 @@ fn write_calculation_xlsx_cases(
     let header = calculation_header_format();
     let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
     let worksheet = workbook.add_worksheet().set_name("cases")?;
+    write_calculation_xlsx_title(
+        worksheet,
+        calculation_xlsx_entry_title(contract),
+        columns.len() as u16,
+    )?;
     worksheet.set_active(true);
-    worksheet.write_string_with_format(0, 0, "case_id", &header)?;
+    worksheet.write_string_with_format(1, 0, "case_id", &header)?;
     add_calculation_xlsx_entry_note(worksheet, contract)?;
     for (index, column) in columns.iter().enumerate() {
         let excel_column = index as u16 + 1;
         worksheet.write_string_with_format(
-            0,
+            1,
             excel_column,
             calculation_xlsx_column_header(column),
             &header,
@@ -1370,11 +1426,11 @@ fn write_calculation_xlsx_cases(
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
     worksheet.set_column_width(0, 18)?;
-    worksheet.set_freeze_panes(1, 1)?;
-    worksheet.autofilter(0, 0, 999, columns.len() as u16)?;
+    worksheet.set_freeze_panes(2, 1)?;
+    worksheet.autofilter(1, 0, 1000, columns.len() as u16)?;
 
     for (index, case) in envelope.cases.iter().enumerate() {
-        let row = index as u32 + 1;
+        let row = index as u32 + 2;
         worksheet.write_string_with_format(row, 0, &case.case_id, &text_format)?;
         for (index, column) in columns.iter().enumerate() {
             let value = if calculation_variant_guards_match(&case.input, &column.variant_guards) {
@@ -1438,6 +1494,7 @@ fn calculation_xlsx_collection_headers(
 
 fn write_calculation_xlsx_collection_sheet(
     workbook: &mut rust_xlsxwriter::Workbook,
+    contract: &calculate::CalculationContract,
     table: &calculate::CalculationCollectionTable,
     rows: &[CalculationXlsxCollectionRow],
     validation_ranges: &CalculationXlsxValidationRanges,
@@ -1446,8 +1503,13 @@ fn write_calculation_xlsx_collection_sheet(
     let text_format = rust_xlsxwriter::Format::new().set_num_format("@");
     let worksheet = workbook.add_worksheet().set_name(&table.sheet)?;
     let headers = calculation_xlsx_collection_headers(table);
+    write_calculation_xlsx_title(
+        worksheet,
+        &calculation_xlsx_collection_title(contract, table),
+        headers.len().saturating_sub(1) as u16,
+    )?;
     for (column, name) in headers.iter().enumerate() {
-        worksheet.write_string_with_format(0, column as u16, name, &header)?;
+        worksheet.write_string_with_format(1, column as u16, name, &header)?;
     }
     worksheet.set_column_width(0, 18)?;
     let mut payload_start = 1_u16;
@@ -1474,11 +1536,11 @@ fn write_calculation_xlsx_collection_sheet(
         worksheet.set_column_width(excel_column, calculation_column_width(column))?;
         add_calculation_xlsx_column_validation(worksheet, excel_column, column, validation_ranges)?;
     }
-    worksheet.set_freeze_panes(1, payload_start)?;
-    worksheet.autofilter(0, 0, 999, headers.len().saturating_sub(1) as u16)?;
+    worksheet.set_freeze_panes(2, payload_start)?;
+    worksheet.autofilter(1, 0, 1000, headers.len().saturating_sub(1) as u16)?;
 
     for (index, item) in rows.iter().enumerate() {
-        let row = index as u32 + 1;
+        let row = index as u32 + 2;
         let mut excel_column = 0_u16;
         worksheet.write_string_with_format(row, excel_column, &item.case_id, &text_format)?;
         excel_column += 1;
@@ -1799,7 +1861,7 @@ fn add_calculation_xlsx_column_note(
         }
     }
     let note = rust_xlsxwriter::Note::new(lines.join("\n")).set_author("Futuruna");
-    worksheet.insert_note(0, excel_column, &note)?;
+    worksheet.insert_note(1, excel_column, &note)?;
     Ok(())
 }
 
@@ -2046,6 +2108,18 @@ fn read_calculation_xlsx(
         .worksheet_range("cases")
         .map_err(|error| error.to_string())?;
     let mut rows = cases_range.rows();
+    let title = rows
+        .next()
+        .and_then(|row| row.first())
+        .map(calculation_cell_text)
+        .ok_or_else(|| "`cases` sheet has no calculation title".to_string())?;
+    let expected_title = calculation_xlsx_entry_title(contract);
+    if title != expected_title {
+        return Err(format!(
+            "`cases` title is `{}`, expected `{}`",
+            title, expected_title
+        ));
+    }
     let header = rows
         .next()
         .ok_or_else(|| "`cases` sheet has no header row".to_string())?;
@@ -2078,7 +2152,7 @@ fn read_calculation_xlsx(
         if case_id.trim().is_empty() {
             diagnostics.push(calculate::CalculationCaseDiagnostic {
                 case_id,
-                path: format!("cases!A{}", row_index + 2),
+                path: format!("cases!A{}", row_index + 3),
                 message: "case_id must not be empty".to_string(),
             });
             continue;
@@ -2086,7 +2160,7 @@ fn read_calculation_xlsx(
         if !seen_ids.insert(case_id.clone()) {
             diagnostics.push(calculate::CalculationCaseDiagnostic {
                 case_id: case_id.clone(),
-                path: format!("cases!A{}", row_index + 2),
+                path: format!("cases!A{}", row_index + 3),
                 message: format!("duplicate case_id `{}`", case_id),
             });
             invalid_cases.insert(case_id);
@@ -2100,7 +2174,7 @@ fn read_calculation_xlsx(
                 if !matches!(cell, Data::Empty) {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
                         case_id: case_id.clone(),
-                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 2),
+                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 3),
                         message: format!(
                             "input column is inactive unless {}",
                             calculation_variant_guards_description(&column.variant_guards)
@@ -2115,7 +2189,7 @@ fn read_calculation_xlsx(
                 Err(message) => {
                     diagnostics.push(calculate::CalculationCaseDiagnostic {
                         case_id: case_id.clone(),
-                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 2),
+                        path: calculation_xlsx_cell_path("cases", index + 1, row_index + 3),
                         message,
                     });
                     row_valid = false;
@@ -2146,6 +2220,18 @@ fn read_calculation_xlsx(
             .worksheet_range(&table.sheet)
             .map_err(|error| error.to_string())?;
         let mut rows = range.rows();
+        let title = rows
+            .next()
+            .and_then(|row| row.first())
+            .map(calculation_cell_text)
+            .ok_or_else(|| format!("`{}` sheet has no calculation title", table.sheet))?;
+        let expected_title = calculation_xlsx_collection_title(contract, table);
+        if title != expected_title {
+            return Err(format!(
+                "`{}` title is `{}`, expected `{}`",
+                table.sheet, title, expected_title
+            ));
+        }
         let header = rows
             .next()
             .ok_or_else(|| format!("`{}` sheet has no header row", table.sheet))?;
@@ -2168,7 +2254,7 @@ fn read_calculation_xlsx(
             if row.iter().all(|cell| matches!(cell, Data::Empty)) {
                 continue;
             }
-            let excel_row = row_index + 2;
+            let excel_row = row_index + 3;
             let case_id = row.first().map(calculation_cell_text).unwrap_or_default();
             let case_known = known_case_ids.contains(&case_id);
             let mut row_valid = true;

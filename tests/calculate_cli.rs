@@ -337,6 +337,14 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
             "cases",
         );
         assert_eq!(
+            workbook_title(&mut workbook, "cases"),
+            "Household tax calculation"
+        );
+        assert_eq!(
+            workbook_title(&mut workbook, "children"),
+            "Household tax calculation - Children"
+        );
+        assert_eq!(
             workbook_headers(&mut workbook, "cases"),
             ["case_id", "Monthly income", "Filing status", "Deduction"]
         );
@@ -524,6 +532,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Bopælskommune",
             "Årlig bruttoløn",
             "Befordringsfradrag",
+            "Afstand til folkepensionsalderen",
+            "Selvstændigt overskud før VSL § 22 b",
+            "Renteudgifter i virksomhedsoverskuddet",
+            "Kurstab i virksomhedsoverskuddet",
+            "Renteindtægter i virksomhedsoverskuddet",
+            "Udbytteindtægter i virksomhedsoverskuddet",
+            "Kursgevinster i virksomhedsoverskuddet",
+            "Udelukkede afståelsesindkomster",
+            "Valg af årsfradrag for livrenter",
+            "Ønsket opfyldningsfradrag for livrenter",
+            "§ 15 A-fradrag i aktieindkomst",
+            "Ønsket pensionsfradrag i aktieindkomst",
+            "Dato for meddelelse om aktieindkomstfradrag",
+            "Dato for omgørelse af aktieindkomstfradrag",
+            "Skattepligtige pensionsudbetalinger efter PBL § 20",
+            "Behandling af pensionsudbetalingen efter § 9 L",
             "Aldersstatus for personfradrag",
             "Kirkeskat",
             "Årets renteindtægter",
@@ -607,6 +631,64 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
             );
         }
+        let pension_path = "lønmodtager.pension.pbl18_indbetalinger";
+        let pension_sheet = workbook_collection_sheet_name(&mut workbook, pension_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pension_sheet),
+            "Dansk personskat - Pensionsindbetalinger efter PBL § 18"
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, &pension_sheet),
+            [
+                "case_id",
+                "item_id",
+                "position",
+                "Pensionsindbetaling",
+                "Type pensionsordning",
+                "Hvem foretog indbetalingen",
+                "Person med fradragsretten",
+                "Indbetalt pensionsbeløb",
+                "Indbetalingens forfaldsår",
+                "Faktisk betalingsår",
+                "Betalt senest den justerede 1. april",
+                "Tilbagebetaling efter PBL § 22 E",
+                "Fradragsplacering for § 15 A-ordning",
+                "Valgt afståelsesår for § 15 A-fradrag",
+                "§ 15 A-indbetaling foretaget rettidigt",
+                "AM-bidrag af arbejdsgiverindbetalingen",
+                "Fordeling af livrentefradraget",
+                "År for kapitalindskuddet",
+                "Kapitalindskud på livrenten",
+                "Første forfaldsår i kort indbetalingsperiode",
+                "Samlet aftalt beløb i den korte periode",
+                "Efterfølgende tilsvarende pensionsordning",
+                "Samlet indbetalingsperiode",
+                "Første år med pensionsforhøjelsen",
+                "Samlet pensionsforhøjelse",
+                "Tidligere forfaldne beløb uden fradrag",
+                "Særligt maksimum for ordningen",
+                "Personkredsen i PBL § 54 er opfyldt",
+                "Afgiftspligt for hele ordningen er indtrådt",
+                "Udenlandsk overførsel med bevaret tidligere fradrag",
+            ]
+        );
+        let index_contributions_path = "lønmodtager.pension.pbl18_indbetalinger.indeksvalg.fradragsvalgte_kontraktbidrag_kroner";
+        let index_contributions_sheet =
+            workbook_collection_sheet_name(&mut workbook, index_contributions_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &index_contributions_sheet),
+            "Dansk personskat - Valgte indekskontraktbidrag"
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, &index_contributions_sheet),
+            [
+                "case_id",
+                "parent_id",
+                "item_id",
+                "position",
+                "Valgte indekskontraktbidrag",
+            ]
+        );
         let canonical_input_paths = column_metadata
             .rows()
             .skip(1)
@@ -637,6 +719,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.erhvervsbefordring.sager.køretøj",
             "lønmodtager.erhvervsbefordring.sager.befordring.kilometer_i_sagen",
             "lønmodtager.erhvervsbefordring.sager.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
+            "lønmodtager.pension.pensionsalder_status",
+            "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
+            "lønmodtager.pension.pbl18_livrentevalg.$variant",
+            "lønmodtager.pension.pbl18_livrentevalg.Pbl18Grundbeløbsvalg.ønsket_fradrag_kroner",
+            "lønmodtager.pension.aktiepensionsfradrag_valg.$variant",
+            "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.ønsket_fradrag_kroner",
+            "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.meddelelse_dato_yyyymmdd",
+            "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.omgørelse_dato_yyyymmdd",
+            "lønmodtager.pension.pbl18_indbetalinger.identifikation",
+            "lønmodtager.pension.pbl18_indbetalinger.ordning",
+            "lønmodtager.pension.pbl18_indbetalinger.betaling.beløb_kroner",
+            "lønmodtager.pension.pbl18_indbetalinger.betaling.arbejdsmarkedsbidrag_kroner",
+            "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.$variant",
+            "lønmodtager.pension.pbl18_indbetalinger.indeksvalg.fradragsvalgte_kontraktbidrag_kroner",
+            "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
+            "lønmodtager.pension.pbl20_udbetaling_status",
             "kapitalindkomst.renter.renteindtægter_kroner",
             "kapitalindkomst.renter.renteudgifter_kroner",
             "kapitalindkomst.renter.næringsstatus",
@@ -1283,27 +1381,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenBefordringsfradrag".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pensionsalder_status",
+                        "lønmodtager.pension.pensionsalder_status",
                         Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner",
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
                         Data::String("0".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner",
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.renteudgifter_kroner",
                         Data::String("0".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pbl19_øvrige_indbetalinger_efter_am_kroner",
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.kurstab_kroner",
                         Data::String("0".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pbl20_indkomstskattepligtig_udbetaling_kroner",
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.renteindtægter_kroner",
                         Data::String("0".to_string()),
                     ),
                     (
-                        "lønmodtager.pensionsfradrag.pbl20_udbetaling_status",
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.udbytteindtægter_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.kursgevinster_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.pbl18_selvstændig_overskud.udelukkede_afståelsesindkomster_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.pbl18_livrentevalg.$variant",
+                        Data::String("Pbl18FordeltFradrag".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.aktiepensionsfradrag_valg.$variant",
+                        Data::String("UdenAktiepensionsfradragIAktieindkomst".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.pbl20_udbetaling_status",
                         Data::String("Ll9lIngenPbl20Udbetaling".to_string()),
                     ),
                     (
@@ -3043,13 +3165,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningsfradrag": {
                 "befordring": { "$variant": "UdenBefordringsfradrag" }
             },
-            "pensionsfradrag": {
+            "pension": {
                 "pensionsalder_status": {
                     "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
                 },
-                "pbl18_fradragsberettiget_indbetaling_kroner": 0,
-                "pbl19_rate_ophørende_bortseelsesret_efter_am_kroner": 0,
-                "pbl19_øvrige_indbetalinger_efter_am_kroner": 0,
+                "pbl18_indbetalinger": [],
+                "pbl18_selvstændig_overskud": {
+                    "skattepligtigt_overskud_før_vsl22b_kroner": 0,
+                    "renteudgifter_kroner": 0,
+                    "kurstab_kroner": 0,
+                    "renteindtægter_kroner": 0,
+                    "udbytteindtægter_kroner": 0,
+                    "kursgevinster_kroner": 0,
+                    "udelukkede_afståelsesindkomster_kroner": 0
+                },
+                "pbl18_livrentevalg": {
+                    "$variant": "Pbl18FordeltFradrag"
+                },
+                "aktiepensionsfradrag_valg": {
+                    "$variant": "UdenAktiepensionsfradragIAktieindkomst"
+                },
                 "pbl20_indkomstskattepligtig_udbetaling_kroner": 0,
                 "pbl20_udbetaling_status": {
                     "$variant": "Ll9lIngenPbl20Udbetaling"
@@ -4841,6 +4976,36 @@ fn xlsx_rejects_tampered_collection_topology() {
 }
 
 #[test]
+fn xlsx_rejects_tampered_visible_calculation_title() {
+    let fixture = fixture();
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(template.status.success());
+    edit_workbook(&input_path, |sheets| {
+        workbook_sheet_mut(sheets, "cases")[0][0] =
+            Data::String("Tampered calculation".to_string());
+    });
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("`cases` title is `Tampered calculation`, expected `Household tax calculation`"));
+}
+
+#[test]
 fn calculate_accepts_one_human_label() {
     let path = temp_path("runa");
     std::fs::write(
@@ -4849,7 +5014,6 @@ fn calculate_accepts_one_human_label() {
     )
     .expect("write labelled calculation source");
     let output = run(&["schema", path.to_str().expect("source path")]);
-    std::fs::remove_file(&path).ok();
     assert!(
         output.status.success(),
         "stderr:\n{}",
@@ -4857,6 +5021,24 @@ fn calculate_accepts_one_human_label() {
     );
     let schema = parse_stdout(&output);
     assert_eq!(schema["label"], "Income from sailor activities");
+
+    let workbook_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        workbook_path.to_str().expect("workbook path"),
+    ]);
+    assert!(template.status.success());
+    let mut workbook = open_workbook_auto(&workbook_path).expect("labelled workbook");
+    assert_eq!(
+        workbook_title(&mut workbook, "cases"),
+        "Income from sailor activities"
+    );
+    drop(workbook);
+    std::fs::remove_file(&workbook_path).ok();
 
     std::fs::write(
         &path,
@@ -5239,7 +5421,7 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
     metadata.write_string(0, 0, "key").unwrap();
     metadata.write_string(0, 1, "value").unwrap();
     for (row, (key, value)) in [
-        ("schema", "futuruna.calculate.xlsx.input.v5"),
+        ("schema", "futuruna.calculate.xlsx.input.v6"),
         ("contract_schema", "futuruna.calculate.v1"),
         ("schema_hash", schema_hash),
         ("entry", "calculate_tax"),
@@ -5255,20 +5437,37 @@ fn write_test_workbook(path: &Path, schema_hash: &str, formula: bool) {
 
     let cases = workbook.add_worksheet();
     cases.set_name("cases").unwrap();
+    cases
+        .write_string(0, 0, "Household tax calculation")
+        .unwrap();
     for (column, header) in ["case_id", "monthly_income", "filing_status", "deduction"]
         .into_iter()
         .enumerate()
     {
-        cases.write_string(0, column as u16, header).unwrap();
+        cases.write_string(1, column as u16, header).unwrap();
     }
-    cases.write_string(1, 0, "case-1").unwrap();
+    cases.write_string(2, 0, "case-1").unwrap();
     if formula {
-        cases.write_formula(1, 1, "=1+1").unwrap();
+        cases.write_formula(2, 1, "=1+1").unwrap();
     } else {
-        cases.write_string(1, 1, "0").unwrap();
+        cases.write_string(2, 1, "0").unwrap();
     }
-    cases.write_string(1, 2, "Single").unwrap();
+    cases.write_string(2, 2, "Single").unwrap();
     workbook.save(path).unwrap();
+}
+
+fn workbook_title(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    sheet: &str,
+) -> String {
+    workbook
+        .worksheet_range(sheet)
+        .expect("worksheet")
+        .rows()
+        .next()
+        .and_then(|row| row.first())
+        .expect("title cell")
+        .to_string()
 }
 
 fn workbook_headers(
@@ -5279,7 +5478,7 @@ fn workbook_headers(
         .worksheet_range(sheet)
         .expect("worksheet")
         .rows()
-        .next()
+        .nth(1)
         .expect("header row")
         .iter()
         .map(ToString::to_string)
@@ -5436,6 +5635,7 @@ fn set_workbook_cell(
     value: Data,
 ) {
     let rows = workbook_sheet_mut(sheets, sheet);
+    let row = if sheet.starts_with('_') { row } else { row + 1 };
     while rows.len() <= row {
         rows.push(Vec::new());
     }
@@ -5455,21 +5655,22 @@ fn set_workbook_cell_by_header(
     let display_header = calculation_workbook_display_header(sheets, sheet, header)
         .unwrap_or_else(|| header.to_string());
     let rows = workbook_sheet_mut(sheets, sheet);
+    let physical_row = row + 1;
     let column = rows
-        .first()
+        .get(1)
         .expect("header row")
         .iter()
         .position(|cell| cell.to_string() == display_header)
         .unwrap_or_else(|| {
             panic!("missing column {header} (displayed as {display_header}) on sheet {sheet}")
         });
-    while rows.len() <= row {
+    while rows.len() <= physical_row {
         rows.push(Vec::new());
     }
-    if rows[row].len() <= column {
-        rows[row].resize(column + 1, Data::Empty);
+    if rows[physical_row].len() <= column {
+        rows[physical_row].resize(column + 1, Data::Empty);
     }
-    rows[row][column] = value;
+    rows[physical_row][column] = value;
 }
 
 fn calculation_workbook_display_header(
@@ -5496,7 +5697,7 @@ fn calculation_workbook_display_header(
                 .as_deref()
                 == Some(path)
     })?;
-    let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.first()?;
+    let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.get(1)?;
     let technical_columns = visible_headers.len().checked_sub(sheet_rows.len())?;
     visible_headers
         .get(technical_columns + field_column)

@@ -106,7 +106,7 @@
         bruttoløn_kroner = 0,
         erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
-        pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+        pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
         betaler_kirkeskat = Falskt
     ),

@@ -1915,6 +1915,18 @@ Jobfradrag, § 9 K
 | ll_lønmodtager_2026_standardfradrag_lavere_løn: ll_lønmodtager_2026_240000_fixture -> ll_lønmodtager_2026_240000_fixture == 30816
 | ll9k_2017_er_ikke_gældende: ll9k_2017_før_indførelse_fixture -> ll9k_2017_før_indførelse_fixture == 0
 
+= ligningsloven_lbk1500_par9l = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 L",
+    hentet_dato = "2026-07-18"
+)
+= skatteministeriet_ligningsloven_par9l_satser_2026 = LigningslovFradragKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven",
+    identifier = "Ligningsloven § 9 L, satser og beløbsgrænser 2026",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par9l::source:ligningsloven_lbk1500_par9l::rate_source:skatteministeriet_ligningsloven_par9l_satser_2026--
 ----
 § 9 L. Ved opgørelsen af den skattepligtige indkomst kan personer fradrage
 procenten nævnt i stk. 3 af deres fradragsberettigede pensionsindbetalinger
@@ -1986,6 +1998,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 2026: 32,0 pct.
 ----
 
+--@begin::ligningsloven_par9l--
 # Ligningslov9LPensionsalderStatus = Ll9lMereEnd15ÅrFørFolkepension | Ll9lFra15ÅrFørFolkepension
 # Ligningslov9LPensionsudbetalingStatus = Ll9lIngenPbl20Udbetaling | Ll9lModregningspligtigPbl20Udbetaling | Ll9lUndtagetPbl20Udbetaling
 # Ligningslov9LInput(skatteår: Heltal, pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
@@ -2109,6 +2122,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
 | ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
+--@end::ligningsloven_par9l--
 
 = ligningsloven_lbk1500_par14 = LigningslovFradragKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",

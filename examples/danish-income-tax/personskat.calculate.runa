@@ -5,7 +5,7 @@
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:ligningsloven_lbk1500_par9l::dependency_source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatErhvervsbefordring(art: Ligningslov9BBefordringsart, kilometer_i_sagen: Heltal, tres_dages_forhold: Ligningslov9B60DagesForhold)
 # PersonskatErhvervsbefordringFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, godtgørende_arbejdsgiver_identifikation: Tekst, køretøj: Ligningslov9BKøretøj, befordring: PersonskatErhvervsbefordring, udgifter: Ligningslov9BUdgifter, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
@@ -20,7 +20,10 @@
 # PersonskatLigningsfradragInput(befordring: PersonskatBefordringsfradragInput)
 # PersonskatBefordringsfradragResultat = IntetBefordringsfradrag | UgyldigtBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, befordring: PersonskatBefordringsfradragResultat, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
-# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
+# PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# PersonskatPensionsResultat(pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
+# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(øvrig_aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | SærligeUnderskudsforhold(forhold: LønmodtagerPar13Forhold)
@@ -54,7 +57,7 @@
 # PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
 # Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
 # Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
@@ -2942,6 +2945,327 @@
     help = Some("Vælg om § 15 Q-andelen skal bevares, eller om § 15 P-fradraget skal prioriteres inden for det højeste fulde bundfradrag."),
     unit = None
 )
+= personskat_felt_pensionsalder = Beregningsfelt(
+    path = "lønmodtager.pension.pensionsalder_status",
+    label = "Afstand til folkepensionsalderen",
+    question = Some("Er der højst 15 indkomstår, til du når folkepensionsalderen?"),
+    help = Some("Svaret bestemmer, om det ekstra pensionsfradrag efter ligningslovens § 9 L beregnes med den almindelige eller den forhøjede sats."),
+    unit = None
+)
+= personskat_felt_pbl18_indbetalinger = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger",
+    label = "Pensionsindbetalinger efter PBL § 18",
+    question = Some("Hvilke pensionsindbetalinger og pensionsordninger skal indgå i årets beregning?"),
+    help = Some("Tilføj én række pr. ordning og betaling. Futuruna fordeler de fælles årsgrænser på tværs af rækkerne og giver arbejdsgiverindbetalinger lovbestemt prioritet."),
+    unit = None
+)
+= personskat_felt_pbl18_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.identifikation",
+    label = "Pensionsindbetaling",
+    question = Some("Hvilken entydig identifikation skal denne pensionsindbetaling have?"),
+    help = Some("Brug en stabil identifikation for ordningen eller betalingen, så dens beregning og fradrag kan spores særskilt."),
+    unit = None
+)
+= personskat_felt_pbl18_ordning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.ordning",
+    label = "Type pensionsordning",
+    question = Some("Hvilken type pensionsordning vedrører indbetalingen?"),
+    help = Some("Ordningstypen bestemmer blandt andet fradragsret, fælles rate- eller kapitalgrænse og eventuel tiårsfordeling."),
+    unit = None
+)
+= personskat_felt_pbl18_indbetalingskilde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.indbetalingskilde",
+    label = "Hvem foretog indbetalingen",
+    question = Some("Blev indbetalingen foretaget af dig, af en arbejdsgiver eller af en hjælpe- eller understøttelsesfond?"),
+    help = Some("Egne indbetalinger kan give fradrag efter PBL § 18. Arbejdsgiverindbetalinger bruges til at reducere den resterende fælles årsgrænse."),
+    unit = None
+)
+= personskat_felt_pbl18_fradragsretshaver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fradragsretshaver",
+    label = "Person med fradragsretten",
+    question = Some("Hvem gør fradragsretten for indbetalingen gældende?"),
+    help = Some("PBL § 18 giver som udgangspunkt fradraget til ordningens ejer og i visse dødsfaldssituationer til en samlevende længstlevende ægtefælle."),
+    unit = None
+)
+= personskat_felt_pbl18_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.beløb_kroner",
+    label = "Indbetalt pensionsbeløb",
+    question = Some("Hvor stort et beløb blev indbetalt på ordningen?"),
+    help = Some("Angiv bruttobeløbet før eventuelt arbejdsmarkedsbidrag. Futuruna anvender selv de relevante fradrags- og bortseelsesregler."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_forfaldsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.forfaldsår",
+    label = "Indbetalingens forfaldsår",
+    question = Some("I hvilket år forfaldt pensionsindbetalingen efter aftalen?"),
+    help = Some("Forfaldsåret kan blive fradragsåret, når en præmie eller et bidrag betales rettidigt efter PBL § 18."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_betalingsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.betalingsår",
+    label = "Faktisk betalingsår",
+    question = Some("I hvilket år blev pensionsindbetalingen faktisk betalt?"),
+    help = Some("Betalingsåret er det almindelige fradragsår, medmindre en særregel knytter fradraget til forfalds- eller afståelsesåret."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_rettidig_betaling = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.betalt_senest_bankjusteret_1_april_efter_forfald",
+    label = "Betalt senest den justerede 1. april",
+    question = Some("Blev beløbet betalt senest den første bankdag efter 1. april i året efter forfaldsåret?"),
+    help = Some("Rettidig betaling kan henføre fradraget til forfaldsåret for ordninger, der ikke følger indbetalingsprincippet."),
+    unit = None
+)
+= personskat_felt_pbl18_par22e_tilbagebetaling = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.hidrører_fra_par22e_tilbagebetaling",
+    label = "Tilbagebetaling efter PBL § 22 E",
+    question = Some("Hidrører indbetalingen fra en tilbagebetaling efter PBL § 22 E?"),
+    help = Some("Sådanne tilbagebetalinger følger ikke den almindelige regel, som kan flytte fradraget til forfaldsåret."),
+    unit = None
+)
+= personskat_felt_pbl18_par15a_placering = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.par15a_fradragsplacering.$variant",
+    label = "Fradragsplacering for § 15 A-ordning",
+    question = Some("Skal en indbetaling på en § 15 A-ordning fradrages i indbetalingsåret eller i afståelsesåret?"),
+    help = Some("Vælg almindelig placering for andre ordninger. Et fradrag i afståelsesåret kræver rettidig indbetaling efter særreglen."),
+    unit = None
+)
+= personskat_felt_pbl18_par15a_fradragsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.par15a_fradragsplacering.Pbl18Par15AAfståelsesår.fradragsår",
+    label = "Valgt afståelsesår for § 15 A-fradrag",
+    question = Some("Hvilket afståelsesår skal § 15 A-indbetalingen henføres til?"),
+    help = Some("Året anvendes kun, når fradraget er valgt placeret i afståelsesåret og indbetalingsfristen er overholdt."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_par15a_rettidig = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.par15a_fradragsplacering.Pbl18Par15AAfståelsesår.indbetalt_senest_1_juli_efterfølgende",
+    label = "§ 15 A-indbetaling foretaget rettidigt",
+    question = Some("Blev § 15 A-indbetalingen foretaget senest den 1. juli i året efter afståelsesåret?"),
+    help = Some("Kun en rettidig indbetaling kan placere fradraget i det valgte afståelsesår."),
+    unit = None
+)
+= personskat_felt_pbl18_am_bidrag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.betaling.arbejdsmarkedsbidrag_kroner",
+    label = "AM-bidrag af arbejdsgiverindbetalingen",
+    question = Some("Hvor meget arbejdsmarkedsbidrag blev indeholdt af denne arbejdsgiverindbetaling?"),
+    help = Some("Feltet skal være nul for egne indbetalinger. For arbejdsgiverordninger anvendes nettobeløbet efter AM-bidrag i de relevante årsgrænser og i § 9 L-grundlaget."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_fordelingsforløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.$variant",
+    label = "Fordeling af livrentefradraget",
+    question = Some("Er livrenteindbetalingen et kapitalindskud, en kort indbetalingsperiode, en forhøjelse med kort restperiode eller en almindelig indbetaling?"),
+    help = Some("PBL § 18 kan fordele visse livrenteindbetalinger over ti år. Vælg ingen tiårsfordeling, når særreglerne ikke gælder."),
+    unit = None
+)
+= personskat_felt_pbl18_kapitalindskudsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18Kapitalindskud.indskudsår",
+    label = "År for kapitalindskuddet",
+    question = Some("I hvilket år blev kapitalindskuddet på livrenten foretaget?"),
+    help = Some("Kapitalindskuddet fordeles som udgangspunkt med en tiendedel i indskudsåret og hvert af de følgende ni år."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_kapitalindskud = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18Kapitalindskud.indskud_kroner",
+    label = "Kapitalindskud på livrenten",
+    question = Some("Hvor stort var det samlede kapitalindskud på livrenten?"),
+    help = Some("Futuruna beregner årets tiendedel inden for den fælles fradragsramme."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl18_kort_periode_første_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18KortIndbetalingsperiode.første_forfaldsår",
+    label = "Første forfaldsår i kort indbetalingsperiode",
+    question = Some("I hvilket år forfaldt den første betaling i den korte indbetalingsperiode?"),
+    help = Some("Året starter den mulige tiårige fordeling af det aftalte beløb."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_kort_periode_samlet_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18KortIndbetalingsperiode.samlet_aftalt_beløb_kroner",
+    label = "Samlet aftalt beløb i den korte periode",
+    question = Some("Hvor stort et samlet pensionsbeløb blev aftalt for den korte indbetalingsperiode?"),
+    help = Some("Når betingelserne for fuld løbende fradragsret ikke er opfyldt, fordeles dette beløb over ti år."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl18_kort_periode_efterfølgende = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18KortIndbetalingsperiode.efterfølgende_tilsvarende_ordning",
+    label = "Efterfølgende tilsvarende pensionsordning",
+    question = Some("Fortsatte indbetalingerne på en tilsvarende ordning efter den korte aftaleperiode?"),
+    help = Some("En efterfølgende tilsvarende ordning kan medføre, at den samlede indbetalingsperiode behandles som mindst ti år."),
+    unit = None
+)
+= personskat_felt_pbl18_kort_periode_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18KortIndbetalingsperiode.samlet_indbetalingsperiode_år",
+    label = "Samlet indbetalingsperiode",
+    question = Some("Hvor mange år dækker den oprindelige og eventuelle efterfølgende tilsvarende indbetalingsperiode tilsammen?"),
+    help = Some("Ved en samlet periode på mindst ti år kan årets faktiske betaling anvendes i stedet for tiårsfordelingen."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_forhøjelsesår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18ForhøjelseKortRestperiode.første_forhøjelsesår",
+    label = "Første år med pensionsforhøjelsen",
+    question = Some("I hvilket år trådte forhøjelsen med kort restperiode i kraft?"),
+    help = Some("Året starter den tiårige fordeling af den samlede forhøjelse."),
+    unit = Some("år")
+)
+= personskat_felt_pbl18_samlet_forhøjelse = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.Pbl18ForhøjelseKortRestperiode.samlet_forhøjelse_kroner",
+    label = "Samlet pensionsforhøjelse",
+    question = Some("Hvor stor er den samlede forhøjelse af de aftalte pensionsbetalinger?"),
+    help = Some("Futuruna fordeler den samlede forhøjelse over den lovbestemte tiårsperiode."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl18_indeksbidrag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.indeksvalg.fradragsvalgte_kontraktbidrag_kroner",
+    label = "Valgte indekskontraktbidrag",
+    question = Some("Hvilke kontraktbidrag på indeksordningen er valgt til fradrag?"),
+    help = Some("Tilføj ét beløb pr. kontrakt. Der kan højst vælges bidrag for seks kontrakter i årets samlede pensionsgrundlag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_tidligere_ufratrukket = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.forfaldne_ikke_tidligere_fratrukket_kroner",
+    label = "Tidligere forfaldne beløb uden fradrag",
+    question = Some("Hvor meget er forfaldet på ordningen uden tidligere at være fratrukket?"),
+    help = Some("Beløbet afgrænser den resterende fradragsramme ved opfyldningsfradrag og den selvstændiges 30-procentsvalg."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl18_særligt_maksimum = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsmaksimum_kroner",
+    label = "Særligt maksimum for ordningen",
+    question = Some("Hvilket dokumenteret særligt fradragsmaksimum gælder for denne § 15-, § 15 A- eller § 15 B-ordning?"),
+    help = Some("Angiv nul for ordninger uden et særskilt maksimum. Beløbet er et kildefaktum fra den konkrete ordning og kan kun begrænse fradraget."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl18_pbl54_personkreds = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.begrænsninger.pbl54_personkreds_opfyldt",
+    label = "Personkredsen i PBL § 54 er opfyldt",
+    question = Some("Er personen omfattet af den fradragsberettigede personkreds efter PBL § 54?"),
+    help = Some("Fradraget efter PBL § 18 afskæres, hvis personkredsbetingelsen ikke er opfyldt."),
+    unit = None
+)
+= personskat_felt_pbl18_afgiftspligt = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt",
+    label = "Afgiftspligt for hele ordningen er indtrådt",
+    question = Some("Er afgiftspligten for hele pensionsordningen allerede indtrådt?"),
+    help = Some("Når afgiftspligten er indtrådt for hele ordningen, giver indbetalingen ikke fradrag efter den modellerede § 18-regel."),
+    unit = None
+)
+= personskat_felt_pbl18_udenlandsk_overførsel = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens",
+    label = "Udenlandsk overførsel med bevaret tidligere fradrag",
+    question = Some("Er ordningen overført fra udlandet med tidligere fradrag uden dansk skatte- eller afgiftskonsekvens?"),
+    help = Some("En sådan overførsel afskærer fradrag efter den modellerede begrænsning i PBL § 18."),
+    unit = None
+)
+= personskat_felt_pbl18_selvstændig_overskud = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
+    label = "Selvstændigt overskud før VSL § 22 b",
+    question = Some("Hvad er årets skattepligtige overskud fra selvstændig virksomhed før fradrag efter virksomhedsskattelovens § 22 b?"),
+    help = Some("Beløbet bruges kun, hvis den selvstændiges særlige 30-procentsfradrag for livrente er valgt."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_renteudgifter = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.renteudgifter_kroner",
+    label = "Renteudgifter i virksomhedsoverskuddet",
+    question = Some("Hvor store renteudgifter skal lægges tilbage ved opgørelsen af den selvstændiges pensionsgrundlag?"),
+    help = Some("Renteudgifterne lægges til overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_kurstab = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.kurstab_kroner",
+    label = "Kurstab i virksomhedsoverskuddet",
+    question = Some("Hvor store kurstab skal lægges tilbage ved opgørelsen af den selvstændiges pensionsgrundlag?"),
+    help = Some("Kurstabene lægges til overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_renteindtægter = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.renteindtægter_kroner",
+    label = "Renteindtægter i virksomhedsoverskuddet",
+    question = Some("Hvor store renteindtægter skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?"),
+    help = Some("Renteindtægterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_udbytte = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.udbytteindtægter_kroner",
+    label = "Udbytteindtægter i virksomhedsoverskuddet",
+    question = Some("Hvor store udbytteindtægter skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?"),
+    help = Some("Udbytteindtægterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_kursgevinster = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.kursgevinster_kroner",
+    label = "Kursgevinster i virksomhedsoverskuddet",
+    question = Some("Hvor store kursgevinster skal trækkes fra ved opgørelsen af den selvstændiges pensionsgrundlag?"),
+    help = Some("Kursgevinsterne trækkes fra overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_selvstændig_afståelsesindkomst = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_selvstændig_overskud.udelukkede_afståelsesindkomster_kroner",
+    label = "Udelukkede afståelsesindkomster",
+    question = Some("Hvor store afståelsesindkomster skal holdes uden for den selvstændiges pensionsgrundlag?"),
+    help = Some("De oplyste afståelsesindkomster trækkes fra overskuddet ved beregningen af 30-procentsgrænsen."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl18_livrentevalg = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_livrentevalg.$variant",
+    label = "Valg af årsfradrag for livrenter",
+    question = Some("Skal livrentefradraget følge den almindelige fordeling, opfyldningsgrundbeløbet eller den selvstændiges 30-procentsregel?"),
+    help = Some("Valget gælder samlet for årets egne livrenteindbetalinger, så samme opfyldnings- eller 30-procentsramme ikke bruges flere gange."),
+    unit = None
+)
+= personskat_felt_pbl18_livrente_ønsket_fradrag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_livrentevalg.Pbl18Grundbeløbsvalg.ønsket_fradrag_kroner",
+    label = "Ønsket opfyldningsfradrag for livrenter",
+    question = Some("Hvor stort et samlet opfyldningsfradrag ønskes anvendt for årets livrenter?"),
+    help = Some("Futuruna begrænser beløbet til det regulerede opfyldningsgrundbeløb og den resterende dokumenterede fradragsramme."),
+    unit = Some("kr./år")
+)
+= personskat_felt_aktiepensionsfradrag_valg = Beregningsfelt(
+    path = "lønmodtager.pension.aktiepensionsfradrag_valg.$variant",
+    label = "§ 15 A-fradrag i aktieindkomst",
+    question = Some("Vil du fradrage hele eller en del af årets § 15 A-indbetalinger i positiv aktieindkomst?"),
+    help = Some("PSL § 4 a, stk. 4, tillader et valg ved afståelse af hovedaktionæraktier. Den del, som fradrages i aktieindkomsten, fjernes automatisk fra fradraget i personlig indkomst."),
+    unit = None
+)
+= personskat_felt_aktiepensionsfradrag_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.ønsket_fradrag_kroner",
+    label = "Ønsket pensionsfradrag i aktieindkomst",
+    question = Some("Hvor stort et § 15 A-fradrag ønsker du placeret i aktieindkomsten?"),
+    help = Some("Futuruna begrænser fradraget til både den positive aktieindkomst og årets fradragsberettigede § 15 A-bidrag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_aktiepensionsfradrag_meddelelse = Beregningsfelt(
+    path = "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.meddelelse_dato_yyyymmdd",
+    label = "Dato for meddelelse om aktieindkomstfradrag",
+    question = Some("Hvornår gav du Skatteforvaltningen meddelelse om valget og fradragets størrelse?"),
+    help = Some("Angiv datoen som ÅÅÅÅMMDD. Uden en meddelelse, som indeholder et positivt ønsket fradrag, anvendes valget ikke."),
+    unit = Some("ÅÅÅÅMMDD")
+)
+= personskat_felt_aktiepensionsfradrag_omgørelse = Beregningsfelt(
+    path = "lønmodtager.pension.aktiepensionsfradrag_valg.MedAktiepensionsfradragIAktieindkomst.omgørelse_dato_yyyymmdd",
+    label = "Dato for omgørelse af aktieindkomstfradrag",
+    question = Some("Hvornår meddelte du en eventuel omgørelse af valget?"),
+    help = Some("Angiv 0, hvis valget ikke er omgjort. En omgørelse senest den 30. juni i det andet kalenderår efter indkomståret ophæver valget."),
+    unit = Some("ÅÅÅÅMMDD")
+)
+= personskat_felt_pbl20_udbetaling = Beregningsfelt(
+    path = "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
+    label = "Skattepligtige pensionsudbetalinger efter PBL § 20",
+    question = Some("Hvor meget modtog du i det foregående indkomstår i pensionsudbetalinger, som kan modregnes efter ligningslovens § 9 L?"),
+    help = Some("Oplys den indkomstskattepligtige udbetaling. Den trækkes kun fra grundlaget for ekstra pensionsfradrag, når den valgte udbetalingsstatus er modregningspligtig."),
+    unit = Some("kr./år")
+)
+= personskat_felt_pbl20_udbetalingsstatus = Beregningsfelt(
+    path = "lønmodtager.pension.pbl20_udbetaling_status",
+    label = "Behandling af pensionsudbetalingen efter § 9 L",
+    question = Some("Var der ingen PBL § 20-udbetaling, en modregningspligtig udbetaling eller en udbetaling omfattet af en undtagelse?"),
+    help = Some("Undtagelserne omfatter blandt andet visse invalide-, ægtefælle-, samlever-, efterladte- og børnepensioner."),
+    unit = None
+)
+
+--@label:beregn_personskat::field:personskat_felt_pensionsalder::field:personskat_felt_pbl20_udbetaling::field:personskat_felt_pbl20_udbetalingsstatus::source:ligningsloven_lbk1500_par9l::rate_source:skatteministeriet_ligningsloven_par9l_satser_2026::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
+--@label:beregn_personskat::field:personskat_felt_aktiepensionsfradrag_valg::field:personskat_felt_aktiepensionsfradrag_beløb::field:personskat_felt_aktiepensionsfradrag_meddelelse::field:personskat_felt_aktiepensionsfradrag_omgørelse::source:personskatteloven_lbk1284_par4a::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
+--@label:beregn_personskat::field:personskat_felt_pbl18_indbetalinger::field:personskat_felt_pbl18_identifikation::field:personskat_felt_pbl18_ordning::field:personskat_felt_pbl18_indbetalingskilde::field:personskat_felt_pbl18_fradragsretshaver::field:personskat_felt_pbl18_beløb::field:personskat_felt_pbl18_forfaldsår::field:personskat_felt_pbl18_betalingsår::field:personskat_felt_pbl18_rettidig_betaling::field:personskat_felt_pbl18_par22e_tilbagebetaling::field:personskat_felt_pbl18_par15a_placering::field:personskat_felt_pbl18_par15a_fradragsår::field:personskat_felt_pbl18_par15a_rettidig::field:personskat_felt_pbl18_am_bidrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+--@label:beregn_personskat::field:personskat_felt_pbl18_fordelingsforløb::field:personskat_felt_pbl18_kapitalindskudsår::field:personskat_felt_pbl18_kapitalindskud::field:personskat_felt_pbl18_kort_periode_første_år::field:personskat_felt_pbl18_kort_periode_samlet_beløb::field:personskat_felt_pbl18_kort_periode_efterfølgende::field:personskat_felt_pbl18_kort_periode_år::field:personskat_felt_pbl18_forhøjelsesår::field:personskat_felt_pbl18_samlet_forhøjelse::field:personskat_felt_pbl18_indeksbidrag::field:personskat_felt_pbl18_tidligere_ufratrukket::field:personskat_felt_pbl18_særligt_maksimum::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+--@label:beregn_personskat::field:personskat_felt_pbl18_pbl54_personkreds::field:personskat_felt_pbl18_afgiftspligt::field:personskat_felt_pbl18_udenlandsk_overførsel::field:personskat_felt_pbl18_selvstændig_overskud::field:personskat_felt_pbl18_selvstændig_renteudgifter::field:personskat_felt_pbl18_selvstændig_kurstab::field:personskat_felt_pbl18_selvstændig_renteindtægter::field:personskat_felt_pbl18_selvstændig_udbytte::field:personskat_felt_pbl18_selvstændig_kursgevinster::field:personskat_felt_pbl18_selvstændig_afståelsesindkomst::field:personskat_felt_pbl18_livrentevalg::field:personskat_felt_pbl18_livrente_ønsket_fradrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
 
 --@label:beregn_personskat::field:personskat_felt_erhvervsbefordring::field:personskat_felt_erhvervsbefordring_identifikation::field:personskat_felt_erhvervsbefordring_rækkefølge::field:personskat_felt_erhvervsbefordring_arbejdsgiver_identifikation::field:personskat_felt_erhvervsbefordring_køretøj::field:personskat_felt_erhvervsbefordring_art::field:personskat_felt_erhvervsbefordring_kilometer::source:ligningsloven_lbk1500_par9b::rate_source:skatteraadet_bek1333_par4_par14--
 --@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads::field:personskat_felt_erhvervsbefordring_dage_siden_sidst::field:personskat_felt_erhvervsbefordring_mange_arbejdspladser::field:personskat_felt_erhvervsbefordring_ikke_over_60::field:personskat_felt_erhvervsbefordring_regnskabspålæg::field:personskat_felt_erhvervsbefordring_regnskab_dokumenterer::source:ligningsloven_lbk1500_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
@@ -3901,24 +4225,128 @@
     fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = []
 )
-| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(
+| personskat_intet_selvstændigt_pensionsoverskud() -> Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 0,
+    renteudgifter_kroner = 0,
+    kurstab_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_kroner = 0,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+| personskat_ingen_pension() -> PersonskatPensionsInput(
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_indbetalinger = [],
+    pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
+    pbl18_livrentevalg = Pbl18FordeltFradrag,
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+)
+
+# PersonskatPensionsSag(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) {
+    | lønmodtager_før_pensionsfradrag() -> LønmodtagerInput(
+        skatteår = input.lønmodtager.skatteår,
+        kommune = input.lønmodtager.kommune,
+        bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
+        nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
+        ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
+        pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+        personfradrag_alder_status = input.lønmodtager.personfradrag_alder_status,
+        betaler_kirkeskat = input.lønmodtager.betaler_kirkeskat
+    )
+    | personlig_indkomst_før_pensionsfradrag_kroner() -> penge_positivt_beløb(personlig_indkomst_efter_am(lønmodtager_før_pensionsfradrag()))
+    | årsinput() -> Pbl18Årsinput(
+        indkomstår = input.lønmodtager.skatteår,
+        personlig_indkomst_før_pensionsfradrag_kroner = personlig_indkomst_før_pensionsfradrag_kroner(),
+        selvstændig_overskud = input.lønmodtager.pension.pbl18_selvstændig_overskud,
+        livrentevalg = input.lønmodtager.pension.pbl18_livrentevalg,
+        indbetalinger = input.lønmodtager.pension.pbl18_indbetalinger
+    )
+    | årsresultat() -> pbl18_årsresultat(årsinput())
+    | aktiepensionsfradrag_valg_resultat() -> match input.lønmodtager.pension.aktiepensionsfradrag_valg {
+        | UdenAktiepensionsfradragIAktieindkomst -> par4a_intet_pensionsfradrag_valg(input.lønmodtager.skatteår)
+        | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner, meddelelse_dato_yyyymmdd, omgørelse_dato_yyyymmdd) -> par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
+            indkomstår = input.lønmodtager.skatteår,
+            ønsket_fradrag_kroner = ønsket_fradrag_kroner,
+            meddelelse_dato_yyyymmdd = meddelelse_dato_yyyymmdd,
+            omgørelse_dato_yyyymmdd = omgørelse_dato_yyyymmdd,
+            personlig_indkomst_status = IkkeFradragetIPersonligIndkomst
+        ))
+    }
+    | aktiepensionsfradrag_resultat() -> par4a_pensionsfradrag_resultat(AktiePensionsFradragInput(
+        aktieindkomst_efter_stk1_og_2_kroner = aktieavance.aktieindkomst_resultat.aktieindkomst_efter_stk1_og_2_kroner,
+        pbl15a_grundlag = par4a_pbl15a_grundlag_fra_pbl18_år(årsresultat()),
+        valg_resultat = aktiepensionsfradrag_valg_resultat()
+    ))
+    | par3_resultat() -> par3_stk2_nr3_resultat_fra_pbl18_år(
+        årsresultat(),
+        aktiepensionsfradrag_resultat()
+    )
+    | arbejdsgiver_rate_og_ophørende_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner - årsresultat().arbejdsgivergrundlag.rate_og_ophørende_am_bidrag_kroner } ellers { 0 }
+    | arbejdsgiver_øvrige_efter_am_kroner() -> hvis årsresultat().input_gyldigt { årsresultat().arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner } ellers { 0 }
+    | lønmodtager_pensionsfradrag() -> LønmodtagerPensionsfradrag(
+        pensionsalder_status = input.lønmodtager.pension.pensionsalder_status,
+        pbl18_fradragsberettiget_indbetaling_kroner = årsresultat().samlet_fradrag_i_skattepligtig_indkomst_kroner,
+        pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = arbejdsgiver_rate_og_ophørende_efter_am_kroner(),
+        pbl19_øvrige_indbetalinger_efter_am_kroner = arbejdsgiver_øvrige_efter_am_kroner(),
+        pbl20_indkomstskattepligtig_udbetaling_kroner = input.lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner,
+        pbl20_udbetaling_status = input.lønmodtager.pension.pbl20_udbetaling_status
+    )
+    | resultat() -> PersonskatPensionsResultat(
+        pbl18_årsinput = årsinput(),
+        pbl18_årsresultat = årsresultat(),
+        aktiepensionsfradrag_resultat = aktiepensionsfradrag_resultat(),
+        par3_stk2_nr3_resultat = par3_resultat(),
+        lønmodtager_pensionsfradrag = lønmodtager_pensionsfradrag()
+    )
+}
+
+| personskat_pensions_resultat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> PersonskatPensionsSag(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance).resultat()
+
+# PersonskatAktieavanceEfterPensionSag(aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) {
+    | aktieindkomst_resultat() -> Par4aAktieindkomstResultat(
+        aktieindkomst_efter_stk1_og_2_kroner = aktieavance.aktieindkomst_resultat.aktieindkomst_efter_stk1_og_2_kroner,
+        pensionsfradrag_i_aktieindkomst_kroner = pension.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner,
+        aktieindkomst_efter_pensionsfradrag_kroner = pension.aktiepensionsfradrag_resultat.aktieindkomst_efter_fradrag_kroner,
+        omklassificeret_personlig_indkomst_kroner = aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner,
+        aktieindkomst_indgår_i_skattepligtig_indkomst = aktieavance.aktieindkomst_resultat.aktieindkomst_indgår_i_skattepligtig_indkomst
+    )
+    | resultat() -> PersonskatAktieavanceResultat(
+        input = aktieavance.input,
+        ordinært_aktieår = aktieavance.ordinært_aktieår,
+        særlige_resultater = aktieavance.særlige_resultater,
+        alle_input_gyldige = aktieavance.alle_input_gyldige,
+        kapitalposter = aktieavance.kapitalposter,
+        aktieposter = aktieavance.aktieposter,
+        kapitalindkomst_resultat = aktieavance.kapitalindkomst_resultat,
+        aktieindkomst_resultat = aktieindkomst_resultat(),
+        personlig_indkomst_kroner = aktieavance.personlig_indkomst_kroner,
+        kapitalindkomst_kroner = aktieavance.kapitalindkomst_kroner,
+        aktieindkomst_kroner = aktieindkomst_resultat().aktieindkomst_efter_pensionsfradrag_kroner
+    )
+}
+| personskat_aktieavance_efter_pensionsfradrag(aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> PersonskatAktieavanceEfterPensionSag(aktieavance, pension).resultat()
+
+| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner,
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
-    pensionsfradrag = input.pensionsfradrag,
+    pensionsfradrag = pension.lønmodtager_pensionsfradrag,
     personfradrag_alder_status = input.personfradrag_alder_status,
     betaler_kirkeskat = input.betaler_kirkeskat
 )
 | personskat_skatteforhold(input: PersonskatSkatteforholdInput, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_skatteforhold_med_aktieindkomst_tillæg(personskat_angivne_skatteforhold(input), aktieavance.aktieindkomst_kroner)
-| personskat_lønmodtagermodel(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
-    personskat_lønmodtager_input(input.lønmodtager, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance),
+| personskat_lønmodtagermodel(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    personskat_lønmodtager_input(input.lønmodtager, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension),
     personskat_skatteforhold(input.skatteforhold, aktieavance),
     personskat_underskudsforhold(input.underskudsforhold)
 )
-| personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance))
+| personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension))
 | personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, pensionsbeskatningsafgift_kroner, kreditter) -> {
@@ -3935,13 +4363,16 @@
     }
 }
 | personskat_beregning_resultat(input: PersonskatInput) -> {
-    = aktieavance = personskat_aktieavance_resultat(input.aktieavance, input.lønmodtager.skatteår)
-    = kapitalindkomst = personskat_kapitalindkomst_resultat(input.kapitalindkomst, input.lønmodtager.skatteår, aktieavance)
+    = aktieavance_før_pensionsfradrag = personskat_aktieavance_resultat(input.aktieavance, input.lønmodtager.skatteår)
+    = kapitalindkomst = personskat_kapitalindkomst_resultat(input.kapitalindkomst, input.lønmodtager.skatteår, aktieavance_før_pensionsfradrag)
     = erhvervsbefordring = personskat_erhvervsbefordring_resultat(input.lønmodtager.erhvervsbefordring, input.lønmodtager.skatteår)
     = ligningsfradrag = personskat_ligningsfradrag_resultat(input.lønmodtager.ligningsfradrag, input.lønmodtager, erhvervsbefordring)
-    = skat = personskat_skat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance)
+    = pension = personskat_pensions_resultat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance_før_pensionsfradrag)
+    = aktieavance = personskat_aktieavance_efter_pensionsfradrag(aktieavance_før_pensionsfradrag, pension)
+    = skat = personskat_skat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension)
     PersonskatBeregningResultat(
         skat = skat,
+        pension = pension,
         erhvervsbefordring = erhvervsbefordring,
         ligningsfradrag = ligningsfradrag,
         kapitalindkomst = kapitalindkomst,

@@ -37,15 +37,16 @@ Futuruna-filerne følger samme gentagne form:
 
 Projektet er beregningsegnet for en væsentlig lønmodtagervej: AM-bidrag,
 kommunal skat, kirkeskat, aktieindkomst, kapitalindkomst, personfradrag,
-underskud, delår, skatteloft, indeholdelse, slutopgørelse og dele af
-Ligningslovens fradragsregler.
+underskud, delår, skatteloft, indeholdelse, slutopgørelse, årlige
+pensionsindbetalinger og dele af Ligningslovens fradragsregler.
 
 Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
 nåbare domænegraf som beregningen. `@ calculate("Dansk personskat")` giver
-beregningen dens menneskelige titel. Hvert eksponeret felt kan samtidig have en
+beregningen dens menneskelige titel, som vises øverst på hovedarket og på de
+relationelle ark. Hvert eksponeret felt kan samtidig have en
 dansk etiket, et interviewspørgsmål, hjælp, enhed og typede kildehenvisninger,
 mens den kanoniske feltsti forbliver en stabil maskinnøgle.
 
@@ -56,13 +57,30 @@ Futuruna validerer fakta og udfører den kildebundne beregning deterministisk.
 Resultatet bevarer de juridiske mellemresultater, så AI'en bagefter kan forklare
 hvilken regel, betingelse, undtagelse og kilde der førte til beløbet.
 
+Pensionsgrenen viser samspillet i praksis. Borgeren eller AI-interviewet
+oplyser de faktiske indbetalinger, ordningstyper, betalingsår og relevante
+valg. Futuruna afleder årets fradrag efter Pensionsbeskatningslovens § 18,
+deler loftet mellem flere ordninger og giver arbejdsgiverindbetalinger prioritet
+efter arbejdsmarkedsbidrag. Resultatet føres til Personskattelovens § 3 og
+genbruges i det ekstra pensionsfradrag efter Ligningslovens § 9 L. Et valg efter
+Personskattelovens § 4 a kan placere et § 15 A-fradrag i positiv aktieindkomst;
+reglerne trækker da præcis samme beløb ud af fradraget i personlig indkomst.
+Ugyldige pensionsfakta bliver synlige i sporet, men giver intet fradrag.
+Kilderne er
+[Pensionsbeskatningsloven, LBK nr. 1243/2024](https://www.retsinformation.dk/eli/lta/2024/1243),
+[Personskatteloven, LBK nr. 1284/2021](https://www.retsinformation.dk/eli/lta/2021/1284)
+og
+[Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500).
+
 Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
-renteudgifter, Ligningslovens §§ 6/6 A-fradrag, identificerede § 9 B-sager om
+renteudgifter, identificerede pensionsindbetalinger efter
+Pensionsbeskatningslovens § 18, Ligningslovens §§ 6/6 A-fradrag,
+identificerede § 9 B-sager om
 erhvervsmæssig kørsel og godtgørelse, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
 driftsresultater fra bolig-, fritids- og lignende ejendomme efter
@@ -154,7 +172,8 @@ interviewet og beregningsmotoren, ikke kun en formular til manuel indtastning.
 Kolonnestierne er stabile maskinnøgler, mens generisk, typet feltmetadata nu kan
 give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
 kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
-befordring, aldersstatus, kirkeskat, renter, årsopgørelse og centrale
+befordring, pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat,
+renter, årsopgørelse og centrale
 ejendomsdriftsfakta samt
 ejendomsavancefakta som anskaffelsesår, afståelsesår, kontante summer,
 anskaffelsesgrundlag, indekseringsvalg og ejendomstype. Genanbringelsens
@@ -176,7 +195,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 431 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 476 eksplicitte feltmetadata-poster.
 Otteogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter
 Ligningslovens § 9 B med sagsidentifikation, godtgørende arbejdsgiver, køretøj,
 kilometer, kronologisk rækkefølge, 60-dages-forhold, udgifter og

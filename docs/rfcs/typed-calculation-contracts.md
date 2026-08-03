@@ -162,8 +162,11 @@ Generated workbooks contain:
 - generated output workbooks additionally contain `results` and `diagnostics`.
 
 The first visible worksheet is `cases` for input templates and `results` for
-generated outputs. Machine-only metadata worksheets remain hidden while still
-being validated on every invocation.
+generated outputs. Input worksheets render a title row before their column
+headers. The `cases` title is the `@ calculate` label, or the entry name when no
+label is declared. A related collection worksheet combines that calculation
+title with the collection's field label. Machine-only metadata worksheets remain
+hidden while still being validated on every invocation.
 
 Named records are flattened into dotted columns. Primitive values and nullary
 enums use native cells; enum and boolean columns use constrained choices. A
@@ -201,10 +204,11 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v5`. Version 5 humanizes visible fallback headers
-and places the canonical path in every input header note. Earlier workbooks are
-rejected rather than silently interpreting their older topology or payload
-encoding.
+`futuruna.calculate.xlsx.input.v6`. Version 6 adds and validates the visible
+calculation title row on every input worksheet. Version 5 humanized visible
+fallback headers and placed the canonical path in every input header note.
+Earlier workbooks are rejected rather than silently interpreting their older
+topology or payload encoding.
 
 ## Metadata
 

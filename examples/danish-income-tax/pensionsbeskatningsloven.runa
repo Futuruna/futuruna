@@ -267,6 +267,12 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
 # Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
 # Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
+# Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl18Årsindbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Årsbetaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsmaksimum_kroner: Heltal, begrænsninger: Pbl18Begrænsninger)
+# Pbl18Årsinput(indkomstår: Heltal, personlig_indkomst_før_pensionsfradrag_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, livrentevalg: Pbl18Fradragsvalg, indbetalinger: List(Pbl18Årsindbetaling))
+# Pbl18Årsarbejdsgivergrundlag(rate_og_ophørende_brutto_kroner: Heltal, rate_og_ophørende_am_bidrag_kroner: Heltal, kapitalordninger_brutto_kroner: Heltal, kapitalordninger_am_bidrag_kroner: Heltal, øvrige_efter_am_bidrag_kroner: Heltal)
+# Pbl18Årspostresultat(indbetaling: Pbl18Årsindbetaling, pbl18_input: Pbl18Input, fradragsår: Heltal, grundlæggende_fradragsret: Boolsk, arbejdsgiverindbetaling_efter_am_bidrag_kroner: Heltal, fradragsgrundlag_før_fælles_årsgrænser_kroner: Heltal)
+# Pbl18Årsresultat(input: Pbl18Årsinput, input_gyldigt: Boolsk, arbejdsgivergrundlag: Pbl18Årsarbejdsgivergrundlag, postresultater: List(Pbl18Årspostresultat), rate_par16_resultat: Pbl16FradragsloftResultat, kapital_par16_resultat: Pbl16FradragsloftResultat, egne_rate_og_ophørende_før_fælles_loft_kroner: Heltal, rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner: Heltal, rate_og_ophørende_fradrag_kroner: Heltal, egne_kapitalordninger_før_fælles_loft_kroner: Heltal, kapitalordningers_fradragsloft_efter_arbejdsgiver_kroner: Heltal, kapitalordningers_fradrag_efter_personlig_indkomst_kroner: Heltal, livrente_beregnet_årsfradrag_kroner: Heltal, livrente_valgt_årsfradrag_kroner: Heltal, øvrige_fradrag_kroner: Heltal, par15a_fradrag_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner: Heltal)
 
 | pbl18_ordning_omfattet_af_kapitel1(ordning: Pbl18Ordning) -> ordning != Pbl18UdenForKapitel1
 | pbl18_ordning_udelukket_fra_fradrag(ordning: Pbl18Ordning) -> ordning == Pbl18Aldersopsparing || ordning == Pbl18Aldersforsikring || ordning == Pbl18SupplerendeEngangssum
@@ -365,6 +371,153 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 }
 | pbl18_sag(input: Pbl18Input) -> Pbl18Sag(input)
 | pbl18_resultat(input: Pbl18Input) -> pbl18_sag(input).resultat()
+
+| pbl18_årsfordelingsforløb_gyldigt(fordelingsforløb: Pbl18Fordelingsforløb) -> match fordelingsforløb {
+    | Pbl18IngenTiårsfordeling -> Sandt
+    | Pbl18Kapitalindskud(indskudsår, indskud_kroner) -> indskudsår > 0 && indskud_kroner >= 0
+    | Pbl18KortIndbetalingsperiode(første_forfaldsår, samlet_aftalt_beløb_kroner, _, samlet_indbetalingsperiode_år) -> første_forfaldsår > 0 && samlet_aftalt_beløb_kroner >= 0 && samlet_indbetalingsperiode_år >= 0
+    | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår, samlet_forhøjelse_kroner) -> første_forhøjelsesår > 0 && samlet_forhøjelse_kroner >= 0
+    | Pbl18PristalsreguleretForhøjelse -> Sandt
+}
+| pbl18_årsindeksvalg_gyldigt(indeksvalg: Pbl18Indeksvalg) -> all(indeksvalg.fradragsvalgte_kontraktbidrag_kroner, |bidrag: Heltal| bidrag >= 0)
+| pbl18_årsselvstændig_overskud_gyldigt(input: Pbl18SelvstændigOverskudInput) -> input.skattepligtigt_overskud_før_vsl22b_kroner >= 0 && input.renteudgifter_kroner >= 0 && input.kurstab_kroner >= 0 && input.renteindtægter_kroner >= 0 && input.udbytteindtægter_kroner >= 0 && input.kursgevinster_kroner >= 0 && input.udelukkede_afståelsesindkomster_kroner >= 0
+| pbl18_årsbetaling_gyldig(indbetalingskilde: Pbl18Indbetalingskilde, betaling: Pbl18Årsbetaling) -> betaling.beløb_kroner >= 0 && betaling.forfaldsår > 0 && betaling.betalingsår > 0 && betaling.arbejdsmarkedsbidrag_kroner >= 0 && betaling.arbejdsmarkedsbidrag_kroner <= betaling.beløb_kroner && (indbetalingskilde == Pbl18Arbejdsgiverindbetaling || betaling.arbejdsmarkedsbidrag_kroner == 0)
+| pbl18_årsindbetaling_gyldig(indbetaling: Pbl18Årsindbetaling) -> indbetaling.identifikation != "" && pbl18_årsbetaling_gyldig(indbetaling.indbetalingskilde, indbetaling.betaling) && pbl18_årsfordelingsforløb_gyldigt(indbetaling.fordelingsforløb) && pbl18_årsindeksvalg_gyldigt(indbetaling.indeksvalg) && indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner >= 0 && indbetaling.særligt_ordningsmaksimum_kroner >= 0
+| pbl18_årsidentifikation_unik(indbetalinger: List(Pbl18Årsindbetaling), indbetaling: Pbl18Årsindbetaling) -> length(filter(indbetalinger, |anden: Pbl18Årsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
+| pbl18_årsvalgte_indekskontrakter(indbetalinger: List(Pbl18Årsindbetaling)) -> foldl(indbetalinger, 0, |antal: Heltal, indbetaling: Pbl18Årsindbetaling| antal + hvis indbetaling.ordning == Pbl18Indeksordning { length(indbetaling.indeksvalg.fradragsvalgte_kontraktbidrag_kroner) } ellers { 0 })
+| pbl18_årssærlige_ordninger(indbetalinger: List(Pbl18Årsindbetaling)) -> length(filter(indbetalinger, |indbetaling: Pbl18Årsindbetaling| indbetaling.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_ordning_har_særligt_maksimum(indbetaling.ordning)))
+| pbl18_årsinput_gyldigt(input: Pbl18Årsinput) -> pbl16_understøttet_indkomstår(input.indkomstår) && input.personlig_indkomst_før_pensionsfradrag_kroner >= 0 && pbl18_årsselvstændig_overskud_gyldigt(input.selvstændig_overskud) && all(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(input.indbetalinger, indbetaling)) && pbl18_årsvalgte_indekskontrakter(input.indbetalinger) <= 6 && pbl18_årssærlige_ordninger(input.indbetalinger) <= 1
+
+| pbl18_årsbetaling_til_pbl18_betaling(betaling: Pbl18Årsbetaling, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal) -> Pbl18Betaling(
+    beløb_kroner = betaling.beløb_kroner,
+    forfaldsår = betaling.forfaldsår,
+    betalingsår = betaling.betalingsår,
+    betalt_senest_bankjusteret_1_april_efter_forfald = betaling.betalt_senest_bankjusteret_1_april_efter_forfald,
+    hidrører_fra_par22e_tilbagebetaling = betaling.hidrører_fra_par22e_tilbagebetaling,
+    par15a_fradragsplacering = betaling.par15a_fradragsplacering,
+    arbejdsgiverindbetalinger_kroner = arbejdsgiverindbetalinger_kroner,
+    arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner
+)
+| pbl18_årsindbetaling_fradragsår(indbetaling: Pbl18Årsindbetaling) -> pbl18_fradragsår(indbetaling.ordning, pbl18_årsbetaling_til_pbl18_betaling(indbetaling.betaling, 0, 0))
+| pbl18_årsindbetaling_arbejdsgiver_efter_am_bidrag_kroner(input: Pbl18Årsinput, indbetaling: Pbl18Årsindbetaling) -> hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner - indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 }
+| pbl18_årsarbejdsgiver_rate_brutto_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner } ellers { 0 })
+| pbl18_årsarbejdsgiver_rate_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
+| pbl18_årsarbejdsgiver_kapital_brutto_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_kapital_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner } ellers { 0 })
+| pbl18_årsarbejdsgiver_kapital_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_kapital_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
+| pbl18_årsarbejdsgiver_øvrige_efter_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) == Falskt && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner - indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
+| pbl18_årsarbejdsgivergrundlag(input: Pbl18Årsinput) -> Pbl18Årsarbejdsgivergrundlag(
+    rate_og_ophørende_brutto_kroner = pbl18_årsarbejdsgiver_rate_brutto_kroner(input),
+    rate_og_ophørende_am_bidrag_kroner = pbl18_årsarbejdsgiver_rate_am_bidrag_kroner(input),
+    kapitalordninger_brutto_kroner = pbl18_årsarbejdsgiver_kapital_brutto_kroner(input),
+    kapitalordninger_am_bidrag_kroner = pbl18_årsarbejdsgiver_kapital_am_bidrag_kroner(input),
+    øvrige_efter_am_bidrag_kroner = pbl18_årsarbejdsgiver_øvrige_efter_am_bidrag_kroner(input)
+)
+
+| pbl18_årsindbetaling_arbejdsgiverbrutto_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> 0
+| exception pbl18_årspost_ratearbejdsgivergrundlag pbl18_årsindbetaling_arbejdsgiverbrutto_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> grundlag.rate_og_ophørende_brutto_kroner under pbl18_ordning_har_rate_loft(indbetaling.ordning)
+| exception pbl18_årspost_kapitalarbejdsgivergrundlag pbl18_årsindbetaling_arbejdsgiverbrutto_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> grundlag.kapitalordninger_brutto_kroner under pbl18_ordning_har_kapital_loft(indbetaling.ordning)
+| pbl18_årsindbetaling_arbejdsgiver_am_bidrag_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> 0
+| exception pbl18_årspost_ratearbejdsgiver_am_bidrag pbl18_årsindbetaling_arbejdsgiver_am_bidrag_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> grundlag.rate_og_ophørende_am_bidrag_kroner under pbl18_ordning_har_rate_loft(indbetaling.ordning)
+| exception pbl18_årspost_kapitalarbejdsgiver_am_bidrag pbl18_årsindbetaling_arbejdsgiver_am_bidrag_kroner(indbetaling: Pbl18Årsindbetaling, grundlag: Pbl18Årsarbejdsgivergrundlag) -> grundlag.kapitalordninger_am_bidrag_kroner under pbl18_ordning_har_kapital_loft(indbetaling.ordning)
+| pbl18_årsindbetaling_til_input(input: Pbl18Årsinput, grundlag: Pbl18Årsarbejdsgivergrundlag, indbetaling: Pbl18Årsindbetaling) -> Pbl18Input(
+    indkomstår = input.indkomstår,
+    ordning = indbetaling.ordning,
+    indbetalingskilde = indbetaling.indbetalingskilde,
+    fradragsretshaver = indbetaling.fradragsretshaver,
+    betaling = pbl18_årsbetaling_til_pbl18_betaling(
+        indbetaling.betaling,
+        pbl18_årsindbetaling_arbejdsgiverbrutto_kroner(indbetaling, grundlag),
+        pbl18_årsindbetaling_arbejdsgiver_am_bidrag_kroner(indbetaling, grundlag)
+    ),
+    fordelingsforløb = indbetaling.fordelingsforløb,
+    indeksvalg = indbetaling.indeksvalg,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = input.personlig_indkomst_før_pensionsfradrag_kroner,
+        forfaldne_ikke_tidligere_fratrukket_kroner = indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner,
+        særligt_ordningsmaksimum_kroner = indbetaling.særligt_ordningsmaksimum_kroner,
+        selvstændig_overskud = input.selvstændig_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = indbetaling.begrænsninger
+)
+| pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(input: Pbl18Input) -> pbl18_fradrag_i_skattepligtig_indkomst_kroner(input)
+| exception pbl18_årspost_rate_før_fælles_loft pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(input: Pbl18Input) -> pbl18_beregnet_årsfradrag_kroner(input) under pbl18_grundlæggende_fradragsret(input) && pbl18_ordning_har_rate_loft(input.ordning)
+| exception pbl18_årspost_kapital_før_fælles_loft pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(input: Pbl18Input) -> pbl18_beregnet_årsfradrag_kroner(input) under pbl18_grundlæggende_fradragsret(input) && pbl18_ordning_har_kapital_loft(input.ordning)
+| exception pbl18_årspost_livrente_før_fælles_valg pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(input: Pbl18Input) -> pbl18_beregnet_årsfradrag_kroner(input) under pbl18_grundlæggende_fradragsret(input) && input.ordning == Pbl18LivsvarigLivrente
+| pbl18_årspostresultat(input: Pbl18Årsinput, grundlag: Pbl18Årsarbejdsgivergrundlag, indbetaling: Pbl18Årsindbetaling) -> {
+    = pbl18_input = pbl18_årsindbetaling_til_input(input, grundlag, indbetaling)
+    Pbl18Årspostresultat(
+        indbetaling = indbetaling,
+        pbl18_input = pbl18_input,
+        fradragsår = pbl18_fradragsår(pbl18_input.ordning, pbl18_input.betaling),
+        grundlæggende_fradragsret = pbl18_grundlæggende_fradragsret(pbl18_input),
+        arbejdsgiverindbetaling_efter_am_bidrag_kroner = pbl18_årsindbetaling_arbejdsgiver_efter_am_bidrag_kroner(input, indbetaling),
+        fradragsgrundlag_før_fælles_årsgrænser_kroner = pbl18_årspost_fradragsgrundlag_før_fælles_årsgrænser_kroner(pbl18_input)
+    )
+}
+| pbl18_årspostresultater(input: Pbl18Årsinput, grundlag: Pbl18Årsarbejdsgivergrundlag) -> map(input.indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årspostresultat(input, grundlag, indbetaling))
+| pbl18_årspost_egen_med_fradragsret(resultat: Pbl18Årspostresultat) -> resultat.indbetaling.indbetalingskilde == Pbl18EgenIndbetaling && resultat.grundlæggende_fradragsret
+| pbl18_årssum_fradragsgrundlag_kroner(resultater: List(Pbl18Årspostresultat), medregnes: (Pbl18Årspostresultat) -> Boolsk) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl18Årspostresultat| sum + hvis medregnes(resultat) { resultat.fradragsgrundlag_før_fælles_årsgrænser_kroner } ellers { 0 })
+| pbl18_årspost_er_rate(resultat: Pbl18Årspostresultat) -> pbl18_årspost_egen_med_fradragsret(resultat) && pbl18_ordning_har_rate_loft(resultat.indbetaling.ordning)
+| pbl18_årspost_er_kapital(resultat: Pbl18Årspostresultat) -> pbl18_årspost_egen_med_fradragsret(resultat) && pbl18_ordning_har_kapital_loft(resultat.indbetaling.ordning)
+| pbl18_årspost_er_livrente(resultat: Pbl18Årspostresultat) -> pbl18_årspost_egen_med_fradragsret(resultat) && resultat.indbetaling.ordning == Pbl18LivsvarigLivrente
+| pbl18_årspost_er_øvrig(resultat: Pbl18Årspostresultat) -> pbl18_årspost_egen_med_fradragsret(resultat) && pbl18_ordning_har_rate_loft(resultat.indbetaling.ordning) == Falskt && pbl18_ordning_har_kapital_loft(resultat.indbetaling.ordning) == Falskt && resultat.indbetaling.ordning != Pbl18LivsvarigLivrente
+| pbl18_årspost_er_par15a(resultat: Pbl18Årspostresultat) -> pbl18_årspost_er_øvrig(resultat) && pbl18_ordning_er_par15a(resultat.indbetaling.ordning)
+| pbl18_årslivrente_resterende_fradragsramme_kroner(resultater: List(Pbl18Årspostresultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl18Årspostresultat| sum + hvis pbl18_årspost_er_livrente(resultat) { resultat.indbetaling.forfaldne_ikke_tidligere_fratrukket_kroner } ellers { 0 })
+| pbl18_årslivrente_grundbeløbsvalg(valg: Pbl18Fradragsvalg) -> match valg {
+    | Pbl18Grundbeløbsvalg(_) -> Sandt
+    | _ -> Falskt
+}
+| pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> beregnet_årsfradrag_kroner
+| exception pbl18_årslivrente_opfyldningsgrundbeløbsvalg pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> match input.livrentevalg {
+    | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner) -> penge_mindste_beløb(penge_mindste_beløb(penge_positivt_beløb(ønsket_fradrag_kroner), pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)), resterende_fradragsramme_kroner)
+    | _ -> beregnet_årsfradrag_kroner
+} under pbl18_årslivrente_grundbeløbsvalg(input.livrentevalg) && beregnet_årsfradrag_kroner < pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)
+| exception pbl18_årslivrente_selvstændig_30_pct_valg pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> penge_mindste_beløb(pbl18_selvstændigt_overskud_kroner(input.selvstændig_overskud) * 3000 / 10000, resterende_fradragsramme_kroner) under input.livrentevalg == Pbl18Selvstændig30PctValg && beregnet_årsfradrag_kroner < pbl18_selvstændigt_overskud_kroner(input.selvstændig_overskud) * 3000 / 10000
+| pbl18_årsegne_indbetalinger_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18EgenIndbetaling { indbetaling.betaling.beløb_kroner } ellers { 0 })
+
+# Pbl18ÅrsSag(input: Pbl18Årsinput) {
+    | input_gyldigt() -> pbl18_årsinput_gyldigt(input)
+    | arbejdsgivergrundlag() -> pbl18_årsarbejdsgivergrundlag(input)
+    | postresultater() -> pbl18_årspostresultater(input, arbejdsgivergrundlag())
+    | rate_par16_resultat() -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(indkomstår = input.indkomstår, art = Pbl16Rateordning))
+    | kapital_par16_resultat() -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(indkomstår = input.indkomstår, art = Pbl16Kapitalordning))
+    | egne_rate_og_ophørende_før_fælles_loft_kroner() -> pbl18_årssum_fradragsgrundlag_kroner(postresultater(), pbl18_årspost_er_rate)
+    | rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner() -> penge_positivt_beløb(rate_par16_resultat().reguleret_bruttoloft_kroner - (arbejdsgivergrundlag().rate_og_ophørende_brutto_kroner - arbejdsgivergrundlag().rate_og_ophørende_am_bidrag_kroner))
+    | rate_og_ophørende_fradrag_kroner() -> penge_mindste_beløb(egne_rate_og_ophørende_før_fælles_loft_kroner(), rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner())
+    | egne_kapitalordninger_før_fælles_loft_kroner() -> pbl18_årssum_fradragsgrundlag_kroner(postresultater(), pbl18_årspost_er_kapital)
+    | kapitalordningers_fradragsloft_efter_arbejdsgiver_kroner() -> penge_positivt_beløb(kapital_par16_resultat().reguleret_bruttoloft_kroner - (arbejdsgivergrundlag().kapitalordninger_brutto_kroner - arbejdsgivergrundlag().kapitalordninger_am_bidrag_kroner))
+    | kapitalordningers_fradrag_efter_personlig_indkomst_kroner() -> penge_mindste_beløb(penge_mindste_beløb(egne_kapitalordninger_før_fælles_loft_kroner(), kapitalordningers_fradragsloft_efter_arbejdsgiver_kroner()), input.personlig_indkomst_før_pensionsfradrag_kroner)
+    | livrente_beregnet_årsfradrag_kroner() -> pbl18_årssum_fradragsgrundlag_kroner(postresultater(), pbl18_årspost_er_livrente)
+    | livrente_valgt_årsfradrag_kroner() -> pbl18_årslivrente_valgt_fradrag_kroner(input, livrente_beregnet_årsfradrag_kroner(), pbl18_årslivrente_resterende_fradragsramme_kroner(postresultater()))
+    | øvrige_fradrag_kroner() -> pbl18_årssum_fradragsgrundlag_kroner(postresultater(), pbl18_årspost_er_øvrig)
+    | par15a_fradrag_før_validitet_kroner() -> pbl18_årssum_fradragsgrundlag_kroner(postresultater(), pbl18_årspost_er_par15a)
+    | par15a_fradrag_kroner() -> hvis input_gyldigt() { par15a_fradrag_før_validitet_kroner() } ellers { 0 }
+    | samlet_fradrag_før_validitet_kroner() -> rate_og_ophørende_fradrag_kroner() + kapitalordningers_fradrag_efter_personlig_indkomst_kroner() + livrente_valgt_årsfradrag_kroner() + øvrige_fradrag_kroner()
+    | samlet_fradrag_i_skattepligtig_indkomst_kroner() -> hvis input_gyldigt() { samlet_fradrag_før_validitet_kroner() } ellers { 0 }
+    | egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner() -> penge_positivt_beløb(pbl18_årsegne_indbetalinger_kroner(input) - samlet_fradrag_i_skattepligtig_indkomst_kroner())
+    | resultat() -> Pbl18Årsresultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        arbejdsgivergrundlag = arbejdsgivergrundlag(),
+        postresultater = postresultater(),
+        rate_par16_resultat = rate_par16_resultat(),
+        kapital_par16_resultat = kapital_par16_resultat(),
+        egne_rate_og_ophørende_før_fælles_loft_kroner = egne_rate_og_ophørende_før_fælles_loft_kroner(),
+        rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner = rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner(),
+        rate_og_ophørende_fradrag_kroner = rate_og_ophørende_fradrag_kroner(),
+        egne_kapitalordninger_før_fælles_loft_kroner = egne_kapitalordninger_før_fælles_loft_kroner(),
+        kapitalordningers_fradragsloft_efter_arbejdsgiver_kroner = kapitalordningers_fradragsloft_efter_arbejdsgiver_kroner(),
+        kapitalordningers_fradrag_efter_personlig_indkomst_kroner = kapitalordningers_fradrag_efter_personlig_indkomst_kroner(),
+        livrente_beregnet_årsfradrag_kroner = livrente_beregnet_årsfradrag_kroner(),
+        livrente_valgt_årsfradrag_kroner = livrente_valgt_årsfradrag_kroner(),
+        øvrige_fradrag_kroner = øvrige_fradrag_kroner(),
+        par15a_fradrag_kroner = par15a_fradrag_kroner(),
+        samlet_fradrag_i_skattepligtig_indkomst_kroner = samlet_fradrag_i_skattepligtig_indkomst_kroner(),
+        egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner = egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner()
+    )
+}
+| pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input).resultat()
 --@end::pensionsbeskatningsloven_par18--
 
 --@label:pensionsbeskatningsloven_par52::source:pensionsbeskatningsloven_lbk1243_par52--

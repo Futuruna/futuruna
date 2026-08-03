@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-a7327c` (in review)
-Latest implementation slice submitted for review: `td-a7327c`
+Current focus issue: `td-67f030` (in review)
+Latest implementation slice submitted for review: `td-67f030`
 Latest approved implementation slice: `td-4fd64a`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -47,6 +47,27 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu en
+årsportefølje af identificerede pensionsindbetalinger efter
+Pensionsbeskatningslovens § 18. Reglerne afleder fradragsåret, deler § 16-loftet
+mellem ordningerne, giver arbejdsgiverindbetalinger prioritet efter indeholdt
+arbejdsmarkedsbidrag og anvender ét fælles valg for livsvarig livrente. Det
+afledte § 18-fradrag føres gennem Personskattelovens § 3, stk. 2, nr. 3 og
+genbruges som grundlag for Ligningslovens § 9 L. For ordninger efter
+Pensionsbeskatningslovens § 15 A kan et typet valg i stedet placere en del af
+fradraget i positiv aktieindkomst efter Personskattelovens § 4 a; kun resten
+fradrages i personlig indkomst. Dermed kan samme indbetaling ikke fradrages to
+gange. Ugyldige årsporteføljer bevares i resultatsporet, men giver hverken
+personligt fradrag, aktieindkomstfradrag eller ekstra pensionsfradrag.
+
+`@ calculate("Dansk personskat")` vises nu som titelrække på hovedarket og som
+præfiks på alle relationelle ark. Læseren validerer titlerne sammen med den
+skjulte kontrakt, så et menneskeligt navn ikke kan drive væk fra den
+deterministiske beregningsgrænse. Pensionsgrenen har præcise danske etiketter,
+interviewspørgsmål, hjælp, enheder og kilder på alle sine nye inputstier. En AI
+kan derfor indsamle pensionsfakta og udfylde kontrakten, mens Futuruna alene
+afgør, beregner og sporer den skattemæssige virkning.
 
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul eller
 flere identificerede kørsels-, udgifts- og godtgørelsessager for
@@ -246,10 +267,11 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-146 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 30
-relationelle kildeark. § 9 B-sagerne ligger nu i deres egen nøglebundne tabel
+156 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 32
+relationelle kildeark. Pensionsindbetalingerne og de valgte indekskontrakter
+ligger i to nye nøglebundne tabeller. § 9 B-sagerne ligger i deres egen tabel
 med 30 kolonner inklusive `case_id`, `item_id` og `position`. Kontrakten når nu
-321 domænedefinitioner. De to
+347 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -271,13 +293,15 @@ tegn for indlejrede valglister ikke for store domæneunioner.
 Generisk feltmetadata er nu integreret i beregningskontrakten og regnearket.
 Den kanoniske grænse hedder `@ calculate("Dansk personskat")`, så kontrakt og
 regneark også har en menneskelig titel uden at ændre den stabile entry-nøgle.
+Titlen står synligt øverst på alle inputark og valideres ved indlæsning.
 Synlige kolonneoverskrifter bruger en udtrykkelig menneskelig etiket, mens den
 stabile maskinsti, interviewspørgsmål, hjælp, enhed og typede kildereferencer
 bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
-aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
+pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
+årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 431 eksplicitte feltmetadata-poster. Seks af dem
+Kontrakten har aktuelt 476 eksplicitte feltmetadata-poster. Seks af dem
 beskriver ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6:
 variantvalg, ejendomstype, beliggenhed, erhvervsmæssig udlejning, særlige
 betingelser og årets underskud eller overskud. De otte
@@ -324,7 +348,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`e3d1517325ea61d56ac4734e2dcdd497055339e6e020abcda4b07174f67cdc63`.
+`223e0954b8a91fd8a2d2c06c3ff573ab642b9ded0dcc94438028358b64fde9a8`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -336,8 +360,8 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.760 domænekolonner; 412 materialiserer en eksplicit etiket,
-mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
+projektmappe har 1.798 domænekolonner; 456 materialiserer en eksplicit etiket,
+mens 1.342 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
@@ -2805,8 +2829,8 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 321 nåbare definitioner, 146
-  synlige overskriftsceller inklusive `case_id` og 30 relationelle kildeark.
+- Det genererede Personskat-regneark har nu 347 nåbare definitioner, 156
+  synlige overskriftsceller inklusive `case_id` og 32 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -2838,7 +2862,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 431 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 476 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2859,6 +2883,10 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
+  Arbejdsbogens 1.798 domænekolonner bruger 456 præcise feltmetadata-match;
+  1.342 ældre, dybe stier bruger fortsat en deterministisk læsbar fallback og
+  er eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og validerer samtidig
+  beregningstitlen på hvert synligt ark.
 - Ejendomsavancebeskatningslovens § 6 D er nu et vedvarende, typet
   sælgerpantebrevsforløb. Den kanoniske EBL-beregning afleder den
   kvalificerende erhvervsfortjeneste og 10-procentsgrænsen fra ejendommens
@@ -2926,7 +2954,7 @@ Review candidates to revisit deliberately, not as broad churn:
   for special tax conditions and § 13 deficit/spouse conditions, and an
   optional Kildeskattelov annual assessment. `runa schema`,
   JSON/TOML/XLSX templates and `runa call` carry the same source-linked
-  contract. XLSX schema v5 creates related child worksheets only for genuine
+  contract. XLSX schema v6 creates related child worksheets only for genuine
   `List`, `Map` or `Set` fields; the ABL collections now prove that behavior in
   the aggregate itself. Remaining workbook gaps are therefore the remaining
   source-law branches that have not yet reached `PersonskatInput`, not
@@ -2989,6 +3017,13 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
+- `td-f84c7d` skal erstatte det midlertidigt oplyste
+  `særligt_ordningsmaksimum_kroner` med typede kildefakta og afledte maksima
+  efter Pensionsbeskatningslovens §§ 15 og 15 A. Samme arbejde skal understøtte
+  flere kvalificerende særordninger uden dobbelt brug af fradragsrammen.
+- `td-7dcbba` skal udvide de kildebelagte årsparametre for § 18 ud over de nu
+  understøttede indkomstår 2025 og 2026. Ikke-understøttede år skal fortsat
+  fremgå tydeligt og fejle lukket.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation
@@ -3164,10 +3199,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Later
 
-- Encode spouse rules, partial-year taxation, pension interaction, share income,
-  CFC income, business income, property-related income, and special regimes.
-- Build a normal-person income tax calculator backed by the Futuruna rules and
-  tax-year parameter packs.
+- Encode remaining spouse rules, partial-year edges, pension special-plan and
+  historical-year edges, share income, CFC income, business income,
+  property-related income, and special regimes.
+- Mature the existing normal-person income tax calculator as the remaining
+  source-law branches and tax-year parameter packs reach its generated
+  contract.
 - Add differential checks against official examples or trusted calculators where
   legally safe and sourceable.
 - Extend the Retsinformation update automation with optional reviewed patch
