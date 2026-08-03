@@ -251,7 +251,8 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt
+    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par6d_valg = EblUdenPar6DValg
 ))
 
 = ebl_audit_par8_stk4_uden_bestemt_grundareal = ebl_par8_stk4_værdipapir_resultat(

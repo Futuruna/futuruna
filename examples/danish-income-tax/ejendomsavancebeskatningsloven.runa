@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+@ importer ./ejendomsavancebeskatningsloven - par6d
 @ importer ./ejendomsavancebeskatningsloven - par8 - par9
 
 # EjendomsavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
@@ -151,8 +152,8 @@ efter reglerne i §§ 6 A eller 6 C.
 --@begin:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_par11--
 # EjendomsavancebeskatningslovAfståelse = EblAlmindeligAfståelse | EblEntreprisekontraktAfståelse | EblErstatningsEllerForsikringssum | EblGaveEllerArveforskud | EblEkspropriationserstatning | EblEkspropriationslignendeSalg | EblForurenetJordPar34Afhændelse
 # EblPar8Par9Behandling = EblIngenPar8EllerPar9 | EblPar8Behandling(resultat: EblPar8Resultat) | EblPar9Behandling(resultat: EblPar9Resultat)
-# EjendomsavancebeskatningslovInput(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_genanbragt_erhvervsejendom: Boolsk)
-# EjendomsavancebeskatningslovResultat(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, ejendomstype: EjendomsavanceEjendomstype, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_loven: Boolsk, undtaget_efter_par11: Boolsk, anskaffelsessum_kontantværdi_kroner: Heltal, anskaffelsessum_efter_par4_stk8_kroner: Heltal, genanbringelsesresultat: EblGenanbringelsesResultat, aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner: Heltal, anskaffelsessum_før_par5_efter_aktivt_genanbringelsesnedslag_kroner: Heltal, par5_resultat: EblPar5Resultat, reguleret_anskaffelsessum_kroner: Heltal, afståelsessum_kontantværdi_kroner: Heltal, par8_par9_behandling: EblPar8Par9Behandling, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, skattefri_fortjeneste_efter_par8_eller_par9_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, fortjeneste_eller_tab_kroner: Heltal, skattepligtig_efter_par1: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal)
+# EjendomsavancebeskatningslovInput(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_genanbragt_erhvervsejendom: Boolsk, par6d_valg: EblPar6DValg)
+# EjendomsavancebeskatningslovResultat(indkomstår: Heltal, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, ejendomstype: EjendomsavanceEjendomstype, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, omfattet_af_loven: Boolsk, undtaget_efter_par11: Boolsk, anskaffelsessum_kontantværdi_kroner: Heltal, anskaffelsessum_efter_par4_stk8_kroner: Heltal, genanbringelsesresultat: EblGenanbringelsesResultat, aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner: Heltal, anskaffelsessum_før_par5_efter_aktivt_genanbringelsesnedslag_kroner: Heltal, par5_resultat: EblPar5Resultat, reguleret_anskaffelsessum_kroner: Heltal, afståelsessum_kontantværdi_kroner: Heltal, par8_par9_behandling: EblPar8Par9Behandling, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, skattefri_fortjeneste_efter_par8_eller_par9_kroner: Heltal, afskåret_boligtab_efter_par6_stk4_kroner: Heltal, fortjeneste_eller_tab_kroner: Heltal, skattepligtig_efter_par1: Boolsk, skattepligtig_fortjeneste_før_par6d_kroner: Heltal, par6d_resultat: EblPar6DResultat, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal)
 
 | ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Falskt
 | exception ebl_ekspropriationserstatning_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblEkspropriationserstatning
@@ -254,6 +255,20 @@ efter reglerne i §§ 6 A eller 6 C.
     | EblPar8Behandling(resultat) -> resultat.afskåret_tab_efter_par6_stk4_kroner
     | EblPar9Behandling(resultat) -> resultat.afskåret_boligtab_efter_par6_stk4_kroner
 }
+| ebl_par8_par9_ejendom_omfattet_af_par8(behandling: EblPar8Par9Behandling) -> match behandling {
+    | EblPar8Behandling(_) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par8_par9_par6d_kvalificerende_erhvervsfortjeneste_kroner(behandling: EblPar8Par9Behandling, almindelig_fortjeneste_eller_tab_kroner: Heltal) -> match behandling {
+    | EblIngenPar8EllerPar9 -> penge_positivt_beløb(almindelig_fortjeneste_eller_tab_kroner)
+    | EblPar8Behandling(_) -> 0
+    | EblPar9Behandling(resultat) -> penge_positivt_beløb(resultat.erhvervsdel_fortjeneste_eller_tab_kroner) + resultat.særskilt_skattepligtig_genanbragt_fortjeneste_kroner
+}
+| ebl_par8_par9_par6d_kvalificerende_erhvervsafståelsessum_kroner(behandling: EblPar8Par9Behandling, samlet_afståelsessum_kroner: Heltal) -> match behandling {
+    | EblIngenPar8EllerPar9 -> samlet_afståelsessum_kroner
+    | EblPar8Behandling(_) -> 0
+    | EblPar9Behandling(resultat) -> resultat.beløbsgrundlag.erhvervsdel_afståelsessum_kroner
+}
 
 # EjendomsavancebeskatningslovSag(input: EjendomsavancebeskatningslovInput) {
     | anskaffelsessum_kontantværdi_kroner() -> penge_positivt_beløb(input.kontant_anskaffelsessum_kroner) + penge_positivt_beløb(input.gæld_kursværdi_ved_anskaffelse_kroner)
@@ -285,13 +300,27 @@ efter reglerne i §§ 6 A eller 6 C.
         | EblLandbrugSkovNaturEllerBlandetEjendom(fakta) -> EblPar9Behandling(ebl_par9_resultat(fakta, input.afståelsesdato, par9_beløbsgrundlag()))
     }
     | grundbeløb_gyldige() -> input.indkomstår > 0 && ebl_dato_gyldig(input.afståelsesdato) && input.afståelsesdato.år == input.indkomstår && input.kontant_anskaffelsessum_kroner >= 0 && input.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner <= anskaffelsessum_kontantværdi_kroner() && bolig_anskaffelsessum_kroner() <= anskaffelsessum_efter_par4_stk8_kroner() && aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner() <= par5_anskaffelsessum_før_aktivt_genanbringelsesnedslag_kroner() && input.kontant_afståelsessum_kroner >= 0 && input.overdragne_gældsposter_kursværdi_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner <= afståelsessum_før_par4_stk8_kroner() && bolig_afståelsessum_kroner() <= afståelsessum_kontantværdi_kroner() && ebl_par5a_valg_passer_til_ejendomstype(input.par5_fakta.reguleringsvalg, input.ejendomstype) && ebl_par5_stk6_passer_til_ejendomstype(input.par5_fakta.stk6_overførsel, input.ejendomstype) && ebl_par5_mælkekvoter_passer_til_ejendomstype(input.par5_fakta.mælkekvoter, input.ejendomstype)
-    | input_gyldigt() -> grundbeløb_gyldige() && genanbringelsesresultat().input_gyldigt && par5_resultat().input_gyldigt && ebl_par8_par9_input_gyldigt(par8_par9_behandling())
-    | regelgrundlag_understøttet() -> genanbringelsesresultat().regelgrundlag_understøttet && par5_resultat().regelgrundlag_understøttet && ebl_par8_par9_regelgrundlag_understøttet(par8_par9_behandling())
+    | input_gyldigt_før_par6d() -> grundbeløb_gyldige() && genanbringelsesresultat().input_gyldigt && par5_resultat().input_gyldigt && ebl_par8_par9_input_gyldigt(par8_par9_behandling())
+    | regelgrundlag_understøttet_før_par6d() -> genanbringelsesresultat().regelgrundlag_understøttet && par5_resultat().regelgrundlag_understøttet && ebl_par8_par9_regelgrundlag_understøttet(par8_par9_behandling())
     | omfattet_af_loven() -> input.erhvervet_som_led_i_næring == Falskt && ebl_par8_par9_omfattet_af_loven(par8_par9_behandling())
     | undtaget_efter_par11() -> ebl_par11_stk1_undtaget(input.afståelse) && input.par11_stk2_genanbragt_erhvervsejendom == Falskt
     | fortjeneste_eller_tab_kroner() -> ebl_par8_par9_fortjeneste_eller_tab_kroner(par8_par9_behandling(), almindelig_fortjeneste_eller_tab_kroner())
+    | skattepligtig_efter_par1_før_par6d() -> input_gyldigt_før_par6d() && regelgrundlag_understøttet_før_par6d() && omfattet_af_loven() && undtaget_efter_par11() == Falskt
+    | skattepligtig_fortjeneste_før_par6d_kroner() -> hvis skattepligtig_efter_par1_før_par6d() { ebl_par8_par9_skattepligtig_fortjeneste_kroner(par8_par9_behandling(), almindelig_fortjeneste_eller_tab_kroner()) } ellers { 0 }
+    | par6d_resultat() -> ebl_par6d_resultat(
+        EblPar6DKontekst(
+            afståelsesdato = input.afståelsesdato,
+            skattepligtig_fortjeneste_før_par6d_kroner = skattepligtig_fortjeneste_før_par6d_kroner(),
+            kvalificerende_erhvervsfortjeneste_efter_par6_kroner = ebl_par8_par9_par6d_kvalificerende_erhvervsfortjeneste_kroner(par8_par9_behandling(), almindelig_fortjeneste_eller_tab_kroner()),
+            kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner = ebl_par8_par9_par6d_kvalificerende_erhvervsafståelsessum_kroner(par8_par9_behandling(), afståelsessum_kontantværdi_kroner()),
+            ejendom_omfattet_af_par8 = ebl_par8_par9_ejendom_omfattet_af_par8(par8_par9_behandling())
+        ),
+        input.par6d_valg
+    )
+    | input_gyldigt() -> input_gyldigt_før_par6d() && par6d_resultat().input_gyldigt
+    | regelgrundlag_understøttet() -> regelgrundlag_understøttet_før_par6d() && par6d_resultat().regelgrundlag_understøttet
     | skattepligtig_efter_par1() -> input_gyldigt() && regelgrundlag_understøttet() && omfattet_af_loven() && undtaget_efter_par11() == Falskt
-    | skattepligtig_fortjeneste_kroner() -> hvis skattepligtig_efter_par1() { ebl_par8_par9_skattepligtig_fortjeneste_kroner(par8_par9_behandling(), almindelig_fortjeneste_eller_tab_kroner()) } ellers { 0 }
+    | skattepligtig_fortjeneste_kroner() -> hvis skattepligtig_efter_par1() { par6d_resultat().skattepligtig_fortjeneste_i_afståelsesåret_kroner } ellers { 0 }
     | tab_kroner() -> hvis skattepligtig_efter_par1() { ebl_par8_par9_tab_kroner(par8_par9_behandling(), almindelig_fortjeneste_eller_tab_kroner()) } ellers { 0 }
     | resultat() -> EjendomsavancebeskatningslovResultat(
         indkomstår = input.indkomstår,
@@ -316,6 +345,8 @@ efter reglerne i §§ 6 A eller 6 C.
         afskåret_boligtab_efter_par6_stk4_kroner = ebl_par8_par9_afskåret_boligtab_kroner(par8_par9_behandling()),
         fortjeneste_eller_tab_kroner = fortjeneste_eller_tab_kroner(),
         skattepligtig_efter_par1 = skattepligtig_efter_par1(),
+        skattepligtig_fortjeneste_før_par6d_kroner = skattepligtig_fortjeneste_før_par6d_kroner(),
+        par6d_resultat = par6d_resultat(),
         skattepligtig_fortjeneste_kroner = skattepligtig_fortjeneste_kroner(),
         tab_kroner = tab_kroner()
     )
@@ -408,7 +439,10 @@ indkomstårets udgang.
 }
 | ejendomsavance_par6_fremførsel_gyldigt_kroner(fremførsel: EjendomsavancePar6Fremførsel, indkomstår: Heltal) -> hvis ejendomsavance_par6_fremførsel_gyldig(fremførsel, indkomstår) { ejendomsavance_par6_fremførselsbeløb_kroner(fremførsel) } ellers { 0 }
 | ejendomsavance_par6_fremførsel_afvist_kroner(fremførsel: EjendomsavancePar6Fremførsel, indkomstår: Heltal) -> ejendomsavance_par6_fremførselsbeløb_kroner(fremførsel) - ejendomsavance_par6_fremførsel_gyldigt_kroner(fremførsel, indkomstår)
-| ejendomsavance_par6_skattepligtige_fortjenester_kroner(resultater: List(EjendomsavancebeskatningslovResultat), indkomstår: Heltal) -> foldl(resultater, 0, |sum, resultat| sum + hvis resultat.indkomstår == indkomstår { penge_positivt_beløb(resultat.skattepligtig_fortjeneste_kroner) } ellers { 0 })
+| ejendomsavance_par6_skattepligtig_fortjeneste_i_indkomstår_kroner(resultat: EjendomsavancebeskatningslovResultat, indkomstår: Heltal) -> hvis resultat.indkomstår == indkomstår { penge_positivt_beløb(resultat.skattepligtig_fortjeneste_kroner) } ellers { penge_positivt_beløb(ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(resultat.par6d_resultat, indkomstår)) }
+| ejendomsavance_par6_skattepligtige_fortjenester_kroner(resultater: List(EjendomsavancebeskatningslovResultat), indkomstår: Heltal) -> foldl(resultater, 0, |sum, resultat| sum + ejendomsavance_par6_skattepligtig_fortjeneste_i_indkomstår_kroner(resultat, indkomstår))
+| ejendomsavance_par6_resultat_dækker_indkomstår(resultat: EjendomsavancebeskatningslovResultat, indkomstår: Heltal) -> hvis resultat.indkomstår >= indkomstår { Sandt } ellers { ebl_par6d_forløb_dækker_indkomstår(resultat.par6d_resultat, indkomstår) }
+| ejendomsavance_par6_resultater_dækker_indkomstår(resultater: List(EjendomsavancebeskatningslovResultat), indkomstår: Heltal) -> foldl(resultater, Sandt, |alle_dækker, resultat| alle_dækker && ejendomsavance_par6_resultat_dækker_indkomstår(resultat, indkomstår))
 
 # EjendomsavancePar6TabsårSag(input: EjendomsavancePar6Tabsårsinput) {
     | tabspost_resultater() -> map(input.tabsposter, ejendomsavance_par6_tabspost_resultat)

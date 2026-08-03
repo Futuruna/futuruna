@@ -1,0 +1,329 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven - par6d
+
+--@label:ebl_par6d_scenarier::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@begin:ebl_par6d_scenarier--
+| ebl_par6d_scenarie_afdragsplan() -> [
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 2, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 3, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 4, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 5, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 6, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 7, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 8, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 9, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 10, hovedstol_forfalder_kroner = 375000)
+]
+
+| ebl_par6d_scenarie_partrelation(forbundet: Boolsk) -> EblPar6DPartrelationFakta(
+    overdragerens_kapitalandel_i_erhververen_promille = 0,
+    overdragerens_stemmeandel_i_erhververen_promille = 0,
+    erhververens_kapitalandel_i_overdrageren_promille = 0,
+    erhververens_stemmeandel_i_overdrageren_promille = 0,
+    parterne_er_nærtstående_efter_ligningslovens_par2_stk2 = forbundet,
+    parterne_har_aftale_om_fælles_bestemmende_indflydelse = Falskt,
+    parterne_er_under_fælles_bestemmende_indflydelse = Falskt
+)
+
+| ebl_par6d_scenarie_meddelelse() -> EblPar6DRettidigMeddelelse(indhold = EblPar6DMeddelelsesindhold(
+    kopi_af_sælgerpantebrev_vedlagt = Sandt,
+    oplyst_skattepligtig_fortjeneste_efter_par6_kroner = 5000000,
+    oplyst_valgt_udskudt_fortjeneste_kroner = 3000000,
+    oplyst_årligt_beløb_kroner = 300000,
+    oplyst_antal_år = 10
+))
+
+| ebl_par6d_scenarie_pantebrev(kontantværdi_kroner: Heltal) -> EblPar6DSælgerpantebrev(
+    identifikation = "Sælgerpantebrev 1",
+    fordring_mod_erhververen = Sandt,
+    pant_i_den_overdragne_ejendom = Sandt,
+    kontantværdi_kroner = kontantværdi_kroner,
+    hovedstol_kroner = 3750000,
+    løbetid_år = 10,
+    afdragsplan = ebl_par6d_scenarie_afdragsplan()
+)
+
+| ebl_par6d_scenarie_kontekst(erhvervsdelens_afståelsessum_kroner: Heltal, erhvervsfortjeneste_kroner: Heltal, omfattet_af_par8: Boolsk) -> EblPar6DKontekst(
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    skattepligtig_fortjeneste_før_par6d_kroner = 5000000,
+    kvalificerende_erhvervsfortjeneste_efter_par6_kroner = erhvervsfortjeneste_kroner,
+    kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner = erhvervsdelens_afståelsessum_kroner,
+    ejendom_omfattet_af_par8 = omfattet_af_par8
+)
+
+| ebl_par6d_scenarie_valgfakta(
+    forbundet: Boolsk,
+    erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk,
+    overdragerens_anvendelse: EblPar6DErhvervsanvendelse,
+    erhververens_anvendelse: EblPar6DErhvervsanvendelse,
+    pantebrevets_kontantværdi_kroner: Heltal,
+    afståelsesårets_hændelse: EblPar6DHændelse,
+    efterfølgende_årsforhold: List(EblPar6DÅrsforhold)
+) -> EblPar6DValgfakta(
+    valgt_udskudt_fortjeneste_kroner = 3000000,
+    årligt_beløb_kroner = 300000,
+    fordelingsår = 10,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = erhververen_erhvervede_ejendommen_som_led_i_næring,
+    partrelation = ebl_par6d_scenarie_partrelation(forbundet),
+    overdragerens_anvendelse = overdragerens_anvendelse,
+    erhververens_anvendelse_ved_overdragelsen = erhververens_anvendelse,
+    sælgerpantebrev = ebl_par6d_scenarie_pantebrev(pantebrevets_kontantværdi_kroner),
+    meddelelse = ebl_par6d_scenarie_meddelelse(),
+    sælgers_skatteforhold = EblPar6DSælgerskatteforhold(
+        skattepligtsstatus = EblPar6DFuldtSkattepligtigTilDanmark,
+        hjemland_omfattet_af_nordisk_overenskomst_eller_eu_inddrivelsesdirektiv = Sandt,
+        sikkerhed = EblPar6DIngenSikkerhed
+    ),
+    ejendomsplacering = EblPar6DEjendomIDanmark,
+    afståelsesårets_hændelse = afståelsesårets_hændelse,
+    efterfølgende_årsforhold = efterfølgende_årsforhold
+)
+
+| ebl_par6d_scenarie_årsforhold(indkomstår: Heltal, betalt_kroner: Heltal, hændelse: EblPar6DHændelse) -> EblPar6DÅrsforhold(
+    indkomstår = indkomstår,
+    betalt_ordinært_hovedstolsafdrag_kroner = betalt_kroner,
+    hændelse = hændelse
+)
+
+| ebl_par6d_scenarie_standardår() -> [
+    ebl_par6d_scenarie_årsforhold(2027, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2028, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2029, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2030, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2031, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2032, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2033, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2034, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2035, 0, EblPar6DIngenFremrykningshændelse),
+    ebl_par6d_scenarie_årsforhold(2036, 0, EblPar6DIngenFremrykningshændelse)
+]
+
+| ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner: Heltal,
+    omfattet_af_par8: Boolsk,
+    erhvervsmæssig_fortjeneste_kroner: Heltal,
+    forbundet: Boolsk,
+    erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk,
+    overdragerens_anvendelse: EblPar6DErhvervsanvendelse,
+    erhververens_anvendelse: EblPar6DErhvervsanvendelse,
+    pantebrevets_kontantværdi_kroner: Heltal,
+    efterfølgende_årsforhold: List(EblPar6DÅrsforhold)
+) -> ebl_par6d_resultat(
+    ebl_par6d_scenarie_kontekst(erhvervsdelens_afståelsessum_kroner, erhvervsmæssig_fortjeneste_kroner, omfattet_af_par8),
+    EblMedPar6DValg(fakta = ebl_par6d_scenarie_valgfakta(
+        forbundet,
+        erhververen_erhvervede_ejendommen_som_led_i_næring,
+        overdragerens_anvendelse,
+        erhververens_anvendelse,
+        pantebrevets_kontantværdi_kroner,
+        EblPar6DIngenFremrykningshændelse,
+        efterfølgende_årsforhold
+    ))
+)
+
+= ebl_par6d_scenarie_vejledning = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = ebl_par6d_scenarie_standardår()
+)
+
+= ebl_par6d_scenarie_ekstraordinær_indfrielse = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = [ebl_par6d_scenarie_årsforhold(
+        2027,
+        375000,
+        EblPar6DPantebrevAfståetEllerIndfriet(
+            art = EblPar6DPantebrevIndfriet,
+            berørt_restgæld_kroner = 375000,
+            succession = EblPar6DIngenÆgtefællesuccession
+        )
+    )]
+)
+
+= ebl_par6d_scenarie_over_ti_procent = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 29999999,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+= ebl_par6d_scenarie_over_erhvervsfortjenesten = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 2999999,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+= ebl_par6d_scenarie_forbundne_parter = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Sandt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+= ebl_par6d_scenarie_par8_ejendom = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Sandt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+= ebl_par6d_scenarie_almindelig_udlejning = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DAlmindeligtUdlejet,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+= ebl_par6d_scenarie_forkert_kontantværdi = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 2999999,
+    efterfølgende_årsforhold = []
+)
+
+= ebl_par6d_scenarie_kontrolleret_selskab = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    overdragerens_anvendelse = EblPar6DUdlejetTilKontrolleretSelskab(fakta = EblPar6DKontrolleretSelskabsudlejning(
+        ejeren_er_fysisk_person = Sandt,
+        kapitalandel_promille = 600,
+        stemmeandel_promille = 0,
+        selskabet_anvender_ejendommen_erhvervsmæssigt = Sandt,
+        bestemmende_indflydelse_samtidig_overdraget_til_erhververen = Sandt
+    )),
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+
+= ebl_par6d_scenarie_erhverver_i_næring = ebl_par6d_scenarie_resultat(
+    erhvervsdelens_afståelsessum_kroner = 30000000,
+    omfattet_af_par8 = Falskt,
+    erhvervsmæssig_fortjeneste_kroner = 5000000,
+    forbundet = Falskt,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Sandt,
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    pantebrevets_kontantværdi_kroner = 3000000,
+    efterfølgende_årsforhold = []
+)
+
+| ebl_par6d_scenarie_henstandsår(indkomstår: Heltal, oplysninger: EblPar6DHenstandsoplysninger) -> EblPar6DHenstandsår(
+    indkomstår = indkomstår,
+    skatteværdi_af_årets_ordinære_fortjeneste_kroner = 0,
+    oplysninger = oplysninger,
+    skattemæssigt_hjemstedsland_ultimo = "Sverige",
+    forfald = EblPar6DIntetHenstandsforfald,
+    betalt_kroner = 0
+)
+
+= ebl_par6d_scenarie_selskab_henstand = ebl_par6d_henstandsresultat(
+    fakta = EblPar6DSkattepligtsophørFakta(
+        skatteyder = EblPar6DHenstandForSelskab,
+        nyt_hjemstedsområde = EblPar6DHjemstedIEU,
+        informationsudveksling_med_danmark = Sandt,
+        beregnet_skat_af_fremrykket_fortjeneste_kroner = 101,
+        henstandsvalg = EblPar6DMedBetalingshenstand(år = [
+            ebl_par6d_scenarie_henstandsår(2027, EblPar6DOplysningerRettidige),
+            ebl_par6d_scenarie_henstandsår(2028, EblPar6DOplysningerRettidige),
+            ebl_par6d_scenarie_henstandsår(2029, EblPar6DOplysningerRettidige),
+            ebl_par6d_scenarie_henstandsår(2030, EblPar6DOplysningerRettidige),
+            ebl_par6d_scenarie_henstandsår(2031, EblPar6DOplysningerRettidige)
+        ])
+    ),
+    ophørsår = 2026,
+    sidste_fordelingsår = 2036,
+    resterende_fortjeneste_kroner = 2700000,
+    sælgerpantebrev_restgæld_kroner = 3750000
+)
+
+= ebl_par6d_scenarie_manglende_årlig_oplysning = ebl_par6d_henstandsresultat(
+    fakta = EblPar6DSkattepligtsophørFakta(
+        skatteyder = EblPar6DHenstandForSelskab,
+        nyt_hjemstedsområde = EblPar6DHjemstedIEU,
+        informationsudveksling_med_danmark = Sandt,
+        beregnet_skat_af_fremrykket_fortjeneste_kroner = 101,
+        henstandsvalg = EblPar6DMedBetalingshenstand(år = [
+            ebl_par6d_scenarie_henstandsår(2027, EblPar6DOplysningerForSeneUdenTilsidesættelse)
+        ])
+    ),
+    ophørsår = 2026,
+    sidste_fordelingsår = 2036,
+    resterende_fortjeneste_kroner = 2700000,
+    sælgerpantebrev_restgæld_kroner = 3750000
+)
+
+| ebl_par6d_scenarie_følger_officielt_eksempel: ebl_par6d_scenarie_vejledning -> ebl_par6d_scenarie_vejledning.input_gyldigt && ebl_par6d_scenarie_vejledning.valgt_udskudt_fortjeneste_kroner == 3000000 && ebl_par6d_scenarie_vejledning.skattepligtig_fortjeneste_i_afståelsesåret_kroner == 2000000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(ebl_par6d_scenarie_vejledning, 2027) == 300000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(ebl_par6d_scenarie_vejledning, 2036) == 300000 && ebl_par6d_scenarie_vejledning.tilstand_ultimo.resterende_udskudt_fortjeneste_kroner == 0
+| ebl_par6d_scenarie_beskatter_uanset_faktisk_betaling: ebl_par6d_scenarie_vejledning -> ebl_par6d_scenarie_vejledning.årsresultater[1].ordinært_hovedstolsafdrag_kroner == 0 && ebl_par6d_scenarie_vejledning.årsresultater[1].ordinært_medregnet_fortjeneste_kroner == 300000
+| ebl_par6d_scenarie_fremrykker_ekstraordinær_indfrielse_forholdsmæssigt: ebl_par6d_scenarie_ekstraordinær_indfrielse -> ebl_par6d_scenarie_ekstraordinær_indfrielse.input_gyldigt && ebl_par6d_scenarie_ekstraordinær_indfrielse.årsresultater[1].ordinært_medregnet_fortjeneste_kroner == 300000 && ebl_par6d_scenarie_ekstraordinær_indfrielse.årsresultater[1].fremrykket_fortjeneste_kroner == 300000 && ebl_par6d_scenarie_ekstraordinær_indfrielse.årsresultater[1].samlet_medregnet_fortjeneste_kroner == 600000
+| ebl_par6d_scenarie_håndhæver_ti_procent_af_erhvervsdelens_afståelsessum: ebl_par6d_scenarie_over_ti_procent -> ebl_par6d_scenarie_over_ti_procent.input_gyldigt == Falskt && ebl_par6d_scenarie_over_ti_procent.betingelser_opfyldt == Falskt
+| ebl_par6d_scenarie_håndhæver_erhvervsfortjenesten: ebl_par6d_scenarie_over_erhvervsfortjenesten -> ebl_par6d_scenarie_over_erhvervsfortjenesten.input_gyldigt == Falskt
+| ebl_par6d_scenarie_afviser_forbundne_parter: ebl_par6d_scenarie_forbundne_parter -> ebl_par6d_scenarie_forbundne_parter.input_gyldigt == Falskt
+| ebl_par6d_scenarie_afviser_erhververens_næringsejendom: ebl_par6d_scenarie_erhverver_i_næring -> ebl_par6d_scenarie_erhverver_i_næring.input_gyldigt == Falskt
+| ebl_par6d_scenarie_afviser_par8_ejendom: ebl_par6d_scenarie_par8_ejendom -> ebl_par6d_scenarie_par8_ejendom.input_gyldigt == Falskt
+| ebl_par6d_scenarie_afviser_almindelig_udlejning: ebl_par6d_scenarie_almindelig_udlejning -> ebl_par6d_scenarie_almindelig_udlejning.input_gyldigt == Falskt
+| ebl_par6d_scenarie_afviser_forkert_pantebrevskontantværdi: ebl_par6d_scenarie_forkert_kontantværdi -> ebl_par6d_scenarie_forkert_kontantværdi.input_gyldigt == Falskt && ebl_par6d_scenarie_forkert_kontantværdi.betingelser_opfyldt == Falskt
+| ebl_par6d_scenarie_tillader_kontrolleret_selskab_ved_kontrolskifte: ebl_par6d_scenarie_kontrolleret_selskab -> ebl_par6d_scenarie_kontrolleret_selskab.input_gyldigt
+| ebl_par6d_scenarie_selskab_afdrager_præcist_over_fem_år: ebl_par6d_scenarie_selskab_henstand -> ebl_par6d_scenarie_selskab_henstand.input_gyldigt && length(ebl_par6d_scenarie_selskab_henstand.årsresultater) == 5 && ebl_par6d_scenarie_selskab_henstand.årsresultater[4].ordinært_afdrag_kroner == 21 && ebl_par6d_scenarie_selskab_henstand.tilstand_ultimo.henstandssaldo_kroner == 0
+| ebl_par6d_scenarie_manglende_oplysning_forfalder_saldoen: ebl_par6d_scenarie_manglende_årlig_oplysning -> ebl_par6d_scenarie_manglende_årlig_oplysning.input_gyldigt && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].ordinært_afdrag_kroner == 20 && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].bortfald_for_manglende_oplysninger_kroner == 81 && ebl_par6d_scenarie_manglende_årlig_oplysning.årsresultater[0].samlet_nyt_forfald_kroner == 101 && ebl_par6d_scenarie_manglende_årlig_oplysning.tilstand_ultimo.henstandssaldo_kroner == 0
+
+? ebl_par6d_scenarie_følger_officielt_eksempel
+? ebl_par6d_scenarie_beskatter_uanset_faktisk_betaling
+? ebl_par6d_scenarie_fremrykker_ekstraordinær_indfrielse_forholdsmæssigt
+? ebl_par6d_scenarie_håndhæver_ti_procent_af_erhvervsdelens_afståelsessum
+? ebl_par6d_scenarie_håndhæver_erhvervsfortjenesten
+? ebl_par6d_scenarie_afviser_forbundne_parter
+? ebl_par6d_scenarie_afviser_erhververens_næringsejendom
+? ebl_par6d_scenarie_afviser_par8_ejendom
+? ebl_par6d_scenarie_afviser_almindelig_udlejning
+? ebl_par6d_scenarie_afviser_forkert_pantebrevskontantværdi
+? ebl_par6d_scenarie_tillader_kontrolleret_selskab_ved_kontrolskifte
+? ebl_par6d_scenarie_selskab_afdrager_præcist_over_fem_år
+? ebl_par6d_scenarie_manglende_oplysning_forfalder_saldoen
+
+@ print("EBL § 6 D scenarios passed")
+--@end:ebl_par6d_scenarier--

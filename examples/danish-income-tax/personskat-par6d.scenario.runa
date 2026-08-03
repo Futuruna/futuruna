@@ -1,0 +1,136 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+--@label:personskat_par6d_scenarier::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@begin:personskat_par6d_scenarier--
+| personskat_par6d_scenarie_afdragsplan() -> [
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 2, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 3, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 4, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 5, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 6, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 7, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 8, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 9, hovedstol_forfalder_kroner = 375000),
+    EblPar6DAfdragsplanpost(år_efter_afståelsen = 10, hovedstol_forfalder_kroner = 375000)
+]
+
+| personskat_par6d_scenarie_valg(årsforhold: List(EblPar6DÅrsforhold)) -> EblMedPar6DValg(fakta = EblPar6DValgfakta(
+    valgt_udskudt_fortjeneste_kroner = 3000000,
+    årligt_beløb_kroner = 300000,
+    fordelingsår = 10,
+    erhververen_erhvervede_ejendommen_som_led_i_næring = Falskt,
+    partrelation = EblPar6DPartrelationFakta(
+        overdragerens_kapitalandel_i_erhververen_promille = 0,
+        overdragerens_stemmeandel_i_erhververen_promille = 0,
+        erhververens_kapitalandel_i_overdrageren_promille = 0,
+        erhververens_stemmeandel_i_overdrageren_promille = 0,
+        parterne_er_nærtstående_efter_ligningslovens_par2_stk2 = Falskt,
+        parterne_har_aftale_om_fælles_bestemmende_indflydelse = Falskt,
+        parterne_er_under_fælles_bestemmende_indflydelse = Falskt
+    ),
+    overdragerens_anvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    erhververens_anvendelse_ved_overdragelsen = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    sælgerpantebrev = EblPar6DSælgerpantebrev(
+        identifikation = "Sælgerpantebrev 2025",
+        fordring_mod_erhververen = Sandt,
+        pant_i_den_overdragne_ejendom = Sandt,
+        kontantværdi_kroner = 3000000,
+        hovedstol_kroner = 3750000,
+        løbetid_år = 10,
+        afdragsplan = personskat_par6d_scenarie_afdragsplan()
+    ),
+    meddelelse = EblPar6DRettidigMeddelelse(indhold = EblPar6DMeddelelsesindhold(
+        kopi_af_sælgerpantebrev_vedlagt = Sandt,
+        oplyst_skattepligtig_fortjeneste_efter_par6_kroner = 4990000,
+        oplyst_valgt_udskudt_fortjeneste_kroner = 3000000,
+        oplyst_årligt_beløb_kroner = 300000,
+        oplyst_antal_år = 10
+    )),
+    sælgers_skatteforhold = EblPar6DSælgerskatteforhold(
+        skattepligtsstatus = EblPar6DFuldtSkattepligtigTilDanmark,
+        hjemland_omfattet_af_nordisk_overenskomst_eller_eu_inddrivelsesdirektiv = Sandt,
+        sikkerhed = EblPar6DIngenSikkerhed
+    ),
+    ejendomsplacering = EblPar6DEjendomIDanmark,
+    afståelsesårets_hændelse = EblPar6DIngenFremrykningshændelse,
+    efterfølgende_årsforhold = årsforhold
+))
+
+| personskat_par6d_scenarie_ejendom(årsforhold: List(EblPar6DÅrsforhold)) -> PersonskatEjendomsavanceFakta(
+    identifikation = "Erhvervsejendom solgt i 2025",
+    afståelsesdato = EblDato(år = 2025, måned = 12, dag = 31),
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 25000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(
+        anskaffelsesdato = EblDato(år = 2025, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 30000000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
+    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par6d_valg = personskat_par6d_scenarie_valg(årsforhold)
+)
+
+| personskat_par6d_scenarie_input(årsforhold: List(EblPar6DÅrsforhold)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = PersonskatKapitalindkomstInput(
+        renter = PersonskatRenteInput(
+            renteindtægter_kroner = 0,
+            renteudgifter_kroner = 0,
+            næringsstatus = IkkeNæring,
+            ligningslov6 = UdenLigningslov6Kurstab,
+            ligningslov6a = UdenLigningslov6AFradrag
+        ),
+        ejendomsavance = MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
+            egne_afståelser = [personskat_par6d_scenarie_ejendom(årsforhold)],
+            eget_fremført_tab = UdenFremførtEjendomstab,
+            ægtefælles_afståelser = [],
+            ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
+            gift_samlevende_ved_indkomstårets_udgang = Falskt
+        )),
+        omkostninger = []
+    ),
+    aktieavance = personskat_ingen_aktieavance(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_par6d_scenarie_2026_årsforhold = EblPar6DÅrsforhold(
+    indkomstår = 2026,
+    betalt_ordinært_hovedstolsafdrag_kroner = 0,
+    hændelse = EblPar6DIngenFremrykningshændelse
+)
+= personskat_par6d_scenarie_resultat = beregn_personskat(personskat_par6d_scenarie_input([personskat_par6d_scenarie_2026_årsforhold]))
+= personskat_par6d_scenarie_udækket_resultat = beregn_personskat(personskat_par6d_scenarie_input([]))
+
+| personskat_par6d_scenarie_medregner_historisk_årsbeløb: personskat_par6d_scenarie_resultat -> personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_par6d_scenarie_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 300000 && personskat_par6d_scenarie_resultat.skat.nettokapitalindkomst_kroner == 300000 && match personskat_par6d_scenarie_resultat.kapitalindkomst.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, egne_resultater, _, eget_tabsår, _, _) -> head(egne_resultater).indkomstår == 2025 && head(egne_resultater).skattepligtig_fortjeneste_før_par6d_kroner == 4990000 && head(egne_resultater).skattepligtig_fortjeneste_kroner == 1990000 && ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(head(egne_resultater).par6d_resultat, 2026) == 300000 && eget_tabsår.egne_skattepligtige_fortjenester_kroner == 300000
+    | _ -> Falskt
+}
+| personskat_par6d_scenarie_afviser_udækket_skatteår: personskat_par6d_scenarie_udækket_resultat -> personskat_par6d_scenarie_udækket_resultat.kapitalindkomst.ejendomsavance_input_gyldigt == Falskt && match personskat_par6d_scenarie_udækket_resultat.kapitalindkomst.ejendomsavance_resultat {
+    | UgyldigtEjendomsavancegrundlag(_, grundfakta_gyldige, fortjenesteafgrænsninger_understøttet, årsforløb_dækker_skatteår, fremførsler_gyldige, ægtefælledata_relevant) -> grundfakta_gyldige && fortjenesteafgrænsninger_understøttet && årsforløb_dækker_skatteår == Falskt && fremførsler_gyldige && ægtefælledata_relevant
+    | _ -> Falskt
+}
+
+? personskat_par6d_scenarie_medregner_historisk_årsbeløb
+? personskat_par6d_scenarie_afviser_udækket_skatteår
+
+@ print("Personskat EBL § 6 D scenarios passed")
+--@end:personskat_par6d_scenarier--

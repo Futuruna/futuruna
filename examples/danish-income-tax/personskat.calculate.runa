@@ -4,7 +4,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -21,10 +21,10 @@
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
 # PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
-# PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_genanbragt_erhvervsejendom: Boolsk)
+# PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_genanbragt_erhvervsejendom: Boolsk, par6d_valg: EblPar6DValg)
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
-# PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
+# PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
 # PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
 # PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, omkostninger: List(PersonskatKapitalomkostningInput))
 # PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
@@ -36,6 +36,8 @@
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatBeregningResultat(skat: LønmodtagerBreakdown, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
+# Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
+# Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
 
 = personskat_felt_skatteår = Beregningsfelt(
     path = "lønmodtager.skatteår",
@@ -1360,6 +1362,324 @@
     help = Some("Overgangsreglen kan afskære anvendelsen af § 9, stk. 4, for den tidligere forøgelse."),
     unit = None
 )
+= personskat_felt_egen_par6d_valg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.$variant",
+    label = "Fordeling af ejendomsfortjeneste",
+    question = Some("Valgte du at fordele beskatningen af ejendomsfortjenesten over op til 10 år via et sælgerpantebrev?"),
+    help = Some("Vælg kun fordeling, når overdragelsen og sælgerpantebrevet skal prøves efter ejendomsavancebeskatningslovens § 6 D."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_valg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.$variant",
+    label = "Fordeling af ejendomsfortjeneste",
+    question = Some("Valgte din ægtefælle at fordele beskatningen af ejendomsfortjenesten over op til 10 år via et sælgerpantebrev?"),
+    help = Some("Vælg kun fordeling, når overdragelsen og sælgerpantebrevet skal prøves efter ejendomsavancebeskatningslovens § 6 D."),
+    unit = None
+)
+= personskat_felt_egen_par6d_udskudt_fortjeneste = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.valgt_udskudt_fortjeneste_kroner",
+    label = "Fortjeneste fordelt til senere år",
+    question = "Hvor stor en del af fortjenesten valgte du at fordele til de efterfølgende indkomstår?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_udskudt_fortjeneste = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.valgt_udskudt_fortjeneste_kroner",
+    label = "Fortjeneste fordelt til senere år",
+    question = "Hvor stor en del af fortjenesten valgte din ægtefælle at fordele til de efterfølgende indkomstår?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_årligt_beløb = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.årligt_beløb_kroner",
+    label = "Årligt beskattet fortjeneste",
+    question = "Hvor stort et lige beløb skal medregnes i hvert af fordelingsårene?",
+    unit = "kr./år"
+)
+= personskat_felt_ægtefælles_par6d_årligt_beløb = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.årligt_beløb_kroner",
+    label = "Årligt beskattet fortjeneste",
+    question = "Hvor stort et lige beløb skal medregnes i hvert af din ægtefælles fordelingsår?",
+    unit = "kr./år"
+)
+= personskat_felt_egen_par6d_fordelingsår = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.fordelingsår",
+    label = "Antal fordelingsår",
+    question = "Over hvor mange efterfølgende indkomstår valgte du at fordele fortjenesten?",
+    unit = "år"
+)
+= personskat_felt_ægtefælles_par6d_fordelingsår = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.fordelingsår",
+    label = "Antal fordelingsår",
+    question = "Over hvor mange efterfølgende indkomstår valgte din ægtefælle at fordele fortjenesten?",
+    unit = "år"
+)
+= personskat_felt_egen_par6d_erhververens_næring = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververen_erhvervede_ejendommen_som_led_i_næring",
+    label = "Køberens erhvervelse af ejendommen",
+    question = Some("Erhvervede køberen ejendommen som led i næring ved handel med fast ejendom?"),
+    help = Some("Fordeling efter EBL § 6 D kræver, at ejendommen er omfattet af ejendomsavancebeskatningsloven både før og efter overdragelsen."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_erhververens_næring = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververen_erhvervede_ejendommen_som_led_i_næring",
+    label = "Køberens erhvervelse af ejendommen",
+    question = Some("Erhvervede køberen din ægtefælles ejendom som led i næring ved handel med fast ejendom?"),
+    help = Some("Fordeling efter EBL § 6 D kræver, at ejendommen er omfattet af ejendomsavancebeskatningsloven både før og efter overdragelsen."),
+    unit = None
+)
+= personskat_felt_egen_par6d_overdrageranvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.overdragerens_anvendelse.$variant",
+    label = "Sælgerens brug af ejendommen",
+    question = Some("Hvordan blev den relevante del af ejendommen anvendt af dig eller din samlevende ægtefælle før overdragelsen?"),
+    help = Some("Bolig, almindelig udlejning og anden ikke-erhvervsmæssig brug kvalificerer ikke. Udlejning til et kontrolleret selskab har særlige betingelser."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_overdrageranvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.overdragerens_anvendelse.$variant",
+    label = "Sælgerens brug af ejendommen",
+    question = Some("Hvordan blev den relevante del af ejendommen anvendt af din ægtefælle eller dennes samlevende ægtefælle før overdragelsen?"),
+    help = Some("Bolig, almindelig udlejning og anden ikke-erhvervsmæssig brug kvalificerer ikke. Udlejning til et kontrolleret selskab har særlige betingelser."),
+    unit = None
+)
+= personskat_felt_egen_par6d_erhververanvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververens_anvendelse_ved_overdragelsen.$variant",
+    label = "Køberens brug af ejendommen",
+    question = Some("Hvordan anvendte køberen eller køberens samlevende ægtefælle den relevante del ved overdragelsen?"),
+    help = Some("Den kvalificerende erhvervsanvendelse skal fortsætte i fordelingsperioden; senere ændringer oplyses under de årlige forhold."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_erhververanvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververens_anvendelse_ved_overdragelsen.$variant",
+    label = "Køberens brug af ejendommen",
+    question = Some("Hvordan anvendte køberen eller køberens samlevende ægtefælle den relevante del af din ægtefælles ejendom ved overdragelsen?"),
+    help = Some("Den kvalificerende erhvervsanvendelse skal fortsætte i fordelingsperioden; senere ændringer oplyses under de årlige forhold."),
+    unit = None
+)
+= personskat_felt_egen_par6d_overdrager_fysisk_person = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.overdragerens_anvendelse.EblPar6DUdlejetTilKontrolleretSelskab.fakta.ejeren_er_fysisk_person",
+    label = "Udlejer er en fysisk person (sælger)",
+    question = Some("Er ejeren, som udlejede ejendommen til det kontrollerede selskab, en fysisk person?"),
+    help = Some("Særreglen for udlejning til et kontrolleret selskab gælder kun, når ejeren er en fysisk person."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_overdrager_fysisk_person = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.overdragerens_anvendelse.EblPar6DUdlejetTilKontrolleretSelskab.fakta.ejeren_er_fysisk_person",
+    label = "Udlejer er en fysisk person (sælger)",
+    question = Some("Er ejeren, som udlejede din ægtefælles ejendom til det kontrollerede selskab, en fysisk person?"),
+    help = Some("Særreglen for udlejning til et kontrolleret selskab gælder kun, når ejeren er en fysisk person."),
+    unit = None
+)
+= personskat_felt_egen_par6d_erhverver_fysisk_person = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververens_anvendelse_ved_overdragelsen.EblPar6DUdlejetTilKontrolleretSelskab.fakta.ejeren_er_fysisk_person",
+    label = "Udlejer er en fysisk person (køber)",
+    question = Some("Er køberen eller køberens ægtefælle, som udlejer ejendommen til det kontrollerede selskab, en fysisk person?"),
+    help = Some("Særreglen for udlejning til et kontrolleret selskab gælder kun, når ejeren er en fysisk person."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_erhverver_fysisk_person = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.erhververens_anvendelse_ved_overdragelsen.EblPar6DUdlejetTilKontrolleretSelskab.fakta.ejeren_er_fysisk_person",
+    label = "Udlejer er en fysisk person (køber)",
+    question = Some("Er køberen eller køberens ægtefælle, som udlejer din ægtefælles ejendom til det kontrollerede selskab, en fysisk person?"),
+    help = Some("Særreglen for udlejning til et kontrolleret selskab gælder kun, når ejeren er en fysisk person."),
+    unit = None
+)
+= personskat_felt_egen_par6d_pantebrev = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.identifikation",
+    label = "Sælgerpantebrev",
+    question = "Hvordan identificeres sælgerpantebrevet i overdragelsesaftalen?"
+)
+= personskat_felt_ægtefælles_par6d_pantebrev = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.identifikation",
+    label = "Sælgerpantebrev",
+    question = "Hvordan identificeres din ægtefælles sælgerpantebrev i overdragelsesaftalen?"
+)
+= personskat_felt_egen_par6d_pantebrev_kontantværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.kontantværdi_kroner",
+    label = "Sælgerpantebrevets kontantværdi",
+    question = "Hvad var sælgerpantebrevets kontantværdi ved overdragelsen?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.kontantværdi_kroner",
+    label = "Sælgerpantebrevets kontantværdi",
+    question = "Hvad var din ægtefælles sælgerpantebrevs kontantværdi ved overdragelsen?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_pantebrev_hovedstol = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.hovedstol_kroner",
+    label = "Sælgerpantebrevets hovedstol",
+    question = "Hvad er sælgerpantebrevets nominelle hovedstol?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_pantebrev_hovedstol = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.hovedstol_kroner",
+    label = "Sælgerpantebrevets hovedstol",
+    question = "Hvad er din ægtefælles sælgerpantebrevs nominelle hovedstol?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_pantebrev_løbetid = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.løbetid_år",
+    label = "Sælgerpantebrevets løbetid",
+    question = "Hvor mange år løber sælgerpantebrevet?",
+    unit = "år"
+)
+= personskat_felt_ægtefælles_par6d_pantebrev_løbetid = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.løbetid_år",
+    label = "Sælgerpantebrevets løbetid",
+    question = "Hvor mange år løber din ægtefælles sælgerpantebrev?",
+    unit = "år"
+)
+= personskat_felt_egen_par6d_afdragsplan = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan",
+    label = "Pantebrevets afdragsplan",
+    question = Some("Hvornår forfalder de ordinære afdrag på sælgerpantebrevets hovedstol?"),
+    help = Some("Tilføj én række for hvert år i fordelingsperioden. Hovedstolen må ikke forfalde hurtigere end med lige store årlige beløb."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_afdragsplan = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan",
+    label = "Pantebrevets afdragsplan",
+    question = Some("Hvornår forfalder de ordinære afdrag på din ægtefælles sælgerpantebrevs hovedstol?"),
+    help = Some("Tilføj én række for hvert år i fordelingsperioden. Hovedstolen må ikke forfalde hurtigere end med lige store årlige beløb."),
+    unit = None
+)
+= personskat_felt_egen_par6d_afdragsplan_år = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan.år_efter_afståelsen",
+    label = "År efter afståelsen",
+    question = "Hvilket nummer i fordelingsperioden har dette afdragsår?",
+    unit = "år"
+)
+= personskat_felt_ægtefælles_par6d_afdragsplan_år = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan.år_efter_afståelsen",
+    label = "År efter afståelsen",
+    question = "Hvilket nummer i din ægtefælles fordelingsperiode har dette afdragsår?",
+    unit = "år"
+)
+= personskat_felt_egen_par6d_afdragsplan_beløb = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan.hovedstol_forfalder_kroner",
+    label = "Forfaldende hovedstol",
+    question = "Hvor stor en del af hovedstolen forfalder i dette år?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_afdragsplan_beløb = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgerpantebrev.afdragsplan.hovedstol_forfalder_kroner",
+    label = "Forfaldende hovedstol",
+    question = "Hvor stor en del af din ægtefælles pantebrevshovedstol forfalder i dette år?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_meddelelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.meddelelse.$variant",
+    label = "Meddelelse om fordelingsvalget",
+    question = Some("Hvordan og hvornår blev valget om fordeling meddelt Skatteforvaltningen?"),
+    help = Some("Valget skal som udgangspunkt oplyses rettidigt for afståelsesåret. Efter en ansættelsesændring kan det begæres senest tre måneder efter meddelelsen."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_meddelelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.meddelelse.$variant",
+    label = "Meddelelse om fordelingsvalget",
+    question = Some("Hvordan og hvornår blev din ægtefælles valg om fordeling meddelt Skatteforvaltningen?"),
+    help = Some("Valget skal som udgangspunkt oplyses rettidigt for afståelsesåret. Efter en ansættelsesændring kan det begæres senest tre måneder efter meddelelsen."),
+    unit = None
+)
+= personskat_felt_egen_par6d_skattepligt = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgers_skatteforhold.skattepligtsstatus",
+    label = "Sælgerens skattepligt ved afståelsen",
+    question = "Hvordan var du skattepligtig til Danmark, da ejendommen blev afstået?"
+)
+= personskat_felt_ægtefælles_par6d_skattepligt = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgers_skatteforhold.skattepligtsstatus",
+    label = "Sælgerens skattepligt ved afståelsen",
+    question = "Hvordan var din ægtefælle skattepligtig til Danmark, da ejendommen blev afstået?"
+)
+= personskat_felt_egen_par6d_sikkerhed = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgers_skatteforhold.sikkerhed.$variant",
+    label = "Sikkerhed for den udskudte skat",
+    question = "Blev der stillet sikkerhed over for Skatteforvaltningen for den udskudte skat?"
+)
+= personskat_felt_ægtefælles_par6d_sikkerhed = Beregningsspørgsmål(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.sælgers_skatteforhold.sikkerhed.$variant",
+    label = "Sikkerhed for den udskudte skat",
+    question = "Blev der stillet sikkerhed over for Skatteforvaltningen for din ægtefælles udskudte skat?"
+)
+= personskat_felt_egen_par6d_ejendomsplacering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.ejendomsplacering.$variant",
+    label = "Ejendommens beliggenhed",
+    question = Some("Lå ejendommen i Danmark eller i et udenlandsk område?"),
+    help = Some("En ejendom uden for Danmark kan kun omfattes under de særlige betingelser om område, fuld dansk skattepligt, skattemæssigt hjemsted og informationsudveksling."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_ejendomsplacering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.ejendomsplacering.$variant",
+    label = "Ejendommens beliggenhed",
+    question = Some("Lå din ægtefælles ejendom i Danmark eller i et udenlandsk område?"),
+    help = Some("En ejendom uden for Danmark kan kun omfattes under de særlige betingelser om område, fuld dansk skattepligt, skattemæssigt hjemsted og informationsudveksling."),
+    unit = None
+)
+= personskat_felt_egen_par6d_afståelsesårets_hændelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.$variant",
+    label = "Hændelse i afståelsesåret",
+    question = Some("Indtraf der allerede i afståelsesåret en hændelse, som kunne fremrykke den udskudte fortjeneste?"),
+    help = Some("Det kan blandt andet være videresalg eller ændret brug af ejendommen, afståelse eller indfrielse af pantebrevet, dødsfald eller ophør af skattepligt."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.afståelsesårets_hændelse.$variant",
+    label = "Hændelse i afståelsesåret",
+    question = Some("Indtraf der allerede i afståelsesåret en hændelse, som kunne fremrykke din ægtefælles udskudte fortjeneste?"),
+    help = Some("Det kan blandt andet være videresalg eller ændret brug af ejendommen, afståelse eller indfrielse af pantebrevet, dødsfald eller ophør af skattepligt."),
+    unit = None
+)
+= personskat_felt_egen_par6d_årsforhold = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold",
+    label = "Årlige forhold under fordelingen",
+    question = Some("Hvad skete der i hvert indkomstår, mens ejendomsfortjenesten blev fordelt?"),
+    help = Some("Tilføj sammenhængende år fra afståelsesåret. Futuruna medregner det ordinære beløb og fremrykker resten ved de lovbestemte hændelser."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_årsforhold = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold",
+    label = "Årlige forhold under fordelingen",
+    question = Some("Hvad skete der i hvert indkomstår, mens din ægtefælles ejendomsfortjeneste blev fordelt?"),
+    help = Some("Tilføj sammenhængende år fra afståelsesåret. Futuruna medregner det ordinære beløb og fremrykker resten ved de lovbestemte hændelser."),
+    unit = None
+)
+= personskat_felt_egen_par6d_årsforhold_indkomstår = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.indkomstår",
+    label = "Indkomstår",
+    question = "Hvilket indkomstår vedrører denne række?",
+    unit = "år"
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_indkomstår = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.indkomstår",
+    label = "Indkomstår",
+    question = "Hvilket indkomstår vedrører denne række for din ægtefælle?",
+    unit = "år"
+)
+= personskat_felt_egen_par6d_årsforhold_afdrag = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.betalt_ordinært_hovedstolsafdrag_kroner",
+    label = "Faktisk ordinært hovedstolsafdrag",
+    question = "Hvor meget ordinær hovedstol blev faktisk betalt på sælgerpantebrevet i dette indkomstår?",
+    unit = "kr."
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_afdrag = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.betalt_ordinært_hovedstolsafdrag_kroner",
+    label = "Faktisk ordinært hovedstolsafdrag",
+    question = "Hvor meget ordinær hovedstol blev faktisk betalt på din ægtefælles sælgerpantebrev i dette indkomstår?",
+    unit = "kr."
+)
+= personskat_felt_egen_par6d_årsforhold_hændelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.$variant",
+    label = "Hændelse i indkomståret",
+    question = Some("Indtraf der i dette indkomstår en hændelse, som påvirker den resterende udskudte fortjeneste?"),
+    help = Some("Vælg den konkrete hændelse. En ikke-understøttet hændelse får beregningen til at afvise inputtet i stedet for at gætte."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par6d_årsforhold_hændelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par6d_valg.EblMedPar6DValg.fakta.efterfølgende_årsforhold.hændelse.$variant",
+    label = "Hændelse i indkomståret",
+    question = Some("Indtraf der i dette indkomstår en hændelse, som påvirker din ægtefælles resterende udskudte fortjeneste?"),
+    help = Some("Vælg den konkrete hændelse. En ikke-understøttet hændelse får beregningen til at afvise inputtet i stedet for at gætte."),
+    unit = None
+)
 = personskat_felt_ordinært_aktieår = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.$variant",
     label = "Ordinært aktieår",
@@ -1576,6 +1896,11 @@
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_boligandel_forøget::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
 --@label:beregn_personskat::field:personskat_felt_egen_par9_boligandel_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_boligandel_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_valg::field:personskat_felt_ægtefælles_par6d_valg::field:personskat_felt_egen_par6d_udskudt_fortjeneste::field:personskat_felt_ægtefælles_par6d_udskudt_fortjeneste::field:personskat_felt_egen_par6d_årligt_beløb::field:personskat_felt_ægtefælles_par6d_årligt_beløb::field:personskat_felt_egen_par6d_fordelingsår::field:personskat_felt_ægtefælles_par6d_fordelingsår::field:personskat_felt_egen_par6d_erhververens_næring::field:personskat_felt_ægtefælles_par6d_erhververens_næring::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_overdrageranvendelse::field:personskat_felt_ægtefælles_par6d_overdrageranvendelse::field:personskat_felt_egen_par6d_erhververanvendelse::field:personskat_felt_ægtefælles_par6d_erhververanvendelse::field:personskat_felt_egen_par6d_overdrager_fysisk_person::field:personskat_felt_ægtefælles_par6d_overdrager_fysisk_person::field:personskat_felt_egen_par6d_erhverver_fysisk_person::field:personskat_felt_ægtefælles_par6d_erhverver_fysisk_person::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev::field:personskat_felt_ægtefælles_par6d_pantebrev::field:personskat_felt_egen_par6d_pantebrev_kontantværdi::field:personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi::field:personskat_felt_egen_par6d_pantebrev_hovedstol::field:personskat_felt_ægtefælles_par6d_pantebrev_hovedstol::field:personskat_felt_egen_par6d_pantebrev_løbetid::field:personskat_felt_ægtefælles_par6d_pantebrev_løbetid::field:personskat_felt_egen_par6d_afdragsplan::field:personskat_felt_ægtefælles_par6d_afdragsplan::field:personskat_felt_egen_par6d_afdragsplan_år::field:personskat_felt_ægtefælles_par6d_afdragsplan_år::field:personskat_felt_egen_par6d_afdragsplan_beløb::field:personskat_felt_ægtefælles_par6d_afdragsplan_beløb::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_meddelelse::field:personskat_felt_ægtefælles_par6d_meddelelse::field:personskat_felt_egen_par6d_skattepligt::field:personskat_felt_ægtefælles_par6d_skattepligt::field:personskat_felt_egen_par6d_sikkerhed::field:personskat_felt_ægtefælles_par6d_sikkerhed::field:personskat_felt_egen_par6d_ejendomsplacering::field:personskat_felt_ægtefælles_par6d_ejendomsplacering::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
 --@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
 --@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
@@ -1719,8 +2044,8 @@
     | UdenFremførtEjendomstab -> EblIngenFremførsel
     | MedFremførtEjendomstab(fra_indkomstår, tab_kroner) -> EblFremførtTabFraForrigeIndkomstår(fra_indkomstår = fra_indkomstår, tab_kroner = tab_kroner)
 }
-| personskat_ejendomsavance_input(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancebeskatningslovInput(
-    indkomstår = skatteår,
+| personskat_ejendomsavance_input(fakta: PersonskatEjendomsavanceFakta) -> EjendomsavancebeskatningslovInput(
+    indkomstår = fakta.afståelsesdato.år,
     afståelsesdato = fakta.afståelsesdato,
     afståelse = fakta.afståelse,
     erhvervet_som_led_i_næring = fakta.erhvervet_som_led_i_næring,
@@ -1732,23 +2057,24 @@
     overdragne_gældsposter_kursværdi_kroner = fakta.overdragne_gældsposter_kursværdi_kroner,
     par4_stk8_afståelsesværdi_udeladt_kroner = fakta.par4_stk8_afståelsesværdi_udeladt_kroner,
     ejendomstype = fakta.ejendomstype,
-    par11_stk2_genanbragt_erhvervsejendom = fakta.par11_stk2_genanbragt_erhvervsejendom
+    par11_stk2_genanbragt_erhvervsejendom = fakta.par11_stk2_genanbragt_erhvervsejendom,
+    par6d_valg = fakta.par6d_valg
 )
-| personskat_ejendomsavance_afståelsesresultat(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> ejendomsavancebeskatningslov_resultat(personskat_ejendomsavance_input(fakta, skatteår))
-| personskat_ejendomsavance_afståelsesresultater(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_afståelsesresultat(fakta, skatteår))
+| personskat_ejendomsavance_afståelsesresultat(fakta: PersonskatEjendomsavanceFakta) -> ejendomsavancebeskatningslov_resultat(personskat_ejendomsavance_input(fakta))
+| personskat_ejendomsavance_afståelsesresultater(afståelser: List(PersonskatEjendomsavanceFakta)) -> map(afståelser, personskat_ejendomsavance_afståelsesresultat)
 | personskat_ejendomsavance_identifikation_unik(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta) -> length(filter(afståelser, |anden: PersonskatEjendomsavanceFakta| anden.identifikation == fakta.identifikation)) == 1
-| personskat_ejendomsavance_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> fakta.identifikation != "" && personskat_ejendomsavance_identifikation_unik(afståelser, fakta) && resultat.input_gyldigt
-| personskat_ejendomsavance_afståelser_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_grundfakta_gyldige(afståelser, fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
+| personskat_ejendomsavance_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat, skatteår: Heltal) -> fakta.identifikation != "" && personskat_ejendomsavance_identifikation_unik(afståelser, fakta) && fakta.afståelsesdato.år <= skatteår && resultat.input_gyldigt
+| personskat_ejendomsavance_afståelser_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_grundfakta_gyldige(afståelser, fakta, personskat_ejendomsavance_afståelsesresultat(fakta), skatteår))
 | personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> resultat.regelgrundlag_understøttet && (resultat.omfattet_af_loven || fakta.erhvervet_som_led_i_næring)
-| personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
-| personskat_ejendomsavance_tabspost(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancePar6Tabspost(
-    resultat = personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)
+| personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(afståelser: List(PersonskatEjendomsavanceFakta)) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta, personskat_ejendomsavance_afståelsesresultat(fakta)))
+| personskat_ejendomsavance_tabspost(fakta: PersonskatEjendomsavanceFakta) -> EjendomsavancePar6Tabspost(
+    resultat = personskat_ejendomsavance_afståelsesresultat(fakta)
 )
-| personskat_ejendomsavance_tabsposter(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_tabspost(fakta, skatteår))
+| personskat_ejendomsavance_tabsposter(afståelser: List(PersonskatEjendomsavanceFakta)) -> map(afståelser, personskat_ejendomsavance_tabspost)
 | personskat_ejendomsavance_tabsårsgrundlag(afståelser: List(PersonskatEjendomsavanceFakta), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(
     indkomstår = skatteår,
-    tabsposter = personskat_ejendomsavance_tabsposter(afståelser, skatteår),
-    fortjenester = personskat_ejendomsavance_afståelsesresultater(afståelser, skatteår),
+    tabsposter = personskat_ejendomsavance_tabsposter(afståelser),
+    fortjenester = personskat_ejendomsavance_afståelsesresultater(afståelser),
     fremførsel = personskat_ejendomsavance_fremførsel(fremførsel)
 )
 | personskat_ejendomsavance_ægtefælledata_relevant(fakta: PersonskatEjendomsavanceÅrsfakta) -> fakta.gift_samlevende_ved_indkomstårets_udgang || (length(fakta.ægtefælles_afståelser) == 0 && fakta.ægtefælles_fremførte_tab == UdenFremførtEjendomstab)
@@ -1758,14 +2084,17 @@
         = egne_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.egne_afståelser, skatteår)
         = ægtefælles_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.ægtefælles_afståelser, skatteår)
         = grundfakta_gyldige = skatteår > 0 && egne_grundfakta_gyldige && ægtefælles_grundfakta_gyldige
-        = egne_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.egne_afståelser, skatteår)
-        = ægtefælles_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.ægtefælles_afståelser, skatteår)
+        = egne_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.egne_afståelser)
+        = ægtefælles_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.ægtefælles_afståelser)
         = fortjenesteafgrænsninger_understøttet = egne_fortjenesteafgrænsninger_understøttet && ægtefælles_fortjenesteafgrænsninger_understøttet
+        = egne_årsforløb_dækker_skatteår = ejendomsavance_par6_resultater_dækker_indkomstår(personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser), skatteår)
+        = ægtefælles_årsforløb_dækker_skatteår = ejendomsavance_par6_resultater_dækker_indkomstår(personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser), skatteår)
+        = årsforløb_dækker_skatteår = egne_årsforløb_dækker_skatteår && ægtefælles_årsforløb_dækker_skatteår
         = fremførsler_gyldige = personskat_ejendomsavance_fremførsel_gyldig(fakta.eget_fremført_tab, skatteår) && personskat_ejendomsavance_fremførsel_gyldig(fakta.ægtefælles_fremførte_tab, skatteår)
         = ægtefælledata_relevant = personskat_ejendomsavance_ægtefælledata_relevant(fakta)
-        hvis grundfakta_gyldige && fortjenesteafgrænsninger_understøttet && fremførsler_gyldige && ægtefælledata_relevant {
-            = egne_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser, skatteår)
-            = ægtefælles_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser, skatteår)
+        hvis grundfakta_gyldige && fortjenesteafgrænsninger_understøttet && årsforløb_dækker_skatteår && fremførsler_gyldige && ægtefælledata_relevant {
+            = egne_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser)
+            = ægtefælles_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser)
             = ægtefællepar_resultat = ejendomsavance_par6_ægtefællepar_resultat(EjendomsavancePar6ÆgtefælleparInput(
                 venstre = personskat_ejendomsavance_tabsårsgrundlag(fakta.egne_afståelser, fakta.eget_fremført_tab, skatteår),
                 højre = personskat_ejendomsavance_tabsårsgrundlag(fakta.ægtefælles_afståelser, fakta.ægtefælles_fremførte_tab, skatteår),
@@ -1790,6 +2119,7 @@
                 fakta = fakta,
                 grundfakta_gyldige = grundfakta_gyldige,
                 fortjenesteafgrænsninger_understøttet = fortjenesteafgrænsninger_understøttet,
+                årsforløb_dækker_skatteår = årsforløb_dækker_skatteår,
                 fremførsler_gyldige = fremførsler_gyldige,
                 ægtefælledata_relevant = ægtefælledata_relevant
             )
@@ -1797,7 +2127,7 @@
     }
 }
 | personskat_ejendomsavance_input_gyldigt(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
-    | UgyldigtEjendomsavancegrundlag(_, _, _, _, _) -> Falskt
+    | UgyldigtEjendomsavancegrundlag(_, _, _, _, _, _) -> Falskt
     | _ -> Sandt
 }
 | personskat_ejendomsavance_kapitalposter(resultat: PersonskatEjendomsavanceResultat) -> match resultat {

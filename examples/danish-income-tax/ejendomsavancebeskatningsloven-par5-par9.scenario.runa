@@ -2,7 +2,7 @@
 
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par5_par9_scenarier::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132--
+--@label:ebl_par5_par9_scenarier::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132::guidance:ebl_par6d_vejledning_2026--
 --@begin:ebl_par5_par9_scenarier--
 = ebl_scenarie_anskaffelsesdato_2026 = EblDato(år = 2026, måned = 1, dag = 1)
 = ebl_scenarie_afståelsesdato_2026 = EblDato(år = 2026, måned = 12, dag = 31)
@@ -385,7 +385,8 @@
                 genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
             )
         ),
-        par11_stk2_genanbragt_erhvervsejendom = Falskt
+        par11_stk2_genanbragt_erhvervsejendom = Falskt,
+        par6d_valg = EblUdenPar6DValg
     )
 )
 
@@ -420,6 +421,7 @@
     | EblPar9Behandling(resultat) -> ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen.par5_resultat.anskaffelsessum_før_par5_kroner == 1000000 && ebl_par9_uden_boligfritagelse_indekserer_hele_ejendommen.reguleret_anskaffelsessum_kroner == 1753940 && resultat.betingelser_for_skattefri_boligdel_opfyldt == Falskt && resultat.samlet_fortjeneste_eller_tab_kroner == 246060 && resultat.skattepligtig_fortjeneste_kroner == 246060
     | _ -> Falskt
 }
+| ebl_par6d_udleder_loftet_af_erhvervsdelen: ebl_par9_blandet_fortjeneste -> ebl_par8_par9_par6d_kvalificerende_erhvervsfortjeneste_kroner(EblPar9Behandling(ebl_par9_blandet_fortjeneste), ebl_par9_blandet_fortjeneste.samlet_fortjeneste_eller_tab_kroner) == 60000 && ebl_par8_par9_par6d_kvalificerende_erhvervsafståelsessum_kroner(EblPar9Behandling(ebl_par9_blandet_fortjeneste), ebl_par9_blandet_fortjeneste.beløbsgrundlag.samlet_afståelsessum_kroner) == 260000
 | ebl_par9_overgangsvalg_kan_aktivere_ejerboligen: ebl_par9_overgangsvalg_opfyldt_2026 -> ebl_par9_kategori_berettiget(ebl_par9_overgangsvalg_opfyldt_2026, EblDato(år = 2026, måned = 7, dag = 1))
 
 ? ebl_par5_giver_fast_tillæg_i_anskaffelsesåret
@@ -442,6 +444,7 @@
 ? ebl_par9_bevarer_nedslaget_når_erhvervsdelen_kan_beskattes
 ? ebl_par9_stk4_beskatter_særskilt_og_bortfalder_nedslaget
 ? ebl_par9_uden_boligfritagelse_regulerer_hele_anskaffelsessummen
+? ebl_par6d_udleder_loftet_af_erhvervsdelen
 ? ebl_par9_overgangsvalg_kan_aktivere_ejerboligen
 
 @ print("EBL §§ 5-9 source-fact scenarios passed")

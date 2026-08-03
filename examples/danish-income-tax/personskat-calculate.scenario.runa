@@ -176,7 +176,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ejendomstype,
-    par11_stk2_genanbragt_erhvervsejendom = Falskt
+    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par6d_valg = EblUdenPar6DValg
 )
 | personskat_calculate_par6a_genanbringelse(erhvervsfortjeneste_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(fakta = EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(

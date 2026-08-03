@@ -1,0 +1,318 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./ejendomsavancebeskatningsloven - par5 - par5a
+@ importer ./ejendomsavancebeskatningsloven - genanbringelse
+
+# EblPar6DKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ebl_par6d_lov1578 = EblPar6DKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/1578",
+    identifier = "LOV nr. 1578 af 27/12/2019, §§ 1 og 3: Ejendomsavancebeskatningslovens § 6 D",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par6d_vejledning_2026 = EblPar6DKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2292757",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.9: Udskydelse af beskatning ved finansiering med sælgerpantebreve",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par6d_ikrafttræden::source:ebl_par6d_lov1578--
+----
+§ 3
+
+Stk. 1. Loven træder i kraft den 1. januar 2020.
+
+Stk. 2. § 1, nr. 1, har virkning for afståelse af fast ejendom, der sker den 1. januar 2020 eller senere.
+----
+
+--@begin:ebl_par6d_ikrafttræden--
+| ebl_par6d_har_virkning(afståelsesdato: EblDato) -> ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(EblDato(år = 2020, måned = 1, dag = 1), afståelsesdato)
+--@end:ebl_par6d_ikrafttræden--
+
+--@label:ebl_par6d::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+----
+§ 6 D. Afstår den skattepligtige en ejendom, der er omfattet af lovens regler, bortset fra ejendomme, der er omfattet af § 8, og indgår der i afståelsesvederlaget en fordring mod erhververen med pant i den overdragne ejendom (sælgerpantebrev), kan den skattepligtige vælge at medregne fortjeneste efter § 6 med lige store beløb ved opgørelsen af den skattepligtige indkomst i de indtil 10 nærmest efterfølgende indkomstår.
+1. pkt. gælder dog ikke, hvor der er en forbindelse som omhandlet i ligningslovens § 2 mellem parterne i overdragelsen.
+
+Stk. 2. Den del af fortjenesten, der vælges beskattet efter stk. 1, kan ikke overstige 10 pct. af den kontantomregnede afståelsessum for ejendommen.
+Sælgerpantebrevet skal udstedes med en kontant værdi på det beløb, der vælges beskattet efter stk. 1.
+Sælgerpantebrevets løbetid skal svare til den periode, som beskatningen efter stk. 1 vælges fordelt over, og afdrag på hovedstolen må ikke forfalde hurtigere end med lige store årlige beløb.
+
+Stk. 3. Uanset stk. 1 skal en eventuel resterende udskudt fortjeneste medregnes ved opgørelsen af den skattepligtige indkomst i følgende tilfælde:
+1) Ved hel eller delvis afståelse af ejendommen eller ved ændret anvendelse af ejendommen, hvorved den helt eller delvis ikke anvendes erhvervsmæssigt, jf. dog stk. 4.
+Beløbet opgøres som den andel af den resterende fortjeneste, der forholdsmæssigt svarer til forholdet mellem handelsværdien af den del af ejendommen, der er afstået eller ikke længere anvendes erhvervsmæssigt, og hele ejendommens handelsværdi umiddelbart før henholdsvis overdragelsen og den ændrede anvendelse.
+2) Ved hel eller delvis afståelse eller indfrielse af sælgerpantebrevet, jf. dog stk. 4.
+Beløbet opgøres som den andel af den resterende fortjeneste, der svarer til den forholdsmæssige del af restgælden, der er afstået, eller den forholdsmæssige del af restgælden, der er indfriet.
+3) Ved sælgerens død, jf. dog stk. 4.
+4) Ved ophør af sælgerens skattepligt, jf. kildeskattelovens § 10 eller selskabsskattelovens § 5, stk. 7.
+Den skattepligtige kan få henstand med betaling af skatten efter reglerne i stk. 10-14.
+
+Stk. 4. Stk. 3, nr. 1 og 2, finder ikke anvendelse i tilfælde, hvor ejendommen eller sælgerpantebrevet overdrages til en ægtefælle, når overdragelsen sker med succession efter kildeskattelovens § 26 B eller overdragelsen sker med succession som led i bodeling ved separation og skilsmisse.
+Stk. 3, nr. 1-3, finder ikke anvendelse, når en efterlevende ægtefælle overtager ejendommen eller sælgerpantebrevet ved hensidden i uskiftet bo eller ægtefællen får udloddet ejendommen eller sælgerpantebrevet med succession efter dødsboskattelovens § 36, jf. § 29.
+
+Stk. 5. Beskatning efter stk. 1 kan alene vælges for fortjeneste, der vedrører den del af den afståede ejendom, som blev anvendt erhvervsmæssigt i overdragerens eller dennes samlevende ægtefælles erhvervsvirksomhed, og som anvendes erhvervsmæssigt i erhververens eller dennes samlevende ægtefælles erhvervsvirksomhed i den periode, som beskatningen af den udskudte fortjeneste er valgt fordelt over.
+Udlejning af fast ejendom anses ikke for erhvervsvirksomhed som nævnt i 1. pkt., jf. dog stk. 6.
+Endvidere anses den del af den afståede ejendom, som udgør boligdel, ikke for anvendt erhvervsmæssigt.
+
+Stk. 6. Udlejning af fast ejendom til et selskab, hvori ejeren af den faste ejendom eller dennes ægtefælle direkte eller indirekte har bestemmende indflydelse, anses for erhvervsmæssig virksomhed, når den bestemmende indflydelse i selskabet samtidig overdrages til erhververen af ejendommen.
+Det er en betingelse, at selskabet anvender ejendommen erhvervsmæssigt, jf. stk. 5.
+Ved bestemmende indflydelse forstås ejerskab eller rådighed over stemmerettigheder, således at der direkte eller indirekte ejes mere end 50 pct. af aktiekapitalen eller rådes over mere end 50 pct. af stemmerne.
+
+Stk. 7. Den skattepligtige skal senest ved rettidig afgivelse af oplysninger, jf. skattekontrollovens § 2, for det indkomstår, hvori ejendommen er afstået, oplyse told- og skatteforvaltningen om valget af beskatning efter stk. 1.
+Meddelelsen skal være vedlagt en kopi af det modtagne sælgerpantebrev og oplysning om den skattepligtige fortjeneste, jf. § 6.
+Meddelelsen skal endvidere indeholde oplysning om den fortjeneste, der vælges medregnet i efterfølgende indkomstår, det årlige beløb og antallet af år, fortjenesten vælges medregnet over.
+Hvis told- og skatteforvaltningen ændrer ansættelse vedrørende afståelse af fast ejendom, kan den skattepligtige begære reglen i stk. 1 anvendt, dog senest 3 måneder efter at meddelelsen om ansættelsesændringen er modtaget.
+
+Stk. 8. Er ejeren på tidspunktet for afståelsen af ejendommen skattepligtig til Danmark efter kildeskattelovens § 2, stk. 1, nr. 5, eller selskabsskattelovens § 2, stk. 1, litra b, og har denne hjemsted i et land, der ikke er omfattet af overenskomst af 7. december 1989 mellem de nordiske lande om bistand i skattesager eller Rådets direktiv om gensidig bistand ved inddrivelse af fordringer i forbindelse med skatter, afgifter og andre foranstaltninger, er anvendelsen af stk. 1 betinget af, at der over for told- og skatteforvaltningen stilles betryggende sikkerhed for den udskudte beskatning efter stk. 1.
+Sikkerheden skal stå i passende forhold til skatten af den udskudte fortjeneste og kan stilles i form af aktier, obligationer, der er optaget til handel på et reguleret marked, bankgaranti eller anden betryggende sikkerhed.
+Har ejeren hjemsted i et land, der er omfattet af overenskomsten eller direktivet nævnt i 1. pkt., og flytter ejeren efterfølgende til et land, der ikke er omfattet af nævnte overenskomst eller direktiv, skal den resterende udskudte fortjeneste medregnes ved opgørelsen af den skattepligtige indkomst, medmindre der stilles betryggende sikkerhed, jf. 2. pkt. Har ejeren hjemsted i et land, der ikke er omfattet af overenskomsten eller direktivet nævnt i 1. pkt., og flytter ejeren efterfølgende til et land, der er omfattet af nævnte overenskomst eller direktiv, frigives den stillede sikkerhed efter anmodning.
+
+Stk. 9. Anvendelse af reglerne i stk. 1 er betinget af, at den faste ejendom ikke er beliggende i en fremmed stat, på Færøerne eller i Grønland.
+Hvis ejeren på afståelsestidspunktet er skattepligtig til Danmark efter kildeskattelovens § 1, selskabsskattelovens § 1 eller fondsbeskatningslovens § 1 uden at være hjemmehørende i en fremmed stat, på Færøerne eller i Grønland i henhold til bestemmelserne i en dobbeltbeskatningsoverenskomst, kan reglerne i stk. 1 dog anvendes, når den faste ejendom er beliggende i en stat, der er medlem af EU/EØS, på Færøerne eller i Grønland.
+Det er en betingelse, at den fremmede stat, Færøerne eller Grønland udveksler oplysninger med de danske myndigheder efter en dobbeltbeskatningsoverenskomst, en anden international overenskomst eller konvention eller en administrativt indgået aftale om bistand i skattesager.
+
+Stk. 10. Den skattepligtige kan få henstand med betaling af skatten af fortjeneste, der følger af beskatningen efter stk. 3, nr. 4, når den skattepligtige er skattemæssigt hjemmehørende i et land, der er medlem af EU/EØS, Færøerne eller Grønland, når den fremmede stat, Færøerne eller Grønland udveksler oplysninger med de danske myndigheder efter en dobbeltbeskatningsoverenskomst, en anden international overenskomst eller konvention eller en administrativt indgået aftale om bistand i skattesager.
+
+Stk. 11. Ved henstand efter stk. 10 etableres en henstandssaldo, der udgøres af den beregnede skat af den udskudte fortjeneste efter stk. 3, nr. 4.
+
+Stk. 12. For personer afdrages henstandsbeløbet i de resterende år af den periode, som beskatningen er valgt fordelt over.
+Afdraget opgøres som skatteværdien af den fortjeneste, som skulle have været medregnet i det pågældende indkomstår.
+Skatteværdien beregnes efter reglerne for skattepligtige med fast driftssted i Danmark.
+Den resterende henstandssaldo forfalder dog helt eller delvis til betaling senest i de tilfælde, der er omfattet af stk. 3, nr. 1-3.
+Reglerne i kildeskattelovens § 73 B, stk. 7 og 8, finder tilsvarende anvendelse med hensyn til fristen for betaling af afdrag og forrentning af henstandssaldoen.
+
+Stk. 13. For selskaber m.v. afdrages henstandsbeløbet over de første 5 indkomstår efter skattepligtsophøret med en femtedel af det henstandsbeløb, der udgjorde henstandssaldoen ved henstandssaldoens etablering.
+Den resterende henstandssaldo forfalder helt eller delvis til betaling senest i de tilfælde, der er omfattet af stk. 3, nr. 1-3.
+Reglerne i selskabsskattelovens § 26, stk. 6 og 7, finder tilsvarende anvendelse med hensyn til fristen for betaling af afdrag og forrentning af henstandssaldoen.
+
+Stk. 14. Henstand er betinget af, at der gives oplysninger efter skattekontrollovens § 2 for hvert år, hvor der er en positiv henstandssaldo.
+Samtidig med afgivelsen af disse oplysninger skal der gives oplysninger om de forhold i stk. 3, nr. 1-3, der medfører forfald af henstandsbeløbet, og oplysning om, i hvilket land sælgeren er skattemæssigt hjemmehørende ultimo indkomståret.
+Afgives oplysningerne efter skattekontrollovens § 2 ikke rettidigt, bortfalder henstanden, og det beløb, der står på henstandssaldoen, forfalder til betaling.
+Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
+----
+
+--@begin:ebl_par6d--
+# EblPar6DPartrelationFakta(overdragerens_kapitalandel_i_erhververen_promille: Heltal, overdragerens_stemmeandel_i_erhververen_promille: Heltal, erhververens_kapitalandel_i_overdrageren_promille: Heltal, erhververens_stemmeandel_i_overdrageren_promille: Heltal, parterne_er_nærtstående_efter_ligningslovens_par2_stk2: Boolsk, parterne_har_aftale_om_fælles_bestemmende_indflydelse: Boolsk, parterne_er_under_fælles_bestemmende_indflydelse: Boolsk)
+# EblPar6DKontrolleretSelskabsudlejning(ejeren_er_fysisk_person: Boolsk, kapitalandel_promille: Heltal, stemmeandel_promille: Heltal, selskabet_anvender_ejendommen_erhvervsmæssigt: Boolsk, bestemmende_indflydelse_samtidig_overdraget_til_erhververen: Boolsk)
+# EblPar6DErhvervsanvendelse = EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed | EblPar6DUdlejetTilKontrolleretSelskab(fakta: EblPar6DKontrolleretSelskabsudlejning) | EblPar6DAlmindeligtUdlejet | EblPar6DBoligdel | EblPar6DIkkeErhvervsmæssigtAnvendt
+# EblPar6DAfdragsplanpost(år_efter_afståelsen: Heltal, hovedstol_forfalder_kroner: Heltal)
+# EblPar6DSælgerpantebrev(identifikation: Tekst, fordring_mod_erhververen: Boolsk, pant_i_den_overdragne_ejendom: Boolsk, kontantværdi_kroner: Heltal, hovedstol_kroner: Heltal, løbetid_år: Heltal, afdragsplan: List(EblPar6DAfdragsplanpost))
+# EblPar6DMeddelelsesindhold(kopi_af_sælgerpantebrev_vedlagt: Boolsk, oplyst_skattepligtig_fortjeneste_efter_par6_kroner: Heltal, oplyst_valgt_udskudt_fortjeneste_kroner: Heltal, oplyst_årligt_beløb_kroner: Heltal, oplyst_antal_år: Heltal)
+# EblPar6DValgmeddelelse = EblPar6DRettidigMeddelelse(indhold: EblPar6DMeddelelsesindhold) | EblPar6DBegæringEfterAnsættelsesændring(meddelelse_om_ansættelsesændring_modtaget: EblDato, begæring_indgivet: EblDato, indhold: EblPar6DMeddelelsesindhold) | EblPar6DForSenEllerManglendeMeddelelse
+# EblPar6DSkattepligtsstatus = EblPar6DFuldtSkattepligtigTilDanmark | EblPar6DBegrænsetSkattepligtigEfterKildeskattelovensPar2Stk1Nr5 | EblPar6DBegrænsetSkattepligtigEfterSelskabsskattelovensPar2Stk1LitraB | EblPar6DAndenSkattepligtsstatus
+# EblPar6DSikkerhedsform = EblPar6DSikkerhedIAktier | EblPar6DSikkerhedIReguleredeObligationer | EblPar6DBankgaranti | EblPar6DAndenSikkerhed
+# EblPar6DSikkerhed = EblPar6DIngenSikkerhed | EblPar6DStilletSikkerhed(form: EblPar6DSikkerhedsform, sikkerhedsbeløb_kroner: Heltal, godkendt_af_told_og_skatteforvaltningen: Boolsk)
+# EblPar6DSælgerskatteforhold(skattepligtsstatus: EblPar6DSkattepligtsstatus, hjemland_omfattet_af_nordisk_overenskomst_eller_eu_inddrivelsesdirektiv: Boolsk, sikkerhed: EblPar6DSikkerhed)
+# EblPar6DUdenlandskOmråde = EblPar6DEU | EblPar6DEØS | EblPar6DFærøerne | EblPar6DGrønland | EblPar6DTredjeland
+# EblPar6DFuldSkattepligtshjemmel = EblPar6DKildeskattelovensPar1 | EblPar6DSelskabsskattelovensPar1 | EblPar6DFondsbeskatningslovensPar1 | EblPar6DIkkeFuldtSkattepligtig
+# EblPar6DEjendomsplacering = EblPar6DEjendomIDanmark | EblPar6DEjendomIUdenlandskOmråde(område: EblPar6DUdenlandskOmråde, fuld_skattepligtshjemmel: EblPar6DFuldSkattepligtshjemmel, hjemmehørende_i_udlandet_efter_dobbeltbeskatningsoverenskomst: Boolsk, informationsudveksling_med_danmark: Boolsk)
+# EblPar6DÆgtefællesuccession = EblPar6DIngenÆgtefællesuccession | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse
+# EblPar6DDødsbosuccession = EblPar6DIngenEfterlevendeÆgtefællesuccession | EblPar6DEfterlevendeÆgtefælleIUskiftetBo | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29
+# EblPar6DHenstandsskatteyder = EblPar6DHenstandForPerson | EblPar6DHenstandForSelskab
+# EblPar6DHjemstedsområde = EblPar6DHjemstedIEU | EblPar6DHjemstedIEØS | EblPar6DHjemstedPåFærøerne | EblPar6DHjemstedIGrønland | EblPar6DHjemstedIAndetLand
+# EblPar6DHenstandsoplysninger = EblPar6DOplysningerRettidige | EblPar6DOplysningerForSeneMenFristoverskridelseTilsidesat | EblPar6DOplysningerForSeneUdenTilsidesættelse
+# EblPar6DHenstandsforfald = EblPar6DIntetHenstandsforfald | EblPar6DHenstandsforfaldVedEjendom(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DHenstandsforfaldVedPantebrev(berørt_restgæld_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DHenstandsforfaldVedDød(succession: EblPar6DDødsbosuccession)
+# EblPar6DHenstandsår(indkomstår: Heltal, skatteværdi_af_årets_ordinære_fortjeneste_kroner: Heltal, oplysninger: EblPar6DHenstandsoplysninger, skattemæssigt_hjemstedsland_ultimo: Tekst, forfald: EblPar6DHenstandsforfald, betalt_kroner: Heltal)
+# EblPar6DHenstandsvalg = EblPar6DUdenBetalingshenstand | EblPar6DMedBetalingshenstand(år: List(EblPar6DHenstandsår))
+# EblPar6DHenstandstilstand(skatteyder: EblPar6DHenstandsskatteyder, skattepligtsophørsår: Heltal, sidste_fordelingsår: Heltal, oprindelig_henstandssaldo_kroner: Heltal, henstandssaldo_kroner: Heltal, referencefortjeneste_kroner: Heltal, sælgerpantebrev_restgæld_kroner: Heltal, næste_indkomstår: Heltal, henstand_aktiv: Boolsk)
+# EblPar6DHenstandsårsresultat(tilstand_før: EblPar6DHenstandstilstand, år: EblPar6DHenstandsår, år_gyldigt: Boolsk, ordinært_afdrag_kroner: Heltal, hændelsesforfald_kroner: Heltal, bortfald_for_manglende_oplysninger_kroner: Heltal, samlet_nyt_forfald_kroner: Heltal, betalt_kroner: Heltal, forfalden_ubetalt_kroner: Heltal, tilstand_efter: EblPar6DHenstandstilstand)
+# EblPar6DHenstandsforløbstilstand(tilstand: EblPar6DHenstandstilstand, resultater: List(EblPar6DHenstandsårsresultat), alle_år_gyldige: Boolsk)
+# EblPar6DHenstandsresultat(henstand_valgt: Boolsk, henstandsbetingelser_opfyldt: Boolsk, input_gyldigt: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, skat_forfalder_ved_skattepligtsophør_kroner: Heltal, årsresultater: List(EblPar6DHenstandsårsresultat), tilstand_ultimo: EblPar6DHenstandstilstand)
+# EblPar6DSkattepligtsophørFakta(skatteyder: EblPar6DHenstandsskatteyder, nyt_hjemstedsområde: EblPar6DHjemstedsområde, informationsudveksling_med_danmark: Boolsk, beregnet_skat_af_fremrykket_fortjeneste_kroner: Heltal, henstandsvalg: EblPar6DHenstandsvalg)
+# EblPar6DPantebrevshændelsesart = EblPar6DPantebrevAfstået | EblPar6DPantebrevIndfriet
+# EblPar6DHændelse = EblPar6DIngenFremrykningshændelse | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt_dels_handelsværdi_kroner: Heltal, hele_ejendommens_handelsværdi_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DPantebrevAfståetEllerIndfriet(art: EblPar6DPantebrevshændelsesart, berørt_restgæld_kroner: Heltal, succession: EblPar6DÆgtefællesuccession) | EblPar6DSælgerDød(succession: EblPar6DDødsbosuccession) | EblPar6DSkattepligtOphørt(fakta: EblPar6DSkattepligtsophørFakta) | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed: EblPar6DSikkerhed) | EblPar6DFlyttetTilLandMedInddrivelsesbistand(frigivelse_af_sikkerhed_anmodet: Boolsk) | EblPar6DIkkeUnderstøttetHændelse(beskrivelse: Tekst)
+# EblPar6DÅrsforhold(indkomstår: Heltal, betalt_ordinært_hovedstolsafdrag_kroner: Heltal, hændelse: EblPar6DHændelse)
+# EblPar6DValgfakta(valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, fordelingsår: Heltal, erhververen_erhvervede_ejendommen_som_led_i_næring: Boolsk, partrelation: EblPar6DPartrelationFakta, overdragerens_anvendelse: EblPar6DErhvervsanvendelse, erhververens_anvendelse_ved_overdragelsen: EblPar6DErhvervsanvendelse, sælgerpantebrev: EblPar6DSælgerpantebrev, meddelelse: EblPar6DValgmeddelelse, sælgers_skatteforhold: EblPar6DSælgerskatteforhold, ejendomsplacering: EblPar6DEjendomsplacering, afståelsesårets_hændelse: EblPar6DHændelse, efterfølgende_årsforhold: List(EblPar6DÅrsforhold))
+# EblPar6DValg = EblUdenPar6DValg | EblMedPar6DValg(fakta: EblPar6DValgfakta)
+# EblPar6DKontekst(afståelsesdato: EblDato, skattepligtig_fortjeneste_før_par6d_kroner: Heltal, kvalificerende_erhvervsfortjeneste_efter_par6_kroner: Heltal, kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner: Heltal, ejendom_omfattet_af_par8: Boolsk)
+# EblPar6DTilstand(afståelsesår: Heltal, fordelingsår: Heltal, årligt_beløb_kroner: Heltal, resterende_udskudt_fortjeneste_kroner: Heltal, sælgerpantebrev_restgæld_kroner: Heltal, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner: Heltal, næste_indkomstår: Heltal, ordning_aktiv: Boolsk)
+# EblPar6DÅrsresultat(tilstand_før: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold, år_gyldigt: Boolsk, ordinært_medregnet_fortjeneste_kroner: Heltal, fremrykket_fortjeneste_kroner: Heltal, samlet_medregnet_fortjeneste_kroner: Heltal, ordinært_hovedstolsafdrag_kroner: Heltal, ekstraordinær_gældsnedskrivning_kroner: Heltal, sikkerhed_frigives_efter_anmodning: Boolsk, henstandsresultat: EblPar6DHenstandsresultat, tilstand_efter: EblPar6DTilstand)
+# EblPar6DForløbstilstand(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsresultater: List(EblPar6DÅrsresultat), alle_år_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk)
+# EblPar6DResultat(valg: EblPar6DValg, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, betingelser_opfyldt: Boolsk, valgt_udskudt_fortjeneste_kroner: Heltal, årligt_beløb_kroner: Heltal, skattepligtig_fortjeneste_i_afståelsesåret_kroner: Heltal, årsresultater: List(EblPar6DÅrsresultat), tilstand_ultimo: EblPar6DTilstand)
+
+| ebl_par6d_promille_gyldig(promille: Heltal) -> promille >= 0 && promille <= 1000
+| ebl_par6d_partrelation_gyldig(fakta: EblPar6DPartrelationFakta) -> ebl_par6d_promille_gyldig(fakta.overdragerens_kapitalandel_i_erhververen_promille) && ebl_par6d_promille_gyldig(fakta.overdragerens_stemmeandel_i_erhververen_promille) && ebl_par6d_promille_gyldig(fakta.erhververens_kapitalandel_i_overdrageren_promille) && ebl_par6d_promille_gyldig(fakta.erhververens_stemmeandel_i_overdrageren_promille)
+| ebl_par6d_parter_forbundet_efter_ligningslovens_par2(fakta: EblPar6DPartrelationFakta) -> fakta.overdragerens_kapitalandel_i_erhververen_promille > 500 || fakta.overdragerens_stemmeandel_i_erhververen_promille > 500 || fakta.erhververens_kapitalandel_i_overdrageren_promille > 500 || fakta.erhververens_stemmeandel_i_overdrageren_promille > 500 || fakta.parterne_er_nærtstående_efter_ligningslovens_par2_stk2 || fakta.parterne_har_aftale_om_fælles_bestemmende_indflydelse || fakta.parterne_er_under_fælles_bestemmende_indflydelse
+| ebl_par6d_kontrolleret_selskabsudlejning_gyldig(fakta: EblPar6DKontrolleretSelskabsudlejning) -> ebl_par6d_promille_gyldig(fakta.kapitalandel_promille) && ebl_par6d_promille_gyldig(fakta.stemmeandel_promille)
+| ebl_par6d_erhvervsanvendelse_gyldig(anvendelse: EblPar6DErhvervsanvendelse) -> match anvendelse {
+    | EblPar6DUdlejetTilKontrolleretSelskab(fakta) -> ebl_par6d_kontrolleret_selskabsudlejning_gyldig(fakta)
+    | _ -> Sandt
+}
+| ebl_par6d_erhvervsanvendelse_kvalificerer(anvendelse: EblPar6DErhvervsanvendelse) -> match anvendelse {
+    | EblPar6DEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed -> Sandt
+    | EblPar6DUdlejetTilKontrolleretSelskab(fakta) -> fakta.ejeren_er_fysisk_person && (fakta.kapitalandel_promille > 500 || fakta.stemmeandel_promille > 500) && fakta.selskabet_anvender_ejendommen_erhvervsmæssigt && fakta.bestemmende_indflydelse_samtidig_overdraget_til_erhververen
+    | _ -> Falskt
+}
+| ebl_par6d_afdragsplan_gyldig_fra(poster: List(EblPar6DAfdragsplanpost), forventet_år: Heltal, kumuleret_hovedstol_kroner: Heltal, hovedstol_kroner: Heltal, fordelingsår: Heltal) -> hvis forventet_år > fordelingsår { length(poster) == 0 && kumuleret_hovedstol_kroner == hovedstol_kroner } ellers { length(poster) > 0 && head(poster).år_efter_afståelsen == forventet_år && head(poster).hovedstol_forfalder_kroner >= 0 && (kumuleret_hovedstol_kroner + head(poster).hovedstol_forfalder_kroner) * fordelingsår <= hovedstol_kroner * forventet_år && ebl_par6d_afdragsplan_gyldig_fra(tail(poster), forventet_år + 1, kumuleret_hovedstol_kroner + head(poster).hovedstol_forfalder_kroner, hovedstol_kroner, fordelingsår) }
+| ebl_par6d_sælgerpantebrev_gyldigt(pantebrev: EblPar6DSælgerpantebrev, valgt_udskudt_fortjeneste_kroner: Heltal, fordelingsår: Heltal) -> pantebrev.identifikation != "" && pantebrev.fordring_mod_erhververen && pantebrev.pant_i_den_overdragne_ejendom && pantebrev.kontantværdi_kroner == valgt_udskudt_fortjeneste_kroner && pantebrev.hovedstol_kroner > 0 && pantebrev.løbetid_år == fordelingsår && length(pantebrev.afdragsplan) == fordelingsår && ebl_par6d_afdragsplan_gyldig_fra(pantebrev.afdragsplan, 1, 0, pantebrev.hovedstol_kroner, fordelingsår)
+| ebl_par6d_planlagt_hovedstolsafdrag_i_år_kroner(pantebrev: EblPar6DSælgerpantebrev, år_efter_afståelsen: Heltal) -> foldl(pantebrev.afdragsplan, 0, |sum: Heltal, post: EblPar6DAfdragsplanpost| sum + hvis post.år_efter_afståelsen == år_efter_afståelsen { post.hovedstol_forfalder_kroner } ellers { 0 })
+| ebl_par6d_planlagt_kumuleret_hovedstolsafdrag_kroner(pantebrev: EblPar6DSælgerpantebrev, til_og_med_år_efter_afståelsen: Heltal) -> foldl(pantebrev.afdragsplan, 0, |sum: Heltal, post: EblPar6DAfdragsplanpost| sum + hvis post.år_efter_afståelsen <= til_og_med_år_efter_afståelsen { post.hovedstol_forfalder_kroner } ellers { 0 })
+| ebl_par6d_meddelelsesindhold_svarer_til_valg(indhold: EblPar6DMeddelelsesindhold, kontekst: EblPar6DKontekst, fakta: EblPar6DValgfakta) -> indhold.kopi_af_sælgerpantebrev_vedlagt && indhold.oplyst_skattepligtig_fortjeneste_efter_par6_kroner == kontekst.skattepligtig_fortjeneste_før_par6d_kroner && indhold.oplyst_valgt_udskudt_fortjeneste_kroner == fakta.valgt_udskudt_fortjeneste_kroner && indhold.oplyst_årligt_beløb_kroner == fakta.årligt_beløb_kroner && indhold.oplyst_antal_år == fakta.fordelingsår
+| ebl_par6d_meddelelse_gyldig(meddelelse: EblPar6DValgmeddelelse, kontekst: EblPar6DKontekst, fakta: EblPar6DValgfakta) -> match meddelelse {
+    | EblPar6DRettidigMeddelelse(indhold) -> ebl_par6d_meddelelsesindhold_svarer_til_valg(indhold, kontekst, fakta)
+    | EblPar6DBegæringEfterAnsættelsesændring(meddelelse_modtaget, begæring_indgivet, indhold) -> ebl_dato_gyldig(meddelelse_modtaget) && ebl_dato_gyldig(begæring_indgivet) && ebl_dato_før_eller_lig_med(meddelelse_modtaget, begæring_indgivet) && ebl_dato_før_eller_lig_med(begæring_indgivet, ebl_dato_plus_måneder(meddelelse_modtaget, 3)) && ebl_par6d_meddelelsesindhold_svarer_til_valg(indhold, kontekst, fakta)
+    | EblPar6DForSenEllerManglendeMeddelelse -> Falskt
+}
+| ebl_par6d_sikkerhed_gyldig(sikkerhed: EblPar6DSikkerhed) -> match sikkerhed {
+    | EblPar6DIngenSikkerhed -> Sandt
+    | EblPar6DStilletSikkerhed(_, sikkerhedsbeløb_kroner, _) -> sikkerhedsbeløb_kroner > 0
+}
+| ebl_par6d_sikkerhed_godkendt(sikkerhed: EblPar6DSikkerhed) -> match sikkerhed {
+    | EblPar6DIngenSikkerhed -> Falskt
+    | EblPar6DStilletSikkerhed(_, sikkerhedsbeløb_kroner, godkendt) -> sikkerhedsbeløb_kroner > 0 && godkendt
+}
+| ebl_par6d_begrænset_skattepligtig(status: EblPar6DSkattepligtsstatus) -> status == EblPar6DBegrænsetSkattepligtigEfterKildeskattelovensPar2Stk1Nr5 || status == EblPar6DBegrænsetSkattepligtigEfterSelskabsskattelovensPar2Stk1LitraB
+| ebl_par6d_sælgers_skatteforhold_gyldige(forhold: EblPar6DSælgerskatteforhold) -> forhold.skattepligtsstatus != EblPar6DAndenSkattepligtsstatus && ebl_par6d_sikkerhed_gyldig(forhold.sikkerhed)
+| ebl_par6d_sikkerhedsbetingelse_opfyldt(forhold: EblPar6DSælgerskatteforhold) -> ebl_par6d_begrænset_skattepligtig(forhold.skattepligtsstatus) == Falskt || forhold.hjemland_omfattet_af_nordisk_overenskomst_eller_eu_inddrivelsesdirektiv || ebl_par6d_sikkerhed_godkendt(forhold.sikkerhed)
+| ebl_par6d_tilladt_udenlandsk_område(område: EblPar6DUdenlandskOmråde) -> område == EblPar6DEU || område == EblPar6DEØS || område == EblPar6DFærøerne || område == EblPar6DGrønland
+| ebl_par6d_fuld_skattepligtshjemmel_findes(hjemmel: EblPar6DFuldSkattepligtshjemmel) -> hjemmel == EblPar6DKildeskattelovensPar1 || hjemmel == EblPar6DSelskabsskattelovensPar1 || hjemmel == EblPar6DFondsbeskatningslovensPar1
+| ebl_par6d_ejendomsplacering_gyldig(placering: EblPar6DEjendomsplacering) -> match placering {
+    | EblPar6DEjendomIDanmark -> Sandt
+    | EblPar6DEjendomIUdenlandskOmråde(_, _, _, _) -> Sandt
+}
+| ebl_par6d_ejendomsplacering_tilladt(placering: EblPar6DEjendomsplacering) -> match placering {
+    | EblPar6DEjendomIDanmark -> Sandt
+    | EblPar6DEjendomIUdenlandskOmråde(område, hjemmel, hjemmehørende_i_udlandet, informationsudveksling) -> ebl_par6d_tilladt_udenlandsk_område(område) && ebl_par6d_fuld_skattepligtshjemmel_findes(hjemmel) && hjemmehørende_i_udlandet == Falskt && informationsudveksling
+}
+| ebl_par6d_ægtefællesuccession_undtager(succession: EblPar6DÆgtefællesuccession) -> succession == EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B || succession == EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse
+| ebl_par6d_dødsbosuccession_undtager(succession: EblPar6DDødsbosuccession) -> succession == EblPar6DEfterlevendeÆgtefælleIUskiftetBo || succession == EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29
+| ebl_par6d_hjemstedsområde_tillader_henstand(område: EblPar6DHjemstedsområde) -> område == EblPar6DHjemstedIEU || område == EblPar6DHjemstedIEØS || område == EblPar6DHjemstedPåFærøerne || område == EblPar6DHjemstedIGrønland
+| ebl_par6d_tom_henstandstilstand() -> EblPar6DHenstandstilstand(skatteyder = EblPar6DHenstandForPerson, skattepligtsophørsår = 0, sidste_fordelingsår = 0, oprindelig_henstandssaldo_kroner = 0, henstandssaldo_kroner = 0, referencefortjeneste_kroner = 0, sælgerpantebrev_restgæld_kroner = 0, næste_indkomstår = 0, henstand_aktiv = Falskt)
+| ebl_par6d_tomt_henstandsresultat() -> EblPar6DHenstandsresultat(henstand_valgt = Falskt, henstandsbetingelser_opfyldt = Sandt, input_gyldigt = Sandt, beregnet_skat_af_fremrykket_fortjeneste_kroner = 0, skat_forfalder_ved_skattepligtsophør_kroner = 0, årsresultater = [], tilstand_ultimo = ebl_par6d_tom_henstandstilstand())
+
+# EblPar6DHenstandsårSag(tilstand: EblPar6DHenstandstilstand, år: EblPar6DHenstandsår) {
+    | oplysninger_gyldige() -> år.oplysninger == EblPar6DOplysningerRettidige || år.oplysninger == EblPar6DOplysningerForSeneMenFristoverskridelseTilsidesat
+    | ordinært_afdrag_før_loft_kroner() -> hvis tilstand.skatteyder == EblPar6DHenstandForPerson { hvis år.indkomstår <= tilstand.sidste_fordelingsår { år.skatteværdi_af_årets_ordinære_fortjeneste_kroner } ellers { 0 } } ellers { hvis år.indkomstår < tilstand.skattepligtsophørsår + 5 { tilstand.oprindelig_henstandssaldo_kroner / 5 } ellers { hvis år.indkomstår == tilstand.skattepligtsophørsår + 5 { tilstand.henstandssaldo_kroner } ellers { 0 } } }
+    | ordinært_afdrag_kroner() -> penge_mindste_beløb(tilstand.henstandssaldo_kroner, ordinært_afdrag_før_loft_kroner())
+    | saldo_efter_ordinært_afdrag_kroner() -> tilstand.henstandssaldo_kroner - ordinært_afdrag_kroner()
+    | forfald_gyldigt() -> match år.forfald {
+        | EblPar6DIntetHenstandsforfald -> Sandt
+        | EblPar6DHenstandsforfaldVedEjendom(berørt, hel, _) -> berørt > 0 && hel > 0 && berørt <= hel
+        | EblPar6DHenstandsforfaldVedPantebrev(berørt, _) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner
+        | EblPar6DHenstandsforfaldVedDød(_) -> Sandt
+    }
+    | hændelsesforfald_kroner() -> hvis forfald_gyldigt() == Falskt { 0 } ellers { match år.forfald {
+        | EblPar6DIntetHenstandsforfald -> 0
+        | EblPar6DHenstandsforfaldVedEjendom(berørt, hel, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { saldo_efter_ordinært_afdrag_kroner() * berørt / hel }
+        | EblPar6DHenstandsforfaldVedPantebrev(berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { saldo_efter_ordinært_afdrag_kroner() * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
+        | EblPar6DHenstandsforfaldVedDød(succession) -> hvis ebl_par6d_dødsbosuccession_undtager(succession) { 0 } ellers { saldo_efter_ordinært_afdrag_kroner() }
+    } }
+    | saldo_efter_hændelse_kroner() -> saldo_efter_ordinært_afdrag_kroner() - hændelsesforfald_kroner()
+    | bortfald_for_manglende_oplysninger_kroner() -> hvis oplysninger_gyldige() { 0 } ellers { saldo_efter_hændelse_kroner() }
+    | samlet_nyt_forfald_kroner() -> ordinært_afdrag_kroner() + hændelsesforfald_kroner() + bortfald_for_manglende_oplysninger_kroner()
+    | år_gyldigt() -> tilstand.henstand_aktiv && år.indkomstår == tilstand.næste_indkomstår && år.skatteværdi_af_årets_ordinære_fortjeneste_kroner >= 0 && år.skattemæssigt_hjemstedsland_ultimo != "" && forfald_gyldigt() && år.betalt_kroner >= 0 && år.betalt_kroner <= samlet_nyt_forfald_kroner()
+    | referencefortjeneste_efter_kroner() -> hvis år_gyldigt() == Falskt { tilstand.referencefortjeneste_kroner } ellers { match år.forfald {
+        | EblPar6DHenstandsforfaldVedEjendom(berørt, hel, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { tilstand.referencefortjeneste_kroner } ellers { tilstand.referencefortjeneste_kroner - tilstand.referencefortjeneste_kroner * berørt / hel }
+        | EblPar6DHenstandsforfaldVedPantebrev(berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { tilstand.referencefortjeneste_kroner } ellers { tilstand.referencefortjeneste_kroner - tilstand.referencefortjeneste_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
+        | EblPar6DHenstandsforfaldVedDød(succession) -> hvis ebl_par6d_dødsbosuccession_undtager(succession) { tilstand.referencefortjeneste_kroner } ellers { 0 }
+        | _ -> tilstand.referencefortjeneste_kroner
+    } }
+    | pantebrevsgæld_efter_kroner() -> hvis år_gyldigt() == Falskt { tilstand.sælgerpantebrev_restgæld_kroner } ellers { match år.forfald {
+        | EblPar6DHenstandsforfaldVedPantebrev(berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { tilstand.sælgerpantebrev_restgæld_kroner } ellers { tilstand.sælgerpantebrev_restgæld_kroner - berørt }
+        | _ -> tilstand.sælgerpantebrev_restgæld_kroner
+    } }
+    | saldo_efter_kroner() -> hvis år_gyldigt() { saldo_efter_hændelse_kroner() - bortfald_for_manglende_oplysninger_kroner() } ellers { tilstand.henstandssaldo_kroner }
+    | tilstand_efter() -> hvis år_gyldigt() { EblPar6DHenstandstilstand(skatteyder = tilstand.skatteyder, skattepligtsophørsår = tilstand.skattepligtsophørsår, sidste_fordelingsår = tilstand.sidste_fordelingsår, oprindelig_henstandssaldo_kroner = tilstand.oprindelig_henstandssaldo_kroner, henstandssaldo_kroner = saldo_efter_kroner(), referencefortjeneste_kroner = referencefortjeneste_efter_kroner(), sælgerpantebrev_restgæld_kroner = pantebrevsgæld_efter_kroner(), næste_indkomstår = tilstand.næste_indkomstår + 1, henstand_aktiv = saldo_efter_kroner() > 0) } ellers { tilstand }
+    | resultat() -> EblPar6DHenstandsårsresultat(tilstand_før = tilstand, år = år, år_gyldigt = år_gyldigt(), ordinært_afdrag_kroner = hvis år_gyldigt() { ordinært_afdrag_kroner() } ellers { 0 }, hændelsesforfald_kroner = hvis år_gyldigt() { hændelsesforfald_kroner() } ellers { 0 }, bortfald_for_manglende_oplysninger_kroner = hvis år_gyldigt() { bortfald_for_manglende_oplysninger_kroner() } ellers { 0 }, samlet_nyt_forfald_kroner = hvis år_gyldigt() { samlet_nyt_forfald_kroner() } ellers { 0 }, betalt_kroner = hvis år_gyldigt() { år.betalt_kroner } ellers { 0 }, forfalden_ubetalt_kroner = hvis år_gyldigt() { samlet_nyt_forfald_kroner() - år.betalt_kroner } ellers { 0 }, tilstand_efter = tilstand_efter())
+}
+
+| ebl_par6d_henstandsårsresultat(tilstand: EblPar6DHenstandstilstand, år: EblPar6DHenstandsår) -> EblPar6DHenstandsårSag(tilstand, år).resultat()
+| ebl_par6d_henstandsforløbstrin(forløb: EblPar6DHenstandsforløbstilstand, år: EblPar6DHenstandsår) -> {
+    = resultat = ebl_par6d_henstandsårsresultat(forløb.tilstand, år)
+    EblPar6DHenstandsforløbstilstand(tilstand = resultat.tilstand_efter, resultater = concat(forløb.resultater, [resultat]), alle_år_gyldige = forløb.alle_år_gyldige && resultat.år_gyldigt)
+}
+| ebl_par6d_henstandsresultat(fakta: EblPar6DSkattepligtsophørFakta, ophørsår: Heltal, sidste_fordelingsår: Heltal, resterende_fortjeneste_kroner: Heltal, sælgerpantebrev_restgæld_kroner: Heltal) -> {
+    = henstand_valgt = match fakta.henstandsvalg { | EblPar6DUdenBetalingshenstand -> Falskt | EblPar6DMedBetalingshenstand(_) -> Sandt }
+    = henstandsbetingelser_opfyldt = ebl_par6d_hjemstedsområde_tillader_henstand(fakta.nyt_hjemstedsområde) && fakta.informationsudveksling_med_danmark
+    = år = match fakta.henstandsvalg { | EblPar6DUdenBetalingshenstand -> [] | EblPar6DMedBetalingshenstand(valgte_år) -> valgte_år }
+    = initial_saldo = hvis henstand_valgt && henstandsbetingelser_opfyldt { fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner } ellers { 0 }
+    = initial_tilstand = EblPar6DHenstandstilstand(skatteyder = fakta.skatteyder, skattepligtsophørsår = ophørsår, sidste_fordelingsår = sidste_fordelingsår, oprindelig_henstandssaldo_kroner = initial_saldo, henstandssaldo_kroner = initial_saldo, referencefortjeneste_kroner = resterende_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = sælgerpantebrev_restgæld_kroner, næste_indkomstår = ophørsår + 1, henstand_aktiv = initial_saldo > 0)
+    = forløb = foldl(år, EblPar6DHenstandsforløbstilstand(tilstand = initial_tilstand, resultater = [], alle_år_gyldige = Sandt), ebl_par6d_henstandsforløbstrin)
+    = input_gyldigt = fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0 && (henstand_valgt == Falskt || henstandsbetingelser_opfyldt) && (henstand_valgt || length(år) == 0) && forløb.alle_år_gyldige
+    EblPar6DHenstandsresultat(henstand_valgt = henstand_valgt, henstandsbetingelser_opfyldt = henstandsbetingelser_opfyldt, input_gyldigt = input_gyldigt, beregnet_skat_af_fremrykket_fortjeneste_kroner = fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner, skat_forfalder_ved_skattepligtsophør_kroner = hvis henstand_valgt && henstandsbetingelser_opfyldt { 0 } ellers { fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner }, årsresultater = forløb.resultater, tilstand_ultimo = forløb.tilstand)
+}
+
+| ebl_par6d_hændelse_understøttet(hændelse: EblPar6DHændelse) -> match hændelse { | EblPar6DIkkeUnderstøttetHændelse(_) -> Falskt | _ -> Sandt }
+| ebl_par6d_hændelse_gyldig(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DIngenFremrykningshændelse -> Sandt
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, _) -> berørt > 0 && hel > 0 && berørt <= hel
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, _) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner
+    | EblPar6DSælgerDød(_) -> Sandt
+    | EblPar6DSkattepligtOphørt(fakta) -> fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0
+    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> ebl_par6d_sikkerhed_gyldig(sikkerhed)
+    | EblPar6DFlyttetTilLandMedInddrivelsesbistand(_) -> Sandt
+    | EblPar6DIkkeUnderstøttetHændelse(beskrivelse) -> beskrivelse != ""
+}
+| ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(tilstand: EblPar6DTilstand, resterende_efter_ordinær_kroner: Heltal, hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DIngenFremrykningshændelse -> 0
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner * berørt / hel }
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner * berørt / tilstand.sælgerpantebrev_restgæld_kroner }
+    | EblPar6DSælgerDød(succession) -> hvis ebl_par6d_dødsbosuccession_undtager(succession) { 0 } ellers { resterende_efter_ordinær_kroner }
+    | EblPar6DSkattepligtOphørt(_) -> resterende_efter_ordinær_kroner
+    | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> hvis ebl_par6d_sikkerhed_godkendt(sikkerhed) { 0 } ellers { resterende_efter_ordinær_kroner }
+    | EblPar6DFlyttetTilLandMedInddrivelsesbistand(_) -> 0
+    | EblPar6DIkkeUnderstøttetHændelse(_) -> 0
+}
+| ebl_par6d_hændelse_gældsnedskrivning_kroner(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, succession) -> hvis ebl_par6d_ægtefællesuccession_undtager(succession) { 0 } ellers { penge_mindste_beløb(tilstand.sælgerpantebrev_restgæld_kroner, berørt) }
+    | _ -> 0
+}
+
+# EblPar6DÅrSag(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold) {
+    | afståelsesåret() -> årsforhold.indkomstår == tilstand.afståelsesår
+    | år_efter_afståelsen() -> årsforhold.indkomstår - tilstand.afståelsesår
+    | ordinært_medregnet_fortjeneste_kroner() -> hvis afståelsesåret() { 0 } ellers { penge_mindste_beløb(tilstand.resterende_udskudt_fortjeneste_kroner, tilstand.årligt_beløb_kroner) }
+    | resterende_efter_ordinær_kroner() -> tilstand.resterende_udskudt_fortjeneste_kroner - ordinært_medregnet_fortjeneste_kroner()
+    | planlagt_kumuleret_afdrag_kroner() -> ebl_par6d_planlagt_kumuleret_hovedstolsafdrag_kroner(fakta.sælgerpantebrev, år_efter_afståelsen())
+    | ordinært_hovedstolsafdrag_gyldigt() -> hvis afståelsesåret() { årsforhold.betalt_ordinært_hovedstolsafdrag_kroner == 0 } ellers { årsforhold.betalt_ordinært_hovedstolsafdrag_kroner >= 0 && tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + årsforhold.betalt_ordinært_hovedstolsafdrag_kroner <= planlagt_kumuleret_afdrag_kroner() && årsforhold.betalt_ordinært_hovedstolsafdrag_kroner <= tilstand.sælgerpantebrev_restgæld_kroner }
+    | pantebrevsgæld_efter_ordinær_kroner() -> tilstand.sælgerpantebrev_restgæld_kroner - årsforhold.betalt_ordinært_hovedstolsafdrag_kroner
+    | tilstand_efter_ordinært() -> EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = resterende_efter_ordinær_kroner(), sælgerpantebrev_restgæld_kroner = pantebrevsgæld_efter_ordinær_kroner(), kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + årsforhold.betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = tilstand.næste_indkomstår, ordning_aktiv = tilstand.ordning_aktiv)
+    | hændelse_gyldig() -> ebl_par6d_hændelse_gyldig(tilstand_efter_ordinært(), årsforhold.hændelse)
+    | fremrykket_fortjeneste_kroner() -> hvis hændelse_gyldig() { ebl_par6d_hændelse_fremrykket_fortjeneste_kroner(tilstand_efter_ordinært(), resterende_efter_ordinær_kroner(), årsforhold.hændelse) } ellers { 0 }
+    | ekstraordinær_gældsnedskrivning_kroner() -> hvis hændelse_gyldig() { ebl_par6d_hændelse_gældsnedskrivning_kroner(tilstand_efter_ordinært(), årsforhold.hændelse) } ellers { 0 }
+    | henstandsresultat() -> match årsforhold.hændelse {
+        | EblPar6DSkattepligtOphørt(ophørsfakta) -> ebl_par6d_henstandsresultat(ophørsfakta, årsforhold.indkomstår, tilstand.afståelsesår + tilstand.fordelingsår, resterende_efter_ordinær_kroner(), pantebrevsgæld_efter_ordinær_kroner())
+        | _ -> ebl_par6d_tomt_henstandsresultat()
+    }
+    | år_gyldigt() -> tilstand.ordning_aktiv && årsforhold.indkomstår == tilstand.næste_indkomstår && årsforhold.indkomstår <= tilstand.afståelsesår + tilstand.fordelingsår && ordinært_hovedstolsafdrag_gyldigt() && hændelse_gyldig() && henstandsresultat().input_gyldigt
+    | resterende_efter_kroner() -> hvis år_gyldigt() { resterende_efter_ordinær_kroner() - fremrykket_fortjeneste_kroner() } ellers { tilstand.resterende_udskudt_fortjeneste_kroner }
+    | pantebrevsgæld_efter_kroner() -> hvis år_gyldigt() { pantebrevsgæld_efter_ordinær_kroner() - ekstraordinær_gældsnedskrivning_kroner() } ellers { tilstand.sælgerpantebrev_restgæld_kroner }
+    | næste_indkomstår() -> hvis afståelsesåret() { tilstand.afståelsesår + 1 } ellers { tilstand.næste_indkomstår + 1 }
+    | tilstand_efter() -> hvis år_gyldigt() { EblPar6DTilstand(afståelsesår = tilstand.afståelsesår, fordelingsår = tilstand.fordelingsår, årligt_beløb_kroner = tilstand.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = resterende_efter_kroner(), sælgerpantebrev_restgæld_kroner = pantebrevsgæld_efter_kroner(), kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = tilstand.kumuleret_betalt_ordinært_hovedstolsafdrag_kroner + årsforhold.betalt_ordinært_hovedstolsafdrag_kroner, næste_indkomstår = næste_indkomstår(), ordning_aktiv = resterende_efter_kroner() > 0) } ellers { tilstand }
+    | sikkerhed_frigives_efter_anmodning() -> match årsforhold.hændelse { | EblPar6DFlyttetTilLandMedInddrivelsesbistand(anmodet) -> år_gyldigt() && anmodet | _ -> Falskt }
+    | resultat() -> EblPar6DÅrsresultat(tilstand_før = tilstand, årsforhold = årsforhold, år_gyldigt = år_gyldigt(), ordinært_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() } ellers { 0 }, fremrykket_fortjeneste_kroner = hvis år_gyldigt() { fremrykket_fortjeneste_kroner() } ellers { 0 }, samlet_medregnet_fortjeneste_kroner = hvis år_gyldigt() { ordinært_medregnet_fortjeneste_kroner() + fremrykket_fortjeneste_kroner() } ellers { 0 }, ordinært_hovedstolsafdrag_kroner = hvis år_gyldigt() { årsforhold.betalt_ordinært_hovedstolsafdrag_kroner } ellers { 0 }, ekstraordinær_gældsnedskrivning_kroner = hvis år_gyldigt() { ekstraordinær_gældsnedskrivning_kroner() } ellers { 0 }, sikkerhed_frigives_efter_anmodning = sikkerhed_frigives_efter_anmodning(), henstandsresultat = henstandsresultat(), tilstand_efter = tilstand_efter())
+}
+
+| ebl_par6d_årsresultat(fakta: EblPar6DValgfakta, tilstand: EblPar6DTilstand, årsforhold: EblPar6DÅrsforhold) -> EblPar6DÅrSag(fakta, tilstand, årsforhold).resultat()
+| ebl_par6d_forløbstrin(forløb: EblPar6DForløbstilstand, årsforhold: EblPar6DÅrsforhold) -> {
+    = resultat = ebl_par6d_årsresultat(forløb.fakta, forløb.tilstand, årsforhold)
+    EblPar6DForløbstilstand(fakta = forløb.fakta, tilstand = resultat.tilstand_efter, årsresultater = concat(forløb.årsresultater, [resultat]), alle_år_gyldige = forløb.alle_år_gyldige && resultat.år_gyldigt, regelgrundlag_understøttet = forløb.regelgrundlag_understøttet && ebl_par6d_hændelse_understøttet(årsforhold.hændelse))
+}
+| ebl_par6d_tom_tilstand(afståelsesår: Heltal) -> EblPar6DTilstand(afståelsesår = afståelsesår, fordelingsår = 0, årligt_beløb_kroner = 0, resterende_udskudt_fortjeneste_kroner = 0, sælgerpantebrev_restgæld_kroner = 0, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = afståelsesår, ordning_aktiv = Falskt)
+
+# EblPar6DValgSag(kontekst: EblPar6DKontekst, fakta: EblPar6DValgfakta) {
+    | grundfakta_gyldige() -> ebl_dato_gyldig(kontekst.afståelsesdato) && kontekst.skattepligtig_fortjeneste_før_par6d_kroner > 0 && kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner > 0 && kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner <= kontekst.skattepligtig_fortjeneste_før_par6d_kroner && kontekst.kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner > 0 && fakta.valgt_udskudt_fortjeneste_kroner > 0 && fakta.årligt_beløb_kroner > 0 && fakta.fordelingsår >= 1 && fakta.fordelingsår <= 10 && fakta.årligt_beløb_kroner * fakta.fordelingsår == fakta.valgt_udskudt_fortjeneste_kroner && ebl_par6d_partrelation_gyldig(fakta.partrelation) && ebl_par6d_erhvervsanvendelse_gyldig(fakta.overdragerens_anvendelse) && ebl_par6d_erhvervsanvendelse_gyldig(fakta.erhververens_anvendelse_ved_overdragelsen) && ebl_par6d_sælgerpantebrev_gyldigt(fakta.sælgerpantebrev, fakta.valgt_udskudt_fortjeneste_kroner, fakta.fordelingsår) && ebl_par6d_sælgers_skatteforhold_gyldige(fakta.sælgers_skatteforhold) && ebl_par6d_ejendomsplacering_gyldig(fakta.ejendomsplacering)
+    | beløbsgrænser_opfyldt() -> fakta.valgt_udskudt_fortjeneste_kroner <= kontekst.kvalificerende_erhvervsfortjeneste_efter_par6_kroner && fakta.valgt_udskudt_fortjeneste_kroner * 10 <= kontekst.kontantomregnet_afståelsessum_for_kvalificerende_erhvervsdel_kroner
+    | betingelser_opfyldt_før_årsforløb() -> ebl_par6d_har_virkning(kontekst.afståelsesdato) && kontekst.ejendom_omfattet_af_par8 == Falskt && fakta.erhververen_erhvervede_ejendommen_som_led_i_næring == Falskt && ebl_par6d_parter_forbundet_efter_ligningslovens_par2(fakta.partrelation) == Falskt && ebl_par6d_erhvervsanvendelse_kvalificerer(fakta.overdragerens_anvendelse) && ebl_par6d_erhvervsanvendelse_kvalificerer(fakta.erhververens_anvendelse_ved_overdragelsen) && beløbsgrænser_opfyldt() && ebl_par6d_meddelelse_gyldig(fakta.meddelelse, kontekst, fakta) && ebl_par6d_sikkerhedsbetingelse_opfyldt(fakta.sælgers_skatteforhold) && ebl_par6d_ejendomsplacering_tilladt(fakta.ejendomsplacering)
+    | initial_tilstand() -> EblPar6DTilstand(afståelsesår = kontekst.afståelsesdato.år, fordelingsår = fakta.fordelingsår, årligt_beløb_kroner = fakta.årligt_beløb_kroner, resterende_udskudt_fortjeneste_kroner = fakta.valgt_udskudt_fortjeneste_kroner, sælgerpantebrev_restgæld_kroner = fakta.sælgerpantebrev.hovedstol_kroner, kumuleret_betalt_ordinært_hovedstolsafdrag_kroner = 0, næste_indkomstår = kontekst.afståelsesdato.år, ordning_aktiv = grundfakta_gyldige() && betingelser_opfyldt_før_årsforløb())
+    | afståelsesårets_forhold() -> EblPar6DÅrsforhold(indkomstår = kontekst.afståelsesdato.år, betalt_ordinært_hovedstolsafdrag_kroner = 0, hændelse = fakta.afståelsesårets_hændelse)
+    | efter_afståelsesåret() -> ebl_par6d_forløbstrin(EblPar6DForløbstilstand(fakta = fakta, tilstand = initial_tilstand(), årsresultater = [], alle_år_gyldige = Sandt, regelgrundlag_understøttet = Sandt), afståelsesårets_forhold())
+    | slutforløb() -> foldl(fakta.efterfølgende_årsforhold, efter_afståelsesåret(), ebl_par6d_forløbstrin)
+    | input_gyldigt() -> grundfakta_gyldige() && betingelser_opfyldt_før_årsforløb() && slutforløb().alle_år_gyldige && slutforløb().regelgrundlag_understøttet
+    | afståelsesårets_fremrykkede_fortjeneste_kroner() -> hvis length(slutforløb().årsresultater) > 0 { head(slutforløb().årsresultater).fremrykket_fortjeneste_kroner } ellers { 0 }
+    | resultat() -> EblPar6DResultat(valg = EblMedPar6DValg(fakta), input_gyldigt = input_gyldigt(), regelgrundlag_understøttet = slutforløb().regelgrundlag_understøttet, betingelser_opfyldt = grundfakta_gyldige() && betingelser_opfyldt_før_årsforløb(), valgt_udskudt_fortjeneste_kroner = hvis input_gyldigt() { fakta.valgt_udskudt_fortjeneste_kroner } ellers { 0 }, årligt_beløb_kroner = hvis input_gyldigt() { fakta.årligt_beløb_kroner } ellers { 0 }, skattepligtig_fortjeneste_i_afståelsesåret_kroner = hvis input_gyldigt() { kontekst.skattepligtig_fortjeneste_før_par6d_kroner - fakta.valgt_udskudt_fortjeneste_kroner + afståelsesårets_fremrykkede_fortjeneste_kroner() } ellers { kontekst.skattepligtig_fortjeneste_før_par6d_kroner }, årsresultater = slutforløb().årsresultater, tilstand_ultimo = slutforløb().tilstand)
+}
+
+| ebl_par6d_resultat(kontekst: EblPar6DKontekst, valg: EblPar6DValg) -> match valg {
+    | EblUdenPar6DValg -> EblPar6DResultat(valg = valg, input_gyldigt = Sandt, regelgrundlag_understøttet = Sandt, betingelser_opfyldt = Sandt, valgt_udskudt_fortjeneste_kroner = 0, årligt_beløb_kroner = 0, skattepligtig_fortjeneste_i_afståelsesåret_kroner = kontekst.skattepligtig_fortjeneste_før_par6d_kroner, årsresultater = [], tilstand_ultimo = ebl_par6d_tom_tilstand(kontekst.afståelsesdato.år))
+    | EblMedPar6DValg(fakta) -> EblPar6DValgSag(kontekst, fakta).resultat()
+}
+| ebl_par6d_medregnet_fortjeneste_i_indkomstår_kroner(resultat: EblPar6DResultat, indkomstår: Heltal) -> foldl(resultat.årsresultater, 0, |sum: Heltal, årsresultat: EblPar6DÅrsresultat| sum + hvis årsresultat.årsforhold.indkomstår == indkomstår { årsresultat.samlet_medregnet_fortjeneste_kroner } ellers { 0 })
+| ebl_par6d_sidst_behandlede_indkomstår(resultat: EblPar6DResultat) -> hvis length(resultat.årsresultater) == 0 { resultat.tilstand_ultimo.afståelsesår } ellers { last(resultat.årsresultater).årsforhold.indkomstår }
+| ebl_par6d_forløb_dækker_indkomstår(resultat: EblPar6DResultat, indkomstår: Heltal) -> match resultat.valg {
+    | EblUdenPar6DValg -> Sandt
+    | EblMedPar6DValg(_) -> resultat.input_gyldigt && hvis indkomstår <= ebl_par6d_sidst_behandlede_indkomstår(resultat) { Sandt } ellers { resultat.tilstand_ultimo.ordning_aktiv == Falskt }
+}
+--@end:ebl_par6d--

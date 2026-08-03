@@ -135,10 +135,17 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 170 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 250 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
-ægtefællen.
+ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
+sælgerpantebrev har samme menneskelige lag: pantebrevets vilkår, parternes
+faktiske brug, meddelelsen til Skatteforvaltningen og hvert efterfølgende års
+hændelser har egne etiketter og spørgsmål. AI'en kan dermed indsamle fakta;
+Futuruna afleder selv, om betingelserne er opfyldt, og hvilke beløb der skal
+medregnes i hvert indkomstår. En verificeret XLSX/JSON-sag fører en afståelse
+i 2025, sælgerpantebrevets tiårige afdragsplan og årsforholdene frem til
+300.000 kr. i medregnet ejendomsavance i 2026.
 Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en

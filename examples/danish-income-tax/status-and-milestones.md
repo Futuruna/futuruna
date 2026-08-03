@@ -179,11 +179,14 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 200 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 250 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
-jordfordeling for både personen og ægtefællen.
+jordfordeling for både personen og ægtefællen. EBL § 6 D-valget,
+sælgerpantebrevet, parternes faktiske anvendelse, meddelelsen, sikkerheden,
+ejendommens placering og de efterfølgende års hændelser har tilsvarende egne
+etiketter og interviewspørgsmål.
 Genanbringelsens
 lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
 geninvesteringsår, erhvervsmæssige anskaffelsesgrundlag, anvendelse, placering,
@@ -199,14 +202,15 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`787565b5c5d6a072a1f49e9103611228932e7789baf245110afffaf866126fb0`.
+`465460d04f5e9612d31765516404743aa974f42eaa2b0ff6bd1a8d4be1a058b7`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
-XLSX/JSON-afstemning passerer på 629,28 sekunder. `td-6659f1`
+XLSX/JSON-afstemning, inklusive et historisk § 6 D-forløb, passerer på 431,35
+sekunder. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -2615,8 +2619,8 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 186 nåbare definitioner, 117 typede
-  inputkolonner plus `case_id` og sytten relationelle kildeark. XLSX/JSON-
+- Det genererede Personskat-regneark har nu 220 nåbare definitioner, 117 typede
+  inputkolonner plus `case_id` og 25 relationelle kildeark. XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
   kapitalomkostning, et kildefaktabåret § 9 C-befordringsfradrag og en
@@ -2630,8 +2634,11 @@ Review candidates to revisit deliberately, not as broad churn:
   mælkekvote og en § 5, stk. 6-overførsel gennem både XLSX og JSON. Den afleder
   41.250 kr. i årligt § 5-tillæg, 20.000 kr. i mælkekvoteforhøjelse,
   30.000 kr. i mælkekvotenedsættelse, 37.500 kr. i § 5, stk. 6-overførsel og
-  en reguleret anskaffelsessum på 268.750 kr.
-  Kontrakten har 200 eksplicitte menneskelige feltetiketter og
+  en reguleret anskaffelsessum på 268.750 kr. En femte sag udfylder
+  sælgerpantebrevets tiårige afdragsplan og 2026-årsforholdet gennem XLSX og
+  afstemmer mod kanonisk JSON; begge adaptere medregner 300.000 kr. fra en
+  ejendomsafståelse i 2025.
+  Kontrakten har 250 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2639,6 +2646,17 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
+- Ejendomsavancebeskatningslovens § 6 D er nu et vedvarende, typet
+  sælgerpantebrevsforløb. Den kanoniske EBL-beregning afleder den
+  kvalificerende erhvervsfortjeneste og 10-procentsgrænsen fra ejendommens
+  § 8/§ 9-behandling; borgeren eller en interviewende AI leverer ikke disse
+  juridiske delresultater. Valget prøver partrelation, erhvervsanvendelse,
+  pantebrev, meddelelse, sikkerhed og placering, hvorefter lige årlige beløb og
+  lovbestemte fremrykningshændelser føres på tværs af indkomstår. Manglende år
+  og ikke-understøttede hændelser afvises frem for at blive udfyldt ved gæt.
+  Personskat kan derfor medregne § 6 D-beløbet fra en tidligere afståelse i
+  det aktuelle skatteår. Den særskilte kursgevinstbeskatning af selve
+  sælgerpantebrevet følges i `td-02a78d`.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
@@ -2763,10 +2781,11 @@ Review candidates to revisit deliberately, not as broad churn:
   payloads and related collection sheets cannot drift from the executable law.
 - Continue the current Ejendomsavancebeskatningsloven dependency from the
   source-backed §§ 5/5 A, 6, 8 and 9 paths. Milk quotas and § 5, stk. 6 are now
-  executable and round-trip through the canonical Personskat contract.
-  Remaining bounded work includes § 6 D seller-note installment taxation,
-  the still fail-closed multi-property § 10 allocation edges and remaining
-  bounded dependency rules.
+  executable and round-trip through the canonical Personskat contract, and
+  § 6 D now carries seller-note installment taxation across years. Remaining
+  bounded work includes the still fail-closed multi-property § 10 allocation
+  edges, the separate KGL treatment of the seller note in `td-02a78d`, and
+  remaining bounded dependency rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same
