@@ -425,7 +425,7 @@ fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
 }
 
 #[test]
-fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_cases() {
+fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/personskat.calculate.runa");
     let input_path = temp_path("xlsx");
@@ -451,9 +451,16 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 58);
+        assert_eq!(case_headers.len(), 85);
         for expected in [
             "aktieavance.ordinært_aktieår.$variant",
+            "kapitalindkomst.renter.renteindtægter_kroner",
+            "kapitalindkomst.renter.renteudgifter_kroner",
+            "kapitalindkomst.renter.næringsstatus",
+            "kapitalindkomst.renter.ligningslov6.$variant",
+            "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_kroner",
+            "kapitalindkomst.renter.ligningslov6a.$variant",
+            "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
@@ -466,6 +473,16 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                 "missing typed Personskatteloven input column {expected}"
             );
         }
+        assert_eq!(
+            workbook_headers(&mut workbook, "kapitalindkomst_omkostninger"),
+            [
+                "case_id",
+                "item_id",
+                "position",
+                "identifikation",
+                "beløb_kroner"
+            ]
+        );
         let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
             "aktiv",
@@ -523,10 +540,6 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                         Data::String("600000".to_string()),
                     ),
                     (
-                        "lønmodtager.øvrig_nettokapitalindkomst_kroner",
-                        Data::String("0".to_string()),
-                    ),
-                    (
                         "lønmodtager.ligningsmæssige_fradrag_kroner",
                         Data::String("0".to_string()),
                     ),
@@ -560,6 +573,26 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
                     ),
                     ("lønmodtager.betaler_kirkeskat", Data::Bool(false)),
                     (
+                        "kapitalindkomst.renter.renteindtægter_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.renter.renteudgifter_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.renter.næringsstatus",
+                        Data::String("IkkeNæring".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.renter.ligningslov6.$variant",
+                        Data::String("UdenLigningslov6Kurstab".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.renter.ligningslov6a.$variant",
+                        Data::String("UdenLigningslov6AFradrag".to_string()),
+                    ),
+                    (
                         "skatteforhold.$variant",
                         Data::String("StandardSkatteforhold".to_string()),
                     ),
@@ -583,6 +616,131 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
         fill_wage_case(sheets, 1, "personskat-standard-2026");
         fill_wage_case(sheets, 2, "personskat-årsopgørelse-2026");
         fill_wage_case(sheets, 3, "personskat-abl-personlig-2026");
+        fill_wage_case(sheets, 4, "personskat-renter-2026");
+        for (header, value) in [
+            (
+                "kapitalindkomst.renter.renteindtægter_kroner",
+                Data::Int(20_000),
+            ),
+            (
+                "kapitalindkomst.renter.renteudgifter_kroner",
+                Data::Int(5_000),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.$variant",
+                Data::String("MedLigningslov6Kurstab".to_string()),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.indfrielse_sker_ved_realkreditlån",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.nyt_lån_optaget_før_1_januar_1996",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.nyt_lån_mindst_samme_løbetid",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.transaktioner_inden_for_1_år",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_kroner",
+                Data::Int(24_000),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.samlet_antal_terminer",
+                Data::Int(12),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.forfaldne_terminer_i_indkomståret",
+                Data::Int(1),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.ekstraordinær_indfrielse_af_nyt_lån",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.stk4_omlægning_undtager_stk3",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.stk3_nedsættelse_basispoint",
+                Data::Int(0),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.debitorskifte_i_året",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.debitordage_for_skattepligtig",
+                Data::Int(0),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.dage_i_overdragelsesår",
+                Data::Int(0),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_medregnes_efter_kursgevinstloven",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.$variant",
+                Data::String("MedLigningslov6AFradrag".to_string()),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.skattepligtig_person",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
+                Data::Int(1_000),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_betalt",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.statshusmandsbrug_jordrente_beløb_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.statshusmandsbrug_jordrente_betalt",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 4, header, value);
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-renter-2026".to_string()),
+            ),
+            ("item_id", Data::String("kapitalomkostning-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("bankgebyr".to_string())),
+            ("beløb_kroner", Data::Int(2_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, "kapitalindkomst_omkostninger", 1, header, value);
+        }
         for (header, value) in [
             (
                 "case_id",
@@ -737,7 +895,6 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
             "skatteår": 2026,
             "kommune": { "$variant": "København" },
             "bruttoløn_kroner": 600_000,
-            "øvrig_nettokapitalindkomst_kroner": 0,
             "ligningsmæssige_fradrag_kroner": 0,
             "pensionsfradrag": {
                 "pensionsalder_status": {
@@ -753,6 +910,16 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
             },
             "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },
             "betaler_kirkeskat": false
+        },
+        "kapitalindkomst": {
+            "renter": {
+                "renteindtægter_kroner": 0,
+                "renteudgifter_kroner": 0,
+                "næringsstatus": { "$variant": "IkkeNæring" },
+                "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
+                "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
+            },
+            "omkostninger": []
         },
         "aktieavance": {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
@@ -782,6 +949,60 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
     });
+    let mut interest_case = json_input["cases"][0].clone();
+    interest_case["case_id"] = Value::String("personskat-renter-2026".into());
+    interest_case["input"]["kapitalindkomst"] = serde_json::json!({
+        "renter": {
+            "renteindtægter_kroner": 20_000,
+            "renteudgifter_kroner": 5_000,
+            "næringsstatus": { "$variant": "IkkeNæring" },
+            "ligningslov6": {
+                "$variant": "MedLigningslov6Kurstab",
+                "input": {
+                    "indkomstår": 2026,
+                    "kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993": true,
+                    "indfrielse_sker_ved_realkreditlån": true,
+                    "nyt_lån_optaget_før_1_januar_1996": true,
+                    "nyt_lån_mindst_samme_løbetid": true,
+                    "transaktioner_inden_for_1_år": true,
+                    "lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse": true,
+                    "kurstab_kroner": 24_000,
+                    "samlet_antal_terminer": 12,
+                    "forfaldne_terminer_i_indkomståret": 1,
+                    "ekstraordinær_indfrielse_af_nyt_lån": false,
+                    "stk4_omlægning_undtager_stk3": false,
+                    "stk3_nedsættelse_basispoint": 0,
+                    "debitorskifte_i_året": false,
+                    "debitordage_for_skattepligtig": 0,
+                    "dage_i_overdragelsesår": 0,
+                    "kurstab_medregnes_efter_kursgevinstloven": false
+                }
+            },
+            "ligningslov6a": {
+                "$variant": "MedLigningslov6AFradrag",
+                "input": {
+                    "indkomstår": 2026,
+                    "skattepligtig_person": true,
+                    "arbejderboliger_beløb_kroner": 1_000,
+                    "arbejderboliger_betalt": true,
+                    "statshusmandsbrug_jordrente_beløb_kroner": 0,
+                    "statshusmandsbrug_jordrente_betalt": false
+                }
+            }
+        },
+        "omkostninger": [{
+            "identifikation": "bankgebyr",
+            "beløb_kroner": 2_000
+        }]
+    });
+    interest_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(interest_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -804,6 +1025,10 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
     assert_eq!(
         result["results"][2]["result"],
         json_result["results"][0]["result"]
+    );
+    assert_eq!(
+        result["results"][3]["result"],
+        json_result["results"][1]["result"]
     );
 
     assert_eq!(
@@ -836,6 +1061,25 @@ fn personskatteloven_xlsx_boundary_round_trips_standard_and_annual_assessment_ca
     );
     assert_eq!(
         result["results"][2]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        48_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ligningslov6_resultat"]
+            ["fradrag_kroner"],
+        2_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["ligningslov6a_resultat"]
+            ["fradrag_kroner"],
+        1_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        10_000
+    );
+    assert_eq!(
+        result["results"][3]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
         48_000
     );
 }

@@ -3416,7 +3416,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Input" }
                             strong { "Typet JSON, TOML og XLSX" }
-                            p { "Personskatberegningen har nu én kildebundet kontrakt med 28 nåbare typer. Den genererede arbejdsbog har 49 typede inputkolonner plus sags-id og dropdowns for særlige skatteforhold, underskudsforhold og valgfri årsopgørelse; kun den valgte variants felter kræves. Motoren opretter relaterede regnearksfaner for List-, Map- og Set-felter. De fulde § 3-, § 4- og § 4 a-kildegrafer samt ABL-årsposter kobles fortsat på samme kontrakt, så der ikke vedligeholdes et særskilt håndskrevet ark." }
+                            p { "Personskatberegningen har nu én kildebundet kontrakt med 95 nåbare definitioner. Den genererede arbejdsbog har 84 typede inputkolonner plus sags-id og ni relationelle kildefaner. Variantvalg gør særlige skatteforhold, underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den valgte variants felter kræves. Grafen modtager nu renteindtægter, renteudgifter, Ligningslovens §§ 6/6 A-fradrag, identificerede omkostninger efter Personskattelovens § 4, stk. 2 og ordinære eller særlige ABL-forløb. § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene kobles fortsat på samme kontrakt, så der ikke vedligeholdes et særskilt håndskrevet ark." }
                         }
                     }
                 }

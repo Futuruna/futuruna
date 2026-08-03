@@ -347,6 +347,27 @@ medregnes ved opgørelsen af den skattepligtige indkomst efter kursgevinstloven.
 # Ligningslov6KurstabResultat(indkomstår: Heltal, fradragsret_efter_stk1: Boolsk, kurstab_pr_termin_kroner: Heltal, årligt_fradrag_før_stk3_kroner: Heltal, stk3_nedsættelse_anvendes: Boolsk, stk3_nedsættelse_kroner: Heltal, årligt_fradrag_efter_stk3_kroner: Heltal, stk5_debitordagsandel_kroner: Heltal, under_100_kr_bortfalder: Boolsk, afskåret_efter_stk6: Boolsk, fradrag_kroner: Heltal)
 
 | ligningslov6_mindstebeløb_for_fradrag_kroner(indkomstår: Heltal) -> 100
+| ligningslov6_kurstab_input_gyldigt(input: Ligningslov6KurstabInput) -> input.indkomstår > 0 && input.kurstab_kroner >= 0 && input.samlet_antal_terminer >= 0 && input.forfaldne_terminer_i_indkomståret >= 0 && input.forfaldne_terminer_i_indkomståret <= input.samlet_antal_terminer && input.stk3_nedsættelse_basispoint >= 0 && input.stk3_nedsættelse_basispoint <= 10000 && input.debitordage_for_skattepligtig >= 0 && input.dage_i_overdragelsesår >= 0 && input.debitordage_for_skattepligtig <= input.dage_i_overdragelsesår && (input.debitorskifte_i_året == Falskt || input.dage_i_overdragelsesår > 0)
+| ligningslov6_intet_kurstab_input(indkomstår: Heltal) -> Ligningslov6KurstabInput(
+    indkomstår = indkomstår,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Falskt,
+    indfrielse_sker_ved_realkreditlån = Falskt,
+    nyt_lån_optaget_før_1_januar_1996 = Falskt,
+    nyt_lån_mindst_samme_løbetid = Falskt,
+    transaktioner_inden_for_1_år = Falskt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Falskt,
+    kurstab_kroner = 0,
+    samlet_antal_terminer = 0,
+    forfaldne_terminer_i_indkomståret = 0,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+)
+| ligningslov6_intet_kurstab_resultat(indkomstår: Heltal) -> ligningslov6_kurstab_resultat(ligningslov6_intet_kurstab_input(indkomstår))
 
 # Ligningslov6KurstabSag(input: Ligningslov6KurstabInput) {
     | fradragsret_efter_stk1() -> input.kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 && input.indfrielse_sker_ved_realkreditlån && input.nyt_lån_optaget_før_1_januar_1996 && input.nyt_lån_mindst_samme_løbetid && input.transaktioner_inden_for_1_år && input.lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse
@@ -395,6 +416,17 @@ statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
 
 # Ligningslov6AInput(indkomstår: Heltal, skattepligtig_person: Boolsk, arbejderboliger_beløb_kroner: Heltal, arbejderboliger_betalt: Boolsk, statshusmandsbrug_jordrente_beløb_kroner: Heltal, statshusmandsbrug_jordrente_betalt: Boolsk)
 # Ligningslov6AResultat(indkomstår: Heltal, arbejderboliger_fradrag_kroner: Heltal, statshusmandsbrug_jordrente_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
+
+| ligningslov6a_input_gyldigt(input: Ligningslov6AInput) -> input.indkomstår > 0 && input.arbejderboliger_beløb_kroner >= 0 && input.statshusmandsbrug_jordrente_beløb_kroner >= 0
+| ligningslov6a_intet_fradrag_input(indkomstår: Heltal) -> Ligningslov6AInput(
+    indkomstår = indkomstår,
+    skattepligtig_person = Sandt,
+    arbejderboliger_beløb_kroner = 0,
+    arbejderboliger_betalt = Falskt,
+    statshusmandsbrug_jordrente_beløb_kroner = 0,
+    statshusmandsbrug_jordrente_betalt = Falskt
+)
+| ligningslov6a_intet_fradrag_resultat(indkomstår: Heltal) -> ligningslov6a_resultat(ligningslov6a_intet_fradrag_input(indkomstår))
 
 # Ligningslov6ASag(input: Ligningslov6AInput) {
     | arbejderboliger_fradrag_kroner() -> 0

@@ -6,18 +6,24 @@
 
 --@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
-# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, øvrig_nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(øvrig_aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | SærligeUnderskudsforhold(forhold: LønmodtagerPar13Forhold)
 # PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
+# PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
+# PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
+# PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
+# PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
-# PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), alle_input_gyldige: Boolsk, kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
-# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, aktieavance: PersonskatAktieavanceInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
+# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,
@@ -39,6 +45,34 @@
     | StandardUnderskudsforhold -> lønmodtager_par13_standard_forhold()
     | SærligeUnderskudsforhold(forhold) -> forhold
 }
+
+| personskat_kapital_reklassifikation(næringsstatus: Næringsstatus) -> IngenPersonligReklassifikation
+| exception personskat_par4_stk3_fordrings_eller_kontraktnæring personskat_kapital_reklassifikation(næringsstatus: Næringsstatus) -> FordringsEllerKontraktNæringReklassifikation under næringsstatus == FordringsEllerKontraktNæring
+| exception personskat_par4_stk3_finansieringsnæring personskat_kapital_reklassifikation(næringsstatus: Næringsstatus) -> FinansieringsNæringReklassifikation under næringsstatus == FinansieringsNæring
+| personskat_ligningslov6_input_gyldigt(input: PersonskatLigningslov6Input, skatteår: Heltal) -> match input {
+    | UdenLigningslov6Kurstab -> Sandt
+    | MedLigningslov6Kurstab(ll6_input) -> ll6_input.indkomstår == skatteår && ligningslov6_kurstab_input_gyldigt(ll6_input)
+}
+| personskat_ligningslov6_resultat(input: PersonskatLigningslov6Input, skatteår: Heltal) -> match input {
+    | UdenLigningslov6Kurstab -> ligningslov6_intet_kurstab_resultat(skatteår)
+    | MedLigningslov6Kurstab(ll6_input) -> ligningslov6_kurstab_resultat(ll6_input)
+}
+| personskat_ligningslov6_resultat_anvendt(input: PersonskatLigningslov6Input, skatteår: Heltal) -> hvis personskat_ligningslov6_input_gyldigt(input, skatteår) { personskat_ligningslov6_resultat(input, skatteår) } ellers { ligningslov6_intet_kurstab_resultat(skatteår) }
+| personskat_ligningslov6a_input_gyldigt(input: PersonskatLigningslov6AInput, skatteår: Heltal) -> match input {
+    | UdenLigningslov6AFradrag -> Sandt
+    | MedLigningslov6AFradrag(ll6a_input) -> ll6a_input.indkomstår == skatteår && ligningslov6a_input_gyldigt(ll6a_input)
+}
+| personskat_ligningslov6a_resultat(input: PersonskatLigningslov6AInput, skatteår: Heltal) -> match input {
+    | UdenLigningslov6AFradrag -> ligningslov6a_intet_fradrag_resultat(skatteår)
+    | MedLigningslov6AFradrag(ll6a_input) -> ligningslov6a_resultat(ll6a_input)
+}
+| personskat_ligningslov6a_resultat_anvendt(input: PersonskatLigningslov6AInput, skatteår: Heltal) -> hvis personskat_ligningslov6a_input_gyldigt(input, skatteår) { personskat_ligningslov6a_resultat(input, skatteår) } ellers { ligningslov6a_intet_fradrag_resultat(skatteår) }
+| personskat_kapitalomkostning_identifikation_unik(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> length(filter(omkostninger, |anden: PersonskatKapitalomkostningInput| anden.identifikation == omkostning.identifikation)) == 1
+| personskat_kapitalomkostning_gyldig(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> omkostning.identifikation != "" && omkostning.beløb_kroner >= 0 && personskat_kapitalomkostning_identifikation_unik(omkostninger, omkostning)
+| personskat_par4_kapitalomkostning(omkostning: PersonskatKapitalomkostningInput, reklassifikation: KapitalPersonligReklassifikation) -> Par4Kapitalomkostning(
+    beløb_kroner = omkostning.beløb_kroner,
+    personlig_reklassifikation = reklassifikation
+)
 
 | personskat_ordinært_aktieår_resultat(input: PersonskatOrdinærtAktieårInput) -> match input {
     | UdenOrdinærtAktieår -> IntetOrdinærtAktieår
@@ -83,6 +117,8 @@
         ordinært_aktieår = ordinært_aktieår(),
         særlige_resultater = særlige_resultater(),
         alle_input_gyldige = alle_input_gyldige(),
+        kapitalposter = par4_kapitalposter(),
+        aktieposter = par4a_aktieposter(),
         kapitalindkomst_resultat = kapitalindkomst_resultat(),
         aktieindkomst_resultat = aktieindkomst_resultat(),
         personlig_indkomst_kroner = personlig_indkomst_kroner(),
@@ -93,24 +129,75 @@
 
 | personskat_aktieavance_resultat(input: PersonskatAktieavanceInput, skatteår: Heltal) -> PersonskatAktieavanceSag(input, skatteår).resultat()
 | personskat_ingen_aktieavance() -> PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [])
-| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(
+
+# PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat) {
+    | reklassifikation() -> personskat_kapital_reklassifikation(input.renter.næringsstatus)
+    | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
+    | ligningslov6_input_gyldigt() -> personskat_ligningslov6_input_gyldigt(input.renter.ligningslov6, skatteår)
+    | ligningslov6a_input_gyldigt() -> personskat_ligningslov6a_input_gyldigt(input.renter.ligningslov6a, skatteår)
+    | omkostninger_gyldige() -> all(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostning_gyldig(input.omkostninger, omkostning))
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && omkostninger_gyldige()
+    | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
+    | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
+    | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
+    | ligningslov6a_resultat_anvendt() -> personskat_ligningslov6a_resultat_anvendt(input.renter.ligningslov6a, skatteår)
+    | rente_par4_input() -> Par4Stk1Nr1Input(
+        renteindtægter_kroner = input.renter.renteindtægter_kroner,
+        renteudgifter_kroner = input.renter.renteudgifter_kroner,
+        ligningslov6_resultat = ligningslov6_resultat_anvendt(),
+        ligningslov6a_resultat = ligningslov6a_resultat_anvendt(),
+        personlig_reklassifikation = reklassifikation()
+    )
+    | rente_resultat() -> par4_stk1_nr1_resultat(rente_par4_input())
+    | renteposter() -> hvis rentegrundlag_gyldigt() { [par4_stk1_nr1_kapitalpost(rente_par4_input())] } ellers { [] }
+    | kapitalomkostninger() -> hvis omkostninger_gyldige() { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation())) } ellers { [] }
+    | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+        poster = concat(renteposter(), aktieavance.kapitalposter),
+        omkostninger = kapitalomkostninger()
+    ))
+    | resultat() -> PersonskatKapitalindkomstResultat(
+        input = input,
+        rentegrundlag_gyldigt = rentegrundlag_gyldigt(),
+        ligningslov6_input_gyldigt = ligningslov6_input_gyldigt(),
+        ligningslov6a_input_gyldigt = ligningslov6a_input_gyldigt(),
+        omkostninger_gyldige = omkostninger_gyldige(),
+        alle_input_gyldige = alle_input_gyldige(),
+        ligningslov6_resultat = ligningslov6_resultat(),
+        ligningslov6a_resultat = ligningslov6a_resultat(),
+        rente_resultat = rente_resultat(),
+        kapitalindkomst_resultat = kapitalindkomst_resultat()
+    )
+}
+
+| personskat_kapitalindkomst_resultat(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat) -> PersonskatKapitalindkomstSag(input, skatteår, aktieavance).resultat()
+| personskat_ingen_kapitalindkomst() -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    omkostninger = []
+)
+| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner,
-    øvrig_personlig_indkomst_kroner = aktieavance.personlig_indkomst_kroner,
-    nettokapitalindkomst_kroner = input.øvrig_nettokapitalindkomst_kroner + aktieavance.kapitalindkomst_kroner,
+    øvrig_personlig_indkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner,
+    nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = input.ligningsmæssige_fradrag_kroner,
     pensionsfradrag = input.pensionsfradrag,
     personfradrag_alder_status = input.personfradrag_alder_status,
     betaler_kirkeskat = input.betaler_kirkeskat
 )
 | personskat_skatteforhold(input: PersonskatSkatteforholdInput, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_skatteforhold_med_aktieindkomst_tillæg(personskat_angivne_skatteforhold(input), aktieavance.aktieindkomst_kroner)
-| personskat_lønmodtagermodel(input: PersonskatInput, aktieavance: PersonskatAktieavanceResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
-    personskat_lønmodtager_input(input.lønmodtager, aktieavance),
+| personskat_lønmodtagermodel(input: PersonskatInput, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    personskat_lønmodtager_input(input.lønmodtager, kapitalindkomst, aktieavance),
     personskat_skatteforhold(input.skatteforhold, aktieavance),
     personskat_underskudsforhold(input.underskudsforhold)
 )
-| personskat_skat(input: PersonskatInput, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, aktieavance))
+| personskat_skat(input: PersonskatInput, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, kapitalindkomst, aktieavance))
 | personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, pensionsbeskatningsafgift_kroner, kreditter) -> {
@@ -128,9 +215,11 @@
 }
 | personskat_beregning_resultat(input: PersonskatInput) -> {
     = aktieavance = personskat_aktieavance_resultat(input.aktieavance, input.lønmodtager.skatteår)
-    = skat = personskat_skat(input, aktieavance)
+    = kapitalindkomst = personskat_kapitalindkomst_resultat(input.kapitalindkomst, input.lønmodtager.skatteår, aktieavance)
+    = skat = personskat_skat(input, kapitalindkomst, aktieavance)
     PersonskatBeregningResultat(
         skat = skat,
+        kapitalindkomst = kapitalindkomst,
         aktieavance = aktieavance,
         årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, skat)
     )
