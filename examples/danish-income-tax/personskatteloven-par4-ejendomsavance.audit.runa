@@ -19,7 +19,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_audit_forsikringssum_input = EjendomsavancebeskatningslovInput(
@@ -52,7 +52,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_audit_stk8_udsmykning_input = EjendomsavancebeskatningslovInput(
@@ -68,7 +68,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 20000,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_audit_tab_input = EjendomsavancebeskatningslovInput(
@@ -84,7 +84,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_audit_næring_input = EjendomsavancebeskatningslovInput(
@@ -100,7 +100,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_audit_ekspropriation_input = EjendomsavancebeskatningslovInput(
@@ -116,7 +116,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 

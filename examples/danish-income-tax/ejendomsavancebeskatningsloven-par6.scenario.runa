@@ -49,7 +49,7 @@ indkomstårets udgang.
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ejendomstype,
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 ))
 | ebl_par6_scenarie_tabsår_uden_fortjeneste(tab: EjendomsavancebeskatningslovResultat) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(

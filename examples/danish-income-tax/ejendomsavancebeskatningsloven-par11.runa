@@ -1,0 +1,149 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./ejendomsavancebeskatningsloven - genanbringelse
+
+# EblPar11KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ebl_par11_lbk132 = EblPar11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/132",
+    identifier = "Ejendomsavancebeskatningsloven § 11",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par11_lov615_ændringsstatus = EblPar11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026 § 7",
+    hentet_dato = "2026-07-18"
+)
+
+= ebl_par11_vejledning_2026 = EblPar11KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948714",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.5",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ebl_par11::source:ebl_par11_lbk132::currentness_source:ebl_par11_lov615_ændringsstatus::guidance:ebl_par11_vejledning_2026--
+----
+§ 11. Fortjeneste, der er indvundet ved modtagelse af en erstatningssum i
+anledning af ekspropriation, medregnes ikke. Det samme gælder fortjeneste ved
+salg til en erhverver, der efter formålet med erhvervelsen opfylder
+betingelserne for at ekspropriere ejendommen. Fortjeneste indvundet ved
+afhændelse efter § 34 i lov om forurenet jord medregnes heller ikke.
+
+Stk. 2. Stk. 1 gælder ikke for fortjeneste ved afståelse af en erhvervsejendom,
+der efter §§ 6 A, 6 C eller 10 er genanbragt i en ejendom omfattet af stk. 1.
+Fortjenesten ved afståelsen af erhvervsejendommen beskattes i det indkomstår,
+hvor den ejendom, som fortjenesten er genanbragt i, afstås. Den skattepligtige
+fortjeneste opgøres med de tillæg og nedslag efter denne lov, som
+erhvervsejendommen ville have været berettiget til, hvis fortjenesten var
+blevet beskattet på tidspunktet for afståelsen af erhvervsejendommen. Hvis
+afståelsen er omfattet af 1. pkt., bortfalder ved beregning af den
+skattepligtige indkomst af fortjeneste ved afståelse af den ejendom, hvori
+fortjenesten oprindelig har været anbragt, nedslag i denne ejendoms
+anskaffelsessum efter §§ 6 A, 6 C eller 10. I stedet for at medregne
+fortjenesten ved opgørelsen af den skattepligtige indkomst efter 2. og 3. pkt.
+kan den skattepligtige dog vælge at udskyde beskatningen ved at genanbringe
+fortjenesten i en ny ejendom eller en ombygning, tilbygning eller nybygning
+efter reglerne i §§ 6 A eller 6 C.
+----
+
+--@begin:ebl_par11--
+# EjendomsavancebeskatningslovAfståelse = EblAlmindeligAfståelse | EblEntreprisekontraktAfståelse | EblErstatningsEllerForsikringssum | EblGaveEllerArveforskud | EblEkspropriationserstatning | EblEkspropriationslignendeSalg | EblForurenetJordPar34Afhændelse
+# EblPar11Stk2NyGenanbringelsesfakta(afstået_ejendoms_erhvervsanvendelse: EblPar6AErhvervsanvendelse, investering: EblPar6AInvestering, begæring: EblPar6ABegæring, ejerskab: EblPar6AEjerskab)
+# EblPar11Stk2NyGenanbringelseshjemmel = EblPar11Stk2EfterPar6A | EblPar11Stk2EfterPar6C(arbejdsart: EblPar6CArbejdsart, arbejde_påbegyndt: Boolsk)
+# EblPar11Stk2NytGenanbringelsesvalg(fakta: EblPar11Stk2NyGenanbringelsesfakta, hjemmel: EblPar11Stk2NyGenanbringelseshjemmel)
+# EblPar11Stk2Valg = EblPar11Stk2IngenNyGenanbringelse | EblPar11Stk2MedNytGenanbringelsesvalg(valg: EblPar11Stk2NytGenanbringelsesvalg)
+# EblPar11Stk2Kontekst(afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, tidligere_genanbringelsesresultat: EblGenanbringelsesResultat, afståelsesfordeling: EblPar5Fordeling)
+# EblPar11Stk2NyGenanbringelsesresultat = EblPar11Stk2UdenNytGenanbringelsesresultat | EblPar11Stk2MedNytGenanbringelsesresultat(resultat: EblGenanbringelsesResultat)
+# EblPar11Stk2Resultat(kontekst: EblPar11Stk2Kontekst, valg: EblPar11Stk2Valg, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, nuværende_ejendoms_fortjeneste_undtaget_efter_stk1: Boolsk, stk2_anvendt: Boolsk, tidligere_aktivt_anskaffelsessumsnedslag_for_afstået_del_kroner: Heltal, tidligere_reguleret_fortjeneste_for_afstået_del_kroner: Heltal, anskaffelsessumsnedslag_bortfalder_kroner: Heltal, ny_genanbringelsesresultat: EblPar11Stk2NyGenanbringelsesresultat, genanbragt_på_ny_kroner: Heltal, nyt_aktivt_anskaffelsessumsnedslag_kroner: Heltal, skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner: Heltal)
+
+| ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Falskt
+| exception ebl_ekspropriationserstatning_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblEkspropriationserstatning
+| exception ebl_ekspropriationslignende_salg_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblEkspropriationslignendeSalg
+| exception ebl_forurenet_jord_undtages ebl_par11_stk1_undtaget(afståelse: EjendomsavancebeskatningslovAfståelse) -> Sandt under afståelse == EblForurenetJordPar34Afhændelse
+
+| ebl_par11_stk2_har_nyt_genanbringelsesvalg(valg: EblPar11Stk2Valg) -> match valg {
+    | EblPar11Stk2IngenNyGenanbringelse -> Falskt
+    | EblPar11Stk2MedNytGenanbringelsesvalg(_) -> Sandt
+}
+| ebl_par11_stk2_kontekst_gyldig(kontekst: EblPar11Stk2Kontekst) -> ebl_dato_gyldig(kontekst.afståelsesdato) && ebl_par5_fordeling_gyldig(kontekst.afståelsesfordeling) && kontekst.tidligere_genanbringelsesresultat.input_gyldigt && kontekst.tidligere_genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner >= 0 && kontekst.tidligere_genanbringelsesresultat.skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner >= 0
+| ebl_par11_stk2_tidligere_aktivt_nedslag_for_afstået_del_kroner(kontekst: EblPar11Stk2Kontekst) -> hvis ebl_par11_stk2_kontekst_gyldig(kontekst) { ebl_par5_fordel_på_afstået_del_kroner(kontekst.afståelsesfordeling, kontekst.tidligere_genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner) } ellers { 0 }
+| ebl_par11_stk2_tidligere_reguleret_fortjeneste_for_afstået_del_kroner(kontekst: EblPar11Stk2Kontekst) -> hvis ebl_par11_stk2_kontekst_gyldig(kontekst) { ebl_par5_fordel_på_afstået_del_kroner(kontekst.afståelsesfordeling, kontekst.tidligere_genanbringelsesresultat.skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner) } ellers { 0 }
+| ebl_par11_stk2_anvendt(kontekst: EblPar11Stk2Kontekst) -> ebl_par11_stk1_undtaget(kontekst.afståelse) && ebl_par11_stk2_tidligere_aktivt_nedslag_for_afstået_del_kroner(kontekst) > 0
+| ebl_par11_stk2_nyt_par6a_fakta(kontekst: EblPar11Stk2Kontekst, fakta: EblPar11Stk2NyGenanbringelsesfakta) -> EblPar6AFakta(
+    oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
+        afståelsesindkomstår = kontekst.afståelsesdato.år,
+        erhvervsfortjeneste_før_par6_stk2_kroner = ebl_par11_stk2_tidligere_reguleret_fortjeneste_for_afstået_del_kroner(kontekst),
+        regulering = EblGenanbragtFortjenesteregulering(
+            tillæg_for_genanbragt_del_kroner = 0,
+            nedslag_for_genanbragt_del_kroner = 0
+        )
+    ),
+    afstået_ejendoms_erhvervsanvendelse = fakta.afstået_ejendoms_erhvervsanvendelse,
+    investering = fakta.investering,
+    begæring = fakta.begæring,
+    ejerskab = fakta.ejerskab
+)
+| ebl_par11_stk2_ny_genanbringelsesresultat(kontekst: EblPar11Stk2Kontekst, valg: EblPar11Stk2Valg) -> match valg {
+    | EblPar11Stk2IngenNyGenanbringelse -> EblPar11Stk2UdenNytGenanbringelsesresultat
+    | EblPar11Stk2MedNytGenanbringelsesvalg(nyt_valg) -> match nyt_valg.hjemmel {
+        | EblPar11Stk2EfterPar6A -> EblPar11Stk2MedNytGenanbringelsesresultat(
+            resultat = ebl_par6a_resultat(ebl_par11_stk2_nyt_par6a_fakta(kontekst, nyt_valg.fakta))
+        )
+        | EblPar11Stk2EfterPar6C(arbejdsart, arbejde_påbegyndt) -> EblPar11Stk2MedNytGenanbringelsesresultat(
+            resultat = ebl_par6c_resultat(EblPar6CFakta(
+                par6a_fakta = ebl_par11_stk2_nyt_par6a_fakta(kontekst, nyt_valg.fakta),
+                arbejdsart = arbejdsart,
+                arbejde_påbegyndt = arbejde_påbegyndt
+            ))
+        )
+    }
+}
+| ebl_par11_stk2_nyt_resultat_input_gyldigt(resultat: EblPar11Stk2NyGenanbringelsesresultat) -> match resultat {
+    | EblPar11Stk2UdenNytGenanbringelsesresultat -> Sandt
+    | EblPar11Stk2MedNytGenanbringelsesresultat(genanbringelsesresultat) -> genanbringelsesresultat.input_gyldigt
+}
+| ebl_par11_stk2_nyt_resultat_understøttet(resultat: EblPar11Stk2NyGenanbringelsesresultat) -> match resultat {
+    | EblPar11Stk2UdenNytGenanbringelsesresultat -> Sandt
+    | EblPar11Stk2MedNytGenanbringelsesresultat(genanbringelsesresultat) -> genanbringelsesresultat.regelgrundlag_understøttet
+}
+| ebl_par11_stk2_genanbragt_på_ny_kroner(resultat: EblPar11Stk2NyGenanbringelsesresultat) -> match resultat {
+    | EblPar11Stk2UdenNytGenanbringelsesresultat -> 0
+    | EblPar11Stk2MedNytGenanbringelsesresultat(genanbringelsesresultat) -> genanbringelsesresultat.genanbragt_fortjeneste_kroner
+}
+| ebl_par11_stk2_nyt_aktivt_nedslag_kroner(resultat: EblPar11Stk2NyGenanbringelsesresultat) -> match resultat {
+    | EblPar11Stk2UdenNytGenanbringelsesresultat -> 0
+    | EblPar11Stk2MedNytGenanbringelsesresultat(genanbringelsesresultat) -> genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner
+}
+| ebl_par11_stk2_skattepligtig_tidligere_fortjeneste_kroner(stk2_anvendt: Boolsk, resultat: EblPar11Stk2NyGenanbringelsesresultat, tidligere_reguleret_fortjeneste_kroner: Heltal) -> hvis stk2_anvendt { match resultat {
+    | EblPar11Stk2UdenNytGenanbringelsesresultat -> tidligere_reguleret_fortjeneste_kroner
+    | EblPar11Stk2MedNytGenanbringelsesresultat(genanbringelsesresultat) -> genanbringelsesresultat.straks_beskattet_fortjeneste_kroner + genanbringelsesresultat.beskattet_ved_kontrolophør_kroner
+} } ellers { 0 }
+| ebl_par11_stk2_resultat(kontekst: EblPar11Stk2Kontekst, valg: EblPar11Stk2Valg) -> {
+    = kontekst_gyldig = ebl_par11_stk2_kontekst_gyldig(kontekst)
+    = stk2_anvendt = ebl_par11_stk2_anvendt(kontekst)
+    = tidligere_aktivt_nedslag_kroner = ebl_par11_stk2_tidligere_aktivt_nedslag_for_afstået_del_kroner(kontekst)
+    = tidligere_reguleret_fortjeneste_kroner = ebl_par11_stk2_tidligere_reguleret_fortjeneste_for_afstået_del_kroner(kontekst)
+    = har_nyt_valg = ebl_par11_stk2_har_nyt_genanbringelsesvalg(valg)
+    = valg_passer_til_kontekst = hvis har_nyt_valg { stk2_anvendt && tidligere_reguleret_fortjeneste_kroner > 0 } ellers { Sandt }
+    = ny_genanbringelsesresultat = ebl_par11_stk2_ny_genanbringelsesresultat(kontekst, valg)
+    = input_gyldigt = kontekst_gyldig && valg_passer_til_kontekst && ebl_par11_stk2_nyt_resultat_input_gyldigt(ny_genanbringelsesresultat)
+    = regelgrundlag_understøttet = kontekst.tidligere_genanbringelsesresultat.regelgrundlag_understøttet && ebl_par11_stk2_nyt_resultat_understøttet(ny_genanbringelsesresultat)
+    EblPar11Stk2Resultat(
+        kontekst = kontekst,
+        valg = valg,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet,
+        nuværende_ejendoms_fortjeneste_undtaget_efter_stk1 = ebl_par11_stk1_undtaget(kontekst.afståelse),
+        stk2_anvendt = stk2_anvendt,
+        tidligere_aktivt_anskaffelsessumsnedslag_for_afstået_del_kroner = tidligere_aktivt_nedslag_kroner,
+        tidligere_reguleret_fortjeneste_for_afstået_del_kroner = tidligere_reguleret_fortjeneste_kroner,
+        anskaffelsessumsnedslag_bortfalder_kroner = hvis stk2_anvendt { tidligere_aktivt_nedslag_kroner } ellers { 0 },
+        ny_genanbringelsesresultat = ny_genanbringelsesresultat,
+        genanbragt_på_ny_kroner = hvis input_gyldigt && stk2_anvendt { ebl_par11_stk2_genanbragt_på_ny_kroner(ny_genanbringelsesresultat) } ellers { 0 },
+        nyt_aktivt_anskaffelsessumsnedslag_kroner = hvis input_gyldigt && stk2_anvendt { ebl_par11_stk2_nyt_aktivt_nedslag_kroner(ny_genanbringelsesresultat) } ellers { 0 },
+        skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner = hvis input_gyldigt { ebl_par11_stk2_skattepligtig_tidligere_fortjeneste_kroner(stk2_anvendt, ny_genanbringelsesresultat, tidligere_reguleret_fortjeneste_kroner) } ellers { 0 }
+    )
+}
+--@end:ebl_par11--

@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-526fb5` (ready for review)
-Latest implementation slice submitted for review: `td-526fb5`
+Current focus issue: `td-d557f6` (ready for review)
+Latest implementation slice submitted for review: `td-d557f6`
 Latest approved implementation slice: `td-638478`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -106,7 +106,18 @@ skattefri. § 9, stk. 4 udleder selv, om erhvervsdelen kan bære hele den
 genanbragte fortjeneste; hvis ikke, beskattes den gamle fortjeneste særskilt,
 og det tilsvarende nedslag i anskaffelsessummen bortfalder. Den gamle gevinst
 og den nye ejendoms gevinst eller tab holdes dermed adskilt uden
-dobbeltbeskatning. Mælkekvoter og § 5, stk. 6-overførsler er ikke længere
+dobbeltbeskatning. § 11, stk. 2 er nu tilsvarende kildeafledt og har erstattet
+det tidligere boolske input om en genanbragt erhvervsfortjeneste. Ved
+ekspropriation af den ejendom, som en tidligere fortjeneste er genanbragt i,
+forbliver den nuværende ejendoms egen fortjeneste fritaget efter stk. 1. Den
+regulerede gamle fortjeneste beskattes særskilt, og det tilhørende aktive
+nedslag i den nuværende ejendoms anskaffelsessum bortfalder præcis én gang. Et
+typet valg kan i stedet føre hele eller en del af den gamle fortjeneste videre
+efter §§ 6 A eller 6 C. Ugyldige historiske fakta og et nyt
+genanbringelsesvalg uden en aktiv gammel fortjeneste bevares som synligt
+ugyldigt input. Den almindelige tabsberegning for den eksproprierede ejendom
+bevares uafhængigt af den gamle fortjeneste. Mælkekvoter og § 5, stk.
+6-overførsler er ikke længere
 fail-closed særforhold; de er selvstændige, kombinerbare kildefaktagrene med
 synlige delresultater og § 5 A-henføringsår. Fordeling af § 10-genopførelse på
 flere andre ejendomme og erhvervserstatning anvendt til ejerbolig er fortsat
@@ -151,8 +162,8 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-117 typede inputkolonner på `cases`-arket plus `case_id` og sytten relationelle
-kildeark. Kontrakten når nu 186 domænedefinitioner. De to ejendomsark rummer
+117 typede inputkolonner på `cases`-arket plus `case_id` og 25 relationelle
+kildeark. Kontrakten når nu 227 domænedefinitioner. De to ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
 beregnede mellemfelter fra brugeren.
@@ -179,7 +190,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 250 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 316 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -187,6 +198,9 @@ jordfordeling for både personen og ægtefællen. EBL § 6 D-valget,
 sælgerpantebrevet, parternes faktiske anvendelse, meddelelsen, sikkerheden,
 ejendommens placering og de efterfølgende års hændelser har tilsvarende egne
 etiketter og interviewspørgsmål.
+EBL § 11, stk. 2 har yderligere 66 poster for personen og ægtefællen. De dækker
+valget om ny genanbringelse, anvendelse, selskabsforhold, investering,
+udenlandsforhold, begæringsdatoer, ejerskab og hjemmel efter §§ 6 A eller 6 C.
 Genanbringelsens
 lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
 geninvesteringsår, erhvervsmæssige anskaffelsesgrundlag, anvendelse, placering,
@@ -202,15 +216,15 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`465460d04f5e9612d31765516404743aa974f42eaa2b0ff6bd1a8d4be1a058b7`.
+`1252de0007bd42180e9d8d141035f49eff8dcd41ccc6613da940b4a20b772b2d`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
-XLSX/JSON-afstemning, inklusive et historisk § 6 D-forløb, passerer på 431,35
-sekunder. `td-6659f1`
+XLSX/JSON-afstemning, inklusive historiske § 6 D- og § 11-forløb, passerer på
+545,80 sekunder. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -1336,6 +1350,10 @@ Current § 4 and § 13 amendment/dependency sources:
     stk. 1, nr. 14 dependency for taxable real-property gains, with næring
     exclusion, deemed-disposal treatment, the basic gain formula, § 4, stk. 8
     artistic-decoration exclusion and § 11 expropriation-style exclusions.
+    Section 11(2) derives the separately taxable adjusted historical gain,
+    lapse of the corresponding basis reduction and optional new §§ 6 A/6 C
+    reinvestment from typed source facts while preserving the current
+    property's own exemption under § 11(1).
 - Ejendomsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2023/678`
   - XML status on 2026-07-18: `Valid`
@@ -2224,9 +2242,12 @@ Current decision:
   rather than passing a loose return amount.
 - `EjendomsavancebeskatningslovSag` uses product-scoped `|` rules for EBL
   §§ 1, 1 A, 2, 4 and 11. It keeps disposition type, næring exclusion,
-  § 11 expropriation-style exclusion, acquisition cash value, § 5/§ 5 A
-  regulation input, § 4, stk. 8 exclusions, disposal cash value, gain/loss and
-  taxable gain together. `Par4Stk1Nr14Sag` consumes the typed result as
+  § 11 expropriation-style exclusion and typed stk. 2 treatment, acquisition
+  cash value, § 5/§ 5 A regulation input, § 4, stk. 8 exclusions, disposal cash
+  value, gain/loss and taxable gain together. The stk. 2 treatment keeps the
+  current property's exempt gain, adjusted historical gain, lapsed basis
+  reduction and any new §§ 6 A/6 C reinvestment separate.
+  `Par4Stk1Nr14Sag` consumes the typed result as
   Personskatteloven § 4, stk. 1, nr. 14 capital income rather than passing a
   loose real-property gain amount.
 - `Ligningslov12BSag` uses product-scoped `|` rules around nested agreement,
@@ -2619,7 +2640,7 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 220 nåbare definitioner, 117 typede
+- Det genererede Personskat-regneark har nu 227 nåbare definitioner, 117 typede
   inputkolonner plus `case_id` og 25 relationelle kildeark. XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -2637,12 +2658,17 @@ Review candidates to revisit deliberately, not as broad churn:
   en reguleret anskaffelsessum på 268.750 kr. En femte sag udfylder
   sælgerpantebrevets tiårige afdragsplan og 2026-årsforholdet gennem XLSX og
   afstemmer mod kanonisk JSON; begge adaptere medregner 300.000 kr. fra en
-  ejendomsafståelse i 2025.
-  Kontrakten har 250 eksplicitte menneskelige feltetiketter og
+  ejendomsafståelse i 2025. En sjette sag rekonstruerer en tidligere § 6 A-
+  genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
+  gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
+  fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
+  Kontrakten har 316 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
   anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
+  Heraf beskriver 66 poster § 11, stk. 2-valget og en eventuel ny
+  genanbringelse for personen eller ægtefællen.
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.

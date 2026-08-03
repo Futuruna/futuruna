@@ -2266,7 +2266,7 @@ fra og med den 1. januar 2027.
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
 = par4_stk1_nr14_fortjeneste_fixture = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_fortjeneste_ebl_input)
@@ -2283,7 +2283,7 @@ fra og med den 1. januar 2027.
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 ))
 = par4_stk1_nr14_ekspropriation_fixture = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(EjendomsavancebeskatningslovInput(
@@ -2299,7 +2299,7 @@ fra og med den 1. januar 2027.
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 ))
 = par4_stk1_nr15_modtager_negativ_saldo_fixture = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(

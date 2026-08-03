@@ -41,7 +41,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = EblAndenFastEjendom(genanbringelse = genanbringelse),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 ))
 | ebl_ordinær_scenarie_delafståelse(genanbringelse: EblGenanbringelse) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
@@ -73,7 +73,7 @@
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
     ejendomstype = EblAndenFastEjendom(genanbringelse = genanbringelse),
-    par11_stk2_genanbragt_erhvervsejendom = Falskt,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 ))
 

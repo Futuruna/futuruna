@@ -1,0 +1,153 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+--@label:ebl_par11_scenarier::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026--
+--@begin:ebl_par11_scenarier--
+| ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner: Heltal, nedslag_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(fakta = EblPar6AFakta(
+    oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
+        afståelsesindkomstår = 2020,
+        erhvervsfortjeneste_før_par6_stk2_kroner = 200000,
+        regulering = EblGenanbragtFortjenesteregulering(
+            tillæg_for_genanbragt_del_kroner = tillæg_kroner,
+            nedslag_for_genanbragt_del_kroner = nedslag_kroner
+        )
+    ),
+    afstået_ejendoms_erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    investering = EblPar6AInvestering(
+        indkomstår = 2021,
+        erhvervsmæssigt_anskaffelsesgrundlag_kroner = 1000000,
+        ejendomsstatus = EblPar6AEjendomOmfattetAfLovenIkkePar8,
+        erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+        placering = EblPar6AEjendomIDanmark
+    ),
+    begæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2,
+    ejerskab = EblPar6ASammeSkattepligtige
+))
+
+| ebl_par11_scenarie_nyt_valg_med_hjemmel(erhvervsmæssigt_anskaffelsesgrundlag_kroner: Heltal, hjemmel: EblPar11Stk2NyGenanbringelseshjemmel) -> EblPar11Stk2MedNytGenanbringelsesvalg(valg = EblPar11Stk2NytGenanbringelsesvalg(
+    fakta = EblPar11Stk2NyGenanbringelsesfakta(
+        afstået_ejendoms_erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+        investering = EblPar6AInvestering(
+            indkomstår = 2026,
+            erhvervsmæssigt_anskaffelsesgrundlag_kroner = erhvervsmæssigt_anskaffelsesgrundlag_kroner,
+            ejendomsstatus = EblPar6AEjendomOmfattetAfLovenIkkePar8,
+            erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+            placering = EblPar6AEjendomIDanmark
+        ),
+        begæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2,
+        ejerskab = EblPar6ASammeSkattepligtige
+    ),
+    hjemmel = hjemmel
+))
+| ebl_par11_scenarie_nyt_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner: Heltal) -> ebl_par11_scenarie_nyt_valg_med_hjemmel(erhvervsmæssigt_anskaffelsesgrundlag_kroner, EblPar11Stk2EfterPar6A)
+| ebl_par11_scenarie_nyt_par6c_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner: Heltal, arbejde_påbegyndt: Boolsk) -> ebl_par11_scenarie_nyt_valg_med_hjemmel(
+    erhvervsmæssigt_anskaffelsesgrundlag_kroner,
+    EblPar11Stk2EfterPar6C(arbejdsart = EblPar6CNybygning, arbejde_påbegyndt = arbejde_påbegyndt)
+)
+
+| ebl_par11_scenarie_salg(afståelse: EjendomsavancebeskatningslovAfståelse, genanbringelse: EblGenanbringelse, par11_stk2_valg: EblPar11Stk2Valg, afståelsessum_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    afståelse = afståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(
+        anskaffelsesdato = EblDato(år = 2021, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = afståelsessum_kroner,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblAndenFastEjendom(genanbringelse = genanbringelse),
+    par11_stk2_valg = par11_stk2_valg,
+    par6d_valg = EblUdenPar6DValg
+))
+
+= ebl_par11_scenarie_beskattes_nu = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_genanbringes_fuldt_på_ny = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationslignendeSalg,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = ebl_par11_scenarie_nyt_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner = 500000),
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_genanbringes_delvist_på_ny = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = ebl_par11_scenarie_nyt_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner = 100000),
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_genanbringes_efter_par6c = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = ebl_par11_scenarie_nyt_par6c_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner = 500000, arbejde_påbegyndt = Sandt),
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_par6c_uden_påbegyndt_arbejde = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = ebl_par11_scenarie_nyt_par6c_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner = 500000, arbejde_påbegyndt = Falskt),
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_almindeligt_salg = ebl_par11_scenarie_salg(
+    afståelse = EblAlmindeligAfståelse,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 20000, nedslag_kroner = 10000),
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_nyt_valg_uden_tidligere_genanbringelse = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = EblUdenAktivGenanbringelse,
+    par11_stk2_valg = ebl_par11_scenarie_nyt_valg(erhvervsmæssigt_anskaffelsesgrundlag_kroner = 500000),
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_ugyldig_historisk_regulering = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner = 0, nedslag_kroner = 250000),
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
+    afståelsessum_kroner = 1500000
+)
+= ebl_par11_scenarie_ekspropriationstab = ebl_par11_scenarie_salg(
+    afståelse = EblEkspropriationserstatning,
+    genanbringelse = EblUdenAktivGenanbringelse,
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
+    afståelsessum_kroner = 900000
+)
+
+| ebl_par11_scenarie_beskatter_kun_den_regulerede_tidligere_fortjeneste: ebl_par11_scenarie_beskattes_nu -> ebl_par11_scenarie_beskattes_nu.input_gyldigt && ebl_par11_scenarie_beskattes_nu.undtaget_efter_par11 && ebl_par11_scenarie_beskattes_nu.par11_stk2_resultat.stk2_anvendt && ebl_par11_scenarie_beskattes_nu.par11_stk2_resultat.tidligere_reguleret_fortjeneste_for_afstået_del_kroner == 210000 && ebl_par11_scenarie_beskattes_nu.par11_stk2_resultat.skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner == 210000 && ebl_par11_scenarie_beskattes_nu.skattepligtig_fortjeneste_før_par6d_kroner == 0 && ebl_par11_scenarie_beskattes_nu.skattepligtig_fortjeneste_kroner == 210000
+| ebl_par11_scenarie_lader_nedslaget_bortfalde_præcis_en_gang: ebl_par11_scenarie_beskattes_nu -> ebl_par11_scenarie_beskattes_nu.genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner == 200000 && ebl_par11_scenarie_beskattes_nu.par11_stk2_resultat.anskaffelsessumsnedslag_bortfalder_kroner == 200000 && ebl_par11_scenarie_beskattes_nu.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 0 && ebl_par11_scenarie_beskattes_nu.reguleret_anskaffelsessum_kroner == 1050000 && ebl_par11_scenarie_beskattes_nu.fortjeneste_eller_tab_kroner == 450000
+| ebl_par11_scenarie_genanbringer_hele_fortjenesten_på_ny: ebl_par11_scenarie_genanbringes_fuldt_på_ny -> ebl_par11_scenarie_genanbringes_fuldt_på_ny.input_gyldigt && ebl_par11_scenarie_genanbringes_fuldt_på_ny.par11_stk2_resultat.genanbragt_på_ny_kroner == 210000 && ebl_par11_scenarie_genanbringes_fuldt_på_ny.par11_stk2_resultat.nyt_aktivt_anskaffelsessumsnedslag_kroner == 210000 && ebl_par11_scenarie_genanbringes_fuldt_på_ny.skattepligtig_fortjeneste_kroner == 0
+| ebl_par11_scenarie_genanbringer_kun_hvad_den_nye_basis_rummer: ebl_par11_scenarie_genanbringes_delvist_på_ny -> ebl_par11_scenarie_genanbringes_delvist_på_ny.input_gyldigt && ebl_par11_scenarie_genanbringes_delvist_på_ny.par11_stk2_resultat.genanbragt_på_ny_kroner == 100000 && ebl_par11_scenarie_genanbringes_delvist_på_ny.par11_stk2_resultat.skattepligtig_tidligere_genanbragt_fortjeneste_i_afståelsesåret_kroner == 110000 && ebl_par11_scenarie_genanbringes_delvist_på_ny.skattepligtig_fortjeneste_kroner == 110000
+| ebl_par11_scenarie_genanbringer_efter_par6c: ebl_par11_scenarie_genanbringes_efter_par6c -> ebl_par11_scenarie_genanbringes_efter_par6c.input_gyldigt && ebl_par11_scenarie_genanbringes_efter_par6c.skattepligtig_fortjeneste_kroner == 0 && match ebl_par11_scenarie_genanbringes_efter_par6c.par11_stk2_resultat.ny_genanbringelsesresultat {
+    | EblPar11Stk2MedNytGenanbringelsesresultat(resultat) -> resultat.hjemmel == EblGenanbringelseEfterPar6C && resultat.genanbragt_fortjeneste_kroner == 210000 && resultat.aktivt_anskaffelsessumsnedslag_kroner == 210000
+    | _ -> Falskt
+}
+| ebl_par11_scenarie_beskatter_når_par6c_arbejde_ikke_er_påbegyndt: ebl_par11_scenarie_par6c_uden_påbegyndt_arbejde -> ebl_par11_scenarie_par6c_uden_påbegyndt_arbejde.input_gyldigt && ebl_par11_scenarie_par6c_uden_påbegyndt_arbejde.skattepligtig_fortjeneste_kroner == 210000 && match ebl_par11_scenarie_par6c_uden_påbegyndt_arbejde.par11_stk2_resultat.ny_genanbringelsesresultat {
+    | EblPar11Stk2MedNytGenanbringelsesresultat(resultat) -> resultat.betingelser_opfyldt == Falskt && resultat.genanbragt_fortjeneste_kroner == 0 && resultat.straks_beskattet_fortjeneste_kroner == 210000
+    | _ -> Falskt
+}
+| ebl_par11_scenarie_almindeligt_salg_beholder_det_aktive_nedslag: ebl_par11_scenarie_almindeligt_salg -> ebl_par11_scenarie_almindeligt_salg.input_gyldigt && ebl_par11_scenarie_almindeligt_salg.undtaget_efter_par11 == Falskt && ebl_par11_scenarie_almindeligt_salg.par11_stk2_resultat.stk2_anvendt == Falskt && ebl_par11_scenarie_almindeligt_salg.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 200000 && ebl_par11_scenarie_almindeligt_salg.skattepligtig_fortjeneste_kroner == 650000
+| ebl_par11_scenarie_afviser_nyt_valg_uden_tidligere_genanbringelse: ebl_par11_scenarie_nyt_valg_uden_tidligere_genanbringelse -> ebl_par11_scenarie_nyt_valg_uden_tidligere_genanbringelse.input_gyldigt == Falskt && ebl_par11_scenarie_nyt_valg_uden_tidligere_genanbringelse.skattepligtig_fortjeneste_kroner == 0
+| ebl_par11_scenarie_afviser_ugyldig_historisk_regulering: ebl_par11_scenarie_ugyldig_historisk_regulering -> ebl_par11_scenarie_ugyldig_historisk_regulering.input_gyldigt == Falskt && ebl_par11_scenarie_ugyldig_historisk_regulering.skattepligtig_fortjeneste_kroner == 0
+| ebl_par11_scenarie_bevarer_fradragsberettiget_tab: ebl_par11_scenarie_ekspropriationstab -> ebl_par11_scenarie_ekspropriationstab.input_gyldigt && ebl_par11_scenarie_ekspropriationstab.undtaget_efter_par11 && ebl_par11_scenarie_ekspropriationstab.skattepligtig_fortjeneste_kroner == 0 && ebl_par11_scenarie_ekspropriationstab.tab_kroner == 150000
+
+? ebl_par11_scenarie_beskatter_kun_den_regulerede_tidligere_fortjeneste
+? ebl_par11_scenarie_lader_nedslaget_bortfalde_præcis_en_gang
+? ebl_par11_scenarie_genanbringer_hele_fortjenesten_på_ny
+? ebl_par11_scenarie_genanbringer_kun_hvad_den_nye_basis_rummer
+? ebl_par11_scenarie_genanbringer_efter_par6c
+? ebl_par11_scenarie_beskatter_når_par6c_arbejde_ikke_er_påbegyndt
+? ebl_par11_scenarie_almindeligt_salg_beholder_det_aktive_nedslag
+? ebl_par11_scenarie_afviser_nyt_valg_uden_tidligere_genanbringelse
+? ebl_par11_scenarie_afviser_ugyldig_historisk_regulering
+? ebl_par11_scenarie_bevarer_fradragsberettiget_tab
+
+@ print("EBL § 11 scenarios passed")
+--@end:ebl_par11_scenarier--

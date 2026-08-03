@@ -45,7 +45,8 @@ beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte f
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
 nåbare domænegraf som beregningen og har aktuelt 117 typede inputkolonner plus
-sags-id og sytten relationelle kildetabeller. Variantvalg gør særlige skatteforhold,
+sags-id og 25 relationelle kildetabeller. Variantvalg gør særlige
+skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
@@ -80,7 +81,13 @@ genopførelsesfakta. Når den nye ejendom senere bliver solgt, beskatter § 8,
 stk. 5 den gamle erhvervsfortjeneste særskilt fra boligejendommens egen
 skattefri fortjeneste. § 9, stk. 4 kan tilsvarende beskatte den gamle
 fortjeneste særskilt og fjerne anskaffelsessumsnedslaget, hvis en forøget
-boligandel betyder, at erhvervsdelen ikke kan bære hele fortjenesten. § 6
+boligandel betyder, at erhvervsdelen ikke kan bære hele fortjenesten. § 11,
+stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
+ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver
+skattefri efter stk. 1, mens den regulerede gamle fortjeneste beskattes
+særskilt, og det tilsvarende anskaffelsessumsnedslag bortfalder. Borgeren kan
+vælge en ny genanbringelse efter §§ 6 A eller 6 C gennem typede kildefakta;
+reglerne afleder selv den straks beskattede del og det nye aktive nedslag. § 6
 modregner derefter egne og
 fremførte tab og kan overføre en samlevende ægtefælles overskydende tab, før
 Personskattelovens § 4, stk. 1, nr. 14-post dannes. Overførslen kan højst bruge
@@ -101,6 +108,7 @@ giver derfor ikke længere et fail-closed nulresultat. Kilderne er
 [C.H.2.1.9.11](https://info.skat.dk/data.aspx?oid=1948631),
 [Den juridiske vejledning C.H.2.1.11.2](https://info.skat.dk/data.aspx?oid=1948642),
 [C.H.2.1.11.4](https://info.skat.dk/data.aspx?oid=1948713),
+[C.H.2.1.11.5](https://info.skat.dk/data.aspx?oid=1948714),
 [C.H.2.1.11.6](https://info.skat.dk/data.aspx?oid=1948715),
 [C.H.2.1.17.5](https://info.skat.dk/data.aspx?oid=1948739)
 og
@@ -135,17 +143,23 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 250 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 316 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
 sælgerpantebrev har samme menneskelige lag: pantebrevets vilkår, parternes
 faktiske brug, meddelelsen til Skatteforvaltningen og hvert efterfølgende års
-hændelser har egne etiketter og spørgsmål. AI'en kan dermed indsamle fakta;
+hændelser har egne etiketter og spørgsmål. 66 af posterne dækker § 11, stk. 2
+for personen og ægtefællen: valget om ny genanbringelse, anvendelse,
+selskabsforhold, investering, udenlandsforhold, begæringsdatoer, ejerskab og
+hjemmel efter §§ 6 A eller 6 C. AI'en kan dermed indsamle fakta;
 Futuruna afleder selv, om betingelserne er opfyldt, og hvilke beløb der skal
 medregnes i hvert indkomstår. En verificeret XLSX/JSON-sag fører en afståelse
 i 2025, sælgerpantebrevets tiårige afdragsplan og årsforholdene frem til
-300.000 kr. i medregnet ejendomsavance i 2026.
+300.000 kr. i medregnet ejendomsavance i 2026. En anden verificeret sag
+rekonstruerer en tidligere § 6 A-genanbringelse ved en § 11-afståelse. Begge
+inputformater lader det gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde
+og medregner den gamle fortjeneste på 200.000 kr. præcis én gang.
 Felter,
 der endnu mangler præcis metadata, vises med en læsbar afledning af den stabile
 sti og beholder den kanoniske sti i kolonnens note; det er et fallback, ikke en
