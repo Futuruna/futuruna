@@ -52,7 +52,7 @@ og præmieobligationer.
 # KursgevinstlovGældOpgørelse(gældsart: KursgevinstlovGældsart, værdi_ved_påtagelse_kroner: Heltal, værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, nedskrevet_til_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
 # KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk)
 # KursgevinstlovInput(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, par1_afgrænsning: KursgevinstlovPar1Afgrænsning, bagatelgrundlag: KursgevinstlovBagatelOpgørelse, fordring: KursgevinstlovFordringOpgørelse, gæld: KursgevinstlovGældOpgørelse, kontrakt: KursgevinstlovKontraktOpgørelse, udøver_fordrings_eller_kontraktnæring: Boolsk, driver_finansieringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk, gæld_vedrører_finansieringsnæring: Boolsk, anvender_lagerprincip_efter_par25: Boolsk)
-# KursgevinstlovResultat(indkomstår: Heltal, aktiv: KursgevinstlovAktiv, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation)
+# KursgevinstlovResultat(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation)
 
 | kgl_tom_fordring() -> KursgevinstlovFordringOpgørelse(
     tab_status = KglFordringTabAlmindelig,
@@ -302,6 +302,7 @@ markedsværdien på afviklingsdagen.
     | exception kgl_par4_stk3_par17_fordringstab personlig_reklassifikation() -> KglPar17Fordringstab under input.aktiv == KglFordring && input.fordring.tab_status == KglFordringTabPar17Statsskattelov6A && bruttotab_kroner() > 0
     | resultat() -> KursgevinstlovResultat(
         indkomstår = input.indkomstår,
+        rolle = input.rolle,
         aktiv = input.aktiv,
         omfattet_af_par1 = omfattet_af_par1(),
         person_eller_dødsbo_efter_par12 = person_eller_dødsbo_efter_par12(),

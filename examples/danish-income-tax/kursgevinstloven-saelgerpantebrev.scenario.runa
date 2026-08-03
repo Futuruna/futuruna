@@ -4,6 +4,11 @@
 
 --@label:kgl_sælgerpantebrev_scenarier::source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_sælgerpantebrev_vejledning_2026--
 --@begin:kgl_sælgerpantebrev_scenarier--
+| kgl_sælgerpantebrev_scenarie_person(identifikation: Tekst) -> KglSælgerpantebrevSkatteyder(
+    identifikation = identifikation,
+    rolle = KglPersonEfterKildeskatteloven
+)
+
 | kgl_sælgerpantebrev_scenarie_afdrag(indkomstår: Heltal) -> KglSælgerpantebrevDisposition(
     indkomstår = indkomstår,
     art = KglSælgerpantebrevAfdrag,
@@ -13,6 +18,7 @@
 
 | kgl_sælgerpantebrev_scenarie_input(dispositioner: List(KglSælgerpantebrevDisposition)) -> KglSælgerpantebrevInput(
     identifikation = "Sælgerpantebrev 2025",
+    oprindelig_skatteyder = kgl_sælgerpantebrev_scenarie_person("Sælger"),
     erhvervelsesår = 2025,
     hovedstol_kroner = 3750000,
     kursværdi_ved_erhvervelsen_kroner = 3000000,
@@ -67,10 +73,82 @@
     )
 ]))
 
-= kgl_sælgerpantebrev_scenarie_succession = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
+= kgl_sælgerpantebrev_scenarie_ægtefællesuccession = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
+    kgl_sælgerpantebrev_scenarie_afdrag(2026),
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2027,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(
+            modtagers_skatteyder_identifikation = "Ægtefælle",
+            overdrager_hjemmehørende_i_danmark = Sandt,
+            modtager_hjemmehørende_i_danmark = Sandt
+        )),
+        berørt_hovedstol_kroner = 3375000,
+        afståelses_eller_indfrielsessum_kroner = 0
+    ),
+    kgl_sælgerpantebrev_scenarie_afdrag(2028)
+]))
+
+= kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
     KglSælgerpantebrevDisposition(
         indkomstår = 2026,
-        art = KglSælgerpantebrevÆgtefællesuccession,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevÆgtefælleEfterKildeskattelovensPar26B(
+            modtagers_skatteyder_identifikation = "Ægtefælle i udlandet",
+            overdrager_hjemmehørende_i_danmark = Sandt,
+            modtager_hjemmehørende_i_danmark = Falskt
+        )),
+        berørt_hovedstol_kroner = 3750000,
+        afståelses_eller_indfrielsessum_kroner = 0
+    )
+]))
+
+= kgl_sælgerpantebrev_scenarie_dødsbo_indtræder = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2026,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(
+            boets_skatteyder_identifikation = "Boet efter Sælger"
+        )),
+        berørt_hovedstol_kroner = 3750000,
+        afståelses_eller_indfrielsessum_kroner = 0
+    ),
+    kgl_sælgerpantebrev_scenarie_afdrag(2027)
+]))
+
+= kgl_sælgerpantebrev_scenarie_udlodning_med_tab = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2026,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevDødsboEfterDødsboskattelovensPar20(
+            boets_skatteyder_identifikation = "Boet efter Sælger"
+        )),
+        berørt_hovedstol_kroner = 3750000,
+        afståelses_eller_indfrielsessum_kroner = 0
+    ),
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2027,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevUdlodningTilEfterlevendeÆgtefælleEfterDødsboskattelovensPar35Til38(
+            modtagers_skatteyder_identifikation = "Efterlevende ægtefælle",
+            bo_ikke_fritaget_for_beskatning_efter_par6 = Sandt,
+            bo_har_valgt_salgsbeskatning_efter_par28_stk3 = Falskt,
+            modtager_hjemmehørende_i_danmark = Sandt,
+            fordringen_kan_fortsat_beskattes_i_danmark = Sandt,
+            værdi_i_boopgørelsen_kroner = 2400000
+        )),
+        berørt_hovedstol_kroner = 3750000,
+        afståelses_eller_indfrielsessum_kroner = 0
+    ),
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2028,
+        art = KglSælgerpantebrevIndfrielse,
+        berørt_hovedstol_kroner = 3750000,
+        afståelses_eller_indfrielsessum_kroner = 3750000
+    )
+]))
+
+= kgl_sælgerpantebrev_scenarie_ukendt_arving = kgl_sælgerpantebrev_resultat(kgl_sælgerpantebrev_scenarie_input([
+    KglSælgerpantebrevDisposition(
+        indkomstår = 2026,
+        art = KglSælgerpantebrevEjerskifte(grundlag = KglSælgerpantebrevIkkeUnderstøttetEjerskifte(
+            beskrivelse = "Udlodning til anden arving kræver særskilt successionsgrundlag"
+        )),
         berørt_hovedstol_kroner = 3750000,
         afståelses_eller_indfrielsessum_kroner = 0
     )
@@ -93,16 +171,17 @@
 )
 = kgl_sælgerpantebrev_scenarie_bagatel_afskåret = kgl_sælgerpantebrev_kursgevinstlov_resultat(
     KglSælgerpantebrevDispositionsresultat(
-        tilstand_før = KglSælgerpantebrevTilstand(resterende_hovedstol_kroner = 2000, resterende_anskaffelsessum_kroner = 800, seneste_indkomstår = 2025, aktiv = Sandt),
+        tilstand_før = KglSælgerpantebrevTilstand(skatteyder = kgl_sælgerpantebrev_scenarie_person("Bagatelperson"), skattemæssigt_erhvervelsesår = 2025, resterende_hovedstol_kroner = 2000, resterende_anskaffelsessum_kroner = 800, seneste_indkomstår = 2025, aktiv = Sandt),
         disposition = KglSælgerpantebrevDisposition(indkomstår = 2026, art = KglSælgerpantebrevIndfrielse, berørt_hovedstol_kroner = 2000, afståelses_eller_indfrielsessum_kroner = 2000),
         disposition_gyldig = Sandt,
         regelgrundlag_understøttet = Sandt,
+        realisering_sker = Sandt,
         frigivet_anskaffelsessum_kroner = 800,
         afståelses_eller_indfrielsessum_kroner = 2000,
         rå_gevinst_kroner = 1200,
         rå_tab_kroner = 0,
         rå_netto_kroner = 1200,
-        tilstand_efter = KglSælgerpantebrevTilstand(resterende_hovedstol_kroner = 0, resterende_anskaffelsessum_kroner = 0, seneste_indkomstår = 2026, aktiv = Falskt)
+        tilstand_efter = KglSælgerpantebrevTilstand(skatteyder = kgl_sælgerpantebrev_scenarie_person("Bagatelperson"), skattemæssigt_erhvervelsesår = 2025, resterende_hovedstol_kroner = 0, resterende_anskaffelsessum_kroner = 0, seneste_indkomstår = 2026, aktiv = Falskt)
     ),
     1200,
     kgl_sælgerpantebrev_scenarie_almindelige_skatteforhold()
@@ -114,7 +193,11 @@
 | kgl_sælgerpantebrev_scenarie_nødlidende_følger_vejledningen: kgl_sælgerpantebrev_scenarie_nødlidende -> kgl_sælgerpantebrev_scenarie_nødlidende.input_gyldigt && last(kgl_sælgerpantebrev_scenarie_nødlidende.dispositionsresultater).frigivet_anskaffelsessum_kroner == 600000 && last(kgl_sælgerpantebrev_scenarie_nødlidende.dispositionsresultater).rå_tab_kroner == 412500 && kgl_sælgerpantebrev_scenarie_nødlidende.samlet_rå_netto_kroner == 187500
 | kgl_sælgerpantebrev_scenarie_kgl_resultat_beskatter_kursnedslaget: kgl_sælgerpantebrev_scenarie_første_kgl_resultat -> kgl_sælgerpantebrev_scenarie_første_kgl_resultat.skattepligtig_gevinst_kroner == 75000 && kgl_sælgerpantebrev_scenarie_første_kgl_resultat.netto_efter_kursgevinstloven_kroner == 75000
 | kgl_sælgerpantebrev_scenarie_bagatelgrænse_anvendes: kgl_sælgerpantebrev_scenarie_bagatel_afskåret -> kgl_sælgerpantebrev_scenarie_bagatel_afskåret.bagatelgrænse_afskærer && kgl_sælgerpantebrev_scenarie_bagatel_afskåret.skattepligtig_gevinst_kroner == 0
-| kgl_sælgerpantebrev_scenarie_succession_fejler_lukket: kgl_sælgerpantebrev_scenarie_succession -> kgl_sælgerpantebrev_scenarie_succession.input_gyldigt == Falskt && kgl_sælgerpantebrev_scenarie_succession.regelgrundlag_understøttet == Falskt && kgl_sælgerpantebrev_scenarie_succession.samlet_rå_netto_kroner == 0
+| kgl_sælgerpantebrev_scenarie_ægtefælle_overtager_grundlaget: kgl_sælgerpantebrev_scenarie_ægtefællesuccession -> kgl_sælgerpantebrev_scenarie_ægtefællesuccession.input_gyldigt && kgl_sælgerpantebrev_scenarie_ægtefællesuccession.dispositionsresultater[1].realisering_sker == Falskt && kgl_sælgerpantebrev_scenarie_ægtefællesuccession.dispositionsresultater[1].tilstand_efter.skatteyder.identifikation == "Ægtefælle" && kgl_sælgerpantebrev_scenarie_ægtefællesuccession.dispositionsresultater[1].tilstand_efter.skattemæssigt_erhvervelsesår == 2025 && kgl_sælgerpantebrev_scenarie_ægtefællesuccession.dispositionsresultater[1].tilstand_efter.resterende_anskaffelsessum_kroner == 2700000 && kgl_sælgerpantebrev_rå_netto_for_skatteyder_i_indkomstår_kroner(kgl_sælgerpantebrev_scenarie_ægtefællesuccession, 2026, "Sælger") == 75000 && kgl_sælgerpantebrev_rå_netto_for_skatteyder_i_indkomstår_kroner(kgl_sælgerpantebrev_scenarie_ægtefællesuccession, 2028, "Sælger") == 0 && kgl_sælgerpantebrev_rå_netto_for_skatteyder_i_indkomstår_kroner(kgl_sælgerpantebrev_scenarie_ægtefællesuccession, 2028, "Ægtefælle") == 75000
+| kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle_afvises: kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle -> kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle.input_gyldigt == Falskt && kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle.regelgrundlag_understøttet && kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle.tilstand_ultimo.skatteyder.identifikation == "Sælger"
+| kgl_sælgerpantebrev_scenarie_bo_overtager_grundlaget: kgl_sælgerpantebrev_scenarie_dødsbo_indtræder -> kgl_sælgerpantebrev_scenarie_dødsbo_indtræder.input_gyldigt && head(kgl_sælgerpantebrev_scenarie_dødsbo_indtræder.dispositionsresultater).realisering_sker == Falskt && head(kgl_sælgerpantebrev_scenarie_dødsbo_indtræder.dispositionsresultater).tilstand_efter.skatteyder.rolle == KglDødsboEfterDødsboskatteloven && last(kgl_sælgerpantebrev_scenarie_dødsbo_indtræder.dispositionsresultater).tilstand_før.skatteyder.identifikation == "Boet efter Sælger" && kgl_sælgerpantebrev_kursgevinstlov_resultat(last(kgl_sælgerpantebrev_scenarie_dødsbo_indtræder.dispositionsresultater), 75000, kgl_sælgerpantebrev_scenarie_almindelige_skatteforhold()).rolle == KglDødsboEfterDødsboskatteloven
+| kgl_sælgerpantebrev_scenarie_udlodning_med_tab_bevarer_samlet_netto: kgl_sælgerpantebrev_scenarie_udlodning_med_tab -> kgl_sælgerpantebrev_scenarie_udlodning_med_tab.input_gyldigt && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[1].realisering_sker && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[1].rå_tab_kroner == 600000 && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[1].tilstand_efter.skatteyder.identifikation == "Efterlevende ægtefælle" && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[1].tilstand_efter.skattemæssigt_erhvervelsesår == 2027 && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[1].tilstand_efter.resterende_anskaffelsessum_kroner == 2400000 && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.dispositionsresultater[2].rå_gevinst_kroner == 1350000 && kgl_sælgerpantebrev_scenarie_udlodning_med_tab.samlet_rå_netto_kroner == 750000
+| kgl_sælgerpantebrev_scenarie_ukendt_arving_fejler_lukket: kgl_sælgerpantebrev_scenarie_ukendt_arving -> kgl_sælgerpantebrev_scenarie_ukendt_arving.input_gyldigt == Falskt && kgl_sælgerpantebrev_scenarie_ukendt_arving.regelgrundlag_understøttet == Falskt && kgl_sælgerpantebrev_scenarie_ukendt_arving.samlet_rå_netto_kroner == 0
 | kgl_sælgerpantebrev_scenarie_afdrag_kræver_faktisk_hovedstolsbetaling: kgl_sælgerpantebrev_scenarie_forkert_afdragsbeløb -> kgl_sælgerpantebrev_scenarie_forkert_afdragsbeløb.input_gyldigt == Falskt && kgl_sælgerpantebrev_scenarie_forkert_afdragsbeløb.samlet_rå_netto_kroner == 0
 
 ? kgl_sælgerpantebrev_scenarie_følger_officielt_eksempel
@@ -123,7 +206,11 @@
 ? kgl_sælgerpantebrev_scenarie_nødlidende_følger_vejledningen
 ? kgl_sælgerpantebrev_scenarie_kgl_resultat_beskatter_kursnedslaget
 ? kgl_sælgerpantebrev_scenarie_bagatelgrænse_anvendes
-? kgl_sælgerpantebrev_scenarie_succession_fejler_lukket
+? kgl_sælgerpantebrev_scenarie_ægtefælle_overtager_grundlaget
+? kgl_sælgerpantebrev_scenarie_udenlandsk_ægtefælle_afvises
+? kgl_sælgerpantebrev_scenarie_bo_overtager_grundlaget
+? kgl_sælgerpantebrev_scenarie_udlodning_med_tab_bevarer_samlet_netto
+? kgl_sælgerpantebrev_scenarie_ukendt_arving_fejler_lukket
 ? kgl_sælgerpantebrev_scenarie_afdrag_kræver_faktisk_hovedstolsbetaling
 
 @ print("KGL seller-note scenarios passed")

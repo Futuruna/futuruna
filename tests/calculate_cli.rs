@@ -509,7 +509,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 120);
+        assert_eq!(case_headers.len(), 121);
         for expected in [
             "Skatteår",
             "Bopælskommune",
@@ -520,6 +520,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årets renteindtægter",
             "Årets renteudgifter",
             "Kursgevinster og kurstab",
+            "Personen, som beregningen vedrører",
             "Årsopgørelse",
             "Ordinært aktieår",
         ] {
@@ -565,6 +566,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_fremførte_tab.$variant",
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
             "kapitalindkomst.kursgevinst.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
@@ -873,6 +875,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let kgl_seller_note_paths = workbook_column_paths(&mut workbook, &kgl_seller_note_sheet);
         for expected in [
             "sælgerpantebrev_identifikation",
+            "oprindelig_skatteyder_identifikation",
             "skatteyderfakta.udøver_næring_ved_køb_og_salg_af_fordringer",
             "skatteyderfakta.fordringen_erhvervet_uden_for_fordringsnæring",
             "skatteyderfakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser",
@@ -888,6 +891,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let kgl_seller_note_headers = workbook_headers(&mut workbook, &kgl_seller_note_sheet);
         for expected in [
             "Sælgerpantebrev",
+            "Sælgerpantebrevets oprindelige skatteyder",
             "Næring med fordringer",
             "Fordring uden for næring",
             "Vederlag for varer eller ydelser",
@@ -1410,6 +1414,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "kapitalindkomst.kursgevinst.$variant",
                 Data::String("MedKursgevinst".to_string()),
+            ),
+            (
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
+                Data::String("Sælger".to_string()),
             ),
             (
                 "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
@@ -2028,6 +2036,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "sælgerpantebrev_identifikation",
                 Data::String("sælgerpantebrev-2025".to_string()),
+            ),
+            (
+                "oprindelig_skatteyder_identifikation",
+                Data::String("Sælger".to_string()),
             ),
             (
                 "skatteyderfakta.udøver_næring_ved_køb_og_salg_af_fordringer",
@@ -3119,8 +3131,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "kursgevinst": {
             "$variant": "MedKursgevinst",
             "fakta": {
+                "skatteyder_identifikation": "Sælger",
                 "sælgerpantebreve": [{
                     "sælgerpantebrev_identifikation": "sælgerpantebrev-2025",
+                    "oprindelig_skatteyder_identifikation": "Sælger",
                     "skatteyderfakta": {
                         "udøver_næring_ved_køb_og_salg_af_fordringer": false,
                         "fordringen_erhvervet_uden_for_fordringsnæring": false,

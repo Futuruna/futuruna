@@ -44,8 +44,8 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
-nåbare domænegraf som beregningen og har aktuelt 119 typede inputkolonner plus
-sags-id og 27 relationelle kildetabeller. Variantvalg gør særlige
+nåbare domænegraf som beregningen og har aktuelt 121 synlige overskriftsceller
+inklusive sags-id og 27 relationelle kildetabeller. Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
@@ -145,7 +145,7 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 335 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 351 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
@@ -154,6 +154,9 @@ faktiske brug, meddelelsen til Skatteforvaltningen og hvert efterfølgende års
 hændelser har egne etiketter og spørgsmål. KGL-sporet navngiver desuden
 pantebrevslisten, identiteten, skatteyderens kildefakta, § 14-grundlaget og
 senere afståelser eller indfrielser med år, art, hovedstol og faktisk provenu.
+Det navngiver også personen, som beregningen vedrører, pantebrevets oprindelige
+skatteyder og de fakta, der fordeler pantebrevet ved ægtefællesuccession eller
+dødsfald.
 66 af posterne dækker § 11, stk. 2
 for personen og ægtefællen: valget om ny genanbringelse, anvendelse,
 selskabsforhold, investering, udenlandsforhold, begæringsdatoer, ejerskab og
@@ -180,9 +183,16 @@ kursgevinst på 75.000 kr. Ved hel eller delvis afståelse eller ekstraordinær
 indfrielse bruger EBL den berørte restgæld til at fremrykke ejendomsavancen,
 mens KGL sammenholder den frigivne anskaffelsessum med det faktiske provenu.
 Futuruna holder de to regelkaskader og deres delresultater adskilt og samler
-først de gyldige poster i Personskattelovens kapitalindkomst. Ufordelt
-ægtefællesuccession eller dødsfald fejler lukket i KGL-sporet. Kilderne er
-[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176)
+først de gyldige poster i Personskattelovens kapitalindkomst. En dansk
+ægtefælle, et dødsbo eller en efterlevende ægtefælle kan overtage pantebrevets
+skattemæssige position, hvor Kildeskatteloven eller Dødsboskatteloven foreskriver
+succession. Hvis en udlodning i stedet udløser realisation, beskattes resultatet
+i boet, og ægtefællen fortsætter fra boopgørelsesværdien. Personskat medregner
+kun personens egne realisationer; ikke-understøttede modtagere og delvise
+ejerskifter fejler fortsat lukket. Kilderne er
+[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176),
+[Kildeskatteloven, LBK nr. 460/2024](https://www.retsinformation.dk/eli/lta/2024/460),
+[Dødsboskatteloven, LBK nr. 426/2019](https://www.retsinformation.dk/eli/lta/2019/426)
 og
 [Den juridiske vejledning C.H.2.1.11.9](https://info.skat.dk/data.aspx?oid=2292757).
 

@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-02a78d` (ready for review)
-Latest implementation slice submitted for review: `td-02a78d`
-Latest approved implementation slice: `td-638478`
+Current focus issue: `td-fb50c8` (ready for review)
+Latest implementation slice submitted for review: `td-fb50c8`
+Latest approved implementation slice: `td-02a78d`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -49,17 +49,25 @@ lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
 Latest integration: Kursgevinstlovens selvstændige behandling af et
-EBL § 6 D-sælgerpantebrev er nu koblet til den kanoniske Personskat-graf.
-Pantebrevets kontantværdi er anskaffelsessum, hovedstolen frigives
-forholdsmæssigt ved afdrag, afståelse eller indfrielse, og årets gevinst eller
-tab føres til Personskattelovens § 4, stk. 1, nr. 2 uden at blive blandet sammen
-med den udskudte ejendomsavance. EBL-hændelsen bestemmer fremrykningen ud fra
-berørt restgæld; KGL bruger særskilt det faktiske provenu. Et pantebrev til kurs
-80 giver derfor i vejledningens eksempel 300.000 kr. i årlig EBL-fortjeneste og
-75.000 kr. i årlig kursgevinst ved et afdrag på 375.000 kr. Afståelse og
-ekstraordinær indfrielse er dækket i begge runtimes. Ægtefællesuccession og
-sælgers død fejler lukket i KGL-broen, indtil fordelingen til den fortsættende
-skatteyder eller boet er modelleret.
+EBL § 6 D-sælgerpantebrev er nu koblet til den kanoniske Personskat-graf med
+typet skatteyderidentitet og ejerskifte. Pantebrevets kontantværdi er
+anskaffelsessum, hovedstolen frigives forholdsmæssigt ved afdrag, afståelse eller
+indfrielse, og årets gevinst eller tab føres til Personskattelovens § 4, stk. 1,
+nr. 2 uden at blive blandet sammen med den udskudte ejendomsavance. EBL-hændelsen
+bestemmer fremrykningen ud fra berørt restgæld; KGL bruger særskilt det faktiske
+provenu. Et pantebrev til kurs 80 giver derfor i vejledningens eksempel 300.000
+kr. i årlig EBL-fortjeneste og 75.000 kr. i årlig kursgevinst ved et afdrag på
+375.000 kr.
+
+Kildeskattelovens §§ 26 B-27 kan nu lade en dansk ægtefælle fortsætte med samme
+anskaffelsessum og -tidspunkt. Dødsboskattelovens § 20 kan lade boet fortsætte,
+og §§ 58-59 kan føre positionen direkte til den længstlevende ægtefælle. Ved
+udlodning fra boet anvender §§ 35-38 enten succession eller realisation i boet
+til boopgørelsesværdien med et nyt grundlag hos ægtefællen. Den kanoniske
+Personskat-graf medregner kun realisationer, der både tilhører beregningens
+skatteyder og har personrollen; boets indkomst kan derfor ikke glide ind i
+afdødes eller ægtefællens personskat. Delvise pantebrevsoverførsler og andre
+modtagere end de modellerede ægtefælle- og bogrene fejler fortsat lukket.
 
 Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu egne og
 en samlevende ægtefælles faktiske ejendomsafståelser, tidligere års uudnyttede
@@ -175,8 +183,9 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-119 typede inputkolonner på `cases`-arket plus `case_id` og 27 relationelle
-kildeark. Kontrakten når nu 245 domænedefinitioner. De to ejendomsark rummer
+121 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 27
+relationelle kildeark. Kontrakten når nu 248 domænedefinitioner. De to
+ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
 beregnede mellemfelter fra brugeren.
@@ -203,7 +212,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 335 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 351 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -213,6 +222,10 @@ ejendommens placering og de efterfølgende års hændelser har tilsvarende egne
 etiketter og interviewspørgsmål. Det samme gælder KGL-valget, pantebrevets
 identifikation, skatteyderens seks kildefakta, årets øvrige § 14-grundlag og
 senere afståelser eller indfrielser med år, art, berørt hovedstol og provenu.
+Beregningens person, pantebrevets oprindelige skatteyder og de typede fakta om
+ægtefælle- eller dødsbosuccession har også egne etiketter og spørgsmål. Det
+omfatter modtageridentiteter, bopæl, boets identitet og skattefritagelse,
+salgsvalg, fortsat dansk beskatningsret og boopgørelsesværdien.
 EBL § 11, stk. 2 har yderligere 66 poster for personen og ægtefællen. De dækker
 valget om ny genanbringelse, anvendelse, selskabsforhold, investering,
 udenlandsforhold, begæringsdatoer, ejerskab og hjemmel efter §§ 6 A eller 6 C.
@@ -231,7 +244,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`b8fceb077480c113b1b4ef918bd77f0921dbbd5ce4f4863f0de9d1bc802c32fb`.
+`5619b405a8ec50f1987fef54f93b79cca476e2a0cccffe26ac11f8bd764e1b97`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
@@ -239,7 +252,7 @@ sin præcise juridiske etiket og sit interviewspørgsmål.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
-passerer på 455,83 sekunder. `td-6659f1`
+passerer på 470,96 sekunder. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -1725,9 +1738,13 @@ encoded as a temporal rule on top of the consolidation.
   `kursgevinstloven-ebl-par6d.runa` and its `.scenario.runa` file exist and pass
   interpreted and compiled execution. They model proportional cash-value basis,
   ordinary repayments, partial/full disposal, extraordinary redemption and the
-  EBL § 6 D event bridge. Unsupported succession and death allocation fail
-  closed. Canonical Personskat matches notes to EBL ledgers by identity and
-  emits § 4, stk. 1, nr. 2 posts only when the complete chain is valid.
+  EBL § 6 D event bridge. Lifetime spouse succession, estate succession,
+  direct succession by a surviving spouse and distribution from an estate now
+  preserve or reset the KGL position according to the typed statutory facts.
+  Unsupported beneficiaries and partial ownership transfers fail closed.
+  Canonical Personskat matches notes to EBL ledgers and the target taxpayer by
+  identity and emits § 4, stk. 1, nr. 2 posts only for person realizations when
+  the complete chain is valid.
 - `kursgevinstloven-par32.runa`, `kursgevinstloven-par32.scenario.runa` and
   `kursgevinstloven-par32-aktieklasser.scenario.runa` exist and pass interpreted and compiled
   execution. They implement the complete current § 32 annual contract-loss
@@ -2670,8 +2687,9 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 245 nåbare definitioner, 119 typede
-  inputkolonner plus `case_id` og 27 relationelle kildeark. XLSX/JSON-
+- Det genererede Personskat-regneark har nu 248 nåbare definitioner, 121
+  synlige overskriftsceller inklusive `case_id` og 27 relationelle kildeark.
+  XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
   kapitalomkostning, et kildefaktabåret § 9 C-befordringsfradrag og en
@@ -2693,14 +2711,16 @@ Review candidates to revisit deliberately, not as broad churn:
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
   fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 335 eksplicitte menneskelige feltetiketter og
+  Kontrakten har 351 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
   anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
   KGL-posterne navngiver pantebrevslisten, pantebrevsidentiteten,
   skatteyderfakta, § 14-grundlaget og senere dispositioners år, art, hovedstol
-  og provenu.
+  og provenu. Den navngiver nu også beregningens person, pantebrevets
+  oprindelige skatteyder og alle fakta i de understøttede ægtefælle- og
+  dødsboskifter.
   Heraf beskriver 66 poster § 11, stk. 2-valget og en eventuel ny
   genanbringelse for personen eller ægtefællen.
   Store enum-/variantvalg bruger et
@@ -2720,8 +2740,13 @@ Review candidates to revisit deliberately, not as broad churn:
   årets Personskattelov § 4, stk. 1, nr. 2-poster efter § 14-grænsen. EBL's
   fremrykning bruger den berørte restgæld, mens KGL-resultatet bruger det
   faktiske provenu. Uoverensstemmende identitet, manglende årsforløb,
-  dobbeltbeskatningsoverenskomst og endnu ikke fordelte successions- eller
-  dødsfaldsgrene får ingen skattemæssig virkning og forbliver synligt ugyldige.
+  dobbeltbeskatningsoverenskomst og ikke-understøttede modtagere får ingen
+  skattemæssig virkning og forbliver synligt ugyldige. En dansk ægtefælle, et
+  dødsbo og en længstlevende ægtefælle kan derimod overtage positionen med
+  bevaret grundlag og erhvervelsesår, hvor loven foreskriver succession. Hvis
+  boets udlodning i stedet udløser realisation, beskattes gevinst eller tab hos
+  boet til boopgørelsesværdien, og ægtefællen fortsætter fra det nye grundlag.
+  Personskat filtrerer derefter på skatteyderidentitet og personrolle.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
   kildeafledte ABL-aktivklassifikation som § 4, nr. 5, § 4 a og KGL § 32.
   Det afledte resultat bevares i PSL-resultatet, så audits og det kommende
@@ -2849,8 +2874,9 @@ Review candidates to revisit deliberately, not as broad churn:
   executable and round-trip through the canonical Personskat contract, and
   § 6 D now carries seller-note installment taxation and the separate KGL
   realization across years. Remaining bounded work includes the still
-  fail-closed multi-property § 10 allocation edges, taxpayer allocation on
-  seller-note succession or death (`td-fb50c8`), and remaining bounded
+  fail-closed multi-property § 10 allocation edges, partial seller-note
+  ownership transfers (`td-004794`), same-year payment and ownership-event
+  ordering (`td-c44ff7`), non-spouse beneficiaries and remaining bounded
   dependency rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and

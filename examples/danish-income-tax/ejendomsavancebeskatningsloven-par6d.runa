@@ -108,8 +108,8 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 # EblPar6DUdenlandskOmråde = EblPar6DEU | EblPar6DEØS | EblPar6DFærøerne | EblPar6DGrønland | EblPar6DTredjeland
 # EblPar6DFuldSkattepligtshjemmel = EblPar6DKildeskattelovensPar1 | EblPar6DSelskabsskattelovensPar1 | EblPar6DFondsbeskatningslovensPar1 | EblPar6DIkkeFuldtSkattepligtig
 # EblPar6DEjendomsplacering = EblPar6DEjendomIDanmark | EblPar6DEjendomIUdenlandskOmråde(område: EblPar6DUdenlandskOmråde, fuld_skattepligtshjemmel: EblPar6DFuldSkattepligtshjemmel, hjemmehørende_i_udlandet_efter_dobbeltbeskatningsoverenskomst: Boolsk, informationsudveksling_med_danmark: Boolsk)
-# EblPar6DÆgtefællesuccession = EblPar6DIngenÆgtefællesuccession | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse
-# EblPar6DDødsbosuccession = EblPar6DIngenEfterlevendeÆgtefællesuccession | EblPar6DEfterlevendeÆgtefælleIUskiftetBo | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29
+# EblPar6DÆgtefællesuccession = EblPar6DIngenÆgtefællesuccession | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk) | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse(modtagers_skatteyder_identifikation: Tekst, overdrager_hjemmehørende_i_danmark: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk)
+# EblPar6DDødsbosuccession = EblPar6DIngenEfterlevendeÆgtefællesuccession(boets_skatteyder_identifikation: Tekst) | EblPar6DEfterlevendeÆgtefælleIUskiftetBo(modtagers_skatteyder_identifikation: Tekst) | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29(boets_skatteyder_identifikation: Tekst, modtagers_skatteyder_identifikation: Tekst, bo_ikke_fritaget_for_beskatning_efter_par6: Boolsk, bo_har_valgt_salgsbeskatning_efter_par28_stk3: Boolsk, modtager_hjemmehørende_i_danmark: Boolsk, fordringen_kan_fortsat_beskattes_i_danmark: Boolsk, fordringens_værdi_i_boopgørelsen_kroner: Heltal)
 # EblPar6DHenstandsskatteyder = EblPar6DHenstandForPerson | EblPar6DHenstandForSelskab
 # EblPar6DHjemstedsområde = EblPar6DHjemstedIEU | EblPar6DHjemstedIEØS | EblPar6DHjemstedPåFærøerne | EblPar6DHjemstedIGrønland | EblPar6DHjemstedIAndetLand
 # EblPar6DHenstandsoplysninger = EblPar6DOplysningerRettidige | EblPar6DOplysningerForSeneMenFristoverskridelseTilsidesat | EblPar6DOplysningerForSeneUdenTilsidesættelse
@@ -176,8 +176,24 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
     | EblPar6DEjendomIDanmark -> Sandt
     | EblPar6DEjendomIUdenlandskOmråde(område, hjemmel, hjemmehørende_i_udlandet, informationsudveksling) -> ebl_par6d_tilladt_udenlandsk_område(område) && ebl_par6d_fuld_skattepligtshjemmel_findes(hjemmel) && hjemmehørende_i_udlandet == Falskt && informationsudveksling
 }
-| ebl_par6d_ægtefællesuccession_undtager(succession: EblPar6DÆgtefællesuccession) -> succession == EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B || succession == EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse
-| ebl_par6d_dødsbosuccession_undtager(succession: EblPar6DDødsbosuccession) -> succession == EblPar6DEfterlevendeÆgtefælleIUskiftetBo || succession == EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29
+| ebl_par6d_ægtefællesuccession_gyldig(succession: EblPar6DÆgtefællesuccession) -> match succession {
+    | EblPar6DIngenÆgtefællesuccession -> Sandt
+    | EblPar6DÆgtefælleMedSuccessionEfterKildeskattelovensPar26B(modtager, overdrager_i_danmark, modtager_i_danmark) -> modtager != "" && overdrager_i_danmark && modtager_i_danmark
+    | EblPar6DÆgtefælleMedSuccessionVedBodelingEfterSeparationEllerSkilsmisse(modtager, overdrager_i_danmark, modtager_i_danmark) -> modtager != "" && overdrager_i_danmark && modtager_i_danmark
+}
+| ebl_par6d_ægtefællesuccession_undtager(succession: EblPar6DÆgtefællesuccession) -> match succession {
+    | EblPar6DIngenÆgtefællesuccession -> Falskt
+    | _ -> ebl_par6d_ægtefællesuccession_gyldig(succession)
+}
+| ebl_par6d_dødsbosuccession_gyldig(succession: EblPar6DDødsbosuccession) -> match succession {
+    | EblPar6DIngenEfterlevendeÆgtefællesuccession(bo) -> bo != ""
+    | EblPar6DEfterlevendeÆgtefælleIUskiftetBo(modtager) -> modtager != ""
+    | EblPar6DEfterlevendeÆgtefælleUdloddetMedSuccessionEfterDødsboskattelovensPar36JfPar29(bo, modtager, bo_ikke_fritaget, bo_har_valgt_salgsbeskatning, modtager_i_danmark, fortsat_dansk_beskatning, boopgørelsesværdi) -> bo != "" && modtager != "" && bo != modtager && bo_ikke_fritaget && bo_har_valgt_salgsbeskatning == Falskt && (modtager_i_danmark || fortsat_dansk_beskatning) && boopgørelsesværdi >= 0
+}
+| ebl_par6d_dødsbosuccession_undtager(succession: EblPar6DDødsbosuccession) -> match succession {
+    | EblPar6DIngenEfterlevendeÆgtefællesuccession(_) -> Falskt
+    | _ -> ebl_par6d_dødsbosuccession_gyldig(succession)
+}
 | ebl_par6d_hjemstedsområde_tillader_henstand(område: EblPar6DHjemstedsområde) -> område == EblPar6DHjemstedIEU || område == EblPar6DHjemstedIEØS || område == EblPar6DHjemstedPåFærøerne || område == EblPar6DHjemstedIGrønland
 | ebl_par6d_tom_henstandstilstand() -> EblPar6DHenstandstilstand(skatteyder = EblPar6DHenstandForPerson, skattepligtsophørsår = 0, sidste_fordelingsår = 0, oprindelig_henstandssaldo_kroner = 0, henstandssaldo_kroner = 0, referencefortjeneste_kroner = 0, sælgerpantebrev_restgæld_kroner = 0, næste_indkomstår = 0, henstand_aktiv = Falskt)
 | ebl_par6d_tomt_henstandsresultat() -> EblPar6DHenstandsresultat(henstand_valgt = Falskt, henstandsbetingelser_opfyldt = Sandt, input_gyldigt = Sandt, beregnet_skat_af_fremrykket_fortjeneste_kroner = 0, skat_forfalder_ved_skattepligtsophør_kroner = 0, årsresultater = [], tilstand_ultimo = ebl_par6d_tom_henstandstilstand())
@@ -237,9 +253,9 @@ Told- og skatteforvaltningen kan se bort fra overskridelse af oplysningsfristen.
 | ebl_par6d_hændelse_understøttet(hændelse: EblPar6DHændelse) -> match hændelse { | EblPar6DIkkeUnderstøttetHændelse(_) -> Falskt | _ -> Sandt }
 | ebl_par6d_hændelse_gyldig(tilstand: EblPar6DTilstand, hændelse: EblPar6DHændelse) -> match hændelse {
     | EblPar6DIngenFremrykningshændelse -> Sandt
-    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, _) -> berørt > 0 && hel > 0 && berørt <= hel
-    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, provenu, _) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner && provenu >= 0
-    | EblPar6DSælgerDød(_) -> Sandt
+    | EblPar6DEjendomAfståetEllerÆndretAnvendelse(berørt, hel, succession) -> berørt > 0 && hel > 0 && berørt <= hel && ebl_par6d_ægtefællesuccession_gyldig(succession)
+    | EblPar6DPantebrevAfståetEllerIndfriet(_, berørt, provenu, succession) -> berørt > 0 && berørt <= tilstand.sælgerpantebrev_restgæld_kroner && provenu >= 0 && ebl_par6d_ægtefællesuccession_gyldig(succession)
+    | EblPar6DSælgerDød(succession) -> ebl_par6d_dødsbosuccession_gyldig(succession)
     | EblPar6DSkattepligtOphørt(fakta) -> fakta.beregnet_skat_af_fremrykket_fortjeneste_kroner >= 0
     | EblPar6DFlyttetTilLandUdenInddrivelsesbistand(sikkerhed) -> ebl_par6d_sikkerhed_gyldig(sikkerhed)
     | EblPar6DFlyttetTilLandMedInddrivelsesbistand(_) -> Sandt
