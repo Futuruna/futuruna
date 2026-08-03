@@ -44,21 +44,34 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Den nuværende arbejdsbog afledes fra
-112 nåbare definitioner og har 109 typede inputkolonner plus sags-id. Variantvalg
+124 nåbare definitioner og har 117 typede inputkolonner plus sags-id. Variantvalg
 gør særlige skatteforhold, underskudsforhold, årsopgørelse og valgfri
 fradragsgrene eksplicitte; kun den valgte grens felter skal udfyldes. Regnearket
-bruger ni særskilte relaterede kildefaner, fordi de tilsvarende inputtyper
+bruger elleve særskilte relaterede kildefaner, fordi de tilsvarende inputtyper
 faktisk indeholder lister. Den kanoniske graf modtager nu renteindtægter,
 renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, identificerede omkostninger efter Personskattelovens
-§ 4, stk. 2 og ordinære eller særlige ABL-forløb. § 9 C's skatteår og
+§ 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser samt ordinære
+eller særlige ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
 aftrapningsindkomst samt § 9 D-resultatet afledes af reglerne og er ikke
-borgerfelter. Fri arbejdsgiverbetalt befordring bliver personlig indkomst uden
-at blive gjort til AM-bidragspligtig løn.
+borgerfelter. Ejendomsavancebeskatningslovens § 6 modregner egne og fremførte
+tab og kan overføre en samlevende ægtefælles overskydende tab, før § 4, stk. 1,
+nr. 14-posten dannes. Overførslen kan højst bruge modtagerens fortjeneste efter
+dennes egne tab; resten bevares til fremførsel. Fortjenester angivet under de endnu ikke fuldt modellerede
+EBL §§ 8/9-fritagelser afvises uden skattevirkning frem for at blive beskattet
+af den smallere model. Fri arbejdsgiverbetalt befordring bliver personlig
+indkomst uden at blive gjort til AM-bidragspligtig løn.
 § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre
 dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene
 kobles fortsat på det samme input, så den samlede borgerarbejdsbog udbygges fra
 reglerne frem for at blive håndskrevet ved siden af dem.
+
+Den stærkeste brugerflade behøver ikke være manuel udfyldning af 117 kolonner.
+En AI kan interviewe borgeren, bygge det samme typede input og bruge Futurunas
+regler til den deterministiske beregning og den efterfølgende forklaring.
+Kolonnestierne er allerede stabile maskinnøgler; menneskelige feltetiketter,
+interviewspørgsmål, hjælp, enheder og kilder skal tilføjes som generisk, typet
+metadata uden at gøre formuleringerne til en del af skattereglernes gyldighed.
 
 Kursgevinstloven § 32 er nu formuleret som en selvstændig årsopgørelse. Den
 fordeler kontrakttab mellem egne gevinster i året, tidligere års skattepligtige

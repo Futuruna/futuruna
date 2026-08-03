@@ -1065,6 +1065,8 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr13Resultat(omfattet_af_pensionsbeskatningslov53a_stk3: Boolsk, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr14Input(ejendomsavancebeskatningslov_resultat: EjendomsavancebeskatningslovResultat)
 # Par4Stk1Nr14Resultat(skattepligtig_efter_ejendomsavancebeskatningsloven: Boolsk, undtaget_efter_ejendomsavancebeskatningslov11: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, kapitalindkomst_kroner: Heltal)
+# Par4Stk1Nr14Årsinput(eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat)
+# Par4Stk1Nr14Årsresultat(indkomstår: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, egne_tab_modregnet_kroner: Heltal, ægtefælles_tab_modtaget_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr15Input(ligningslov12b_resultat: Ligningslov12BResultat)
 # Par4Stk1Nr15Resultat(omfattet_af_ligningslov12b_stk4_til_7_eller_9: Boolsk, skattepligtige_beløb_kroner: Heltal, fradragsberettigede_beløb_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr16Input(afskrivningslov40c_resultat: Afskrivningslov40CResultat)
@@ -1720,6 +1722,27 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 | par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(input: EjendomsavancebeskatningslovInput) -> par4_stk1_nr14_kapitalpost(par4_stk1_nr14_input_fra_ejendomsavancebeskatningslov(input))
+
+# Par4Stk1Nr14Årssag(input: Par4Stk1Nr14Årsinput) {
+    | egne_skattepligtige_fortjenester_kroner() -> input.eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner
+    | egne_tab_modregnet_kroner() -> input.eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner
+    | ægtefælles_tab_modtaget_kroner() -> input.ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner
+    | kapitalindkomst_kroner() -> penge_positivt_beløb(egne_skattepligtige_fortjenester_kroner() - egne_tab_modregnet_kroner() - ægtefælles_tab_modtaget_kroner())
+    | resultat() -> Par4Stk1Nr14Årsresultat(
+        indkomstår = input.eget_tabsårsresultat.indkomstår,
+        egne_skattepligtige_fortjenester_kroner = egne_skattepligtige_fortjenester_kroner(),
+        egne_tab_modregnet_kroner = egne_tab_modregnet_kroner(),
+        ægtefælles_tab_modtaget_kroner = ægtefælles_tab_modtaget_kroner(),
+        kapitalindkomst_kroner = kapitalindkomst_kroner()
+    )
+}
+| par4_stk1_nr14_årsresultat(input: Par4Stk1Nr14Årsinput) -> Par4Stk1Nr14Årssag(input).resultat()
+| par4_stk1_nr14_års_kapitalpost(resultat: Par4Stk1Nr14Årsresultat) -> Par4Kapitalpost(
+    art = Ejendomsavance,
+    beløb_kroner = resultat.kapitalindkomst_kroner,
+    personlig_reklassifikation = IngenPersonligReklassifikation,
+    personlig_indkomst_tillæg_kroner = 0
+)
 
 # Par4Stk1Nr15Sag(input: Par4Stk1Nr15Input) {
     | omfattet_af_ligningslov12b_stk4_til_7_eller_9() -> input.ligningslov12b_resultat.omfattet_af_stk4_til_7_eller_9

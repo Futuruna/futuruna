@@ -2,7 +2,7 @@
 
 @ importer ./ejendomsavancebeskatningsloven
 
--- Kilde: Retsinformation, LBK nr. 132 af 25/02/2019.
+-- Kilde: Retsinformation, LBK nr. 132 af 25/01/2019.
 -- https://www.retsinformation.dk/eli/lta/2019/132
 
 --@label:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
@@ -57,7 +57,7 @@ indkomstårets udgang.
     )],
     fortjenester = [],
     fremførsel = EblIngenFremførsel,
-    ægtefælles_fortjenester = [],
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 
@@ -101,7 +101,7 @@ indkomstårets udgang.
     )],
     fortjenester = [ebl_par6_egen_fortjeneste_2026],
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
-    ægtefælles_fortjenester = [ebl_par6_ægtefælles_fortjeneste_2026],
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ebl_par6_ægtefælles_fortjeneste_2026.skattepligtig_fortjeneste_kroner,
     gift_samlevende_ved_indkomstårets_udgang = Sandt
 ))
 
@@ -114,7 +114,7 @@ indkomstårets udgang.
     )],
     fortjenester = [ebl_par6_egen_fortjeneste_2026],
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2025),
-    ægtefælles_fortjenester = [ebl_par6_ægtefælles_fortjeneste_2026],
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ebl_par6_ægtefælles_fortjeneste_2026.skattepligtig_fortjeneste_kroner,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 
@@ -123,7 +123,7 @@ indkomstårets udgang.
     tabsposter = [],
     fortjenester = [],
     fremførsel = EblFremførselFraForrigeIndkomstår(resultat = ebl_par6_tabsår_2024),
-    ægtefælles_fortjenester = [],
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 

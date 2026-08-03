@@ -451,7 +451,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cases",
         );
         let case_headers = workbook_headers(&mut workbook, "cases");
-        assert_eq!(case_headers.len(), 110);
+        assert_eq!(case_headers.len(), 118);
         for expected in [
             "aktieavance.ordinært_aktieår.$variant",
             "lønmodtager.ligningsfradrag.befordring.$variant",
@@ -465,6 +465,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_kroner",
             "kapitalindkomst.renter.ligningslov6a.$variant",
             "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
+            "kapitalindkomst.ejendomsavance.$variant",
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.$variant",
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.MedFremførtEjendomstab.tab_kroner",
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_fremførte_tab.$variant",
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
@@ -496,6 +501,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "beløb_kroner"
             ]
         );
+        let own_property_sheet = workbook_collection_sheet_name(
+            &mut workbook,
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
+        );
+        let spouse_property_sheet = workbook_collection_sheet_name(
+            &mut workbook,
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser",
+        );
+        for sheet in [&own_property_sheet, &spouse_property_sheet] {
+            let property_headers = workbook_headers(&mut workbook, sheet);
+            for expected in [
+                "identifikation",
+                "afståelse",
+                "erhvervet_som_led_i_næring",
+                "kontant_anskaffelsessum_kroner",
+                "regulering_efter_par5_og_5a_kroner",
+                "kontant_afståelsessum_kroner",
+                "par11_stk2_genanbragt_erhvervsejendom",
+                "ejendomsafgrænsning.$variant",
+                "ejendomsafgrænsning.EblPar9Ejendom.tab_vedrørende_stuehus_ejerbolig_kroner",
+                "anskaffelsesgrundlag.$variant",
+                "anskaffelsesgrundlag.EblPar4Stk3TredjePktAnskaffelsesgrundlag.tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner",
+            ] {
+                assert!(
+                    property_headers.iter().any(|header| header == expected),
+                    "missing property source-fact column {expected} on {sheet}"
+                );
+            }
+        }
         let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
             "aktiv",
@@ -619,6 +653,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenLigningslov6AFradrag".to_string()),
                     ),
                     (
+                        "kapitalindkomst.ejendomsavance.$variant",
+                        Data::String("UdenEjendomsavance".to_string()),
+                    ),
+                    (
                         "skatteforhold.$variant",
                         Data::String("StandardSkatteforhold".to_string()),
                     ),
@@ -713,6 +751,117 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 3, header, value);
+        }
+        for (header, value) in [
+            (
+                "kapitalindkomst.ejendomsavance.$variant",
+                Data::String("MedEjendomsavance".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.$variant",
+                Data::String("MedFremførtEjendomstab".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.MedFremførtEjendomstab.fra_indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.MedFremførtEjendomstab.tab_kroner",
+                Data::Int(25_000),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_fremførte_tab.$variant",
+                Data::String("UdenFremførtEjendomstab".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.gift_samlevende_ved_indkomstårets_udgang",
+                Data::Bool(true),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 3, header, value);
+        }
+        let own_property_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
+        );
+        let spouse_property_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser",
+        );
+        for (row, item_id, identification, acquisition, disposal) in [
+            (
+                1,
+                "egen-fortjeneste-1",
+                "egen-fortjeneste",
+                1_000_000,
+                1_200_000,
+            ),
+            (2, "eget-tab-1", "eget-tab", 500_000, 450_000),
+        ] {
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-renter-befordring-2026".to_string()),
+                ),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("identifikation", Data::String(identification.to_string())),
+                (
+                    "afståelse",
+                    Data::String("EblAlmindeligAfståelse".to_string()),
+                ),
+                ("erhvervet_som_led_i_næring", Data::Bool(false)),
+                ("kontant_anskaffelsessum_kroner", Data::Int(acquisition)),
+                ("gæld_kursværdi_ved_anskaffelse_kroner", Data::Int(0)),
+                ("regulering_efter_par5_og_5a_kroner", Data::Int(0)),
+                ("par4_stk8_anskaffelse_udeladt_kroner", Data::Int(0)),
+                ("kontant_afståelsessum_kroner", Data::Int(disposal)),
+                ("overdragne_gældsposter_kursværdi_kroner", Data::Int(0)),
+                ("par4_stk8_afståelsesværdi_udeladt_kroner", Data::Int(0)),
+                ("par11_stk2_genanbragt_erhvervsejendom", Data::Bool(false)),
+                (
+                    "ejendomsafgrænsning.$variant",
+                    Data::String("EblPar6AlmindeligEjendom".to_string()),
+                ),
+                (
+                    "anskaffelsesgrundlag.$variant",
+                    Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, &own_property_sheet, row, header, value);
+            }
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-renter-befordring-2026".to_string()),
+            ),
+            ("item_id", Data::String("ægtefælles-tab-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("ægtefælles-tab".to_string())),
+            (
+                "afståelse",
+                Data::String("EblAlmindeligAfståelse".to_string()),
+            ),
+            ("erhvervet_som_led_i_næring", Data::Bool(false)),
+            ("kontant_anskaffelsessum_kroner", Data::Int(300_000)),
+            ("gæld_kursværdi_ved_anskaffelse_kroner", Data::Int(0)),
+            ("regulering_efter_par5_og_5a_kroner", Data::Int(0)),
+            ("par4_stk8_anskaffelse_udeladt_kroner", Data::Int(0)),
+            ("kontant_afståelsessum_kroner", Data::Int(270_000)),
+            ("overdragne_gældsposter_kursværdi_kroner", Data::Int(0)),
+            ("par4_stk8_afståelsesværdi_udeladt_kroner", Data::Int(0)),
+            ("par11_stk2_genanbragt_erhvervsejendom", Data::Bool(false)),
+            (
+                "ejendomsafgrænsning.$variant",
+                Data::String("EblPar6AlmindeligEjendom".to_string()),
+            ),
+            (
+                "anskaffelsesgrundlag.$variant",
+                Data::String("EblPar4AlmindeligtAnskaffelsesgrundlag".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &spouse_property_sheet, 1, header, value);
         }
         for (header, value) in [
             (
@@ -1018,6 +1167,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
                 "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
             },
+            "ejendomsavance": { "$variant": "UdenEjendomsavance" },
             "omkostninger": []
         },
         "aktieavance": {
@@ -1087,6 +1237,62 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "statshusmandsbrug_jordrente_beløb_kroner": 0,
                     "statshusmandsbrug_jordrente_betalt": false
                 }
+            }
+        },
+        "ejendomsavance": {
+            "$variant": "MedEjendomsavance",
+            "fakta": {
+                "egne_afståelser": [{
+                    "identifikation": "egen-fortjeneste",
+                    "afståelse": { "$variant": "EblAlmindeligAfståelse" },
+                    "erhvervet_som_led_i_næring": false,
+                    "kontant_anskaffelsessum_kroner": 1_000_000,
+                    "gæld_kursværdi_ved_anskaffelse_kroner": 0,
+                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par4_stk8_anskaffelse_udeladt_kroner": 0,
+                    "kontant_afståelsessum_kroner": 1_200_000,
+                    "overdragne_gældsposter_kursværdi_kroner": 0,
+                    "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
+                    "par11_stk2_genanbragt_erhvervsejendom": false,
+                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
+                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                }, {
+                    "identifikation": "eget-tab",
+                    "afståelse": { "$variant": "EblAlmindeligAfståelse" },
+                    "erhvervet_som_led_i_næring": false,
+                    "kontant_anskaffelsessum_kroner": 500_000,
+                    "gæld_kursværdi_ved_anskaffelse_kroner": 0,
+                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par4_stk8_anskaffelse_udeladt_kroner": 0,
+                    "kontant_afståelsessum_kroner": 450_000,
+                    "overdragne_gældsposter_kursværdi_kroner": 0,
+                    "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
+                    "par11_stk2_genanbragt_erhvervsejendom": false,
+                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
+                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                }],
+                "eget_fremført_tab": {
+                    "$variant": "MedFremførtEjendomstab",
+                    "fra_indkomstår": 2025,
+                    "tab_kroner": 25_000
+                },
+                "ægtefælles_afståelser": [{
+                    "identifikation": "ægtefælles-tab",
+                    "afståelse": { "$variant": "EblAlmindeligAfståelse" },
+                    "erhvervet_som_led_i_næring": false,
+                    "kontant_anskaffelsessum_kroner": 300_000,
+                    "gæld_kursværdi_ved_anskaffelse_kroner": 0,
+                    "regulering_efter_par5_og_5a_kroner": 0,
+                    "par4_stk8_anskaffelse_udeladt_kroner": 0,
+                    "kontant_afståelsessum_kroner": 270_000,
+                    "overdragne_gældsposter_kursværdi_kroner": 0,
+                    "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
+                    "par11_stk2_genanbragt_erhvervsejendom": false,
+                    "ejendomsafgrænsning": { "$variant": "EblPar6AlmindeligEjendom" },
+                    "anskaffelsesgrundlag": { "$variant": "EblPar4AlmindeligtAnskaffelsesgrundlag" }
+                }],
+                "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
+                "gift_samlevende_ved_indkomstårets_udgang": true
             }
         },
         "omkostninger": [{
@@ -1198,7 +1404,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
-        10_000
+        105_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]["$variant"],
+        "BeregnetEjendomsavance"
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["eget_tabsårsresultat"]["gyldigt_fremført_tab_fra_tidligere_år_kroner"],
+        25_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["ægtefælles_tabsårsresultat"]["tab_overført_til_ægtefælle_kroner"],
+        30_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["kapitalindkomst"]["ejendomsavance_resultat"]
+            ["par4_resultat"]["kapitalindkomst_kroner"],
+        95_000
     );
     assert_eq!(
         result["results"][2]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
@@ -2044,6 +2269,52 @@ fn workbook_headers(
         .iter()
         .map(ToString::to_string)
         .collect()
+}
+
+fn workbook_collection_sheet_name(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    path: &str,
+) -> String {
+    let rows: Vec<Vec<Data>> = workbook
+        .worksheet_range("_tables")
+        .expect("table metadata")
+        .rows()
+        .map(|row| row.to_vec())
+        .collect();
+    collection_sheet_name_from_metadata_rows(&rows, path)
+}
+
+fn workbook_collection_sheet_name_from_rows(
+    sheets: &[(String, Vec<Vec<Data>>)],
+    path: &str,
+) -> String {
+    let rows = &sheets
+        .iter()
+        .find(|(sheet, _)| sheet == "_tables")
+        .expect("table metadata sheet")
+        .1;
+    collection_sheet_name_from_metadata_rows(rows, path)
+}
+
+fn collection_sheet_name_from_metadata_rows(rows: &[Vec<Data>], path: &str) -> String {
+    let headers = rows.first().expect("table metadata headers");
+    let path_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "path")
+        .expect("table path column");
+    let sheet_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "sheet")
+        .expect("table sheet column");
+    rows.iter()
+        .skip(1)
+        .find(|row| {
+            row.get(path_column)
+                .is_some_and(|cell| cell.to_string() == path)
+        })
+        .and_then(|row| row.get(sheet_column))
+        .map(ToString::to_string)
+        .unwrap_or_else(|| panic!("missing collection metadata for {path}"))
 }
 
 fn assert_workbook_visibility(

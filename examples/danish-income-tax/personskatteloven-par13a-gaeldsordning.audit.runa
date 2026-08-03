@@ -127,7 +127,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     )],
     fortjenester = [],
     fremførsel = EblIngenFremførsel,
-    ægtefælles_fortjenester = [],
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = 0,
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 

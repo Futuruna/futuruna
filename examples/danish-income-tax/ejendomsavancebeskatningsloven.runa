@@ -2,6 +2,20 @@
 
 @ importer ./pengebeloeb
 
+# EjendomsavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11 = EjendomsavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/132",
+    identifier = "Ejendomsavancebeskatningsloven §§ 1, 1 A, 2, 4 og 11",
+    hentet_dato = "2026-07-18"
+)
+
+= ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus = EjendomsavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026 § 7",
+    hentet_dato = "2026-07-18"
+)
+
 -- Ejendomsavancebeskatningsloven -- Personskatteloven-afhængigheder.
 --
 -- Kilde: Retsinformation, LBK nr. 132 af 25/01/2019.
@@ -19,6 +33,7 @@ StartDate: 2019-02-08
 EndDate: 2026-07-01
 ----
 
+--@label:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_par11::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::currentness_source:ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus--
 ----
 § 1. Fortjeneste ved afståelse af fast ejendom medregnes til den
 skattepligtige indkomst efter reglerne i denne lov.
@@ -131,6 +146,7 @@ fortjenesten i en ny ejendom eller en ombygning, tilbygning eller nybygning
 efter reglerne i §§ 6 A eller 6 C.
 ----
 
+--@begin:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_par11--
 # EjendomsavancebeskatningslovAfståelse = EblAlmindeligAfståelse | EblEntreprisekontraktAfståelse | EblErstatningsEllerForsikringssum | EblGaveEllerArveforskud | EblEkspropriationserstatning | EblEkspropriationslignendeSalg | EblForurenetJordPar34Afhændelse
 # EjendomsavancebeskatningslovInput(indkomstår: Heltal, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, regulering_efter_par5_og_5a_kroner: Heltal, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, par11_stk2_genanbragt_erhvervsejendom: Boolsk)
 # EjendomsavancebeskatningslovResultat(indkomstår: Heltal, afståelse: EjendomsavancebeskatningslovAfståelse, omfattet_af_loven: Boolsk, undtaget_efter_par11: Boolsk, anskaffelsessum_kontantværdi_kroner: Heltal, reguleret_anskaffelsessum_kroner: Heltal, afståelsessum_kontantværdi_kroner: Heltal, fortjeneste_eller_tab_kroner: Heltal, skattepligtig_efter_par1: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal)
@@ -170,8 +186,7 @@ efter reglerne i §§ 6 A eller 6 C.
 }
 | ejendomsavancebeskatningslov_sag(input: EjendomsavancebeskatningslovInput) -> EjendomsavancebeskatningslovSag(input)
 | ejendomsavancebeskatningslov_resultat(input: EjendomsavancebeskatningslovInput) -> ejendomsavancebeskatningslov_sag(input).resultat()
-
-# EjendomsavancebeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+--@end:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_par11--
 
 = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5 = EjendomsavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2019/132",
@@ -213,9 +228,12 @@ indkomstårets udgang.
 # EjendomsavancePar6Anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner: Heltal)
 # EjendomsavancePar6Tabspost(resultat: EjendomsavancebeskatningslovResultat, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, anskaffelsesgrundlag: EjendomsavancePar6Anskaffelsesgrundlag)
 # EjendomsavancePar6TabspostResultat(indkomstår: Heltal, brutto_tab_kroner: Heltal, afskåret_efter_par8_kroner: Heltal, afskåret_boligdel_efter_par9_kroner: Heltal, afskåret_efter_par4_stk3_tredje_pkt_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
-# EjendomsavancePar6Tabsårsresultat(indkomstår: Heltal, tabspost_resultater: List(EjendomsavancePar6TabspostResultat), årets_fradragsberettigede_tab_kroner: Heltal, gyldigt_fremført_tab_fra_tidligere_år_kroner: Heltal, afvist_fremførsel_kroner: Heltal, årets_og_fremførte_tab_kroner: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, tab_modregnet_i_egne_fortjenester_kroner: Heltal, ægtefælles_skattepligtige_fortjenester_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal)
-# EjendomsavancePar6Fremførsel = EblIngenFremførsel | EblFremførselFraForrigeIndkomstår(resultat: EjendomsavancePar6Tabsårsresultat)
-# EjendomsavancePar6Tabsårsinput(indkomstår: Heltal, tabsposter: List(EjendomsavancePar6Tabspost), fortjenester: List(EjendomsavancebeskatningslovResultat), fremførsel: EjendomsavancePar6Fremførsel, ægtefælles_fortjenester: List(EjendomsavancebeskatningslovResultat), gift_samlevende_ved_indkomstårets_udgang: Boolsk)
+# EjendomsavancePar6Tabsårsresultat(indkomstår: Heltal, tabspost_resultater: List(EjendomsavancePar6TabspostResultat), årets_fradragsberettigede_tab_kroner: Heltal, gyldigt_fremført_tab_fra_tidligere_år_kroner: Heltal, afvist_fremførsel_kroner: Heltal, årets_og_fremførte_tab_kroner: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, tab_modregnet_i_egne_fortjenester_kroner: Heltal, ægtefælles_nettofortjeneste_efter_egne_tab_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal)
+# EjendomsavancePar6Fremførsel = EblIngenFremførsel | EblFremførselFraForrigeIndkomstår(resultat: EjendomsavancePar6Tabsårsresultat) | EblFremførtTabFraForrigeIndkomstår(fra_indkomstår: Heltal, tab_kroner: Heltal)
+# EjendomsavancePar6Tabsårsgrundlag(indkomstår: Heltal, tabsposter: List(EjendomsavancePar6Tabspost), fortjenester: List(EjendomsavancebeskatningslovResultat), fremførsel: EjendomsavancePar6Fremførsel)
+# EjendomsavancePar6Tabsårsinput(indkomstår: Heltal, tabsposter: List(EjendomsavancePar6Tabspost), fortjenester: List(EjendomsavancebeskatningslovResultat), fremførsel: EjendomsavancePar6Fremførsel, ægtefælles_nettofortjeneste_efter_egne_tab_kroner: Heltal, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
+# EjendomsavancePar6ÆgtefælleparInput(venstre: EjendomsavancePar6Tabsårsgrundlag, højre: EjendomsavancePar6Tabsårsgrundlag, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
+# EjendomsavancePar6ÆgtefælleparResultat(venstre: EjendomsavancePar6Tabsårsresultat, højre: EjendomsavancePar6Tabsårsresultat)
 
 | ejendomsavance_par6_tab_efter_ejendomsafgrænsning_kroner(post: EjendomsavancePar6Tabspost) -> match post.ejendomsafgrænsning {
     | EblPar6AlmindeligEjendom -> penge_positivt_beløb(post.resultat.tab_kroner)
@@ -247,10 +265,12 @@ indkomstårets udgang.
 | ejendomsavance_par6_fremførselsbeløb_kroner(fremførsel: EjendomsavancePar6Fremførsel) -> match fremførsel {
     | EblIngenFremførsel -> 0
     | EblFremførselFraForrigeIndkomstår(resultat) -> penge_positivt_beløb(resultat.tab_fremført_til_følgende_indkomstår_kroner)
+    | EblFremførtTabFraForrigeIndkomstår(_, tab_kroner) -> penge_positivt_beløb(tab_kroner)
 }
 | ejendomsavance_par6_fremførsel_gyldig(fremførsel: EjendomsavancePar6Fremførsel, indkomstår: Heltal) -> match fremførsel {
     | EblIngenFremførsel -> Sandt
     | EblFremførselFraForrigeIndkomstår(resultat) -> resultat.indkomstår + 1 == indkomstår
+    | EblFremførtTabFraForrigeIndkomstår(fra_indkomstår, tab_kroner) -> fra_indkomstår + 1 == indkomstår && tab_kroner >= 0
 }
 | ejendomsavance_par6_fremførsel_gyldigt_kroner(fremførsel: EjendomsavancePar6Fremførsel, indkomstår: Heltal) -> hvis ejendomsavance_par6_fremførsel_gyldig(fremførsel, indkomstår) { ejendomsavance_par6_fremførselsbeløb_kroner(fremførsel) } ellers { 0 }
 | ejendomsavance_par6_fremførsel_afvist_kroner(fremførsel: EjendomsavancePar6Fremførsel, indkomstår: Heltal) -> ejendomsavance_par6_fremførselsbeløb_kroner(fremførsel) - ejendomsavance_par6_fremførsel_gyldigt_kroner(fremførsel, indkomstår)
@@ -265,9 +285,9 @@ indkomstårets udgang.
     | egne_skattepligtige_fortjenester_kroner() -> ejendomsavance_par6_skattepligtige_fortjenester_kroner(input.fortjenester, input.indkomstår)
     | tab_modregnet_i_egne_fortjenester_kroner() -> penge_mindste_beløb(årets_og_fremførte_tab_kroner(), egne_skattepligtige_fortjenester_kroner())
     | tab_efter_egne_fortjenester_kroner() -> årets_og_fremførte_tab_kroner() - tab_modregnet_i_egne_fortjenester_kroner()
-    | ægtefælles_skattepligtige_fortjenester_kroner() -> ejendomsavance_par6_skattepligtige_fortjenester_kroner(input.ægtefælles_fortjenester, input.indkomstår)
+    | ægtefælles_nettofortjeneste_efter_egne_tab_kroner() -> penge_positivt_beløb(input.ægtefælles_nettofortjeneste_efter_egne_tab_kroner)
     | tab_overført_til_ægtefælle_kroner() -> 0
-    | exception ebl_par6_stk5_samlevende_ægtefælle tab_overført_til_ægtefælle_kroner() -> penge_mindste_beløb(tab_efter_egne_fortjenester_kroner(), ægtefælles_skattepligtige_fortjenester_kroner()) under input.gift_samlevende_ved_indkomstårets_udgang
+    | exception ebl_par6_stk5_samlevende_ægtefælle tab_overført_til_ægtefælle_kroner() -> penge_mindste_beløb(tab_efter_egne_fortjenester_kroner(), ægtefælles_nettofortjeneste_efter_egne_tab_kroner()) under input.gift_samlevende_ved_indkomstårets_udgang
     | tab_fremført_til_følgende_indkomstår_kroner() -> tab_efter_egne_fortjenester_kroner() - tab_overført_til_ægtefælle_kroner()
     | resultat() -> EjendomsavancePar6Tabsårsresultat(
         indkomstår = input.indkomstår,
@@ -278,11 +298,35 @@ indkomstårets udgang.
         årets_og_fremførte_tab_kroner = årets_og_fremførte_tab_kroner(),
         egne_skattepligtige_fortjenester_kroner = egne_skattepligtige_fortjenester_kroner(),
         tab_modregnet_i_egne_fortjenester_kroner = tab_modregnet_i_egne_fortjenester_kroner(),
-        ægtefælles_skattepligtige_fortjenester_kroner = ægtefælles_skattepligtige_fortjenester_kroner(),
+        ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ægtefælles_nettofortjeneste_efter_egne_tab_kroner(),
         tab_overført_til_ægtefælle_kroner = tab_overført_til_ægtefælle_kroner(),
         tab_fremført_til_følgende_indkomstår_kroner = tab_fremført_til_følgende_indkomstår_kroner()
     )
 }
 | ejendomsavance_par6_tabsår_sag(input: EjendomsavancePar6Tabsårsinput) -> EjendomsavancePar6TabsårSag(input)
 | ejendomsavance_par6_tabsårsresultat(input: EjendomsavancePar6Tabsårsinput) -> ejendomsavance_par6_tabsår_sag(input).resultat()
+| ejendomsavance_par6_tabsårsinput_fra_grundlag(grundlag: EjendomsavancePar6Tabsårsgrundlag, ægtefælles_nettofortjeneste_efter_egne_tab_kroner: Heltal, gift_samlevende_ved_indkomstårets_udgang: Boolsk) -> EjendomsavancePar6Tabsårsinput(
+    indkomstår = grundlag.indkomstår,
+    tabsposter = grundlag.tabsposter,
+    fortjenester = grundlag.fortjenester,
+    fremførsel = grundlag.fremførsel,
+    ægtefælles_nettofortjeneste_efter_egne_tab_kroner = ægtefælles_nettofortjeneste_efter_egne_tab_kroner,
+    gift_samlevende_ved_indkomstårets_udgang = gift_samlevende_ved_indkomstårets_udgang
+)
+| ejendomsavance_par6_tabsårsresultat_uden_ægtefælle(grundlag: EjendomsavancePar6Tabsårsgrundlag) -> ejendomsavance_par6_tabsårsresultat(ejendomsavance_par6_tabsårsinput_fra_grundlag(grundlag, 0, Falskt))
+| ejendomsavance_par6_nettofortjeneste_efter_egne_tab_kroner(resultat: EjendomsavancePar6Tabsårsresultat) -> penge_positivt_beløb(resultat.egne_skattepligtige_fortjenester_kroner - resultat.tab_modregnet_i_egne_fortjenester_kroner)
+
+# EjendomsavancePar6ÆgtefælleparSag(input: EjendomsavancePar6ÆgtefælleparInput) {
+    | venstre_uden_ægtefælle() -> ejendomsavance_par6_tabsårsresultat_uden_ægtefælle(input.venstre)
+    | højre_uden_ægtefælle() -> ejendomsavance_par6_tabsårsresultat_uden_ægtefælle(input.højre)
+    | venstre_nettofortjeneste_efter_egne_tab_kroner() -> ejendomsavance_par6_nettofortjeneste_efter_egne_tab_kroner(venstre_uden_ægtefælle())
+    | højre_nettofortjeneste_efter_egne_tab_kroner() -> ejendomsavance_par6_nettofortjeneste_efter_egne_tab_kroner(højre_uden_ægtefælle())
+    | venstre() -> ejendomsavance_par6_tabsårsresultat(ejendomsavance_par6_tabsårsinput_fra_grundlag(input.venstre, højre_nettofortjeneste_efter_egne_tab_kroner(), input.gift_samlevende_ved_indkomstårets_udgang))
+    | højre() -> ejendomsavance_par6_tabsårsresultat(ejendomsavance_par6_tabsårsinput_fra_grundlag(input.højre, venstre_nettofortjeneste_efter_egne_tab_kroner(), input.gift_samlevende_ved_indkomstårets_udgang))
+    | resultat() -> EjendomsavancePar6ÆgtefælleparResultat(
+        venstre = venstre(),
+        højre = højre()
+    )
+}
+| ejendomsavance_par6_ægtefællepar_resultat(input: EjendomsavancePar6ÆgtefælleparInput) -> EjendomsavancePar6ÆgtefælleparSag(input).resultat()
 --@end:ejendomsavancebeskatningsloven_par6_stk3_til_5--

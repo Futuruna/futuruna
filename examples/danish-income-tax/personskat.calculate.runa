@@ -4,7 +4,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4_par11::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -20,9 +20,14 @@
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
+# PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
+# PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, regulering_efter_par5_og_5a_kroner: Heltal, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, par11_stk2_genanbragt_erhvervsejendom: Boolsk, ejendomsafgrænsning: EjendomsavancePar6Ejendomsafgrænsning, anskaffelsesgrundlag: EjendomsavancePar6Anskaffelsesgrundlag)
+# PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
+# PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
+# PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
 # PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
-# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
@@ -154,6 +159,108 @@
     | MedLigningslov6AFradrag(ll6a_input) -> ligningslov6a_resultat(ll6a_input)
 }
 | personskat_ligningslov6a_resultat_anvendt(input: PersonskatLigningslov6AInput, skatteår: Heltal) -> hvis personskat_ligningslov6a_input_gyldigt(input, skatteår) { personskat_ligningslov6a_resultat(input, skatteår) } ellers { ligningslov6a_intet_fradrag_resultat(skatteår) }
+| personskat_ejendomsavance_fremførsel_gyldig(fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal) -> match fremførsel {
+    | UdenFremførtEjendomstab -> Sandt
+    | MedFremførtEjendomstab(fra_indkomstår, tab_kroner) -> fra_indkomstår + 1 == skatteår && tab_kroner >= 0
+}
+| personskat_ejendomsavance_fremførsel(fremførsel: PersonskatEjendomsavanceFremførsel) -> match fremførsel {
+    | UdenFremførtEjendomstab -> EblIngenFremførsel
+    | MedFremførtEjendomstab(fra_indkomstår, tab_kroner) -> EblFremførtTabFraForrigeIndkomstår(fra_indkomstår = fra_indkomstår, tab_kroner = tab_kroner)
+}
+| personskat_ejendomsavance_input(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancebeskatningslovInput(
+    indkomstår = skatteår,
+    afståelse = fakta.afståelse,
+    erhvervet_som_led_i_næring = fakta.erhvervet_som_led_i_næring,
+    kontant_anskaffelsessum_kroner = fakta.kontant_anskaffelsessum_kroner,
+    gæld_kursværdi_ved_anskaffelse_kroner = fakta.gæld_kursværdi_ved_anskaffelse_kroner,
+    regulering_efter_par5_og_5a_kroner = fakta.regulering_efter_par5_og_5a_kroner,
+    par4_stk8_anskaffelse_udeladt_kroner = fakta.par4_stk8_anskaffelse_udeladt_kroner,
+    kontant_afståelsessum_kroner = fakta.kontant_afståelsessum_kroner,
+    overdragne_gældsposter_kursværdi_kroner = fakta.overdragne_gældsposter_kursværdi_kroner,
+    par4_stk8_afståelsesværdi_udeladt_kroner = fakta.par4_stk8_afståelsesværdi_udeladt_kroner,
+    par11_stk2_genanbragt_erhvervsejendom = fakta.par11_stk2_genanbragt_erhvervsejendom
+)
+| personskat_ejendomsavance_afståelsesresultat(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> ejendomsavancebeskatningslov_resultat(personskat_ejendomsavance_input(fakta, skatteår))
+| personskat_ejendomsavance_afståelsesresultater(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_afståelsesresultat(fakta, skatteår))
+| personskat_ejendomsavance_identifikation_unik(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta) -> length(filter(afståelser, |anden: PersonskatEjendomsavanceFakta| anden.identifikation == fakta.identifikation)) == 1
+| personskat_ejendomsavance_ejendomsafgrænsning_grundfakta_gyldige(afgrænsning: EjendomsavancePar6Ejendomsafgrænsning, resultat: EjendomsavancebeskatningslovResultat) -> match afgrænsning {
+    | EblPar6AlmindeligEjendom -> Sandt
+    | EblPar8Ejendom -> Sandt
+    | EblPar9Ejendom(tab_vedrørende_stuehus_ejerbolig_kroner) -> tab_vedrørende_stuehus_ejerbolig_kroner >= 0 && tab_vedrørende_stuehus_ejerbolig_kroner <= resultat.tab_kroner
+}
+| personskat_ejendomsavance_anskaffelsesgrundlag_gyldigt(grundlag: EjendomsavancePar6Anskaffelsesgrundlag) -> match grundlag {
+    | EblPar4AlmindeligtAnskaffelsesgrundlag -> Sandt
+    | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner) -> tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner >= 0
+}
+| personskat_ejendomsavance_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> fakta.identifikation != "" && personskat_ejendomsavance_identifikation_unik(afståelser, fakta) && fakta.kontant_anskaffelsessum_kroner >= 0 && fakta.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && fakta.par4_stk8_anskaffelse_udeladt_kroner >= 0 && fakta.par4_stk8_anskaffelse_udeladt_kroner <= fakta.kontant_anskaffelsessum_kroner + fakta.gæld_kursværdi_ved_anskaffelse_kroner && fakta.kontant_anskaffelsessum_kroner + fakta.gæld_kursværdi_ved_anskaffelse_kroner - fakta.par4_stk8_anskaffelse_udeladt_kroner + fakta.regulering_efter_par5_og_5a_kroner >= 0 && fakta.kontant_afståelsessum_kroner >= 0 && fakta.overdragne_gældsposter_kursværdi_kroner >= 0 && fakta.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && fakta.par4_stk8_afståelsesværdi_udeladt_kroner <= fakta.kontant_afståelsessum_kroner + fakta.overdragne_gældsposter_kursværdi_kroner && personskat_ejendomsavance_ejendomsafgrænsning_grundfakta_gyldige(fakta.ejendomsafgrænsning, resultat) && personskat_ejendomsavance_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag)
+| personskat_ejendomsavance_afståelser_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_grundfakta_gyldige(afståelser, fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
+| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> resultat.skattepligtig_fortjeneste_kroner == 0 || fakta.ejendomsafgrænsning == EblPar6AlmindeligEjendom
+| personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta, personskat_ejendomsavance_afståelsesresultat(fakta, skatteår)))
+| personskat_ejendomsavance_tabspost(fakta: PersonskatEjendomsavanceFakta, skatteår: Heltal) -> EjendomsavancePar6Tabspost(
+    resultat = personskat_ejendomsavance_afståelsesresultat(fakta, skatteår),
+    ejendomsafgrænsning = fakta.ejendomsafgrænsning,
+    anskaffelsesgrundlag = fakta.anskaffelsesgrundlag
+)
+| personskat_ejendomsavance_tabsposter(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> map(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_tabspost(fakta, skatteår))
+| personskat_ejendomsavance_tabsårsgrundlag(afståelser: List(PersonskatEjendomsavanceFakta), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(
+    indkomstår = skatteår,
+    tabsposter = personskat_ejendomsavance_tabsposter(afståelser, skatteår),
+    fortjenester = personskat_ejendomsavance_afståelsesresultater(afståelser, skatteår),
+    fremførsel = personskat_ejendomsavance_fremførsel(fremførsel)
+)
+| personskat_ejendomsavance_ægtefælledata_relevant(fakta: PersonskatEjendomsavanceÅrsfakta) -> fakta.gift_samlevende_ved_indkomstårets_udgang || (length(fakta.ægtefælles_afståelser) == 0 && fakta.ægtefælles_fremførte_tab == UdenFremførtEjendomstab)
+| personskat_ejendomsavance_resultat(input: PersonskatEjendomsavanceInput, skatteår: Heltal) -> match input {
+    | UdenEjendomsavance -> IngenEjendomsavance
+    | MedEjendomsavance(fakta) -> {
+        = egne_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.egne_afståelser, skatteår)
+        = ægtefælles_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.ægtefælles_afståelser, skatteår)
+        = grundfakta_gyldige = skatteår > 0 && egne_grundfakta_gyldige && ægtefælles_grundfakta_gyldige
+        = egne_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.egne_afståelser, skatteår)
+        = ægtefælles_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.ægtefælles_afståelser, skatteår)
+        = fortjenesteafgrænsninger_understøttet = egne_fortjenesteafgrænsninger_understøttet && ægtefælles_fortjenesteafgrænsninger_understøttet
+        = fremførsler_gyldige = personskat_ejendomsavance_fremførsel_gyldig(fakta.eget_fremført_tab, skatteår) && personskat_ejendomsavance_fremførsel_gyldig(fakta.ægtefælles_fremførte_tab, skatteår)
+        = ægtefælledata_relevant = personskat_ejendomsavance_ægtefælledata_relevant(fakta)
+        hvis grundfakta_gyldige && fortjenesteafgrænsninger_understøttet && fremførsler_gyldige && ægtefælledata_relevant {
+            = egne_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser, skatteår)
+            = ægtefælles_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser, skatteår)
+            = ægtefællepar_resultat = ejendomsavance_par6_ægtefællepar_resultat(EjendomsavancePar6ÆgtefælleparInput(
+                venstre = personskat_ejendomsavance_tabsårsgrundlag(fakta.egne_afståelser, fakta.eget_fremført_tab, skatteår),
+                højre = personskat_ejendomsavance_tabsårsgrundlag(fakta.ægtefælles_afståelser, fakta.ægtefælles_fremførte_tab, skatteår),
+                gift_samlevende_ved_indkomstårets_udgang = fakta.gift_samlevende_ved_indkomstårets_udgang
+            ))
+            = eget_tabsårsresultat = ægtefællepar_resultat.venstre
+            = ægtefælles_tabsårsresultat = ægtefællepar_resultat.højre
+            = par4_resultat = par4_stk1_nr14_årsresultat(Par4Stk1Nr14Årsinput(
+                eget_tabsårsresultat = eget_tabsårsresultat,
+                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat
+            ))
+            BeregnetEjendomsavance(
+                fakta = fakta,
+                egne_afståelsesresultater = egne_afståelsesresultater,
+                ægtefælles_afståelsesresultater = ægtefælles_afståelsesresultater,
+                eget_tabsårsresultat = eget_tabsårsresultat,
+                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat,
+                par4_resultat = par4_resultat
+            )
+        } ellers {
+            UgyldigtEjendomsavancegrundlag(
+                fakta = fakta,
+                grundfakta_gyldige = grundfakta_gyldige,
+                fortjenesteafgrænsninger_understøttet = fortjenesteafgrænsninger_understøttet,
+                fremførsler_gyldige = fremførsler_gyldige,
+                ægtefælledata_relevant = ægtefælledata_relevant
+            )
+        }
+    }
+}
+| personskat_ejendomsavance_input_gyldigt(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | UgyldigtEjendomsavancegrundlag(_, _, _, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_ejendomsavance_kapitalposter(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(_, _, _, _, _, par4_resultat) -> [par4_stk1_nr14_års_kapitalpost(par4_resultat)]
+    | _ -> []
+}
 | personskat_kapitalomkostning_identifikation_unik(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> length(filter(omkostninger, |anden: PersonskatKapitalomkostningInput| anden.identifikation == omkostning.identifikation)) == 1
 | personskat_kapitalomkostning_gyldig(omkostninger: List(PersonskatKapitalomkostningInput), omkostning: PersonskatKapitalomkostningInput) -> omkostning.identifikation != "" && omkostning.beløb_kroner >= 0 && personskat_kapitalomkostning_identifikation_unik(omkostninger, omkostning)
 | personskat_par4_kapitalomkostning(omkostning: PersonskatKapitalomkostningInput, reklassifikation: KapitalPersonligReklassifikation) -> Par4Kapitalomkostning(
@@ -222,8 +329,10 @@
     | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
     | ligningslov6_input_gyldigt() -> personskat_ligningslov6_input_gyldigt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_input_gyldigt() -> personskat_ligningslov6a_input_gyldigt(input.renter.ligningslov6a, skatteår)
+    | ejendomsavance_resultat() -> personskat_ejendomsavance_resultat(input.ejendomsavance, skatteår)
+    | ejendomsavance_input_gyldigt() -> personskat_ejendomsavance_input_gyldigt(ejendomsavance_resultat())
     | omkostninger_gyldige() -> all(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostning_gyldig(input.omkostninger, omkostning))
-    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && omkostninger_gyldige()
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && ejendomsavance_input_gyldigt() && omkostninger_gyldige()
     | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
     | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -237,9 +346,10 @@
     )
     | rente_resultat() -> par4_stk1_nr1_resultat(rente_par4_input())
     | renteposter() -> hvis rentegrundlag_gyldigt() { [par4_stk1_nr1_kapitalpost(rente_par4_input())] } ellers { [] }
+    | ejendomsavanceposter() -> personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat())
     | kapitalomkostninger() -> hvis omkostninger_gyldige() { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation())) } ellers { [] }
     | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-        poster = concat(renteposter(), aktieavance.kapitalposter),
+        poster = concat(concat(renteposter(), ejendomsavanceposter()), aktieavance.kapitalposter),
         omkostninger = kapitalomkostninger()
     ))
     | resultat() -> PersonskatKapitalindkomstResultat(
@@ -247,11 +357,13 @@
         rentegrundlag_gyldigt = rentegrundlag_gyldigt(),
         ligningslov6_input_gyldigt = ligningslov6_input_gyldigt(),
         ligningslov6a_input_gyldigt = ligningslov6a_input_gyldigt(),
+        ejendomsavance_input_gyldigt = ejendomsavance_input_gyldigt(),
         omkostninger_gyldige = omkostninger_gyldige(),
         alle_input_gyldige = alle_input_gyldige(),
         ligningslov6_resultat = ligningslov6_resultat(),
         ligningslov6a_resultat = ligningslov6a_resultat(),
         rente_resultat = rente_resultat(),
+        ejendomsavance_resultat = ejendomsavance_resultat(),
         kapitalindkomst_resultat = kapitalindkomst_resultat()
     )
 }
@@ -265,6 +377,7 @@
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsavance = UdenEjendomsavance,
     omkostninger = []
 )
 | personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(

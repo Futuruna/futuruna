@@ -4,7 +4,7 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
 Current focus issue: `td-2d84ec` (in progress)
-Latest implementation slice submitted for review: `td-59e722`
+Latest implementation slice submitted for review: `td-7b2320`
 Latest approved implementation slice: `td-d471d3`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -48,7 +48,21 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu egne og
+en samlevende ægtefælles faktiske ejendomsafståelser, tidligere års uudnyttede
+ejendomstab og samlivsstatus. Skatteåret afledes fra den omgivende skattesag.
+Reglerne beregner hver afståelse efter Ejendomsavancebeskatningslovens §§ 1,
+1 A, 2, 4 og 11, anvender § 6's tabsafgrænsning, egen modregning,
+ægtefælleoverførsel og fremførsel og danner derefter Personskattelovens § 4,
+stk. 1, nr. 14-kapitalpost. Flere afståelser ligger i to relationelle
+regnearksfaner frem for brede gentagne kolonner. Ægtefælleoverførsel begrænses
+af modtagerens nettofortjeneste efter egne tab, så et overskydende tab ikke
+forsvinder i en allerede forbrugt bruttofortjeneste. Fortjenester på ejendomme, der
+angives som omfattet af EBL §§ 8 eller 9, afvises fortsat uden skattemæssig
+virkning, indtil de aktuelle fritagelsesregler er kildekopieret og modelleret;
+de bliver ikke stiltiende beskattet af den smallere §§ 1/4-model.
+
+Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu
 kildefakta for befordring efter Ligningslovens § 9 C og den valgfri
 erstatningsregel i § 9 D. Borgeren angiver arbejdsdage, afstand,
 befordringsformål, godtgørelser, bropassager, særlig transport og eventuelle
@@ -67,15 +81,22 @@ tilhørende omkostninger til personlig indkomst ved fordrings-, kontrakt- eller
 finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
-Det typede input genererer nu et regneark fra 112 nåbare definitioner med 109
-inputkolonner på `cases`-arket plus `case_id` og ni relationelle kildeark.
-Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel; de otte
-øvrige relationelle ark kommer fra de ordinære og særlige ABL-grene. De
-udfyldte rente- og befordringseksempler giver samme fulde resultat fra XLSX og
-kanonisk JSON.
+Det typede input genererer nu et regneark fra 124 nåbare definitioner med 117
+inputkolonner på `cases`-arket plus `case_id` og elleve relationelle kildeark.
+Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
+rummer egne og ægtefællens ejendomsafståelser, og de otte øvrige relationelle
+ark kommer fra de ordinære og særlige ABL-grene. Den udfyldte kombinationssag
+giver samme fulde resultat fra XLSX og kanonisk JSON for renter, fradrag,
+befordring, to egne ejendomsafståelser, ægtefællens ejendomstab og fremført tab.
 Regnearksgeneratorens enum- og variantvalg ligger i et skjult `_choices`-ark
 og bruges gennem navngivne celleområder; dermed gælder Excels grænse på 255
 tegn for indlejrede valglister ikke for store domæneunioner.
+
+De synlige kolonneoverskrifter er fortsat stabile maskinstier fra den typede
+kontrakt. Generisk feltmetadata til menneskelige etiketter, interviewspørgsmål,
+hjælp, enhed og kilde følges i `td-72e114`. Det skal gøre samme kontrakt egnet
+til et AI-interview, hvor AI'en indsamler fakta og udfylder inputtet, mens
+Futuruna beregner deterministisk og bevarer den juridiske forklaringskæde.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen
@@ -2469,9 +2490,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 - `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
   kildefakta for befordring efter Ligningslovens §§ 9 C/9 D, almindelige renter,
-  §§ 6/6 A-fradrag, § 4, stk. 2-omkostninger, ordinære ABL-hændelsesforløb og
-  særlige ABL-aktiver. § 9 C's skatteår og aftrapningsindkomst samt § 9 D's
+  §§ 6/6 A-fradrag, § 4, stk. 2-omkostninger, egne og en samlevende ægtefælles
+  ejendomsafståelser, ordinære ABL-hændelsesforløb og særlige ABL-aktiver.
+  Ejendomsafståelsernes skatteår, § 9 C's skatteår og aftrapningsindkomst samt § 9 D's
   juridiske resultat afledes internt og er derfor ikke borgerfelter.
+  EBL § 6's ægtefællepar-regel anvender begge ægtefællers egne tab først og
+  begrænser derefter overførslen til modtagerens resterende nettofortjeneste.
   De juridiske PSL § 4-/§ 4 a-poster afledes internt og bevares i resultatet;
   kalderen leverer hverken beregnede skatteposter eller indkomstkategorier.
   Ugyldige kildekæder giver ingen skattemæssig virkning og er fortsat synlige
@@ -2479,11 +2503,14 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 112 nåbare definitioner, 109 typede
-  inputkolonner plus `case_id` og ni relationelle kildeark. XLSX/JSON-roundtrip
+- Det genererede Personskat-regneark har nu 124 nåbare definitioner, 117 typede
+  inputkolonner plus `case_id` og elleve relationelle kildeark. XLSX/JSON-roundtrip
   fastholder den almindelige København-beregning, årsopgørelsen, en kildebaseret
   § 17-gevinst, rente-/fradragssagen med en relateret kapitalomkostning og et
-  kildefaktabåret § 9 C-befordringsfradrag. Store enum-/variantvalg bruger et skjult
+  kildefaktabåret § 9 C-befordringsfradrag. Samme sag afleder 95.000 kr. i
+  ejendomsavance efter et eget tab, fremført tab og ægtefællens overførte tab;
+  renter og øvrige fradrag giver derefter 105.000 kr. i nettokapitalindkomst.
+  Store enum-/variantvalg bruger et skjult
   `_choices`-ark med navngivne områder, så alle domænevalg kan blive dropdowns
   uden Excels 255-tegnsgrænse for indlejrede lister.
 - Personskattelovens § 4, stk. 1, nr. 5 b og stk. 6 forbruger nu den samme
@@ -2608,6 +2635,17 @@ Review candidates to revisit deliberately, not as broad churn:
   tax/deficit conditions and optional annual settlement. Keep the generated
   workbook downstream of that graph so scalar cells, enum dropdowns, variant
   payloads and related collection sheets cannot drift from the executable law.
+- Complete the current Ejendomsavancebeskatningsloven dependency before treating
+  property sales as generally supported. The aggregate now derives ordinary
+  taxable gains and § 6 current/carried/spouse loss allocation from fact rows,
+  but EBL §§ 5/5 A acquisition adjustments and the current §§ 8/9 gain
+  exemptions still require their own source-fact rules. Until then, a claimed
+  § 8/§ 9 gain branch fails closed and contributes zero rather than being taxed
+  under the narrower §§ 1/4 path.
+- Add generic field-target metadata from `td-72e114` to calculation schemas and
+  workbooks. Preserve canonical paths as machine keys, and expose labels,
+  interview questions, help, units and sources so an AI can collect citizen
+  facts conversationally without becoming the tax calculator itself.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already
