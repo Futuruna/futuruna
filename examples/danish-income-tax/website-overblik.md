@@ -176,10 +176,13 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 432 eksplicitte feltmetadata-poster.
-Niogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter
+interviewoplysninger. Kontrakten har nu 431 eksplicitte feltmetadata-poster.
+Otteogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter
 Ligningslovens § 9 B med sagsidentifikation, godtgørende arbejdsgiver, køretøj,
-kilometer, 60-dages-forhold, udgifter og godtgørelsesforhold. Seks
+kilometer, kronologisk rækkefølge, 60-dages-forhold, udgifter og
+godtgørelsesforhold. Reglerne udleder arbejdsgivernes hidtidige kilometer fra
+de ordnede sager, så borgeren eller AI-interviewet ikke skal levere et beregnet
+mellemresultat. Seks
 beskriver ejendomsdriftens variant, ejendomstype, beliggenhed,
 erhvervsmæssig udlejning, særlige betingelser og årets underskud eller
 overskud. Herunder er også otte for ABL § 15's udsteder- og

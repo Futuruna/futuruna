@@ -576,11 +576,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let business_travel_paths = workbook_column_paths(&mut workbook, &business_travel_sheet);
         for expected in [
             "identifikation",
+            "rækkefølge_i_indkomståret",
             "godtgørende_arbejdsgiver_identifikation",
             "køretøj",
             "befordring.art",
             "befordring.kilometer_i_sagen",
-            "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
             "godtgørelsesforhold.udbetalt_godtgørelse_kroner",
         ] {
             assert!(
@@ -594,6 +594,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "item_id",
             "position",
             "Kørselssag",
+            "Rækkefølge i indkomståret",
             "Godtgørende arbejdsgiver",
             "Køretøj til erhvervskørsel",
             "Kilometer i denne erhvervskørsel",
@@ -631,6 +632,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
             "lønmodtager.erhvervsbefordring.sager.identifikation",
+            "lønmodtager.erhvervsbefordring.sager.rækkefølge_i_indkomståret",
             "lønmodtager.erhvervsbefordring.sager.godtgørende_arbejdsgiver_identifikation",
             "lønmodtager.erhvervsbefordring.sager.køretøj",
             "lønmodtager.erhvervsbefordring.sager.befordring.kilometer_i_sagen",
@@ -1172,6 +1174,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Godtgørende arbejdsgiver",
                 "Hvilken arbejdsgiver",
             ),
+            (
+                "lønmodtager.erhvervsbefordring.sager.rækkefølge_i_indkomståret",
+                "Rækkefølge i indkomståret",
+                "kronologiske rækkefølge",
+            ),
         ] {
             let row = metadata
                 .rows()
@@ -1374,9 +1381,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             sheets,
             "lønmodtager.erhvervsbefordring.sager",
         );
-        for (row, item_id, employer_id, previous_employer_kilometres, reimbursement) in [
-            (1, "arbejdsgiver-a-kørsel", "arbejdsgiver-a", 0, 4_500),
-            (2, "arbejdsgiver-b-kørsel", "arbejdsgiver-b", 19_500, 3_500),
+        for (row, item_id, employer_id, kilometres, reimbursement) in [
+            (
+                1,
+                "arbejdsgiver-a-kørsel-1",
+                "arbejdsgiver-a",
+                19_500,
+                76_830,
+            ),
+            (2, "arbejdsgiver-b-kørsel-1", "arbejdsgiver-b", 1_000, 3_940),
+            (3, "arbejdsgiver-a-kørsel-2", "arbejdsgiver-a", 1_000, 3_510),
         ] {
             for (header, value) in [
                 (
@@ -1386,6 +1400,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ("item_id", Data::String(item_id.to_string())),
                 ("position", Data::Int(row as i64)),
                 ("identifikation", Data::String(item_id.to_string())),
+                ("rækkefølge_i_indkomståret", Data::Int(row as i64)),
                 (
                     "godtgørende_arbejdsgiver_identifikation",
                     Data::String(employer_id.to_string()),
@@ -1395,15 +1410,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "befordring.art",
                     Data::String("Ll9BMellemArbejdspladser".to_string()),
                 ),
-                ("befordring.kilometer_i_sagen", Data::Int(1_000)),
-                (
-                    "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
-                    Data::Int(previous_employer_kilometres),
-                ),
-                (
-                    "befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret",
-                    Data::Int(0),
-                ),
+                ("befordring.kilometer_i_sagen", Data::Int(kilometres)),
                 (
                     "befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder",
                     Data::Int(0),
@@ -3826,16 +3833,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let mut business_travel_case = json_input["cases"][0].clone();
     business_travel_case["case_id"] = Value::String("personskat-erhvervsbefordring-2026".into());
     let business_travel_a = serde_json::json!({
-        "identifikation": "arbejdsgiver-a-kørsel",
+        "identifikation": "arbejdsgiver-a-kørsel-1",
+        "rækkefølge_i_indkomståret": 1,
         "godtgørende_arbejdsgiver_identifikation": "arbejdsgiver-a",
         "køretøj": { "$variant": "Ll9BEgenBil" },
         "befordring": {
             "art": { "$variant": "Ll9BMellemArbejdspladser" },
-            "kilometer_i_sagen": 1_000,
-            "kilometerhistorik": {
-                "tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret": 0,
-                "tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret": 0
-            },
+            "kilometer_i_sagen": 19_500,
             "tres_dages_forhold": {
                 "arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder": 0,
                 "sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen": 0,
@@ -3853,7 +3857,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "kundeopsøgende_aktivitet": false,
         "antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang": 1,
         "godtgørelsesforhold": {
-            "udbetalt_godtgørelse_kroner": 4_500,
+            "udbetalt_godtgørelse_kroner": 76_830,
             "form": { "$variant": "Ll9BKilometerafregnet" },
             "arbejdsgiver_har_kontrolleret_kilometer": true,
             "bogføringsbilag_opfylder_par6": true,
@@ -3866,15 +3870,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
     });
     let mut business_travel_b = business_travel_a.clone();
-    business_travel_b["identifikation"] = Value::String("arbejdsgiver-b-kørsel".into());
+    business_travel_b["identifikation"] = Value::String("arbejdsgiver-b-kørsel-1".into());
+    business_travel_b["rækkefølge_i_indkomståret"] = Value::from(2);
     business_travel_b["godtgørende_arbejdsgiver_identifikation"] =
         Value::String("arbejdsgiver-b".into());
-    business_travel_b["befordring"]["kilometerhistorik"]
-        ["tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret"] =
-        Value::from(19_500);
-    business_travel_b["godtgørelsesforhold"]["udbetalt_godtgørelse_kroner"] = Value::from(3_500);
+    business_travel_b["befordring"]["kilometer_i_sagen"] = Value::from(1_000);
+    business_travel_b["godtgørelsesforhold"]["udbetalt_godtgørelse_kroner"] = Value::from(3_940);
+    let mut business_travel_a_second = business_travel_a.clone();
+    business_travel_a_second["identifikation"] = Value::String("arbejdsgiver-a-kørsel-2".into());
+    business_travel_a_second["rækkefølge_i_indkomståret"] = Value::from(3);
+    business_travel_a_second["befordring"]["kilometer_i_sagen"] = Value::from(1_000);
+    business_travel_a_second["godtgørelsesforhold"]["udbetalt_godtgørelse_kroner"] =
+        Value::from(3_510);
     business_travel_case["input"]["lønmodtager"]["erhvervsbefordring"] = serde_json::json!({
-        "sager": [business_travel_a, business_travel_b]
+        "sager": [business_travel_a, business_travel_b, business_travel_a_second]
     });
     business_travel_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
@@ -4000,14 +4009,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let business_travel_result = &result["results"][8]["result"]["erhvervsbefordring"];
     assert_eq!(business_travel_result["identifikationer_entydige"], true);
+    assert_eq!(business_travel_result["rækkefølge_gyldig"], true);
     assert_eq!(business_travel_result["alle_input_gyldige"], true);
     assert_eq!(
         business_travel_result["samlet_skattefri_godtgørelse_kroner"],
-        7_050
+        83_880
     );
     assert_eq!(
         business_travel_result["samlet_skattepligtig_godtgørelse_kroner"],
-        950
+        400
     );
     assert_eq!(
         business_travel_result["samlet_fradrag_i_personlig_indkomst_kroner"],
@@ -4018,11 +4028,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .as_array()
             .expect("§ 9 B per-case traces")
             .len(),
-        2
+        3
     );
     for (index, expected_employer, expected_previous, expected_free, expected_taxable) in [
-        (0, "arbejdsgiver-a", 0, 3_940, 560),
-        (1, "arbejdsgiver-b", 19_500, 3_110, 390),
+        (0, "arbejdsgiver-a", 0, 76_830, 0),
+        (1, "arbejdsgiver-b", 0, 3_940, 0),
+        (2, "arbejdsgiver-a", 19_500, 3_110, 400),
     ] {
         let case_result = &business_travel_result["sagsresultater"][index];
         assert_eq!(
@@ -4034,7 +4045,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             expected_employer
         );
         assert_eq!(
-            case_result["fakta"]["befordring"]["kilometerhistorik"]
+            case_result["ligningslov9b_input"]["befordring"]["kilometerhistorik"]
                 ["tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret"],
             expected_previous
         );
@@ -4048,12 +4059,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
     }
     assert_eq!(
+        business_travel_result["historik_ultimo"]["bil_motorcykelkilometer_pr_arbejdsgiver"]
+            ["arbejdsgiver-a"],
+        20_500
+    );
+    assert_eq!(
+        business_travel_result["historik_ultimo"]["bil_motorcykelkilometer_pr_arbejdsgiver"]
+            ["arbejdsgiver-b"],
+        1_000
+    );
+    assert_eq!(
         result["results"][8]["result"]["skat"]["bruttoløn_kroner"],
-        600_950
+        600_400
     );
     assert_eq!(
         result["results"][8]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
-        48_076
+        48_032
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

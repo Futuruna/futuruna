@@ -51,9 +51,12 @@ og audits bliver i `examples/danish-income-tax/`.
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul eller
 flere identificerede kørsels-, udgifts- og godtgørelsessager for
 lønmodtageres erhvervsmæssige befordring efter Ligningslovens § 9 B. Hver sag
-bevarer den godtgørende arbejdsgiver og dennes hidtidige kilometer særskilt,
-mens skatteåret, lønmodtagerrollen og Skatterådets fradragsmetode afledes af den
-omgivende skattesag og ikke er borgerfelter. Reglerne afgør først hver sags
+angiver sin fortløbende kronologiske rækkefølge og bevarer den godtgørende
+arbejdsgiver. Reglerne udleder selv både arbejdsgiverens hidtidige kilometer og
+den fælles kilometerhistorik for direkte fradrag fra de foregående sager;
+historikken er ikke et borgerfelt. Skatteåret, lønmodtagerrollen og Skatterådets
+fradragsmetode afledes tilsvarende af den omgivende skattesag. Reglerne afgør
+først hver sags
 60-dages-forhold, erhvervsmæssige kilometer, administrative
 godtgørelsesbetingelser, skattefri godtgørelse og et eventuelt direkte fradrag
 for kundeopsøgende aktivitet for flere arbejdsgivere. Derefter summeres kun en
@@ -61,9 +64,10 @@ samlet gyldig årslistes beløb. Fradraget føres gennem Personskattelovens § 3
 stk. 2, nr. 8. Skattepligtig godtgørelse føres som løn ind i både
 AM-grundlaget, lønmodtagerfradragene og § 9 C's aftrapningsindkomst, mens det
 direkte § 9 B-fradrag kun reducerer den personlige indkomst. De to beløb kan
-derfor ikke medregnes dobbelt. Dublerede sagsidentifikationer, ikke
-understøttede skatteår og negative kildefakta får ingen skattemæssig virkning,
-men hvert delresultat forbliver synligt. Den genererede kontrakt har 29 danske
+derfor ikke medregnes dobbelt. Dublerede sagsidentifikationer, rækkefølger med
+huller, ikke understøttede skatteår og negative kildefakta får
+ingen skattemæssig virkning, men hvert delresultat forbliver synligt. Den
+genererede kontrakt har 28 danske
 § 9 B-feltmetadata-poster med interviewspørgsmål, hjælp, enheder og
 kildehenvisninger.
 
@@ -244,8 +248,8 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
 146 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 30
 relationelle kildeark. § 9 B-sagerne ligger nu i deres egen nøglebundne tabel
-med 31 kolonner inklusive `case_id`, `item_id` og `position`. Kontrakten når nu
-319 domænedefinitioner. De to
+med 30 kolonner inklusive `case_id`, `item_id` og `position`. Kontrakten når nu
+321 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -273,7 +277,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 432 eksplicitte feltmetadata-poster. Seks af dem
+Kontrakten har aktuelt 431 eksplicitte feltmetadata-poster. Seks af dem
 beskriver ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6:
 variantvalg, ejendomstype, beliggenhed, erhvervsmæssig udlejning, særlige
 betingelser og årets underskud eller overskud. De otte
@@ -320,7 +324,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`cdededda1ebef67cce2987404def27fdd441cfa3c1f602e2f67fa36d9198940c`.
+`e3d1517325ea61d56ac4734e2dcdd497055339e6e020abcda4b07174f67cdc63`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -332,14 +336,14 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.761 domænekolonner; 413 materialiserer en eksplicit etiket,
+projektmappe har 1.760 domænekolonner; 412 materialiserer en eksplicit etiket,
 mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
 ejendomsdrift efter § 4, stk. 1, nr. 6 og de øvrige kildefaktasager, passerer på
-504,39 sekunder i den aktuelle debug-gate. `td-6659f1`
+659,82 sekunder i den aktuelle debug-gate. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -2795,11 +2799,13 @@ Review candidates to revisit deliberately, not as broad churn:
   AM-bidragspligtige løngrundlag. Et direkte § 9 B-fradrag efter
   Personskattelovens § 3, stk. 2, nr. 8 trækkes særskilt fra personlig indkomst.
   Kørslens år, personrolle og lovbestemte fradragsmetode afledes internt. Den
-  årlige grænse accepterer nul eller flere entydigt identificerede sager og
-  bevarer hver arbejdsgivers kilometerhistorik og juridiske delresultat. Hvis
-  blot én sag er ugyldig, eller identifikationerne ikke er entydige, er alle
-  samlede § 9 B-beløb nul, mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 319 nåbare definitioner, 146
+  årlige grænse accepterer nul eller flere entydigt identificerede sager i en
+  fortløbende kronologisk rækkefølge. Den udleder hver arbejdsgivers
+  kilometerhistorik og det fælles direkte-fradragsforløb i stedet for at modtage
+  beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
+  eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
+  mens delresultaterne forbliver synlige.
+- Det genererede Personskat-regneark har nu 321 nåbare definitioner, 146
   synlige overskriftsceller inklusive `case_id` og 30 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2826,14 +2832,13 @@ Review candidates to revisit deliberately, not as broad churn:
   sender faktiske oplysninger om en landzoneejendom og et driftsoverskud på
   25.000 kr. gennem begge adaptere; hjemlen og kapitalindkomsten afledes af
   reglerne.
-  En niende sag fører to arbejdsgivere gennem den nøglebundne § 9 B-tabel. Den
-  første har 1.000 kilometer og ingen tidligere kilometer hos arbejdsgiveren;
-  den anden har 1.000 kilometer efter 19.500 tidligere kilometer hos en anden
-  arbejdsgiver. Reglerne bevarer delresultaterne 3.940/560 kr. og
-  3.110/390 kr., summerer 7.050 kr. skattefrit og 950 kr. som
-  AM-bidragspligtig løn og giver samme fulde beregningsspor fra XLSX og
-  kanonisk JSON.
-  Kontrakten har 432 eksplicitte menneskelige feltmetadata-poster og
+  En niende sag fører et ordnet A/B/A-forløb gennem den nøglebundne § 9 B-tabel.
+  Arbejdsgiver A har først 19.500 kilometer, arbejdsgiver B derefter 1.000 og
+  arbejdsgiver A til sidst yderligere 1.000. Reglerne udleder startkilometrene
+  0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
+  skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
+  beregningsspor fra XLSX og kanonisk JSON.
+  Kontrakten har 431 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2984,11 +2989,6 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Udled på sigt den godtgørende arbejdsgivers kumulative § 9 B-kilometer fra
-  ordnede kørsels- eller afregningsfakta (`td-669212`). Den nuværende årsgrænse
-  holder forskellige arbejdsgiveres oplyste historik adskilt og fejler lukket
-  på ugyldige sager; næste dybde skal også forhindre, at flere sager for samme
-  arbejdsgiver kan oplyse indbyrdes uforenelige startkilometer.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation
