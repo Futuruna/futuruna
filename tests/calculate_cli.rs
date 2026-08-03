@@ -518,6 +518,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Kirkeskat",
             "Årets renteindtægter",
             "Årets renteudgifter",
+            "Driftsresultat fra bolig eller fritidsejendom",
+            "Ejendomstype for driftsresultatet",
+            "Ejendommens beliggenhed",
+            "Erhvervsmæssig udlejning",
+            "Særlige ejerboligbetingelser opfyldt",
+            "Årets overskud eller underskud fra ejendommen",
             "Kursgevinster og kurstab",
             "Udlejning eller fremleje af helårsbolig",
             "Fradragsmetode for udlejningen",
@@ -585,6 +591,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_kroner",
             "kapitalindkomst.renter.ligningslov6a.$variant",
             "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
+            "kapitalindkomst.ejendomsdrift.$variant",
+            "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
+            "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
+            "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.erhvervsmæssigt_udlejet",
+            "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt",
+            "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.overskud_eller_underskud_kroner",
             "kapitalindkomst.ejendomsavance.$variant",
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.$variant",
             "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.eget_fremført_tab.MedFremførtEjendomstab.tab_kroner",
@@ -1045,6 +1057,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .rows()
             .flatten()
             .any(|cell| cell.to_string() == "AblNæringsaktiePar17"));
+        assert!(choices
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "MedEjendomsdriftEfterPar4Nr6"));
 
         let metadata = workbook
             .worksheet_range("_columns")
@@ -1075,6 +1091,34 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .map(ToString::to_string)
             .expect("commuting variant guard")
             .contains("MedBefordringsfradrag"));
+        let metadata_headers = metadata.rows().next().expect("column metadata headers");
+        let sources_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "sources")
+            .expect("sources metadata column");
+        let property_income_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(2).map(ToString::to_string).as_deref()
+                    == Some("kapitalindkomst.ejendomsdrift.$variant")
+            })
+            .expect("property-income metadata");
+        let property_income_sources = property_income_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("property-income sources");
+        for expected in [
+            "personskatteloven_lov679_par4_nr6",
+            "personskatteloven_lov615_par4_nr6",
+            "ejendomsskatteloven_lov678_par3",
+            "ejendomsskatteloven_lov615_par3_aendring",
+        ] {
+            assert!(
+                property_income_sources.contains(expected),
+                "missing property-income source {expected}"
+            );
+        }
     }
 
     edit_workbook(&input_path, |sheets| {
@@ -1146,6 +1190,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenLigningslov6AFradrag".to_string()),
                     ),
                     (
+                        "kapitalindkomst.ejendomsdrift.$variant",
+                        Data::String("UdenEjendomsdriftEfterPar4Nr6".to_string()),
+                    ),
+                    (
                         "kapitalindkomst.ejendomsavance.$variant",
                         Data::String("UdenEjendomsavance".to_string()),
                     ),
@@ -1185,6 +1233,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 5, "personskat-ebl6d-historisk-2026");
         fill_wage_case(sheets, 6, "personskat-ebl11-genanbringelse-2026");
         fill_wage_case(sheets, 7, "personskat-fremleje-2026");
+        fill_wage_case(sheets, 8, "personskat-ejendomsdrift-2026");
+        for (header, value) in [
+            (
+                "kapitalindkomst.ejendomsdrift.$variant",
+                Data::String("MedEjendomsdriftEfterPar4Nr6".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
+                Data::String("EjskLandzoneOver5000M2".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
+                Data::String("EjskDanmark".to_string()),
+            ),
+            (
+                "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.erhvervsmæssigt_udlejet",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt",
+                Data::Bool(true),
+            ),
+            (
+                "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.overskud_eller_underskud_kroner",
+                Data::Int(25_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 8, header, value);
+        }
         for (header, value) in [
             (
                 "kapitalindkomst.fremleje.$variant",
@@ -2727,6 +2804,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
             },
             "ejendomsavance": { "$variant": "UdenEjendomsavance" },
+            "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
             "kursgevinst": { "$variant": "UdenKursgevinst" },
             "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
             "omkostninger": []
@@ -2848,6 +2926,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
             }
         },
+        "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
             "fakta": {
@@ -3067,6 +3146,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
             "fakta": {
@@ -3255,6 +3335,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
             "fakta": {
@@ -3338,6 +3419,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
             "fakta": {
@@ -3434,6 +3516,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": { "$variant": "UdenEjendomsavance" },
         "kursgevinst": { "$variant": "UdenKursgevinst" },
         "fremleje": {
@@ -3464,6 +3547,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(fremleje_case);
+    let mut property_income_case = json_input["cases"][0].clone();
+    property_income_case["case_id"] = Value::String("personskat-ejendomsdrift-2026".into());
+    property_income_case["input"]["kapitalindkomst"]["ejendomsdrift"] = serde_json::json!({
+        "$variant": "MedEjendomsdriftEfterPar4Nr6",
+        "fakta": {
+            "kategori": { "$variant": "EjskLandzoneOver5000M2" },
+            "beliggenhed": { "$variant": "EjskDanmark" },
+            "erhvervsmæssigt_udlejet": false,
+            "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+            "overskud_eller_underskud_kroner": 25_000
+        }
+    });
+    property_income_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(property_income_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -3506,6 +3609,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][6]["result"],
         json_result["results"][5]["result"]
+    );
+    assert_eq!(
+        result["results"][7]["result"],
+        json_result["results"][6]["result"]
     );
 
     assert_eq!(
@@ -3550,6 +3657,25 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         result["results"][2]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         75_000
+    );
+    assert_eq!(
+        result["results"][7]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        25_000
+    );
+    assert_eq!(
+        result["results"][7]["result"]["kapitalindkomst"]["ejendomsdrift_resultat"]["$variant"],
+        "BeregnetEjendomsdriftEfterPar4Nr6"
+    );
+    assert_eq!(
+        result["results"][7]["result"]["kapitalindkomst"]["ejendomsdrift_resultat"]
+            ["ejendomsskattelov_input"]["indkomstår"],
+        2026
+    );
+    assert_eq!(
+        result["results"][7]["result"]["kapitalindkomst"]["ejendomsdrift_resultat"]
+            ["par4_resultat"]["kapitalindkomst_kroner"],
+        25_000
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

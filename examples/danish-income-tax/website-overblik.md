@@ -44,7 +44,7 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
-nåbare domænegraf som beregningen og har aktuelt 140 synlige overskriftsceller
+nåbare domænegraf som beregningen og har aktuelt 146 synlige overskriftsceller
 inklusive sags-id og 29 relationelle kildetabeller. Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
@@ -53,12 +53,22 @@ kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
 renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
+driftsresultater fra bolig-, fritids- og lignende ejendomme efter
+Personskattelovens § 4, stk. 1, nr. 6,
 identificerede omkostninger efter Personskattelovens
 § 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser,
 KGL-kildefakta for EBL § 6 D-sælgerpantebreve samt ordinære eller særlige
 ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
 aftrapningsindkomst samt § 9 D-resultatet afledes af reglerne og er ikke
-borgerfelter.
+borgerfelter. For ejendomsdriften leverer borgeren ejendomstype, beliggenhed,
+anvendelse og årets beløb. Futuruna afleder hjemlen efter
+Ejendomsskattelovens § 3, herunder 2027-omnummereringen, og bevarer både
+medregnede og gyldigt ekskluderede beløb i resultatet.
+Kilderne er
+[ændringen af Personskattelovens § 4, stk. 1, nr. 6, LOV nr. 679/2023](https://www.retsinformation.dk/eli/lta/2023/679),
+[Ejendomsskatteloven, LOV nr. 678/2023](https://www.retsinformation.dk/eli/lta/2023/678)
+og
+[ændringslov nr. 615/2026 med virkning fra 2027](https://www.retsinformation.dk/eli/lta/2026/615).
 
 Ejendomsavancebeskatningslovens §§ 5 og 5 A udleder nu
 anskaffelsessummens årlige tillæg, forbedringsudgifter, nedsættelser og
@@ -133,6 +143,7 @@ Kolonnestierne er stabile maskinnøgler, mens generisk, typet feltmetadata nu ka
 give hver sti en menneskelig etiket, et interviewspørgsmål, hjælp, enhed og
 kildespor. Personskat-kontrakten bruger dette for skatteår, kommune, bruttoløn,
 befordring, aldersstatus, kirkeskat, renter, årsopgørelse og centrale
+ejendomsdriftsfakta samt
 ejendomsavancefakta som anskaffelsesår, afståelsesår, kontante summer,
 anskaffelsesgrundlag, indekseringsvalg og ejendomstype. Genanbringelsens
 lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
@@ -153,8 +164,11 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 397 eksplicitte feltmetadata-poster,
-herunder otte for ABL § 15's udsteder- og værdipapirklassifikation og alle nye
+interviewoplysninger. Kontrakten har nu 403 eksplicitte feltmetadata-poster.
+Seks beskriver ejendomsdriftens variant, ejendomstype, beliggenhed,
+erhvervsmæssig udlejning, særlige betingelser og årets underskud eller
+overskud. Herunder er også otte for ABL § 15's udsteder- og
+værdipapirklassifikation og alle nye
 ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et

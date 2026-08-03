@@ -1,0 +1,120 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+--@label:personskat_ejendomsdrift_scenarier::source:personskatteloven_lbk1284_par4::amendment_source:personskatteloven_lov679_par4_nr6::amendment_source:personskatteloven_lov615_par4_nr6::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring--
+----
+Fokuserede regressionsscenarier for den kanoniske beregningsgrænse.
+
+Scenarierne er ikke lovtekst. De fastholder, at borgeren eller en interviewende
+AI kun leverer kildefakta om ejendommens kategori, beliggenhed, anvendelse og
+årets driftsresultat. Skatteåret og den juridiske klassifikation efter
+ejendomsskattelovens § 3 og personskattelovens § 4, stk. 1, nr. 6 afledes af
+Futuruna.
+----
+
+--@begin:personskat_ejendomsdrift_scenarier--
+| personskat_ejendomsdrift_scenarie_input(skatteår: Heltal, ejendomsdrift: PersonskatEjendomsdriftInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = skatteår,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = PersonskatKapitalindkomstInput(
+        renter = PersonskatRenteInput(
+            renteindtægter_kroner = 0,
+            renteudgifter_kroner = 0,
+            næringsstatus = IkkeNæring,
+            ligningslov6 = UdenLigningslov6Kurstab,
+            ligningslov6a = UdenLigningslov6AFradrag
+        ),
+        ejendomsdrift = ejendomsdrift,
+        ejendomsavance = UdenEjendomsavance,
+        kursgevinst = UdenKursgevinst,
+        fremleje = UdenFremlejeEfterLigningslov15Q,
+        omkostninger = []
+    ),
+    aktieavance = personskat_ingen_aktieavance(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_ejendomsdrift_scenarie_fakta(kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, overskud_eller_underskud_kroner: Heltal) -> PersonskatEjendomsdriftFakta(
+    kategori = kategori,
+    beliggenhed = beliggenhed,
+    erhvervsmæssigt_udlejet = erhvervsmæssigt_udlejet,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    overskud_eller_underskud_kroner = overskud_eller_underskud_kroner
+)
+| personskat_ejendomsdrift_scenarie_resultat(skatteår: Heltal, fakta: PersonskatEjendomsdriftFakta) -> beregn_personskat(personskat_ejendomsdrift_scenarie_input(
+    skatteår = skatteår,
+    ejendomsdrift = MedEjendomsdriftEfterPar4Nr6(fakta = fakta)
+))
+
+= personskat_ejendomsdrift_2026_landzone_fakta = personskat_ejendomsdrift_scenarie_fakta(
+    kategori = EjskLandzoneOver5000M2,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    overskud_eller_underskud_kroner = 25000
+)
+= personskat_ejendomsdrift_2027_landzone_underskud_fakta = personskat_ejendomsdrift_scenarie_fakta(
+    kategori = EjskLandzoneOver5000M2,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    overskud_eller_underskud_kroner = -6000
+)
+= personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta = personskat_ejendomsdrift_scenarie_fakta(
+    kategori = EjskEjerlejlighedTreTilSeks,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    overskud_eller_underskud_kroner = 16000
+)
+= personskat_ejendomsdrift_2026_erhvervsudlejet_fakta = personskat_ejendomsdrift_scenarie_fakta(
+    kategori = EjskEnBoligenhed,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Sandt,
+    overskud_eller_underskud_kroner = 20000
+)
+
+| personskat_ejendomsdrift_2026_landzone_afledes_fra_kildefakta: personskat_ejendomsdrift_2026_landzone_fakta -> {
+    = resultat = personskat_ejendomsdrift_scenarie_resultat(2026, personskat_ejendomsdrift_2026_landzone_fakta)
+    resultat.kapitalindkomst.alle_input_gyldige && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 25000 && resultat.skat.nettokapitalindkomst_kroner == 25000 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
+        | BeregnetEjendomsdriftEfterPar4Nr6(_, ejendomsskattelov_input, _, par4_resultat) -> ejendomsskattelov_input.indkomstår == 2026 && par4_resultat.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr9 && par4_resultat.omfattet_af_kapitalindkomst && par4_resultat.kapitalindkomst_kroner == 25000
+        | _ -> Falskt
+    }
+}
+| personskat_ejendomsdrift_2027_underskud_og_nummerering_afledes: personskat_ejendomsdrift_2027_landzone_underskud_fakta -> {
+    = ejendomsdrift = personskat_ejendomsdrift_resultat(MedEjendomsdriftEfterPar4Nr6(fakta = personskat_ejendomsdrift_2027_landzone_underskud_fakta), 2027)
+    = kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+        poster = personskat_ejendomsdrift_kapitalposter(ejendomsdrift),
+        omkostninger = []
+    ))
+    kapitalindkomst.nettokapitalindkomst_kroner == -6000 && match ejendomsdrift {
+        | BeregnetEjendomsdriftEfterPar4Nr6(_, ejendomsskattelov_input, _, par4_resultat) -> ejendomsskattelov_input.indkomstår == 2027 && par4_resultat.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && par4_resultat.kapitalindkomst_kroner == -6000
+        | _ -> Falskt
+    }
+}
+| personskat_ejendomsdrift_udelukket_kategori_er_gyldig_og_synlig: personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta -> {
+    = resultat = personskat_ejendomsdrift_scenarie_resultat(2026, personskat_ejendomsdrift_2026_udelukket_ejerlejlighed_fakta)
+    resultat.kapitalindkomst.alle_input_gyldige && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
+        | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr6 && par4_resultat.omfattet_af_ejendomsskattelov_par3 && par4_resultat.omfattet_af_kapitalindkomst == Falskt && par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 16000
+        | _ -> Falskt
+    }
+}
+| personskat_ejendomsdrift_erhvervsudlejning_afskaerer_synligt: personskat_ejendomsdrift_2026_erhvervsudlejet_fakta -> {
+    = resultat = personskat_ejendomsdrift_scenarie_resultat(2026, personskat_ejendomsdrift_2026_erhvervsudlejet_fakta)
+    resultat.kapitalindkomst.alle_input_gyldige && resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match resultat.kapitalindkomst.ejendomsdrift_resultat {
+        | BeregnetEjendomsdriftEfterPar4Nr6(_, _, _, par4_resultat) -> par4_resultat.omfattet_af_ejendomsskattelov_par3 == Falskt && par4_resultat.omfattet_af_kapitalindkomst == Falskt && par4_resultat.ikke_omfattet_af_par4_nr6_kroner == 20000
+        | _ -> Falskt
+    }
+}
+
+? personskat_ejendomsdrift_2026_landzone_afledes_fra_kildefakta
+? personskat_ejendomsdrift_2027_underskud_og_nummerering_afledes
+? personskat_ejendomsdrift_udelukket_kategori_er_gyldig_og_synlig
+? personskat_ejendomsdrift_erhvervsudlejning_afskaerer_synligt
+--@end:personskat_ejendomsdrift_scenarier--

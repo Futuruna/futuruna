@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-940bbb` (in progress)
-Latest implementation slice submitted for review: `td-c44ff7`
-Latest approved implementation slice: `td-02a78d`
+Current focus issue: `td-c6b609` (in review)
+Latest implementation slice submitted for review: `td-c6b609`
+Latest approved implementation slice: `td-dc0c68`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -47,6 +47,21 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
+kildefakta om driftsresultater fra bolig-, fritids- og lignende ejendomme efter
+Personskattelovens § 4, stk. 1, nr. 6. Borgeren eller en interviewende AI
+leverer ejendomstype, beliggenhed, erhvervsmæssig udlejning, eventuelle særlige
+betingelser og årets underskud eller overskud. Skatteåret kommer fra den
+omgivende Personskat-sag. Reglerne afleder selv hjemlen efter
+Ejendomsskattelovens § 3, inklusive ændringen fra LOV nr. 679/2023 og
+omnummereringen ved LOV nr. 615/2026 fra 1. januar 2027, og danner først derefter
+§ 4-kapitalposten. En ejendom, der ikke er omfattet af Personskattelovens § 4,
+stk. 1, nr. 6, og erhvervsmæssig udlejning er gyldige kildefakta med et synligt
+beløb; de forsvinder
+ikke som ugyldigt eller manglende input. Seks menneskelige feltmetadata-poster
+giver arbejdsbogen og et AI-interview danske etiketter, spørgsmål, hjælp,
+enhed og typede kilder, mens de stabile maskinstier er uændrede.
 
 Latest integration: EBL § 6 D-årsforhold er nu ordnede lister af typede poster
 frem for ét samlet betalings- og hændelsesfelt. Hver betaling navngiver den
@@ -208,8 +223,8 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-140 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
-relationelle kildeark. Kontrakten når nu 291 domænedefinitioner. De to
+146 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
+relationelle kildeark. Kontrakten når nu 301 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -237,7 +252,10 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 397 eksplicitte feltmetadata-poster. De otte nye
+Kontrakten har aktuelt 403 eksplicitte feltmetadata-poster. Seks af dem
+beskriver ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6:
+variantvalg, ejendomstype, beliggenhed, erhvervsmæssig udlejning, særlige
+betingelser og årets underskud eller overskud. De otte
 ABL § 15-poster spørger til udstedervariant, registreret selskabsform,
 selskabets og foreningens danske skattemæssige hjemsted, foreningstype,
 SEL § 3-undtagelse, Fondsbeskatningsloven og værdipapirets ABL-status. AI'en
@@ -281,7 +299,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`e54ec5a3fdec7d047eb001c7a5d9529ab86a56edf21acdf766adebd87b056b82`.
+`82743eaa845927f63e53b6637bb40a7a982c7c8d693306522e7c50c1d55db263`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -293,13 +311,14 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.727 domænekolonner; 379 materialiserer en eksplicit etiket,
+projektmappe har 1.733 domænekolonner; 385 materialiserer en eksplicit etiket,
 mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
-passerer på 534,26 sekunder i den aktuelle debug-gate. `td-6659f1`
+ejendomsdrift efter § 4, stk. 1, nr. 6 og de øvrige kildefaktasager, passerer på
+610,26 sekunder i den aktuelle debug-gate. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -2736,8 +2755,9 @@ Review candidates to revisit deliberately, not as broad churn:
 
 - `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
   kildefakta for befordring efter Ligningslovens §§ 9 C/9 D, almindelige renter,
-  §§ 6/6 A-fradrag, § 4, stk. 2-omkostninger, egne og en samlevende ægtefælles
-  ejendomsafståelser, ordinære ABL-hændelsesforløb og særlige ABL-aktiver.
+  §§ 6/6 A-fradrag, ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6,
+  § 4, stk. 2-omkostninger, egne og en samlevende ægtefælles ejendomsafståelser,
+  ordinære ABL-hændelsesforløb og særlige ABL-aktiver.
   Ejendomsafståelsernes skatteår, § 9 C's skatteår og aftrapningsindkomst samt § 9 D's
   juridiske resultat afledes internt og er derfor ikke borgerfelter.
   EBL § 6's ægtefællepar-regel anvender begge ægtefællers egne tab først og
@@ -2749,7 +2769,7 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 291 nåbare definitioner, 140
+- Det genererede Personskat-regneark har nu 301 nåbare definitioner, 146
   synlige overskriftsceller inklusive `case_id` og 29 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2772,8 +2792,11 @@ Review candidates to revisit deliberately, not as broad churn:
   kr. i kapitalindkomst. En sjette sag rekonstruerer en tidligere § 6 A-
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
-  fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 397 eksplicitte menneskelige feltmetadata-poster og
+  fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten. En ottende sag
+  sender faktiske oplysninger om en landzoneejendom og et driftsoverskud på
+  25.000 kr. gennem begge adaptere; hjemlen og kapitalindkomsten afledes af
+  reglerne.
+  Kontrakten har 403 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

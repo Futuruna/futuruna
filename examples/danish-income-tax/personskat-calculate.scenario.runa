@@ -114,6 +114,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = MedLigningslov6Kurstab(input = personskat_calculate_ll6_input),
         ligningslov6a = MedLigningslov6AFradrag(input = personskat_calculate_ll6a_input)
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
@@ -129,6 +130,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
@@ -163,6 +165,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = MedLigningslov6Kurstab(input = personskat_calculate_ll6_forkert_år),
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
@@ -177,6 +180,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = fremleje,
@@ -266,6 +270,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = ejendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,

@@ -47,6 +47,18 @@
     hentet_dato = "2026-07-18"
 )
 
+= personskatteloven_lov679_par4_nr6 = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/679",
+    identifier = "LOV nr. 679 af 03/06/2023, § 12, nr. 1, og § 45, stk. 3",
+    hentet_dato = "2026-07-18"
+)
+
+= personskatteloven_lov615_par4_nr6 = PersonskattelovIndkomstKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026, § 12, nr. 1, og § 16, stk. 5",
+    hentet_dato = "2026-07-18"
+)
+
 = personskatteloven_par3_nr3_par4a_henvisning_advarsel = PersonskattelovKildeAdvarsel(
     kode = "PSL-PAR3-NR3-PAR4A-STK",
     besked = "Personskattelovens § 3, stk. 2, nr. 3, henviser fortsat til § 4 a, stk. 3. Den operative regel om, at pensionsfradrag i aktieindkomst ikke også kan fradrages i personlig indkomst, står i den gældende § 4 a, stk. 4. Reglerne anvender stk. 4's udtrykkelige dobbeltfradragsforbud."
@@ -888,7 +900,7 @@ iværksætterkonto
 | par3_personlig_indkomst_beregnes_beløb: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
 --@end::personskatteloven_par3--
 
---@label:personskatteloven_par4::source:personskatteloven_lbk1284_par4::dependency:kursgevinstloven_lbk1176_par32--
+--@label:personskatteloven_par4::source:personskatteloven_lbk1284_par4::amendment_source:personskatteloven_lov679_par4_nr6::amendment_source:personskatteloven_lov615_par4_nr6::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency:kursgevinstloven_lbk1176_par32--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 1) renteindtægter og renteudgifter samt fradrag efter ligningslovens § 6 og § 6 A,

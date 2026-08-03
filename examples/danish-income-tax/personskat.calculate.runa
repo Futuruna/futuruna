@@ -5,7 +5,7 @@
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
@@ -21,6 +21,9 @@
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
+# PersonskatEjendomsdriftFakta(kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, overskud_eller_underskud_kroner: Heltal)
+# PersonskatEjendomsdriftInput = UdenEjendomsdriftEfterPar4Nr6 | MedEjendomsdriftEfterPar4Nr6(fakta: PersonskatEjendomsdriftFakta)
+# PersonskatEjendomsdriftResultat = IngenEjendomsdriftEfterPar4Nr6 | BeregnetEjendomsdriftEfterPar4Nr6(fakta: PersonskatEjendomsdriftFakta, ejendomsskattelov_input: EjendomsskattelovPar3Input, par4_input: Par4Stk1Nr6Input, par4_resultat: Par4Stk1Nr6Resultat)
 # PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
 # PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_valg: EblPar11Stk2Valg, par6d_valg: EblPar6DValg)
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
@@ -36,8 +39,8 @@
 # PersonskatFremlejeInput = UdenFremlejeEfterLigningslov15Q | MedFremlejeEfterLigningslov15Q(fakta: PersonskatFremlejeFakta)
 # PersonskatFremlejeResultat = IngenFremlejeEfterLigningslov15Q | UgyldigtFremlejegrundlag(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, stk4_samordning_gyldig: Boolsk) | BeregnetFremlejeEfterLigningslov15Q(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, par4_resultat: Par4Stk1Nr17Resultat)
 # PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
-# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsdrift: PersonskatEjendomsdriftInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsdrift_resultat: PersonskatEjendomsdriftResultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
@@ -103,6 +106,48 @@
     label = "Årets renteudgifter",
     question = Some("Hvor store fradragsberettigede renteudgifter har du i indkomståret?"),
     help = Some("Angiv den samlede renteudgift, der indgår i kapitalindkomsten."),
+    unit = Some("kr./år")
+)
+= personskat_felt_ejendomsdrift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.$variant",
+    label = "Driftsresultat fra bolig eller fritidsejendom",
+    question = Some("Har du et overskud eller underskud fra en bolig, et fritidshus eller en lignende ejendom?"),
+    help = Some("Futuruna bruger ejendommens faktiske kategori og anvendelse til at afgøre, om resultatet er kapitalindkomst efter personskattelovens § 4, stk. 1, nr. 6."),
+    unit = None
+)
+= personskat_felt_ejendomsdrift_kategori = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
+    label = "Ejendomstype for driftsresultatet",
+    question = Some("Hvilken kategori efter ejendomsskattelovens § 3 tilhører ejendommen?"),
+    help = Some("Kategorien afgør den lovbestemte hjemmel og følger automatisk nummereringen før eller fra 2027."),
+    unit = None
+)
+= personskat_felt_ejendomsdrift_beliggenhed = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
+    label = "Ejendommens beliggenhed",
+    question = Some("Ligger ejendommen i Danmark eller i udlandet, på Færøerne eller i Grønland?"),
+    help = Some("Ejendomsskattelovens § 3, stk. 2, udvider udvalgte kategorier til ejendomme uden for Danmark."),
+    unit = None
+)
+= personskat_felt_ejendomsdrift_erhvervsudlejning = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.erhvervsmæssigt_udlejet",
+    label = "Erhvervsmæssig udlejning",
+    question = Some("Blev ejendommen udlejet erhvervsmæssigt i indkomståret?"),
+    help = Some("Erhvervsmæssigt udlejede ejendomme er ikke omfattet af ejendomsværdiskat efter ejendomsskattelovens § 3, stk. 3."),
+    unit = None
+)
+= personskat_felt_ejendomsdrift_saerlige_betingelser = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt",
+    label = "Særlige ejerboligbetingelser opfyldt",
+    question = Some("Er de særlige vurderings-, meddelelses- og historiske betingelser opfyldt, hvis ejendomskategorien kræver dem?"),
+    help = Some("Feltet er kun materielt for ejerlejligheder og boligfællesskaber omfattet af de særlige regler i § 3, stk. 1, nr. 6-8 før 2027."),
+    unit = None
+)
+= personskat_felt_ejendomsdrift_beloeb = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.overskud_eller_underskud_kroner",
+    label = "Årets overskud eller underskud fra ejendommen",
+    question = Some("Hvad er årets samlede overskud eller underskud fra ejendommen?"),
+    help = Some("Angiv overskud som et positivt beløb og underskud som et negativt beløb. Futuruna afgør derefter, om beløbet hører til kapitalindkomsten."),
     unit = Some("kr./år")
 )
 = personskat_felt_årsopgørelse = Beregningsfelt(
@@ -2703,6 +2748,7 @@
 --@label:beregn_personskat::field:personskat_felt_kirkeskat::source:folkekirkens_økonomilov_2023_424::dependency_source:kommuneskatteloven_2019_935--
 --@label:beregn_personskat::field:personskat_felt_renteindtægter::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_renteudgifter::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_ejendomsdrift::field:personskat_felt_ejendomsdrift_kategori::field:personskat_felt_ejendomsdrift_beliggenhed::field:personskat_felt_ejendomsdrift_erhvervsudlejning::field:personskat_felt_ejendomsdrift_saerlige_betingelser::field:personskat_felt_ejendomsdrift_beloeb::source:personskatteloven_lbk1284_par4::amendment_source:personskatteloven_lov679_par4_nr6::amendment_source:personskatteloven_lov615_par4_nr6::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring--
 --@label:beregn_personskat::field:personskat_felt_fremleje::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
 --@label:beregn_personskat::field:personskat_felt_fremlejerrolle::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
 --@label:beregn_personskat::field:personskat_felt_fremlejeform::source:ligningsloven_2025_1500--
@@ -3298,6 +3344,31 @@
 | personskat_aktieavance_resultat(input: PersonskatAktieavanceInput, skatteår: Heltal) -> PersonskatAktieavanceSag(input, skatteår).resultat()
 | personskat_ingen_aktieavance() -> PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [])
 
+| personskat_ejendomsdrift_ejendomsskattelov_input(fakta: PersonskatEjendomsdriftFakta, skatteår: Heltal) -> EjendomsskattelovPar3Input(
+    indkomstår = skatteår,
+    kategori = fakta.kategori,
+    beliggenhed = fakta.beliggenhed,
+    erhvervsmæssigt_udlejet = fakta.erhvervsmæssigt_udlejet,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt
+)
+| personskat_ejendomsdrift_resultat(input: PersonskatEjendomsdriftInput, skatteår: Heltal) -> match input {
+    | UdenEjendomsdriftEfterPar4Nr6 -> IngenEjendomsdriftEfterPar4Nr6
+    | MedEjendomsdriftEfterPar4Nr6(fakta) -> {
+        = ejendomsskattelov_input = personskat_ejendomsdrift_ejendomsskattelov_input(fakta, skatteår)
+        = par4_input = par4_stk1_nr6_input_fra_ejendomsskattelov_par3(ejendomsskattelov_input, fakta.overskud_eller_underskud_kroner)
+        BeregnetEjendomsdriftEfterPar4Nr6(
+            fakta = fakta,
+            ejendomsskattelov_input = ejendomsskattelov_input,
+            par4_input = par4_input,
+            par4_resultat = par4_stk1_nr6_resultat(par4_input)
+        )
+    }
+}
+| personskat_ejendomsdrift_kapitalposter(resultat: PersonskatEjendomsdriftResultat) -> match resultat {
+    | BeregnetEjendomsdriftEfterPar4Nr6(_, _, par4_input, _) -> [par4_stk1_nr6_kapitalpost(par4_input)]
+    | _ -> []
+}
+
 | personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QLejer
 | exception andelshaverrolle_til_ligningslov15q personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QAndelshaver under rolle == PersonskatUdlejendeAndelshaver
 | personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle) -> Ll15PLejer
@@ -3411,12 +3482,14 @@
     )
     | rente_resultat() -> par4_stk1_nr1_resultat(rente_par4_input())
     | renteposter() -> hvis rentegrundlag_gyldigt() { [par4_stk1_nr1_kapitalpost(rente_par4_input())] } ellers { [] }
+    | ejendomsdrift_resultat() -> personskat_ejendomsdrift_resultat(input.ejendomsdrift, skatteår)
+    | ejendomsdriftposter() -> personskat_ejendomsdrift_kapitalposter(ejendomsdrift_resultat())
     | ejendomsavanceposter() -> hvis ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() { personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat()) } ellers { [] }
     | kursgevinstposter() -> kursgevinst_resultat().kapitalposter
     | fremlejeposter() -> personskat_fremleje_kapitalposter(fremleje_resultat())
     | kapitalomkostninger() -> hvis omkostninger_gyldige() { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation())) } ellers { [] }
     | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-        poster = concat(concat(concat(concat(renteposter(), ejendomsavanceposter()), kursgevinstposter()), fremlejeposter()), aktieavance.kapitalposter),
+        poster = concat(concat(concat(concat(concat(renteposter(), ejendomsdriftposter()), ejendomsavanceposter()), kursgevinstposter()), fremlejeposter()), aktieavance.kapitalposter),
         omkostninger = kapitalomkostninger()
     ))
     | resultat() -> {
@@ -3446,11 +3519,13 @@
         )
         = renteresultat = par4_stk1_nr1_resultat(renteinput)
         = renteposter_resultat = hvis rentegrundlag_er_gyldigt { [par4_stk1_nr1_kapitalpost(renteinput)] } ellers { [] }
+        = ejendomsdrift = personskat_ejendomsdrift_resultat(input.ejendomsdrift, skatteår)
+        = ejendomsdriftposter_resultat = personskat_ejendomsdrift_kapitalposter(ejendomsdrift)
         = ejendomsavanceposter_resultat = hvis ejendomsavance_er_gyldig && kursgevinst_er_gyldig { personskat_ejendomsavance_kapitalposter(fordelt_ejendomsavance) } ellers { [] }
         = fremlejeposter_resultat = personskat_fremleje_kapitalposter(fremleje)
         = kapitalomkostninger_resultat = hvis omkostninger_er_gyldige { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation_resultat)) } ellers { [] }
         = samlet_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-            poster = concat(concat(concat(concat(renteposter_resultat, ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), aktieavance.kapitalposter),
+            poster = concat(concat(concat(concat(concat(renteposter_resultat, ejendomsdriftposter_resultat), ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), aktieavance.kapitalposter),
             omkostninger = kapitalomkostninger_resultat
         ))
         PersonskatKapitalindkomstResultat(
@@ -3466,6 +3541,7 @@
             ligningslov6_resultat = ligningslov6,
             ligningslov6a_resultat = ligningslov6a,
             rente_resultat = renteresultat,
+            ejendomsdrift_resultat = ejendomsdrift,
             ejendomsavance_resultat = fordelt_ejendomsavance,
             kursgevinst_resultat = kursgevinst,
             fremleje_resultat = fremleje,
@@ -3483,6 +3559,7 @@
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,

@@ -1,5 +1,19 @@
 @ sprog da
 
+# EjendomsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ejendomsskatteloven_lov678_par3 = EjendomsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/678",
+    identifier = "Ejendomsskatteloven § 3",
+    hentet_dato = "2026-07-18"
+)
+
+= ejendomsskatteloven_lov615_par3_aendring = EjendomsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026, § 2, nr. 2-3, og § 16, stk. 5",
+    hentet_dato = "2026-07-18"
+)
+
 -- Ejendomsskatteloven -- Personskatteloven-afhængighed for § 4, stk. 1, nr. 6.
 --
 -- Kilde: Retsinformation, LOV nr. 678 af 03/06/2023.
@@ -11,6 +25,7 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2026/615
 -- XML: https://www.retsinformation.dk/eli/lta/2026/615/dan/xml
 
+--@label:ejendomsskatteloven_par3::source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring--
 ----
 § 3. Der betales ejendomsværdiskat, jf. § 1, stk. 1, af følgende ejendomme:
 1) Ejendomme, der kun indeholder én selvstændig boligenhed.
@@ -100,6 +115,7 @@ Lov nr. 615 af 30/06/2026, § 16, stk. 5:
 fra og med den 1. januar 2027.
 ----
 
+--@begin:ejendomsskatteloven_par3--
 # EjendomsskattelovPar3Kategori = EjskEnBoligenhed | EjskToBoligenheder | EjskLandbrugsbolig | EjskSkovbolig | EjskLandbrugsSkovNaturbolig | EjskBlandetBoligErhverv | EjskEjerlejlighedTreTilSeks | EjskFlereEjereBeboet1994 | EjskBoligsamejeMv | EjskLandzoneOver5000M2 | EjskVindmølleparcel | EjskAndenEjendom
 # EjendomsskattelovPar3Beliggenhed = EjskDanmark | EjskUdlandFaeroerneGroenland
 # EjendomsskattelovPar3Hjemmel = EjskIngenPar3Hjemmel | EjskPar3Stk1Nr1 | EjskPar3Stk1Nr2 | EjskPar3Stk1Nr3 | EjskPar3Stk1Nr4 | EjskPar3Stk1Nr5 | EjskPar3Stk1Nr6 | EjskPar3Stk1Nr7 | EjskPar3Stk1Nr8 | EjskPar3Stk1Nr9 | EjskPar3Stk1Nr10
@@ -171,3 +187,4 @@ fra og med den 1. januar 2027.
 | ejsk_2027_tre_til_seks_betingelser_mangler_afskærer_ejendomsværdiskat: ejsk_2027_tre_til_seks_betingelser_mangler_fixture -> ejsk_2027_tre_til_seks_betingelser_mangler_fixture.stk1_hjemmel == EjskPar3Stk1Nr5 && ejsk_2027_tre_til_seks_betingelser_mangler_fixture.omfattet_af_ejendomsværdiskat == Falskt
 | ejsk_2027_udland_stk2_følger_psl_nr6_kategorier: ejsk_2027_udland_fixture -> ejsk_2027_udland_fixture.stk1_hjemmel == EjskPar3Stk1Nr9 && ejsk_2027_udland_fixture.stk2_udland == Sandt && ejsk_2027_udland_fixture.omfattet_af_ejendomsværdiskat == Sandt
 | ejsk_erhvervsudlejning_afskærer_ejendomsværdiskat_og_psl_nr6: ejsk_2027_erhvervsudlejet_fixture -> ejsk_2027_erhvervsudlejet_fixture.omfattet_af_ejendomsværdiskat == Falskt && ejsk_2027_erhvervsudlejet_fixture.omfattet_af_personskattelov_par4_nr6 == Falskt
+--@end:ejendomsskatteloven_par3--

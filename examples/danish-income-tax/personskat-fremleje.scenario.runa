@@ -28,6 +28,7 @@ Futuruna selv afleder fradrag, kapitalindkomst og ugyldige metodevalg.
             ligningslov6 = UdenLigningslov6Kurstab,
             ligningslov6a = UdenLigningslov6AFradrag
         ),
+        ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
         ejendomsavance = UdenEjendomsavance,
         kursgevinst = UdenKursgevinst,
         fremleje = fremleje,
