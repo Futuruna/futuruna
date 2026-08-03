@@ -202,8 +202,8 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-121 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
-relationelle kildeark. Kontrakten når nu 251 domænedefinitioner. De to
+140 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
+relationelle kildeark. Kontrakten når nu 279 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -231,7 +231,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 371 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 389 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -270,12 +270,19 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`4f0573366afd170eb008be8e12d15510d0fb8acc06565a5b3d96ad8ecbf01e20`.
+`0af23c58746658cf890264100aebb61df90ba0f5b3200a2f904c31838b50b924`.
+De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
+etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
+boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
+beløb, et tidligere metodevalg samt den valgfri samordning med § 15 P. AI'en
+leverer dermed kildefakta; Futuruna afleder selv bundfradrag, 40-pct.-fradrag,
+samordning, skudårets længde og kapitalindkomst efter personskattelovens § 4,
+stk. 1, nr. 17.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.701 domænekolonner; 353 materialiserer en eksplicit etiket,
+projektmappe har 1.719 domænekolonner; 371 materialiserer en eksplicit etiket,
 mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -2731,7 +2738,7 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 251 nåbare definitioner, 121
+- Det genererede Personskat-regneark har nu 279 nåbare definitioner, 140
   synlige overskriftsceller inklusive `case_id` og 29 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2755,7 +2762,7 @@ Review candidates to revisit deliberately, not as broad churn:
   genanbringelse ved en § 11-afståelse. XLSX og kanonisk JSON lader begge det
   gamle anskaffelsessumsnedslag på 200.000 kr. bortfalde og medregner den gamle
   fortjeneste på 200.000 kr. præcis én gang i kapitalindkomsten.
-  Kontrakten har 371 eksplicitte menneskelige feltetiketter og
+  Kontrakten har 389 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

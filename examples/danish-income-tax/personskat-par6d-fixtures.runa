@@ -125,6 +125,7 @@
             gift_samlevende_ved_indkomstårets_udgang = Sandt
         )),
         kursgevinst = personskat_par6d_scenarie_kursgevinst_med_ægtefælleidentifikation(skatteyder_identifikation, ægtefælles_skatteyder_identifikation),
+        fremleje = UdenFremlejeEfterLigningslov15Q,
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),

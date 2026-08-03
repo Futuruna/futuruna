@@ -116,6 +116,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = [
         PersonskatKapitalomkostningInput(identifikation = "bankgebyr", beløb_kroner = 2000)
     ]
@@ -130,6 +131,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = [
         PersonskatKapitalomkostningInput(identifikation = "finansieringsomkostning", beløb_kroner = 3000)
     ]
@@ -163,8 +165,62 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = []
 )))
+
+| personskat_calculate_kapitalindkomst_med_fremleje(fremleje: PersonskatFremlejeInput) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = fremleje,
+    omkostninger = []
+)
+| personskat_calculate_fremlejefakta(bruttolejeindtægt_kroner: Heltal, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: PersonskatLigningslov15QStk4Input) -> PersonskatFremlejeFakta(
+    rolle = PersonskatFremlejendeLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = bruttolejeindtægt_kroner,
+    faktiske_udgifter_kroner = 0,
+    tidligere_anvendt_par15p_stk3 = tidligere_anvendt_par15p_stk3,
+    stk4_samordning = stk4_samordning
+)
+| personskat_calculate_med_fremleje(fakta: PersonskatFremlejeFakta) -> beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_fremleje(MedFremlejeEfterLigningslov15Q(fakta = fakta))))
+
+= personskat_calculate_fremleje_resultat = personskat_calculate_med_fremleje(personskat_calculate_fremlejefakta(
+    bruttolejeindtægt_kroner = 60000,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = UdenSamordningMedLigningslov15P
+))
+= personskat_calculate_fremleje_stk4_resultat = personskat_calculate_med_fremleje(personskat_calculate_fremlejefakta(
+    bruttolejeindtægt_kroner = 32500,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = MedSamordningMedLigningslov15P(
+        par15q_udlejningsdage = 65,
+        par15p_fakta = PersonskatLigningslov15PSamordningsfakta(
+            udlejningsform = Ll15PHeleBoligen,
+            bruttolejeindtægt_kroner = 300000,
+            årlig_leje_eller_boligafgift_kroner = 60000,
+            samme_personer_mindst_fire_måneder = Sandt,
+            lejet_eller_ejet_dage = 365,
+            udlejningsdage = 300
+        ),
+        loftvalg = Ll15QStk4BevarPar15QAndel
+    )
+))
+= personskat_calculate_fremleje_tidligere_par15p_stk3_resultat = personskat_calculate_med_fremleje(personskat_calculate_fremlejefakta(
+    bruttolejeindtægt_kroner = 60000,
+    tidligere_anvendt_par15p_stk3 = Sandt,
+    stk4_samordning = UdenSamordningMedLigningslov15P
+))
 
 | personskat_calculate_ejendomsavancefakta(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype) -> PersonskatEjendomsavanceFakta(
     identifikation = identifikation,
@@ -212,6 +268,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsavance = ejendomsavance,
     kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = []
 )
 = personskat_calculate_ejendomsavance_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
@@ -474,6 +531,18 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_renter_og_ll_fradrag_afledes: personskat_calculate_rente_resultat -> personskat_calculate_rente_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6_resultat.fradrag_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6a_resultat.fradrag_kroner == 1000 && personskat_calculate_rente_resultat.kapitalindkomst.rente_resultat.kapitalindkomst_kroner == 12000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.fradragsberettigede_omkostninger_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_finansieringsnæring_reklassificeres: personskat_calculate_finansieringsnæring_resultat -> personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificerede_personlige_omkostninger_kroner == 3000 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.øvrig_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_ll6_forkert_år_afvises: personskat_calculate_ll6_forkert_år_resultat -> personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.ligningslov6_input_gyldigt == Falskt && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.alle_input_gyldige == Falskt && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.ligningslov6_resultat.fradrag_kroner == 2000 && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.rente_resultat.ligningslov6_fradrag_kroner == 0 && personskat_calculate_ll6_forkert_år_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 15000 && personskat_calculate_ll6_forkert_år_resultat.skat.nettokapitalindkomst_kroner == 15000
+| personskat_calculate_fremleje_afledes_fra_kildefakta: personskat_calculate_fremleje_resultat -> personskat_calculate_fremleje_resultat.kapitalindkomst.fremleje_input_gyldigt && personskat_calculate_fremleje_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_fremleje_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 14940 && personskat_calculate_fremleje_resultat.skat.nettokapitalindkomst_kroner == 14940 && match personskat_calculate_fremleje_resultat.kapitalindkomst.fremleje_resultat {
+    | BeregnetFremlejeEfterLigningslov15Q(_, _, ligningslov15q_resultat, par4_resultat) -> ligningslov15q_resultat.reguleret_bundfradrag_kroner == 35100 && ligningslov15q_resultat.fradrag_i_indkomstopgørelse_kroner == 45060 && ligningslov15q_resultat.overskud_efter_ligningslov15q_kroner == 14940 && par4_resultat.kapitalindkomst_kroner == 14940
+    | _ -> Falskt
+}
+| personskat_calculate_fremleje_stk4_samordnes_fra_kildefakta: personskat_calculate_fremleje_stk4_resultat -> personskat_calculate_fremleje_stk4_resultat.kapitalindkomst.fremleje_input_gyldigt && personskat_calculate_fremleje_stk4_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 15709 && match personskat_calculate_fremleje_stk4_resultat.kapitalindkomst.fremleje_resultat {
+    | BeregnetFremlejeEfterLigningslov15Q(_, ligningslov15q_input, ligningslov15q_resultat, par4_resultat) -> ligningslov15q_input.stk4_samordning.par15p_resultat.fuldt_bundfradrag_kroner == 40000 && ligningslov15q_resultat.stk4.par15q_andel_basispoint == 1800 && ligningslov15q_resultat.stk4.par15p_andel_basispoint == 8200 && ligningslov15q_resultat.stk4.par15q_bundfradrag_efter_stk4_kroner == 6318 && par4_resultat.kapitalindkomst_kroner == 15709
+    | _ -> Falskt
+}
+| personskat_calculate_fremleje_ugyldigt_valg_afvises: personskat_calculate_fremleje_tidligere_par15p_stk3_resultat -> personskat_calculate_fremleje_tidligere_par15p_stk3_resultat.kapitalindkomst.fremleje_input_gyldigt == Falskt && personskat_calculate_fremleje_tidligere_par15p_stk3_resultat.kapitalindkomst.alle_input_gyldige == Falskt && personskat_calculate_fremleje_tidligere_par15p_stk3_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && match personskat_calculate_fremleje_tidligere_par15p_stk3_resultat.kapitalindkomst.fremleje_resultat {
+    | UgyldigtFremlejegrundlag(_, _, ligningslov15q_resultat, stk4_samordning_gyldig) -> ligningslov15q_resultat.tidligere_par15p_stk3_afskærer_stk1 && ligningslov15q_resultat.stk1_anvendelig == Falskt && stk4_samordning_gyldig
+    | _ -> Falskt
+}
 | personskat_calculate_ejendomsavance_afledes_årligt: personskat_calculate_ejendomsavance_resultat -> personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_ejendomsavance_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 65000 && personskat_calculate_ejendomsavance_resultat.skat.nettokapitalindkomst_kroner == 65000 && match personskat_calculate_ejendomsavance_resultat.kapitalindkomst.ejendomsavance_resultat {
     | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, eget_tabsårsresultat, ægtefælles_tabsårsresultat, par4_resultat) -> head(egne_afståelsesresultater).indkomstår == 2026 && eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner == 190000 && eget_tabsårsresultat.årets_fradragsberettigede_tab_kroner == 60000 && eget_tabsårsresultat.gyldigt_fremført_tab_fra_tidligere_år_kroner == 25000 && eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 85000 && ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner == 40000 && par4_resultat.kapitalindkomst_kroner == 65000 && match head(egne_afståelsesresultater).par8_par9_behandling {
         | EblPar8Behandling(resultat) -> resultat.stk5_anvendt && resultat.skattefri_fortjeneste_kroner == 190000 && resultat.genanbragt_fortjeneste_til_beskatning_kroner == 190000
@@ -531,6 +600,9 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_renter_og_ll_fradrag_afledes
 ? personskat_calculate_finansieringsnæring_reklassificeres
 ? personskat_calculate_ll6_forkert_år_afvises
+? personskat_calculate_fremleje_afledes_fra_kildefakta
+? personskat_calculate_fremleje_stk4_samordnes_fra_kildefakta
+? personskat_calculate_fremleje_ugyldigt_valg_afvises
 ? personskat_calculate_ejendomsavance_afledes_årligt
 ? personskat_calculate_ægtefælles_tab_begrænses_af_egen_nettofortjeneste
 ? personskat_calculate_par8_fortjeneste_fritages

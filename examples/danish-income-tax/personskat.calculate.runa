@@ -29,9 +29,15 @@
 # PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal)
 # PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
 # PersonskatKursgevinstResultat(input: PersonskatKursgevinstInput, input_gyldigt: Boolsk, sælgerpantebrevsresultater: List(KglEblPar6DSælgerpantebrevsresultat), årets_samlede_netto_efter_par14_kroner: Heltal, kursgevinstlov_resultater: List(KursgevinstlovResultat), kapitalposter: List(Par4Kapitalpost))
+# PersonskatFremlejerrolle = PersonskatFremlejendeLejer | PersonskatUdlejendeAndelshaver
+# PersonskatLigningslov15PSamordningsfakta(udlejningsform: Ligningslov15PUdlejningsform, bruttolejeindtægt_kroner: Heltal, årlig_leje_eller_boligafgift_kroner: Heltal, samme_personer_mindst_fire_måneder: Boolsk, lejet_eller_ejet_dage: Heltal, udlejningsdage: Heltal)
+# PersonskatLigningslov15QStk4Input = UdenSamordningMedLigningslov15P | MedSamordningMedLigningslov15P(par15q_udlejningsdage: Heltal, par15p_fakta: PersonskatLigningslov15PSamordningsfakta, loftvalg: Ligningslov15QStk4Loftvalg)
+# PersonskatFremlejeFakta(rolle: PersonskatFremlejerrolle, udlejningsform: Ligningslov15QUdlejningsform, boligstatus: Ligningslov15QBoligstatus, indberetningsstatus: Ligningslov15QIndberetningsstatus, metode: Ligningslov15QMetode, bruttolejeindtægt_kroner: Heltal, faktiske_udgifter_kroner: Heltal, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: PersonskatLigningslov15QStk4Input)
+# PersonskatFremlejeInput = UdenFremlejeEfterLigningslov15Q | MedFremlejeEfterLigningslov15Q(fakta: PersonskatFremlejeFakta)
+# PersonskatFremlejeResultat = IngenFremlejeEfterLigningslov15Q | UgyldigtFremlejegrundlag(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, stk4_samordning_gyldig: Boolsk) | BeregnetFremlejeEfterLigningslov15Q(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, par4_resultat: Par4Stk1Nr17Resultat)
 # PersonskatKapitalomkostningInput(identifikation: Tekst, beløb_kroner: Heltal)
-# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
@@ -2506,6 +2512,132 @@
     help = Some("Et nej betyder, at gevinst eller tab fortsætter gennem de almindelige regler i aktieavancebeskatningsloven."),
     unit = None
 )
+= personskat_felt_fremleje = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.$variant",
+    label = "Udlejning eller fremleje af helårsbolig",
+    question = Some("Har du som lejer eller andelshaver lejet hele eller en del af din helårsbolig ud?"),
+    help = Some("Oplysningerne bruges til at beregne overskud efter ligningslovens § 15 Q og kapitalindkomst efter personskattelovens § 4, stk. 1, nr. 17."),
+    unit = None
+)
+= personskat_felt_fremlejerrolle = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.rolle",
+    label = "Din rolle i boligen",
+    question = Some("Er du lejer eller andelshaver i boligen?"),
+    help = Some("Denne beregningsgren omfatter kun lejere og andelshavere. Udlejning fra en ejerbolig følger ikke personskattelovens § 4, stk. 1, nr. 17."),
+    unit = None
+)
+= personskat_felt_fremlejeform = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.udlejningsform",
+    label = "Hvad blev lejet ud",
+    question = Some("Lejede du værelser ud i helårsboligen eller hele boligen ud en del af året?"),
+    help = Some("Ligningslovens § 15 Q omfatter værelser i en helårsbolig og hele helårsboligen, når hele boligen kun udlejes en del af indkomståret."),
+    unit = None
+)
+= personskat_felt_fremleje_boligstatus = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.boligstatus",
+    label = "Boligens anvendelse",
+    question = Some("Er boligen din helårsbolig og ikke en fritidsbolig?"),
+    help = Some("Bundfradraget efter ligningslovens § 15 Q gælder ikke, når boligen anvendes som fritidsbolig."),
+    unit = None
+)
+= personskat_felt_fremleje_indberetning = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.indberetningsstatus",
+    label = "Indberetning af lejeindtægten",
+    question = Some("Hvordan blev lejeindtægten indberettet eller oplyst til Skatteforvaltningen?"),
+    help = Some("Indberetning gennem en omfattet platform eller international oplysningsudveksling kan udløse det høje bundfradrag. Den midlertidige platformregel gælder kun 2023-2025."),
+    unit = None
+)
+= personskat_felt_fremleje_metode = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
+    label = "Fradragsmetode for udlejningen",
+    question = Some("Vil du bruge bundfradraget eller fradrage dokumenterede faktiske udgifter?"),
+    help = Some("Bundfradragsmetoden giver også fradrag for 40 pct. af resten. Den regnskabsmæssige metode kan ikke senere ændres til bundfradrag for samme udlejning."),
+    unit = None
+)
+= personskat_felt_fremleje_bruttoindtægt = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
+    label = "Samlet lejeindtægt før fradrag",
+    question = Some("Hvor stor var den samlede lejeindtægt før fradrag i indkomståret?"),
+    help = Some("Angiv bruttolejeindtægten for den helårsbolig, som beregningen vedrører."),
+    unit = Some("kr./år")
+)
+= personskat_felt_fremleje_faktiske_udgifter = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.faktiske_udgifter_kroner",
+    label = "Faktiske udgifter ved udlejningen",
+    question = Some("Hvor store dokumenterede faktiske udgifter vil du fradrage?"),
+    help = Some("Beløbet bruges kun ved den regnskabsmæssige metode efter ligningslovens § 15 Q, stk. 3, og kan ikke overstige bruttolejeindtægten."),
+    unit = Some("kr./år")
+)
+= personskat_felt_fremleje_tidligere_par15p_stk3 = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.tidligere_anvendt_par15p_stk3",
+    label = "Tidligere regnskabsmæssigt fradrag efter § 15 P",
+    question = Some("Har du tidligere brugt den regnskabsmæssige metode efter ligningslovens § 15 P, stk. 3, for denne udlejning?"),
+    help = Some("Et tidligere valg efter § 15 P, stk. 3, afskærer senere brug af bundfradraget efter § 15 Q, stk. 1."),
+    unit = None
+)
+= personskat_felt_fremleje_stk4_samordning = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.$variant",
+    label = "Samordning med langtidsudlejning",
+    question = Some("Brugte du både § 15 Q og § 15 P på den samme bolig i indkomståret?"),
+    help = Some("Ved både kortere og længere udlejning af samme bolig skal bundfradragene fordeles forholdsmæssigt og samlet begrænses efter § 15 Q, stk. 4."),
+    unit = None
+)
+= personskat_felt_fremleje_par15q_dage = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15q_udlejningsdage",
+    label = "Udlejningsdage efter § 15 Q",
+    question = Some("Hvor mange dage af indkomståret vedrørte udlejningen efter § 15 Q?"),
+    help = Some("Dagene bruges til den forholdsmæssige fordeling af § 15 Q-bundfradraget."),
+    unit = Some("dage")
+)
+= personskat_felt_fremleje_par15p_form = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.udlejningsform",
+    label = "Langtidsudlejningens omfang",
+    question = Some("Vedrørte udlejningen efter § 15 P værelser eller hele boligen?"),
+    help = Some("§ 15 P omfatter udlejning til de samme personer i en sammenhængende periode på mindst fire måneder."),
+    unit = None
+)
+= personskat_felt_fremleje_par15p_bruttoindtægt = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.bruttolejeindtægt_kroner",
+    label = "Lejeindtægt efter § 15 P",
+    question = Some("Hvor stor var bruttolejeindtægten fra langtidsudlejningen efter § 15 P?"),
+    help = Some("Beløbet indgår i den særskilte § 15 P-opgørelse, som § 15 Q, stk. 4, samordner med."),
+    unit = Some("kr./år")
+)
+= personskat_felt_fremleje_par15p_årlig_leje = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.årlig_leje_eller_boligafgift_kroner",
+    label = "Din årlige leje eller boligafgift",
+    question = Some("Hvor stor var din samlede årlige leje eller boligafgift for boligen?"),
+    help = Some("For lejere og andelshavere udgør § 15 P-bundfradraget to tredjedele af den årlige leje eller boligafgift før forholdsmæssig fordeling."),
+    unit = Some("kr./år")
+)
+= personskat_felt_fremleje_par15p_fire_måneder = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.samme_personer_mindst_fire_måneder",
+    label = "Samme lejere i mindst fire måneder",
+    question = Some("Skete langtidsudlejningen til den samme person eller de samme personer i mindst fire sammenhængende måneder?"),
+    help = Some("Betingelsen følger af ligningslovens § 15 P, stk. 4."),
+    unit = None
+)
+= personskat_felt_fremleje_par15p_rådighedsdage = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.lejet_eller_ejet_dage",
+    label = "Dage med rådighed over boligen",
+    question = Some("Hvor mange dage i indkomståret lejede du eller havde du andelsboligen?"),
+    help = Some("Hvis du kun havde boligen en del af året, reduceres § 15 P-bundfradraget forholdsmæssigt."),
+    unit = Some("dage")
+)
+= personskat_felt_fremleje_par15p_udlejningsdage = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.par15p_fakta.udlejningsdage",
+    label = "Udlejningsdage efter § 15 P",
+    question = Some("Hvor mange dage af indkomståret vedrørte langtidsudlejningen efter § 15 P?"),
+    help = Some("Dagene bruges til fordelingen mellem § 15 P og § 15 Q for den samme bolig."),
+    unit = Some("dage")
+)
+= personskat_felt_fremleje_loftvalg = Beregningsfelt(
+    path = "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.loftvalg",
+    label = "Fordeling ved samlet bundfradragsloft",
+    question = Some("Hvordan skal bundfradraget fordeles, hvis de forholdsmæssige § 15 P- og § 15 Q-fradrag tilsammen overstiger loftet?"),
+    help = Some("Vælg om § 15 Q-andelen skal bevares, eller om § 15 P-fradraget skal prioriteres inden for det højeste fulde bundfradrag."),
+    unit = None
+)
 
 --@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
@@ -2515,6 +2647,24 @@
 --@label:beregn_personskat::field:personskat_felt_kirkeskat::source:folkekirkens_økonomilov_2023_424::dependency_source:kommuneskatteloven_2019_935--
 --@label:beregn_personskat::field:personskat_felt_renteindtægter::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_renteudgifter::source:personskatteloven_2021_1284--
+--@label:beregn_personskat::field:personskat_felt_fremleje::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremlejerrolle::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremlejeform::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_boligstatus::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_indberetning::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_metode::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_bruttoindtægt::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_faktiske_udgifter::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_tidligere_par15p_stk3::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_stk4_samordning::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15q_dage::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_form::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_bruttoindtægt::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_årlig_leje::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_fire_måneder::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_rådighedsdage::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_par15p_udlejningsdage::source:ligningsloven_2025_1500--
+--@label:beregn_personskat::field:personskat_felt_fremleje_loftvalg::source:ligningsloven_2025_1500--
 --@label:beregn_personskat::field:personskat_felt_årsopgørelse::source:kildeskatteloven_2024_460--
 --@label:beregn_personskat::field:personskat_felt_egne_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
@@ -3084,6 +3234,92 @@
 | personskat_aktieavance_resultat(input: PersonskatAktieavanceInput, skatteår: Heltal) -> PersonskatAktieavanceSag(input, skatteår).resultat()
 | personskat_ingen_aktieavance() -> PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [])
 
+| personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QLejer
+| exception andelshaverrolle_til_ligningslov15q personskat_fremlejerrolle_til_ligningslov15q(rolle: PersonskatFremlejerrolle) -> Ll15QAndelshaver under rolle == PersonskatUdlejendeAndelshaver
+| personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle) -> Ll15PLejer
+| exception andelshaverrolle_til_ligningslov15p personskat_fremlejerrolle_til_ligningslov15p(rolle: PersonskatFremlejerrolle) -> Ll15PAndelshaver under rolle == PersonskatUdlejendeAndelshaver
+| personskat_indkomstårets_dage(skatteår: Heltal) -> 365
+| exception personskat_skudår_har_366_dage personskat_indkomstårets_dage(skatteår: Heltal) -> 366 under kildeskat_skudår(skatteår)
+| personskat_ligningslov15p_samordningsinput(fakta: PersonskatLigningslov15PSamordningsfakta, rolle: PersonskatFremlejerrolle, skatteår: Heltal) -> Ligningslov15PInput(
+    skatteår = skatteår,
+    rolle = personskat_fremlejerrolle_til_ligningslov15p(rolle),
+    udlejningsform = fakta.udlejningsform,
+    metode = Ll15PSkematiskBundfradrag,
+    bruttolejeindtægt_kroner = fakta.bruttolejeindtægt_kroner,
+    årlig_leje_eller_boligafgift_kroner = fakta.årlig_leje_eller_boligafgift_kroner,
+    ejendomsværdi_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    samme_personer_mindst_fire_måneder = fakta.samme_personer_mindst_fire_måneder,
+    lejet_eller_ejet_dage = fakta.lejet_eller_ejet_dage,
+    udlejningsdage = fakta.udlejningsdage,
+    indkomstårets_dage = personskat_indkomstårets_dage(skatteår),
+    faktiske_udgifter_kroner = 0
+)
+| personskat_ligningslov15q_stk4_samordning(input: PersonskatLigningslov15QStk4Input, rolle: PersonskatFremlejerrolle, skatteår: Heltal) -> match input {
+    | UdenSamordningMedLigningslov15P -> ll15q_ingen_stk4_samordning()
+    | MedSamordningMedLigningslov15P(par15q_udlejningsdage, par15p_fakta, loftvalg) -> Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = par15q_udlejningsdage,
+        par15p_resultat = ligningslov15p_resultat(personskat_ligningslov15p_samordningsinput(par15p_fakta, rolle, skatteår)),
+        indkomstårets_dage = personskat_indkomstårets_dage(skatteår),
+        loftvalg = loftvalg
+    )
+}
+| personskat_ligningslov15q_stk4_samordning_gyldig(input: PersonskatLigningslov15QStk4Input, rolle: PersonskatFremlejerrolle, metode: Ligningslov15QMetode, skatteår: Heltal) -> match input {
+    | UdenSamordningMedLigningslov15P -> Sandt
+    | MedSamordningMedLigningslov15P(par15q_udlejningsdage, par15p_fakta, _) -> {
+        = indkomstårets_dage = personskat_indkomstårets_dage(skatteår)
+        = par15p_resultat = ligningslov15p_resultat(personskat_ligningslov15p_samordningsinput(par15p_fakta, rolle, skatteår))
+        metode == Ll15QStk1Bundfradrag && indkomstårets_dage > 0 && par15q_udlejningsdage >= 0 && par15q_udlejningsdage <= indkomstårets_dage && par15p_fakta.bruttolejeindtægt_kroner >= 0 && par15p_fakta.årlig_leje_eller_boligafgift_kroner >= 0 && par15p_fakta.lejet_eller_ejet_dage >= 0 && par15p_fakta.lejet_eller_ejet_dage <= indkomstårets_dage && par15p_fakta.udlejningsdage >= 0 && par15p_fakta.udlejningsdage <= indkomstårets_dage && par15p_resultat.skematisk_anvendelig
+    }
+}
+| personskat_ligningslov15q_input(fakta: PersonskatFremlejeFakta, skatteår: Heltal) -> Ligningslov15QInput(
+    skatteår = skatteår,
+    rolle = personskat_fremlejerrolle_til_ligningslov15q(fakta.rolle),
+    udlejningsform = fakta.udlejningsform,
+    boligstatus = fakta.boligstatus,
+    indberetningsstatus = fakta.indberetningsstatus,
+    metode = fakta.metode,
+    bruttolejeindtægt_kroner = fakta.bruttolejeindtægt_kroner,
+    faktiske_udgifter_kroner = fakta.faktiske_udgifter_kroner,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = fakta.tidligere_anvendt_par15p_stk3,
+    stk4_samordning = personskat_ligningslov15q_stk4_samordning(fakta.stk4_samordning, fakta.rolle, skatteår)
+)
+| personskat_ligningslov15q_valgte_metode_anvendelig(resultat: Ligningslov15QResultat) -> resultat.stk1_anvendelig || resultat.stk3_anvendelig
+| personskat_fremlejegrundlag_gyldigt(fakta: PersonskatFremlejeFakta, skatteår: Heltal, resultat: Ligningslov15QResultat) -> fakta.bruttolejeindtægt_kroner >= 0 && fakta.faktiske_udgifter_kroner >= 0 && personskat_ligningslov15q_stk4_samordning_gyldig(fakta.stk4_samordning, fakta.rolle, fakta.metode, skatteår) && personskat_ligningslov15q_valgte_metode_anvendelig(resultat)
+| personskat_fremleje_resultat(input: PersonskatFremlejeInput, skatteår: Heltal) -> match input {
+    | UdenFremlejeEfterLigningslov15Q -> IngenFremlejeEfterLigningslov15Q
+    | MedFremlejeEfterLigningslov15Q(fakta) -> {
+        = ligningslov15q_input = personskat_ligningslov15q_input(fakta, skatteår)
+        = ligningslov15q_resultat = ligningslov15q_resultat(ligningslov15q_input)
+        = stk4_samordning_gyldig = personskat_ligningslov15q_stk4_samordning_gyldig(fakta.stk4_samordning, fakta.rolle, fakta.metode, skatteår)
+        hvis personskat_fremlejegrundlag_gyldigt(fakta, skatteår, ligningslov15q_resultat) {
+            BeregnetFremlejeEfterLigningslov15Q(
+                fakta = fakta,
+                ligningslov15q_input = ligningslov15q_input,
+                ligningslov15q_resultat = ligningslov15q_resultat,
+                par4_resultat = par4_stk1_nr17_resultat_fra_ligningslov15q(ligningslov15q_input)
+            )
+        } ellers {
+            UgyldigtFremlejegrundlag(
+                fakta = fakta,
+                ligningslov15q_input = ligningslov15q_input,
+                ligningslov15q_resultat = ligningslov15q_resultat,
+                stk4_samordning_gyldig = stk4_samordning_gyldig
+            )
+        }
+    }
+}
+| personskat_fremleje_input_gyldigt(resultat: PersonskatFremlejeResultat) -> match resultat {
+    | UgyldigtFremlejegrundlag(_, _, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_fremleje_kapitalposter(resultat: PersonskatFremlejeResultat) -> match resultat {
+    | BeregnetFremlejeEfterLigningslov15Q(_, ligningslov15q_input, _, _) -> [par4_stk1_nr17_kapitalpost_fra_ligningslov15q(ligningslov15q_input)]
+    | _ -> []
+}
+
 # PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat) {
     | reklassifikation() -> personskat_kapital_reklassifikation(input.renter.næringsstatus)
     | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
@@ -3094,8 +3330,10 @@
     | kursgevinst_resultat() -> personskat_kursgevinst_resultat(input.kursgevinst, skatteår, ejendomsavancegrundlag_resultat())
     | kursgevinst_input_gyldigt() -> kursgevinst_resultat().input_gyldigt
     | ejendomsavance_resultat() -> personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag_resultat(), kursgevinst_resultat(), skatteår)
+    | fremleje_resultat() -> personskat_fremleje_resultat(input.fremleje, skatteår)
+    | fremleje_input_gyldigt() -> personskat_fremleje_input_gyldigt(fremleje_resultat())
     | omkostninger_gyldige() -> all(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostning_gyldig(input.omkostninger, omkostning))
-    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && omkostninger_gyldige()
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && fremleje_input_gyldigt() && omkostninger_gyldige()
     | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
     | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -3111,9 +3349,10 @@
     | renteposter() -> hvis rentegrundlag_gyldigt() { [par4_stk1_nr1_kapitalpost(rente_par4_input())] } ellers { [] }
     | ejendomsavanceposter() -> hvis ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() { personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat()) } ellers { [] }
     | kursgevinstposter() -> kursgevinst_resultat().kapitalposter
+    | fremlejeposter() -> personskat_fremleje_kapitalposter(fremleje_resultat())
     | kapitalomkostninger() -> hvis omkostninger_gyldige() { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation())) } ellers { [] }
     | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-        poster = concat(concat(concat(renteposter(), ejendomsavanceposter()), kursgevinstposter()), aktieavance.kapitalposter),
+        poster = concat(concat(concat(concat(renteposter(), ejendomsavanceposter()), kursgevinstposter()), fremlejeposter()), aktieavance.kapitalposter),
         omkostninger = kapitalomkostninger()
     ))
     | resultat() -> {
@@ -3126,8 +3365,10 @@
         = kursgevinst = personskat_kursgevinst_resultat(input.kursgevinst, skatteår, ejendomsavancegrundlag)
         = kursgevinst_er_gyldig = kursgevinst.input_gyldigt
         = fordelt_ejendomsavance = personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag, kursgevinst, skatteår)
+        = fremleje = personskat_fremleje_resultat(input.fremleje, skatteår)
+        = fremleje_er_gyldig = personskat_fremleje_input_gyldigt(fremleje)
         = omkostninger_er_gyldige = all(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostning_gyldig(input.omkostninger, omkostning))
-        = alle_input_er_gyldige = skatteår > 0 && rentegrundlag_er_gyldigt && ligningslov6_er_gyldig && ligningslov6a_er_gyldig && ejendomsavance_er_gyldig && kursgevinst_er_gyldig && omkostninger_er_gyldige
+        = alle_input_er_gyldige = skatteår > 0 && rentegrundlag_er_gyldigt && ligningslov6_er_gyldig && ligningslov6a_er_gyldig && ejendomsavance_er_gyldig && kursgevinst_er_gyldig && fremleje_er_gyldig && omkostninger_er_gyldige
         = ligningslov6 = personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
         = ligningslov6_anvendt = personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
         = ligningslov6a = personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -3142,9 +3383,10 @@
         = renteresultat = par4_stk1_nr1_resultat(renteinput)
         = renteposter_resultat = hvis rentegrundlag_er_gyldigt { [par4_stk1_nr1_kapitalpost(renteinput)] } ellers { [] }
         = ejendomsavanceposter_resultat = hvis ejendomsavance_er_gyldig && kursgevinst_er_gyldig { personskat_ejendomsavance_kapitalposter(fordelt_ejendomsavance) } ellers { [] }
+        = fremlejeposter_resultat = personskat_fremleje_kapitalposter(fremleje)
         = kapitalomkostninger_resultat = hvis omkostninger_er_gyldige { map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_par4_kapitalomkostning(omkostning, reklassifikation_resultat)) } ellers { [] }
         = samlet_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-            poster = concat(concat(concat(renteposter_resultat, ejendomsavanceposter_resultat), kursgevinst.kapitalposter), aktieavance.kapitalposter),
+            poster = concat(concat(concat(concat(renteposter_resultat, ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), aktieavance.kapitalposter),
             omkostninger = kapitalomkostninger_resultat
         ))
         PersonskatKapitalindkomstResultat(
@@ -3154,6 +3396,7 @@
             ligningslov6a_input_gyldigt = ligningslov6a_er_gyldig,
             ejendomsavance_input_gyldigt = ejendomsavance_er_gyldig,
             kursgevinst_input_gyldigt = kursgevinst_er_gyldig,
+            fremleje_input_gyldigt = fremleje_er_gyldig,
             omkostninger_gyldige = omkostninger_er_gyldige,
             alle_input_gyldige = alle_input_er_gyldige,
             ligningslov6_resultat = ligningslov6,
@@ -3161,6 +3404,7 @@
             rente_resultat = renteresultat,
             ejendomsavance_resultat = fordelt_ejendomsavance,
             kursgevinst_resultat = kursgevinst,
+            fremleje_resultat = fremleje,
             kapitalindkomst_resultat = samlet_kapitalindkomst
         )
     }
@@ -3177,6 +3421,7 @@
     ),
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = []
 )
 | personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(

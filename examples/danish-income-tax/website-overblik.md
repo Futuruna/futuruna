@@ -44,15 +44,16 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
-nåbare domænegraf som beregningen og har aktuelt 121 synlige overskriftsceller
-inklusive sags-id og 27 relationelle kildetabeller. Variantvalg gør særlige
+nåbare domænegraf som beregningen og har aktuelt 140 synlige overskriftsceller
+inklusive sags-id og 29 relationelle kildetabeller. Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
 renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
-valgfri § 9 D-forhold, identificerede omkostninger efter Personskattelovens
+valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
+identificerede omkostninger efter Personskattelovens
 § 4, stk. 2, egne og en samlevende ægtefælles ejendomsafståelser,
 KGL-kildefakta for EBL § 6 D-sælgerpantebreve samt ordinære eller særlige
 ABL-forløb. Ejendomsafståelsernes skatteår, § 9 C's skatteår og
@@ -145,7 +146,7 @@ kan læse metadataene og indsamle fakta, men formuleringerne ændrer ikke
 felternes gyldighed eller skattereglernes deterministiske resultat.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 353 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 389 eksplicitte feltmetadata-poster,
 herunder alle nye ejerandels-, delafståelses-, ikke-boligdelens
 anskaffelsessums-, mælkekvote- og § 5, stk. 6-felter for personen og
 ægtefællen. EBL § 6 D's valg om at fordele en ejendomsfortjeneste via et
@@ -163,7 +164,11 @@ dødsfald.
 66 af posterne dækker § 11, stk. 2
 for personen og ægtefællen: valget om ny genanbringelse, anvendelse,
 selskabsforhold, investering, udenlandsforhold, begæringsdatoer, ejerskab og
-hjemmel efter §§ 6 A eller 6 C. AI'en kan dermed indsamle fakta;
+hjemmel efter §§ 6 A eller 6 C. De 18 felter for udlejning efter
+Ligningslovens § 15 Q har ligeledes menneskelige etiketter og spørgsmål for
+boligrolle, udlejningsform, indberetning, metode, beløb og samordning med
+§ 15 P. Indkomstårets længde afledes af skatteåret og er ikke et borgerfelt.
+AI'en kan dermed indsamle fakta;
 Futuruna afleder selv, om betingelserne er opfyldt, og hvilke beløb der skal
 medregnes i hvert indkomstår. En verificeret XLSX/JSON-sag fører en afståelse
 i 2025, sælgerpantebrevets tiårige afdragsplan, KGL-kildefakta og

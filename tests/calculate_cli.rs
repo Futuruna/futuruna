@@ -519,6 +519,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årets renteindtægter",
             "Årets renteudgifter",
             "Kursgevinster og kurstab",
+            "Udlejning eller fremleje af helårsbolig",
+            "Fradragsmetode for udlejningen",
+            "Samlet lejeindtægt før fradrag",
+            "Samordning med langtidsudlejning",
             "Personen, som beregningen vedrører",
             "Din ægtefælles identifikation",
             "Årsopgørelse",
@@ -582,6 +586,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.ægtefælles_skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+            "kapitalindkomst.fremleje.$variant",
+            "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
+            "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
+            "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.$variant",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
@@ -603,6 +611,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("ligningslov9d_resultat")));
+        assert!(!canonical_input_paths.iter().any(|path| {
+            path == "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.indkomstårets_dage"
+        }));
         assert_eq!(
             workbook_headers(&mut workbook, "kapitalindkomst_omkostninger"),
             [
@@ -1127,6 +1138,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenKursgevinst".to_string()),
                     ),
                     (
+                        "kapitalindkomst.fremleje.$variant",
+                        Data::String("UdenFremlejeEfterLigningslov15Q".to_string()),
+                    ),
+                    (
                         "skatteforhold.$variant",
                         Data::String("StandardSkatteforhold".to_string()),
                     ),
@@ -1153,6 +1168,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 4, "personskat-ebl5-kildefakta-2026");
         fill_wage_case(sheets, 5, "personskat-ebl6d-historisk-2026");
         fill_wage_case(sheets, 6, "personskat-ebl11-genanbringelse-2026");
+        fill_wage_case(sheets, 7, "personskat-fremleje-2026");
+        for (header, value) in [
+            (
+                "kapitalindkomst.fremleje.$variant",
+                Data::String("MedFremlejeEfterLigningslov15Q".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.rolle",
+                Data::String("PersonskatFremlejendeLejer".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.udlejningsform",
+                Data::String("Ll15QVærelserIHelårsbolig".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.boligstatus",
+                Data::String("Ll15QHelårsbolig".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.indberetningsstatus",
+                Data::String("Ll15QIndberettetEfterSkatteindberetningslov43".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
+                Data::String("Ll15QStk1Bundfradrag".to_string()),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
+                Data::Int(60_000),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.faktiske_udgifter_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.tidligere_anvendt_par15p_stk3",
+                Data::Bool(false),
+            ),
+            (
+                "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.$variant",
+                Data::String("UdenSamordningMedLigningslov15P".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 7, header, value);
+        }
         for (header, value) in [
             (
                 "aktieavance.ordinært_aktieår.$variant",
@@ -2634,6 +2694,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "ejendomsavance": { "$variant": "UdenEjendomsavance" },
             "kursgevinst": { "$variant": "UdenKursgevinst" },
+            "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
             "omkostninger": []
         },
         "aktieavance": {
@@ -2855,6 +2916,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             }
         },
         "kursgevinst": { "$variant": "UdenKursgevinst" },
+        "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
         "omkostninger": [{
             "identifikation": "bankgebyr",
             "beløb_kroner": 2_000
@@ -3054,6 +3116,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             }
         },
         "kursgevinst": { "$variant": "UdenKursgevinst" },
+        "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
         "omkostninger": []
     });
     ebl5_case["input"]["aktieavance"] = serde_json::json!({
@@ -3208,6 +3271,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner": 0
             }
         },
+        "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
         "omkostninger": []
     });
     ebl6d_case["input"]["aktieavance"] = serde_json::json!({
@@ -3303,6 +3367,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             }
         },
         "kursgevinst": { "$variant": "UdenKursgevinst" },
+        "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
         "omkostninger": []
     });
     ebl11_case["input"]["aktieavance"] = serde_json::json!({
@@ -3313,6 +3378,46 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(ebl11_case);
+    let mut fremleje_case = json_input["cases"][0].clone();
+    fremleje_case["case_id"] = Value::String("personskat-fremleje-2026".into());
+    fremleje_case["input"]["kapitalindkomst"] = serde_json::json!({
+        "renter": {
+            "renteindtægter_kroner": 0,
+            "renteudgifter_kroner": 0,
+            "næringsstatus": { "$variant": "IkkeNæring" },
+            "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
+            "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
+        },
+        "ejendomsavance": { "$variant": "UdenEjendomsavance" },
+        "kursgevinst": { "$variant": "UdenKursgevinst" },
+        "fremleje": {
+            "$variant": "MedFremlejeEfterLigningslov15Q",
+            "fakta": {
+                "rolle": { "$variant": "PersonskatFremlejendeLejer" },
+                "udlejningsform": { "$variant": "Ll15QVærelserIHelårsbolig" },
+                "boligstatus": { "$variant": "Ll15QHelårsbolig" },
+                "indberetningsstatus": {
+                    "$variant": "Ll15QIndberettetEfterSkatteindberetningslov43"
+                },
+                "metode": { "$variant": "Ll15QStk1Bundfradrag" },
+                "bruttolejeindtægt_kroner": 60_000,
+                "faktiske_udgifter_kroner": 0,
+                "tidligere_anvendt_par15p_stk3": false,
+                "stk4_samordning": {
+                    "$variant": "UdenSamordningMedLigningslov15P"
+                }
+            }
+        },
+        "omkostninger": []
+    });
+    fremleje_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(fremleje_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -3351,6 +3456,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][5]["result"],
         json_result["results"][4]["result"]
+    );
+    assert_eq!(
+        result["results"][6]["result"],
+        json_result["results"][5]["result"]
     );
 
     assert_eq!(
@@ -3577,6 +3686,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         result["results"][5]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         200_000
+    );
+    assert_eq!(
+        result["results"][6]["result"]["kapitalindkomst"]["fremleje_resultat"]["$variant"],
+        "BeregnetFremlejeEfterLigningslov15Q"
+    );
+    assert_eq!(
+        result["results"][6]["result"]["kapitalindkomst"]["fremleje_resultat"]
+            ["ligningslov15q_resultat"]["reguleret_bundfradrag_kroner"],
+        35_100
+    );
+    assert_eq!(
+        result["results"][6]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        14_940
     );
 }
 
