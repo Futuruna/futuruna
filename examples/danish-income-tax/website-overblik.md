@@ -44,14 +44,26 @@ Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde
 skatteresultat og en valgfri årsopgørelse. Arbejdsbogen afledes fra den samme
-nåbare domænegraf som beregningen og har aktuelt 146 synlige overskriftsceller
-inklusive sags-id og 29 relationelle kildetabeller. Variantvalg gør særlige
+nåbare domænegraf som beregningen. `@ calculate("Dansk personskat")` giver
+beregningen dens menneskelige titel. Hvert eksponeret felt kan samtidig have en
+dansk etiket, et interviewspørgsmål, hjælp, enhed og typede kildehenvisninger,
+mens den kanoniske feltsti forbliver en stabil maskinnøgle.
+
+Regnearket er derfor også et maskinlæsbart udvekslingsformat. En AI kan læse den
+samme kontrakt, interviewe borgeren med de menneskelige spørgsmål og udfylde de
+kanoniske svar. AI'en skal ikke selv gætte skatteregler eller beregne skatten:
+Futuruna validerer fakta og udfører den kildebundne beregning deterministisk.
+Resultatet bevarer de juridiske mellemresultater, så AI'en bagefter kan forklare
+hvilken regel, betingelse, undtagelse og kilde der førte til beløbet.
+
+Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
 valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
-renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 C-befordringsfakta,
+renteudgifter, Ligningslovens §§ 6/6 A-fradrag, § 9 B-fakta om erhvervsmæssig
+kørsel og godtgørelse, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
 driftsresultater fra bolig-, fritids- og lignende ejendomme efter
 Personskattelovens § 4, stk. 1, nr. 6,
@@ -164,8 +176,10 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 403 eksplicitte feltmetadata-poster.
-Seks beskriver ejendomsdriftens variant, ejendomstype, beliggenhed,
+interviewoplysninger. Kontrakten har nu 430 eksplicitte feltmetadata-poster.
+Syvogtyve beskriver erhvervsmæssig kørsel efter Ligningslovens § 9 B med
+køretøj, kilometer, 60-dages-forhold, udgifter og godtgørelsesforhold. Seks
+beskriver ejendomsdriftens variant, ejendomstype, beliggenhed,
 erhvervsmæssig udlejning, særlige betingelser og årets underskud eller
 overskud. Herunder er også otte for ABL § 15's udsteder- og
 værdipapirklassifikation og alle nye
@@ -446,11 +460,20 @@ Personskatteloven § 3, stk. 2, nr. 8 og 9 modtager nu tilsvarende typede
 resultater fra Ligningsloven §§ 9 B og 8 O. § 9 B-reglerne afgør bl.a.
 60-dages-perioder, Skatterådets kilometersatser, skattefri eller personlig
 godtgørelse, § 9 C-henvisning og den kundeopsøgende undtagelse for flere
-arbejdsgivere. § 8 O-reglerne skelner mellem ydelseskredsen før 2026 og den
+arbejdsgivere. Den kanoniske lønmodtagerberegning modtager de faktiske kilometer,
+udgifter og godtgørelsesforhold, men afleder selv skatteår, personrolle og den
+lovbestemte fradragsmetode. En skattepligtig godtgørelse behandles som løn med
+AM-bidrag, mens et direkte fradrag føres særskilt gennem Personskattelovens § 3,
+stk. 2, nr. 8. Begge mellemresultater bevares i beregningssporet.
+§ 8 O-reglerne skelner mellem ydelseskredsen før 2026 og den
 udvidede kreds fra 2026, begrænser fradraget til tidligere beskattede beløb og
 afskærer dobbeltfradrag. Kilderne er [Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500),
 [LOV nr. 198/2025](https://www.retsinformation.dk/eli/lta/2025/198) og
 [Skatterådets BEK nr. 1333/2025](https://www.retsinformation.dk/eli/lta/2025/1333).
+Godtgørelsens løn- og AM-behandling følger desuden
+[Den juridiske vejledning C.A.4.3.3.3.2](https://info.skat.dk/data.aspx?oid=2061750),
+og flerarbejdsgiverfradraget følger
+[C.A.4.3.3.3.3.1](https://info.skat.dk/data.aspx?oid=2061752).
 
 Personskatteloven § 3, stk. 2, nr. 3 modtager nu også beregnede resultater fra
 Pensionsbeskatningsloven §§ 18 og 52. Reglerne dækker bl.a. det regulerede

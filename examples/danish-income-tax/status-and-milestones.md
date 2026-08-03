@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-c6b609` (in review)
-Latest implementation slice submitted for review: `td-c6b609`
-Latest approved implementation slice: `td-dc0c68`
+Current focus issue: `td-4fd64a` (in review)
+Latest implementation slice submitted for review: `td-4fd64a`
+Latest approved implementation slice: `td-c6b609`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -48,7 +48,22 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu rå
+kørsels-, udgifts- og godtgørelsesfakta for lønmodtageres erhvervsmæssige
+befordring efter Ligningslovens § 9 B. Skatteåret, lønmodtagerrollen og
+Skatterådets fradragsmetode afledes af den omgivende skattesag og er ikke
+borgerfelter. Reglerne afgør først 60-dages-forhold, erhvervsmæssige kilometer,
+administrative godtgørelsesbetingelser, skattefri godtgørelse og et eventuelt
+direkte fradrag for kundeopsøgende aktivitet for flere arbejdsgivere. Derefter
+føres fradraget gennem Personskattelovens § 3, stk. 2, nr. 8. Skattepligtig
+godtgørelse føres som løn ind i både AM-grundlaget, lønmodtagerfradragene og
+§ 9 C's aftrapningsindkomst, mens det direkte § 9 B-fradrag kun reducerer den
+personlige indkomst. De to beløb kan derfor ikke medregnes dobbelt.
+Ikke understøttede skatteår og negative kildefakta giver ingen skattemæssig virkning
+og bevares som et typet ugyldigt resultat. Den genererede kontrakt har 27 nye
+danske feltetiketter med interviewspørgsmål, hjælp, enheder og kildehenvisninger.
+
+Recent integration: Den kanoniske `beregn_personskat`-graf modtager nu
 kildefakta om driftsresultater fra bolig-, fritids- og lignende ejendomme efter
 Personskattelovens § 4, stk. 1, nr. 6. Borgeren eller en interviewende AI
 leverer ejendomstype, beliggenhed, erhvervsmæssig udlejning, eventuelle særlige
@@ -223,8 +238,8 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-146 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
-relationelle kildeark. Kontrakten når nu 301 domænedefinitioner. De to
+173 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 29
+relationelle kildeark. Kontrakten når nu 318 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -252,7 +267,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 403 eksplicitte feltmetadata-poster. Seks af dem
+Kontrakten har aktuelt 430 eksplicitte feltmetadata-poster. Seks af dem
 beskriver ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6:
 variantvalg, ejendomstype, beliggenhed, erhvervsmæssig udlejning, særlige
 betingelser og årets underskud eller overskud. De otte
@@ -299,7 +314,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`82743eaa845927f63e53b6637bb40a7a982c7c8d693306522e7c50c1d55db263`.
+`01a5fa2fef2c7f0a4d4367c0ff7e98e61b9158fe0127155912d4c81bc06a900f`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -311,14 +326,14 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.733 domænekolonner; 385 materialiserer en eksplicit etiket,
+projektmappe har 1.760 domænekolonner; 412 materialiserer en eksplicit etiket,
 mens 1.348 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
 ejendomsdrift efter § 4, stk. 1, nr. 6 og de øvrige kildefaktasager, passerer på
-610,26 sekunder i den aktuelle debug-gate. `td-6659f1`
+266,61 sekunder i den aktuelle debug-gate. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -2754,7 +2769,8 @@ Review candidates to revisit deliberately, not as broad churn:
 ## Now
 
 - `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
-  kildefakta for befordring efter Ligningslovens §§ 9 C/9 D, almindelige renter,
+  kildefakta for erhvervsmæssig befordring efter Ligningslovens § 9 B,
+  befordring efter §§ 9 C/9 D, almindelige renter,
   §§ 6/6 A-fradrag, ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6,
   § 4, stk. 2-omkostninger, egne og en samlevende ægtefælles ejendomsafståelser,
   ordinære ABL-hændelsesforløb og særlige ABL-aktiver.
@@ -2769,7 +2785,11 @@ Review candidates to revisit deliberately, not as broad churn:
   lønnen, så AM-grundlag og lønmodtagerfradrag fortsat alene bruger bruttolønnen.
   Fri befordring efter § 9 C, stk. 7 føres tilsvarende til personlig indkomst
   uden at blive gjort til AM-bidragspligtig løn.
-- Det genererede Personskat-regneark har nu 301 nåbare definitioner, 146
+- Skattepligtig § 9 B-godtgørelse er derimod løn og udvider derfor det
+  AM-bidragspligtige løngrundlag. Et direkte § 9 B-fradrag efter
+  Personskattelovens § 3, stk. 2, nr. 8 trækkes særskilt fra personlig indkomst.
+  Kørslens år, personrolle og lovbestemte fradragsmetode afledes internt.
+- Det genererede Personskat-regneark har nu 318 nåbare definitioner, 173
   synlige overskriftsceller inklusive `case_id` og 29 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2796,7 +2816,10 @@ Review candidates to revisit deliberately, not as broad churn:
   sender faktiske oplysninger om en landzoneejendom og et driftsoverskud på
   25.000 kr. gennem begge adaptere; hjemlen og kapitalindkomsten afledes af
   reglerne.
-  Kontrakten har 403 eksplicitte menneskelige feltmetadata-poster og
+  En niende sag fører 4.500 kr. i kørselsgodtgørelse gennem § 9 B. Reglerne
+  udleder 3.940 kr. skattefrit og 560 kr. som AM-bidragspligtig løn, og både
+  XLSX og kanonisk JSON returnerer samme fulde beregningsspor.
+  Kontrakten har 430 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2879,12 +2902,12 @@ Review candidates to revisit deliberately, not as broad churn:
   total and rejects a 7.000 kr. future-year result in both backends.
 - `personskat.calculate.runa` exposes one aggregate
   `beregn_personskat(PersonskatInput) -> PersonskatBeregningResultat` boundary.
-  The graph contains ordinary wage-earner facts, source-fact interest and
-  Ligningslov §§ 6/6 A inputs, source-fact ABL annual inputs, explicit variants
+  The graph contains ordinary wage-earner facts, source-fact Ligningslov § 9 B
+  business travel, interest and §§ 6/6 A inputs, source-fact ABL annual inputs, explicit variants
   for special tax conditions and § 13 deficit/spouse conditions, and an
   optional Kildeskattelov annual assessment. `runa schema`,
   JSON/TOML/XLSX templates and `runa call` carry the same source-linked
-  contract. XLSX schema v3 creates related child worksheets only for genuine
+  contract. XLSX schema v5 creates related child worksheets only for genuine
   `List`, `Map` or `Set` fields; the ABL collections now prove that behavior in
   the aggregate itself. Remaining workbook gaps are therefore the remaining
   source-law branches that have not yet reached `PersonskatInput`, not
@@ -2947,6 +2970,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
+- Udvid den nu korrekt integrerede, men enkeltstående § 9 B-sag til nul eller
+  flere identificerede kørsels- og godtgørelsessager (`td-a7327c`). En fuld
+  årsberegning skal kunne holde arbejdsgivernes 20.000-kilometergrænser,
+  køretøjer og administrative betingelser adskilt, bevare hvert delresultat og
+  aggregere skattepligtig løn og § 3, stk. 2, nr. 8-fradrag præcis én gang.
+  Listen skal blive en nøglebunden regnearksfane frem for gentagne kolonner.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

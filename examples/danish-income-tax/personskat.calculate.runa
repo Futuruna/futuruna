@@ -5,15 +5,18 @@
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
+# PersonskatErhvervsbefordringFakta(køretøj: Ligningslov9BKøretøj, befordring: Ligningslov9BBefordring, udgifter: Ligningslov9BUdgifter, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
+# PersonskatErhvervsbefordringInput = UdenErhvervsbefordringEfterLigningslov9B | MedErhvervsbefordringEfterLigningslov9B(fakta: PersonskatErhvervsbefordringFakta)
+# PersonskatErhvervsbefordringResultat = IngenErhvervsbefordringEfterLigningslov9B | UgyldigtErhvervsbefordringsgrundlag(fakta: PersonskatErhvervsbefordringFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetErhvervsbefordringEfterLigningslov9B(fakta: PersonskatErhvervsbefordringFakta, ligningslov9b_input: Ligningslov9BInput, ligningslov9b_resultat: Ligningslov9BResultat, par3_stk2_nr8_resultat: Par3Stk2Nr8Resultat)
 # PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # PersonskatBefordringsfradragInput = UdenBefordringsfradrag | MedBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta)
 # PersonskatLigningsfradragInput(befordring: PersonskatBefordringsfradragInput)
 # PersonskatBefordringsfradragResultat = IntetBefordringsfradrag | UgyldigtBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, befordring: PersonskatBefordringsfradragResultat, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
-# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, ligningsfradrag: PersonskatLigningsfradragInput, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(øvrig_aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | SærligeUnderskudsforhold(forhold: LønmodtagerPar13Forhold)
@@ -47,7 +50,7 @@
 # PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
 # Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
 # Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
@@ -69,9 +72,198 @@
 = personskat_felt_bruttoløn = Beregningsfelt(
     path = "lønmodtager.bruttoløn_kroner",
     label = "Årlig bruttoløn",
-    question = Some("Hvor meget modtager du i løn før skat i hele indkomståret?"),
-    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag."),
+    question = Some("Hvor meget modtager du i almindelig løn før skat i hele indkomståret, bortset fra kørselsgodtgørelse oplyst særskilt efter § 9 B?"),
+    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag. Medtag ikke godtgørelse, som oplyses i grenen for erhvervsmæssig kørsel; Futuruna udleder selv den skattepligtige løndel."),
     unit = Some("kr./år")
+)
+= personskat_felt_erhvervsbefordring = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.$variant",
+    label = "Erhvervsmæssig kørsel (§ 9 B)",
+    question = Some("Har du haft erhvervsmæssig kørsel, som skal behandles efter ligningslovens § 9 B?"),
+    help = Some("Vælg denne gren for kørsel i arbejdet, skattefri kørselsgodtgørelse eller direkte fradrag ved kundeopsøgende arbejde for flere arbejdsgivere."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_køretøj = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.køretøj",
+    label = "Køretøj til erhvervskørsel",
+    question = Some("Hvilket køretøj blev brugt til den erhvervsmæssige kørsel?"),
+    help = Some("Skatterådets kilometersats afhænger af, om der er brugt egen bil, motorcykel eller et mindre køretøj."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_art = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.art",
+    label = "Type af erhvervsmæssig kørsel",
+    question = Some("Foregik kørslen mellem hjem og arbejdsplads, mellem arbejdspladser eller inden for samme arbejdsplads?"),
+    help = Some("60-dages-reglen gælder kun kørsel mellem den sædvanlige bopæl og samme arbejdsplads."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_kilometer = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometer_i_sagen",
+    label = "Kilometer i denne erhvervskørsel",
+    question = Some("Hvor mange kilometer omfatter den kørsel, som beregningen vedrører?"),
+    help = Some("Angiv det dokumenterede antal kilometer i det aktuelle kørselsforløb."),
+    unit = Some("km")
+)
+= personskat_felt_erhvervsbefordring_tidligere_godtgørelseskilometer = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret",
+    label = "Tidligere kilometer hos arbejdsgiveren",
+    question = Some("Hvor mange erhvervsmæssige kilometer har denne arbejdsgiver allerede godtgjort i indkomståret?"),
+    help = Some("Grænsen mellem høj og lav kilometersats opgøres for den enkelte godtgørende arbejdsgiver."),
+    unit = Some("km/år")
+)
+= personskat_felt_erhvervsbefordring_tidligere_fradragskilometer = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret",
+    label = "Tidligere kilometer med direkte fradrag",
+    question = Some("Hvor mange kilometer er allerede medregnet til direkte fradrag efter § 9 B i indkomståret?"),
+    help = Some("Oplysningen bruges til at fordele årets direkte fradrag mellem den høje og lave kilometersats."),
+    unit = Some("km/år")
+)
+= personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder",
+    label = "Arbejdsdage på samme arbejdsplads",
+    question = Some("Hvor mange arbejdsdage har du inklusive den aktuelle dag kørt til samme arbejdsplads inden for de seneste 12 måneder?"),
+    help = Some("Kørsel mellem hjem og samme arbejdsplads er som udgangspunkt erhvervsmæssig i højst 60 arbejdsdage."),
+    unit = Some("arbejdsdage")
+)
+= personskat_felt_erhvervsbefordring_dage_siden_sidst = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen",
+    label = "Arbejdsdage siden sidste besøg",
+    question = Some("Hvor mange sammenhængende arbejdsdage er der gået, siden du sidst var på arbejdspladsen?"),
+    help = Some("Efter 60 sammenhængende arbejdsdage uden besøg begynder en ny 60-dages-periode."),
+    unit = Some("arbejdsdage")
+)
+= personskat_felt_erhvervsbefordring_mange_arbejdspladser = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.mange_forskellige_arbejdspladser",
+    label = "Mange skiftende arbejdspladser",
+    question = Some("Har dit kørselsmønster omfattet mange forskellige arbejdspladser?"),
+    help = Some("Oplysningen indgår i formodningsreglen i § 9 B, stk. 3."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_ikke_over_60 = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.ikke_sandsynligt_over_60_dage",
+    label = "Ikke sandsynligt med over 60 dage",
+    question = Some("Er det usandsynligt, at du kører mellem hjemmet og samme arbejdsplads i mere end 60 arbejdsdage?"),
+    help = Some("Sammen med mange skiftende arbejdspladser kan dette udløse formodningen om erhvervsmæssig befordring."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_regnskabspålæg = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.skriftligt_kørselsregnskabspålæg_aktivt",
+    label = "Aktivt pålæg om kørselsregnskab",
+    question = Some("Har Skatteforvaltningen givet dig et aktivt skriftligt pålæg om at føre kørselsregnskab?"),
+    help = Some("Et pålæg kan kræve dokumentation for, at kørslen fortsat er erhvervsmæssig."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_regnskab_dokumenterer = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.befordring.tres_dages_forhold.kørselsregnskab_dokumenterer_erhvervsmæssig_befordring",
+    label = "Kørselsregnskab dokumenterer kørslen",
+    question = Some("Dokumenterer kørselsregnskabet, at befordringen er erhvervsmæssig?"),
+    help = Some("Feltet er materielt, når et skriftligt kørselsregnskabspålæg er aktivt."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_afholdt_udgifter = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.har_afholdt_befordringsudgifter",
+    label = "Egne befordringsudgifter afholdt",
+    question = Some("Har du selv afholdt udgifterne til den erhvervsmæssige kørsel?"),
+    help = Some("Direkte fradrag forudsætter, at lønmodtageren faktisk har afholdt befordringsudgifterne."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_faktiske_udgifter = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner",
+    label = "Dokumenterede faktiske kørselsudgifter",
+    question = Some("Hvor store dokumenterede kørselsudgifter har du haft, eksklusive bro og tunnel?"),
+    help = Some("For denne lønmodtagergrænse udledes direkte fradrag efter Skatterådets satser; beløbet bevares som kildefaktum og bruges ikke som et selvvalgt fradrag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_erhvervsbefordring_bro_tunnel = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.udgifter.dokumenterede_bro_tunnel_udgifter_kroner",
+    label = "Dokumenterede bro- og tunneludgifter",
+    question = Some("Hvor store dokumenterede bro- og tunneludgifter vedrører kørslen?"),
+    help = Some("Bro- og tunneludgifter ligger uden for kilometersatsen og kan indgå særskilt i et direkte fradrag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_erhvervsbefordring_kundeopsøgende = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.kundeopsøgende_aktivitet",
+    label = "Kundeopsøgende aktivitet",
+    question = Some("Skete kørslen som led i kundeopsøgende aktivitet?"),
+    help = Some("Lønmodtagerens direkte fradrag efter § 9 B kræver kundeopsøgende aktivitet for flere arbejdsgivere på én gang."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_arbejdsgivere = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang",
+    label = "Samtidige arbejdsgivere for kørslen",
+    question = Some("Hvor mange arbejdsgivere vedrørte kørslen på én gang?"),
+    help = Some("Der kræves mindst to samtidige arbejdsgivere for lønmodtagerens direkte § 9 B-fradrag."),
+    unit = Some("arbejdsgivere")
+)
+= personskat_felt_erhvervsbefordring_godtgørelse = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
+    label = "Udbetalt kørselsgodtgørelse",
+    question = Some("Hvor meget kørselsgodtgørelse er der udbetalt for kørslen, før opdeling i skattefri godtgørelse og løn?"),
+    help = Some("Angiv hele godtgørelsen her og medtag den ikke også i den almindelige bruttoløn. Futuruna udleder, hvilken del der er skattefri, og hvilken del der skal behandles som AM-bidragspligtig løn."),
+    unit = Some("kr./år")
+)
+= personskat_felt_erhvervsbefordring_godtgørelsesform = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.form",
+    label = "Form for kørselsgodtgørelse",
+    question = Some("Hvordan blev kørselsgodtgørelsen opgjort og afregnet?"),
+    help = Some("Fast godtgørelse og ikke rettidigt afregnet a conto-godtgørelse er ikke skattefri efter bekendtgørelsen."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_arbejdsgiverkontrol = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.arbejdsgiver_har_kontrolleret_kilometer",
+    label = "Arbejdsgiveren har kontrolleret kilometer",
+    question = Some("Har arbejdsgiveren kontrolleret antallet af erhvervsmæssigt kørte kilometer?"),
+    help = Some("Arbejdsgiverkontrol er en betingelse for skattefri kørselsgodtgørelse."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_bogføringsbilag = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.bogføringsbilag_opfylder_par6",
+    label = "Bogføringsbilag opfylder kravene",
+    question = Some("Indeholder bogføringsbilaget de krævede oplysninger om kørslen?"),
+    help = Some("Bilaget skal blandt andet identificere modtager, formål, dato, mål, kilometer, sats og beregning."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_modregnet_bruttoløn = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.modregnet_i_forud_aftalt_bruttoløn",
+    label = "Godtgørelse modregnet i bruttoløn",
+    question = Some("Er kørselsgodtgørelsen modregnet i en på forhånd aftalt bruttoløn?"),
+    help = Some("Modregning i bruttoløn afskærer skattefriheden."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_firmabil = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.firmabil_stillet_til_rådighed",
+    label = "Firmabil stillet til rådighed",
+    question = Some("Var en firmabil stillet til rådighed for kørslen?"),
+    help = Some("Skattefri godtgørelse kræver normalt, at kørslen er foretaget i lønmodtagerens eget køretøj."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_eget_køretøj = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj",
+    label = "Kørsel i eget køretøj dokumenteret",
+    question = Some("Er det dokumenteret, at kørslen blev foretaget i dit eget køretøj?"),
+    help = Some("Dokumentation kan opfylde firmabilbetingelsen, selv om en firmabil ellers var til rådighed."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_firmabil_vederlag = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver",
+    label = "Fuldt vederlag betalt for firmabilskørsel",
+    question = Some("Er der betalt fuldt vederlag for firmabilskørsel udført for en anden arbejdsgiver?"),
+    help = Some("Dette er bekendtgørelsens særlige undtagelse til firmabilbetingelsen."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_overskud_som_løn = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse",
+    label = "Overskydende godtgørelse behandlet som løn",
+    question = Some("Blev beløbet over Skatterådets sats behandlet som løn ved den endelige opgørelse?"),
+    help = Some("Når kun overskuddet behandles som løn med A-skat og AM-bidrag, kan resten fortsat være skattefri."),
+    unit = None
+)
+= personskat_felt_erhvervsbefordring_medregnet = Beregningsfelt(
+    path = "lønmodtager.erhvervsbefordring.MedErhvervsbefordringEfterLigningslov9B.fakta.godtgørelsesforhold.eventuel_godtgørelse_valgt_medregnet_i_indkomsten",
+    label = "Godtgørelse medregnet i indkomsten",
+    question = Some("Skal en eventuel kørselsgodtgørelse medregnes i indkomsten for at anvende det direkte fradrag?"),
+    help = Some("Ved kundeopsøgende kørsel for flere arbejdsgivere er direkte fradrag betinget af, at en eventuel godtgørelse medregnes i indkomsten."),
+    unit = None
 )
 = personskat_felt_befordring = Beregningsfelt(
     path = "lønmodtager.ligningsfradrag.befordring.$variant",
@@ -2740,6 +2932,11 @@
     unit = None
 )
 
+--@label:beregn_personskat::field:personskat_felt_erhvervsbefordring::field:personskat_felt_erhvervsbefordring_køretøj::field:personskat_felt_erhvervsbefordring_art::field:personskat_felt_erhvervsbefordring_kilometer::field:personskat_felt_erhvervsbefordring_tidligere_godtgørelseskilometer::field:personskat_felt_erhvervsbefordring_tidligere_fradragskilometer::source:ligningsloven_lbk1500_par9b::rate_source:skatteraadet_bek1333_par4_par14--
+--@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads::field:personskat_felt_erhvervsbefordring_dage_siden_sidst::field:personskat_felt_erhvervsbefordring_mange_arbejdspladser::field:personskat_felt_erhvervsbefordring_ikke_over_60::field:personskat_felt_erhvervsbefordring_regnskabspålæg::field:personskat_felt_erhvervsbefordring_regnskab_dokumenterer::source:ligningsloven_lbk1500_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
+--@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_afholdt_udgifter::field:personskat_felt_erhvervsbefordring_faktiske_udgifter::field:personskat_felt_erhvervsbefordring_bro_tunnel::field:personskat_felt_erhvervsbefordring_kundeopsøgende::field:personskat_felt_erhvervsbefordring_arbejdsgivere::source:ligningsloven_lbk1500_par9b::source:personskatteloven_lbk1284_par3::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere--
+--@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_godtgørelse::field:personskat_felt_erhvervsbefordring_godtgørelsesform::field:personskat_felt_erhvervsbefordring_arbejdsgiverkontrol::field:personskat_felt_erhvervsbefordring_bogføringsbilag::field:personskat_felt_erhvervsbefordring_modregnet_bruttoløn::field:personskat_felt_erhvervsbefordring_firmabil::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
+--@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_eget_køretøj::field:personskat_felt_erhvervsbefordring_firmabil_vederlag::field:personskat_felt_erhvervsbefordring_overskud_som_løn::field:personskat_felt_erhvervsbefordring_medregnet::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
 --@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
 --@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
 --@label:beregn_personskat::field:personskat_felt_bruttoløn::source:personskatteloven_2021_1284::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
@@ -2951,6 +3148,58 @@
     | SærligeUnderskudsforhold(forhold) -> forhold
 }
 
+| personskat_ingen_erhvervsbefordring() -> UdenErhvervsbefordringEfterLigningslov9B
+| personskat_ll9b_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
+| personskat_erhvervsbefordring_grundfakta_gyldige(fakta: PersonskatErhvervsbefordringFakta) -> fakta.befordring.kilometer_i_sagen >= 0 && fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret >= 0 && fakta.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret >= 0 && fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder >= 0 && fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder <= 366 && fakta.befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen >= 0 && fakta.udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner >= 0 && fakta.udgifter.dokumenterede_bro_tunnel_udgifter_kroner >= 0 && fakta.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang >= 0 && fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner >= 0
+| personskat_ll9b_input(fakta: PersonskatErhvervsbefordringFakta, skatteår: Heltal) -> Ligningslov9BInput(
+    indkomstår = skatteår,
+    køretøj = fakta.køretøj,
+    befordring = fakta.befordring,
+    udgifter = fakta.udgifter,
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BLønmodtager,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = fakta.kundeopsøgende_aktivitet,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = fakta.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang
+    ),
+    godtgørelsesforhold = fakta.godtgørelsesforhold
+)
+| personskat_erhvervsbefordring_resultat(input: PersonskatErhvervsbefordringInput, skatteår: Heltal) -> match input {
+    | UdenErhvervsbefordringEfterLigningslov9B -> IngenErhvervsbefordringEfterLigningslov9B
+    | MedErhvervsbefordringEfterLigningslov9B(fakta) -> {
+        = skatteår_understøttet = personskat_ll9b_skatteår_understøttet(skatteår)
+        = grundfakta_gyldige = personskat_erhvervsbefordring_grundfakta_gyldige(fakta)
+        hvis skatteår_understøttet && grundfakta_gyldige {
+            = ll9b_input = personskat_ll9b_input(fakta, skatteår)
+            = ll9b_resultat = ligningslov9b_resultat(ll9b_input)
+            BeregnetErhvervsbefordringEfterLigningslov9B(
+                fakta = fakta,
+                ligningslov9b_input = ll9b_input,
+                ligningslov9b_resultat = ll9b_resultat,
+                par3_stk2_nr8_resultat = par3_stk2_nr8_resultat(ll9b_resultat)
+            )
+        } ellers {
+            UgyldigtErhvervsbefordringsgrundlag(
+                fakta = fakta,
+                skatteår_understøttet = skatteår_understøttet,
+                grundfakta_gyldige = grundfakta_gyldige
+            )
+        }
+    }
+}
+| personskat_erhvervsbefordring_input_gyldigt(resultat: PersonskatErhvervsbefordringResultat) -> match resultat {
+    | UgyldigtErhvervsbefordringsgrundlag(_, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_erhvervsbefordring_skattepligtig_løn_kroner(resultat: PersonskatErhvervsbefordringResultat) -> match resultat {
+    | BeregnetErhvervsbefordringEfterLigningslov9B(_, _, ligningslov9b_resultat, _) -> ligningslov9b_resultat.godtgørelse_personlig_indkomst_kroner
+    | _ -> 0
+}
+| personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(resultat: PersonskatErhvervsbefordringResultat) -> match resultat {
+    | BeregnetErhvervsbefordringEfterLigningslov9B(_, _, _, par3_stk2_nr8_resultat) -> par3_stk2_nr8_resultat.fradrag_i_personlig_indkomst_kroner
+    | _ -> 0
+}
+
 | personskat_ingen_ligningsfradrag() -> PersonskatLigningsfradragInput(
     befordring = UdenBefordringsfradrag
 )
@@ -2965,13 +3214,13 @@
     | MedLigningslov9D(ll9d_input) -> hvis personskat_ll9d_input_gyldigt(input, skatteår) { ll9d_resultat(ll9d_input) } ellers { ll9d_ikke_omfattet_resultat_for(skatteår) }
 }
 | personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.broer.øresund_kollektiv_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
-| personskat_ll9c_aftrapningsindkomst_kroner(input: PersonskatLønmodtagerInput) -> input.bruttoløn_kroner
-| personskat_ll9c_input(fakta: PersonskatBefordringsfradragFakta, lønmodtager: PersonskatLønmodtagerInput, ligningslov9d_resultat: Ligningslov9DResultat) -> Ligningslov9CInput(
+| personskat_ll9c_aftrapningsindkomst_kroner(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat) -> input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring)
+| personskat_ll9c_input(fakta: PersonskatBefordringsfradragFakta, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningslov9d_resultat: Ligningslov9DResultat) -> Ligningslov9CInput(
     skatteår = lønmodtager.skatteår,
     arbejdsdage = fakta.arbejdsdage,
     daglige_befordringskilometer = fakta.daglige_befordringskilometer,
     bopæl_i_yderkommune_eller_lille_ø = fakta.bopæl_i_yderkommune_eller_lille_ø,
-    aftrapningsindkomst_kroner = personskat_ll9c_aftrapningsindkomst_kroner(lønmodtager),
+    aftrapningsindkomst_kroner = personskat_ll9c_aftrapningsindkomst_kroner(lønmodtager, erhvervsbefordring),
     befordringsformål = fakta.befordringsformål,
     modtaget_skattefri_befordringsgodtgørelse_for_strækning = fakta.modtaget_skattefri_befordringsgodtgørelse_for_strækning,
     modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = fakta.modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning,
@@ -2981,7 +3230,7 @@
     broer = fakta.broer,
     særlig_transport = fakta.særlig_transport
 )
-| personskat_befordringsfradrag_resultat(input: PersonskatBefordringsfradragInput, lønmodtager: PersonskatLønmodtagerInput) -> match input {
+| personskat_befordringsfradrag_resultat(input: PersonskatBefordringsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat) -> match input {
     | UdenBefordringsfradrag -> IntetBefordringsfradrag
     | MedBefordringsfradrag(fakta) -> {
         = skatteår_understøttet = personskat_ll9c_skatteår_understøttet(lønmodtager.skatteår)
@@ -2989,7 +3238,7 @@
         = ligningslov9d_input_gyldigt = personskat_ll9d_input_gyldigt(fakta.ligningslov9d, lønmodtager.skatteår)
         hvis skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt {
             = ligningslov9d_resultat = personskat_ll9d_resultat(fakta.ligningslov9d, lønmodtager.skatteår)
-            = ligningslov9c_input = personskat_ll9c_input(fakta, lønmodtager, ligningslov9d_resultat)
+            = ligningslov9c_input = personskat_ll9c_input(fakta, lønmodtager, erhvervsbefordring, ligningslov9d_resultat)
             = ligningslov9c_resultat = ll9c_befordringsfradrag_resultat(ligningslov9c_input)
             BeregnetBefordringsfradrag(
                 fakta = fakta,
@@ -3021,8 +3270,8 @@
     | BeregnetBefordringsfradrag(_, _, _, _, _, personlig_indkomst_kroner) -> personlig_indkomst_kroner
     | _ -> 0
 }
-| personskat_ligningsfradrag_resultat(input: PersonskatLigningsfradragInput, lønmodtager: PersonskatLønmodtagerInput) -> {
-    = befordring = personskat_befordringsfradrag_resultat(input.befordring, lønmodtager)
+| personskat_ligningsfradrag_resultat(input: PersonskatLigningsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat) -> {
+    = befordring = personskat_befordringsfradrag_resultat(input.befordring, lønmodtager, erhvervsbefordring)
     PersonskatLigningsfradragResultat(
         input = input,
         befordring = befordring,
@@ -3565,11 +3814,11 @@
     fremleje = UdenFremlejeEfterLigningslov15Q,
     omkostninger = []
 )
-| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(
+| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
-    bruttoløn_kroner = input.bruttoløn_kroner,
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner,
+    bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
     pensionsfradrag = input.pensionsfradrag,
@@ -3577,12 +3826,12 @@
     betaler_kirkeskat = input.betaler_kirkeskat
 )
 | personskat_skatteforhold(input: PersonskatSkatteforholdInput, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_skatteforhold_med_aktieindkomst_tillæg(personskat_angivne_skatteforhold(input), aktieavance.aktieindkomst_kroner)
-| personskat_lønmodtagermodel(input: PersonskatInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
-    personskat_lønmodtager_input(input.lønmodtager, ligningsfradrag, kapitalindkomst, aktieavance),
+| personskat_lønmodtagermodel(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    personskat_lønmodtager_input(input.lønmodtager, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance),
     personskat_skatteforhold(input.skatteforhold, aktieavance),
     personskat_underskudsforhold(input.underskudsforhold)
 )
-| personskat_skat(input: PersonskatInput, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, ligningsfradrag, kapitalindkomst, aktieavance))
+| personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance))
 | personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, pensionsbeskatningsafgift_kroner, kreditter) -> {
@@ -3601,10 +3850,12 @@
 | personskat_beregning_resultat(input: PersonskatInput) -> {
     = aktieavance = personskat_aktieavance_resultat(input.aktieavance, input.lønmodtager.skatteår)
     = kapitalindkomst = personskat_kapitalindkomst_resultat(input.kapitalindkomst, input.lønmodtager.skatteår, aktieavance)
-    = ligningsfradrag = personskat_ligningsfradrag_resultat(input.lønmodtager.ligningsfradrag, input.lønmodtager)
-    = skat = personskat_skat(input, ligningsfradrag, kapitalindkomst, aktieavance)
+    = erhvervsbefordring = personskat_erhvervsbefordring_resultat(input.lønmodtager.erhvervsbefordring, input.lønmodtager.skatteår)
+    = ligningsfradrag = personskat_ligningsfradrag_resultat(input.lønmodtager.ligningsfradrag, input.lønmodtager, erhvervsbefordring)
+    = skat = personskat_skat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance)
     PersonskatBeregningResultat(
         skat = skat,
+        erhvervsbefordring = erhvervsbefordring,
         ligningsfradrag = ligningsfradrag,
         kapitalindkomst = kapitalindkomst,
         aktieavance = aktieavance,

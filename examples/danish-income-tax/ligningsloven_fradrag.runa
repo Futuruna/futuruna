@@ -753,7 +753,13 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par9b::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere--
+= ligningsloven_juridisk_vejledning_par9b_godtgørelse = LigningslovFradragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061750",
+    identifier = "Den juridiske vejledning 2026-1, C.A.4.3.3.3.2",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:ligningsloven_par9b::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
 ----
 Ligningsloven, LBK nr. 1500 af 24/11/2025:
 
