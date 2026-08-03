@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-defe9f` (in review)
-Latest implementation slice submitted for review: `td-defe9f`
+Current focus issue: `td-526fb5` (ready for review)
+Latest implementation slice submitted for review: `td-526fb5`
 Latest approved implementation slice: `td-638478`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -93,7 +93,14 @@ nettofortjeneste efter egne tab, så et overskydende tab ikke forsvinder i en
 allerede forbrugt bruttofortjeneste. Genanbringelse efter §§ 6 A, 6 C og 10 er
 nu et fælles typet domæne med oprindelig erhvervsfortjeneste, frister,
 erhvervsanvendelse, ejerskab, placering, begæring, investeringsgrundlag,
-genopførelsesfakta og senere reguleringer. § 8, stk. 5 beskatter den tidligere
+genopførelsesfakta og senere reguleringer. En almindelig erhvervsejendom bærer
+nu samme typede genanbringelsesdomæne. Ved en senere ordinær afståelse
+nedsættes den kontante anskaffelsessum med det stadig aktive nedslag, før
+§§ 5 og 5 A regulerer anskaffelsessummen. Den gamle fortjeneste tilføjes ikke
+særskilt igen. Hvis bestemmende indflydelse allerede er ophørt, viser
+auditsporet i stedet den tidligere beskatning og et aktivt nedslag på 0 kr., så
+den senere afståelse bruger den ikke-nedsatte anskaffelsessum. § 8, stk. 5
+beskatter den tidligere
 genanbragte fortjeneste særskilt, når den nye ejendoms egen boligfortjeneste er
 skattefri. § 9, stk. 4 udleder selv, om erhvervsdelen kan bære hele den
 genanbragte fortjeneste; hvis ikke, beskattes den gamle fortjeneste særskilt,
@@ -112,7 +119,11 @@ likvidationsåret afgør fritagelsen. Hvis en betingelse ikke er opfyldt,
 fortsætter gevinst eller tab gennem de almindelige ABL-regler i stedet for at
 blive nulstillet. Et fokuseret scenarie dækker de årlige 10.000 kr.-tillæg,
 årsaggregering af forbedringsudgifter, § 5 A-indeksering, § 8-fritagelsen,
-§ 9-fordelingen og ABL § 15's boligretsgren. Et nyt fokuseret scenarie dækker
+§ 9-fordelingen og ABL § 15's boligretsgren. Et særskilt ordinært
+genanbringelsesscenarie og en `.audit.runa`-fil kontrollerer, at det aktive
+anskaffelsessumsnedslag anvendes præcis én gang, at kontrolophør fjerner
+nedslaget, og at et nedslag større end ejendommens grundlag afvises. Et nyt
+fokuseret scenarie dækker
 desuden mælkekvotekøb, vederlagsfri tildeling, delvis disposition, udløb,
 toldning, § 5 A-år, § 5, stk. 6-værdiansættelse, 2027-overgangen for skov og
 natur samt samtidig anvendelse af begge grene. En separat `.audit.runa`-fil
@@ -143,8 +154,8 @@ Det typede input genererer et regneark direkte fra den nåbare domænegraf med
 117 typede inputkolonner på `cases`-arket plus `case_id` og sytten relationelle
 kildeark. Kontrakten når nu 186 domænedefinitioner. De to ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
-kan følges gennem § 8, stk. 5 eller § 9, stk. 4 uden beregnede mellemfelter fra
-brugeren.
+kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
+beregnede mellemfelter fra brugeren.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
 rummer egne og ægtefællens ejendomsafståelser, og de indlejrede § 5-fakta giver
 selvstændige relationelle tabeller for vedligeholdelses- og
@@ -168,7 +179,7 @@ bevares i kontrakten og de skjulte regnearksfaner. Personskat-kontrakten har
 etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring,
 aldersstatus, kirkeskat, renter, årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 170 eksplicitte feltmetadata-poster. De nye poster
+Kontrakten har aktuelt 200 eksplicitte feltmetadata-poster. De nye poster
 navngiver ejerandel, delafståelse, de særskilte hele og ikke-boligdelens
 anskaffelsessummer, mælkekvotetabellerne og alle deres dato-, enheds-,
 anskaffelses- og dispositionsfelter samt § 5, stk. 6's værdiansættelse og
@@ -177,21 +188,25 @@ Genanbringelsens
 lovgrundlag, oprindelige afståelsesår og erhvervsfortjeneste,
 geninvesteringsår, erhvervsmæssige anskaffelsesgrundlag, anvendelse, placering,
 begæring, ejerskab og overgangsforhold har nu egne menneskelige etiketter og
-interviewspørgsmål for både personen og ægtefællen. Det samme gælder de
+interviewspørgsmål for både personen og ægtefællen. De ordinære ejendommes
+genanbringelsesvalg, selskabets erhvervsbrug,
+kapital- og stemmeandele samt om den bestemmende indflydelse fortsat består,
+har samme menneskelige lag. Det gælder også de
 udenlandske betingelser om EU/EØS-område, fuld dansk skattepligt,
 informationsudveksling og den særskilte begæring med oplysninger og
 driftsbudget før fraflytning. En AI kan dermed indsamle kildedata i
 menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
-afvises som forældede.
+afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
+`787565b5c5d6a072a1f49e9103611228932e7789baf245110afffaf866126fb0`.
 Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
-tre-sagers XLSX/JSON-afstemning passerer på 2.688,51 sekunder. `td-6659f1`
+XLSX/JSON-afstemning passerer på 629,28 sekunder. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -2616,9 +2631,10 @@ Review candidates to revisit deliberately, not as broad churn:
   41.250 kr. i årligt § 5-tillæg, 20.000 kr. i mælkekvoteforhøjelse,
   30.000 kr. i mælkekvotenedsættelse, 37.500 kr. i § 5, stk. 6-overførsel og
   en reguleret anskaffelsessum på 268.750 kr.
-  Kontrakten har 170 eksplicitte menneskelige feltetiketter og
+  Kontrakten har 200 eksplicitte menneskelige feltetiketter og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
-  §§ 6 A/8/9-kildefakta, delafståelsernes særskilte
+  §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
+  anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
   anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
@@ -2749,8 +2765,8 @@ Review candidates to revisit deliberately, not as broad churn:
   source-backed §§ 5/5 A, 6, 8 and 9 paths. Milk quotas and § 5, stk. 6 are now
   executable and round-trip through the canonical Personskat contract.
   Remaining bounded work includes § 6 D seller-note installment taxation,
-  active reinvestment basis on ordinary property sales and the still
-  fail-closed multi-property § 10 allocation edges.
+  the still fail-closed multi-property § 10 allocation edges and remaining
+  bounded dependency rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same

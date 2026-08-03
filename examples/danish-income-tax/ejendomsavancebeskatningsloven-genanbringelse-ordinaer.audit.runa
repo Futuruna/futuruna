@@ -1,0 +1,131 @@
+@ sprog da
+
+@ importer ./ejendomsavancebeskatningsloven
+
+--@label:ebl_ordinær_genanbringelse_audit::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026--
+--@begin:ebl_ordinær_genanbringelse_audit--
+| ebl_ordinær_audit_par6a_fakta(erhvervsfortjeneste_kroner: Heltal, erhvervsanvendelse: EblPar6AErhvervsanvendelse) -> EblPar6AFakta(
+    oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
+        afståelsesindkomstår = 2025,
+        erhvervsfortjeneste_før_par6_stk2_kroner = erhvervsfortjeneste_kroner,
+        regulering = EblGenanbragtFortjenesteregulering(
+            tillæg_for_genanbragt_del_kroner = 0,
+            nedslag_for_genanbragt_del_kroner = 0
+        )
+    ),
+    afstået_ejendoms_erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+    investering = EblPar6AInvestering(
+        indkomstår = 2026,
+        erhvervsmæssigt_anskaffelsesgrundlag_kroner = 1000000,
+        ejendomsstatus = EblPar6AEjendomOmfattetAfLovenIkkePar8,
+        erhvervsanvendelse = erhvervsanvendelse,
+        placering = EblPar6AEjendomIDanmark
+    ),
+    begæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2,
+    ejerskab = EblPar6ASammeSkattepligtige
+)
+
+| ebl_ordinær_audit_salg(genanbringelse: EblGenanbringelse, kontant_anskaffelsessum_kroner: Heltal, kontant_afståelsessum_kroner: Heltal) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = kontant_anskaffelsessum_kroner,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = ebl_par5_standardfakta(
+        anskaffelsesdato = EblDato(år = 2026, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = kontant_afståelsessum_kroner,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblAndenFastEjendom(genanbringelse = genanbringelse),
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+))
+| ebl_ordinær_audit_delafståelse(genanbringelse: EblGenanbringelse) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 250000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = EblPar5Fakta(
+        anskaffelsesdato = EblDato(år = 2026, måned = 1, dag = 1),
+        anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+        fordeling = EblPar5Fordeling(
+            ejerandel_promille = 1000,
+            afståelsesomfang = EblPar5DelAfEjendommen(
+                afstået_del_anskaffelsessum_før_par5_kroner = 250000,
+                hele_ejendommens_anskaffelsessum_før_par5_kroner = 1000000,
+                ikke_boligdelens_anskaffelsessum_før_par5_kroner = None
+            )
+        ),
+        vedligeholdelses_og_forbedringsudgifter = [],
+        nedsættelser = [],
+        mælkekvoter = [],
+        stk6_overførsel = EblPar5UdenStk6Overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 300000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblAndenFastEjendom(genanbringelse = genanbringelse),
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+))
+
+= ebl_ordinær_audit_aktiv_genanbringelse = EblMedGenanbringelseEfterPar6A(fakta = ebl_ordinær_audit_par6a_fakta(
+    erhvervsfortjeneste_kroner = 200000,
+    erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed
+))
+= ebl_ordinær_audit_kontrolophør = EblMedGenanbringelseEfterPar6A(fakta = ebl_ordinær_audit_par6a_fakta(
+    erhvervsfortjeneste_kroner = 200000,
+    erhvervsanvendelse = EblPar6AUdlejetTilKontrolleretSelskab(
+        kapitalandel_ved_genanbringelse_promille = 600,
+        stemmeandel_ved_genanbringelse_promille = 400,
+        selskabet_anvender_ejendommen_erhvervsmæssigt = Sandt,
+        bestemmende_indflydelse_består = Falskt
+    )
+))
+
+= ebl_ordinær_audit_uden_genanbringelse = ebl_ordinær_audit_salg(
+    genanbringelse = EblUdenAktivGenanbringelse,
+    kontant_anskaffelsessum_kroner = 1000000,
+    kontant_afståelsessum_kroner = 1200000
+)
+= ebl_ordinær_audit_med_aktiv_genanbringelse = ebl_ordinær_audit_salg(
+    genanbringelse = ebl_ordinær_audit_aktiv_genanbringelse,
+    kontant_anskaffelsessum_kroner = 1000000,
+    kontant_afståelsessum_kroner = 1200000
+)
+= ebl_ordinær_audit_efter_kontrolophør = ebl_ordinær_audit_salg(
+    genanbringelse = ebl_ordinær_audit_kontrolophør,
+    kontant_anskaffelsessum_kroner = 1000000,
+    kontant_afståelsessum_kroner = 1200000
+)
+= ebl_ordinær_audit_for_stort_nedslag = ebl_ordinær_audit_salg(
+    genanbringelse = ebl_ordinær_audit_aktiv_genanbringelse,
+    kontant_anskaffelsessum_kroner = 100000,
+    kontant_afståelsessum_kroner = 120000
+)
+= ebl_ordinær_audit_delvis_afståelse = ebl_ordinær_audit_delafståelse(
+    genanbringelse = ebl_ordinær_audit_aktiv_genanbringelse
+)
+
+| ebl_ordinær_audit_basisforskel_svarer_til_aktivt_nedslag: ebl_ordinær_audit_med_aktiv_genanbringelse -> ebl_ordinær_audit_uden_genanbringelse.reguleret_anskaffelsessum_kroner - ebl_ordinær_audit_med_aktiv_genanbringelse.reguleret_anskaffelsessum_kroner == ebl_ordinær_audit_med_aktiv_genanbringelse.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner
+| ebl_ordinær_audit_fortjenesteforskel_svarer_til_aktivt_nedslag: ebl_ordinær_audit_med_aktiv_genanbringelse -> ebl_ordinær_audit_med_aktiv_genanbringelse.skattepligtig_fortjeneste_kroner - ebl_ordinær_audit_uden_genanbringelse.skattepligtig_fortjeneste_kroner == ebl_ordinær_audit_med_aktiv_genanbringelse.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner
+| ebl_ordinær_audit_senere_salg_tilføjer_ikke_særskilt_fortjeneste: ebl_ordinær_audit_med_aktiv_genanbringelse -> ebl_ordinær_audit_med_aktiv_genanbringelse.skattepligtig_fortjeneste_kroner == ebl_ordinær_audit_med_aktiv_genanbringelse.afståelsessum_kontantværdi_kroner - ebl_ordinær_audit_med_aktiv_genanbringelse.reguleret_anskaffelsessum_kroner && ebl_ordinær_audit_med_aktiv_genanbringelse.skattepligtig_fortjeneste_kroner == 390000
+| ebl_ordinær_audit_kontrolophør_giver_samme_senere_basis_som_ingen_genanbringelse: ebl_ordinær_audit_efter_kontrolophør -> ebl_ordinær_audit_efter_kontrolophør.genanbringelsesresultat.beskattet_ved_kontrolophør_kroner == 200000 && ebl_ordinær_audit_efter_kontrolophør.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 0 && ebl_ordinær_audit_efter_kontrolophør.reguleret_anskaffelsessum_kroner == ebl_ordinær_audit_uden_genanbringelse.reguleret_anskaffelsessum_kroner && ebl_ordinær_audit_efter_kontrolophør.skattepligtig_fortjeneste_kroner == ebl_ordinær_audit_uden_genanbringelse.skattepligtig_fortjeneste_kroner
+| ebl_ordinær_audit_afviser_nedslag_større_end_ejendommens_basis: ebl_ordinær_audit_for_stort_nedslag -> ebl_ordinær_audit_for_stort_nedslag.genanbringelsesresultat.input_gyldigt && ebl_ordinær_audit_for_stort_nedslag.input_gyldigt == Falskt && ebl_ordinær_audit_for_stort_nedslag.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 200000
+| ebl_ordinær_audit_delafståelse_forbruger_kun_sin_forholdsmæssige_del: ebl_ordinær_audit_delvis_afståelse -> ebl_ordinær_audit_delvis_afståelse.genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner == 200000 && ebl_ordinær_audit_delvis_afståelse.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 50000 && ebl_ordinær_audit_delvis_afståelse.aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner * 4 == ebl_ordinær_audit_delvis_afståelse.genanbringelsesresultat.aktivt_anskaffelsessumsnedslag_kroner
+
+? ebl_ordinær_audit_basisforskel_svarer_til_aktivt_nedslag
+? ebl_ordinær_audit_fortjenesteforskel_svarer_til_aktivt_nedslag
+? ebl_ordinær_audit_senere_salg_tilføjer_ikke_særskilt_fortjeneste
+? ebl_ordinær_audit_kontrolophør_giver_samme_senere_basis_som_ingen_genanbringelse
+? ebl_ordinær_audit_afviser_nedslag_større_end_ejendommens_basis
+? ebl_ordinær_audit_delafståelse_forbruger_kun_sin_forholdsmæssige_del
+
+@ print("EBL ordinary reinvestment audit passed")
+--@end:ebl_ordinær_genanbringelse_audit--

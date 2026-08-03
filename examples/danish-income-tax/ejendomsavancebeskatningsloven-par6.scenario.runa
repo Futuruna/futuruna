@@ -62,9 +62,9 @@ indkomstårets udgang.
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 ))
 
-= ebl_par6_tab_2024 = ebl_par6_scenarie_ejendomsresultat(2024, 7000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
-= ebl_par6_tab_2025 = ebl_par6_scenarie_ejendomsresultat(2025, 20000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
-= ebl_par6_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+= ebl_par6_tab_2024 = ebl_par6_scenarie_ejendomsresultat(2024, 7000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, ebl_anden_fast_ejendom_uden_genanbringelse())
+= ebl_par6_tab_2025 = ebl_par6_scenarie_ejendomsresultat(2025, 20000, 10000, EblPar4AlmindeligtAnskaffelsesgrundlag, ebl_anden_fast_ejendom_uden_genanbringelse())
+= ebl_par6_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, ebl_anden_fast_ejendom_uden_genanbringelse())
 = ebl_par6_par8_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 110000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblBoligejendom(fakta = EblPar8Fakta(
     ejendomsart = EblPar8EnEllerTofamilieshus(grundbetingelse = EblPar8GrundarealUnder1400M2),
     tjent_til_bolig_eller_privat_formål = Sandt,
@@ -104,9 +104,9 @@ indkomstårets udgang.
 )))
 = ebl_par6_par4_stk3_tab_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 200000, 430000, EblPar4Stk3TredjePktAnskaffelsesgrundlag(
     tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner = 40000
-    ), EblAndenFastEjendom)
-= ebl_par6_egen_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 140000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
-= ebl_par6_ægtefælles_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 150000, EblPar4AlmindeligtAnskaffelsesgrundlag, EblAndenFastEjendom)
+    ), ebl_anden_fast_ejendom_uden_genanbringelse())
+= ebl_par6_egen_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 140000, EblPar4AlmindeligtAnskaffelsesgrundlag, ebl_anden_fast_ejendom_uden_genanbringelse())
+= ebl_par6_ægtefælles_fortjeneste_2026 = ebl_par6_scenarie_ejendomsresultat(2026, 100000, 150000, EblPar4AlmindeligtAnskaffelsesgrundlag, ebl_anden_fast_ejendom_uden_genanbringelse())
 = ebl_par6_tabsår_2024 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2024)
 = ebl_par6_tabsår_2025 = ebl_par6_scenarie_tabsår_uden_fortjeneste(ebl_par6_tab_2025)
 

@@ -633,6 +633,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "kontant_afståelsessum_kroner",
                 "par11_stk2_genanbragt_erhvervsejendom",
                 "ejendomstype.$variant",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.$variant",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.afståelsesindkomstår",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.bestemmende_indflydelse_består",
                 "ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.$variant",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.$variant",
@@ -654,6 +659,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 );
             }
             let property_headers = workbook_headers(&mut workbook, sheet);
+            let mut unique_property_headers = property_headers.clone();
+            unique_property_headers.sort();
+            unique_property_headers.dedup();
+            assert_eq!(
+                unique_property_headers.len(),
+                property_headers.len(),
+                "duplicate human property headers on {sheet}"
+            );
             for expected in [
                 "Ejendom",
                 "Afståelsesår",
@@ -673,6 +686,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Ejendomskategori for § 5 A",
                 "Indeksering efter § 5 A",
                 "Ejendomstype",
+                "Tidligere genanbringelse på ejendommen",
+                "Bestemmende indflydelse består",
                 "Boligejendommens art",
                 "Genanbringelse ved boligejendom",
                 "Lovgrundlag for genanbringelse (§ 8)",
@@ -1288,6 +1303,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 set_workbook_cell_by_header(sheets, &own_property_sheet, row, header, value);
             }
         }
+        set_workbook_cell_by_header(
+            sheets,
+            &own_property_sheet,
+            2,
+            "ejendomstype.EblAndenFastEjendom.genanbringelse.$variant",
+            Data::String("EblUdenAktivGenanbringelse".to_string()),
+        );
         for (header, value) in [
             (
                 "case_id",
@@ -1603,6 +1625,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ejendomstype.$variant",
                 Data::String("EblAndenFastEjendom".to_string()),
+            ),
+            (
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.$variant",
+                Data::String("EblUdenAktivGenanbringelse".to_string()),
             ),
         ] {
             set_workbook_cell_by_header(sheets, &spouse_property_sheet, 1, header, value);
@@ -2085,7 +2111,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
+                    "ejendomstype": {
+                        "$variant": "EblAndenFastEjendom",
+                        "genanbringelse": { "$variant": "EblUdenAktivGenanbringelse" }
+                    }
                 }],
                 "eget_fremført_tab": {
                     "$variant": "MedFremførtEjendomstab",
@@ -2117,7 +2146,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "overdragne_gældsposter_kursværdi_kroner": 0,
                     "par4_stk8_afståelsesværdi_udeladt_kroner": 0,
                     "par11_stk2_genanbragt_erhvervsejendom": false,
-                    "ejendomstype": { "$variant": "EblAndenFastEjendom" }
+                    "ejendomstype": {
+                        "$variant": "EblAndenFastEjendom",
+                        "genanbringelse": { "$variant": "EblUdenAktivGenanbringelse" }
+                    }
                 }],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": true

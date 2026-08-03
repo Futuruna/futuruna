@@ -117,7 +117,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     kontant_afståelsessum_kroner = 10000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    ejendomstype = EblAndenFastEjendom,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 | par13a_audit_ebl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> ejendomsavance_par6_tabsårsresultat(EjendomsavancePar6Tabsårsinput(

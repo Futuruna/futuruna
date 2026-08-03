@@ -758,6 +758,216 @@
     help = Some("Ejendomstypen åbner de relevante fakta for parcelhusreglen eller en blandet landbrugs-, skov-, natur- eller erhvervsejendom."),
     unit = None
 )
+= personskat_felt_egen_ordinær_genanbringelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.$variant",
+    label = "Tidligere genanbringelse på ejendommen",
+    question = Some("Er en tidligere erhvervsfortjeneste genanbragt i anskaffelsessummen for ejendommen?"),
+    help = Some("Vælg § 6 A, § 6 C eller § 10, hvis ejendommens anskaffelsessum fortsat er nedsat med en tidligere udskudt fortjeneste."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.$variant",
+    label = "Tidligere genanbringelse på ejendommen",
+    question = Some("Er en tidligere erhvervsfortjeneste genanbragt i anskaffelsessummen for din ægtefælles ejendom?"),
+    help = Some("Vælg § 6 A, § 6 C eller § 10, hvis ejendommens anskaffelsessum fortsat er nedsat med en tidligere udskudt fortjeneste."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_genanbringelse_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.afståelsesindkomstår",
+    label = "År for den oprindelige erhvervsafståelse (ordinær ejendom)",
+    question = Some("I hvilket indkomstår blev den oprindelige erhvervsejendom afstået?"),
+    help = Some("Året bruges til at prøve tidsfristen mellem den oprindelige afståelse og geninvesteringen."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.afståelsesindkomstår",
+    label = "År for den oprindelige erhvervsafståelse (ordinær ejendom)",
+    question = Some("I hvilket indkomstår blev din ægtefælles oprindelige erhvervsejendom afstået?"),
+    help = Some("Året bruges til at prøve tidsfristen mellem den oprindelige afståelse og geninvesteringen."),
+    unit = Some("år")
+)
+= personskat_felt_egen_ordinær_genanbringelse_fortjeneste = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+    label = "Oprindelig erhvervsfortjeneste (ordinær ejendom)",
+    question = Some("Hvor stor var fortjenesten på den oprindelige erhvervsejendom før tabsmodregning efter § 6, stk. 2?"),
+    help = Some("Futuruna begrænser automatisk den aktive genanbringelse til både fortjenesten og det erhvervsmæssige anskaffelsesgrundlag."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+    label = "Oprindelig erhvervsfortjeneste (ordinær ejendom)",
+    question = Some("Hvor stor var fortjenesten på din ægtefælles oprindelige erhvervsejendom før tabsmodregning efter § 6, stk. 2?"),
+    help = Some("Futuruna begrænser automatisk den aktive genanbringelse til både fortjenesten og det erhvervsmæssige anskaffelsesgrundlag."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.afstået_ejendoms_erhvervsanvendelse.$variant",
+    label = "Oprindelig erhvervsanvendelse (ordinær ejendom)",
+    question = Some("Hvordan blev den oprindelige ejendom anvendt ved afståelsen?"),
+    help = Some("Almindelig udlejning, bolig og ikke-erhvervsmæssig anvendelse opfylder ikke § 6 A."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.afstået_ejendoms_erhvervsanvendelse.$variant",
+    label = "Oprindelig erhvervsanvendelse (ordinær ejendom)",
+    question = Some("Hvordan blev din ægtefælles oprindelige ejendom anvendt ved afståelsen?"),
+    help = Some("Almindelig udlejning, bolig og ikke-erhvervsmæssig anvendelse opfylder ikke § 6 A."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_geninvesteringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.indkomstår",
+    label = "Geninvesteringsår (ordinær ejendom)",
+    question = Some("I hvilket indkomstår blev den nye ejendom anskaffet eller investeringen foretaget?"),
+    help = Some("§ 6 A tillader geninvestering i året før, samme år som eller året efter den oprindelige afståelse."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ordinær_geninvesteringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.indkomstår",
+    label = "Geninvesteringsår (ordinær ejendom)",
+    question = Some("I hvilket indkomstår blev din ægtefælles nye ejendom anskaffet eller investeringen foretaget?"),
+    help = Some("§ 6 A tillader geninvestering i året før, samme år som eller året efter den oprindelige afståelse."),
+    unit = Some("år")
+)
+= personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+    label = "Erhvervsmæssigt geninvesteringsgrundlag (ordinær ejendom)",
+    question = Some("Hvor stor var den kontante anskaffelsessum for den erhvervsmæssige del af geninvesteringen?"),
+    help = Some("Beløbet sætter sammen med den oprindelige fortjeneste loftet over genanbringelsen."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+    label = "Erhvervsmæssigt geninvesteringsgrundlag (ordinær ejendom)",
+    question = Some("Hvor stor var den kontante anskaffelsessum for den erhvervsmæssige del af din ægtefælles geninvestering?"),
+    help = Some("Beløbet sætter sammen med den oprindelige fortjeneste loftet over genanbringelsen."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ordinær_geninvestering_ejendomsstatus = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.ejendomsstatus",
+    label = "Geninvesteringens ejendomsstatus (ordinær ejendom)",
+    question = Some("Var geninvesteringen omfattet af ejendomsavancebeskatningsloven uden at være omfattet af § 8?"),
+    help = Some("§ 6 A kan ikke anvendes direkte på en ejendom, der allerede var omfattet af parcelhusreglen."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.ejendomsstatus",
+    label = "Geninvesteringens ejendomsstatus (ordinær ejendom)",
+    question = Some("Var din ægtefælles geninvestering omfattet af ejendomsavancebeskatningsloven uden at være omfattet af § 8?"),
+    help = Some("§ 6 A kan ikke anvendes direkte på en ejendom, der allerede var omfattet af parcelhusreglen."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_geninvestering_anvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.$variant",
+    label = "Geninvesteringens erhvervsanvendelse (ordinær ejendom)",
+    question = Some("Hvordan blev geninvesteringen anvendt erhvervsmæssigt?"),
+    help = Some("Valget afgør både retten til genanbringelse og en eventuel senere beskatning ved ophør af bestemmende indflydelse."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.$variant",
+    label = "Geninvesteringens erhvervsanvendelse (ordinær ejendom)",
+    question = Some("Hvordan blev din ægtefælles geninvestering anvendt erhvervsmæssigt?"),
+    help = Some("Valget afgør både retten til genanbringelse og en eventuel senere beskatning ved ophør af bestemmende indflydelse."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_geninvestering_placering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.placering.$variant",
+    label = "Geninvesteringens placering (ordinær ejendom)",
+    question = Some("Lå geninvesteringen i Danmark eller i udlandet?"),
+    help = Some("En udenlandsk ejendom åbner de supplerende skattepligts-, informations- og begæringsbetingelser i § 6 A."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_geninvestering_placering = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.placering.$variant",
+    label = "Geninvesteringens placering (ordinær ejendom)",
+    question = Some("Lå din ægtefælles geninvestering i Danmark eller i udlandet?"),
+    help = Some("En udenlandsk ejendom åbner de supplerende skattepligts-, informations- og begæringsbetingelser i § 6 A."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_genanbringelsesbegæring = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.begæring.$variant",
+    label = "Begæring om genanbringelse (ordinær ejendom)",
+    question = Some("Hvordan og hvornår blev der begæret genanbringelse efter § 6 A?"),
+    help = Some("Vælg rettidig oplysning, begæring efter en ansættelsesændring eller for sen begæring."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.begæring.$variant",
+    label = "Begæring om genanbringelse (ordinær ejendom)",
+    question = Some("Hvordan og hvornår begærede din ægtefælle genanbringelse efter § 6 A?"),
+    help = Some("Vælg rettidig oplysning, begæring efter en ansættelsesændring eller for sen begæring."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_genanbringelse_ejerskab = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.ejerskab.$variant",
+    label = "Ejerskab ved genanbringelsen (ordinær ejendom)",
+    question = Some("Var det samme skattepligtige, eller samlevende ægtefæller, der afstod og geninvesterede?"),
+    help = Some("Ved genanbringelse mellem ægtefæller prøves samlivet ved både afståelsesårets og investeringsårets udgang."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.ejerskab.$variant",
+    label = "Ejerskab ved genanbringelsen (ordinær ejendom)",
+    question = Some("Var det samme skattepligtige, eller samlevende ægtefæller, der afstod og geninvesterede for din ægtefælles genanbringelse?"),
+    help = Some("Ved genanbringelse mellem ægtefæller prøves samlivet ved både afståelsesårets og investeringsårets udgang."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_genanbringelse_kapitalandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.kapitalandel_ved_genanbringelse_promille",
+    label = "Kapitalandel i det kontrollerede selskab",
+    question = Some("Hvor stor en kapitalandel ejede du og din ægtefælle direkte eller indirekte ved genanbringelsen?"),
+    help = Some("Angiv andelen i promille; mere end 500 promille kan udgøre bestemmende indflydelse."),
+    unit = Some("promille")
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.kapitalandel_ved_genanbringelse_promille",
+    label = "Kapitalandel i det kontrollerede selskab",
+    question = Some("Hvor stor en kapitalandel ejede din ægtefælle og du direkte eller indirekte ved genanbringelsen?"),
+    help = Some("Angiv andelen i promille; mere end 500 promille kan udgøre bestemmende indflydelse."),
+    unit = Some("promille")
+)
+= personskat_felt_egen_ordinær_genanbringelse_stemmeandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.stemmeandel_ved_genanbringelse_promille",
+    label = "Stemmeandel i det kontrollerede selskab",
+    question = Some("Hvor stor en andel af stemmerettighederne rådede du og din ægtefælle over ved genanbringelsen?"),
+    help = Some("Angiv andelen i promille; mere end 500 promille kan udgøre bestemmende indflydelse."),
+    unit = Some("promille")
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.stemmeandel_ved_genanbringelse_promille",
+    label = "Stemmeandel i det kontrollerede selskab",
+    question = Some("Hvor stor en andel af stemmerettighederne rådede din ægtefælle og du over ved genanbringelsen?"),
+    help = Some("Angiv andelen i promille; mere end 500 promille kan udgøre bestemmende indflydelse."),
+    unit = Some("promille")
+)
+= personskat_felt_egen_ordinær_genanbringelse_selskabsbrug = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.selskabet_anvender_ejendommen_erhvervsmæssigt",
+    label = "Selskabet anvender ejendommen erhvervsmæssigt",
+    question = Some("Anvendte det kontrollerede selskab ejendommen erhvervsmæssigt?"),
+    help = Some("Udlejning til et kontrolleret selskab er kun omfattet, når selskabet selv anvender ejendommen erhvervsmæssigt."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.selskabet_anvender_ejendommen_erhvervsmæssigt",
+    label = "Selskabet anvender ejendommen erhvervsmæssigt",
+    question = Some("Anvendte det kontrollerede selskab din ægtefælles ejendom erhvervsmæssigt?"),
+    help = Some("Udlejning til et kontrolleret selskab er kun omfattet, når selskabet selv anvender ejendommen erhvervsmæssigt."),
+    unit = None
+)
+= personskat_felt_egen_ordinær_genanbringelse_kontrol_består = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.bestemmende_indflydelse_består",
+    label = "Bestemmende indflydelse består",
+    question = Some("Består den bestemmende indflydelse i selskabet fortsat?"),
+    help = Some("Hvis kontrollen er ophørt, beskattes den genanbragte fortjeneste på ophørstidspunktet, og anskaffelsessumsnedslaget bortfalder."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.bestemmende_indflydelse_består",
+    label = "Bestemmende indflydelse består",
+    question = Some("Består den bestemmende indflydelse i selskabet fortsat for din ægtefælles genanbringelse?"),
+    help = Some("Hvis kontrollen er ophørt, beskattes den genanbragte fortjeneste på ophørstidspunktet, og anskaffelsessumsnedslaget bortfalder."),
+    unit = None
+)
 = personskat_felt_egen_par8_ejendomsart = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
     label = "Boligejendommens art",
@@ -1295,6 +1505,21 @@
 --@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsdag::field:personskat_felt_ægtefælles_mælkekvote_toldningsdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
 --@label:beregn_personskat::field:personskat_felt_egen_ejendomstype::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomstype::source:ebl_par8_par9_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse::field:personskat_felt_ægtefælles_ordinær_genanbringelse::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_afståelsesår::field:personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_fortjeneste::field:personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse::field:personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvesteringsår::field:personskat_felt_ægtefælles_ordinær_geninvesteringsår::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag::field:personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_ejendomsstatus::field:personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_anvendelse::field:personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_placering::field:personskat_felt_ægtefælles_ordinær_geninvestering_placering::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelsesbegæring::field:personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_ejerskab::field:personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_kapitalandel::field:personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_stemmeandel::field:personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_selskabsbrug::field:personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug::source:ebl_genanbringelse_lbk132--
+--@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_kontrol_består::field:personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består::source:ebl_genanbringelse_lbk132--
 --@label:beregn_personskat::field:personskat_felt_egen_par8_ejendomsart::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_ejendomsart::source:ebl_par8_par9_lbk132--
 --@label:beregn_personskat::field:personskat_felt_egen_par8_boligbrug::source:ebl_par8_par9_lbk132--

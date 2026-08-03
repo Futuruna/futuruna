@@ -250,7 +250,7 @@
     kontant_afståelsessum_kroner = 1500000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    ejendomstype = EblAndenFastEjendom,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 

@@ -2265,7 +2265,7 @@ fra og med den 1. januar 2027.
     kontant_afståelsessum_kroner = 1024000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    ejendomstype = EblAndenFastEjendom,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 )
 = par4_stk1_nr14_fortjeneste_fixture = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_fortjeneste_ebl_input)
@@ -2281,7 +2281,7 @@ fra og med den 1. januar 2027.
     kontant_afståelsessum_kroner = 960000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    ejendomstype = EblAndenFastEjendom,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 = par4_stk1_nr14_ekspropriation_fixture = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(EjendomsavancebeskatningslovInput(
@@ -2296,7 +2296,7 @@ fra og med den 1. januar 2027.
     kontant_afståelsessum_kroner = 1060000,
     overdragne_gældsposter_kursværdi_kroner = 0,
     par4_stk8_afståelsesværdi_udeladt_kroner = 0,
-    ejendomstype = EblAndenFastEjendom,
+    ejendomstype = ebl_anden_fast_ejendom_uden_genanbringelse(),
     par11_stk2_genanbragt_erhvervsejendom = Falskt
 ))
 = par4_stk1_nr15_modtager_negativ_saldo_fixture = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
