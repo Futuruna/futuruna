@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-03c48a` (submitting for review)
-Latest implementation slice submitted for review: `td-03c48a`
+Current focus issue: `td-91feb9` (submitting for review)
+Latest implementation slice submitted for review: `td-91feb9`
 Latest approved implementation slice: `td-f84c7d`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -285,11 +285,11 @@ finansieringsnæring. Rente- og ABL-kapitalposter går gennem den samme
 § 4-opgørelse i stedet for parallelle nettobeløb.
 
 Det typede input genererer et regneark direkte fra den nåbare domænegraf med
-156 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 32
+156 synlige overskriftsceller på `cases`-arket inklusive `case_id` og 52
 relationelle kildeark. Pensionsindbetalingerne og de valgte indekskontrakter
 ligger i to nye nøglebundne tabeller. § 9 B-sagerne ligger i deres egen tabel
 med 30 kolonner inklusive `case_id`, `item_id` og `position`. Kontrakten når nu
-347 domænedefinitioner. De to
+394 domænedefinitioner. De to
 ejendomsark rummer
 også de kildefakta, der kræves af §§ 6 A, 6 C og 10, så en aktiv genanbringelse
 kan følges gennem en ordinær afståelse, § 8, stk. 5 eller § 9, stk. 4 uden
@@ -319,7 +319,10 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 476 eksplicitte feltmetadata-poster. Seks af dem
+Kontrakten har aktuelt 579 eksplicitte feltmetadata-poster. Alle 64 nåbare
+§ 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
+interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
+selskabsindtægter og -aktiver. Seks af posterne
 beskriver ejendomsdrift efter Personskattelovens § 4, stk. 1, nr. 6:
 variantvalg, ejendomstype, beliggenhed, erhvervsmæssig udlejning, særlige
 betingelser og årets underskud eller overskud. De otte
@@ -2180,7 +2183,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-07-18, the corpus should be treated as a source-backed first-slice
+As of 2026-07-23, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -2845,19 +2848,32 @@ Review candidates to revisit deliberately, not as broad churn:
   alderskravet, ti kvalifikationsår inden for de seneste femten år, succession,
   den passive kapitalprøve, 2013/2014-overgangen, ændringen for aktiv udlejning
   fra 2025, tilladte ordningsformer, hver afståelses fortjenesteloft og den
-  fælles tiårige indbetalingshistorik. Hver ordning henviser til den afståelse,
-  der oprindeligt oprettede den. En ny ordning skal være oprettet senest året
-  efter denne afståelse, mens en allerede gyldig ophørspension kan modtage
-  fortjeneste fra en senere kvalificerende afståelse. Det regulerede samlede
-  maksimum er 3.285.400 kr. for 2025 og 3.443.400 kr. for 2026 og afledes af det
-  seneste indbetalingsår. Det særskilte fradragsloft i afståelsesåret følger
-  derimod afståelsesårets beløbsgrænse, også når betalingen sker senest 1. juli
-  året efter. Ikke-understøttede år fejler lukket. Flere ordninger fordeles
-  deterministisk i inputrækkefølge uden genbrug af fortjeneste eller loft.
-  Interpreter og compiler gennemfører samme fokuserede scenarier for almindelig
-  ratepension, gyldig og ugyldig indeksordning, rettidig og for sen oprettelse,
-  genbrug af en eksisterende ordning, flere § 15 A-ordninger, overgrænse,
-  ugyldige fakta og tidligere udnyttet loft.
+  fælles tiårige indbetalingshistorik. De tre seneste regnskabsperioder har
+  eksakte start- og slutdatoer, skal være sammenhængende og slutte umiddelbart
+  før den aktuelle periode. Derfor anvendes 75-procentsgrænsen præcist, når en
+  af perioderne begyndte før 1. januar 2012, og overdragelsesgrænsen skifter
+  præcist efter 31. december 2013. Direkte og indirekte ejerandele afledes fra
+  typede ejerveje. Ved mindst 25 pct. udelades aktiernes værdi og afkast, og den
+  forholdsmæssige andel af selskabets underliggende indtægter og aktiver
+  medregnes uden dobbeltregning. Aktiv udlejning under ejergrænsen gennemlyses
+  først fra 2025, mens koncernintern lejeindtægt udelades, og en ejendom, som
+  lejeren bruger i driften, behandles som aktiv. Hver ordning henviser til den
+  afståelse, der oprindeligt oprettede den. En ny ordning skal være oprettet
+  senest året efter denne afståelse, mens en allerede gyldig ophørspension kan
+  modtage fortjeneste fra en senere kvalificerende afståelse. Det regulerede
+  samlede maksimum er 3.285.400 kr. for 2025 og 3.443.400 kr. for 2026 og
+  afledes af det seneste indbetalingsår. Det særskilte fradragsloft i
+  afståelsesåret følger derimod afståelsesårets beløbsgrænse, også når betalingen
+  sker senest 1. juli året efter. Ikke-understøttede år fejler lukket. Flere
+  ordninger fordeles deterministisk i inputrækkefølge uden genbrug af fortjeneste
+  eller loft.
+  Interpreter og compiler gennemfører samme 27 fokuserede scenarier for
+  almindelig ratepension, gyldig og ugyldig indeksordning, rettidig og for sen
+  oprettelse, genbrug af en eksisterende ordning, flere § 15 A-ordninger,
+  overgrænse, ugyldige fakta, tidligere udnyttet loft, datogrænser,
+  periodehuller, næringsundtagelsen, direkte og indirekte
+  selskabsgennemlysning, særskilte lige ejerveje, dublerede ejerveje samt
+  udlejningsundtagelserne.
 - Den kanoniske beregningskontrakt udstiller kun disse kildefakta. De nye
   pensionsstier har hver en eksplicit dansk etiket, et interviewspørgsmål,
   hjælp, relevant enhed og typede kilder. `@ calculate("Dansk personskat")`
@@ -2893,8 +2909,8 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 372 nåbare definitioner, 156
-  synlige overskriftsceller inklusive `case_id` og 32 relationelle kildeark.
+- Det genererede Personskat-regneark har nu 394 nåbare definitioner, 156
+  synlige overskriftsceller inklusive `case_id` og 52 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -2926,7 +2942,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 539 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 579 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2952,10 +2968,11 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 1.833 domænekolonner bruger 491 præcise feltmetadata-match;
-  1.342 ældre, dybe stier bruger fortsat en deterministisk læsbar fallback og
-  er eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og validerer samtidig
-  beregningstitlen på hvert synligt ark.
+  Arbejdsbogens 1.883 domænekolonner bruger præcise feltmetadata, hvor de er
+  oprettet. Alle 64 nåbare § 15 A-stier for afståelsen har nu en eksplicit
+  etiket og et interviewspørgsmål; ældre, dybe stier med deterministisk læsbar
+  fallback er fortsat eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og
+  validerer samtidig beregningstitlen på hvert synligt ark.
 - Ejendomsavancebeskatningslovens § 6 D er nu et vedvarende, typet
   sælgerpantebrevsforløb. Den kanoniske EBL-beregning afleder den
   kvalificerende erhvervsfortjeneste og 10-procentsgrænsen fra ejendommens
@@ -3086,15 +3103,14 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-91feb9` skal uddybe § 15 A's passive kapitalprøve med eksakte
-  regnskabsperioder og et typet 25-procents look-through til underliggende
-  selskabsindtægter og -aktiver. Indtil da er den nuværende postklassifikation
-  eksplicit kildeinput og ikke en fuldt afledt selskabskæde.
 - `td-9fec71` skal erstatte § 15 A's oplyste skattepligtige fortjeneste med en
   lukket union af kildeberegnede ABL-, EBL-, AL- og KGL-resultater samt den
   relevante ægtefællehenføring efter Kildeskattelovens § 25 A. Den nuværende
   model afleder loft og fordeling fra fortjenesten, men afleder endnu ikke selve
   fortjenesten på tværs af afhængighedslovene.
+- `td-d1183e` skal modellere den særskilte tidsregel fra Den juridiske
+  vejledning, når et holdingselskab afstår eller likviderer et datterselskab,
+  før holdingselskabsaktierne afstås.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

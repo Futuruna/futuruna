@@ -3190,12 +3190,26 @@
     help = Some("Brug samme identifikation på de pensionsindbetalinger, der hidrører fra afståelsen."),
     unit = None
 )
-= personskat_felt_pbl15a_afståelsesår = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesår",
-    label = "Afståelsesår",
-    question = Some("I hvilket indkomstår blev virksomheden, virksomhedsandelen eller hovedaktionæraktierne afstået?"),
+= personskat_felt_pbl15a_afståelsesdato_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesdato.år",
+    label = "År for virksomhedsafståelsen",
+    question = Some("I hvilket år blev virksomheden, virksomhedsandelen eller hovedaktionæraktierne afstået?"),
     help = Some("Året starter den selvstændige tiårsperiode for indbetalinger fra denne afståelse."),
     unit = Some("år")
+)
+= personskat_felt_pbl15a_afståelsesdato_måned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesdato.måned",
+    label = "Måned for virksomhedsafståelsen",
+    question = Some("I hvilken måned fandt virksomhedsafståelsen sted?"),
+    help = Some("Den nøjagtige dato afgør de daterede grænser og hvilke regnskabsperioder der er afsluttet."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_afståelsesdato_dag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesdato.dag",
+    label = "Dag for virksomhedsafståelsen",
+    question = Some("På hvilken dag i måneden fandt virksomhedsafståelsen sted?"),
+    help = Some("Angiv kalenderdagen for den faktiske afståelse."),
+    unit = Some("dag")
 )
 = personskat_felt_pbl15a_afståelsesgrund = Beregningsfelt(
     path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.grundlag",
@@ -3218,102 +3232,368 @@
     help = Some("PBL § 15 A kræver, at personen var fyldt 55 år inden afståelsen."),
     unit = Some("år")
 )
-= personskat_felt_pbl15a_regnskabsår = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår",
-    label = "Tre regnskabsår før afståelsen",
-    question = Some("Hvilke tre seneste regnskabsår skal indgå i vurderingen af passiv kapitalanbringelse?"),
-    help = Some("Tilføj præcis de tre forskellige indkomstår umiddelbart før afståelsesåret med deres indtægts- og aktivposter efter de lovbestemte koncern- og udlejningsklassifikationer."),
+= personskat_felt_pbl15a_regnskabsperioder = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder",
+    label = "Tre seneste afsluttede regnskabsperioder",
+    question = Some("Hvilke tre seneste afsluttede regnskabsperioder lå før virksomhedsafståelsen?"),
+    help = Some("Angiv perioderne fra ældst til nyest. Futuruna kontrollerer de nøjagtige grænser og at perioderne følger hinanden uden huller."),
     unit = None
 )
-= personskat_felt_pbl15a_regnskabsår_år = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indkomstår",
-    label = "Regnskabsår",
-    question = Some("Hvilket indkomstår vedrører dette regnskab?"),
-    help = Some("Året skal være entydigt blandt de tre regnskabsår."),
+= personskat_felt_pbl15a_periode_rækkefølge = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.rækkefølge_fra_ældste",
+    label = "Regnskabsperiodens rækkefølge",
+    question = Some("Er dette den første, anden eller tredje periode regnet fra den ældste?"),
+    help = Some("Brug 1 for den ældste og 3 for den nyeste afsluttede periode."),
+    unit = Some("1-3")
+)
+= personskat_felt_pbl15a_periode_startår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.startdato.år",
+    label = "Regnskabsperiodens startår",
+    question = Some("I hvilket år begyndte regnskabsperioden?"),
+    help = Some("Startdatoen afgør blandt andet overgangsgrænsen den 1. januar 2012."),
     unit = Some("år")
 )
-= personskat_felt_pbl15a_indtægter = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter",
-    label = "Regnskabsårets indtægtsposter",
-    question = Some("Hvilke nettoomsætnings- og øvrige regnskabsførte indtægtsposter havde virksomheden i dette regnskabsår?"),
-    help = Some("Klassificér hver post efter dens faktiske kilde. Futuruna udelader koncernintern leje og beregner selv 50-procentsgrænsen."),
+= personskat_felt_pbl15a_periode_startmåned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.startdato.måned",
+    label = "Regnskabsperiodens startmåned",
+    question = Some("I hvilken måned begyndte regnskabsperioden?"),
+    help = Some("Angiv måneden i den dokumenterede startdato."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_periode_startdag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.startdato.dag",
+    label = "Regnskabsperiodens startdag",
+    question = Some("På hvilken dag begyndte regnskabsperioden?"),
+    help = Some("Angiv kalenderdagen i den dokumenterede startdato."),
+    unit = Some("dag")
+)
+= personskat_felt_pbl15a_periode_slutår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.slutdato.år",
+    label = "Regnskabsperiodens slutår",
+    question = Some("I hvilket år sluttede regnskabsperioden?"),
+    help = Some("Perioden skal være afsluttet før virksomhedsafståelsen."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_periode_slutmåned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.slutdato.måned",
+    label = "Regnskabsperiodens slutmåned",
+    question = Some("I hvilken måned sluttede regnskabsperioden?"),
+    help = Some("Angiv måneden i den dokumenterede slutdato."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_periode_slutdag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.slutdato.dag",
+    label = "Regnskabsperiodens slutdag",
+    question = Some("På hvilken dag sluttede regnskabsperioden?"),
+    help = Some("Den næste periode skal begynde kalenderdagen efter."),
+    unit = Some("dag")
+)
+= personskat_felt_pbl15a_virksomhedsindtægter = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_indtægter",
+    label = "Virksomhedens egne indtægtsposter",
+    question = Some("Hvilke egne nettoomsætnings- og øvrige indtægtsposter havde virksomheden i perioden?"),
+    help = Some("Selskabsafkast og underliggende selskabsindtægter angives særskilt, så Futuruna kan anvende gennemlysningsreglen."),
     unit = None
 )
-= personskat_felt_pbl15a_indtægt_identifikation = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.identifikation",
-    label = "Indtægtspost",
-    question = Some("Hvilken entydig betegnelse har indtægtsposten i dette regnskabsår?"),
-    help = Some("Betegnelsen bruges alene til sporbarhed i beregningsresultatet."),
+= personskat_felt_pbl15a_virksomhedsindtægt_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_indtægter.identifikation",
+    label = "Virksomhedsindtægtens betegnelse",
+    question = Some("Hvilken entydig betegnelse har virksomhedens indtægtspost?"),
+    help = Some("Brug en betegnelse, der kan genfindes i regnskabet."),
     unit = None
 )
-= personskat_felt_pbl15a_indtægt_beløb = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.beløb_kroner",
-    label = "Indtægtspostens beløb",
-    question = Some("Hvor stort er det regnskabsførte beløb for indtægtsposten?"),
-    help = Some("Angiv et ikke-negativt beløb før den lovbestemte passive eller aktive klassifikation."),
+= personskat_felt_pbl15a_virksomhedsindtægt_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_indtægter.beløb_kroner",
+    label = "Virksomhedsindtægtens beløb",
+    question = Some("Hvor stort er det regnskabsførte beløb for virksomhedens indtægtspost?"),
+    help = Some("Angiv beløbet før den lovbestemte passive eller aktive klassifikation."),
     unit = Some("kr.")
 )
-= personskat_felt_pbl15a_indtægt_art = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.art",
-    label = "Indtægtspostens art",
-    question = Some("Stammer indtægten fra passiv ejendom, kontanter eller værdipapirer, aktiv udlejning, landbrug eller skov, koncernintern udlejning eller øvrig drift?"),
-    help = Some("Aktiv ejendomsudlejning efter ABL § 34, stk. 7, behandles som aktiv for afståelser fra 2025; koncernintern leje holdes helt ude af brøken."),
+= personskat_felt_pbl15a_virksomhedsindtægt_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_indtægter.art",
+    label = "Virksomhedsindtægtens art",
+    question = Some("Hvilken lovbestemt indtægtsart havde virksomhedens indtægtspost?"),
+    help = Some("Koncernintern ejendomsleje udelades; aktiv udlejning efter ABL § 34, stk. 7, behandles dateret."),
     unit = None
 )
-= personskat_felt_pbl15a_regnskabsaktiver = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver",
-    label = "Regnskabsårets aktiver",
-    question = Some("Hvilke aktiver og forholdsmæssigt medregnede underliggende selskabsaktiver havde virksomheden i dette regnskabsår?"),
-    help = Some("For ejerandele på mindst 25 procent oplyses de forholdsmæssige underliggende aktiver; selve aktieværdien medregnes ikke dobbelt."),
+= personskat_felt_pbl15a_virksomhedsaktiver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_aktiver",
+    label = "Virksomhedens egne aktiver",
+    question = Some("Hvilke egne aktiver havde virksomheden i regnskabsperioden?"),
+    help = Some("Aktier og underliggende aktiver for selskaber med ejerforhold angives i selskabsregnskaberne."),
     unit = None
 )
-= personskat_felt_pbl15a_regnskabsaktiv_identifikation = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.identifikation",
-    label = "Aktivpost",
-    question = Some("Hvilken entydig betegnelse har aktivposten i dette regnskabsår?"),
-    help = Some("Betegnelsen bevarer forbindelsen til regnskab eller dokumentation."),
+= personskat_felt_pbl15a_virksomhedsaktiv_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_aktiver.identifikation",
+    label = "Virksomhedsaktivets betegnelse",
+    question = Some("Hvilken entydig betegnelse har virksomhedens aktivpost?"),
+    help = Some("Brug en betegnelse, der kan genfindes i regnskabet."),
     unit = None
 )
-= personskat_felt_pbl15a_regnskabsaktiv_værdi = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.handelsværdi_kroner",
-    label = "Aktivets handelsværdi",
-    question = Some("Hvad var aktivpostens handelsværdi i regnskabsåret?"),
-    help = Some("Futuruna summerer de medregnede værdier og tester selv den gennemsnitlige 50-procentsgrænse."),
+= personskat_felt_pbl15a_virksomhedsaktiv_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_aktiver.handelsværdi_kroner",
+    label = "Virksomhedsaktivets handelsværdi",
+    question = Some("Hvad var virksomhedens handelsværdi for aktivposten i perioden?"),
+    help = Some("Futuruna summerer selv værdierne og tester den daterede procentgrænse."),
     unit = Some("kr.")
 )
-= personskat_felt_pbl15a_regnskabsaktiv_art = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.art",
-    label = "Aktivets art",
-    question = Some("Er aktivet passiv udlejningsejendom, aktiv udlejning, landbrugs- eller skovejendom, kontanter, værdipapirer, en ABL § 18-andel, koncernintern driftsejendom eller et øvrigt driftsaktiv?"),
-    help = Some("Klassifikationen bestemmer, om værdien er passiv eller aktiv. ABL § 18-andele medregnes som ikke-passive; ejerandele på mindst 25 procent erstattes i inputtet af deres forholdsmæssige underliggende aktiver."),
+= personskat_felt_pbl15a_virksomhedsaktiv_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.virksomhedens_aktiver.art",
+    label = "Virksomhedsaktivets art",
+    question = Some("Hvilken lovbestemt aktivart havde virksomhedens aktivpost?"),
+    help = Some("ABL § 18-andele og koncerninterne driftsejendomme behandles efter deres særregler."),
     unit = None
+)
+= personskat_felt_pbl15a_selskabsregnskaber = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber",
+    label = "Selskabsregnskaber til gennemlysning",
+    question = Some("Hvilke direkte eller indirekte ejede selskaber indgik i regnskabsperioden?"),
+    help = Some("Angiv fulde selskabstal før ejerandel. Futuruna afleder ejerandelen og beslutter, om aktieværdi og afkast skal erstattes af forholdsmæssige underliggende tal."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.identifikation",
+    label = "Selskabets identifikation",
+    question = Some("Hvilken entydig identifikation har selskabet?"),
+    help = Some("Brug samme identifikation i dokumentationen for ejerforhold og regnskab."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskab_direkte_ejerandel = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.direkte_ejerandel_basispoint",
+    label = "Direkte ejerandel i selskabet",
+    question = Some("Hvor stor en direkte kapitalandel ejede virksomheden i selskabet?"),
+    help = Some("Angiv 0, hvis selskabet kun var indirekte ejet."),
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_felt_pbl15a_selskab_indirekte_ejerveje = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.indirekte_ejerveje",
+    label = "Indirekte ejerveje til selskabet",
+    question = Some("Gennem hvilke ejerkæder ejede virksomheden indirekte kapital i selskabet?"),
+    help = Some("Tilføj hver særskilt ejervej én gang; Futuruna multiplicerer andelene gennem kæden og lægger særskilte veje sammen."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskab_ejervej_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.indirekte_ejerveje.identifikation",
+    label = "Ejervejens identifikation",
+    question = Some("Hvilken entydig identifikation har denne indirekte ejervej?"),
+    help = Some("Brug en stabil betegnelse for den konkrete selskabskæde, så lige ejerandele gennem forskellige veje ikke blandes sammen."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskab_ejerandele_i_kæde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.indirekte_ejerveje.ejerandele_gennem_kæden_basispoint",
+    label = "Ejerandel i hvert led",
+    question = Some("Hvor stor var kapitalandelen i dette led af den indirekte ejerkæde?"),
+    help = Some("Angiv leddene fra virksomheden mod det underliggende selskab. En indirekte vej har mindst to led."),
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_felt_pbl15a_selskab_aktiv_udlejning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.udøver_aktiv_udlejning_efter_abl34_stk7",
+    label = "Selskabet udøver aktiv ejendomsudlejning",
+    question = Some("Udøvede selskabet aktiv udlejning af fast ejendom efter ABL § 34, stk. 7?"),
+    help = Some("For afståelser fra 2025 udløser dette gennemlysning uden en ejerandel på mindst 25 procent."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskab_aktieværdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.aktiernes_handelsværdi_i_virksomheden_kroner",
+    label = "Aktiernes handelsværdi i virksomheden",
+    question = Some("Hvilken handelsværdi havde aktierne i selskabet i virksomhedens regnskab?"),
+    help = Some("Værdien medregnes som værdipapir, medmindre Futuruna anvender gennemlysning."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_selskab_aktieafkast = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.aktieafkast_i_virksomheden_kroner",
+    label = "Aktieafkast fra selskabet",
+    question = Some("Hvor stort aktieafkast fra selskabet indgik i virksomhedens regnskab?"),
+    help = Some("Afkastet medregnes som passivt, medmindre Futuruna erstatter det med forholdsmæssige underliggende indtægter."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_selskabsindtægter = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_indtægter_før_ejerandel",
+    label = "Selskabets fulde indtægter",
+    question = Some("Hvilke indtægtsposter havde selskabet før anvendelse af virksomhedens ejerandel?"),
+    help = Some("Angiv 100 procent af selskabets relevante tal; Futuruna beregner den forholdsmæssige del."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsindtægt_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_indtægter_før_ejerandel.identifikation",
+    label = "Selskabsindtægtens betegnelse",
+    question = Some("Hvilken entydig betegnelse har selskabets indtægtspost?"),
+    help = Some("Brug en betegnelse, der kan genfindes i selskabsregnskabet."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsindtægt_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_indtægter_før_ejerandel.beløb_kroner",
+    label = "Selskabsindtægtens fulde beløb",
+    question = Some("Hvor stort var selskabets fulde beløb for indtægtsposten?"),
+    help = Some("Beløbet skal være før anvendelse af virksomhedens ejerandel."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_selskabsindtægt_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_indtægter_før_ejerandel.art",
+    label = "Selskabsindtægtens art",
+    question = Some("Hvilken lovbestemt indtægtsart havde selskabets indtægtspost?"),
+    help = Some("Koncernintern leje holdes ude af totalen; de øvrige arter klassificeres dateret."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsaktiver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_aktiver_før_ejerandel",
+    label = "Selskabets fulde aktiver",
+    question = Some("Hvilke aktiver havde selskabet før anvendelse af virksomhedens ejerandel?"),
+    help = Some("Angiv 100 procent af de underliggende aktiver. Aktiernes egen værdi må ikke kopieres ind som et underliggende aktiv."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsaktiv_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_aktiver_før_ejerandel.identifikation",
+    label = "Selskabsaktivets betegnelse",
+    question = Some("Hvilken entydig betegnelse har selskabets aktivpost?"),
+    help = Some("Brug en betegnelse, der kan genfindes i selskabsregnskabet."),
+    unit = None
+)
+= personskat_felt_pbl15a_selskabsaktiv_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_aktiver_før_ejerandel.handelsværdi_kroner",
+    label = "Selskabsaktivets fulde handelsværdi",
+    question = Some("Hvad var selskabets fulde handelsværdi for aktivposten?"),
+    help = Some("Beløbet skal være før anvendelse af virksomhedens ejerandel."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_selskabsaktiv_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskabets_aktiver_før_ejerandel.art",
+    label = "Selskabsaktivets art",
+    question = Some("Hvilken lovbestemt aktivart havde selskabets aktivpost?"),
+    help = Some("Futuruna anvender klassifikationen efter gennemlysning og ejerandel."),
+    unit = None
+)
+= personskat_felt_pbl15a_aktuel_periode_startår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktuel_regnskabsperiodes_startdato.år",
+    label = "Aktuel regnskabsperiodes startår",
+    question = Some("I hvilket år begyndte den regnskabsperiode, der var i gang ved afståelsen?"),
+    help = Some("Startdatoen dokumenterer, at de tre oplyste perioder er de seneste afsluttede."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_aktuel_periode_startmåned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktuel_regnskabsperiodes_startdato.måned",
+    label = "Aktuel regnskabsperiodes startmåned",
+    question = Some("I hvilken måned begyndte den regnskabsperiode, der var i gang ved afståelsen?"),
+    help = Some("Perioden skal begynde kalenderdagen efter den seneste afsluttede periode."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_aktuel_periode_startdag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktuel_regnskabsperiodes_startdato.dag",
+    label = "Aktuel regnskabsperiodes startdag",
+    question = Some("På hvilken dag begyndte den regnskabsperiode, der var i gang ved afståelsen?"),
+    help = Some("Angiv kalenderdagen i den dokumenterede startdato."),
+    unit = Some("dag")
 )
 = personskat_felt_pbl15a_afståelsesaktiver = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet",
-    label = "Aktiver på overdragelsestidspunktet",
-    question = Some("Hvilke aktiver havde virksomheden på selve overdragelsestidspunktet?"),
-    help = Some("Disse poster bruges til den selvstændige 50-procentsprøve på overdragelsestidspunktet."),
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.virksomhedens_aktiver_på_overdragelsestidspunktet",
+    label = "Virksomhedens egne aktiver ved overdragelsen",
+    question = Some("Hvilke egne aktiver havde virksomheden på selve overdragelsestidspunktet?"),
+    help = Some("Selskabsaktier og underliggende selskabsaktiver angives i de særskilte selskabsopgørelser."),
     unit = None
 )
 = personskat_felt_pbl15a_afståelsesaktiv_identifikation = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.identifikation",
-    label = "Aktiv ved overdragelsen",
-    question = Some("Hvilken entydig betegnelse har aktivet på overdragelsestidspunktet?"),
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.virksomhedens_aktiver_på_overdragelsestidspunktet.identifikation",
+    label = "Virksomhedsaktiv ved overdragelsen",
+    question = Some("Hvilken entydig betegnelse har virksomhedens aktiv ved overdragelsen?"),
     help = Some("Brug en betegnelse, der kan genfindes i overdragelsesbalancen."),
     unit = None
 )
 = personskat_felt_pbl15a_afståelsesaktiv_værdi = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.handelsværdi_kroner",
-    label = "Handelsværdi ved overdragelsen",
-    question = Some("Hvad var aktivets handelsværdi på overdragelsestidspunktet?"),
-    help = Some("Beløbet indgår i forholdstallet på overdragelsestidspunktet."),
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.virksomhedens_aktiver_på_overdragelsestidspunktet.handelsværdi_kroner",
+    label = "Virksomhedsaktivets værdi ved overdragelsen",
+    question = Some("Hvad var virksomhedens handelsværdi for aktivposten ved overdragelsen?"),
+    help = Some("Beløbet indgår i den selvstændige prøve på overdragelsestidspunktet."),
     unit = Some("kr.")
 )
 = personskat_felt_pbl15a_afståelsesaktiv_art = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.art",
-    label = "Aktivets art ved overdragelsen",
-    question = Some("Hvilken lovbestemt aktivtype havde posten på overdragelsestidspunktet?"),
-    help = Some("Futuruna anvender samme daterede passive, aktive og udeladte klassifikation som for regnskabsårene."),
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.virksomhedens_aktiver_på_overdragelsestidspunktet.art",
+    label = "Virksomhedsaktivets art ved overdragelsen",
+    question = Some("Hvilken lovbestemt aktivart havde virksomhedens aktiv ved overdragelsen?"),
+    help = Some("Futuruna anvender samme daterede klassifikation som for regnskabsperioderne."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskaber = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet",
+    label = "Selskabsaktiver ved overdragelsen",
+    question = Some("Hvilke direkte eller indirekte ejede selskaber indgik på overdragelsestidspunktet?"),
+    help = Some("Futuruna bruger ejerforholdet til enten at medregne aktieværdien eller forholdsmæssige underliggende aktiver."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.identifikation",
+    label = "Selskabets identifikation ved overdragelsen",
+    question = Some("Hvilken entydig identifikation har selskabet ved overdragelsen?"),
+    help = Some("Brug identifikationen fra ejer- og overdragelsesdokumentationen."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_direkte_ejerandel = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.ejerforhold.direkte_ejerandel_basispoint",
+    label = "Direkte ejerandel ved overdragelsen",
+    question = Some("Hvor stor en direkte kapitalandel ejede virksomheden i selskabet ved overdragelsen?"),
+    help = Some("Angiv 0, hvis selskabet kun var indirekte ejet."),
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_felt_pbl15a_afståelsesselskab_indirekte_ejerveje = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.ejerforhold.indirekte_ejerveje",
+    label = "Indirekte ejerveje ved overdragelsen",
+    question = Some("Gennem hvilke ejerkæder ejede virksomheden indirekte selskabet ved overdragelsen?"),
+    help = Some("Tilføj hver særskilt ejervej én gang."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_ejervej_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.ejerforhold.indirekte_ejerveje.identifikation",
+    label = "Ejervejens identifikation ved overdragelsen",
+    question = Some("Hvilken entydig identifikation havde denne indirekte ejervej ved overdragelsen?"),
+    help = Some("Brug en stabil betegnelse for den konkrete selskabskæde på overdragelsestidspunktet."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_ejerandele_i_kæde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.ejerforhold.indirekte_ejerveje.ejerandele_gennem_kæden_basispoint",
+    label = "Ejerandel i hvert led ved overdragelsen",
+    question = Some("Hvor stor var kapitalandelen i dette led af ejerkæden ved overdragelsen?"),
+    help = Some("Futuruna multiplicerer leddene til en effektiv indirekte ejerandel."),
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktiv_udlejning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskab.udøver_aktiv_udlejning_efter_abl34_stk7",
+    label = "Aktiv udlejning ved overdragelsen",
+    question = Some("Udøvede selskabet aktiv ejendomsudlejning efter ABL § 34, stk. 7, ved overdragelsen?"),
+    help = Some("For afståelser fra 2025 kan dette udløse gennemlysning under 25 procents ejerskab."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktieværdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.aktiernes_handelsværdi_i_virksomheden_kroner",
+    label = "Aktiernes værdi ved overdragelsen",
+    question = Some("Hvilken handelsværdi havde aktierne i selskabet i virksomheden ved overdragelsen?"),
+    help = Some("Værdien udelades automatisk, når gennemlysningsreglen anvendes."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktiver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskabets_aktiver_før_ejerandel",
+    label = "Selskabets fulde aktiver ved overdragelsen",
+    question = Some("Hvilke aktiver havde selskabet ved overdragelsen før anvendelse af ejerandelen?"),
+    help = Some("Angiv 100 procent af selskabets underliggende aktiver."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktiv_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskabets_aktiver_før_ejerandel.identifikation",
+    label = "Selskabsaktiv ved overdragelsen",
+    question = Some("Hvilken entydig betegnelse har selskabets aktiv ved overdragelsen?"),
+    help = Some("Brug en betegnelse, der kan genfindes i selskabets opgørelse."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktiv_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskabets_aktiver_før_ejerandel.handelsværdi_kroner",
+    label = "Selskabsaktivets fulde værdi ved overdragelsen",
+    question = Some("Hvad var selskabets fulde handelsværdi for aktivposten ved overdragelsen?"),
+    help = Some("Beløbet skal være før anvendelse af virksomhedens ejerandel."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_afståelsesselskab_aktiv_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskabets_aktiver_før_ejerandel.art",
+    label = "Selskabsaktivets art ved overdragelsen",
+    question = Some("Hvilken lovbestemt aktivart havde selskabets aktiv ved overdragelsen?"),
+    help = Some("Futuruna klassificerer aktivet efter gennemlysning og ejerandel."),
     unit = None
 )
 = personskat_felt_pbl15a_næringsvirksomhed = Beregningsfelt(
@@ -3708,8 +3988,11 @@
 --@label:beregn_personskat::field:personskat_felt_pbl18_fordelingsforløb::field:personskat_felt_pbl18_kapitalindskudsår::field:personskat_felt_pbl18_kapitalindskud::field:personskat_felt_pbl18_kort_periode_første_år::field:personskat_felt_pbl18_kort_periode_samlet_beløb::field:personskat_felt_pbl18_kort_periode_efterfølgende::field:personskat_felt_pbl18_kort_periode_år::field:personskat_felt_pbl18_forhøjelsesår::field:personskat_felt_pbl18_samlet_forhøjelse::field:personskat_felt_pbl18_indeksbidrag::field:personskat_felt_pbl18_tidligere_ufratrukket::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
 --@label:beregn_personskat::field:personskat_felt_pbl18_indeksgrundlag::field:personskat_felt_pbl18_indeksform::field:personskat_felt_pbl18_indekskontrakt::source:pensionsbeskatningsloven_lbk1243_par15::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
 --@label:beregn_personskat::field:personskat_felt_pbl18_særligt_grundlag::field:personskat_felt_pbl18_par15a_ordning::field:personskat_felt_pbl18_par15a_afståelse::field:personskat_felt_pbl18_par15b_ordning::source:pensionsbeskatningsloven_lbk1243_par18::dependency_source:pensionsbeskatningsloven_lbk1243_par15a::dependency_source:pensionsbeskatningsloven_lbk1243_par15b::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_afståelser::field:personskat_felt_pbl15a_afståelse_identifikation::field:personskat_felt_pbl15a_afståelsesår::field:personskat_felt_pbl15a_afståelsesgrund::field:personskat_felt_pbl15a_fortjeneste::field:personskat_felt_pbl15a_alder::field:personskat_felt_pbl15a_driftsmiddeludlejning::field:personskat_felt_pbl15a_antal_ejere::field:personskat_felt_pbl15a_væsentlig_deltagelse::source:pensionsbeskatningsloven_lbk1243_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_regnskabsår::field:personskat_felt_pbl15a_regnskabsår_år::field:personskat_felt_pbl15a_indtægter::field:personskat_felt_pbl15a_indtægt_identifikation::field:personskat_felt_pbl15a_indtægt_beløb::field:personskat_felt_pbl15a_indtægt_art::field:personskat_felt_pbl15a_regnskabsaktiver::field:personskat_felt_pbl15a_regnskabsaktiv_identifikation::field:personskat_felt_pbl15a_regnskabsaktiv_værdi::field:personskat_felt_pbl15a_regnskabsaktiv_art::field:personskat_felt_pbl15a_afståelsesaktiver::field:personskat_felt_pbl15a_afståelsesaktiv_identifikation::field:personskat_felt_pbl15a_afståelsesaktiv_værdi::field:personskat_felt_pbl15a_afståelsesaktiv_art::field:personskat_felt_pbl15a_næringsvirksomhed::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_afståelser::field:personskat_felt_pbl15a_afståelse_identifikation::field:personskat_felt_pbl15a_afståelsesdato_år::field:personskat_felt_pbl15a_afståelsesdato_måned::field:personskat_felt_pbl15a_afståelsesdato_dag::field:personskat_felt_pbl15a_afståelsesgrund::field:personskat_felt_pbl15a_fortjeneste::field:personskat_felt_pbl15a_alder::field:personskat_felt_pbl15a_driftsmiddeludlejning::field:personskat_felt_pbl15a_antal_ejere::field:personskat_felt_pbl15a_væsentlig_deltagelse::source:pensionsbeskatningsloven_lbk1243_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_regnskabsperioder::field:personskat_felt_pbl15a_periode_rækkefølge::field:personskat_felt_pbl15a_periode_startår::field:personskat_felt_pbl15a_periode_startmåned::field:personskat_felt_pbl15a_periode_startdag::field:personskat_felt_pbl15a_periode_slutår::field:personskat_felt_pbl15a_periode_slutmåned::field:personskat_felt_pbl15a_periode_slutdag::field:personskat_felt_pbl15a_virksomhedsindtægter::field:personskat_felt_pbl15a_virksomhedsindtægt_identifikation::field:personskat_felt_pbl15a_virksomhedsindtægt_beløb::field:personskat_felt_pbl15a_virksomhedsindtægt_art::field:personskat_felt_pbl15a_virksomhedsaktiver::field:personskat_felt_pbl15a_virksomhedsaktiv_identifikation::field:personskat_felt_pbl15a_virksomhedsaktiv_værdi::field:personskat_felt_pbl15a_virksomhedsaktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_selskabsregnskaber::field:personskat_felt_pbl15a_selskabsidentifikation::field:personskat_felt_pbl15a_selskab_direkte_ejerandel::field:personskat_felt_pbl15a_selskab_indirekte_ejerveje::field:personskat_felt_pbl15a_selskab_ejervej_identifikation::field:personskat_felt_pbl15a_selskab_ejerandele_i_kæde::field:personskat_felt_pbl15a_selskab_aktiv_udlejning::field:personskat_felt_pbl15a_selskab_aktieværdi::field:personskat_felt_pbl15a_selskab_aktieafkast::field:personskat_felt_pbl15a_selskabsindtægter::field:personskat_felt_pbl15a_selskabsindtægt_identifikation::field:personskat_felt_pbl15a_selskabsindtægt_beløb::field:personskat_felt_pbl15a_selskabsindtægt_art::field:personskat_felt_pbl15a_selskabsaktiver::field:personskat_felt_pbl15a_selskabsaktiv_identifikation::field:personskat_felt_pbl15a_selskabsaktiv_værdi::field:personskat_felt_pbl15a_selskabsaktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_aktuel_periode_startår::field:personskat_felt_pbl15a_aktuel_periode_startmåned::field:personskat_felt_pbl15a_aktuel_periode_startdag::field:personskat_felt_pbl15a_afståelsesaktiver::field:personskat_felt_pbl15a_afståelsesaktiv_identifikation::field:personskat_felt_pbl15a_afståelsesaktiv_værdi::field:personskat_felt_pbl15a_afståelsesaktiv_art::field:personskat_felt_pbl15a_næringsvirksomhed::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_afståelsesselskaber::field:personskat_felt_pbl15a_afståelsesselskab_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_direkte_ejerandel::field:personskat_felt_pbl15a_afståelsesselskab_indirekte_ejerveje::field:personskat_felt_pbl15a_afståelsesselskab_ejervej_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_ejerandele_i_kæde::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_udlejning::field:personskat_felt_pbl15a_afståelsesselskab_aktieværdi::field:personskat_felt_pbl15a_afståelsesselskab_aktiver::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_værdi::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
 --@label:beregn_personskat::field:personskat_felt_pbl15a_ordninger::field:personskat_felt_pbl15a_ordning_identifikation::field:personskat_felt_pbl15a_ordning_oprettelsesår::field:personskat_felt_pbl15a_ordning_oprettelsesafståelse::field:personskat_felt_pbl15a_ordning_art::field:personskat_felt_pbl15a_kvalifikationsår::field:personskat_felt_pbl15a_kvalifikationsår_år::field:personskat_felt_pbl15a_kvalifikationsår_grundlag::field:personskat_felt_pbl15a_historik::field:personskat_felt_pbl15a_historik_identifikation::field:personskat_felt_pbl15a_historik_år::field:personskat_felt_pbl15a_historik_ordning::field:personskat_felt_pbl15a_historik_afståelse::field:personskat_felt_pbl15a_historik_beløb::source:pensionsbeskatningsloven_lbk1243_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
 --@label:beregn_personskat::field:personskat_felt_pbl15b_indkomstposter::field:personskat_felt_pbl15b_indkomst_identifikation::field:personskat_felt_pbl15b_indkomst_år::field:personskat_felt_pbl15b_indkomst_beløb::field:personskat_felt_pbl15b_indkomst_kilde::source:pensionsbeskatningsloven_lbk1243_par15b::rate_source:skatteministeriet_pbl15b_satser_2010_til_2017::rate_source:skatteministeriet_pbl15b_satser_2018_til_2024::rate_source:skatteministeriet_pbl15b_satser_2025_til_2026--
 --@label:beregn_personskat::field:personskat_felt_pbl15b_ordninger::field:personskat_felt_pbl15b_ordning_identifikation::field:personskat_felt_pbl15b_ordning_oprettelsesår::field:personskat_felt_pbl15b_ordning_art::field:personskat_felt_pbl15b_ordning_alder::field:personskat_felt_pbl15b_ordning_påtegning::field:personskat_felt_pbl15b_udbetalingsstatus::field:personskat_felt_pbl15b_sidste_udbetalingsår::source:pensionsbeskatningsloven_lbk1243_par15b--

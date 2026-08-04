@@ -44,43 +44,52 @@
     Pbl15AKvalifikationsår(indkomstår = 2025, grundlag = Pbl15AEgetHovedaktionærforhold)
 ]
 
-| pbl15a_scenarie_aktivt_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
-    indkomstår = indkomstår,
-    indtægter = [
+| pbl15a_scenarie_dato(år: Heltal, måned: Heltal, dag: Heltal) -> Pbl15ADato(år = år, måned = måned, dag = dag)
+| pbl15a_scenarie_kalenderårs_start(indkomstår: Heltal) -> pbl15a_scenarie_dato(indkomstår, 1, 1)
+| pbl15a_scenarie_kalenderårs_slut(indkomstår: Heltal) -> pbl15a_scenarie_dato(indkomstår, 12, 31)
+
+| pbl15a_scenarie_aktiv_regnskabsperiode(indkomstår: Heltal, rækkefølge: Heltal) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_scenarie_kalenderårs_start(indkomstår),
+    slutdato = pbl15a_scenarie_kalenderårs_slut(indkomstår),
+    virksomhedens_indtægter = [
         Pbl15AIndtægtspost(
             identifikation = "driftsindtægt",
             beløb_kroner = 1000000,
             art = Pbl15AØvrigDriftsindtægt
         )
     ],
-    aktiver = [
+    virksomhedens_aktiver = [
         Pbl15AAktivpost(
             identifikation = "driftsaktiv",
             handelsværdi_kroner = 2000000,
             art = Pbl15AØvrigtDriftsaktiv
         )
-    ]
+    ],
+    selskabsregnskaber = []
 )
 
 | pbl15a_scenarie_aktiv_kapital(afståelsesår: Heltal) -> Pbl15APassivKapitalFakta(
-    seneste_tre_regnskabsår = [
-        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 3),
-        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 2),
-        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 1)
+    seneste_tre_regnskabsperioder = [
+        pbl15a_scenarie_aktiv_regnskabsperiode(afståelsesår - 3, 1),
+        pbl15a_scenarie_aktiv_regnskabsperiode(afståelsesår - 2, 2),
+        pbl15a_scenarie_aktiv_regnskabsperiode(afståelsesår - 1, 3)
     ],
-    aktiver_på_overdragelsestidspunktet = [
+    aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_kalenderårs_start(afståelsesår),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [
         Pbl15AAktivpost(
             identifikation = "driftsaktiv-ved-afståelse",
             handelsværdi_kroner = 2000000,
             art = Pbl15AØvrigtDriftsaktiv
         )
     ],
+    selskabsaktiver_på_overdragelsestidspunktet = [],
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
 | pbl15a_scenarie_afståelse(identifikation: Tekst, afståelsesår: Heltal, fortjeneste_kroner: Heltal, alder: Heltal) -> Pbl15AAfståelsesfakta(
     identifikation = identifikation,
-    afståelsesår = afståelsesår,
+    afståelsesdato = pbl15a_scenarie_dato(afståelsesår, 7, 1),
     grundlag = Pbl15AHovedaktionæraktier,
     skattepligtig_fortjeneste_kroner = fortjeneste_kroner,
     alder_hele_år_ved_afståelsen = alder,
@@ -401,33 +410,38 @@
     pbl15a_scenarie_historik_efter_fuldt_grundlag
 )
 
-| pbl15a_scenarie_fordelingsregnskabsår(indkomstår: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_art: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15ARegnskabsår(
-    indkomstår = indkomstår,
-    indtægter = [
+| pbl15a_scenarie_fordelingsperiode(indkomstår: Heltal, rækkefølge: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_art: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_scenarie_kalenderårs_start(indkomstår),
+    slutdato = pbl15a_scenarie_kalenderårs_slut(indkomstår),
+    virksomhedens_indtægter = [
         Pbl15AIndtægtspost(identifikation = "passiv", beløb_kroner = passivt_kroner, art = passiv_art),
         Pbl15AIndtægtspost(identifikation = "aktiv", beløb_kroner = aktivt_kroner, art = Pbl15AØvrigDriftsindtægt)
     ],
-    aktiver = [
+    virksomhedens_aktiver = [
         Pbl15AAktivpost(identifikation = "passiv", handelsværdi_kroner = passivt_kroner, art = passiv_aktivart),
         Pbl15AAktivpost(identifikation = "aktiv", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
-    ]
+    ],
+    selskabsregnskaber = []
 )
 
 | pbl15a_scenarie_fordelingsfakta(afståelsesår: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_art: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15APassivKapitalFakta(
-    seneste_tre_regnskabsår = [
-        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 3, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
-        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 2, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
-        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 1, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart)
+    seneste_tre_regnskabsperioder = [
+        pbl15a_scenarie_fordelingsperiode(afståelsesår - 3, 1, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
+        pbl15a_scenarie_fordelingsperiode(afståelsesår - 2, 2, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
+        pbl15a_scenarie_fordelingsperiode(afståelsesår - 1, 3, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart)
     ],
-    aktiver_på_overdragelsestidspunktet = [
+    aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_kalenderårs_start(afståelsesår),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [
         Pbl15AAktivpost(identifikation = "passiv-ved-afståelse", handelsværdi_kroner = passivt_kroner, art = passiv_aktivart),
         Pbl15AAktivpost(identifikation = "aktiv-ved-afståelse", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
     ],
+    selskabsaktiver_på_overdragelsestidspunktet = [],
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
 = pbl15a_scenarie_2013_tres_procent_passiv = pbl15a_passiv_kapital_resultat(
-    2013,
+    pbl15a_scenarie_dato(2013, 7, 1),
     pbl15a_scenarie_fordelingsfakta(
         2013,
         60,
@@ -438,7 +452,7 @@
 )
 
 = pbl15a_scenarie_2014_tres_procent_ved_afståelse = pbl15a_passiv_kapital_resultat(
-    2014,
+    pbl15a_scenarie_dato(2014, 7, 1),
     pbl15a_scenarie_fordelingsfakta(
         2014,
         60,
@@ -449,7 +463,7 @@
 )
 
 = pbl15a_scenarie_aktiv_udlejning_2024 = pbl15a_passiv_kapital_resultat(
-    2024,
+    pbl15a_scenarie_dato(2024, 7, 1),
     pbl15a_scenarie_fordelingsfakta(
         2024,
         100,
@@ -460,7 +474,7 @@
 )
 
 = pbl15a_scenarie_aktiv_udlejning_2025 = pbl15a_passiv_kapital_resultat(
-    2025,
+    pbl15a_scenarie_dato(2025, 7, 1),
     pbl15a_scenarie_fordelingsfakta(
         2025,
         100,
@@ -470,41 +484,253 @@
     )
 )
 
-| pbl15a_scenarie_abl18_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
-    indkomstår = indkomstår,
-    indtægter = [
+| pbl15a_scenarie_abl18_regnskabsperiode(indkomstår: Heltal, rækkefølge: Heltal) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_scenarie_kalenderårs_start(indkomstår),
+    slutdato = pbl15a_scenarie_kalenderårs_slut(indkomstår),
+    virksomhedens_indtægter = [
         Pbl15AIndtægtspost(
             identifikation = "driftsindtægt",
             beløb_kroner = 100,
             art = Pbl15AØvrigDriftsindtægt
         )
     ],
-    aktiver = [
+    virksomhedens_aktiver = [
         Pbl15AAktivpost(
             identifikation = "abl18-andel",
             handelsværdi_kroner = 100,
             art = Pbl15AAndelOmfattetAfAbl18
         )
-    ]
+    ],
+    selskabsregnskaber = []
 )
 
 = pbl15a_scenarie_abl18_resultat = pbl15a_passiv_kapital_resultat(
-    2026,
+    pbl15a_scenarie_dato(2026, 7, 1),
     Pbl15APassivKapitalFakta(
-        seneste_tre_regnskabsår = [
-            pbl15a_scenarie_abl18_regnskabsår(2023),
-            pbl15a_scenarie_abl18_regnskabsår(2024),
-            pbl15a_scenarie_abl18_regnskabsår(2025)
+        seneste_tre_regnskabsperioder = [
+            pbl15a_scenarie_abl18_regnskabsperiode(2023, 1),
+            pbl15a_scenarie_abl18_regnskabsperiode(2024, 2),
+            pbl15a_scenarie_abl18_regnskabsperiode(2025, 3)
         ],
-        aktiver_på_overdragelsestidspunktet = [
+        aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_kalenderårs_start(2026),
+        virksomhedens_aktiver_på_overdragelsestidspunktet = [
             Pbl15AAktivpost(
                 identifikation = "abl18-andel-ved-afståelse",
                 handelsværdi_kroner = 100,
                 art = Pbl15AAndelOmfattetAfAbl18
             )
         ],
+        selskabsaktiver_på_overdragelsestidspunktet = [],
         næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
     )
+)
+
+| pbl15a_scenarie_direkte_ejerforhold(ejerandel_basispoint: Heltal) -> Pbl15AEjerforhold(
+    direkte_ejerandel_basispoint = ejerandel_basispoint,
+    indirekte_ejerveje = []
+)
+| pbl15a_scenarie_indirekte_ejerforhold(første_led_basispoint: Heltal, andet_led_basispoint: Heltal) -> Pbl15AEjerforhold(
+    direkte_ejerandel_basispoint = 0,
+    indirekte_ejerveje = [
+        Pbl15AIndirekteEjervej(
+            identifikation = "eneste-indirekte-vej",
+            ejerandele_gennem_kæden_basispoint = [første_led_basispoint, andet_led_basispoint]
+        )
+    ]
+)
+
+= pbl15a_scenarie_to_lige_indirekte_ejerveje = Pbl15AEjerforhold(
+    direkte_ejerandel_basispoint = 0,
+    indirekte_ejerveje = [
+        Pbl15AIndirekteEjervej(
+            identifikation = "via-holding-a",
+            ejerandele_gennem_kæden_basispoint = [5000, 5000]
+        ),
+        Pbl15AIndirekteEjervej(
+            identifikation = "via-holding-b",
+            ejerandele_gennem_kæden_basispoint = [5000, 5000]
+        )
+    ]
+)
+
+= pbl15a_scenarie_dobbelt_indirekte_ejervej = Pbl15AEjerforhold(
+    direkte_ejerandel_basispoint = 0,
+    indirekte_ejerveje = [
+        Pbl15AIndirekteEjervej(
+            identifikation = "samme-vej",
+            ejerandele_gennem_kæden_basispoint = [5000, 5000]
+        ),
+        Pbl15AIndirekteEjervej(
+            identifikation = "samme-vej",
+            ejerandele_gennem_kæden_basispoint = [4000, 5000]
+        )
+    ]
+)
+| pbl15a_scenarie_selskab(identifikation: Tekst, ejerforhold: Pbl15AEjerforhold, aktiv_udlejning: Boolsk) -> Pbl15ASelskab(
+    identifikation = identifikation,
+    ejerforhold = ejerforhold,
+    udøver_aktiv_udlejning_efter_abl34_stk7 = aktiv_udlejning
+)
+| pbl15a_scenarie_selskabsregnskab(selskab: Pbl15ASelskab, aktieværdi_kroner: Heltal, aktieafkast_kroner: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_indtægtsart: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15ASelskabsregnskab(
+    selskab = selskab,
+    aktiernes_handelsværdi_i_virksomheden_kroner = aktieværdi_kroner,
+    aktieafkast_i_virksomheden_kroner = aktieafkast_kroner,
+    selskabets_indtægter_før_ejerandel = [
+        Pbl15AIndtægtspost(identifikation = "selskab-passiv", beløb_kroner = passivt_kroner, art = passiv_indtægtsart),
+        Pbl15AIndtægtspost(identifikation = "selskab-aktiv", beløb_kroner = aktivt_kroner, art = Pbl15AØvrigDriftsindtægt)
+    ],
+    selskabets_aktiver_før_ejerandel = [
+        Pbl15AAktivpost(identifikation = "selskab-passiv", handelsværdi_kroner = passivt_kroner, art = passiv_aktivart),
+        Pbl15AAktivpost(identifikation = "selskab-aktiv", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
+    ]
+)
+| pbl15a_scenarie_selskabsperiode(indkomstår: Heltal, rækkefølge: Heltal, regnskab: Pbl15ASelskabsregnskab) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_scenarie_kalenderårs_start(indkomstår),
+    slutdato = pbl15a_scenarie_kalenderårs_slut(indkomstår),
+    virksomhedens_indtægter = [],
+    virksomhedens_aktiver = [],
+    selskabsregnskaber = [regnskab]
+)
+| pbl15a_scenarie_selskabsaktivopgørelse(regnskab: Pbl15ASelskabsregnskab) -> Pbl15ASelskabsaktivopgørelse(
+    selskab = regnskab.selskab,
+    aktiernes_handelsværdi_i_virksomheden_kroner = regnskab.aktiernes_handelsværdi_i_virksomheden_kroner,
+    selskabets_aktiver_før_ejerandel = regnskab.selskabets_aktiver_før_ejerandel
+)
+| pbl15a_scenarie_selskabsfakta(afståelsesår: Heltal, regnskab: Pbl15ASelskabsregnskab) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsperioder = [
+        pbl15a_scenarie_selskabsperiode(afståelsesår - 3, 1, regnskab),
+        pbl15a_scenarie_selskabsperiode(afståelsesår - 2, 2, regnskab),
+        pbl15a_scenarie_selskabsperiode(afståelsesår - 1, 3, regnskab)
+    ],
+    aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_kalenderårs_start(afståelsesår),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [],
+    selskabsaktiver_på_overdragelsestidspunktet = [pbl15a_scenarie_selskabsaktivopgørelse(regnskab)],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+
+= pbl15a_scenarie_selskab_tredive_pct = pbl15a_scenarie_selskabsregnskab(
+    pbl15a_scenarie_selskab("direkte-30", pbl15a_scenarie_direkte_ejerforhold(3000), Falskt),
+    900,
+    400,
+    300,
+    700,
+    Pbl15AKontantEllerVærdipapirindtægt,
+    Pbl15AVærdipapirer
+)
+= pbl15a_scenarie_direkte_tredive_pct_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2026, pbl15a_scenarie_selskab_tredive_pct)
+)
+
+= pbl15a_scenarie_selskab_fireogtyve_pct = pbl15a_scenarie_selskabsregnskab(
+    pbl15a_scenarie_selskab("direkte-24", pbl15a_scenarie_direkte_ejerforhold(2400), Falskt),
+    900,
+    400,
+    300,
+    700,
+    Pbl15AKontantEllerVærdipapirindtægt,
+    Pbl15AVærdipapirer
+)
+= pbl15a_scenarie_direkte_fireogtyve_pct_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2026, pbl15a_scenarie_selskab_fireogtyve_pct)
+)
+
+= pbl15a_scenarie_selskab_indirekte_tredive_pct = pbl15a_scenarie_selskabsregnskab(
+    pbl15a_scenarie_selskab("indirekte-30", pbl15a_scenarie_indirekte_ejerforhold(5000, 6000), Falskt),
+    900,
+    400,
+    300,
+    700,
+    Pbl15AKontantEllerVærdipapirindtægt,
+    Pbl15AVærdipapirer
+)
+= pbl15a_scenarie_indirekte_tredive_pct_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2026, pbl15a_scenarie_selskab_indirekte_tredive_pct)
+)
+
+= pbl15a_scenarie_aktivt_udlejningsselskab_tyve_pct = pbl15a_scenarie_selskabsregnskab(
+    pbl15a_scenarie_selskab("aktiv-udlejning-20", pbl15a_scenarie_direkte_ejerforhold(2000), Sandt),
+    100,
+    100,
+    0,
+    1000,
+    Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7,
+    Pbl15AAktivUdlejningsejendomEfterAbl34Stk7
+)
+= pbl15a_scenarie_aktivt_udlejningsselskab_2024 = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2024, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2024, pbl15a_scenarie_aktivt_udlejningsselskab_tyve_pct)
+)
+= pbl15a_scenarie_aktivt_udlejningsselskab_2025 = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2025, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2025, pbl15a_scenarie_aktivt_udlejningsselskab_tyve_pct)
+)
+
+= pbl15a_scenarie_koncernintern_regnskab = Pbl15ASelskabsregnskab(
+    selskab = pbl15a_scenarie_selskab("koncernintern", pbl15a_scenarie_direkte_ejerforhold(5000), Falskt),
+    aktiernes_handelsværdi_i_virksomheden_kroner = 5000,
+    aktieafkast_i_virksomheden_kroner = 5000,
+    selskabets_indtægter_før_ejerandel = [
+        Pbl15AIndtægtspost(identifikation = "intern-leje", beløb_kroner = 1000, art = Pbl15AKoncerninternUdlejningsindtægt),
+        Pbl15AIndtægtspost(identifikation = "ekstern-drift", beløb_kroner = 1000, art = Pbl15AØvrigDriftsindtægt)
+    ],
+    selskabets_aktiver_før_ejerandel = [
+        Pbl15AAktivpost(identifikation = "intern-ejendom", handelsværdi_kroner = 1000, art = Pbl15AKoncerninternDriftsejendom),
+        Pbl15AAktivpost(identifikation = "eksternt-driftsaktiv", handelsværdi_kroner = 1000, art = Pbl15AØvrigtDriftsaktiv)
+    ]
+)
+= pbl15a_scenarie_koncernintern_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_selskabsfakta(2026, pbl15a_scenarie_koncernintern_regnskab)
+)
+
+= pbl15a_scenarie_2015_tres_procent_passiv = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2015, 7, 1),
+    pbl15a_scenarie_fordelingsfakta(
+        2015,
+        60,
+        40,
+        Pbl15AKontantEllerVærdipapirindtægt,
+        Pbl15AVærdipapirer
+    )
+)
+
+= pbl15a_scenarie_regnskabsgab_fakta = Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsperioder = [
+        Pbl15ARegnskabsperiode(rækkefølge_fra_ældste = 1, startdato = pbl15a_scenarie_dato(2023, 1, 1), slutdato = pbl15a_scenarie_dato(2023, 12, 31), virksomhedens_indtægter = [], virksomhedens_aktiver = [], selskabsregnskaber = []),
+        Pbl15ARegnskabsperiode(rækkefølge_fra_ældste = 2, startdato = pbl15a_scenarie_dato(2024, 1, 2), slutdato = pbl15a_scenarie_dato(2024, 12, 31), virksomhedens_indtægter = [], virksomhedens_aktiver = [], selskabsregnskaber = []),
+        Pbl15ARegnskabsperiode(rækkefølge_fra_ældste = 3, startdato = pbl15a_scenarie_dato(2025, 1, 1), slutdato = pbl15a_scenarie_dato(2025, 12, 31), virksomhedens_indtægter = [], virksomhedens_aktiver = [], selskabsregnskaber = [])
+    ],
+    aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_dato(2026, 1, 1),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [],
+    selskabsaktiver_på_overdragelsestidspunktet = [],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+= pbl15a_scenarie_regnskabsgab_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_regnskabsgab_fakta
+)
+
+| pbl15a_scenarie_tom_passiv_kapital(næringsvirksomhed: Boolsk) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsperioder = [],
+    aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_dato(2026, 1, 1),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [],
+    selskabsaktiver_på_overdragelsestidspunktet = [],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = næringsvirksomhed
+)
+
+= pbl15a_scenarie_næringsundtagelse_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_tom_passiv_kapital(Sandt)
+)
+
+= pbl15a_scenarie_tom_uden_næringsundtagelse_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_scenarie_dato(2026, 7, 1),
+    pbl15a_scenarie_tom_passiv_kapital(Falskt)
 )
 
 | pbl15a_almindelig_rate_er_uændret: pbl15a_scenarie_almindeligt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15a_scenarie_almindeligt_resultat.input_gyldigt && pbl15a_scenarie_almindeligt_resultat.rate_og_ophørende_fradrag_kroner == 50000 && pbl15a_scenarie_almindeligt_resultat.par15a_fradrag_kroner == 0
@@ -523,6 +749,17 @@
 | pbl15a_2014_overdragelse_bruger_50_procent: pbl15a_scenarie_2014_tres_procent_ved_afståelse.overvejende_passiv_kapitalanbringelse -> pbl15a_scenarie_2014_tres_procent_ved_afståelse.gennemsnitsgrænse_basispoint == 7500 && pbl15a_scenarie_2014_tres_procent_ved_afståelse.overdragelsesgrænse_basispoint == 5000 && pbl15a_scenarie_2014_tres_procent_ved_afståelse.gennemsnitlig_aktivgrænse_nået == Falskt && pbl15a_scenarie_2014_tres_procent_ved_afståelse.aktivgrænse_ved_afståelse_nået
 | pbl15a_aktiv_udlejning_skifter_i_2025: pbl15a_scenarie_aktiv_udlejning_2025.overvejende_passiv_kapitalanbringelse -> pbl15a_scenarie_aktiv_udlejning_2024.overvejende_passiv_kapitalanbringelse && pbl15a_scenarie_aktiv_udlejning_2025.overvejende_passiv_kapitalanbringelse == Falskt
 | pbl15a_abl18_andel_bevares_i_totalen: pbl15a_scenarie_abl18_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_scenarie_abl18_resultat.fakta_gyldige && pbl15a_scenarie_abl18_resultat.samlede_aktiver_tre_år_kroner == 300 && pbl15a_scenarie_abl18_resultat.passive_aktiver_tre_år_kroner == 0 && pbl15a_scenarie_abl18_resultat.samlede_aktiver_ved_afståelse_kroner == 100
+| pbl15a_femogtyve_procent_er_inklusive: pbl15a_scenarie_direkte_tredive_pct_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_selskab_gennemlyses(pbl15a_scenarie_dato(2026, 7, 1), pbl15a_scenarie_selskab("grænse-25", pbl15a_scenarie_direkte_ejerforhold(2500), Falskt)) && pbl15a_selskab_gennemlyses(pbl15a_scenarie_dato(2026, 7, 1), pbl15a_scenarie_selskab("under-grænse", pbl15a_scenarie_direkte_ejerforhold(2499), Falskt)) == Falskt
+| pbl15a_direkte_ejerandel_gennemlyser_uden_dobbelt_aktieværdi: pbl15a_scenarie_direkte_tredive_pct_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_scenarie_direkte_tredive_pct_resultat.fakta_gyldige && pbl15a_scenarie_direkte_tredive_pct_resultat.samlede_indtægter_tre_år_kroner == 900 && pbl15a_scenarie_direkte_tredive_pct_resultat.passive_indtægter_tre_år_kroner == 270 && pbl15a_scenarie_direkte_tredive_pct_resultat.samlede_aktiver_tre_år_kroner == 900 && pbl15a_scenarie_direkte_tredive_pct_resultat.passive_aktiver_tre_år_kroner == 270 && pbl15a_scenarie_direkte_tredive_pct_resultat.samlede_aktiver_ved_afståelse_kroner == 300
+| pbl15a_ejerandel_under_grænsen_bevarer_aktieafkast_og_værdi: pbl15a_scenarie_direkte_fireogtyve_pct_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_scenarie_direkte_fireogtyve_pct_resultat.fakta_gyldige && pbl15a_scenarie_direkte_fireogtyve_pct_resultat.samlede_indtægter_tre_år_kroner == 1200 && pbl15a_scenarie_direkte_fireogtyve_pct_resultat.passive_indtægter_tre_år_kroner == 1200 && pbl15a_scenarie_direkte_fireogtyve_pct_resultat.samlede_aktiver_tre_år_kroner == 2700 && pbl15a_scenarie_direkte_fireogtyve_pct_resultat.passive_aktiver_tre_år_kroner == 2700 && pbl15a_scenarie_direkte_fireogtyve_pct_resultat.samlede_aktiver_ved_afståelse_kroner == 900
+| pbl15a_indirekte_ejervej_afleder_tredive_procent: pbl15a_scenarie_indirekte_tredive_pct_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_effektiv_ejerandel_basispoint(pbl15a_scenarie_selskab_indirekte_tredive_pct.selskab.ejerforhold) == 3000 && pbl15a_scenarie_indirekte_tredive_pct_resultat.fakta_gyldige && pbl15a_scenarie_indirekte_tredive_pct_resultat.samlede_indtægter_tre_år_kroner == 900 && pbl15a_scenarie_indirekte_tredive_pct_resultat.passive_indtægter_tre_år_kroner == 270 && pbl15a_scenarie_indirekte_tredive_pct_resultat.samlede_aktiver_ved_afståelse_kroner == 300
+| pbl15a_lige_ejerandele_gennem_to_særskilte_veje_lægges_sammen: pbl15a_effektiv_ejerandel_basispoint(pbl15a_scenarie_to_lige_indirekte_ejerveje) -> pbl15a_ejerforhold_gyldigt(pbl15a_scenarie_to_lige_indirekte_ejerveje) && pbl15a_effektiv_ejerandel_basispoint(pbl15a_scenarie_to_lige_indirekte_ejerveje) == 5000
+| pbl15a_samme_indirekte_ejervej_må_ikke_tælles_to_gange: pbl15a_effektiv_ejerandel_basispoint(pbl15a_scenarie_dobbelt_indirekte_ejervej) -> pbl15a_ejerforhold_gyldigt(pbl15a_scenarie_dobbelt_indirekte_ejervej) == Falskt
+| pbl15a_aktivt_udlejningsselskab_gennemlyses_fra_2025_uanset_ejerandel: pbl15a_scenarie_aktivt_udlejningsselskab_2025.samlede_aktiver_tre_år_kroner -> pbl15a_scenarie_aktivt_udlejningsselskab_2024.fakta_gyldige && pbl15a_scenarie_aktivt_udlejningsselskab_2024.samlede_aktiver_tre_år_kroner == 300 && pbl15a_scenarie_aktivt_udlejningsselskab_2024.passive_aktiver_tre_år_kroner == 300 && pbl15a_scenarie_aktivt_udlejningsselskab_2025.fakta_gyldige && pbl15a_scenarie_aktivt_udlejningsselskab_2025.samlede_aktiver_tre_år_kroner == 600 && pbl15a_scenarie_aktivt_udlejningsselskab_2025.passive_aktiver_tre_år_kroner == 0
+| pbl15a_koncernintern_leje_udelades_og_driftsejendom_er_aktiv: pbl15a_scenarie_koncernintern_resultat.samlede_indtægter_tre_år_kroner -> pbl15a_scenarie_koncernintern_resultat.fakta_gyldige && pbl15a_scenarie_koncernintern_resultat.samlede_indtægter_tre_år_kroner == 1500 && pbl15a_scenarie_koncernintern_resultat.passive_indtægter_tre_år_kroner == 0 && pbl15a_scenarie_koncernintern_resultat.samlede_aktiver_tre_år_kroner == 3000 && pbl15a_scenarie_koncernintern_resultat.passive_aktiver_tre_år_kroner == 0
+| pbl15a_regnskabsperiode_fra_1_januar_2012_bruger_50_procent: pbl15a_scenarie_2015_tres_procent_passiv.gennemsnitsgrænse_basispoint -> pbl15a_scenarie_2014_tres_procent_ved_afståelse.gennemsnitsgrænse_basispoint == 7500 && pbl15a_scenarie_2015_tres_procent_passiv.fakta_gyldige && pbl15a_scenarie_2015_tres_procent_passiv.gennemsnitsgrænse_basispoint == 5000 && pbl15a_scenarie_2015_tres_procent_passiv.gennemsnitlig_aktivgrænse_nået
+| pbl15a_seneste_tre_regnskabsperioder_må_ikke_have_huller: pbl15a_scenarie_regnskabsgab_resultat.fakta_gyldige -> pbl15a_scenarie_regnskabsgab_resultat.fakta_gyldige == Falskt
+| pbl15a_næringsundtagelsen_kræver_ikke_tre_regnskabsperioder: pbl15a_scenarie_næringsundtagelse_resultat.fakta_gyldige -> pbl15a_scenarie_næringsundtagelse_resultat.fakta_gyldige && pbl15a_scenarie_næringsundtagelse_resultat.overvejende_passiv_kapitalanbringelse == Falskt && pbl15a_scenarie_tom_uden_næringsundtagelse_resultat.fakta_gyldige == Falskt
 
 ? pbl15a_almindelig_rate_er_uændret
 ? pbl15_indeksordning_kræver_kontrakt_efter_pristalsloven
@@ -540,3 +777,14 @@
 ? pbl15a_2014_overdragelse_bruger_50_procent
 ? pbl15a_aktiv_udlejning_skifter_i_2025
 ? pbl15a_abl18_andel_bevares_i_totalen
+? pbl15a_femogtyve_procent_er_inklusive
+? pbl15a_direkte_ejerandel_gennemlyser_uden_dobbelt_aktieværdi
+? pbl15a_ejerandel_under_grænsen_bevarer_aktieafkast_og_værdi
+? pbl15a_indirekte_ejervej_afleder_tredive_procent
+? pbl15a_lige_ejerandele_gennem_to_særskilte_veje_lægges_sammen
+? pbl15a_samme_indirekte_ejervej_må_ikke_tælles_to_gange
+? pbl15a_aktivt_udlejningsselskab_gennemlyses_fra_2025_uanset_ejerandel
+? pbl15a_koncernintern_leje_udelades_og_driftsejendom_er_aktiv
+? pbl15a_regnskabsperiode_fra_1_januar_2012_bruger_50_procent
+? pbl15a_seneste_tre_regnskabsperioder_må_ikke_have_huller
+? pbl15a_næringsundtagelsen_kræver_ikke_tre_regnskabsperioder

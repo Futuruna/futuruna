@@ -1352,6 +1352,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "entydig identifikation",
             ),
             (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesdato.år",
+                "År for virksomhedsafståelsen",
+                "I hvilket år",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.startdato.år",
+                "Regnskabsperiodens startår",
+                "begyndte regnskabsperioden",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.direkte_ejerandel_basispoint",
+                "Direkte ejerandel i selskabet",
+                "direkte kapitalandel",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.indirekte_ejerveje.identifikation",
+                "Ejervejens identifikation",
+                "entydig identifikation",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.selskabsregnskaber.selskab.ejerforhold.indirekte_ejerveje.ejerandele_gennem_kæden_basispoint",
+                "Ejerandel i hvert led",
+                "dette led",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet.selskabets_aktiver_før_ejerandel.handelsværdi_kroner",
+                "Selskabsaktivets fulde værdi ved overdragelsen",
+                "fulde handelsværdi",
+            ),
+            (
                 "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
                 "Ophørspensionsordning",
                 "entydig identifikation",
@@ -1412,6 +1442,60 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .unwrap_or_default()
                     .contains(expected_question_fragment),
                 "missing human interview question for {path}"
+            );
+        }
+        let pbl15a_disposal_metadata = metadata
+            .rows()
+            .skip(1)
+            .filter(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .is_some_and(|path| path.contains("pbl15a_årsgrundlag.afståelser"))
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !pbl15a_disposal_metadata.is_empty(),
+            "missing § 15 A disposal input metadata"
+        );
+        for row in pbl15a_disposal_metadata {
+            let path = row
+                .get(input_path_column)
+                .map(ToString::to_string)
+                .expect("§ 15 A disposal input path");
+            assert!(
+                row.get(label_column)
+                    .map(ToString::to_string)
+                    .is_some_and(|label| !label.trim().is_empty()),
+                "missing explicit human label for § 15 A input {path}"
+            );
+            assert!(
+                row.get(question_column)
+                    .map(ToString::to_string)
+                    .is_some_and(|question| !question.trim().is_empty()),
+                "§ 15 A input {path} fell back to a machine-derived label instead of explicit interview metadata"
+            );
+        }
+        let pbl15a_period_start_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsperioder.startdato.år")
+            })
+            .expect("§ 15 A accounting-period metadata");
+        let pbl15a_period_sources = pbl15a_period_start_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("§ 15 A accounting-period sources");
+        for expected in [
+            "pensionsbeskatningsloven_lbk1243_par15a",
+            "skat_pbl15a_betingelser_vejledning",
+        ] {
+            assert!(
+                pbl15a_period_sources.contains(expected),
+                "missing § 15 A accounting-period source {expected}"
             );
         }
         let business_travel_row = metadata

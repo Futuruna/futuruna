@@ -187,45 +187,50 @@
     )
 )
 
-| personskat_par15a_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
-    indkomstår = indkomstår,
-    indtægter = [
+| personskat_par15a_regnskabsperiode(indkomstår: Heltal, rækkefølge: Heltal) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1),
+    slutdato = Pbl15ADato(år = indkomstår, måned = 12, dag = 31),
+    virksomhedens_indtægter = [
         Pbl15AIndtægtspost(
             identifikation = "driftsindtægt",
             beløb_kroner = 1000000,
             art = Pbl15AØvrigDriftsindtægt
         )
     ],
-    aktiver = [
+    virksomhedens_aktiver = [
         Pbl15AAktivpost(
             identifikation = "driftsaktiv",
             handelsværdi_kroner = 2000000,
             art = Pbl15AØvrigtDriftsaktiv
         )
-    ]
+    ],
+    selskabsregnskaber = []
 )
 
 = personskat_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
     afståelser = [
         Pbl15AAfståelsesfakta(
             identifikation = "virksomhedssalg-1",
-            afståelsesår = 2026,
+            afståelsesdato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
             grundlag = Pbl15AHovedaktionæraktier,
             skattepligtig_fortjeneste_kroner = 100000,
             alder_hele_år_ved_afståelsen = 60,
             passiv_kapital = Pbl15APassivKapitalFakta(
-                seneste_tre_regnskabsår = [
-                    personskat_par15a_regnskabsår(2023),
-                    personskat_par15a_regnskabsår(2024),
-                    personskat_par15a_regnskabsår(2025)
+                seneste_tre_regnskabsperioder = [
+                    personskat_par15a_regnskabsperiode(2023, 1),
+                    personskat_par15a_regnskabsperiode(2024, 2),
+                    personskat_par15a_regnskabsperiode(2025, 3)
                 ],
-                aktiver_på_overdragelsestidspunktet = [
+                aktuel_regnskabsperiodes_startdato = Pbl15ADato(år = 2026, måned = 1, dag = 1),
+                virksomhedens_aktiver_på_overdragelsestidspunktet = [
                     Pbl15AAktivpost(
                         identifikation = "driftsaktiv-ved-salg",
                         handelsværdi_kroner = 2000000,
                         art = Pbl15AØvrigtDriftsaktiv
                     )
                 ],
+                selskabsaktiver_på_overdragelsestidspunktet = [],
                 næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
             ),
             udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,

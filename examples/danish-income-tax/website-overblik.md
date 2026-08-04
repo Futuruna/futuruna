@@ -195,7 +195,10 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 476 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 579 eksplicitte feltmetadata-poster.
+Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
+et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
+indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.
 Otteogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter
 Ligningslovens § 9 B med sagsidentifikation, godtgørende arbejdsgiver, køretøj,
 kilometer, kronologisk rækkefølge, 60-dages-forhold, udgifter og
