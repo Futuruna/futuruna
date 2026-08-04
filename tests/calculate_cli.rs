@@ -599,8 +599,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ønsket pensionsfradrag i aktieindkomst",
             "Dato for meddelelse om aktieindkomstfradrag",
             "Dato for omgørelse af aktieindkomstfradrag",
-            "Skattepligtige pensionsudbetalinger efter PBL § 20",
-            "Behandling af pensionsudbetalingen efter § 9 L",
             "Aldersstatus for personfradrag",
             "Kirkeskat",
             "Årets renteindtægter",
@@ -766,10 +764,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "Sportspensionsordningens identifikation",
                     "Sportspensionens oprettelsesår",
                     "Sportspensionens art",
-                    "Alder i indkomståret",
+                    "Sportspensionsindehaverens fødselsår",
                     "Påtegnet som sportspension",
-                    "Tidlig udbetaling fra sportspensionen",
-                    "År for sidste tidlige rateudbetaling",
+                    "Plan for tidlig udbetaling fra sportspensionen",
+                    "Første år i rateforsikringsplanen",
+                    "Aftalt forsikringssum til tidlige rater",
+                    "Første år i rateopsparingsplanen",
+                    "Metode for beregning af rateopsparingsrater",
                 ],
             ),
             (
@@ -781,6 +782,32 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "Sportspension for tidligere indbetaling",
                     "Tidligere indbetalt beløb på sportspension",
                     "Arbejdsmarkedsbidrag i tidligere indbetaling",
+                ],
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger",
+                "Dansk personskat - Tidlige rater fra sportspensionen",
+                vec![
+                    "Den tidlige rates identifikation",
+                    "Sportspension for den tidlige rate",
+                    "Indkomstår for den tidlige rate",
+                    "Udbetalt tidlig rate",
+                    "Beregningsgrundlag for den tidlige rate",
+                    "Opsparingens værdi ved årets begyndelse",
+                    "Amortisationsrente for annuitetsraten",
+                ],
+            ),
+            (
+                "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger",
+                "Dansk personskat - Øvrige pensionsudbetalinger efter PBL § 20",
+                vec![
+                    "Pensionsudbetalingens identifikation",
+                    "Indkomstår for pensionsudbetalingen",
+                    "Pensionsordningens art efter PBL § 20",
+                    "Retten til pensionsudbetalingen",
+                    "Udbetalingens art efter ligningslovens § 9 L",
+                    "Pensionsudbetaling før fritagelser",
+                    "Dokumenteret del uden fradrags- eller bortseelsesret",
                 ],
             ),
         ] {
@@ -858,10 +885,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter.beløb_kroner",
             "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter.kilde",
             "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.identifikation",
-            "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.$variant",
+            "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.$variant",
+            "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.metode",
+            "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.udbetalt_kroner",
+            "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.$variant",
             "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger.arbejdsmarkedsbidrag_kroner",
-            "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
-            "lønmodtager.pension.pbl20_udbetaling_status",
+            "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.bruttoudbetaling_kroner",
+            "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.udbetalingsret.$variant",
+            "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.ligningslov9l_art",
             "kapitalindkomst.renter.renteindtægter_kroner",
             "kapitalindkomst.renter.renteudgifter_kroner",
             "kapitalindkomst.renter.næringsstatus",
@@ -1470,9 +1501,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Hvilken entydig identifikation",
             ),
             (
-                "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.$variant",
-                "Tidlig udbetaling fra sportspensionen",
-                "ikke begyndt, aktiv eller afsluttet",
+                "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.$variant",
+                "Plan for tidlig udbetaling fra sportspensionen",
+                "ingen tidlig udbetalingsplan",
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.udbetalt_kroner",
+                "Udbetalt tidlig rate",
+                "Hvor stort et beløb",
+            ),
+            (
+                "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.bruttoudbetaling_kroner",
+                "Pensionsudbetaling før fritagelser",
+                "samlede pensionsudbetaling",
             ),
             (
                 "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger.arbejdsmarkedsbidrag_kroner",
@@ -1740,14 +1781,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "lønmodtager.pension.aktiepensionsfradrag_valg.$variant",
                         Data::String("UdenAktiepensionsfradragIAktieindkomst".to_string()),
-                    ),
-                    (
-                        "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
-                        Data::String("0".to_string()),
-                    ),
-                    (
-                        "lønmodtager.pension.pbl20_udbetaling_status",
-                        Data::String("Ll9lIngenPbl20Udbetaling".to_string()),
                     ),
                     (
                         "lønmodtager.personfradrag_alder_status",
@@ -3377,7 +3410,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "1000",
             ),
             (
-                "årsopgørelse.MedÅrsopgørelse.pensionsbeskatningsafgift_kroner",
+                "årsopgørelse.MedÅrsopgørelse.øvrig_pensionsbeskatningsafgift_kroner",
                 "500",
             ),
             (
@@ -3512,14 +3545,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "pbl15b_årsgrundlag": {
                     "indkomstposter": [],
                     "ordninger": [],
-                    "tidligere_indbetalinger": []
+                    "tidligere_indbetalinger": [],
+                    "rateudbetalinger": []
+                },
+                "øvrige_pbl20_årsgrundlag": {
+                    "udbetalinger": []
                 },
                 "aktiepensionsfradrag_valg": {
                     "$variant": "UdenAktiepensionsfradragIAktieindkomst"
-                },
-                "pbl20_indkomstskattepligtig_udbetaling_kroner": 0,
-                "pbl20_udbetaling_status": {
-                    "$variant": "Ll9lIngenPbl20Udbetaling"
                 }
             },
             "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },

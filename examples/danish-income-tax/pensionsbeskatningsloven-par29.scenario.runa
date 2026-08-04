@@ -1,0 +1,15 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par29
+
+= pbl29_scenarie_under_hundrede = pbl29_stk1_ordinær_afgift(99)
+= pbl29_scenarie_mellem_hundrede_og_to_hundrede = pbl29_stk1_ordinær_afgift(199)
+= pbl29_scenarie_negativt_input = pbl29_stk1_ordinær_afgift(-100)
+
+| pbl36_beløb_under_hundrede_giver_ingen_afgift: pbl29_scenarie_under_hundrede -> pbl29_scenarie_under_hundrede.afgiftsgrundlag_efter_par36_kroner == 0 && pbl29_scenarie_under_hundrede.afgift_kroner == 0
+| pbl36_afrunder_nedad_før_60_pct_afgift: pbl29_scenarie_mellem_hundrede_og_to_hundrede -> pbl29_scenarie_mellem_hundrede_og_to_hundrede.afgiftsgrundlag_efter_par36_kroner == 100 && pbl29_scenarie_mellem_hundrede_og_to_hundrede.afgift_kroner == 60
+| pbl29_negativt_input_fejer_til_nul: pbl29_scenarie_negativt_input -> pbl29_scenarie_negativt_input.udbetalt_beløb_kroner == 0 && pbl29_scenarie_negativt_input.afgiftsgrundlag_efter_par36_kroner == 0 && pbl29_scenarie_negativt_input.afgift_kroner == 0
+
+? pbl36_beløb_under_hundrede_giver_ingen_afgift
+? pbl36_afrunder_nedad_før_60_pct_afgift
+? pbl29_negativt_input_fejer_til_nul

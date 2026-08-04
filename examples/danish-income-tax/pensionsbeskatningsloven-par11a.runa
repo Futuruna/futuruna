@@ -1,0 +1,73 @@
+@ sprog da
+
+@ importer ./metadata
+
+# Pbl11AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3 = Pbl11AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 11 A, stk. 2 og 3",
+    hentet_dato = "2026-07-24",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 11 A, stk. 2 og 3, er uændret"
+)
+
+= pensionsbeskatningsloven_par11a_stk2_og_3_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par11a_stk2_og_3::meta:pensionsbeskatningsloven_par11a_stk2_og_3_metadata--
+----
+Stk. 2. Før rateudbetalingen påbegyndes, vælger kontohaveren
+udbetalingsforløbet efter reglerne i dette stykke. Renter m.v., der tilskrives i
+det sidste udbetalingsår, skal senest udbetales sammen med sidste rate.
+Kontohaveren skal vælge et af følgende udbetalingsforløb:
+
+1) et udbetalingsforløb med en årlig rateudbetaling, der udgør et beløb svarende
+til ordningens værdi ved kalenderårets begyndelse delt med det antal år, hvori
+der endnu ikke er foretaget udbetaling, eller
+
+2) et udbetalingsforløb med en årlig rateudbetaling, der udgør et beløb, som ved
+uændret rente i hele udbetalingsperioden eller ved en forlængelse af
+udbetalingsperioden eller ændret udbetalingsforløb den resterende
+udbetalingsperiode vil give lige store årlige rater.
+
+Stk. 3. Det beløb, der er nævnt i stk. 2, nr. 2, opgøres ved hvert kalenderårs
+begyndelse og beregnes som en annuitet på grundlag af ordningens værdi på dette
+tidspunkt og en amortisationsrente som nævnt i 2. pkt. Som amortisationsrente
+anvendes maksimalt en rente svarende til det langsigtede afkast af obligationer,
+der fremgår af de til Finanstilsynet senest meddelte samfundsforudsætninger for
+pensionsfremskrivninger, plus 2 procentpoint og herfra fradraget produktet af det
+nævnte afkast inklusive procenttillægget og skattesatsen ifølge
+pensionsafkastbeskatningslovens § 2.
+----
+
+--@begin:pensionsbeskatningsloven_par11a_stk2_og_3--
+# Pbl11AUdbetalingsmetode = Pbl11APrimoVærdiDivideretMedResterendeÅr | Pbl11AAnnuitetMedAmortisationsrente
+# Pbl11ARateberegningsfakta = Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner: Heltal) | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner: Heltal, amortisationsrente_basispoint: Heltal, langsigtet_obligationsafkast_basispoint: Heltal, pensionsafkastskattesats_basispoint: Heltal)
+
+| pbl11a_maksimal_amortisationsrente_basispoint(langsigtet_obligationsafkast_basispoint: Heltal, pensionsafkastskattesats_basispoint: Heltal) -> {
+    = afkast_med_tillæg_basispoint = langsigtet_obligationsafkast_basispoint + 200
+    afkast_med_tillæg_basispoint - afkast_med_tillæg_basispoint * pensionsafkastskattesats_basispoint / 10000
+}
+| pbl11a_rateberegningsfakta_gyldige(fakta: Pbl11ARateberegningsfakta) -> match fakta {
+    | Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner) -> ordningsværdi_ved_årets_begyndelse_kroner >= 0
+    | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner, amortisationsrente_basispoint, langsigtet_obligationsafkast_basispoint, pensionsafkastskattesats_basispoint) -> ordningsværdi_ved_årets_begyndelse_kroner >= 0 && amortisationsrente_basispoint >= 0 && langsigtet_obligationsafkast_basispoint >= 0 && pensionsafkastskattesats_basispoint >= 0 && pensionsafkastskattesats_basispoint <= 10000 && amortisationsrente_basispoint <= pbl11a_maksimal_amortisationsrente_basispoint(langsigtet_obligationsafkast_basispoint, pensionsafkastskattesats_basispoint)
+}
+| pbl11a_beregning_stemmer_med_metode(metode: Pbl11AUdbetalingsmetode, fakta: Pbl11ARateberegningsfakta) -> match metode {
+    | Pbl11APrimoVærdiDivideretMedResterendeÅr -> match fakta {
+        | Pbl11ARateEfterPrimoVærdi(_) -> Sandt
+        | _ -> Falskt
+    }
+    | Pbl11AAnnuitetMedAmortisationsrente -> match fakta {
+        | Pbl11AAnnuitetsrate(_, _, _, _) -> Sandt
+        | _ -> Falskt
+    }
+}
+| pbl11a_annuitetsrate_kroner(ordningsværdi_kroner: Heltal, amortisationsrente_basispoint: Heltal, resterende_år: Heltal) -> hvis ordningsværdi_kroner >= 0 && resterende_år > 0 && amortisationsrente_basispoint > 0 { round(to_float(ordningsværdi_kroner) * (to_float(amortisationsrente_basispoint) / 10000.0) / (1.0 - pow(1.0 + to_float(amortisationsrente_basispoint) / 10000.0, 0 - resterende_år))) } ellers hvis ordningsværdi_kroner >= 0 && resterende_år > 0 { ordningsværdi_kroner / resterende_år } ellers { 0 }
+| pbl11a_forventet_rate_kroner(fakta: Pbl11ARateberegningsfakta, resterende_år: Heltal) -> match fakta {
+    | Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner) -> hvis resterende_år > 0 { ordningsværdi_ved_årets_begyndelse_kroner / resterende_år } ellers { 0 }
+    | Pbl11AAnnuitetsrate(ordningsværdi_ved_årets_begyndelse_kroner, amortisationsrente_basispoint, _, _) -> pbl11a_annuitetsrate_kroner(ordningsværdi_ved_årets_begyndelse_kroner, amortisationsrente_basispoint, resterende_år)
+}
+--@end:pensionsbeskatningsloven_par11a_stk2_og_3--

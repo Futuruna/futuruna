@@ -32,12 +32,16 @@ help, units, and sources belong in typed field metadata.
 
 Keep the calculation boundary machine-stable and attach presentation metadata to
 individual canonical input paths. A field binding is an ordinary pure ground
-record. The `field` role gives it calculation meaning; the anchor label names the
-calculation entry.
+record. Its typed field shape and canonical `path` give it calculation meaning;
+the anchor label names the calculation entry and its single `meta` binding
+contains the fields and their provenance.
 
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
 # SourceInfo(url: String, section: String)
+# CalculationMetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
 
 = tax_source = SourceInfo(
     url = "https://example.invalid/tax",
@@ -50,8 +54,14 @@ calculation entry.
     help = Some("Use the gross amount before deductions."),
     unit = Some("currency/month")
 )
+= monthly_income_meta = CalculationMeta(
+    fields = [monthly_income_field],
+    attachments = (
+        MetaAttachment(role = Source, value = tax_source),
+    )
+)
 
---@label:calculate_tax::field:monthly_income_field::source:tax_source--
+--@label:calculate_tax::meta:monthly_income_meta--
 ```
 
 `path` uses the exact canonical path emitted by the calculation layout. Root
@@ -64,19 +74,15 @@ path are errors.
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
 `path` and `label` are required strings. The other fields may be strings,
 optional strings, or omitted by a record type that does not declare them.
-Companion references on the same anchor, such as `source`, remain typed metadata
-and are copied into that field's source trace.
+Role-bearing values such as `Source` attachments remain typed metadata and are
+copied into that field's source trace.
 
-For more than a few fields, put the records in an ordinary typed aggregate and
-attach that object once with the `meta` role. The calculation consumer finds
-field-shaped typed descendants recursively; other metadata consumers remain free
-to query the same object by its own nested types.
+Scale the same ordinary typed aggregate to any number of fields and attach that
+object once with the `meta` role. The calculation consumer finds field-shaped
+typed descendants recursively; other metadata consumers remain free to query
+the same object by its own nested types.
 
 ```runa
-# CalculationMetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
-# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
-
 = tax_input_meta = CalculationMeta(
     fields = [
         monthly_income_field,
@@ -92,9 +98,10 @@ to query the same object by its own nested types.
 ```
 
 The emitted field binding names include stable aggregate paths such as
-`tax_input_meta.fields[0]`. A direct `field` reference remains supported. A
-`field` reference that is neither a field record nor an aggregate containing
-field records is an error; a generic `meta` object without calculation fields is
+`tax_input_meta.fields[0]`. Direct `field` references remain accepted for source
+compatibility; new code should attach one typed `meta` object. A `field`
+reference that is neither a field record nor an aggregate containing field
+records is an error; a generic `meta` object without calculation fields is
 simply ignored by the calculation field consumer. Nested `MetaAttachment`
 values are copied into the calculation and field source traces. Each trace keeps
 the canonical source `binding` and adds the aggregate `attachment_path`.

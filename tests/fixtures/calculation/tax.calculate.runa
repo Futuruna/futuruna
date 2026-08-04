@@ -4,6 +4,9 @@
 # TaxResult(annual_income: Int, taxable_income: Int, annual_tax: Int)
 # SourceInfo(url: String, section: String)
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# CalculationMetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
 
 = tax_source = SourceInfo(url = "https://example.invalid/tax", section = "fixture")
 = monthly_income_field = CalculationField(
@@ -42,11 +45,20 @@
     unit = Some("years")
 )
 
---@label:calculate_tax::field:monthly_income_field::source:tax_source--
---@label:calculate_tax::field:filing_status_field::source:tax_source--
---@label:calculate_tax::field:children_field::source:tax_source--
---@label:calculate_tax::field:child_name_field::source:tax_source--
---@label:calculate_tax::field:child_age_field::source:tax_source--
+= tax_input_meta = CalculationMeta(
+    fields = [
+        monthly_income_field,
+        filing_status_field,
+        children_field,
+        child_name_field,
+        child_age_field
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = tax_source),
+    )
+)
+
+--@label:calculate_tax::meta:tax_input_meta--
 
 | annual_income(input: TaxInput) -> input.monthly_income * 12
 
@@ -56,7 +68,14 @@
 | annual_tax(input: TaxInput) -> taxable_income(input) / 4
 | exception family annual_tax(input: TaxInput) -> taxable_income(input) / 5 under input.filing_status == Married && length(input.children) > 0
 
---@label:tax_calculation::source:tax_source--
+= tax_calculation_meta = CalculationMeta(
+    fields = [],
+    attachments = (
+        MetaAttachment(role = Source, value = tax_source),
+    )
+)
+
+--@label:tax_calculation::meta:tax_calculation_meta--
 ----
 Synthetic calculation source used to verify typed calculation provenance.
 ----

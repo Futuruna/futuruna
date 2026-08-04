@@ -1,0 +1,47 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Pbl29KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par29_par36 = Pbl29KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 29, stk. 1, 1. pkt., og § 36",
+    hentet_dato = "2026-07-24",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; bestemmelserne er uændrede"
+)
+
+= pensionsbeskatningsloven_par29_stk1_og_par36_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par29_par36),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par29_stk1_og_par36::meta:pensionsbeskatningsloven_par29_stk1_og_par36_metadata--
+----
+§ 29. Ved udbetalinger, der ikke omfattes af § 20 eller §§ 29 A-C, fra en
+pensionsordning med løbende udbetalinger eller fra en rateforsikring eller
+rateopsparing i pensionsøjemed svares en afgift på 60 pct. af det udbetalte
+beløb, jf. dog 2.-4. pkt.
+
+§ 36. Forinden afgiftsberegningen afrundes det afgiftspligtige beløb nedad til
+det nærmeste kronebeløb, der kan deles med 100. Er beløbet mindre end 100 kr.,
+svares ingen afgift.
+
+Stk. 2. Ved betaling og opkrævning af afgift efter denne lov betales og
+opkræves kun hele kronebeløb.
+----
+
+--@begin:pensionsbeskatningsloven_par29_stk1_og_par36--
+# Pbl29Stk1Afgiftsresultat(udbetalt_beløb_kroner: Heltal, afgiftsgrundlag_efter_par36_kroner: Heltal, afgiftssats_basispoint: Heltal, afgift_kroner: Heltal)
+
+| pbl36_afgiftsgrundlag_kroner(udbetalt_beløb_kroner: Heltal) -> penge_positivt_beløb(udbetalt_beløb_kroner) / 100 * 100
+| pbl29_stk1_ordinær_afgiftssats_basispoint() -> 6000
+| pbl29_stk1_ordinær_afgift(udbetalt_beløb_kroner: Heltal) -> Pbl29Stk1Afgiftsresultat(
+    udbetalt_beløb_kroner = penge_positivt_beløb(udbetalt_beløb_kroner),
+    afgiftsgrundlag_efter_par36_kroner = pbl36_afgiftsgrundlag_kroner(udbetalt_beløb_kroner),
+    afgiftssats_basispoint = pbl29_stk1_ordinær_afgiftssats_basispoint(),
+    afgift_kroner = penge_beløb_gange_basispoint_kroner(pbl36_afgiftsgrundlag_kroner(udbetalt_beløb_kroner), pbl29_stk1_ordinær_afgiftssats_basispoint())
+)
+--@end:pensionsbeskatningsloven_par29_stk1_og_par36--

@@ -1,0 +1,135 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par20
+
+| pbl20_scenarieudbetaling(
+    identifikation: Tekst,
+    indkomstår: Heltal,
+    ordning: Pbl20Ordning,
+    udbetalingsret: Pbl20Udbetalingsret,
+    ligningslov9l_art: Pbl20Ligningslov9LArt,
+    bruttoudbetaling_kroner: Heltal,
+    del_fra_indbetalinger_før_1955_56_kroner: Heltal,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner: Heltal,
+    eu_eøs_erklæring: Pbl20EuEøsErklæring,
+    udenlandsk_indkomstskat_kroner: Heltal
+) -> Pbl20Udbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    ordning = ordning,
+    udbetalingsret = udbetalingsret,
+    ligningslov9l_art = ligningslov9l_art,
+    bruttoudbetaling_kroner = bruttoudbetaling_kroner,
+    del_fra_indbetalinger_før_1955_56_kroner = del_fra_indbetalinger_før_1955_56_kroner,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = dokumenteret_uden_fradrags_eller_bortseelsesret_kroner,
+    eu_eøs_erklæring = eu_eøs_erklæring,
+    udenlandsk_indkomstskat_kroner = udenlandsk_indkomstskat_kroner
+)
+
+= pbl20_rate_til_ejer = pbl20_scenarieudbetaling(
+    identifikation = "rate-ejer",
+    indkomstår = 2026,
+    ordning = Pbl20Rateforsikring,
+    udbetalingsret = Pbl20TilEjerEfterVilkår,
+    ligningslov9l_art = Pbl20OrdinærPensionsudbetaling,
+    bruttoudbetaling_kroner = 100000,
+    del_fra_indbetalinger_før_1955_56_kroner = 10000,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 20000,
+    eu_eøs_erklæring = Pbl20ErklæringEfterPar15C,
+    udenlandsk_indkomstskat_kroner = 50000
+)
+= pbl20_rate_til_ejer_resultat = pbl20_udbetalingsresultat(pbl20_rate_til_ejer)
+
+= pbl20_par5_til_anden = pbl20_scenarieudbetaling(
+    identifikation = "par5-anden",
+    indkomstår = 2026,
+    ordning = Pbl20ForsikringEfterPar5,
+    udbetalingsret = Pbl20TilBegunstigetEfterEjerensDød(Pbl20AndenModtager),
+    ligningslov9l_art = Pbl20OrdinærPensionsudbetaling,
+    bruttoudbetaling_kroner = 40000,
+    del_fra_indbetalinger_før_1955_56_kroner = 0,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+    eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+    udenlandsk_indkomstskat_kroner = 0
+)
+= pbl20_par5_til_anden_resultat = pbl20_udbetalingsresultat(pbl20_par5_til_anden)
+
+= pbl20_løbende_til_anden = pbl20_scenarieudbetaling(
+    identifikation = "løbende-anden",
+    indkomstår = 2026,
+    ordning = Pbl20PensionsordningMedLøbendeUdbetalinger,
+    udbetalingsret = Pbl20AndenUdbetalingsret(Pbl20AndenModtager),
+    ligningslov9l_art = Pbl20ÆgtefælleEllerSamleverpension,
+    bruttoudbetaling_kroner = 30000,
+    del_fra_indbetalinger_før_1955_56_kroner = 0,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+    eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+    udenlandsk_indkomstskat_kroner = 0
+)
+= pbl20_løbende_til_anden_resultat = pbl20_udbetalingsresultat(pbl20_løbende_til_anden)
+
+= pbl20_rate_til_23årig = pbl20_scenarieudbetaling(
+    identifikation = "rate-23",
+    indkomstår = 2026,
+    ordning = Pbl20Rateopsparing,
+    udbetalingsret = Pbl20TilBegunstigetEfterEjerensDød(Pbl20EjerensLivsarving(alder_hele_år = 23)),
+    ligningslov9l_art = Pbl20Efterladtepension,
+    bruttoudbetaling_kroner = 25000,
+    del_fra_indbetalinger_før_1955_56_kroner = 0,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+    eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+    udenlandsk_indkomstskat_kroner = 0
+)
+= pbl20_rate_til_23årig_resultat = pbl20_udbetalingsresultat(pbl20_rate_til_23årig)
+
+= pbl20_rate_til_24årig = pbl20_scenarieudbetaling(
+    identifikation = "rate-24",
+    indkomstår = 2026,
+    ordning = Pbl20Rateopsparing,
+    udbetalingsret = Pbl20TilBegunstigetEfterEjerensDød(Pbl20EjerensLivsarving(alder_hele_år = 24)),
+    ligningslov9l_art = Pbl20Efterladtepension,
+    bruttoudbetaling_kroner = 25000,
+    del_fra_indbetalinger_før_1955_56_kroner = 0,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+    eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+    udenlandsk_indkomstskat_kroner = 0
+)
+= pbl20_rate_til_24årig_resultat = pbl20_udbetalingsresultat(pbl20_rate_til_24årig)
+
+= pbl20_årsresultat_2026 = pbl20_årsresultat(2026, Pbl20Årsgrundlag(
+    udbetalinger = [
+        pbl20_rate_til_ejer,
+        pbl20_løbende_til_anden,
+        pbl20_rate_til_23årig,
+        pbl20_scenarieudbetaling(
+            identifikation = "rate-2025",
+            indkomstår = 2025,
+            ordning = Pbl20Rateopsparing,
+            udbetalingsret = Pbl20TilEjerEfterVilkår,
+            ligningslov9l_art = Pbl20OrdinærPensionsudbetaling,
+            bruttoudbetaling_kroner = 90000,
+            del_fra_indbetalinger_før_1955_56_kroner = 0,
+            dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+            eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+            udenlandsk_indkomstskat_kroner = 0
+        )
+    ]
+))
+
+= pbl20_dobbelt_identifikation_resultat = pbl20_årsresultat(2026, Pbl20Årsgrundlag(
+    udbetalinger = [pbl20_rate_til_ejer, pbl20_rate_til_ejer]
+))
+
+| pbl20_stk3_stk4_og_eu_eøs_spores: pbl20_rate_til_ejer_resultat -> pbl20_rate_til_ejer_resultat.fakta_gyldige && pbl20_rate_til_ejer_resultat.omfattet_af_par20 && pbl20_rate_til_ejer_resultat.fritaget_efter_stk3_kroner == 10000 && pbl20_rate_til_ejer_resultat.fritaget_efter_stk4_kroner == 20000 && pbl20_rate_til_ejer_resultat.skattepligtig_indkomst_kroner == 70000 && pbl20_rate_til_ejer_resultat.personlig_indkomst_kroner == 70000 && pbl20_rate_til_ejer_resultat.modregningspligtig_efter_ligningslov9l_kroner == 70000 && pbl20_rate_til_ejer_resultat.udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner == 50000
+| pbl20_par5_har_særlig_modtagerbegrænsning: pbl20_par5_til_anden_resultat -> pbl20_par5_til_anden_resultat.fakta_gyldige && pbl20_par5_til_anden_resultat.omfattet_af_par20 == Falskt && pbl20_par5_til_anden_resultat.skattepligtig_indkomst_kroner == 0
+| pbl20_løbende_pension_er_generelt_omfattet: pbl20_løbende_til_anden_resultat -> pbl20_løbende_til_anden_resultat.omfattet_af_par20 && pbl20_løbende_til_anden_resultat.personlig_indkomst_kroner == 30000 && pbl20_løbende_til_anden_resultat.undtaget_fra_ligningslov9l && pbl20_løbende_til_anden_resultat.modregningspligtig_efter_ligningslov9l_kroner == 0
+| pbl20_alder_under_24_afgrænses: pbl20_rate_til_23årig_resultat -> pbl20_rate_til_23årig_resultat.omfattet_af_par20 && pbl20_rate_til_24årig_resultat.omfattet_af_par20 == Falskt
+| pbl20_årsresultat_filtrerer_år_og_summerer: pbl20_årsresultat_2026 -> pbl20_årsresultat_2026.input_gyldigt && length(pbl20_årsresultat_2026.årsudbetalinger) == 3 && pbl20_årsresultat_2026.samlet_bruttoudbetaling_kroner == 155000 && pbl20_årsresultat_2026.samlet_skattepligtig_indkomst_kroner == 125000 && pbl20_årsresultat_2026.samlet_personlig_indkomst_kroner == 125000 && pbl20_årsresultat_2026.samlet_modregningspligtig_efter_ligningslov9l_kroner == 70000
+| pbl20_dobbelt_identifikation_afvises: pbl20_dobbelt_identifikation_resultat -> pbl20_dobbelt_identifikation_resultat.identifikationer_entydige == Falskt && pbl20_dobbelt_identifikation_resultat.input_gyldigt == Falskt && pbl20_dobbelt_identifikation_resultat.samlet_skattepligtig_indkomst_kroner == 0
+
+? pbl20_stk3_stk4_og_eu_eøs_spores
+? pbl20_par5_har_særlig_modtagerbegrænsning
+? pbl20_løbende_pension_er_generelt_omfattet
+? pbl20_alder_under_24_afgrænses
+? pbl20_årsresultat_filtrerer_år_og_summerer
+? pbl20_dobbelt_identifikation_afvises

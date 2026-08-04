@@ -1,0 +1,30 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par11a
+
+= pbl11a_scenarie_primofakta = Pbl11ARateEfterPrimoVærdi(
+    ordningsværdi_ved_årets_begyndelse_kroner = 900000
+)
+= pbl11a_scenarie_annuitetsfakta = Pbl11AAnnuitetsrate(
+    ordningsværdi_ved_årets_begyndelse_kroner = 100000,
+    amortisationsrente_basispoint = 500,
+    langsigtet_obligationsafkast_basispoint = 400,
+    pensionsafkastskattesats_basispoint = 1530
+)
+
+= pbl11a_scenarie_for_høj_amortisationsrente = Pbl11AAnnuitetsrate(
+    ordningsværdi_ved_årets_begyndelse_kroner = 100000,
+    amortisationsrente_basispoint = 510,
+    langsigtet_obligationsafkast_basispoint = 400,
+    pensionsafkastskattesats_basispoint = 1530
+)
+
+| pbl11a_primo_værdi_deles_med_resterende_år: pbl11a_scenarie_primofakta -> pbl11a_forventet_rate_kroner(pbl11a_scenarie_primofakta, 3) == 300000
+| pbl11a_annuitetsrate_beregnes_for_hvert_år: pbl11a_scenarie_annuitetsfakta -> pbl11a_forventet_rate_kroner(pbl11a_scenarie_annuitetsfakta, 2) == 53780
+| pbl11a_maksimal_amortisationsrente_følger_stk3: pbl11a_scenarie_annuitetsfakta -> pbl11a_maksimal_amortisationsrente_basispoint(400, 1530) == 509 && pbl11a_rateberegningsfakta_gyldige(pbl11a_scenarie_annuitetsfakta) && pbl11a_rateberegningsfakta_gyldige(pbl11a_scenarie_for_høj_amortisationsrente) == Falskt
+| pbl11a_beregningsmetode_og_fakta_skal_stemme: pbl11a_scenarie_annuitetsfakta -> pbl11a_beregning_stemmer_med_metode(Pbl11AAnnuitetMedAmortisationsrente, pbl11a_scenarie_annuitetsfakta) && pbl11a_beregning_stemmer_med_metode(Pbl11APrimoVærdiDivideretMedResterendeÅr, pbl11a_scenarie_annuitetsfakta) == Falskt
+
+? pbl11a_primo_værdi_deles_med_resterende_år
+? pbl11a_annuitetsrate_beregnes_for_hvert_år
+? pbl11a_maksimal_amortisationsrente_følger_stk3
+? pbl11a_beregningsmetode_og_fakta_skal_stemme

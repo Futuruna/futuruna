@@ -13,8 +13,11 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1243
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1243/dan/xml
 -- Senere ændringer gennem LOV nr. 615 af 30/06/2026 er gennemgået.
--- §§ 15 og 15 A ligger i pensionsbeskatningsloven-par15-15a.runa. Ingen af de
--- gennemgåede ændringer ændrer §§ 16, 18, 52 eller 53 A.
+-- §§ 15 og 15 A ligger i pensionsbeskatningsloven-par15-15a.runa, de anvendte
+-- dele af § 11 A i pensionsbeskatningsloven-par11a.runa, § 15 B i
+-- pensionsbeskatningsloven-par15b.runa, § 20 i pensionsbeskatningsloven-par20.runa
+-- og de anvendte dele af §§ 29 og 36 i pensionsbeskatningsloven-par29.runa.
+-- Ingen af de gennemgåede ændringer ændrer §§ 16, 18, 52 eller 53 A.
 
 # PensionsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 

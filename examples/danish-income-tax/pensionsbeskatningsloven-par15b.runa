@@ -1,7 +1,11 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./pensionsbeskatningsloven - par11a
+@ importer ./pensionsbeskatningsloven - par20
+@ importer ./pensionsbeskatningsloven - par29
 
 # Pbl15BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -33,6 +37,13 @@
     ændringsstatus = "Officielle 2025- og 2026-satser for PBL § 15 B"
 )
 
+= skatteforvaltningen_pbl15b_udbetalinger = Pbl15BKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048292",
+    identifier = "Den juridiske vejledning C.A.10.2.2.3.6.3",
+    hentet_dato = "2026-07-24",
+    ændringsstatus = "Gældende vejledning: højst ti år, 2026-loft 469.200 kr., § 20-indkomst og 60 pct. § 29-afgift af overskridelsen"
+)
+
 # Pbl15BÅrsparameterKilde = Pbl15BSatser2010Til2017 | Pbl15BSatser2018Til2024 | Pbl15BSatser2025Til2026 | Pbl15BIngenKildedækning
 # Pbl15BÅrsparametre(indkomstår: Heltal, understøttet: Boolsk, kilde: Pbl15BÅrsparameterKilde, samlet_indbetalingsloft_kroner: Heltal, årligt_rateudbetalingsloft_kroner: Heltal)
 
@@ -52,7 +63,13 @@
     årligt_rateudbetalingsloft_kroner = 0
 )
 
---@label:pbl15b_årsparametre_2010_til_2017::source:skatteministeriet_pbl15b_satser_2010_til_2017--
+= pbl15b_årsparametre_2010_til_2017_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
+    )
+)
+
+--@label:pbl15b_årsparametre_2010_til_2017::meta:pbl15b_årsparametre_2010_til_2017_metadata--
 ----
 Pensionsbeskatningsloven:
 Maks. hævning for professionelle sportsudøvere før 40. år 1.708.500 1.708.500 1.708.500 1.708.500 1.739.300 1.764.900 1.788.800 1.828.100
@@ -73,7 +90,13 @@ Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 
 }
 --@end::pbl15b_årsparametre_2010_til_2017--
 
---@label:pbl15b_årsparametre_2018_til_2024::source:skatteministeriet_pbl15b_satser_2018_til_2024--
+= pbl15b_årsparametre_2018_til_2024_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
+    )
+)
+
+--@label:pbl15b_årsparametre_2018_til_2024::meta:pbl15b_årsparametre_2018_til_2024_metadata--
 ----
 Pensionsbeskatningsloven kr. 2018 2019 2020 2021 2022 2023 2024
 Maks. hævning for professionelle sportsudøvere før 40. år 1.869.100 1.910.200 1.952.900 1.997.300 2.021.200 2.081.000 2.154.500
@@ -93,7 +116,13 @@ Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 
 }
 --@end::pbl15b_årsparametre_2018_til_2024--
 
---@label:pbl15b_årsparametre_2025_til_2026::source:skatteministeriet_pbl15b_satser_2025_til_2026--
+= pbl15b_årsparametre_2025_til_2026_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+    )
+)
+
+--@label:pbl15b_årsparametre_2025_til_2026::meta:pbl15b_årsparametre_2025_til_2026_metadata--
 ----
 Maks. indbetaling til opsparingsordning for sportsudøvere
 (§ 15 B, stk. 3) 1.708.500 kr. 2.238.200 kr. 2.345.800 kr.
@@ -119,7 +148,15 @@ Maks. årlig hævning for sportsudøvere
 ))
 | pbl15b_årsparametre_stemmer_med_par20(parametre: Pbl15BÅrsparametre) -> parametre.understøttet && parametre.samlet_indbetalingsloft_kroner == pbl15b_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, 1708500) && parametre.årligt_rateudbetalingsloft_kroner == pbl15b_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, 341700)
 
---@label:pensionsbeskatningsloven_par15b::source:pensionsbeskatningsloven_lbk1243_par15b--
+= pensionsbeskatningsloven_par15b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        MetaAttachment(role = Guidance, value = skatteforvaltningen_pbl15b_udbetalinger),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par15b::meta:pensionsbeskatningsloven_par15b_metadata--
 ----
 Pensionsordninger for sportsudøvere
 
@@ -140,15 +177,20 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
 # Pbl15BIndkomstkilde = Pbl15BIndkomstFraEgenSportsudøvelse | Pbl15BAndenIndkomst
 # Pbl15BIndkomstpost(identifikation: Tekst, erhvervelsesår: Heltal, beløb_kroner: Heltal, kilde: Pbl15BIndkomstkilde)
 # Pbl15BOrdningsart = Pbl15BRateforsikring | Pbl15BRateopsparing
-# Pbl15BUdbetalingsstatus = Pbl15BIngenTidligRateudbetaling | Pbl15BTidligRateudbetalingAktiv | Pbl15BTidligRateudbetalingAfsluttet(sidste_rateudbetalingsår: Heltal)
-# Pbl15BOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15BOrdningsart, alder_hele_år_i_indkomståret: Heltal, påtegnet_som_sportspension: Boolsk, udbetalingsstatus: Pbl15BUdbetalingsstatus)
+# Pbl15BUdbetalingsplan = Pbl15BIngenTidligUdbetalingsplan | Pbl15BRateforsikringsplan(startår: Heltal, aftalte_rateår: Heltal, ordningsværdi_ved_start_kroner: Heltal, aftalt_forsikringssum_kroner: Heltal) | Pbl15BRateopsparingsplan(startår: Heltal, aftalte_rateår: Heltal, ordningsværdi_ved_start_kroner: Heltal, valgt_udbetalingsgrundlag_kroner: Heltal, metode: Pbl11AUdbetalingsmetode)
+# Pbl15BRateberegningsfakta = Pbl15BForsikringsrateEfterAftale | Pbl15BRateopsparingEfterPar11A(fakta: Pbl11ARateberegningsfakta)
+# Pbl15BRateudbetaling(identifikation: Tekst, ordning_identifikation: Tekst, indkomstår: Heltal, udbetalt_kroner: Heltal, beregningsfakta: Pbl15BRateberegningsfakta)
+# Pbl15BOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15BOrdningsart, fødselsår: Heltal, påtegnet_som_sportspension: Boolsk, udbetalingsplan: Pbl15BUdbetalingsplan)
 # Pbl15BHistoriskIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
-# Pbl15BÅrsgrundlag(indkomstposter: List(Pbl15BIndkomstpost), ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling))
+# Pbl15BÅrsgrundlag(indkomstposter: List(Pbl15BIndkomstpost), ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling), rateudbetalinger: List(Pbl15BRateudbetaling))
 # Pbl15BIndbetalingskilde = Pbl15BEgenIndbetaling | Pbl15BArbejdsgiverindbetaling | Pbl15BAndenIndbetalingskilde
 # Pbl15BÅrsindbetaling(identifikation: Tekst, ordning_identifikation: Tekst, art: Pbl15BOrdningsart, kilde: Pbl15BIndbetalingskilde, indbetalingsår: Heltal, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
 # Pbl15BÅrsberegningsinput(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl15BÅrsindbetaling))
-# Pbl15BOrdningsresultat(fakta: Pbl15BOrdningsfakta, fakta_gyldige: Boolsk, påtegning_aktiv: Boolsk, aldersbetingelse_opfyldt: Boolsk, indbetaling_tilladt_efter_udbetaling: Boolsk, kvalificerer_til_sportspension: Boolsk)
-# Pbl15BÅrsgrundlagsresultat(grundlag: Pbl15BÅrsgrundlag, indkomstår: Heltal, årsparametre: Pbl15BÅrsparametre, indkomstposter_gyldige: Boolsk, ordningsidentifikationer_entydige: Boolsk, højst_en_ordning: Boolsk, ordningsresultater: List(Pbl15BOrdningsresultat), ordninger_kvalificerer: Boolsk, tidligere_indbetalinger_gyldige: Boolsk, grundlag_gyldigt: Boolsk, sportsindkomst_kroner: Heltal, tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner: Heltal, resterende_samlet_indbetalingsloft_kroner: Heltal)
+# Pbl15BUdbetalingsplanresultat(plan: Pbl15BUdbetalingsplan, planfakta_gyldige: Boolsk, har_tidlig_udbetaling: Boolsk, startår: Heltal, sidste_planlagte_rateår: Heltal, aftalte_rateår: Heltal, påbegyndelsesalder_opfyldt: Boolsk, højst_ti_år: Boolsk, særligt_udbetalingsgrundlag_kroner: Heltal, resterende_ordinær_værdi_kroner: Heltal, rater_fuldstændige_til_og_med_indkomståret: Boolsk, påbegyndt: Boolsk, aktivt: Boolsk, afsluttet: Boolsk, indbetaling_tilladt: Boolsk)
+# Pbl15BOrdningsresultat(fakta: Pbl15BOrdningsfakta, fakta_gyldige: Boolsk, påtegning_aktiv: Boolsk, aldersbetingelse_opfyldt: Boolsk, udbetalingsplanresultat: Pbl15BUdbetalingsplanresultat, indbetaling_tilladt_efter_udbetaling: Boolsk, kvalificerer_til_sportspension: Boolsk)
+# Pbl15BRateudbetalingsresultat(rateudbetaling: Pbl15BRateudbetaling, forbindelse_gyldig: Boolsk, ratefakta_gyldige: Boolsk, forventet_rate_kroner: Heltal, udbetalingsforløb_stemmer: Boolsk, årligt_rateudbetalingsloft_kroner: Heltal, inden_for_par15b_og_par20_kroner: Heltal, overskydende_efter_par15b_kroner: Heltal, par20_resultat: Pbl20Udbetalingsresultat, par29_resultat: Pbl29Stk1Afgiftsresultat)
+# Pbl15BUdbetalingsårsresultat(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag, årsparametre: Pbl15BÅrsparametre, ordningsresultater: List(Pbl15BOrdningsresultat), rateudbetalingsresultater: List(Pbl15BRateudbetalingsresultat), ordningsidentifikationer_entydige: Boolsk, højst_en_ordning: Boolsk, rateidentifikationer_entydige: Boolsk, højst_en_rate_pr_ordning_pr_år: Boolsk, rater_fuldstændige_til_og_med_indkomståret: Boolsk, input_gyldigt: Boolsk, samlet_udbetalt_kroner: Heltal, samlet_inden_for_par15b_og_par20_kroner: Heltal, samlet_overskydende_efter_par15b_kroner: Heltal, samlet_skattepligtig_indkomst_efter_par20_kroner: Heltal, samlet_personlig_indkomst_efter_par20_kroner: Heltal, samlet_modregningspligtig_efter_ligningslov9l_kroner: Heltal, samlet_afgift_efter_par29_kroner: Heltal, samlet_resterende_ordinær_værdi_kroner: Heltal)
+# Pbl15BÅrsgrundlagsresultat(grundlag: Pbl15BÅrsgrundlag, indkomstår: Heltal, årsparametre: Pbl15BÅrsparametre, indkomstposter_gyldige: Boolsk, ordningsidentifikationer_entydige: Boolsk, højst_en_ordning: Boolsk, ordningsresultater: List(Pbl15BOrdningsresultat), ordninger_kvalificerer: Boolsk, udbetalingsårsresultat: Pbl15BUdbetalingsårsresultat, tidligere_indbetalinger_gyldige: Boolsk, grundlag_gyldigt: Boolsk, sportsindkomst_kroner: Heltal, tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner: Heltal, resterende_samlet_indbetalingsloft_kroner: Heltal)
 # Pbl15BIndbetalingsresultat(indbetaling: Pbl15BÅrsindbetaling, forbindelse_gyldig: Boolsk, anmodet_efter_arbejdsmarkedsbidrag_kroner: Heltal, tildelt_inden_for_par15b_kroner: Heltal, fradragsberettiget_kroner: Heltal, bortseelsesberettiget_kroner: Heltal, afskåret_kroner: Heltal)
 # Pbl15BFordelingstilstand(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat, resterende_sportsindkomst_kroner: Heltal, resterende_samlet_indbetalingsloft_kroner: Heltal, indbetalingsresultater: List(Pbl15BIndbetalingsresultat), alle_forbindelser_gyldige: Boolsk)
 # Pbl15BÅrsresultat(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat, indbetalinger_gyldige: Boolsk, input_gyldigt: Boolsk, indbetalingsresultater: List(Pbl15BIndbetalingsresultat), samlet_fradragsberettiget_kroner: Heltal, samlet_bortseelsesberettiget_kroner: Heltal, samlet_afskåret_kroner: Heltal)
@@ -156,7 +198,8 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
 | pbl15b_tomt_årsgrundlag() -> Pbl15BÅrsgrundlag(
     indkomstposter = [],
     ordninger = [],
-    tidligere_indbetalinger = []
+    tidligere_indbetalinger = [],
+    rateudbetalinger = []
 )
 
 | pbl15b_indkomstpost_gyldig(indkomstår: Heltal, post: Pbl15BIndkomstpost) -> post.identifikation != "" && post.erhvervelsesår == indkomstår && post.beløb_kroner >= 0
@@ -164,33 +207,215 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
 | pbl15b_indkomstposter_gyldige(indkomstår: Heltal, poster: List(Pbl15BIndkomstpost)) -> all(poster, |post: Pbl15BIndkomstpost| pbl15b_indkomstpost_gyldig(indkomstår, post) && pbl15b_indkomstidentifikation_unik(poster, post))
 | pbl15b_sportsindkomst_kroner(indkomstår: Heltal, poster: List(Pbl15BIndkomstpost)) -> foldl(poster, 0, |sum: Heltal, post: Pbl15BIndkomstpost| sum + hvis post.erhvervelsesår == indkomstår && post.kilde == Pbl15BIndkomstFraEgenSportsudøvelse { penge_positivt_beløb(post.beløb_kroner) } ellers { 0 })
 
-| pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår: Heltal, status: Pbl15BUdbetalingsstatus) -> match status {
-    | Pbl15BIngenTidligRateudbetaling -> Sandt
-    | Pbl15BTidligRateudbetalingAktiv -> Falskt
-    | Pbl15BTidligRateudbetalingAfsluttet(sidste_rateudbetalingsår) -> sidste_rateudbetalingsår > 0 && indkomstår > sidste_rateudbetalingsår
+| pbl15b_plan_har_tidlig_udbetaling(plan: Pbl15BUdbetalingsplan) -> plan != Pbl15BIngenTidligUdbetalingsplan
+| pbl15b_plan_startår(plan: Pbl15BUdbetalingsplan) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> 0
+    | Pbl15BRateforsikringsplan(startår, _, _, _) -> startår
+    | Pbl15BRateopsparingsplan(startår, _, _, _, _) -> startår
 }
-| pbl15b_ordningsfakta_gyldige(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) -> fakta.identifikation != "" && fakta.oprettelsesår > 0 && fakta.oprettelsesår <= indkomstår && fakta.alder_hele_år_i_indkomståret >= 0
+| pbl15b_plan_aftalte_rateår(plan: Pbl15BUdbetalingsplan) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> 0
+    | Pbl15BRateforsikringsplan(_, aftalte_rateår, _, _) -> aftalte_rateår
+    | Pbl15BRateopsparingsplan(_, aftalte_rateår, _, _, _) -> aftalte_rateår
+}
+| pbl15b_plan_sidste_rateår(plan: Pbl15BUdbetalingsplan) -> hvis pbl15b_plan_har_tidlig_udbetaling(plan) { pbl15b_plan_startår(plan) + pbl15b_plan_aftalte_rateår(plan) - 1 } ellers { 0 }
+| pbl15b_plan_særligt_udbetalingsgrundlag_kroner(plan: Pbl15BUdbetalingsplan) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> 0
+    | Pbl15BRateforsikringsplan(_, _, _, aftalt_forsikringssum_kroner) -> penge_positivt_beløb(aftalt_forsikringssum_kroner)
+    | Pbl15BRateopsparingsplan(_, _, _, valgt_udbetalingsgrundlag_kroner, _) -> penge_positivt_beløb(valgt_udbetalingsgrundlag_kroner)
+}
+| pbl15b_plan_ordningsværdi_ved_start_kroner(plan: Pbl15BUdbetalingsplan) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> 0
+    | Pbl15BRateforsikringsplan(_, _, ordningsværdi_ved_start_kroner, _) -> penge_positivt_beløb(ordningsværdi_ved_start_kroner)
+    | Pbl15BRateopsparingsplan(_, _, ordningsværdi_ved_start_kroner, _, _) -> penge_positivt_beløb(ordningsværdi_ved_start_kroner)
+}
+| pbl15b_plan_resterende_ordinær_værdi_kroner(plan: Pbl15BUdbetalingsplan) -> penge_positivt_beløb(pbl15b_plan_ordningsværdi_ved_start_kroner(plan) - pbl15b_plan_særligt_udbetalingsgrundlag_kroner(plan))
+| pbl15b_plan_art_stemmer(art: Pbl15BOrdningsart, plan: Pbl15BUdbetalingsplan) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> Sandt
+    | Pbl15BRateforsikringsplan(_, _, _, _) -> art == Pbl15BRateforsikring
+    | Pbl15BRateopsparingsplan(_, _, _, _, _) -> art == Pbl15BRateopsparing
+}
+| pbl15b_plan_højst_ti_år(plan: Pbl15BUdbetalingsplan) -> pbl15b_plan_har_tidlig_udbetaling(plan) == Falskt || (pbl15b_plan_aftalte_rateår(plan) >= 1 && pbl15b_plan_aftalte_rateår(plan) <= 10)
+| pbl15b_plan_påbegyndelsesalder_opfyldt(fødselsår: Heltal, plan: Pbl15BUdbetalingsplan) -> pbl15b_plan_har_tidlig_udbetaling(plan) == Falskt || (fødselsår > 0 && pbl15b_plan_startår(plan) <= fødselsår + 40)
+| pbl15b_plan_grundfakta_gyldige(fakta: Pbl15BOrdningsfakta) -> match fakta.udbetalingsplan {
+    | Pbl15BIngenTidligUdbetalingsplan -> Sandt
+    | Pbl15BRateforsikringsplan(startår, aftalte_rateår, ordningsværdi_ved_start_kroner, aftalt_forsikringssum_kroner) -> pbl15b_plan_art_stemmer(fakta.art, fakta.udbetalingsplan) && startår >= fakta.oprettelsesår && aftalte_rateår >= 1 && aftalte_rateår <= 10 && ordningsværdi_ved_start_kroner >= 0 && aftalt_forsikringssum_kroner > 0 && aftalt_forsikringssum_kroner <= ordningsværdi_ved_start_kroner
+    | Pbl15BRateopsparingsplan(startår, aftalte_rateår, ordningsværdi_ved_start_kroner, valgt_udbetalingsgrundlag_kroner, _) -> pbl15b_plan_art_stemmer(fakta.art, fakta.udbetalingsplan) && startår >= fakta.oprettelsesår && aftalte_rateår >= 1 && aftalte_rateår <= 10 && ordningsværdi_ved_start_kroner >= 0 && valgt_udbetalingsgrundlag_kroner > 0 && valgt_udbetalingsgrundlag_kroner <= ordningsværdi_ved_start_kroner
+}
+| pbl15b_plan_kontrolslutår(indkomstår: Heltal, plan: Pbl15BUdbetalingsplan) -> hvis indkomstår < pbl15b_plan_sidste_rateår(plan) { indkomstår } ellers { pbl15b_plan_sidste_rateår(plan) }
+| pbl15b_plan_forventede_rateår_til_og_med(indkomstår: Heltal, plan: Pbl15BUdbetalingsplan) -> hvis pbl15b_plan_har_tidlig_udbetaling(plan) && indkomstår >= pbl15b_plan_startår(plan) { range(pbl15b_plan_startår(plan), pbl15b_plan_kontrolslutår(indkomstår, plan) + 1) } ellers { [] }
+| pbl15b_rate_findes_for_ordning_og_år(rateudbetalinger: List(Pbl15BRateudbetaling), ordning_identifikation: Tekst, indkomstår: Heltal) -> any(rateudbetalinger, |rate: Pbl15BRateudbetaling| rate.ordning_identifikation == ordning_identifikation && rate.indkomstår == indkomstår)
+| pbl15b_plan_rater_fuldstændige_til_og_med(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> all(pbl15b_plan_forventede_rateår_til_og_med(indkomstår, fakta.udbetalingsplan), |rateår: Heltal| pbl15b_rate_findes_for_ordning_og_år(rateudbetalinger, fakta.identifikation, rateår))
+| pbl15b_plan_sidste_rate_dokumenteret(fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> pbl15b_plan_har_tidlig_udbetaling(fakta.udbetalingsplan) && pbl15b_rate_findes_for_ordning_og_år(rateudbetalinger, fakta.identifikation, pbl15b_plan_sidste_rateår(fakta.udbetalingsplan))
+| pbl15b_plan_afsluttet(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> pbl15b_plan_sidste_rate_dokumenteret(fakta, rateudbetalinger) && indkomstår >= pbl15b_plan_sidste_rateår(fakta.udbetalingsplan)
+| pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> pbl15b_plan_har_tidlig_udbetaling(fakta.udbetalingsplan) == Falskt || indkomstår < pbl15b_plan_startår(fakta.udbetalingsplan) || (pbl15b_plan_afsluttet(indkomstår, fakta, rateudbetalinger) && indkomstår > pbl15b_plan_sidste_rateår(fakta.udbetalingsplan))
+| pbl15b_ordningsfakta_gyldige(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) -> fakta.identifikation != "" && fakta.oprettelsesår > 0 && fakta.oprettelsesår <= indkomstår && fakta.fødselsår > 0 && fakta.fødselsår <= indkomstår && pbl15b_plan_grundfakta_gyldige(fakta) && pbl15b_plan_påbegyndelsesalder_opfyldt(fakta.fødselsår, fakta.udbetalingsplan)
 
-# Pbl15BOrdningssag(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) {
+| pbl15b_udbetalingsplanresultat(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> Pbl15BUdbetalingsplanresultat(
+    plan = fakta.udbetalingsplan,
+    planfakta_gyldige = pbl15b_plan_grundfakta_gyldige(fakta) && pbl15b_plan_påbegyndelsesalder_opfyldt(fakta.fødselsår, fakta.udbetalingsplan),
+    har_tidlig_udbetaling = pbl15b_plan_har_tidlig_udbetaling(fakta.udbetalingsplan),
+    startår = pbl15b_plan_startår(fakta.udbetalingsplan),
+    sidste_planlagte_rateår = pbl15b_plan_sidste_rateår(fakta.udbetalingsplan),
+    aftalte_rateår = pbl15b_plan_aftalte_rateår(fakta.udbetalingsplan),
+    påbegyndelsesalder_opfyldt = pbl15b_plan_påbegyndelsesalder_opfyldt(fakta.fødselsår, fakta.udbetalingsplan),
+    højst_ti_år = pbl15b_plan_højst_ti_år(fakta.udbetalingsplan),
+    særligt_udbetalingsgrundlag_kroner = pbl15b_plan_særligt_udbetalingsgrundlag_kroner(fakta.udbetalingsplan),
+    resterende_ordinær_værdi_kroner = pbl15b_plan_resterende_ordinær_værdi_kroner(fakta.udbetalingsplan),
+    rater_fuldstændige_til_og_med_indkomståret = pbl15b_plan_rater_fuldstændige_til_og_med(indkomstår, fakta, rateudbetalinger),
+    påbegyndt = pbl15b_plan_har_tidlig_udbetaling(fakta.udbetalingsplan) && indkomstår >= pbl15b_plan_startår(fakta.udbetalingsplan),
+    aktivt = pbl15b_plan_har_tidlig_udbetaling(fakta.udbetalingsplan) && indkomstår >= pbl15b_plan_startår(fakta.udbetalingsplan) && pbl15b_plan_afsluttet(indkomstår, fakta, rateudbetalinger) == Falskt,
+    afsluttet = pbl15b_plan_afsluttet(indkomstår, fakta, rateudbetalinger),
+    indbetaling_tilladt = pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår, fakta, rateudbetalinger)
+)
+
+# Pbl15BOrdningssag(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) {
     | fakta_gyldige() -> pbl15b_ordningsfakta_gyldige(indkomstår, fakta)
-    | påtegning_aktiv() -> fakta.påtegnet_som_sportspension && fakta.alder_hele_år_i_indkomståret <= 40
-    | aldersbetingelse_opfyldt() -> fakta.alder_hele_år_i_indkomståret <= 40
-    | indbetaling_tilladt_efter_udbetaling() -> pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår, fakta.udbetalingsstatus)
+    | påtegning_aktiv() -> fakta.påtegnet_som_sportspension && indkomstår <= fakta.fødselsår + 40
+    | aldersbetingelse_opfyldt() -> indkomstår <= fakta.fødselsår + 40
+    | udbetalingsplanresultat() -> pbl15b_udbetalingsplanresultat(indkomstår, fakta, rateudbetalinger)
+    | indbetaling_tilladt_efter_udbetaling() -> udbetalingsplanresultat().indbetaling_tilladt
     | kvalificerer_til_sportspension() -> fakta_gyldige() && påtegning_aktiv() && indbetaling_tilladt_efter_udbetaling()
     | resultat() -> Pbl15BOrdningsresultat(
         fakta = fakta,
         fakta_gyldige = fakta_gyldige(),
         påtegning_aktiv = påtegning_aktiv(),
         aldersbetingelse_opfyldt = aldersbetingelse_opfyldt(),
+        udbetalingsplanresultat = udbetalingsplanresultat(),
         indbetaling_tilladt_efter_udbetaling = indbetaling_tilladt_efter_udbetaling(),
         kvalificerer_til_sportspension = kvalificerer_til_sportspension()
     )
 }
-| pbl15b_ordningsresultat(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) -> Pbl15BOrdningssag(indkomstår, fakta).resultat()
+| pbl15b_ordningsresultat(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> Pbl15BOrdningssag(indkomstår, fakta, rateudbetalinger).resultat()
 | pbl15b_ordningsidentifikation_unik(ordninger: List(Pbl15BOrdningsfakta), fakta: Pbl15BOrdningsfakta) -> length(filter(ordninger, |anden: Pbl15BOrdningsfakta| anden.identifikation == fakta.identifikation)) == 1
 | pbl15b_ordningsidentifikationer_entydige(ordninger: List(Pbl15BOrdningsfakta)) -> all(ordninger, |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsidentifikation_unik(ordninger, fakta))
 | pbl15b_ordning_findes(ordninger: List(Pbl15BOrdningsfakta), identifikation: Tekst) -> any(ordninger, |fakta: Pbl15BOrdningsfakta| fakta.identifikation == identifikation)
 | pbl15b_ordning_kvalificerer(resultater: List(Pbl15BOrdningsresultat), identifikation: Tekst, art: Pbl15BOrdningsart) -> any(resultater, |resultat: Pbl15BOrdningsresultat| resultat.fakta.identifikation == identifikation && resultat.fakta.art == art && resultat.kvalificerer_til_sportspension)
+
+| pbl15b_rateberegningsfakta_gyldige(beregningsfakta: Pbl15BRateberegningsfakta) -> match beregningsfakta {
+    | Pbl15BForsikringsrateEfterAftale -> Sandt
+    | Pbl15BRateopsparingEfterPar11A(fakta) -> pbl11a_rateberegningsfakta_gyldige(fakta)
+}
+| pbl15b_rateberegning_stemmer_med_plan(plan: Pbl15BUdbetalingsplan, beregningsfakta: Pbl15BRateberegningsfakta) -> match plan {
+    | Pbl15BIngenTidligUdbetalingsplan -> Falskt
+    | Pbl15BRateforsikringsplan(_, _, _, _) -> beregningsfakta == Pbl15BForsikringsrateEfterAftale
+    | Pbl15BRateopsparingsplan(_, _, _, _, metode) -> match beregningsfakta {
+        | Pbl15BRateopsparingEfterPar11A(fakta) -> pbl11a_beregning_stemmer_med_metode(metode, fakta)
+        | _ -> Falskt
+    }
+}
+| pbl15b_rate_resterende_år(plan: Pbl15BUdbetalingsplan, rateår: Heltal) -> hvis pbl15b_plan_har_tidlig_udbetaling(plan) && rateår >= pbl15b_plan_startår(plan) && rateår <= pbl15b_plan_sidste_rateår(plan) { pbl15b_plan_sidste_rateår(plan) - rateår + 1 } ellers { 0 }
+| pbl15b_forventet_rate_kroner(plan: Pbl15BUdbetalingsplan, rate: Pbl15BRateudbetaling) -> match rate.beregningsfakta {
+    | Pbl15BForsikringsrateEfterAftale -> penge_positivt_beløb(rate.udbetalt_kroner)
+    | Pbl15BRateopsparingEfterPar11A(fakta) -> pbl11a_forventet_rate_kroner(fakta, pbl15b_rate_resterende_år(plan, rate.indkomstår))
+}
+| pbl15b_rate_for_ordning_og_plan_gyldig(fakta: Pbl15BOrdningsfakta, rate: Pbl15BRateudbetaling) -> rate.identifikation != "" && rate.ordning_identifikation == fakta.identifikation && rate.indkomstår >= pbl15b_plan_startår(fakta.udbetalingsplan) && rate.indkomstår <= pbl15b_plan_sidste_rateår(fakta.udbetalingsplan) && rate.udbetalt_kroner > 0 && pbl15b_rateberegningsfakta_gyldige(rate.beregningsfakta) && pbl15b_rateberegning_stemmer_med_plan(fakta.udbetalingsplan, rate.beregningsfakta) && rate.udbetalt_kroner == pbl15b_forventet_rate_kroner(fakta.udbetalingsplan, rate)
+| pbl15b_rateidentifikation_unik(rateudbetalinger: List(Pbl15BRateudbetaling), rate: Pbl15BRateudbetaling) -> length(filter(rateudbetalinger, |anden: Pbl15BRateudbetaling| anden.identifikation == rate.identifikation)) == 1
+| pbl15b_rateidentifikationer_entydige(rateudbetalinger: List(Pbl15BRateudbetaling)) -> all(rateudbetalinger, |rate: Pbl15BRateudbetaling| pbl15b_rateidentifikation_unik(rateudbetalinger, rate))
+| pbl15b_rate_eneste_for_ordning_og_år(rateudbetalinger: List(Pbl15BRateudbetaling), rate: Pbl15BRateudbetaling) -> length(filter(rateudbetalinger, |anden: Pbl15BRateudbetaling| anden.ordning_identifikation == rate.ordning_identifikation && anden.indkomstår == rate.indkomstår)) == 1
+| pbl15b_højst_en_rate_pr_ordning_pr_år(rateudbetalinger: List(Pbl15BRateudbetaling)) -> all(rateudbetalinger, |rate: Pbl15BRateudbetaling| pbl15b_rate_eneste_for_ordning_og_år(rateudbetalinger, rate))
+| pbl15b_ordningens_rateudbetalinger(fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> filter(rateudbetalinger, |rate: Pbl15BRateudbetaling| rate.ordning_identifikation == fakta.identifikation)
+| pbl15b_ordningens_samlede_rateudbetalinger_kroner(fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> foldl(pbl15b_ordningens_rateudbetalinger(fakta, rateudbetalinger), 0, |sum: Heltal, rate: Pbl15BRateudbetaling| sum + penge_positivt_beløb(rate.udbetalt_kroner))
+| pbl15b_forsikringssum_overholdt(fakta: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> match fakta.udbetalingsplan {
+    | Pbl15BRateforsikringsplan(_, _, _, aftalt_forsikringssum_kroner) -> pbl15b_ordningens_samlede_rateudbetalinger_kroner(fakta, rateudbetalinger) <= aftalt_forsikringssum_kroner && (pbl15b_plan_sidste_rate_dokumenteret(fakta, rateudbetalinger) == Falskt || pbl15b_ordningens_samlede_rateudbetalinger_kroner(fakta, rateudbetalinger) == aftalt_forsikringssum_kroner)
+    | _ -> Sandt
+}
+
+| pbl15b_pbl20_fakta(rate: Pbl15BRateudbetaling, skattepligtigt_inden_for_loft_kroner: Heltal) -> Pbl20Udbetalingsfakta(
+    identifikation = rate.identifikation + "-pbl20",
+    indkomstår = rate.indkomstår,
+    ordning = hvis rate.beregningsfakta == Pbl15BForsikringsrateEfterAftale { Pbl20Rateforsikring } ellers { Pbl20Rateopsparing },
+    udbetalingsret = Pbl20TilEjerEfterVilkår,
+    ligningslov9l_art = Pbl20OrdinærPensionsudbetaling,
+    bruttoudbetaling_kroner = skattepligtigt_inden_for_loft_kroner,
+    del_fra_indbetalinger_før_1955_56_kroner = 0,
+    dokumenteret_uden_fradrags_eller_bortseelsesret_kroner = 0,
+    eu_eøs_erklæring = Pbl20IngenEuEøsErklæring,
+    udenlandsk_indkomstskat_kroner = 0
+)
+| pbl15b_ugyldigt_rateudbetalingsresultat(rate: Pbl15BRateudbetaling) -> Pbl15BRateudbetalingsresultat(
+    rateudbetaling = rate,
+    forbindelse_gyldig = Falskt,
+    ratefakta_gyldige = Falskt,
+    forventet_rate_kroner = 0,
+    udbetalingsforløb_stemmer = Falskt,
+    årligt_rateudbetalingsloft_kroner = 0,
+    inden_for_par15b_og_par20_kroner = 0,
+    overskydende_efter_par15b_kroner = 0,
+    par20_resultat = pbl20_udbetalingsresultat(pbl15b_pbl20_fakta(rate, 0)),
+    par29_resultat = pbl29_stk1_ordinær_afgift(0)
+)
+
+# Pbl15BRateudbetalingssag(fakta: Pbl15BOrdningsfakta, rate: Pbl15BRateudbetaling) {
+    | årsparametre() -> pbl15b_årsparametre(rate.indkomstår)
+    | forbindelse_gyldig() -> rate.ordning_identifikation == fakta.identifikation
+    | udbetalingsforløb_stemmer() -> pbl15b_rate_for_ordning_og_plan_gyldig(fakta, rate)
+    | ratefakta_gyldige() -> forbindelse_gyldig() && årsparametre().understøttet && udbetalingsforløb_stemmer()
+    | inden_for_par15b_og_par20_kroner() -> hvis ratefakta_gyldige() { penge_mindste_beløb(rate.udbetalt_kroner, årsparametre().årligt_rateudbetalingsloft_kroner) } ellers { 0 }
+    | overskydende_efter_par15b_kroner() -> hvis ratefakta_gyldige() { penge_positivt_beløb(rate.udbetalt_kroner - inden_for_par15b_og_par20_kroner()) } ellers { 0 }
+    | resultat() -> Pbl15BRateudbetalingsresultat(
+        rateudbetaling = rate,
+        forbindelse_gyldig = forbindelse_gyldig(),
+        ratefakta_gyldige = ratefakta_gyldige(),
+        forventet_rate_kroner = pbl15b_forventet_rate_kroner(fakta.udbetalingsplan, rate),
+        udbetalingsforløb_stemmer = udbetalingsforløb_stemmer(),
+        årligt_rateudbetalingsloft_kroner = årsparametre().årligt_rateudbetalingsloft_kroner,
+        inden_for_par15b_og_par20_kroner = inden_for_par15b_og_par20_kroner(),
+        overskydende_efter_par15b_kroner = overskydende_efter_par15b_kroner(),
+        par20_resultat = pbl20_udbetalingsresultat(pbl15b_pbl20_fakta(rate, inden_for_par15b_og_par20_kroner())),
+        par29_resultat = pbl29_stk1_ordinær_afgift(overskydende_efter_par15b_kroner())
+    )
+}
+| pbl15b_rateudbetalingsresultat_for_ordning(fakta: Pbl15BOrdningsfakta, rate: Pbl15BRateudbetaling) -> Pbl15BRateudbetalingssag(fakta, rate).resultat()
+| pbl15b_rateudbetalingsresultat(grundlag: Pbl15BÅrsgrundlag, rate: Pbl15BRateudbetaling) -> match find(grundlag.ordninger, |fakta: Pbl15BOrdningsfakta| fakta.identifikation == rate.ordning_identifikation) {
+    | Some(fakta) -> pbl15b_rateudbetalingsresultat_for_ordning(fakta, rate)
+    | None -> pbl15b_ugyldigt_rateudbetalingsresultat(rate)
+}
+| pbl15b_rateudbetalingsresultatsum_kroner(resultater: List(Pbl15BRateudbetalingsresultat), beløb: (Pbl15BRateudbetalingsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl15BRateudbetalingsresultat| sum + beløb(resultat))
+| pbl15b_ordningsresultatsum_kroner(resultater: List(Pbl15BOrdningsresultat), beløb: (Pbl15BOrdningsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl15BOrdningsresultat| sum + beløb(resultat))
+| pbl15b_ordninger_oprettet_til_og_med(indkomstår: Heltal, ordninger: List(Pbl15BOrdningsfakta)) -> filter(ordninger, |fakta: Pbl15BOrdningsfakta| fakta.oprettelsesår <= indkomstår)
+| pbl15b_rateudbetalinger_til_og_med(indkomstår: Heltal, rateudbetalinger: List(Pbl15BRateudbetaling)) -> filter(rateudbetalinger, |rate: Pbl15BRateudbetaling| rate.indkomstår <= indkomstår)
+
+# Pbl15BUdbetalingsårssag(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag) {
+    | årsparametre() -> pbl15b_årsparametre(indkomstår)
+    | ordninger() -> pbl15b_ordninger_oprettet_til_og_med(indkomstår, grundlag.ordninger)
+    | rateudbetalinger() -> pbl15b_rateudbetalinger_til_og_med(indkomstår, grundlag.rateudbetalinger)
+    | ordningsresultater() -> map(ordninger(), |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsresultat(indkomstår, fakta, rateudbetalinger()))
+    | årsrateudbetalinger() -> filter(rateudbetalinger(), |rate: Pbl15BRateudbetaling| rate.indkomstår == indkomstår)
+    | rateudbetalingsresultater() -> map(årsrateudbetalinger(), |rate: Pbl15BRateudbetaling| pbl15b_rateudbetalingsresultat(grundlag, rate))
+    | alle_rateudbetalingsresultater() -> map(rateudbetalinger(), |rate: Pbl15BRateudbetaling| pbl15b_rateudbetalingsresultat(grundlag, rate))
+    | ordningsidentifikationer_entydige() -> pbl15b_ordningsidentifikationer_entydige(ordninger())
+    | højst_en_ordning() -> length(ordninger()) <= 1
+    | rateidentifikationer_entydige() -> pbl15b_rateidentifikationer_entydige(rateudbetalinger())
+    | højst_en_rate_pr_ordning_pr_år() -> pbl15b_højst_en_rate_pr_ordning_pr_år(rateudbetalinger())
+    | rater_fuldstændige_til_og_med_indkomståret() -> all(ordningsresultater(), |resultat: Pbl15BOrdningsresultat| resultat.udbetalingsplanresultat.rater_fuldstændige_til_og_med_indkomståret)
+    | forsikringssummer_overholdt() -> all(ordninger(), |fakta: Pbl15BOrdningsfakta| pbl15b_forsikringssum_overholdt(fakta, rateudbetalinger()))
+    | input_gyldigt() -> årsparametre().understøttet && ordningsidentifikationer_entydige() && højst_en_ordning() && rateidentifikationer_entydige() && højst_en_rate_pr_ordning_pr_år() && all(ordningsresultater(), |resultat: Pbl15BOrdningsresultat| resultat.fakta_gyldige) && all(alle_rateudbetalingsresultater(), |resultat: Pbl15BRateudbetalingsresultat| resultat.ratefakta_gyldige) && rater_fuldstændige_til_og_med_indkomståret() && forsikringssummer_overholdt()
+    | ratesum_eller_nul(beløb: (Pbl15BRateudbetalingsresultat) -> Heltal) -> hvis input_gyldigt() { pbl15b_rateudbetalingsresultatsum_kroner(rateudbetalingsresultater(), beløb) } ellers { 0 }
+    | ordningssum_eller_nul(beløb: (Pbl15BOrdningsresultat) -> Heltal) -> hvis input_gyldigt() { pbl15b_ordningsresultatsum_kroner(ordningsresultater(), beløb) } ellers { 0 }
+    | resultat() -> Pbl15BUdbetalingsårsresultat(
+        indkomstår = indkomstår,
+        grundlag = grundlag,
+        årsparametre = årsparametre(),
+        ordningsresultater = ordningsresultater(),
+        rateudbetalingsresultater = rateudbetalingsresultater(),
+        ordningsidentifikationer_entydige = ordningsidentifikationer_entydige(),
+        højst_en_ordning = højst_en_ordning(),
+        rateidentifikationer_entydige = rateidentifikationer_entydige(),
+        højst_en_rate_pr_ordning_pr_år = højst_en_rate_pr_ordning_pr_år(),
+        rater_fuldstændige_til_og_med_indkomståret = rater_fuldstændige_til_og_med_indkomståret(),
+        input_gyldigt = input_gyldigt(),
+        samlet_udbetalt_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.rateudbetaling.udbetalt_kroner),
+        samlet_inden_for_par15b_og_par20_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.inden_for_par15b_og_par20_kroner),
+        samlet_overskydende_efter_par15b_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.overskydende_efter_par15b_kroner),
+        samlet_skattepligtig_indkomst_efter_par20_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.par20_resultat.skattepligtig_indkomst_kroner),
+        samlet_personlig_indkomst_efter_par20_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.par20_resultat.personlig_indkomst_kroner),
+        samlet_modregningspligtig_efter_ligningslov9l_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.par20_resultat.modregningspligtig_efter_ligningslov9l_kroner),
+        samlet_afgift_efter_par29_kroner = ratesum_eller_nul(|resultat: Pbl15BRateudbetalingsresultat| resultat.par29_resultat.afgift_kroner),
+        samlet_resterende_ordinær_værdi_kroner = ordningssum_eller_nul(|resultat: Pbl15BOrdningsresultat| resultat.udbetalingsplanresultat.resterende_ordinær_værdi_kroner)
+    )
+}
+| pbl15b_udbetalingsårsresultat(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag) -> Pbl15BUdbetalingsårssag(indkomstår, grundlag).resultat()
 
 | pbl15b_historisk_indbetaling_gyldig(indkomstår: Heltal, ordninger: List(Pbl15BOrdningsfakta), indbetaling: Pbl15BHistoriskIndbetaling) -> indbetaling.identifikation != "" && indbetaling.indbetalingsår > 0 && indbetaling.indbetalingsår < indkomstår && pbl15b_ordning_findes(ordninger, indbetaling.ordning_identifikation) && indbetaling.beløb_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner <= indbetaling.beløb_kroner
 | pbl15b_historisk_identifikation_unik(indbetalinger: List(Pbl15BHistoriskIndbetaling), indbetaling: Pbl15BHistoriskIndbetaling) -> length(filter(indbetalinger, |anden: Pbl15BHistoriskIndbetaling| anden.identifikation == indbetaling.identifikation)) == 1
@@ -203,10 +428,11 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
     | indkomstposter_gyldige() -> pbl15b_indkomstposter_gyldige(indkomstår, grundlag.indkomstposter)
     | ordningsidentifikationer_entydige() -> pbl15b_ordningsidentifikationer_entydige(grundlag.ordninger)
     | højst_en_ordning() -> length(grundlag.ordninger) <= 1
-    | ordningsresultater() -> map(grundlag.ordninger, |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsresultat(indkomstår, fakta))
+    | ordningsresultater() -> map(grundlag.ordninger, |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsresultat(indkomstår, fakta, grundlag.rateudbetalinger))
     | ordninger_kvalificerer() -> all(ordningsresultater(), |resultat: Pbl15BOrdningsresultat| resultat.kvalificerer_til_sportspension)
+    | udbetalingsårsresultat() -> pbl15b_udbetalingsårsresultat(indkomstår, grundlag)
     | tidligere_indbetalinger_gyldige() -> pbl15b_tidligere_indbetalinger_gyldige(indkomstår, grundlag)
-    | grundlag_gyldigt() -> årsparametre().understøttet && indkomstposter_gyldige() && ordningsidentifikationer_entydige() && højst_en_ordning() && ordninger_kvalificerer() && tidligere_indbetalinger_gyldige()
+    | grundlag_gyldigt() -> årsparametre().understøttet && indkomstposter_gyldige() && ordningsidentifikationer_entydige() && højst_en_ordning() && udbetalingsårsresultat().input_gyldigt && tidligere_indbetalinger_gyldige()
     | sportsindkomst_kroner() -> pbl15b_sportsindkomst_kroner(indkomstår, grundlag.indkomstposter)
     | tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner() -> pbl15b_tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner(grundlag)
     | resterende_samlet_indbetalingsloft_kroner() -> penge_positivt_beløb(årsparametre().samlet_indbetalingsloft_kroner - tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner())
@@ -219,6 +445,7 @@ Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-
         højst_en_ordning = højst_en_ordning(),
         ordningsresultater = ordningsresultater(),
         ordninger_kvalificerer = ordninger_kvalificerer(),
+        udbetalingsårsresultat = udbetalingsårsresultat(),
         tidligere_indbetalinger_gyldige = tidligere_indbetalinger_gyldige(),
         grundlag_gyldigt = grundlag_gyldigt(),
         sportsindkomst_kroner = sportsindkomst_kroner(),

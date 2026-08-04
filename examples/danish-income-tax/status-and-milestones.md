@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-ca2b3e` (submitting for review)
+Current focus issue: `td-e07112`
 Latest implementation slice submitted for review: `td-67f030`
 Latest approved implementation slice: `td-d1183e`
 
@@ -32,7 +32,7 @@ om et span omfatter afgrænsningen eller den ordrette tekst.
 Et anker kan desuden henvise til ét typet metadataobjekt, som indeholder
 vilkårligt mange `MetaAttachment(role = ..., value = ...)`-værdier. Indekset
 finder typede efterkommere og roller rekursivt og bevarer både den kanoniske
-binding og en stabil sti til vedhæftningen. Personskat-kontraktens 79 ankere
+binding og en stabil sti til vedhæftningen. Personskat-kontraktens 82 ankere
 bruger nu alle den korte form `::meta:<binding>`; felter og retskilder ligger i
 de typede objekter og ikke som en voksende liste i kommentarsyntaksen. Det
 danske skattekorpus har nu også en fælles `metadata.runa`-protokol med en typet
@@ -40,13 +40,12 @@ rolle, `MetaAttachment` og `Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A
 bruger protokollen direkte, så deres kommentarer alene forbinder et label med
 ét navngivet metadataobjekt.
 Den samme form er nu gennemført for alle tidligere overbelastede ankre i
-skattekorpusset: 132 ankre i 46 filer henviser hver til ét typet metadataobjekt,
-som tilsammen bevarer 393 rolle-/bindingsreferencer i deres oprindelige
-rækkefølge. Der findes derfor ikke længere danske skattemetakommentarer, som
-indlejrer flere `::rolle:binding`-par. Den direkte form er fortsat
-bagudkompatibel og kan bruges til én kort reference; sammensat metadata skal
-ligge i almindelige Futuruna-typer og forbindes med
-`--@label:<label>::meta:<binding>--`.
+skattekorpusset. Der findes derfor ikke længere danske skattemetakommentarer,
+som indlejrer flere `::rolle:binding`-par. Den direkte form er fortsat
+bagudkompatibel, men nye korpusankre bruger også ved én reference et typet
+metadataobjekt. Metadata skal ligge i almindelige Futuruna-typer og forbindes
+med `--@label:<label>::meta:<binding>--`. En korpustest afviser markører over
+160 tegn eller markører med mere end ét direkte rollepar.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
@@ -2866,16 +2865,25 @@ Review candidates to revisit deliberately, not as broad churn:
   synlige i beregningssporet.
 - Pensionsbeskatningslovens § 15 B står nu med ordret lovtekst, gældende
   Retsinformation-kilde og officielle SKM-tidsserier for 2010-2026 i et
-  særskilt modul. Kalderen leverer identificerede indkomstposter,
-  ordningsfakta, tidligere indbetalinger og årets indbetalinger. Reglerne
-  afleder selv sportsindkomsten, alders- og påtegningskravet, pausen under en
-  tidlig rateudbetaling, kravet om højst én ordning, den resterende regulerede
+  særskilt modul. Kalderen leverer identificerede indkomstposter, ordninger,
+  udbetalingsplaner, faktiske rater, historiske indbetalinger og årets
+  indbetalinger. Reglerne afleder selv sportsindkomsten, alders- og
+  påtegningskravet, den aktive eller afsluttede udbetalingslivscyklus, pausen
+  under udbetaling, kravet om højst én ordning, den resterende regulerede
   livstidsgrænse og fordelingen mellem eget fradrag og arbejdsgiverens
-  bortseelsesret. Arbejdsmarkedsbidrag holdes uden for både historikken og den
-  aktuelle tildeling. § 18 forbruger resultatet uden at lægge sportspensionen
-  under det almindelige § 16-rateloft. Gyldige, overgrænse- og ugyldige
-  forløb passerer samme fokuserede scenarier i interpreter og compiler, og en
-  kanonisk Personskat-sag fører fradraget videre gennem § 3, stk. 2, nr. 3.
+  bortseelsesret. § 11 A, stk. 2 og 3, beregner både division efter primoværdi
+  og annuitetsraten med den lovbestemte maksimale amortisationsrente. § 20
+  udleder skattepligtig og personlig indkomst samt undtagelserne i stk. 3 og 4,
+  mens overskridelser af § 15 B-loftet går til 60 pct. afgift efter § 29 og
+  afrunding efter § 36. Arbejdsmarkedsbidrag holdes uden for både historikken
+  og den aktuelle tildeling. § 18 forbruger indbetalingsresultatet uden at
+  lægge sportspensionen under det almindelige § 16-rateloft. Den kanoniske
+  Personskat-sag bruger aktuelle udbetalinger som personlig indkomst,
+  foregående års § 20-resultat i Ligningslovens § 9 L og årets § 29-afgift i
+  årsopgørelsen. De fokuserede interpreter- og compiler-scenarier dækker
+  gyldige, overgrænse-, flerårige og ugyldige forløb samt isolering af
+  fremtidige fakta. Det kanoniske pensionsscenarie passerer desuden 13
+  end-to-end-invarianter i interpreteren.
 - Pensionsbeskatningslovens §§ 15 og 15 A står nu med ordret lovtekst og typede
   kildeankre i et særskilt juridisk modul. § 15 A-modellen håndterer
   alderskravet, ti kvalifikationsår inden for de seneste femten år, succession,

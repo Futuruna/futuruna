@@ -41,19 +41,21 @@
     beløb_kroner = beløb_kroner,
     kilde = kilde
 )
-| pbl15b_scenarie_ordning(identifikation: Tekst, alder: Heltal, påtegnet: Boolsk, udbetalingsstatus: Pbl15BUdbetalingsstatus) -> Pbl15BOrdningsfakta(
+| pbl15b_scenarie_ordning(identifikation: Tekst, alder_i_2026: Heltal, påtegnet: Boolsk, udbetalingsplan: Pbl15BUdbetalingsplan) -> Pbl15BOrdningsfakta(
     identifikation = identifikation,
     oprettelsesår = 2024,
     art = Pbl15BRateopsparing,
-    alder_hele_år_i_indkomståret = alder,
+    fødselsår = 2026 - alder_i_2026,
     påtegnet_som_sportspension = påtegnet,
-    udbetalingsstatus = udbetalingsstatus
+    udbetalingsplan = udbetalingsplan
 )
-| pbl15b_scenarie_grundlag(sportsindkomst_kroner: Heltal, ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling)) -> Pbl15BÅrsgrundlag(
+| pbl15b_scenarie_grundlag_med_rater(sportsindkomst_kroner: Heltal, ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling), rateudbetalinger: List(Pbl15BRateudbetaling)) -> Pbl15BÅrsgrundlag(
     indkomstposter = [pbl15b_scenarie_indkomst(sportsindkomst_kroner, Pbl15BIndkomstFraEgenSportsudøvelse)],
     ordninger = ordninger,
-    tidligere_indbetalinger = tidligere_indbetalinger
+    tidligere_indbetalinger = tidligere_indbetalinger,
+    rateudbetalinger = rateudbetalinger
 )
+| pbl15b_scenarie_grundlag(sportsindkomst_kroner: Heltal, ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling)) -> pbl15b_scenarie_grundlag_med_rater(sportsindkomst_kroner, ordninger, tidligere_indbetalinger, [])
 | pbl15b_scenarie_indbetaling(identifikation: Tekst, ordning_identifikation: Tekst, kilde: Pbl15BIndbetalingskilde, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> Pbl15BÅrsindbetaling(
     identifikation = identifikation,
     ordning_identifikation = ordning_identifikation,
@@ -69,7 +71,7 @@
     indbetalinger = indbetalinger
 ))
 
-= pbl15b_scenarie_gyldig_ordning = pbl15b_scenarie_ordning("sportspension-1", 30, Sandt, Pbl15BIngenTidligRateudbetaling)
+= pbl15b_scenarie_gyldig_ordning = pbl15b_scenarie_ordning("sportspension-1", 30, Sandt, Pbl15BIngenTidligUdbetalingsplan)
 = pbl15b_scenarie_gyldigt_resultat = pbl15b_scenarie_resultat(
     pbl15b_scenarie_grundlag(300000, [pbl15b_scenarie_gyldig_ordning], []),
     [pbl15b_scenarie_indbetaling("egen-200000", "sportspension-1", Pbl15BEgenIndbetaling, 200000, 0)]
@@ -99,12 +101,30 @@
     [pbl15b_scenarie_indbetaling("arbejdsgiver-100000", "sportspension-1", Pbl15BArbejdsgiverindbetaling, 100000, 8000)]
 )
 = pbl15b_scenarie_for_gammel_resultat = pbl15b_scenarie_resultat(
-    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligRateudbetaling)], []),
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligUdbetalingsplan)], []),
     [pbl15b_scenarie_indbetaling("egen-for-gammel", "sportspension-1", Pbl15BEgenIndbetaling, 100000, 0)]
 )
+= pbl15b_scenarie_aktiv_plan = Pbl15BRateopsparingsplan(
+    startår = 2026,
+    aftalte_rateår = 5,
+    ordningsværdi_ved_start_kroner = 1000000,
+    valgt_udbetalingsgrundlag_kroner = 1000000,
+    metode = Pbl11APrimoVærdiDivideretMedResterendeÅr
+)
+= pbl15b_scenarie_aktiv_rate = Pbl15BRateudbetaling(
+    identifikation = "rate-2026",
+    ordning_identifikation = "sportspension-1",
+    indkomstår = 2026,
+    udbetalt_kroner = 200000,
+    beregningsfakta = Pbl15BRateopsparingEfterPar11A(fakta = Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner = 1000000))
+)
 = pbl15b_scenarie_aktiv_udbetaling_resultat = pbl15b_scenarie_resultat(
-    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 35, Sandt, Pbl15BTidligRateudbetalingAktiv)], []),
+    pbl15b_scenarie_grundlag_med_rater(200000, [pbl15b_scenarie_ordning("sportspension-1", 35, Sandt, pbl15b_scenarie_aktiv_plan)], [], [pbl15b_scenarie_aktiv_rate]),
     [pbl15b_scenarie_indbetaling("egen-under-udbetaling", "sportspension-1", Pbl15BEgenIndbetaling, 100000, 0)]
+)
+= pbl15b_scenarie_aktiv_udbetaling_uden_indbetaling_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag_med_rater(200000, [pbl15b_scenarie_ordning("sportspension-1", 35, Sandt, pbl15b_scenarie_aktiv_plan)], [], [pbl15b_scenarie_aktiv_rate]),
+    []
 )
 = pbl15b_scenarie_forkert_ordning_resultat = pbl15b_scenarie_resultat(
     pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_gyldig_ordning], []),
@@ -172,12 +192,162 @@
     [pbl15b_scenarie_pbl18_indbetaling("egen-200000-over-indkomst", Pbl18EgenIndbetaling, 200000, 0, "sportspension-1")]
 )
 = pbl15b_scenarie_pbl18_ugyldigt_resultat = pbl15b_scenarie_pbl18_resultat(
-    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligRateudbetaling)], []),
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligUdbetalingsplan)], []),
     [pbl15b_scenarie_pbl18_indbetaling("egen-for-gammel", Pbl18EgenIndbetaling, 100000, 0, "sportspension-1")]
 )
 = pbl15b_scenarie_pbl18_arbejdsgiver_resultat = pbl15b_scenarie_pbl18_resultat(
     pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_gyldig_ordning], []),
     [pbl15b_scenarie_pbl18_indbetaling("arbejdsgiver-100000", Pbl18Arbejdsgiverindbetaling, 100000, 8000, "sportspension-1")]
+)
+
+| pbl15b_scenarie_udbetalingsgrundlag(ordning: Pbl15BOrdningsfakta, rateudbetalinger: List(Pbl15BRateudbetaling)) -> Pbl15BÅrsgrundlag(
+    indkomstposter = [],
+    ordninger = [ordning],
+    tidligere_indbetalinger = [],
+    rateudbetalinger = rateudbetalinger
+)
+| pbl15b_scenarie_divisionsrate(identifikation: Tekst, ordning_identifikation: Tekst, indkomstår: Heltal, udbetalt_kroner: Heltal, primoværdi_kroner: Heltal) -> Pbl15BRateudbetaling(
+    identifikation = identifikation,
+    ordning_identifikation = ordning_identifikation,
+    indkomstår = indkomstår,
+    udbetalt_kroner = udbetalt_kroner,
+    beregningsfakta = Pbl15BRateopsparingEfterPar11A(fakta = Pbl11ARateEfterPrimoVærdi(ordningsværdi_ved_årets_begyndelse_kroner = primoværdi_kroner))
+)
+| pbl15b_scenarie_forsikringsrate(identifikation: Tekst, ordning_identifikation: Tekst, indkomstår: Heltal, udbetalt_kroner: Heltal) -> Pbl15BRateudbetaling(
+    identifikation = identifikation,
+    ordning_identifikation = ordning_identifikation,
+    indkomstår = indkomstår,
+    udbetalt_kroner = udbetalt_kroner,
+    beregningsfakta = Pbl15BForsikringsrateEfterAftale
+)
+
+= pbl15b_scenarie_flerårig_ordning = Pbl15BOrdningsfakta(
+    identifikation = "flerårig-rateopsparing",
+    oprettelsesår = 2021,
+    art = Pbl15BRateopsparing,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateopsparingsplan(
+        startår = 2022,
+        aftalte_rateår = 3,
+        ordningsværdi_ved_start_kroner = 1200000,
+        valgt_udbetalingsgrundlag_kroner = 900000,
+        metode = Pbl11APrimoVærdiDivideretMedResterendeÅr
+    )
+)
+= pbl15b_scenarie_flerårige_rater = [
+    pbl15b_scenarie_divisionsrate("flerårig-2022", "flerårig-rateopsparing", 2022, 300000, 900000),
+    pbl15b_scenarie_divisionsrate("flerårig-2023", "flerårig-rateopsparing", 2023, 300000, 600000),
+    pbl15b_scenarie_divisionsrate("flerårig-2024", "flerårig-rateopsparing", 2024, 300000, 300000),
+]
+= pbl15b_scenarie_flerårigt_grundlag = pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_flerårig_ordning, pbl15b_scenarie_flerårige_rater)
+= pbl15b_scenarie_flerårig_2022 = pbl15b_udbetalingsårsresultat(2022, pbl15b_scenarie_flerårigt_grundlag)
+= pbl15b_scenarie_flerårig_2024 = pbl15b_udbetalingsårsresultat(2024, pbl15b_scenarie_flerårigt_grundlag)
+= pbl15b_scenarie_flerårig_2025 = pbl15b_udbetalingsårsresultat(2025, pbl15b_scenarie_flerårigt_grundlag)
+
+= pbl15b_scenarie_over_loft_ordning = Pbl15BOrdningsfakta(
+    identifikation = "over-loft-rateopsparing",
+    oprettelsesår = 2024,
+    art = Pbl15BRateopsparing,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateopsparingsplan(
+        startår = 2026,
+        aftalte_rateår = 1,
+        ordningsværdi_ved_start_kroner = 500000,
+        valgt_udbetalingsgrundlag_kroner = 500000,
+        metode = Pbl11APrimoVærdiDivideretMedResterendeÅr
+    )
+)
+= pbl15b_scenarie_over_loft_rate = pbl15b_scenarie_divisionsrate("over-loft-2026", "over-loft-rateopsparing", 2026, 500000, 500000)
+= pbl15b_scenarie_over_loft_udbetaling = pbl15b_udbetalingsårsresultat(2026, pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_over_loft_ordning, [pbl15b_scenarie_over_loft_rate]))
+
+= pbl15b_scenarie_ugyldig_rate = pbl15b_scenarie_divisionsrate("forkert-rate-2022", "flerårig-rateopsparing", 2022, 299999, 900000)
+= pbl15b_scenarie_ugyldigt_forløb = pbl15b_udbetalingsårsresultat(2022, pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_flerårig_ordning, [pbl15b_scenarie_ugyldig_rate]))
+
+= pbl15b_scenarie_for_lang_ordning = Pbl15BOrdningsfakta(
+    identifikation = "elleve-år",
+    oprettelsesår = 2024,
+    art = Pbl15BRateopsparing,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateopsparingsplan(
+        startår = 2026,
+        aftalte_rateår = 11,
+        ordningsværdi_ved_start_kroner = 1100000,
+        valgt_udbetalingsgrundlag_kroner = 1100000,
+        metode = Pbl11APrimoVærdiDivideretMedResterendeÅr
+    )
+)
+= pbl15b_scenarie_for_langt_forløb = pbl15b_udbetalingsårsresultat(2026, pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_for_lang_ordning, []))
+
+= pbl15b_scenarie_forsikringsordning = Pbl15BOrdningsfakta(
+    identifikation = "rateforsikring",
+    oprettelsesår = 2024,
+    art = Pbl15BRateforsikring,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateforsikringsplan(
+        startår = 2025,
+        aftalte_rateår = 2,
+        ordningsværdi_ved_start_kroner = 1000000,
+        aftalt_forsikringssum_kroner = 800000
+    )
+)
+= pbl15b_scenarie_forsikringsrater = [
+    pbl15b_scenarie_forsikringsrate("forsikring-2025", "rateforsikring", 2025, 400000),
+    pbl15b_scenarie_forsikringsrate("forsikring-2026", "rateforsikring", 2026, 400000),
+]
+= pbl15b_scenarie_forsikring_2026 = pbl15b_udbetalingsårsresultat(2026, pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_forsikringsordning, pbl15b_scenarie_forsikringsrater))
+
+= pbl15b_scenarie_annuitetsordning = Pbl15BOrdningsfakta(
+    identifikation = "annuitetsopsparing",
+    oprettelsesår = 2024,
+    art = Pbl15BRateopsparing,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateopsparingsplan(
+        startår = 2026,
+        aftalte_rateår = 2,
+        ordningsværdi_ved_start_kroner = 100000,
+        valgt_udbetalingsgrundlag_kroner = 100000,
+        metode = Pbl11AAnnuitetMedAmortisationsrente
+    )
+)
+= pbl15b_scenarie_annuitetsrate = Pbl15BRateudbetaling(
+    identifikation = "annuitet-2026",
+    ordning_identifikation = "annuitetsopsparing",
+    indkomstår = 2026,
+    udbetalt_kroner = 53780,
+    beregningsfakta = Pbl15BRateopsparingEfterPar11A(
+        fakta = Pbl11AAnnuitetsrate(
+            ordningsværdi_ved_årets_begyndelse_kroner = 100000,
+            amortisationsrente_basispoint = 500,
+            langsigtet_obligationsafkast_basispoint = 400,
+            pensionsafkastskattesats_basispoint = 1530
+        )
+    )
+)
+= pbl15b_scenarie_annuitet_2026 = pbl15b_udbetalingsårsresultat(2026, pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_annuitetsordning, [pbl15b_scenarie_annuitetsrate]))
+
+= pbl15b_scenarie_fremtidig_ordning = Pbl15BOrdningsfakta(
+    identifikation = "fremtidig-rateopsparing",
+    oprettelsesår = 2026,
+    art = Pbl15BRateopsparing,
+    fødselsår = 1990,
+    påtegnet_som_sportspension = Sandt,
+    udbetalingsplan = Pbl15BRateopsparingsplan(
+        startår = 2026,
+        aftalte_rateår = 1,
+        ordningsværdi_ved_start_kroner = 100000,
+        valgt_udbetalingsgrundlag_kroner = 100000,
+        metode = Pbl11APrimoVærdiDivideretMedResterendeÅr
+    )
+)
+= pbl15b_scenarie_fremtidig_rate = pbl15b_scenarie_divisionsrate("fremtidig-2026", "fremtidig-rateopsparing", 2026, 100000, 100000)
+= pbl15b_scenarie_2025_før_fremtidig_ordning = pbl15b_udbetalingsårsresultat(
+    2025,
+    pbl15b_scenarie_udbetalingsgrundlag(pbl15b_scenarie_fremtidig_ordning, [pbl15b_scenarie_fremtidig_rate])
 )
 
 | pbl15b_gyldig_indbetaling_får_fradrag: pbl15b_scenarie_gyldigt_resultat -> pbl15b_scenarie_gyldigt_resultat.input_gyldigt && pbl15b_scenarie_gyldigt_resultat.samlet_fradragsberettiget_kroner == 200000 && pbl15b_scenarie_gyldigt_resultat.samlet_afskåret_kroner == 0
@@ -186,11 +356,20 @@
 | pbl15b_arbejdsgiverindbetaling_giver_bortseelse_efter_am: pbl15b_scenarie_arbejdsgiver_resultat -> pbl15b_scenarie_arbejdsgiver_resultat.input_gyldigt && pbl15b_scenarie_arbejdsgiver_resultat.samlet_fradragsberettiget_kroner == 0 && pbl15b_scenarie_arbejdsgiver_resultat.samlet_bortseelsesberettiget_kroner == 92000
 | pbl15b_fyldt_41_fejer_lukket: pbl15b_scenarie_for_gammel_resultat -> pbl15b_scenarie_for_gammel_resultat.input_gyldigt == Falskt && pbl15b_scenarie_for_gammel_resultat.samlet_fradragsberettiget_kroner == 0
 | pbl15b_aktiv_udbetaling_fejer_lukket: pbl15b_scenarie_aktiv_udbetaling_resultat -> pbl15b_scenarie_aktiv_udbetaling_resultat.input_gyldigt == Falskt && pbl15b_scenarie_aktiv_udbetaling_resultat.samlet_fradragsberettiget_kroner == 0
+| pbl15b_aktiv_udbetaling_uden_indbetaling_er_gyldigt_årsgrundlag: pbl15b_scenarie_aktiv_udbetaling_uden_indbetaling_resultat -> pbl15b_scenarie_aktiv_udbetaling_uden_indbetaling_resultat.input_gyldigt && pbl15b_scenarie_aktiv_udbetaling_uden_indbetaling_resultat.grundlagsresultat.ordninger_kvalificerer == Falskt && pbl15b_scenarie_aktiv_udbetaling_uden_indbetaling_resultat.samlet_fradragsberettiget_kroner == 0
 | pbl15b_forkert_ordningsforbindelse_fejer_lukket: pbl15b_scenarie_forkert_ordning_resultat -> pbl15b_scenarie_forkert_ordning_resultat.input_gyldigt == Falskt && pbl15b_scenarie_forkert_ordning_resultat.samlet_fradragsberettiget_kroner == 0
 | pbl18_par15b_gyldigt_fradrag_ligger_uden_for_par16_loftet: pbl15b_scenarie_pbl18_gyldigt_resultat -> pbl15b_scenarie_pbl18_gyldigt_resultat.input_gyldigt && pbl15b_scenarie_pbl18_gyldigt_resultat.par15b_fradrag_kroner == 200000 && pbl15b_scenarie_pbl18_gyldigt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner == 200000 && pbl15b_scenarie_pbl18_gyldigt_resultat.rate_og_ophørende_fradrag_kroner == 0
 | pbl18_par15b_over_loft_begrænses_deterministisk: pbl15b_scenarie_pbl18_over_loft_resultat -> pbl15b_scenarie_pbl18_over_loft_resultat.input_gyldigt && pbl15b_scenarie_pbl18_over_loft_resultat.par15b_fradrag_kroner == 120000 && pbl15b_scenarie_pbl18_over_loft_resultat.egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner == 80000
 | pbl18_par15b_ugyldige_kildefakta_fejer_hele_årsinputtet_lukket: pbl15b_scenarie_pbl18_ugyldigt_resultat -> pbl15b_scenarie_pbl18_ugyldigt_resultat.input_gyldigt == Falskt && pbl15b_scenarie_pbl18_ugyldigt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
 | pbl18_par15b_arbejdsgiverbortseelse_bruger_kildemodellens_loft: pbl15b_scenarie_pbl18_arbejdsgiver_resultat -> pbl15b_scenarie_pbl18_arbejdsgiver_resultat.input_gyldigt && pbl15b_scenarie_pbl18_arbejdsgiver_resultat.par15b_bortseelsesberettiget_kroner == 92000 && pbl15b_scenarie_pbl18_arbejdsgiver_resultat.arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner == 92000
+| pbl15b_flerårigt_forløb_afleder_aktiv_og_afsluttet_livscyklus: pbl15b_scenarie_flerårig_2022 -> pbl15b_scenarie_flerårig_2022.input_gyldigt && head(pbl15b_scenarie_flerårig_2022.ordningsresultater).udbetalingsplanresultat.aktivt && head(pbl15b_scenarie_flerårig_2022.ordningsresultater).udbetalingsplanresultat.indbetaling_tilladt == Falskt && head(pbl15b_scenarie_flerårig_2024.ordningsresultater).udbetalingsplanresultat.afsluttet && head(pbl15b_scenarie_flerårig_2024.ordningsresultater).udbetalingsplanresultat.indbetaling_tilladt == Falskt && head(pbl15b_scenarie_flerårig_2025.ordningsresultater).udbetalingsplanresultat.indbetaling_tilladt
+| pbl15b_flerårigt_forløb_bevarer_restværdi_og_par20_indkomst: pbl15b_scenarie_flerårig_2022 -> pbl15b_scenarie_flerårig_2022.samlet_resterende_ordinær_værdi_kroner == 300000 && pbl15b_scenarie_flerårig_2022.samlet_skattepligtig_indkomst_efter_par20_kroner == 300000 && pbl15b_scenarie_flerårig_2022.samlet_personlig_indkomst_efter_par20_kroner == 300000 && pbl15b_scenarie_flerårig_2022.samlet_modregningspligtig_efter_ligningslov9l_kroner == 300000
+| pbl15b_over_loft_deler_par20_og_par29: pbl15b_scenarie_over_loft_udbetaling -> pbl15b_scenarie_over_loft_udbetaling.input_gyldigt && pbl15b_scenarie_over_loft_udbetaling.samlet_udbetalt_kroner == 500000 && pbl15b_scenarie_over_loft_udbetaling.samlet_inden_for_par15b_og_par20_kroner == 469200 && pbl15b_scenarie_over_loft_udbetaling.samlet_overskydende_efter_par15b_kroner == 30800 && pbl15b_scenarie_over_loft_udbetaling.samlet_skattepligtig_indkomst_efter_par20_kroner == 469200 && pbl15b_scenarie_over_loft_udbetaling.samlet_afgift_efter_par29_kroner == 18480
+| pbl15b_forkert_divisionsrate_fejer_lukket: pbl15b_scenarie_ugyldigt_forløb -> pbl15b_scenarie_ugyldigt_forløb.input_gyldigt == Falskt && pbl15b_scenarie_ugyldigt_forløb.samlet_skattepligtig_indkomst_efter_par20_kroner == 0 && pbl15b_scenarie_ugyldigt_forløb.samlet_afgift_efter_par29_kroner == 0
+| pbl15b_elleve_rateår_afvises: pbl15b_scenarie_for_langt_forløb -> pbl15b_scenarie_for_langt_forløb.input_gyldigt == Falskt && head(pbl15b_scenarie_for_langt_forløb.ordningsresultater).udbetalingsplanresultat.højst_ti_år == Falskt
+| pbl15b_rateforsikring_bevarer_ordinær_restværdi: pbl15b_scenarie_forsikring_2026 -> pbl15b_scenarie_forsikring_2026.input_gyldigt && pbl15b_scenarie_forsikring_2026.samlet_skattepligtig_indkomst_efter_par20_kroner == 400000 && pbl15b_scenarie_forsikring_2026.samlet_resterende_ordinær_værdi_kroner == 200000 && head(pbl15b_scenarie_forsikring_2026.ordningsresultater).udbetalingsplanresultat.afsluttet
+| pbl15b_annuitetsrate_beregnes_efter_amortisationsrenten: pbl15b_scenarie_annuitet_2026 -> pbl15b_scenarie_annuitet_2026.input_gyldigt && head(pbl15b_scenarie_annuitet_2026.rateudbetalingsresultater).forventet_rate_kroner == 53780 && pbl15b_scenarie_annuitet_2026.samlet_skattepligtig_indkomst_efter_par20_kroner == 53780
+| pbl15b_årsresultat_ignorerer_fremtidige_ordninger_og_rater: pbl15b_scenarie_2025_før_fremtidig_ordning -> pbl15b_scenarie_2025_før_fremtidig_ordning.input_gyldigt && length(pbl15b_scenarie_2025_før_fremtidig_ordning.ordningsresultater) == 0 && length(pbl15b_scenarie_2025_før_fremtidig_ordning.rateudbetalingsresultater) == 0 && pbl15b_scenarie_2025_før_fremtidig_ordning.samlet_udbetalt_kroner == 0 && pbl15b_scenarie_2025_før_fremtidig_ordning.samlet_afgift_efter_par29_kroner == 0
 
 ? pbl15b_alle_kildebelagte_år_matcher_officielle_tabeller
 ? pbl15b_alle_kildebelagte_år_stemmer_med_par20
@@ -200,8 +379,17 @@
 ? pbl15b_arbejdsgiverindbetaling_giver_bortseelse_efter_am
 ? pbl15b_fyldt_41_fejer_lukket
 ? pbl15b_aktiv_udbetaling_fejer_lukket
+? pbl15b_aktiv_udbetaling_uden_indbetaling_er_gyldigt_årsgrundlag
 ? pbl15b_forkert_ordningsforbindelse_fejer_lukket
 ? pbl18_par15b_gyldigt_fradrag_ligger_uden_for_par16_loftet
 ? pbl18_par15b_over_loft_begrænses_deterministisk
 ? pbl18_par15b_ugyldige_kildefakta_fejer_hele_årsinputtet_lukket
 ? pbl18_par15b_arbejdsgiverbortseelse_bruger_kildemodellens_loft
+? pbl15b_flerårigt_forløb_afleder_aktiv_og_afsluttet_livscyklus
+? pbl15b_flerårigt_forløb_bevarer_restværdi_og_par20_indkomst
+? pbl15b_over_loft_deler_par20_og_par29
+? pbl15b_forkert_divisionsrate_fejer_lukket
+? pbl15b_elleve_rateår_afvises
+? pbl15b_rateforsikring_bevarer_ordinær_restværdi
+? pbl15b_annuitetsrate_beregnes_efter_amortisationsrenten
+? pbl15b_årsresultat_ignorerer_fremtidige_ordninger_og_rater

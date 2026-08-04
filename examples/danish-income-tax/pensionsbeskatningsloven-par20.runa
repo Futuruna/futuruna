@@ -1,0 +1,202 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Pbl20KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par20 = Pbl20KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 20",
+    hentet_dato = "2026-07-24",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 20 er uændret"
+)
+
+= pensionsbeskatningsloven_par20_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par20),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par20::meta:pensionsbeskatningsloven_par20_metadata--
+----
+§ 20. Til den skattepligtige indkomst medregnes:
+
+1) Pension fra en pensionsordning med løbende udbetalinger. Løbende ydelser
+fra forsikringer, som omfattes af § 5, er dog kun indkomstskattepligtige,
+såfremt de udbetales til forsikrede selv eller i kraft af en
+begunstigelsesbestemmelse til forsikredes ægtefælle, fraskilte ægtefælle eller
+samlever eller dennes livsarvinger under 24 år eller forsikredes livsarvinger,
+stedbørn eller stedbørns livsarvinger under 24 år.
+
+2) Udbetalinger fra en rateforsikring eller rateopsparing i pensionsøjemed til
+forsikrede eller kontohaver selv i overensstemmelse med ordningens vilkår om
+ratevis udbetaling samt udbetaling af rater efter forsikredes eller kontohavers
+død, såfremt raterne i kraft af en begunstigelsesbestemmelse udbetales til den
+pågældendes ægtefælle, fraskilte ægtefælle eller samlever eller dennes
+livsarvinger under 24 år eller den pågældendes livsarvinger, stedbørn eller
+stedbørns livsarvinger under 24 år.
+
+3) Løbende udbetalinger fra en indeksordning til interessenten selv.
+
+4) Pension fra en pensionsordning med løbende udbetalinger og udbetalinger fra
+en rateforsikring eller rateopsparing i pensionsøjemed til ejerens fraskilte
+eller fraseparerede ægtefælle, når ydelserne tilfalder ægtefællen i kraft af
+udlodning ved skifte af fællesbo, samt pension fra en pensionsordning med
+løbende udbetalinger, der tilfalder eventuelle begunstigede efter ægtefællens
+død, jf. § 30, stk. 2.
+
+Stk. 2. Rater, der udbetales fra en forsikring, som omfattes af § 9, stk. 1, i
+overensstemmelse med policens vilkår om ratevis udbetaling, er
+indkomstskattepligtige, uanset om udbetalingen sker til andre end de i stk. 1,
+nr. 2, nævnte personer. Det samme gælder løbende ydelser i henhold til en
+forsikring, der omfattes af § 7.
+
+Stk. 3. Den del af raterne fra en rateforsikring i pensionsøjemed, som måtte
+hidrøre fra indbetalinger, der forfaldt før begyndelsen af det indkomstår, der
+ligger til grund for skatteansættelsen for skatteåret 1955-56, skal ikke
+medregnes til den skattepligtige indkomst, men forsikringen er, i det omfang den
+hidrører fra de nævnte indbetalinger, indkomstskattepligtig efter § 53.
+
+Stk. 4. Den del af udbetalinger fra pensionsordninger som nævnt i stk. 1, der
+svarer til indbetalinger på ordningen, som den skattepligtige efter § 55, 1.
+pkt., kan godtgøre at der ved opgørelsen af den skattepligtige indkomst for
+ejeren eller kontohaveren ikke har været hel eller delvis fradrags- eller
+bortseelsesret for her i landet eller i udlandet, medregnes ikke til den
+skattepligtige indkomst.
+
+Stk. 5. Skatteministeren kan fastsætte nærmere regler om den del af
+udbetalingen, der efter stk. 4 er fritaget for skat.
+
+Stk. 6. Har en person, der er skattepligtig efter kildeskatteskattelovens § 1
+eller hjemmehørende i Danmark efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst, over for skattemyndighederne i et andet land
+inden for EU/EØS afgivet en erklæring, der svarer til erklæringen nævnt i § 15
+C, stk. 1, nr. 3, litra a, finder ved beskatning efter stk. 1 ligningslovens §
+33, stk. 1, tilsvarende anvendelse på indkomstskat betalt til denne stat i
+medfør af erklæringen.
+----
+
+--@begin:pensionsbeskatningsloven_par20--
+# Pbl20Ordning = Pbl20PensionsordningMedLøbendeUdbetalinger | Pbl20ForsikringEfterPar5 | Pbl20ForsikringEfterPar7 | Pbl20Rateforsikring | Pbl20ForsikringEfterPar9 | Pbl20Rateopsparing | Pbl20Indeksordning
+# Pbl20Modtager = Pbl20Ægtefælle | Pbl20FraskiltÆgtefælle | Pbl20Samlever | Pbl20SamleversLivsarving(alder_hele_år: Heltal) | Pbl20EjerensLivsarving(alder_hele_år: Heltal) | Pbl20Stedbarn(alder_hele_år: Heltal) | Pbl20StedbarnsLivsarving(alder_hele_år: Heltal) | Pbl20AndenModtager
+# Pbl20Udbetalingsret = Pbl20TilEjerEfterVilkår | Pbl20TilBegunstigetEfterEjerensDød(modtager: Pbl20Modtager) | Pbl20TilAndenEfterVilkår(modtager: Pbl20Modtager) | Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(modtager: Pbl20Modtager) | Pbl20AndenUdbetalingsret(modtager: Pbl20Modtager)
+# Pbl20Ligningslov9LArt = Pbl20OrdinærPensionsudbetaling | Pbl20InvalidepensionFørFolkepensionsalderen | Pbl20RateforsikringVedInvaliditet | Pbl20RateopsparingVedVarigtNedsatArbejdsevneMedFørtidsEllerSeniorpension | Pbl20ÆgtefælleEllerSamleverpension | Pbl20Efterladtepension | Pbl20PensionEfterPar2Stk1Nr1Eller2 | Pbl20Børnepension
+# Pbl20EuEøsErklæring = Pbl20IngenEuEøsErklæring | Pbl20ErklæringEfterPar15C
+# Pbl20Udbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, ordning: Pbl20Ordning, udbetalingsret: Pbl20Udbetalingsret, ligningslov9l_art: Pbl20Ligningslov9LArt, bruttoudbetaling_kroner: Heltal, del_fra_indbetalinger_før_1955_56_kroner: Heltal, dokumenteret_uden_fradrags_eller_bortseelsesret_kroner: Heltal, eu_eøs_erklæring: Pbl20EuEøsErklæring, udenlandsk_indkomstskat_kroner: Heltal)
+# Pbl20Udbetalingsresultat(fakta: Pbl20Udbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet: Boolsk, omfattet_af_par20: Boolsk, fritaget_efter_stk3_kroner: Heltal, fritaget_efter_stk4_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, undtaget_fra_ligningslov9l: Boolsk, modregningspligtig_efter_ligningslov9l_kroner: Heltal, udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal)
+# Pbl20Årsgrundlag(udbetalinger: List(Pbl20Udbetalingsfakta))
+# Pbl20Årsresultat(indkomstår: Heltal, årsudbetalinger: List(Pbl20Udbetalingsfakta), udbetalingsresultater: List(Pbl20Udbetalingsresultat), identifikationer_entydige: Boolsk, input_gyldigt: Boolsk, samlet_bruttoudbetaling_kroner: Heltal, samlet_skattepligtig_indkomst_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, samlet_modregningspligtig_efter_ligningslov9l_kroner: Heltal, samlet_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal, ikke_omfattet_af_par20_kroner: Heltal)
+
+| pbl20_tomt_årsgrundlag() -> Pbl20Årsgrundlag(udbetalinger = [])
+
+| pbl20_modtager_alder_gyldig(modtager: Pbl20Modtager) -> match modtager {
+    | Pbl20SamleversLivsarving(alder_hele_år) -> alder_hele_år >= 0
+    | Pbl20EjerensLivsarving(alder_hele_år) -> alder_hele_år >= 0
+    | Pbl20Stedbarn(alder_hele_år) -> alder_hele_år >= 0
+    | Pbl20StedbarnsLivsarving(alder_hele_år) -> alder_hele_år >= 0
+    | _ -> Sandt
+}
+| pbl20_modtager_omfattet_af_stk1_nr1_og_nr2(modtager: Pbl20Modtager) -> match modtager {
+    | Pbl20Ægtefælle -> Sandt
+    | Pbl20FraskiltÆgtefælle -> Sandt
+    | Pbl20Samlever -> Sandt
+    | Pbl20SamleversLivsarving(alder_hele_år) -> alder_hele_år >= 0 && alder_hele_år < 24
+    | Pbl20EjerensLivsarving(alder_hele_år) -> alder_hele_år >= 0 && alder_hele_år < 24
+    | Pbl20Stedbarn(alder_hele_år) -> alder_hele_år >= 0 && alder_hele_år < 24
+    | Pbl20StedbarnsLivsarving(alder_hele_år) -> alder_hele_år >= 0 && alder_hele_år < 24
+    | Pbl20AndenModtager -> Falskt
+}
+| pbl20_udbetalingsret_modtager_gyldig(ret: Pbl20Udbetalingsret) -> match ret {
+    | Pbl20TilEjerEfterVilkår -> Sandt
+    | Pbl20TilBegunstigetEfterEjerensDød(modtager) -> pbl20_modtager_alder_gyldig(modtager)
+    | Pbl20TilAndenEfterVilkår(modtager) -> pbl20_modtager_alder_gyldig(modtager)
+    | Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle -> Sandt
+    | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(modtager) -> pbl20_modtager_alder_gyldig(modtager)
+    | Pbl20AndenUdbetalingsret(modtager) -> pbl20_modtager_alder_gyldig(modtager)
+}
+| pbl20_ret_er_til_ejer(ret: Pbl20Udbetalingsret) -> ret == Pbl20TilEjerEfterVilkår
+| pbl20_ret_er_til_omfattet_begunstiget(ret: Pbl20Udbetalingsret) -> match ret {
+    | Pbl20TilBegunstigetEfterEjerensDød(modtager) -> pbl20_modtager_omfattet_af_stk1_nr1_og_nr2(modtager)
+    | _ -> Falskt
+}
+| pbl20_ret_er_udlodning_ved_skifte(ret: Pbl20Udbetalingsret) -> ret == Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle
+| pbl20_ret_er_efter_udlodningsmodtagers_død(ret: Pbl20Udbetalingsret) -> match ret {
+    | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(_) -> Sandt
+    | _ -> Falskt
+}
+| pbl20_ret_er_til_anden_efter_vilkår(ret: Pbl20Udbetalingsret) -> match ret {
+    | Pbl20TilAndenEfterVilkår(_) -> Sandt
+    | _ -> Falskt
+}
+
+| pbl20_fakta_gyldige(fakta: Pbl20Udbetalingsfakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.bruttoudbetaling_kroner >= 0 && fakta.del_fra_indbetalinger_før_1955_56_kroner >= 0 && fakta.dokumenteret_uden_fradrags_eller_bortseelsesret_kroner >= 0 && fakta.del_fra_indbetalinger_før_1955_56_kroner + fakta.dokumenteret_uden_fradrags_eller_bortseelsesret_kroner <= fakta.bruttoudbetaling_kroner && fakta.udenlandsk_indkomstskat_kroner >= 0 && pbl20_udbetalingsret_modtager_gyldig(fakta.udbetalingsret) && (fakta.del_fra_indbetalinger_før_1955_56_kroner == 0 || fakta.ordning == Pbl20Rateforsikring)
+| pbl20_par5_modtager_omfattet(ret: Pbl20Udbetalingsret) -> pbl20_ret_er_til_ejer(ret) || pbl20_ret_er_til_omfattet_begunstiget(ret)
+| pbl20_rate_modtager_omfattet(ret: Pbl20Udbetalingsret) -> pbl20_ret_er_til_ejer(ret) || pbl20_ret_er_til_omfattet_begunstiget(ret) || pbl20_ret_er_udlodning_ved_skifte(ret)
+| pbl20_modtager_omfattet(fakta: Pbl20Udbetalingsfakta) -> match fakta.ordning {
+    | Pbl20PensionsordningMedLøbendeUdbetalinger -> Sandt
+    | Pbl20ForsikringEfterPar5 -> pbl20_par5_modtager_omfattet(fakta.udbetalingsret)
+    | Pbl20ForsikringEfterPar7 -> Sandt
+    | Pbl20Rateforsikring -> pbl20_rate_modtager_omfattet(fakta.udbetalingsret)
+    | Pbl20ForsikringEfterPar9 -> pbl20_ret_er_til_ejer(fakta.udbetalingsret) || pbl20_ret_er_til_omfattet_begunstiget(fakta.udbetalingsret) || pbl20_ret_er_til_anden_efter_vilkår(fakta.udbetalingsret)
+    | Pbl20Rateopsparing -> pbl20_rate_modtager_omfattet(fakta.udbetalingsret)
+    | Pbl20Indeksordning -> pbl20_ret_er_til_ejer(fakta.udbetalingsret)
+}
+| pbl20_omfattet(fakta: Pbl20Udbetalingsfakta) -> pbl20_fakta_gyldige(fakta) && pbl20_modtager_omfattet(fakta)
+| pbl20_fritaget_efter_stk3_kroner(fakta: Pbl20Udbetalingsfakta) -> hvis pbl20_omfattet(fakta) && fakta.ordning == Pbl20Rateforsikring { fakta.del_fra_indbetalinger_før_1955_56_kroner } ellers { 0 }
+| pbl20_fritaget_efter_stk4_kroner(fakta: Pbl20Udbetalingsfakta) -> hvis pbl20_omfattet(fakta) { fakta.dokumenteret_uden_fradrags_eller_bortseelsesret_kroner } ellers { 0 }
+| pbl20_skattepligtig_indkomst_kroner(fakta: Pbl20Udbetalingsfakta) -> hvis pbl20_omfattet(fakta) { penge_positivt_beløb(fakta.bruttoudbetaling_kroner - pbl20_fritaget_efter_stk3_kroner(fakta) - pbl20_fritaget_efter_stk4_kroner(fakta)) } ellers { 0 }
+| pbl20_undtaget_fra_ligningslov9l(art: Pbl20Ligningslov9LArt) -> art != Pbl20OrdinærPensionsudbetaling
+| pbl20_modregningspligtig_efter_ligningslov9l_kroner(fakta: Pbl20Udbetalingsfakta) -> hvis pbl20_omfattet(fakta) && pbl20_undtaget_fra_ligningslov9l(fakta.ligningslov9l_art) == Falskt { pbl20_skattepligtig_indkomst_kroner(fakta) } ellers { 0 }
+| pbl20_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner(fakta: Pbl20Udbetalingsfakta) -> hvis pbl20_omfattet(fakta) && fakta.eu_eøs_erklæring == Pbl20ErklæringEfterPar15C { penge_mindste_beløb(fakta.udenlandsk_indkomstskat_kroner, pbl20_skattepligtig_indkomst_kroner(fakta)) } ellers { 0 }
+
+# Pbl20Udbetalingssag(fakta: Pbl20Udbetalingsfakta) {
+    | fakta_gyldige() -> pbl20_fakta_gyldige(fakta)
+    | modtager_omfattet() -> pbl20_modtager_omfattet(fakta)
+    | omfattet_af_par20() -> pbl20_omfattet(fakta)
+    | fritaget_efter_stk3_kroner() -> pbl20_fritaget_efter_stk3_kroner(fakta)
+    | fritaget_efter_stk4_kroner() -> pbl20_fritaget_efter_stk4_kroner(fakta)
+    | skattepligtig_indkomst_kroner() -> pbl20_skattepligtig_indkomst_kroner(fakta)
+    | undtaget_fra_ligningslov9l() -> pbl20_undtaget_fra_ligningslov9l(fakta.ligningslov9l_art)
+    | resultat() -> Pbl20Udbetalingsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        modtager_omfattet = modtager_omfattet(),
+        omfattet_af_par20 = omfattet_af_par20(),
+        fritaget_efter_stk3_kroner = fritaget_efter_stk3_kroner(),
+        fritaget_efter_stk4_kroner = fritaget_efter_stk4_kroner(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner(),
+        personlig_indkomst_kroner = skattepligtig_indkomst_kroner(),
+        undtaget_fra_ligningslov9l = undtaget_fra_ligningslov9l(),
+        modregningspligtig_efter_ligningslov9l_kroner = pbl20_modregningspligtig_efter_ligningslov9l_kroner(fakta),
+        udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner = pbl20_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner(fakta)
+    )
+}
+| pbl20_udbetalingsresultat(fakta: Pbl20Udbetalingsfakta) -> Pbl20Udbetalingssag(fakta).resultat()
+| pbl20_årsudbetalinger(indkomstår: Heltal, grundlag: Pbl20Årsgrundlag) -> filter(grundlag.udbetalinger, |fakta: Pbl20Udbetalingsfakta| fakta.indkomstår == indkomstår)
+| pbl20_identifikation_unik(udbetalinger: List(Pbl20Udbetalingsfakta), fakta: Pbl20Udbetalingsfakta) -> length(filter(udbetalinger, |anden: Pbl20Udbetalingsfakta| anden.identifikation == fakta.identifikation)) == 1
+| pbl20_identifikationer_entydige(udbetalinger: List(Pbl20Udbetalingsfakta)) -> all(udbetalinger, |fakta: Pbl20Udbetalingsfakta| pbl20_identifikation_unik(udbetalinger, fakta))
+| pbl20_resultatsum_kroner(resultater: List(Pbl20Udbetalingsresultat), beløb: (Pbl20Udbetalingsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl20Udbetalingsresultat| sum + beløb(resultat))
+
+# Pbl20Årssag(indkomstår: Heltal, grundlag: Pbl20Årsgrundlag) {
+    | årsudbetalinger() -> pbl20_årsudbetalinger(indkomstår, grundlag)
+    | udbetalingsresultater() -> map(årsudbetalinger(), pbl20_udbetalingsresultat)
+    | identifikationer_entydige() -> pbl20_identifikationer_entydige(årsudbetalinger())
+    | input_gyldigt() -> indkomstår > 0 && identifikationer_entydige() && all(udbetalingsresultater(), |resultat: Pbl20Udbetalingsresultat| resultat.fakta_gyldige)
+    | sum_eller_nul(beløb: (Pbl20Udbetalingsresultat) -> Heltal) -> hvis input_gyldigt() { pbl20_resultatsum_kroner(udbetalingsresultater(), beløb) } ellers { 0 }
+    | resultat() -> Pbl20Årsresultat(
+        indkomstår = indkomstår,
+        årsudbetalinger = årsudbetalinger(),
+        udbetalingsresultater = udbetalingsresultater(),
+        identifikationer_entydige = identifikationer_entydige(),
+        input_gyldigt = input_gyldigt(),
+        samlet_bruttoudbetaling_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| resultat.fakta.bruttoudbetaling_kroner),
+        samlet_skattepligtig_indkomst_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| resultat.skattepligtig_indkomst_kroner),
+        samlet_personlig_indkomst_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| resultat.personlig_indkomst_kroner),
+        samlet_modregningspligtig_efter_ligningslov9l_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| resultat.modregningspligtig_efter_ligningslov9l_kroner),
+        samlet_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| resultat.udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner),
+        ikke_omfattet_af_par20_kroner = sum_eller_nul(|resultat: Pbl20Udbetalingsresultat| hvis resultat.omfattet_af_par20 { 0 } ellers { resultat.fakta.bruttoudbetaling_kroner })
+    )
+}
+| pbl20_årsresultat(indkomstår: Heltal, grundlag: Pbl20Årsgrundlag) -> Pbl20Årssag(indkomstår, grundlag).resultat()
+--@end:pensionsbeskatningsloven_par20--

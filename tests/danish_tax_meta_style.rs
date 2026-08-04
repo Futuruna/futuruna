@@ -1,19 +1,25 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn collect_runa_files(root: &Path, files: &mut Vec<PathBuf>) {
+    for entry in fs::read_dir(root).expect("read example directory") {
+        let path = entry.expect("read example entry").path();
+        if path.is_dir() {
+            collect_runa_files(&path, files);
+        } else if path.extension().and_then(|extension| extension.to_str()) == Some("runa") {
+            files.push(path);
+        }
+    }
+}
 
 #[test]
-fn danish_tax_metadata_uses_thin_typed_anchors() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
-        .join("danish-income-tax");
+fn example_metadata_uses_thin_typed_anchors() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let mut files = Vec::new();
+    collect_runa_files(&root, &mut files);
     let mut violations = Vec::new();
 
-    for entry in fs::read_dir(&root).expect("read Danish tax corpus") {
-        let path = entry.expect("read corpus entry").path();
-        if path.extension().and_then(|extension| extension.to_str()) != Some("runa") {
-            continue;
-        }
-
+    for path in files {
         let source = fs::read_to_string(&path).expect("read Futuruna source");
         for (index, line) in source.lines().enumerate() {
             let is_metadata_anchor = line.starts_with("--@label:")
@@ -39,7 +45,7 @@ fn danish_tax_metadata_uses_thin_typed_anchors() {
 
     assert!(
         violations.is_empty(),
-        "Danish-tax metadata comments must remain thin typed anchors:\n{}",
+        "Example metadata comments must remain thin typed anchors:\n{}",
         violations.join("\n")
     );
 }

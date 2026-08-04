@@ -19,6 +19,9 @@
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15),
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15a),
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par20),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par29_par36),
         MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
         MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
         MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
@@ -69,13 +72,14 @@
 # PersonskatBefordringsfradragResultat = IntetBefordringsfradrag | UgyldigtBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, befordring: PersonskatBefordringsfradragResultat, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
-# PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
-# PersonskatPensionsResultat(pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
+# PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
+# PersonskatPensionsudbetalingsresultat(aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
+# PersonskatPensionsResultat(pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(øvrig_aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | SærligeUnderskudsforhold(forhold: LønmodtagerPar13Forhold)
-# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
+# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
@@ -4072,11 +4076,11 @@
     help = Some("Ordningens art skal svare til den art, der er valgt på den konkrete pensionsindbetaling."),
     unit = None
 )
-= personskat_felt_pbl15b_ordning_alder = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.alder_hele_år_i_indkomståret",
-    label = "Alder i indkomståret",
-    question = Some("Hvor mange hele år fylder den forsikrede eller kontohaveren i indkomståret?"),
-    help = Some("Den særlige § 15 B-påtegning skal slettes i året, hvor personen fylder 41."),
+= personskat_felt_pbl15b_ordning_fødselsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.fødselsår",
+    label = "Sportspensionsindehaverens fødselsår",
+    question = Some("I hvilket år blev den forsikrede eller kontohaveren født?"),
+    help = Some("Futuruna udleder personens alder i hvert indkomstår og tidspunktet, hvor § 15 B-påtegningen skal slettes."),
     unit = Some("år")
 )
 = personskat_felt_pbl15b_ordning_påtegning = Beregningsfelt(
@@ -4086,19 +4090,75 @@
     help = Some("Påtegningen er et lovkrav ved oprettelsen og skal være aktiv i det år, hvor den særlige indbetaling foretages."),
     unit = None
 )
-= personskat_felt_pbl15b_udbetalingsstatus = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.$variant",
-    label = "Tidlig udbetaling fra sportspensionen",
-    question = Some("Er en særlig tidlig rateudbetaling fra sportspensionen ikke begyndt, aktiv eller afsluttet?"),
-    help = Some("Der kan ikke indbetales under et aktivt særligt udbetalingsforløb. Efter afslutning kan der tidligst indbetales i det følgende indkomstår."),
+= personskat_felt_pbl15b_udbetalingsplan = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.$variant",
+    label = "Plan for tidlig udbetaling fra sportspensionen",
+    question = Some("Er der ingen tidlig udbetalingsplan, en rateforsikringsplan eller en rateopsparingsplan?"),
+    help = Some("Oplys den faktiske plan. Futuruna udleder selv, om forløbet er påbegyndt, aktivt eller afsluttet, og hvornår nye indbetalinger igen er tilladt."),
     unit = None
 )
-= personskat_felt_pbl15b_sidste_udbetalingsår = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.Pbl15BTidligRateudbetalingAfsluttet.sidste_rateudbetalingsår",
-    label = "År for sidste tidlige rateudbetaling",
-    question = Some("I hvilket indkomstår blev den sidste rate i det afsluttede særlige udbetalingsforløb udbetalt?"),
-    help = Some("En ny indbetaling kan tidligst foretages i indkomståret efter dette år."),
+= personskat_felt_pbl15b_rateforsikringsplan_startår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateforsikringsplan.startår",
+    label = "Første år i rateforsikringsplanen",
+    question = Some("I hvilket indkomstår skal den tidlige udbetaling fra rateforsikringen begynde?"),
+    help = Some("Futuruna udleder sidste planlagte rateår ud fra startåret og antallet af rateår."),
     unit = Some("år")
+)
+= personskat_felt_pbl15b_rateforsikringsplan_rateår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateforsikringsplan.aftalte_rateår",
+    label = "Antal år i rateforsikringsplanen",
+    question = Some("Over hvor mange år skal rateforsikringen udbetales?"),
+    help = Some("Det særlige udbetalingsforløb efter § 15 B må højst vare ti år."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15b_rateforsikringsplan_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateforsikringsplan.ordningsværdi_ved_start_kroner",
+    label = "Rateforsikringens værdi ved planstart",
+    question = Some("Hvad var rateforsikringens samlede værdi, da den tidlige udbetalingsplan begyndte?"),
+    help = Some("Værdien bruges til at spore den del, der ikke indgår i den aftalte forsikringssum og derfor følger de ordinære § 8-regler."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rateforsikringsplan_sum = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateforsikringsplan.aftalt_forsikringssum_kroner",
+    label = "Aftalt forsikringssum til tidlige rater",
+    question = Some("Hvor stor en forsikringssum er aftalt udbetalt som tidlige rater?"),
+    help = Some("Futuruna kontrollerer, at planens rater tilsammen svarer til den aftalte forsikringssum."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rateopsparingsplan_startår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.startår",
+    label = "Første år i rateopsparingsplanen",
+    question = Some("I hvilket indkomstår skal den tidlige udbetaling fra rateopsparingen begynde?"),
+    help = Some("Futuruna udleder sidste planlagte rateår ud fra startåret og antallet af rateår."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15b_rateopsparingsplan_rateår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.aftalte_rateår",
+    label = "Antal år i rateopsparingsplanen",
+    question = Some("Over hvor mange år skal rateopsparingen udbetales?"),
+    help = Some("Det særlige udbetalingsforløb efter § 15 B må højst vare ti år."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15b_rateopsparingsplan_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.ordningsværdi_ved_start_kroner",
+    label = "Rateopsparingens værdi ved planstart",
+    question = Some("Hvad var rateopsparingens samlede værdi, da den tidlige udbetalingsplan begyndte?"),
+    help = Some("Futuruna bruger værdien til at kontrollere det valgte udbetalingsgrundlag og den resterende ordinære opsparing."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rateopsparingsplan_grundlag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.valgt_udbetalingsgrundlag_kroner",
+    label = "Valgt grundlag for tidlige rater",
+    question = Some("Hvor stor en del af rateopsparingens værdi er valgt som grundlag for de tidlige rater?"),
+    help = Some("Den resterende værdi behandles efter de ordinære regler i PBL § 11 A."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rateopsparingsplan_metode = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsplan.Pbl15BRateopsparingsplan.metode",
+    label = "Metode for beregning af rateopsparingsrater",
+    question = Some("Skal raterne beregnes ved division af årets begyndelsesværdi eller som en annuitet med amortisationsrente?"),
+    help = Some("Metoden bestemmer, hvilke årlige beregningsfakta Futuruna kræver og validerer."),
+    unit = None
 )
 = personskat_felt_pbl15b_historik = Beregningsfelt(
     path = "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger",
@@ -4141,6 +4201,83 @@
     question = Some("Hvor meget af den tidligere indbetaling udgjorde arbejdsmarkedsbidrag?"),
     help = Some("PBL § 15 B, stk. 3, kræver, at arbejdsmarkedsbidrag holdes uden for summen af indbetalinger."),
     unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rateudbetalinger = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger",
+    label = "Tidlige rater fra sportspensionen",
+    question = Some("Hvilke tidlige rater er eller skal udbetales fra sportspensionen?"),
+    help = Some("Oplys hele det påbegyndte forløb. Futuruna kontrollerer rækkefølge, plan, beregningsmetode, årligt loft og eventuel § 29-afgift."),
+    unit = None
+)
+= personskat_felt_pbl15b_rate_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.identifikation",
+    label = "Den tidlige rates identifikation",
+    question = Some("Hvilken entydig identifikation har denne rateudbetaling?"),
+    help = Some("Identifikationen bruges til at afvise dubletter og bevare et entydigt auditspor."),
+    unit = None
+)
+= personskat_felt_pbl15b_rate_ordning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.ordning_identifikation",
+    label = "Sportspension for den tidlige rate",
+    question = Some("Fra hvilken sportspensionsordning udbetales raten?"),
+    help = Some("Identifikationen skal svare til den oplyste § 15 B-ordning."),
+    unit = None
+)
+= personskat_felt_pbl15b_rate_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.indkomstår",
+    label = "Indkomstår for den tidlige rate",
+    question = Some("I hvilket indkomstår udbetales raten?"),
+    help = Some("Året bruges til at placere raten i planen og hente det regulerede årlige loft."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15b_rate_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.udbetalt_kroner",
+    label = "Udbetalt tidlig rate",
+    question = Some("Hvor stort et beløb udbetales i denne rate?"),
+    help = Some("Beløbet behandles efter § 20 inden for årets loft; en overskridelse behandles efter § 29 og § 36."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_rate_beregning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.$variant",
+    label = "Beregningsgrundlag for den tidlige rate",
+    question = Some("Følger raten forsikringsaftalen, årets begyndelsesværdi eller annuitetsmetoden?"),
+    help = Some("Valget skal stemme med ordningens art og den beregningsmetode, der er fastlagt i planen."),
+    unit = None
+)
+= personskat_felt_pbl15b_rate_primo_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.Pbl15BRateopsparingEfterPar11A.fakta.Pbl11ARateEfterPrimoVærdi.ordningsværdi_ved_årets_begyndelse_kroner",
+    label = "Opsparingens værdi ved årets begyndelse",
+    question = Some("Hvad var rateopsparingens værdi ved begyndelsen af dette udbetalingsår?"),
+    help = Some("Ved divisionsmetoden divideres værdien med antallet af resterende rateår."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_annuitet_primo_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.Pbl15BRateopsparingEfterPar11A.fakta.Pbl11AAnnuitetsrate.ordningsværdi_ved_årets_begyndelse_kroner",
+    label = "Opsparingens værdi før annuitetsraten",
+    question = Some("Hvad var rateopsparingens værdi ved begyndelsen af dette annuitetsår?"),
+    help = Some("Værdien er hovedstolen i årets annuitetsberegning."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15b_annuitet_amortisationsrente = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.Pbl15BRateopsparingEfterPar11A.fakta.Pbl11AAnnuitetsrate.amortisationsrente_basispoint",
+    label = "Amortisationsrente for annuitetsraten",
+    question = Some("Hvilken amortisationsrente er anvendt ved beregningen af årets rate?"),
+    help = Some("Futuruna kontrollerer renten mod den lovlige maksimumsrente udledt af obligationsafkast og pensionsafkastskat."),
+    unit = Some("basispoint")
+)
+= personskat_felt_pbl15b_annuitet_obligationsafkast = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.Pbl15BRateopsparingEfterPar11A.fakta.Pbl11AAnnuitetsrate.langsigtet_obligationsafkast_basispoint",
+    label = "Langsigtet obligationsafkast",
+    question = Some("Hvilket langsigtet obligationsafkast ligger til grund for årets maksimale amortisationsrente?"),
+    help = Some("Det dokumenterede afkast indgår sammen med tillægget på 2 procentpoint og pensionsafkastskatten."),
+    unit = Some("basispoint")
+)
+= personskat_felt_pbl15b_annuitet_pal_sats = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15b_årsgrundlag.rateudbetalinger.beregningsfakta.Pbl15BRateopsparingEfterPar11A.fakta.Pbl11AAnnuitetsrate.pensionsafkastskattesats_basispoint",
+    label = "Pensionsafkastskattesats i annuitetsberegningen",
+    question = Some("Hvilken pensionsafkastskattesats er anvendt i beregningen af maksimumsrenten?"),
+    help = Some("Futuruna reducerer obligationsafkastet og rentetillægget med den oplyste pensionsafkastskat."),
+    unit = Some("basispoint")
 )
 = personskat_felt_pbl18_pbl54_personkreds = Beregningsfelt(
     path = "lønmodtager.pension.pbl18_indbetalinger.begrænsninger.pbl54_personkreds_opfyldt",
@@ -4255,25 +4392,86 @@
     unit = Some("ÅÅÅÅMMDD")
 )
 = personskat_felt_pbl20_udbetaling = Beregningsfelt(
-    path = "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
-    label = "Skattepligtige pensionsudbetalinger efter PBL § 20",
-    question = Some("Hvor meget modtog du i det foregående indkomstår i pensionsudbetalinger, som kan modregnes efter ligningslovens § 9 L?"),
-    help = Some("Oplys den indkomstskattepligtige udbetaling. Den trækkes kun fra grundlaget for ekstra pensionsfradrag, når den valgte udbetalingsstatus er modregningspligtig."),
-    unit = Some("kr./år")
-)
-= personskat_felt_pbl20_udbetalingsstatus = Beregningsfelt(
-    path = "lønmodtager.pension.pbl20_udbetaling_status",
-    label = "Behandling af pensionsudbetalingen efter § 9 L",
-    question = Some("Var der ingen PBL § 20-udbetaling, en modregningspligtig udbetaling eller en udbetaling omfattet af en undtagelse?"),
-    help = Some("Undtagelserne omfatter blandt andet visse invalide-, ægtefælle-, samlever-, efterladte- og børnepensioner."),
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger",
+    label = "Øvrige pensionsudbetalinger efter PBL § 20",
+    question = Some("Hvilke øvrige pensionsudbetalinger skal behandles efter PBL § 20?"),
+    help = Some("Oplys hver udbetaling som kildefakta. Sportspensionsrater efter § 15 B oplyses særskilt og må ikke gentages her."),
     unit = None
+)
+= personskat_felt_pbl20_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.identifikation",
+    label = "Pensionsudbetalingens identifikation",
+    question = Some("Hvilken entydig identifikation har pensionsudbetalingen?"),
+    help = Some("Identifikationen gør den enkelte udbetalings lovbehandling og auditspor entydigt."),
+    unit = None
+)
+= personskat_felt_pbl20_indkomstår = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.indkomstår",
+    label = "Indkomstår for pensionsudbetalingen",
+    question = Some("I hvilket indkomstår blev pensionsudbetalingen modtaget?"),
+    help = Some("Futuruna bruger både årets og det foregående års udbetalinger ved personskatten og det ekstra pensionsfradrag."),
+    unit = Some("år")
+)
+= personskat_felt_pbl20_ordning = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.ordning",
+    label = "Pensionsordningens art efter PBL § 20",
+    question = Some("Hvilken lovbestemt pensionsordningstype stammer udbetalingen fra?"),
+    help = Some("Ordningstypen bestemmer blandt andet, hvilke modtagere og skattefritagelser der kan være omfattet."),
+    unit = None
+)
+= personskat_felt_pbl20_udbetalingsret = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.udbetalingsret.$variant",
+    label = "Retten til pensionsudbetalingen",
+    question = Some("På hvilket grundlag modtages pensionsudbetalingen?"),
+    help = Some("Oplys om beløbet udbetales til ejeren efter vilkårene, til en begunstiget, efter skifte eller på et andet dokumenteret grundlag."),
+    unit = None
+)
+= personskat_felt_pbl20_ligningslov9l_art = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.ligningslov9l_art",
+    label = "Udbetalingens art efter ligningslovens § 9 L",
+    question = Some("Er udbetalingen ordinær eller en af de særligt undtagne pensionsydelser?"),
+    help = Some("Futuruna udleder modregningen i det ekstra pensionsfradrag fra udbetalingens faktiske art; der angives ikke længere en juridisk statuskonklusion."),
+    unit = None
+)
+= personskat_felt_pbl20_bruttoudbetaling = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.bruttoudbetaling_kroner",
+    label = "Pensionsudbetaling før fritagelser",
+    question = Some("Hvor stor var den samlede pensionsudbetaling før skattefritagne dele?"),
+    help = Some("Futuruna fratrækker kun de dokumenterede dele, som er fritaget efter PBL § 20, stk. 3 eller 4."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl20_før_1955_56 = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.del_fra_indbetalinger_før_1955_56_kroner",
+    label = "Del fra indbetalinger før 1955/56",
+    question = Some("Hvor stor en del af rateforsikringsudbetalingen stammer fra indbetalinger før de historiske skæringsdatoer i § 20, stk. 3?"),
+    help = Some("Feltet kan kun anvendes for en rateforsikring og holdes uden for den skattepligtige indkomst."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl20_uden_fradragsret = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.dokumenteret_uden_fradrags_eller_bortseelsesret_kroner",
+    label = "Dokumenteret del uden fradrags- eller bortseelsesret",
+    question = Some("Hvor stor en del kan dokumenteres at hidrøre fra indbetalinger uden fradrags- eller bortseelsesret i Danmark eller udlandet?"),
+    help = Some("Den dokumenterede del medregnes ikke til den skattepligtige indkomst efter § 20, stk. 4."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl20_eu_eøs_erklæring = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.eu_eøs_erklæring",
+    label = "Erklæring til et andet EU/EØS-land",
+    question = Some("Er der afgivet en erklæring til skattemyndighederne i et andet EU/EØS-land svarende til PBL § 15 C?"),
+    help = Some("Erklæringen kan åbne for lempelse efter ligningslovens § 33; Futuruna sporer det mulige lempelsesbeløb særskilt."),
+    unit = None
+)
+= personskat_felt_pbl20_udenlandsk_skat = Beregningsfelt(
+    path = "lønmodtager.pension.øvrige_pbl20_årsgrundlag.udbetalinger.udenlandsk_indkomstskat_kroner",
+    label = "Udenlandsk indkomstskat af pensionsudbetalingen",
+    question = Some("Hvor meget indkomstskat er betalt til det andet EU/EØS-land som følge af erklæringen?"),
+    help = Some("Beløbet er kildefakta til en mulig § 33-lempelse og er ikke i sig selv en endeligt beregnet dansk kredit."),
+    unit = Some("kr.")
 )
 
 = personskat_meta_pensionsalder = Beregningsmeta(
     felter = [
-        personskat_felt_pensionsalder,
-        personskat_felt_pbl20_udbetaling,
-        personskat_felt_pbl20_udbetalingsstatus
+        personskat_felt_pensionsalder
     ],
     spørgsmål = [],
     beløbsfelter = [],
@@ -4284,6 +4482,28 @@
     )
 )
 --@label:beregn_personskat::meta:personskat_meta_pensionsalder--
+= personskat_meta_pbl20_udbetalinger = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl20_udbetaling,
+        personskat_felt_pbl20_identifikation,
+        personskat_felt_pbl20_indkomstår,
+        personskat_felt_pbl20_ordning,
+        personskat_felt_pbl20_udbetalingsret,
+        personskat_felt_pbl20_ligningslov9l_art,
+        personskat_felt_pbl20_bruttoudbetaling,
+        personskat_felt_pbl20_før_1955_56,
+        personskat_felt_pbl20_uden_fradragsret,
+        personskat_felt_pbl20_eu_eøs_erklæring,
+        personskat_felt_pbl20_udenlandsk_skat
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par20),
+        MetaAttachment(role = DependencySource, value = ligningsloven_lbk1500_par9l),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl20_udbetalinger--
 = personskat_meta_aktiepensionsfradrag_valg = Beregningsmeta(
     felter = [
         personskat_felt_aktiepensionsfradrag_valg,
@@ -4603,10 +4823,18 @@
         personskat_felt_pbl15b_ordning_identifikation,
         personskat_felt_pbl15b_ordning_oprettelsesår,
         personskat_felt_pbl15b_ordning_art,
-        personskat_felt_pbl15b_ordning_alder,
+        personskat_felt_pbl15b_ordning_fødselsår,
         personskat_felt_pbl15b_ordning_påtegning,
-        personskat_felt_pbl15b_udbetalingsstatus,
-        personskat_felt_pbl15b_sidste_udbetalingsår
+        personskat_felt_pbl15b_udbetalingsplan,
+        personskat_felt_pbl15b_rateforsikringsplan_startår,
+        personskat_felt_pbl15b_rateforsikringsplan_rateår,
+        personskat_felt_pbl15b_rateforsikringsplan_værdi,
+        personskat_felt_pbl15b_rateforsikringsplan_sum,
+        personskat_felt_pbl15b_rateopsparingsplan_startår,
+        personskat_felt_pbl15b_rateopsparingsplan_rateår,
+        personskat_felt_pbl15b_rateopsparingsplan_værdi,
+        personskat_felt_pbl15b_rateopsparingsplan_grundlag,
+        personskat_felt_pbl15b_rateopsparingsplan_metode
     ],
     spørgsmål = [],
     beløbsfelter = [],
@@ -4634,6 +4862,31 @@
     )
 )
 --@label:beregn_personskat::meta:personskat_meta_pbl15b_historik--
+= personskat_meta_pbl15b_rateudbetalinger = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15b_rateudbetalinger,
+        personskat_felt_pbl15b_rate_identifikation,
+        personskat_felt_pbl15b_rate_ordning,
+        personskat_felt_pbl15b_rate_år,
+        personskat_felt_pbl15b_rate_beløb,
+        personskat_felt_pbl15b_rate_beregning,
+        personskat_felt_pbl15b_rate_primo_værdi,
+        personskat_felt_pbl15b_annuitet_primo_værdi,
+        personskat_felt_pbl15b_annuitet_amortisationsrente,
+        personskat_felt_pbl15b_annuitet_obligationsafkast,
+        personskat_felt_pbl15b_annuitet_pal_sats
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par20),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par29_par36),
+        MetaAttachment(role = Guidance, value = skatteforvaltningen_pbl15b_udbetalinger),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15b_rateudbetalinger--
 = personskat_meta_pbl18_pbl54_personkreds = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_pbl54_personkreds,
@@ -6410,17 +6663,39 @@
         tidligere_indbetalinger = []
     ),
     pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
-    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst,
-    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
-    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+    øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
 )
 
-# PersonskatPensionsSag(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) {
+| personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lIngenPbl20Udbetaling
+| exception personskat_har_undtaget_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lUndtagetPbl20Udbetaling under skattepligtig_udbetaling_kroner > 0 && modregningspligtig_udbetaling_kroner == 0
+| exception personskat_har_modregningspligtig_pbl20_udbetaling personskat_pbl20_udbetalingsstatus(skattepligtig_udbetaling_kroner: Heltal, modregningspligtig_udbetaling_kroner: Heltal) -> Ll9lModregningspligtigPbl20Udbetaling under modregningspligtig_udbetaling_kroner > 0
+
+| personskat_pensionsudbetalingsresultat(skatteår: Heltal, pension: PersonskatPensionsInput) -> {
+    = aktuelle_pbl20_resultat = pbl20_årsresultat(skatteår, pension.øvrige_pbl20_årsgrundlag)
+    = foregående_pbl20_resultat = pbl20_årsresultat(skatteår - 1, pension.øvrige_pbl20_årsgrundlag)
+    = aktuelle_pbl15b_resultat = pbl15b_udbetalingsårsresultat(skatteår, pension.pbl15b_årsgrundlag)
+    = foregående_pbl15b_resultat = pbl15b_udbetalingsårsresultat(skatteår - 1, pension.pbl15b_årsgrundlag)
+    PersonskatPensionsudbetalingsresultat(
+        aktuelle_pbl20_resultat = aktuelle_pbl20_resultat,
+        foregående_pbl20_resultat = foregående_pbl20_resultat,
+        aktuelle_pbl15b_resultat = aktuelle_pbl15b_resultat,
+        foregående_pbl15b_resultat = foregående_pbl15b_resultat,
+        aktuelle_input_gyldige = aktuelle_pbl20_resultat.input_gyldigt && aktuelle_pbl15b_resultat.input_gyldigt,
+        foregående_input_gyldige = foregående_pbl20_resultat.input_gyldigt && foregående_pbl15b_resultat.input_gyldigt,
+        samlet_personlig_indkomst_i_året_kroner = aktuelle_pbl20_resultat.samlet_personlig_indkomst_kroner + aktuelle_pbl15b_resultat.samlet_personlig_indkomst_efter_par20_kroner,
+        samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner = foregående_pbl20_resultat.samlet_skattepligtig_indkomst_kroner + foregående_pbl15b_resultat.samlet_skattepligtig_indkomst_efter_par20_kroner,
+        samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner = foregående_pbl20_resultat.samlet_modregningspligtig_efter_ligningslov9l_kroner + foregående_pbl15b_resultat.samlet_modregningspligtig_efter_ligningslov9l_kroner,
+        samlet_pbl29_afgift_i_året_kroner = aktuelle_pbl15b_resultat.samlet_afgift_efter_par29_kroner
+    )
+}
+
+# PersonskatPensionsSag(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
     | lønmodtager_før_pensionsfradrag() -> LønmodtagerInput(
         skatteår = input.lønmodtager.skatteår,
         kommune = input.lønmodtager.kommune,
         bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
-        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
@@ -6464,19 +6739,30 @@
         pbl18_fradragsberettiget_indbetaling_kroner = årsresultat().samlet_fradrag_i_skattepligtig_indkomst_kroner,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = arbejdsgiver_rate_og_ophørende_efter_am_kroner(),
         pbl19_øvrige_indbetalinger_efter_am_kroner = arbejdsgiver_øvrige_efter_am_kroner(),
-        pbl20_indkomstskattepligtig_udbetaling_kroner = input.lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner,
-        pbl20_udbetaling_status = input.lønmodtager.pension.pbl20_udbetaling_status
+        pbl20_indkomstskattepligtig_udbetaling_kroner = udbetalingsresultat.samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner,
+        pbl20_udbetaling_status = personskat_pbl20_udbetalingsstatus(
+            udbetalingsresultat.samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner,
+            udbetalingsresultat.samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner
+        )
     )
     | resultat() -> PersonskatPensionsResultat(
         pbl18_årsinput = årsinput(),
         pbl18_årsresultat = årsresultat(),
+        udbetalingsresultat = udbetalingsresultat,
         aktiepensionsfradrag_resultat = aktiepensionsfradrag_resultat(),
         par3_stk2_nr3_resultat = par3_resultat(),
         lønmodtager_pensionsfradrag = lønmodtager_pensionsfradrag()
     )
 }
 
-| personskat_pensions_resultat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> PersonskatPensionsSag(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance).resultat()
+| personskat_pensions_resultat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> PersonskatPensionsSag(
+    input,
+    erhvervsbefordring,
+    ligningsfradrag,
+    kapitalindkomst,
+    aktieavance,
+    personskat_pensionsudbetalingsresultat(input.lønmodtager.skatteår, input.lønmodtager.pension)
+).resultat()
 
 # PersonskatAktieavanceEfterPensionSag(aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) {
     | aktieindkomst_resultat() -> Par4aAktieindkomstResultat(
@@ -6506,7 +6792,7 @@
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner,
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner,
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,
@@ -6520,13 +6806,13 @@
     personskat_underskudsforhold(input.underskudsforhold)
 )
 | personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension))
-| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown) -> match input {
+| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
-    | MedÅrsopgørelse(overført_restskat_mv_kroner, pensionsbeskatningsafgift_kroner, kreditter) -> {
+    | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter) -> {
         = årsopgørelsesinput = KildeskatSlutopgørelseInput(
             slutskat_kroner = skat.samlet_inkl_am_efter_personfradrag_kroner,
             overført_restskat_mv_kroner = overført_restskat_mv_kroner,
-            pensionsbeskatningsafgift_kroner = pensionsbeskatningsafgift_kroner,
+            pensionsbeskatningsafgift_kroner = øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner,
             kreditter = kreditter
         )
         BeregnetÅrsopgørelse(
@@ -6550,7 +6836,7 @@
         ligningsfradrag = ligningsfradrag,
         kapitalindkomst = kapitalindkomst,
         aktieavance = aktieavance,
-        årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, skat)
+        årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, skat, pension)
     )
 }
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
