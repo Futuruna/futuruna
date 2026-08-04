@@ -10,8 +10,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::io::{self, BufRead, Read, Write as IoWrite};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const FEATURE_STAGE_METADATA_JSON: &str = include_str!("../../docs/feature-stages.json");
+static TEMP_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_workspace(prefix: &str) -> PathBuf {
+    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{prefix}-{}-{sequence}", std::process::id()))
+}
 
 fn feature_stage_metadata_json() -> &'static str {
     FEATURE_STAGE_METADATA_JSON
@@ -7067,8 +7074,10 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
     );
 
     let suite_start = Instant::now();
-    let tmp_rs = std::env::temp_dir().join("__runa_codegen_check.rs");
-    let tmp_out = std::env::temp_dir().join("__runa_codegen_check_out");
+    let temp_workspace = unique_temp_workspace("runa-codegen-check");
+    let _ = std::fs::create_dir_all(&temp_workspace);
+    let tmp_rs = temp_workspace.join("check.rs");
+    let tmp_out = temp_workspace.join("check-out");
 
     for entry in &entries {
         let file_path = entry.path();
@@ -7192,8 +7201,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
     }
 
     // Cleanup
-    let _ = std::fs::remove_file(&tmp_rs);
-    let _ = std::fs::remove_file(&tmp_out);
+    let _ = std::fs::remove_dir_all(&temp_workspace);
 
     let suite_elapsed = suite_start.elapsed();
     let suite_time = if suite_elapsed.as_secs_f64() >= 1.0 {
@@ -11122,12 +11130,12 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
 
             if cg.cargo_deps.is_empty() {
                 // No deps — type-check with rustc directly
-                let cache_dir = std::env::temp_dir().join("runa-cache");
-                std::fs::create_dir_all(&cache_dir).ok();
-                let rs_path = cache_dir.join("__check.rs");
+                let check_workspace = unique_temp_workspace("runa-check");
+                std::fs::create_dir_all(&check_workspace).ok();
+                let rs_path = check_workspace.join("check.rs");
                 std::fs::write(&rs_path, &code).ok();
                 let rustc_bin = find_rust_tool("rustc");
-                let meta_out = cache_dir.join("__check_out");
+                let meta_out = check_workspace.join("check-out");
                 let output = Command::new(&rustc_bin)
                     .args(&[
                         &*rs_path.to_string_lossy(),
@@ -11140,6 +11148,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                         &*meta_out.to_string_lossy(),
                     ])
                     .output();
+                let _ = std::fs::remove_dir_all(&check_workspace);
                 let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
@@ -25911,7 +25920,8 @@ impl RustCodegen {
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
         let mut sig_params = vec!["&self".to_string()];
         sig_params.extend(params.iter().zip(param_tys.iter()).map(|(param, ty)| {
-            let rust_ty = Self::fir_type_to_rust(ty).unwrap_or_else(|| "i64".to_string());
+            let rust_ty =
+                Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "i64".to_string());
             format!("{}: {}", sanitize_name(param), rust_ty)
         }));
 
@@ -46876,6 +46886,27 @@ for x in [1, 2] {
             "projection from delegated RuleScope member must not be lowered as a boolean predicate: {}",
             rust
         );
+    }
+
+    #[test]
+    fn legacy_emit_rulescope_preserves_higher_order_rule_parameter() {
+        let source = r#"
+# ProjectionCase(value: Int) {
+    | projected(projector: Int -> Int) -> projector(value)
+}
+
+= projected = ProjectionCase(21).projected(|value: Int| value * 2)
+@ print(show(projected))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn projected(&self, projector: impl Fn(i64) -> i64 + Clone) -> i64"),
+            "RuleScope higher-order parameter should retain its callable type: {}",
+            rust
+        );
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "42");
     }
 
     #[test]

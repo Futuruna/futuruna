@@ -22,6 +22,10 @@
     > label() -> String { "receipt:" + show(amount) }
 }
 
+# ProjectionCase(value: Int) {
+    | projected(projector: Int -> Int) -> projector(value)
+}
+
 | personal_allowance() -> 999
 
 # TaxCase(person: Person, rates: TaxRates) {
@@ -61,6 +65,7 @@
 = bound_rule_returned_due = adult_from_rule.tax_due()
 = receipt = Receipt(7)
 = filing_label = FilingLabel("case", Paper("manual"))
+= projected = ProjectionCase(21).projected(|value: Int| value * 2)
 
 | child_allowance_ok: child.personal_allowance() -> child.personal_allowance() == 300
 | adult_allowance_ok: adult.personal_allowance() -> adult.personal_allowance() == 100
@@ -84,6 +89,7 @@
 | method_field_projection_ok: adult.method_field_projection() -> adult.method_field_projection() == 1000
 | method_only_product_ok: receipt.double() -> receipt.double() == 14
 | method_only_product_label_ok: receipt.label() -> receipt.label() == "receipt:7"
+| scoped_higher_order_param_ok: projected -> projected == 42
 
 ? child_allowance_ok
 ? adult_allowance_ok
@@ -107,3 +113,4 @@
 ? method_field_projection_ok
 ? method_only_product_ok
 ? method_only_product_label_ok
+? scoped_higher_order_param_ok
