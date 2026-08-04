@@ -1021,6 +1021,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human PBL § 53 A election label {expected} on {pbl53a_elections_sheet}"
             );
         }
+        let pbl53a_legacy_forms_path =
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser";
+        let pbl53a_legacy_forms_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_legacy_forms_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_legacy_forms_sheet),
+            "Dansk personskat - Historiske indsendelser af blanket 49.020"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_legacy_forms_sheet),
+            [
+                "indsendelsesdato.år",
+                "indsendelsesdato.måned",
+                "indsendelsesdato.dag",
+                "modtagelsesdato.år",
+                "modtagelsesdato.måned",
+                "modtagelsesdato.dag",
+                "udgave",
+                "modtager",
+                "påberåbelse",
+                "ønsket_virkning",
+            ]
+        );
+        for expected in [
+            "Indsendelsesdato for historisk blanket 49.020 - år",
+            "Modtagelsesdato for historisk blanket 49.020 - år",
+            "Udgave af blanket 49.020",
+            "Modtager af blanket 49.020",
+            "Skatteyderens påberåbelse af den historiske blanket",
+            "Ønsket virkning af den historiske blanket",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &pbl53a_legacy_forms_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human historical PBL § 53 A form label {expected} on {pbl53a_legacy_forms_sheet}"
+            );
+        }
         let pbl53a_opening_losses_path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast";
         let pbl53a_opening_losses_sheet =
             workbook_collection_sheet_name(&mut workbook, pbl53a_opening_losses_path);
@@ -2311,8 +2349,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skat_juridisk_vejledning_pbl53a_udbetalinger",
             "skat_juridisk_vejledning_pbl53a_afkast",
             "skat_juridisk_vejledning_pbl53a_overgang",
+            "skat_juridisk_vejledning_pbl53a_overgangsvalg",
             "skat_juridisk_vejledning_pbl53a_ordningstyper",
             "skat_juridisk_vejledning_pbl53b_omfang",
+            "skat_skm2025_658_lsr_pbl53a_blanketvalg",
             "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
         ] {
             assert!(
@@ -2922,6 +2962,46 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_elections_sheet, 1, header, value);
+        }
+        let pbl53a_legacy_forms_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("parent_id", Data::String("livsforsikring-pal".to_string())),
+            (
+                "item_id",
+                Data::String("livsforsikring-pal-blanket49020-1".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            ("indsendelsesdato.år", Data::Int(2024)),
+            ("indsendelsesdato.måned", Data::Int(4)),
+            ("indsendelsesdato.dag", Data::Int(2)),
+            ("modtagelsesdato.år", Data::Int(2024)),
+            ("modtagelsesdato.måned", Data::Int(4)),
+            ("modtagelsesdato.dag", Data::Int(2)),
+            (
+                "udgave",
+                Data::String("Pbl53ANyBlanket49020MedValgfelt".to_string()),
+            ),
+            (
+                "modtager",
+                Data::String("Pbl53AValgMeddeltSkattestyrelsen".to_string()),
+            ),
+            (
+                "påberåbelse",
+                Data::String("Pbl53AValgEfterPar53AEllerPar53BPåberåbt".to_string()),
+            ),
+            (
+                "ønsket_virkning",
+                Data::String("Pbl53AValgVirkningFraModtagelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_legacy_forms_sheet, 1, header, value);
         }
         let pbl53a_coverages_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -5714,6 +5794,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "ønsket_virkning": { "$variant": "Pbl53AValgVirkningFraModtagelse" }
                         }
                     ],
+                    "historiske_blanket49020_indsendelser": [
+                        {
+                            "indsendelsesdato": { "år": 2024, "måned": 4, "dag": 2 },
+                            "modtagelsesdato": { "år": 2024, "måned": 4, "dag": 2 },
+                            "udgave": { "$variant": "Pbl53ANyBlanket49020MedValgfelt" },
+                            "modtager": { "$variant": "Pbl53AValgMeddeltSkattestyrelsen" },
+                            "påberåbelse": { "$variant": "Pbl53AValgEfterPar53AEllerPar53BPåberåbt" },
+                            "ønsket_virkning": { "$variant": "Pbl53AValgVirkningFraModtagelse" }
+                        }
+                    ],
                     "produkt": {
                         "$variant": "Pbl53ALivsforsikringsprodukt",
                         "ejer_identifikation": "person-1",
@@ -5818,6 +5908,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
                     },
                     "overgangsvalg": [],
+                    "historiske_blanket49020_indsendelser": [],
                     "produkt": {
                         "$variant": "Pbl53APensionskasseprodukt",
                         "pensionsberettiget_identifikation": "person-1",
@@ -5898,6 +5989,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
                     },
                     "overgangsvalg": [],
+                    "historiske_blanket49020_indsendelser": [],
                     "produkt": {
                         "$variant": "Pbl53APengeEllerKreditinstitutprodukt",
                         "kontohaver_identifikation": "person-1",
@@ -5968,7 +6060,49 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
-        .push(pbl53a_case);
+        .push(pbl53a_case.clone());
+    let mut historical_form_case = pbl53a_case.clone();
+    historical_form_case["case_id"] =
+        Value::String("personskat-pbl53a-historisk-blanket-2026".into());
+    let mut historical_form_order =
+        historical_form_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"][0].clone();
+    historical_form_order["identifikation"] =
+        Value::String("livsforsikring-historisk-blanket".into());
+    historical_form_order["omfangsfakta"]["oprindelig_rettighedshaver_identifikation"] =
+        Value::String("person-1".into());
+    historical_form_order["omfangsfakta"]["erhvervelser"] = serde_json::json!([]);
+    historical_form_order["omfangsfakta"]["overgangsvalgfristfakta"] = serde_json::json!({
+        "$variant": "Pbl53ASenereIndtrådtFuldSkattepligt",
+        "indtrædelsesdato": { "år": 2020, "måned": 7, "dag": 1 },
+        "oplysningsfrist": { "år": 2021, "måned": 7, "dag": 1 }
+    });
+    historical_form_order["omfangsfakta"]["overgangsvalg"] = serde_json::json!([]);
+    historical_form_order["omfangsfakta"]["historiske_blanket49020_indsendelser"] = serde_json::json!([
+        {
+            "indsendelsesdato": { "år": 2021, "måned": 4, "dag": 30 },
+            "modtagelsesdato": { "år": 2021, "måned": 4, "dag": 30 },
+            "udgave": { "$variant": "Pbl53ATidligereBlanket49020UdenValgfelt" },
+            "modtager": { "$variant": "Pbl53AValgMeddeltSkattestyrelsen" },
+            "påberåbelse": { "$variant": "Pbl53AValgEfterPar53AEllerPar53BPåberåbt" },
+            "ønsket_virkning": { "$variant": "Pbl53AValgVirkningFraModtagelse" }
+        }
+    ]);
+    historical_form_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"] =
+        serde_json::json!([historical_form_order]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(historical_form_case.clone());
+    let mut rejected_historical_form_case = historical_form_case;
+    rejected_historical_form_case["case_id"] =
+        Value::String("personskat-pbl53a-ny-blanket-uden-maal-2026".into());
+    rejected_historical_form_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"][0]
+        ["omfangsfakta"]["historiske_blanket49020_indsendelser"][0]["udgave"] =
+        serde_json::json!({ "$variant": "Pbl53ANyBlanket49020MedValgfelt" });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(rejected_historical_form_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -6221,6 +6355,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "Pbl53AValgAfPar53A"
     );
     assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]
+            ["historiske_blanket49020_indsendelser"]
+            .as_array()
+            .expect("historical PBL § 53 A form submissions")
+            .len(),
+        1
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["valgresultat"]["historiske_blanketresultater"][0]["tidligere_udgave_uden_valgfelt"],
+        false
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["valgresultat"]["historiske_blanketresultater"][0]["indsendelse_opfylder_betingelser"],
+        false
+    );
+    assert_eq!(
         pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
             ["valgresultat"]["valg_gyldigt"],
         true
@@ -6282,6 +6434,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][9]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
         52_800
+    );
+    let accepted_historical_form_result =
+        &json_result["results"][9]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(accepted_historical_form_result["alle_input_gyldige"], true);
+    assert_eq!(
+        accepted_historical_form_result["ordningsresultater"][0]["$variant"],
+        "BeregnetPbl53AOrdning"
+    );
+    assert_eq!(
+        accepted_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["valgresultat"]["meddelelsesresultater"]
+            .as_array()
+            .expect("modern election results for historical-form case")
+            .len(),
+        0
+    );
+    assert_eq!(
+        accepted_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["valgresultat"]["historiske_blanketresultater"][0]
+            ["afledt_regime"]["$variant"],
+        "Pbl53AOvergangsvalgTilPar53A"
+    );
+    assert_eq!(
+        accepted_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["valgresultat"]["historiske_blanketresultater"][0]
+            ["indsendelse_opfylder_betingelser"],
+        true
+    );
+    assert_eq!(
+        accepted_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["moderne_virkningsstart"]["dato"],
+        serde_json::json!({ "år": 2021, "måned": 4, "dag": 30 })
+    );
+    let rejected_historical_form_result =
+        &json_result["results"][10]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(rejected_historical_form_result["alle_input_gyldige"], false);
+    assert_eq!(
+        rejected_historical_form_result["ordningsresultater"][0]["$variant"],
+        "UgyldigtPbl53AGrundlag"
+    );
+    assert_eq!(
+        rejected_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["valgresultat"]["historiske_blanketresultater"][0]
+            ["tidligere_udgave_uden_valgfelt"],
+        false
+    );
+    assert_eq!(
+        rejected_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["valgresultat"]["valg_gyldigt"],
+        false
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

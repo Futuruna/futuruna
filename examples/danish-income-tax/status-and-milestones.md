@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-14667b` (in review; implementation and verification complete)
-Next source-backed slices: `td-e16a8d` and `td-f2ca68`
+Current implementation slice: `td-e16a8d` (in review; implementation and verification complete)
+Next source-backed slices: `td-f2ca68` and `td-9c9d16`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-606798`
@@ -182,19 +182,26 @@ senere arv. De kontrollerer modtager, beslutnings- og modtagelsesdato, om det
 valgte regelsæt i øvrigt er anvendeligt og om tidligere ejere af en arvet
 livsforsikring allerede havde dansk skattepligt eller valgt afsnit II A. Det
 første gyldige valg forbliver bindende; et senere modstridende forsøg kan ses i
-resultatet, men ændrer ikke regimet. Fjorten fokuserede invarianter passerer i både
-interpreter og compiler.
+resultatet, men ændrer ikke regimet.
 
-Den ældre blanket 49.020 uden et særskilt mål-felt er ikke presset ind i den
-eksplicitte måltype. SKM2025.658.LSR's særlige virkning for sådanne historiske
-blanketter kræver yderligere kildefakta om blanketversion og senere påberåbelse
-og er registreret som `td-e16a8d`.
+Den tidligere blanket 49.020 uden afkrydsningsfelt er modelleret som en særskilt
+indsendelsestype med blanketudgave, indsendelses- og modtagelsesdato, modtager,
+skatteyderens dokumenterede påberåbelse og ønsket virkning. Den har intet
+målinput. Reglerne afleder i stedet § 53 A eller § 53 B fra ordningens øvrige
+produkt-, oprettelses- og indbetalingsfakta efter SKM2025.658.LSR og Den
+juridiske vejledning 2026-1, C.A.10.4.2.5. En påberåbelse af, at der ikke blev
+truffet noget valg, respekteres, og den nye blanket med afkrydsningsfelt kan
+ikke bruges gennem det historiske spor. Moderne meddelelser beholder deres
+eksplicitte mål. De to spor samles først som daterede valgposter, så det første
+gyldige valg fortsat er bindende på tværs af sporene. I alt nitten fokuserede
+invarianter passerer i både interpreter og compiler.
 
-Beregningskontrakten har 212 danske § 53 A-feltbeskrivelser med PBL §§ 20,
-53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har tolv
+Beregningskontrakten har 223 danske § 53 A-feltbeskrivelser med PBL §§ 20,
+53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har tretten
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
 grænsehændelser, berettigedes indeståender, indbetalings- eller
-udbetalingshændelser, senere erhvervelser, overgangsvalg,
+udbetalingshændelser, senere erhvervelser, overgangsvalg og historiske
+blanketindsendelser,
 livsforsikringsdækninger, daterede
 negative afkast ved forløbets åbning og tre slags berettigede efter
 direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
@@ -549,7 +556,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 896 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 907 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -611,7 +618,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 896 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 907 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -3077,17 +3084,23 @@ Review candidates to revisit deliberately, not as broad churn:
   kvalificerende arv og afviser ugyldige erhvervelsesforløb. Fjorten yderligere
   invarianter dækker bindende valg af § 53 A eller § 53 B, ikrafttrædelsen den
   22. december 2004, den ordinære 2006-frist, særvirkningen fra 1. januar 2004, senere fuld skattepligt, første
-  valgmulighed ved arv, modtager og modstridende valg. Otte nye invarianter
+  valgmulighed ved arv, modtager og modstridende valg. Fem yderligere
+  invarianter dækker den tidligere blanket 49.020 uden målinput, afleder både
+  § 53 A og § 53 B fra ordningens øvrige fakta, respekterer en påberåbelse af
+  intet valg og afviser både manglende påberåbelse og den nye blanket i det
+  historiske spor. Otte nye invarianter
   dækker erhvervelse 1. januar og midt i året, tre på hinanden følgende
   rettighedshavere, halvåbne perioder, dubletter, brudte kæder og en fuld
   beregning, hvor DKK 130.000 i erhvervelsesværdi og betalinger efter
   erhvervelsen giver DKK 29.000 i skattepligtigt afkast. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 896 felter i alt, heraf 212 § 53 A-feltmetadata-poster, og tolv
+  har 907 felter i alt, heraf 223 § 53 A-feltmetadata-poster, og tretten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
-  erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg og fem
-  årsoptegnelser.
+  erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
+  afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
+  JSON-grænse dækker desuden en accepteret tidligere blanket, hvor § 53 A
+  afledes uden et målinput.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3225,7 +3238,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 896 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 907 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3386,9 +3399,7 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Efter uafhængig review af `td-8ddbca` skal `td-e16a8d` modellere den ældre
-  blanket 49.020 uden et særskilt § 53 A-/§ 53 B-målfelt. `td-f2ca68` skal
-  derefter kildeafklare og
+- Efter uafhængig review af `td-e16a8d` skal `td-f2ca68` kildeafklare og
   modellere, hvornår materielle kontraktændringer skaber en ny ordning efter
   § 53 A. `td-9c9d16` skal kildeafklare den tidligere ejers afkast i
   overdragelsesåret og erstatte den nuværende ultimo-antagelse med daterede

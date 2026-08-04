@@ -26,6 +26,7 @@
         Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
         Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
         Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+        Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )

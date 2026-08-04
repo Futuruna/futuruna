@@ -9,6 +9,7 @@
     erhvervelser = erhvervelser,
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
     produkt = produkt,
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,

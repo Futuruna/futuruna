@@ -10,17 +10,26 @@
     ønsket_virkning = ønsket_virkning
 )
 
-| pbl53a_overgangsvalg_fakta(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse)) -> Pbl53AOmfangsfakta(
+| pbl53a_overgangsvalg_fakta_med_historiske_blanketter(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), historiske_blanket49020_indsendelser: List(Pbl53AHistoriskBlanket49020Indsendelse)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
     oprindelig_rettighedshaver_identifikation = "person-1",
     kapitalværdi_ved_oprettelsen_kroner = 100000,
     erhvervelser = erhvervelser,
     overgangsvalgfristfakta = overgangsvalgfristfakta,
     overgangsvalg = overgangsvalg,
+    historiske_blanket49020_indsendelser = historiske_blanket49020_indsendelser,
     produkt = produkt,
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,
     par53b_oprettelsesposition = par53b_oprettelsesposition
+)
+| pbl53a_overgangsvalg_fakta(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse)) -> pbl53a_overgangsvalg_fakta_med_historiske_blanketter(
+    produkt = produkt,
+    par53b_oprettelsesposition = par53b_oprettelsesposition,
+    erhvervelser = erhvervelser,
+    overgangsvalgfristfakta = overgangsvalgfristfakta,
+    overgangsvalg = overgangsvalg,
+    historiske_blanket49020_indsendelser = []
 )
 
 | pbl53a_overgangsvalg_resultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> pbl53a_omfangsresultat(
@@ -296,6 +305,68 @@
     hændelser = []
 )
 
+| pbl53a_historisk_blanket49020_indsendelse(udgave: Pbl53ABlanket49020Udgave, påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> Pbl53AHistoriskBlanket49020Indsendelse(
+    indsendelsesdato = Pbl15ADato(år = 2021, måned = 4, dag = 30),
+    modtagelsesdato = Pbl15ADato(år = 2021, måned = 4, dag = 30),
+    udgave = udgave,
+    modtager = Pbl53AValgMeddeltSkattestyrelsen,
+    påberåbelse = påberåbelse,
+    ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+)
+| pbl53a_historisk_blanket49020_scenarieresultat(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, hændelser: List(Pbl53AHændelse), udgave: Pbl53ABlanket49020Udgave, påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta_med_historiske_blanketter(
+        produkt = produkt,
+        par53b_oprettelsesposition = par53b_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53ASenereIndtrådtFuldSkattepligt(
+            indtrædelsesdato = Pbl15ADato(år = 2020, måned = 7, dag = 1),
+            oplysningsfrist = Pbl15ADato(år = 2021, måned = 7, dag = 1)
+        ),
+        overgangsvalg = [],
+        historiske_blanket49020_indsendelser = [pbl53a_historisk_blanket49020_indsendelse(
+            udgave = udgave,
+            påberåbelse = påberåbelse
+        )]
+    ),
+    hændelser = hændelser
+)
+
+= pbl53a_historisk_blanket_afleder_par53a_resultat = pbl53a_historisk_blanket49020_scenarieresultat(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    hændelser = [],
+    udgave = Pbl53ATidligereBlanket49020UdenValgfelt,
+    påberåbelse = Pbl53AValgEfterPar53AEllerPar53BPåberåbt
+)
+= pbl53a_historisk_blanket_afleder_par53b_resultat = pbl53a_historisk_blanket49020_scenarieresultat(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_udenlandsk_oprettelsesposition,
+    hændelser = [pbl53a_overgangsvalg_udenlandsk_indbetaling],
+    udgave = Pbl53ATidligereBlanket49020UdenValgfelt,
+    påberåbelse = Pbl53AValgEfterPar53AEllerPar53BPåberåbt
+)
+= pbl53a_historisk_blanket_intet_valg_resultat = pbl53a_historisk_blanket49020_scenarieresultat(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    hændelser = [],
+    udgave = Pbl53ATidligereBlanket49020UdenValgfelt,
+    påberåbelse = Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt
+)
+= pbl53a_historisk_blanket_uden_påberåbelse_resultat = pbl53a_historisk_blanket49020_scenarieresultat(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    hændelser = [],
+    udgave = Pbl53ATidligereBlanket49020UdenValgfelt,
+    påberåbelse = Pbl53AIngenDokumenteretPåberåbelse
+)
+= pbl53a_ny_blanket_uden_eksplicit_mål_resultat = pbl53a_historisk_blanket49020_scenarieresultat(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    hændelser = [],
+    udgave = Pbl53ANyBlanket49020MedValgfelt,
+    påberåbelse = Pbl53AValgEfterPar53AEllerPar53BPåberåbt
+)
+
 | pbl53a_overgangsvalg_rettidigt_aktiverer_par53a: pbl53a_overgangsvalg_rettidigt_resultat -> pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valg_bindende && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valgt_regime == Pbl53AOvergangsvalgTilPar53A && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2005, måned = 6, dag = 10)) && pbl53a_overgangsvalg_rettidigt_resultat.omfattes_af_par53a
 
 | pbl53a_overgangsvalg_tilbagevirkende_fra_2004: pbl53a_overgangsvalg_tilbagevirkende_resultat -> pbl53a_overgangsvalg_tilbagevirkende_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_tilbagevirkende_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2004, måned = 1, dag = 1))
@@ -324,6 +395,16 @@
 
 | pbl53a_overgangsvalg_senere_skattepligt_afgrænses_ved_ikrafttrædelsen: pbl53a_overgangsvalg_dagen_før_ikrafttræden_fakta -> pbl53a_overgangsvalgfristfakta_gyldige(pbl53a_overgangsvalg_dagen_før_ikrafttræden_fakta) == Falskt && pbl53a_overgangsvalgfristfakta_gyldige(pbl53a_overgangsvalg_på_ikrafttrædelsesdagen_fakta)
 
+| pbl53a_historisk_blanket_afleder_par53a_uden_målinput: pbl53a_historisk_blanket_afleder_par53a_resultat -> pbl53a_historisk_blanket_afleder_par53a_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].mål_entydigt_afledt && pbl53a_historisk_blanket_afleder_par53a_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].afledt_regime == Pbl53AOvergangsvalgTilPar53A && pbl53a_historisk_blanket_afleder_par53a_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_historisk_blanket_afleder_par53a_resultat.omfattes_af_par53a
+
+| pbl53a_historisk_blanket_afleder_par53b_uden_målinput: pbl53a_historisk_blanket_afleder_par53b_resultat -> pbl53a_historisk_blanket_afleder_par53b_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].par53b_i_øvrigt_anvendelig && pbl53a_historisk_blanket_afleder_par53b_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].afledt_regime == Pbl53AOvergangsvalgTilPar53B && pbl53a_historisk_blanket_afleder_par53b_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_historisk_blanket_afleder_par53b_resultat.par53b_resultat.omfattes_af_par53b
+
+| pbl53a_historisk_blanket_respekterer_påberåbt_intet_valg: pbl53a_historisk_blanket_intet_valg_resultat -> pbl53a_historisk_blanket_intet_valg_resultat.overgangsresultat.valgresultat.fakta_gyldige && pbl53a_historisk_blanket_intet_valg_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].intet_valg_påberåbt && pbl53a_historisk_blanket_intet_valg_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_historisk_blanket_intet_valg_resultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_historisk_blanket_kræver_dokumenteret_påberåbelse: pbl53a_historisk_blanket_uden_påberåbelse_resultat -> pbl53a_historisk_blanket_uden_påberåbelse_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].valg_påberåbt == Falskt && pbl53a_historisk_blanket_uden_påberåbelse_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt
+
+| pbl53a_ny_blanket_kræver_eksplicit_mål: pbl53a_ny_blanket_uden_eksplicit_mål_resultat -> pbl53a_ny_blanket_uden_eksplicit_mål_resultat.overgangsresultat.valgresultat.historiske_blanketresultater[0].tidligere_udgave_uden_valgfelt == Falskt && pbl53a_ny_blanket_uden_eksplicit_mål_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt
+
 ? pbl53a_overgangsvalg_rettidigt_aktiverer_par53a
 ? pbl53a_overgangsvalg_tilbagevirkende_fra_2004
 ? pbl53a_overgangsvalg_efter_ordinær_frist_er_uden_virkning
@@ -338,3 +419,8 @@
 ? pbl53a_overgangsvalg_ukendt_modtager_er_uden_virkning
 ? pbl53a_overgangsvalg_lovens_ikrafttrædelsesdato_følger_bekendtgørelsen
 ? pbl53a_overgangsvalg_senere_skattepligt_afgrænses_ved_ikrafttrædelsen
+? pbl53a_historisk_blanket_afleder_par53a_uden_målinput
+? pbl53a_historisk_blanket_afleder_par53b_uden_målinput
+? pbl53a_historisk_blanket_respekterer_påberåbt_intet_valg
+? pbl53a_historisk_blanket_kræver_dokumenteret_påberåbelse
+? pbl53a_ny_blanket_kræver_eksplicit_mål

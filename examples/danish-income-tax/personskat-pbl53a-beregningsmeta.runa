@@ -112,6 +112,11 @@
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.mål", label = "Valgt pensionsbeskatningsregel", question = "Gjaldt meddelelsen behandling efter PBL § 53 A eller § 53 B?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.modtager", label = "Modtager af overgangsvalget", question = "Blev valget meddelt Skattestyrelsen, den indberettende pensionsudbyder eller en anden modtager?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.ønsket_virkning", label = "Ønsket virkning af overgangsvalget", question = "Skulle valget have virkning fra modtagelsen eller tilbagevirkende fra 1. januar 2004?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser", label = "Historiske indsendelser af blanket 49.020", question = "Blev den tidligere blanket 49.020 indsendt uden et særskilt felt til valg af PBL § 53 A eller § 53 B?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.udgave", label = "Udgave af blanket 49.020", question = "Var det den tidligere blanket uden valgfelt eller den nye blanket med et udtrykkeligt valgfelt?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.modtager", label = "Modtager af blanket 49.020", question = "Hvem modtog den indsendte blanket 49.020?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.påberåbelse", label = "Skatteyderens påberåbelse af den historiske blanket", question = "Påberåber skatteyderen, at blanketten udgjorde et valg, at den ikke udgjorde et valg, eller foreligger der ingen dokumenteret påberåbelse?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.ønsket_virkning", label = "Ønsket virkning af den historiske blanket", question = "Skulle valget have virkning fra modtagelsen eller tilbagevirkende fra 1. januar 2004?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.$variant", label = "Ordningens faktiske produkttype", question = "Hvilket forsikrings-, pensionskasse- eller pengeinstitutprodukt er der faktisk oprettet?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.ejer_identifikation", label = "Livsforsikringens ejer", question = "Hvem ejer livsforsikringen?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.forsikret_identifikation", label = "Personen forsikret ved livsforsikringen", question = "Hvem er forsikret ved livsforsikringen?", unit = None),
@@ -164,6 +169,8 @@
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.oplysningsfrist", label = "Oplysningsfrist efter senere arv", question = "Hvornår udløb oplysningsfristen for det år, hvor forsikringen blev arvet?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.beslutningsdato", label = "Beslutningsdato for overgangsvalget", question = "Hvornår blev beslutningen om overgangsvalget truffet?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.modtagelsesdato", label = "Modtagelsesdato for overgangsvalget", question = "Hvornår modtog Skattestyrelsen eller den indberettende pensionsudbyder valget?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.indsendelsesdato", label = "Indsendelsesdato for historisk blanket 49.020", question = "Hvornår blev den historiske blanket 49.020 indsendt?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.historiske_blanket49020_indsendelser.modtagelsesdato", label = "Modtagelsesdato for historisk blanket 49.020", question = "Hvornår modtog Skattestyrelsen den historiske blanket 49.020?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_fra", label = "Start på livsforsikringens § 15 D-godkendelse", question = "Hvornår begyndte livsforsikringens tidligere § 15 D-godkendelse?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_til", label = "Slut på livsforsikringens § 15 D-godkendelse", question = "Hvornår udløb livsforsikringens tidligere § 15 D-godkendelse?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato", label = "Livsforsikringens aftalte udløbsdato", question = "Hvornår udløber livsforsikringen efter aftalen?"),
@@ -781,6 +788,7 @@
         Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
         Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
         Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+        Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )

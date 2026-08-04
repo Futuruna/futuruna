@@ -154,6 +154,13 @@
     ændringsstatus = "Skatterådets praksis om første valgmulighed ved senere arv fra ejere, der ikke havde været skattepligtige til Danmark"
 )
 
+= skat_skm2025_658_lsr_pbl53a_blanketvalg = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2459924",
+    identifier = "SKM2025.658.LSR",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Landsskatterettens praksis om fristafbrydende valg ved den tidligere blanket 49.020 uden særskilt valgfelt"
+)
+
 = pensionsbeskatningsloven_lsf24_2007_par53a_stk5 = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/api/pdf/105200",
     identifier = "2007/1 LSF 24, bemærkninger til PBL § 53 A, stk. 5",
@@ -1041,15 +1048,20 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53AOvergangsvalgmodtager = Pbl53AValgMeddeltSkattestyrelsen | Pbl53AValgMeddeltIndberettendePensionsudbyder | Pbl53AValgMeddeltAndenModtager
 # Pbl53AOvergangsvalgvirkning = Pbl53AValgVirkningFraModtagelse | Pbl53AValgVirkningFra1Januar2004
 # Pbl53AOvergangsvalgmeddelelse(beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, mål: Pbl53AOvergangsvalgmål, modtager: Pbl53AOvergangsvalgmodtager, ønsket_virkning: Pbl53AOvergangsvalgvirkning)
+# Pbl53ABlanket49020Udgave = Pbl53ATidligereBlanket49020UdenValgfelt | Pbl53ANyBlanket49020MedValgfelt
+# Pbl53AHistoriskBlanketpåberåbelse = Pbl53AValgEfterPar53AEllerPar53BPåberåbt | Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt | Pbl53AIngenDokumenteretPåberåbelse
+# Pbl53AHistoriskBlanket49020Indsendelse(indsendelsesdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, udgave: Pbl53ABlanket49020Udgave, modtager: Pbl53AOvergangsvalgmodtager, påberåbelse: Pbl53AHistoriskBlanketpåberåbelse, ønsket_virkning: Pbl53AOvergangsvalgvirkning)
 # Pbl53AOvergangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag | Pbl53AFuldSkattepligtVedLovensIkrafttræden | Pbl53ASenereIndtrådtFuldSkattepligt(indtrædelsesdato: Pbl15ADato, oplysningsfrist: Pbl15ADato) | Pbl53ASenereArvUnderFuldSkattepligt(arvedato: Pbl15ADato, oplysningsfrist: Pbl15ADato, fuld_skattepligtig_på_arvedatoen: Boolsk, tidligere_ejer_fuld_skattepligtig_i_ejerperioden: Boolsk, tidligere_ejer_havde_valgt_afsnit_iia: Boolsk)
 # Pbl53AModerneVirkningsstart = Pbl53AIngenModerneVirkningsstart | Pbl53AModerneVirkningsstartFra(dato: Pbl15ADato)
 # Pbl53AValgtOvergangsregime = Pbl53AIntetGyldigtOvergangsvalg | Pbl53AOvergangsvalgTilPar53A | Pbl53AOvergangsvalgTilPar53B
 # Pbl53AOvergangsvalgmeddelelsesresultat(meddelelse: Pbl53AOvergangsvalgmeddelelse, datoer_gyldige: Boolsk, beslutning_ikke_efter_modtagelse: Boolsk, modtager_gyldig: Boolsk, fristgrundlag_gyldigt: Boolsk, rettidig: Boolsk, historisk_ordning_uden_valg: Boolsk, mål_i_øvrigt_anvendeligt: Boolsk, ønsket_virkning_tilladt: Boolsk, meddelelse_opfylder_betingelser: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart)
+# Pbl53AHistoriskBlanket49020Resultat(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse, datoer_gyldige: Boolsk, indsendelse_ikke_efter_modtagelse: Boolsk, tidligere_udgave_uden_valgfelt: Boolsk, modtager_gyldig: Boolsk, fristgrundlag_gyldigt: Boolsk, rettidig: Boolsk, historisk_ordning_uden_valg: Boolsk, valg_påberåbt: Boolsk, intet_valg_påberåbt: Boolsk, par53a_i_øvrigt_anvendelig: Boolsk, par53b_i_øvrigt_anvendelig: Boolsk, mål_entydigt_afledt: Boolsk, ønsket_virkning_tilladt: Boolsk, indsendelse_opfylder_betingelser: Boolsk, afledt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart)
+# Pbl53AOvergangsvalgpost(modtagelsesdato: Pbl15ADato, datoer_gyldige: Boolsk, valg_opfylder_betingelser: Boolsk, modstridende_valg_relevant: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart)
 # Pbl53AOvergangsvalgfold(seneste_modtagelsesdato_nøgle: Heltal, datoer_gyldige: Boolsk, kronologiske: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart, gyldige_meddelelser_antal: Heltal, senere_modstridende_valg: Boolsk)
-# Pbl53AOvergangsvalgresultat(fakta_gyldige: Boolsk, fristfakta_gyldige: Boolsk, datoer_gyldige: Boolsk, meddelelser_kronologiske: Boolsk, meddelelsesresultater: List(Pbl53AOvergangsvalgmeddelelsesresultat), gyldige_meddelelser_antal: Heltal, valg_gyldigt: Boolsk, valg_bindende: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart, senere_modstridende_valg: Boolsk)
+# Pbl53AOvergangsvalgresultat(fakta_gyldige: Boolsk, fristfakta_gyldige: Boolsk, datoer_gyldige: Boolsk, meddelelser_kronologiske: Boolsk, historiske_blanketter_kronologiske: Boolsk, indgivelser_entydige: Boolsk, meddelelsesresultater: List(Pbl53AOvergangsvalgmeddelelsesresultat), historiske_blanketresultater: List(Pbl53AHistoriskBlanket49020Resultat), gyldige_meddelelser_antal: Heltal, valg_gyldigt: Boolsk, valg_bindende: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart, senere_modstridende_valg: Boolsk)
 # Pbl53AErhvervelsesfold(seneste_tidspunkt: Pbl15ATidspunkt, datoer_gyldige: Boolsk, kronologiske: Boolsk, alle_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, aktuel_rettighedshaver_identifikation: Tekst, aktuel_rettighedsperiode: Pbl53ARettighedsperiode, afsluttede_rettighedsperioder: List(Pbl53ARettighedsperiode), moderne_virkningsstart: Pbl53AModerneVirkningsstart, kvalificerende_arv_efter_skæringsdato: Boolsk)
 # Pbl53AOvergangsresultat(fakta_gyldige: Boolsk, erhvervelsesidentifikationer_entydige: Boolsk, erhvervelsesdatoer_gyldige: Boolsk, erhvervelser_kronologiske: Boolsk, alle_erhvervelser_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, rettighedsperioder: List(Pbl53ARettighedsperiode), valgresultat: Pbl53AOvergangsvalgresultat, moderne_virkningsstart: Pbl53AModerneVirkningsstart, arveundtagelse_bevarer_historisk_regime: Boolsk, historisk_par50_eller_statsskattelov: Boolsk)
-# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, oprindelig_rettighedshaver_identifikation: Tekst, kapitalværdi_ved_oprettelsen_kroner: Heltal, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
+# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, oprindelig_rettighedshaver_identifikation: Tekst, kapitalværdi_ved_oprettelsen_kroner: Heltal, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), historiske_blanket49020_indsendelser: List(Pbl53AHistoriskBlanket49020Indsendelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
 # Pbl53BResultat(overgang_har_virkning: Boolsk, produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, i_øvrigt_anvendelig: Boolsk, omfattes_af_par53b: Boolsk)
 # Pbl53AStk1Klassifikation = Pbl53AIngenStk1Hjemmel | Pbl53AStk1Hjemmel(nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning)
 # Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, overgangsresultat: Pbl53AOvergangsresultat, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, par53a_i_øvrigt_anvendelig: Boolsk, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
@@ -1079,6 +1091,7 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
         TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
         Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
         Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
+        Practice(value = skat_skm2025_658_lsr_pbl53a_blanketvalg),
     )
 )
 --@label:pensionsbeskatningsloven_par53a_overgangsvalg::meta:pbl53a_overgangsvalg_kildemeta--
@@ -1113,6 +1126,40 @@ Skattestyrelsen eller forsikringsselskabet m.v. oplysning herom.«
 
 Stk. 1. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende, jf. dog
 stk. 2-4.
+
+Den juridiske vejledning 2026-1, afsnit C.A.10.4.2.5:
+
+Landsskatterettens afgørelse i SKM2025.658.LSR medfører, at hvis skatteyder har
+indsendt blanket 49.020 på et tidspunkt, hvor den gældende blanket ikke gav
+mulighed for at vælge beskatning efter de nævnte bestemmelser, så skal
+Skattestyrelsen acceptere, at der er valgt beskatning efter PBL § 53 A eller
+§ 53 B, hvis skatteyder påberåber sig dette.
+
+Det er derfor Skattestyrelsens opfattelse, at det skal accepteres, hvis
+skatteyder, påberåber sig ikke at have valgt beskatning efter disse
+bestemmelser. Det er med andre ord Skattestyrelsens opfattelse, at det ikke
+skal komme skatteyder til ulempe, at den tidligere blanket 49.020 ikke har
+været udarbejdet på en måde, hvor det tydeligt fremgår, hvorvidt der er
+foretaget et valg om beskatning efter de nævnte bestemmelser.
+
+Blanket 49.020 er ændret i juni 2023 sådan, at der efter dette tidspunkt findes
+et afkrydsningsfelt, hvori der eksplicit skal vælges beskatning efter PBL § 53 A
+eller § 53 B ved at krydse feltet af. Det er Skattestyrelsens opfattelse, at
+Landsskatterettens afgørelse, alene angår situationer, hvor det er den tidligere
+blanket 49.020 (uden afkrydsningsfelt), der er anvendt.
+
+SKM2025.658.LSR:
+
+På baggrund af skattemyndighedens praksis på området og de anvisninger, der er
+givet på selve blanketten og i Den Juridiske Vejledning, finder
+Landsskatteretten, at klageren med indsendelsen af blanket 49.020 - Erklæring L
+har truffet et valg med fristafbrydende virkning i relation til bestemmelsen i
+lov nr. 429 af 26. juni 1998, stk. 12.
+
+Landsskatteretten finder endvidere, at klageren har valgt, at pensionsordningen
+skal være omfattet af pensionsbeskatningslovens §§ 53 A eller 53 B. Den
+omstændighed, at klageren har foretaget afkrydsning i en forkert rubrik i
+blankettens afsnit 5, er uden betydning for valget.
 ----
 
 --@begin::pensionsbeskatningsloven_par53a_overgangsvalg--
@@ -1129,9 +1176,9 @@ stk. 2-4.
 }
 | pbl53a_overgangsvalgfristgrundlag_findes(fristfakta: Pbl53AOvergangsvalgfristfakta) -> fristfakta != Pbl53AIntetOvergangsvalgfristgrundlag
 | pbl53a_overgangsvalgmodtager_gyldig(modtager: Pbl53AOvergangsvalgmodtager) -> modtager != Pbl53AValgMeddeltAndenModtager
-| pbl53a_overgangsvalg_rettidigt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> {
-    = beslutningsnøgle = pbl15a_dato_nøgle(meddelelse.beslutningsdato)
-    = modtagelsesnøgle = pbl15a_dato_nøgle(meddelelse.modtagelsesdato)
+| pbl53a_overgangsvalg_datoer_rettidige(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato) -> {
+    = beslutningsnøgle = pbl15a_dato_nøgle(beslutningsdato)
+    = modtagelsesnøgle = pbl15a_dato_nøgle(modtagelsesdato)
     match fristfakta {
         | Pbl53AIntetOvergangsvalgfristgrundlag -> Falskt
         | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> beslutningsnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && modtagelsesnøgle >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && beslutningsnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle() && modtagelsesnøgle < pbl53a_overgangsvalg_ordinær_frist_nøgle()
@@ -1139,10 +1186,12 @@ stk. 2-4.
         | Pbl53ASenereArvUnderFuldSkattepligt(arvedato, oplysningsfrist, fuld_skattepligtig_på_arvedatoen, tidligere_ejer_fuld_skattepligtig_i_ejerperioden, tidligere_ejer_havde_valgt_afsnit_iia) -> fuld_skattepligtig_på_arvedatoen && tidligere_ejer_fuld_skattepligtig_i_ejerperioden == Falskt && tidligere_ejer_havde_valgt_afsnit_iia == Falskt && beslutningsnøgle >= pbl15a_dato_nøgle(arvedato) && modtagelsesnøgle >= pbl15a_dato_nøgle(arvedato) && beslutningsnøgle <= pbl15a_dato_nøgle(oplysningsfrist) && modtagelsesnøgle <= pbl15a_dato_nøgle(oplysningsfrist)
     }
 }
-| pbl53a_overgangsvalg_ønsket_virkning_tilladt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
+| pbl53a_overgangsvalg_rettidigt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_datoer_rettidige(fristfakta, meddelelse.beslutningsdato, meddelelse.modtagelsesdato)
+| pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta: Pbl53AOvergangsvalgfristfakta, beslutningsdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
     | Pbl53AValgVirkningFraModtagelse -> Sandt
-    | Pbl53AValgVirkningFra1Januar2004 -> fristfakta == Pbl53AFuldSkattepligtVedLovensIkrafttræden && pbl15a_dato_nøgle(meddelelse.beslutningsdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(meddelelse.beslutningsdato) < pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle()
+    | Pbl53AValgVirkningFra1Januar2004 -> fristfakta == Pbl53AFuldSkattepligtVedLovensIkrafttræden && pbl15a_dato_nøgle(beslutningsdato) >= pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() && pbl15a_dato_nøgle(beslutningsdato) < pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle()
 }
+| pbl53a_overgangsvalg_ønsket_virkning_tilladt(fristfakta: Pbl53AOvergangsvalgfristfakta, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fristfakta, meddelelse.beslutningsdato, meddelelse.ønsket_virkning)
 | pbl53a_overgangsvalg_valgt_regime(mål: Pbl53AOvergangsvalgmål) -> match mål {
     | Pbl53AValgAfPar53A -> Pbl53AOvergangsvalgTilPar53A
     | Pbl53AValgAfPar53B -> Pbl53AOvergangsvalgTilPar53B
@@ -1157,6 +1206,10 @@ stk. 2-4.
 }
 | pbl53a_overgangsvalg_virkningsstart(meddelelse: Pbl53AOvergangsvalgmeddelelse) -> match meddelelse.ønsket_virkning {
     | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = meddelelse.modtagelsesdato)
+    | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
+}
+| pbl53a_overgangsvalg_virkningsstart_for_modtagelse(modtagelsesdato: Pbl15ADato, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> match ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> Pbl53AModerneVirkningsstartFra(dato = modtagelsesdato)
     | Pbl53AValgVirkningFra1Januar2004 -> Pbl53AModerneVirkningsstartFra(dato = pbl53a_overgangsvalg_tilbagevirkende_startdato())
 }
 | pbl53a_overgangsvalgmeddelelsesresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, meddelelse: Pbl53AOvergangsvalgmeddelelse) -> {
@@ -1183,44 +1236,112 @@ stk. 2-4.
         virkningsstart = pbl53a_overgangsvalg_virkningsstart(meddelelse)
     )
 }
-| pbl53a_overgangsvalgfold_trin(tilstand: Pbl53AOvergangsvalgfold, resultat: Pbl53AOvergangsvalgmeddelelsesresultat) -> {
-    = modtagelsesdato_nøgle = pbl15a_dato_nøgle(resultat.meddelelse.modtagelsesdato)
-    = første_gyldige_valg = resultat.meddelelse_opfylder_betingelser && tilstand.valgt_regime == Pbl53AIntetGyldigtOvergangsvalg
-    = senere_modstridende_valg = resultat.rettidig && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.ønsket_virkning_tilladt && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg && resultat.valgt_regime != tilstand.valgt_regime
+| pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.udgave == Pbl53ATidligereBlanket49020UdenValgfelt
+| pbl53a_historisk_blanket_modtager_gyldig(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> indsendelse.modtager == Pbl53AValgMeddeltSkattestyrelsen
+| pbl53a_historisk_blanket_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AValgEfterPar53AEllerPar53BPåberåbt
+| pbl53a_historisk_blanket_intet_valg_påberåbt(påberåbelse: Pbl53AHistoriskBlanketpåberåbelse) -> påberåbelse == Pbl53AIntetValgEfterPar53AEllerPar53BPåberåbt
+| pbl53a_historisk_blanket_vurderingsår(indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> match indsendelse.ønsket_virkning {
+    | Pbl53AValgVirkningFraModtagelse -> indsendelse.modtagelsesdato.år
+    | Pbl53AValgVirkningFra1Januar2004 -> 2004
+}
+| pbl53a_historisk_blanket_afledt_regime(vurderingsår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> hvis pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53B } ellers hvis pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser) { Pbl53AOvergangsvalgTilPar53A } ellers { Pbl53AIntetGyldigtOvergangsvalg }
+| pbl53a_historisk_blanket49020_resultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk, indsendelse: Pbl53AHistoriskBlanket49020Indsendelse) -> {
+    = datoer_gyldige = pbl15a_dato_gyldig(indsendelse.indsendelsesdato) && pbl15a_dato_gyldig(indsendelse.modtagelsesdato)
+    = indsendelse_ikke_efter_modtagelse = datoer_gyldige && pbl15a_dato_nøgle(indsendelse.indsendelsesdato) <= pbl15a_dato_nøgle(indsendelse.modtagelsesdato)
+    = tidligere_udgave_uden_valgfelt = pbl53a_historisk_blanket_tidligere_udgave_uden_valgfelt(indsendelse)
+    = modtager_gyldig = pbl53a_historisk_blanket_modtager_gyldig(indsendelse)
+    = fristgrundlag_gyldigt = pbl53a_overgangsvalgfristfakta_gyldige(fakta) && pbl53a_overgangsvalgfristgrundlag_findes(fakta.overgangsvalgfristfakta)
+    = rettidig = fristgrundlag_gyldigt && datoer_gyldige && indsendelse_ikke_efter_modtagelse && pbl53a_overgangsvalg_datoer_rettidige(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.modtagelsesdato)
+    = valg_påberåbt = pbl53a_historisk_blanket_valg_påberåbt(indsendelse.påberåbelse)
+    = intet_valg_påberåbt = pbl53a_historisk_blanket_intet_valg_påberåbt(indsendelse.påberåbelse)
+    = vurderingsår = pbl53a_historisk_blanket_vurderingsår(indsendelse)
+    = par53b_i_øvrigt_anvendelig = pbl53b_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+    = par53a_i_øvrigt_anvendelig = pbl53a_i_øvrigt_anvendelig(vurderingsår, fakta, hændelser)
+    = afledt_regime = pbl53a_historisk_blanket_afledt_regime(vurderingsår, fakta, hændelser)
+    = mål_entydigt_afledt = afledt_regime != Pbl53AIntetGyldigtOvergangsvalg && par53a_i_øvrigt_anvendelig != par53b_i_øvrigt_anvendelig
+    = ønsket_virkning_tilladt = pbl53a_overgangsvalg_virkning_tilladt_for_beslutning(fakta.overgangsvalgfristfakta, indsendelse.indsendelsesdato, indsendelse.ønsket_virkning)
+    = indsendelse_opfylder_betingelser = datoer_gyldige && indsendelse_ikke_efter_modtagelse && tidligere_udgave_uden_valgfelt && modtager_gyldig && fristgrundlag_gyldigt && rettidig && historisk_ordning_uden_valg && valg_påberåbt && mål_entydigt_afledt && ønsket_virkning_tilladt
+    Pbl53AHistoriskBlanket49020Resultat(
+        indsendelse = indsendelse,
+        datoer_gyldige = datoer_gyldige,
+        indsendelse_ikke_efter_modtagelse = indsendelse_ikke_efter_modtagelse,
+        tidligere_udgave_uden_valgfelt = tidligere_udgave_uden_valgfelt,
+        modtager_gyldig = modtager_gyldig,
+        fristgrundlag_gyldigt = fristgrundlag_gyldigt,
+        rettidig = rettidig,
+        historisk_ordning_uden_valg = historisk_ordning_uden_valg,
+        valg_påberåbt = valg_påberåbt,
+        intet_valg_påberåbt = intet_valg_påberåbt,
+        par53a_i_øvrigt_anvendelig = par53a_i_øvrigt_anvendelig,
+        par53b_i_øvrigt_anvendelig = par53b_i_øvrigt_anvendelig,
+        mål_entydigt_afledt = mål_entydigt_afledt,
+        ønsket_virkning_tilladt = ønsket_virkning_tilladt,
+        indsendelse_opfylder_betingelser = indsendelse_opfylder_betingelser,
+        afledt_regime = afledt_regime,
+        virkningsstart = pbl53a_overgangsvalg_virkningsstart_for_modtagelse(indsendelse.modtagelsesdato, indsendelse.ønsket_virkning)
+    )
+}
+| pbl53a_overgangsvalgpost_fra_meddelelsesresultat(resultat: Pbl53AOvergangsvalgmeddelelsesresultat) -> Pbl53AOvergangsvalgpost(
+    modtagelsesdato = resultat.meddelelse.modtagelsesdato,
+    datoer_gyldige = resultat.datoer_gyldige,
+    valg_opfylder_betingelser = resultat.meddelelse_opfylder_betingelser,
+    modstridende_valg_relevant = resultat.rettidig && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.ønsket_virkning_tilladt,
+    valgt_regime = resultat.valgt_regime,
+    virkningsstart = resultat.virkningsstart
+)
+| pbl53a_overgangsvalgpost_fra_historisk_blanketresultat(resultat: Pbl53AHistoriskBlanket49020Resultat) -> Pbl53AOvergangsvalgpost(
+    modtagelsesdato = resultat.indsendelse.modtagelsesdato,
+    datoer_gyldige = resultat.datoer_gyldige,
+    valg_opfylder_betingelser = resultat.indsendelse_opfylder_betingelser,
+    modstridende_valg_relevant = resultat.rettidig && resultat.tidligere_udgave_uden_valgfelt && resultat.modtager_gyldig && resultat.historisk_ordning_uden_valg && resultat.valg_påberåbt && resultat.mål_entydigt_afledt && resultat.ønsket_virkning_tilladt,
+    valgt_regime = resultat.afledt_regime,
+    virkningsstart = resultat.virkningsstart
+)
+| pbl53a_overgangsvalgpost_sorteringsnøgle(post: Pbl53AOvergangsvalgpost) -> pbl15a_dato_nøgle(post.modtagelsesdato)
+| pbl53a_overgangsvalgfold_tom() -> Pbl53AOvergangsvalgfold(
+    seneste_modtagelsesdato_nøgle = 0,
+    datoer_gyldige = Sandt,
+    kronologiske = Sandt,
+    valgt_regime = Pbl53AIntetGyldigtOvergangsvalg,
+    virkningsstart = Pbl53AIngenModerneVirkningsstart,
+    gyldige_meddelelser_antal = 0,
+    senere_modstridende_valg = Falskt
+)
+| pbl53a_overgangsvalgfold_trin(tilstand: Pbl53AOvergangsvalgfold, post: Pbl53AOvergangsvalgpost) -> {
+    = modtagelsesdato_nøgle = pbl15a_dato_nøgle(post.modtagelsesdato)
+    = første_gyldige_valg = post.valg_opfylder_betingelser && tilstand.valgt_regime == Pbl53AIntetGyldigtOvergangsvalg
+    = senere_modstridende_valg = post.modstridende_valg_relevant && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg && post.valgt_regime != tilstand.valgt_regime
     Pbl53AOvergangsvalgfold(
         seneste_modtagelsesdato_nøgle = modtagelsesdato_nøgle,
-        datoer_gyldige = tilstand.datoer_gyldige && resultat.datoer_gyldige,
-        kronologiske = tilstand.kronologiske && resultat.datoer_gyldige && modtagelsesdato_nøgle > tilstand.seneste_modtagelsesdato_nøgle,
-        valgt_regime = hvis første_gyldige_valg { resultat.valgt_regime } ellers { tilstand.valgt_regime },
-        virkningsstart = hvis første_gyldige_valg { resultat.virkningsstart } ellers { tilstand.virkningsstart },
-        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal + hvis resultat.meddelelse_opfylder_betingelser { 1 } ellers { 0 },
+        datoer_gyldige = tilstand.datoer_gyldige && post.datoer_gyldige,
+        kronologiske = tilstand.kronologiske && post.datoer_gyldige && modtagelsesdato_nøgle > tilstand.seneste_modtagelsesdato_nøgle,
+        valgt_regime = hvis første_gyldige_valg { post.valgt_regime } ellers { tilstand.valgt_regime },
+        virkningsstart = hvis første_gyldige_valg { post.virkningsstart } ellers { tilstand.virkningsstart },
+        gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal + hvis post.valg_opfylder_betingelser { 1 } ellers { 0 },
         senere_modstridende_valg = tilstand.senere_modstridende_valg || senere_modstridende_valg
     )
 }
 | pbl53a_overgangsvalgresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse), historisk_ordning_uden_valg: Boolsk) -> {
     = meddelelsesresultater = map(fakta.overgangsvalg, |meddelelse: Pbl53AOvergangsvalgmeddelelse| pbl53a_overgangsvalgmeddelelsesresultat(fakta, hændelser, historisk_ordning_uden_valg, meddelelse))
-    = tilstand = foldl(
-        meddelelsesresultater,
-        Pbl53AOvergangsvalgfold(
-            seneste_modtagelsesdato_nøgle = 0,
-            datoer_gyldige = Sandt,
-            kronologiske = Sandt,
-            valgt_regime = Pbl53AIntetGyldigtOvergangsvalg,
-            virkningsstart = Pbl53AIngenModerneVirkningsstart,
-            gyldige_meddelelser_antal = 0,
-            senere_modstridende_valg = Falskt
-        ),
-        pbl53a_overgangsvalgfold_trin
-    )
+    = historiske_blanketresultater = map(fakta.historiske_blanket49020_indsendelser, |indsendelse: Pbl53AHistoriskBlanket49020Indsendelse| pbl53a_historisk_blanket49020_resultat(fakta, hændelser, historisk_ordning_uden_valg, indsendelse))
+    = meddelelsesposter = map(meddelelsesresultater, pbl53a_overgangsvalgpost_fra_meddelelsesresultat)
+    = historiske_blanketposter = map(historiske_blanketresultater, pbl53a_overgangsvalgpost_fra_historisk_blanketresultat)
+    = meddelelsestilstand = foldl(meddelelsesposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
+    = historisk_blankettilstand = foldl(historiske_blanketposter, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
+    = sorterede_poster = sort_by(concat(meddelelsesposter, historiske_blanketposter), pbl53a_overgangsvalgpost_sorteringsnøgle)
+    = tilstand = foldl(sorterede_poster, pbl53a_overgangsvalgfold_tom(), pbl53a_overgangsvalgfold_trin)
     = fristfakta_gyldige = pbl53a_overgangsvalgfristfakta_gyldige(fakta)
-    = fakta_gyldige = fristfakta_gyldige && tilstand.datoer_gyldige && tilstand.kronologiske
+    = fakta_gyldige = fristfakta_gyldige && tilstand.datoer_gyldige && meddelelsestilstand.kronologiske && historisk_blankettilstand.kronologiske && tilstand.kronologiske
     = valg_gyldigt = fakta_gyldige && tilstand.valgt_regime != Pbl53AIntetGyldigtOvergangsvalg
     Pbl53AOvergangsvalgresultat(
         fakta_gyldige = fakta_gyldige,
         fristfakta_gyldige = fristfakta_gyldige,
         datoer_gyldige = tilstand.datoer_gyldige,
-        meddelelser_kronologiske = tilstand.kronologiske,
+        meddelelser_kronologiske = meddelelsestilstand.kronologiske,
+        historiske_blanketter_kronologiske = historisk_blankettilstand.kronologiske,
+        indgivelser_entydige = tilstand.kronologiske,
         meddelelsesresultater = meddelelsesresultater,
+        historiske_blanketresultater = historiske_blanketresultater,
         gyldige_meddelelser_antal = tilstand.gyldige_meddelelser_antal,
         valg_gyldigt = valg_gyldigt,
         valg_bindende = valg_gyldigt,
@@ -2507,6 +2628,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
     produkt = produkt,
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,
@@ -2563,6 +2685,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
     produkt = Pbl53ALivsforsikringsprodukt(
         ejer_identifikation = "person-1",
         forsikret_identifikation = "person-1",
