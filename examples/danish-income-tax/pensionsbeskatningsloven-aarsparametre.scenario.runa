@@ -1,0 +1,98 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+
+-- Scenarier for den kildebelagte årsparameterportefølje til
+-- Pensionsbeskatningslovens §§ 16 og 18. De officielle tabeluddrag og
+-- kildeankre ligger i pensionsbeskatningsloven-aarsparametre.runa.
+
+# PblÅrsparameterForventning(indkomstår: Heltal, kilde: PblÅrsparameterKilde, rate_kroner: Heltal, kapital_kroner: Heltal, opfyldning_kroner: Heltal)
+
+= pbl_årsparameter_forventninger = [
+    PblÅrsparameterForventning(indkomstår = 2010, kilde = PblSatser2010Til2017, rate_kroner = 100000, kapital_kroner = 46000, opfyldning_kroner = 46000),
+    PblÅrsparameterForventning(indkomstår = 2011, kilde = PblSatser2010Til2017, rate_kroner = 100000, kapital_kroner = 46000, opfyldning_kroner = 46000),
+    PblÅrsparameterForventning(indkomstår = 2012, kilde = PblSatser2010Til2017, rate_kroner = 50000, kapital_kroner = 46000, opfyldning_kroner = 46000),
+    PblÅrsparameterForventning(indkomstår = 2013, kilde = PblSatser2010Til2017, rate_kroner = 50000, kapital_kroner = 0, opfyldning_kroner = 46000),
+    PblÅrsparameterForventning(indkomstår = 2014, kilde = PblSatser2010Til2017, rate_kroner = 50900, kapital_kroner = 0, opfyldning_kroner = 46900),
+    PblÅrsparameterForventning(indkomstår = 2015, kilde = PblSatser2010Til2017, rate_kroner = 51700, kapital_kroner = 0, opfyldning_kroner = 47600),
+    PblÅrsparameterForventning(indkomstår = 2016, kilde = PblSatser2010Til2017, rate_kroner = 52400, kapital_kroner = 0, opfyldning_kroner = 48200),
+    PblÅrsparameterForventning(indkomstår = 2017, kilde = PblSatser2010Til2017, rate_kroner = 53500, kapital_kroner = 0, opfyldning_kroner = 49300),
+    PblÅrsparameterForventning(indkomstår = 2018, kilde = PblSatser2018Til2024, rate_kroner = 54700, kapital_kroner = 0, opfyldning_kroner = 50400),
+    PblÅrsparameterForventning(indkomstår = 2019, kilde = PblSatser2018Til2024, rate_kroner = 55900, kapital_kroner = 0, opfyldning_kroner = 51500),
+    PblÅrsparameterForventning(indkomstår = 2020, kilde = PblSatser2018Til2024, rate_kroner = 57200, kapital_kroner = 0, opfyldning_kroner = 52600),
+    PblÅrsparameterForventning(indkomstår = 2021, kilde = PblSatser2018Til2024, rate_kroner = 58500, kapital_kroner = 0, opfyldning_kroner = 53800),
+    PblÅrsparameterForventning(indkomstår = 2022, kilde = PblSatser2018Til2024, rate_kroner = 59200, kapital_kroner = 0, opfyldning_kroner = 54500),
+    PblÅrsparameterForventning(indkomstår = 2023, kilde = PblSatser2018Til2024, rate_kroner = 60900, kapital_kroner = 0, opfyldning_kroner = 56100),
+    PblÅrsparameterForventning(indkomstår = 2024, kilde = PblSatser2018Til2024, rate_kroner = 63100, kapital_kroner = 0, opfyldning_kroner = 58100),
+    PblÅrsparameterForventning(indkomstår = 2025, kilde = PblSatser2025Til2026, rate_kroner = 65500, kapital_kroner = 0, opfyldning_kroner = 60300),
+    PblÅrsparameterForventning(indkomstår = 2026, kilde = PblSatser2025Til2026, rate_kroner = 68700, kapital_kroner = 0, opfyldning_kroner = 63200)
+]
+
+| pbl_årsparameter_forventning_opfyldt(forventning: PblÅrsparameterForventning) -> pbl_årsparametre(forventning.indkomstår).understøttet && pbl_årsparametre(forventning.indkomstår).kilde == forventning.kilde && pbl_årsparametre(forventning.indkomstår).rate_og_ophørende_loft_kroner == forventning.rate_kroner && pbl_årsparametre(forventning.indkomstår).kapitalordningsloft_kroner == forventning.kapital_kroner && pbl_årsparametre(forventning.indkomstår).opfyldningsfradrag_kroner == forventning.opfyldning_kroner
+| pbl_alle_kildebelagte_år_matcher_officielle_tabeller: pbl_årsparameter_forventninger -> all(pbl_årsparameter_forventninger, pbl_årsparameter_forventning_opfyldt)
+| pbl_alle_kildebelagte_år_stemmer_med_par20: pbl_årsparameter_forventninger -> all(pbl_årsparameter_forventninger, |forventning: PblÅrsparameterForventning| pbl_årsparametre_stemmer_med_par20(pbl_årsparametre(forventning.indkomstår)))
+
+= pbl_årsparametre_2009 = pbl_årsparametre(2009)
+= pbl_årsparametre_2011 = pbl_årsparametre(2011)
+= pbl_årsparametre_2012 = pbl_årsparametre(2012)
+= pbl_årsparametre_2013 = pbl_årsparametre(2013)
+= pbl_årsparametre_2014 = pbl_årsparametre(2014)
+= pbl_årsparametre_2017 = pbl_årsparametre(2017)
+= pbl_årsparametre_2018 = pbl_årsparametre(2018)
+= pbl_årsparametre_2024 = pbl_årsparametre(2024)
+= pbl_årsparametre_2025 = pbl_årsparametre(2025)
+= pbl_årsparametre_2026 = pbl_årsparametre(2026)
+= pbl_årsparametre_2027 = pbl_årsparametre(2027)
+
+| pbl_2009_fejer_lukket_uden_ratekilde: pbl_årsparametre_2009 -> pbl_årsparametre_2009.understøttet == Falskt && pbl_årsparametre_2009.kilde == PblSatser2002Til2009Ufuldstændige && pbl_årsparametre_2009.rate_og_ophørende_loft_kroner == 0 && pbl_årsparametre_2009.kapitalordningsloft_kroner == 0 && pbl_årsparametre_2009.opfyldningsfradrag_kroner == 0
+| pbl_2012_halverer_rategrænsen: pbl_årsparametre_2011 -> pbl_årsparametre_2011.rate_og_ophørende_loft_kroner == 100000 && pbl_årsparametre_2012.rate_og_ophørende_loft_kroner == 50000
+| pbl_2013_ophæver_kapitalfradraget: pbl_årsparametre_2012 -> pbl_årsparametre_2012.kapitalordningsloft_kroner == 46000 && pbl_årsparametre_2013.kapitalordningsloft_kroner == 0
+| pbl_2014_genoptager_reguleringen: pbl_årsparametre_2013 -> pbl_årsparametre_2013.opfyldningsfradrag_kroner == 46000 && pbl_årsparametre_2014.opfyldningsfradrag_kroner == 46900
+| pbl_tidsseriekilder_skifter_eksplicit: pbl_årsparametre_2017 -> pbl_årsparametre_2017.kilde == PblSatser2010Til2017 && pbl_årsparametre_2018.kilde == PblSatser2018Til2024 && pbl_årsparametre_2024.kilde == PblSatser2018Til2024 && pbl_årsparametre_2025.kilde == PblSatser2025Til2026
+| pbl_2027_fejer_lukket_efter_seneste_kildeår: pbl_årsparametre_2027 -> pbl_årsparametre_2027.understøttet == Falskt && pbl_årsparametre_2027.kilde == PblIngenSamletKildedækning && pbl_årsparametre_2027.rate_og_ophørende_loft_kroner == 0 && pbl_årsparametre_2027.opfyldningsfradrag_kroner == 0
+
+= pbl_scenarie_intet_selvstændigt_overskud = Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 0,
+    renteudgifter_kroner = 0,
+    kurstab_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_kroner = 0,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+
+= pbl_scenarie_tomt_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [],
+    ordninger = [],
+    kvalifikationsår = [],
+    tidligere_indbetalinger = []
+)
+
+| pbl_scenarie_tomt_årsinput(indkomstår: Heltal) -> Pbl18Årsinput(
+    indkomstår = indkomstår,
+    personlig_indkomst_før_pensionsfradrag_kroner = 0,
+    selvstændig_overskud = pbl_scenarie_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pbl_scenarie_tomt_par15a_årsgrundlag,
+    indbetalinger = []
+)
+
+= pbl18_årsresultat_2009 = pbl18_årsresultat(pbl_scenarie_tomt_årsinput(2009))
+= pbl18_årsresultat_2010 = pbl18_årsresultat(pbl_scenarie_tomt_årsinput(2010))
+= pbl18_årsresultat_2027 = pbl18_årsresultat(pbl_scenarie_tomt_årsinput(2027))
+
+| pbl18_2009_fejer_lukket: pbl18_årsresultat_2009 -> pbl18_årsresultat_2009.input_gyldigt == Falskt && pbl18_årsresultat_2009.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| pbl18_2010_accepterer_kildebelagt_år: pbl18_årsresultat_2010 -> pbl18_årsresultat_2010.input_gyldigt && pbl18_årsresultat_2010.rate_par16_resultat.reguleret_bruttoloft_kroner == 100000 && pbl18_årsresultat_2010.kapital_par16_resultat.reguleret_bruttoloft_kroner == 46000
+| pbl18_2027_fejer_lukket: pbl18_årsresultat_2027 -> pbl18_årsresultat_2027.input_gyldigt == Falskt && pbl18_årsresultat_2027.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+
+? pbl_alle_kildebelagte_år_matcher_officielle_tabeller
+? pbl_alle_kildebelagte_år_stemmer_med_par20
+? pbl_2009_fejer_lukket_uden_ratekilde
+? pbl_2012_halverer_rategrænsen
+? pbl_2013_ophæver_kapitalfradraget
+? pbl_2014_genoptager_reguleringen
+? pbl_tidsseriekilder_skifter_eksplicit
+? pbl_2027_fejer_lukket_efter_seneste_kildeår
+? pbl18_2009_fejer_lukket
+? pbl18_2010_accepterer_kildebelagt_år
+? pbl18_2027_fejer_lukket

@@ -1,0 +1,150 @@
+@ sprog da
+
+@ importer ./kapitel - 04 - omregning - skatteloft
+
+# PblÅrsparameterKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= skm_pbl_satser_2002_til_2009 = PblÅrsparameterKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2002-2009",
+    identifier = "Centrale beløbsgrænser i skattelovgivningen 2002-2009",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "2009-tabellen angiver kapitalpension og opfyldningsfradrag, men ikke et samlet loft for ratepension og ophørende livrenter"
+)
+
+= skm_pbl_satser_2010_til_2017 = PblÅrsparameterKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2010-2017",
+    identifier = "Centrale beløbsgrænser i skattelovgivningen 2010-2017",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officiel historisk tidsserie for PBL § 16 og § 18"
+)
+
+= skm_pbl_satser_2018_til_2024 = PblÅrsparameterKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024",
+    identifier = "Centrale beløbsgrænser i skattelovgivningen 2018-2024",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officiel historisk tidsserie for PBL § 16 og § 18"
+)
+
+= skm_pbl_satser_2025_til_2026 = PblÅrsparameterKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2025-2026",
+    identifier = "Beløbsgrænser reguleret efter personskattelovens § 20 - 2025-2026",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officielle 2025- og 2026-satser for PBL § 16 og § 18"
+)
+
+# PblÅrsparameterKilde = PblSatser2002Til2009Ufuldstændige | PblSatser2010Til2017 | PblSatser2018Til2024 | PblSatser2025Til2026 | PblIngenSamletKildedækning
+# Pbl16Og18Årsparametre(indkomstår: Heltal, understøttet: Boolsk, kilde: PblÅrsparameterKilde, rate_og_ophørende_loft_kroner: Heltal, kapitalordningsloft_kroner: Heltal, opfyldningsfradrag_kroner: Heltal)
+
+| pbl_årsparametre_med_kildedækning(indkomstår: Heltal, kilde: PblÅrsparameterKilde, rate_og_ophørende_loft_kroner: Heltal, kapitalordningsloft_kroner: Heltal, opfyldningsfradrag_kroner: Heltal) -> Pbl16Og18Årsparametre(
+    indkomstår = indkomstår,
+    understøttet = Sandt,
+    kilde = kilde,
+    rate_og_ophørende_loft_kroner = rate_og_ophørende_loft_kroner,
+    kapitalordningsloft_kroner = kapitalordningsloft_kroner,
+    opfyldningsfradrag_kroner = opfyldningsfradrag_kroner
+)
+
+| pbl_årsparametre_uden_kildedækning(indkomstår: Heltal, kilde: PblÅrsparameterKilde) -> Pbl16Og18Årsparametre(
+    indkomstår = indkomstår,
+    understøttet = Falskt,
+    kilde = kilde,
+    rate_og_ophørende_loft_kroner = 0,
+    kapitalordningsloft_kroner = 0,
+    opfyldningsfradrag_kroner = 0
+)
+
+--@label:pbl_årsparametre_2002_til_2009::source:skm_pbl_satser_2002_til_2009--
+----
+Centrale beløbsgrænser i skattelovgivningen 2002-2009
+
+Pensionsbeskatningsloven:
+Maks. indskud på kapitalpension 37.600 38.900 40.100 41.000 42.000 43.100 44.500 46.000
+Opfyldningsfradrag 37.600 38.900 40.100 41.000 42.000 43.100 44.500 46.000
+----
+
+--@begin::pbl_årsparametre_2002_til_2009--
+| pbl_årsparametre_2009_ufuldstændige() -> pbl_årsparametre_uden_kildedækning(
+    indkomstår = 2009,
+    kilde = PblSatser2002Til2009Ufuldstændige
+)
+--@end::pbl_årsparametre_2002_til_2009--
+
+--@label:pbl_årsparametre_2010_til_2017::source:skm_pbl_satser_2010_til_2017--
+----
+Centrale beløbsgrænser i skattelovgivningen 2010-2017
+
+Pensionsbeskatningsloven:
+Maks. indskud på kapitalpension (med fradragsret) 46.000 46.000 46.000 - - - - -
+Maks. fradrag for indskud på ratepension og ophørende livrenter 100.000 100.000 50.000 50.000 50.900 51.700 52.400 53.500
+Opfyldningsfradrag 46.000 46.000 46.000 46.000 46.900 47.600 48.200 49.300
+----
+
+--@begin::pbl_årsparametre_2010_til_2017--
+| pbl_årsparametre_2010_til_2017(indkomstår: Heltal) -> match indkomstår {
+    | 2010 -> pbl_årsparametre_med_kildedækning(indkomstår = 2010, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 100000, kapitalordningsloft_kroner = 46000, opfyldningsfradrag_kroner = 46000)
+    | 2011 -> pbl_årsparametre_med_kildedækning(indkomstår = 2011, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 100000, kapitalordningsloft_kroner = 46000, opfyldningsfradrag_kroner = 46000)
+    | 2012 -> pbl_årsparametre_med_kildedækning(indkomstår = 2012, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 50000, kapitalordningsloft_kroner = 46000, opfyldningsfradrag_kroner = 46000)
+    | 2013 -> pbl_årsparametre_med_kildedækning(indkomstår = 2013, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 50000, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 46000)
+    | 2014 -> pbl_årsparametre_med_kildedækning(indkomstår = 2014, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 50900, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 46900)
+    | 2015 -> pbl_årsparametre_med_kildedækning(indkomstår = 2015, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 51700, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 47600)
+    | 2016 -> pbl_årsparametre_med_kildedækning(indkomstår = 2016, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 52400, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 48200)
+    | 2017 -> pbl_årsparametre_med_kildedækning(indkomstår = 2017, kilde = PblSatser2010Til2017, rate_og_ophørende_loft_kroner = 53500, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 49300)
+    | _ -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
+}
+--@end::pbl_årsparametre_2010_til_2017--
+
+--@label:pbl_årsparametre_2018_til_2024::source:skm_pbl_satser_2018_til_2024--
+----
+Centrale beløbsgrænser i skattelovgivningen 2018-2024
+
+Pensionsbeskatningsloven kr. 2018 2019 2020 2021 2022 2023 2024
+Maks. fradrag for indskud på ratepension og ophørende livrenter 54.700 55.900 57.200 58.500 59.200 60.900 63.100
+Opfyldningsfradrag 50.400 51.500 52.600 53.800 54.500 56.100 58.100
+----
+
+--@begin::pbl_årsparametre_2018_til_2024--
+| pbl_årsparametre_2018_til_2024(indkomstår: Heltal) -> match indkomstår {
+    | 2018 -> pbl_årsparametre_med_kildedækning(indkomstår = 2018, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 54700, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 50400)
+    | 2019 -> pbl_årsparametre_med_kildedækning(indkomstår = 2019, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 55900, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 51500)
+    | 2020 -> pbl_årsparametre_med_kildedækning(indkomstår = 2020, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 57200, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 52600)
+    | 2021 -> pbl_årsparametre_med_kildedækning(indkomstår = 2021, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 58500, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 53800)
+    | 2022 -> pbl_årsparametre_med_kildedækning(indkomstår = 2022, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 59200, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 54500)
+    | 2023 -> pbl_årsparametre_med_kildedækning(indkomstår = 2023, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 60900, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 56100)
+    | 2024 -> pbl_årsparametre_med_kildedækning(indkomstår = 2024, kilde = PblSatser2018Til2024, rate_og_ophørende_loft_kroner = 63100, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 58100)
+    | _ -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
+}
+--@end::pbl_årsparametre_2018_til_2024--
+
+--@label:pbl_årsparametre_2025_til_2026::source:skm_pbl_satser_2025_til_2026--
+----
+Beløbsgrænser i skattelovgivningen der reguleres efter personskattelovens § 20 - 2025-2026
+
+Pensionsbeskatningsloven:
+Maks. fradrag for indskud på ratepension og ophørende alderspension (§ 16) 50.000 65.500 68.700
+Opfyldningsfradrag (§ 18) 46.000 60.300 63.200
+----
+
+--@begin::pbl_årsparametre_2025_til_2026--
+| pbl_årsparametre_2025_til_2026(indkomstår: Heltal) -> match indkomstår {
+    | 2025 -> pbl_årsparametre_med_kildedækning(indkomstår = 2025, kilde = PblSatser2025Til2026, rate_og_ophørende_loft_kroner = 65500, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 60300)
+    | 2026 -> pbl_årsparametre_med_kildedækning(indkomstår = 2026, kilde = PblSatser2025Til2026, rate_og_ophørende_loft_kroner = 68700, kapitalordningsloft_kroner = 0, opfyldningsfradrag_kroner = 63200)
+    | _ -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
+}
+--@end::pbl_årsparametre_2025_til_2026--
+
+| pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_uden_kildedækning(indkomstår = indkomstår, kilde = PblIngenSamletKildedækning)
+| exception pbl_2009_har_ufuldstændig_tidsserie pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2009_ufuldstændige() under indkomstår == 2009
+| exception pbl_2010_til_2017_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
+| exception pbl_2018_til_2024_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
+| exception pbl_2025_til_2026_har_kildedækning pbl_årsparametre(indkomstår: Heltal) -> pbl_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
+
+| pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 0
+| exception pbl_rateovergang_2010_til_2011 pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 100000 under parametre.understøttet && parametre.indkomstår <= 2011
+| exception pbl_rategrundbeløb_fra_2012 pbl_årsparametre_rate_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 50000 under parametre.understøttet && parametre.indkomstår >= 2012
+| pbl_årsparametre_kapital_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 0
+| exception pbl_kapitalgrundbeløb_til_og_med_2012 pbl_årsparametre_kapital_grundbeløb_kroner(parametre: Pbl16Og18Årsparametre) -> 46000 under parametre.understøttet && parametre.indkomstår <= 2012
+| pbl_årsparametre_forventet_reguleret_kroner(indkomstår: Heltal, grundbeløb_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = grundbeløb_kroner,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+))
+| pbl_årsparametre_stemmer_med_par20(parametre: Pbl16Og18Årsparametre) -> parametre.understøttet && parametre.rate_og_ophørende_loft_kroner == pbl_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, pbl_årsparametre_rate_grundbeløb_kroner(parametre)) && parametre.kapitalordningsloft_kroner == pbl_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, pbl_årsparametre_kapital_grundbeløb_kroner(parametre)) && parametre.opfyldningsfradrag_kroner == pbl_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, 46000)

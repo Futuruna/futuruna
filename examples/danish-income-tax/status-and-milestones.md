@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-f84c7d` (in review)
-Latest implementation slice submitted for review: `td-f84c7d`
-Latest approved implementation slice: `td-4fd64a`
+Current focus issue: `td-7dcbba` (in review)
+Latest implementation slice submitted for review: `td-7dcbba`
+Latest approved implementation slice: `td-f84c7d`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -47,6 +47,17 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
+kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
+indkomståret og den officielle SKM-tidsserie, som leverer årets loft for
+ratepension og ophørende livrenter, et eventuelt kapitalordningsloft og
+opfyldningsfradraget. Porteføljen bevarer 100.000 kr.-overgangen i 2010-2011,
+faldet til 50.000 kr. i 2012, kapitalfradragets bortfald efter 2012 og den
+efterfølgende § 20-regulering. De 17 understøttede år er både afstemt mod de
+officielle tabeller og genberegnet mod Personskattelovens § 20. Den officielle
+2002-2009-tabel oplyser ikke et samlet rateloft for 2009; året er derfor
+eksplicit ufuldstændigt og fejler lukket sammen med år efter 2026.
 
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu en
 årsportefølje af identificerede pensionsindbetalinger efter
@@ -2809,6 +2820,14 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
+  årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
+  dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
+  2010-2017, 2018-2024 og 2025-2026. Alle værdier fra 2010 til 2026 har
+  fokuserede interpreter- og compiler-scenarier, og § 18-årsresultatet afviser
+  2009 og 2027 med nul fradrag. `Pbl16FradragsloftResultat` bevarer det valgte
+  parameterobjekt, så år, kildeserie og de tre relevante beløbsgrænser er
+  synlige i beregningssporet.
 - Pensionsbeskatningslovens §§ 15 og 15 A står nu med ordret lovtekst og typede
   kildeankre i et særskilt juridisk modul. § 15 A-modellen håndterer
   alderskravet, ti kvalifikationsår inden for de seneste femten år, succession,
@@ -2862,7 +2881,7 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 347 nåbare definitioner, 156
+- Det genererede Personskat-regneark har nu 372 nåbare definitioner, 156
   synlige overskriftsceller inklusive `case_id` og 32 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -2895,7 +2914,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 476 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 519 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2916,7 +2935,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 1.798 domænekolonner bruger 456 præcise feltmetadata-match;
+  Arbejdsbogens 1.833 domænekolonner bruger 491 præcise feltmetadata-match;
   1.342 ældre, dybe stier bruger fortsat en deterministisk læsbar fallback og
   er eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og validerer samtidig
   beregningstitlen på hvert synligt ark.
@@ -3062,9 +3081,6 @@ Review candidates to revisit deliberately, not as broad churn:
   relevante ægtefællehenføring efter Kildeskattelovens § 25 A. Den nuværende
   model afleder loft og fordeling fra fortjenesten, men afleder endnu ikke selve
   fortjenesten på tværs af afhængighedslovene.
-- `td-7dcbba` skal udvide de kildebelagte årsparametre for § 18 ud over de nu
-  understøttede indkomstår 2025 og 2026. Ikke-understøttede år skal fortsat
-  fremgå tydeligt og fejle lukket.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

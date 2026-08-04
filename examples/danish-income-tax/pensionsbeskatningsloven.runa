@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./pensionsbeskatningsloven - aarsparametre
 @ importer ./pensionsbeskatningsloven - par15 - 15a
 
 -- Pensionsbeskatningsloven -- Personskatteloven-afhængigheder.
@@ -111,20 +112,21 @@ Grundbeløbene reguleres efter personskattelovens § 20.
 --@begin::pensionsbeskatningsloven_par16--
 # Pbl16FradragsloftArt = Pbl16Kapitalordning | Pbl16Rateordning
 # Pbl16FradragsloftInput(indkomstår: Heltal, art: Pbl16FradragsloftArt)
-# Pbl16FradragsloftResultat(indkomstår: Heltal, art: Pbl16FradragsloftArt, understøttet_indkomstår: Boolsk, grundbeløb_2010_niveau_kroner: Heltal, reguleret_bruttoloft_kroner: Heltal)
+# Pbl16FradragsloftResultat(indkomstår: Heltal, art: Pbl16FradragsloftArt, årsparametre: Pbl16Og18Årsparametre, understøttet_indkomstår: Boolsk, grundbeløb_2010_niveau_kroner: Heltal, reguleret_bruttoloft_kroner: Heltal)
 
-| pbl16_understøttet_indkomstår(indkomstår: Heltal) -> indkomstår >= 2009 && indkomstår <= 2026
+| pbl16_understøttet_indkomstår(indkomstår: Heltal) -> pbl_årsparametre(indkomstår).understøttet
 | pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 0
-| exception pbl16_kapitalordning_til_og_med_2012 pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 46000 under art == Pbl16Kapitalordning && indkomstår <= 2012
-| exception pbl16_rateordning_grundbeløb pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 50000 under art == Pbl16Rateordning
-| pbl16_reguleret_bruttoloft_kroner(input: Pbl16FradragsloftInput) -> 0
-| exception pbl16_regulerer_positivt_grundbeløb pbl16_reguleret_bruttoloft_kroner(input: Pbl16FradragsloftInput) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
-    grundbeløb_2010_niveau_kroner = pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art),
-    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(input.indkomstår)
-)) under pbl16_understøttet_indkomstår(input.indkomstår) && pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art) > 0
+| exception pbl16_kapitalordning_til_og_med_2012 pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 46000 under art == Pbl16Kapitalordning && indkomstår >= 2010 && indkomstår <= 2012
+| exception pbl16_rateordning_2010_til_2011 pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 100000 under art == Pbl16Rateordning && indkomstår >= 2010 && indkomstår <= 2011
+| exception pbl16_rateordning_fra_2012 pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 50000 under art == Pbl16Rateordning && indkomstår >= 2012 && pbl16_understøttet_indkomstår(indkomstår)
+| pbl16_reguleret_bruttoloft_kroner(input: Pbl16FradragsloftInput) -> match input.art {
+    | Pbl16Kapitalordning -> pbl_årsparametre(input.indkomstår).kapitalordningsloft_kroner
+    | Pbl16Rateordning -> pbl_årsparametre(input.indkomstår).rate_og_ophørende_loft_kroner
+}
 | pbl16_fradragsloft_resultat(input: Pbl16FradragsloftInput) -> Pbl16FradragsloftResultat(
     indkomstår = input.indkomstår,
     art = input.art,
+    årsparametre = pbl_årsparametre(input.indkomstår),
     understøttet_indkomstår = pbl16_understøttet_indkomstår(input.indkomstår),
     grundbeløb_2010_niveau_kroner = pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art),
     reguleret_bruttoloft_kroner = pbl16_reguleret_bruttoloft_kroner(input)
@@ -269,7 +271,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 # Pbl18Fradragsramme(personlig_indkomst_før_pensionsfradrag_kroner: Heltal, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, valg: Pbl18Fradragsvalg)
 # Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
 # Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
-# Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
+# Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, årsparametre: Pbl16Og18Årsparametre, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
 # Pbl18Årsbetaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsmarkedsbidrag_kroner: Heltal)
 # Pbl18Indeksordningsgrundlag = Pbl18IkkeIndeksordning | Pbl18Par15Indeksordning(fakta: Pbl15Indeksordningsfakta)
 # Pbl18Årsindbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Årsbetaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, indeksordningsgrundlag: Pbl18Indeksordningsgrundlag, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsgrundlag: Pbl18SærligtOrdningsgrundlag, begrænsninger: Pbl18Begrænsninger)
@@ -327,11 +329,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_beløb_efter_par16_loft_kroner(input: Pbl18Input) -> pbl18_beregnet_årsfradrag_kroner(input)
 | exception pbl18_par16_loft_begrænser pbl18_beløb_efter_par16_loft_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_beregnet_årsfradrag_kroner(input), pbl18_fradragsloft_efter_stk2_kroner(input)) under pbl18_ordning_har_rate_loft(input.ordning) || pbl18_ordning_har_kapital_loft(input.ordning)
 
-| pbl18_opfyldningsgrundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception pbl18_opfyldningsgrundbeløb_reguleres pbl18_opfyldningsgrundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
-    grundbeløb_2010_niveau_kroner = 46000,
-    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
-)) under pbl16_understøttet_indkomstår(indkomstår)
+| pbl18_opfyldningsgrundbeløb_kroner(indkomstår: Heltal) -> pbl_årsparametre(indkomstår).opfyldningsfradrag_kroner
 | pbl18_selvstændige_tillæg_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.renteudgifter_kroner) + penge_positivt_beløb(input.kurstab_kroner)
 | pbl18_selvstændige_fradrag_fra_overskud_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.renteindtægter_kroner) + penge_positivt_beløb(input.udbytteindtægter_kroner) + penge_positivt_beløb(input.kursgevinster_kroner) + penge_positivt_beløb(input.udelukkede_afståelsesindkomster_kroner)
 | pbl18_selvstændigt_overskud_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.skattepligtigt_overskud_før_vsl22b_kroner + pbl18_selvstændige_tillæg_kroner(input) - pbl18_selvstændige_fradrag_fra_overskud_kroner(input))
@@ -361,6 +359,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
         indkomstår = input.indkomstår,
         fradragsår = fradragsår(),
         ordning = input.ordning,
+        årsparametre = pbl_årsparametre(input.indkomstår),
         grundlæggende_fradragsret = grundlæggende_fradragsret(),
         indekskontrakter_medregnet = penge_mindste_beløb(length(input.indeksvalg.fradragsvalgte_kontraktbidrag_kroner), 6),
         indbetalt_beløb_kroner = pbl18_indbetalt_beløb_kroner(input),
