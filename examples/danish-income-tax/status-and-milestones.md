@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-9fec71` (submitting for review)
-Latest implementation slice submitted for review: `td-9fec71`
+Current focus issue: `td-d1183e` (submitting for review)
+Latest implementation slice submitted for review: `td-d1183e`
 Latest approved implementation slice: `td-f84c7d`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -34,7 +34,11 @@ vilkårligt mange `MetaAttachment(role = ..., value = ...)`-værdier. Indekset
 finder typede efterkommere og roller rekursivt og bevarer både den kanoniske
 binding og en stabil sti til vedhæftningen. Personskat-kontraktens 79 ankere
 bruger nu alle den korte form `::meta:<binding>`; felter og retskilder ligger i
-de typede objekter og ikke som en voksende liste i kommentarsyntaksen.
+de typede objekter og ikke som en voksende liste i kommentarsyntaksen. Det
+danske skattekorpus har nu også en fælles `metadata.runa`-protokol med en typet
+rolle, `MetaAttachment` og `Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A
+bruger protokollen direkte, så deres kommentarer alene forbinder et label med
+ét navngivet metadataobjekt.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
@@ -53,6 +57,21 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: Pensionsbeskatningslovens § 15 A har nu et typet,
+dateret holdingforløb. Et salg eller en likvidation af et datterselskab bærer
+en stabil hændelses- og selskabsidentifikation, et ordnet tidspunkt og det
+faktiske kontantprovenu. Reglerne følger selskabet fra de historiske
+regnskabsperioder til personens afståelsestidspunkt og afviser uforklarede
+huller, genbrugte identifikationer og samtidige opgørelser af aktier,
+underliggende aktiver eller provenu. Når holdingselskabet består, medregnes et
+beholdt provenu præcis én gang som passivt aktiv. Ved dokumenteret likvidation
+fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
+12-måneders praksisgrænse udløser alligevel pengetankresultatet. Fem særskilte
+interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
+provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
+likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
+forløbet og 613 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -325,7 +344,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 586 eksplicitte feltmetadata-poster. Alle 64 nåbare
+Kontrakten har aktuelt 613 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -2957,7 +2976,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 586 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 613 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

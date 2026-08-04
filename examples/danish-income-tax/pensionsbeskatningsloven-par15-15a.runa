@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./pensionsbeskatningsloven - par15a - fortjeneste
@@ -58,6 +59,13 @@
     ændringsstatus = "Pengetankreglen bruger de seneste tre regnskabsår; selskaber gennemlyses ved mindst 25 pct. direkte eller indirekte ejerskab og fra 2025 ved aktiv ejendomsudlejning også under 25 pct."
 )
 
+= skat_pbl15a_holdingafvikling_vejledning = Pbl15KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048420",
+    identifier = "Den juridiske vejledning 2026-1 C.A.10.2.3.3, holdingselskabets afvikling efter datterselskabsafståelse",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Vejledningen kræver likvidation i umiddelbar tilknytning; den gengivne praksis accepterer en passiv periode på højst 12 måneder, jf. SKM2003.186.LR og SKM2006.207.SR"
+)
+
 = skat_pbl15a_fradragstidspunkt_vejledning = Pbl15KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2048422",
     identifier = "Den juridiske vejledning C.A.10.2.3.5, Fradragsret og fradragstidspunkt for ophørspension",
@@ -72,7 +80,34 @@
     ændringsstatus = "Fortjeneste ved afståelse af flere virksomheder kan indbetales på samme ophørspensionsordning"
 )
 
---@label:pensionsbeskatningsloven_par15::source:pensionsbeskatningsloven_lbk1243_par15--
+= pensionsbeskatningsloven_par15_metadata = Metadata(
+    attachments = MetaAttachment(
+        role = Source,
+        value = pensionsbeskatningsloven_lbk1243_par15
+    )
+)
+
+= pensionsbeskatningsloven_par15a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
+        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+    )
+)
+
+= pensionsbeskatningsloven_par15a_holdingafvikling_metadata = Metadata(
+    attachments = MetaAttachment(
+        role = TimingGuidance,
+        value = skat_pbl15a_holdingafvikling_vejledning
+    )
+)
+
+--@label:pensionsbeskatningsloven_par15::meta:pensionsbeskatningsloven_par15_metadata--
 ----
 § 15. En indeksordning skal være oprettet som en forsikring eller en
 opsparingskonto med tilknyttet indekskontrakt i henhold til lov om
@@ -94,7 +129,7 @@ pristalsreguleret alderdomsforsikring og alderdomsopsparing.
 )
 --@end:pensionsbeskatningsloven_par15--
 
---@label:pensionsbeskatningsloven_par15a::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::pengetank_guidance:skat_pbl15a_betingelser_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
+--@label:pensionsbeskatningsloven_par15a::meta:pensionsbeskatningsloven_par15a_metadata--
 ----
 Pensionsordninger for tidligere selvstændigt erhvervsdrivende
 
@@ -201,12 +236,19 @@ konsulentvirksomhed, et medlem af Foreningen af Danske Revisorer eller en
 person, der kan ligestilles hermed.
 ----
 
+--@label:pensionsbeskatningsloven_par15a::meta:pensionsbeskatningsloven_par15a_holdingafvikling_metadata--
+----
+kan hovedaktionæren (personen) kun bruge ordningen, hvis holdingselskabet
+likvideres i umiddelbar tilknytning til virksomhedsoverdragelsen.
+----
+
 --@begin:pensionsbeskatningsloven_par15a--
 # Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag: Kildeskat25AFortjenestegrundlag) | Pbl15AHovedaktionæraktier
 # Pbl15AOrdningsart = Pbl15ALøbendeUdbetalinger | Pbl15ARateforsikring | Pbl15ARateopsparing
 # Pbl15AKvalifikationsårsgrund = Pbl15AEgenSelvstændigVirksomhed | Pbl15AEgetHovedaktionærforhold | Pbl15AAfdødesSelvstændigeVirksomhedVedSuccession | Pbl15AAfdødesHovedaktionærforholdVedSuccession | Pbl15ABoperiodeSomSelvstændigVedSuccession | Pbl15ABoperiodeSomHovedaktionærVedSuccession
 # Pbl15AKvalifikationsår(indkomstår: Heltal, grundlag: Pbl15AKvalifikationsårsgrund)
 # Pbl15ADato(år: Heltal, måned: Heltal, dag: Heltal)
+# Pbl15ATidspunkt(dato: Pbl15ADato, rækkefølge_på_dagen: Heltal)
 # Pbl15AIndtægtsart = Pbl15APassivEjendomsindtægt | Pbl15AKontantEllerVærdipapirindtægt | Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7 | Pbl15ALandbrugsEllerSkovindtægt | Pbl15AKoncerninternUdlejningsindtægt | Pbl15AØvrigDriftsindtægt
 # Pbl15AIndtægtspost(identifikation: Tekst, beløb_kroner: Heltal, art: Pbl15AIndtægtsart)
 # Pbl15AAktivart = Pbl15APassivUdlejningsejendom | Pbl15AAktivUdlejningsejendomEfterAbl34Stk7 | Pbl15ALandbrugsEllerSkovejendom | Pbl15AKontanter | Pbl15AVærdipapirer | Pbl15AAndelOmfattetAfAbl18 | Pbl15AKoncerninternDriftsejendom | Pbl15AØvrigtDriftsaktiv
@@ -216,10 +258,13 @@ person, der kan ligestilles hermed.
 # Pbl15ASelskab(identifikation: Tekst, ejerforhold: Pbl15AEjerforhold, udøver_aktiv_udlejning_efter_abl34_stk7: Boolsk)
 # Pbl15ASelskabsregnskab(selskab: Pbl15ASelskab, aktiernes_handelsværdi_i_virksomheden_kroner: Heltal, aktieafkast_i_virksomheden_kroner: Heltal, selskabets_indtægter_før_ejerandel: List(Pbl15AIndtægtspost), selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost))
 # Pbl15ASelskabsaktivopgørelse(selskab: Pbl15ASelskab, aktiernes_handelsværdi_i_virksomheden_kroner: Heltal, selskabets_aktiver_før_ejerandel: List(Pbl15AAktivpost))
+# Pbl15ADatterselskabshændelse = Pbl15ADatterselskabsaktierAfstået(hændelses_identifikation: Tekst, selskab_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, provenuaktiv: Pbl15AAktivpost) | Pbl15ADatterselskabLikvideret(hændelses_identifikation: Tekst, selskab_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, provenuaktiv: Pbl15AAktivpost)
+# Pbl15AHoldingafvikling = Pbl15AIntetHoldingselskab | Pbl15AHoldingFortsatBestående | Pbl15AHoldingselskabLikvideret(hændelses_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt)
+# Pbl15AHoldingforløb(personens_afståelsesrækkefølge_på_dagen: Heltal, datterselskabshændelser: List(Pbl15ADatterselskabshændelse), afvikling: Pbl15AHoldingafvikling)
 # Pbl15ARegnskabsperiode(rækkefølge_fra_ældste: Heltal, startdato: Pbl15ADato, slutdato: Pbl15ADato, virksomhedens_indtægter: List(Pbl15AIndtægtspost), virksomhedens_aktiver: List(Pbl15AAktivpost), selskabsregnskaber: List(Pbl15ASelskabsregnskab))
-# Pbl15APassivKapitalFakta(seneste_tre_regnskabsperioder: List(Pbl15ARegnskabsperiode), aktuel_regnskabsperiodes_startdato: Pbl15ADato, virksomhedens_aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost), selskabsaktiver_på_overdragelsestidspunktet: List(Pbl15ASelskabsaktivopgørelse), næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk)
+# Pbl15APassivKapitalFakta(seneste_tre_regnskabsperioder: List(Pbl15ARegnskabsperiode), aktuel_regnskabsperiodes_startdato: Pbl15ADato, virksomhedens_aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost), selskabsaktiver_på_overdragelsestidspunktet: List(Pbl15ASelskabsaktivopgørelse), holdingforløb: Pbl15AHoldingforløb, næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk)
 # Pbl15AKapitalsammenfatning(passive_indtægter_kroner: Heltal, samlede_indtægter_kroner: Heltal, passive_aktiver_kroner: Heltal, samlede_aktiver_kroner: Heltal)
-# Pbl15APassivKapitalResultat(fakta: Pbl15APassivKapitalFakta, fakta_gyldige: Boolsk, passive_indtægter_tre_år_kroner: Heltal, samlede_indtægter_tre_år_kroner: Heltal, passive_aktiver_tre_år_kroner: Heltal, samlede_aktiver_tre_år_kroner: Heltal, passive_aktiver_ved_afståelse_kroner: Heltal, samlede_aktiver_ved_afståelse_kroner: Heltal, gennemsnitsgrænse_basispoint: Heltal, overdragelsesgrænse_basispoint: Heltal, indtægtsgrænse_nået: Boolsk, gennemsnitlig_aktivgrænse_nået: Boolsk, aktivgrænse_ved_afståelse_nået: Boolsk, overvejende_passiv_kapitalanbringelse: Boolsk)
+# Pbl15APassivKapitalResultat(fakta: Pbl15APassivKapitalFakta, fakta_gyldige: Boolsk, holdingforløb_gyldigt: Boolsk, datterselskabsprovenu_før_holdingafvikling_kroner: Heltal, holdingselskab_likvideret: Boolsk, holdingafvikling_mangler: Boolsk, holdinglikvidation_inden_for_praksisgrænse: Boolsk, holdingafvikling_for_sen: Boolsk, passive_indtægter_tre_år_kroner: Heltal, samlede_indtægter_tre_år_kroner: Heltal, passive_aktiver_tre_år_kroner: Heltal, samlede_aktiver_tre_år_kroner: Heltal, passive_aktiver_ved_afståelse_kroner: Heltal, samlede_aktiver_ved_afståelse_kroner: Heltal, gennemsnitsgrænse_basispoint: Heltal, overdragelsesgrænse_basispoint: Heltal, indtægtsgrænse_nået: Boolsk, gennemsnitlig_aktivgrænse_nået: Boolsk, aktivgrænse_ved_afståelse_nået: Boolsk, overvejende_passiv_kapitalanbringelse: Boolsk)
 # Pbl15AAfståelsesfakta(identifikation: Tekst, afståelsesdato: Pbl15ADato, grundlag: Pbl15AAfståelsesgrund, fortjenestegrundlag: Pbl15AFortjenestegrundlag, alder_hele_år_ved_afståelsen: Heltal, passiv_kapital: Pbl15APassivKapitalFakta, udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk, antal_ejere: Heltal, opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk)
 # Pbl15AAfståelsesresultat(fakta: Pbl15AAfståelsesfakta, fortjenestegrundlagsresultat: Pbl15AFortjenestegrundlagsresultat, ægtefællehenføringsresultat: Option(Kildeskat25AFortjenestehenføringsresultat), skattepligtig_fortjeneste_før_am_kroner: Heltal, fakta_gyldige: Boolsk, fyldt_55_år_før_afståelsen: Boolsk, passiv_kapital_resultat: Pbl15APassivKapitalResultat, driftsbegrænsning_opfyldt: Boolsk, kvalificerer_til_ophørspension: Boolsk, højeste_indbetaling_fra_afståelsen_kroner: Heltal)
 # Pbl15AOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15AOrdningsart, oprettelsesafståelse_identifikation: Tekst)
@@ -240,6 +285,56 @@ person, der kan ligestilles hermed.
 | pbl15a_dato_gyldig(dato: Pbl15ADato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= pbl15a_dage_i_måned(dato.år, dato.måned)
 | pbl15a_dato_nøgle(dato: Pbl15ADato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
 | pbl15a_næste_dato(dato: Pbl15ADato) -> hvis dato.dag < pbl15a_dage_i_måned(dato.år, dato.måned) { Pbl15ADato(år = dato.år, måned = dato.måned, dag = dato.dag + 1) } ellers { hvis dato.måned < 12 { Pbl15ADato(år = dato.år, måned = dato.måned + 1, dag = 1) } ellers { Pbl15ADato(år = dato.år + 1, måned = 1, dag = 1) } }
+| pbl15a_dato_plus_måneder(dato: Pbl15ADato, måneder: Heltal) -> Pbl15ADato(
+    år = (dato.år * 12 + dato.måned - 1 + måneder) / 12,
+    måned = (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1,
+    dag = penge_mindste_beløb(dato.dag, pbl15a_dage_i_måned((dato.år * 12 + dato.måned - 1 + måneder) / 12, (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1))
+)
+| pbl15a_tidspunkt_gyldigt(tidspunkt: Pbl15ATidspunkt) -> pbl15a_dato_gyldig(tidspunkt.dato) && tidspunkt.rækkefølge_på_dagen > 0
+| pbl15a_tidspunkt_før(a: Pbl15ATidspunkt, b: Pbl15ATidspunkt) -> pbl15a_dato_nøgle(a.dato) < pbl15a_dato_nøgle(b.dato) || pbl15a_dato_nøgle(a.dato) == pbl15a_dato_nøgle(b.dato) && a.rækkefølge_på_dagen < b.rækkefølge_på_dagen
+| pbl15a_dato_inden_for_højst_tolv_måneder(startdato: Pbl15ADato, slutdato: Pbl15ADato) -> pbl15a_dato_gyldig(startdato) && pbl15a_dato_gyldig(slutdato) && pbl15a_dato_nøgle(startdato) <= pbl15a_dato_nøgle(slutdato) && pbl15a_dato_nøgle(slutdato) <= pbl15a_dato_nøgle(pbl15a_dato_plus_måneder(startdato, 12))
+
+| pbl15a_datterselskabshændelse_identifikation(hændelse: Pbl15ADatterselskabshændelse) -> match hændelse {
+    | Pbl15ADatterselskabsaktierAfstået(hændelses_identifikation, _, _, _) -> hændelses_identifikation
+    | Pbl15ADatterselskabLikvideret(hændelses_identifikation, _, _, _) -> hændelses_identifikation
+}
+| pbl15a_datterselskabshændelse_selskab_identifikation(hændelse: Pbl15ADatterselskabshændelse) -> match hændelse {
+    | Pbl15ADatterselskabsaktierAfstået(_, selskab_identifikation, _, _) -> selskab_identifikation
+    | Pbl15ADatterselskabLikvideret(_, selskab_identifikation, _, _) -> selskab_identifikation
+}
+| pbl15a_datterselskabshændelse_tidspunkt(hændelse: Pbl15ADatterselskabshændelse) -> match hændelse {
+    | Pbl15ADatterselskabsaktierAfstået(_, _, tidspunkt, _) -> tidspunkt
+    | Pbl15ADatterselskabLikvideret(_, _, tidspunkt, _) -> tidspunkt
+}
+| pbl15a_datterselskabshændelse_provenuaktiv(hændelse: Pbl15ADatterselskabshændelse) -> match hændelse {
+    | Pbl15ADatterselskabsaktierAfstået(_, _, _, provenuaktiv) -> provenuaktiv
+    | Pbl15ADatterselskabLikvideret(_, _, _, provenuaktiv) -> provenuaktiv
+}
+| pbl15a_datterselskabshændelse_identifikation_unik(hændelser: List(Pbl15ADatterselskabshændelse), hændelse: Pbl15ADatterselskabshændelse) -> length(filter(hændelser, |anden: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_identifikation(anden) == pbl15a_datterselskabshændelse_identifikation(hændelse))) == 1
+| pbl15a_datterselskabshændelse_selskab_unikt(hændelser: List(Pbl15ADatterselskabshændelse), hændelse: Pbl15ADatterselskabshændelse) -> length(filter(hændelser, |anden: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_selskab_identifikation(anden) == pbl15a_datterselskabshændelse_selskab_identifikation(hændelse))) == 1
+| pbl15a_datterselskabshændelse_provenu_unikt(hændelser: List(Pbl15ADatterselskabshændelse), hændelse: Pbl15ADatterselskabshændelse) -> length(filter(hændelser, |anden: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_provenuaktiv(anden).identifikation == pbl15a_datterselskabshændelse_provenuaktiv(hændelse).identifikation)) == 1
+| pbl15a_datterselskabshændelse_gyldig(personens_afståelsestidspunkt: Pbl15ATidspunkt, hændelser: List(Pbl15ADatterselskabshændelse), hændelse: Pbl15ADatterselskabshændelse) -> pbl15a_datterselskabshændelse_identifikation(hændelse) != "" && pbl15a_datterselskabshændelse_selskab_identifikation(hændelse) != "" && pbl15a_tidspunkt_gyldigt(pbl15a_datterselskabshændelse_tidspunkt(hændelse)) && pbl15a_tidspunkt_før(pbl15a_datterselskabshændelse_tidspunkt(hændelse), personens_afståelsestidspunkt) && pbl15a_aktivpost_gyldig(pbl15a_datterselskabshændelse_provenuaktiv(hændelse)) && pbl15a_datterselskabshændelse_provenuaktiv(hændelse).art == Pbl15AKontanter && pbl15a_datterselskabshændelse_identifikation_unik(hændelser, hændelse) && pbl15a_datterselskabshændelse_selskab_unikt(hændelser, hændelse) && pbl15a_datterselskabshændelse_provenu_unikt(hændelser, hændelse)
+| pbl15a_holdingselskab_likvideret(forløb: Pbl15AHoldingforløb) -> match forløb.afvikling {
+    | Pbl15AIntetHoldingselskab -> Falskt
+    | Pbl15AHoldingFortsatBestående -> Falskt
+    | Pbl15AHoldingselskabLikvideret(_, _) -> Sandt
+}
+| pbl15a_holdingselskab_fortsat_bestående(forløb: Pbl15AHoldingforløb) -> match forløb.afvikling {
+    | Pbl15AHoldingFortsatBestående -> Sandt
+    | _ -> Falskt
+}
+| pbl15a_holdinglikvidation_inden_for_praksisgrænse(forløb: Pbl15AHoldingforløb) -> match forløb.afvikling {
+    | Pbl15AIntetHoldingselskab -> Falskt
+    | Pbl15AHoldingFortsatBestående -> Falskt
+    | Pbl15AHoldingselskabLikvideret(_, likvidationstidspunkt) -> length(forløb.datterselskabshændelser) > 0 && all(forløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_dato_inden_for_højst_tolv_måneder(pbl15a_datterselskabshændelse_tidspunkt(hændelse).dato, likvidationstidspunkt.dato))
+}
+| pbl15a_holdingafvikling_mangler(forløb: Pbl15AHoldingforløb) -> length(forløb.datterselskabshændelser) > 0 && pbl15a_holdingselskab_fortsat_bestående(forløb)
+| pbl15a_holdingafvikling_for_sen(forløb: Pbl15AHoldingforløb) -> pbl15a_holdingselskab_likvideret(forløb) && length(forløb.datterselskabshændelser) > 0 && pbl15a_holdinglikvidation_inden_for_praksisgrænse(forløb) == Falskt
+| pbl15a_uden_holdingforløb() -> Pbl15AHoldingforløb(
+    personens_afståelsesrækkefølge_på_dagen = 1,
+    datterselskabshændelser = [],
+    afvikling = Pbl15AIntetHoldingselskab
+)
 
 | pbl15a_indtægtspost_gyldig(post: Pbl15AIndtægtspost) -> post.identifikation != "" && post.beløb_kroner >= 0
 | pbl15a_aktivpost_gyldig(post: Pbl15AAktivpost) -> post.identifikation != "" && post.handelsværdi_kroner >= 0
@@ -266,8 +361,24 @@ person, der kan ligestilles hermed.
 | pbl15a_regnskabsperioder_har_entydig_rækkefølge(perioder: List(Pbl15ARegnskabsperiode)) -> all(perioder, |periode: Pbl15ARegnskabsperiode| length(filter(perioder, |anden: Pbl15ARegnskabsperiode| anden.rækkefølge_fra_ældste == periode.rækkefølge_fra_ældste)) == 1)
 | pbl15a_regnskabsperioder_er_sammenhængende(perioder: List(Pbl15ARegnskabsperiode)) -> all(perioder, |periode: Pbl15ARegnskabsperiode| all(perioder, |næste: Pbl15ARegnskabsperiode| næste.rækkefølge_fra_ældste != periode.rækkefølge_fra_ældste + 1 || næste.startdato == pbl15a_næste_dato(periode.slutdato)))
 | pbl15a_seneste_regnskabsperiode_støder_op_til_den_aktuelle(perioder: List(Pbl15ARegnskabsperiode), aktuel_startdato: Pbl15ADato) -> any(perioder, |periode: Pbl15ARegnskabsperiode| periode.rækkefølge_fra_ældste == 3 && aktuel_startdato == pbl15a_næste_dato(periode.slutdato))
-| pbl15a_passiv_kapital_fakta_gyldige(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> pbl15a_dato_gyldig(afståelsesdato) && pbl15a_dato_gyldig(fakta.aktuel_regnskabsperiodes_startdato) && pbl15a_dato_nøgle(fakta.aktuel_regnskabsperiodes_startdato) <= pbl15a_dato_nøgle(afståelsesdato) && length(fakta.seneste_tre_regnskabsperioder) == 3 && all(fakta.seneste_tre_regnskabsperioder, |periode: Pbl15ARegnskabsperiode| pbl15a_regnskabsperiode_gyldig(afståelsesdato, periode)) && pbl15a_regnskabsperioder_har_entydig_rækkefølge(fakta.seneste_tre_regnskabsperioder) && pbl15a_regnskabsperioder_er_sammenhængende(fakta.seneste_tre_regnskabsperioder) && pbl15a_seneste_regnskabsperiode_støder_op_til_den_aktuelle(fakta.seneste_tre_regnskabsperioder, fakta.aktuel_regnskabsperiodes_startdato) && pbl15a_aktivposter_gyldige(fakta.virksomhedens_aktiver_på_overdragelsestidspunktet) && all(fakta.selskabsaktiver_på_overdragelsestidspunktet, |opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_selskabsaktivopgørelse_gyldig(afståelsesdato, opgørelse) && pbl15a_selskabsaktividentifikation_unik(fakta.selskabsaktiver_på_overdragelsestidspunktet, opgørelse))
-| exception pbl15a_næringsvirksomhed_er_undtaget_fra_passiv_kapitalprøven pbl15a_passiv_kapital_fakta_gyldige(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> pbl15a_dato_gyldig(afståelsesdato) under fakta.næringsvirksomhed_med_værdipapirer_eller_finansiering
+| pbl15a_personens_afståelsestidspunkt(afståelsesdato: Pbl15ADato, forløb: Pbl15AHoldingforløb) -> Pbl15ATidspunkt(dato = afståelsesdato, rækkefølge_på_dagen = forløb.personens_afståelsesrækkefølge_på_dagen)
+| pbl15a_selskab_findes_i_regnskabsperiode(periode: Pbl15ARegnskabsperiode, selskab_identifikation: Tekst) -> any(periode.selskabsregnskaber, |regnskab: Pbl15ASelskabsregnskab| regnskab.selskab.identifikation == selskab_identifikation)
+| pbl15a_selskab_findes_ved_afståelse(opgørelser: List(Pbl15ASelskabsaktivopgørelse), selskab_identifikation: Tekst) -> any(opgørelser, |opgørelse: Pbl15ASelskabsaktivopgørelse| opgørelse.selskab.identifikation == selskab_identifikation)
+| pbl15a_datterselskabshændelse_findes(forløb: Pbl15AHoldingforløb, selskab_identifikation: Tekst) -> any(forløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_selskab_identifikation(hændelse) == selskab_identifikation)
+| pbl15a_datterselskab_består_på_dato(forløb: Pbl15AHoldingforløb, selskab_identifikation: Tekst, dato: Pbl15ADato) -> all(forløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_selskab_identifikation(hændelse) != selskab_identifikation || pbl15a_dato_nøgle(pbl15a_datterselskabshændelse_tidspunkt(hændelse).dato) > pbl15a_dato_nøgle(dato))
+| pbl15a_datterselskabshændelse_har_tidligere_regnskab(perioder: List(Pbl15ARegnskabsperiode), hændelse: Pbl15ADatterselskabshændelse) -> any(perioder, |periode: Pbl15ARegnskabsperiode| pbl15a_dato_nøgle(periode.slutdato) < pbl15a_dato_nøgle(pbl15a_datterselskabshændelse_tidspunkt(hændelse).dato) && pbl15a_selskab_findes_i_regnskabsperiode(periode, pbl15a_datterselskabshændelse_selskab_identifikation(hændelse)))
+| pbl15a_selskabsspor_fra_regnskab_gyldigt(fakta: Pbl15APassivKapitalFakta, startperiode: Pbl15ARegnskabsperiode, regnskab: Pbl15ASelskabsregnskab) -> all(fakta.seneste_tre_regnskabsperioder, |senere_periode: Pbl15ARegnskabsperiode| senere_periode.rækkefølge_fra_ældste <= startperiode.rækkefølge_fra_ældste || pbl15a_selskab_findes_i_regnskabsperiode(senere_periode, regnskab.selskab.identifikation) == pbl15a_datterselskab_består_på_dato(fakta.holdingforløb, regnskab.selskab.identifikation, senere_periode.slutdato)) && (pbl15a_selskab_findes_ved_afståelse(fakta.selskabsaktiver_på_overdragelsestidspunktet, regnskab.selskab.identifikation) == (pbl15a_datterselskabshændelse_findes(fakta.holdingforløb, regnskab.selskab.identifikation) == Falskt))
+| pbl15a_selskabsspor_gyldige(fakta: Pbl15APassivKapitalFakta) -> all(fakta.seneste_tre_regnskabsperioder, |periode: Pbl15ARegnskabsperiode| all(periode.selskabsregnskaber, |regnskab: Pbl15ASelskabsregnskab| pbl15a_selskabsspor_fra_regnskab_gyldigt(fakta, periode, regnskab))) && all(fakta.selskabsaktiver_på_overdragelsestidspunktet, |opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_datterselskabshændelse_findes(fakta.holdingforløb, opgørelse.selskab.identifikation) == Falskt) && all(fakta.holdingforløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_har_tidligere_regnskab(fakta.seneste_tre_regnskabsperioder, hændelse))
+| pbl15a_regnskabsperiode_uden_dobbelt_selskabsaktiv(periode: Pbl15ARegnskabsperiode) -> all(periode.virksomhedens_aktiver, |aktiv: Pbl15AAktivpost| all(periode.selskabsregnskaber, |regnskab: Pbl15ASelskabsregnskab| aktiv.identifikation != regnskab.selskab.identifikation))
+| pbl15a_overdragelse_uden_dobbelt_selskabsaktiv(fakta: Pbl15APassivKapitalFakta) -> all(fakta.virksomhedens_aktiver_på_overdragelsestidspunktet, |aktiv: Pbl15AAktivpost| all(fakta.selskabsaktiver_på_overdragelsestidspunktet, |opgørelse: Pbl15ASelskabsaktivopgørelse| aktiv.identifikation != opgørelse.selskab.identifikation) && all(fakta.holdingforløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| aktiv.identifikation != pbl15a_datterselskabshændelse_provenuaktiv(hændelse).identifikation)) && all(fakta.holdingforløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| all(fakta.selskabsaktiver_på_overdragelsestidspunktet, |opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_datterselskabshændelse_provenuaktiv(hændelse).identifikation != opgørelse.selskab.identifikation))
+| pbl15a_holdingafvikling_gyldig(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> match fakta.holdingforløb.afvikling {
+    | Pbl15AIntetHoldingselskab -> length(fakta.holdingforløb.datterselskabshændelser) == 0
+    | Pbl15AHoldingFortsatBestående -> Sandt
+    | Pbl15AHoldingselskabLikvideret(hændelses_identifikation, tidspunkt) -> hændelses_identifikation != "" && length(fakta.holdingforløb.datterselskabshændelser) > 0 && pbl15a_tidspunkt_gyldigt(tidspunkt) && tidspunkt == pbl15a_personens_afståelsestidspunkt(afståelsesdato, fakta.holdingforløb) && all(fakta.holdingforløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_identifikation(hændelse) != hændelses_identifikation) && length(fakta.virksomhedens_aktiver_på_overdragelsestidspunktet) == 0 && length(fakta.selskabsaktiver_på_overdragelsestidspunktet) == 0
+}
+| pbl15a_holdingforløb_gyldigt(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> pbl15a_tidspunkt_gyldigt(pbl15a_personens_afståelsestidspunkt(afståelsesdato, fakta.holdingforløb)) && all(fakta.holdingforløb.datterselskabshændelser, |hændelse: Pbl15ADatterselskabshændelse| pbl15a_datterselskabshændelse_gyldig(pbl15a_personens_afståelsestidspunkt(afståelsesdato, fakta.holdingforløb), fakta.holdingforløb.datterselskabshændelser, hændelse)) && pbl15a_selskabsspor_gyldige(fakta) && all(fakta.seneste_tre_regnskabsperioder, pbl15a_regnskabsperiode_uden_dobbelt_selskabsaktiv) && pbl15a_overdragelse_uden_dobbelt_selskabsaktiv(fakta) && pbl15a_holdingafvikling_gyldig(afståelsesdato, fakta)
+| pbl15a_passiv_kapital_fakta_gyldige(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> pbl15a_dato_gyldig(afståelsesdato) && pbl15a_dato_gyldig(fakta.aktuel_regnskabsperiodes_startdato) && pbl15a_dato_nøgle(fakta.aktuel_regnskabsperiodes_startdato) <= pbl15a_dato_nøgle(afståelsesdato) && length(fakta.seneste_tre_regnskabsperioder) == 3 && all(fakta.seneste_tre_regnskabsperioder, |periode: Pbl15ARegnskabsperiode| pbl15a_regnskabsperiode_gyldig(afståelsesdato, periode)) && pbl15a_regnskabsperioder_har_entydig_rækkefølge(fakta.seneste_tre_regnskabsperioder) && pbl15a_regnskabsperioder_er_sammenhængende(fakta.seneste_tre_regnskabsperioder) && pbl15a_seneste_regnskabsperiode_støder_op_til_den_aktuelle(fakta.seneste_tre_regnskabsperioder, fakta.aktuel_regnskabsperiodes_startdato) && pbl15a_aktivposter_gyldige(fakta.virksomhedens_aktiver_på_overdragelsestidspunktet) && all(fakta.selskabsaktiver_på_overdragelsestidspunktet, |opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_selskabsaktivopgørelse_gyldig(afståelsesdato, opgørelse) && pbl15a_selskabsaktividentifikation_unik(fakta.selskabsaktiver_på_overdragelsestidspunktet, opgørelse)) && pbl15a_holdingforløb_gyldigt(afståelsesdato, fakta)
+| exception pbl15a_næringsvirksomhed_er_undtaget_fra_passiv_kapitalprøven pbl15a_passiv_kapital_fakta_gyldige(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> pbl15a_dato_gyldig(afståelsesdato) && pbl15a_holdingforløb_gyldigt(afståelsesdato, fakta) under fakta.næringsvirksomhed_med_værdipapirer_eller_finansiering
 
 | pbl15a_indtægt_medregnes_i_total(post: Pbl15AIndtægtspost) -> post.art != Pbl15AKoncerninternUdlejningsindtægt
 | pbl15a_indtægt_er_passiv(afståelsesdato: Pbl15ADato, post: Pbl15AIndtægtspost) -> post.art == Pbl15APassivEjendomsindtægt || post.art == Pbl15AKontantEllerVærdipapirindtægt || (post.art == Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7 && pbl15a_dato_nøgle(afståelsesdato) < 20250101)
@@ -286,7 +397,10 @@ person, der kan ligestilles hermed.
 | pbl15a_selskabsaktivopgørelse_sammenfatning(afståelsesdato: Pbl15ADato, opgørelse: Pbl15ASelskabsaktivopgørelse) -> hvis pbl15a_selskab_gennemlyses(afståelsesdato, opgørelse.selskab) { pbl15a_kapitalsammenfatning_gange_ejerandel(pbl15a_direkte_kapitalsammenfatning(afståelsesdato, [], opgørelse.selskabets_aktiver_før_ejerandel), pbl15a_effektiv_ejerandel_basispoint(opgørelse.selskab.ejerforhold)) } ellers { Pbl15AKapitalsammenfatning(passive_indtægter_kroner = 0, samlede_indtægter_kroner = 0, passive_aktiver_kroner = opgørelse.aktiernes_handelsværdi_i_virksomheden_kroner, samlede_aktiver_kroner = opgørelse.aktiernes_handelsværdi_i_virksomheden_kroner) }
 | pbl15a_regnskabsperiode_sammenfatning(afståelsesdato: Pbl15ADato, periode: Pbl15ARegnskabsperiode) -> foldl(periode.selskabsregnskaber, pbl15a_direkte_kapitalsammenfatning(afståelsesdato, periode.virksomhedens_indtægter, periode.virksomhedens_aktiver), |sum: Pbl15AKapitalsammenfatning, regnskab: Pbl15ASelskabsregnskab| pbl15a_kapitalsammenfatning_læg_sammen(sum, pbl15a_selskabsregnskab_sammenfatning(afståelsesdato, regnskab)))
 | pbl15a_treårs_sammenfatning(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.seneste_tre_regnskabsperioder, pbl15a_kapitalsammenfatning_nul(), |sum: Pbl15AKapitalsammenfatning, periode: Pbl15ARegnskabsperiode| pbl15a_kapitalsammenfatning_læg_sammen(sum, pbl15a_regnskabsperiode_sammenfatning(afståelsesdato, periode)))
-| pbl15a_overdragelses_sammenfatning(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.selskabsaktiver_på_overdragelsestidspunktet, pbl15a_direkte_kapitalsammenfatning(afståelsesdato, [], fakta.virksomhedens_aktiver_på_overdragelsestidspunktet), |sum: Pbl15AKapitalsammenfatning, opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_kapitalsammenfatning_læg_sammen(sum, pbl15a_selskabsaktivopgørelse_sammenfatning(afståelsesdato, opgørelse)))
+| pbl15a_datterselskabsprovenuaktiver(forløb: Pbl15AHoldingforløb) -> map(forløb.datterselskabshændelser, pbl15a_datterselskabshændelse_provenuaktiv)
+| pbl15a_datterselskabsprovenu_før_holdingafvikling_kroner(forløb: Pbl15AHoldingforløb) -> pbl15a_aktivsum_kroner(pbl15a_datterselskabsprovenuaktiver(forløb), pbl15a_aktiv_medregnes_i_total)
+| pbl15a_beholdte_datterselskabsprovenuaktiver(forløb: Pbl15AHoldingforløb) -> hvis pbl15a_holdingselskab_likvideret(forløb) { [] } ellers { pbl15a_datterselskabsprovenuaktiver(forløb) }
+| pbl15a_overdragelses_sammenfatning(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.selskabsaktiver_på_overdragelsestidspunktet, pbl15a_direkte_kapitalsammenfatning(afståelsesdato, [], concat(fakta.virksomhedens_aktiver_på_overdragelsestidspunktet, pbl15a_beholdte_datterselskabsprovenuaktiver(fakta.holdingforløb))), |sum: Pbl15AKapitalsammenfatning, opgørelse: Pbl15ASelskabsaktivopgørelse| pbl15a_kapitalsammenfatning_læg_sammen(sum, pbl15a_selskabsaktivopgørelse_sammenfatning(afståelsesdato, opgørelse)))
 | pbl15a_alle_regnskabsperioder_fra_2012(fakta: Pbl15APassivKapitalFakta) -> all(fakta.seneste_tre_regnskabsperioder, |periode: Pbl15ARegnskabsperiode| pbl15a_dato_nøgle(periode.startdato) >= 20120101)
 | pbl15a_gennemsnitsgrænse_basispoint(fakta: Pbl15APassivKapitalFakta) -> hvis pbl15a_alle_regnskabsperioder_fra_2012(fakta) { 5000 } ellers { 7500 }
 | pbl15a_overdragelsesgrænse_basispoint(afståelsesdato: Pbl15ADato) -> hvis pbl15a_dato_nøgle(afståelsesdato) <= 20131231 { 7500 } ellers { 5000 }
@@ -294,6 +408,12 @@ person, der kan ligestilles hermed.
 
 # Pbl15APassivKapitalSag(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) {
     | fakta_gyldige() -> pbl15a_passiv_kapital_fakta_gyldige(afståelsesdato, fakta)
+    | holdingforløb_gyldigt() -> pbl15a_holdingforløb_gyldigt(afståelsesdato, fakta)
+    | datterselskabsprovenu_før_holdingafvikling_kroner() -> pbl15a_datterselskabsprovenu_før_holdingafvikling_kroner(fakta.holdingforløb)
+    | holdingselskab_likvideret() -> pbl15a_holdingselskab_likvideret(fakta.holdingforløb)
+    | holdingafvikling_mangler() -> pbl15a_holdingafvikling_mangler(fakta.holdingforløb)
+    | holdinglikvidation_inden_for_praksisgrænse() -> pbl15a_holdinglikvidation_inden_for_praksisgrænse(fakta.holdingforløb)
+    | holdingafvikling_for_sen() -> pbl15a_holdingafvikling_for_sen(fakta.holdingforløb)
     | treårs_sammenfatning() -> pbl15a_treårs_sammenfatning(afståelsesdato, fakta)
     | overdragelses_sammenfatning() -> pbl15a_overdragelses_sammenfatning(afståelsesdato, fakta)
     | passive_indtægter_tre_år_kroner() -> treårs_sammenfatning().passive_indtægter_kroner
@@ -307,10 +427,16 @@ person, der kan ligestilles hermed.
     | indtægtsgrænse_nået() -> pbl15a_mindst_grænse(passive_indtægter_tre_år_kroner(), samlede_indtægter_tre_år_kroner(), gennemsnitsgrænse_basispoint())
     | gennemsnitlig_aktivgrænse_nået() -> pbl15a_mindst_grænse(passive_aktiver_tre_år_kroner(), samlede_aktiver_tre_år_kroner(), gennemsnitsgrænse_basispoint())
     | aktivgrænse_ved_afståelse_nået() -> pbl15a_mindst_grænse(passive_aktiver_ved_afståelse_kroner(), samlede_aktiver_ved_afståelse_kroner(), overdragelsesgrænse_basispoint())
-    | overvejende_passiv_kapitalanbringelse() -> fakta_gyldige() && fakta.næringsvirksomhed_med_værdipapirer_eller_finansiering == Falskt && (indtægtsgrænse_nået() || gennemsnitlig_aktivgrænse_nået() || aktivgrænse_ved_afståelse_nået())
+    | overvejende_passiv_kapitalanbringelse() -> fakta_gyldige() && fakta.næringsvirksomhed_med_værdipapirer_eller_finansiering == Falskt && (holdingafvikling_mangler() || holdingafvikling_for_sen() || indtægtsgrænse_nået() || gennemsnitlig_aktivgrænse_nået() || aktivgrænse_ved_afståelse_nået())
     | resultat() -> Pbl15APassivKapitalResultat(
         fakta = fakta,
         fakta_gyldige = fakta_gyldige(),
+        holdingforløb_gyldigt = holdingforløb_gyldigt(),
+        datterselskabsprovenu_før_holdingafvikling_kroner = datterselskabsprovenu_før_holdingafvikling_kroner(),
+        holdingselskab_likvideret = holdingselskab_likvideret(),
+        holdingafvikling_mangler = holdingafvikling_mangler(),
+        holdinglikvidation_inden_for_praksisgrænse = holdinglikvidation_inden_for_praksisgrænse(),
+        holdingafvikling_for_sen = holdingafvikling_for_sen(),
         passive_indtægter_tre_år_kroner = passive_indtægter_tre_år_kroner(),
         samlede_indtægter_tre_år_kroner = samlede_indtægter_tre_år_kroner(),
         passive_aktiver_tre_år_kroner = passive_aktiver_tre_år_kroner(),

@@ -85,6 +85,7 @@
         )
     ],
     selskabsaktiver_på_overdragelsestidspunktet = [],
+    holdingforløb = pbl15a_uden_holdingforløb(),
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
@@ -440,6 +441,7 @@
         Pbl15AAktivpost(identifikation = "aktiv-ved-afståelse", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
     ],
     selskabsaktiver_på_overdragelsestidspunktet = [],
+    holdingforløb = pbl15a_uden_holdingforløb(),
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
@@ -525,6 +527,7 @@
             )
         ],
         selskabsaktiver_på_overdragelsestidspunktet = [],
+        holdingforløb = pbl15a_uden_holdingforløb(),
         næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
     )
 )
@@ -610,6 +613,7 @@
     aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_kalenderårs_start(afståelsesår),
     virksomhedens_aktiver_på_overdragelsestidspunktet = [],
     selskabsaktiver_på_overdragelsestidspunktet = [pbl15a_scenarie_selskabsaktivopgørelse(regnskab)],
+    holdingforløb = pbl15a_uden_holdingforløb(),
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
@@ -711,6 +715,7 @@
     aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_dato(2026, 1, 1),
     virksomhedens_aktiver_på_overdragelsestidspunktet = [],
     selskabsaktiver_på_overdragelsestidspunktet = [],
+    holdingforløb = pbl15a_uden_holdingforløb(),
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 = pbl15a_scenarie_regnskabsgab_resultat = pbl15a_passiv_kapital_resultat(
@@ -723,6 +728,7 @@
     aktuel_regnskabsperiodes_startdato = pbl15a_scenarie_dato(2026, 1, 1),
     virksomhedens_aktiver_på_overdragelsestidspunktet = [],
     selskabsaktiver_på_overdragelsestidspunktet = [],
+    holdingforløb = pbl15a_uden_holdingforløb(),
     næringsvirksomhed_med_værdipapirer_eller_finansiering = næringsvirksomhed
 )
 

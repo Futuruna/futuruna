@@ -320,6 +320,7 @@
                     )
                 ],
                 selskabsaktiver_på_overdragelsestidspunktet = [],
+                holdingforløb = pbl15a_uden_holdingforløb(),
                 næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
             ),
             udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,

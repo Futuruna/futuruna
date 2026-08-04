@@ -1,0 +1,7 @@
+@ sprog da
+
+-- Fælles, typet metadataprotokol for det danske skattekorpus.
+
+# DanskSkatMetaRolle = Field | Source | AmendmentSource | Dependency | DependencySource | FutureAmendmentSource | ParameterSource | RateSource | CurrentnessSource | HistoricalSource | TransitionSource | ExclusionSource | PreparatorySource | Guidance | GuidanceSource | TimingGuidance | MultiDisposalGuidance | GainGuidance | PengetankGuidance | BasisGuidance | ChapterGuidance | EventGuidance | IntervalGuidance | RateGuidance | TransitionGuidance | AllocationGuidance | ScaleSource | Practice | PreparatoryWork | Warning | Assumption
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# Metadata(a) = Metadata(attachments: a)

@@ -1,0 +1,213 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par15 - 15a
+
+-- Fokuserede grænsescenarier for rækkefølgen mellem et datterselskabs
+-- afståelse eller likvidation og personens efterfølgende holdingafvikling.
+
+| pbl15a_holding_scenarie_dato(år: Heltal, måned: Heltal, dag: Heltal) -> Pbl15ADato(
+    år = år,
+    måned = måned,
+    dag = dag
+)
+
+| pbl15a_holding_scenarie_periode(år: Heltal, rækkefølge: Heltal, selskabsregnskaber: List(Pbl15ASelskabsregnskab)) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_holding_scenarie_dato(år, 1, 1),
+    slutdato = pbl15a_holding_scenarie_dato(år, 12, 31),
+    virksomhedens_indtægter = [],
+    virksomhedens_aktiver = [],
+    selskabsregnskaber = selskabsregnskaber
+)
+
+= pbl15a_holding_scenarie_datterselskab = Pbl15ASelskab(
+    identifikation = "aktivt-datterselskab",
+    ejerforhold = Pbl15AEjerforhold(
+        direkte_ejerandel_basispoint = 3000,
+        indirekte_ejerveje = []
+    ),
+    udøver_aktiv_udlejning_efter_abl34_stk7 = Falskt
+)
+
+= pbl15a_holding_scenarie_selskabsregnskab = Pbl15ASelskabsregnskab(
+    selskab = pbl15a_holding_scenarie_datterselskab,
+    aktiernes_handelsværdi_i_virksomheden_kroner = 900,
+    aktieafkast_i_virksomheden_kroner = 400,
+    selskabets_indtægter_før_ejerandel = [
+        Pbl15AIndtægtspost(
+            identifikation = "datterselskabets-driftsindtægt",
+            beløb_kroner = 1000,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    selskabets_aktiver_før_ejerandel = [
+        Pbl15AAktivpost(
+            identifikation = "datterselskabets-driftsaktiv",
+            handelsværdi_kroner = 1000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ]
+)
+
+= pbl15a_holding_scenarie_selskabsaktiv = Pbl15ASelskabsaktivopgørelse(
+    selskab = pbl15a_holding_scenarie_datterselskab,
+    aktiernes_handelsværdi_i_virksomheden_kroner = 900,
+    selskabets_aktiver_før_ejerandel = pbl15a_holding_scenarie_selskabsregnskab.selskabets_aktiver_før_ejerandel
+)
+
+| pbl15a_holding_scenarie_fakta_2026(virksomhedsaktiver: List(Pbl15AAktivpost), selskabsaktiver: List(Pbl15ASelskabsaktivopgørelse), forløb: Pbl15AHoldingforløb) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsperioder = [
+        pbl15a_holding_scenarie_periode(2023, 1, [pbl15a_holding_scenarie_selskabsregnskab]),
+        pbl15a_holding_scenarie_periode(2024, 2, [pbl15a_holding_scenarie_selskabsregnskab]),
+        pbl15a_holding_scenarie_periode(2025, 3, [pbl15a_holding_scenarie_selskabsregnskab])
+    ],
+    aktuel_regnskabsperiodes_startdato = pbl15a_holding_scenarie_dato(2026, 1, 1),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = virksomhedsaktiver,
+    selskabsaktiver_på_overdragelsestidspunktet = selskabsaktiver,
+    holdingforløb = forløb,
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+
+= pbl15a_holding_scenarie_fortsat_ejet_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_holding_scenarie_dato(2026, 7, 1),
+    pbl15a_holding_scenarie_fakta_2026(
+        [],
+        [pbl15a_holding_scenarie_selskabsaktiv],
+        Pbl15AHoldingforløb(
+            personens_afståelsesrækkefølge_på_dagen = 1,
+            datterselskabshændelser = [],
+            afvikling = Pbl15AHoldingFortsatBestående
+        )
+    )
+)
+
+= pbl15a_holding_scenarie_salg = Pbl15ADatterselskabsaktierAfstået(
+    hændelses_identifikation = "salg-af-datterselskab",
+    selskab_identifikation = "aktivt-datterselskab",
+    tidspunkt = Pbl15ATidspunkt(
+        dato = pbl15a_holding_scenarie_dato(2026, 7, 1),
+        rækkefølge_på_dagen = 1
+    ),
+    provenuaktiv = Pbl15AAktivpost(
+        identifikation = "provenu-fra-datterselskab",
+        handelsværdi_kroner = 900,
+        art = Pbl15AKontanter
+    )
+)
+
+= pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_holding_scenarie_dato(2026, 7, 1),
+    pbl15a_holding_scenarie_fakta_2026(
+        [
+            Pbl15AAktivpost(
+                identifikation = "holdingselskabets-driftsaktiv",
+                handelsværdi_kroner = 9100,
+                art = Pbl15AØvrigtDriftsaktiv
+            )
+        ],
+        [],
+        Pbl15AHoldingforløb(
+            personens_afståelsesrækkefølge_på_dagen = 2,
+            datterselskabshændelser = [pbl15a_holding_scenarie_salg],
+            afvikling = Pbl15AHoldingFortsatBestående
+        )
+    )
+)
+
+= pbl15a_holding_scenarie_hændelse_uden_holding_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_holding_scenarie_dato(2026, 7, 1),
+    pbl15a_holding_scenarie_fakta_2026(
+        [],
+        [],
+        Pbl15AHoldingforløb(
+            personens_afståelsesrækkefølge_på_dagen = 2,
+            datterselskabshændelser = [pbl15a_holding_scenarie_salg],
+            afvikling = Pbl15AIntetHoldingselskab
+        )
+    )
+)
+
+= pbl15a_holding_scenarie_datterselskabslikvidation = Pbl15ADatterselskabLikvideret(
+    hændelses_identifikation = "likvidation-af-datterselskab",
+    selskab_identifikation = "aktivt-datterselskab",
+    tidspunkt = Pbl15ATidspunkt(
+        dato = pbl15a_holding_scenarie_dato(2026, 1, 15),
+        rækkefølge_på_dagen = 1
+    ),
+    provenuaktiv = Pbl15AAktivpost(
+        identifikation = "likvidationsprovenu-fra-datterselskab",
+        handelsværdi_kroner = 900,
+        art = Pbl15AKontanter
+    )
+)
+
+= pbl15a_holding_scenarie_rettidig_likvidation_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_holding_scenarie_dato(2026, 7, 1),
+    pbl15a_holding_scenarie_fakta_2026(
+        [],
+        [],
+        Pbl15AHoldingforløb(
+            personens_afståelsesrækkefølge_på_dagen = 2,
+            datterselskabshændelser = [pbl15a_holding_scenarie_datterselskabslikvidation],
+            afvikling = Pbl15AHoldingselskabLikvideret(
+                hændelses_identifikation = "likvidation-af-holdingselskab",
+                tidspunkt = Pbl15ATidspunkt(
+                    dato = pbl15a_holding_scenarie_dato(2026, 7, 1),
+                    rækkefølge_på_dagen = 2
+                )
+            )
+        )
+    )
+)
+
+= pbl15a_holding_scenarie_sen_afståelse = Pbl15ADatterselskabsaktierAfstået(
+    hændelses_identifikation = "salg-af-datterselskab-2026",
+    selskab_identifikation = "aktivt-datterselskab",
+    tidspunkt = Pbl15ATidspunkt(
+        dato = pbl15a_holding_scenarie_dato(2026, 6, 1),
+        rækkefølge_på_dagen = 1
+    ),
+    provenuaktiv = Pbl15AAktivpost(
+        identifikation = "provenu-fra-datterselskab-2026",
+        handelsværdi_kroner = 900,
+        art = Pbl15AKontanter
+    )
+)
+
+= pbl15a_holding_scenarie_sen_likvidation_resultat = pbl15a_passiv_kapital_resultat(
+    pbl15a_holding_scenarie_dato(2027, 7, 1),
+    Pbl15APassivKapitalFakta(
+        seneste_tre_regnskabsperioder = [
+            pbl15a_holding_scenarie_periode(2024, 1, [pbl15a_holding_scenarie_selskabsregnskab]),
+            pbl15a_holding_scenarie_periode(2025, 2, [pbl15a_holding_scenarie_selskabsregnskab]),
+            pbl15a_holding_scenarie_periode(2026, 3, [])
+        ],
+        aktuel_regnskabsperiodes_startdato = pbl15a_holding_scenarie_dato(2027, 1, 1),
+        virksomhedens_aktiver_på_overdragelsestidspunktet = [],
+        selskabsaktiver_på_overdragelsestidspunktet = [],
+        holdingforløb = Pbl15AHoldingforløb(
+            personens_afståelsesrækkefølge_på_dagen = 2,
+            datterselskabshændelser = [pbl15a_holding_scenarie_sen_afståelse],
+            afvikling = Pbl15AHoldingselskabLikvideret(
+                hændelses_identifikation = "sen-likvidation-af-holdingselskab",
+                tidspunkt = Pbl15ATidspunkt(
+                    dato = pbl15a_holding_scenarie_dato(2027, 7, 1),
+                    rækkefølge_på_dagen = 2
+                )
+            )
+        ),
+        næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+    )
+)
+
+| pbl15a_holding_fortsat_ejet_datterselskab_bevarer_gennemlysningen: pbl15a_holding_scenarie_fortsat_ejet_resultat.overvejende_passiv_kapitalanbringelse -> pbl15a_holding_scenarie_fortsat_ejet_resultat.fakta_gyldige && pbl15a_holding_scenarie_fortsat_ejet_resultat.holdingforløb_gyldigt && pbl15a_holding_scenarie_fortsat_ejet_resultat.holdingselskab_likvideret == Falskt && pbl15a_holding_scenarie_fortsat_ejet_resultat.datterselskabsprovenu_før_holdingafvikling_kroner == 0 && pbl15a_holding_scenarie_fortsat_ejet_resultat.samlede_aktiver_ved_afståelse_kroner == 300 && pbl15a_holding_scenarie_fortsat_ejet_resultat.overvejende_passiv_kapitalanbringelse == Falskt
+| pbl15a_holding_salg_tæller_beholdt_provenu_en_gang: pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.samlede_aktiver_ved_afståelse_kroner -> pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.fakta_gyldige && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.holdingafvikling_mangler && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.datterselskabsprovenu_før_holdingafvikling_kroner == 900 && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.passive_aktiver_ved_afståelse_kroner == 900 && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.samlede_aktiver_ved_afståelse_kroner == 10000 && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.aktivgrænse_ved_afståelse_nået == Falskt && pbl15a_holding_scenarie_salg_med_fortsat_holding_resultat.overvejende_passiv_kapitalanbringelse
+| pbl15a_holding_hændelse_kræver_et_holdingselskab: pbl15a_holding_scenarie_hændelse_uden_holding_resultat.fakta_gyldige -> pbl15a_holding_scenarie_hændelse_uden_holding_resultat.holdingforløb_gyldigt == Falskt && pbl15a_holding_scenarie_hændelse_uden_holding_resultat.fakta_gyldige == Falskt
+| pbl15a_holding_rettidig_likvidation_fjerner_beholdt_provenu: pbl15a_holding_scenarie_rettidig_likvidation_resultat.samlede_aktiver_ved_afståelse_kroner -> pbl15a_holding_scenarie_rettidig_likvidation_resultat.fakta_gyldige && pbl15a_holding_scenarie_rettidig_likvidation_resultat.holdingselskab_likvideret && pbl15a_holding_scenarie_rettidig_likvidation_resultat.holdinglikvidation_inden_for_praksisgrænse && pbl15a_holding_scenarie_rettidig_likvidation_resultat.holdingafvikling_for_sen == Falskt && pbl15a_holding_scenarie_rettidig_likvidation_resultat.datterselskabsprovenu_før_holdingafvikling_kroner == 900 && pbl15a_holding_scenarie_rettidig_likvidation_resultat.samlede_aktiver_ved_afståelse_kroner == 0 && pbl15a_holding_scenarie_rettidig_likvidation_resultat.overvejende_passiv_kapitalanbringelse == Falskt
+| pbl15a_holding_likvidation_efter_tolv_måneder_fejler_praksisgrænsen: pbl15a_holding_scenarie_sen_likvidation_resultat.holdingafvikling_for_sen -> pbl15a_holding_scenarie_sen_likvidation_resultat.fakta_gyldige && pbl15a_holding_scenarie_sen_likvidation_resultat.holdingselskab_likvideret && pbl15a_holding_scenarie_sen_likvidation_resultat.holdinglikvidation_inden_for_praksisgrænse == Falskt && pbl15a_holding_scenarie_sen_likvidation_resultat.holdingafvikling_for_sen && pbl15a_holding_scenarie_sen_likvidation_resultat.samlede_aktiver_ved_afståelse_kroner == 0 && pbl15a_holding_scenarie_sen_likvidation_resultat.overvejende_passiv_kapitalanbringelse
+
+? pbl15a_holding_fortsat_ejet_datterselskab_bevarer_gennemlysningen
+? pbl15a_holding_salg_tæller_beholdt_provenu_en_gang
+? pbl15a_holding_hændelse_kræver_et_holdingselskab
+? pbl15a_holding_rettidig_likvidation_fjerner_beholdt_provenu
+? pbl15a_holding_likvidation_efter_tolv_måneder_fejler_praksisgrænsen

@@ -1,12 +1,11 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
-# PersonskatMetaRole = Field | Source | AmendmentSource | DependencySource | FutureAmendmentSource | RateSource | Guidance | TimingGuidance | MultiDisposalGuidance | GainGuidance | PengetankGuidance | PreparatorySource
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
 
 = personskat_lønmodtagerberegning_metadata = PersonskatMetadata(
@@ -3695,6 +3694,195 @@
     help = Some("Futuruna klassificerer aktivet efter gennemlysning og ejerandel."),
     unit = None
 )
+= personskat_felt_pbl15a_holding_personens_rækkefølge = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.personens_afståelsesrækkefølge_på_dagen",
+    label = "Personens afståelsesrækkefølge på dagen",
+    question = Some("I hvilken rækkefølge skete personens afståelse eller holdinglikvidation blandt dispositionerne samme dag?"),
+    help = Some("Brug 1 for dagens første disposition, 2 for den næste og så videre. Dato og rækkefølge afgør den juridiske begivenhedsorden."),
+    unit = Some("rækkefølge")
+)
+= personskat_felt_pbl15a_holding_datterselskabshændelser = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser",
+    label = "Datterselskabshændelser før personens afståelse",
+    question = Some("Hvilke datterselskabsaktier blev afstået, eller hvilke datterselskaber blev likvideret, før personens afståelse?"),
+    help = Some("Tilføj hver terminal hændelse én gang. Futuruna følger selskabets identifikation gennem regnskabsperioderne og medregner provenuet én gang."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_datterselskabshændelse_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.$variant",
+    label = "Datterselskabshændelsens art",
+    question = Some("Blev datterselskabsaktierne afstået, eller blev datterselskabet likvideret?"),
+    help = Some("Valget afgør den dokumenterede selskabshændelse; begge hændelser skal have et dateret kontantprovenu."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_salg_hændelsesidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.hændelses_identifikation",
+    label = "Identifikation for salg af datterselskabsaktier",
+    question = Some("Hvilken entydig identifikation har salget af datterselskabsaktierne?"),
+    help = Some("Brug en stabil identifikation fra aftalen eller transaktionssporet."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_salg_selskabsidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.selskab_identifikation",
+    label = "Solgt datterselskab",
+    question = Some("Hvilket datterselskab vedrørte aktiesalget?"),
+    help = Some("Brug samme selskabsidentifikation som i de historiske selskabsregnskaber."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_salg_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.tidspunkt.dato.år",
+    label = "År for salg af datterselskabsaktier",
+    question = Some("I hvilket år blev datterselskabsaktierne afstået?"),
+    help = Some("Angiv den dokumenterede afståelsesdato."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_holding_salg_måned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.tidspunkt.dato.måned",
+    label = "Måned for salg af datterselskabsaktier",
+    question = Some("I hvilken måned blev datterselskabsaktierne afstået?"),
+    help = Some("Angiv måneden i den dokumenterede afståelsesdato."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_holding_salg_dag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.tidspunkt.dato.dag",
+    label = "Dag for salg af datterselskabsaktier",
+    question = Some("På hvilken dag blev datterselskabsaktierne afstået?"),
+    help = Some("Angiv kalenderdagen i den dokumenterede afståelsesdato."),
+    unit = Some("dag")
+)
+= personskat_felt_pbl15a_holding_salg_rækkefølge = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.tidspunkt.rækkefølge_på_dagen",
+    label = "Salgets rækkefølge på dagen",
+    question = Some("I hvilken rækkefølge skete aktiesalget blandt dispositionerne samme dag?"),
+    help = Some("Rækkefølgen skal ligge før personens afståelse, når dispositionerne har samme dato."),
+    unit = Some("rækkefølge")
+)
+= personskat_felt_pbl15a_holding_salg_provenu_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.provenuaktiv.identifikation",
+    label = "Salgsprovenuets identifikation",
+    question = Some("Hvilken entydig identifikation har kontantprovenuet fra aktiesalget?"),
+    help = Some("Provenuidentifikationen må ikke genbruges som et særskilt aktiv ved personens afståelse."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_salg_provenu_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.provenuaktiv.handelsværdi_kroner",
+    label = "Kontantprovenu fra aktiesalget",
+    question = Some("Hvor stort kontantprovenu beholdt holdingselskabet fra aktiesalget?"),
+    help = Some("Futuruna medregner beløbet automatisk ved personens afståelse, medmindre holdingselskabet er likvideret."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_holding_salg_provenu_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabsaktierAfstået.provenuaktiv.art",
+    label = "Salgsprovenuets aktivart",
+    question = Some("Hvilken aktivart har provenuet fra aktiesalget?"),
+    help = Some("Forløbsmodellen kræver kontanter, så provenuet klassificeres entydigt og ikke kan skjule et fortsat selskabsejerskab."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_hændelsesidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.hændelses_identifikation",
+    label = "Identifikation for datterselskabslikvidation",
+    question = Some("Hvilken entydig identifikation har likvidationen af datterselskabet?"),
+    help = Some("Brug en stabil identifikation fra likvidations- eller transaktionssporet."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_selskabsidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.selskab_identifikation",
+    label = "Likvideret datterselskab",
+    question = Some("Hvilket datterselskab blev likvideret?"),
+    help = Some("Brug samme selskabsidentifikation som i de historiske selskabsregnskaber."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.tidspunkt.dato.år",
+    label = "År for datterselskabslikvidationen",
+    question = Some("I hvilket år blev datterselskabet likvideret?"),
+    help = Some("Angiv den dokumenterede likvidationsdato."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_måned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.tidspunkt.dato.måned",
+    label = "Måned for datterselskabslikvidationen",
+    question = Some("I hvilken måned blev datterselskabet likvideret?"),
+    help = Some("Angiv måneden i den dokumenterede likvidationsdato."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_dag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.tidspunkt.dato.dag",
+    label = "Dag for datterselskabslikvidationen",
+    question = Some("På hvilken dag blev datterselskabet likvideret?"),
+    help = Some("Angiv kalenderdagen i den dokumenterede likvidationsdato."),
+    unit = Some("dag")
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_rækkefølge = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.tidspunkt.rækkefølge_på_dagen",
+    label = "Datterselskabslikvidationens rækkefølge på dagen",
+    question = Some("I hvilken rækkefølge skete datterselskabslikvidationen blandt dispositionerne samme dag?"),
+    help = Some("Rækkefølgen skal ligge før personens afståelse, når dispositionerne har samme dato."),
+    unit = Some("rækkefølge")
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.provenuaktiv.identifikation",
+    label = "Likvidationsprovenuets identifikation",
+    question = Some("Hvilken entydig identifikation har kontantprovenuet fra datterselskabslikvidationen?"),
+    help = Some("Provenuidentifikationen må ikke genbruges som et særskilt aktiv ved personens afståelse."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.provenuaktiv.handelsværdi_kroner",
+    label = "Kontantprovenu fra datterselskabslikvidationen",
+    question = Some("Hvor stort kontantprovenu beholdt holdingselskabet fra datterselskabslikvidationen?"),
+    help = Some("Futuruna medregner beløbet automatisk ved personens afståelse, medmindre holdingselskabet er likvideret."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.datterselskabshændelser.Pbl15ADatterselskabLikvideret.provenuaktiv.art",
+    label = "Likvidationsprovenuets aktivart",
+    question = Some("Hvilken aktivart har provenuet fra datterselskabslikvidationen?"),
+    help = Some("Forløbsmodellen kræver kontanter, så provenuet klassificeres entydigt."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_afviklingsart = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.$variant",
+    label = "Holdingselskabets afvikling",
+    question = Some("Var der intet holdingselskab, bestod holdingselskabet fortsat, eller blev det likvideret ved personens afståelse?"),
+    help = Some("Valget afgør, om et dokumenteret datterselskabsprovenu fortsat er et aktiv i holdingselskabet."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_likvidation_hændelsesidentifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.Pbl15AHoldingselskabLikvideret.hændelses_identifikation",
+    label = "Identifikation for holdinglikvidationen",
+    question = Some("Hvilken entydig identifikation har likvidationen af holdingselskabet?"),
+    help = Some("Identifikationen skal være forskellig fra datterselskabshændelsernes identifikationer."),
+    unit = None
+)
+= personskat_felt_pbl15a_holding_likvidation_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.Pbl15AHoldingselskabLikvideret.tidspunkt.dato.år",
+    label = "År for holdinglikvidationen",
+    question = Some("I hvilket år blev holdingselskabet likvideret?"),
+    help = Some("Likvidationstidspunktet skal svare til personens afståelsestidspunkt."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_holding_likvidation_måned = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.Pbl15AHoldingselskabLikvideret.tidspunkt.dato.måned",
+    label = "Måned for holdinglikvidationen",
+    question = Some("I hvilken måned blev holdingselskabet likvideret?"),
+    help = Some("Angiv måneden i den dokumenterede likvidationsdato."),
+    unit = Some("måned 1-12")
+)
+= personskat_felt_pbl15a_holding_likvidation_dag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.Pbl15AHoldingselskabLikvideret.tidspunkt.dato.dag",
+    label = "Dag for holdinglikvidationen",
+    question = Some("På hvilken dag blev holdingselskabet likvideret?"),
+    help = Some("Angiv kalenderdagen i den dokumenterede likvidationsdato."),
+    unit = Some("dag")
+)
+= personskat_felt_pbl15a_holding_likvidation_rækkefølge = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.holdingforløb.afvikling.Pbl15AHoldingselskabLikvideret.tidspunkt.rækkefølge_på_dagen",
+    label = "Holdinglikvidationens rækkefølge på dagen",
+    question = Some("I hvilken rækkefølge skete holdinglikvidationen blandt dispositionerne samme dag?"),
+    help = Some("Rækkefølgen skal svare til personens afståelsesrækkefølge."),
+    unit = Some("rækkefølge")
+)
 = personskat_felt_pbl15a_næringsvirksomhed = Beregningsfelt(
     path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.næringsvirksomhed_med_værdipapirer_eller_finansiering",
     label = "Næring med værdipapirer eller finansiering",
@@ -4325,6 +4513,44 @@
     )
 )
 --@label:beregn_personskat::meta:personskat_meta_pbl15a_afståelsesselskaber--
+= personskat_meta_pbl15a_holdingforløb = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_holding_personens_rækkefølge,
+        personskat_felt_pbl15a_holding_datterselskabshændelser,
+        personskat_felt_pbl15a_holding_datterselskabshændelse_art,
+        personskat_felt_pbl15a_holding_salg_hændelsesidentifikation,
+        personskat_felt_pbl15a_holding_salg_selskabsidentifikation,
+        personskat_felt_pbl15a_holding_salg_år,
+        personskat_felt_pbl15a_holding_salg_måned,
+        personskat_felt_pbl15a_holding_salg_dag,
+        personskat_felt_pbl15a_holding_salg_rækkefølge,
+        personskat_felt_pbl15a_holding_salg_provenu_identifikation,
+        personskat_felt_pbl15a_holding_salg_provenu_værdi,
+        personskat_felt_pbl15a_holding_salg_provenu_art,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_hændelsesidentifikation,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_selskabsidentifikation,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_år,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_måned,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_dag,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_rækkefølge,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_identifikation,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_værdi,
+        personskat_felt_pbl15a_holding_datterselskabslikvidation_provenu_art,
+        personskat_felt_pbl15a_holding_afviklingsart,
+        personskat_felt_pbl15a_holding_likvidation_hændelsesidentifikation,
+        personskat_felt_pbl15a_holding_likvidation_år,
+        personskat_felt_pbl15a_holding_likvidation_måned,
+        personskat_felt_pbl15a_holding_likvidation_dag,
+        personskat_felt_pbl15a_holding_likvidation_rækkefølge
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_holdingafvikling_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_holdingforløb--
 = personskat_meta_pbl15a_ordninger = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_ordninger,
