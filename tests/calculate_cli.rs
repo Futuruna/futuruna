@@ -672,6 +672,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Særligt pensionsgrundlag",
                 "Ophørspension for indbetalingen",
                 "Virksomhedsafståelse for indbetalingen",
+                "Sportspension for indbetalingen",
                 "Personkredsen i PBL § 54 er opfyldt",
                 "Afgiftspligt for hele ordningen er indtrådt",
                 "Udenlandsk overførsel med bevaret tidligere fradrag",
@@ -694,6 +695,52 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Valgte indekskontraktbidrag",
             ]
         );
+        for (path, expected_title, expected_headers) in [
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter",
+                "Dansk personskat - Indkomstposter for sportspension",
+                vec![
+                    "Indkomstpost for sportspension",
+                    "År for retserhvervelse af indkomsten",
+                    "Indkomst fra aktiviteten",
+                    "Indkomstens forbindelse til sportsudøvelse",
+                ],
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.ordninger",
+                "Dansk personskat - Sportspensionsordning",
+                vec![
+                    "Sportspensionsordningens identifikation",
+                    "Sportspensionens oprettelsesår",
+                    "Sportspensionens art",
+                    "Alder i indkomståret",
+                    "Påtegnet som sportspension",
+                    "Tidlig udbetaling fra sportspensionen",
+                    "År for sidste tidlige rateudbetaling",
+                ],
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger",
+                "Dansk personskat - Tidligere indbetalinger på sportspension",
+                vec![
+                    "Tidligere sportspensionsindbetaling",
+                    "År for tidligere sportspensionsindbetaling",
+                    "Sportspension for tidligere indbetaling",
+                    "Tidligere indbetalt beløb på sportspension",
+                    "Arbejdsmarkedsbidrag i tidligere indbetaling",
+                ],
+            ),
+        ] {
+            let sheet = workbook_collection_sheet_name(&mut workbook, path);
+            assert_eq!(workbook_title(&mut workbook, &sheet), expected_title);
+            let headers = workbook_headers(&mut workbook, &sheet);
+            for expected in expected_headers {
+                assert!(
+                    headers.iter().any(|header| header == expected),
+                    "missing human § 15 B input label {expected} on {sheet}"
+                );
+            }
+        }
         let canonical_input_paths = column_metadata
             .rows()
             .skip(1)
@@ -744,11 +791,17 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.$variant",
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.ordning_identifikation",
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.afståelse_identifikation",
+            "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15BIndbetalingsgrundlag.ordning_identifikation",
             "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.skattepligtig_fortjeneste_kroner",
             "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
             "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesafståelse_identifikation",
             "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.indkomstår",
             "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.beløb_kroner",
+            "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter.beløb_kroner",
+            "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter.kilde",
+            "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.identifikation",
+            "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.$variant",
+            "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger.arbejdsmarkedsbidrag_kroner",
             "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
             "lønmodtager.pension.pbl20_udbetaling_status",
             "kapitalindkomst.renter.renteindtægter_kroner",
@@ -1318,6 +1371,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Tidligere indbetalt beløb",
                 "Hvor stort et beløb",
             ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.indkomstposter.beløb_kroner",
+                "Indkomst fra aktiviteten",
+                "Hvor stor var indkomsten",
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.identifikation",
+                "Sportspensionsordningens identifikation",
+                "Hvilken entydig identifikation",
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.ordninger.udbetalingsstatus.$variant",
+                "Tidlig udbetaling fra sportspensionen",
+                "ikke begyndt, aktiv eller afsluttet",
+            ),
+            (
+                "lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger.arbejdsmarkedsbidrag_kroner",
+                "Arbejdsmarkedsbidrag i tidligere indbetaling",
+                "Hvor meget af den tidligere indbetaling",
+            ),
         ] {
             let row = metadata
                 .rows()
@@ -1401,6 +1474,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 pension_history_sources.contains(expected),
                 "missing § 15 A pension source {expected}"
+            );
+        }
+        let sportspension_history_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.pension.pbl15b_årsgrundlag.tidligere_indbetalinger.arbejdsmarkedsbidrag_kroner")
+            })
+            .expect("§ 15 B sportspension-history metadata");
+        let sportspension_history_sources = sportspension_history_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("§ 15 B sportspension-history sources");
+        for expected in [
+            "pensionsbeskatningsloven_lbk1243_par15b",
+            "skatteministeriet_pbl15b_satser_2010_til_2017",
+            "skatteministeriet_pbl15b_satser_2018_til_2024",
+            "skatteministeriet_pbl15b_satser_2025_til_2026",
+        ] {
+            assert!(
+                sportspension_history_sources.contains(expected),
+                "missing § 15 B sportspension source {expected}"
             );
         }
         let property_income_row = metadata
@@ -3253,6 +3351,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "afståelser": [],
                     "ordninger": [],
                     "kvalifikationsår": [],
+                    "tidligere_indbetalinger": []
+                },
+                "pbl15b_årsgrundlag": {
+                    "indkomstposter": [],
+                    "ordninger": [],
                     "tidligere_indbetalinger": []
                 },
                 "aktiepensionsfradrag_valg": {

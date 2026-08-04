@@ -1,0 +1,294 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
+
+# Pbl15BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par15b = Pbl15BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15 B",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 15 B er uændret"
+)
+
+= skatteministeriet_pbl15b_satser_2010_til_2017 = Pbl15BKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2010-2017",
+    identifier = "Centrale beløbsgrænser i skattelovgivningen 2010-2017",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officiel historisk tidsserie for PBL § 15 B"
+)
+
+= skatteministeriet_pbl15b_satser_2018_til_2024 = Pbl15BKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024",
+    identifier = "Centrale beløbsgrænser i skattelovgivningen 2018-2024",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officiel historisk tidsserie for PBL § 15 B"
+)
+
+= skatteministeriet_pbl15b_satser_2025_til_2026 = Pbl15BKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven",
+    identifier = "Pensionsbeskatningsloven, satser og beløbsgrænser 2025-2026",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Officielle 2025- og 2026-satser for PBL § 15 B"
+)
+
+# Pbl15BÅrsparameterKilde = Pbl15BSatser2010Til2017 | Pbl15BSatser2018Til2024 | Pbl15BSatser2025Til2026 | Pbl15BIngenKildedækning
+# Pbl15BÅrsparametre(indkomstår: Heltal, understøttet: Boolsk, kilde: Pbl15BÅrsparameterKilde, samlet_indbetalingsloft_kroner: Heltal, årligt_rateudbetalingsloft_kroner: Heltal)
+
+| pbl15b_årsparametre_med_kildedækning(indkomstår: Heltal, kilde: Pbl15BÅrsparameterKilde, samlet_indbetalingsloft_kroner: Heltal, årligt_rateudbetalingsloft_kroner: Heltal) -> Pbl15BÅrsparametre(
+    indkomstår = indkomstår,
+    understøttet = Sandt,
+    kilde = kilde,
+    samlet_indbetalingsloft_kroner = samlet_indbetalingsloft_kroner,
+    årligt_rateudbetalingsloft_kroner = årligt_rateudbetalingsloft_kroner
+)
+
+| pbl15b_årsparametre_uden_kildedækning(indkomstår: Heltal) -> Pbl15BÅrsparametre(
+    indkomstår = indkomstår,
+    understøttet = Falskt,
+    kilde = Pbl15BIngenKildedækning,
+    samlet_indbetalingsloft_kroner = 0,
+    årligt_rateudbetalingsloft_kroner = 0
+)
+
+--@label:pbl15b_årsparametre_2010_til_2017::source:skatteministeriet_pbl15b_satser_2010_til_2017--
+----
+Pensionsbeskatningsloven:
+Maks. hævning for professionelle sportsudøvere før 40. år 1.708.500 1.708.500 1.708.500 1.708.500 1.739.300 1.764.900 1.788.800 1.828.100
+Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 341.700 347.900 353.000 357.800 365.700
+----
+
+--@begin::pbl15b_årsparametre_2010_til_2017--
+| pbl15b_årsparametre_2010_til_2017(indkomstår: Heltal) -> match indkomstår {
+    | 2010 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2010, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
+    | 2011 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2011, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
+    | 2012 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2012, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
+    | 2013 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2013, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700)
+    | 2014 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2014, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1739300, årligt_rateudbetalingsloft_kroner = 347900)
+    | 2015 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2015, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1764900, årligt_rateudbetalingsloft_kroner = 353000)
+    | 2016 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2016, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1788800, årligt_rateudbetalingsloft_kroner = 357800)
+    | 2017 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2017, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1828100, årligt_rateudbetalingsloft_kroner = 365700)
+    | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
+}
+--@end::pbl15b_årsparametre_2010_til_2017--
+
+--@label:pbl15b_årsparametre_2018_til_2024::source:skatteministeriet_pbl15b_satser_2018_til_2024--
+----
+Pensionsbeskatningsloven kr. 2018 2019 2020 2021 2022 2023 2024
+Maks. hævning for professionelle sportsudøvere før 40. år 1.869.100 1.910.200 1.952.900 1.997.300 2.021.200 2.081.000 2.154.500
+Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 399.500 404.300 416.200 430.900
+----
+
+--@begin::pbl15b_årsparametre_2018_til_2024--
+| pbl15b_årsparametre_2018_til_2024(indkomstår: Heltal) -> match indkomstår {
+    | 2018 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2018, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1869100, årligt_rateudbetalingsloft_kroner = 373900)
+    | 2019 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2019, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1910200, årligt_rateudbetalingsloft_kroner = 382100)
+    | 2020 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2020, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1952900, årligt_rateudbetalingsloft_kroner = 390600)
+    | 2021 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2021, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1997300, årligt_rateudbetalingsloft_kroner = 399500)
+    | 2022 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2022, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2021200, årligt_rateudbetalingsloft_kroner = 404300)
+    | 2023 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2023, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2081000, årligt_rateudbetalingsloft_kroner = 416200)
+    | 2024 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2024, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2154500, årligt_rateudbetalingsloft_kroner = 430900)
+    | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
+}
+--@end::pbl15b_årsparametre_2018_til_2024--
+
+--@label:pbl15b_årsparametre_2025_til_2026::source:skatteministeriet_pbl15b_satser_2025_til_2026--
+----
+Maks. indbetaling til opsparingsordning for sportsudøvere
+(§ 15 B, stk. 3) 1.708.500 kr. 2.238.200 kr. 2.345.800 kr.
+Maks. årlig hævning for sportsudøvere
+(§ 15 B, stk. 5 og stk. 6) 341.700 kr. 447.700 kr. 469.200 kr.
+----
+
+--@begin::pbl15b_årsparametre_2025_til_2026--
+| pbl15b_årsparametre_2025_til_2026(indkomstår: Heltal) -> match indkomstår {
+    | 2025 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2025, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2238200, årligt_rateudbetalingsloft_kroner = 447700)
+    | 2026 -> pbl15b_årsparametre_med_kildedækning(indkomstår = 2026, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2345800, årligt_rateudbetalingsloft_kroner = 469200)
+    | _ -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
+}
+--@end::pbl15b_årsparametre_2025_til_2026--
+
+| pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_uden_kildedækning(indkomstår)
+| exception pbl15b_satser_2010_til_2017 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2010_til_2017(indkomstår) under indkomstår >= 2010 && indkomstår <= 2017
+| exception pbl15b_satser_2018_til_2024 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2018_til_2024(indkomstår) under indkomstår >= 2018 && indkomstår <= 2024
+| exception pbl15b_satser_2025_til_2026 pbl15b_årsparametre(indkomstår: Heltal) -> pbl15b_årsparametre_2025_til_2026(indkomstår) under indkomstår >= 2025 && indkomstår <= 2026
+| pbl15b_årsparametre_forventet_reguleret_kroner(indkomstår: Heltal, grundbeløb_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = grundbeløb_kroner,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+))
+| pbl15b_årsparametre_stemmer_med_par20(parametre: Pbl15BÅrsparametre) -> parametre.understøttet && parametre.samlet_indbetalingsloft_kroner == pbl15b_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, 1708500) && parametre.årligt_rateudbetalingsloft_kroner == pbl15b_årsparametre_forventet_reguleret_kroner(parametre.indkomstår, 341700)
+
+--@label:pensionsbeskatningsloven_par15b::source:pensionsbeskatningsloven_lbk1243_par15b--
+----
+Pensionsordninger for sportsudøvere
+
+§ 15 B. Et beløb svarende til den indkomst, der hidrører fra den skattepligtiges sportsudøvelse, kan indskydes på en rateforsikring i pensionsøjemed, jf. § 8, eller en rateopsparing i pensionsøjemed, jf. § 11 A, hvorfra rateudbetalingen kan påbegyndes før udløbet af det indkomstår, hvor den skattepligtige fylder 40 år. For sådanne rateudbetalinger finder § 20 anvendelse.
+
+Stk. 2. Ved oprettelsen af en ordning som nævnt i stk. 1 skal policen eller opsparingskontrakten påføres en oplysning om, at ordningen er omfattet af stk. 1. Påtegningen skal slettes i det indkomstår, hvor den forsikrede eller kontohaveren fylder 41 år. Reglerne i § 8 henholdsvis § 11 A finder anvendelse fra og med det indkomstår, hvor påtegningen er slettet.
+
+Stk. 3. De samlede indbetalinger til en ordning som nævnt i stk. 1 kan højst udgøre et grundbeløb på i alt 1.708.500 kr. (2010-niveau) reguleret efter personskattelovens § 20 i indkomståret for den sidste indbetaling, jf. dog stk. 6, 10. pkt. Ved opgørelsen af de samlede indbetalinger ses bort fra erlagte arbejdsmarkedsbidrag.
+
+Stk. 4. En rateforsikring i pensionsøjemed som nævnt i stk. 1 skal indeholde bestemmelse om, at den aftalte forsikringssum skal udbetales i rater over højst 10 år efter reglerne i § 8. Den samlede årlige rateudbetaling kan højst udgøre et grundbeløb på 341.700 kr. (2010-niveau) reguleret efter personskattelovens § 20 for hvert indkomstår, hvor der sker udbetaling. For ordningens eventuelt resterende værdi finder reglerne i § 8 anvendelse. Stk. 5, 6. og 7. pkt., finder tilsvarende anvendelse.
+
+Stk. 5. En rateopsparing i pensionsøjemed som nævnt i stk. 1 skal indeholde bestemmelse om, at det opsparede pensionsbeløb skal udbetales i rater over højst 10 år. Den samlede årlige rateudbetaling kan højst udgøre et grundbeløb på 341.700 kr. (2010-niveau) reguleret efter personskattelovens § 20 for hvert indkomstår, hvor der sker udbetaling. Hvis rateudbetalingen skal påbegyndes i overensstemmelse med stk. 1, vælger kontohaveren, hvor stor en del af ordningens værdi der skal danne grundlag for rateudbetalingen. Udbetalingsforløbet fastlægges efter § 11 A, stk. 2 og 3. For ordningens resterende værdi finder reglerne i § 11 A anvendelse. Der kan ikke foretages indskud på ordningen, før det udbetalingsforløb, der er påbegyndt i overensstemmelse med stk. 1, er afsluttet. Herefter kan indskud tidligst foretages i det indkomstår, der følger efter indkomståret for sidste rateudbetaling.
+
+Stk. 6. Fradrag for præmier og bidrag til pensionsordninger omfattet af stk. 1-5 kan højst omfatte én police eller én konto pr. person. Fradrag for præmier, der forfalder i indkomståret, til rateforsikring i pensionsøjemed omfattet af stk. 1-5 og fradrag for indkomstårets bidrag til rateopsparing i pensionsøjemed omfattet af stk. 1-5 kan ikke overstige den indkomst hidrørende fra den skattepligtiges sportsudøvelse, som den skattepligtige har erhvervet ret til i samme indkomstår. Det samlede fradrag for præmier og bidrag til rateforsikring eller rateopsparing i pensionsøjemed omfattet af stk. 1-5 kan ikke overstige det beløb, som efter stk. 3 må indbetales. 2. og 3. pkt. gælder ikke for ordninger som nævnt i stk. 4, 3. og 4. pkt., og stk. 5, 5.-7. pkt.
+----
+
+--@begin::pensionsbeskatningsloven_par15b--
+# Pbl15BIndkomstkilde = Pbl15BIndkomstFraEgenSportsudøvelse | Pbl15BAndenIndkomst
+# Pbl15BIndkomstpost(identifikation: Tekst, erhvervelsesår: Heltal, beløb_kroner: Heltal, kilde: Pbl15BIndkomstkilde)
+# Pbl15BOrdningsart = Pbl15BRateforsikring | Pbl15BRateopsparing
+# Pbl15BUdbetalingsstatus = Pbl15BIngenTidligRateudbetaling | Pbl15BTidligRateudbetalingAktiv | Pbl15BTidligRateudbetalingAfsluttet(sidste_rateudbetalingsår: Heltal)
+# Pbl15BOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15BOrdningsart, alder_hele_år_i_indkomståret: Heltal, påtegnet_som_sportspension: Boolsk, udbetalingsstatus: Pbl15BUdbetalingsstatus)
+# Pbl15BHistoriskIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl15BÅrsgrundlag(indkomstposter: List(Pbl15BIndkomstpost), ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling))
+# Pbl15BIndbetalingskilde = Pbl15BEgenIndbetaling | Pbl15BArbejdsgiverindbetaling | Pbl15BAndenIndbetalingskilde
+# Pbl15BÅrsindbetaling(identifikation: Tekst, ordning_identifikation: Tekst, art: Pbl15BOrdningsart, kilde: Pbl15BIndbetalingskilde, indbetalingsår: Heltal, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
+# Pbl15BÅrsberegningsinput(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl15BÅrsindbetaling))
+# Pbl15BOrdningsresultat(fakta: Pbl15BOrdningsfakta, fakta_gyldige: Boolsk, påtegning_aktiv: Boolsk, aldersbetingelse_opfyldt: Boolsk, indbetaling_tilladt_efter_udbetaling: Boolsk, kvalificerer_til_sportspension: Boolsk)
+# Pbl15BÅrsgrundlagsresultat(grundlag: Pbl15BÅrsgrundlag, indkomstår: Heltal, årsparametre: Pbl15BÅrsparametre, indkomstposter_gyldige: Boolsk, ordningsidentifikationer_entydige: Boolsk, højst_en_ordning: Boolsk, ordningsresultater: List(Pbl15BOrdningsresultat), ordninger_kvalificerer: Boolsk, tidligere_indbetalinger_gyldige: Boolsk, grundlag_gyldigt: Boolsk, sportsindkomst_kroner: Heltal, tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner: Heltal, resterende_samlet_indbetalingsloft_kroner: Heltal)
+# Pbl15BIndbetalingsresultat(indbetaling: Pbl15BÅrsindbetaling, forbindelse_gyldig: Boolsk, anmodet_efter_arbejdsmarkedsbidrag_kroner: Heltal, tildelt_inden_for_par15b_kroner: Heltal, fradragsberettiget_kroner: Heltal, bortseelsesberettiget_kroner: Heltal, afskåret_kroner: Heltal)
+# Pbl15BFordelingstilstand(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat, resterende_sportsindkomst_kroner: Heltal, resterende_samlet_indbetalingsloft_kroner: Heltal, indbetalingsresultater: List(Pbl15BIndbetalingsresultat), alle_forbindelser_gyldige: Boolsk)
+# Pbl15BÅrsresultat(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat, indbetalinger_gyldige: Boolsk, input_gyldigt: Boolsk, indbetalingsresultater: List(Pbl15BIndbetalingsresultat), samlet_fradragsberettiget_kroner: Heltal, samlet_bortseelsesberettiget_kroner: Heltal, samlet_afskåret_kroner: Heltal)
+
+| pbl15b_tomt_årsgrundlag() -> Pbl15BÅrsgrundlag(
+    indkomstposter = [],
+    ordninger = [],
+    tidligere_indbetalinger = []
+)
+
+| pbl15b_indkomstpost_gyldig(indkomstår: Heltal, post: Pbl15BIndkomstpost) -> post.identifikation != "" && post.erhvervelsesår == indkomstår && post.beløb_kroner >= 0
+| pbl15b_indkomstidentifikation_unik(poster: List(Pbl15BIndkomstpost), post: Pbl15BIndkomstpost) -> length(filter(poster, |anden: Pbl15BIndkomstpost| anden.identifikation == post.identifikation)) == 1
+| pbl15b_indkomstposter_gyldige(indkomstår: Heltal, poster: List(Pbl15BIndkomstpost)) -> all(poster, |post: Pbl15BIndkomstpost| pbl15b_indkomstpost_gyldig(indkomstår, post) && pbl15b_indkomstidentifikation_unik(poster, post))
+| pbl15b_sportsindkomst_kroner(indkomstår: Heltal, poster: List(Pbl15BIndkomstpost)) -> foldl(poster, 0, |sum: Heltal, post: Pbl15BIndkomstpost| sum + hvis post.erhvervelsesår == indkomstår && post.kilde == Pbl15BIndkomstFraEgenSportsudøvelse { penge_positivt_beløb(post.beløb_kroner) } ellers { 0 })
+
+| pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår: Heltal, status: Pbl15BUdbetalingsstatus) -> match status {
+    | Pbl15BIngenTidligRateudbetaling -> Sandt
+    | Pbl15BTidligRateudbetalingAktiv -> Falskt
+    | Pbl15BTidligRateudbetalingAfsluttet(sidste_rateudbetalingsår) -> sidste_rateudbetalingsår > 0 && indkomstår > sidste_rateudbetalingsår
+}
+| pbl15b_ordningsfakta_gyldige(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) -> fakta.identifikation != "" && fakta.oprettelsesår > 0 && fakta.oprettelsesår <= indkomstår && fakta.alder_hele_år_i_indkomståret >= 0
+
+# Pbl15BOrdningssag(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) {
+    | fakta_gyldige() -> pbl15b_ordningsfakta_gyldige(indkomstår, fakta)
+    | påtegning_aktiv() -> fakta.påtegnet_som_sportspension && fakta.alder_hele_år_i_indkomståret <= 40
+    | aldersbetingelse_opfyldt() -> fakta.alder_hele_år_i_indkomståret <= 40
+    | indbetaling_tilladt_efter_udbetaling() -> pbl15b_indbetaling_tilladt_efter_udbetaling(indkomstår, fakta.udbetalingsstatus)
+    | kvalificerer_til_sportspension() -> fakta_gyldige() && påtegning_aktiv() && indbetaling_tilladt_efter_udbetaling()
+    | resultat() -> Pbl15BOrdningsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        påtegning_aktiv = påtegning_aktiv(),
+        aldersbetingelse_opfyldt = aldersbetingelse_opfyldt(),
+        indbetaling_tilladt_efter_udbetaling = indbetaling_tilladt_efter_udbetaling(),
+        kvalificerer_til_sportspension = kvalificerer_til_sportspension()
+    )
+}
+| pbl15b_ordningsresultat(indkomstår: Heltal, fakta: Pbl15BOrdningsfakta) -> Pbl15BOrdningssag(indkomstår, fakta).resultat()
+| pbl15b_ordningsidentifikation_unik(ordninger: List(Pbl15BOrdningsfakta), fakta: Pbl15BOrdningsfakta) -> length(filter(ordninger, |anden: Pbl15BOrdningsfakta| anden.identifikation == fakta.identifikation)) == 1
+| pbl15b_ordningsidentifikationer_entydige(ordninger: List(Pbl15BOrdningsfakta)) -> all(ordninger, |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsidentifikation_unik(ordninger, fakta))
+| pbl15b_ordning_findes(ordninger: List(Pbl15BOrdningsfakta), identifikation: Tekst) -> any(ordninger, |fakta: Pbl15BOrdningsfakta| fakta.identifikation == identifikation)
+| pbl15b_ordning_kvalificerer(resultater: List(Pbl15BOrdningsresultat), identifikation: Tekst, art: Pbl15BOrdningsart) -> any(resultater, |resultat: Pbl15BOrdningsresultat| resultat.fakta.identifikation == identifikation && resultat.fakta.art == art && resultat.kvalificerer_til_sportspension)
+
+| pbl15b_historisk_indbetaling_gyldig(indkomstår: Heltal, ordninger: List(Pbl15BOrdningsfakta), indbetaling: Pbl15BHistoriskIndbetaling) -> indbetaling.identifikation != "" && indbetaling.indbetalingsår > 0 && indbetaling.indbetalingsår < indkomstår && pbl15b_ordning_findes(ordninger, indbetaling.ordning_identifikation) && indbetaling.beløb_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner <= indbetaling.beløb_kroner
+| pbl15b_historisk_identifikation_unik(indbetalinger: List(Pbl15BHistoriskIndbetaling), indbetaling: Pbl15BHistoriskIndbetaling) -> length(filter(indbetalinger, |anden: Pbl15BHistoriskIndbetaling| anden.identifikation == indbetaling.identifikation)) == 1
+| pbl15b_tidligere_indbetalinger_gyldige(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag) -> all(grundlag.tidligere_indbetalinger, |indbetaling: Pbl15BHistoriskIndbetaling| pbl15b_historisk_indbetaling_gyldig(indkomstår, grundlag.ordninger, indbetaling) && pbl15b_historisk_identifikation_unik(grundlag.tidligere_indbetalinger, indbetaling))
+| pbl15b_indbetaling_efter_arbejdsmarkedsbidrag_kroner(beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner - arbejdsmarkedsbidrag_kroner)
+| pbl15b_tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner(grundlag: Pbl15BÅrsgrundlag) -> foldl(grundlag.tidligere_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl15BHistoriskIndbetaling| sum + pbl15b_indbetaling_efter_arbejdsmarkedsbidrag_kroner(indbetaling.beløb_kroner, indbetaling.arbejdsmarkedsbidrag_kroner))
+
+# Pbl15BÅrsgrundlagssag(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag) {
+    | årsparametre() -> pbl15b_årsparametre(indkomstår)
+    | indkomstposter_gyldige() -> pbl15b_indkomstposter_gyldige(indkomstår, grundlag.indkomstposter)
+    | ordningsidentifikationer_entydige() -> pbl15b_ordningsidentifikationer_entydige(grundlag.ordninger)
+    | højst_en_ordning() -> length(grundlag.ordninger) <= 1
+    | ordningsresultater() -> map(grundlag.ordninger, |fakta: Pbl15BOrdningsfakta| pbl15b_ordningsresultat(indkomstår, fakta))
+    | ordninger_kvalificerer() -> all(ordningsresultater(), |resultat: Pbl15BOrdningsresultat| resultat.kvalificerer_til_sportspension)
+    | tidligere_indbetalinger_gyldige() -> pbl15b_tidligere_indbetalinger_gyldige(indkomstår, grundlag)
+    | grundlag_gyldigt() -> årsparametre().understøttet && indkomstposter_gyldige() && ordningsidentifikationer_entydige() && højst_en_ordning() && ordninger_kvalificerer() && tidligere_indbetalinger_gyldige()
+    | sportsindkomst_kroner() -> pbl15b_sportsindkomst_kroner(indkomstår, grundlag.indkomstposter)
+    | tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner() -> pbl15b_tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner(grundlag)
+    | resterende_samlet_indbetalingsloft_kroner() -> penge_positivt_beløb(årsparametre().samlet_indbetalingsloft_kroner - tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner())
+    | resultat() -> Pbl15BÅrsgrundlagsresultat(
+        grundlag = grundlag,
+        indkomstår = indkomstår,
+        årsparametre = årsparametre(),
+        indkomstposter_gyldige = indkomstposter_gyldige(),
+        ordningsidentifikationer_entydige = ordningsidentifikationer_entydige(),
+        højst_en_ordning = højst_en_ordning(),
+        ordningsresultater = ordningsresultater(),
+        ordninger_kvalificerer = ordninger_kvalificerer(),
+        tidligere_indbetalinger_gyldige = tidligere_indbetalinger_gyldige(),
+        grundlag_gyldigt = grundlag_gyldigt(),
+        sportsindkomst_kroner = sportsindkomst_kroner(),
+        tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner = tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner(),
+        resterende_samlet_indbetalingsloft_kroner = resterende_samlet_indbetalingsloft_kroner()
+    )
+}
+| pbl15b_årsgrundlagsresultat(indkomstår: Heltal, grundlag: Pbl15BÅrsgrundlag) -> Pbl15BÅrsgrundlagssag(indkomstår, grundlag).resultat()
+
+| pbl15b_årsindbetaling_grundfakta_gyldige(indkomstår: Heltal, indbetaling: Pbl15BÅrsindbetaling) -> indbetaling.identifikation != "" && indbetaling.ordning_identifikation != "" && indbetaling.indbetalingsår == indkomstår && indbetaling.beløb_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner >= 0 && indbetaling.arbejdsmarkedsbidrag_kroner <= indbetaling.beløb_kroner && indbetaling.kilde != Pbl15BAndenIndbetalingskilde
+| pbl15b_årsindbetalingsidentifikation_unik(indbetalinger: List(Pbl15BÅrsindbetaling), indbetaling: Pbl15BÅrsindbetaling) -> length(filter(indbetalinger, |anden: Pbl15BÅrsindbetaling| anden.identifikation == indbetaling.identifikation)) == 1
+| pbl15b_årsindbetaling_gyldig(input: Pbl15BÅrsberegningsinput, indbetaling: Pbl15BÅrsindbetaling) -> pbl15b_årsindbetaling_grundfakta_gyldige(input.indkomstår, indbetaling) && pbl15b_årsindbetalingsidentifikation_unik(input.indbetalinger, indbetaling)
+| pbl15b_indbetalingsforbindelse_gyldig(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat, indbetaling: Pbl15BÅrsindbetaling) -> grundlagsresultat.grundlag_gyldigt && pbl15b_årsindbetaling_gyldig(input, indbetaling) && pbl15b_ordning_kvalificerer(grundlagsresultat.ordningsresultater, indbetaling.ordning_identifikation, indbetaling.art)
+| pbl15b_årsindbetalinger_gyldige(input: Pbl15BÅrsberegningsinput) -> all(input.indbetalinger, |indbetaling: Pbl15BÅrsindbetaling| pbl15b_årsindbetaling_gyldig(input, indbetaling))
+
+| pbl15b_fordeling_initial(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat) -> Pbl15BFordelingstilstand(
+    input = input,
+    grundlagsresultat = grundlagsresultat,
+    resterende_sportsindkomst_kroner = grundlagsresultat.sportsindkomst_kroner,
+    resterende_samlet_indbetalingsloft_kroner = grundlagsresultat.resterende_samlet_indbetalingsloft_kroner,
+    indbetalingsresultater = [],
+    alle_forbindelser_gyldige = Sandt
+)
+
+# Pbl15BFordelingstrinsag(tilstand: Pbl15BFordelingstilstand, indbetaling: Pbl15BÅrsindbetaling) {
+    | forbindelse_gyldig() -> pbl15b_indbetalingsforbindelse_gyldig(tilstand.input, tilstand.grundlagsresultat, indbetaling)
+    | anmodet_efter_arbejdsmarkedsbidrag_kroner() -> pbl15b_indbetaling_efter_arbejdsmarkedsbidrag_kroner(indbetaling.beløb_kroner, indbetaling.arbejdsmarkedsbidrag_kroner)
+    | tildelt_inden_for_par15b_kroner() -> hvis forbindelse_gyldig() { penge_mindste_beløb(penge_mindste_beløb(anmodet_efter_arbejdsmarkedsbidrag_kroner(), tilstand.resterende_sportsindkomst_kroner), tilstand.resterende_samlet_indbetalingsloft_kroner) } ellers { 0 }
+    | fradragsberettiget_kroner() -> hvis indbetaling.kilde == Pbl15BEgenIndbetaling { tildelt_inden_for_par15b_kroner() } ellers { 0 }
+    | bortseelsesberettiget_kroner() -> hvis indbetaling.kilde == Pbl15BArbejdsgiverindbetaling { tildelt_inden_for_par15b_kroner() } ellers { 0 }
+    | indbetalingsresultat() -> Pbl15BIndbetalingsresultat(
+        indbetaling = indbetaling,
+        forbindelse_gyldig = forbindelse_gyldig(),
+        anmodet_efter_arbejdsmarkedsbidrag_kroner = anmodet_efter_arbejdsmarkedsbidrag_kroner(),
+        tildelt_inden_for_par15b_kroner = tildelt_inden_for_par15b_kroner(),
+        fradragsberettiget_kroner = fradragsberettiget_kroner(),
+        bortseelsesberettiget_kroner = bortseelsesberettiget_kroner(),
+        afskåret_kroner = penge_positivt_beløb(anmodet_efter_arbejdsmarkedsbidrag_kroner() - tildelt_inden_for_par15b_kroner())
+    )
+    | resultat() -> Pbl15BFordelingstilstand(
+        input = tilstand.input,
+        grundlagsresultat = tilstand.grundlagsresultat,
+        resterende_sportsindkomst_kroner = penge_positivt_beløb(tilstand.resterende_sportsindkomst_kroner - tildelt_inden_for_par15b_kroner()),
+        resterende_samlet_indbetalingsloft_kroner = penge_positivt_beløb(tilstand.resterende_samlet_indbetalingsloft_kroner - tildelt_inden_for_par15b_kroner()),
+        indbetalingsresultater = concat(tilstand.indbetalingsresultater, [indbetalingsresultat()]),
+        alle_forbindelser_gyldige = tilstand.alle_forbindelser_gyldige && forbindelse_gyldig()
+    )
+}
+| pbl15b_fordelingstrin(tilstand: Pbl15BFordelingstilstand, indbetaling: Pbl15BÅrsindbetaling) -> Pbl15BFordelingstrinsag(tilstand, indbetaling).resultat()
+| pbl15b_årsfordeling(input: Pbl15BÅrsberegningsinput, grundlagsresultat: Pbl15BÅrsgrundlagsresultat) -> foldl(input.indbetalinger, pbl15b_fordeling_initial(input, grundlagsresultat), pbl15b_fordelingstrin)
+| pbl15b_resultatsum_kroner(resultater: List(Pbl15BIndbetalingsresultat), beløb: (Pbl15BIndbetalingsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl15BIndbetalingsresultat| sum + beløb(resultat))
+
+# Pbl15BÅrssag(input: Pbl15BÅrsberegningsinput) {
+    | grundlagsresultat() -> pbl15b_årsgrundlagsresultat(input.indkomstår, input.grundlag)
+    | indbetalinger_gyldige() -> pbl15b_årsindbetalinger_gyldige(input)
+    | fordeling() -> pbl15b_årsfordeling(input, grundlagsresultat())
+    | input_gyldigt() -> grundlagsresultat().grundlag_gyldigt && indbetalinger_gyldige() && fordeling().alle_forbindelser_gyldige
+    | samlet_fradrag_før_validitet_kroner() -> pbl15b_resultatsum_kroner(fordeling().indbetalingsresultater, |resultat: Pbl15BIndbetalingsresultat| resultat.fradragsberettiget_kroner)
+    | samlet_bortseelse_før_validitet_kroner() -> pbl15b_resultatsum_kroner(fordeling().indbetalingsresultater, |resultat: Pbl15BIndbetalingsresultat| resultat.bortseelsesberettiget_kroner)
+    | samlet_afskåret_kroner() -> pbl15b_resultatsum_kroner(fordeling().indbetalingsresultater, |resultat: Pbl15BIndbetalingsresultat| resultat.afskåret_kroner)
+    | resultat() -> Pbl15BÅrsresultat(
+        input = input,
+        grundlagsresultat = grundlagsresultat(),
+        indbetalinger_gyldige = indbetalinger_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        indbetalingsresultater = fordeling().indbetalingsresultater,
+        samlet_fradragsberettiget_kroner = hvis input_gyldigt() { samlet_fradrag_før_validitet_kroner() } ellers { 0 },
+        samlet_bortseelsesberettiget_kroner = hvis input_gyldigt() { samlet_bortseelse_før_validitet_kroner() } ellers { 0 },
+        samlet_afskåret_kroner = samlet_afskåret_kroner()
+    )
+}
+| pbl15b_årsresultat(input: Pbl15BÅrsberegningsinput) -> Pbl15BÅrssag(input).resultat()
+--@end::pensionsbeskatningsloven_par15b--

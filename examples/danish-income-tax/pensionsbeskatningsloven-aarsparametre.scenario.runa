@@ -74,6 +74,7 @@
     selvstændig_overskud = pbl_scenarie_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = pbl_scenarie_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = []
 )
 

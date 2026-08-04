@@ -1,0 +1,207 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+
+-- Fokuserede scenarier for PBL § 15 B's kildefakta, beløbsgrænser og
+-- integration med PBL § 18. Lovtekst og kildeankre ligger i
+-- pensionsbeskatningsloven-par15b.runa og pensionsbeskatningsloven.runa.
+
+# Pbl15BÅrsparameterForventning(indkomstår: Heltal, kilde: Pbl15BÅrsparameterKilde, samlet_indbetalingsloft_kroner: Heltal, årligt_rateudbetalingsloft_kroner: Heltal)
+
+= pbl15b_årsparameter_forventninger = [
+    Pbl15BÅrsparameterForventning(indkomstår = 2010, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2011, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2012, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2013, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1708500, årligt_rateudbetalingsloft_kroner = 341700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2014, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1739300, årligt_rateudbetalingsloft_kroner = 347900),
+    Pbl15BÅrsparameterForventning(indkomstår = 2015, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1764900, årligt_rateudbetalingsloft_kroner = 353000),
+    Pbl15BÅrsparameterForventning(indkomstår = 2016, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1788800, årligt_rateudbetalingsloft_kroner = 357800),
+    Pbl15BÅrsparameterForventning(indkomstår = 2017, kilde = Pbl15BSatser2010Til2017, samlet_indbetalingsloft_kroner = 1828100, årligt_rateudbetalingsloft_kroner = 365700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2018, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1869100, årligt_rateudbetalingsloft_kroner = 373900),
+    Pbl15BÅrsparameterForventning(indkomstår = 2019, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1910200, årligt_rateudbetalingsloft_kroner = 382100),
+    Pbl15BÅrsparameterForventning(indkomstår = 2020, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1952900, årligt_rateudbetalingsloft_kroner = 390600),
+    Pbl15BÅrsparameterForventning(indkomstår = 2021, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 1997300, årligt_rateudbetalingsloft_kroner = 399500),
+    Pbl15BÅrsparameterForventning(indkomstår = 2022, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2021200, årligt_rateudbetalingsloft_kroner = 404300),
+    Pbl15BÅrsparameterForventning(indkomstår = 2023, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2081000, årligt_rateudbetalingsloft_kroner = 416200),
+    Pbl15BÅrsparameterForventning(indkomstår = 2024, kilde = Pbl15BSatser2018Til2024, samlet_indbetalingsloft_kroner = 2154500, årligt_rateudbetalingsloft_kroner = 430900),
+    Pbl15BÅrsparameterForventning(indkomstår = 2025, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2238200, årligt_rateudbetalingsloft_kroner = 447700),
+    Pbl15BÅrsparameterForventning(indkomstår = 2026, kilde = Pbl15BSatser2025Til2026, samlet_indbetalingsloft_kroner = 2345800, årligt_rateudbetalingsloft_kroner = 469200)
+]
+
+| pbl15b_årsparameter_forventning_opfyldt(forventning: Pbl15BÅrsparameterForventning) -> {
+    = parametre = pbl15b_årsparametre(forventning.indkomstår)
+    parametre.understøttet && parametre.kilde == forventning.kilde && parametre.samlet_indbetalingsloft_kroner == forventning.samlet_indbetalingsloft_kroner && parametre.årligt_rateudbetalingsloft_kroner == forventning.årligt_rateudbetalingsloft_kroner
+}
+| pbl15b_alle_kildebelagte_år_matcher_officielle_tabeller: pbl15b_årsparameter_forventninger -> all(pbl15b_årsparameter_forventninger, pbl15b_årsparameter_forventning_opfyldt)
+| pbl15b_alle_kildebelagte_år_stemmer_med_par20: pbl15b_årsparameter_forventninger -> all(pbl15b_årsparameter_forventninger, |forventning: Pbl15BÅrsparameterForventning| pbl15b_årsparametre_stemmer_med_par20(pbl15b_årsparametre(forventning.indkomstår)))
+
+| pbl15b_scenarie_indkomst(beløb_kroner: Heltal, kilde: Pbl15BIndkomstkilde) -> Pbl15BIndkomstpost(
+    identifikation = "indkomst-2026",
+    erhvervelsesår = 2026,
+    beløb_kroner = beløb_kroner,
+    kilde = kilde
+)
+| pbl15b_scenarie_ordning(identifikation: Tekst, alder: Heltal, påtegnet: Boolsk, udbetalingsstatus: Pbl15BUdbetalingsstatus) -> Pbl15BOrdningsfakta(
+    identifikation = identifikation,
+    oprettelsesår = 2024,
+    art = Pbl15BRateopsparing,
+    alder_hele_år_i_indkomståret = alder,
+    påtegnet_som_sportspension = påtegnet,
+    udbetalingsstatus = udbetalingsstatus
+)
+| pbl15b_scenarie_grundlag(sportsindkomst_kroner: Heltal, ordninger: List(Pbl15BOrdningsfakta), tidligere_indbetalinger: List(Pbl15BHistoriskIndbetaling)) -> Pbl15BÅrsgrundlag(
+    indkomstposter = [pbl15b_scenarie_indkomst(sportsindkomst_kroner, Pbl15BIndkomstFraEgenSportsudøvelse)],
+    ordninger = ordninger,
+    tidligere_indbetalinger = tidligere_indbetalinger
+)
+| pbl15b_scenarie_indbetaling(identifikation: Tekst, ordning_identifikation: Tekst, kilde: Pbl15BIndbetalingskilde, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> Pbl15BÅrsindbetaling(
+    identifikation = identifikation,
+    ordning_identifikation = ordning_identifikation,
+    art = Pbl15BRateopsparing,
+    kilde = kilde,
+    indbetalingsår = 2026,
+    beløb_kroner = beløb_kroner,
+    arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
+)
+| pbl15b_scenarie_resultat(grundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl15BÅrsindbetaling)) -> pbl15b_årsresultat(Pbl15BÅrsberegningsinput(
+    indkomstår = 2026,
+    grundlag = grundlag,
+    indbetalinger = indbetalinger
+))
+
+= pbl15b_scenarie_gyldig_ordning = pbl15b_scenarie_ordning("sportspension-1", 30, Sandt, Pbl15BIngenTidligRateudbetaling)
+= pbl15b_scenarie_gyldigt_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(300000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_indbetaling("egen-200000", "sportspension-1", Pbl15BEgenIndbetaling, 200000, 0)]
+)
+= pbl15b_scenarie_sportsindkomstloft_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(120000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_indbetaling("egen-200000-over-indkomst", "sportspension-1", Pbl15BEgenIndbetaling, 200000, 0)]
+)
+= pbl15b_scenarie_livstidsloft_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(
+        200000,
+        [pbl15b_scenarie_gyldig_ordning],
+        [
+            Pbl15BHistoriskIndbetaling(
+                identifikation = "historisk-2300000-netto",
+                indbetalingsår = 2025,
+                ordning_identifikation = "sportspension-1",
+                beløb_kroner = 2340000,
+                arbejdsmarkedsbidrag_kroner = 40000
+            )
+        ]
+    ),
+    [pbl15b_scenarie_indbetaling("egen-100000-over-livstid", "sportspension-1", Pbl15BEgenIndbetaling, 100000, 0)]
+)
+= pbl15b_scenarie_arbejdsgiver_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_indbetaling("arbejdsgiver-100000", "sportspension-1", Pbl15BArbejdsgiverindbetaling, 100000, 8000)]
+)
+= pbl15b_scenarie_for_gammel_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligRateudbetaling)], []),
+    [pbl15b_scenarie_indbetaling("egen-for-gammel", "sportspension-1", Pbl15BEgenIndbetaling, 100000, 0)]
+)
+= pbl15b_scenarie_aktiv_udbetaling_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 35, Sandt, Pbl15BTidligRateudbetalingAktiv)], []),
+    [pbl15b_scenarie_indbetaling("egen-under-udbetaling", "sportspension-1", Pbl15BEgenIndbetaling, 100000, 0)]
+)
+= pbl15b_scenarie_forkert_ordning_resultat = pbl15b_scenarie_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_indbetaling("egen-forkert-ordning", "ukendt-ordning", Pbl15BEgenIndbetaling, 100000, 0)]
+)
+
+= pbl15b_scenarie_intet_selvstændigt_overskud = Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 0,
+    renteudgifter_kroner = 0,
+    kurstab_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_kroner = 0,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+= pbl15b_scenarie_standardbegrænsninger = Pbl18Begrænsninger(
+    pbl54_personkreds_opfyldt = Sandt,
+    afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
+    udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
+)
+= pbl15b_scenarie_tomt_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [],
+    ordninger = [],
+    kvalifikationsår = [],
+    tidligere_indbetalinger = []
+)
+
+| pbl15b_scenarie_pbl18_indbetaling(identifikation: Tekst, kilde: Pbl18Indbetalingskilde, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, ordning_identifikation: Tekst) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Par15BRateopsparing,
+    indbetalingskilde = kilde,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_kroner,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18Par15BIndbetalingsgrundlag(ordning_identifikation = ordning_identifikation),
+    begrænsninger = pbl15b_scenarie_standardbegrænsninger
+)
+| pbl15b_scenarie_pbl18_resultat(grundlag: Pbl15BÅrsgrundlag, indbetalinger: List(Pbl18Årsindbetaling)) -> pbl18_årsresultat(Pbl18Årsinput(
+    indkomstår = 2026,
+    personlig_indkomst_før_pensionsfradrag_kroner = 1000000,
+    selvstændig_overskud = pbl15b_scenarie_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pbl15b_scenarie_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = grundlag,
+    indbetalinger = indbetalinger
+))
+
+= pbl15b_scenarie_pbl18_gyldigt_resultat = pbl15b_scenarie_pbl18_resultat(
+    pbl15b_scenarie_grundlag(300000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_pbl18_indbetaling("egen-200000", Pbl18EgenIndbetaling, 200000, 0, "sportspension-1")]
+)
+= pbl15b_scenarie_pbl18_over_loft_resultat = pbl15b_scenarie_pbl18_resultat(
+    pbl15b_scenarie_grundlag(120000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_pbl18_indbetaling("egen-200000-over-indkomst", Pbl18EgenIndbetaling, 200000, 0, "sportspension-1")]
+)
+= pbl15b_scenarie_pbl18_ugyldigt_resultat = pbl15b_scenarie_pbl18_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_ordning("sportspension-1", 41, Sandt, Pbl15BIngenTidligRateudbetaling)], []),
+    [pbl15b_scenarie_pbl18_indbetaling("egen-for-gammel", Pbl18EgenIndbetaling, 100000, 0, "sportspension-1")]
+)
+= pbl15b_scenarie_pbl18_arbejdsgiver_resultat = pbl15b_scenarie_pbl18_resultat(
+    pbl15b_scenarie_grundlag(200000, [pbl15b_scenarie_gyldig_ordning], []),
+    [pbl15b_scenarie_pbl18_indbetaling("arbejdsgiver-100000", Pbl18Arbejdsgiverindbetaling, 100000, 8000, "sportspension-1")]
+)
+
+| pbl15b_gyldig_indbetaling_får_fradrag: pbl15b_scenarie_gyldigt_resultat -> pbl15b_scenarie_gyldigt_resultat.input_gyldigt && pbl15b_scenarie_gyldigt_resultat.samlet_fradragsberettiget_kroner == 200000 && pbl15b_scenarie_gyldigt_resultat.samlet_afskåret_kroner == 0
+| pbl15b_sportsindkomst_begrænser_årets_fradrag: pbl15b_scenarie_sportsindkomstloft_resultat -> pbl15b_scenarie_sportsindkomstloft_resultat.input_gyldigt && pbl15b_scenarie_sportsindkomstloft_resultat.samlet_fradragsberettiget_kroner == 120000 && pbl15b_scenarie_sportsindkomstloft_resultat.samlet_afskåret_kroner == 80000
+| pbl15b_livstidsloft_ser_bort_fra_am_bidrag: pbl15b_scenarie_livstidsloft_resultat -> pbl15b_scenarie_livstidsloft_resultat.input_gyldigt && pbl15b_scenarie_livstidsloft_resultat.grundlagsresultat.tidligere_indbetalinger_efter_arbejdsmarkedsbidrag_kroner == 2300000 && pbl15b_scenarie_livstidsloft_resultat.samlet_fradragsberettiget_kroner == 45800 && pbl15b_scenarie_livstidsloft_resultat.samlet_afskåret_kroner == 54200
+| pbl15b_arbejdsgiverindbetaling_giver_bortseelse_efter_am: pbl15b_scenarie_arbejdsgiver_resultat -> pbl15b_scenarie_arbejdsgiver_resultat.input_gyldigt && pbl15b_scenarie_arbejdsgiver_resultat.samlet_fradragsberettiget_kroner == 0 && pbl15b_scenarie_arbejdsgiver_resultat.samlet_bortseelsesberettiget_kroner == 92000
+| pbl15b_fyldt_41_fejer_lukket: pbl15b_scenarie_for_gammel_resultat -> pbl15b_scenarie_for_gammel_resultat.input_gyldigt == Falskt && pbl15b_scenarie_for_gammel_resultat.samlet_fradragsberettiget_kroner == 0
+| pbl15b_aktiv_udbetaling_fejer_lukket: pbl15b_scenarie_aktiv_udbetaling_resultat -> pbl15b_scenarie_aktiv_udbetaling_resultat.input_gyldigt == Falskt && pbl15b_scenarie_aktiv_udbetaling_resultat.samlet_fradragsberettiget_kroner == 0
+| pbl15b_forkert_ordningsforbindelse_fejer_lukket: pbl15b_scenarie_forkert_ordning_resultat -> pbl15b_scenarie_forkert_ordning_resultat.input_gyldigt == Falskt && pbl15b_scenarie_forkert_ordning_resultat.samlet_fradragsberettiget_kroner == 0
+| pbl18_par15b_gyldigt_fradrag_ligger_uden_for_par16_loftet: pbl15b_scenarie_pbl18_gyldigt_resultat -> pbl15b_scenarie_pbl18_gyldigt_resultat.input_gyldigt && pbl15b_scenarie_pbl18_gyldigt_resultat.par15b_fradrag_kroner == 200000 && pbl15b_scenarie_pbl18_gyldigt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner == 200000 && pbl15b_scenarie_pbl18_gyldigt_resultat.rate_og_ophørende_fradrag_kroner == 0
+| pbl18_par15b_over_loft_begrænses_deterministisk: pbl15b_scenarie_pbl18_over_loft_resultat -> pbl15b_scenarie_pbl18_over_loft_resultat.input_gyldigt && pbl15b_scenarie_pbl18_over_loft_resultat.par15b_fradrag_kroner == 120000 && pbl15b_scenarie_pbl18_over_loft_resultat.egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner == 80000
+| pbl18_par15b_ugyldige_kildefakta_fejer_hele_årsinputtet_lukket: pbl15b_scenarie_pbl18_ugyldigt_resultat -> pbl15b_scenarie_pbl18_ugyldigt_resultat.input_gyldigt == Falskt && pbl15b_scenarie_pbl18_ugyldigt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| pbl18_par15b_arbejdsgiverbortseelse_bruger_kildemodellens_loft: pbl15b_scenarie_pbl18_arbejdsgiver_resultat -> pbl15b_scenarie_pbl18_arbejdsgiver_resultat.input_gyldigt && pbl15b_scenarie_pbl18_arbejdsgiver_resultat.par15b_bortseelsesberettiget_kroner == 92000 && pbl15b_scenarie_pbl18_arbejdsgiver_resultat.arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner == 92000
+
+? pbl15b_alle_kildebelagte_år_matcher_officielle_tabeller
+? pbl15b_alle_kildebelagte_år_stemmer_med_par20
+? pbl15b_gyldig_indbetaling_får_fradrag
+? pbl15b_sportsindkomst_begrænser_årets_fradrag
+? pbl15b_livstidsloft_ser_bort_fra_am_bidrag
+? pbl15b_arbejdsgiverindbetaling_giver_bortseelse_efter_am
+? pbl15b_fyldt_41_fejer_lukket
+? pbl15b_aktiv_udbetaling_fejer_lukket
+? pbl15b_forkert_ordningsforbindelse_fejer_lukket
+? pbl18_par15b_gyldigt_fradrag_ligger_uden_for_par16_loftet
+? pbl18_par15b_over_loft_begrænses_deterministisk
+? pbl18_par15b_ugyldige_kildefakta_fejer_hele_årsinputtet_lukket
+? pbl18_par15b_arbejdsgiverbortseelse_bruger_kildemodellens_loft

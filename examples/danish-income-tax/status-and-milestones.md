@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-7dcbba` (in review)
-Latest implementation slice submitted for review: `td-7dcbba`
+Current focus issue: `td-03c48a` (submitting for review)
+Latest implementation slice submitted for review: `td-03c48a`
 Latest approved implementation slice: `td-f84c7d`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -2828,6 +2828,18 @@ Review candidates to revisit deliberately, not as broad churn:
   2009 og 2027 med nul fradrag. `Pbl16FradragsloftResultat` bevarer det valgte
   parameterobjekt, så år, kildeserie og de tre relevante beløbsgrænser er
   synlige i beregningssporet.
+- Pensionsbeskatningslovens § 15 B står nu med ordret lovtekst, gældende
+  Retsinformation-kilde og officielle SKM-tidsserier for 2010-2026 i et
+  særskilt modul. Kalderen leverer identificerede indkomstposter,
+  ordningsfakta, tidligere indbetalinger og årets indbetalinger. Reglerne
+  afleder selv sportsindkomsten, alders- og påtegningskravet, pausen under en
+  tidlig rateudbetaling, kravet om højst én ordning, den resterende regulerede
+  livstidsgrænse og fordelingen mellem eget fradrag og arbejdsgiverens
+  bortseelsesret. Arbejdsmarkedsbidrag holdes uden for både historikken og den
+  aktuelle tildeling. § 18 forbruger resultatet uden at lægge sportspensionen
+  under det almindelige § 16-rateloft. Gyldige, overgrænse- og ugyldige
+  forløb passerer samme fokuserede scenarier i interpreter og compiler, og en
+  kanonisk Personskat-sag fører fradraget videre gennem § 3, stk. 2, nr. 3.
 - Pensionsbeskatningslovens §§ 15 og 15 A står nu med ordret lovtekst og typede
   kildeankre i et særskilt juridisk modul. § 15 A-modellen håndterer
   alderskravet, ti kvalifikationsår inden for de seneste femten år, succession,
@@ -2914,7 +2926,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 519 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 539 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -2932,6 +2944,11 @@ Review candidates to revisit deliberately, not as broad churn:
   beregningssporet.
   Heraf beskriver 66 poster § 11, stk. 2-valget og en eventuel ny
   genanbringelse for personen eller ægtefællen.
+  Sportspensionsgrenen tilføjer tre relationelle kildetabeller for
+  sportsindkomst, ordningsfakta og tidligere indbetalinger. Hver relevant sti
+  har en dansk etiket og et interviewspørgsmål, mens forbindelsen fra årets
+  pensionsindbetaling til den konkrete ordning bevarer en stabil
+  maskinidentifikation.
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
@@ -3069,9 +3086,6 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-03c48a` skal give Pensionsbeskatningslovens § 15 B sit eget kildebelagte domæne og
-  årsloft. Den eksisterende typede § 15 B-markør fejler bevidst lukket, indtil
-  den juridiske kildeberegning er koblet til § 18-årsporteføljen.
 - `td-91feb9` skal uddybe § 15 A's passive kapitalprøve med eksakte
   regnskabsperioder og et typet 25-procents look-through til underliggende
   selskabsindtægter og -aktiver. Indtil da er den nuværende postklassifikation

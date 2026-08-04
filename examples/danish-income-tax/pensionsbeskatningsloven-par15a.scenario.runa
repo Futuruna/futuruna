@@ -207,6 +207,7 @@
     selvstændig_overskud = pbl15a_scenarie_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = grundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = indbetalinger
 ))
 
@@ -281,6 +282,7 @@
     selvstændig_overskud = pbl15a_scenarie_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = pbl15a_scenarie_efterfølgende_juli_grundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = [
         pbl15a_scenarie_indbetaling_efter_afståelsesåret(
             "indbetaling-inden-juli-2026",

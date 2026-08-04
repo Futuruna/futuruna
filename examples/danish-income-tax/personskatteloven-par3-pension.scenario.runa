@@ -378,6 +378,7 @@
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = pension_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = [pension_par15a_indbetaling]
 ))
 
@@ -500,6 +501,7 @@
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = [
         pension_årsrateindbetaling("Arbejdsgiverordning", Pbl18Arbejdsgiverindbetaling, 40000, 3200),
         pension_årsrateindbetaling("Privat rate A", Pbl18EgenIndbetaling, 40000, 0),
@@ -513,6 +515,7 @@
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner = 100000),
     par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = [
         pension_årslivrenteindbetaling("Livrente A", 100000),
         pension_årslivrenteindbetaling("Livrente B", 100000)
@@ -525,6 +528,7 @@
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
     par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     indbetalinger = [
         pension_årsrateindbetaling("Samme ordning", Pbl18EgenIndbetaling, 20000, 0),
         pension_årsrateindbetaling("Samme ordning", Pbl18EgenIndbetaling, 30000, 0)
