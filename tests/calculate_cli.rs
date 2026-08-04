@@ -908,6 +908,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "omfangsfakta.oprettelsesdato.år",
             "omfangsfakta.oprindelig_rettighedshaver_identifikation",
             "omfangsfakta.kapitalværdi_ved_oprettelsen_kroner",
+            "omfangsfakta.repræsenteret_kontraktdel.$variant",
+            "omfangsfakta.repræsenteret_kontraktdel.Pbl53ADelSkabtVedKontraktændring.ændringsidentifikation",
             "omfangsfakta.overgangsvalgfristfakta.$variant",
             "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.år",
             "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen",
@@ -931,6 +933,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ordningens oprettelsesdato - år",
             "Oprindelig rettighedshaver til ordningen",
             "Kapitalværdi ved ordningens oprettelse",
+            "Kontraktdel repræsenteret ved ordningen",
+            "Kontraktændring som skabte den repræsenterede del",
             "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B",
             "Arvedato for det senere overgangsvalg - år",
             "Fuld dansk skattepligt ved den senere arv",
@@ -945,6 +949,63 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 pbl53a_headers.iter().any(|header| header == expected),
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
+            );
+        }
+        let pbl53a_contract_changes_path =
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.kontraktændringer";
+        let pbl53a_contract_changes_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_contract_changes_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_contract_changes_sheet),
+            "Dansk personskat - Ændringer af den historiske pensionskontrakt"
+        );
+        let pbl53a_contract_change_paths =
+            workbook_column_paths(&mut workbook, &pbl53a_contract_changes_sheet);
+        for expected in [
+            "identifikation",
+            "ændringsdato.år",
+            "virkningstidspunkt.dato.år",
+            "virkningstidspunkt.rækkefølge_på_dagen",
+            "kapitalværdi_på_virkningstidspunktet_kroner",
+            "forhåndsaftale.$variant",
+            "forhåndsaftale.Pbl53ADokumenteretForhåndsaftale.bindende_fra_dato.år",
+            "forhåndsaftale.Pbl53ADokumenteretForhåndsaftale.vilkår_fuldt_fastlagt",
+            "forhåndsaftale.Pbl53ADokumenteretForhåndsaftale.indtræder_uden_nyt_valg",
+            "art.$variant",
+            "art.Pbl53AÅrligOpsparingspræmieForhøjet.forhøjelse_kroner",
+            "art.Pbl53AÅrligOpsparingspræmieForhøjet.grundlag",
+            "art.Pbl53AForsikringGenoptagetEfterMisligholdelse.nye_helbredsoplysninger_krævet",
+            "art.Pbl53ASelvvalgtOverflytningTilNyUdbyder.modtagende_ordnings_oprettelsesdato.år",
+            "art.Pbl53AAndenKontraktændring.beskrivelse",
+        ] {
+            assert!(
+                pbl53a_contract_change_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical PBL § 53 A contract-change path {expected} on {pbl53a_contract_changes_sheet}"
+            );
+        }
+        let pbl53a_contract_change_headers =
+            workbook_headers(&mut workbook, &pbl53a_contract_changes_sheet);
+        for expected in [
+            "Kontraktændringens identifikation",
+            "Dato hvor kontraktændringen blev aftalt - år",
+            "Dato hvor kontraktændringen fik virkning - år",
+            "Kontraktændringens rækkefølge på dagen",
+            "Kapitalværdi da kontraktændringen fik virkning",
+            "Forhåndsaftale om kontraktændringen",
+            "Dato for bindende forhåndsaftale - år",
+            "Kontraktændringens art",
+            "Årlig forhøjelse af opsparingspræmien",
+            "Nye helbredsoplysninger ved genoptagelsen",
+            "Oprettelsesdato for modtagende ordning - år",
+            "Beskrivelse af anden kontraktændring",
+        ] {
+            assert!(
+                pbl53a_contract_change_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL § 53 A contract-change label {expected} on {pbl53a_contract_changes_sheet}"
             );
         }
         let pbl53a_acquisitions_path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser";
@@ -2336,6 +2397,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
             "pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1",
+            "aftaleloven_lbk193_par6",
             "pensionsbeskatningsloven_lsf229_1992_par6",
             "pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3",
             "pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3",
@@ -2353,6 +2415,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skat_juridisk_vejledning_pbl53a_ordningstyper",
             "skat_juridisk_vejledning_pbl53b_omfang",
             "skat_skm2025_658_lsr_pbl53a_blanketvalg",
+            "skat_skm2013_481_sr_pbl53a_produktændring",
+            "skat_skm2023_406_lsr_pbl53a_overflytning",
             "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
         ] {
             assert!(
@@ -2689,6 +2753,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     Data::Int(if row == 3 { 190_000 } else { 100_000 }),
                 ),
                 (
+                    "omfangsfakta.repræsenteret_kontraktdel.$variant",
+                    Data::String("Pbl53AHeleKontrakten".to_string()),
+                ),
+                (
                     "omfangsfakta.overgangsvalgfristfakta.$variant",
                     Data::String(
                         if row == 1 {
@@ -2893,6 +2961,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
                 _ => unreachable!(),
             }
+        }
+        let pbl53a_contract_changes_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.kontraktændringer",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("parent_id", Data::String("livsforsikring-pal".to_string())),
+            (
+                "item_id",
+                Data::String("livsforsikring-pal-valuta-2014".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("valuta-2014".to_string())),
+            ("ændringsdato.år", Data::Int(2014)),
+            ("ændringsdato.måned", Data::Int(6)),
+            ("ændringsdato.dag", Data::Int(1)),
+            ("virkningstidspunkt.dato.år", Data::Int(2014)),
+            ("virkningstidspunkt.dato.måned", Data::Int(6)),
+            ("virkningstidspunkt.dato.dag", Data::Int(1)),
+            ("virkningstidspunkt.rækkefølge_på_dagen", Data::Int(1)),
+            (
+                "kapitalværdi_på_virkningstidspunktet_kroner",
+                Data::Int(150_000),
+            ),
+            (
+                "forhåndsaftale.$variant",
+                Data::String("Pbl53AIngenDokumenteretForhåndsaftale".to_string()),
+            ),
+            (
+                "art.$variant",
+                Data::String("Pbl53AValutaÆndret".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_contract_changes_sheet, 1, header, value);
         }
         let pbl53a_acquisitions_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -5764,6 +5870,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "oprettelsesdato": { "år": 1990, "måned": 1, "dag": 1 },
                     "oprindelig_rettighedshaver_identifikation": "tidligere-ejer",
                     "kapitalværdi_ved_oprettelsen_kroner": 100_000,
+                    "repræsenteret_kontraktdel": { "$variant": "Pbl53AHeleKontrakten" },
+                    "kontraktændringer": [
+                        {
+                            "identifikation": "valuta-2014",
+                            "ændringsdato": { "år": 2014, "måned": 6, "dag": 1 },
+                            "virkningstidspunkt": {
+                                "dato": { "år": 2014, "måned": 6, "dag": 1 },
+                                "rækkefølge_på_dagen": 1
+                            },
+                            "kapitalværdi_på_virkningstidspunktet_kroner": 150_000,
+                            "forhåndsaftale": {
+                                "$variant": "Pbl53AIngenDokumenteretForhåndsaftale"
+                            },
+                            "art": { "$variant": "Pbl53AValutaÆndret" }
+                        }
+                    ],
                     "erhvervelser": [
                         {
                             "identifikation": "arv-2024",
@@ -5903,6 +6025,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
                     "oprindelig_rettighedshaver_identifikation": "person-1",
                     "kapitalværdi_ved_oprettelsen_kroner": 100_000,
+                    "repræsenteret_kontraktdel": { "$variant": "Pbl53AHeleKontrakten" },
+                    "kontraktændringer": [],
                     "erhvervelser": [],
                     "overgangsvalgfristfakta": {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
@@ -5984,6 +6108,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
                     "oprindelig_rettighedshaver_identifikation": "person-1",
                     "kapitalværdi_ved_oprettelsen_kroner": 190_000,
+                    "repræsenteret_kontraktdel": { "$variant": "Pbl53AHeleKontrakten" },
+                    "kontraktændringer": [],
                     "erhvervelser": [],
                     "overgangsvalgfristfakta": {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
@@ -6103,6 +6229,54 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(rejected_historical_form_case);
+    let mut material_contract_change_case = pbl53a_case.clone();
+    material_contract_change_case["case_id"] =
+        Value::String("personskat-pbl53a-material-kontraktændring-2026".into());
+    let mut material_contract_change_order =
+        material_contract_change_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"][0].clone();
+    material_contract_change_order["identifikation"] =
+        Value::String("livsforsikring-material-kontraktændring".into());
+    material_contract_change_order["omfangsfakta"]["oprindelig_rettighedshaver_identifikation"] =
+        Value::String("person-1".into());
+    material_contract_change_order["omfangsfakta"]["erhvervelser"] = serde_json::json!([]);
+    material_contract_change_order["omfangsfakta"]["overgangsvalgfristfakta"] =
+        serde_json::json!({ "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag" });
+    material_contract_change_order["omfangsfakta"]["overgangsvalg"] = serde_json::json!([]);
+    material_contract_change_order["omfangsfakta"]["historiske_blanket49020_indsendelser"] =
+        serde_json::json!([]);
+    material_contract_change_order["omfangsfakta"]["kontraktændringer"] = serde_json::json!([
+        {
+            "identifikation": "markedsrente-2013",
+            "ændringsdato": { "år": 2013, "måned": 6, "dag": 1 },
+            "virkningstidspunkt": {
+                "dato": { "år": 2013, "måned": 6, "dag": 1 },
+                "rækkefølge_på_dagen": 1
+            },
+            "kapitalværdi_på_virkningstidspunktet_kroner": 140_000,
+            "forhåndsaftale": {
+                "$variant": "Pbl53AIngenDokumenteretForhåndsaftale"
+            },
+            "art": { "$variant": "Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente" }
+        }
+    ]);
+    material_contract_change_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"] =
+        serde_json::json!([material_contract_change_order]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(material_contract_change_case.clone());
+    let mut unsupported_contract_change_case = material_contract_change_case;
+    unsupported_contract_change_case["case_id"] =
+        Value::String("personskat-pbl53a-uafklaret-kontraktændring-2026".into());
+    unsupported_contract_change_case["input"]["kapitalindkomst"]["pbl53a"]["ordninger"][0]
+        ["omfangsfakta"]["kontraktændringer"][0]["art"] = serde_json::json!({
+        "$variant": "Pbl53AAndenKontraktændring",
+        "beskrivelse": "Sammensat ændring uden direkte klassifikation"
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(unsupported_contract_change_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -6313,6 +6487,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         1
     );
     assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]
+            ["repræsenteret_kontraktdel"]["$variant"],
+        "Pbl53AHeleKontrakten"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["kontraktændringer"]
+            .as_array()
+            .expect("PBL § 53 A contract-change history")
+            .len(),
+        1
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["kontraktændringer"][0]
+            ["identifikation"],
+        "valuta-2014"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["kontraktændringer"][0]
+            ["art"]["$variant"],
+        "Pbl53AValutaÆndret"
+    );
+    assert_eq!(
         pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]
             ["tidspunkt"]["dato"]["år"],
         2024
@@ -6376,6 +6572,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
             ["valgresultat"]["valg_gyldigt"],
         true
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["kontraktændringsresultat"]["fakta_gyldige"],
+        true
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["kontraktændringsresultat"]["hele_nye_ordninger_antal"],
+        0
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
@@ -6483,6 +6689,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         rejected_historical_form_result["ordningsresultater"][0]["omfangsresultat"]
             ["overgangsresultat"]["valgresultat"]["valg_gyldigt"],
+        false
+    );
+    let material_contract_change_result =
+        &json_result["results"][11]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(material_contract_change_result["alle_input_gyldige"], true);
+    assert_eq!(
+        material_contract_change_result["ordningsresultater"][0]["$variant"],
+        "BeregnetPbl53AOrdning"
+    );
+    assert_eq!(
+        material_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["kontraktændringsresultat"]["hele_nye_ordninger_antal"],
+        1
+    );
+    assert_eq!(
+        material_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["moderne_virkningsstart"]["dato"],
+        serde_json::json!({ "år": 2013, "måned": 6, "dag": 1 })
+    );
+    let unsupported_contract_change_result =
+        &json_result["results"][12]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(
+        unsupported_contract_change_result["alle_input_gyldige"],
+        false
+    );
+    assert_eq!(
+        unsupported_contract_change_result["ordningsresultater"][0]["$variant"],
+        "UgyldigtPbl53AGrundlag"
+    );
+    assert_eq!(
+        unsupported_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["kontraktændringsresultat"]["alle_ændringsarter_understøttede"],
         false
     );
     assert_eq!(

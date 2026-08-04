@@ -1,0 +1,277 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+| pbl53a_kontraktændringsscenarie_fakta(repræsentation: Pbl53AKontraktdelsrepræsentation, ændringer: List(Pbl53AKontraktændring)) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
+    repræsenteret_kontraktdel = repræsentation,
+    kontraktændringer = ændringer,
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_kontraktændringsscenarie_ændring(identifikation: Tekst, år: Heltal, rækkefølge_på_dagen: Heltal, forhåndsaftale: Pbl53AForhåndsaftalefakta, art: Pbl53AKontraktændringsart) -> Pbl53AKontraktændring(
+    identifikation = identifikation,
+    ændringsdato = Pbl15ADato(år = år, måned = 6, dag = 1),
+    virkningstidspunkt = Pbl15ATidspunkt(
+        dato = Pbl15ADato(år = år, måned = 6, dag = 1),
+        rækkefølge_på_dagen = rækkefølge_på_dagen
+    ),
+    kapitalværdi_på_virkningstidspunktet_kroner = 125000,
+    forhåndsaftale = forhåndsaftale,
+    art = art
+)
+
+| pbl53a_kontraktændringsscenarie_resultat(repræsentation: Pbl53AKontraktdelsrepræsentation, ændringer: List(Pbl53AKontraktændring)) -> pbl53a_omfangsresultat(
+    indkomstår = 2026,
+    fakta = pbl53a_kontraktændringsscenarie_fakta(repræsentation, ændringer),
+    hændelser = []
+)
+
+= pbl53a_markedsrenteændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "markedsrente-2013",
+    år = 2013,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+    art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
+)
+= pbl53a_markedsrenteresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_markedsrenteændring]
+)
+
+= pbl53a_valutaændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "valuta-2014",
+    år = 2014,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+    art = Pbl53AValutaÆndret
+)
+= pbl53a_valutaresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_valutaændring]
+)
+
+= pbl53a_forhåndsaftalt_markedsrenteændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "forhåndsaftalt-markedsrente-2013",
+    år = 2013,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53ADokumenteretForhåndsaftale(
+        bindende_fra_dato = Pbl15ADato(år = 1991, måned = 12, dag = 1),
+        vilkår_fuldt_fastlagt = Sandt,
+        indtræder_uden_nyt_valg = Sandt
+    ),
+    art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
+)
+= pbl53a_forhåndsaftalt_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_forhåndsaftalt_markedsrenteændring]
+)
+
+= pbl53a_præmieforhøjelse = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "præmieforhøjelse-2015",
+    år = 2015,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+    art = Pbl53AÅrligOpsparingspræmieForhøjet(
+        forhøjelse_kroner = 12000,
+        grundlag = Pbl53ANyPræmieforhøjelse
+    )
+)
+= pbl53a_præmieforhøjelse_delresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation = "præmieforhøjelse-2015"),
+    ændringer = [pbl53a_præmieforhøjelse]
+)
+= pbl53a_præmieforhøjelse_historisk_restresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHistoriskRestEfterDelviseKontraktændringer,
+    ændringer = [pbl53a_præmieforhøjelse]
+)
+= pbl53a_præmieforhøjelse_helkontraktresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_præmieforhøjelse]
+)
+= pbl53a_historisk_rest_uden_delvis_ændring_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHistoriskRestEfterDelviseKontraktændringer,
+    ændringer = []
+)
+
+= pbl53a_uunderstøttet_ændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "anden-ændring-2016",
+    år = 2016,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+    art = Pbl53AAndenKontraktændring(beskrivelse = "Ukendt kombination af vilkårsændringer")
+)
+= pbl53a_uunderstøttet_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_uunderstøttet_ændring]
+)
+
+= pbl53a_uoplyst_forhåndsaftaleændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "uoplyst-forhåndsaftale-2017",
+    år = 2017,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53AForhåndsaftaleUoplyst,
+    art = Pbl53AValutaÆndret
+)
+= pbl53a_uoplyst_forhåndsaftaleresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_uoplyst_forhåndsaftaleændring]
+)
+
+= pbl53a_modstridende_forhåndsaftaleændring = pbl53a_kontraktændringsscenarie_ændring(
+    identifikation = "modstridende-forhåndsaftale-2017",
+    år = 2017,
+    rækkefølge_på_dagen = 1,
+    forhåndsaftale = Pbl53ADokumenteretForhåndsaftale(
+        bindende_fra_dato = Pbl15ADato(år = 2018, måned = 1, dag = 1),
+        vilkår_fuldt_fastlagt = Sandt,
+        indtræder_uden_nyt_valg = Sandt
+    ),
+    art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
+)
+= pbl53a_modstridende_forhåndsaftaleresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_modstridende_forhåndsaftaleændring]
+)
+
+= pbl53a_omvendt_kronologi_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [
+        pbl53a_kontraktændringsscenarie_ændring(
+            identifikation = "valuta-2020",
+            år = 2020,
+            rækkefølge_på_dagen = 1,
+            forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+            art = Pbl53AValutaÆndret
+        ),
+        pbl53a_kontraktændringsscenarie_ændring(
+            identifikation = "depot-2019",
+            år = 2019,
+            rækkefølge_på_dagen = 1,
+            forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+            art = Pbl53ADepotbankUdskiftet
+        )
+    ]
+)
+
+= pbl53a_dobbelt_identifikation_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_valutaændring, pbl53a_kontraktændringsscenarie_ændring(
+        identifikation = "valuta-2014",
+        år = 2015,
+        rækkefølge_på_dagen = 1,
+        forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+        art = Pbl53ADepotbankUdskiftet
+    )]
+)
+
+= pbl53a_selvvalgt_overflytningsresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_kontraktændringsscenarie_ændring(
+        identifikation = "overflytning-2023",
+        år = 2023,
+        rækkefølge_på_dagen = 1,
+        forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+        art = Pbl53ASelvvalgtOverflytningTilNyUdbyder(
+            modtagende_ordnings_oprettelsesdato = Pbl15ADato(år = 2023, måned = 6, dag = 1),
+            policer_enslydende = Sandt
+        )
+    )]
+)
+
+= pbl53a_uændret_bestandsoverførselsresultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_kontraktændringsscenarie_ændring(
+        identifikation = "bestand-2021",
+        år = 2021,
+        rækkefølge_på_dagen = 1,
+        forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+        art = Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår = Pbl53ABestandOverførtPåUændredeVilkår)
+    )]
+)
+
+= pbl53a_genoptaget_uden_nye_helbredsoplysninger_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_kontraktændringsscenarie_ændring(
+        identifikation = "genoptagelse-2018",
+        år = 2018,
+        rækkefølge_på_dagen = 1,
+        forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+        art = Pbl53AForsikringGenoptagetEfterMisligholdelse(
+            følge = Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse,
+            nye_helbredsoplysninger_krævet = Falskt
+        )
+    )]
+)
+
+= pbl53a_genoptaget_med_nye_helbredsoplysninger_resultat = pbl53a_kontraktændringsscenarie_resultat(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændringer = [pbl53a_kontraktændringsscenarie_ændring(
+        identifikation = "genoptagelse-2018",
+        år = 2018,
+        rækkefølge_på_dagen = 1,
+        forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+        art = Pbl53AForsikringGenoptagetEfterMisligholdelse(
+            følge = Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse,
+            nye_helbredsoplysninger_krævet = Sandt
+        )
+    )]
+)
+
+| pbl53a_markedsrenteskift_gør_hele_ordningen_ny: pbl53a_markedsrenteresultat -> pbl53a_markedsrenteresultat.grundfakta_gyldige && pbl53a_markedsrenteresultat.overgangsresultat.kontraktændringsresultat.hele_nye_ordninger_antal == 1 && pbl53a_markedsrenteresultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2013, måned = 6, dag = 1))
+
+| pbl53a_valutaændring_bevarer_historisk_regime: pbl53a_valutaresultat -> pbl53a_valutaresultat.grundfakta_gyldige && pbl53a_valutaresultat.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_valutaresultat.overgangsresultat.kontraktændringsresultat.hele_nye_ordninger_antal == 0
+
+| pbl53a_endeligt_forhåndsaftalt_ændring_bevarer_historisk_regime: pbl53a_forhåndsaftalt_resultat -> pbl53a_forhåndsaftalt_resultat.grundfakta_gyldige && pbl53a_forhåndsaftalt_resultat.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_forhåndsaftalt_resultat.overgangsresultat.kontraktændringsresultat.ændringsresultater[0].endeligt_og_bindende_aftalt_før_skæringsdatoen
+
+| pbl53a_præmieforhøjelsens_nye_del_får_moderne_regime: pbl53a_præmieforhøjelse_delresultat -> pbl53a_præmieforhøjelse_delresultat.grundfakta_gyldige && pbl53a_præmieforhøjelse_delresultat.overgangsresultat.kontraktændringsresultat.delvise_nye_ordninger_antal == 1 && pbl53a_præmieforhøjelse_delresultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2015, måned = 6, dag = 1))
+
+| pbl53a_præmieforhøjelsens_historiske_rest_bevarer_regime: pbl53a_præmieforhøjelse_historisk_restresultat -> pbl53a_præmieforhøjelse_historisk_restresultat.grundfakta_gyldige && pbl53a_præmieforhøjelse_historisk_restresultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_delvis_ændring_kræver_explicit_kontraktdel: pbl53a_præmieforhøjelse_helkontraktresultat -> pbl53a_præmieforhøjelse_helkontraktresultat.overgangsresultat.kontraktændringsresultat.repræsentation_gyldig == Falskt && pbl53a_præmieforhøjelse_helkontraktresultat.grundfakta_gyldige == Falskt
+
+| pbl53a_historisk_rest_kræver_delvis_ændring: pbl53a_historisk_rest_uden_delvis_ændring_resultat -> pbl53a_historisk_rest_uden_delvis_ændring_resultat.overgangsresultat.kontraktændringsresultat.repræsentation_gyldig == Falskt && pbl53a_historisk_rest_uden_delvis_ændring_resultat.grundfakta_gyldige == Falskt
+
+| pbl53a_uunderstøttet_ændring_fejler_lukket: pbl53a_uunderstøttet_resultat -> pbl53a_uunderstøttet_resultat.overgangsresultat.kontraktændringsresultat.alle_ændringsarter_understøttede == Falskt && pbl53a_uunderstøttet_resultat.overgangsresultat.kontraktændringsresultat.uafklarede_ændringer_antal == 1 && pbl53a_uunderstøttet_resultat.grundfakta_gyldige == Falskt
+
+| pbl53a_uoplyst_forhåndsaftale_fejler_lukket: pbl53a_uoplyst_forhåndsaftaleresultat -> pbl53a_uoplyst_forhåndsaftaleresultat.overgangsresultat.kontraktændringsresultat.fakta_gyldige == Falskt && pbl53a_uoplyst_forhåndsaftaleresultat.grundfakta_gyldige == Falskt
+
+| pbl53a_modstridende_forhåndsaftaledato_fejler_lukket: pbl53a_modstridende_forhåndsaftaleresultat -> pbl53a_modstridende_forhåndsaftaleresultat.overgangsresultat.kontraktændringsresultat.ændringsresultater[0].forhåndsaftalefakta_gyldige == Falskt && pbl53a_modstridende_forhåndsaftaleresultat.grundfakta_gyldige == Falskt
+
+| pbl53a_kontraktændringer_skal_være_kronologiske: pbl53a_omvendt_kronologi_resultat -> pbl53a_omvendt_kronologi_resultat.overgangsresultat.kontraktændringsresultat.ændringer_kronologiske == Falskt && pbl53a_omvendt_kronologi_resultat.grundfakta_gyldige == Falskt
+
+| pbl53a_kontraktændringsidentifikationer_skal_være_entydige: pbl53a_dobbelt_identifikation_resultat -> pbl53a_dobbelt_identifikation_resultat.overgangsresultat.kontraktændringsresultat.identifikationer_entydige == Falskt && pbl53a_dobbelt_identifikation_resultat.grundfakta_gyldige == Falskt
+
+| pbl53a_selvvalgt_overflytning_gør_hele_ordningen_ny: pbl53a_selvvalgt_overflytningsresultat -> pbl53a_selvvalgt_overflytningsresultat.grundfakta_gyldige && pbl53a_selvvalgt_overflytningsresultat.overgangsresultat.kontraktændringsresultat.hele_nye_ordninger_antal == 1 && pbl53a_selvvalgt_overflytningsresultat.omfattes_af_par53a
+
+| pbl53a_uændret_bestandsoverførsel_bevarer_historisk_regime: pbl53a_uændret_bestandsoverførselsresultat -> pbl53a_uændret_bestandsoverførselsresultat.grundfakta_gyldige && pbl53a_uændret_bestandsoverførselsresultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_genoptagelse_uden_nye_helbredsoplysninger_bevarer_regime: pbl53a_genoptaget_uden_nye_helbredsoplysninger_resultat -> pbl53a_genoptaget_uden_nye_helbredsoplysninger_resultat.grundfakta_gyldige && pbl53a_genoptaget_uden_nye_helbredsoplysninger_resultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_genoptagelse_med_nye_helbredsoplysninger_gør_ordningen_ny: pbl53a_genoptaget_med_nye_helbredsoplysninger_resultat -> pbl53a_genoptaget_med_nye_helbredsoplysninger_resultat.grundfakta_gyldige && pbl53a_genoptaget_med_nye_helbredsoplysninger_resultat.overgangsresultat.kontraktændringsresultat.hele_nye_ordninger_antal == 1 && pbl53a_genoptaget_med_nye_helbredsoplysninger_resultat.omfattes_af_par53a
+
+? pbl53a_markedsrenteskift_gør_hele_ordningen_ny
+? pbl53a_valutaændring_bevarer_historisk_regime
+? pbl53a_endeligt_forhåndsaftalt_ændring_bevarer_historisk_regime
+? pbl53a_præmieforhøjelsens_nye_del_får_moderne_regime
+? pbl53a_præmieforhøjelsens_historiske_rest_bevarer_regime
+? pbl53a_delvis_ændring_kræver_explicit_kontraktdel
+? pbl53a_historisk_rest_kræver_delvis_ændring
+? pbl53a_uunderstøttet_ændring_fejler_lukket
+? pbl53a_uoplyst_forhåndsaftale_fejler_lukket
+? pbl53a_modstridende_forhåndsaftaledato_fejler_lukket
+? pbl53a_kontraktændringer_skal_være_kronologiske
+? pbl53a_kontraktændringsidentifikationer_skal_være_entydige
+? pbl53a_selvvalgt_overflytning_gør_hele_ordningen_ny
+? pbl53a_uændret_bestandsoverførsel_bevarer_historisk_regime
+? pbl53a_genoptagelse_uden_nye_helbredsoplysninger_bevarer_regime
+? pbl53a_genoptagelse_med_nye_helbredsoplysninger_gør_ordningen_ny

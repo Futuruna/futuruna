@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-e16a8d` (in review; implementation and verification complete)
-Next source-backed slices: `td-f2ca68` and `td-9c9d16`
+Current implementation slice: `td-f2ca68` (in review; implementation and verification complete)
+Next source-backed slices: `td-9c9d16` and `td-b3b1b9`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-606798`
@@ -196,12 +196,26 @@ eksplicitte mål. De to spor samles først som daterede valgposter, så det før
 gyldige valg fortsat er bindende på tværs af sporene. I alt nitten fokuserede
 invarianter passerer i både interpreter og compiler.
 
-Beregningskontrakten har 223 danske § 53 A-feltbeskrivelser med PBL §§ 20,
-53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har tretten
+Historiske ordningers senere kontraktændringer er nu modelleret som daterede
+kildefakta med entydig identifikation, virkningstidspunkt, kapitalværdi,
+forhåndsaftale og en lukket ændringsart. Aftalelovens § 6, Den juridiske
+vejledning 2026-1, C.A.10.4.2.3.6, SKM2013.481.SR og SKM2023.406.LSR er bundet
+som typede kilder. Reglerne afleder, om ændringen ikke skaber en ny ordning,
+skaber en ny ordning for hele kontrakten eller kun for en bestemt del. En
+delvis ændring kræver, at beregningsrækken udtrykkeligt repræsenterer enten den
+historiske rest eller den del, som den identificerede ændring skabte. Ukendte
+ændringsarter, uoplyste eller modstridende forhåndsaftaler, dubletter og
+omvendt kronologi fejler lukket. Seksten fokuserede invarianter passerer i både
+interpreter og compiler.
+
+Beregningskontrakten har 258 danske § 53 A-feltbeskrivelser med Aftalelovens
+§ 6, PBL §§ 20, 53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder.
+Regnearket har fjorten
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
 grænsehændelser, berettigedes indeståender, indbetalings- eller
-udbetalingshændelser, senere erhvervelser, overgangsvalg og historiske
+udbetalingshændelser, senere erhvervelser, overgangsvalg, historiske
 blanketindsendelser,
+daterede kontraktændringer,
 livsforsikringsdækninger, daterede
 negative afkast ved forløbets åbning og tre slags berettigede efter
 direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
@@ -556,7 +570,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 907 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 942 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -606,7 +620,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`a9c78884cbd172ee47fdbaf1d1db883fb2255d0842e58de764711b391aa2f5ee`.
+`e4de788f0933fa4d70bf1cb7447e0d72851c49a84dd31d7829c82e0ad50710d0`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -618,14 +632,15 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 907 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 942 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
 ejendomsdrift efter § 4, stk. 1, nr. 6, PBL § 53 A og de øvrige
-kildefaktasager, passerer på 1.896,99 sekunder i den aktuelle debug-gate.
+kildefaktasager, passerer på 2.767,30 sekunder i den aktuelle debug-gate med
+de nye kontraktændringssager.
 `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
@@ -3095,12 +3110,19 @@ Review candidates to revisit deliberately, not as broad churn:
   erhvervelsen giver DKK 29.000 i skattepligtigt afkast. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 907 felter i alt, heraf 223 § 53 A-feltmetadata-poster, og tretten
+  har 942 felter i alt, heraf 258 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
   JSON-grænse dækker desuden en accepteret tidligere blanket, hvor § 53 A
   afledes uden et målinput.
+- Seksten fokuserede kontraktændringsinvarianter dækker hele og delvise nye
+  ordninger, den historiske rest, uændrede kontrakter, bindende
+  forhåndsaftaler, overførsler, genoptagelser, ukendte ændringsarter,
+  dubletter og kronologi i både interpreter og compiler. Den kanoniske
+  projektmappe bærer en uvæsentlig dateret kontraktændring som relationelle
+  kildefakta. JSON-grænsen accepterer en materiel overgang til
+  markedsrentevilkår og afviser en ikke-understøttet anden ændringsart.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3238,7 +3260,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 907 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 942 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3399,11 +3421,13 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Efter uafhængig review af `td-e16a8d` skal `td-f2ca68` kildeafklare og
-  modellere, hvornår materielle kontraktændringer skaber en ny ordning efter
-  § 53 A. `td-9c9d16` skal kildeafklare den tidligere ejers afkast i
+- Efter uafhængig review af `td-f2ca68` skal `td-9c9d16` kildeafklare den
+  tidligere ejers afkast i
   overdragelsesåret og erstatte den nuværende ultimo-antagelse med daterede
   rettighedsandele, herunder samtidige berettigede, hvor loven kræver det.
+  `td-b3b1b9` skal derefter bruge en materiel kontraktændrings præcise
+  virkningstidspunkt og kapitalværdi som delårsgrænse i årets
+  afkastberegning.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

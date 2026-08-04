@@ -6,6 +6,8 @@
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
     oprindelig_rettighedshaver_identifikation = "ejer-0",
     kapitalværdi_ved_oprettelsen_kroner = 100000,
+    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
+    kontraktændringer = [],
     erhvervelser = erhvervelser,
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
