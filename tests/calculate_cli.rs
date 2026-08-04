@@ -864,6 +864,46 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
             );
         }
+        let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
+        let pbl53a_events_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_events_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_events_sheet),
+            "Dansk personskat - Hændelser på § 53 A-ordningen"
+        );
+        let pbl53a_event_paths = workbook_column_paths(&mut workbook, &pbl53a_events_sheet);
+        for expected in [
+            "$variant",
+            "Pbl53AIndbetaling.fakta.identifikation",
+            "Pbl53AIndbetaling.fakta.tidspunkt.indkomstår",
+            "Pbl53AIndbetaling.fakta.beløb_kroner",
+            "Pbl53AIndbetaling.fakta.indbetaler.$variant",
+            "Pbl53AUdbetaling.fakta.bruttoudbetaling_kroner",
+            "Pbl53AUdbetaling.fakta.art.$variant",
+            "Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
+        ] {
+            assert!(
+                pbl53a_event_paths.iter().any(|path| path == expected),
+                "missing canonical PBL § 53 A event path {expected} on {pbl53a_events_sheet}"
+            );
+        }
+        let pbl53a_event_headers = workbook_headers(&mut workbook, &pbl53a_events_sheet);
+        for expected in [
+            "Type § 53 A-hændelse",
+            "Indbetalingens identifikation",
+            "Indbetalingens indkomstår",
+            "Indbetalt beløb",
+            "Hvem foretog indbetalingen",
+            "Udbetalingens modtager",
+            "Bruttoudbetaling",
+            "Type § 53 A-udbetaling",
+            "Indkomstskat betalt til den anden stat",
+            "Modsvarende sikkerhedsstillelse",
+        ] {
+            assert!(
+                pbl53a_event_headers.iter().any(|header| header == expected),
+                "missing human PBL § 53 A event label {expected} on {pbl53a_events_sheet}"
+            );
+        }
         let pension_path = "lønmodtager.pension.pbl18_indbetalinger";
         let pension_sheet = workbook_collection_sheet_name(&mut workbook, pension_path);
         assert_eq!(
@@ -1092,6 +1132,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
             "kapitalindkomst.pbl53a.ordninger.fremført_negativt_afkast_primo_kroner",
             "kapitalindkomst.pbl53a.ordninger.andel.nævner",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.$variant",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.$variant",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.$variant",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
             "kapitalindkomst.ejendomsdrift.$variant",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
@@ -1922,7 +1967,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("PBL § 53 A sources");
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
+            "pensionsbeskatningsloven_lbk1243_par20",
+            "personskatteloven_lbk1284_par3",
             "personskatteloven_lbk1284_par4",
+            "arbejdsmarkedsbidragsloven_lbk121_par2",
+            "skat_juridisk_vejledning_pbl53a_indbetalinger",
+            "skat_juridisk_vejledning_pbl53a_udbetalinger",
+            "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
         ] {
             assert!(
                 pbl53a_sources.contains(expected),
@@ -2367,6 +2418,62 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("udbetaling_til_afkastskat_kroner", Data::Int(3_000)),
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_sheet, 3, header, value);
+        }
+        let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
+        let pbl53a_events_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, pbl53a_events_path);
+        for (header, value) in [
+            (
+                "case_id".to_string(),
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            (
+                "parent_id".to_string(),
+                Data::String("livsforsikring-pal".to_string()),
+            ),
+            (
+                "item_id".to_string(),
+                Data::String("arbejdsgiver-indbetaling-2026".to_string()),
+            ),
+            ("position".to_string(), Data::Int(1)),
+            (
+                format!("{pbl53a_events_path}.$variant"),
+                Data::String("Pbl53AIndbetaling".to_string()),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.identifikation"),
+                Data::String("arbejdsgiver-indbetaling-2026".to_string()),
+            ),
+            (
+                format!(
+                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.indkomstår"
+                ),
+                Data::Int(2026),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_i_indkomståret"),
+                Data::Int(1),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.beløb_kroner"),
+                Data::Int(60_000),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.periode"),
+                Data::String("Pbl53AIndbetaltMensOrdningenErOmfattet".to_string()),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.indbetaler.$variant"),
+                Data::String("Pbl53ANuværendeArbejdsgiver".to_string()),
+            ),
+            (
+                format!(
+                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"
+                ),
+                Data::String("Pbl53AUdenFradragsEllerBortseelsesret".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_events_sheet, 1, &header, value);
         }
         for (header, value) in [
             (
@@ -4818,7 +4925,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": true,
                 "fremført_negativt_afkast_primo_kroner": 6_000,
                 "andel": { "tæller": 1, "nævner": 1 },
-                "udbetaling_til_afkastskat_kroner": 0
+                "udbetaling_til_afkastskat_kroner": 0,
+                "hændelser": [
+                    {
+                        "$variant": "Pbl53AIndbetaling",
+                        "fakta": {
+                            "identifikation": "arbejdsgiver-indbetaling-2026",
+                            "tidspunkt": {
+                                "indkomstår": 2026,
+                                "rækkefølge_i_indkomståret": 1
+                            },
+                            "beløb_kroner": 60_000,
+                            "periode": {
+                                "$variant": "Pbl53AIndbetaltMensOrdningenErOmfattet"
+                            },
+                            "indbetaler": {
+                                "$variant": "Pbl53ANuværendeArbejdsgiver"
+                            },
+                            "ejerens_fradragsstatus": {
+                                "$variant": "Pbl53AUdenFradragsEllerBortseelsesret"
+                            }
+                        }
+                    }
+                ]
             },
             {
                 "identifikation": "pensionskasse-negativ",
@@ -4836,7 +4965,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
                 "fremført_negativt_afkast_primo_kroner": 5_000,
                 "andel": { "tæller": 1, "nævner": 1 },
-                "udbetaling_til_afkastskat_kroner": 0
+                "udbetaling_til_afkastskat_kroner": 0,
+                "hændelser": []
             },
             {
                 "identifikation": "pengeinstitut-halv-andel",
@@ -4854,7 +4984,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
                 "fremført_negativt_afkast_primo_kroner": 0,
                 "andel": { "tæller": 1, "nævner": 2 },
-                "udbetaling_til_afkastskat_kroner": 3_000
+                "udbetaling_til_afkastskat_kroner": 3_000,
+                "hændelser": []
             }
         ]
     });
@@ -5056,6 +5187,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let pbl53a_result = &result["results"][9]["result"]["kapitalindkomst"]["pbl53a_resultat"];
     assert_eq!(pbl53a_result["identifikationer_entydige"], true);
     assert_eq!(pbl53a_result["alle_input_gyldige"], true);
+    assert_eq!(pbl53a_result["personlig_indkomst_kroner"], 60_000);
+    assert_eq!(
+        pbl53a_result["arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner"],
+        60_000
+    );
     assert_eq!(
         pbl53a_result["kapitalposter"]
             .as_array()
@@ -5066,6 +5202,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["pensionsbeskatningslov_input"]["indkomstår"],
         2026
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["forløbsresultat"]["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["forløbsresultat"]["personlig_indkomst_kroner"],
+        60_000
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][1]["pensionsbeskatningslov_input"]["metodehistorik"]
@@ -5099,6 +5243,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         result["results"][9]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         35_500
+    );
+    assert_eq!(
+        result["results"][9]["result"]["skat"]["bruttoløn_kroner"],
+        660_000
+    );
+    assert_eq!(
+        result["results"][9]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        52_800
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

@@ -1,0 +1,16 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 42
+--
+-- The interpreter retains all declarations of a shared constructor name.
+
+# Event = Shared(value: Int) | EventOnly
+# Legacy = Shared(legacy_value: Int) | LegacyOnly
+
+| event_value(event: Event) -> match event {
+    | Shared(value) -> value
+    | EventOnly -> 0
+}
+
+= result = event_value(Shared(value = 42))
+@ print(show(result))

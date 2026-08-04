@@ -224,8 +224,17 @@ iværksætterkonto
 # Par3PersonligIndkomstInput(indkomstposter: List(Par3Indkomstpost), stk2_nr1_udgifter: List(Par3Stk2Nr1UdgiftInput), stk2_nr2_input: Par3Stk2Nr2Input, stk2_nr3_til_11_input: Par3Stk2Nr3Til11Input)
 # Par3UdligningsIndtægtsføringHjemmel = Par3Virksomhedsskattelov22BStk4Stk7Stk8 | Par3Virksomhedsskattelov22DStk2Stk3
 # Par3UdligningsIndtægtsføringResultat(indkomstår: Heltal, hjemmel: Par3UdligningsIndtægtsføringHjemmel, indtægtsført_henlæggelse_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, medregnes_ikke_til_konkursindkomsten: Boolsk)
+# Par3Pbl53AStk2Og5Input(pbl53a_forløbsresultat: Pbl53AForløbsresultat)
+# Par3Pbl53AStk2Og5Resultat(input: Par3Pbl53AStk2Og5Input, pbl53a_input_gyldigt: Boolsk, skattepligtig_indkomst_ikke_kapitalindkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
 
 | er_personlig_indkomst(vurdering: IndkomstVurdering) -> vurdering.indgår_i_skattepligtig_indkomst && vurdering.er_kapitalindkomst == Falskt
+| par3_pbl53a_stk2_og_5_resultat(input: Par3Pbl53AStk2Og5Input) -> Par3Pbl53AStk2Og5Resultat(
+    input = input,
+    pbl53a_input_gyldigt = input.pbl53a_forløbsresultat.input_gyldigt,
+    skattepligtig_indkomst_ikke_kapitalindkomst_kroner = hvis input.pbl53a_forløbsresultat.input_gyldigt { input.pbl53a_forløbsresultat.personlig_indkomst_kroner } ellers { 0 },
+    personlig_indkomst_kroner = hvis input.pbl53a_forløbsresultat.input_gyldigt { input.pbl53a_forløbsresultat.personlig_indkomst_kroner } ellers { 0 },
+    arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = hvis input.pbl53a_forløbsresultat.input_gyldigt { input.pbl53a_forløbsresultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner } ellers { 0 }
+)
 | par3_fradragstype_nævnt_i_stk2(fradrag: PersonligFradrag) -> Sandt
 | par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Falskt
 | exception par3_stk2_nr1_undtager_par4_nr1 par3_stk2_nr1_afgrænsning_er_undtaget(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning) -> Sandt under afgrænsning == Par4Stk1Nr1RenterOgLl6

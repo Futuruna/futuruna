@@ -49,6 +49,27 @@
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 53 A er uændret"
 )
 
+= skat_juridisk_vejledning_pbl53a_indbetalinger = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048468",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.3",
+    hentet_dato = "2026-07-28",
+    ændringsstatus = "Kontrolleret mod 2026-1: præmier, arbejdsgiverbidrag og medfølgende ægtefælle eller samlever"
+)
+
+= skat_juridisk_vejledning_pbl53a_udbetalinger = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048469",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.4",
+    hentet_dato = "2026-07-28",
+    ændringsstatus = "Kontrolleret mod 2026-1: krone-for-krone-princippet, værditilvækst og flerårige udbetalinger"
+)
+
+= pensionsbeskatningsloven_lsf24_2007_par53a_stk5 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/api/pdf/105200",
+    identifier = "2007/1 LSF 24, bemærkninger til PBL § 53 A, stk. 5",
+    hentet_dato = "2026-07-28",
+    ændringsstatus = "Krone-for-krone-princippet og undtagelsen for arbejdsgiverens sikrede pensionstilsagn"
+)
+
 = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026 = PensionsbeskatningslovKildeInfo(
     url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven",
     identifier = "Pensionsbeskatningsloven, satser og beløbsgrænser 2025-2026",
@@ -736,8 +757,13 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
 | pbl52_resultat(input: Pbl52Input) -> pbl52_sag(input).resultat()
 --@end::pensionsbeskatningsloven_par52--
 
-= pbl_par53a_kildemeta = Source(
-    value = pensionsbeskatningsloven_lbk1243_par53a
+= pbl_par53a_kildemeta = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
+    )
 )
 --@label:pensionsbeskatningsloven_par53a::meta:pbl_par53a_kildemeta--
 ----
@@ -900,6 +926,240 @@ pensionsordningen modtager statsstøtte.
 }
 | pensionsbeskatningslov53a_sag(input: Pensionsbeskatningslov53AInput) -> Pensionsbeskatningslov53ASag(input)
 | pensionsbeskatningslov53a_resultat(input: Pensionsbeskatningslov53AInput) -> pensionsbeskatningslov53a_sag(input).resultat()
+
+# Pbl53ATidspunkt(indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal)
+# Pbl53ASenesteTidspunkt = Pbl53AIntetTidspunkt | Pbl53ARegistreretTidspunkt(tidspunkt: Pbl53ATidspunkt)
+# Pbl53AUdsendelsessted = Pbl53AFremmedStat | Pbl53AFærøerne | Pbl53AGrønland | Pbl53ADanmark
+# Pbl53AUdsendelsesfakta(startdato: Pbl15ADato, slutdato: Pbl15ADato, sted: Pbl53AUdsendelsessted, fælles_bopæl_hele_perioden: Boolsk, indbetaling_til_afsnit_i_eller_iia_under_udsendelsen: Boolsk)
+# Pbl53AIndbetalingsperiode = Pbl53AIndbetaltMensOrdningenErOmfattet | Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet
+# Pbl53AEjerensFradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret | Pbl53AFradragEllerBortseelsesretIDanmark | Pbl53AFradragEllerBortseelsesretIUdlandet | Pbl53AFradragEllerBortseelsesretIDanmarkOgUdlandet
+# Pbl53AIndbetaler = Pbl53AEjeren | Pbl53ANuværendeArbejdsgiver | Pbl53ATidligereArbejdsgiver | Pbl53AÆgtefællesEllerSamleversArbejdsgiver(udsendelse: Pbl53AUdsendelsesfakta) | Pbl53AAndenIndbetaler
+# Pbl53AIndbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, beløb_kroner: Heltal, periode: Pbl53AIndbetalingsperiode, indbetaler: Pbl53AIndbetaler, ejerens_fradragsstatus: Pbl53AEjerensFradragsstatus)
+# Pbl53AIndbetalingsresultat(fakta: Pbl53AIndbetalingsfakta, fakta_gyldige: Boolsk, medfølgende_ægtefælle_eller_samlever_omfattet: Boolsk, eget_fradrag_i_skattepligtig_indkomst_kroner: Heltal, arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner: Heltal)
+# Pbl53AUdbetalingsmodtager = Pbl53AEjer | Pbl53APensionsberettiget | Pbl53ABerettigetEfterEjerensEllerPensionsberettigedesDød | Pbl53AAndenUdbetalingsmodtager
+# Pbl53AKapitaludbetalingsgrund = Pbl53APensionsudbetalingsalder | Pbl53AInvaliditet | Pbl53ALivstruendeSygdom | Pbl53ADød | Pbl53AAndenUdbetalingsgrund
+# Pbl53AUdbetalingsform = Pbl53AIkkeSamletKapitaludbetaling | Pbl53ASamletKapitaludbetaling(grund: Pbl53AKapitaludbetalingsgrund)
+# Pbl53AProduktart = Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing | Pbl53AAndenProduktart
+# Pbl53AUdbetalingsart = Pbl53AUdbetalingFraOrdningen(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, produktart: Pbl53AProduktart, udbetalingsform: Pbl53AUdbetalingsform, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner: Heltal)
+# Pbl53AUdbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, modtager: Pbl53AUdbetalingsmodtager, bruttoudbetaling_kroner: Heltal, art: Pbl53AUdbetalingsart)
+# Pbl53AUdbetalingsresultat(fakta: Pbl53AUdbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet_af_par55: Boolsk, fradrags_eller_bortseelsesberettiget_principal_før_kroner: Heltal, principal_fordelt_til_udbetalingen_kroner: Heltal, principal_medregnet_før_75_procent_kroner: Heltal, kapitalregel_75_procent_anvendt: Boolsk, sikkerhedsstillelse_modsvarer_udbetaling_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, pbl20_stk6_resultat: Pbl20Stk6Resultat)
+# Pbl53AHændelse = Pbl53AIndbetaling(fakta: Pbl53AIndbetalingsfakta) | Pbl53AUdbetaling(fakta: Pbl53AUdbetalingsfakta)
+# Pbl53AHændelsesresultat = Pbl53AIndbetalingBeregnet(resultat: Pbl53AIndbetalingsresultat) | Pbl53AUdbetalingBeregnet(resultat: Pbl53AUdbetalingsresultat)
+# Pbl53AForløbsinput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, hændelser: List(Pbl53AHændelse))
+# Pbl53AForløbstilstand(seneste_tidspunkt: Pbl53ASenesteTidspunkt, hændelsesresultater: List(Pbl53AHændelsesresultat), alle_hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsgiverfradrag_i_indkomståret_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner: Heltal)
+# Pbl53AForløbsresultat(input: Pbl53AForløbsinput, hændelsesresultater: List(Pbl53AHændelsesresultat), identifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
+
+| pbl53a_tidspunkt_gyldigt(tidspunkt: Pbl53ATidspunkt) -> tidspunkt.indkomstår > 0 && tidspunkt.rækkefølge_i_indkomståret > 0
+| pbl53a_tidspunkt_før(a: Pbl53ATidspunkt, b: Pbl53ATidspunkt) -> a.indkomstår < b.indkomstår || a.indkomstår == b.indkomstår && a.rækkefølge_i_indkomståret < b.rækkefølge_i_indkomståret
+| pbl53a_tidspunkt_efter_seneste(seneste: Pbl53ASenesteTidspunkt, tidspunkt: Pbl53ATidspunkt) -> match seneste {
+    | Pbl53AIntetTidspunkt -> Sandt
+    | Pbl53ARegistreretTidspunkt(forrige) -> pbl53a_tidspunkt_før(forrige, tidspunkt)
+}
+| pbl53a_udsendelsesgrundfakta_gyldige(udsendelse: Pbl53AUdsendelsesfakta) -> pbl15a_dato_gyldig(udsendelse.startdato) && pbl15a_dato_gyldig(udsendelse.slutdato) && pbl15a_dato_nøgle(udsendelse.startdato) <= pbl15a_dato_nøgle(udsendelse.slutdato)
+| pbl53a_udsendelse_mindst_en_måned(udsendelse: Pbl53AUdsendelsesfakta) -> pbl53a_udsendelsesgrundfakta_gyldige(udsendelse) && pbl15a_dato_nøgle(pbl15a_dato_plus_måneder(udsendelse.startdato, 1)) <= pbl15a_dato_nøgle(udsendelse.slutdato)
+| pbl53a_udsendelsessted_omfattet(sted: Pbl53AUdsendelsessted) -> sted != Pbl53ADanmark
+| pbl53a_udsendelse_giver_medfølgende_regel(udsendelse: Pbl53AUdsendelsesfakta) -> Falskt
+| exception pbl53a_medfølgende_under_udsendelse pbl53a_udsendelse_giver_medfølgende_regel(udsendelse: Pbl53AUdsendelsesfakta) -> Sandt under pbl53a_udsendelse_mindst_en_måned(udsendelse) && pbl53a_udsendelsessted_omfattet(udsendelse.sted) && udsendelse.fælles_bopæl_hele_perioden && udsendelse.indbetaling_til_afsnit_i_eller_iia_under_udsendelsen == Falskt
+| pbl53a_medfølgende_ægtefælle_eller_samlever_omfattet(indbetaler: Pbl53AIndbetaler) -> match indbetaler {
+    | Pbl53AÆgtefællesEllerSamleversArbejdsgiver(udsendelse) -> pbl53a_udsendelse_giver_medfølgende_regel(udsendelse)
+    | _ -> Falskt
+}
+| pbl53a_indbetaler_fakta_gyldige(indbetaler: Pbl53AIndbetaler) -> match indbetaler {
+    | Pbl53AÆgtefællesEllerSamleversArbejdsgiver(udsendelse) -> pbl53a_udsendelsesgrundfakta_gyldige(udsendelse)
+    | _ -> Sandt
+}
+| pbl53a_fradragsstatus_har_dansk_ret(status: Pbl53AEjerensFradragsstatus) -> status == Pbl53AFradragEllerBortseelsesretIDanmark || status == Pbl53AFradragEllerBortseelsesretIDanmarkOgUdlandet
+| pbl53a_fradragsstatus_har_ret(status: Pbl53AEjerensFradragsstatus) -> status != Pbl53AUdenFradragsEllerBortseelsesret
+| pbl53a_indbetalingsfakta_gyldige(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AIndbetalingsfakta) -> fakta.identifikation != "" && pbl53a_tidspunkt_gyldigt(fakta.tidspunkt) && fakta.beløb_kroner > 0 && pbl53a_indbetaler_fakta_gyldige(fakta.indbetaler) && (fakta.periode == Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet || pbl53a_fradragsstatus_har_dansk_ret(fakta.ejerens_fradragsstatus) == Falskt) && (ordning != Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse || fakta.ejerens_fradragsstatus == Pbl53AUdenFradragsEllerBortseelsesret)
+
+# Pbl53AIndbetalingssag(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AIndbetalingsfakta) {
+    | fakta_gyldige() -> pbl53a_indbetalingsfakta_gyldige(ordning, fakta)
+    | medfølgende_ægtefælle_eller_samlever_omfattet() -> pbl53a_medfølgende_ægtefælle_eller_samlever_omfattet(fakta.indbetaler)
+    | indbetalt_mens_omfattet() -> fakta.periode == Pbl53AIndbetaltMensOrdningenErOmfattet
+    | sikkerhedsstillelse_efter_stk1_nr6() -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse
+    | eget_fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner() -> 0
+    | exception pbl53a_stk2_arbejdsgiver_sikkerhedsfradrag arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner() -> fakta.beløb_kroner under fakta_gyldige() && indbetalt_mens_omfattet() && sikkerhedsstillelse_efter_stk1_nr6() && fakta.indbetaler == Pbl53ANuværendeArbejdsgiver
+    | personlig_indkomst_kroner() -> 0
+    | exception pbl53a_stk2_nuværende_arbejdsgiverbidrag personlig_indkomst_kroner() -> fakta.beløb_kroner under fakta_gyldige() && indbetalt_mens_omfattet() && sikkerhedsstillelse_efter_stk1_nr6() == Falskt && fakta.indbetaler == Pbl53ANuværendeArbejdsgiver
+    | exception pbl53a_stk2_tidligere_arbejdsgiverbidrag personlig_indkomst_kroner() -> fakta.beløb_kroner under fakta_gyldige() && indbetalt_mens_omfattet() && sikkerhedsstillelse_efter_stk1_nr6() == Falskt && fakta.indbetaler == Pbl53ATidligereArbejdsgiver
+    | exception pbl53a_stk2_medfølgende_ægtefælle_eller_samlever personlig_indkomst_kroner() -> fakta.beløb_kroner under fakta_gyldige() && indbetalt_mens_omfattet() && medfølgende_ægtefælle_eller_samlever_omfattet()
+    | arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner() -> 0
+    | exception pbl53a_stk2_arbejdsgiverbidrag_er_ansættelsesvederlag arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner() -> personlig_indkomst_kroner() under (fakta.indbetaler == Pbl53ANuværendeArbejdsgiver || fakta.indbetaler == Pbl53ATidligereArbejdsgiver)
+    | fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner() -> 0
+    | exception pbl53a_stk5_principal_med_tidligere_skattefordel fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner() -> fakta.beløb_kroner under fakta_gyldige() && sikkerhedsstillelse_efter_stk1_nr6() == Falskt && pbl53a_fradragsstatus_har_ret(fakta.ejerens_fradragsstatus)
+    | resultat() -> Pbl53AIndbetalingsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        medfølgende_ægtefælle_eller_samlever_omfattet = medfølgende_ægtefælle_eller_samlever_omfattet(),
+        eget_fradrag_i_skattepligtig_indkomst_kroner = eget_fradrag_i_skattepligtig_indkomst_kroner(),
+        arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner = arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner(),
+        personlig_indkomst_kroner = personlig_indkomst_kroner(),
+        arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner(),
+        fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner = fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner()
+    )
+}
+| pbl53a_indbetalingsresultat(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AIndbetalingsfakta) -> Pbl53AIndbetalingssag(ordning, fakta).resultat()
+
+| pbl53a_udbetalingsmodtager_omfattet_af_par55(modtager: Pbl53AUdbetalingsmodtager) -> modtager != Pbl53AAndenUdbetalingsmodtager
+| pbl53a_kapitaludbetalingsgrund_omfattet(grund: Pbl53AKapitaludbetalingsgrund) -> grund != Pbl53AAndenUdbetalingsgrund
+| pbl53a_kapitalregel_75_procent_anvendes(art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AUdbetalingFraOrdningen(_, produktart, Pbl53ASamletKapitaludbetaling(grund), _) -> produktart == Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing && pbl53a_kapitaludbetalingsgrund_omfattet(grund)
+    | _ -> Falskt
+}
+| pbl53a_udbetalingsart_grundfakta_gyldige(ordning: Pensionsbeskatningslov53AOrdning, bruttoudbetaling_kroner: Heltal, art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, stk6_fakta) -> kapitalværdi_kroner > 0 && bruttoudbetaling_kroner <= kapitalværdi_kroner && pbl20_stk6_kildefakta_gyldige(stk6_fakta)
+    | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhed_kroner) -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse && sikkerhed_kroner >= 0
+}
+| pbl53a_udbetalingsfakta_gyldige(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) -> fakta.identifikation != "" && pbl53a_tidspunkt_gyldigt(fakta.tidspunkt) && fakta.bruttoudbetaling_kroner > 0 && resterende_principal_kroner >= 0 && pbl53a_udbetalingsart_grundfakta_gyldige(ordning, fakta.bruttoudbetaling_kroner, fakta.art) && match fakta.art {
+    | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, _) -> resterende_principal_kroner <= kapitalværdi_kroner
+    | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> pbl53a_udbetalingsmodtager_omfattet_af_par55(fakta.modtager)
+}
+| pbl53a_principal_fordelt_til_udbetaling_kroner(resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) -> match fakta.art {
+    | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, _) -> hvis fakta.bruttoudbetaling_kroner == kapitalværdi_kroner { penge_mindste_beløb(fakta.bruttoudbetaling_kroner, resterende_principal_kroner) } ellers { fakta.bruttoudbetaling_kroner * resterende_principal_kroner / kapitalværdi_kroner }
+    | _ -> 0
+}
+| pbl53a_pbl20_stk6_kildefakta(art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AUdbetalingFraOrdningen(_, _, _, kildefakta) -> kildefakta
+    | _ -> pbl20_stk6_ingen_kildefakta()
+}
+| pbl53a_pensionstilsagn_sikkerhed_kroner(art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhed_kroner) -> sikkerhed_kroner
+    | _ -> 0
+}
+| pbl53a_er_arbejdsgiverens_udbetaling_efter_pensionstilsagn(art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> Sandt
+    | _ -> Falskt
+}
+
+# Pbl53AUdbetalingssag(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) {
+    | fakta_gyldige() -> pbl53a_udbetalingsfakta_gyldige(ordning, resterende_principal_kroner, fakta)
+    | modtager_omfattet_af_par55() -> pbl53a_udbetalingsmodtager_omfattet_af_par55(fakta.modtager)
+    | principal_fordelt_til_udbetalingen_kroner() -> hvis fakta_gyldige() { pbl53a_principal_fordelt_til_udbetaling_kroner(resterende_principal_kroner, fakta) } ellers { 0 }
+    | principal_medregnet_før_75_procent_kroner() -> hvis modtager_omfattet_af_par55() { principal_fordelt_til_udbetalingen_kroner() } ellers { 0 }
+    | kapitalregel_75_procent_anvendt() -> fakta_gyldige() && modtager_omfattet_af_par55() && pbl53a_kapitalregel_75_procent_anvendes(fakta.art)
+    | sikkerhedsstillelse_modsvarer_udbetaling_kroner() -> 0
+    | exception pbl53a_stk5_pensionstilsagn_modsvarer_sikkerhed sikkerhedsstillelse_modsvarer_udbetaling_kroner() -> penge_mindste_beløb(fakta.bruttoudbetaling_kroner, pbl53a_pensionstilsagn_sikkerhed_kroner(fakta.art)) under fakta_gyldige() && pbl53a_er_arbejdsgiverens_udbetaling_efter_pensionstilsagn(fakta.art)
+    | personlig_indkomst_kroner() -> hvis fakta_gyldige() { match fakta.art {
+        | Pbl53AUdbetalingFraOrdningen(_, _, _, _) -> hvis kapitalregel_75_procent_anvendt() { principal_medregnet_før_75_procent_kroner() * 75 / 100 } ellers { principal_medregnet_før_75_procent_kroner() }
+        | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> fakta.bruttoudbetaling_kroner - sikkerhedsstillelse_modsvarer_udbetaling_kroner()
+    } } ellers { 0 }
+    | arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner() -> match fakta.art {
+        | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> personlig_indkomst_kroner()
+        | _ -> 0
+    }
+    | pbl20_stk6_input() -> Pbl20Stk6Input(
+        kildefakta = pbl53a_pbl20_stk6_kildefakta(fakta.art),
+        dansk_skattepligtig_pensionsindkomst_kroner = match fakta.art {
+            | Pbl53AUdbetalingFraOrdningen(_, _, _, _) -> personlig_indkomst_kroner()
+            | _ -> 0
+        }
+    )
+    | stk6_resultat() -> pbl20_stk6_resultat(pbl20_stk6_input())
+    | resultat() -> Pbl53AUdbetalingsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        modtager_omfattet_af_par55 = modtager_omfattet_af_par55(),
+        fradrags_eller_bortseelsesberettiget_principal_før_kroner = resterende_principal_kroner,
+        principal_fordelt_til_udbetalingen_kroner = principal_fordelt_til_udbetalingen_kroner(),
+        principal_medregnet_før_75_procent_kroner = principal_medregnet_før_75_procent_kroner(),
+        kapitalregel_75_procent_anvendt = kapitalregel_75_procent_anvendt(),
+        sikkerhedsstillelse_modsvarer_udbetaling_kroner = sikkerhedsstillelse_modsvarer_udbetaling_kroner(),
+        personlig_indkomst_kroner = personlig_indkomst_kroner(),
+        arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner(),
+        pbl20_stk6_resultat = stk6_resultat()
+    )
+}
+| pbl53a_udbetalingsresultat(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) -> Pbl53AUdbetalingssag(ordning, resterende_principal_kroner, fakta).resultat()
+
+| pbl53a_hændelse_identifikation(hændelse: Pbl53AHændelse) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> fakta.identifikation
+    | Pbl53AUdbetaling(fakta) -> fakta.identifikation
+}
+| pbl53a_hændelse_tidspunkt(hændelse: Pbl53AHændelse) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> fakta.tidspunkt
+    | Pbl53AUdbetaling(fakta) -> fakta.tidspunkt
+}
+| pbl53a_hændelse_identifikation_unik(hændelser: List(Pbl53AHændelse), hændelse: Pbl53AHændelse) -> length(filter(hændelser, |anden: Pbl53AHændelse| pbl53a_hændelse_identifikation(anden) == pbl53a_hændelse_identifikation(hændelse))) == 1
+| pbl53a_hændelsesidentifikationer_entydige(hændelser: List(Pbl53AHændelse)) -> all(hændelser, |hændelse: Pbl53AHændelse| pbl53a_hændelse_identifikation(hændelse) != "" && pbl53a_hændelse_identifikation_unik(hændelser, hændelse))
+| pbl53a_hændelsesresultat(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, hændelse: Pbl53AHændelse) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> Pbl53AIndbetalingBeregnet(pbl53a_indbetalingsresultat(ordning, fakta))
+    | Pbl53AUdbetaling(fakta) -> Pbl53AUdbetalingBeregnet(pbl53a_udbetalingsresultat(ordning, resterende_principal_kroner, fakta))
+}
+| pbl53a_hændelsesresultat_gyldigt(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AIndbetalingBeregnet(indbetaling) -> indbetaling.fakta_gyldige
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> udbetaling.fakta_gyldige
+}
+| pbl53a_hændelsesresultat_principal_tilføjet_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AIndbetalingBeregnet(indbetaling) -> indbetaling.fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner
+    | _ -> 0
+}
+| pbl53a_hændelsesresultat_principal_fordelt_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> udbetaling.principal_fordelt_til_udbetalingen_kroner
+    | _ -> 0
+}
+| pbl53a_hændelsesresultat_personlig_indkomst_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AIndbetalingBeregnet(indbetaling) -> indbetaling.personlig_indkomst_kroner
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> udbetaling.personlig_indkomst_kroner
+}
+| pbl53a_hændelsesresultat_arbejdsmarkedsbidragspligtig_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AIndbetalingBeregnet(indbetaling) -> indbetaling.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> udbetaling.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
+}
+| pbl53a_hændelsesresultat_arbejdsgiverfradrag_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AIndbetalingBeregnet(indbetaling) -> indbetaling.arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner
+    | _ -> 0
+}
+| pbl53a_hændelsesresultat_udenlandsk_skat_til_ligningslov33_kroner(resultat: Pbl53AHændelsesresultat) -> match resultat {
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> udbetaling.pbl20_stk6_resultat.udenlandsk_indkomstskat_til_ligningslov33_kroner
+    | _ -> 0
+}
+
+# Pbl53AForløbstrinSag(input: Pbl53AForløbsinput, tilstand: Pbl53AForløbstilstand, hændelse: Pbl53AHændelse) {
+    | tidspunkt() -> pbl53a_hændelse_tidspunkt(hændelse)
+    | kronologisk() -> pbl53a_tidspunkt_efter_seneste(tilstand.seneste_tidspunkt, tidspunkt())
+    | ikke_efter_indkomståret() -> tidspunkt().indkomstår <= input.indkomstår
+    | hændelsesresultat() -> pbl53a_hændelsesresultat(input.ordning, tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner, hændelse)
+    | hændelse_gyldig() -> kronologisk() && ikke_efter_indkomståret() && pbl53a_hændelsesresultat_gyldigt(hændelsesresultat())
+    | principal_efter_kroner() -> hvis hændelse_gyldig() { tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner + pbl53a_hændelsesresultat_principal_tilføjet_kroner(hændelsesresultat()) - pbl53a_hændelsesresultat_principal_fordelt_kroner(hændelsesresultat()) } ellers { tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner }
+    | medregnes_i_indkomståret() -> hændelse_gyldig() && tidspunkt().indkomstår == input.indkomstår
+    | resultat() -> Pbl53AForløbstilstand(
+        seneste_tidspunkt = Pbl53ARegistreretTidspunkt(tidspunkt()),
+        hændelsesresultater = concat(tilstand.hændelsesresultater, [hændelsesresultat()]),
+        alle_hændelser_kronologiske = tilstand.alle_hændelser_kronologiske && kronologisk(),
+        alle_hændelser_gyldige = tilstand.alle_hændelser_gyldige && hændelse_gyldig(),
+        resterende_fradrags_eller_bortseelsesberettiget_principal_kroner = principal_efter_kroner(),
+        personlig_indkomst_i_indkomståret_kroner = tilstand.personlig_indkomst_i_indkomståret_kroner + hvis medregnes_i_indkomståret() { pbl53a_hændelsesresultat_personlig_indkomst_kroner(hændelsesresultat()) } ellers { 0 },
+        arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner = tilstand.arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner + hvis medregnes_i_indkomståret() { pbl53a_hændelsesresultat_arbejdsmarkedsbidragspligtig_kroner(hændelsesresultat()) } ellers { 0 },
+        arbejdsgiverfradrag_i_indkomståret_kroner = tilstand.arbejdsgiverfradrag_i_indkomståret_kroner + hvis medregnes_i_indkomståret() { pbl53a_hændelsesresultat_arbejdsgiverfradrag_kroner(hændelsesresultat()) } ellers { 0 },
+        udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner = tilstand.udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner + hvis medregnes_i_indkomståret() { pbl53a_hændelsesresultat_udenlandsk_skat_til_ligningslov33_kroner(hændelsesresultat()) } ellers { 0 }
+    )
+}
+| pbl53a_forløbstrin(input: Pbl53AForløbsinput, tilstand: Pbl53AForløbstilstand, hændelse: Pbl53AHændelse) -> Pbl53AForløbstrinSag(input, tilstand, hændelse).resultat()
+| pbl53a_tom_forløbstilstand() -> Pbl53AForløbstilstand(seneste_tidspunkt = Pbl53AIntetTidspunkt, hændelsesresultater = [], alle_hændelser_kronologiske = Sandt, alle_hændelser_gyldige = Sandt, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner = 0, personlig_indkomst_i_indkomståret_kroner = 0, arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner = 0, arbejdsgiverfradrag_i_indkomståret_kroner = 0, udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner = 0)
+
+# Pbl53AForløbssag(input: Pbl53AForløbsinput) {
+    | tilstand() -> foldl(input.hændelser, pbl53a_tom_forløbstilstand(), |forløb: Pbl53AForløbstilstand, hændelse: Pbl53AHændelse| pbl53a_forløbstrin(input, forløb, hændelse))
+    | identifikationer_entydige() -> pbl53a_hændelsesidentifikationer_entydige(input.hændelser)
+    | hændelser_kronologiske() -> tilstand().alle_hændelser_kronologiske
+    | alle_hændelser_gyldige() -> tilstand().alle_hændelser_gyldige
+    | input_gyldigt() -> input.indkomstår > 0 && input.omfattes_af_par53b == Falskt && identifikationer_entydige() && alle_hændelser_gyldige()
+    | beløb_eller_nul(beløb_kroner: Heltal) -> hvis input_gyldigt() { beløb_kroner } ellers { 0 }
+    | resultat() -> Pbl53AForløbsresultat(
+        input = input,
+        hændelsesresultater = tilstand().hændelsesresultater,
+        identifikationer_entydige = identifikationer_entydige(),
+        hændelser_kronologiske = hændelser_kronologiske(),
+        alle_hændelser_gyldige = alle_hændelser_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        resterende_fradrags_eller_bortseelsesberettiget_principal_kroner = beløb_eller_nul(tilstand().resterende_fradrags_eller_bortseelsesberettiget_principal_kroner),
+        personlig_indkomst_kroner = beløb_eller_nul(tilstand().personlig_indkomst_i_indkomståret_kroner),
+        arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = beløb_eller_nul(tilstand().arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner),
+        arbejdsgiverfradrag_kroner = beløb_eller_nul(tilstand().arbejdsgiverfradrag_i_indkomståret_kroner),
+        udenlandsk_indkomstskat_til_ligningslov33_kroner = beløb_eller_nul(tilstand().udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner)
+    )
+}
+| pbl53a_forløbsresultat(input: Pbl53AForløbsinput) -> Pbl53AForløbssag(input).resultat()
 
 = pbl53a_pal_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,

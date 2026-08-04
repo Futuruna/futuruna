@@ -14508,14 +14508,22 @@ struct TypeRegistry {
     type_rename: BTreeMap<String, String>,
     /// Maps variant name -> which argument indices need Box::new() wrapping (recursive fields)
     variant_boxed_args: BTreeMap<String, Vec<usize>>,
+    /// Parent-qualified recursive field metadata for constructors shared by ADTs.
+    variant_boxed_args_by_parent: BTreeMap<(String, String), Vec<usize>>,
     /// Maps variant name -> whether it uses positional (tuple) fields
     variant_positional: BTreeMap<String, bool>,
+    /// Parent-qualified positional metadata for constructors shared by ADTs.
+    variant_positional_by_parent: BTreeMap<(String, String), bool>,
     /// Maps variant name -> field names (for named/struct variants)
     variant_fields: BTreeMap<String, Vec<String>>,
+    /// Parent-qualified field names for constructors shared by ADTs.
+    variant_fields_by_parent: BTreeMap<(String, String), Vec<String>>,
     /// Direct callable name -> declaration-order parameter names.
     call_params: BTreeMap<String, Vec<String>>,
     /// Maps variant name -> (field name -> field type) for non-Copy field detection
     variant_field_types: BTreeMap<String, BTreeMap<String, Ty>>,
+    /// Parent-qualified field types for constructors shared by ADTs.
+    variant_field_types_by_parent: BTreeMap<(String, String), BTreeMap<String, Ty>>,
     /// RuleScope member signatures: (scope type, member name) -> function type excluding self.
     rule_scope_member_fn_types: BTreeMap<(String, String), FirTy>,
     /// RuleScope member parameter names keyed by (scope type, member name).
@@ -14602,10 +14610,14 @@ impl TypeRegistry {
             variant_parents: BTreeMap::new(),
             type_rename: BTreeMap::new(),
             variant_boxed_args: BTreeMap::new(),
+            variant_boxed_args_by_parent: BTreeMap::new(),
             variant_positional: BTreeMap::new(),
+            variant_positional_by_parent: BTreeMap::new(),
             variant_fields: BTreeMap::new(),
+            variant_fields_by_parent: BTreeMap::new(),
             call_params: BTreeMap::new(),
             variant_field_types: BTreeMap::new(),
+            variant_field_types_by_parent: BTreeMap::new(),
             rule_scope_member_fn_types: BTreeMap::new(),
             rule_scope_member_params: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
@@ -14654,30 +14666,136 @@ impl TypeRegistry {
             .insert(parent.to_string());
     }
 
-    fn pattern_field_ty(&self, constructor: &str, field: &str) -> FirTy {
+    fn register_variant_metadata(
+        &mut self,
+        parent: &str,
+        variant: &Variant,
+        boxed_args: Vec<usize>,
+    ) {
+        self.register_variant_parent(variant.name.as_str(), parent);
+
+        let key = (parent.to_string(), variant.name.clone());
+        let field_names = variant
+            .fields
+            .iter()
+            .map(|field| field.name.clone())
+            .collect::<Vec<_>>();
+        let field_types = variant
+            .fields
+            .iter()
+            .map(|field| (field.name.clone(), field.ty.clone()))
+            .collect::<BTreeMap<_, _>>();
+
+        self.variant_positional
+            .insert(variant.name.clone(), variant.positional);
+        self.variant_positional_by_parent
+            .insert(key.clone(), variant.positional);
+        if variant.positional {
+            self.variant_fields.remove(variant.name.as_str());
+        } else {
+            self.variant_fields
+                .insert(variant.name.clone(), field_names.clone());
+        }
+        self.variant_fields_by_parent
+            .insert(key.clone(), field_names);
         self.variant_field_types
-            .get(constructor)
+            .insert(variant.name.clone(), field_types.clone());
+        self.variant_field_types_by_parent
+            .insert(key.clone(), field_types);
+        if boxed_args.is_empty() {
+            self.variant_boxed_args.remove(variant.name.as_str());
+        } else {
+            self.variant_boxed_args
+                .insert(variant.name.clone(), boxed_args.clone());
+        }
+        self.variant_boxed_args_by_parent.insert(key, boxed_args);
+    }
+
+    fn variant_key_for_expected(
+        &self,
+        constructor: &str,
+        expected_ty: &FirTy,
+    ) -> Option<(String, String)> {
+        self.parent_for_variant_with_expected(constructor, expected_ty)
+            .map(|parent| (parent, constructor.to_string()))
+    }
+
+    fn pattern_field_ty_with_expected(
+        &self,
+        constructor: &str,
+        field: &str,
+        expected_ty: &FirTy,
+    ) -> FirTy {
+        self.variant_key_for_expected(constructor, expected_ty)
+            .and_then(|key| self.variant_field_types_by_parent.get(&key))
             .and_then(|types| types.get(field))
+            .or_else(|| {
+                self.variant_field_types
+                    .get(constructor)
+                    .and_then(|types| types.get(field))
+            })
             .map(LoweringCtx::ty_to_fir)
             .unwrap_or(FirTy::Unknown)
     }
 
-    fn positional_pattern_field_ty(&self, constructor: &str, index: usize) -> FirTy {
-        let field = if self
-            .variant_positional
-            .get(constructor)
+    fn positional_pattern_field_ty_with_expected(
+        &self,
+        constructor: &str,
+        index: usize,
+        expected_ty: &FirTy,
+    ) -> FirTy {
+        let key = self.variant_key_for_expected(constructor, expected_ty);
+        let positional = key
+            .as_ref()
+            .and_then(|key| self.variant_positional_by_parent.get(key))
             .copied()
-            .unwrap_or(false)
-        {
+            .or_else(|| self.variant_positional.get(constructor).copied())
+            .unwrap_or(false);
+        let field = if positional {
             format!("_{}", index)
         } else {
-            self.variant_fields
-                .get(constructor)
+            key.as_ref()
+                .and_then(|key| self.variant_fields_by_parent.get(key))
+                .or_else(|| self.variant_fields.get(constructor))
                 .and_then(|fields| fields.get(index))
                 .cloned()
                 .unwrap_or_else(|| format!("_{}", index))
         };
-        self.pattern_field_ty(constructor, &field)
+        self.pattern_field_ty_with_expected(constructor, &field, expected_ty)
+    }
+
+    fn variant_fields_for_parent(&self, parent: &str, constructor: &str) -> Option<&Vec<String>> {
+        self.variant_fields_by_parent
+            .get(&(parent.to_string(), constructor.to_string()))
+            .or_else(|| self.variant_fields.get(constructor))
+    }
+
+    fn variant_field_types_for_parent(
+        &self,
+        parent: &str,
+        constructor: &str,
+    ) -> Option<&BTreeMap<String, Ty>> {
+        self.variant_field_types_by_parent
+            .get(&(parent.to_string(), constructor.to_string()))
+            .or_else(|| self.variant_field_types.get(constructor))
+    }
+
+    fn variant_positional_for_parent(&self, parent: &str, constructor: &str) -> bool {
+        self.variant_positional_by_parent
+            .get(&(parent.to_string(), constructor.to_string()))
+            .copied()
+            .or_else(|| self.variant_positional.get(constructor).copied())
+            .unwrap_or(true)
+    }
+
+    fn variant_boxed_args_for_parent(
+        &self,
+        parent: &str,
+        constructor: &str,
+    ) -> Option<&Vec<usize>> {
+        self.variant_boxed_args_by_parent
+            .get(&(parent.to_string(), constructor.to_string()))
+            .or_else(|| self.variant_boxed_args.get(constructor))
     }
 
     fn named_type_candidates_for_expected(&self, expected_ty: &FirTy) -> Vec<String> {
@@ -14710,6 +14828,52 @@ impl TypeRegistry {
             }
         }
         None
+    }
+
+    fn parent_for_variant_with_call_args(&self, variant: &str, args: &[Expr]) -> Option<String> {
+        let parents = self.variant_parents.get(variant)?;
+        let named = has_named_args(args);
+        if named && !all_named_args(args) {
+            return None;
+        }
+        let supplied = named.then(|| {
+            args.iter()
+                .filter_map(named_arg_parts)
+                .map(|(field, _)| field)
+                .collect::<BTreeSet<_>>()
+        });
+        let matching = parents
+            .iter()
+            .filter(|parent| {
+                let key = ((*parent).clone(), variant.to_string());
+                let fields = self.variant_fields_by_parent.get(&key);
+                if named {
+                    !self
+                        .variant_positional_by_parent
+                        .get(&key)
+                        .copied()
+                        .unwrap_or(true)
+                        && fields.is_some_and(|fields| {
+                            fields.len() == args.len()
+                                && supplied.as_ref().is_some_and(|supplied| {
+                                    supplied.len() == args.len()
+                                        && fields
+                                            .iter()
+                                            .all(|field| supplied.contains(field.as_str()))
+                                })
+                        })
+                } else {
+                    fields.is_some_and(|fields| fields.len() == args.len())
+                }
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (matching.len() == 1).then(|| matching.into_iter().next().unwrap())
+    }
+
+    fn unambiguous_parent_for_variant(&self, variant: &str) -> Option<String> {
+        let parents = self.variant_parents.get(variant)?;
+        (parents.len() == 1).then(|| parents.iter().next().unwrap().clone())
     }
 
     fn emit_nullary_variant_with_parent(&self, variant: &str, parent: &str) -> String {
@@ -15896,7 +16060,12 @@ impl<'a> LoweringCtx<'a> {
         }
     }
 
-    fn constructor_app_ty(&mut self, name: &str, args: &[FirExpr]) -> Option<FirTy> {
+    fn constructor_app_ty(
+        &mut self,
+        name: &str,
+        args: &[FirExpr],
+        resolved_parent: Option<&str>,
+    ) -> Option<FirTy> {
         match (name, args) {
             ("Some", [arg]) => Some(FirTy::Option(Box::new(arg.ty.clone()))),
             ("Ok", [arg]) => Some(FirTy::Result(
@@ -15907,12 +16076,14 @@ impl<'a> LoweringCtx<'a> {
                 Box::new(self.fresh_or_unknown()),
                 Box::new(arg.ty.clone()),
             )),
-            _ => self
-                .types
-                .variant_parent
-                .get(name)
-                .cloned()
-                .map(FirTy::Named),
+            _ => resolved_parent
+                .map(|parent| FirTy::Named(parent.to_string()))
+                .or_else(|| {
+                    self.types
+                        .unambiguous_parent_for_variant(name)
+                        .or_else(|| self.types.variant_parent.get(name).cloned())
+                        .map(FirTy::Named)
+                }),
         }
     }
 
@@ -15934,13 +16105,19 @@ impl<'a> LoweringCtx<'a> {
             }
             Pat::Con(constructor, fields) => {
                 for (index, field_pat) in fields.iter().enumerate() {
-                    let field_ty = self.types.positional_pattern_field_ty(constructor, index);
+                    let field_ty = self.types.positional_pattern_field_ty_with_expected(
+                        constructor,
+                        index,
+                        ty,
+                    );
                     self.bind_pat_ty(field_pat, &field_ty);
                 }
             }
             Pat::NamedCon(constructor, fields) => {
                 for (field_name, field_pat) in fields {
-                    let field_ty = self.types.pattern_field_ty(constructor, field_name);
+                    let field_ty =
+                        self.types
+                            .pattern_field_ty_with_expected(constructor, field_name, ty);
                     self.bind_pat_ty(field_pat, &field_ty);
                 }
             }
@@ -16201,12 +16378,21 @@ impl<'a> LoweringCtx<'a> {
             return None;
         }
         match &func.kind {
-            ExprKind::Var(name) => reorder_named_direct_call_args(
-                &self.types.variant_fields,
-                &self.types.call_params,
-                name,
-                args,
-            ),
+            ExprKind::Var(name) => {
+                if let Some(parent) = self.types.parent_for_variant_with_call_args(name, args) {
+                    if let Some(fields) = self.types.variant_fields_for_parent(&parent, name) {
+                        if let Some(ordered) = reorder_named_args_by_names(fields, args) {
+                            return Some(ordered);
+                        }
+                    }
+                }
+                reorder_named_direct_call_args(
+                    &self.types.variant_fields,
+                    &self.types.call_params,
+                    name,
+                    args,
+                )
+            }
             ExprKind::Field(obj, method) => {
                 let obj_ty = self.lower_expr(obj).ty;
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
@@ -16246,6 +16432,10 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::App(func, args) => {
+                let resolved_constructor_parent = match &func.kind {
+                    ExprKind::Var(name) => self.types.parent_for_variant_with_call_args(name, args),
+                    _ => None,
+                };
                 let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 let mut fir_func = self.lower_expr(func);
@@ -16265,7 +16455,11 @@ impl<'a> LoweringCtx<'a> {
                     .collect();
 
                 if let ExprKind::Var(ref fn_name) = func.kind {
-                    if let Some(ty) = self.constructor_app_ty(fn_name, &fir_args) {
+                    if let Some(ty) = self.constructor_app_ty(
+                        fn_name,
+                        &fir_args,
+                        resolved_constructor_parent.as_deref(),
+                    ) {
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
                             span: expr.span,
@@ -17226,7 +17420,7 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
         FirExprKind::Match(scrutinee, arms) => {
             let mut out = format!("match {} {{\n", emit_fir_expr(scrutinee, types));
             for arm in arms {
-                let pat_str = format_pat(&arm.pat);
+                let pat_str = format_pat_with_expected_ty(&arm.pat, &scrutinee.ty, types);
                 if let Some(ref guard) = arm.guard {
                     out.push_str(&format!(
                         "    {} if {} => {},\n",
@@ -17339,6 +17533,95 @@ fn format_pat(pat: &Pat) -> String {
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         Pat::As(pat, alias) => format!("{} @ {}", format_pat(pat), alias),
+    }
+}
+
+/// Format a match pattern using the scrutinee type to disambiguate constructors
+/// that are declared by more than one ADT.
+fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegistry) -> String {
+    match pat {
+        Pat::Wild => "_".to_string(),
+        Pat::Var(name) => sanitize_name(name),
+        Pat::Lit(lit) => match lit {
+            Literal::Int(n) => format!("{}", n),
+            Literal::Float(f) => format!("{}", f),
+            Literal::Str(s) => format!("{:?}", s),
+            Literal::Char(c) => format!("'{}'", c),
+            Literal::Bool(b) => format!("{}", b),
+        },
+        Pat::Con(name, args) => {
+            let parent = types
+                .parent_for_variant_with_expected(name, expected_ty)
+                .or_else(|| types.variant_parent.get(name).cloned());
+            let arg_strs: Vec<String> = args.iter().map(format_pat).collect();
+            match parent {
+                Some(parent) if types.struct_types.contains(&parent) => {
+                    if args.is_empty() {
+                        name.clone()
+                    } else if types.variant_positional.get(name).copied().unwrap_or(true) {
+                        format!("{}({})", parent, arg_strs.join(", "))
+                    } else {
+                        let fields = types.variant_fields.get(name);
+                        let named_args = arg_strs
+                            .iter()
+                            .enumerate()
+                            .map(|(index, arg)| {
+                                let field = fields
+                                    .and_then(|fields| fields.get(index))
+                                    .map(String::as_str)
+                                    .unwrap_or("_");
+                                format!("{}: {}", field, arg)
+                            })
+                            .collect::<Vec<_>>();
+                        format!("{} {{ {} }}", parent, named_args.join(", "))
+                    }
+                }
+                Some(parent) if args.is_empty() => format!("{}::{}", parent, name),
+                Some(parent) if types.variant_positional.get(name).copied().unwrap_or(true) => {
+                    format!("{}::{}({})", parent, name, arg_strs.join(", "))
+                }
+                Some(parent) => {
+                    let fields = types.variant_fields.get(name);
+                    let named_args = arg_strs
+                        .iter()
+                        .enumerate()
+                        .map(|(index, arg)| {
+                            let field = fields
+                                .and_then(|fields| fields.get(index))
+                                .map(String::as_str)
+                                .unwrap_or("_");
+                            format!("{}: {}", field, arg)
+                        })
+                        .collect::<Vec<_>>();
+                    format!("{}::{} {{ {} }}", parent, name, named_args.join(", "))
+                }
+                None if args.is_empty() => name.clone(),
+                None => format!("{}({})", name, arg_strs.join(", ")),
+            }
+        }
+        Pat::NamedCon(name, fields) => {
+            let parent = types
+                .parent_for_variant_with_expected(name, expected_ty)
+                .or_else(|| types.variant_parent.get(name).cloned());
+            let field_strs = fields
+                .iter()
+                .map(|(field, value)| format!("{}: {}", field, format_pat(value)))
+                .collect::<Vec<_>>();
+            match parent {
+                Some(parent) if types.struct_types.contains(&parent) => {
+                    format!("{} {{ {} }}", parent, field_strs.join(", "))
+                }
+                Some(parent) => {
+                    format!("{}::{} {{ {} }}", parent, name, field_strs.join(", "))
+                }
+                None => format!("{} {{ {} }}", name, field_strs.join(", ")),
+            }
+        }
+        Pat::As(inner, alias) => format!(
+            "{} @ {}",
+            format_pat_with_expected_ty(inner, expected_ty, types),
+            sanitize_name(alias)
+        ),
     }
 }
 
@@ -21851,23 +22134,6 @@ impl RustCodegen {
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
                 for v in variants {
-                    self.types
-                        .register_variant_parent(v.name.as_str(), rust_name.as_str());
-                    self.types
-                        .variant_positional
-                        .insert(v.name.clone(), v.positional);
-                    if !v.positional {
-                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                        self.types.variant_fields.insert(v.name.clone(), names);
-                    }
-                    let ft_map: BTreeMap<String, Ty> = v
-                        .fields
-                        .iter()
-                        .map(|f| (f.name.clone(), f.ty.clone()))
-                        .collect();
-                    self.types
-                        .variant_field_types
-                        .insert(v.name.clone(), ft_map);
                     let boxed: Vec<usize> = v
                         .fields
                         .iter()
@@ -21875,9 +22141,8 @@ impl RustCodegen {
                         .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
                         .map(|(i, _)| i)
                         .collect();
-                    if !boxed.is_empty() {
-                        self.types.variant_boxed_args.insert(v.name.clone(), boxed);
-                    }
+                    self.types
+                        .register_variant_metadata(rust_name.as_str(), v, boxed);
                 }
                 if variants.len() == 1
                     && variants[0].name == *name
@@ -21974,24 +22239,6 @@ impl RustCodegen {
                         let variant_names: Vec<String> =
                             variants.iter().map(|v| v.name.clone()).collect();
                         for v in variants {
-                            self.types
-                                .register_variant_parent(v.name.as_str(), rust_name.as_str());
-                            self.types
-                                .variant_positional
-                                .insert(v.name.clone(), v.positional);
-                            if !v.positional {
-                                let names: Vec<String> =
-                                    v.fields.iter().map(|f| f.name.clone()).collect();
-                                self.types.variant_fields.insert(v.name.clone(), names);
-                            }
-                            let ft_map: BTreeMap<String, Ty> = v
-                                .fields
-                                .iter()
-                                .map(|f| (f.name.clone(), f.ty.clone()))
-                                .collect();
-                            self.types
-                                .variant_field_types
-                                .insert(v.name.clone(), ft_map);
                             let boxed: Vec<usize> = v
                                 .fields
                                 .iter()
@@ -22001,9 +22248,8 @@ impl RustCodegen {
                                 })
                                 .map(|(i, _)| i)
                                 .collect();
-                            if !boxed.is_empty() {
-                                self.types.variant_boxed_args.insert(v.name.clone(), boxed);
-                            }
+                            self.types
+                                .register_variant_metadata(rust_name.as_str(), v, boxed);
                         }
                         if variants.len() == 1
                             && variants[0].name == *name
@@ -23184,13 +23430,19 @@ impl RustCodegen {
             }
             Pat::Con(constructor, fields) => {
                 for (index, field_pat) in fields.iter().enumerate() {
-                    let field_ty = self.types.positional_pattern_field_ty(constructor, index);
+                    let field_ty = self.types.positional_pattern_field_ty_with_expected(
+                        constructor,
+                        index,
+                        ty,
+                    );
                     self.bind_pat_into_type_env(field_pat, &field_ty, type_env);
                 }
             }
             Pat::NamedCon(constructor, fields) => {
                 for (field_name, field_pat) in fields {
-                    let field_ty = self.types.pattern_field_ty(constructor, field_name);
+                    let field_ty =
+                        self.types
+                            .pattern_field_ty_with_expected(constructor, field_name, ty);
                     self.bind_pat_into_type_env(field_pat, &field_ty, type_env);
                 }
             }
@@ -24210,24 +24462,11 @@ impl RustCodegen {
                             } = &type_decl
                             {
                                 for v in variants {
-                                    self.types
-                                        .register_variant_parent(v.name.as_str(), tname.as_str());
-                                    self.types
-                                        .variant_positional
-                                        .insert(v.name.clone(), v.positional);
-                                    if !v.positional {
-                                        let names: Vec<String> =
-                                            v.fields.iter().map(|f| f.name.clone()).collect();
-                                        self.types.variant_fields.insert(v.name.clone(), names);
-                                    }
-                                    let ft_map: BTreeMap<String, Ty> = v
-                                        .fields
-                                        .iter()
-                                        .map(|f| (f.name.clone(), f.ty.clone()))
-                                        .collect();
-                                    self.types
-                                        .variant_field_types
-                                        .insert(v.name.clone(), ft_map);
+                                    self.types.register_variant_metadata(
+                                        tname.as_str(),
+                                        v,
+                                        Vec::new(),
+                                    );
                                 }
                                 if variants.len() == 1
                                     && variants[0].name == *tname
@@ -27320,15 +27559,24 @@ impl RustCodegen {
         if !has_named_args(args) {
             return;
         }
-        let Some((kind, callable, params)) = self.named_argument_signature(func) else {
+        let Some((kind, callable, params)) = self.named_argument_signature(func, args) else {
             return;
         };
         self.collect_named_argument_signature_issues(kind, &callable, args, &params, diags);
     }
 
-    fn named_argument_signature(&self, func: &Expr) -> Option<(&'static str, String, Vec<String>)> {
+    fn named_argument_signature(
+        &self,
+        func: &Expr,
+        args: &[Expr],
+    ) -> Option<(&'static str, String, Vec<String>)> {
         match &func.kind {
             ExprKind::Var(name) => {
+                if let Some(parent) = self.types.parent_for_variant_with_call_args(name, args) {
+                    if let Some(fields) = self.types.variant_fields_for_parent(&parent, name) {
+                        return Some(("constructor", name.clone(), fields.clone()));
+                    }
+                }
                 if let Some(fields) = self.types.variant_fields.get(name) {
                     return Some(("constructor", name.clone(), fields.clone()));
                 }
@@ -32303,6 +32551,20 @@ impl RustCodegen {
         boxed.contains(&idx).then_some(idx)
     }
 
+    fn boxed_named_field_index_for_parent(
+        &self,
+        parent: &str,
+        variant_name: &str,
+        field: &str,
+    ) -> Option<usize> {
+        let fields = self.types.variant_fields_for_parent(parent, variant_name)?;
+        let index = fields.iter().position(|candidate| candidate == field)?;
+        let boxed = self
+            .types
+            .variant_boxed_args_for_parent(parent, variant_name)?;
+        boxed.contains(&index).then_some(index)
+    }
+
     /// Rewrite fn_name(self) calls to self.fn_name() for trait default bodies
     fn rewrite_self_calls(expr: &Expr) -> Expr {
         match &expr.kind {
@@ -34803,12 +35065,21 @@ impl RustCodegen {
             return None;
         }
         match &func.kind {
-            ExprKind::Var(name) => reorder_named_direct_call_args(
-                &self.types.variant_fields,
-                &self.types.call_params,
-                name,
-                args,
-            ),
+            ExprKind::Var(name) => {
+                if let Some(parent) = self.types.parent_for_variant_with_call_args(name, args) {
+                    if let Some(fields) = self.types.variant_fields_for_parent(&parent, name) {
+                        if let Some(ordered) = reorder_named_args_by_names(fields, args) {
+                            return Some(ordered);
+                        }
+                    }
+                }
+                reorder_named_direct_call_args(
+                    &self.types.variant_fields,
+                    &self.types.call_params,
+                    name,
+                    args,
+                )
+            }
             ExprKind::Field(obj, method) => {
                 let obj_ty = self.infer_expr_fir_ty(obj);
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
@@ -34839,21 +35110,36 @@ impl RustCodegen {
             .unwrap_or_else(|| self.emit_expr(expr))
     }
 
-    fn expected_constructor_arg_ty(&self, constructor: &str, idx: usize) -> Option<FirTy> {
-        let field = self.types.variant_fields.get(constructor)?.get(idx)?;
-        let field_ty = self
-            .types
-            .variant_field_types
-            .get(constructor)?
-            .get(field)?;
+    fn expected_constructor_arg_ty(
+        &self,
+        constructor: &str,
+        parent: Option<&str>,
+        idx: usize,
+    ) -> Option<FirTy> {
+        let fields = parent
+            .and_then(|parent| self.types.variant_fields_for_parent(parent, constructor))
+            .or_else(|| self.types.variant_fields.get(constructor))?;
+        let field = fields.get(idx)?;
+        let field_types = parent
+            .and_then(|parent| {
+                self.types
+                    .variant_field_types_for_parent(parent, constructor)
+            })
+            .or_else(|| self.types.variant_field_types.get(constructor))?;
+        let field_ty = field_types.get(field)?;
         Some(LoweringCtx::ty_to_fir(field_ty))
     }
 
-    fn expected_arg_ty_for_emit(&self, func: &Expr, idx: usize) -> Option<FirTy> {
+    fn expected_arg_ty_for_emit(
+        &self,
+        func: &Expr,
+        constructor_parent: Option<&str>,
+        idx: usize,
+    ) -> Option<FirTy> {
         let ExprKind::Var(name) = &func.kind else {
             return None;
         };
-        self.expected_constructor_arg_ty(name, idx)
+        self.expected_constructor_arg_ty(name, constructor_parent, idx)
     }
 
     fn emit_rule_value_expr(&mut self, expr: &Expr, expected_ty: &FirTy) -> String {
@@ -34952,6 +35238,10 @@ impl RustCodegen {
                         "()".to_string()
                     };
                 }
+                let resolved_constructor_parent = match &func.as_ref().kind {
+                    ExprKind::Var(name) => self.types.parent_for_variant_with_call_args(name, args),
+                    _ => None,
+                };
                 let reordered_args = self.reorder_named_app_args_for_emit(func, args);
                 let args: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 if let ExprKind::Var(name) = &func.as_ref().kind {
@@ -35035,7 +35325,11 @@ impl RustCodegen {
                             return format!("&{}", s);
                         }
 
-                        let expected_arg_ty = self.expected_arg_ty_for_emit(func, idx);
+                        let expected_arg_ty = self.expected_arg_ty_for_emit(
+                            func,
+                            resolved_constructor_parent.as_deref(),
+                            idx,
+                        );
                         let s = if is_method_call || is_prolog_call {
                             if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
                                 format!("{:?}", str_val) // &str, no .to_string()
@@ -35828,15 +36122,14 @@ impl RustCodegen {
                         return format!("{}.clone()", args_str[0]);
                     }
                     // Constructor application — wrap recursive args in Rc::new/Arc::new/Box::new
-                    if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
-                        let is_pos = self
-                            .types
-                            .variant_positional
-                            .get(name.as_str())
-                            .copied()
-                            .unwrap_or(true);
-                        let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
-                        let use_rc = self.types.rc_types.contains(parent);
+                    let constructor_parent = resolved_constructor_parent
+                        .clone()
+                        .or_else(|| self.types.unambiguous_parent_for_variant(name))
+                        .or_else(|| self.types.variant_parent.get(name.as_str()).cloned());
+                    if let Some(parent) = constructor_parent {
+                        let is_pos = self.types.variant_positional_for_parent(&parent, name);
+                        let boxed_indices = self.types.variant_boxed_args_for_parent(&parent, name);
+                        let use_rc = self.types.rc_types.contains(&parent);
                         let wrap_fn = if use_rc {
                             format!("{}::new", self.rc_name())
                         } else {
@@ -35857,13 +36150,16 @@ impl RustCodegen {
                             && parent == "Pair"
                             && wrapped.len() == 2
                             && self.types.struct_types.contains("Pair")
-                            && self.types.variant_fields.get("Pair").is_some_and(|fields| {
-                                fields == &vec!["fst".to_string(), "snd".to_string()]
-                            })
+                            && self
+                                .types
+                                .variant_fields_for_parent(&parent, "Pair")
+                                .is_some_and(|fields| {
+                                    fields == &vec!["fst".to_string(), "snd".to_string()]
+                                })
                         {
                             return format!("({}, {})", wrapped[0], wrapped[1]);
                         }
-                        let is_struct_type = self.types.struct_types.contains(parent);
+                        let is_struct_type = self.types.struct_types.contains(&parent);
                         if is_pos {
                             if is_struct_type {
                                 return format!("{}({})", parent, wrapped.join(", "));
@@ -35872,7 +36168,7 @@ impl RustCodegen {
                             }
                         } else {
                             // Named/struct variant
-                            let fields = self.types.variant_fields.get(name.as_str());
+                            let fields = self.types.variant_fields_for_parent(&parent, name);
                             let pairs: Vec<String> = wrapped
                                 .iter()
                                 .enumerate()
@@ -36141,7 +36437,8 @@ impl RustCodegen {
                 } else {
                     emitted_scrutinee
                 };
-                let refined_subject = self.match_uses_refined_variant_subject(scrut, arms);
+                let refined_subject =
+                    self.match_uses_refined_variant_subject(scrut, arms, &scrutinee_ty);
                 let match_subject = if refined_subject {
                     if let ExprKind::Var(name) = &scrut.kind {
                         format!("&{}", sanitize_name(name))
@@ -36199,7 +36496,7 @@ impl RustCodegen {
                             self.copy_vars.insert(name.clone());
                         }
                     }
-                    let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject);
+                    let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject, &scrutinee_ty);
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
                     let box_guard = self.emit_boxed_pattern_guard(&arm.pat);
@@ -38172,6 +38469,7 @@ impl RustCodegen {
                 out
             }
             ExprKind::Match(scrutinee, arms) => {
+                let scrutinee_ty = self.infer_expr_fir_ty(scrutinee);
                 let emitted_scrutinee = self.emit_expr(scrutinee);
                 let scrut_str = if let ExprKind::Var(name) = &scrutinee.kind {
                     if self.match_scrutinee_var_needs_clone(name)
@@ -38184,7 +38482,8 @@ impl RustCodegen {
                 } else {
                     emitted_scrutinee
                 };
-                let refined_subject = self.match_uses_refined_variant_subject(scrutinee, arms);
+                let refined_subject =
+                    self.match_uses_refined_variant_subject(scrutinee, arms, &scrutinee_ty);
                 let match_subject = if refined_subject {
                     if let ExprKind::Var(name) = &scrutinee.kind {
                         format!("&{}", sanitize_name(name))
@@ -38197,7 +38496,8 @@ impl RustCodegen {
                 let mut out = format!("{}match {} {{\n", ind, match_subject);
                 self.indent += 1;
                 for arm in arms {
-                    let pat_str = self.emit_match_arm_pattern(&arm.pat, refined_subject);
+                    let pat_str =
+                        self.emit_match_arm_pattern(&arm.pat, refined_subject, &scrutinee_ty);
                     let guard_str = arm
                         .guard
                         .as_ref()
@@ -38988,28 +39288,33 @@ impl RustCodegen {
         false
     }
 
-    fn variant_field_count(&self, variant_name: &str) -> usize {
+    fn variant_field_count_with_expected(&self, variant_name: &str, expected_ty: &FirTy) -> usize {
+        let parent = self.find_parent_type_with_expected(variant_name, expected_ty);
         self.types
-            .variant_field_types
-            .get(variant_name)
+            .variant_field_types_for_parent(&parent, variant_name)
             .map(|fields| fields.len())
             .unwrap_or(0)
     }
 
-    fn is_bare_fielded_variant_pattern(&self, pat: &Pat) -> bool {
-        matches!(pat, Pat::Con(name, args) if args.is_empty() && self.variant_field_count(name) > 0)
+    fn is_bare_fielded_variant_pattern(&self, pat: &Pat, expected_ty: &FirTy) -> bool {
+        matches!(pat, Pat::Con(name, args) if args.is_empty() && self.variant_field_count_with_expected(name, expected_ty) > 0)
     }
 
-    fn match_uses_refined_variant_subject(&self, scrutinee: &Expr, arms: &[MatchArm]) -> bool {
+    fn match_uses_refined_variant_subject(
+        &self,
+        scrutinee: &Expr,
+        arms: &[MatchArm],
+        expected_ty: &FirTy,
+    ) -> bool {
         matches!(scrutinee.kind, ExprKind::Var(_))
             && arms
                 .iter()
-                .any(|arm| self.is_bare_fielded_variant_pattern(&arm.pat))
+                .any(|arm| self.is_bare_fielded_variant_pattern(&arm.pat, expected_ty))
     }
 
-    fn emit_bare_constructor_pattern(&self, name: &str) -> String {
-        let parent = self.find_parent_type(name);
-        let field_count = self.variant_field_count(name);
+    fn emit_bare_constructor_pattern(&self, name: &str, expected_ty: &FirTy) -> String {
+        let parent = self.find_parent_type_with_expected(name, expected_ty);
+        let field_count = self.variant_field_count_with_expected(name, expected_ty);
         let is_struct_type = self.types.struct_types.contains(&parent);
         if field_count == 0 {
             if is_struct_type {
@@ -39018,12 +39323,7 @@ impl RustCodegen {
             return format!("{}::{}", parent, name);
         }
 
-        let is_pos = self
-            .types
-            .variant_positional
-            .get(name)
-            .copied()
-            .unwrap_or(true);
+        let is_pos = self.types.variant_positional_for_parent(&parent, name);
         match (is_struct_type, is_pos) {
             (true, true) => format!("{}(..)", parent),
             (true, false) => format!("{} {{ .. }}", parent),
@@ -39032,15 +39332,21 @@ impl RustCodegen {
         }
     }
 
-    fn emit_match_arm_pattern(&self, pat: &Pat, refined_subject: bool) -> String {
+    fn emit_match_arm_pattern(
+        &self,
+        pat: &Pat,
+        refined_subject: bool,
+        expected_ty: &FirTy,
+    ) -> String {
         if refined_subject {
             if let Pat::Con(name, args) = pat {
-                if args.is_empty() && self.variant_field_count(name) > 0 {
-                    return self.emit_bare_constructor_pattern(name);
+                if args.is_empty() && self.variant_field_count_with_expected(name, expected_ty) > 0
+                {
+                    return self.emit_bare_constructor_pattern(name, expected_ty);
                 }
             }
         }
-        self.emit_pattern_match(pat)
+        self.emit_pattern_match_with_expected_ty(pat, expected_ty)
     }
 
     fn emit_pattern_binding(&self, pat: &Pat) -> String {
@@ -39102,9 +39408,22 @@ impl RustCodegen {
         self.emit_pattern_with_boxing(pat, false)
     }
 
+    fn emit_pattern_match_with_expected_ty(&self, pat: &Pat, expected_ty: &FirTy) -> String {
+        self.emit_pattern_with_boxing_and_expected_ty(pat, false, Some(expected_ty))
+    }
+
     /// Emit a pattern, handling boxed fields properly
     /// When `inside_box` is true, this pattern is matching against a Box<T>
     fn emit_pattern_with_boxing(&self, pat: &Pat, inside_box: bool) -> String {
+        self.emit_pattern_with_boxing_and_expected_ty(pat, inside_box, None)
+    }
+
+    fn emit_pattern_with_boxing_and_expected_ty(
+        &self,
+        pat: &Pat,
+        inside_box: bool,
+        expected_ty: Option<&FirTy>,
+    ) -> String {
         match pat {
             Pat::Var(name) => sanitize_name(name),
             Pat::Wild => "_".to_string(),
@@ -39116,7 +39435,9 @@ impl RustCodegen {
                 if name == "False" {
                     return "false".to_string();
                 }
-                let parent = self.find_parent_type(name);
+                let parent = expected_ty
+                    .map(|ty| self.find_parent_type_with_expected(name, ty))
+                    .unwrap_or_else(|| self.find_parent_type(name));
                 if self.types.struct_types.contains(&parent) {
                     name.clone()
                 } else {
@@ -39124,7 +39445,9 @@ impl RustCodegen {
                 }
             }
             Pat::Con(name, args) => {
-                let parent = self.find_parent_type(name);
+                let parent = expected_ty
+                    .map(|ty| self.find_parent_type_with_expected(name, ty))
+                    .unwrap_or_else(|| self.find_parent_type(name));
                 if name == "Pair"
                     && parent == "Pair"
                     && args.len() == 2
@@ -39142,25 +39465,31 @@ impl RustCodegen {
                     );
                 }
                 let is_struct_type = self.types.struct_types.contains(&parent);
-                let is_pos = self
-                    .types
-                    .variant_positional
-                    .get(name.as_str())
-                    .copied()
-                    .unwrap_or(true);
-                let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
+                let is_pos = self.types.variant_positional_for_parent(&parent, name);
+                let boxed_indices = self.types.variant_boxed_args_for_parent(&parent, name);
+                let constructor_ty = FirTy::Named(parent.clone());
                 let ps: Vec<String> = args
                     .iter()
                     .enumerate()
                     .map(|(i, p)| {
                         let is_boxed = boxed_indices.map_or(false, |bi| bi.contains(&i));
+                        let field_ty = self.types.positional_pattern_field_ty_with_expected(
+                            name,
+                            i,
+                            &constructor_ty,
+                        );
                         if is_boxed {
                             match p {
-                                Pat::Var(_) | Pat::Wild => self.emit_pattern_with_boxing(p, true),
+                                Pat::Var(_) | Pat::Wild => self
+                                    .emit_pattern_with_boxing_and_expected_ty(
+                                        p,
+                                        true,
+                                        Some(&field_ty),
+                                    ),
                                 _ => format!("__boxed_{}", i),
                             }
                         } else {
-                            self.emit_pattern_with_boxing(p, false)
+                            self.emit_pattern_with_boxing_and_expected_ty(p, false, Some(&field_ty))
                         }
                     })
                     .collect();
@@ -39171,7 +39500,7 @@ impl RustCodegen {
                         format!("{}::{}({})", parent, name, ps.join(", "))
                     }
                 } else {
-                    let fields = self.types.variant_fields.get(name.as_str());
+                    let fields = self.types.variant_fields_for_parent(&parent, name);
                     let named_ps: Vec<String> = ps
                         .iter()
                         .enumerate()
@@ -39191,7 +39520,9 @@ impl RustCodegen {
                 }
             }
             Pat::NamedCon(name, named_args) => {
-                let parent = self.find_parent_type(name);
+                let parent = expected_ty
+                    .map(|ty| self.find_parent_type_with_expected(name, ty))
+                    .unwrap_or_else(|| self.find_parent_type(name));
                 if name == "Pair"
                     && parent == "Pair"
                     && self.types.struct_types.contains("Pair")
@@ -39214,18 +39545,38 @@ impl RustCodegen {
                     return format!("({}, {})", fst_pat, snd_pat);
                 }
                 let is_struct_type = self.types.struct_types.contains(&parent);
+                let constructor_ty = FirTy::Named(parent.clone());
                 let ps: Vec<String> = named_args
                     .iter()
                     .map(|(fname, p)| {
-                        if let Some(idx) = self.boxed_named_field_index(name, fname) {
+                        let field_ty =
+                            self.types
+                                .pattern_field_ty_with_expected(name, fname, &constructor_ty);
+                        if let Some(idx) =
+                            self.boxed_named_field_index_for_parent(&parent, name, fname)
+                        {
                             match p {
-                                Pat::Var(_) | Pat::Wild => {
-                                    format!("{}: {}", fname, self.emit_pattern_with_boxing(p, true))
-                                }
+                                Pat::Var(_) | Pat::Wild => format!(
+                                    "{}: {}",
+                                    fname,
+                                    self.emit_pattern_with_boxing_and_expected_ty(
+                                        p,
+                                        true,
+                                        Some(&field_ty),
+                                    )
+                                ),
                                 _ => format!("{}: __boxed_{}", fname, idx),
                             }
                         } else {
-                            format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false))
+                            format!(
+                                "{}: {}",
+                                fname,
+                                self.emit_pattern_with_boxing_and_expected_ty(
+                                    p,
+                                    false,
+                                    Some(&field_ty),
+                                )
+                            )
                         }
                     })
                     .collect();
@@ -39239,7 +39590,7 @@ impl RustCodegen {
             Pat::As(inner, name) => {
                 format!(
                     "{} @ {}",
-                    self.emit_pattern_with_boxing(inner, inside_box),
+                    self.emit_pattern_with_boxing_and_expected_ty(inner, inside_box, expected_ty),
                     sanitize_name(name)
                 )
             }
@@ -39362,6 +39713,12 @@ impl RustCodegen {
                     _ => variant_name.to_string(),
                 }
             })
+    }
+
+    fn find_parent_type_with_expected(&self, variant_name: &str, expected_ty: &FirTy) -> String {
+        self.types
+            .parent_for_variant_with_expected(variant_name, expected_ty)
+            .unwrap_or_else(|| self.find_parent_type(variant_name))
     }
 }
 
@@ -46743,6 +47100,24 @@ for x in [1, 2] {
             "named constructor field must not use the later duplicate constructor parent: {}",
             rust
         );
+    }
+
+    #[test]
+    fn compiled_match_uses_scrutinee_parent_for_duplicate_fielded_constructor() {
+        let source = r#"
+# Event = Shared(value: Int) | EventOnly
+# Legacy = Shared(legacy_value: Int) | LegacyOnly
+
+| event_value(event: Event) -> match event {
+    | Shared(value) -> value
+    | EventOnly -> 0
+}
+
+= result = event_value(Shared(value = 42))
+@ print(show(result))
+"#;
+
+        assert_eq!(compile_and_run_test_source(source, None), "42\n");
     }
 
     #[test]

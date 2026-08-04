@@ -83,12 +83,38 @@ medfør af erklæringen.
 # Pbl20Udbetalingsret = Pbl20TilEjerEfterVilkår | Pbl20TilBegunstigetEfterEjerensDød(modtager: Pbl20Modtager) | Pbl20TilAndenEfterVilkår(modtager: Pbl20Modtager) | Pbl20UdloddetVedSkifteTilFraskiltEllerFrasepareretÆgtefælle | Pbl20TilBegunstigetEfterUdlodningsmodtagersDød(modtager: Pbl20Modtager) | Pbl20AndenUdbetalingsret(modtager: Pbl20Modtager)
 # Pbl20Ligningslov9LArt = Pbl20OrdinærPensionsudbetaling | Pbl20InvalidepensionFørFolkepensionsalderen | Pbl20RateforsikringVedInvaliditet | Pbl20RateopsparingVedVarigtNedsatArbejdsevneMedFørtidsEllerSeniorpension | Pbl20ÆgtefælleEllerSamleverpension | Pbl20Efterladtepension | Pbl20PensionEfterPar2Stk1Nr1Eller2 | Pbl20Børnepension
 # Pbl20EuEøsErklæring = Pbl20IngenEuEøsErklæring | Pbl20ErklæringEfterPar15C
+# Pbl20Stk6Skattepligt = Pbl20Stk6IkkeOmfattetAfKsl1EllerDbo | Pbl20Stk6SkattepligtigEfterKsl1 | Pbl20Stk6HjemmehørendeIDanmarkEfterDbo
+# Pbl20Stk6Stat = Pbl20Stk6StatIndenForEuEøs | Pbl20Stk6StatUdenForEuEøs
+# Pbl20Stk6KildeFakta(skattepligt: Pbl20Stk6Skattepligt, stat: Pbl20Stk6Stat, erklæring: Pbl20EuEøsErklæring, indkomstskat_betalt_til_staten_kroner: Heltal)
+# Pbl20Stk6Input(kildefakta: Pbl20Stk6KildeFakta, dansk_skattepligtig_pensionsindkomst_kroner: Heltal)
+# Pbl20Stk6Resultat(input: Pbl20Stk6Input, kildefakta_gyldige: Boolsk, person_omfattet: Boolsk, erklæring_til_eu_eøs_stat: Boolsk, ligningslov33_stk1_finder_tilsvarende_anvendelse: Boolsk, dansk_indkomst_omfattet_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
 # Pbl20Udbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, ordning: Pbl20Ordning, udbetalingsret: Pbl20Udbetalingsret, ligningslov9l_art: Pbl20Ligningslov9LArt, bruttoudbetaling_kroner: Heltal, del_fra_indbetalinger_før_1955_56_kroner: Heltal, dokumenteret_uden_fradrags_eller_bortseelsesret_kroner: Heltal, eu_eøs_erklæring: Pbl20EuEøsErklæring, udenlandsk_indkomstskat_kroner: Heltal)
 # Pbl20Udbetalingsresultat(fakta: Pbl20Udbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet: Boolsk, omfattet_af_par20: Boolsk, fritaget_efter_stk3_kroner: Heltal, fritaget_efter_stk4_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, undtaget_fra_ligningslov9l: Boolsk, modregningspligtig_efter_ligningslov9l_kroner: Heltal, udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal)
 # Pbl20Årsgrundlag(udbetalinger: List(Pbl20Udbetalingsfakta))
 # Pbl20Årsresultat(indkomstår: Heltal, årsudbetalinger: List(Pbl20Udbetalingsfakta), udbetalingsresultater: List(Pbl20Udbetalingsresultat), identifikationer_entydige: Boolsk, input_gyldigt: Boolsk, samlet_bruttoudbetaling_kroner: Heltal, samlet_skattepligtig_indkomst_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, samlet_modregningspligtig_efter_ligningslov9l_kroner: Heltal, samlet_udenlandsk_skat_med_mulig_ligningslov33_lempelse_kroner: Heltal, ikke_omfattet_af_par20_kroner: Heltal)
 
 | pbl20_tomt_årsgrundlag() -> Pbl20Årsgrundlag(udbetalinger = [])
+
+| pbl20_stk6_ingen_kildefakta() -> Pbl20Stk6KildeFakta(
+    skattepligt = Pbl20Stk6IkkeOmfattetAfKsl1EllerDbo,
+    stat = Pbl20Stk6StatUdenForEuEøs,
+    erklæring = Pbl20IngenEuEøsErklæring,
+    indkomstskat_betalt_til_staten_kroner = 0
+)
+| pbl20_stk6_kildefakta_gyldige(fakta: Pbl20Stk6KildeFakta) -> fakta.indkomstskat_betalt_til_staten_kroner >= 0
+| pbl20_stk6_person_omfattet(fakta: Pbl20Stk6KildeFakta) -> fakta.skattepligt == Pbl20Stk6SkattepligtigEfterKsl1 || fakta.skattepligt == Pbl20Stk6HjemmehørendeIDanmarkEfterDbo
+| pbl20_stk6_erklæring_til_eu_eøs_stat(fakta: Pbl20Stk6KildeFakta) -> fakta.stat == Pbl20Stk6StatIndenForEuEøs && fakta.erklæring == Pbl20ErklæringEfterPar15C
+| pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input: Pbl20Stk6Input) -> Falskt
+| exception pbl20_stk6_eu_eøs_erklæring pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input: Pbl20Stk6Input) -> Sandt under pbl20_stk6_kildefakta_gyldige(input.kildefakta) && pbl20_stk6_person_omfattet(input.kildefakta) && pbl20_stk6_erklæring_til_eu_eøs_stat(input.kildefakta) && input.dansk_skattepligtig_pensionsindkomst_kroner > 0
+| pbl20_stk6_resultat(input: Pbl20Stk6Input) -> Pbl20Stk6Resultat(
+    input = input,
+    kildefakta_gyldige = pbl20_stk6_kildefakta_gyldige(input.kildefakta) && input.dansk_skattepligtig_pensionsindkomst_kroner >= 0,
+    person_omfattet = pbl20_stk6_person_omfattet(input.kildefakta),
+    erklæring_til_eu_eøs_stat = pbl20_stk6_erklæring_til_eu_eøs_stat(input.kildefakta),
+    ligningslov33_stk1_finder_tilsvarende_anvendelse = pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input),
+    dansk_indkomst_omfattet_kroner = hvis pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input) { input.dansk_skattepligtig_pensionsindkomst_kroner } ellers { 0 },
+    udenlandsk_indkomstskat_til_ligningslov33_kroner = hvis pbl20_stk6_ligningslov33_stk1_finder_tilsvarende_anvendelse(input) { input.kildefakta.indkomstskat_betalt_til_staten_kroner } ellers { 0 }
+)
 
 | pbl20_modtager_alder_gyldig(modtager: Pbl20Modtager) -> match modtager {
     | Pbl20SamleversLivsarving(alder_hele_år) -> alder_hele_år >= 0

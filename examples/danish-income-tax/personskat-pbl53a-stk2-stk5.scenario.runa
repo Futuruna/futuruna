@@ -1,0 +1,312 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| pbl53a_stk2_stk5_scenarieordning(identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
+    identifikation = identifikation,
+    ordning = ordning,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(
+        afkast_efter_pal_par3_til_5_kroner = 0
+    ),
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0,
+    hændelser = hændelser
+)
+
+| pbl53a_stk2_stk5_kapitalindkomst(input: PersonskatPbl53AInput) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    pbl53a = input,
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+
+| pbl53a_stk2_stk5_personskat(input: PersonskatPbl53AInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = pbl53a_stk2_stk5_kapitalindkomst(input),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= pbl53a_nuværende_arbejdsgiver_hændelser = [
+    Pbl53AIndbetaling(
+        fakta = Pbl53AIndbetalingsfakta(
+            identifikation = "arbejdsgiver-2026",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            beløb_kroner = 60000,
+            periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+            indbetaler = Pbl53ANuværendeArbejdsgiver,
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+        )
+    )
+]
+= pbl53a_nuværende_arbejdsgiver_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = pbl53a_nuværende_arbejdsgiver_hændelser
+))
+
+= pbl53a_medfølgende_udsendelse = Pbl53AUdsendelsesfakta(
+    startdato = Pbl15ADato(år = 2026, måned = 1, dag = 1),
+    slutdato = Pbl15ADato(år = 2026, måned = 2, dag = 1),
+    sted = Pbl53AFremmedStat,
+    fælles_bopæl_hele_perioden = Sandt,
+    indbetaling_til_afsnit_i_eller_iia_under_udsendelsen = Falskt
+)
+= pbl53a_medfølgende_indbetaling = Pbl53AIndbetaling(
+    fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "medfølgende-2026",
+        tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+        beløb_kroner = 24000,
+        periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+        indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
+            udsendelse = pbl53a_medfølgende_udsendelse
+        ),
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+    )
+)
+= pbl53a_medfølgende_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53APensionskasseUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = [pbl53a_medfølgende_indbetaling]
+))
+
+= pbl53a_medfølgende_med_afsnit_i_udsendelse = Pbl53AUdsendelsesfakta(
+    startdato = Pbl15ADato(år = 2026, måned = 1, dag = 1),
+    slutdato = Pbl15ADato(år = 2026, måned = 2, dag = 1),
+    sted = Pbl53AFremmedStat,
+    fælles_bopæl_hele_perioden = Sandt,
+    indbetaling_til_afsnit_i_eller_iia_under_udsendelsen = Sandt
+)
+= pbl53a_medfølgende_med_afsnit_i_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53APensionskasseUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = [
+        Pbl53AIndbetaling(
+            fakta = Pbl53AIndbetalingsfakta(
+                identifikation = "medfølgende-afsnit-i-2026",
+                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                beløb_kroner = 24000,
+                periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+                indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
+                    udsendelse = pbl53a_medfølgende_med_afsnit_i_udsendelse
+                ),
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            )
+        )
+    ]
+))
+
+= pbl53a_stk6_eu_eøs_kildefakta = Pbl20Stk6KildeFakta(
+    skattepligt = Pbl20Stk6SkattepligtigEfterKsl1,
+    stat = Pbl20Stk6StatIndenForEuEøs,
+    erklæring = Pbl20ErklæringEfterPar15C,
+    indkomstskat_betalt_til_staten_kroner = 10000
+)
+= pbl53a_delvis_principal_hændelser = [
+    Pbl53AIndbetaling(
+        fakta = Pbl53AIndbetalingsfakta(
+            identifikation = "historisk-med-fradrag",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 1),
+            beløb_kroner = 500000,
+            periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+            indbetaler = Pbl53AEjeren,
+            ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet
+        )
+    ),
+    Pbl53AIndbetaling(
+        fakta = Pbl53AIndbetalingsfakta(
+            identifikation = "historisk-uden-fradrag",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 2),
+            beløb_kroner = 250000,
+            periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+            indbetaler = Pbl53AEjeren,
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+        )
+    ),
+    Pbl53AUdbetaling(
+        fakta = Pbl53AUdbetalingsfakta(
+            identifikation = "delvis-kapitaludbetaling",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            modtager = Pbl53AEjer,
+            bruttoudbetaling_kroner = 200000,
+            art = Pbl53AUdbetalingFraOrdningen(
+                kapitalværdi_umiddelbart_før_udbetalingen_kroner = 1000000,
+                produktart = Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing,
+                udbetalingsform = Pbl53ASamletKapitaludbetaling(
+                    grund = Pbl53APensionsudbetalingsalder
+                ),
+                pbl20_stk6_kildefakta = pbl53a_stk6_eu_eøs_kildefakta
+            )
+        )
+    )
+]
+= pbl53a_delvis_principal_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53APengeinstitutUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = pbl53a_delvis_principal_hændelser
+))
+
+= pbl53a_sikkerhed_hændelser = [
+    Pbl53AIndbetaling(
+        fakta = Pbl53AIndbetalingsfakta(
+            identifikation = "sikkerhed-indbetaling",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            beløb_kroner = 40000,
+            periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+            indbetaler = Pbl53ANuværendeArbejdsgiver,
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+        )
+    ),
+    Pbl53AUdbetaling(
+        fakta = Pbl53AUdbetalingsfakta(
+            identifikation = "pensionstilsagn-udbetaling",
+            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 2),
+            modtager = Pbl53APensionsberettiget,
+            bruttoudbetaling_kroner = 120000,
+            art = Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(
+                sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner = 90000
+            )
+        )
+    )
+]
+= pbl53a_sikkerhed_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse,
+    omfattes_af_par53b = Falskt,
+    hændelser = pbl53a_sikkerhed_hændelser
+))
+
+= pbl53a_anden_modtager_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = [
+        Pbl53AIndbetaling(
+            fakta = Pbl53AIndbetalingsfakta(
+                identifikation = "anden-modtager-principal",
+                tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 1),
+                beløb_kroner = 100000,
+                periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+                indbetaler = Pbl53AEjeren,
+                ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIDanmark
+            )
+        ),
+        Pbl53AUdbetaling(
+            fakta = Pbl53AUdbetalingsfakta(
+                identifikation = "anden-modtager-udbetaling",
+                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                modtager = Pbl53AAndenUdbetalingsmodtager,
+                bruttoudbetaling_kroner = 50000,
+                art = Pbl53AUdbetalingFraOrdningen(
+                    kapitalværdi_umiddelbart_før_udbetalingen_kroner = 200000,
+                    produktart = Pbl53AAndenProduktart,
+                    udbetalingsform = Pbl53AIkkeSamletKapitaludbetaling,
+                    pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+                )
+            )
+        )
+    ]
+))
+
+= pbl53a_ukronologisk_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+    indkomstår = 2026,
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    hændelser = [
+        Pbl53AIndbetaling(
+            fakta = Pbl53AIndbetalingsfakta(
+                identifikation = "senere-først",
+                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 2),
+                beløb_kroner = 10000,
+                periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+                indbetaler = Pbl53ANuværendeArbejdsgiver,
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            )
+        ),
+        Pbl53AIndbetaling(
+            fakta = Pbl53AIndbetalingsfakta(
+                identifikation = "tidligere-bagefter",
+                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                beløb_kroner = 10000,
+                periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+                indbetaler = Pbl53ANuværendeArbejdsgiver,
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            )
+        )
+    ]
+))
+
+= pbl53a_kanonisk_input = PersonskatPbl53AInput(
+    ordninger = [
+        pbl53a_stk2_stk5_scenarieordning(
+            "kanonisk-arbejdsgiver",
+            Pbl53ALivsforsikringUdenKapitel1,
+            pbl53a_nuværende_arbejdsgiver_hændelser
+        ),
+        pbl53a_stk2_stk5_scenarieordning(
+            "kanonisk-medfølgende",
+            Pbl53APensionskasseUdenKapitel1,
+            [pbl53a_medfølgende_indbetaling]
+        ),
+        pbl53a_stk2_stk5_scenarieordning(
+            "kanonisk-udbetaling",
+            Pbl53APengeinstitutUdenKapitel1,
+            pbl53a_delvis_principal_hændelser
+        )
+    ]
+)
+= pbl53a_kanonisk_resultat = beregn_personskat(
+    pbl53a_stk2_stk5_personskat(pbl53a_kanonisk_input)
+)
+
+| pbl53a_nuværende_arbejdsgiver_er_personlig_indkomst_med_am: pbl53a_nuværende_arbejdsgiver_resultat -> pbl53a_nuværende_arbejdsgiver_resultat.input_gyldigt && pbl53a_nuværende_arbejdsgiver_resultat.personlig_indkomst_kroner == 60000 && pbl53a_nuværende_arbejdsgiver_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 60000 && pbl53a_nuværende_arbejdsgiver_resultat.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner == 0
+| pbl53a_medfølgende_ægtefælle_er_personlig_indkomst_uden_am: pbl53a_medfølgende_resultat -> pbl53a_medfølgende_resultat.input_gyldigt && pbl53a_medfølgende_resultat.personlig_indkomst_kroner == 24000 && pbl53a_medfølgende_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 0
+| pbl53a_afsnit_i_eller_iia_undtager_medfølgende_regel: pbl53a_medfølgende_med_afsnit_i_resultat -> pbl53a_medfølgende_med_afsnit_i_resultat.input_gyldigt && pbl53a_medfølgende_med_afsnit_i_resultat.personlig_indkomst_kroner == 0
+| pbl53a_delvis_principal_fordeles_og_kapitalregel_anvendes: pbl53a_delvis_principal_resultat -> pbl53a_delvis_principal_resultat.input_gyldigt && pbl53a_delvis_principal_resultat.personlig_indkomst_kroner == 75000 && pbl53a_delvis_principal_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 0 && pbl53a_delvis_principal_resultat.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner == 400000 && pbl53a_delvis_principal_resultat.udenlandsk_indkomstskat_til_ligningslov33_kroner == 10000 && match pbl53a_delvis_principal_resultat.hændelsesresultater[2] {
+    | Pbl53AUdbetalingBeregnet(resultat) -> resultat.principal_fordelt_til_udbetalingen_kroner == 100000 && resultat.principal_medregnet_før_75_procent_kroner == 100000 && resultat.kapitalregel_75_procent_anvendt && resultat.personlig_indkomst_kroner == 75000 && resultat.pbl20_stk6_resultat.ligningslov33_stk1_finder_tilsvarende_anvendelse
+    | _ -> Falskt
+}
+| pbl53a_sikkerhed_giver_arbejdsgiverfradrag_og_udelukker_modsvarende_udbetaling: pbl53a_sikkerhed_resultat -> pbl53a_sikkerhed_resultat.input_gyldigt && pbl53a_sikkerhed_resultat.arbejdsgiverfradrag_kroner == 40000 && pbl53a_sikkerhed_resultat.personlig_indkomst_kroner == 30000 && pbl53a_sikkerhed_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 30000
+| pbl53a_anden_modtager_beskattes_ikke_men_forbruger_principal: pbl53a_anden_modtager_resultat -> pbl53a_anden_modtager_resultat.input_gyldigt && pbl53a_anden_modtager_resultat.personlig_indkomst_kroner == 0 && pbl53a_anden_modtager_resultat.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner == 75000
+| pbl53a_ukronologisk_forløb_fejler_lukket: pbl53a_ukronologisk_resultat -> pbl53a_ukronologisk_resultat.hændelser_kronologiske == Falskt && pbl53a_ukronologisk_resultat.alle_hændelser_gyldige == Falskt && pbl53a_ukronologisk_resultat.input_gyldigt == Falskt && pbl53a_ukronologisk_resultat.personlig_indkomst_kroner == 0
+| pbl53a_kanonisk_personskat_medregner_hver_kategori_en_gang: pbl53a_kanonisk_resultat -> pbl53a_kanonisk_resultat.kapitalindkomst.pbl53a_resultat.alle_input_gyldige && pbl53a_kanonisk_resultat.kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner == 159000 && pbl53a_kanonisk_resultat.kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 60000 && pbl53a_kanonisk_resultat.kapitalindkomst.pbl53a_resultat.udenlandsk_indkomstskat_til_ligningslov33_kroner == 10000 && pbl53a_kanonisk_resultat.skat.bruttoløn_kroner == 660000 && pbl53a_kanonisk_resultat.skat.øvrig_personlig_indkomst_kroner == 99000 && pbl53a_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 52800
+
+? pbl53a_nuværende_arbejdsgiver_er_personlig_indkomst_med_am
+? pbl53a_medfølgende_ægtefælle_er_personlig_indkomst_uden_am
+? pbl53a_afsnit_i_eller_iia_undtager_medfølgende_regel
+? pbl53a_delvis_principal_fordeles_og_kapitalregel_anvendes
+? pbl53a_sikkerhed_giver_arbejdsgiverfradrag_og_udelukker_modsvarende_udbetaling
+? pbl53a_anden_modtager_beskattes_ikke_men_forbruger_principal
+? pbl53a_ukronologisk_forløb_fejler_lukket
+? pbl53a_kanonisk_personskat_medregner_hver_kategori_en_gang

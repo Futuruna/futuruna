@@ -8348,11 +8348,46 @@ pub struct FnDef {
     pub body: Expr,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeConstructorSignature {
+    parent: String,
+    positional: bool,
+    fields: Vec<String>,
+}
+
+impl RuntimeConstructorSignature {
+    fn arity(&self) -> usize {
+        self.fields.len()
+    }
+
+    fn matches_args(&self, args: &[Expr]) -> bool {
+        if has_named_args(args) {
+            if self.positional || !all_named_args(args) || args.len() != self.fields.len() {
+                return false;
+            }
+            let supplied = args
+                .iter()
+                .filter_map(named_arg_parts)
+                .map(|(field, _)| field)
+                .collect::<BTreeSet<_>>();
+            supplied.len() == args.len()
+                && self
+                    .fields
+                    .iter()
+                    .all(|field| supplied.contains(field.as_str()))
+        } else {
+            args.len() == self.arity()
+        }
+    }
+}
+
 pub struct Interpreter {
     /// Logic rules (Prolog-style)
     pub rules: Vec<(String, Rule)>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
+    /// Every declaration of a constructor name, retained for overload resolution.
+    constructor_signatures: BTreeMap<String, Vec<RuntimeConstructorSignature>>,
     /// Named field names per constructor: ctor_name -> [field_name, ...]
     pub field_names: BTreeMap<String, Vec<String>>,
     /// Type name -> variant names (for method dispatch)
@@ -8405,6 +8440,26 @@ impl Interpreter {
                 c.insert("None".into(), (0, true));
                 c
             },
+            constructor_signatures: {
+                let mut signatures = BTreeMap::new();
+                signatures.insert(
+                    "Some".into(),
+                    vec![RuntimeConstructorSignature {
+                        parent: "Option".into(),
+                        positional: true,
+                        fields: vec!["_0".into()],
+                    }],
+                );
+                signatures.insert(
+                    "None".into(),
+                    vec![RuntimeConstructorSignature {
+                        parent: "Option".into(),
+                        positional: true,
+                        fields: vec![],
+                    }],
+                );
+                signatures
+            },
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             ctor_to_type: BTreeMap::new(),
@@ -8426,6 +8481,116 @@ impl Interpreter {
             rng_state: 0x12345678_9abcdef0,
             suppress_output: false,
         }
+    }
+
+    fn register_runtime_constructor_signature(&mut self, parent: &str, variant: &Variant) {
+        let signature = RuntimeConstructorSignature {
+            parent: parent.to_string(),
+            positional: variant.positional,
+            fields: variant
+                .fields
+                .iter()
+                .map(|field| field.name.clone())
+                .collect(),
+        };
+        let signatures = self
+            .constructor_signatures
+            .entry(variant.name.clone())
+            .or_default();
+        if !signatures.contains(&signature) {
+            signatures.push(signature.clone());
+        }
+
+        self.constructors.insert(
+            variant.name.clone(),
+            (signature.arity(), signature.positional),
+        );
+        if signature.positional || signature.fields.is_empty() {
+            self.field_names.remove(variant.name.as_str());
+        } else {
+            self.field_names
+                .insert(variant.name.clone(), signature.fields);
+        }
+    }
+
+    fn constructor_signature_for_args(
+        &self,
+        name: &str,
+        args: &[Expr],
+    ) -> Option<RuntimeConstructorSignature> {
+        let signatures = self.constructor_signatures.get(name)?;
+        let matching = signatures
+            .iter()
+            .filter(|signature| signature.matches_args(args))
+            .collect::<Vec<_>>();
+        if matching.len() == 1 {
+            return matching.first().map(|signature| (*signature).clone());
+        }
+
+        if let Some(first) = matching.first() {
+            let same_runtime_layout = matching.iter().all(|signature| {
+                signature.positional == first.positional && signature.fields == first.fields
+            });
+            if same_runtime_layout {
+                return Some((*first).clone());
+            }
+        }
+
+        let (arity, positional) = self.constructors.get(name).copied()?;
+        matching
+            .into_iter()
+            .find(|signature| signature.arity() == arity && signature.positional == positional)
+            .cloned()
+    }
+
+    fn nullary_constructor_signature(&self, name: &str) -> Option<&RuntimeConstructorSignature> {
+        self.constructor_signatures
+            .get(name)?
+            .iter()
+            .find(|signature| signature.arity() == 0)
+    }
+
+    fn value_is_registered_constructor_binding(value: &Value, name: &str) -> bool {
+        match value {
+            Value::Constructor(constructor, _) | Value::NamedConstructor(constructor, _) => {
+                constructor == name
+            }
+            Value::Builtin(builtin) => {
+                builtin.starts_with(&format!("ctor:{}/", name))
+                    || builtin.starts_with(&format!("nctor:{}/", name))
+            }
+            _ => false,
+        }
+    }
+
+    fn constructor_parent_for_value(&self, value: &Value) -> Option<String> {
+        let (name, positional, fields): (&str, bool, Vec<&str>) = match value {
+            Value::Constructor(name, values) => {
+                (name, true, (0..values.len()).map(|_| "").collect())
+            }
+            Value::NamedConstructor(name, values) => (
+                name,
+                false,
+                values.iter().map(|(field, _)| field.as_str()).collect(),
+            ),
+            _ => return None,
+        };
+        let candidates = self.constructor_signatures.get(name)?;
+        let matching = candidates
+            .iter()
+            .filter(|candidate| {
+                candidate.positional == positional
+                    && candidate.arity() == fields.len()
+                    && (positional
+                        || candidate
+                            .fields
+                            .iter()
+                            .map(String::as_str)
+                            .eq(fields.iter().copied()))
+            })
+            .map(|candidate| candidate.parent.as_str())
+            .collect::<BTreeSet<_>>();
+        (matching.len() == 1).then(|| matching.into_iter().next().unwrap().to_string())
     }
 
     /// Resolve an import path to a file path.
@@ -8470,9 +8635,8 @@ impl Interpreter {
     fn runtime_type_name(&self, value: &Value) -> Option<String> {
         match value {
             Value::Constructor(name, _) | Value::NamedConstructor(name, _) => self
-                .ctor_to_type
-                .get(name)
-                .cloned()
+                .constructor_parent_for_value(value)
+                .or_else(|| self.ctor_to_type.get(name).cloned())
                 .or_else(|| Some(name.clone())),
             Value::RuleScopeInstance { name, .. } => Some(name.clone()),
             Value::Str(_) => Some("String".into()),
@@ -8939,13 +9103,7 @@ impl Interpreter {
                                 }
                             } else {
                                 // New constructor
-                                self.constructors
-                                    .insert(v.name.clone(), (v.fields.len(), v.positional));
-                                if !v.fields.is_empty() && !v.positional {
-                                    let names: Vec<String> =
-                                        v.fields.iter().map(|f| f.name.clone()).collect();
-                                    self.field_names.insert(v.name.clone(), names);
-                                }
+                                self.register_runtime_constructor_signature(name, v);
                                 if !resolved_variants.contains(&v.name) {
                                     resolved_variants.push(v.name.clone());
                                 }
@@ -8959,13 +9117,7 @@ impl Interpreter {
                         }
                         None => {
                             // Normal variant
-                            self.constructors
-                                .insert(v.name.clone(), (v.fields.len(), v.positional));
-                            if !v.fields.is_empty() && !v.positional {
-                                let names: Vec<String> =
-                                    v.fields.iter().map(|f| f.name.clone()).collect();
-                                self.field_names.insert(v.name.clone(), names);
-                            }
+                            self.register_runtime_constructor_signature(name, v);
                             if !resolved_variants.contains(&v.name) {
                                 resolved_variants.push(v.name.clone());
                             }
@@ -9026,10 +9178,16 @@ impl Interpreter {
                 let positional = false;
                 self.constructors
                     .insert(name.clone(), (params.len(), positional));
-                self.field_names.insert(
-                    name.clone(),
-                    params.iter().map(|param| param.name.clone()).collect(),
-                );
+                let signature = RuntimeConstructorSignature {
+                    parent: name.clone(),
+                    positional,
+                    fields: params.iter().map(|param| param.name.clone()).collect(),
+                };
+                let signatures = self.constructor_signatures.entry(name.clone()).or_default();
+                if !signatures.contains(&signature) {
+                    signatures.push(signature.clone());
+                }
+                self.field_names.insert(name.clone(), signature.fields);
                 self.ctor_to_type.insert(name.clone(), name.clone());
                 self.rule_scopes.insert(
                     name.clone(),
@@ -9908,14 +10066,36 @@ impl Interpreter {
         }
     }
 
-    fn eval_named_constructor_args(
+    fn eval_constructor_call(
         &mut self,
         ctor_name: &str,
         args: &[Expr],
         env: &Env,
-    ) -> Option<Vec<Value>> {
-        let field_order = self.field_names.get(ctor_name)?.clone();
-        self.eval_named_args_by_names(&field_order, args, env)
+    ) -> Option<Value> {
+        let signature = self.constructor_signature_for_args(ctor_name, args)?;
+        let ordered = if has_named_args(args) {
+            reorder_named_args_by_names(&signature.fields, args)?
+        } else {
+            args.to_vec()
+        };
+        let values = ordered
+            .iter()
+            .map(|argument| self.eval(argument, env))
+            .collect::<Vec<_>>();
+        if self.rule_scopes.contains_key(ctor_name) {
+            return Some(Value::RuleScopeInstance {
+                name: ctor_name.to_string(),
+                bindings: signature.fields.into_iter().zip(values).collect(),
+            });
+        }
+        if signature.positional {
+            Some(Value::Constructor(ctor_name.to_string(), values))
+        } else {
+            Some(Value::NamedConstructor(
+                ctor_name.to_string(),
+                signature.fields.into_iter().zip(values).collect(),
+            ))
+        }
     }
 
     fn eval_named_args_by_names(
@@ -9940,7 +10120,13 @@ impl Interpreter {
             ExprKind::Var(name) => {
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
-                    val.clone()
+                    if self.nullary_constructor_signature(name).is_some()
+                        && Self::value_is_registered_constructor_binding(val, name)
+                    {
+                        Value::Constructor(name.clone(), vec![])
+                    } else {
+                        val.clone()
+                    }
                 }
                 // Then function registry (for recursion and cross-function calls)
                 else if self.functions.contains_key(name) {
@@ -10005,12 +10191,10 @@ impl Interpreter {
                     if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
                         return result;
                     }
-                    if self.constructors.contains_key(fn_name) && has_named_args(args) {
-                        let f = self.eval(func, env);
-                        let arg_vals = self
-                            .eval_named_constructor_args(fn_name, args, env)
-                            .unwrap_or_default();
-                        return self.apply(f, arg_vals, env);
+                    if self.constructor_signatures.contains_key(fn_name) {
+                        if let Some(value) = self.eval_constructor_call(fn_name, args, env) {
+                            return value;
+                        }
                     }
                     if has_named_args(args) {
                         if let Some(def) = self.functions.get(fn_name).cloned() {
@@ -13465,10 +13649,13 @@ impl Interpreter {
             .unwrap_or_else(|_| self.value_matches_named_type(value, type_name))
     }
 
-    fn rule_constructor_pattern_args(&self, ctor_name: &str, args: &[Expr]) -> Option<Vec<Expr>> {
+    fn rule_constructor_pattern_args(
+        &self,
+        signature: &RuntimeConstructorSignature,
+        args: &[Expr],
+    ) -> Option<Vec<Expr>> {
         if has_named_args(args) {
-            let field_order = self.field_names.get(ctor_name)?;
-            reorder_named_args_by_names(field_order, args)
+            reorder_named_args_by_names(&signature.fields, args)
         } else {
             Some(args.to_vec())
         }
@@ -13482,10 +13669,12 @@ impl Interpreter {
         match &expr.kind {
             ExprKind::Lit(lit) => Some(self.literal_to_value(lit)),
             ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
-                match self.constructors.get(name.as_str()) {
-                    Some((0, _)) => Some(Value::Constructor(name.clone(), vec![])),
-                    None => Some(Value::Constructor(name.clone(), vec![])),
-                    _ => None,
+                if self.nullary_constructor_signature(name).is_some()
+                    || !self.constructor_signatures.contains_key(name)
+                {
+                    Some(Value::Constructor(name.clone(), vec![]))
+                } else {
+                    None
                 }
             }
             ExprKind::Tuple(items) => {
@@ -13499,26 +13688,19 @@ impl Interpreter {
                 let ExprKind::Var(ctor_name) = &func.kind else {
                     return None;
                 };
-                let Some((arity, positional)) = self.constructors.get(ctor_name.as_str()).copied()
-                else {
-                    return None;
-                };
-                let ordered = self.rule_constructor_pattern_args(ctor_name, args)?;
-                if ordered.len() != arity {
-                    return None;
-                }
+                let signature = self.constructor_signature_for_args(ctor_name, args)?;
+                let ordered = self.rule_constructor_pattern_args(&signature, args)?;
                 let values: Option<Vec<Value>> = ordered
                     .iter()
                     .map(|arg| self.rule_head_ground_value(arg))
                     .collect();
                 let values = values?;
-                if positional {
+                if signature.positional {
                     Some(Value::Constructor(ctor_name.clone(), values))
                 } else {
-                    let field_order = self.field_names.get(ctor_name)?;
                     Some(Value::NamedConstructor(
                         ctor_name.clone(),
-                        field_order.iter().cloned().zip(values).collect(),
+                        signature.fields.into_iter().zip(values).collect(),
                     ))
                 }
             }
@@ -13564,10 +13746,11 @@ impl Interpreter {
                 let ExprKind::Var(ctor_name) = &func.kind else {
                     return false;
                 };
-                if !self.constructors.contains_key(ctor_name.as_str()) {
+                let Some(signature) = self.constructor_signature_for_args(ctor_name, args) else {
                     return false;
-                }
-                let Some(pattern_args) = self.rule_constructor_pattern_args(ctor_name, args) else {
+                };
+                let Some(pattern_args) = self.rule_constructor_pattern_args(&signature, args)
+                else {
                     return false;
                 };
                 match val {
@@ -13579,9 +13762,7 @@ impl Interpreter {
                                 .all(|(param, value)| self.match_rule_param(param, value, env))
                     }
                     Value::NamedConstructor(value_ctor, fields) if value_ctor == ctor_name => {
-                        let Some(field_order) = self.field_names.get(ctor_name.as_str()) else {
-                            return false;
-                        };
+                        let field_order = &signature.fields;
                         if pattern_args.len() != field_order.len() {
                             return false;
                         }
@@ -14511,6 +14692,40 @@ fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
 // Pass 1: collect all declarations (functions, types, constructors, builtins)
 // Pass 2: walk the AST checking for undefined names, wrong arity, etc.
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TypeConstructorSignature {
+    parent: String,
+    positional: bool,
+    fields: Vec<String>,
+    field_types: Vec<Option<String>>,
+}
+
+impl TypeConstructorSignature {
+    fn arity(&self) -> usize {
+        self.fields.len()
+    }
+
+    fn matches_args(&self, args: &[Expr]) -> bool {
+        if has_named_args(args) {
+            if self.positional || !all_named_args(args) || args.len() != self.fields.len() {
+                return false;
+            }
+            let supplied = args
+                .iter()
+                .filter_map(named_arg_parts)
+                .map(|(field, _)| field)
+                .collect::<BTreeSet<_>>();
+            supplied.len() == args.len()
+                && self
+                    .fields
+                    .iter()
+                    .all(|field| supplied.contains(field.as_str()))
+        } else {
+            args.len() == self.arity()
+        }
+    }
+}
+
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
@@ -14520,6 +14735,8 @@ pub struct TypeChecker {
     pub types: BTreeSet<String>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
+    /// Every declaration of a constructor name, retained for overload resolution.
+    constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
     /// constructor/variant name -> declaration-order named fields.
     pub constructor_fields: BTreeMap<String, Vec<String>>,
     /// type name -> variant names (for exhaustiveness checking)
@@ -14600,6 +14817,7 @@ impl TypeChecker {
             function_params: BTreeMap::new(),
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
+            constructor_signatures: BTreeMap::new(),
             constructor_fields: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             builtins: BTreeMap::new(),
@@ -14828,15 +15046,19 @@ impl TypeChecker {
             tc.types.insert(name.to_string());
         }
         // Prelude constructors
-        tc.constructors.insert("None".into(), ("Option".into(), 0));
-        tc.constructors.insert("Some".into(), ("Option".into(), 1));
-        tc.constructors.insert("Ok".into(), ("Result".into(), 1));
-        tc.constructors.insert("Err".into(), ("Result".into(), 1));
-        tc.constructors.insert("Pair".into(), ("Pair".into(), 2));
-        tc.constructor_fields
-            .insert("Pair".into(), vec!["fst".into(), "snd".into()]);
-        tc.constructors.insert("True".into(), ("Bool".into(), 0));
-        tc.constructors.insert("False".into(), ("Bool".into(), 0));
+        tc.register_constructor_signature("Option", "None", true, vec![], vec![]);
+        tc.register_constructor_signature("Option", "Some", true, vec!["_0".into()], vec![None]);
+        tc.register_constructor_signature("Result", "Ok", true, vec!["_0".into()], vec![None]);
+        tc.register_constructor_signature("Result", "Err", true, vec!["_0".into()], vec![None]);
+        tc.register_constructor_signature(
+            "Pair",
+            "Pair",
+            false,
+            vec!["fst".into(), "snd".into()],
+            vec![None, None],
+        );
+        tc.register_constructor_signature("Bool", "True", true, vec![], vec![]);
+        tc.register_constructor_signature("Bool", "False", true, vec![], vec![]);
         // Prelude type variants (for exhaustiveness checking)
         tc.type_variants
             .insert("Option".into(), vec!["Some".into(), "None".into()]);
@@ -15093,12 +15315,135 @@ impl TypeChecker {
         }
     }
 
+    fn register_constructor_signature(
+        &mut self,
+        parent: &str,
+        constructor: &str,
+        positional: bool,
+        fields: Vec<String>,
+        field_types: Vec<Option<String>>,
+    ) {
+        let signature = TypeConstructorSignature {
+            parent: parent.to_string(),
+            positional,
+            fields,
+            field_types,
+        };
+        let signatures = self
+            .constructor_signatures
+            .entry(constructor.to_string())
+            .or_default();
+        if !signatures.contains(&signature) {
+            signatures.push(signature.clone());
+        }
+
+        self.constructors.insert(
+            constructor.to_string(),
+            (parent.to_string(), signature.arity()),
+        );
+        if signature.positional || signature.fields.is_empty() {
+            self.constructor_fields.remove(constructor);
+        } else {
+            self.constructor_fields
+                .insert(constructor.to_string(), signature.fields);
+        }
+    }
+
+    fn constructor_signature_for_args(
+        &self,
+        constructor: &str,
+        args: &[Expr],
+    ) -> Option<TypeConstructorSignature> {
+        let matching = self
+            .constructor_signatures
+            .get(constructor)?
+            .iter()
+            .filter(|signature| signature.matches_args(args))
+            .collect::<Vec<_>>();
+        let parents = matching
+            .iter()
+            .map(|signature| signature.parent.as_str())
+            .collect::<BTreeSet<_>>();
+        if parents.len() == 1 {
+            return matching.first().map(|signature| (*signature).clone());
+        }
+        None
+    }
+
+    fn constructor_signature_for_parent(
+        &self,
+        constructor: &str,
+        parent: Option<&str>,
+    ) -> Option<TypeConstructorSignature> {
+        let signatures = self.constructor_signatures.get(constructor)?;
+        if let Some(parent) = parent {
+            if let Some(signature) = signatures
+                .iter()
+                .find(|signature| signature.parent == parent)
+            {
+                return Some(signature.clone());
+            }
+        }
+        let (fallback_parent, fallback_arity) = self.constructors.get(constructor)?;
+        signatures
+            .iter()
+            .find(|signature| {
+                signature.parent == *fallback_parent && signature.arity() == *fallback_arity
+            })
+            .cloned()
+            .or_else(|| signatures.last().cloned())
+    }
+
+    fn constructor_signature_for_named_validation(
+        &self,
+        constructor: &str,
+        args: &[Expr],
+    ) -> Option<TypeConstructorSignature> {
+        if let Some(signature) = self.constructor_signature_for_args(constructor, args) {
+            return Some(signature);
+        }
+        let supplied = args
+            .iter()
+            .filter_map(named_arg_parts)
+            .map(|(field, _)| field)
+            .collect::<BTreeSet<_>>();
+        self.constructor_signatures
+            .get(constructor)?
+            .iter()
+            .filter(|signature| !signature.positional)
+            .max_by_key(|signature| {
+                signature
+                    .fields
+                    .iter()
+                    .filter(|field| supplied.contains(field.as_str()))
+                    .count()
+            })
+            .cloned()
+            .or_else(|| self.constructor_signature_for_parent(constructor, None))
+    }
+
+    fn constructor_parent_for_args(&self, constructor: &str, args: &[Expr]) -> Option<String> {
+        self.constructor_signature_for_args(constructor, args)
+            .map(|signature| signature.parent)
+    }
+
+    fn nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
+        let matching = self
+            .constructor_signatures
+            .get(constructor)?
+            .iter()
+            .filter(|signature| signature.arity() == 0)
+            .map(|signature| signature.parent.as_str())
+            .collect::<BTreeSet<_>>();
+        (matching.len() == 1).then(|| matching.into_iter().next().unwrap().to_string())
+    }
+
     fn check_named_constructor_args(
         &mut self,
         expr: &Expr,
         constructor: &str,
         args: &[Expr],
-        expected: usize,
+        signature: TypeConstructorSignature,
     ) {
         if args.iter().any(|arg| !is_named_arg_expr(arg)) {
             self.error_at_expr(
@@ -15118,7 +15463,7 @@ impl TypeChecker {
             return;
         }
 
-        let Some(fields) = self.constructor_fields.get(constructor).cloned() else {
+        if signature.positional {
             self.error_at_expr(
                 expr,
                 format!(
@@ -15132,7 +15477,10 @@ impl TypeChecker {
                 }
             }
             return;
-        };
+        }
+
+        let fields = signature.fields;
+        let expected = fields.len();
 
         let field_set: BTreeSet<&str> = fields.iter().map(|field| field.as_str()).collect();
         let mut seen = BTreeSet::new();
@@ -15316,14 +15664,36 @@ impl TypeChecker {
         &self,
         constructor: &str,
         index: usize,
+        parent: Option<&str>,
     ) -> Option<String> {
-        let field = self
-            .constructor_fields
-            .get(constructor)
-            .and_then(|fields| fields.get(index))
-            .cloned()
-            .unwrap_or_else(|| format!("_{}", index));
-        self.field_type_name(constructor, &field)
+        self.constructor_signature_for_parent(constructor, parent)
+            .and_then(|signature| signature.field_types.get(index).cloned().flatten())
+            .or_else(|| {
+                let field = self
+                    .constructor_fields
+                    .get(constructor)
+                    .and_then(|fields| fields.get(index))
+                    .cloned()
+                    .unwrap_or_else(|| format!("_{}", index));
+                self.field_type_name(constructor, &field)
+            })
+    }
+
+    fn named_constructor_pattern_field_type_name(
+        &self,
+        constructor: &str,
+        field: &str,
+        parent: Option<&str>,
+    ) -> Option<String> {
+        self.constructor_signature_for_parent(constructor, parent)
+            .and_then(|signature| {
+                signature
+                    .fields
+                    .iter()
+                    .position(|candidate| candidate == field)
+                    .and_then(|index| signature.field_types.get(index).cloned().flatten())
+            })
+            .or_else(|| self.field_type_name(constructor, field))
     }
 
     fn collect_pattern_type_bindings(
@@ -15340,13 +15710,18 @@ impl TypeChecker {
             }
             Pat::Con(constructor, fields) => {
                 for (index, field_pat) in fields.iter().enumerate() {
-                    let field_type = self.constructor_pattern_field_type_name(constructor, index);
+                    let field_type =
+                        self.constructor_pattern_field_type_name(constructor, index, subject_type);
                     self.collect_pattern_type_bindings(field_pat, field_type.as_deref(), bindings);
                 }
             }
             Pat::NamedCon(constructor, fields) => {
                 for (field, field_pat) in fields {
-                    let field_type = self.field_type_name(constructor, field);
+                    let field_type = self.named_constructor_pattern_field_type_name(
+                        constructor,
+                        field,
+                        subject_type,
+                    );
                     self.collect_pattern_type_bindings(field_pat, field_type.as_deref(), bindings);
                 }
             }
@@ -15404,6 +15779,7 @@ impl TypeChecker {
                 .get(name)
                 .cloned()
                 .or_else(|| self.var_type_name(name).map(str::to_string))
+                .or_else(|| self.nullary_constructor_parent(name))
                 .or_else(|| {
                     self.constructors
                         .get(name)
@@ -15415,6 +15791,9 @@ impl TypeChecker {
                         return args.get(1).and_then(|value| {
                             self.infer_expr_type_name_with_locals(value, locals)
                         });
+                    }
+                    if let Some(parent) = self.constructor_parent_for_args(name, args) {
+                        return Some(parent);
                     }
                     if let Some((parent, _)) = self.constructors.get(name) {
                         return Some(parent.clone());
@@ -16256,8 +16635,21 @@ impl TypeChecker {
                     let mut variant_names = Vec::new();
                     for variant in variants {
                         let field_count = variant.fields.len();
-                        self.constructors
-                            .insert(variant.name.clone(), (name.clone(), field_count));
+                        self.register_constructor_signature(
+                            name,
+                            &variant.name,
+                            variant.positional,
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| field.name.clone())
+                                .collect(),
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| Self::type_name_from_ty(&field.ty))
+                                .collect(),
+                        );
                         variant_names.push(variant.name.clone());
                         let variant_field_names: BTreeSet<String> = variant
                             .fields
@@ -16286,16 +16678,6 @@ impl TypeChecker {
                             self.type_field_types
                                 .insert(variant.name.clone(), variant_field_types);
                         }
-                        if !variant.positional && !variant.fields.is_empty() {
-                            self.constructor_fields.insert(
-                                variant.name.clone(),
-                                variant
-                                    .fields
-                                    .iter()
-                                    .map(|field| field.name.clone())
-                                    .collect(),
-                            );
-                        }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
                             self.user_functions.insert(name.clone());
@@ -16322,11 +16704,15 @@ impl TypeChecker {
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                     self.types.insert(name.clone());
-                    self.constructors
-                        .insert(name.clone(), (name.clone(), params.len()));
-                    self.constructor_fields.insert(
-                        name.clone(),
+                    self.register_constructor_signature(
+                        name,
+                        name,
+                        false,
                         params.iter().map(|param| param.name.clone()).collect(),
+                        params
+                            .iter()
+                            .map(|param| param.ty.as_ref().and_then(Self::type_name_from_ty))
+                            .collect(),
                     );
                     self.functions.insert(name.clone(), params.len());
                     self.function_params.insert(
@@ -17257,8 +17643,11 @@ impl TypeChecker {
                     let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
                     if has_named_args(args) {
-                        if let Some((_, expected)) = self.constructors.get(name).cloned() {
-                            self.check_named_constructor_args(expr, name, args, expected);
+                        if self.constructor_signatures.contains_key(name) {
+                            let signature = self
+                                .constructor_signature_for_named_validation(name, args)
+                                .expect("registered constructor has a validation signature");
+                            self.check_named_constructor_args(expr, name, args, signature);
                         } else if let Some(params) = self.function_params.get(name).cloned() {
                             self.check_named_call_args(expr, "function/rule", name, args, &params);
                         } else if self.functions.contains_key(name) {
@@ -17333,9 +17722,12 @@ impl TypeChecker {
                                 ),
                             );
                         }
-                    } else if let Some((_, expected)) = self.constructors.get(name) {
-                        let expected = *expected;
-                        if actual_arity != expected {
+                    } else if self.constructor_signatures.contains_key(name) {
+                        if self.constructor_signature_for_args(name, args).is_none() {
+                            let expected = self
+                                .constructor_signature_for_parent(name, None)
+                                .map(|signature| signature.arity())
+                                .unwrap_or(actual_arity);
                             self.error_at_expr(
                                 expr,
                                 format!(
@@ -17400,11 +17792,15 @@ impl TypeChecker {
             }
             ExprKind::Match(scrutinee, arms) => {
                 self.check_expr(scrutinee, _in_fn);
-                self.check_refined_variant_match(scrutinee, arms);
                 let subject_type = self.infer_expr_type_name(scrutinee);
+                self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
                 let mut first_arm_type = None;
                 for (index, arm) in arms.iter().enumerate() {
-                    self.check_pattern_constructor_arity(&arm.pat, &arm.body);
+                    self.check_pattern_constructor_arity(
+                        &arm.pat,
+                        &arm.body,
+                        subject_type.as_deref(),
+                    );
                     self.push_scope();
                     self.define_pat_vars(&arm.pat);
                     for (name, type_name) in
@@ -17574,16 +17970,19 @@ impl TypeChecker {
         }
     }
 
-    fn bare_fielded_constructor_name<'a>(&self, pat: &'a Pat) -> Option<&'a str> {
+    fn bare_fielded_constructor_name<'a>(
+        &self,
+        pat: &'a Pat,
+        subject_type: Option<&str>,
+    ) -> Option<&'a str> {
         let Pat::Con(name, args) = pat else {
             return None;
         };
         if !args.is_empty() {
             return None;
         }
-        self.constructors
-            .get(name)
-            .and_then(|(_, field_count)| (*field_count > 0).then_some(name.as_str()))
+        self.constructor_signature_for_parent(name, subject_type)
+            .and_then(|signature| (signature.arity() > 0).then_some(name.as_str()))
     }
 
     fn tag_only_pattern(pat: &Pat) -> bool {
@@ -17594,10 +17993,15 @@ impl TypeChecker {
         }
     }
 
-    fn check_refined_variant_match(&mut self, scrutinee: &Expr, arms: &[MatchArm]) {
+    fn check_refined_variant_match(
+        &mut self,
+        scrutinee: &Expr,
+        arms: &[MatchArm],
+        subject_type: Option<&str>,
+    ) {
         let bare_names: Vec<&str> = arms
             .iter()
-            .filter_map(|arm| self.bare_fielded_constructor_name(&arm.pat))
+            .filter_map(|arm| self.bare_fielded_constructor_name(&arm.pat, subject_type))
             .collect();
         if bare_names.is_empty() {
             return;
@@ -17622,36 +18026,55 @@ impl TypeChecker {
         }
     }
 
-    fn check_pattern_constructor_arity(&mut self, pat: &Pat, anchor: &Expr) {
+    fn check_pattern_constructor_arity(
+        &mut self,
+        pat: &Pat,
+        anchor: &Expr,
+        subject_type: Option<&str>,
+    ) {
         match pat {
             Pat::Con(name, args) => {
+                let signature = self.constructor_signature_for_parent(name, subject_type);
                 // A fielded variant with no arguments is the separate tag-only
                 // refinement form checked by check_refined_variant_match.
                 if !args.is_empty() {
-                    if let Some((_, expected)) = self.constructors.get(name) {
-                        if args.len() != *expected {
+                    if let Some(signature) = &signature {
+                        if args.len() != signature.arity() {
                             self.error_at_expr(
                                 anchor,
                                 format!(
                                     "constructor pattern `{}` expects {} fields but got {}; use an explicit wildcard for every ignored positional field",
                                     name,
-                                    expected,
+                                    signature.arity(),
                                     args.len()
                                 ),
                             );
                         }
                     }
                 }
-                for arg in args {
-                    self.check_pattern_constructor_arity(arg, anchor);
+                for (index, arg) in args.iter().enumerate() {
+                    let field_type = signature
+                        .as_ref()
+                        .and_then(|signature| signature.field_types.get(index))
+                        .and_then(|field_type| field_type.as_deref());
+                    self.check_pattern_constructor_arity(arg, anchor, field_type);
                 }
             }
-            Pat::NamedCon(_, fields) => {
-                for (_, field_pat) in fields {
-                    self.check_pattern_constructor_arity(field_pat, anchor);
+            Pat::NamedCon(name, fields) => {
+                let signature = self.constructor_signature_for_parent(name, subject_type);
+                for (field, field_pat) in fields {
+                    let field_type = signature.as_ref().and_then(|signature| {
+                        signature
+                            .fields
+                            .iter()
+                            .position(|candidate| candidate == field)
+                            .and_then(|index| signature.field_types.get(index))
+                            .and_then(|field_type| field_type.as_deref())
+                    });
+                    self.check_pattern_constructor_arity(field_pat, anchor, field_type);
                 }
             }
-            Pat::As(inner, _) => self.check_pattern_constructor_arity(inner, anchor),
+            Pat::As(inner, _) => self.check_pattern_constructor_arity(inner, anchor, subject_type),
             Pat::Wild | Pat::Var(_) | Pat::Lit(_) => {}
         }
     }
@@ -18054,6 +18477,32 @@ mod tests {
         assert_eq!(
             env.get("result").map(ToString::to_string),
             Some("FoldResult(total: 8)".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_constructor_reorders_named_arguments() {
+        let source = r#"
+# NamedCase(first: Int, second: Int) {
+    | result() -> first * 10 + second
+}
+
+= result = NamedCase(second = 2, first = 4).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse named RuleScope constructor regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("42".to_string())
         );
     }
 
@@ -18995,6 +19444,22 @@ mod tests {
         assert!(
             diags.is_empty(),
             "named constructor fields should type-check out of declaration order, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_resolves_duplicate_constructor_by_named_field_shape() {
+        let source = r#"
+# Event = Shared(value: Int) | EventOnly
+# Legacy = Shared(legacy_value: Int) | LegacyOnly
+
+= event = Shared(value = 42)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "named fields should select the matching constructor declaration, got: {:?}",
             diags
         );
     }

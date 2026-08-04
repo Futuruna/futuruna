@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pensionsbeskatningsloven
 @ importer ./kapitel - 01 - indkomst
+@ importer ./arbejdsmarkedsbidragsloven
 
 = personskat_pbl53a_felt_ordninger = Beregningsfelt(
     path = "kapitalindkomst.pbl53a.ordninger",
@@ -123,6 +124,237 @@
     help = Some("En rettidig udbetaling til dækning af afkastskatten medregnes ikke i den skattepligtige indkomst."),
     unit = Some("kr.")
 )
+= personskat_pbl53a_felt_hændelser = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser",
+    label = "Hændelser på § 53 A-ordningen",
+    question = Some("Hvilke indbetalinger og udbetalinger er sket på ordningen?"),
+    help = Some("Angiv hændelserne kronologisk. Brug en entydig identifikation og rækkefølge for hver hændelse."),
+    unit = None
+)
+= personskat_pbl53a_felt_hændelsestype = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.$variant",
+    label = "Type § 53 A-hændelse",
+    question = Some("Er hændelsen en indbetaling eller en udbetaling?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
+    label = "Indbetalingens identifikation",
+    question = Some("Hvilken entydig identifikation skal indbetalingen have?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_indkomstår = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.tidspunkt.indkomstår",
+    label = "Indbetalingens indkomstår",
+    question = Some("I hvilket indkomstår blev indbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_rækkefølge = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_i_indkomståret",
+    label = "Indbetalingens rækkefølge i året",
+    question = Some("Hvilket nummer har indbetalingen i ordningens kronologiske hændelsesforløb for året?"),
+    help = Some("Nummerér ordningens hændelser fra 1 og opefter i den rækkefølge, de skete."),
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_beløb = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.beløb_kroner",
+    label = "Indbetalt beløb",
+    question = Some("Hvor stort var det indbetalte beløb?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_indbetalingsperiode = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.periode",
+    label = "Indbetalingens periode",
+    question = Some("Blev beløbet indbetalt, mens ordningen var omfattet af § 53 A, eller før?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaler = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.$variant",
+    label = "Hvem foretog indbetalingen",
+    question = Some("Hvem foretog indbetalingen på ordningen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startår = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.startdato.år",
+    label = "Udsendelsens startår",
+    question = Some("I hvilket år begyndte ægtefællens eller samleverens udsendelse?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startmåned = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.startdato.måned",
+    label = "Udsendelsens startmåned",
+    question = Some("I hvilken måned begyndte udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_startdag = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.startdato.dag",
+    label = "Udsendelsens startdag",
+    question = Some("På hvilken dag i måneden begyndte udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutår = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.slutdato.år",
+    label = "Udsendelsens slutår",
+    question = Some("I hvilket år sluttede ægtefællens eller samleverens udsendelse?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutmåned = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.slutdato.måned",
+    label = "Udsendelsens slutmåned",
+    question = Some("I hvilken måned sluttede udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelse_slutdag = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.slutdato.dag",
+    label = "Udsendelsens slutdag",
+    question = Some("På hvilken dag i måneden sluttede udsendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udsendelsessted = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.sted",
+    label = "Udsendelsessted",
+    question = Some("Hvor var ægtefællen eller samleveren udsendt?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_fælles_bopæl = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.fælles_bopæl_hele_perioden",
+    label = "Fælles bopæl under udsendelsen",
+    question = Some("Havde I fælles bopæl under hele udsendelsesperioden?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_indbetaling_til_afsnit_i_eller_iia = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.Pbl53AÆgtefællesEllerSamleversArbejdsgiver.udsendelse.indbetaling_til_afsnit_i_eller_iia_under_udsendelsen",
+    label = "Indbetaling til ordning i afsnit I eller II A",
+    question = Some("Foretog ægtefællens eller samleverens arbejdsgiver under udsendelsen indbetaling til en pensionsordning omfattet af afsnit I eller II A?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_fradragsstatus = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus",
+    label = "Ejerens fradrags- eller bortseelsesret",
+    question = Some("Var der hel eller delvis fradrags- eller bortseelsesret for indbetalingen i Danmark eller udlandet?"),
+    help = Some("Oplys den faktiske skattemæssige behandling af indbetalingen; en senere udbetaling kan blive skattepligtig efter stk. 5."),
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.identifikation",
+    label = "Udbetalingens identifikation",
+    question = Some("Hvilken entydig identifikation skal udbetalingen have?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_indkomstår = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.tidspunkt.indkomstår",
+    label = "Udbetalingens indkomstår",
+    question = Some("I hvilket indkomstår blev udbetalingen foretaget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_rækkefølge = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.tidspunkt.rækkefølge_i_indkomståret",
+    label = "Udbetalingens rækkefølge i året",
+    question = Some("Hvilket nummer har udbetalingen i ordningens kronologiske hændelsesforløb for året?"),
+    help = Some("Nummerér ordningens hændelser fra 1 og opefter i den rækkefølge, de skete."),
+    unit = None
+)
+= personskat_pbl53a_felt_udbetalingsmodtager = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.modtager",
+    label = "Udbetalingens modtager",
+    question = Some("Hvem modtog udbetalingen?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_bruttoudbetaling = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.bruttoudbetaling_kroner",
+    label = "Bruttoudbetaling",
+    question = Some("Hvor stort var det udbetalte beløb før skat?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_udbetalingsart = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.$variant",
+    label = "Type § 53 A-udbetaling",
+    question = Some("Kom udbetalingen fra ordningen eller fra arbejdsgiverens pensionstilsagn?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_kapitalværdi_før_udbetaling = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.kapitalværdi_umiddelbart_før_udbetalingen_kroner",
+    label = "Kapitalværdi før udbetalingen",
+    question = Some("Hvad var ordningens kapitalværdi umiddelbart før udbetalingen?"),
+    help = Some("Kapitalværdien bruges til at fordele tidligere fradrags- eller bortseelsesberettiget principal forholdsmæssigt."),
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_produktart = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.produktart",
+    label = "Pensionsproduktets art",
+    question = Some("Svarer ordningen til en dansk kapitalforsikring eller opsparing i pensionsøjemed?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_udbetalingsform = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.udbetalingsform.$variant",
+    label = "Udbetalingsform",
+    question = Some("Er der tale om en samlet kapitaludbetaling?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_kapitaludbetalingsgrund = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.udbetalingsform.Pbl53ASamletKapitaludbetaling.grund",
+    label = "Grund til samlet kapitaludbetaling",
+    question = Some("Hvorfor blev kapitalen udbetalt samlet?"),
+    help = Some("Pensionsalder, invaliditet, livstruende sygdom eller død kan udløse stk. 5's 75-procentregel."),
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_skattepligt = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.skattepligt",
+    label = "Skattepligt for PBL § 20, stk. 6",
+    question = Some("Er personen skattepligtig efter kildeskattelovens § 1 eller hjemmehørende i Danmark efter en dobbeltbeskatningsoverenskomst?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_stat = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.stat",
+    label = "Stat for PBL § 20, stk. 6",
+    question = Some("Ligger den anden stat inden for EU eller EØS?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_erklæring = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.erklæring",
+    label = "Erklæring for PBL § 20, stk. 6",
+    question = Some("Er der afgivet en erklæring svarende til PBL § 15 C, stk. 1, nr. 3, litra a?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_stk6_udenlandsk_skat = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
+    label = "Indkomstskat betalt til den anden stat",
+    question = Some("Hvor meget indkomstskat blev betalt til den anden stat i medfør af erklæringen?"),
+    help = Some("Beløbet føres særskilt til mulig lempelse efter ligningslovens § 33, stk. 1."),
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_sikkerhedsstillelse = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn.sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner",
+    label = "Modsvarende sikkerhedsstillelse",
+    question = Some("Hvor stor en del af arbejdsgiverens udbetaling modsvares af sikkerhedsstillelsen eller den tidligere sikkerhedsstillelse?"),
+    help = None,
+    unit = Some("kr.")
+)
 
 = personskat_pbl53a_beregningsmeta = Beregningsmeta(
     felter = [
@@ -142,13 +374,52 @@
         personskat_pbl53a_felt_fremført_negativt_afkast,
         personskat_pbl53a_felt_andel_taeller,
         personskat_pbl53a_felt_andel_naevner,
-        personskat_pbl53a_felt_udbetaling_til_afkastskat
+        personskat_pbl53a_felt_udbetaling_til_afkastskat,
+        personskat_pbl53a_felt_hændelser,
+        personskat_pbl53a_felt_hændelsestype,
+        personskat_pbl53a_felt_indbetaling_identifikation,
+        personskat_pbl53a_felt_indbetaling_indkomstår,
+        personskat_pbl53a_felt_indbetaling_rækkefølge,
+        personskat_pbl53a_felt_indbetaling_beløb,
+        personskat_pbl53a_felt_indbetalingsperiode,
+        personskat_pbl53a_felt_indbetaler,
+        personskat_pbl53a_felt_udsendelse_startår,
+        personskat_pbl53a_felt_udsendelse_startmåned,
+        personskat_pbl53a_felt_udsendelse_startdag,
+        personskat_pbl53a_felt_udsendelse_slutår,
+        personskat_pbl53a_felt_udsendelse_slutmåned,
+        personskat_pbl53a_felt_udsendelse_slutdag,
+        personskat_pbl53a_felt_udsendelsessted,
+        personskat_pbl53a_felt_fælles_bopæl,
+        personskat_pbl53a_felt_indbetaling_til_afsnit_i_eller_iia,
+        personskat_pbl53a_felt_fradragsstatus,
+        personskat_pbl53a_felt_udbetaling_identifikation,
+        personskat_pbl53a_felt_udbetaling_indkomstår,
+        personskat_pbl53a_felt_udbetaling_rækkefølge,
+        personskat_pbl53a_felt_udbetalingsmodtager,
+        personskat_pbl53a_felt_bruttoudbetaling,
+        personskat_pbl53a_felt_udbetalingsart,
+        personskat_pbl53a_felt_kapitalværdi_før_udbetaling,
+        personskat_pbl53a_felt_produktart,
+        personskat_pbl53a_felt_udbetalingsform,
+        personskat_pbl53a_felt_kapitaludbetalingsgrund,
+        personskat_pbl53a_felt_stk6_skattepligt,
+        personskat_pbl53a_felt_stk6_stat,
+        personskat_pbl53a_felt_stk6_erklæring,
+        personskat_pbl53a_felt_stk6_udenlandsk_skat,
+        personskat_pbl53a_felt_sikkerhedsstillelse
     ],
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+        DependencySource(value = personskatteloven_lbk1284_par3),
         DependencySource(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )
 
