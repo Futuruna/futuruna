@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - genanbringelse
 
@@ -23,7 +24,15 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par11::source:ebl_par11_lbk132::currentness_source:ebl_par11_lov615_ændringsstatus::guidance:ebl_par11_vejledning_2026--
+= ebl_par11_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = CurrentnessSource, value = ebl_par11_lov615_ændringsstatus),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+    )
+)
+
+--@label:ebl_par11::meta:ebl_par11_metadata--
 ----
 § 11. Fortjeneste, der er indvundet ved modtagelse af en erstatningssum i
 anledning af ekspropriation, medregnes ikke. Det samme gælder fortjeneste ved

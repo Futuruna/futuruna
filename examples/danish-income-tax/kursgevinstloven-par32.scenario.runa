@@ -1,8 +1,17 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven - par32
 
---@label:kursgevinstloven_par32_scenarier::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::amendment_source:kursgevinstloven_lov1563_par4_par8--
+= kursgevinstloven_par32_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = kursgevinstloven_lbk1176_par32),
+        MetaAttachment(role = Guidance, value = kursgevinstloven_juridisk_vejledning_par32),
+        MetaAttachment(role = AmendmentSource, value = kursgevinstloven_lov1563_par4_par8),
+    )
+)
+
+--@label:kursgevinstloven_par32_scenarier::meta:kursgevinstloven_par32_scenarier_metadata--
 ----
 § 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
 omfang det angives i stk. 2-5.

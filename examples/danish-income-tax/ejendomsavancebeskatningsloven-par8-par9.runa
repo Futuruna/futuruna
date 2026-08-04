@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
 @ importer ./ejendomsavancebeskatningsloven - genanbringelse
@@ -42,7 +43,16 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par8::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308::guidance:ebl_par8_stk4_vejledning_2026::guidance:ebl_genanbringelse_vejledning_2026--
+= ebl_par8_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = Guidance, value = ebl_par8_stk4_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_genanbringelse_vejledning_2026),
+    )
+)
+
+--@label:ebl_par8::meta:ebl_par8_metadata--
 ----
 § 8. Fortjeneste ved afståelse af en- og tofamilieshuse og ejerlejligheder skal
 ikke medregnes, hvis huset eller lejligheden har tjent til bolig for ejeren
@@ -117,7 +127,18 @@ ejendommen til en beskyttet bolig eller til et plejehjem og
 til bolig for ejeren umiddelbart forud for fraflytningen.
 ----
 
---@label:ebl_par9::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308::amendment_source:ebl_par9_lov1580::amendment_source:ebl_par9_lov562::guidance:ebl_par9_vejledning_2026::guidance:ebl_genanbringelse_vejledning_2026--
+= ebl_par9_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = AmendmentSource, value = ebl_par9_lov1580),
+        MetaAttachment(role = AmendmentSource, value = ebl_par9_lov562),
+        MetaAttachment(role = Guidance, value = ebl_par9_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_genanbringelse_vejledning_2026),
+    )
+)
+
+--@label:ebl_par9::meta:ebl_par9_metadata--
 ----
 § 9. Ved afståelse af en ejendom, der på afståelsestidspunktet anses for
 landbrugs- eller skovejendom efter ejendomsvurderingsloven, skal den del af

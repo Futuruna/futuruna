@@ -1,8 +1,20 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./personskat.calculate
 
---@label:personskat_erhvervsbefordring_scenarier::source:ligningsloven_lbk1500_par9b::source:personskatteloven_lbk1284_par3::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
+= personskat_erhvervsbefordring_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par3),
+        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+    )
+)
+
+--@label:personskat_erhvervsbefordring_scenarier::meta:personskat_erhvervsbefordring_scenarier_metadata--
 ----
 Scenarierne er ikke lovtekst. De fastholder den kanoniske beregningskæde fra
 flere identificerede kørsels- og godtgørelsessager gennem ligningslovens § 9 B

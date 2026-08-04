@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 
 = aktieavancebeskatningsloven_lbk1098_par33a = AktieavancebeskatningslovKildeInfo(
@@ -13,7 +14,16 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par33a::source:aktieavancebeskatningsloven_lbk1098_par33a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par33a::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par33a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par33a),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par33a),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par33a::meta:aktieavancebeskatningsloven_par33a_metadata--
 ----
 § 33 A. I tilfælde, hvor aktier skifter skattemæssig status, jf. stk. 2, skal
 aktierne anses for afstået og anskaffet igen til handelsværdien på tidspunktet

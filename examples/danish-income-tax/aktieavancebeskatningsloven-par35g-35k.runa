@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./selskabsskatteloven
 @ importer ./pengebeloeb
@@ -26,7 +27,14 @@ Stk. 1. Loven træder i kraft den 1. januar 2026.
 | aktieavance_par35g_til_par35k_har_virkning(indkomstår: Heltal) -> indkomstår >= 2026
 --@end:aktieavancebeskatningsloven_lov1755_par8_stk1--
 
---@label:aktieavancebeskatningsloven_par35g_par35h::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k--
+= aktieavancebeskatningsloven_par35g_par35h_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par35g_par35h::meta:aktieavancebeskatningsloven_par35g_par35h_metadata--
 ----
 § 35 G. Ved overdragelse af aktier fra en fysisk person til en
 medarbejderejevirksomhed, jf. selskabsskattelovens § 1, stk. 1, nr. 2 j, kan
@@ -173,7 +181,15 @@ opgørelsen af overdragerens skattepligtige indkomst.
 )
 --@end:aktieavancebeskatningsloven_par35g_par35h--
 
---@label:aktieavancebeskatningsloven_par35i::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k::rate_source:selskabsskatteloven_lbk279_par17_stk1--
+= aktieavancebeskatningsloven_par35i_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        MetaAttachment(role = RateSource, value = selskabsskatteloven_lbk279_par17_stk1),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par35i::meta:aktieavancebeskatningsloven_par35i_metadata--
 ----
 § 35 I. Der skal ved overdragelsen etableres en beholdningsoversigt over de
 aktier, der overdrages til medarbejderejevirksomheden. Ved en efterfølgende
@@ -391,7 +407,15 @@ til 0.
 | aktieavance_par35i_omstruktureringsresultat(tilstand: AktieavancePar35ITilstand, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti)) -> AktieavancePar35IOmstruktureringsSag(tilstand, skattefri_med_succession, ny_beholdning).resultat()
 --@end:aktieavancebeskatningsloven_par35i--
 
---@label:aktieavancebeskatningsloven_par35j::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k::rate_source:selskabsskatteloven_lbk279_par17_stk1--
+= aktieavancebeskatningsloven_par35j_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        MetaAttachment(role = RateSource, value = selskabsskatteloven_lbk279_par17_stk1),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par35j::meta:aktieavancebeskatningsloven_par35j_metadata--
 ----
 § 35 J. Er betingelsen i § 35 G, stk. 1, 2. pkt., for aktier, der indgår på
 beholdningsoversigten efter § 35 I, stk. 1, ikke opfyldt i 5 år regnet fra
@@ -481,7 +505,14 @@ overdragerskatten nedskrives med beløbet, når det er betalt.
 | aktieavance_par35j_værdinedgangsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35JVærdinedgangsdisposition) -> AktieavancePar35JVærdinedgangsSag(tilstand, data).resultat()
 --@end:aktieavancebeskatningsloven_par35j--
 
---@label:aktieavancebeskatningsloven_par35k::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k::preparatory_work:aktieavancebeskatningsloven_lsf71_par35g_til_par35k--
+= aktieavancebeskatningsloven_par35k_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par35k::meta:aktieavancebeskatningsloven_par35k_metadata--
 ----
 § 35 K. Medarbejderejevirksomheden skal inden for den frist, der er angivet i
 skattekontrollovens § 12, jf. § 13, indgive en ajourført beholdningsoversigt og

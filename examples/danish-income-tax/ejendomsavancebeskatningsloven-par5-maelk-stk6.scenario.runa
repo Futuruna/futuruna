@@ -1,8 +1,18 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par5_mælk_stk6_scenarier::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026::amendment_source:ebl_par5_lov615--
+= ebl_par5_mælk_stk6_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
+        MetaAttachment(role = AmendmentSource, value = ebl_par5_lov615),
+    )
+)
+
+--@label:ebl_par5_mælk_stk6_scenarier::meta:ebl_par5_mælk_stk6_scenarier_metadata--
 --@begin:ebl_par5_mælk_stk6_scenarier--
 | ebl_par5_scenarie_fakta(
     anskaffelsesdato: EblDato,

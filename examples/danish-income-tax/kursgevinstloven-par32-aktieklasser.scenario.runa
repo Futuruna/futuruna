@@ -1,8 +1,20 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven - par32
 
---@label:kursgevinstloven_par32_aktieklasser_scenarier::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:kursgevinstloven_lov1563_par4_par8--
+= kursgevinstloven_par32_aktieklasser_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = kursgevinstloven_lbk1176_par32),
+        MetaAttachment(role = Guidance, value = kursgevinstloven_juridisk_vejledning_par32),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par19d),
+        MetaAttachment(role = AmendmentSource, value = kursgevinstloven_lov1563_par4_par8),
+    )
+)
+
+--@label:kursgevinstloven_par32_aktieklasser_scenarier::meta:kursgevinstloven_par32_aktieklasser_scenarier_metadata--
 ----
 § 32.
 

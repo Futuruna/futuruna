@@ -1,8 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven - par6d
 
---@label:ebl_par6d_scenarier::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
+= ebl_par6d_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+
+--@label:ebl_par6d_scenarier::meta:ebl_par6d_scenarier_metadata--
 --@begin:ebl_par6d_scenarier--
 | ebl_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),

@@ -1,8 +1,17 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par5_par9_scenarier::source:ebl_par5_lbk132::source:ebl_par8_par9_lbk132::guidance:ebl_par6d_vejledning_2026--
+= ebl_par5_par9_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+
+--@label:ebl_par5_par9_scenarier::meta:ebl_par5_par9_scenarier_metadata--
 --@begin:ebl_par5_par9_scenarier--
 = ebl_scenarie_anskaffelsesdato_2026 = EblDato(år = 2026, måned = 1, dag = 1)
 = ebl_scenarie_afståelsesdato_2026 = EblDato(år = 2026, måned = 12, dag = 31)

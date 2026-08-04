@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./opkraevningsloven
 
@@ -802,7 +803,15 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
     besked = "LBK 1500/2025 indeholder ikke de dele af LOV 749/2025, der trådte i kraft 1. januar 2026; den gældende position kræver begge kilder."
 )
 
---@label:ligningsloven_par12b_lbk1500::source:ligningslov12b_lbk1500::amendment_source:ligningslov12b_lov749::warning:ligningslov12b_ukonsolideret_2026_advarsel--
+= ligningsloven_par12b_lbk1500_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningslov12b_lbk1500),
+        MetaAttachment(role = AmendmentSource, value = ligningslov12b_lov749),
+        MetaAttachment(role = Warning, value = ligningslov12b_ukonsolideret_2026_advarsel),
+    )
+)
+
+--@label:ligningsloven_par12b_lbk1500::meta:ligningsloven_par12b_lbk1500_metadata--
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt
 bebyrdende aftale om overdragelse af et eller flere aktiver, gælder reglerne i
@@ -928,7 +937,14 @@ indflydelse, der er egnet til at påvirke de beslutninger, institutionen m.v.
 træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
 ----
 
---@label:ligningsloven_par12b_historisk::historical_source:ligningslov12b_historisk_lbk42::transition_source:ligningslov12b_lov749--
+= ligningsloven_par12b_historisk_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = HistoricalSource, value = ligningslov12b_historisk_lbk42),
+        MetaAttachment(role = TransitionSource, value = ligningslov12b_lov749),
+    )
+)
+
+--@label:ligningsloven_par12b_historisk::meta:ligningsloven_par12b_historisk_metadata--
 ----
 Stk. 2. Parterne skal til brug for opgørelsen af den skattepligtige indkomst
 foretage en kapitalisering af den løbende ydelse. Kapitaliseringen skal
@@ -1010,7 +1026,15 @@ tilsvarende anvendelse, dog således, at henvisningen til stk. 5 i stk. 7 i
 disse tilfælde alene gælder stk. 5, 1.-4. pkt.
 ----
 
---@label:ligningsloven_par12b_2026_aendring::amendment_source:ligningslov12b_lov749::transition_source:ligningslov12b_lov749::guidance:ligningslov12b_juridisk_vejledning_henstand--
+= ligningsloven_par12b_2026_aendring_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = AmendmentSource, value = ligningslov12b_lov749),
+        MetaAttachment(role = TransitionSource, value = ligningslov12b_lov749),
+        MetaAttachment(role = Guidance, value = ligningslov12b_juridisk_vejledning_henstand),
+    )
+)
+
+--@label:ligningsloven_par12b_2026_aendring::meta:ligningsloven_par12b_2026_aendring_metadata--
 ----
 § 1
 

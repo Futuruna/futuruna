@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
@@ -511,7 +512,14 @@ tilbehør tages ud af virksomhedsordningen.
 )
 --@end:afskrivningsloven_par4--
 
---@label:afskrivningsloven_2026_parametre::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_2026_parametre_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_2026_parametre::meta:afskrivningsloven_2026_parametre_metadata--
 ----
 Skatteministeriets offentliggjorte 2026-satser til afskrivningsloven:
 
@@ -546,7 +554,14 @@ forsøgsvirksomhed (§ 6, stk. 1): 1.088,8 mio. kr.
 ) under indkomstår == 2026
 --@end:afskrivningsloven_2026_parametre--
 
---@label:afskrivningsloven_par5::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par5_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par5::meta:afskrivningsloven_par5_metadata--
 ----
 § 5. Driftsmidler og skibe, som en skattepligtig udelukkende benytter
 erhvervsmæssigt, skal afskrives på en samlet saldo for den enkelte
@@ -681,7 +696,14 @@ tilladelsen.
 )
 --@end:afskrivningsloven_par5--
 
---@label:afskrivningsloven_par5a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par5a_juridisk_vejledning--
+= afskrivningsloven_par5a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par5a_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par5a::meta:afskrivningsloven_par5a_metadata--
 ----
 § 5 A. Har en skattepligtig solgt et driftsmiddel eller et skib omfattet
 af dette kapitel til et beløb, der er mindre end anskaffelsessummen med
@@ -732,7 +754,14 @@ efter § 5.
 )
 --@end:afskrivningsloven_par5a--
 
---@label:afskrivningsloven_par5b::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par5b_sats_juridisk_vejledning--
+= afskrivningsloven_par5b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par5b_sats_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par5b::meta:afskrivningsloven_par5b_metadata--
 ----
 § 5 B. Skibe med en bruttotonnage på 20 t eller derover, der anvendes til
 erhvervsmæssig transport af passagerer eller gods, afskrives på en særskilt
@@ -812,7 +841,15 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
 )
 --@end:afskrivningsloven_par5b--
 
---@label:afskrivningsloven_par5c::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par5c_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par5c_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par5c_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par5c::meta:afskrivningsloven_par5c_metadata--
 ----
 § 5 C. Følgende driftsmidler afskrives på en særskilt saldo:
 
@@ -913,7 +950,14 @@ senere.
 )
 --@end:afskrivningsloven_par5c--
 
---@label:afskrivningsloven_par5d_par5e::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_saldoprincip_juridisk_vejledning--
+= afskrivningsloven_par5d_par5e_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_saldoprincip_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par5d_par5e::meta:afskrivningsloven_par5d_par5e_metadata--
 ----
 § 5 D. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 afskrive udgifter til anskaffelse af nye driftsmidler, som udelukkende benyttes
@@ -957,7 +1001,14 @@ efter § 5 ved udgangen af indkomståret 2026. Den derved fremkomne samlede
 saldoværdi behandles fra og med indkomståret 2027 efter § 5.
 ----
 
---@label:afskrivningsloven_par5d_par5e::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_saldoprincip_juridisk_vejledning--
+= afskrivningsloven_par5d_par5e_metadata_2 = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_saldoprincip_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par5d_par5e::meta:afskrivningsloven_par5d_par5e_metadata_2--
 ----
 § 5 E. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 afskrive udgifter til anskaffelse af nye driftsmidler, som udelukkende benyttes
@@ -1080,7 +1131,15 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
 )
 --@end:afskrivningsloven_par5d_par5e--
 
---@label:afskrivningsloven_par6::source:afskrivningsloven_lbk1222::guidance_source:afskrivningsloven_par6_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par6_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = GuidanceSource, value = afskrivningsloven_par6_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par6::meta:afskrivningsloven_par6_metadata--
 ----
 § 6. Den skattepligtige kan i stedet for at afskrive efter § 5 vælge at
 fradrage (straksafskrive) hele anskaffelsessummen for nedennævnte
@@ -1277,7 +1336,14 @@ aktivet i den stand, det var i ved skadens indtræden.
 )
 --@end:afskrivningsloven_par7--
 
---@label:afskrivningsloven_par8::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_negativ_saldo_juridisk_vejledning--
+= afskrivningsloven_par8_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_negativ_saldo_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par8::meta:afskrivningsloven_par8_metadata--
 ----
 § 8. I det omfang en negativ saldo, der er fremkommet som følge af, at
 salgssummer m.v. skal fradrages i afskrivningsgrundlaget, jf. § 5, stk. 2, § 5
@@ -1349,7 +1415,14 @@ stilles sikkerhed for skattebetalingen.
 )
 --@end:afskrivningsloven_par8--
 
---@label:afskrivningsloven_par9::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_ophør_juridisk_vejledning--
+= afskrivningsloven_par9_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_ophør_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par9::meta:afskrivningsloven_par9_metadata--
 ----
 § 9. I det indkomstår, hvori en virksomhed sælges eller i øvrigt ophører
 (ophørsåret), kan der ikke afskrives eller straksafskrives på driftsmidler eller
@@ -1454,7 +1527,15 @@ for det indkomstår, hvori salget finder sted.
 )
 --@end:afskrivningsloven_par9--
 
---@label:afskrivningsloven_par10::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_dok_bedding_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par10_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_dok_bedding_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par10::meta:afskrivningsloven_par10_metadata--
 ----
 § 10. Afskrivningsreglerne i §§ 5-9 kan anvendes på dok- og beddingsanlæg, der
 er beregnet til bygning og reparation af skibe, samt på de bygninger,
@@ -1488,7 +1569,15 @@ også behandles efter de nævnte regler.
 )
 --@end:afskrivningsloven_par10--
 
---@label:afskrivningsloven_par11::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par11_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par11::meta:afskrivningsloven_par11_metadata--
 ----
 § 11. Driftsmidler og skibe, som en skattepligtig benytter både til
 erhvervsmæssige og til private formål, skal afskrives særskilt for hvert
@@ -1578,7 +1667,14 @@ tilsvarende anvendelse.
 | afskrivningslov11_årsopgørelse_gyldig(årsopgørelse: Afskrivningslov11Årsopgørelse) -> afskrivningslov_benyttelse_er_blandet(årsopgørelse.benyttelse) && årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner >= 0 && årsopgørelse.fradraget_afskrivning_kroner <= årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner
 --@end:afskrivningsloven_par11--
 
---@label:afskrivningsloven_par12::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+= afskrivningsloven_par12_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par12::meta:afskrivningsloven_par12_metadata--
 ----
 § 12. Sælges et driftsmiddel eller skib som nævnt i § 11, kan der ikke for
 salgsåret beregnes afskrivning på det solgte driftsmiddel eller skib.
@@ -1658,7 +1754,14 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
 )
 --@end:afskrivningsloven_par12--
 
---@label:afskrivningsloven_par13::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+= afskrivningsloven_par13_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par13::meta:afskrivningsloven_par13_metadata--
 ----
 § 13. Udgår et driftsmiddel eller skib som nævnt i § 11 af driften på grund
 af en skade, kan der ikke afskrives på driftsmidlet eller skibet i det
@@ -1724,7 +1827,14 @@ den skattepligtige indkomst.
 )
 --@end:afskrivningsloven_par13--
 
---@label:afskrivningsloven_par14::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par14_juridisk_vejledning--
+= afskrivningsloven_par14_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par14_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par14::meta:afskrivningsloven_par14_metadata--
 ----
 § 14. Erhvervsmæssigt benyttede bygninger afskrives særskilt for hver enkelt
 bygning efter reglerne i dette kapitel.
@@ -1816,7 +1926,14 @@ gårdspladser, parkeringspladser, hegn eller lignende.
 | afskrivningslov14_resultat(input: Afskrivningslov14Input) -> afskrivningslov14_sag(input).resultat()
 --@end:afskrivningsloven_par14--
 
---@label:afskrivningsloven_par15::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par15_juridisk_vejledning--
+= afskrivningsloven_par15_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par15_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par15::meta:afskrivningsloven_par15_metadata--
 ----
 § 15. Installationer, der udelukkende tjener bygninger, hvorpå der kan
 afskrives efter § 14, behandles og afskrives som de nævnte bygninger. Det gælder
@@ -1877,7 +1994,14 @@ i den bygning, hvori ejerlejligheden findes.
 | afskrivningslov15_resultat(input: Afskrivningslov15Input) -> afskrivningslov15_sag(input).resultat()
 --@end:afskrivningsloven_par15--
 
---@label:afskrivningsloven_par16::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par16_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par16::meta:afskrivningsloven_par16_metadata--
 ----
 § 16. En bygning eller en installation anses for anskaffet i det indkomstår,
 hvori bygningen eller installationen erhverves eller opføres og benyttes
@@ -1934,7 +2058,14 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 | afskrivningslov16_resultat(input: Afskrivningslov16Input) -> afskrivningslov16_sag(input).resultat()
 --@end:afskrivningsloven_par16--
 
---@label:afskrivningsloven_par17::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par17_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par17::meta:afskrivningsloven_par17_metadata--
 ----
 § 17. Afskrivning på bygninger efter § 14 og installationer efter § 15, stk. 1
 og 2, kan fra og med anskaffelsesåret foretages med indtil 3 pct. årligt af
@@ -2072,7 +2203,14 @@ først erhvervede ideelle andel for den først afståede.
 )
 --@end:afskrivningsloven_par17--
 
---@label:afskrivningsloven_par18::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par18_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par18::meta:afskrivningsloven_par18_metadata--
 ----
 § 18. Udgifter til ombygning eller forbedring afskrives særskilt, jf. § 17.
 Såfremt udgifterne er afholdt i samme indkomstår, kan afskrivning dog foretages
@@ -2184,7 +2322,15 @@ stk. 2.
 | afskrivningslov18_resultat(input: Afskrivningslov18Input) -> afskrivningslov18_sag(input).resultat()
 --@end:afskrivningsloven_par18--
 
---@label:afskrivningsloven_par19::source:afskrivningsloven_lbk1222::basis_guidance:afskrivningsloven_bygningsgrundlag_juridisk_vejledning::interval_guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par19_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = BasisGuidance, value = afskrivningsloven_bygningsgrundlag_juridisk_vejledning),
+        MetaAttachment(role = IntervalGuidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par19::meta:afskrivningsloven_par19_metadata--
 ----
 § 19. Anvendes kun en del af en bygning til formål, der berettiger til
 afskrivning efter § 14, kan der kun afskrives på den del af anskaffelsessummen,
@@ -2332,7 +2478,14 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 | afskrivningslov19_historik_fra_resultat(resultat: Afskrivningslov19Resultat) -> afskrivningslov19_historik(resultat.skatteyder, resultat.anskaffelsessum_efter_ejerbolig_kroner, resultat.afskrivningsberettigede_indkomstår_for_bygningen, resultat.intervaller)
 --@end:afskrivningsloven_par19--
 
---@label:afskrivningsloven_par20::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par20_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par20::meta:afskrivningsloven_par20_metadata--
 ----
 § 20. Afskrivning kan ikke foretages i det indkomstår, hvori bygningen sælges
 eller nedrives. Det samme gælder, når en installation omfattet af § 15, stk. 2
@@ -2387,7 +2540,14 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
 )
 --@end:afskrivningsloven_par20--
 
---@label:afskrivningsloven_par21::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par21_juridisk_vejledning--
+= afskrivningsloven_par21_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par21_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par21::meta:afskrivningsloven_par21_metadata--
 ----
 § 21. Genvundne afskrivninger eller tab ved salg af bygninger eller
 installationer, hvorpå der er afskrevet efter § 14 eller § 15, medregnes i den
@@ -2600,7 +2760,14 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 | afskrivningslov21_resultat(input: Afskrivningslov21Input) -> afskrivningslov21_sag(input).resultat()
 --@end:afskrivningsloven_par21--
 
---@label:afskrivningsloven_par22::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par22_juridisk_vejledning--
+= afskrivningsloven_par22_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par22_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par22::meta:afskrivningsloven_par22_metadata--
 ----
 § 22. Når en bygning, hvorpå der er afskrevet efter § 14, nedrives, kan der
 foretages et fradrag i den skattepligtige indkomst for det indkomstår, hvori
@@ -2667,7 +2834,14 @@ eventuelle salgssum for bygninger, installationer eller materialer m.v.
 | afskrivningslov22_resultat(input: Afskrivningslov22Input) -> afskrivningslov22_sag(input).resultat()
 --@end:afskrivningsloven_par22--
 
---@label:afskrivningsloven_par23::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par23_par24_juridisk_vejledning--
+= afskrivningsloven_par23_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par23_par24_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par23::meta:afskrivningsloven_par23_metadata--
 ----
 § 23. Hvis der på en bygning eller installation sker en skade, der ikke kan
 udbedres ved normal vedligeholdelse, kan afskrivning fra og med det indkomstår,
@@ -2729,7 +2903,14 @@ stk. 1, anvendelse.
 | afskrivningslov23_resultat(input: Afskrivningslov23Input) -> afskrivningslov23_sag(input).resultat()
 --@end:afskrivningsloven_par23--
 
---@label:afskrivningsloven_par24::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par23_par24_juridisk_vejledning--
+= afskrivningsloven_par24_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par23_par24_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par24::meta:afskrivningsloven_par24_metadata--
 ----
 § 24. Såfremt en skattepligtig ved en skade på sin ejendom har modtaget en
 erstatnings- eller forsikringssum og foretager genopførelse eller ombygning af
@@ -2895,7 +3076,15 @@ for sidstnævnte indkomstår.
 | afskrivningslov24_resultat(input: Afskrivningslov24Input) -> afskrivningslov24_sag(input).resultat()
 --@end:afskrivningsloven_par24--
 
---@label:afskrivningsloven_par25::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par25_par26_juridisk_vejledning::scale_source:afskrivningsloven_par25_hjemfaldsbekendtgørelse--
+= afskrivningsloven_par25_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par25_par26_juridisk_vejledning),
+        MetaAttachment(role = ScaleSource, value = afskrivningsloven_par25_hjemfaldsbekendtgørelse),
+    )
+)
+
+--@label:afskrivningsloven_par25::meta:afskrivningsloven_par25_metadata--
 ----
 § 25. Udgifter til anskaffelse og forbedring af bygninger, som ikke opfylder
 betingelserne for afskrivning i § 14, kan afskrives, såfremt bygningen er opført
@@ -3085,7 +3274,14 @@ hjemfaldstidspunktet.
 | afskrivningslov25_resultat(input: Afskrivningslov25Input) -> afskrivningslov25_sag(input).resultat()
 --@end:afskrivningsloven_par25--
 
---@label:afskrivningsloven_par26::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par25_par26_juridisk_vejledning--
+= afskrivningsloven_par26_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par25_par26_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par26::meta:afskrivningsloven_par26_metadata--
 ----
 § 26. Ved ophør af lejemålet eller nedlæggelse af en lejlighed m.v., inden der
 er foretaget fuld afskrivning af anskaffelsessummen for bygningerne m.v. efter
@@ -3149,7 +3345,14 @@ afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
 | afskrivningslov26_resultat(input: Afskrivningslov26Input) -> afskrivningslov26_sag(input).resultat()
 --@end:afskrivningsloven_par26--
 
---@label:afskrivningsloven_par27::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par27_juridisk_vejledning--
+= afskrivningsloven_par27_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par27_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par27::meta:afskrivningsloven_par27_metadata--
 ----
 § 27. Udgifter afholdt til opførelse af dræningsanlæg og jordfaste dele af
 markvandingsanlæg på jordbrugsbedrifter afskrives med indtil 20 pct. årligt i
@@ -3233,7 +3436,15 @@ forpagters skattemæssige stilling vedrørende afskrivningen.
 | afskrivningslov27_resultat(input: Afskrivningslov27Input) -> afskrivningslov27_sag(input).resultat()
 --@end:afskrivningsloven_par27--
 
---@label:afskrivningsloven_par28::source:afskrivningsloven_lbk1222::chapter_guidance:afskrivningsloven_forskudsafskrivning_juridisk_vejledning::guidance:afskrivningsloven_par28_juridisk_vejledning--
+= afskrivningsloven_par28_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = ChapterGuidance, value = afskrivningsloven_forskudsafskrivning_juridisk_vejledning),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par28_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par28::meta:afskrivningsloven_par28_metadata--
 ----
 § 28. Forskudsafskrivning kan foretages efter reglerne i dette kapitel på
 driftsmidler og skibe, der udelukkende skal benyttes erhvervsmæssigt, og hvorpå
@@ -3295,7 +3506,15 @@ af §§ 5 B og 5 C.
 | afskrivningslov28_resultat(aftale: AfskrivningslovForskudsAftale) -> afskrivningslov28_sag(aftale).resultat()
 --@end:afskrivningsloven_par28--
 
---@label:afskrivningsloven_par29::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par29_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par29_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par29_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par29::meta:afskrivningsloven_par29_metadata--
 ----
 § 29. Forskudsafskrivning kan foretages, når
 
@@ -3367,7 +3586,14 @@ virksomhed overstiger grundbeløbet.
 | afskrivningslov29_resultat(aftale: AfskrivningslovForskudsAftale, grundbeløb: Afskrivningslov29GrundbeløbResultat) -> afskrivningslov29_sag(aftale, grundbeløb).resultat()
 --@end:afskrivningsloven_par29--
 
---@label:afskrivningsloven_par30::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par30_juridisk_vejledning--
+= afskrivningsloven_par30_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par30_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par30::meta:afskrivningsloven_par30_metadata--
 ----
 § 30. Forskudsafskrivning kan første gang foretages ved opgørelsen af den
 skattepligtige indkomst for bestillings- eller planlægningsåret og sidste gang
@@ -3409,7 +3635,15 @@ udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
 | afskrivningslov30_resultat(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> afskrivningslov30_sag(position, indkomstår).resultat()
 --@end:afskrivningsloven_par30--
 
---@label:afskrivningsloven_par31::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par31_par32_juridisk_vejledning::rate_guidance:afskrivningsloven_par31_sats_juridisk_vejledning--
+= afskrivningsloven_par31_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par31_par32_juridisk_vejledning),
+        MetaAttachment(role = RateGuidance, value = afskrivningsloven_par31_sats_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par31::meta:afskrivningsloven_par31_metadata--
 ----
 § 31. Forskudsafskrivning foretages på grundlag af den del af den samlede
 aftalte eller beregnede anskaffelsessum, der overstiger grundbeløbet efter § 29,
@@ -3437,7 +3671,15 @@ forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgø
 )
 --@end:afskrivningsloven_par31--
 
---@label:afskrivningsloven_par32::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par31_par32_juridisk_vejledning::allocation_guidance:afskrivningsloven_par32_par33_juridisk_vejledning--
+= afskrivningsloven_par32_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par31_par32_juridisk_vejledning),
+        MetaAttachment(role = AllocationGuidance, value = afskrivningsloven_par32_par33_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par32::meta:afskrivningsloven_par32_metadata--
 ----
 § 32. Når driftsmidler eller skibe, hvorpå der er forskudsafskrevet, bliver
 afskrivningsberettigede efter § 5, fragår aktivernes faktiske anskaffelsessum i
@@ -3521,7 +3763,14 @@ der resterer ved indkomstårets udløb.
 | afskrivningslov32_årsresultat(input: Afskrivningslov32ÅrsInput) -> afskrivningslov32_års_sag(input).resultat()
 --@end:afskrivningsloven_par32--
 
---@label:afskrivningsloven_par33::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par32_par33_juridisk_vejledning--
+= afskrivningsloven_par33_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par32_par33_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par33::meta:afskrivningsloven_par33_metadata--
 ----
 § 33. I det omfang et aktivs anskaffelsessum efter bestemmelsen i § 32 fragår i
 forskudsafskrivningsgrundlaget, opgøres de forskudsafskrivninger, der er
@@ -3604,7 +3853,15 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 | afskrivningslov33_resultat(input: Afskrivningslov33Input) -> afskrivningslov33_sag(input).resultat()
 --@end:afskrivningsloven_par33--
 
---@label:afskrivningsloven_par34::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par34_juridisk_vejledning::event_guidance:afskrivningsloven_par34_par35_juridisk_vejledning--
+= afskrivningsloven_par34_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par34_juridisk_vejledning),
+        MetaAttachment(role = EventGuidance, value = afskrivningsloven_par34_par35_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par34::meta:afskrivningsloven_par34_metadata--
 ----
 § 34. Opfyldes forudsætningerne for forskudsafskrivning ikke, forhøjes den
 skattepligtige indkomst for det indkomstår, hvori dette viser sig, dog senest
@@ -3680,7 +3937,14 @@ hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
 | afskrivningslov34_resultat(input: Afskrivningslov34Input) -> afskrivningslov34_sag(input).resultat()
 --@end:afskrivningsloven_par34--
 
---@label:afskrivningsloven_par35::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par34_par35_juridisk_vejledning--
+= afskrivningsloven_par35_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par34_par35_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par35::meta:afskrivningsloven_par35_metadata--
 ----
 § 35. Såfremt den skattepligtige dør eller går konkurs og der resterer en del af
 eller hele forskudsafskrivningsgrundlaget efter § 32, jf. § 31, stk. 1, forhøjes
@@ -3740,7 +4004,14 @@ dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
 | afskrivningslov35_resultat(input: Afskrivningslov35Input) -> afskrivningslov35_sag(input).resultat()
 --@end:afskrivningsloven_par35--
 
---@label:afskrivningsloven_par36::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par36_juridisk_vejledning--
+= afskrivningsloven_par36_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par36_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par36::meta:afskrivningsloven_par36_metadata--
 ----
 § 36. Fristen for forhøjelse af den skattepligtige indkomst efter § 34 kan efter
 tilladelse fra told- og skatteforvaltningen forlænges med indtil 3 år, hvis
@@ -3803,7 +4074,14 @@ skatteforvaltningens eller andre myndigheders egne forhold.
 | afskrivningslov37_status() -> Al37Ophævet
 --@end:afskrivningsloven_par37--
 
---@label:afskrivningsloven_par38::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par38_juridisk_vejledning--
+= afskrivningsloven_par38_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par38_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par38::meta:afskrivningsloven_par38_metadata--
 ----
 § 38. På ejendomme med forekomster af grus, ler, kalk m.v. kan ejeren afskrive
 den værdiforringelse af ejendommen, der sker som følge af udnyttelsen af disse
@@ -3855,7 +4133,14 @@ henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
 | afskrivningslov38_resultat(input: Afskrivningslov38Input) -> afskrivningslov38_sag(input).resultat()
 --@end:afskrivningsloven_par38--
 
---@label:afskrivningsloven_par39::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par39_juridisk_vejledning--
+= afskrivningsloven_par39_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par39_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par39::meta:afskrivningsloven_par39_metadata--
 ----
 § 39. Udgifter til ombygning, forbedring eller indretning af lejede lokaler, der
 anvendes erhvervsmæssigt til andet formål end beboelse, afskrives med indtil 20
@@ -4016,7 +4301,14 @@ afskrivninger.
 | afskrivningslov39_resultat(input: Afskrivningslov39Input) -> afskrivningslov39_sag(input).resultat()
 --@end:afskrivningsloven_par39--
 
---@label:afskrivningsloven_par40::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par40_juridisk_vejledning--
+= afskrivningsloven_par40_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par40_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par40::meta:afskrivningsloven_par40_metadata--
 ----
 § 40. Ved erhvervelse af goodwill kan erhververen fra og med det indkomstår,
 hvori der er indgået endelig aftale om overdragelsen, afskrive anskaffelsessummen
@@ -4277,7 +4569,15 @@ den skattepligtige indkomst.
 )
 --@end:afskrivningsloven_par40--
 
---@label:afskrivningsloven_par40_2026_overgang::amendment_source:afskrivningsloven_lov749::transition_guidance:afskrivningsloven_par40_henstand_juridisk_vejledning::dependency_source:afskrivningsloven_lov749--
+= afskrivningsloven_par40_2026_overgang_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = AmendmentSource, value = afskrivningsloven_lov749),
+        MetaAttachment(role = TransitionGuidance, value = afskrivningsloven_par40_henstand_juridisk_vejledning),
+        MetaAttachment(role = DependencySource, value = afskrivningsloven_lov749),
+    )
+)
+
+--@label:afskrivningsloven_par40_2026_overgang::meta:afskrivningsloven_par40_2026_overgang_metadata--
 ----
 LOV nr. 749 af 20. juni 2025:
 
@@ -4314,7 +4614,15 @@ indgået den 1. januar 2026 eller senere.
 )
 --@end:afskrivningsloven_par40_2026_overgang--
 
---@label:afskrivningsloven_par40a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning::practice:afskrivningsloven_par40a_skm2022_474--
+= afskrivningsloven_par40a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+        MetaAttachment(role = Practice, value = afskrivningsloven_par40a_skm2022_474),
+    )
+)
+
+--@label:afskrivningsloven_par40a::meta:afskrivningsloven_par40a_metadata--
 ----
 § 40 A. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
 til erhvervelse af en kvote, der giver ret til at producere, levere, anvende,
@@ -4439,7 +4747,14 @@ stk. 1-5.
 | afskrivningslov40a_resultat(input: Afskrivningslov40AInput) -> afskrivningslov40a_sag(input).resultat()
 --@end:afskrivningsloven_par40a--
 
---@label:afskrivningsloven_par40b::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning--
+= afskrivningsloven_par40b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par40b::meta:afskrivningsloven_par40b_metadata--
 ----
 § 40 B. Ved opgørelsen af den skattepligtige indkomst kan anskaffelsessummen
 til erhvervelse af en kvote, der giver ret til løbende i nærmere afgrænsede
@@ -4578,7 +4893,15 @@ omfattet af stk. 1-6.
 | afskrivningslov40b_resultat(input: Afskrivningslov40BInput) -> afskrivningslov40b_sag(input).resultat()
 --@end:afskrivningsloven_par40b--
 
---@label:afskrivningsloven_par40c::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning::warning:afskrivningsloven_par40c_historisk_advarsel--
+= afskrivningsloven_par40c_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+        MetaAttachment(role = Warning, value = afskrivningsloven_par40c_historisk_advarsel),
+    )
+)
+
+--@label:afskrivningsloven_par40c::meta:afskrivningsloven_par40c_metadata--
 ----
 § 40 C. Anskaffelsessummen ved erhvervelse og afståelsessummen ved afståelse af
 en betalingsrettighed efter EU-landbrugsstøtteordningen skal indgå på en samlet
@@ -4968,7 +5291,14 @@ eller andele af kvoter for de først afståede.
 | afskrivningslov40c_acontoskat_resultat(input: Afskrivningslov40CAcontoskatInput) -> afskrivningslov40c_acontoskat_sag(input).resultat()
 --@end:afskrivningsloven_par40c--
 
---@label:afskrivningsloven_par40d::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_kvoter_juridisk_vejledning--
+= afskrivningsloven_par40d_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par40d::meta:afskrivningsloven_par40d_metadata--
 ----
 § 40 D. En betalingsrettighed, mælkekvote eller leveringsrettighed for
 sukkerroer, der bliver omfattet af skattepligt her i landet, og som ikke i
@@ -5022,7 +5352,15 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 | afskrivningslov41_status() -> Al41Ophævet
 --@end:afskrivningsloven_par41--
 
---@label:afskrivningsloven_par42::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par42_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par42_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par42_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par42::meta:afskrivningsloven_par42_metadata--
 ----
 § 42. Udgifter afholdt til ombygning og forbedring i eksisterende bygninger i
 landbrugsejendomme af værelser, der anvendes til udlejning til turister, kan
@@ -5115,7 +5453,15 @@ de foretagne afskrivninger, herunder forlods afskrivninger.
 | afskrivningslov42_afståelses_resultat(input: Afskrivningslov42AfståelsesInput) -> afskrivningslov42_afståelses_sag(input).resultat()
 --@end:afskrivningsloven_par42--
 
---@label:afskrivningsloven_par43::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par43_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par43_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par43_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par43::meta:afskrivningsloven_par43_metadata--
 ----
 § 43. Afgifter, der afholdes i anledning af en virksomheds tilslutning til
 offentligt eller privat ejede anlæg, som har erhvervsmæssig betydning for
@@ -5194,7 +5540,14 @@ skattepligtige indkomst for det indkomstår, hvori salget finder sted.
 | afskrivningslov43_salg_resultat(input: Afskrivningslov43SalgInput) -> afskrivningslov43_salg_sag(input).resultat()
 --@end:afskrivningsloven_par43--
 
---@label:afskrivningsloven_par44::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44_juridisk_vejledning--
+= afskrivningsloven_par44_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par44_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par44::meta:afskrivningsloven_par44_metadata--
 ----
 § 44. Reglerne i denne bestemmelse gælder for anskaffelse af
 afskrivningsberettigede aktiver, når udgiften helt eller delvis er betalt ved et
@@ -5277,7 +5630,14 @@ anskaffelsessummen med fradrag af det straksafskrevne beløb.
 | afskrivningslov44_resultat(input: Afskrivningslov44Input) -> afskrivningslov44_sag(input).resultat()
 --@end:afskrivningsloven_par44--
 
---@label:afskrivningsloven_par44a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44a_par44b_juridisk_vejledning--
+= afskrivningsloven_par44a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par44a::meta:afskrivningsloven_par44a_metadata--
 ----
 § 44 A. Udgifter afholdt til kunstnerisk udsmykning af erhvervsmæssigt
 benyttede bygninger, bortset fra en- eller tofamiliehuse og bortset fra den del
@@ -5443,7 +5803,15 @@ stk. 1, 3. pkt.
 | afskrivningslov44a_genopførelse_resultat(input: Afskrivningslov44AGenopførelseInput) -> afskrivningslov44a_genopførelse_sag(input).resultat()
 --@end:afskrivningsloven_par44a--
 
---@label:afskrivningsloven_par44b::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44a_par44b_juridisk_vejledning::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par44b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par44b::meta:afskrivningsloven_par44b_metadata--
 ----
 § 44 B. Udgifter afholdt til kunstnerisk udsmykning, der ophænges eller
 opstilles i erhvervsmæssigt benyttede bygninger, bortset fra en- eller
@@ -5512,7 +5880,14 @@ udsmykning for at være solgt.
 | afskrivningslov44b_resultat(input: Afskrivningslov44BInput) -> afskrivningslov44b_sag(input).resultat()
 --@end:afskrivningsloven_par44b--
 
---@label:afskrivningsloven_par44c::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par44c_juridisk_vejledning--
+= afskrivningsloven_par44c_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par44c_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par44c::meta:afskrivningsloven_par44c_metadata--
 ----
 § 44 C. Sælges eller opgives retten i henhold til en kontrakt om levering af
 et skib eller et andet driftsmiddel, der udelukkende eller delvis skal benyttes
@@ -5562,7 +5937,15 @@ til eventuel forskudsafskrivning på skibet eller driftsmidlet.
 )
 --@end:afskrivningsloven_par44c--
 
---@label:afskrivningsloven_par45::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par45_juridisk_vejledning::allocation_guidance:afskrivningsloven_par45_fordeling_juridisk_vejledning--
+= afskrivningsloven_par45_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par45_juridisk_vejledning),
+        MetaAttachment(role = AllocationGuidance, value = afskrivningsloven_par45_fordeling_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par45::meta:afskrivningsloven_par45_metadata--
 ----
 § 45. Anskaffelses- og salgssummer samt godtgørelser og vederlag for aktiver
 omfattet af denne lov omregnes til kontantværdi, der beregnes ved, at den
@@ -5672,7 +6055,14 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
 )
 --@end:afskrivningsloven_par45--
 
---@label:afskrivningsloven_par46::source:afskrivningsloven_lbk1222::parameter_source:afskrivningsloven_2026_satser--
+= afskrivningsloven_par46_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+    )
+)
+
+--@label:afskrivningsloven_par46::meta:afskrivningsloven_par46_metadata--
 ----
 § 46. Grundbeløbene i § 5, stk. 3, § 6, stk. 1, nr. 2, § 10, § 11, stk. 3 og
 5, § 29, stk. 1, nr. 3, § 42, stk. 2, og § 43, stk. 2, reguleres efter
@@ -5703,7 +6093,14 @@ personskattelovens § 20.
 )
 --@end:afskrivningsloven_par46--
 
---@label:afskrivningsloven_par47::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+= afskrivningsloven_par47_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par47::meta:afskrivningsloven_par47_metadata--
 ----
 § 47. Med salg sidestilles i denne lov andre former for afhændelse og
 afståelse.
@@ -5716,7 +6113,14 @@ afståelse.
 | afskrivningslov47_resultat(afståelsesform: Afskrivningslov47Afståelsesform) -> Afskrivningslov47Resultat(afståelsesform = afståelsesform, salg_efter_afskrivningsloven = Sandt)
 --@end:afskrivningsloven_par47--
 
---@label:afskrivningsloven_par48::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+= afskrivningsloven_par48_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par48::meta:afskrivningsloven_par48_metadata--
 ----
 § 48. Hvor andet ikke er særskilt fastsat, behandles forsikrings- og
 erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
@@ -5738,7 +6142,14 @@ erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
 )
 --@end:afskrivningsloven_par48--
 
---@label:afskrivningsloven_par49::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par47_par49_juridisk_vejledning--
+= afskrivningsloven_par49_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par49::meta:afskrivningsloven_par49_metadata--
 ----
 § 49. Erhvervelse og afståelse af aktiver ved gave, arv eller arveforskud
 sidestilles i denne lov med køb henholdsvis salg. Som anskaffelsessum eller
@@ -5812,7 +6223,14 @@ skattemæssige stilling.
 )
 --@end:afskrivningsloven_par49--
 
---@label:afskrivningsloven_par50::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par50_juridisk_vejledning--
+= afskrivningsloven_par50_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par50_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par50::meta:afskrivningsloven_par50_metadata--
 ----
 § 50. Ved salg af aktiver omfattet af denne lov medregnes fortjeneste eller
 tab fuldt ud i den skattepligtige indkomst i salgsåret i tilfælde, hvor
@@ -5874,7 +6292,14 @@ afskrivningsprocenter, der er anvendt i de enkelte indkomstår.
 | afskrivningslov50_resultat(input: Afskrivningslov50SalgInput) -> afskrivningslov50_sag(input).resultat()
 --@end:afskrivningsloven_par50--
 
---@label:afskrivningsloven_par51::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par51_juridisk_vejledning--
+= afskrivningsloven_par51_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par51_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par51::meta:afskrivningsloven_par51_metadata--
 ----
 § 51. Anskaffes aktiver, der er afskrivningsberettigede efter denne lov, til
 brug for forsøgs- eller forskningsvirksomhed, kan afskrivning påbegyndes før
@@ -6230,7 +6655,14 @@ uafskrevne beløb.
 )
 --@end:afskrivningsloven_par58--
 
---@label:afskrivningsloven_par58a::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par16_par20_juridisk_vejledning--
+= afskrivningsloven_par58a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par58a::meta:afskrivningsloven_par58a_metadata--
 ----
 § 58 A. Udgifter til ombygning og forbedring af afskrivningsberettigede
 bygninger og installationer, som er afholdt, men ikke fradraget i den
@@ -6327,7 +6759,14 @@ statsskattelovens § 6, litra a.
 | afskrivningslov59_resultat(input: Afskrivningslov59Input) -> Afskrivningslov59Resultat(skatteyder = input.skatteyder, input_gyldigt = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998 && afskrivningslov59_hjemmel_matcher(input), anskaffet_senest_i_1998 = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998, tidligere_hjemmel_matcher_anlægsart = afskrivningslov59_hjemmel_matcher(input), par27_afskærer_ikke_fortsat_afskrivning = input.anskaffelsesår > 0 && input.anskaffelsesår <= 1998 && afskrivningslov59_hjemmel_matcher(input))
 --@end:afskrivningsloven_par59--
 
---@label:afskrivningsloven_par60::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par40_juridisk_vejledning--
+= afskrivningsloven_par60_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par40_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par60::meta:afskrivningsloven_par60_metadata--
 ----
 § 60. Uanset § 40 kan aktiver, der er erhvervet før den 1. januar 1998, og
 godtgørelser og vederlag, hvor pligten til at udrede de omhandlede ydelser er
@@ -6402,7 +6841,14 @@ skulle kontantomregnes.
 | afskrivningslov61_resultat(input: Afskrivningslov61Input) -> Afskrivningslov61Sag(input).resultat()
 --@end:afskrivningsloven_par61--
 
---@label:afskrivningsloven_par62::source:afskrivningsloven_lbk1222::guidance:afskrivningsloven_par21_juridisk_vejledning--
+= afskrivningsloven_par62_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
+        MetaAttachment(role = Guidance, value = afskrivningsloven_par21_juridisk_vejledning),
+    )
+)
+
+--@label:afskrivningsloven_par62::meta:afskrivningsloven_par62_metadata--
 ----
 § 62. Salgssummer vedrørende miljøforbedrende driftsmidler i landbrug m.v.,
 hvorpå der er straksafskrevet efter den tidligere afskrivningslovs § 3 A,

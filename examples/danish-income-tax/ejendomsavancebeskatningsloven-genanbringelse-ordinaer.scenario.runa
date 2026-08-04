@@ -1,8 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_ordinær_genanbringelse_scenarier::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026--
+= ebl_ordinær_genanbringelse_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+    )
+)
+
+--@label:ebl_ordinær_genanbringelse_scenarier::meta:ebl_ordinær_genanbringelse_scenarier_metadata--
 --@begin:ebl_ordinær_genanbringelse_scenarier--
 | ebl_ordinær_scenarie_par6a_fakta(erhvervsfortjeneste_kroner: Heltal, erhvervsanvendelse: EblPar6AErhvervsanvendelse) -> EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(

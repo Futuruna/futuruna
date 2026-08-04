@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./pengebeloeb
 
@@ -29,7 +30,19 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par5a::source:aktieavancebeskatningsloven_lbk1098_par5a::exclusion_source:aktieavancebeskatningsloven_lbk1098_par22_stk6::amendment_source:aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par5a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par5a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par5a),
+        MetaAttachment(role = ExclusionSource, value = aktieavancebeskatningsloven_lbk1098_par22_stk6),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par5a),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par5a::meta:aktieavancebeskatningsloven_par5a_metadata--
 ----
 § 5 A. Tab ved afståelse af aktier kan kun fradrages, i det omfang tabet
 overstiger summen af følgende modtagne udbytter:

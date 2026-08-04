@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
@@ -662,7 +663,15 @@ udstedt til.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8o::source:ligningsloven_lbk1500_par8o::source:ligningsloven_lov198_par3_nr2_par8o::guidance:ligningsloven_juridisk_vejledning_par8o--
+= ligningsloven_par8o_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par8o),
+        MetaAttachment(role = Source, value = ligningsloven_lov198_par3_nr2_par8o),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par8o),
+    )
+)
+
+--@label:ligningsloven_par8o::meta:ligningsloven_par8o_metadata--
 ----
 Ligningsloven, LBK nr. 1500 af 24/11/2025:
 
@@ -759,7 +768,17 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par9b::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
+= ligningsloven_par9b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+    )
+)
+
+--@label:ligningsloven_par9b::meta:ligningsloven_par9b_metadata--
 ----
 Ligningsloven, LBK nr. 1500 af 24/11/2025:
 
@@ -1011,7 +1030,16 @@ stk. 5.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par9c_par9d::source:ligningsloven_lbk1500_par9c_par9d::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring--
+= ligningsloven_par9c_par9d_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9c_par9d),
+        MetaAttachment(role = AmendmentSource, value = ligningsloven_lov616_par1),
+        MetaAttachment(role = RateSource, value = ligningsloven_bek1333_par1_par4),
+        MetaAttachment(role = Guidance, value = ligningsloven_vejledning_par9c_fri_befordring),
+    )
+)
+
+--@label:ligningsloven_par9c_par9d::meta:ligningsloven_par9c_par9d_metadata--
 ----
 § 9 C. Ved opgørelsen af den skattepligtige indkomst kan fradrag for
 befordring frem og tilbage mellem sædvanlig bopæl og arbejdsplads foretages
@@ -1926,7 +1954,14 @@ Jobfradrag, § 9 K
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par9l::source:ligningsloven_lbk1500_par9l::rate_source:skatteministeriet_ligningsloven_par9l_satser_2026--
+= ligningsloven_par9l_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9l),
+        MetaAttachment(role = RateSource, value = skatteministeriet_ligningsloven_par9l_satser_2026),
+    )
+)
+
+--@label:ligningsloven_par9l::meta:ligningsloven_par9l_metadata--
 ----
 § 9 L. Ved opgørelsen af den skattepligtige indkomst kan personer fradrage
 procenten nævnt i stk. 3 af deres fradragsberettigede pensionsindbetalinger

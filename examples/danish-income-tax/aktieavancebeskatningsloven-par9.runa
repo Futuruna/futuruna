@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par23 - 27
 @ importer ./aktieavancebeskatningsloven - par5a
@@ -25,7 +26,22 @@
     beskrivelse = "Loven og LSF 28 beskriver hvert tabs modregningsgrundlag, men angiver ikke en indbyrdes rækkefølge, når både stk. 3-4-tab og stk. 5-6-tab kan rummes i samme realisationsgevinst. Modellen anvender den ældre og snævrere stk. 3-4-beholdning først og bevarer begge saldi særskilt.",
     status = "Fortolkningsvalg kræver administrativ bekræftelse"
 )
---@label:aktieavancebeskatningsloven_par9::source:aktieavancebeskatningsloven_lbk1098_par9::dependency_source:aktieavancebeskatningsloven_lbk1098_par5a::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a::warning:aktieavance_par9_samtidige_tabsbeholdninger_advarsel--
+
+= aktieavancebeskatningsloven_par9_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par9),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par5a),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par23a),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
+        MetaAttachment(role = Warning, value = aktieavance_par9_samtidige_tabsbeholdninger_advarsel),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par9::meta:aktieavancebeskatningsloven_par9_metadata--
 ----
 § 9. Gevinst på aktier, der ikke er omfattet af § 8, medregnes ved opgørelsen
 af den skattepligtige indkomst, jf. dog § 10.

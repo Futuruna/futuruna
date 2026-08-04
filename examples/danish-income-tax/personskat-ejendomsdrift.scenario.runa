@@ -1,8 +1,19 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./personskat.calculate
 
---@label:personskat_ejendomsdrift_scenarier::source:personskatteloven_lbk1284_par4::amendment_source:personskatteloven_lov679_par4_nr6::amendment_source:personskatteloven_lov615_par4_nr6::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring--
+= personskat_ejendomsdrift_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
+        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov679_par4_nr6),
+        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov615_par4_nr6),
+        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
+        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
+    )
+)
+
+--@label:personskat_ejendomsdrift_scenarier::meta:personskat_ejendomsdrift_scenarier_metadata--
 ----
 Fokuserede regressionsscenarier for den kanoniske beregningsgrænse.
 

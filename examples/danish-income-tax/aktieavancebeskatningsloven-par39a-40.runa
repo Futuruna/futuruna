@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par23 - 27
 @ importer ./aktieavancebeskatningsloven - par37 - 39
@@ -51,7 +52,20 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par39a::source:aktieavancebeskatningsloven_lbk1098_par39a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par39a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39a),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par39a::meta:aktieavancebeskatningsloven_par39a_metadata--
 ----
 § 39 A. Ved henstand skal der udarbejdes en beholdningsoversigt over de aktier,
 som personen er ejer af på fraflytningstidspunktet. Aktier, hvor den beregnede
@@ -588,7 +602,16 @@ finder tilsvarende anvendelse.
 | aktieavance_par39a_forløbsresultat(tilstand_primo: AktieavancePar39ATilstand, hændelser: List(AktieavancePar39AHændelse)) -> AktieavancePar39AForløbsSag(tilstand_primo, hændelser).resultat()
 --@end:aktieavancebeskatningsloven_par39a--
 
---@label:aktieavancebeskatningsloven_par39b::source:aktieavancebeskatningsloven_lbk1098_par39b::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39b::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par39b_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39b),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39b),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par39b::meta:aktieavancebeskatningsloven_par39b_metadata--
 ----
 § 39 B. Får personen på ny skattemæssigt hjemsted i Danmark, finder reglen i
 § 37 anvendelse for aktier, der indgik på beholdningsoversigten, og som personen
@@ -693,7 +716,16 @@ Danmark.
 | aktieavance_par39b_resultat(input: AktieavancePar39BInput) -> AktieavancePar39BSag(input).resultat()
 --@end:aktieavancebeskatningsloven_par39b--
 
---@label:aktieavancebeskatningsloven_par40::source:aktieavancebeskatningsloven_lbk1098_par40::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par40_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par40),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par40::meta:aktieavancebeskatningsloven_par40_metadata--
 ----
 § 40. Henstandsbeløbet efter § 39 A nedskrives med den skat, som personen har
 betalt på aktier medtaget i beholdningsoversigten som følge af

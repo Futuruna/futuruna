@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
 @ importer ./ejendomsavancebeskatningsloven - par6d
@@ -37,7 +38,16 @@ StartDate: 2019-02-08
 EndDate: 2026-07-01
 ----
 
---@label:ejendomsavancebeskatningsloven_par1_par1a_par2_par4::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::currentness_source:ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus::dependency_source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026--
+= ejendomsavancebeskatningsloven_par1_par1a_par2_par4_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        MetaAttachment(role = CurrentnessSource, value = ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+    )
+)
+
+--@label:ejendomsavancebeskatningsloven_par1_par1a_par2_par4::meta:ejendomsavancebeskatningsloven_par1_par1a_par2_par4_metadata--
 ----
 § 1. Fortjeneste ved afståelse af fast ejendom medregnes til den
 skattepligtige indkomst efter reglerne i denne lov.

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./aktieavancebeskatningsloven - par6 - 7
 @ importer ./aktieavancebeskatningsloven - par19b - 22
@@ -23,7 +24,15 @@
     status = "Ekstern juridisk vurdering kræves"
 )
 
---@label:aktieavancebeskatningsloven_par19_til_par20a::source:aktieavancebeskatningsloven_lbk1098_par19_til_par20a::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par19::warning:aktieavance_par19_hovedsagelig_fortolkningsgrænse--
+= aktieavancebeskatningsloven_par19_til_par20a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par19),
+        MetaAttachment(role = Warning, value = aktieavance_par19_hovedsagelig_fortolkningsgrænse),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par19_til_par20a::meta:aktieavancebeskatningsloven_par19_til_par20a_metadata--
 ----
 § 19. Ved et investeringsselskab forstås:
 1) Et investeringsinstitut i henhold til Europa-Parlamentets og Rådets direktiv 2009/65/EF, jf. bilag 1.

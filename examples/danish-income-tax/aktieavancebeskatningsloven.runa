@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./aktieavancebeskatningsloven - par19b - 22
 @ importer ./ejendomsavancebeskatningsloven - par8 - par9
@@ -91,7 +92,23 @@ EndDate: 2026-07-01
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_ordinaere_aktier::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:ebl_par8_par9_lbk132::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligret::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme::dependency_source:selskabsloven_lbk331_par47::preparatory_work:selskabsloven_lsf170_par47_bemærkninger::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_ordinaere_aktier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligret),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
+        MetaAttachment(role = DependencySource, value = selskabsloven_lbk331_par47),
+        MetaAttachment(role = PreparatoryWork, value = selskabsloven_lsf170_par47_bemærkninger),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_ordinaere_aktier::meta:aktieavancebeskatningsloven_ordinaere_aktier_metadata--
 ----
 § 3. Omsættelige investeringsbeviser anses altid for investeringsbeviser, der
 er optaget til handel på et reguleret marked.
@@ -663,7 +680,17 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 | aktieavance_ordinaer_person_årsresultat(input: AktieavanceOrdinærPersonÅrsinput) -> AktieavanceOrdinærPersonÅrssag(input).resultat()
 --@end:aktieavancebeskatningsloven_ordinaere_aktier--
 
---@label:aktieavancebeskatningsloven_par25_rettigheder::source:aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30::amendment_source:aktieavancebeskatningsloven_lov1563_par8_stk6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par25_rettigheder_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1563_par8_stk6),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par25_rettigheder::meta:aktieavancebeskatningsloven_par25_rettigheder_metadata--
 ----
 Stk. 4. Gevinst og tab ved afståelse af tegningsret til aktier, tegningsret
 til konvertible obligationer eller ret til fondsaktier (aktieretter) medregnes
@@ -920,7 +947,15 @@ regler anvendelse.
 )
 --@end:aktieavancebeskatningsloven_par25_rettigheder--
 
---@label:aktieavancebeskatningsloven_par17_til_par22::source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par17_til_par22_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par17_til_par22::meta:aktieavancebeskatningsloven_par17_til_par22_metadata--
 ----
 § 17.
 Hvis den skattepligtige udøver næring ved køb og salg af aktier, medregnes

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
@@ -24,7 +25,18 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:kursgevinstloven_par32::source:kursgevinstloven_lbk1176_par32::guidance:kursgevinstloven_juridisk_vejledning_par32::dependency_source:aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21::dependency_source:aktieavancebeskatningsloven_lbk1098_par17_til_par22::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:kursgevinstloven_lov1563_par4_par8--
+= kursgevinstloven_par32_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = kursgevinstloven_lbk1176_par32),
+        MetaAttachment(role = Guidance, value = kursgevinstloven_juridisk_vejledning_par32),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par19d),
+        MetaAttachment(role = AmendmentSource, value = kursgevinstloven_lov1563_par4_par8),
+    )
+)
+
+--@label:kursgevinstloven_par32::meta:kursgevinstloven_par32_metadata--
 ----
 § 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
 omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten

@@ -1,11 +1,11 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-23
+Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-d1183e` (submitting for review)
-Latest implementation slice submitted for review: `td-d1183e`
-Latest approved implementation slice: `td-f84c7d`
+Current focus issue: `td-ca2b3e` (submitting for review)
+Latest implementation slice submitted for review: `td-67f030`
+Latest approved implementation slice: `td-d1183e`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -39,6 +39,14 @@ danske skattekorpus har nu også en fælles `metadata.runa`-protokol med en type
 rolle, `MetaAttachment` og `Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A
 bruger protokollen direkte, så deres kommentarer alene forbinder et label med
 ét navngivet metadataobjekt.
+Den samme form er nu gennemført for alle tidligere overbelastede ankre i
+skattekorpusset: 132 ankre i 46 filer henviser hver til ét typet metadataobjekt,
+som tilsammen bevarer 393 rolle-/bindingsreferencer i deres oprindelige
+rækkefølge. Der findes derfor ikke længere danske skattemetakommentarer, som
+indlejrer flere `::rolle:binding`-par. Den direkte form er fortsat
+bagudkompatibel og kan bruges til én kort reference; sammensat metadata skal
+ligge i almindelige Futuruna-typer og forbindes med
+`--@label:<label>::meta:<binding>--`.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Statsskatteloven -- Personskatteloven § 3, stk. 2, nr. 10.
@@ -21,7 +22,14 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:statsskatteloven_par6_litra_a::source:statsskatteloven_lov149_par6_litra_a::guidance:statsskatteloven_par6_juridisk_vejledning--
+= statsskatteloven_par6_litra_a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = statsskatteloven_lov149_par6_litra_a),
+        MetaAttachment(role = Guidance, value = statsskatteloven_par6_juridisk_vejledning),
+    )
+)
+
+--@label:statsskatteloven_par6_litra_a::meta:statsskatteloven_par6_litra_a_metadata--
 ----
 § 6
 

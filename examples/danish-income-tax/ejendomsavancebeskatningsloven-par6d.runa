@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
 @ importer ./ejendomsavancebeskatningsloven - genanbringelse
@@ -37,7 +38,15 @@ Stk. 2. § 1, nr. 1, har virkning for afståelse af fast ejendom, der sker den 1
 | ebl_par6d_har_virkning(afståelsesdato: EblDato) -> ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(EblDato(år = 2020, måned = 1, dag = 1), afståelsesdato)
 --@end:ebl_par6d_ikrafttræden--
 
---@label:ebl_par6d::source:ebl_par6d_lov1578::preparatory_source:ebl_par6d_lovforslag36::guidance:ebl_par6d_vejledning_2026--
+= ebl_par6d_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = PreparatorySource, value = ebl_par6d_lovforslag36),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+
+--@label:ebl_par6d::meta:ebl_par6d_metadata--
 ----
 § 6 D. Afstår den skattepligtige en ejendom, der er omfattet af lovens regler, bortset fra ejendomme, der er omfattet af § 8, og indgår der i afståelsesvederlaget en fordring mod erhververen med pant i den overdragne ejendom (sælgerpantebrev), kan den skattepligtige vælge at medregne fortjeneste efter § 6 med lige store beløb ved opgørelsen af den skattepligtige indkomst i de indtil 10 nærmest efterfølgende indkomstår.
 1. pkt. gælder dog ikke, hvor der er en forbindelse som omhandlet i ligningslovens § 2 mellem parterne i overdragelsen.

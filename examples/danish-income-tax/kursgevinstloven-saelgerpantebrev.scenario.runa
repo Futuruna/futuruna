@@ -1,8 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven - saelgerpantebrev
 
---@label:kgl_sælgerpantebrev_scenarier::source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_sælgerpantebrev_vejledning_2026--
+= kgl_sælgerpantebrev_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = Guidance, value = kgl_sælgerpantebrev_vejledning_2026),
+    )
+)
+
+--@label:kgl_sælgerpantebrev_scenarier::meta:kgl_sælgerpantebrev_scenarier_metadata--
 --@begin:kgl_sælgerpantebrev_scenarier--
 | kgl_sælgerpantebrev_scenarie_person(identifikation: Tekst) -> KglSælgerpantebrevSkatteyder(
     identifikation = identifikation,

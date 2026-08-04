@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./afskrivningsloven
 @ importer ./aktieavancebeskatningsloven
@@ -20,7 +21,14 @@
     hentet_dato = "2026-07-23"
 )
 
---@label:pbl15a_fortjeneste_fra_kildelove::source:pensionsbeskatningsloven_lbk1243_par15a_fortjeneste::guidance:skat_pbl15a_fortjeneste_vejledning--
+= pbl15a_fortjeneste_fra_kildelove_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a_fortjeneste),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_fortjeneste_vejledning),
+    )
+)
+
+--@label:pbl15a_fortjeneste_fra_kildelove::meta:pbl15a_fortjeneste_fra_kildelove_metadata--
 ----
 § 15 A. Personer, der i forbindelse med afståelse af deres erhvervsmæssige
 virksomhed eller en andel af denne opnår en skattepligtig fortjeneste, eller som

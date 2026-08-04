@@ -227,8 +227,10 @@ ordinary Futuruna data instead of extending the comment syntax.
 constructor and named fields shown above. A nullary role constructor is exposed
 as lower snake case, so `DependencySource` becomes `dependency_source`.
 Multiline tuples accept line breaks and a trailing comma. Direct
-`::ROLE:BINDING` pairs remain valid and are preferable for a single concise
-reference.
+`::ROLE:BINDING` pairs remain valid for compatibility and as shorthand for one
+concise reference. An anchor with two or more role-bearing values should attach
+one typed aggregate; structured metadata does not belong in the comment
+grammar.
 
 Code spans use the compact `--@begin:LABEL--` and `--@end:LABEL--` forms.
 The earlier `--@begin::LABEL--` and `--@end::LABEL--` spellings remain accepted.

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 
 = aktieavancebeskatningsloven_lbk1098_par6_og_par7 = AktieavancebeskatningslovKildeInfo(
@@ -8,7 +9,15 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par6_og_par7::source:aktieavancebeskatningsloven_lbk1098_par6_og_par7::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par6_og_par7_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par6_og_par7::meta:aktieavancebeskatningsloven_par6_og_par7_metadata--
 ----
 § 6. Selskaber, fonde og foreninger m.v., der er skattepligtige efter
 selskabsskatteloven eller fondsbeskatningsloven, skal ved opgørelsen af den

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Etableringskontoloven -- Personskatteloven § 3, stk. 2, nr. 11.
@@ -27,7 +28,15 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:etableringskontoloven_par1_par4::source:etableringskontoloven_lbk1307_par1_par4::guidance:etableringskonto_skatdk_vejledning::guidance:etableringskonto_juridisk_vejledning--
+= etableringskontoloven_par1_par4_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = etableringskontoloven_lbk1307_par1_par4),
+        MetaAttachment(role = Guidance, value = etableringskonto_skatdk_vejledning),
+        MetaAttachment(role = Guidance, value = etableringskonto_juridisk_vejledning),
+    )
+)
+
+--@label:etableringskontoloven_par1_par4::meta:etableringskontoloven_par1_par4_metadata--
 ----
 § 1. Den, der med henblik på etablering af selvstændig
 erhvervsvirksomhed eller erhvervelse af virksomhed i selskabsform ved

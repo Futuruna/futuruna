@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par6 - 7
 @ importer ./aktieavancebeskatningsloven - par19 - 20a
@@ -34,7 +35,18 @@
     status = "Øvrige afhængige klassifikationer kræves"
 )
 
---@label:aktieavancebeskatningsloven_par23_og_par23a::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::dependency_source:aktieavancebeskatningsloven_lbk1098_par6_og_par7::dependency_source:aktieavancebeskatningsloven_lbk1098_par19d::amendment_source:aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par23::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
+= aktieavancebeskatningsloven_par23_og_par23a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par19d),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par23_og_par23a::meta:aktieavancebeskatningsloven_par23_og_par23a_metadata--
 ----
 § 19 D. Fradrag efter §§ 19 B eller 19 C er betinget af, at told- og
 skatteforvaltningen inden udløbet af oplysningsfristen efter
@@ -377,7 +389,14 @@ skattekontrollovens § 2.
 | aktieavance_par23a_resultat_gyldigt(resultat: AktieavancePar23AResultat) -> resultat == aktieavance_par23a_resultat(resultat.input)
 --@end:aktieavancebeskatningsloven_par23_og_par23a--
 
---@label:aktieavancebeskatningsloven_par24::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
+= aktieavancebeskatningsloven_par24_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par24::meta:aktieavancebeskatningsloven_par24_metadata--
 ----
 § 24. Gevinst og tab opgøres efter gennemsnitsmetoden, jf. § 26, jf. dog stk.
 2.
@@ -463,7 +482,15 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_rettigheder_mtf_overgang::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::amendment_source:aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder--
+= aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_rettigheder_mtf_overgang::meta:aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata--
 ----
 LOV nr. 1563 af 12/12/2023, § 2, nr. 12. I § 24, stk. 2, indsættes efter
 »reguleret marked«: »eller en multilateral handelsfacilitet«.
@@ -504,7 +531,14 @@ regler anvendelse.
 | aktieavance_rettigheds_opgørelsesresultat(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, erhvervelsesår: Heltal) -> AktieavanceRettighedsOpgørelsesSag(rettighed, beskatningsprincip, erhvervelsesår).resultat()
 --@end:aktieavancebeskatningsloven_rettigheder_mtf_overgang--
 
---@label:aktieavancebeskatningsloven_par26_resterende_grene::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
+= aktieavancebeskatningsloven_par26_resterende_grene_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par26_resterende_grene::meta:aktieavancebeskatningsloven_par26_resterende_grene_metadata--
 ----
 § 26. Gevinst og tab ved afståelse af aktier opgøres efter reglerne i stk. 2-6,
 jf. dog § 23, stk. 2, 4, 5, 8 og 9, og § 23 A, 1. pkt., om lagerprincippet.
@@ -611,7 +645,14 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
 | aktieavance_par26_stk6_hændelsesresultat(beholdning: AktieavancePar26Stk6Beholdning, hændelse: AktieavancePar26Stk6Hændelse) -> AktieavancePar26Stk6HændelsesSag(beholdning, hændelse).resultat()
 --@end:aktieavancebeskatningsloven_par26_resterende_grene--
 
---@label:aktieavancebeskatningsloven_par27::source:aktieavancebeskatningsloven_lbk1098_par23_til_par27::warning:aktieavance_par23_til_par27_afhængighedsgrænse--
+= aktieavancebeskatningsloven_par27_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par27::meta:aktieavancebeskatningsloven_par27_metadata--
 ----
 § 27. I tilfælde, hvor der ikke foretages effektiv udbetaling af
 minimumsindkomsten fra et investeringsinstitut med minimumsbeskatning, jf.

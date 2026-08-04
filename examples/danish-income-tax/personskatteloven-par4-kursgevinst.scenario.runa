@@ -1,8 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kapitel - 01 - indkomst
 
---@label:personskatteloven_par4_kursgevinst_scenarier::source:personskatteloven_lbk1284_par4::dependency:kursgevinstloven_lbk1176_par32--
+= personskatteloven_par4_kursgevinst_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
+        MetaAttachment(role = Dependency, value = kursgevinstloven_lbk1176_par32),
+    )
+)
+
+--@label:personskatteloven_par4_kursgevinst_scenarier::meta:personskatteloven_par4_kursgevinst_scenarier_metadata--
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af
 2) skattepligtige gevinster og fradragsberettigede tab efter kursgevinstloven,

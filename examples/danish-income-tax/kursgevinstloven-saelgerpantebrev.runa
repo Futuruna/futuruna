@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven
 
 # KglSælgerpantebrevKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
@@ -28,7 +29,15 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:kgl_sælgerpantebrev_lovgrundlag::source:kgl_sælgerpantebrev_lbk1176::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426--
+= kgl_sælgerpantebrev_lovgrundlag_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    )
+)
+
+--@label:kgl_sælgerpantebrev_lovgrundlag::meta:kgl_sælgerpantebrev_lovgrundlag_metadata--
 ----
 § 1. Denne lov omfatter
 1) gevinst og tab ved afståelse eller indfrielse af pengefordringer herunder

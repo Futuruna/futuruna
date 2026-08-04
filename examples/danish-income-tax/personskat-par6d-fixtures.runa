@@ -1,8 +1,17 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./personskat.calculate
 
---@label:personskat_par6d_scenariefixtures::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
+= personskat_par6d_scenariefixtures_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+    )
+)
+
+--@label:personskat_par6d_scenariefixtures::meta:personskat_par6d_scenariefixtures_metadata--
 --@begin:personskat_par6d_scenariefixtures--
 | personskat_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),

@@ -1,8 +1,17 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./personskat - par6d - fixtures
 
---@label:personskat_par6d_delvis_succession_scenarier::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
+= personskat_par6d_delvis_succession_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+    )
+)
+
+--@label:personskat_par6d_delvis_succession_scenarier::meta:personskat_par6d_delvis_succession_scenarier_metadata--
 --@begin:personskat_par6d_delvis_succession_scenarier--
 = personskat_par6d_scenarie_delvis_ægtefællesuccession_årsforhold = [
     EblPar6DÅrsforhold(

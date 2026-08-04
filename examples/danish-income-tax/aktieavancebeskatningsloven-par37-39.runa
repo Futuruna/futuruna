@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven - par23 - 27
 
 = aktieavancebeskatningsloven_lbk1098_par37 = AktieavancebeskatningslovKildeInfo(
@@ -38,7 +39,16 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par37::source:aktieavancebeskatningsloven_lbk1098_par37::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par37::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par37_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par37),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par37::meta:aktieavancebeskatningsloven_par37_metadata--
 ----
 § 37. Aktier, som ikke i forvejen er omfattet af dansk beskatning, anses for
 anskaffet på det faktiske anskaffelsestidspunkt til handelsværdien på
@@ -74,7 +84,17 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 | aktieavance_par37_resultat(input: AktieavancePar37Input) -> AktieavancePar37Sag(input).resultat()
 --@end:aktieavancebeskatningsloven_par37--
 
---@label:aktieavancebeskatningsloven_par38::source:aktieavancebeskatningsloven_lbk1098_par38::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par38_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par38),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par38::meta:aktieavancebeskatningsloven_par38_metadata--
 ----
 § 38. Gevinst og tab på aktier omfattet af reglerne i denne lov betragtes som
 realiseret, hvis gevinsten eller tabet vedrører en aktie, der er omfattet af
@@ -196,7 +216,16 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 | aktieavance_par38_resultat(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).resultat()
 --@end:aktieavancebeskatningsloven_par38--
 
---@label:aktieavancebeskatningsloven_par39::source:aktieavancebeskatningsloven_lbk1098_par39::guidance:aktieavancebeskatningsloven_juridisk_vejledning_par39::amendment_source:aktieavancebeskatningsloven_lov1755::amendment_source:aktieavancebeskatningsloven_lov615--
+= aktieavancebeskatningsloven_par39_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
+        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+    )
+)
+
+--@label:aktieavancebeskatningsloven_par39::meta:aktieavancebeskatningsloven_par39_metadata--
 ----
 § 39. Personer kan få henstand med betaling af den beregnede skat, jf. § 38,
 stk. 5, når betalingen skyldes ophør af skattepligt efter kildeskattelovens § 1,

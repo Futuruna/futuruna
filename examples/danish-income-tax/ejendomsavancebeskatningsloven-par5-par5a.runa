@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
@@ -35,7 +36,16 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par5_par5a::source:ebl_par5_lbk132::guidance:ebl_par5_vejledning_2026::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026--
+= ebl_par5_par5a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
+    )
+)
+
+--@label:ebl_par5_par5a::meta:ebl_par5_par5a_metadata--
 ----
 § 5. Anskaffelsessummen forhøjes med et tillæg på 10.000 kr. for
 anskaffelsesåret og hvert af de efterfølgende kalenderår, hvori den

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./pensionsbeskatningsloven - aarsparametre
@@ -52,7 +53,14 @@
     ændringsstatus = "2026: § 16, stk. 2, 68.700 kr.; § 18, stk. 5, 63.200 kr."
 )
 
---@label:pensionsbeskatningsloven_par16::source:pensionsbeskatningsloven_lbk1243_par16::source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+= pensionsbeskatningsloven_par16_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par16),
+        MetaAttachment(role = Source, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par16::meta:pensionsbeskatningsloven_par16_metadata--
 ----
 § 16. Til opsparing i pensionsøjemed uden fradrags- og bortseelsesret
 (aldersopsparing), kapitalforsikring i pensionsøjemed uden fradrags- og
@@ -134,7 +142,14 @@ Grundbeløbene reguleres efter personskattelovens § 20.
 )
 --@end::pensionsbeskatningsloven_par16--
 
---@label:pensionsbeskatningsloven_par18::source:pensionsbeskatningsloven_lbk1243_par18::source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+= pensionsbeskatningsloven_par18_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = Source, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par18::meta:pensionsbeskatningsloven_par18_metadata--
 ----
 § 18. Ved opgørelsen af den skattepligtige indkomst for ejeren af ordningen,
 jf. reglerne i afsnit III, kan med de i stk. 2-8 nævnte begrænsninger fradrages

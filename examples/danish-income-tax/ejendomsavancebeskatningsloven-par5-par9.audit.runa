@@ -1,8 +1,20 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par5_par9_konsistensaudit::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026::guidance:ebl_par5_stk6_vejledning_2026::source:ebl_par8_par9_lbk132::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
+= ebl_par5_par9_konsistensaudit_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+    )
+)
+
+--@label:ebl_par5_par9_konsistensaudit::meta:ebl_par5_par9_konsistensaudit_metadata--
 --@begin:ebl_par5_par9_konsistensaudit--
 | ebl_audit_par5_fakta(mælkekvoter: List(EblPar5MælkekvoteFakta), stk6_overførsel: EblPar5Stk6Overførsel, reguleringsvalg: EblPar5Reguleringsvalg) -> EblPar5Fakta(
     anskaffelsesdato = EblDato(år = 1999, måned = 1, dag = 1),

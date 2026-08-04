@@ -1,9 +1,17 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven - par19 - 20a
 @ importer ./aktieavancebeskatningsloven - par19b - 22
 
---@label:abl_investeringsklassifikation_beregning::source:aktieavancebeskatningsloven_lbk1098_par19_til_par20a::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
+= abl_investeringsklassifikation_beregning_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+    )
+)
+
+--@label:abl_investeringsklassifikation_beregning::meta:abl_investeringsklassifikation_beregning_metadata--
 --@begin:abl_investeringsklassifikation_beregning--
 @ calculate
 | klassificer_investeringsselskab_efter_par19(input: AktieavancePar19Input) -> aktieavance_par19_resultat(input)

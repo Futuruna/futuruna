@@ -1,8 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
---@label:ebl_par11_scenarier::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026--
+= ebl_par11_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+    )
+)
+
+--@label:ebl_par11_scenarier::meta:ebl_par11_scenarier_metadata--
 --@begin:ebl_par11_scenarier--
 | ebl_par11_scenarie_tidligere_genanbringelse(tillæg_kroner: Heltal, nedslag_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(fakta = EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(

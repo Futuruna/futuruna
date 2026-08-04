@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./ejendomsavancebeskatningsloven - par5 - par5a
 
@@ -47,7 +48,15 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par6a::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026::guidance:ebl_par6a_udland_vejledning_2026--
+= ebl_par6a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+    )
+)
+
+--@label:ebl_par6a::meta:ebl_par6a_metadata--
 ----
 § 6 A. Såfremt den skattepligtige erhverver en ejendom, der er omfattet af
 lovens regler, med undtagelse af ejendomme, der er omfattet af § 8, kan den
@@ -241,7 +250,14 @@ indholdet i begæringer efter stk. 2.
 | ebl_par6a_resultat(fakta: EblPar6AFakta) -> ebl_par6a_genanbringelsesresultat(fakta, EblGenanbringelseEfterPar6A, Sandt)
 --@end:ebl_par6a--
 
---@label:ebl_par6c::source:ebl_genanbringelse_lbk132::guidance:ebl_par6c_afg10051--
+= ebl_par6c_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6c_afg10051),
+    )
+)
+
+--@label:ebl_par6c::meta:ebl_par6c_metadata--
 ----
 § 6 C. Såfremt den skattepligtige ombygger, tilbygger eller nybygger på en
 ejendom, der er omfattet af § 6 A, kan den skattepligtige i stedet for at
@@ -258,7 +274,14 @@ eller nybygningen med fortjenesten.
 | ebl_par6c_resultat(fakta: EblPar6CFakta) -> ebl_par6a_genanbringelsesresultat(fakta.par6a_fakta, EblGenanbringelseEfterPar6C, fakta.arbejde_påbegyndt)
 --@end:ebl_par6c--
 
---@label:ebl_par10::source:ebl_genanbringelse_lbk132::guidance:ebl_par10_vejledning_2026--
+= ebl_par10_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par10_vejledning_2026),
+    )
+)
+
+--@label:ebl_par10::meta:ebl_par10_metadata--
 ----
 § 10. Såfremt en skattepligtig i anledning af en indtruffen skade på en
 ejendom, der ikke er omfattet af § 8, har modtaget en erstatnings- eller
@@ -409,7 +432,15 @@ afskrivningslovens § 24 samtidig anvendes.
 }
 --@end:ebl_par10--
 
---@label:ebl_genanbringelse_klassifikationsskifte::amendment_source:ebl_genanbringelse_lov308::guidance:ebl_genanbringelse_vejledning_2026::guidance:ebl_par10_vejledning_2026--
+= ebl_genanbringelse_klassifikationsskifte_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = Guidance, value = ebl_genanbringelse_vejledning_2026),
+        MetaAttachment(role = Guidance, value = ebl_par10_vejledning_2026),
+    )
+)
+
+--@label:ebl_genanbringelse_klassifikationsskifte::meta:ebl_genanbringelse_klassifikationsskifte_metadata--
 ----
 Bestemmelserne i § 8, stk. 5, og § 9, stk. 4, har virkning for ejendomme, der
 afstås den 14. december 2005 eller senere.

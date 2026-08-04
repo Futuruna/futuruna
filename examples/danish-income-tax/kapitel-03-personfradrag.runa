@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
 @ importer ./kapitel - 02 - statsskat
@@ -1247,7 +1248,15 @@ som nævnt i § 10, stk. 1.
     besked = "Personskattelovens § 13 a i LBK nr. 1284 af 14/06/2021 henviser til kursgevinstlovens § 32, stk. 3. I kursgevinstlovens LBK nr. 1176 af 19/09/2025 står den almindelige fremførselsregel i § 32, stk. 4, mens stk. 3 regulerer modregning i aktiegevinster. Reglerne bruger derfor den udtrykkelige fremførsel fra KursgevinstPar32PersonÅrsresultat."
 )
 
---@label:personskatteloven_par13a::source:personskatteloven_lbk1284_par13a::dependency_source:kursgevinstloven_lbk1176_par32::warning:personskatteloven_par13a_kgl_stk_henvisning_advarsel--
+= personskatteloven_par13a_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par13a),
+        MetaAttachment(role = DependencySource, value = kursgevinstloven_lbk1176_par32),
+        MetaAttachment(role = Warning, value = personskatteloven_par13a_kgl_stk_henvisning_advarsel),
+    )
+)
+
+--@label:personskatteloven_par13a::meta:personskatteloven_par13a_metadata--
 ----
 § 13 a. Opnår en person i et indkomstår en tvangsakkord i en rekonstruktion
 eller en gældssanering, nedsættes uudnyttede, fradragsberettigede underskud og
