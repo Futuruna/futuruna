@@ -818,6 +818,48 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human CFC input label {expected} on {cfc_sheet}"
             );
         }
+        let pbl53a_path = "kapitalindkomst.pbl53a.ordninger";
+        let pbl53a_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_sheet),
+            "Dansk personskat - Pensionsordninger efter PBL § 53 A"
+        );
+        let pbl53a_paths = workbook_column_paths(&mut workbook, &pbl53a_sheet);
+        for expected in [
+            "identifikation",
+            "ordning",
+            "afkastgrundlag.$variant",
+            "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+            "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
+            "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
+            "fremført_negativt_afkast_primo_kroner",
+            "andel.tæller",
+            "andel.nævner",
+        ] {
+            assert!(
+                pbl53a_paths.iter().any(|path| path == expected),
+                "missing canonical PBL § 53 A source-fact path {expected} on {pbl53a_sheet}"
+            );
+        }
+        let pbl53a_headers = workbook_headers(&mut workbook, &pbl53a_sheet);
+        for expected in [
+            "§ 53 A-ordningens identifikation",
+            "Type § 53 A-ordning",
+            "Omfattet af PBL § 53 B",
+            "Metode til opgørelse af § 53 A-afkast",
+            "Afkast opgjort efter PAL §§ 3-5",
+            "Kapitalværdi ved årets begyndelse",
+            "Kapitalværdi ved årets udgang",
+            "Fremført negativt afkast ved årets begyndelse",
+            "Andel af ordningens afkast, tæller",
+            "Andel af ordningens afkast, nævner",
+            "Udbetaling til betaling af afkastskat",
+        ] {
+            assert!(
+                pbl53a_headers.iter().any(|header| header == expected),
+                "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
+            );
+        }
         let pension_path = "lønmodtager.pension.pbl18_indbetalinger";
         let pension_sheet = workbook_collection_sheet_name(&mut workbook, pension_path);
         assert_eq!(
@@ -1037,6 +1079,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.renter.ligningslov6.MedLigningslov6Kurstab.input.kurstab_kroner",
             "kapitalindkomst.renter.ligningslov6a.$variant",
             "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
+            "kapitalindkomst.pbl53a.ordninger.identifikation",
+            "kapitalindkomst.pbl53a.ordninger.ordning",
+            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
+            "kapitalindkomst.pbl53a.ordninger.fremført_negativt_afkast_primo_kroner",
+            "kapitalindkomst.pbl53a.ordninger.andel.nævner",
             "kapitalindkomst.ejendomsdrift.$variant",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
@@ -1851,6 +1900,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing § 15 B sportspension source {expected}"
             );
         }
+        let pbl53a_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("kapitalindkomst.pbl53a.ordninger.identifikation")
+            })
+            .expect("PBL § 53 A metadata");
+        let pbl53a_sources = pbl53a_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("PBL § 53 A sources");
+        for expected in [
+            "pensionsbeskatningsloven_lbk1243_par53a",
+            "personskatteloven_lbk1284_par4",
+        ] {
+            assert!(
+                pbl53a_sources.contains(expected),
+                "missing PBL § 53 A source {expected}"
+            );
+        }
         let property_income_row = metadata
             .rows()
             .skip(1)
@@ -2012,6 +2084,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 7, "personskat-fremleje-2026");
         fill_wage_case(sheets, 8, "personskat-ejendomsdrift-2026");
         fill_wage_case(sheets, 9, "personskat-erhvervsbefordring-2026");
+        fill_wage_case(sheets, 10, "personskat-pbl53a-2026");
         let business_travel_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
             "lønmodtager.erhvervsbefordring.sager",
@@ -2130,6 +2203,140 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ] {
                 set_workbook_cell_by_header(sheets, &business_travel_sheet, row, header, value);
             }
+        }
+        let pbl53a_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("item_id", Data::String("livsforsikring-pal".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("livsforsikring-pal".to_string()),
+            ),
+            (
+                "ordning",
+                Data::String("Pbl53ALivsforsikringUdenKapitel1".to_string()),
+            ),
+            ("omfattes_af_par53b", Data::Bool(false)),
+            (
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+                Data::Bool(false),
+            ),
+            (
+                "afkastgrundlag.$variant",
+                Data::String("PersonskatPbl53AAfkastEfterPal".to_string()),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+                Data::Int(28_000),
+            ),
+            ("fremført_negativt_afkast_primo_kroner", Data::Int(6_000)),
+            ("andel.tæller", Data::Int(1)),
+            ("andel.nævner", Data::Int(1)),
+            ("udbetaling_til_afkastskat_kroner", Data::Int(0)),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 1, header, value);
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("item_id", Data::String("pensionskasse-negativ".to_string())),
+            ("position", Data::Int(2)),
+            (
+                "identifikation",
+                Data::String("pensionskasse-negativ".to_string()),
+            ),
+            (
+                "ordning",
+                Data::String("Pbl53APensionskasseUdenKapitel1".to_string()),
+            ),
+            ("omfattes_af_par53b", Data::Bool(false)),
+            (
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+                Data::Bool(false),
+            ),
+            (
+                "afkastgrundlag.$variant",
+                Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
+                Data::Int(140_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
+                Data::Int(128_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.udbetalinger_i_året_kroner",
+                Data::Int(4_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.indbetalinger_i_året_kroner",
+                Data::Int(0),
+            ),
+            ("fremført_negativt_afkast_primo_kroner", Data::Int(5_000)),
+            ("andel.tæller", Data::Int(1)),
+            ("andel.nævner", Data::Int(1)),
+            ("udbetaling_til_afkastskat_kroner", Data::Int(0)),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 2, header, value);
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("pengeinstitut-halv-andel".to_string()),
+            ),
+            ("position", Data::Int(3)),
+            (
+                "identifikation",
+                Data::String("pengeinstitut-halv-andel".to_string()),
+            ),
+            (
+                "ordning",
+                Data::String("Pbl53APengeinstitutUdenKapitel1".to_string()),
+            ),
+            ("omfattes_af_par53b", Data::Bool(false)),
+            (
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+                Data::Bool(false),
+            ),
+            (
+                "afkastgrundlag.$variant",
+                Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
+                Data::Int(200_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
+                Data::Int(230_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.udbetalinger_i_året_kroner",
+                Data::Int(12_000),
+            ),
+            (
+                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.indbetalinger_i_året_kroner",
+                Data::Int(15_000),
+            ),
+            ("fremført_negativt_afkast_primo_kroner", Data::Int(0)),
+            ("andel.tæller", Data::Int(1)),
+            ("andel.nævner", Data::Int(2)),
+            ("udbetaling_til_afkastskat_kroner", Data::Int(3_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 3, header, value);
         }
         for (header, value) in [
             (
@@ -3725,6 +3932,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
                 "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
             },
+            "pbl53a": { "ordninger": [] },
             "ejendomsavance": { "$variant": "UdenEjendomsavance" },
             "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
             "kursgevinst": { "$variant": "UdenKursgevinst" },
@@ -3852,6 +4060,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
             }
         },
+        "pbl53a": { "ordninger": [] },
         "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
@@ -4074,6 +4283,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "pbl53a": { "ordninger": [] },
         "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
@@ -4263,6 +4473,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "pbl53a": { "ordninger": [] },
         "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
@@ -4347,6 +4558,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "pbl53a": { "ordninger": [] },
         "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": {
             "$variant": "MedEjendomsavance",
@@ -4444,6 +4656,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
             "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
         },
+        "pbl53a": { "ordninger": [] },
         "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
         "ejendomsavance": { "$variant": "UdenEjendomsavance" },
         "kursgevinst": { "$variant": "UdenKursgevinst" },
@@ -4558,6 +4771,65 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(business_travel_case);
+    let mut pbl53a_case = json_input["cases"][0].clone();
+    pbl53a_case["case_id"] = Value::String("personskat-pbl53a-2026".into());
+    pbl53a_case["input"]["kapitalindkomst"]["pbl53a"] = serde_json::json!({
+        "ordninger": [
+            {
+                "identifikation": "livsforsikring-pal",
+                "ordning": { "$variant": "Pbl53ALivsforsikringUdenKapitel1" },
+                "omfattes_af_par53b": false,
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "afkastgrundlag": {
+                    "$variant": "PersonskatPbl53AAfkastEfterPal",
+                    "afkast_efter_pal_par3_til_5_kroner": 28_000
+                },
+                "fremført_negativt_afkast_primo_kroner": 6_000,
+                "andel": { "tæller": 1, "nævner": 1 },
+                "udbetaling_til_afkastskat_kroner": 0
+            },
+            {
+                "identifikation": "pensionskasse-negativ",
+                "ordning": { "$variant": "Pbl53APensionskasseUdenKapitel1" },
+                "omfattes_af_par53b": false,
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "afkastgrundlag": {
+                    "$variant": "PersonskatPbl53AKapitalværdiAfkast",
+                    "kapitalværdi_primo_kroner": 140_000,
+                    "kapitalværdi_ultimo_kroner": 128_000,
+                    "udbetalinger_i_året_kroner": 4_000,
+                    "indbetalinger_i_året_kroner": 0
+                },
+                "fremført_negativt_afkast_primo_kroner": 5_000,
+                "andel": { "tæller": 1, "nævner": 1 },
+                "udbetaling_til_afkastskat_kroner": 0
+            },
+            {
+                "identifikation": "pengeinstitut-halv-andel",
+                "ordning": { "$variant": "Pbl53APengeinstitutUdenKapitel1" },
+                "omfattes_af_par53b": false,
+                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "afkastgrundlag": {
+                    "$variant": "PersonskatPbl53AKapitalværdiAfkast",
+                    "kapitalværdi_primo_kroner": 200_000,
+                    "kapitalværdi_ultimo_kroner": 230_000,
+                    "udbetalinger_i_året_kroner": 12_000,
+                    "indbetalinger_i_året_kroner": 15_000
+                },
+                "fremført_negativt_afkast_primo_kroner": 0,
+                "andel": { "tæller": 1, "nævner": 2 },
+                "udbetaling_til_afkastskat_kroner": 3_000
+            }
+        ]
+    });
+    pbl53a_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(pbl53a_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -4608,6 +4880,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][8]["result"],
         json_result["results"][7]["result"]
+    );
+    assert_eq!(
+        result["results"][9]["result"],
+        json_result["results"][8]["result"]
     );
 
     assert_eq!(
@@ -4740,6 +5016,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][8]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
         48_032
+    );
+    let pbl53a_result = &result["results"][9]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(pbl53a_result["identifikationer_entydige"], true);
+    assert_eq!(pbl53a_result["alle_input_gyldige"], true);
+    assert_eq!(
+        pbl53a_result["kapitalposter"]
+            .as_array()
+            .expect("positive PBL § 53 A capital posts")
+            .len(),
+        2
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["pensionsbeskatningslov_input"]["indkomstår"],
+        2026
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["par4_resultat"]["kapitalindkomst_kroner"],
+        22_000
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][1]["pensionsbeskatningslov_resultat"]
+            ["fremført_negativt_afkast_ultimo_kroner"],
+        13_000
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][2]["par4_resultat"]["kapitalindkomst_kroner"],
+        13_500
+    );
+    assert_eq!(
+        result["results"][9]["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        35_500
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],

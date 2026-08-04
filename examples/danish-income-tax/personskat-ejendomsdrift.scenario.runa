@@ -44,6 +44,7 @@ Futuruna.
             ligningslov6 = UdenLigningslov6Kurstab,
             ligningslov6a = UdenLigningslov6AFradrag
         ),
+        pbl53a = personskat_ingen_pbl53a(),
         ejendomsdrift = ejendomsdrift,
         ejendomsavance = UdenEjendomsavance,
         kursgevinst = UdenKursgevinst,

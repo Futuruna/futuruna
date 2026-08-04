@@ -72,6 +72,15 @@ Kilderne er
 og
 [Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500).
 
+Afkast fra pensions- og forsikringsordninger efter
+Pensionsbeskatningslovens § 53 A går nu gennem den samme kanoniske beregning.
+Hver ordning har en stabil identifikation og oplyser enten et PAL-afkast eller
+kapitalværdier, ind- og udbetalinger. Futuruna afleder skatteåret, beregner
+afkastet, anvender kun fremført negativt afkast fra samme ordning og fører et
+positivt resultat til Personskattelovens § 4, stk. 1, nr. 13. Et negativt
+resultat bevares særskilt til senere år og kan ikke skjult modregnes i en anden
+ordning. Både lovresultater og en eventuel ugyldighed bliver i forklaringssporet.
+
 Variantvalg gør særlige
 skatteforhold,
 underskudsforhold, årsopgørelse og valgfri fradragsgrene eksplicitte; kun den
@@ -79,7 +88,8 @@ valgte grens felter skal udfyldes. Lister bliver til særskilte, nøglebundne
 kildetabeller frem for et håndskrevet antal gentagne kolonner. Den kanoniske
 graf modtager nu renteindtægter,
 renteudgifter, identificerede pensionsindbetalinger efter
-Pensionsbeskatningslovens § 18, Ligningslovens §§ 6/6 A-fradrag,
+Pensionsbeskatningslovens § 18, identificerede ordninger og afkast efter
+Pensionsbeskatningslovens § 53 A, Ligningslovens §§ 6/6 A-fradrag,
 identificerede § 9 B-sager om
 erhvervsmæssig kørsel og godtgørelse, § 9 C-befordringsfakta,
 valgfri § 9 D-forhold, udlejning eller fremleje efter Ligningslovens § 15 Q,
@@ -198,7 +208,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 684 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 699 eksplicitte feltmetadata-poster,
+heraf 15 for § 53 A-ordninger.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

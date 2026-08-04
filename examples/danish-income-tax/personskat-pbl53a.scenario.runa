@@ -1,0 +1,143 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet validerer den kanoniske kildefaktabro fra identificerede ordninger
+efter Pensionsbeskatningslovens § 53 A til Personskattelovens § 4, stk. 1,
+nr. 13. Hver ordning beholder sit eget negative afkast; kun positive,
+skattepligtige resultater indgår i den samlede kapitalindkomst.
+----
+
+| personskat_pbl53a_kapitalindkomst(input: PersonskatPbl53AInput) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    pbl53a = input,
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+| personskat_pbl53a_scenarie(input: PersonskatPbl53AInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_pbl53a_kapitalindkomst(input),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_pbl53a_pal_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "livsforsikring-pal",
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 28000),
+    fremført_negativt_afkast_primo_kroner = 6000,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_negativ_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "pensionskasse-negativ",
+    ordning = Pbl53APensionskasseUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AKapitalværdiAfkast(
+        kapitalværdi_primo_kroner = 140000,
+        kapitalværdi_ultimo_kroner = 128000,
+        udbetalinger_i_året_kroner = 4000,
+        indbetalinger_i_året_kroner = 0
+    ),
+    fremført_negativt_afkast_primo_kroner = 5000,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_halv_andel_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "pengeinstitut-halv-andel",
+    ordning = Pbl53APengeinstitutUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AKapitalværdiAfkast(
+        kapitalværdi_primo_kroner = 200000,
+        kapitalværdi_ultimo_kroner = 230000,
+        udbetalinger_i_året_kroner = 12000,
+        indbetalinger_i_året_kroner = 15000
+    ),
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 2),
+    udbetaling_til_afkastskat_kroner = 3000
+)
+= personskat_pbl53a_blandet_input = PersonskatPbl53AInput(
+    ordninger = [
+        personskat_pbl53a_pal_fakta,
+        personskat_pbl53a_negativ_fakta,
+        personskat_pbl53a_halv_andel_fakta
+    ]
+)
+= personskat_pbl53a_blandet_resultat = beregn_personskat(personskat_pbl53a_scenarie(personskat_pbl53a_blandet_input))
+
+= personskat_pbl53a_dublet_input = PersonskatPbl53AInput(
+    ordninger = [personskat_pbl53a_pal_fakta, personskat_pbl53a_pal_fakta]
+)
+= personskat_pbl53a_dublet_resultat = beregn_personskat(personskat_pbl53a_scenarie(personskat_pbl53a_dublet_input))
+
+= personskat_pbl53a_ugyldig_andel_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "ugyldig-andel",
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 10000),
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 2, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_ugyldig_andel_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_ugyldig_andel_fakta]), 2026)
+= personskat_pbl53a_fremtidigt_år_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_pal_fakta]), 2027)
+
+| personskat_pbl53a_positive_ordninger_samles: personskat_pbl53a_blandet_resultat -> personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.alle_input_gyldige && personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.identifikationer_entydige && length(personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.kapitalposter) == 2 && personskat_pbl53a_blandet_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 35500
+| personskat_pbl53a_pal_resultat_bevarer_regelkæden: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(fakta, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "livsforsikring-pal" && pensionsbeskatningslov_input.indkomstår == 2026 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 6000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 22000 && par4_resultat.kapitalindkomst_kroner == 22000
+    | _ -> Falskt
+}
+| personskat_pbl53a_negativt_afkast_forbliver_på_ordningen: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[1] {
+    | BeregnetPbl53AOrdning(fakta, _, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "pensionskasse-negativ" && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == -8000 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_ultimo_kroner == 13000 && par4_resultat.kapitalindkomst_kroner == 0
+    | _ -> Falskt
+}
+| personskat_pbl53a_andel_og_afkastskatteudbetaling_spores: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[2] {
+    | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_resultat, _, par4_resultat) -> pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 27000 && pensionsbeskatningslov_resultat.afkastandel_før_negativ_fremførsel_kroner == 13500 && pensionsbeskatningslov_resultat.udbetaling_til_afkastskat_medregnes_kroner == 0 && par4_resultat.kapitalindkomst_kroner == 13500
+    | _ -> Falskt
+}
+| personskat_pbl53a_dublet_fejler_lukket: personskat_pbl53a_dublet_resultat -> personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_input_gyldigt == Falskt && personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_resultat.identifikationer_entydige == Falskt && length(personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_resultat.kapitalposter) == 0 && personskat_pbl53a_dublet_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| personskat_pbl53a_ugyldig_andel_fejler_lukket: personskat_pbl53a_ugyldig_andel_resultat -> personskat_pbl53a_ugyldig_andel_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_ugyldig_andel_resultat.kapitalposter) == 0 && match personskat_pbl53a_ugyldig_andel_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige == Falskt
+    | _ -> Falskt
+}
+| personskat_pbl53a_fremtidigt_år_fejler_lukket: personskat_pbl53a_fremtidigt_år_resultat -> personskat_pbl53a_fremtidigt_år_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_fremtidigt_år_resultat.kapitalposter) == 0 && match personskat_pbl53a_fremtidigt_år_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige) -> skatteår_understøttet == Falskt && identifikation_unik && grundfakta_gyldige
+    | _ -> Falskt
+}
+
+? personskat_pbl53a_positive_ordninger_samles
+? personskat_pbl53a_pal_resultat_bevarer_regelkæden
+? personskat_pbl53a_negativt_afkast_forbliver_på_ordningen
+? personskat_pbl53a_andel_og_afkastskatteudbetaling_spores
+? personskat_pbl53a_dublet_fejler_lukket
+? personskat_pbl53a_ugyldig_andel_fejler_lukket
+? personskat_pbl53a_fremtidigt_år_fejler_lukket

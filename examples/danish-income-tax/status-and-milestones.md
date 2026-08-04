@@ -1,13 +1,12 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-24
+Last updated: 2026-07-28
 TD epic: `td-56cf8d`
-Current language issue: `td-1ca9ba`
+Current implementation slice: `td-fad7c0`
 Deferred performance issue: `td-6659f1`
-Latest implementation slice submitted for review: `td-c56369`
-Latest approved implementation slice: `td-cd7f0d`
-Latest approved tooling cleanup: `td-252816`
+Latest approved implementation slice: `td-59e722`
+Latest approved language slice: `td-1ca9ba`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -68,6 +67,24 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
+eller flere identificerede pensions- og forsikringsordninger efter
+Pensionsbeskatningslovens § 53 A som kildefakta. Skatteåret afledes fra den
+omgivende Personskat-sag. Afkastgrundlaget er en sumtype, så en ordning enten
+oplyser et positivt eller negativt PAL-afkast eller de fire beløb til den
+alternative kapitalværdimetode; modstridende metodefelter kan derfor ikke
+opstå. Hver ordning bevarer PBL-inputtet, PBL-resultatet og resultatet efter
+Personskattelovens § 4, stk. 1, nr. 13. Positivt afkast efter egen negativ
+fremførsel bliver kapitalindkomst, mens et negativt afkast forbliver knyttet
+til den samme identificerede ordning. Dubletidentifikationer, ugyldige andele
+og ikke-understøttede år er synlige og fejler lukket. Syv fokuserede
+interpreter- og kompilerscenarier dækker regelkæden. Beregningskontrakten har
+15 nye danske feltbeskrivelser med både PBL § 53 A-kilden og PSL § 4-kilden,
+699 feltmetadata-poster i alt og et særskilt relationelt regnearksark for
+ordningerne. Den eksakte XLSX/JSON-afstemning dækker tre ordninger og fastholder
+35.500 kr. samlet kapitalindkomst samt 13.000 kr. negativt afkast til særskilt
+fremførsel på den ordning, hvor tabet opstod.
+
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu typede
 kildefakta om udenlandske sociale bidrag efter Ligningslovens § 8 M. Skatteåret
 og det almindelige arbejdsmarkedsbidrag af lønnen afledes af den omgivende
@@ -119,7 +136,7 @@ fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
 interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
 provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
 likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
-forløbet og 684 feltmetadata-poster i alt.
+forløbet og 699 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -399,7 +416,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 684 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 699 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -449,7 +466,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`b7d8ebb35c311c7219796cf84d55ea4e648dfbe54260f44902458eea05f27319`.
+`1f7ad6cde40afce8e4ccf08a70563fd7bfc70e0b824aaabbc94575c27f503bf0`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -461,8 +478,8 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 1.798 domænekolonner; 456 materialiserer en eksplicit etiket,
-mens 1.342 fortsat bruger dette fallback. Metadataudbygningen er derfor en
+projektmappe har 3.285 domænekolonner; 699 materialiserer en eksplicit etiket,
+mens 2.586 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
@@ -2268,7 +2285,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-07-23, the corpus should be treated as a source-backed first-slice
+As of 2026-07-28, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -3012,8 +3029,8 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 394 nåbare definitioner, 156
-  synlige overskriftsceller inklusive `case_id` og 52 relationelle kildeark.
+- Det genererede Personskat-regneark har nu 592 nåbare definitioner, 167
+  synlige overskriftsceller inklusive `case_id` og 88 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -3045,7 +3062,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 684 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 699 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3071,7 +3088,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 1.883 domænekolonner bruger præcise feltmetadata, hvor de er
+  Arbejdsbogens 3.285 domænekolonner bruger præcise feltmetadata, hvor de er
   oprettet. Alle 64 nåbare § 15 A-stier for afståelsen har nu en eksplicit
   etiket og et interviewspørgsmål; ældre, dybe stier med deterministisk læsbar
   fallback er fortsat eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og

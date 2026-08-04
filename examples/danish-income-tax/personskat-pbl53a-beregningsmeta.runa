@@ -1,0 +1,139 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pensionsbeskatningsloven
+@ importer ./kapitel - 01 - indkomst
+
+= personskat_pbl53a_felt_ordninger = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger",
+    label = "Pensionsordninger efter PBL § 53 A",
+    question = Some("Har du en eller flere pensionsordninger, hvis afkast skal behandles efter pensionsbeskatningslovens § 53 A?"),
+    help = Some("Tilføj hver ordning særskilt. Negativt afkast fremføres inden for den samme identificerede ordning."),
+    unit = None
+)
+= personskat_pbl53a_felt_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.identifikation",
+    label = "§ 53 A-ordningens identifikation",
+    question = Some("Hvilken entydig identifikation skal pensionsordningen have?"),
+    help = Some("Brug en stabil identifikation, så afkast og fremført negativt afkast ikke blandes mellem ordninger."),
+    unit = None
+)
+= personskat_pbl53a_felt_ordning = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.ordning",
+    label = "Type § 53 A-ordning",
+    question = Some("Hvilken type pensions- eller forsikringsordning er der tale om efter § 53 A, stk. 1?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl53a_felt_par53b = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.omfattes_af_par53b",
+    label = "Omfattet af PBL § 53 B",
+    question = Some("Er ordningen omfattet af pensionsbeskatningslovens § 53 B?"),
+    help = Some("En ordning omfattet af § 53 B falder uden for § 53 A, stk. 1."),
+    unit = None
+)
+= personskat_pbl53a_felt_stk4_livsforsikring = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+    label = "Livsforsikring undtaget efter § 53 A, stk. 4",
+    question = Some("Kan livsforsikringen kun udbetales ved død, invaliditet eller livstruende sygdom og senest ved første policedag efter det fyldte 80. år?"),
+    help = Some("Betingelsen medfører, at ordningens afkast er undtaget fra beskatning efter stk. 3."),
+    unit = None
+)
+= personskat_pbl53a_felt_afkastgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.$variant",
+    label = "Metode til opgørelse af § 53 A-afkast",
+    question = Some("Er afkastet opgjort efter pensionsafkastbeskatningslovens §§ 3-5 eller efter den alternative kapitalværdimetode?"),
+    help = Some("Valget mellem metoderne er bindende for efterfølgende indkomstår."),
+    unit = None
+)
+= personskat_pbl53a_felt_pal_afkast = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+    label = "Afkast opgjort efter PAL §§ 3-5",
+    question = Some("Hvad er årets positive eller negative afkast opgjort efter pensionsafkastbeskatningslovens §§ 3-5?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_pbl53a_felt_kapitalværdi_primo = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
+    label = "Kapitalværdi ved årets begyndelse",
+    question = Some("Hvad var ordningens kapitalværdi ved indkomstårets begyndelse?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_kapitalværdi_ultimo = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
+    label = "Kapitalværdi ved årets udgang",
+    question = Some("Hvad var ordningens kapitalværdi ved indkomstårets udgang?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_udbetalinger = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.udbetalinger_i_året_kroner",
+    label = "Udbetalinger i indkomståret",
+    question = Some("Hvor meget blev der udbetalt fra ordningen i indkomståret?"),
+    help = Some("Beløbet lægges til kapitalværdien ved årets udgang ved den alternative opgørelse."),
+    unit = Some("kr./år")
+)
+= personskat_pbl53a_felt_indbetalinger = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.indbetalinger_i_året_kroner",
+    label = "Indbetalinger i indkomståret",
+    question = Some("Hvor meget blev der indbetalt på ordningen i indkomståret?"),
+    help = Some("Beløbet lægges til kapitalværdien ved årets begyndelse ved den alternative opgørelse."),
+    unit = Some("kr./år")
+)
+= personskat_pbl53a_felt_fremført_negativt_afkast = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.fremført_negativt_afkast_primo_kroner",
+    label = "Fremført negativt afkast ved årets begyndelse",
+    question = Some("Hvor stort et uudnyttet negativt afkast fra samme ordning er fremført til indkomståret?"),
+    help = Some("Negativt afkast kan kun modregnes i positivt afkast fra den samme ordning."),
+    unit = Some("kr.")
+)
+= personskat_pbl53a_felt_andel_taeller = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.andel.tæller",
+    label = "Andel af ordningens afkast, tæller",
+    question = Some("Hvad er tælleren i personens andel af indeståendet ved årets udgang?"),
+    help = Some("Angiv for eksempel 1 som tæller og 2 som nævner for en halv andel."),
+    unit = None
+)
+= personskat_pbl53a_felt_andel_naevner = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.andel.nævner",
+    label = "Andel af ordningens afkast, nævner",
+    question = Some("Hvad er nævneren i personens andel af indeståendet ved årets udgang?"),
+    help = Some("Nævneren skal være positiv og mindst lige så stor som tælleren."),
+    unit = None
+)
+= personskat_pbl53a_felt_udbetaling_til_afkastskat = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.udbetaling_til_afkastskat_kroner",
+    label = "Udbetaling til betaling af afkastskat",
+    question = Some("Hvor meget blev udbetalt fra ordningen til betaling af skat af det løbende afkast?"),
+    help = Some("En rettidig udbetaling til dækning af afkastskatten medregnes ikke i den skattepligtige indkomst."),
+    unit = Some("kr.")
+)
+
+= personskat_pbl53a_beregningsmeta = Beregningsmeta(
+    felter = [
+        personskat_pbl53a_felt_ordninger,
+        personskat_pbl53a_felt_identifikation,
+        personskat_pbl53a_felt_ordning,
+        personskat_pbl53a_felt_par53b,
+        personskat_pbl53a_felt_stk4_livsforsikring,
+        personskat_pbl53a_felt_afkastgrundlag,
+        personskat_pbl53a_felt_pal_afkast,
+        personskat_pbl53a_felt_kapitalværdi_primo,
+        personskat_pbl53a_felt_kapitalværdi_ultimo,
+        personskat_pbl53a_felt_udbetalinger,
+        personskat_pbl53a_felt_indbetalinger,
+        personskat_pbl53a_felt_fremført_negativt_afkast,
+        personskat_pbl53a_felt_andel_taeller,
+        personskat_pbl53a_felt_andel_naevner,
+        personskat_pbl53a_felt_udbetaling_til_afkastskat
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        DependencySource(value = personskatteloven_lbk1284_par4),
+    )
+)
+
+--@label:beregn_personskat::meta:personskat_pbl53a_beregningsmeta--
