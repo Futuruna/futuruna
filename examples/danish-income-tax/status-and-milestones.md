@@ -3,9 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-c56369`
-Latest implementation slice submitted for review: `td-cd7f0d`
+Current review issue: `td-c56369`
+Next language focus: `td-6659f1`
+Latest implementation slice submitted for review: `td-c56369`
 Latest approved implementation slice: `td-cd7f0d`
+Latest approved tooling cleanup: `td-252816`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
