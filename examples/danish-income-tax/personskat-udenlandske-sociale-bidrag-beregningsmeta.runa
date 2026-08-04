@@ -122,8 +122,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
-        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+        Source(value = ligningsloven_2025_1500),
+        DependencySource(value = personskatteloven_2021_1284),
     )
 )
 

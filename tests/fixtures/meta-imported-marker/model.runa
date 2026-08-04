@@ -1,0 +1,3 @@
+@ import ./definition
+
+--@label:imported_marker::meta:imported_source_meta--

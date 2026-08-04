@@ -31,9 +31,9 @@
 
 = kgl_sælgerpantebrev_lovgrundlag_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+        Source(value = kgl_sælgerpantebrev_lbk1176),
+        DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
     )
 )
 
@@ -351,8 +351,7 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 }
 --@end:kgl_sælgerpantebrev_lovgrundlag--
 
-= kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta = MetaAttachment(
-    role = Guidance,
+= kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta = Guidance(
     value = kgl_sælgerpantebrev_vejledning_2026
 )
 --@label:kgl_sælgerpantebrev_ebl_par6d_samspil::meta:kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta--

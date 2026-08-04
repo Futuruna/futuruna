@@ -1,0 +1,6 @@
+# SourceInfo(url: String)
+# ImportedSourceMeta(source: SourceInfo)
+# impl Meta for ImportedSourceMeta {}
+
+= imported_source = SourceInfo(url = "https://example.invalid/imported-marker")
+= imported_source_meta = ImportedSourceMeta(source = imported_source)

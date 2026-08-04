@@ -235,8 +235,7 @@ beløb, der tilkommer en andelsberettiget kommune.
     resterende_til_skattekommune_kroner = input.kommunal_indkomstskat_kroner - kommunal_par3_tilflytningsandel_kroner(input)
 )
 
-= kommuneskat_par5_stk1_stk3_kildemeta = MetaAttachment(
-    role = Source,
+= kommuneskat_par5_stk1_stk3_kildemeta = Source(
     value = kommuneskatteloven_lbk935_par5
 )
 --@label:kommuneskatteloven_par5_stk1_stk3::meta:kommuneskat_par5_stk1_stk3_kildemeta--
@@ -445,8 +444,7 @@ afskrivningslovens § 40 C, stk. 8-10.
     marts_kroner = kommunal_par16_tredjedel_kroner(input)
 )
 
-= kommuneskat_par16a_lov720_kildemeta = MetaAttachment(
-    role = Source,
+= kommuneskat_par16a_lov720_kildemeta = Source(
     value = kommuneskatteloven_lov720_par2
 )
 --@label:kommuneskatteloven_par16a_lov720::meta:kommuneskat_par16a_lov720_kildemeta--

@@ -1,16 +1,17 @@
-# MetaRole = Source | DependencySource
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# SourceMetaRole(a) = Source(value: a) | DependencySource(value: a)
 # SourceInfo(url: String)
 # CalculationField(path: String, label: String)
 # CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for SourceMetaRole {}
+# impl Meta for CalculationMeta {}
 
 = primary_source = SourceInfo(url = "https://example.invalid/primary")
 = dependency_source = SourceInfo(url = "https://example.invalid/dependency")
 = amount_field = CalculationField(path = "amount", label = "Amount")
 = calculation_metadata = CalculationMeta(
     fields = [amount_field],
-    attachments = (MetaAttachment(role = Source, value = primary_source),
-        MetaAttachment(role = DependencySource, value = dependency_source))
+    attachments = (Source(value = primary_source),
+        DependencySource(value = dependency_source))
 )
 
 --@label:calculate::meta:calculation_metadata--

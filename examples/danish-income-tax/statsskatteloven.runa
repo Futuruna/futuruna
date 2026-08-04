@@ -24,8 +24,8 @@
 
 = statsskatteloven_par6_litra_a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = statsskatteloven_lov149_par6_litra_a),
-        MetaAttachment(role = Guidance, value = statsskatteloven_par6_juridisk_vejledning),
+        Source(value = statsskatteloven_lov149_par6_litra_a),
+        Guidance(value = statsskatteloven_par6_juridisk_vejledning),
     )
 )
 

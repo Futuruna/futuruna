@@ -253,8 +253,7 @@ eller indberetning, anvendelse.
     hentet_dato = "2026-07-18"
 )
 
-= opkrævning_par7_stk1_stk2_kildemeta = MetaAttachment(
-    role = Source,
+= opkrævning_par7_stk1_stk2_kildemeta = Source(
     value = opkrævningsloven_lbk1040_par7
 )
 --@label:opkraevningsloven_par7_stk1_stk2::meta:opkrævning_par7_stk1_stk2_kildemeta--
@@ -334,8 +333,7 @@ beregning efter Opkrævningsloven § 7.
 Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 ----
 
-= opkraevning_par7_nationalbank_statbank_kildemeta = MetaAttachment(
-    role = Source,
+= opkraevning_par7_nationalbank_statbank_kildemeta = Source(
     value = opkrævning_par7_nationalbank_statbank_dnruupi
 )
 --@label:opkraevning_par7_nationalbank_statbank::meta:opkraevning_par7_nationalbank_statbank_kildemeta--

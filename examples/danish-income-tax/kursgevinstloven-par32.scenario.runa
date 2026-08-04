@@ -5,9 +5,9 @@
 
 = kursgevinstloven_par32_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = kursgevinstloven_lbk1176_par32),
-        MetaAttachment(role = Guidance, value = kursgevinstloven_juridisk_vejledning_par32),
-        MetaAttachment(role = AmendmentSource, value = kursgevinstloven_lov1563_par4_par8),
+        Source(value = kursgevinstloven_lbk1176_par32),
+        Guidance(value = kursgevinstloven_juridisk_vejledning_par32),
+        AmendmentSource(value = kursgevinstloven_lov1563_par4_par8),
     )
 )
 

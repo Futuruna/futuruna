@@ -45,10 +45,10 @@
 
 = ebl_par8_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
-        MetaAttachment(role = Guidance, value = ebl_par8_stk4_vejledning_2026),
-        MetaAttachment(role = Guidance, value = ebl_genanbringelse_vejledning_2026),
+        Source(value = ebl_par8_par9_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        Guidance(value = ebl_par8_stk4_vejledning_2026),
+        Guidance(value = ebl_genanbringelse_vejledning_2026),
     )
 )
 
@@ -129,12 +129,12 @@ til bolig for ejeren umiddelbart forud for fraflytningen.
 
 = ebl_par9_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
-        MetaAttachment(role = AmendmentSource, value = ebl_par9_lov1580),
-        MetaAttachment(role = AmendmentSource, value = ebl_par9_lov562),
-        MetaAttachment(role = Guidance, value = ebl_par9_vejledning_2026),
-        MetaAttachment(role = Guidance, value = ebl_genanbringelse_vejledning_2026),
+        Source(value = ebl_par8_par9_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        AmendmentSource(value = ebl_par9_lov1580),
+        AmendmentSource(value = ebl_par9_lov562),
+        Guidance(value = ebl_par9_vejledning_2026),
+        Guidance(value = ebl_genanbringelse_vejledning_2026),
     )
 )
 
@@ -204,8 +204,7 @@ Told- og skatteforvaltningen kan i ganske særlige tilfælde dispensere fra denn
 frist.
 ----
 
-= ebl_par9_stk1_tredje_pkt_2020_ændringsmeta = MetaAttachment(
-    role = AmendmentSource,
+= ebl_par9_stk1_tredje_pkt_2020_ændringsmeta = AmendmentSource(
     value = ebl_par9_lov1580
 )
 --@label:ebl_par9_stk1_tredje_pkt_2020::meta:ebl_par9_stk1_tredje_pkt_2020_ændringsmeta--
@@ -213,8 +212,7 @@ frist.
 I § 9, stk. 1, 3. pkt., ændres »§ 2, stk. 2« til: »§ 2, stk. 3«.
 ----
 
-= ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta = MetaAttachment(
-    role = AmendmentSource,
+= ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta = AmendmentSource(
     value = ebl_par9_lov562
 )
 --@label:ebl_par9_erhverv_og_overgang_fra_2025::meta:ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta--
@@ -241,8 +239,7 @@ ejerens foranledning.
 Loven træder i kraft den 1. juli 2025.
 ----
 
-= ebl_par9_natur_fra_2027_ændringsmeta = MetaAttachment(
-    role = AmendmentSource,
+= ebl_par9_natur_fra_2027_ændringsmeta = AmendmentSource(
     value = ebl_par9_lov615
 )
 --@label:ebl_par9_natur_fra_2027::meta:ebl_par9_natur_fra_2027_ændringsmeta--

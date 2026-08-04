@@ -65,7 +65,7 @@
 
 = pbl15b_årsparametre_2010_til_2017_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        RateSource(value = skatteministeriet_pbl15b_satser_2010_til_2017),
     )
 )
 
@@ -92,7 +92,7 @@ Maks. årlig hævning for professionelle sportsudøvere 341.700 341.700 341.700 
 
 = pbl15b_årsparametre_2018_til_2024_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        RateSource(value = skatteministeriet_pbl15b_satser_2018_til_2024),
     )
 )
 
@@ -118,7 +118,7 @@ Maks. årlig hævning for professionelle sportsudøvere 373.900 382.100 390.600 
 
 = pbl15b_årsparametre_2025_til_2026_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+        RateSource(value = skatteministeriet_pbl15b_satser_2025_til_2026),
     )
 )
 
@@ -150,9 +150,9 @@ Maks. årlig hævning for sportsudøvere
 
 = pensionsbeskatningsloven_par15b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
-        MetaAttachment(role = Guidance, value = skatteforvaltningen_pbl15b_udbetalinger),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        Guidance(value = skatteforvaltningen_pbl15b_udbetalinger),
     )
 )
 

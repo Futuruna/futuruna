@@ -81,28 +81,26 @@
 )
 
 = pensionsbeskatningsloven_par15_metadata = Metadata(
-    attachments = MetaAttachment(
-        role = Source,
+    attachments = Source(
         value = pensionsbeskatningsloven_lbk1243_par15
     )
 )
 
 = pensionsbeskatningsloven_par15a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
-        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
-        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
-        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+        RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        Guidance(value = skat_pbl15a_ophørspension_vejledning),
+        PengetankGuidance(value = skat_pbl15a_betingelser_vejledning),
+        TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning),
     )
 )
 
 = pensionsbeskatningsloven_par15a_holdingafvikling_metadata = Metadata(
-    attachments = MetaAttachment(
-        role = TimingGuidance,
+    attachments = TimingGuidance(
         value = skat_pbl15a_holdingafvikling_vejledning
     )
 )

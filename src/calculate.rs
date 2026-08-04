@@ -1318,7 +1318,7 @@ fn calculation_metadata_attachment_reference(
     anchor: &MetaAnchor,
     reference: &MetaReference,
     symbols: Vec<String>,
-    attachment: MetaAttachmentValue<'_>,
+    attachment: MetaRoleValue<'_>,
 ) -> CalculationMetadataReference {
     CalculationMetadataReference {
         label: anchor.label.clone(),

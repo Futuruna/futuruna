@@ -3,8 +3,7 @@
 @ importer ./metadata
 @ importer ./kursgevinstloven - ebl - par6d
 
-= kgl_ebl_par6d_scenarier_vejledningsmeta = MetaAttachment(
-    role = Guidance,
+= kgl_ebl_par6d_scenarier_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026
 )
 --@label:kgl_ebl_par6d_scenarier::meta:kgl_ebl_par6d_scenarier_vejledningsmeta--

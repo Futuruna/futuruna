@@ -54,14 +54,14 @@
 
 = aktieavancebeskatningsloven_par39a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39a),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -604,10 +604,10 @@ finder tilsvarende anvendelse.
 
 = aktieavancebeskatningsloven_par39b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39b),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39b),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -718,10 +718,10 @@ Danmark.
 
 = aktieavancebeskatningsloven_par40_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par40),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par40),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

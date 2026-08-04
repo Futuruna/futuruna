@@ -60,8 +60,7 @@ lovtekst kontrolleres særskilt i source-status.runa.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8_kildemeta = Source(
     value = ligningsloven_lbk1500_par8
 )
 --@label:ligningsloven_par8::meta:ll_par8_kildemeta--
@@ -129,8 +128,7 @@ udgifter.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8b_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8b_kildemeta = Source(
     value = ligningsloven_lbk1500_par8b
 )
 --@label:ligningsloven_par8b::meta:ll_par8b_kildemeta--
@@ -303,8 +301,7 @@ deles med 100.000.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8k_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8k_kildemeta = Source(
     value = ligningsloven_lbk1500_par8k
 )
 --@label:ligningsloven_par8k::meta:ll_par8k_kildemeta--
@@ -436,8 +433,7 @@ om skattemæssige afskrivninger mv.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8l_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8l_kildemeta = Source(
     value = ligningsloven_lbk1500_par8l
 )
 --@label:ligningsloven_par8l::meta:ll_par8l_kildemeta--
@@ -483,8 +479,7 @@ anden anvendelse efter kapitel 9 i lov om friplejeboliger.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8m_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8m_kildemeta = Source(
     value = ligningsloven_lbk1500_par8m
 )
 --@label:ligningsloven_par8m::meta:ll_par8m_kildemeta--
@@ -578,8 +573,7 @@ af bidrag efter stk. 4.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par8n_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par8n_kildemeta = Source(
     value = ligningsloven_lbk1500_par8n
 )
 --@label:ligningsloven_par8n::meta:ll_par8n_kildemeta--
@@ -689,9 +683,9 @@ udstedt til.
 
 = ligningsloven_par8o_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par8o),
-        MetaAttachment(role = Source, value = ligningsloven_lov198_par3_nr2_par8o),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par8o),
+        Source(value = ligningsloven_lbk1500_par8o),
+        Source(value = ligningsloven_lov198_par3_nr2_par8o),
+        Guidance(value = ligningsloven_juridisk_vejledning_par8o),
     )
 )
 
@@ -794,11 +788,11 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
 
 = ligningsloven_par9b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        Source(value = ligningsloven_lbk1500_par9b),
+        Source(value = skatteraadet_bek1333_par4_par14),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
     )
 )
 
@@ -1056,10 +1050,10 @@ stk. 5.
 
 = ligningsloven_par9c_par9d_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9c_par9d),
-        MetaAttachment(role = AmendmentSource, value = ligningsloven_lov616_par1),
-        MetaAttachment(role = RateSource, value = ligningsloven_bek1333_par1_par4),
-        MetaAttachment(role = Guidance, value = ligningsloven_vejledning_par9c_fri_befordring),
+        Source(value = ligningsloven_lbk1500_par9c_par9d),
+        AmendmentSource(value = ligningsloven_lov616_par1),
+        RateSource(value = ligningsloven_bek1333_par1_par4),
+        Guidance(value = ligningsloven_vejledning_par9c_fri_befordring),
     )
 )
 
@@ -1980,8 +1974,8 @@ Jobfradrag, § 9 K
 
 = ligningsloven_par9l_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9l),
-        MetaAttachment(role = RateSource, value = skatteministeriet_ligningsloven_par9l_satser_2026),
+        Source(value = ligningsloven_lbk1500_par9l),
+        RateSource(value = skatteministeriet_ligningsloven_par9l_satser_2026),
     )
 )
 
@@ -2189,8 +2183,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     hentet_dato = "2026-07-18"
 )
 
-= ll_par14_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par14_kildemeta = Source(
     value = ligningsloven_lbk1500_par14
 )
 --@label:ligningsloven_par14::meta:ll_par14_kildemeta--
@@ -2276,8 +2269,7 @@ og 6. pkt., finder tilsvarende anvendelse.
     hentet_dato = "2026-07-18"
 )
 
-= ll_par14f_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par14f_kildemeta = Source(
     value = ligningsloven_lbk1500_par14f
 )
 --@label:ligningsloven_par14f::meta:ll_par14f_kildemeta--
@@ -2874,8 +2866,7 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     hentet_dato = "2026-07-18"
 )
 
-= ll_par30a_kildemeta = MetaAttachment(
-    role = Source,
+= ll_par30a_kildemeta = Source(
     value = ligningsloven_lbk1500_par30a
 )
 --@label:ligningsloven_par30a::meta:ll_par30a_kildemeta--

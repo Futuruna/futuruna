@@ -119,6 +119,10 @@ fn meta_role_filter_finds_typed_attachments_nested_in_an_aggregate() {
     let document = parse_json(&output);
     assert_eq!(document["counts"]["references"], 1);
     assert_eq!(document["counts"]["attachments"], 1);
+    assert_eq!(
+        document["references"][0]["meta_role_types"][0],
+        "SourceMetaRole"
+    );
     let attachments = document["references"][0]["attachments"]
         .as_array()
         .expect("attachments");
@@ -156,6 +160,26 @@ fn aggregate_meta_resolves_values_through_nested_plain_imports() {
     assert_eq!(
         attachment["data"]["arguments"][1]["value"]["value"],
         "nested"
+    );
+}
+
+#[test]
+fn canonical_meta_accepts_marker_implementation_from_an_import() {
+    let target = fixture_dir("meta-imported-marker").join("model.runa");
+    let output = run_meta(&["--json"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["diagnostics"], 0);
+    assert_eq!(document["counts"]["references"], 1);
+    assert_eq!(document["references"][0]["type"], "ImportedSourceMeta");
+    assert_eq!(
+        document["references"][0]["typed_values"][1]["type"],
+        "SourceInfo"
     );
 }
 

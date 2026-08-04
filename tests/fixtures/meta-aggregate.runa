@@ -1,6 +1,7 @@
 # Shape = Circle | Triangle | Square
 # Warning(code: String, message: String)
 # Metadata(shapes: List(Shape), warnings: List(Warning))
+# impl Meta for Metadata {}
 
 = geometry_metadata = Metadata(
     shapes = [Circle, Triangle],

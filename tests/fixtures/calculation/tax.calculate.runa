@@ -4,9 +4,10 @@
 # TaxResult(annual_income: Int, taxable_income: Int, annual_tax: Int)
 # SourceInfo(url: String, section: String)
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
-# CalculationMetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMetaRole(a) = Source(value: a)
 # CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
 
 = tax_source = SourceInfo(url = "https://example.invalid/tax", section = "fixture")
 = monthly_income_field = CalculationField(
@@ -54,7 +55,7 @@
         child_age_field
     ],
     attachments = (
-        MetaAttachment(role = Source, value = tax_source),
+        Source(value = tax_source),
     )
 )
 
@@ -71,7 +72,7 @@
 = tax_calculation_meta = CalculationMeta(
     fields = [],
     attachments = (
-        MetaAttachment(role = Source, value = tax_source),
+        Source(value = tax_source),
     )
 )
 

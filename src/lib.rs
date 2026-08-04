@@ -587,6 +587,12 @@ const TAU_PRELUDE: &str = r#"
 # Result(a, e) = Ok(a) | Err(e)
 # Pair(a, b) = Pair(fst: a, snd: b)
 
+-- Marker trait for values deliberately exposed through a meta label.
+# trait Meta {}
+
+-- Marker trait for typed role variants nested inside a Meta value.
+# trait MetaRole {}
+
 -- Option functions
 
 > unwrap_or(opt: Option(a), default: a) -> a {
@@ -1387,9 +1393,10 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 /// with the language parser. Tooling can scan raw source and build this side
 /// index without changing evaluation semantics.
 ///
-/// The canonical metadata shape contains only a label and one binding to an
-/// ordinary typed Futuruna value. Metadata structure, including multiple roles,
-/// belongs in that value rather than in the comment grammar:
+/// The canonical metadata shape contains only a label and one binding to a
+/// ground Futuruna value whose root type implements `Meta`. Metadata structure,
+/// including role variants from types implementing `MetaRole`, belongs in that
+/// value rather than in the comment grammar:
 ///
 /// ```text
 /// --@label:label::meta:typed_binding--
@@ -1509,7 +1516,7 @@ pub struct MetaTypedValue<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetaAttachmentValue<'a> {
+pub struct MetaRoleValue<'a> {
     pub attachment_path: String,
     pub role_path: String,
     pub value_path: String,
@@ -1518,6 +1525,9 @@ pub struct MetaAttachmentValue<'a> {
     pub attachment: &'a MetaValue,
     pub value: &'a MetaValue,
 }
+
+#[deprecated(note = "use MetaRoleValue; MetaAttachment is compatibility-only")]
+pub type MetaAttachmentValue<'a> = MetaRoleValue<'a>;
 
 impl MetaValue {
     pub fn typed_values(&self) -> Vec<MetaTypedValue<'_>> {
@@ -1533,9 +1543,16 @@ impl MetaValue {
             .collect()
     }
 
-    pub fn attachments(&self) -> Vec<MetaAttachmentValue<'_>> {
+    pub fn attachments(&self) -> Vec<MetaRoleValue<'_>> {
+        self.attachments_with_role_types(&BTreeSet::new())
+    }
+
+    pub fn attachments_with_role_types(
+        &self,
+        meta_role_types: &BTreeSet<String>,
+    ) -> Vec<MetaRoleValue<'_>> {
         let mut attachments = Vec::new();
-        self.collect_attachments("$", &mut attachments);
+        self.collect_attachments("$", meta_role_types, &mut attachments);
         attachments
     }
 
@@ -1579,11 +1596,13 @@ impl MetaValue {
     fn collect_attachments<'a>(
         &'a self,
         value_path: &str,
-        attachments: &mut Vec<MetaAttachmentValue<'a>>,
+        meta_role_types: &BTreeSet<String>,
+        attachments: &mut Vec<MetaRoleValue<'a>>,
     ) {
         match self {
             Self::Constructor {
                 name,
+                qualified_type,
                 applied: true,
                 arguments,
                 ..
@@ -1598,7 +1617,7 @@ impl MetaValue {
                     if arguments.len() == 2 {
                         if let (Some(role), Some(value)) = (role, value) {
                             if let Some(role_identifier) = meta_role_identifier(&role.value) {
-                                attachments.push(MetaAttachmentValue {
+                                attachments.push(MetaRoleValue {
                                     attachment_path: value_path.to_string(),
                                     role_path: format!("{value_path}.role"),
                                     value_path: format!("{value_path}.value"),
@@ -1610,22 +1629,47 @@ impl MetaValue {
                             }
                         }
                     }
+                } else if meta_role_types.contains(qualified_type) {
+                    let value = arguments
+                        .iter()
+                        .find(|argument| argument.field.as_deref() == Some("value"));
+                    if arguments.len() == 1 {
+                        if let Some(value) = value {
+                            attachments.push(MetaRoleValue {
+                                attachment_path: value_path.to_string(),
+                                role_path: format!("{value_path}.$variant"),
+                                value_path: format!("{value_path}.value"),
+                                role: meta_constructor_role_identifier(name),
+                                binding_name: value.binding_name.as_deref(),
+                                attachment: self,
+                                value: &value.value,
+                            });
+                        }
+                    }
                 }
                 for (index, argument) in arguments.iter().enumerate() {
                     let child_path = match argument.field.as_deref() {
                         Some(field) => format!("{value_path}.{field}"),
                         None => format!("{value_path}[{index}]"),
                     };
-                    argument.value.collect_attachments(&child_path, attachments);
+                    argument
+                        .value
+                        .collect_attachments(&child_path, meta_role_types, attachments);
                 }
             }
             Self::Constructor { .. } => {}
             Self::List(items) | Self::Tuple(items) => {
                 for (index, item) in items.iter().enumerate() {
-                    item.collect_attachments(&format!("{value_path}[{index}]"), attachments);
+                    item.collect_attachments(
+                        &format!("{value_path}[{index}]"),
+                        meta_role_types,
+                        attachments,
+                    );
                 }
             }
-            Self::Unary { value, .. } => value.collect_attachments(value_path, attachments),
+            Self::Unary { value, .. } => {
+                value.collect_attachments(value_path, meta_role_types, attachments)
+            }
             _ => {}
         }
     }
@@ -1700,6 +1744,10 @@ pub struct MetaReference {
     pub definition_file: Option<String>,
     pub definition_line: Option<usize>,
     pub comment_line: usize,
+    /// Named Futuruna sum types explicitly implementing `MetaRole` in the
+    /// attachment's module graph. Their applied variant name is the role and
+    /// their sole named `value` field is the attached payload.
+    pub meta_role_types: BTreeSet<String>,
 }
 
 impl MetaReference {
@@ -1717,10 +1765,10 @@ impl MetaReference {
             .unwrap_or_default()
     }
 
-    pub fn attachments(&self) -> Vec<MetaAttachmentValue<'_>> {
+    pub fn attachments(&self) -> Vec<MetaRoleValue<'_>> {
         self.static_data
             .as_ref()
-            .map(MetaValue::attachments)
+            .map(|value| value.attachments_with_role_types(&self.meta_role_types))
             .unwrap_or_default()
     }
 
@@ -2191,6 +2239,7 @@ fn meta_anchor_for_comment(
             definition_file: None,
             definition_line: None,
             comment_line: comment.line,
+            meta_role_types: BTreeSet::new(),
         })
         .collect();
 
@@ -2390,12 +2439,13 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
         }
     };
 
+    let checked_stmts = prepend_prelude(parse_prelude(), &stmts);
     let mut checker = TypeChecker::new();
     checker.source_dir = source_dir.clone();
     checker.source_text = source.to_string();
-    checker.collect_declarations(&stmts);
-    checker.infer_rule_return_types(&stmts);
-    checker.infer_top_level_binding_types(&stmts);
+    checker.collect_declarations(&checked_stmts);
+    checker.infer_rule_return_types(&checked_stmts);
+    checker.infer_top_level_binding_types(&checked_stmts);
 
     let mut bindings = BTreeMap::new();
     collect_local_meta_bindings(source, &stmts, None, &mut bindings);
@@ -2449,6 +2499,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
             });
             reference.definition_file = definition.definition_file.clone();
             reference.definition_line = Some(definition.definition_line);
+            reference.meta_role_types = checker.implementations_for_trait("MetaRole");
             if reference.qualified_type.is_none() {
                 index.diagnostics.push(MetaDiagnostic {
                     line: reference.comment_line,
@@ -2457,6 +2508,17 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                         reference.binding_name
                     ),
                 });
+            } else if reference.role == "meta" {
+                let qualified_type = reference.qualified_type.as_deref().expect("checked above");
+                if !checker.implements_trait("Meta", qualified_type) {
+                    index.diagnostics.push(MetaDiagnostic {
+                        line: reference.comment_line,
+                        message: format!(
+                            "meta binding `{}` has type `{}`, which does not implement marker trait `Meta`; add `# impl Meta for {} {{}}`",
+                            reference.binding_name, qualified_type, qualified_type
+                        ),
+                    });
+                }
             }
 
             let mut visiting = BTreeSet::new();
@@ -2475,8 +2537,75 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                         reference.binding_name
                     ),
                 });
+            } else if let Some(value) = &reference.static_data {
+                let mut invalid_roles = Vec::new();
+                collect_invalid_meta_role_values(
+                    value,
+                    "$",
+                    &reference.meta_role_types,
+                    &mut invalid_roles,
+                );
+                for (value_path, qualified_type, constructor) in invalid_roles {
+                    index.diagnostics.push(MetaDiagnostic {
+                        line: reference.comment_line,
+                        message: format!(
+                            "metadata role `{}` at `{}` has type `{}` but must have exactly one named `value` field",
+                            constructor, value_path, qualified_type
+                        ),
+                    });
+                }
             }
         }
+    }
+}
+
+fn collect_invalid_meta_role_values(
+    value: &MetaValue,
+    value_path: &str,
+    meta_role_types: &BTreeSet<String>,
+    invalid: &mut Vec<(String, String, String)>,
+) {
+    match value {
+        MetaValue::Constructor {
+            name,
+            qualified_type,
+            applied,
+            arguments,
+        } => {
+            if meta_role_types.contains(qualified_type)
+                && (!applied
+                    || arguments.len() != 1
+                    || arguments[0].field.as_deref() != Some("value"))
+            {
+                invalid.push((value_path.to_string(), qualified_type.clone(), name.clone()));
+            }
+            for (index, argument) in arguments.iter().enumerate() {
+                let child_path = match argument.field.as_deref() {
+                    Some(field) => format!("{value_path}.{field}"),
+                    None => format!("{value_path}[{index}]"),
+                };
+                collect_invalid_meta_role_values(
+                    &argument.value,
+                    &child_path,
+                    meta_role_types,
+                    invalid,
+                );
+            }
+        }
+        MetaValue::List(items) | MetaValue::Tuple(items) => {
+            for (index, item) in items.iter().enumerate() {
+                collect_invalid_meta_role_values(
+                    item,
+                    &format!("{value_path}[{index}]"),
+                    meta_role_types,
+                    invalid,
+                );
+            }
+        }
+        MetaValue::Unary { value, .. } => {
+            collect_invalid_meta_role_values(value, value_path, meta_role_types, invalid)
+        }
+        _ => {}
     }
 }
 
@@ -2933,6 +3062,7 @@ Raw additions
 # Shape = Circle | Triangle | Square
 # AuditWarning(code: String, message: String)
 # MetaBundle(shapes: List(Shape), warnings: List(AuditWarning))
+# impl Meta for MetaBundle {}
 
 = geometry_meta = MetaBundle(
     shapes = [Circle, Triangle],
@@ -2967,6 +3097,7 @@ Raw additions
 # MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # SourceInfo(url: String)
 # MetaBundle(a) = MetaBundle(sources: a)
+# impl Meta for MetaBundle {}
 
 = primary = SourceInfo(url = "https://example.invalid/primary")
 = dependency = SourceInfo(url = "https://example.invalid/dependency")
@@ -3001,11 +3132,85 @@ Raw additions
     }
 
     #[test]
+    fn typed_meta_role_class_exposes_variant_roles_without_magic_attachment_names() {
+        let source = r#"
+# SourceInfo(url: String)
+# SourceMetaRole(a) = Source(value: a) | DependencySource(value: a)
+# SourceBundle(a) = SourceBundle(sources: a)
+# impl MetaRole for SourceMetaRole {}
+# impl Meta for SourceBundle {}
+
+= primary = SourceInfo(url = "https://example.invalid/primary")
+= dependency = SourceInfo(url = "https://example.invalid/dependency")
+= source_meta = SourceBundle(sources = (
+    Source(value = primary),
+    DependencySource(value = dependency)
+))
+
+--@label:law::meta:source_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let reference = &index.anchors[0].references[0];
+        assert_eq!(
+            reference.meta_role_types,
+            BTreeSet::from(["SourceMetaRole".into()])
+        );
+        let attachments = reference.attachments();
+        assert_eq!(attachments.len(), 2);
+        assert_eq!(attachments[0].role, "source");
+        assert_eq!(attachments[0].attachment_path, "$.sources[0]");
+        assert_eq!(attachments[0].role_path, "$.sources[0].$variant");
+        assert_eq!(attachments[0].value_path, "$.sources[0].value");
+        assert_eq!(attachments[0].binding_name, Some("primary"));
+        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
+        assert_eq!(attachments[1].role, "dependency_source");
+        assert_eq!(index.references_by_role("source"), vec![reference]);
+        assert_eq!(
+            index.references_matching(Some("SourceInfo"), Some("dependency_source")),
+            vec![reference]
+        );
+    }
+
+    #[test]
+    fn typed_meta_role_class_rejects_ambiguous_payload_shapes() {
+        let source = r#"
+# SourceInfo(url: String)
+# BrokenMetaRole(a) = Source(payload: a, note: String)
+# SourceBundle(a) = SourceBundle(sources: a)
+# impl MetaRole for BrokenMetaRole {}
+# impl Meta for SourceBundle {}
+
+= source_meta = SourceBundle(sources = Source(
+    payload = SourceInfo(url = "https://example.invalid"),
+    note = "ambiguous"
+))
+
+--@label:law::meta:source_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.iter().any(|diagnostic| {
+            diagnostic.line == 13
+                && diagnostic.message.contains("metadata role `Source`")
+                && diagnostic.message.contains("$.sources")
+                && diagnostic
+                    .message
+                    .contains("exactly one named `value` field")
+        }));
+        assert!(index.anchors[0].references[0].attachments().is_empty());
+    }
+
+    #[test]
     fn typed_meta_attachment_can_be_the_anchor_root() {
         let source = r#"
 # MetaRole = Source
 # MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # SourceInfo(url: String)
+# impl Meta for MetaAttachment {}
 
 = primary = SourceInfo(url = "https://example.invalid/primary")
 = geometry_meta = MetaAttachment(role = Source, value = primary)
@@ -3031,6 +3236,43 @@ Raw additions
             index.references_matching(Some("SourceInfo"), Some("source")),
             vec![reference]
         );
+    }
+
+    #[test]
+    fn canonical_meta_reference_requires_explicit_meta_implementation() {
+        let source = r#"
+# SourceInfo(url: String)
+= source = SourceInfo(url = "https://example.invalid")
+
+--@label:law::meta:source--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.iter().any(|diagnostic| {
+            diagnostic.line == 5
+                && diagnostic.message.contains("source")
+                && diagnostic
+                    .message
+                    .contains("does not implement marker trait `Meta`")
+                && diagnostic.message.contains("# impl Meta for SourceInfo {}")
+        }));
+    }
+
+    #[test]
+    fn canonical_meta_reference_accepts_explicit_marker_implementation() {
+        let source = r#"
+# SourceInfo(url: String)
+# impl Meta for SourceInfo {}
+= source = SourceInfo(url = "https://example.invalid")
+
+--@label:law::meta:source--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        assert_eq!(index.references_by_type("SourceInfo").len(), 1);
     }
 
     #[test]
@@ -14335,6 +14577,23 @@ pub struct TypeChecker {
 }
 
 impl TypeChecker {
+    /// Whether a concrete named type explicitly opts into a marker or ordinary
+    /// trait. Empty marker implementations are recorded like method-bearing
+    /// implementations, so tooling can use the language's normal trait model
+    /// without inventing a parallel annotation registry.
+    pub fn implements_trait(&self, trait_name: &str, for_type: &str) -> bool {
+        self.impl_methods
+            .contains_key(&(trait_name.to_string(), for_type.to_string()))
+    }
+
+    pub fn implementations_for_trait(&self, trait_name: &str) -> BTreeSet<String> {
+        self.impl_methods
+            .keys()
+            .filter(|(implemented_trait, _)| implemented_trait == trait_name)
+            .map(|(_, for_type)| for_type.clone())
+            .collect()
+    }
+
     pub fn new() -> Self {
         let mut tc = TypeChecker {
             functions: BTreeMap::new(),

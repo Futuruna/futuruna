@@ -136,18 +136,16 @@ The metadata index resolves that value through Futuruna's type information, so
 tools can query metadata by role or by domain type.
 
 ```runa
-# MetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # SourceInfo(url: Tekst, identifier: Tekst)
+# LegalMetaRole(a) = Source(value: a)
+# impl MetaRole for LegalMetaRole {}
+# impl Meta for LegalMetaRole {}
 
 = grundlov_par3_source = SourceInfo(
     url = "https://www.retsinformation.dk/eli/lta/1953/169",
     identifier = "§ 3"
 )
-= grundlov_par3_meta = MetaAttachment(
-    role = Source,
-    value = grundlov_par3_source
-)
+= grundlov_par3_meta = Source(value = grundlov_par3_source)
 
 --@label:grundlov_par3::meta:grundlov_par3_meta--
 ----
@@ -159,8 +157,8 @@ tools can query metadata by role or by domain type.
 --@end:grundlov_par3--
 ```
 
-The canonical form is `--@label:LABEL::meta:BINDING--`. A single role-bearing
-value can point directly to a typed `MetaAttachment`, as above. Direct
+The canonical form is `--@label:LABEL::meta:BINDING--`. The binding's inferred
+root type must explicitly implement the standard marker trait `Meta`. Direct
 `::ROLE:BINDING` pairs and the older `--@meta::...` spelling remain accepted
 for source compatibility, but they are not the style for new code. A shipped
 example must use one `meta` reference so the comment grammar cannot grow into a
@@ -174,6 +172,7 @@ short and domain-neutral.
 
 ```runa
 # CalculationMeta(fields: List(CalculationField))
+# impl Meta for CalculationMeta {}
 
 = amount_meta = CalculationMeta(fields = [
     amount_field,
@@ -187,28 +186,30 @@ short and domain-neutral.
 `runa meta --type CalculationField` finds `amount_meta` because it contains
 typed `CalculationField` descendants. JSON output reports those descendants as
 `typed_values` with paths such as `$.fields[0]`. This behavior is generic: the
-aggregate and nested types are ordinary user-defined Futuruna types, and `meta`
-is an ordinary user-defined role.
+aggregate and nested types are ordinary user-defined Futuruna types. Only the
+two empty marker traits and the label attachment edge are standardized.
 
-When the aggregate also needs role-bearing values, define the generic
-`MetaAttachment` protocol and a typed role. This moves the role map into
-ordinary Futuruna data instead of extending the comment syntax.
+When the aggregate also needs role-bearing values, define a sum type whose
+variants each have one named `value` field and implement the standard
+`MetaRole` marker. This moves the role map into ordinary Futuruna data instead
+of extending the comment syntax or relying on a magic constructor name.
 
 ```runa
 # Shape = Circle | Triangle | Square
-# ShapeMetaRole = Source | Warning
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# ShapeMetaRole(a) = Source(value: a) | Warning(value: a)
 # AuditWarning(message: Tekst)
 # ShapeMeta(a) = ShapeMeta(attachments: a)
+# impl MetaRole for ShapeMetaRole {}
+# impl Meta for ShapeMeta {}
 
 = comment_shape = Circle
 = alternate_shape = Triangle
 = shape_warning = AuditWarning(message = "Kredsen er ikke udtrykkeligt afgrænset")
 = shape_meta = ShapeMeta(
     attachments = (
-        MetaAttachment(role = Source, value = comment_shape),
-        MetaAttachment(role = Source, value = alternate_shape),
-        MetaAttachment(role = Warning, value = shape_warning),
+        Source(value = comment_shape),
+        Source(value = alternate_shape),
+        Warning(value = shape_warning),
     )
 )
 
@@ -218,14 +219,15 @@ ordinary Futuruna data instead of extending the comment syntax.
 --@end:shape_rule--
 ```
 
-`MetaAttachment` is an ordinary generic user-defined type with the conventional
-constructor and named fields shown above. A nullary role constructor is exposed
-as lower snake case, so `DependencySource` becomes `dependency_source`.
-Multiline tuples accept line breaks and a trailing comma. Use a root
-`MetaAttachment` for one role-bearing value and a domain-shaped aggregate for
-several related values. Both attach through one `::meta:BINDING` pair. Direct
-`::ROLE:BINDING` pairs remain valid only for source compatibility. The comment
-stays an attachment point; metadata structure does not belong in its grammar.
+`Meta` and `MetaRole` are empty marker traits and add no runtime behavior. Every
+applied variant of a `MetaRole` type must have exactly one named `value` field.
+Its constructor is exposed as lower snake case, so `DependencySource` becomes
+`dependency_source`. A role type may also implement `Meta` when one role value
+is itself the root attachment. Multiline tuples accept line breaks and a
+trailing comma. Direct `::ROLE:BINDING` pairs and the former
+`MetaAttachment(role = ..., value = ...)` shape remain compatibility input,
+not canonical source. The comment stays an attachment point; metadata structure
+does not belong in its grammar.
 
 Code spans use the compact `--@begin:LABEL--` and `--@end:LABEL--` forms.
 The earlier `--@begin::LABEL--` and `--@end::LABEL--` spellings remain accepted.
@@ -239,8 +241,8 @@ role, canonical value binding, attachment path, and value path. A reference may
 point to a binding in the current file or in any recursively reachable plain
 import; aggregate resolution follows referenced bindings transitively through
 nested imports. Dynamic or unresolved bindings produce metadata diagnostics;
-they do not make `runa check`, interpretation, or generated code fail because
-the parser still treats every meta marker as a comment.
+the parser still treats every meta marker as a comment, while `runa meta` and
+metadata-aware consumers such as `runa schema` fail closed on those diagnostics.
 
 Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 `futuruna.meta.v1` document contains typed references, quoted source anchors,
@@ -251,8 +253,10 @@ Futuruna type. Constructors, named arguments, lists, tuples, and primitive
 values are separate nodes, while `typed_values` indexes every nested constructor
 by type and value path. An audit can therefore inspect an `AuditWarning` field or
 a `SourceInfo` URL without parsing Futuruna display text. The additive
-`attachments` index makes nested `MetaAttachment` values directly queryable by
-role without parsing the structural tree. Expression-level forms such as
+`attachments` index makes nested `MetaRole` variants directly queryable by role
+without parsing the structural tree. It also reports the participating
+`meta_role_types`; legacy `MetaAttachment` values remain readable during
+migration. Expression-level forms such as
 `match` arms are not span symbols. `--type` and `--role` apply to JSON output as
 well, so a warning sweep can use `runa meta --json --role warning file.runa`
 without parsing presentation text.

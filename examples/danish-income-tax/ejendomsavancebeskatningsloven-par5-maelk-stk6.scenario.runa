@@ -5,10 +5,10 @@
 
 = ebl_par5_mælk_stk6_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
-        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
-        MetaAttachment(role = AmendmentSource, value = ebl_par5_lov615),
+        Source(value = ebl_par5_lbk132),
+        Guidance(value = ebl_par5_mælkekvote_vejledning_2026),
+        Guidance(value = ebl_par5_stk6_vejledning_2026),
+        AmendmentSource(value = ebl_par5_lov615),
     )
 )
 

@@ -25,8 +25,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= ebl_par6d_ikrafttræden_kildemeta = MetaAttachment(
-    role = Source,
+= ebl_par6d_ikrafttræden_kildemeta = Source(
     value = ebl_par6d_lov1578
 )
 --@label:ebl_par6d_ikrafttræden::meta:ebl_par6d_ikrafttræden_kildemeta--
@@ -44,9 +43,9 @@ Stk. 2. § 1, nr. 1, har virkning for afståelse af fast ejendom, der sker den 1
 
 = ebl_par6d_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = PreparatorySource, value = ebl_par6d_lovforslag36),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        PreparatorySource(value = ebl_par6d_lovforslag36),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 

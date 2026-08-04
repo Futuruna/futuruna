@@ -333,8 +333,7 @@ ejendomskategorierne i § 40 C, stk. 8, og § 42, stk. 1.
 Begge ændringer og deres virkningstidspunkter er modelleret særskilt.
 ----
 
-= al_2027_ejendomskategori_ændringsmeta = MetaAttachment(
-    role = AmendmentSource,
+= al_2027_ejendomskategori_ændringsmeta = AmendmentSource(
     value = afskrivningsloven_lov615
 )
 --@label:afskrivningsloven_2027_ejendomskategori::meta:al_2027_ejendomskategori_ændringsmeta--
@@ -360,8 +359,7 @@ og 15 har virkning fra og med den 1. januar 2027.
 | afskrivningslov42_ejendomskategori_omfattet(indkomstår: Heltal, kategori: AfskrivningslovEjendomskategori) -> kategori == AlLandbrugsejendom || (indkomstår >= 2027 && (kategori == AlSkovejendom || kategori == AlNaturejendom))
 --@end:afskrivningsloven_2027_ejendomskategori--
 
-= al_par1_par2_kildemeta = MetaAttachment(
-    role = Source,
+= al_par1_par2_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par1_par2::meta:al_par1_par2_kildemeta--
@@ -410,8 +408,7 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 )
 --@end:afskrivningsloven_par1_par2--
 
-= al_par3_kildemeta = MetaAttachment(
-    role = Source,
+= al_par3_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par3::meta:al_par3_kildemeta--
@@ -470,8 +467,7 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 )
 --@end:afskrivningsloven_par3--
 
-= al_par4_kildemeta = MetaAttachment(
-    role = Source,
+= al_par4_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par4::meta:al_par4_kildemeta--
@@ -530,8 +526,8 @@ tilbehør tages ud af virksomhedsordningen.
 
 = afskrivningsloven_2026_parametre_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -572,8 +568,8 @@ forsøgsvirksomhed (§ 6, stk. 1): 1.088,8 mio. kr.
 
 = afskrivningsloven_par5_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -714,8 +710,8 @@ tilladelsen.
 
 = afskrivningsloven_par5a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par5a_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par5a_juridisk_vejledning),
     )
 )
 
@@ -772,8 +768,8 @@ efter § 5.
 
 = afskrivningsloven_par5b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par5b_sats_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par5b_sats_juridisk_vejledning),
     )
 )
 
@@ -859,9 +855,9 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
 
 = afskrivningsloven_par5c_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par5c_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par5c_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -968,8 +964,8 @@ senere.
 
 = afskrivningsloven_par5d_par5e_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_saldoprincip_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_saldoprincip_juridisk_vejledning),
     )
 )
 
@@ -1019,8 +1015,8 @@ saldoværdi behandles fra og med indkomståret 2027 efter § 5.
 
 = afskrivningsloven_par5d_par5e_metadata_2 = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_saldoprincip_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_saldoprincip_juridisk_vejledning),
     )
 )
 
@@ -1149,9 +1145,9 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
 
 = afskrivningsloven_par6_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = GuidanceSource, value = afskrivningsloven_par6_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        GuidanceSource(value = afskrivningsloven_par6_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -1316,8 +1312,7 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 )
 --@end:afskrivningsloven_par6--
 
-= al_par7_kildemeta = MetaAttachment(
-    role = Source,
+= al_par7_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par7::meta:al_par7_kildemeta--
@@ -1358,8 +1353,8 @@ aktivet i den stand, det var i ved skadens indtræden.
 
 = afskrivningsloven_par8_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_negativ_saldo_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_negativ_saldo_juridisk_vejledning),
     )
 )
 
@@ -1437,8 +1432,8 @@ stilles sikkerhed for skattebetalingen.
 
 = afskrivningsloven_par9_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_ophør_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_ophør_juridisk_vejledning),
     )
 )
 
@@ -1549,9 +1544,9 @@ for det indkomstår, hvori salget finder sted.
 
 = afskrivningsloven_par10_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_dok_bedding_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_dok_bedding_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -1591,9 +1586,9 @@ også behandles efter de nævnte regler.
 
 = afskrivningsloven_par11_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -1689,8 +1684,8 @@ tilsvarende anvendelse.
 
 = afskrivningsloven_par12_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
     )
 )
 
@@ -1708,8 +1703,7 @@ forholdet mellem den erhvervsmæssige benyttelse for indkomstårene forud for
 salgsåret og den samlede benyttelse for disse indkomstår.
 ----
 
-= al_par12_vejledningsmeta = MetaAttachment(
-    role = Guidance,
+= al_par12_vejledningsmeta = Guidance(
     value = afskrivningsloven_par11_par13_juridisk_vejledning
 )
 --@label:afskrivningsloven_par12::meta:al_par12_vejledningsmeta--
@@ -1780,8 +1774,8 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
 
 = afskrivningsloven_par13_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par11_par13_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
     )
 )
 
@@ -1853,8 +1847,8 @@ den skattepligtige indkomst.
 
 = afskrivningsloven_par14_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par14_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par14_juridisk_vejledning),
     )
 )
 
@@ -1952,8 +1946,8 @@ gårdspladser, parkeringspladser, hegn eller lignende.
 
 = afskrivningsloven_par15_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par15_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par15_juridisk_vejledning),
     )
 )
 
@@ -2020,8 +2014,8 @@ i den bygning, hvori ejerlejligheden findes.
 
 = afskrivningsloven_par16_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -2084,8 +2078,8 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 
 = afskrivningsloven_par17_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -2229,8 +2223,8 @@ først erhvervede ideelle andel for den først afståede.
 
 = afskrivningsloven_par18_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -2348,9 +2342,9 @@ stk. 2.
 
 = afskrivningsloven_par19_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = BasisGuidance, value = afskrivningsloven_bygningsgrundlag_juridisk_vejledning),
-        MetaAttachment(role = IntervalGuidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        BasisGuidance(value = afskrivningsloven_bygningsgrundlag_juridisk_vejledning),
+        IntervalGuidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -2393,8 +2387,7 @@ til ejerboligen. Tilsvarende medregnes etagearealet af denne bygningsdel ikke
 efter stk. 1.
 ----
 
-= al_par19_ikrafttraedelsesnote_kildemeta = MetaAttachment(
-    role = Source,
+= al_par19_ikrafttraedelsesnote_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par19_ikrafttraedelsesnote::meta:al_par19_ikrafttraedelsesnote_kildemeta--
@@ -2508,8 +2501,8 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 
 = afskrivningsloven_par20_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -2570,8 +2563,8 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
 
 = afskrivningsloven_par21_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par21_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par21_juridisk_vejledning),
     )
 )
 
@@ -2790,8 +2783,8 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 
 = afskrivningsloven_par22_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par22_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par22_juridisk_vejledning),
     )
 )
 
@@ -2864,8 +2857,8 @@ eventuelle salgssum for bygninger, installationer eller materialer m.v.
 
 = afskrivningsloven_par23_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par23_par24_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par23_par24_juridisk_vejledning),
     )
 )
 
@@ -2933,8 +2926,8 @@ stk. 1, anvendelse.
 
 = afskrivningsloven_par24_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par23_par24_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par23_par24_juridisk_vejledning),
     )
 )
 
@@ -3106,9 +3099,9 @@ for sidstnævnte indkomstår.
 
 = afskrivningsloven_par25_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par25_par26_juridisk_vejledning),
-        MetaAttachment(role = ScaleSource, value = afskrivningsloven_par25_hjemfaldsbekendtgørelse),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par25_par26_juridisk_vejledning),
+        ScaleSource(value = afskrivningsloven_par25_hjemfaldsbekendtgørelse),
     )
 )
 
@@ -3183,8 +3176,7 @@ ydes erstatning efter vurdering for bygninger eller ejendom omfattet af stk. 1,
 lejeperiodens udløb på vilkår, der afviger fra markedsvilkår.
 ----
 
-= al_par25_hjemfaldsskala_kildemeta = MetaAttachment(
-    role = Source,
+= al_par25_hjemfaldsskala_kildemeta = Source(
     value = afskrivningsloven_par25_hjemfaldsbekendtgørelse
 )
 --@label:afskrivningsloven_par25_hjemfaldsskala::meta:al_par25_hjemfaldsskala_kildemeta--
@@ -3308,8 +3300,8 @@ hjemfaldstidspunktet.
 
 = afskrivningsloven_par26_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par25_par26_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par25_par26_juridisk_vejledning),
     )
 )
 
@@ -3379,8 +3371,8 @@ afskrivningsberettigede udgifter til anskaffelse og forbedring udgør.
 
 = afskrivningsloven_par27_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par27_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par27_juridisk_vejledning),
     )
 )
 
@@ -3470,9 +3462,9 @@ forpagters skattemæssige stilling vedrørende afskrivningen.
 
 = afskrivningsloven_par28_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = ChapterGuidance, value = afskrivningsloven_forskudsafskrivning_juridisk_vejledning),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par28_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        ChapterGuidance(value = afskrivningsloven_forskudsafskrivning_juridisk_vejledning),
+        Guidance(value = afskrivningsloven_par28_juridisk_vejledning),
     )
 )
 
@@ -3540,9 +3532,9 @@ af §§ 5 B og 5 C.
 
 = afskrivningsloven_par29_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par29_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par29_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -3620,8 +3612,8 @@ virksomhed overstiger grundbeløbet.
 
 = afskrivningsloven_par30_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par30_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par30_juridisk_vejledning),
     )
 )
 
@@ -3669,9 +3661,9 @@ udløb endnu ikke opfylder betingelserne i § 3 for at kunne afskrives.
 
 = afskrivningsloven_par31_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par31_par32_juridisk_vejledning),
-        MetaAttachment(role = RateGuidance, value = afskrivningsloven_par31_sats_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par31_par32_juridisk_vejledning),
+        RateGuidance(value = afskrivningsloven_par31_sats_juridisk_vejledning),
     )
 )
 
@@ -3705,9 +3697,9 @@ forskudsafskrivningsgrundlaget. Forskudsafskrivningen kan dog i alt højst udgø
 
 = afskrivningsloven_par32_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par31_par32_juridisk_vejledning),
-        MetaAttachment(role = AllocationGuidance, value = afskrivningsloven_par32_par33_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par31_par32_juridisk_vejledning),
+        AllocationGuidance(value = afskrivningsloven_par32_par33_juridisk_vejledning),
     )
 )
 
@@ -3797,8 +3789,8 @@ der resterer ved indkomstårets udløb.
 
 = afskrivningsloven_par33_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par32_par33_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par32_par33_juridisk_vejledning),
     )
 )
 
@@ -3887,9 +3879,9 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 
 = afskrivningsloven_par34_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par34_juridisk_vejledning),
-        MetaAttachment(role = EventGuidance, value = afskrivningsloven_par34_par35_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par34_juridisk_vejledning),
+        EventGuidance(value = afskrivningsloven_par34_par35_juridisk_vejledning),
     )
 )
 
@@ -3971,8 +3963,8 @@ hjemmehørende uden for Danmark, sidestilles dette med ophør af skattepligt.
 
 = afskrivningsloven_par35_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par34_par35_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par34_par35_juridisk_vejledning),
     )
 )
 
@@ -4038,8 +4030,8 @@ dødsboskattelovens § 59, stk. 1, jf. dog § 59, stk. 2, nr. 1.
 
 = afskrivningsloven_par36_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par36_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par36_juridisk_vejledning),
     )
 )
 
@@ -4095,8 +4087,7 @@ skatteforvaltningens eller andre myndigheders egne forhold.
 ))
 --@end:afskrivningsloven_par36--
 
-= al_par37_kildemeta = MetaAttachment(
-    role = Source,
+= al_par37_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par37::meta:al_par37_kildemeta--
@@ -4112,8 +4103,8 @@ skatteforvaltningens eller andre myndigheders egne forhold.
 
 = afskrivningsloven_par38_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par38_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par38_juridisk_vejledning),
     )
 )
 
@@ -4171,8 +4162,8 @@ henføres til forekomsterne. Afskrivningen sker i takt med værdiforringelsen.
 
 = afskrivningsloven_par39_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par39_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par39_juridisk_vejledning),
     )
 )
 
@@ -4339,8 +4330,8 @@ afskrivninger.
 
 = afskrivningsloven_par40_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par40_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par40_juridisk_vejledning),
     )
 )
 
@@ -4607,9 +4598,9 @@ den skattepligtige indkomst.
 
 = afskrivningsloven_par40_2026_overgang_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = AmendmentSource, value = afskrivningsloven_lov749),
-        MetaAttachment(role = TransitionGuidance, value = afskrivningsloven_par40_henstand_juridisk_vejledning),
-        MetaAttachment(role = DependencySource, value = afskrivningsloven_lov749),
+        AmendmentSource(value = afskrivningsloven_lov749),
+        TransitionGuidance(value = afskrivningsloven_par40_henstand_juridisk_vejledning),
+        DependencySource(value = afskrivningsloven_lov749),
     )
 )
 
@@ -4652,9 +4643,9 @@ indgået den 1. januar 2026 eller senere.
 
 = afskrivningsloven_par40a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
-        MetaAttachment(role = Practice, value = afskrivningsloven_par40a_skm2022_474),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_kvoter_juridisk_vejledning),
+        Practice(value = afskrivningsloven_par40a_skm2022_474),
     )
 )
 
@@ -4785,8 +4776,8 @@ stk. 1-5.
 
 = afskrivningsloven_par40b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_kvoter_juridisk_vejledning),
     )
 )
 
@@ -4931,9 +4922,9 @@ omfattet af stk. 1-6.
 
 = afskrivningsloven_par40c_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
-        MetaAttachment(role = Warning, value = afskrivningsloven_par40c_historisk_advarsel),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_kvoter_juridisk_vejledning),
+        Warning(value = afskrivningsloven_par40c_historisk_advarsel),
     )
 )
 
@@ -5329,8 +5320,8 @@ eller andele af kvoter for de først afståede.
 
 = afskrivningsloven_par40d_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_kvoter_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_kvoter_juridisk_vejledning),
     )
 )
 
@@ -5377,8 +5368,7 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 | afskrivningslov40d_til_par40c_resultat(overførsel: Afskrivningslov40DPar40COverførsel) -> afskrivningslov40c_resultat(afskrivningslov40d_til_par40c_input(overførsel))
 --@end:afskrivningsloven_par40d--
 
-= al_par41_kildemeta = MetaAttachment(
-    role = Source,
+= al_par41_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par41::meta:al_par41_kildemeta--
@@ -5394,9 +5384,9 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 
 = afskrivningsloven_par42_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par42_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par42_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -5495,9 +5485,9 @@ de foretagne afskrivninger, herunder forlods afskrivninger.
 
 = afskrivningsloven_par43_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par43_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par43_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -5582,8 +5572,8 @@ skattepligtige indkomst for det indkomstår, hvori salget finder sted.
 
 = afskrivningsloven_par44_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par44_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par44_juridisk_vejledning),
     )
 )
 
@@ -5672,8 +5662,8 @@ anskaffelsessummen med fradrag af det straksafskrevne beløb.
 
 = afskrivningsloven_par44a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
     )
 )
 
@@ -5845,9 +5835,9 @@ stk. 1, 3. pkt.
 
 = afskrivningsloven_par44b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -5922,8 +5912,8 @@ udsmykning for at være solgt.
 
 = afskrivningsloven_par44c_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par44c_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par44c_juridisk_vejledning),
     )
 )
 
@@ -5979,9 +5969,9 @@ til eventuel forskudsafskrivning på skibet eller driftsmidlet.
 
 = afskrivningsloven_par45_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par45_juridisk_vejledning),
-        MetaAttachment(role = AllocationGuidance, value = afskrivningsloven_par45_fordeling_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par45_juridisk_vejledning),
+        AllocationGuidance(value = afskrivningsloven_par45_fordeling_juridisk_vejledning),
     )
 )
 
@@ -6097,8 +6087,8 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
 
 = afskrivningsloven_par46_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = ParameterSource, value = afskrivningsloven_2026_satser),
+        Source(value = afskrivningsloven_lbk1222),
+        ParameterSource(value = afskrivningsloven_2026_satser),
     )
 )
 
@@ -6135,8 +6125,8 @@ personskattelovens § 20.
 
 = afskrivningsloven_par47_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par47_par49_juridisk_vejledning),
     )
 )
 
@@ -6155,8 +6145,8 @@ afståelse.
 
 = afskrivningsloven_par48_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par47_par49_juridisk_vejledning),
     )
 )
 
@@ -6184,8 +6174,8 @@ erstatningssummer, herunder ekspropriationserstatninger, som salgssummer.
 
 = afskrivningsloven_par49_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par47_par49_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par47_par49_juridisk_vejledning),
     )
 )
 
@@ -6265,8 +6255,8 @@ skattemæssige stilling.
 
 = afskrivningsloven_par50_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par50_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par50_juridisk_vejledning),
     )
 )
 
@@ -6334,8 +6324,8 @@ afskrivningsprocenter, der er anvendt i de enkelte indkomstår.
 
 = afskrivningsloven_par51_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par51_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par51_juridisk_vejledning),
     )
 )
 
@@ -6368,8 +6358,7 @@ dog tilladelse fra told- og skatteforvaltningen.
 )
 --@end:afskrivningsloven_par51--
 
-= al_par52_kildemeta = MetaAttachment(
-    role = Source,
+= al_par52_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par52::meta:al_par52_kildemeta--
@@ -6414,8 +6403,7 @@ udøvelse af kompetencen efter 1. pkt.
 | afskrivningslov52_resultat(input: Afskrivningslov52Input) -> afskrivningslov52_sag(input).resultat()
 --@end:afskrivningsloven_par52--
 
-= al_par53_kildemeta = MetaAttachment(
-    role = Source,
+= al_par53_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par53::meta:al_par53_kildemeta--
@@ -6429,8 +6417,7 @@ udøvelse af kompetencen efter 1. pkt.
 | afskrivningslov53_status() -> Al53Ophævet
 --@end:afskrivningsloven_par53--
 
-= al_par54_kildemeta = MetaAttachment(
-    role = Source,
+= al_par54_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par54::meta:al_par54_kildemeta--
@@ -6554,8 +6541,7 @@ social service, og som udsættes for et tilsvarende slid,".
 | afskrivningslov54_historisk_par18b_ordlyd_gælder(dato: AfskrivningslovDato, indkomståret_1998_slutdato: AfskrivningslovDato) -> afskrivningslov_dato_gyldig(indkomståret_1998_slutdato) && afskrivningslov_dato_yyyymmdd(indkomståret_1998_slutdato) >= 19980701 && afskrivningslov_dato_mellem_inklusive(dato, AfskrivningslovDato(år = 1998, måned = 7, dag = 1), indkomståret_1998_slutdato)
 --@end:afskrivningsloven_par54--
 
-= al_par55_kildemeta = MetaAttachment(
-    role = Source,
+= al_par55_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par55::meta:al_par55_kildemeta--
@@ -6594,8 +6580,7 @@ over 40.
 )
 --@end:afskrivningsloven_par55--
 
-= al_par56_kildemeta = MetaAttachment(
-    role = Source,
+= al_par56_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par56::meta:al_par56_kildemeta--
@@ -6646,8 +6631,7 @@ virkning for indkomståret 1991 og senere indkomstår.
 | afskrivningslov56_resultat(input: Afskrivningslov56Input) -> Afskrivningslov56Sag(input).resultat()
 --@end:afskrivningsloven_par56--
 
-= al_par57_kildemeta = MetaAttachment(
-    role = Source,
+= al_par57_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par57::meta:al_par57_kildemeta--
@@ -6675,8 +6659,7 @@ jf. lovbekendtgørelse nr. 932 af 24. oktober 1996.
 )
 --@end:afskrivningsloven_par57--
 
-= al_par58_kildemeta = MetaAttachment(
-    role = Source,
+= al_par58_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par58::meta:al_par58_kildemeta--
@@ -6725,8 +6708,8 @@ uafskrevne beløb.
 
 = afskrivningsloven_par58a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par16_par20_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par16_par20_juridisk_vejledning),
     )
 )
 
@@ -6805,8 +6788,7 @@ pågældende ejendomstype, jf. § 13, stk. 5, i lov nr. 1729 af 17. december
 | afskrivningslov58a_resultat(input: Afskrivningslov58AInput) -> Afskrivningslov58ASag(input).resultat()
 --@end:afskrivningsloven_par58a--
 
-= al_par59_kildemeta = MetaAttachment(
-    role = Source,
+= al_par59_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par59::meta:al_par59_kildemeta--
@@ -6833,8 +6815,8 @@ statsskattelovens § 6, litra a.
 
 = afskrivningsloven_par60_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par40_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par40_juridisk_vejledning),
     )
 )
 
@@ -6890,8 +6872,7 @@ lovbekendtgørelse nr. 819 af 3. november 1997.
 | afskrivningslov60_resultat(input: Afskrivningslov60Input) -> Afskrivningslov60Sag(input).resultat()
 --@end:afskrivningsloven_par60--
 
-= al_par61_kildemeta = MetaAttachment(
-    role = Source,
+= al_par61_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par61::meta:al_par61_kildemeta--
@@ -6919,8 +6900,8 @@ skulle kontantomregnes.
 
 = afskrivningsloven_par62_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = afskrivningsloven_lbk1222),
-        MetaAttachment(role = Guidance, value = afskrivningsloven_par21_juridisk_vejledning),
+        Source(value = afskrivningsloven_lbk1222),
+        Guidance(value = afskrivningsloven_par21_juridisk_vejledning),
     )
 )
 
@@ -6998,8 +6979,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov62_miljøanlæg_salg_resultat(input: Afskrivningslov62MiljøanlægSalgInput) -> Afskrivningslov62MiljøanlægSalgSag(input).resultat()
 --@end:afskrivningsloven_par62--
 
-= al_par63_kildemeta = MetaAttachment(
-    role = Source,
+= al_par63_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par63::meta:al_par63_kildemeta--
@@ -7013,8 +6993,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov63_status() -> Al63Ophævet
 --@end:afskrivningsloven_par63--
 
-= al_par64_kildemeta = MetaAttachment(
-    role = Source,
+= al_par64_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par64::meta:al_par64_kildemeta--
@@ -7028,8 +7007,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov64_status() -> Al64Ophævet
 --@end:afskrivningsloven_par64--
 
-= al_par65_kildemeta = MetaAttachment(
-    role = Source,
+= al_par65_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par65::meta:al_par65_kildemeta--
@@ -7043,8 +7021,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov65_status() -> Al65Ophævet
 --@end:afskrivningsloven_par65--
 
-= al_par66_kildemeta = MetaAttachment(
-    role = Source,
+= al_par66_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par66::meta:al_par66_kildemeta--
@@ -7058,8 +7035,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov66_status() -> Al66Ophævet
 --@end:afskrivningsloven_par66--
 
-= al_par67_kildemeta = MetaAttachment(
-    role = Source,
+= al_par67_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par67::meta:al_par67_kildemeta--
@@ -7073,8 +7049,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov67_status() -> Al67Ophævet
 --@end:afskrivningsloven_par67--
 
-= al_par68_kildemeta = MetaAttachment(
-    role = Source,
+= al_par68_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par68::meta:al_par68_kildemeta--
@@ -7120,8 +7095,7 @@ overførselstidspunktet.
 | afskrivningslov68_resultat(input: Afskrivningslov68Input) -> Afskrivningslov68Sag(input).resultat()
 --@end:afskrivningsloven_par68--
 
-= al_par69_kildemeta = MetaAttachment(
-    role = Source,
+= al_par69_kildemeta = Source(
     value = afskrivningsloven_lbk1222
 )
 --@label:afskrivningsloven_par69::meta:al_par69_kildemeta--

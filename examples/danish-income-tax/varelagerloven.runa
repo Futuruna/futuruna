@@ -17,8 +17,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= varelager_par1_kildemeta = MetaAttachment(
-    role = Source,
+= varelager_par1_kildemeta = Source(
     value = varelagerloven_lbk1088_par1
 )
 --@label:varelagerloven_par1::meta:varelager_par1_kildemeta--

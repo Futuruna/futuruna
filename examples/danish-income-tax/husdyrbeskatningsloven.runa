@@ -35,8 +35,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= hbl_par2_kildemeta = MetaAttachment(
-    role = Source,
+= hbl_par2_kildemeta = Source(
     value = husdyrbeskatningsloven_lbk1099_par2
 )
 --@label:husdyrbeskatningsloven_par2::meta:hbl_par2_kildemeta--
@@ -118,8 +117,7 @@ Indkomstår       pct.
 | husdyr_par2_resultat(input: HusdyrPar2Input) -> husdyr_par2_sag(input).resultat()
 --@end:husdyrbeskatningsloven_par2--
 
-= hbl_par8_kildemeta = MetaAttachment(
-    role = Source,
+= hbl_par8_kildemeta = Source(
     value = husdyrbeskatningsloven_lbk1099_par8
 )
 --@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta--
@@ -232,8 +230,7 @@ at den nævnte formindskelse af en stambesætning efter de hidtil gældende regl
 kunne ske, uden at fortjenesten skulle medregnes ved indkomstopgørelsen.
 ----
 
-= hbl_par8_kildemeta_2 = MetaAttachment(
-    role = Source,
+= hbl_par8_kildemeta_2 = Source(
     value = husdyrbeskatningsloven_bek543_par1_par5
 )
 --@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_2--
@@ -358,8 +355,7 @@ til § 4, stk. 4, er opnået fradrag for hele det resterende forskelsbeløb ved
 indkomstopgørelsen for indkomståret 1981.
 ----
 
-= hbl_par8_kildemeta_3 = MetaAttachment(
-    role = Source,
+= hbl_par8_kildemeta_3 = Source(
     value = skattestyrelsen_husdyr_forskelsbeløb_04013
 )
 --@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_3--

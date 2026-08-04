@@ -11,8 +11,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= abl_par19b_til_par22_kildemeta = MetaAttachment(
-    role = Source,
+= abl_par19b_til_par22_kildemeta = Source(
     value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22
 )
 --@label:aktieavancebeskatningsloven_par19b_til_par22::meta:abl_par19b_til_par22_kildemeta--

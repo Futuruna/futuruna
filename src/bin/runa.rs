@@ -4547,6 +4547,7 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         "data": reference.static_data.as_ref().map(meta_value_json),
         "typed_values": typed_values,
         "attachments": attachments,
+        "meta_role_types": reference.meta_role_types,
         "definition_file": reference.definition_file,
         "definition_line": reference.definition_line,
         "comment_line": reference.comment_line,
@@ -4637,6 +4638,9 @@ fn print_meta_reference(reference: &MetaReference) {
         definition,
         reference.comment_line
     );
+    for role_type in &reference.meta_role_types {
+        println!("  meta role type {}", role_type);
+    }
 }
 
 fn print_meta_diagnostics(index: &MetaIndex, filename: &str) {
@@ -26231,11 +26235,7 @@ impl RustCodegen {
                 // Use actual param names from Futuruna source, uppercased
                 let param_rust_names: Vec<String> = params
                     .iter()
-                    .map(|p| {
-                        let mut s = p.name.clone();
-                        s.make_ascii_uppercase();
-                        s
-                    })
+                    .map(|param| Self::rust_type_parameter_name(&param.name))
                     .collect();
 
                 let type_params = if param_rust_names.is_empty() {
@@ -26669,11 +26669,7 @@ impl RustCodegen {
                 } else {
                     let names: Vec<String> = params
                         .iter()
-                        .map(|p| {
-                            let mut s = p.name.clone();
-                            s.make_ascii_uppercase();
-                            s
-                        })
+                        .map(|param| Self::rust_type_parameter_name(&param.name))
                         .collect();
                     format!("<{}>", names.join(", "))
                 };
@@ -26737,8 +26733,35 @@ impl RustCodegen {
                 for_type,
                 methods,
             } => {
-                let rust_type = self.rust_type_name(for_type);
+                let rust_type_name = self.rust_type_name(for_type);
+                let marker_type_params = self
+                    .types
+                    .type_decls
+                    .get(for_type)
+                    .map(|(params, _)| {
+                        params
+                            .iter()
+                            .map(|param| Self::rust_type_parameter_name(param))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let marker_impl_generics = if marker_type_params.is_empty() {
+                    String::new()
+                } else {
+                    format!("<{}>", marker_type_params.join(", "))
+                };
+                let rust_type = if methods.is_empty() && !marker_type_params.is_empty() {
+                    format!("{}<{}>", rust_type_name, marker_type_params.join(", "))
+                } else {
+                    rust_type_name
+                };
                 let mut out = String::new();
+                if methods.is_empty() {
+                    out.push_str(&format!(
+                        "impl{} {} for {} {{}}\n",
+                        marker_impl_generics, trait_name, rust_type
+                    ));
+                }
                 // Separate methods: self-methods go into trait impl, others become standalone functions
                 let mut trait_methods = Vec::new();
                 let mut standalone_methods = Vec::new();
@@ -26916,10 +26939,14 @@ impl RustCodegen {
     fn emit_type_with_params(&self, ty: &Ty, params: &[Param]) -> String {
         let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
         match ty {
-            Ty::Name(n) if param_names.contains(n) => n.to_uppercase(),
-            Ty::Var(n) if param_names.contains(n) => n.to_uppercase(),
+            Ty::Name(n) if param_names.contains(n) => Self::rust_type_parameter_name(n),
+            Ty::Var(n) if param_names.contains(n) => Self::rust_type_parameter_name(n),
             _ => self.emit_type(ty),
         }
+    }
+
+    fn rust_type_parameter_name(name: &str) -> String {
+        name.to_uppercase()
     }
 
     fn emit_type(&self, ty: &Ty) -> String {
@@ -26937,7 +26964,7 @@ impl RustCodegen {
                         n.clone()
                     // Single lowercase letter → type variable (uppercase it)
                     } else if n.len() == 1 && n.chars().next().unwrap().is_lowercase() {
-                        n.to_uppercase()
+                        Self::rust_type_parameter_name(n)
                     } else {
                         self.rust_type_name(n)
                     }
@@ -27004,7 +27031,7 @@ impl RustCodegen {
                 self.rust_type_name("Option"),
                 self.emit_type(inner)
             ),
-            Ty::Var(n) => n.to_uppercase(),
+            Ty::Var(n) => Self::rust_type_parameter_name(n),
             Ty::Unit => "()".to_string(),
             Ty::Hole => "_".to_string(),
         }
@@ -47709,6 +47736,60 @@ for x in [1, 2] {
         assert_eq!(
             output.lines().collect::<Vec<_>>(),
             vec!["Red", "Blue", "Circle(5)", "Rect(3x4)"]
+        );
+    }
+
+    #[test]
+    fn compiled_generic_marker_trait_impl_is_preserved() {
+        let source = r#"
+# trait Marker {}
+# Envelope(a) = Envelope(value: a)
+# impl Marker for Envelope {}
+
+= wrapped = Envelope(value = 7)
+@ print(show(wrapped))
+"#;
+
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("impl<A> Marker for Envelope<A> {}"),
+            "generic marker implementation was not emitted: {rust}"
+        );
+        assert_eq!(
+            compile_and_run_test_program(source).trim(),
+            "Envelope(value: 7)"
+        );
+    }
+
+    #[test]
+    fn compiled_generic_type_parameters_use_unicode_case_consistently() {
+        let source = r#"
+# trait Marker {}
+# Årsmappe(årsopgørelse) = Årsmappe(værdi: årsopgørelse)
+# impl Marker for Årsmappe {}
+
+= mappe = Årsmappe(værdi = 7)
+@ print(show(mappe))
+"#;
+
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("struct Årsmappe<ÅRSOPGØRELSE>"),
+            "generic declaration did not use Unicode uppercase: {rust}"
+        );
+        assert!(
+            rust.contains("pub værdi: ÅRSOPGØRELSE"),
+            "generic field did not use the declaration's type parameter: {rust}"
+        );
+        assert!(
+            rust.contains("impl<ÅRSOPGØRELSE> Marker for Årsmappe<ÅRSOPGØRELSE> {}"),
+            "generic marker implementation did not use the declaration's type parameter: {rust}"
+        );
+        assert_eq!(
+            compile_and_run_test_program(source).trim(),
+            "Årsmappe(værdi: 7)"
         );
     }
 

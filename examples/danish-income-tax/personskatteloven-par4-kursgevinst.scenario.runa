@@ -5,8 +5,8 @@
 
 = personskatteloven_par4_kursgevinst_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
-        MetaAttachment(role = Dependency, value = kursgevinstloven_lbk1176_par32),
+        Source(value = personskatteloven_lbk1284_par4),
+        Dependency(value = kursgevinstloven_lbk1176_par32),
     )
 )
 

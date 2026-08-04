@@ -16,8 +16,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= abl_lov1755_par8_stk1_kildemeta = MetaAttachment(
-    role = Source,
+= abl_lov1755_par8_stk1_kildemeta = Source(
     value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k
 )
 --@label:aktieavancebeskatningsloven_lov1755_par8_stk1::meta:abl_lov1755_par8_stk1_kildemeta--
@@ -33,8 +32,8 @@ Stk. 1. Loven træder i kraft den 1. januar 2026.
 
 = aktieavancebeskatningsloven_par35g_par35h_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
-        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
     )
 )
 
@@ -187,9 +186,9 @@ opgørelsen af overdragerens skattepligtige indkomst.
 
 = aktieavancebeskatningsloven_par35i_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
-        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
-        MetaAttachment(role = RateSource, value = selskabsskatteloven_lbk279_par17_stk1),
+        Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        RateSource(value = selskabsskatteloven_lbk279_par17_stk1),
     )
 )
 
@@ -413,9 +412,9 @@ til 0.
 
 = aktieavancebeskatningsloven_par35j_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
-        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
-        MetaAttachment(role = RateSource, value = selskabsskatteloven_lbk279_par17_stk1),
+        Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        RateSource(value = selskabsskatteloven_lbk279_par17_stk1),
     )
 )
 
@@ -511,8 +510,8 @@ overdragerskatten nedskrives med beløbet, når det er betalt.
 
 = aktieavancebeskatningsloven_par35k_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
-        MetaAttachment(role = PreparatoryWork, value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
+        Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
     )
 )
 

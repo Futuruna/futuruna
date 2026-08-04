@@ -5,8 +5,8 @@
 
 = kgl_sælgerpantebrev_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = Guidance, value = kgl_sælgerpantebrev_vejledning_2026),
+        Source(value = kgl_sælgerpantebrev_lbk1176),
+        Guidance(value = kgl_sælgerpantebrev_vejledning_2026),
     )
 )
 

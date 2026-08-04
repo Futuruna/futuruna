@@ -54,8 +54,7 @@
     opfyldningsfradrag_kroner = 0
 )
 
-= pbl_årsparametre_2002_til_2009_kildemeta = MetaAttachment(
-    role = Source,
+= pbl_årsparametre_2002_til_2009_kildemeta = Source(
     value = skm_pbl_satser_2002_til_2009
 )
 --@label:pbl_årsparametre_2002_til_2009::meta:pbl_årsparametre_2002_til_2009_kildemeta--
@@ -74,8 +73,7 @@ Opfyldningsfradrag 37.600 38.900 40.100 41.000 42.000 43.100 44.500 46.000
 )
 --@end::pbl_årsparametre_2002_til_2009--
 
-= pbl_årsparametre_2010_til_2017_kildemeta = MetaAttachment(
-    role = Source,
+= pbl_årsparametre_2010_til_2017_kildemeta = Source(
     value = skm_pbl_satser_2010_til_2017
 )
 --@label:pbl_årsparametre_2010_til_2017::meta:pbl_årsparametre_2010_til_2017_kildemeta--
@@ -102,8 +100,7 @@ Opfyldningsfradrag 46.000 46.000 46.000 46.000 46.900 47.600 48.200 49.300
 }
 --@end::pbl_årsparametre_2010_til_2017--
 
-= pbl_årsparametre_2018_til_2024_kildemeta = MetaAttachment(
-    role = Source,
+= pbl_årsparametre_2018_til_2024_kildemeta = Source(
     value = skm_pbl_satser_2018_til_2024
 )
 --@label:pbl_årsparametre_2018_til_2024::meta:pbl_årsparametre_2018_til_2024_kildemeta--
@@ -128,8 +125,7 @@ Opfyldningsfradrag 50.400 51.500 52.600 53.800 54.500 56.100 58.100
 }
 --@end::pbl_årsparametre_2018_til_2024--
 
-= pbl_årsparametre_2025_til_2026_kildemeta = MetaAttachment(
-    role = Source,
+= pbl_årsparametre_2025_til_2026_kildemeta = Source(
     value = skm_pbl_satser_2025_til_2026
 )
 --@label:pbl_årsparametre_2025_til_2026::meta:pbl_årsparametre_2025_til_2026_kildemeta--

@@ -136,9 +136,9 @@ personskattelovens § 4, stk. 1, nr. 9 og 11.
 
 = virksomhedsskatteloven_par22b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = virksomhedsskatteloven_lbk1836_par22b),
-        MetaAttachment(role = Source, value = virksomhedsskatteloven_juridisk_vejledning_par22b_indtægtsføring),
-        MetaAttachment(role = Source, value = virksomhedsskatteloven_juridisk_vejledning_par22b_ophør),
+        Source(value = virksomhedsskatteloven_lbk1836_par22b),
+        Source(value = virksomhedsskatteloven_juridisk_vejledning_par22b_indtægtsføring),
+        Source(value = virksomhedsskatteloven_juridisk_vejledning_par22b_ophør),
     )
 )
 
@@ -505,8 +505,8 @@ konjunkturudligningsordningen.
 
 = virksomhedsskatteloven_par22d_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = virksomhedsskatteloven_lbk1836_par22d),
-        MetaAttachment(role = Source, value = virksomhedsskatteloven_juridisk_vejledning_par22d_udligningsskat),
+        Source(value = virksomhedsskatteloven_lbk1836_par22d),
+        Source(value = virksomhedsskatteloven_juridisk_vejledning_par22d_udligningsskat),
     )
 )
 

@@ -1250,9 +1250,9 @@ som nævnt i § 10, stk. 1.
 
 = personskatteloven_par13a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par13a),
-        MetaAttachment(role = DependencySource, value = kursgevinstloven_lbk1176_par32),
-        MetaAttachment(role = Warning, value = personskatteloven_par13a_kgl_stk_henvisning_advarsel),
+        Source(value = personskatteloven_lbk1284_par13a),
+        DependencySource(value = kursgevinstloven_lbk1176_par32),
+        Warning(value = personskatteloven_par13a_kgl_stk_henvisning_advarsel),
     )
 )
 

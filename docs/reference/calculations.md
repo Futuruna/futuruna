@@ -39,9 +39,10 @@ contains the fields and their provenance.
 ```runa
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
 # SourceInfo(url: String, section: String)
-# CalculationMetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMetaRole(a) = Source(value: a)
 # CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationMeta {}
 
 = tax_source = SourceInfo(
     url = "https://example.invalid/tax",
@@ -57,7 +58,7 @@ contains the fields and their provenance.
 = monthly_income_meta = CalculationMeta(
     fields = [monthly_income_field],
     attachments = (
-        MetaAttachment(role = Source, value = tax_source),
+        Source(value = tax_source),
     )
 )
 
@@ -90,7 +91,7 @@ the same object by its own nested types.
         children_field
     ],
     attachments = (
-        MetaAttachment(role = Source, value = tax_source),
+        Source(value = tax_source),
     )
 )
 
@@ -114,8 +115,9 @@ The emitted field binding names include stable aggregate paths such as
 compatibility; new code should attach one typed `meta` object. A `field`
 reference that is neither a field record nor an aggregate containing field
 records is an error; a generic `meta` object without calculation fields is
-simply ignored by the calculation field consumer. Nested `MetaAttachment`
-values are copied into the calculation and field source traces. Each trace keeps
+simply ignored by the calculation field consumer. Nested variants of types
+implementing `MetaRole` are copied into the calculation and field source traces.
+Each trace keeps
 the canonical source `binding` and adds the aggregate `attachment_path`.
 
 Field metadata appears structurally in `runa schema` and participates in the

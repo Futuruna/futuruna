@@ -11,9 +11,9 @@
 
 = aktieavancebeskatningsloven_par6_og_par7_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

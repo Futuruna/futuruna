@@ -12,8 +12,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= kgl_ebl_par6d_samspil_vejledningsmeta = MetaAttachment(
-    role = Guidance,
+= kgl_ebl_par6d_samspil_vejledningsmeta = Guidance(
     value = kgl_ebl_par6d_vejledning_2026
 )
 --@label:kgl_ebl_par6d_samspil::meta:kgl_ebl_par6d_samspil_vejledningsmeta--

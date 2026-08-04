@@ -5,9 +5,9 @@
 
 = personskat_cfc_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
-        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par17_stk1),
-        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+        Source(value = ligningsloven_2025_1500),
+        DependencySource(value = selskabsskatteloven_lbk279_par17_stk1),
+        DependencySource(value = personskatteloven_2021_1284),
     )
 )
 

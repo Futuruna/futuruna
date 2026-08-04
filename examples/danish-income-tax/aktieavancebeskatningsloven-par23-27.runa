@@ -37,12 +37,12 @@
 
 = aktieavancebeskatningsloven_par23_og_par23a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
-        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par19d),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
-        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19d),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
+        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
     )
 )
 
@@ -391,8 +391,8 @@ skattekontrollovens § 2.
 
 = aktieavancebeskatningsloven_par24_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
     )
 )
 
@@ -484,9 +484,9 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 
 = aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
     )
 )
 
@@ -533,8 +533,8 @@ regler anvendelse.
 
 = aktieavancebeskatningsloven_par26_resterende_grene_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
     )
 )
 
@@ -647,8 +647,8 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
 
 = aktieavancebeskatningsloven_par27_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        MetaAttachment(role = Warning, value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
     )
 )
 

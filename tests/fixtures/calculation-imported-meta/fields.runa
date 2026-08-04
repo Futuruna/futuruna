@@ -1,8 +1,10 @@
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
-# CalculationMetaRole = Source
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMetaRole(a) = Source(value: a)
 # CalculationMeta(a) = CalculationMeta(felter: List(CalculationField), attachments: a)
 # SourceInfo(url: String)
+# impl MetaRole for CalculationMetaRole {}
+# impl Meta for CalculationField {}
+# impl Meta for CalculationMeta {}
 
 = imported_source = SourceInfo(url = "https://example.invalid/imported-fields")
 = imported_amount_field = CalculationField(
@@ -15,7 +17,7 @@
 = imported_calculation_meta = CalculationMeta(
     felter = [imported_amount_field],
     attachments = (
-        MetaAttachment(role = Source, value = imported_source),
+        Source(value = imported_source),
     )
 )
 

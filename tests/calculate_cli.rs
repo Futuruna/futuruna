@@ -108,16 +108,17 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
         "# Input(monthly_income: Int, deduction: Int)\n\
 # Result(value: Int)\n\
 # CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)\n\
-# MetaRole = Field | Source\n\
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)\n\
+# CalculationMetaRole(a) = Field(value: a) | Source(value: a)\n\
 # CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)\n\
+# impl MetaRole for CalculationMetaRole {}\n\
+# impl Meta for CalculationMeta {}\n\
 # SourceInfo(url: String)\n\
 = source = SourceInfo(url = \"https://example.invalid/tax\")\n\
 = calculation_meta = CalculationMeta(fields = [\n\
     CalculationField(path = \"monthly_income\", label = \"Monthly income\", question = Some(\"What do you earn each month?\"), help = None, unit = Some(\"currency/month\"))\n\
 ], attachments = (\n\
-    MetaAttachment(role = Field, value = CalculationField(path = \"deduction\", label = \"Deduction\", question = Some(\"What may be deducted?\"), help = None, unit = Some(\"currency/year\"))),\n\
-    MetaAttachment(role = Source, value = source),\n\
+    Field(value = CalculationField(path = \"deduction\", label = \"Deduction\", question = Some(\"What may be deducted?\"), help = None, unit = Some(\"currency/year\"))),\n\
+    Source(value = source),\n\
 ))\n\
 --@label:calculate::meta:calculation_meta--\n\
 @ calculate\n\
@@ -161,20 +162,21 @@ fn schema_scopes_sources_through_nested_typed_metadata() {
         "# Input(first: Int, second: Int)\n\
 # Result(value: Int)\n\
 # CalculationField(path: String, label: String)\n\
-# MetaRole = Source\n\
-# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)\n\
+# CalculationMetaRole(a) = Source(value: a)\n\
 # FieldMeta(a) = FieldMeta(fields: List(CalculationField), attachments: a)\n\
 # CalculationMeta(a) = CalculationMeta(parts: a)\n\
+# impl MetaRole for CalculationMetaRole {}\n\
+# impl Meta for CalculationMeta {}\n\
 # SourceInfo(url: String)\n\
 = first_source = SourceInfo(url = \"https://example.invalid/first\")\n\
 = second_source = SourceInfo(url = \"https://example.invalid/second\")\n\
 = first_meta = FieldMeta(\n\
     fields = [CalculationField(path = \"first\", label = \"First\")],\n\
-    attachments = MetaAttachment(role = Source, value = first_source)\n\
+    attachments = Source(value = first_source)\n\
 )\n\
 = second_meta = FieldMeta(\n\
     fields = [CalculationField(path = \"second\", label = \"Second\")],\n\
-    attachments = MetaAttachment(role = Source, value = second_source)\n\
+    attachments = Source(value = second_source)\n\
 )\n\
 = calculation_meta = CalculationMeta(parts = (first_meta, second_meta))\n\
 --@label:calculate::meta:calculation_meta--\n\
@@ -5719,6 +5721,7 @@ fn aggregate_calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
 # Result(value: Int)\n\
 # CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
 # CalculationMeta(fields: List(CalculationField))\n\
+# impl Meta for CalculationMeta {{}}\n\
 = calculation_meta = CalculationMeta(fields = [{fields}])\n\
 --@label:calculate::meta:calculation_meta--\n\
 @ calculate\n\

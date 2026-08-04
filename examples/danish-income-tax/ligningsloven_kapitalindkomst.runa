@@ -805,9 +805,9 @@ af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
 
 = ligningsloven_par12b_lbk1500_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ligningslov12b_lbk1500),
-        MetaAttachment(role = AmendmentSource, value = ligningslov12b_lov749),
-        MetaAttachment(role = Warning, value = ligningslov12b_ukonsolideret_2026_advarsel),
+        Source(value = ligningslov12b_lbk1500),
+        AmendmentSource(value = ligningslov12b_lov749),
+        Warning(value = ligningslov12b_ukonsolideret_2026_advarsel),
     )
 )
 
@@ -939,8 +939,8 @@ træffer. Stedbørn og plejebørn sidestilles med livsarvinger.
 
 = ligningsloven_par12b_historisk_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = HistoricalSource, value = ligningslov12b_historisk_lbk42),
-        MetaAttachment(role = TransitionSource, value = ligningslov12b_lov749),
+        HistoricalSource(value = ligningslov12b_historisk_lbk42),
+        TransitionSource(value = ligningslov12b_lov749),
     )
 )
 
@@ -1028,9 +1028,9 @@ disse tilfælde alene gælder stk. 5, 1.-4. pkt.
 
 = ligningsloven_par12b_2026_aendring_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = AmendmentSource, value = ligningslov12b_lov749),
-        MetaAttachment(role = TransitionSource, value = ligningslov12b_lov749),
-        MetaAttachment(role = Guidance, value = ligningslov12b_juridisk_vejledning_henstand),
+        AmendmentSource(value = ligningslov12b_lov749),
+        TransitionSource(value = ligningslov12b_lov749),
+        Guidance(value = ligningslov12b_juridisk_vejledning_henstand),
     )
 )
 

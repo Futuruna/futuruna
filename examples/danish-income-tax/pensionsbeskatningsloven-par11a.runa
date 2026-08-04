@@ -13,7 +13,7 @@
 
 = pensionsbeskatningsloven_par11a_stk2_og_3_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        Source(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
     )
 )
 

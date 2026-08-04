@@ -23,8 +23,8 @@
 
 = pbl15a_fortjeneste_fra_kildelove_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a_fortjeneste),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_fortjeneste_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a_fortjeneste),
+        Guidance(value = skat_pbl15a_fortjeneste_vejledning),
     )
 )
 

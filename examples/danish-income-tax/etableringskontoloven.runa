@@ -30,9 +30,9 @@
 
 = etableringskontoloven_par1_par4_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = etableringskontoloven_lbk1307_par1_par4),
-        MetaAttachment(role = Guidance, value = etableringskonto_skatdk_vejledning),
-        MetaAttachment(role = Guidance, value = etableringskonto_juridisk_vejledning),
+        Source(value = etableringskontoloven_lbk1307_par1_par4),
+        Guidance(value = etableringskonto_skatdk_vejledning),
+        Guidance(value = etableringskonto_juridisk_vejledning),
     )
 )
 

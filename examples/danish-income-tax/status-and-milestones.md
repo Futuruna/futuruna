@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current review issue: `td-c56369`
-Next language focus: `td-6659f1`
+Current language issue: `td-1ca9ba`
+Deferred performance issue: `td-6659f1`
 Latest implementation slice submitted for review: `td-c56369`
 Latest approved implementation slice: `td-cd7f0d`
 Latest approved tooling cleanup: `td-252816`
@@ -19,41 +19,36 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
-Futurunas metadataindeks understøtter nu generiske, typede referencer fra en
-vilkårlig rolle til en almindelig Futuruna-binding. Gentagne roller bevares,
-grundværdier udstilles både som Futuruna-tekst og strukturerede
-konstruktør-/felttræer, definitionlinjer kan udstilles, og `runa meta --type` samt
-`--role` kan bruges som målrettede audit-sweeps uden at ændre programmets
-semantik. `runa meta --json` udstiller desuden det typede indeks som
-`futuruna.meta.v1` med råtekstankre, regelspans, symboler og strukturerede
-diagnostikker. Spansymbolerne kommer fra parserens faktiske deklarationer, så
-`match`-grene ikke fejlagtigt optræder som regler, og både `|`-regler og
-`>`-funktioner indekseres. Råtekstens `----`-markører og de faktiske
-indholdslinjer har nu særskilte linjefelter, så en audit ikke skal gætte på,
-om et span omfatter afgrænsningen eller den ordrette tekst.
-Et anker kan desuden henvise til ét typet metadataobjekt, som indeholder
-vilkårligt mange `MetaAttachment(role = ..., value = ...)`-værdier. Indekset
-finder typede efterkommere og roller rekursivt og bevarer både den kanoniske
-binding og en stabil sti til vedhæftningen. Personskat-kontraktens tidligere 82
-`beregn_personskat`-ankre er nu samlet under ét typet
-`personskat_beregningsmetadata`-objekt og én kort
-`::meta:<binding>`-forbindelse. Felter og retskilder ligger i de typede objekter
-og ikke som en voksende liste i kommentarsyntaksen. Kilder på et ydre aggregat
-nedarves til alle dets feltbeskrivelser, mens kilder i et indlejret aggregat kun
-følger felterne i den pågældende typede del. Det danske skattekorpus har nu også
-en fælles `metadata.runa`-protokol med en typet rolle, `MetaAttachment` og
-`Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A bruger protokollen direkte,
-så deres kommentarer alene forbinder et label med ét navngivet metadataobjekt.
-Den samme form er nu gennemført for alle tidligere overbelastede ankre i
-skattekorpusset. De sidste 70 enkeltreferencer og ældre `--@source::...`-ankre
-er også flyttet ind i typede `MetaAttachment`-værdier. Alle udgivne eksempler
-bruger derfor nu præcis én kort
-`--@label:<label>::meta:<binding>--`-forbindelse. Den direkte form er fortsat
-bagudkompatibel i sproget og dækkes af kompatibilitetsfixtures, men den er ikke
-korpusformat. Metadata ligger i almindelige Futuruna-typer; et enkelt rollepar
-kan være en `MetaAttachment` direkte, mens flere relaterede værdier kan ligge i
-et domæneformet aggregat. En rekursiv korpustest afviser enhver direkte rolle,
-ældre ankerstavemåde, ekstra reference eller markør over 160 tegn.
+Futurunas metadataindeks bygger nu på sprogets almindelige typesystem. En kort
+`--@label:<label>::meta:<binding>--`-kommentar er kun forbindelsen mellem et
+label og en binding; bindingens type skal eksplicit implementere markørtraitet
+`Meta`. Metadataens betydning ligger i domænets egne typer. Gentagne roller som
+`Source(value = ...)`, `Warning(value = ...)` og `Field(value = ...)` kommer fra
+en sumtype, der implementerer `MetaRole`, ikke fra rollenavne kodet ind i
+kommentaren eller fra en generisk rolle-/værdibeholder. Den tidligere
+`MetaAttachment(role = ..., value = ...)`-form læses kun som
+bagudkompatibilitet og bruges ikke i skattekorpusset.
+
+Indekset finder typede efterkommere og roller rekursivt og bevarer både den
+kanoniske binding og en stabil sti til værdien. `runa meta --type` og `--role`
+kan derfor udføre målrettede audit-sweeps uden at ændre programmets semantik,
+mens `runa meta --json` udstiller `futuruna.meta.v1` med råtekstankre,
+regelspans, symboler, strukturerede værdier og diagnostikker. Spansymbolerne
+kommer fra parserens faktiske deklarationer, så `match`-grene ikke fejlagtigt
+optræder som regler, og både `|`-regler og `>`-funktioner indekseres.
+
+Personskat-kontraktens beregningsmetadata ligger nu i et eksplicit typet og
+domæneopdelt `PersonskatBeregningsmetadata`-objekt med dele for blandt andet
+pension, kapitalindkomst, ejendomsavance og årsopgørelse. Der er ét kort
+`::meta:<binding>`-anker ved `beregn_personskat`; det tidligere anker omkring
+næsten hele filen er fjernet. Felter og retskilder ligger i de typede objekter.
+Kilder på et ydre aggregat nedarves til alle dets feltbeskrivelser, mens kilder i
+et indlejret aggregat kun følger felterne i den pågældende typede del. En
+rekursiv korpustest afviser den gamle `MetaAttachment`-form, ældre
+ankerstavemåder, ekstra referencer og markører over 160 tegn. Rust-kodegeneratoren
+normaliserer samtidig generiske typeparametre med fuld Unicode-versalisering, så
+typede danske metadatafelter som `årsopgørelse` bruger samme Rust-typeparameter
+i deklarationer, felter og markørimplementeringer.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om

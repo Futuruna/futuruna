@@ -94,17 +94,17 @@ EndDate: 2026-07-01
 
 = aktieavancebeskatningsloven_ordinaere_aktier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
-        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligret),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
-        MetaAttachment(role = DependencySource, value = selskabsloven_lbk331_par47),
-        MetaAttachment(role = PreparatoryWork, value = selskabsloven_lsf170_par47_bemærkninger),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par3_par20_stk2_par21),
+        DependencySource(value = ebl_par8_par9_lbk132),
+        DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_boligret),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
+        DependencySource(value = selskabsloven_lbk331_par47),
+        PreparatoryWork(value = selskabsloven_lsf170_par47_bemærkninger),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -682,11 +682,11 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 
 = aktieavancebeskatningsloven_par25_rettigheder_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1563_par8_stk6),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par8_stk6),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -949,9 +949,9 @@ regler anvendelse.
 
 = aktieavancebeskatningsloven_par17_til_par22_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

@@ -5,9 +5,9 @@
 
 = personskat_par6d_delvis_succession_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        DependencySource(value = kgl_sælgerpantebrev_lbk1176),
+        Guidance(value = kgl_ebl_par6d_vejledning_2026),
     )
 )
 

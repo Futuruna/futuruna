@@ -17,8 +17,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= selskabslov_par1_stk1_nr1_kildemeta = MetaAttachment(
-    role = Source,
+= selskabslov_par1_stk1_nr1_kildemeta = Source(
     value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
 )
 --@label:selskabsskatteloven_par1_stk1_nr1::meta:selskabslov_par1_stk1_nr1_kildemeta--
@@ -55,8 +54,7 @@ foreninger m.v., der er hjemmehørende her i landet:
 | selskabsskattelov1_stk1_nr1_resultat(input: Selskabsskattelov1Stk1Nr1Input) -> selskabsskattelov1_stk1_nr1_sag(input).resultat()
 --@end:selskabsskatteloven_par1_stk1_nr1--
 
-= selskabslov_par1_stk1_nr6_kildemeta = MetaAttachment(
-    role = Source,
+= selskabslov_par1_stk1_nr6_kildemeta = Source(
     value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
 )
 --@label:selskabsskatteloven_par1_stk1_nr6::meta:selskabslov_par1_stk1_nr6_kildemeta--
@@ -195,8 +193,7 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
     hentet_dato = "2026-07-18"
 )
 
-= selskabslov_par17_stk1_kildemeta = MetaAttachment(
-    role = Source,
+= selskabslov_par17_stk1_kildemeta = Source(
     value = selskabsskatteloven_lbk1241_par17_stk1
 )
 --@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta--
@@ -208,8 +205,7 @@ kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
 efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 ----
 
-= selskabslov_par17_stk1_kildemeta_2 = MetaAttachment(
-    role = Source,
+= selskabslov_par17_stk1_kildemeta_2 = Source(
     value = selskabsskatteloven_lbk279_par17_stk1
 )
 --@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta_2--

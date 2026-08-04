@@ -12,8 +12,7 @@
     hentet_dato = "2026-07-18"
 )
 
-= abl_par17_klassifikation_kildemeta = MetaAttachment(
-    role = Source,
+= abl_par17_klassifikation_kildemeta = Source(
     value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation
 )
 --@label:aktieavancebeskatningsloven_par17_klassifikation::meta:abl_par17_klassifikation_kildemeta--

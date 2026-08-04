@@ -41,10 +41,10 @@
 
 = aktieavancebeskatningsloven_par37_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par37),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -86,11 +86,11 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 
 = aktieavancebeskatningsloven_par38_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par38),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 
@@ -218,10 +218,10 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 
 = aktieavancebeskatningsloven_par39_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par39),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

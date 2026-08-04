@@ -29,15 +29,15 @@
 
 = aktieavancebeskatningsloven_par9_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par9),
-        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par5a),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par23a),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
-        MetaAttachment(role = Warning, value = aktieavance_par9_samtidige_tabsbeholdninger_advarsel),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par9),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par5a),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par9),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23a),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
+        Warning(value = aktieavance_par9_samtidige_tabsbeholdninger_advarsel),
     )
 )
 

@@ -146,10 +146,10 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 
 = personskatteloven_par3_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par3),
-        MetaAttachment(role = Warning, value = personskatteloven_par3_nr3_par4a_henvisning_advarsel),
-        MetaAttachment(role = Warning, value = personskatteloven_par3_nr5_varelager_nulprocent_advarsel),
-        MetaAttachment(role = Warning, value = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel),
+        Source(value = personskatteloven_lbk1284_par3),
+        Warning(value = personskatteloven_par3_nr3_par4a_henvisning_advarsel),
+        Warning(value = personskatteloven_par3_nr5_varelager_nulprocent_advarsel),
+        Warning(value = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel),
     )
 )
 
@@ -930,12 +930,12 @@ iværksætterkonto
 
 = personskatteloven_par4_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
-        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov679_par4_nr6),
-        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov615_par4_nr6),
-        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
-        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
-        MetaAttachment(role = Dependency, value = kursgevinstloven_lbk1176_par32),
+        Source(value = personskatteloven_lbk1284_par4),
+        AmendmentSource(value = personskatteloven_lov679_par4_nr6),
+        AmendmentSource(value = personskatteloven_lov615_par4_nr6),
+        DependencySource(value = ejendomsskatteloven_lov678_par3),
+        AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
+        Dependency(value = kursgevinstloven_lbk1176_par32),
     )
 )
 
@@ -2556,8 +2556,8 @@ fra og med den 1. januar 2027.
 
 = personskatteloven_par4a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4a),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+        Source(value = personskatteloven_lbk1284_par4a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
 

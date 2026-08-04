@@ -26,9 +26,9 @@
 
 = ebl_par11_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = CurrentnessSource, value = ebl_par11_lov615_ændringsstatus),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        Source(value = ebl_par11_lbk132),
+        CurrentnessSource(value = ebl_par11_lov615_ændringsstatus),
+        Guidance(value = ebl_par11_vejledning_2026),
     )
 )
 

@@ -5,8 +5,8 @@
 
 = ebl_par11_scenarier_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
     )
 )
 

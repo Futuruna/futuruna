@@ -78,8 +78,7 @@ LOV nr. 96 af 04/02/2025, § 7, stk. 4:
 | exception arbejdsmarkedsbidrag_unge_fritaget_fra_2026 arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> 0 under input.skatteår >= 2026 && input.alder_ved_indkomstårets_udløb <= 17
 | arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> penge_beløb_gange_basispoint_kroner(grundlag_kroner, arbejdsmarkedsbidrag_sats_for_person_basispoint(input))
 
-= amb_par2_kildemeta = MetaAttachment(
-    role = Source,
+= amb_par2_kildemeta = Source(
     value = arbejdsmarkedsbidragsloven_lbk121_par2
 )
 --@label:arbejdsmarkedsbidragsloven_par2::meta:amb_par2_kildemeta--
@@ -222,8 +221,7 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 | arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input).resultat()
 --@end::arbejdsmarkedsbidragsloven_par2--
 
-= amb_par3_kildemeta = MetaAttachment(
-    role = Source,
+= amb_par3_kildemeta = Source(
     value = arbejdsmarkedsbidragsloven_lbk121_par3
 )
 --@label:arbejdsmarkedsbidragsloven_par3::meta:amb_par3_kildemeta--

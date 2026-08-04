@@ -7,8 +7,8 @@
 
 = personskatteloven_par4b_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
-        MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
+        Source(value = personskatteloven_2021_1284),
+        DependencySource(value = ligningsloven_2025_1500),
     )
 )
 

@@ -26,9 +26,9 @@
 
 = aktieavancebeskatningsloven_par19_til_par20a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par19),
-        MetaAttachment(role = Warning, value = aktieavance_par19_hovedsagelig_fortolkningsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par19),
+        Warning(value = aktieavance_par19_hovedsagelig_fortolkningsgrænse),
     )
 )
 

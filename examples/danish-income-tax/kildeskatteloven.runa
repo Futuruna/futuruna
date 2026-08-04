@@ -35,8 +35,7 @@ lovtekst kontrolleres særskilt i source-status.runa.
     hentet_dato = "2026-07-18"
 )
 
-= ksl_par25a_kildemeta = MetaAttachment(
-    role = Source,
+= ksl_par25a_kildemeta = Source(
     value = kildeskatteloven_lbk460_par25a
 )
 --@label:kildeskatteloven_par25a::meta:ksl_par25a_kildemeta--

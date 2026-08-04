@@ -16,10 +16,10 @@
 
 = aktieavancebeskatningsloven_par33a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par33a),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par33a),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par33a),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par33a),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

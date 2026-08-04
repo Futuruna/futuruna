@@ -11,57 +11,58 @@
 @ importer ./kursgevinstloven - ebl - par6d
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
+# PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, årsopgørelse: årsopgørelse)
+# impl Meta for PersonskatMetadata {}
+# impl Meta for PersonskatBeregningsmetadata {}
 
 = personskat_lønmodtagerberegning_metadata = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
-        MetaAttachment(role = AmendmentSource, value = personskat_reform_2024_482),
-        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
-        MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
-        MetaAttachment(role = DependencySource, value = ligningsloven_lbk1500_par9l),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par20),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par29_par36),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
-        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
-        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
-        MetaAttachment(role = AmendmentSource, value = ligningsloven_lov616_par1),
-        MetaAttachment(role = RateSource, value = ligningsloven_bek1333_par1_par4),
-        MetaAttachment(role = Guidance, value = ligningsloven_vejledning_par9c_fri_befordring),
-        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
-        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
-        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
-        MetaAttachment(role = DependencySource, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
-        MetaAttachment(role = DependencySource, value = ebl_par11_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
-        MetaAttachment(role = DependencySource, value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
-        MetaAttachment(role = DependencySource, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = kommuneskatteloven_2019_935),
-        MetaAttachment(role = DependencySource, value = folkekirkens_økonomilov_2023_424),
-        MetaAttachment(role = DependencySource, value = kildeskatteloven_2024_460),
+        Source(value = personskatteloven_2021_1284),
+        AmendmentSource(value = personskat_reform_2024_482),
+        DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
+        DependencySource(value = ligningsloven_2025_1500),
+        DependencySource(value = ligningsloven_lbk1500_par9l),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par15),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par15a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par15b),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par29_par36),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+        RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        RateSource(value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        RateSource(value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        RateSource(value = skatteministeriet_pbl15b_satser_2025_til_2026),
+        Guidance(value = skat_pbl15a_ophørspension_vejledning),
+        TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning),
+        RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        AmendmentSource(value = ligningsloven_lov616_par1),
+        RateSource(value = ligningsloven_bek1333_par1_par4),
+        Guidance(value = ligningsloven_vejledning_par9c_fri_befordring),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        DependencySource(value = ejendomsskatteloven_lov678_par3),
+        AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
+        DependencySource(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        DependencySource(value = ebl_par11_lbk132),
+        DependencySource(value = ebl_par5_lbk132),
+        DependencySource(value = ebl_par8_par9_lbk132),
+        DependencySource(value = ebl_genanbringelse_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        DependencySource(value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
+        DependencySource(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
+        DependencySource(value = kgl_sælgerpantebrev_lbk1176),
+        Guidance(value = kgl_ebl_par6d_vejledning_2026),
+        DependencySource(value = kommuneskatteloven_2019_935),
+        DependencySource(value = folkekirkens_økonomilov_2023_424),
+        DependencySource(value = kildeskatteloven_2024_460),
     )
 )
---@label:personskat_lønmodtagerberegning::meta:personskat_lønmodtagerberegning_metadata--
---@begin:personskat_lønmodtagerberegning--
 # PersonskatErhvervsbefordring(art: Ligningslov9BBefordringsart, kilometer_i_sagen: Heltal, tres_dages_forhold: Ligningslov9B60DagesForhold)
 # PersonskatErhvervsbefordringFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, godtgørende_arbejdsgiver_identifikation: Tekst, køretøj: Ligningslov9BKøretøj, befordring: PersonskatErhvervsbefordring, udgifter: Ligningslov9BUdgifter, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
 # PersonskatErhvervsbefordringInput(sager: List(PersonskatErhvervsbefordringFakta))
@@ -4475,9 +4476,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9l),
-        MetaAttachment(role = RateSource, value = skatteministeriet_ligningsloven_par9l_satser_2026),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+        Source(value = ligningsloven_lbk1500_par9l),
+        RateSource(value = skatteministeriet_ligningsloven_par9l_satser_2026),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
 = personskat_meta_pbl20_udbetalinger = Beregningsmeta(
@@ -4497,8 +4498,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par20),
-        MetaAttachment(role = DependencySource, value = ligningsloven_lbk1500_par9l),
+        Source(value = pensionsbeskatningsloven_lbk1243_par20),
+        DependencySource(value = ligningsloven_lbk1500_par9l),
     )
 )
 = personskat_meta_aktiepensionsfradrag_valg = Beregningsmeta(
@@ -4511,8 +4512,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4a),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+        Source(value = personskatteloven_lbk1284_par4a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
 = personskat_meta_pbl18_indbetalinger = Beregningsmeta(
@@ -4535,8 +4536,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+        Source(value = pensionsbeskatningsloven_lbk1243_par18),
+        RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
 = personskat_meta_pbl18_fordelingsforløb = Beregningsmeta(
@@ -4556,8 +4557,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+        Source(value = pensionsbeskatningsloven_lbk1243_par18),
+        RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
 = personskat_meta_pbl18_indeksgrundlag = Beregningsmeta(
@@ -4569,8 +4570,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
 = personskat_meta_pbl18_særligt_grundlag = Beregningsmeta(
@@ -4583,15 +4584,15 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
-        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
-        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par18),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par15a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par15b),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+        RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        Guidance(value = skat_pbl15a_ophørspension_vejledning),
+        TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning),
     )
 )
 = personskat_meta_pbl15a_afståelser = Beregningsmeta(
@@ -4618,9 +4619,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
-        MetaAttachment(role = GainGuidance, value = skat_pbl15a_fortjeneste_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        Guidance(value = skat_pbl15a_ophørspension_vejledning),
+        GainGuidance(value = skat_pbl15a_fortjeneste_vejledning),
     )
 )
 = personskat_meta_pbl15a_regnskabsperioder = Beregningsmeta(
@@ -4645,8 +4646,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        PengetankGuidance(value = skat_pbl15a_betingelser_vejledning),
     )
 )
 = personskat_meta_pbl15a_selskabsregnskaber = Beregningsmeta(
@@ -4672,9 +4673,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        PengetankGuidance(value = skat_pbl15a_betingelser_vejledning),
     )
 )
 = personskat_meta_pbl15a_aktuel_periode_startår = Beregningsmeta(
@@ -4691,10 +4692,10 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
-        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        FutureAmendmentSource(value = pensionsbeskatningsloven_lov615_par15a),
+        PengetankGuidance(value = skat_pbl15a_betingelser_vejledning),
     )
 )
 = personskat_meta_pbl15a_afståelsesselskaber = Beregningsmeta(
@@ -4715,9 +4716,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
-        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        AmendmentSource(value = pensionsbeskatningsloven_lov369_par15a),
+        PengetankGuidance(value = skat_pbl15a_betingelser_vejledning),
     )
 )
 = personskat_meta_pbl15a_holdingforløb = Beregningsmeta(
@@ -4753,8 +4754,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_holdingafvikling_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        TimingGuidance(value = skat_pbl15a_holdingafvikling_vejledning),
     )
 )
 = personskat_meta_pbl15a_ordninger = Beregningsmeta(
@@ -4777,11 +4778,11 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
-        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
-        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
-        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15a),
+        RateSource(value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        Guidance(value = skat_pbl15a_ophørspension_vejledning),
+        TimingGuidance(value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MultiDisposalGuidance(value = skat_pbl15a_flere_afståelser_vejledning),
     )
 )
 = personskat_meta_pbl15b_indkomstposter = Beregningsmeta(
@@ -4795,10 +4796,10 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+        RateSource(value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        RateSource(value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        RateSource(value = skatteministeriet_pbl15b_satser_2025_til_2026),
     )
 )
 = personskat_meta_pbl15b_ordninger = Beregningsmeta(
@@ -4823,7 +4824,7 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15b),
     )
 )
 = personskat_meta_pbl15b_historik = Beregningsmeta(
@@ -4838,10 +4839,10 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+        RateSource(value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        RateSource(value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        RateSource(value = skatteministeriet_pbl15b_satser_2025_til_2026),
     )
 )
 = personskat_meta_pbl15b_rateudbetalinger = Beregningsmeta(
@@ -4861,11 +4862,11 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par20),
-        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par29_par36),
-        MetaAttachment(role = Guidance, value = skatteforvaltningen_pbl15b_udbetalinger),
+        Source(value = pensionsbeskatningsloven_lbk1243_par15b),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par11a_stk2_og_3),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par29_par36),
+        Guidance(value = skatteforvaltningen_pbl15b_udbetalinger),
     )
 )
 = personskat_meta_pbl18_pbl54_personkreds = Beregningsmeta(
@@ -4886,8 +4887,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
-        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+        Source(value = pensionsbeskatningsloven_lbk1243_par18),
+        RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
 
@@ -4904,8 +4905,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = RateSource, value = skatteraadet_bek1333_par4_par14),
+        Source(value = ligningsloven_lbk1500_par9b),
+        RateSource(value = skatteraadet_bek1333_par4_par14),
     )
 )
 = personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads = Beregningsmeta(
@@ -4920,8 +4921,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        Source(value = ligningsloven_lbk1500_par9b),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
     )
 )
 = personskat_meta_erhvervsbefordring_afholdt_udgifter = Beregningsmeta(
@@ -4935,9 +4936,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par3),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        Source(value = ligningsloven_lbk1500_par9b),
+        Source(value = personskatteloven_lbk1284_par3),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
     )
 )
 = personskat_meta_erhvervsbefordring_godtgørelse = Beregningsmeta(
@@ -4952,9 +4953,9 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        Source(value = ligningsloven_lbk1500_par9b),
+        Source(value = skatteraadet_bek1333_par4_par14),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
     )
 )
 = personskat_meta_erhvervsbefordring_eget_køretøj = Beregningsmeta(
@@ -4967,55 +4968,55 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
-        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
-        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
-        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+        Source(value = ligningsloven_lbk1500_par9b),
+        Source(value = skatteraadet_bek1333_par4_par14),
+        Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
     )
 )
 = personskat_metadata_skatteår = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_skatteår),
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        Field(value = personskat_felt_skatteår),
+        Source(value = personskatteloven_2021_1284),
     )
 )
 = personskat_metadata_kommune = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_kommune),
-        MetaAttachment(role = Source, value = kommuneskatteloven_2019_935),
+        Field(value = personskat_felt_kommune),
+        Source(value = kommuneskatteloven_2019_935),
     )
 )
 = personskat_metadata_bruttoløn = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_bruttoløn),
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
-        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+        Field(value = personskat_felt_bruttoløn),
+        Source(value = personskatteloven_2021_1284),
+        DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
     )
 )
 = personskat_metadata_befordring = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_befordring),
-        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        Field(value = personskat_felt_befordring),
+        Source(value = ligningsloven_2025_1500),
     )
 )
 = personskat_metadata_alder = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_alder),
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        Field(value = personskat_felt_alder),
+        Source(value = personskatteloven_2021_1284),
     )
 )
 = personskat_metadata_kirkeskat = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_kirkeskat),
-        MetaAttachment(role = Source, value = folkekirkens_økonomilov_2023_424),
-        MetaAttachment(role = DependencySource, value = kommuneskatteloven_2019_935),
+        Field(value = personskat_felt_kirkeskat),
+        Source(value = folkekirkens_økonomilov_2023_424),
+        DependencySource(value = kommuneskatteloven_2019_935),
     )
 )
 = personskat_metadata_renteindtægter = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_renteindtægter),
-        MetaAttachment(role = Field, value = personskat_felt_renteudgifter),
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        Field(value = personskat_felt_renteindtægter),
+        Field(value = personskat_felt_renteudgifter),
+        Source(value = personskatteloven_2021_1284),
     )
 )
 = personskat_meta_ejendomsdrift = Beregningsmeta(
@@ -5030,395 +5031,395 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
-        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov679_par4_nr6),
-        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov615_par4_nr6),
-        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
-        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
+        Source(value = personskatteloven_lbk1284_par4),
+        AmendmentSource(value = personskatteloven_lov679_par4_nr6),
+        AmendmentSource(value = personskatteloven_lov615_par4_nr6),
+        DependencySource(value = ejendomsskatteloven_lov678_par3),
+        AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
     )
 )
 = personskat_metadata_fremleje = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_fremleje),
-        MetaAttachment(role = Field, value = personskat_felt_fremlejerrolle),
-        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
-        MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
+        Field(value = personskat_felt_fremleje),
+        Field(value = personskat_felt_fremlejerrolle),
+        Source(value = personskatteloven_2021_1284),
+        DependencySource(value = ligningsloven_2025_1500),
     )
 )
 = personskat_metadata_fremlejeform = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_fremlejeform),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_boligstatus),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_indberetning),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_metode),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_bruttoindtægt),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_faktiske_udgifter),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_tidligere_par15p_stk3),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_stk4_samordning),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15q_dage),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_form),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_bruttoindtægt),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_årlig_leje),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_fire_måneder),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_rådighedsdage),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_udlejningsdage),
-        MetaAttachment(role = Field, value = personskat_felt_fremleje_loftvalg),
-        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        Field(value = personskat_felt_fremlejeform),
+        Field(value = personskat_felt_fremleje_boligstatus),
+        Field(value = personskat_felt_fremleje_indberetning),
+        Field(value = personskat_felt_fremleje_metode),
+        Field(value = personskat_felt_fremleje_bruttoindtægt),
+        Field(value = personskat_felt_fremleje_faktiske_udgifter),
+        Field(value = personskat_felt_fremleje_tidligere_par15p_stk3),
+        Field(value = personskat_felt_fremleje_stk4_samordning),
+        Field(value = personskat_felt_fremleje_par15q_dage),
+        Field(value = personskat_felt_fremleje_par15p_form),
+        Field(value = personskat_felt_fremleje_par15p_bruttoindtægt),
+        Field(value = personskat_felt_fremleje_par15p_årlig_leje),
+        Field(value = personskat_felt_fremleje_par15p_fire_måneder),
+        Field(value = personskat_felt_fremleje_par15p_rådighedsdage),
+        Field(value = personskat_felt_fremleje_par15p_udlejningsdage),
+        Field(value = personskat_felt_fremleje_loftvalg),
+        Source(value = ligningsloven_2025_1500),
     )
 )
 = personskat_metadata_årsopgørelse = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_årsopgørelse),
-        MetaAttachment(role = Source, value = kildeskatteloven_2024_460),
+        Field(value = personskat_felt_årsopgørelse),
+        Source(value = kildeskatteloven_2024_460),
     )
 )
 = personskat_metadata_egne_ejendomssalg = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomssalg),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
-        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egne_ejendomssalg),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        DependencySource(value = ebl_par5_lbk132),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_ægtefælles_ejendomssalg = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomssalg),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
+        Field(value = personskat_felt_ægtefælles_ejendomssalg),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
     )
 )
 = personskat_metadata_egne_ejendomsudgifter = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomsudgifter),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsudgifter),
-        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomsnedsættelser),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsnedsættelser),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egne_ejendomsudgifter),
+        Field(value = personskat_felt_ægtefælles_ejendomsudgifter),
+        Field(value = personskat_felt_egne_ejendomsnedsættelser),
+        Field(value = personskat_felt_ægtefælles_ejendomsnedsættelser),
+        Source(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_ejendomsidentifikation = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendomsidentifikation),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsidentifikation),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsesår),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        Field(value = personskat_felt_egen_ejendomsidentifikation),
+        Field(value = personskat_felt_ægtefælles_ejendomsidentifikation),
+        Field(value = personskat_felt_egen_ejendoms_afståelsesår),
+        Field(value = personskat_felt_ægtefælles_ejendoms_afståelsesår),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
     )
 )
 = personskat_metadata_egen_ejendoms_anskaffelsesår = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsesår),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egen_ejendoms_anskaffelsesår),
+        Field(value = personskat_felt_ægtefælles_ejendoms_anskaffelsesår),
+        Source(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_ejendoms_anskaffelsessum = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsessum),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
-        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egen_ejendoms_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_ejendoms_anskaffelsessum),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        DependencySource(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_ejendoms_afståelsessum = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsessum),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        Field(value = personskat_felt_egen_ejendoms_afståelsessum),
+        Field(value = personskat_felt_ægtefælles_ejendoms_afståelsessum),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
     )
 )
 = personskat_metadata_egen_ejendoms_anskaffelsesgrundlag = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag),
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
-        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egen_ejendoms_anskaffelsesgrundlag),
+        Field(value = personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        DependencySource(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_ejendoms_indeksering = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_indeksering),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_indeksering),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_ejerandel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_ejerandel),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsesomfang),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsesomfang),
-        MetaAttachment(role = Field, value = personskat_felt_egen_delafståelses_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_delafståelses_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_egen_hele_ejendommens_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egen_ejendoms_indeksering),
+        Field(value = personskat_felt_ægtefælles_ejendoms_indeksering),
+        Field(value = personskat_felt_egen_ejendoms_ejerandel),
+        Field(value = personskat_felt_ægtefælles_ejendoms_ejerandel),
+        Field(value = personskat_felt_egen_ejendoms_afståelsesomfang),
+        Field(value = personskat_felt_ægtefælles_ejendoms_afståelsesomfang),
+        Field(value = personskat_felt_egen_delafståelses_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_delafståelses_anskaffelsessum),
+        Field(value = personskat_felt_egen_hele_ejendommens_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum),
+        Source(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_ikke_boligdelens_anskaffelsessum = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ikke_boligdelens_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_egne_mælkekvoter),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvoter),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+        Field(value = personskat_felt_egen_ikke_boligdelens_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum),
+        Field(value = personskat_felt_egne_mælkekvoter),
+        Field(value = personskat_felt_ægtefælles_mælkekvoter),
+        Source(value = ebl_par5_lbk132),
+        Guidance(value = ebl_par5_mælkekvote_vejledning_2026),
     )
 )
 = personskat_metadata_egen_stk6_overførsel = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_overførsel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_overførsel),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_ejendomskategori),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_ejendomskategori),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_tillægsparcelværdi),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_tillægsparcelværdi),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_teknisk_værdi),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_teknisk_værdi),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_bygningsafskrivninger),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_bygningsafskrivninger),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_nedrevne_bygninger),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_nedrevne_bygninger),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_nedskrevet_bygningsværdi),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_afstået_jord_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_samlet_jord_anskaffelsessum),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
+        Field(value = personskat_felt_egen_stk6_overførsel),
+        Field(value = personskat_felt_ægtefælles_stk6_overførsel),
+        Field(value = personskat_felt_egen_stk6_ejendomskategori),
+        Field(value = personskat_felt_ægtefælles_stk6_ejendomskategori),
+        Field(value = personskat_felt_egen_stk6_tillægsparcelværdi),
+        Field(value = personskat_felt_ægtefælles_stk6_tillægsparcelværdi),
+        Field(value = personskat_felt_egen_stk6_teknisk_værdi),
+        Field(value = personskat_felt_ægtefælles_stk6_teknisk_værdi),
+        Field(value = personskat_felt_egen_stk6_bygningsafskrivninger),
+        Field(value = personskat_felt_ægtefælles_stk6_bygningsafskrivninger),
+        Field(value = personskat_felt_egen_stk6_nedrevne_bygninger),
+        Field(value = personskat_felt_ægtefælles_stk6_nedrevne_bygninger),
+        Field(value = personskat_felt_egen_stk6_nedskrevet_bygningsværdi),
+        Field(value = personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi),
+        Field(value = personskat_felt_egen_stk6_afstået_jord_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum),
+        Field(value = personskat_felt_egen_stk6_samlet_jord_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum),
+        Source(value = ebl_par5_lbk132),
+        Guidance(value = ebl_par5_stk6_vejledning_2026),
     )
 )
 = personskat_metadata_egen_par5a_ejendomskategori = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par5a_ejendomskategori),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par5a_ejendomskategori),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        Field(value = personskat_felt_egen_par5a_ejendomskategori),
+        Field(value = personskat_felt_ægtefælles_par5a_ejendomskategori),
+        Source(value = ebl_par5_lbk132),
     )
 )
 = personskat_metadata_egen_mælkekvote_identifikation = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_identifikation),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_identifikation),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesmåned),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesdag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_oprindelige_enheder),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_disponerede_enheder),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_disponerede_enheder),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_købsvederlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_købsvederlag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_disposition),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_disposition),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesmåned),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesmåned),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesdag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesdag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesvederlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsmåned),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsmåned),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsdag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsdag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsmåned),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsmåned),
-        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsdag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsdag),
-        MetaAttachment(role = Source, value = ebl_par5_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+        Field(value = personskat_felt_egen_mælkekvote_identifikation),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_identifikation),
+        Field(value = personskat_felt_egen_mælkekvote_anskaffelsesår),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesår),
+        Field(value = personskat_felt_egen_mælkekvote_anskaffelsesmåned),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned),
+        Field(value = personskat_felt_egen_mælkekvote_anskaffelsesdag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag),
+        Field(value = personskat_felt_egen_mælkekvote_oprindelige_enheder),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder),
+        Field(value = personskat_felt_egen_mælkekvote_disponerede_enheder),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_disponerede_enheder),
+        Field(value = personskat_felt_egen_mælkekvote_anskaffelsesgrundlag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag),
+        Field(value = personskat_felt_egen_mælkekvote_købsvederlag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_købsvederlag),
+        Field(value = personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi),
+        Field(value = personskat_felt_egen_mælkekvote_disposition),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_disposition),
+        Field(value = personskat_felt_egen_mælkekvote_afståelsesår),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_afståelsesår),
+        Field(value = personskat_felt_egen_mælkekvote_afståelsesmåned),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_afståelsesmåned),
+        Field(value = personskat_felt_egen_mælkekvote_afståelsesdag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_afståelsesdag),
+        Field(value = personskat_felt_egen_mælkekvote_afståelsesvederlag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag),
+        Field(value = personskat_felt_egen_mælkekvote_udløbsår),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_udløbsår),
+        Field(value = personskat_felt_egen_mælkekvote_udløbsmåned),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_udløbsmåned),
+        Field(value = personskat_felt_egen_mælkekvote_udløbsdag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_udløbsdag),
+        Field(value = personskat_felt_egen_mælkekvote_toldningsår),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_toldningsår),
+        Field(value = personskat_felt_egen_mælkekvote_toldningsmåned),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_toldningsmåned),
+        Field(value = personskat_felt_egen_mælkekvote_toldningsdag),
+        Field(value = personskat_felt_ægtefælles_mælkekvote_toldningsdag),
+        Source(value = ebl_par5_lbk132),
+        Guidance(value = ebl_par5_mælkekvote_vejledning_2026),
     )
 )
 = personskat_metadata_egen_ejendomstype = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ejendomstype),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomstype),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_ejendomstype),
+        Field(value = personskat_felt_ægtefælles_ejendomstype),
+        Source(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_ordinær_genanbringelse = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse),
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_vejledning_2026),
     )
 )
 = personskat_metadata_egen_ordinær_genanbringelse_afståelsesår = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_fortjeneste),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvesteringsår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvesteringsår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_ejendomsstatus),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_anvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_afståelsesår),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_fortjeneste),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse),
+        Field(value = personskat_felt_egen_ordinær_geninvesteringsår),
+        Field(value = personskat_felt_ægtefælles_ordinær_geninvesteringsår),
+        Field(value = personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag),
+        Field(value = personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag),
+        Field(value = personskat_felt_egen_ordinær_geninvestering_ejendomsstatus),
+        Field(value = personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus),
+        Field(value = personskat_felt_egen_ordinær_geninvestering_anvendelse),
+        Field(value = personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse),
+        Source(value = ebl_genanbringelse_lbk132),
     )
 )
 = personskat_metadata_egen_ordinær_geninvestering_placering = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_placering),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_placering),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+        Field(value = personskat_felt_egen_ordinær_geninvestering_placering),
+        Field(value = personskat_felt_ægtefælles_ordinær_geninvestering_placering),
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_udland_vejledning_2026),
     )
 )
 = personskat_metadata_egen_ordinær_genanbringelsesbegæring = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelsesbegæring),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_ejerskab),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_kapitalandel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_stemmeandel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_selskabsbrug),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug),
-        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_kontrol_består),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        Field(value = personskat_felt_egen_ordinær_genanbringelsesbegæring),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_ejerskab),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_kapitalandel),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_stemmeandel),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_selskabsbrug),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug),
+        Field(value = personskat_felt_egen_ordinær_genanbringelse_kontrol_består),
+        Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består),
+        Source(value = ebl_genanbringelse_lbk132),
     )
 )
 = personskat_metadata_egen_par8_ejendomsart = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_ejendomsart),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_ejendomsart),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_boligbrug),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_boligbrug),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_ejerperiode),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_ejerperiode),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_afståelsesforhold),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_afståelsesforhold),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par8_ejendomsart),
+        Field(value = personskat_felt_ægtefælles_par8_ejendomsart),
+        Field(value = personskat_felt_egen_par8_boligbrug),
+        Field(value = personskat_felt_ægtefælles_par8_boligbrug),
+        Field(value = personskat_felt_egen_par8_ejerperiode),
+        Field(value = personskat_felt_ægtefælles_par8_ejerperiode),
+        Field(value = personskat_felt_egen_par8_afståelsesforhold),
+        Field(value = personskat_felt_ægtefælles_par8_afståelsesforhold),
+        Source(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par8_genanbringelsesforhold = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesforhold),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesforhold),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        Field(value = personskat_felt_egen_par8_genanbringelsesforhold),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelsesforhold),
+        Source(value = ebl_par8_par9_lbk132),
+        DependencySource(value = ebl_genanbringelse_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
     )
 )
 = personskat_metadata_egen_par8_genanbringelseshjemmel = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelseshjemmel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelseshjemmel),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par8_genanbringelseshjemmel),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelseshjemmel),
+        Source(value = ebl_genanbringelse_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par8_oprindeligt_afståelsesår = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindeligt_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindeligt_afståelsesår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindelig_erhvervsfortjeneste),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsfortjeneste),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsestillæg),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsestillæg),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesnedslag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesnedslag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindelig_erhvervsanvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsanvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvesteringsår),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvesteringsår),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_erhvervsmæssigt_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_erhvervsmæssigt_anskaffelsesgrundlag),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_ejendomsstatus),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_ejendomsstatus),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_erhvervsanvendelse),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_erhvervsanvendelse),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par8_oprindeligt_afståelsesår),
+        Field(value = personskat_felt_ægtefælles_par8_oprindeligt_afståelsesår),
+        Field(value = personskat_felt_egen_par8_oprindelig_erhvervsfortjeneste),
+        Field(value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsfortjeneste),
+        Field(value = personskat_felt_egen_par8_genanbringelsestillæg),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelsestillæg),
+        Field(value = personskat_felt_egen_par8_genanbringelsesnedslag),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelsesnedslag),
+        Field(value = personskat_felt_egen_par8_oprindelig_erhvervsanvendelse),
+        Field(value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsanvendelse),
+        Field(value = personskat_felt_egen_par8_geninvesteringsår),
+        Field(value = personskat_felt_ægtefælles_par8_geninvesteringsår),
+        Field(value = personskat_felt_egen_par8_erhvervsmæssigt_anskaffelsesgrundlag),
+        Field(value = personskat_felt_ægtefælles_par8_erhvervsmæssigt_anskaffelsesgrundlag),
+        Field(value = personskat_felt_egen_par8_geninvestering_ejendomsstatus),
+        Field(value = personskat_felt_ægtefælles_par8_geninvestering_ejendomsstatus),
+        Field(value = personskat_felt_egen_par8_geninvestering_erhvervsanvendelse),
+        Field(value = personskat_felt_ægtefælles_par8_geninvestering_erhvervsanvendelse),
+        Source(value = ebl_genanbringelse_lbk132),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par8_geninvestering_placering = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_placering),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_placering),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par8_geninvestering_placering),
+        Field(value = personskat_felt_ægtefælles_par8_geninvestering_placering),
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_udland_vejledning_2026),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par8_udland_område = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_område),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_område),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_skattepligt),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_skattepligt),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_informationsudveksling),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_informationsudveksling),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_begæringsforhold),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_begæringsforhold),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_driftsbudget),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_driftsbudget),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+        Field(value = personskat_felt_egen_par8_udland_område),
+        Field(value = personskat_felt_ægtefælles_par8_udland_område),
+        Field(value = personskat_felt_egen_par8_udland_skattepligt),
+        Field(value = personskat_felt_ægtefælles_par8_udland_skattepligt),
+        Field(value = personskat_felt_egen_par8_udland_informationsudveksling),
+        Field(value = personskat_felt_ægtefælles_par8_udland_informationsudveksling),
+        Field(value = personskat_felt_egen_par8_udland_begæringsforhold),
+        Field(value = personskat_felt_ægtefælles_par8_udland_begæringsforhold),
+        Field(value = personskat_felt_egen_par8_udland_driftsbudget),
+        Field(value = personskat_felt_ægtefælles_par8_udland_driftsbudget),
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_udland_vejledning_2026),
     )
 )
 = personskat_metadata_egen_par8_genanbringelsesbegæring = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesbegæring),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesbegæring),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelse_ejerskab),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelse_ejerskab),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par8_genanbringelsesbegæring),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelsesbegæring),
+        Field(value = personskat_felt_egen_par8_genanbringelse_ejerskab),
+        Field(value = personskat_felt_ægtefælles_par8_genanbringelse_ejerskab),
+        Source(value = ebl_genanbringelse_lbk132),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par8_anvendelse_før_2005 = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par8_anvendelse_før_2005),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_anvendelse_før_2005),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        Field(value = personskat_felt_egen_par8_anvendelse_før_2005),
+        Field(value = personskat_felt_ægtefælles_par8_anvendelse_før_2005),
+        Source(value = ebl_par8_par9_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
     )
 )
 = personskat_metadata_egen_par9_genanbringelsesforhold = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelsesforhold),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_genanbringelsesforhold),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        Field(value = personskat_felt_egen_par9_genanbringelsesforhold),
+        Field(value = personskat_felt_ægtefælles_par9_genanbringelsesforhold),
+        Source(value = ebl_par8_par9_lbk132),
+        DependencySource(value = ebl_genanbringelse_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
     )
 )
 = personskat_metadata_egen_par9_genanbringelseshjemmel = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelseshjemmel),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_genanbringelseshjemmel),
-        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_egen_par9_genanbringelseshjemmel),
+        Field(value = personskat_felt_ægtefælles_par9_genanbringelseshjemmel),
+        Source(value = ebl_genanbringelse_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_egen_par9_boligandel_forøget = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_egen_par9_boligandel_forøget),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_boligandel_forøget),
-        MetaAttachment(role = Field, value = personskat_felt_egen_par9_boligandel_før_2005),
-        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_boligandel_før_2005),
-        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
-        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        Field(value = personskat_felt_egen_par9_boligandel_forøget),
+        Field(value = personskat_felt_ægtefælles_par9_boligandel_forøget),
+        Field(value = personskat_felt_egen_par9_boligandel_før_2005),
+        Field(value = personskat_felt_ægtefælles_par9_boligandel_før_2005),
+        Source(value = ebl_par8_par9_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
     )
 )
 = personskat_meta_egen_par11_ny_genanbringelse = Beregningsmeta(
@@ -5440,8 +5441,8 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
     )
 )
 = personskat_meta_egen_par11_investeringsår = Beregningsmeta(
@@ -5467,9 +5468,9 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
+        DependencySource(value = ebl_genanbringelse_lbk132),
     )
 )
 = personskat_meta_egen_par11_placering = Beregningsmeta(
@@ -5491,10 +5492,10 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
+        DependencySource(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_udland_vejledning_2026),
     )
 )
 = personskat_meta_egen_par11_begæring = Beregningsmeta(
@@ -5524,9 +5525,9 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
+        DependencySource(value = ebl_genanbringelse_lbk132),
     )
 )
 = personskat_meta_egen_par11_hjemmel = Beregningsmeta(
@@ -5542,9 +5543,9 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par11_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        Source(value = ebl_par11_lbk132),
+        Guidance(value = ebl_par11_vejledning_2026),
+        DependencySource(value = ebl_genanbringelse_lbk132),
     )
 )
 = personskat_meta_egen_par6d_valg = Beregningsmeta(
@@ -5564,8 +5565,8 @@
         personskat_felt_ægtefælles_par6d_fordelingsår
     ],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_overdrageranvendelse = Beregningsmeta(
@@ -5582,8 +5583,8 @@
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_pantebrev = Beregningsmeta(
@@ -5608,8 +5609,8 @@
         personskat_felt_ægtefælles_par6d_afdragsplan_beløb
     ],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_meddelelse = Beregningsmeta(
@@ -5627,8 +5628,8 @@
     ],
     beløbsfelter = [],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_afståelsesårets_hændelse = Beregningsmeta(
@@ -5659,8 +5660,8 @@
         personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_restgæld
     ],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        Guidance(value = ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu = Beregningsmeta(
@@ -5673,9 +5674,9 @@
         personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu
     ],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+        Source(value = ebl_par6d_lov1578),
+        DependencySource(value = kgl_sælgerpantebrev_lbk1176),
+        Guidance(value = kgl_ebl_par6d_vejledning_2026),
     )
 )
 = personskat_meta_egen_par6d_pantebrev_succession = Beregningsmeta(
@@ -5707,10 +5708,10 @@
         personskat_felt_egen_par6d_udlodning_boopgørelsesværdi
     ],
     attachments = (
-        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
-        MetaAttachment(role = PreparatorySource, value = ebl_par6d_lovforslag36),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+        Source(value = ebl_par6d_lov1578),
+        PreparatorySource(value = ebl_par6d_lovforslag36),
+        DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
     )
 )
 = personskat_meta_kursgevinst = Beregningsmeta(
@@ -5741,63 +5742,64 @@
         personskat_felt_kgl_provenu
     ],
     attachments = (
-        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
-        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
-        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+        Source(value = kgl_sælgerpantebrev_lbk1176),
+        DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+        Guidance(value = kgl_ebl_par6d_vejledning_2026),
     )
 )
 = personskat_metadata_ordinært_aktieår = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_ordinært_aktieår),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        Field(value = personskat_felt_ordinært_aktieår),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
     )
 )
 = personskat_metadata_aktiebeholdninger = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_aktiebeholdninger),
-        MetaAttachment(role = Field, value = personskat_felt_aktiehændelser),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        Field(value = personskat_felt_aktiebeholdninger),
+        Field(value = personskat_felt_aktiehændelser),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
     )
 )
 = personskat_metadata_aktie_boligret = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_aktie_boligret),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 = personskat_metadata_aktie_boligret_udsteder = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_udsteder),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_kapitalselskabsform),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_kapitalselskab_hjemsted),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_foreningstype),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_hjemsted),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_par3),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_fondsbeskatning),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_værdipapirstatus),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
-        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
+        Field(value = personskat_felt_aktie_boligret_udsteder),
+        Field(value = personskat_felt_aktie_boligret_kapitalselskabsform),
+        Field(value = personskat_felt_aktie_boligret_kapitalselskab_hjemsted),
+        Field(value = personskat_felt_aktie_boligret_foreningstype),
+        Field(value = personskat_felt_aktie_boligret_forening_hjemsted),
+        Field(value = personskat_felt_aktie_boligret_forening_par3),
+        Field(value = personskat_felt_aktie_boligret_forening_fondsbeskatning),
+        Field(value = personskat_felt_aktie_boligret_værdipapirstatus),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
     )
 )
 = personskat_metadata_aktie_boligret_værdipapir = PersonskatMetadata(
     attachments = (
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_værdipapir),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_flerlejlighedsejendom),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_beboelse),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_grundforhold),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_grundbetingelse),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_afståelsesform),
-        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_endeligt_opløsningsår),
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
-        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        Field(value = personskat_felt_aktie_boligret_værdipapir),
+        Field(value = personskat_felt_aktie_boligret_flerlejlighedsejendom),
+        Field(value = personskat_felt_aktie_boligret_beboelse),
+        Field(value = personskat_felt_aktie_boligret_grundforhold),
+        Field(value = personskat_felt_aktie_boligret_grundbetingelse),
+        Field(value = personskat_felt_aktie_boligret_afståelsesform),
+        Field(value = personskat_felt_aktie_boligret_endeligt_opløsningsår),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
 
-= personskat_beregningsmetadata = Metadata(
-    attachments = (
+= personskat_beregningsmetadata = PersonskatBeregningsmetadata(
+    kilder = personskat_lønmodtagerberegning_metadata,
+    pension = (
         personskat_meta_pensionsalder,
         personskat_meta_pbl20_udbetalinger,
         personskat_meta_aktiepensionsfradrag_valg,
@@ -5817,22 +5819,29 @@
         personskat_meta_pbl15b_historik,
         personskat_meta_pbl15b_rateudbetalinger,
         personskat_meta_pbl18_pbl54_personkreds,
+    ),
+    erhvervsbefordring = (
         personskat_meta_erhvervsbefordring,
         personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads,
         personskat_meta_erhvervsbefordring_afholdt_udgifter,
         personskat_meta_erhvervsbefordring_godtgørelse,
         personskat_meta_erhvervsbefordring_eget_køretøj,
+    ),
+    grundforhold = (
         personskat_metadata_skatteår,
         personskat_metadata_kommune,
         personskat_metadata_bruttoløn,
         personskat_metadata_befordring,
         personskat_metadata_alder,
         personskat_metadata_kirkeskat,
+    ),
+    kapitalindkomst = (
         personskat_metadata_renteindtægter,
         personskat_meta_ejendomsdrift,
         personskat_metadata_fremleje,
         personskat_metadata_fremlejeform,
-        personskat_metadata_årsopgørelse,
+    ),
+    ejendomsavance = (
         personskat_metadata_egne_ejendomssalg,
         personskat_metadata_ægtefælles_ejendomssalg,
         personskat_metadata_egne_ejendomsudgifter,
@@ -5874,13 +5883,16 @@
         personskat_meta_egen_par6d_afståelsesårets_hændelse,
         personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu,
         personskat_meta_egen_par6d_pantebrev_succession,
-        personskat_meta_kursgevinst,
+    ),
+    kursgevinst = personskat_meta_kursgevinst,
+    aktieavance = (
         personskat_metadata_ordinært_aktieår,
         personskat_metadata_aktiebeholdninger,
         personskat_metadata_aktie_boligret,
         personskat_metadata_aktie_boligret_udsteder,
         personskat_metadata_aktie_boligret_værdipapir,
-    )
+    ),
+    årsopgørelse = personskat_metadata_årsopgørelse
 )
 
 --@label:beregn_personskat::meta:personskat_beregningsmetadata--
@@ -6884,4 +6896,3 @@
 
 @ calculate("Dansk personskat")
 | beregn_personskat(input: PersonskatInput) -> personskat_beregning_resultat(input)
---@end:personskat_lønmodtagerberegning--

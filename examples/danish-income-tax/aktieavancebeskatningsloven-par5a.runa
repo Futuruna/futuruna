@@ -32,13 +32,13 @@
 
 = aktieavancebeskatningsloven_par5a_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par5a),
-        MetaAttachment(role = ExclusionSource, value = aktieavancebeskatningsloven_lbk1098_par22_stk6),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par5a),
-        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov1755),
-        MetaAttachment(role = AmendmentSource, value = aktieavancebeskatningsloven_lov615),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par5a),
+        ExclusionSource(value = aktieavancebeskatningsloven_lbk1098_par22_stk6),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par5a),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
     )
 )
 

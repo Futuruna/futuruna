@@ -40,10 +40,10 @@ EndDate: 2026-07-01
 
 = ejendomsavancebeskatningsloven_par1_par1a_par2_par4_metadata = Metadata(
     attachments = (
-        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
-        MetaAttachment(role = CurrentnessSource, value = ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus),
-        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
-        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+        Source(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        CurrentnessSource(value = ejendomsavancebeskatningsloven_lov615_par7_ændringsstatus),
+        DependencySource(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6a_vejledning_2026),
     )
 )
 
@@ -379,8 +379,7 @@ lov.
     hentet_dato = "2026-07-18"
 )
 
-= ebl_par6_stk3_til_5_kildemeta = MetaAttachment(
-    role = Source,
+= ebl_par6_stk3_til_5_kildemeta = Source(
     value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5
 )
 --@label:ejendomsavancebeskatningsloven_par6_stk3_til_5::meta:ebl_par6_stk3_til_5_kildemeta--
