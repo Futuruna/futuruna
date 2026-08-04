@@ -26,27 +26,99 @@
     help = Some("Identifikationen sammenholdes med de berettigede ved hvert års udgang."),
     unit = None
 )
-= personskat_pbl53a_felt_ordning = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.ordning",
-    label = "Type § 53 A-ordning",
-    question = Some("Hvilken type pensions- eller forsikringsordning er der tale om efter § 53 A, stk. 1?"),
+
+# PersonskatPbl53AFelttekst(path: Tekst, label: Tekst, question: Tekst, unit: Tekst?)
+# PersonskatPbl53ADatofelttekst(path: Tekst, label: Tekst, question: Tekst)
+# PersonskatPbl53ABerettigedefelttekst(path: Tekst, label: Tekst)
+
+| personskat_pbl53a_felt_fra_tekst(felt: PersonskatPbl53AFelttekst) -> Beregningsfelt(
+    path = felt.path,
+    label = felt.label,
+    question = Some(felt.question),
     help = None,
-    unit = None
+    unit = felt.unit
 )
-= personskat_pbl53a_felt_par53b = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.omfattes_af_par53b",
-    label = "Omfattet af PBL § 53 B",
-    question = Some("Er ordningen omfattet af pensionsbeskatningslovens § 53 B?"),
-    help = Some("En ordning omfattet af § 53 B falder uden for § 53 A, stk. 1."),
-    unit = None
-)
-= personskat_pbl53a_felt_stk4_livsforsikring = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
-    label = "Livsforsikring undtaget efter § 53 A, stk. 4",
-    question = Some("Kan livsforsikringen kun udbetales ved død, invaliditet eller livstruende sygdom og senest ved første policedag efter det fyldte 80. år?"),
-    help = Some("Betingelsen medfører, at ordningens afkast er undtaget fra beskatning efter stk. 3."),
-    unit = None
-)
+| personskat_pbl53a_datofelter(felt: PersonskatPbl53ADatofelttekst) -> [
+    Beregningsfelt(path = felt.path + ".år", label = felt.label + " - år", question = Some(felt.question + " Angiv året."), help = None, unit = Some("år")),
+    Beregningsfelt(path = felt.path + ".måned", label = felt.label + " - måned", question = Some(felt.question + " Angiv måneden."), help = None, unit = None),
+    Beregningsfelt(path = felt.path + ".dag", label = felt.label + " - dag", question = Some(felt.question + " Angiv dagen i måneden."), help = None, unit = None)
+]
+| personskat_pbl53a_berettigedefelter(felt: PersonskatPbl53ABerettigedefelttekst) -> [
+    Beregningsfelt(path = felt.path, label = felt.label, question = Some("Hvem er berettiget efter direktørens pensionstilsagn?"), help = Some("Angiv direktøren og alle efterladte, som kan modtage udbetalinger."), unit = None),
+    Beregningsfelt(path = felt.path + ".$variant", label = "Type berettiget til direktørpension", question = Some("Er den berettigede direktøren selv, en efterladt eller en anden person?"), help = None, unit = None),
+    Beregningsfelt(path = felt.path + ".Pbl53ADirektørenSomBerettiget.identifikation", label = "Direktørens identifikation", question = Some("Hvilken direktør er berettiget til pensionstilsagnet?"), help = None, unit = None),
+    Beregningsfelt(path = felt.path + ".Pbl53AEfterladtEfterDirektør.identifikation", label = "Den efterladtes identifikation", question = Some("Hvilken efterladt er berettiget efter direktørens død?"), help = None, unit = None),
+    Beregningsfelt(path = felt.path + ".Pbl53AEfterladtEfterDirektør.direktør_identifikation", label = "Direktør for den efterladte", question = Some("Hvilken direktør er den efterladtes ret knyttet til?"), help = None, unit = None),
+    Beregningsfelt(path = felt.path + ".Pbl53AAndenDirektørpensionsberettiget.identifikation", label = "Anden berettigets identifikation", question = Some("Hvilken anden person er angivet som berettiget?"), help = None, unit = None)
+]
+
+= personskat_pbl53a_omfang_enkeltfelter = map([
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.$variant", label = "Ordningens faktiske produkttype", question = "Hvilket forsikrings-, pensionskasse- eller pengeinstitutprodukt er der faktisk oprettet?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.ejer_identifikation", label = "Livsforsikringens ejer", question = "Hvem ejer livsforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.forsikret_identifikation", label = "Personen forsikret ved livsforsikringen", question = "Hvem er forsikret ved livsforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.$variant", label = "Livsforsikringens status efter PBL kapitel 1", question = "Er livsforsikringen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.dækninger", label = "Livsforsikringens dækninger", question = "Hvilke hændelser kan udløse udbetaling fra livsforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.direktørsikkerhed.$variant", label = "Livsforsikring stillet til sikkerhed for direktørpension", question = "Er livsforsikringen stillet til sikkerhed for et pensionstilsagn til en direktør eller dennes efterladte?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.identifikation", label = "Direktørpensionstilsagn sikret ved livsforsikring", question = "Hvilket pensionstilsagn sikrer livsforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.ansættelsesforhold_identifikation", label = "Ansættelsesforhold for det sikrede pensionstilsagn", question = "Hvilket ansættelsesforhold blev det sikrede pensionstilsagn afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.pensionsberettiget_identifikation", label = "Pensionsberettiget i pensionskassen", question = "Hvem er pensionsberettiget i pensionskasseordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.kapitel1fakta.$variant", label = "Pensionskassens status efter PBL kapitel 1", question = "Er pensionskasseordningen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.selvstændig_juridisk_person", label = "Pensionskassen er en selvstændig juridisk person", question = "Er pensionskassen en selvstændig juridisk person?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.uafhængig_af_arbejdsgiver", label = "Pensionskassen er uafhængig af arbejdsgiveren", question = "Er pensionskassen retligt og økonomisk uafhængig af arbejdsgiveren?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.midler_afsondret_fra_berettigedes_formue", label = "Pensionskassens midler er afsondret", question = "Er pensionskassens midler afsondret fra den pensionsberettigedes øvrige formue?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.vedtægter_fastlægger_pensionsydelser", label = "Vedtægterne fastlægger pensionsydelserne", question = "Fastlægger pensionskassens vedtægter de pensionsydelser, der kan udbetales?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.direktørsikkerhed.$variant", label = "Pensionskasseordning stillet til sikkerhed for direktørpension", question = "Er pensionskasseordningen stillet til sikkerhed for et pensionstilsagn til en direktør eller dennes efterladte?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.identifikation", label = "Direktørpensionstilsagn sikret ved pensionskasseordning", question = "Hvilket pensionstilsagn sikrer pensionskasseordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.ansættelsesforhold_identifikation", label = "Ansættelsesforhold for pensionskassens sikkerhed", question = "Hvilket ansættelsesforhold blev det sikrede pensionstilsagn afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ASygeOgUlykkesforsikringsprodukt.ejer_identifikation", label = "Syge- og ulykkesforsikringens ejer", question = "Hvem ejer syge- og ulykkesforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ASygeOgUlykkesforsikringsprodukt.forsikret_identifikation", label = "Personen dækket af syge- og ulykkesforsikringen", question = "Hvem er forsikret ved syge- og ulykkesforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53AGarantiforsikringsprodukt.tilsagn.identifikation", label = "Pensionstilsagn dækket af garantiforsikringen", question = "Hvilket direktørpensionstilsagn dækkes af garantiforsikringen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53AGarantiforsikringsprodukt.tilsagn.ansættelsesforhold_identifikation", label = "Ansættelsesforhold for garantiforsikringen", question = "Hvilket ansættelsesforhold blev pensionstilsagnet bag garantiforsikringen afgivet i?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kontohaver_identifikation", label = "Kontohaver i penge- eller kreditinstituttet", question = "Hvem er kontohaver på pensionsordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kapitel1fakta.$variant", label = "Pengeinstitutordningens status efter PBL kapitel 1", question = "Er pengeinstitutordningen omfattet af kapitel 1, uden for kapitel 1 eller tidligere godkendt efter § 15 D?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.institutionssted.$variant", label = "Penge- eller kreditinstituttets placering", question = "Er instituttet dansk eller udenlandsk?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.institutionssted.Pbl53AUdenlandskInstitution.stat", label = "Stat for det udenlandske institut", question = "I hvilken stat ligger penge- eller kreditinstituttet?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.standardiseret_lovreguleret_pensionsprodukt", label = "Standardiseret og lovreguleret pensionsprodukt", question = "Er ordningen et standardiseret pensionsprodukt reguleret ved lov?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.pensionsmidler_adskilt_fra_øvrig_formue", label = "Pensionsmidlerne er adskilt fra øvrig formue", question = "Er pensionsmidlerne adskilt fra kontohaverens øvrige formue?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.kan_disponeres_som_almindelig_bankkonto", label = "Kan disponeres som almindelig bankkonto", question = "Kan kontohaveren disponere over midlerne som på en almindelig bankkonto?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.$variant", label = "Afkald på beskatning efter PBL afsnit I", question = "Blev der ved ordningens oprettelse givet afkald på beskatning efter reglerne i afsnit I?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.Pbl53AAfkaldPåAfsnitI.afgiver_identifikation", label = "Personen der gav afkald på afsnit I", question = "Hvem afgav afkaldet på beskatning efter afsnit I?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.Pbl53AAfkaldPåAfsnitI.afgiver", label = "Afgiverens rolle ved afkaldet", question = "Gav personen afkald som forsikringsejer, pensionsberettiget eller kontohaver?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.institutionsfinansiering.samlet_drift_løn_og_pension_kroner", label = "Institutionens samlede drift, løn og pension", question = "Hvor store var institutionens samlede udgifter til drift, løn og pension i den relevante periode?", unit = Some("kr.")),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.institutionsfinansiering.statsligt_finansieret_drift_løn_og_pension_kroner", label = "Statsligt finansieret drift, løn og pension", question = "Hvor stor en del af institutionens drift, løn og pension blev finansieret af staten?", unit = Some("kr.")),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.$variant", label = "Skattepligt og skattemæssigt hjemsted ved oprettelsen", question = "Var personen fuldt skattepligtig og hjemmehørende i Danmark, uden fuld dansk skattepligt eller hjemmehørende i udlandet efter en dobbeltbeskatningsoverenskomst, da ordningen blev oprettet?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetUdenFuldDanskSkattepligt.hjemsted.$variant", label = "Hjemsted uden fuld dansk skattepligt", question = "Var hjemstedet en fremmed stat, Færøerne eller Grønland?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetUdenFuldDanskSkattepligt.hjemsted.Pbl53BFremmedStat.stat", label = "Fremmed stat uden fuld dansk skattepligt", question = "I hvilken fremmed stat var personen skattepligtig eller hjemmehørende?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetMedDboHjemstedIUdlandet.hjemsted.$variant", label = "Hjemsted efter dobbeltbeskatningsoverenskomst", question = "Var hjemstedet efter overenskomsten en fremmed stat, Færøerne eller Grønland?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetMedDboHjemstedIUdlandet.hjemsted.Pbl53BFremmedStat.stat", label = "Fremmed stat efter dobbeltbeskatningsoverenskomst", question = "I hvilken fremmed stat var personen hjemmehørende efter overenskomsten?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.$variant", label = "Indbetalingens behandling efter PBL § 53 B", question = "Blev indbetalingen foretaget i udenlandsperioden, og var den fuldt fradraget eller foretaget af en arbejdsgiver uden medregning i indkomsten?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.Pbl53BEjerbidragFuldtFradragetIPositivIndkomst.positiv_skattepligtig_indkomst_kroner", label = "Positiv udenlandsk indkomst for § 53 B-bidraget", question = "Hvor stor var den positive skattepligtige indkomst, som ejerbidraget kunne fradrages i?", unit = Some("kr.")),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.Pbl53BEjerbidragFuldtFradragetIPositivIndkomst.faktisk_fradrag_kroner", label = "Faktisk udenlandsk fradrag for § 53 B-bidraget", question = "Hvor stort et fradrag blev faktisk opnået for ejerbidraget?", unit = Some("kr."))
+    ], personskat_pbl53a_felt_fra_tekst)
+
+= personskat_pbl53a_omfang_datofelter = flat_map([
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.oprettelsesdato", label = "Ordningens oprettelsesdato", question = "Hvornår blev ordningen oprettet?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_fra", label = "Start på livsforsikringens § 15 D-godkendelse", question = "Hvornår begyndte livsforsikringens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_til", label = "Slut på livsforsikringens § 15 D-godkendelse", question = "Hvornår udløb livsforsikringens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato", label = "Livsforsikringens aftalte udløbsdato", question = "Hvornår udløber livsforsikringen efter aftalen?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.første_policedag_efter_fyldte_80_år", label = "Første policedag efter det fyldte 80. år", question = "Hvornår er den første policedag efter den forsikredes fyldte 80. år?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_fra", label = "Start på pensionskassens § 15 D-godkendelse", question = "Hvornår begyndte pensionskasseordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_til", label = "Slut på pensionskassens § 15 D-godkendelse", question = "Hvornår udløb pensionskasseordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_fra", label = "Start på pengeinstitutordningens § 15 D-godkendelse", question = "Hvornår begyndte pengeinstitutordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_til", label = "Slut på pengeinstitutordningens § 15 D-godkendelse", question = "Hvornår udløb pengeinstitutordningens tidligere § 15 D-godkendelse?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.Pbl53AAfkaldPåAfsnitI.afgivet_dato", label = "Dato for afkald på afsnit I", question = "Hvornår blev afkaldet på beskatning efter afsnit I afgivet?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetUdenFuldDanskSkattepligt.sidste_dato_uden_dansk_skattepligt", label = "Sidste dato uden fuld dansk skattepligt", question = "Hvornår sluttede perioden uden fuld dansk skattepligt?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.Pbl53BOprettetMedDboHjemstedIUdlandet.sidste_dato_med_dbo_hjemsted_i_udlandet", label = "Sidste dato med overenskomstmæssigt hjemsted i udlandet", question = "Hvornår sluttede perioden med hjemsted i udlandet efter dobbeltbeskatningsoverenskomsten?")
+    ], personskat_pbl53a_datofelter)
+
+= personskat_pbl53a_omfang_berettigedefelter = flat_map([
+    PersonskatPbl53ABerettigedefelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.berettigede", label = "Berettigede efter pensionstilsagn sikret ved livsforsikring"),
+    PersonskatPbl53ABerettigedefelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53APensionskasseprodukt.direktørsikkerhed.Pbl53ASikkerhedForDirektørpensionstilsagn.tilsagn.berettigede", label = "Berettigede efter pensionstilsagn sikret ved pensionskasseordning"),
+    PersonskatPbl53ABerettigedefelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53AGarantiforsikringsprodukt.tilsagn.berettigede", label = "Berettigede efter pensionstilsagn dækket af garantiforsikring")
+    ], personskat_pbl53a_berettigedefelter)
+
+= personskat_pbl53a_omfangsfelter = concat(personskat_pbl53a_omfang_enkeltfelter, concat(personskat_pbl53a_omfang_datofelter, personskat_pbl53a_omfang_berettigedefelter))
+
 = personskat_pbl53a_felt_afkastår = Beregningsfelt(
     path = "kapitalindkomst.pbl53a.ordninger.afkastår",
     label = "Årlige afkastfakta for § 53 A-ordningen",
@@ -539,13 +611,10 @@
 )
 
 = personskat_pbl53a_beregningsmeta = Beregningsmeta(
-    felter = [
+    felter = concat([
         personskat_pbl53a_felt_ordninger,
         personskat_pbl53a_felt_identifikation,
         personskat_pbl53a_felt_skatteyder_identifikation,
-        personskat_pbl53a_felt_ordning,
-        personskat_pbl53a_felt_par53b,
-        personskat_pbl53a_felt_stk4_livsforsikring,
         personskat_pbl53a_felt_afkastår,
         personskat_pbl53a_felt_afkastår_indkomstår,
         personskat_pbl53a_felt_afkastgrundlag,
@@ -616,11 +685,12 @@
         personskat_pbl53a_felt_afkastskat_stk6_erklæring,
         personskat_pbl53a_felt_afkastskat_stk6_udenlandsk_skat,
         personskat_pbl53a_felt_sikkerhedsstillelse
-    ],
+        ], personskat_pbl53a_omfangsfelter),
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
         DependencySource(value = personskatteloven_lbk1284_par3),
         DependencySource(value = personskatteloven_lbk1284_par4),
@@ -628,6 +698,8 @@
         Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
+        Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )

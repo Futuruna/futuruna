@@ -155,6 +155,83 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
 }
 
 #[test]
+fn schema_expands_computed_typed_aggregate_meta_into_field_metadata() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Input(first: Int, second: Int, third: Int)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String)\n\
+# CalculationMeta(fields: List(CalculationField))\n\
+# FieldSeed(path: String, label: String)\n\
+# impl Meta for CalculationMeta {}\n\
+| field_from_seed(seed: FieldSeed) -> CalculationField(path = seed.path, label = seed.label)\n\
+| fields_from_seed(seed: FieldSeed) -> [field_from_seed(seed)]\n\
+= direct_fields = map([\n\
+    FieldSeed(path = \"first\", label = \"First value\"),\n\
+    FieldSeed(path = \"second\", label = \"Second value\")\n\
+], field_from_seed)\n\
+= nested_fields = flat_map([\n\
+    FieldSeed(path = \"third\", label = \"Third value\")\n\
+], fields_from_seed)\n\
+= calculation_meta = CalculationMeta(fields = concat(direct_fields, nested_fields))\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.first + input.second + input.third)\n",
+    )
+    .expect("write computed aggregate calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 3);
+    assert_eq!(fields[0]["path"], "first");
+    assert_eq!(fields[0]["label"], "First value");
+    assert_eq!(fields[1]["path"], "second");
+    assert_eq!(fields[1]["label"], "Second value");
+    assert_eq!(fields[2]["path"], "third");
+    assert_eq!(fields[2]["label"], "Third value");
+}
+
+#[test]
+fn schema_rejects_unknown_paths_from_computed_typed_aggregate_meta() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Input(amount: Int)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String)\n\
+# CalculationMeta(fields: List(CalculationField))\n\
+# FieldSeed(path: String, label: String)\n\
+# impl Meta for CalculationMeta {}\n\
+| field_from_seed(seed: FieldSeed) -> CalculationField(path = seed.path, label = seed.label)\n\
+= computed_fields = map([\n\
+    FieldSeed(path = \"not_an_input_path\", label = \"Invalid value\")\n\
+], field_from_seed)\n\
+= calculation_meta = CalculationMeta(fields = computed_fields)\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.amount)\n",
+    )
+    .expect("write invalid computed aggregate calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("targets unknown input path `not_an_input_path`"),
+        "stderr:\n{stderr}"
+    );
+}
+
+#[test]
 fn schema_scopes_sources_through_nested_typed_metadata() {
     let path = temp_path("runa");
     std::fs::write(
@@ -828,9 +905,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "identifikation",
             "skatteyder_identifikation",
-            "ordning",
-            "omfattes_af_par53b",
-            "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+            "omfangsfakta.oprettelsesdato.år",
+            "omfangsfakta.produkt.$variant",
+            "omfangsfakta.afsnit_i_valg.$variant",
+            "omfangsfakta.institutionsfinansiering.samlet_drift_løn_og_pension_kroner",
+            "omfangsfakta.par53b_oprettelsesposition.$variant",
         ] {
             assert!(
                 pbl53a_paths.iter().any(|path| path == expected),
@@ -841,13 +920,40 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "§ 53 A-ordningens identifikation",
             "Skatteyder på § 53 A-ordningen",
-            "Type § 53 A-ordning",
-            "Omfattet af PBL § 53 B",
-            "Livsforsikring undtaget efter § 53 A, stk. 4",
+            "Ordningens oprettelsesdato - år",
+            "Ordningens faktiske produkttype",
+            "Afkald på beskatning efter PBL afsnit I",
+            "Institutionens samlede drift, løn og pension",
+            "Skattepligt og skattemæssigt hjemsted ved oprettelsen",
         ] {
             assert!(
                 pbl53a_headers.iter().any(|header| header == expected),
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
+            );
+        }
+        let pbl53a_coverages_path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.dækninger";
+        let pbl53a_coverages_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_coverages_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_coverages_sheet),
+            "Dansk personskat - Livsforsikringens dækninger"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_coverages_sheet),
+            ["value"]
+        );
+        for expected in [
+            "case_id",
+            "parent_id",
+            "item_id",
+            "position",
+            "Livsforsikringens dækninger",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &pbl53a_coverages_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL § 53 A coverage label {expected} on {pbl53a_coverages_sheet}"
             );
         }
         let pbl53a_years_path = "kapitalindkomst.pbl53a.ordninger.afkastår";
@@ -1197,7 +1303,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
             "kapitalindkomst.pbl53a.ordninger.identifikation",
             "kapitalindkomst.pbl53a.ordninger.skatteyder_identifikation",
-            "kapitalindkomst.pbl53a.ordninger.ordning",
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.oprettelsesdato.år",
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.$variant",
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.$variant",
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.$variant",
             "kapitalindkomst.pbl53a.ordninger.afkastår.indkomstår",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.$variant",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.Pbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
@@ -1212,6 +1321,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.tidspunkt.dato.år",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.$variant",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingTilAfkastskat.dokumentationsdato.år",
@@ -2045,6 +2155,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("PBL § 53 A sources");
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
+            "pensionsbeskatningsloven_lbk1243_par53b",
             "pensionsbeskatningsloven_lbk1243_par20",
             "personskatteloven_lbk1284_par3",
             "personskatteloven_lbk1284_par4",
@@ -2052,6 +2163,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skat_juridisk_vejledning_pbl53a_indbetalinger",
             "skat_juridisk_vejledning_pbl53a_udbetalinger",
             "skat_juridisk_vejledning_pbl53a_afkast",
+            "skat_juridisk_vejledning_pbl53a_ordningstyper",
+            "skat_juridisk_vejledning_pbl53b_omfang",
             "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
         ] {
             assert!(
@@ -2342,17 +2455,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         let pbl53a_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
-        for (row, identifikation, ordning) in [
-            (1, "livsforsikring-pal", "Pbl53ALivsforsikringUdenKapitel1"),
-            (
-                2,
-                "pensionskasse-negativ",
-                "Pbl53APensionskasseUdenKapitel1",
-            ),
+        for (row, identifikation, produkt) in [
+            (1, "livsforsikring-pal", "Pbl53ALivsforsikringsprodukt"),
+            (2, "pensionskasse-negativ", "Pbl53APensionskasseprodukt"),
             (
                 3,
                 "pengeinstitut-halv-andel",
-                "Pbl53APengeinstitutUdenKapitel1",
+                "Pbl53APengeEllerKreditinstitutprodukt",
             ),
         ] {
             for (header, value) in [
@@ -2367,15 +2476,191 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "skatteyder_identifikation",
                     Data::String("person-1".to_string()),
                 ),
-                ("ordning", Data::String(ordning.to_string())),
-                ("omfattes_af_par53b", Data::Bool(false)),
                 (
-                    "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
-                    Data::Bool(false),
+                    "omfangsfakta.oprettelsesdato.år",
+                    Data::Int(2020),
+                ),
+                (
+                    "omfangsfakta.oprettelsesdato.måned",
+                    Data::Int(1),
+                ),
+                ("omfangsfakta.oprettelsesdato.dag", Data::Int(1)),
+                (
+                    "omfangsfakta.produkt.$variant",
+                    Data::String(produkt.to_string()),
+                ),
+                (
+                    "omfangsfakta.afsnit_i_valg.$variant",
+                    Data::String("Pbl53AIntetAfkaldPåAfsnitI".to_string()),
+                ),
+                (
+                    "omfangsfakta.institutionsfinansiering.samlet_drift_løn_og_pension_kroner",
+                    Data::Int(1_000_000),
+                ),
+                (
+                    "omfangsfakta.institutionsfinansiering.statsligt_finansieret_drift_løn_og_pension_kroner",
+                    Data::Int(0),
+                ),
+                (
+                    "omfangsfakta.par53b_oprettelsesposition.$variant",
+                    Data::String("Pbl53BOprettetUnderDanskSkattepligtOgHjemsted".to_string()),
                 ),
             ] {
                 set_workbook_cell_by_header(sheets, &pbl53a_sheet, row, header, value);
             }
+            match row {
+                1 => {
+                    for (header, value) in [
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.ejer_identifikation",
+                            Data::String("person-1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.forsikret_identifikation",
+                            Data::String("person-1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.$variant",
+                            Data::String("Pbl53AIkkeOmfattetAfKapitel1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato.år",
+                            Data::Int(2050),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato.måned",
+                            Data::Int(1),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato.dag",
+                            Data::Int(1),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.første_policedag_efter_fyldte_80_år.år",
+                            Data::Int(2060),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.første_policedag_efter_fyldte_80_år.måned",
+                            Data::Int(1),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.første_policedag_efter_fyldte_80_år.dag",
+                            Data::Int(1),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.direktørsikkerhed.$variant",
+                            Data::String("Pbl53AIngenDirektørsikkerhed".to_string()),
+                        ),
+                    ] {
+                        set_workbook_cell_by_header(
+                            sheets,
+                            &pbl53a_sheet,
+                            row,
+                            header,
+                            value,
+                        );
+                    }
+                }
+                2 => {
+                    for (header, value) in [
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.pensionsberettiget_identifikation",
+                            Data::String("person-1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.kapitel1fakta.$variant",
+                            Data::String("Pbl53AIkkeOmfattetAfKapitel1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.selvstændig_juridisk_person",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.uafhængig_af_arbejdsgiver",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.midler_afsondret_fra_berettigedes_formue",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.karakteristika.vedtægter_fastlægger_pensionsydelser",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APensionskasseprodukt.direktørsikkerhed.$variant",
+                            Data::String("Pbl53AIngenDirektørsikkerhed".to_string()),
+                        ),
+                    ] {
+                        set_workbook_cell_by_header(
+                            sheets,
+                            &pbl53a_sheet,
+                            row,
+                            header,
+                            value,
+                        );
+                    }
+                }
+                3 => {
+                    for (header, value) in [
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kontohaver_identifikation",
+                            Data::String("person-1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kapitel1fakta.$variant",
+                            Data::String("Pbl53AIkkeOmfattetAfKapitel1".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.institutionssted.$variant",
+                            Data::String("Pbl53ADanskInstitution".to_string()),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.standardiseret_lovreguleret_pensionsprodukt",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.pensionsmidler_adskilt_fra_øvrig_formue",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.karakteristika.kan_disponeres_som_almindelig_bankkonto",
+                            Data::Bool(false),
+                        ),
+                    ] {
+                        set_workbook_cell_by_header(
+                            sheets,
+                            &pbl53a_sheet,
+                            row,
+                            header,
+                            value,
+                        );
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        let pbl53a_coverages_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.dækninger",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("parent_id", Data::String("livsforsikring-pal".to_string())),
+            (
+                "item_id",
+                Data::String("livsforsikring-pal-dækning-1".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "value",
+                Data::String("Pbl53AAndenLivsforsikringsdækning".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_coverages_sheet, 1, header, value);
         }
         let pbl53a_years_path = "kapitalindkomst.pbl53a.ordninger.afkastår";
         let pbl53a_years_sheet =
@@ -2664,6 +2949,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"),
                 Data::String("Pbl53AUdenFradragsEllerBortseelsesret".to_string()),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.$variant"),
+                Data::String("Pbl53BIkkeForetagetIUdenlandsperioden".to_string()),
             ),
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_events_sheet, 1, &header, value);
@@ -5108,9 +5397,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             {
                 "identifikation": "livsforsikring-pal",
                 "skatteyder_identifikation": "person-1",
-                "ordning": { "$variant": "Pbl53ALivsforsikringUdenKapitel1" },
-                "omfattes_af_par53b": false,
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "omfangsfakta": {
+                    "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "produkt": {
+                        "$variant": "Pbl53ALivsforsikringsprodukt",
+                        "ejer_identifikation": "person-1",
+                        "forsikret_identifikation": "person-1",
+                        "kapitel1fakta": { "$variant": "Pbl53AIkkeOmfattetAfKapitel1" },
+                        "vilkår": {
+                            "dækninger": [
+                                { "$variant": "Pbl53AAndenLivsforsikringsdækning" }
+                            ],
+                            "aftalt_udløbsdato": { "år": 2050, "måned": 1, "dag": 1 },
+                            "første_policedag_efter_fyldte_80_år": { "år": 2060, "måned": 1, "dag": 1 }
+                        },
+                        "direktørsikkerhed": { "$variant": "Pbl53AIngenDirektørsikkerhed" }
+                    },
+                    "afsnit_i_valg": { "$variant": "Pbl53AIntetAfkaldPåAfsnitI" },
+                    "institutionsfinansiering": {
+                        "samlet_drift_løn_og_pension_kroner": 1_000_000,
+                        "statsligt_finansieret_drift_løn_og_pension_kroner": 0
+                    },
+                    "par53b_oprettelsesposition": {
+                        "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
+                    }
+                },
                 "afkastår": [
                     {
                         "indkomstår": 2025,
@@ -5169,6 +5480,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             },
                             "ejerens_fradragsstatus": {
                                 "$variant": "Pbl53AUdenFradragsEllerBortseelsesret"
+                            },
+                            "par53b_udenlandsk_skattebehandling": {
+                                "$variant": "Pbl53BIkkeForetagetIUdenlandsperioden"
                             }
                         }
                     }
@@ -5177,9 +5491,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             {
                 "identifikation": "pensionskasse-negativ",
                 "skatteyder_identifikation": "person-1",
-                "ordning": { "$variant": "Pbl53APensionskasseUdenKapitel1" },
-                "omfattes_af_par53b": false,
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "omfangsfakta": {
+                    "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "produkt": {
+                        "$variant": "Pbl53APensionskasseprodukt",
+                        "pensionsberettiget_identifikation": "person-1",
+                        "kapitel1fakta": { "$variant": "Pbl53AIkkeOmfattetAfKapitel1" },
+                        "karakteristika": {
+                            "selvstændig_juridisk_person": true,
+                            "uafhængig_af_arbejdsgiver": true,
+                            "midler_afsondret_fra_berettigedes_formue": true,
+                            "vedtægter_fastlægger_pensionsydelser": true
+                        },
+                        "direktørsikkerhed": { "$variant": "Pbl53AIngenDirektørsikkerhed" }
+                    },
+                    "afsnit_i_valg": { "$variant": "Pbl53AIntetAfkaldPåAfsnitI" },
+                    "institutionsfinansiering": {
+                        "samlet_drift_løn_og_pension_kroner": 1_000_000,
+                        "statsligt_finansieret_drift_løn_og_pension_kroner": 0
+                    },
+                    "par53b_oprettelsesposition": {
+                        "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
+                    }
+                },
                 "afkastår": [
                     {
                         "indkomstår": 2025,
@@ -5227,9 +5561,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             {
                 "identifikation": "pengeinstitut-halv-andel",
                 "skatteyder_identifikation": "person-1",
-                "ordning": { "$variant": "Pbl53APengeinstitutUdenKapitel1" },
-                "omfattes_af_par53b": false,
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
+                "omfangsfakta": {
+                    "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "produkt": {
+                        "$variant": "Pbl53APengeEllerKreditinstitutprodukt",
+                        "kontohaver_identifikation": "person-1",
+                        "kapitel1fakta": { "$variant": "Pbl53AIkkeOmfattetAfKapitel1" },
+                        "institutionssted": { "$variant": "Pbl53ADanskInstitution" },
+                        "karakteristika": {
+                            "standardiseret_lovreguleret_pensionsprodukt": true,
+                            "pensionsmidler_adskilt_fra_øvrig_formue": true,
+                            "kan_disponeres_som_almindelig_bankkonto": false
+                        }
+                    },
+                    "afsnit_i_valg": { "$variant": "Pbl53AIntetAfkaldPåAfsnitI" },
+                    "institutionsfinansiering": {
+                        "samlet_drift_løn_og_pension_kroner": 1_000_000,
+                        "statsligt_finansieret_drift_løn_og_pension_kroner": 0
+                    },
+                    "par53b_oprettelsesposition": {
+                        "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
+                    }
+                },
                 "afkastår": [
                     {
                         "indkomstår": 2026,

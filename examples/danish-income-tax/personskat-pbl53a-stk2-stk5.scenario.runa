@@ -2,18 +2,16 @@
 
 @ importer ./personskat.calculate
 
-| pbl53a_stk2_stk5_scenarieordning(identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
+| pbl53a_stk2_stk5_scenarieordning(identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
     identifikation = identifikation,
     skatteyder_identifikation = "person-1",
-    ordning = ordning,
-    omfattes_af_par53b = Falskt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsfakta = omfangsfakta,
     afkastår = [Pbl53AAfkastårFakta(
         indkomstår = 2026,
         afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 0),
         pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
         skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
-        sikkerhedsstatus_ved_årets_begyndelse = hvis ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse { Pbl53ASikkerhedBestårVedÅretsBegyndelse } ellers { Pbl53ASikkerhedIkkeRelevant },
+        sikkerhedsstatus_ved_årets_begyndelse = hvis pbl53a_direktørsikkerhedsprodukt(omfangsfakta.produkt) { Pbl53ASikkerhedBestårVedÅretsBegyndelse } ellers { Pbl53ASikkerhedIkkeRelevant },
         grænsehændelser = [],
         berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = "person-1")
     )],
@@ -64,14 +62,15 @@
             beløb_kroner = 60000,
             periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
             indbetaler = Pbl53ANuværendeArbejdsgiver,
-            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+            par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
         )
     )
 ]
 = pbl53a_nuværende_arbejdsgiver_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53ALivsforsikringUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
     hændelser = pbl53a_nuværende_arbejdsgiver_hændelser
 ))
 
@@ -91,13 +90,14 @@
         indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
             udsendelse = pbl53a_medfølgende_udsendelse
         ),
-        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+        par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
     )
 )
 = pbl53a_medfølgende_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53APensionskasseUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture,
     hændelser = [pbl53a_medfølgende_indbetaling]
 ))
 
@@ -111,7 +111,7 @@
 = pbl53a_medfølgende_med_afsnit_i_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53APensionskasseUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture,
     hændelser = [
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
@@ -122,7 +122,8 @@
                 indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
                     udsendelse = pbl53a_medfølgende_med_afsnit_i_udsendelse
                 ),
-                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+                par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
             )
         )
     ]
@@ -142,7 +143,8 @@
             beløb_kroner = 500000,
             periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
             indbetaler = Pbl53AEjeren,
-            ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet
+            ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+            par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
         )
     ),
     Pbl53AIndbetaling(
@@ -152,7 +154,8 @@
             beløb_kroner = 250000,
             periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
             indbetaler = Pbl53AEjeren,
-            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+            par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
         )
     ),
     Pbl53AUdbetaling(
@@ -175,7 +178,7 @@
 = pbl53a_delvis_principal_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53APengeinstitutUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture,
     hændelser = pbl53a_delvis_principal_hændelser
 ))
 
@@ -187,7 +190,8 @@
             beløb_kroner = 40000,
             periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
             indbetaler = Pbl53ANuværendeArbejdsgiver,
-            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+            ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+            par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
         )
     ),
     Pbl53AUdbetaling(
@@ -205,14 +209,14 @@
 = pbl53a_sikkerhed_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_direktørsikkerhed_omfang_fixture,
     hændelser = pbl53a_sikkerhed_hændelser
 ))
 
 = pbl53a_anden_modtager_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53ALivsforsikringUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
     hændelser = [
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
@@ -221,7 +225,8 @@
                 beløb_kroner = 100000,
                 periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
                 indbetaler = Pbl53AEjeren,
-                ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIDanmark
+                ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIDanmark,
+                par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
             )
         ),
         Pbl53AUdbetaling(
@@ -244,7 +249,7 @@
 = pbl53a_ukronologisk_resultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
     indkomstår = 2026,
     ordning = Pbl53ALivsforsikringUdenKapitel1,
-    omfattes_af_par53b = Falskt,
+    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
     hændelser = [
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
@@ -253,7 +258,8 @@
                 beløb_kroner = 10000,
                 periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
                 indbetaler = Pbl53ANuværendeArbejdsgiver,
-                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+                par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
             )
         ),
         Pbl53AIndbetaling(
@@ -263,7 +269,8 @@
                 beløb_kroner = 10000,
                 periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
                 indbetaler = Pbl53ANuværendeArbejdsgiver,
-                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+                ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+                par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
             )
         )
     ]
@@ -273,17 +280,17 @@
     ordninger = [
         pbl53a_stk2_stk5_scenarieordning(
             "kanonisk-arbejdsgiver",
-            Pbl53ALivsforsikringUdenKapitel1,
+            pbl53a_liv_uden_kapitel1_omfang_fixture.fakta,
             pbl53a_nuværende_arbejdsgiver_hændelser
         ),
         pbl53a_stk2_stk5_scenarieordning(
             "kanonisk-medfølgende",
-            Pbl53APensionskasseUdenKapitel1,
+            pbl53a_pensionskasse_uden_kapitel1_omfang_fixture.fakta,
             [pbl53a_medfølgende_indbetaling]
         ),
         pbl53a_stk2_stk5_scenarieordning(
             "kanonisk-udbetaling",
-            Pbl53APengeinstitutUdenKapitel1,
+            pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta,
             pbl53a_delvis_principal_hændelser
         )
     ]

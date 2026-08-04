@@ -2267,6 +2267,557 @@ struct MetaBindingDefinition {
     definition_line: usize,
 }
 
+#[derive(Clone)]
+struct MetaCallableBranch {
+    expressions: Vec<Expr>,
+    bound_names: BTreeSet<String>,
+    has_declared_effects: bool,
+}
+
+struct MetaGroundEvaluator {
+    source_stmts: Vec<Stmt>,
+    source_dir: Option<String>,
+    initialized: bool,
+    interpreter: Interpreter,
+    env: Env,
+    callables: BTreeMap<String, Vec<MetaCallableBranch>>,
+    impure_names: BTreeSet<String>,
+    evaluated_bindings: BTreeSet<String>,
+    failed_bindings: BTreeSet<String>,
+    visiting_bindings: BTreeSet<String>,
+}
+
+impl MetaGroundEvaluator {
+    fn new(stmts: &[Stmt], source_dir: Option<&str>) -> Self {
+        Self {
+            source_stmts: stmts.to_vec(),
+            source_dir: source_dir.map(str::to_string),
+            initialized: false,
+            interpreter: Interpreter::new(),
+            env: Env::new(),
+            callables: BTreeMap::new(),
+            impure_names: BTreeSet::new(),
+            evaluated_bindings: BTreeSet::new(),
+            failed_bindings: BTreeSet::new(),
+            visiting_bindings: BTreeSet::new(),
+        }
+    }
+
+    fn ensure_initialized(&mut self) {
+        if self.initialized {
+            return;
+        }
+        let mut declarations = Vec::new();
+        collect_meta_runtime_declarations(
+            &self.source_stmts,
+            self.source_dir.as_deref(),
+            &mut BTreeSet::new(),
+            &mut declarations,
+        );
+        let declarations = prepend_prelude(parse_prelude(), &declarations);
+        let callables = collect_meta_runtime_callables(&declarations);
+        let mut impure_names = meta_impure_runtime_names();
+        for stmt in &declarations {
+            if let Stmt::TypeDecl(TypeDecl::EffectDecl { ops, .. }) = stmt {
+                impure_names.extend(ops.iter().map(|(name, _, _)| name.clone()));
+            }
+        }
+
+        let mut interpreter = Interpreter::new();
+        interpreter.suppress_output = true;
+        let mut env = interpreter.default_env();
+        interpreter.register_static_declarations(&declarations, &mut env);
+
+        self.interpreter = interpreter;
+        self.env = env;
+        self.callables = callables;
+        self.impure_names = impure_names;
+        self.initialized = true;
+    }
+
+    fn resolve_expr(
+        &mut self,
+        expr: &Expr,
+        bindings: &BTreeMap<String, &Expr>,
+    ) -> Option<MetaValue> {
+        self.ensure_initialized();
+        let value = self.evaluate_expr(expr, bindings)?;
+        runtime_value_to_meta_value(&value, &self.interpreter)
+    }
+
+    fn evaluate_expr(&mut self, expr: &Expr, bindings: &BTreeMap<String, &Expr>) -> Option<Value> {
+        let mut dependencies = BTreeSet::new();
+        let mut visiting_callables = BTreeSet::new();
+        if !self.analyze_expr(
+            expr,
+            &BTreeSet::new(),
+            bindings,
+            &mut dependencies,
+            &mut visiting_callables,
+        ) {
+            return None;
+        }
+        for dependency in dependencies {
+            self.evaluate_binding(&dependency, bindings)?;
+        }
+
+        self.interpreter.step_count = 0;
+        self.interpreter.step_limit = 1_000_000;
+        self.interpreter.budget_exceeded = false;
+        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.interpreter.eval(expr, &self.env)
+        }));
+        let budget_exceeded = self.interpreter.budget_exceeded;
+        self.interpreter.step_limit = 0;
+        self.interpreter.budget_exceeded = false;
+        if budget_exceeded {
+            None
+        } else {
+            evaluation.ok()
+        }
+    }
+
+    fn evaluate_binding(&mut self, name: &str, bindings: &BTreeMap<String, &Expr>) -> Option<()> {
+        if self.evaluated_bindings.contains(name) {
+            return Some(());
+        }
+        if self.failed_bindings.contains(name) || !self.visiting_bindings.insert(name.to_string()) {
+            return None;
+        }
+        let result = bindings
+            .get(name)
+            .and_then(|expr| self.evaluate_expr(expr, bindings))
+            .map(|value| {
+                self.env.set(name.to_string(), value);
+                self.evaluated_bindings.insert(name.to_string());
+            });
+        self.visiting_bindings.remove(name);
+        if result.is_none() {
+            self.failed_bindings.insert(name.to_string());
+        }
+        result
+    }
+
+    fn analyze_expr(
+        &self,
+        expr: &Expr,
+        bound_names: &BTreeSet<String>,
+        bindings: &BTreeMap<String, &Expr>,
+        dependencies: &mut BTreeSet<String>,
+        visiting_callables: &mut BTreeSet<String>,
+    ) -> bool {
+        let mut referenced_names = BTreeSet::new();
+        let mut safe = true;
+        walk_ast_expr(expr, &mut |child| match child {
+            AstChild::Expr(expr) => match &expr.kind {
+                ExprKind::Var(name) => {
+                    referenced_names.insert(name.clone());
+                }
+                ExprKind::Effect(_, _) | ExprKind::Handle { .. } => safe = false,
+                _ => {}
+            },
+            AstChild::Stmt(stmt) => match stmt {
+                Stmt::MonadicBind(..)
+                | Stmt::StreamBind(..)
+                | Stmt::For(..)
+                | Stmt::While(..)
+                | Stmt::Send(..)
+                | Stmt::StreamSub(..)
+                | Stmt::Prove { .. }
+                | Stmt::Assert(..)
+                | Stmt::Retract(..)
+                | Stmt::Abort => safe = false,
+                Stmt::Annot(name, _) if builtin_canonical(name) == "print" => safe = false,
+                _ => {}
+            },
+        });
+        if !safe {
+            return false;
+        }
+
+        for name in referenced_names {
+            if bound_names.contains(&name) {
+                continue;
+            }
+            let canonical = builtin_canonical(&name);
+            if self.impure_names.contains(&name) || self.impure_names.contains(canonical) {
+                return false;
+            }
+            if bindings.contains_key(&name) {
+                dependencies.insert(name.clone());
+            }
+            let Some(branches) = self.callables.get(&name) else {
+                continue;
+            };
+            if !visiting_callables.insert(name.clone()) {
+                continue;
+            }
+            for branch in branches {
+                if branch.has_declared_effects {
+                    return false;
+                }
+                for body in &branch.expressions {
+                    if !self.analyze_expr(
+                        body,
+                        &branch.bound_names,
+                        bindings,
+                        dependencies,
+                        visiting_callables,
+                    ) {
+                        return false;
+                    }
+                }
+            }
+            visiting_callables.remove(&name);
+        }
+        true
+    }
+}
+
+fn collect_meta_runtime_declarations(
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    visited: &mut BTreeSet<String>,
+    declarations: &mut Vec<Stmt>,
+) {
+    if let Some(source_dir) = source_dir {
+        for stmt in stmts {
+            let Stmt::Import(import_path) = stmt else {
+                continue;
+            };
+            let Some(file_path) =
+                Interpreter::resolve_import_path_for_source(import_path, source_dir)
+            else {
+                continue;
+            };
+            let canonical = std::fs::canonicalize(&file_path)
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|_| file_path.clone());
+            if !visited.insert(canonical) {
+                continue;
+            }
+            let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
+                continue;
+            };
+            let mut lexer = Lexer::new(&imported_source);
+            let tokens = lexer.tokenize();
+            let mut parser = Parser::new(tokens, &imported_source);
+            let Ok(imported_stmts) = parser.parse_program() else {
+                continue;
+            };
+            let imported_dir = std::path::Path::new(&file_path)
+                .parent()
+                .map(|parent| parent.to_string_lossy().to_string())
+                .unwrap_or_else(|| ".".to_string());
+            collect_meta_runtime_declarations(
+                &imported_stmts,
+                Some(&imported_dir),
+                visited,
+                declarations,
+            );
+        }
+    }
+
+    declarations.extend(stmts.iter().filter_map(|stmt| match stmt {
+        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) => Some(stmt.clone()),
+        _ => None,
+    }));
+}
+
+fn collect_meta_runtime_callables(stmts: &[Stmt]) -> BTreeMap<String, Vec<MetaCallableBranch>> {
+    let mut callables = BTreeMap::new();
+    for stmt in stmts {
+        collect_meta_runtime_callable_from_stmt(stmt, &mut callables);
+    }
+    callables
+}
+
+fn collect_meta_runtime_callable_from_stmt(
+    stmt: &Stmt,
+    callables: &mut BTreeMap<String, Vec<MetaCallableBranch>>,
+) {
+    match stmt {
+        Stmt::Defn(definition) => {
+            collect_meta_runtime_callable_from_definition(definition, callables)
+        }
+        Stmt::Rule(rule) => {
+            let (name, bound_names, expressions) = match rule {
+                Rule::Clause { head, body } => (
+                    meta_expr_name(head),
+                    meta_rule_bound_names(head),
+                    body.iter().cloned().collect(),
+                ),
+                Rule::Default {
+                    head,
+                    value,
+                    condition,
+                }
+                | Rule::Exception {
+                    head,
+                    value,
+                    condition,
+                    ..
+                } => {
+                    let mut expressions = vec![value.clone()];
+                    expressions.extend(condition.iter().cloned());
+                    (
+                        meta_expr_name(head),
+                        meta_rule_bound_names(head),
+                        expressions,
+                    )
+                }
+                Rule::ReactiveScope { name, body } => {
+                    for statement in body {
+                        collect_meta_runtime_callable_from_stmt(statement, callables);
+                    }
+                    (Some(name.clone()), BTreeSet::new(), Vec::new())
+                }
+            };
+            if let Some(name) = name {
+                callables.entry(name).or_default().push(MetaCallableBranch {
+                    expressions,
+                    bound_names,
+                    has_declared_effects: false,
+                });
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
+        | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+            for method in methods {
+                collect_meta_runtime_callable_from_definition(method, callables);
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+            for method in methods {
+                if let Some(body) = &method.default_body {
+                    callables
+                        .entry(method.name.clone())
+                        .or_default()
+                        .push(MetaCallableBranch {
+                            expressions: vec![body.clone()],
+                            bound_names: method
+                                .params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
+                            has_declared_effects: false,
+                        });
+                }
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::RuleScope { body, .. }) => {
+            for statement in body {
+                collect_meta_runtime_callable_from_stmt(statement, callables);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_meta_runtime_callable_from_definition(
+    definition: &Defn,
+    callables: &mut BTreeMap<String, Vec<MetaCallableBranch>>,
+) {
+    match definition {
+        Defn::Fn {
+            name,
+            params,
+            effects,
+            body,
+            ..
+        } => {
+            callables
+                .entry(name.clone())
+                .or_default()
+                .push(MetaCallableBranch {
+                    expressions: vec![body.clone()],
+                    bound_names: params.iter().map(|param| param.name.clone()).collect(),
+                    has_declared_effects: !effects.is_empty(),
+                });
+        }
+        Defn::Module { body, .. } => {
+            for statement in body {
+                collect_meta_runtime_callable_from_stmt(statement, callables);
+            }
+        }
+        Defn::Actor { .. } => {}
+    }
+}
+
+fn meta_expr_name(expr: &Expr) -> Option<String> {
+    match &expr.kind {
+        ExprKind::App(function, _) => meta_expr_name(function),
+        ExprKind::Var(name) => Some(name.clone()),
+        _ => None,
+    }
+}
+
+fn meta_rule_bound_names(head: &Expr) -> BTreeSet<String> {
+    let ExprKind::App(_, arguments) = &head.kind else {
+        return BTreeSet::new();
+    };
+    arguments
+        .iter()
+        .filter_map(|argument| {
+            let argument = Interpreter::typed_rule_arg_parts(argument)
+                .map(|(value, _)| value)
+                .unwrap_or(argument);
+            match &argument.kind {
+                ExprKind::Var(name) => Some(name.clone()),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+fn meta_impure_runtime_names() -> BTreeSet<String> {
+    [
+        "append_file",
+        "as_stream",
+        "ask",
+        "buffer",
+        "catch",
+        "collect",
+        "combine_latest",
+        "complete",
+        "count",
+        "db_close",
+        "db_exec",
+        "db_insert",
+        "db_open",
+        "db_query",
+        "db_query_row",
+        "delay",
+        "env_var",
+        "error",
+        "file_exists",
+        "first",
+        "from_list",
+        "http_get",
+        "http_post",
+        "http_respond",
+        "http_serve",
+        "input",
+        "last",
+        "merge",
+        "now",
+        "poll",
+        "print",
+        "process_run",
+        "random",
+        "random_choice",
+        "random_float",
+        "read_file",
+        "read_lines",
+        "reduce",
+        "sample",
+        "scan",
+        "shuffle",
+        "skip",
+        "sleep",
+        "spawn",
+        "start_with",
+        "subject",
+        "subscribe",
+        "sum",
+        "switch_map",
+        "take",
+        "take_until",
+        "tap",
+        "teardown",
+        "throttle",
+        "time",
+        "timeout",
+        "watch",
+        "window",
+        "write_file",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
+}
+
+fn runtime_value_to_meta_value(value: &Value, interpreter: &Interpreter) -> Option<MetaValue> {
+    match value {
+        Value::Int(value) => Some(MetaValue::Integer(*value)),
+        Value::Float(value) => Some(MetaValue::Float(value.to_string())),
+        Value::Str(value) => Some(MetaValue::String(value.clone())),
+        Value::Char(value) => Some(MetaValue::Character(*value)),
+        Value::Bool(value) => Some(MetaValue::Boolean(*value)),
+        Value::Unit => Some(MetaValue::Unit),
+        Value::List(items) => Some(MetaValue::List(
+            items
+                .iter()
+                .map(|item| runtime_value_to_meta_value(item, interpreter))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Value::Tuple(items) => Some(MetaValue::Tuple(
+            items
+                .iter()
+                .map(|item| runtime_value_to_meta_value(item, interpreter))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        Value::Constructor(name, arguments) if name == "Nil" && arguments.is_empty() => {
+            Some(MetaValue::List(Vec::new()))
+        }
+        Value::Constructor(name, arguments) if name == "Cons" && arguments.len() == 2 => {
+            let items = list_items(value)?;
+            Some(MetaValue::List(
+                items
+                    .iter()
+                    .map(|item| runtime_value_to_meta_value(item, interpreter))
+                    .collect::<Option<Vec<_>>>()?,
+            ))
+        }
+        Value::Constructor(name, arguments) => Some(MetaValue::Constructor {
+            name: name.clone(),
+            qualified_type: interpreter
+                .constructor_parent_for_value(value)
+                .or_else(|| interpreter.ctor_to_type.get(name).cloned())
+                .unwrap_or_else(|| name.clone()),
+            applied: !arguments.is_empty(),
+            arguments: arguments
+                .iter()
+                .map(|argument| {
+                    Some(MetaValueArgument {
+                        field: None,
+                        binding_name: None,
+                        value: runtime_value_to_meta_value(argument, interpreter)?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        }),
+        Value::NamedConstructor(name, fields) => Some(MetaValue::Constructor {
+            name: name.clone(),
+            qualified_type: interpreter
+                .constructor_parent_for_value(value)
+                .or_else(|| interpreter.ctor_to_type.get(name).cloned())
+                .unwrap_or_else(|| name.clone()),
+            applied: true,
+            arguments: fields
+                .iter()
+                .map(|(field, value)| {
+                    Some(MetaValueArgument {
+                        field: Some(field.clone()),
+                        binding_name: None,
+                        value: runtime_value_to_meta_value(value, interpreter)?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        }),
+        Value::Closure { .. }
+        | Value::Builtin(_)
+        | Value::Actor { .. }
+        | Value::Stream(_)
+        | Value::Subject(_)
+        | Value::Map(_)
+        | Value::Set(_)
+        | Value::Scope { .. }
+        | Value::RuleScopeInstance { .. }
+        | Value::TypeDef { .. } => None,
+    }
+}
+
 fn collect_local_meta_bindings(
     source: &str,
     stmts: &[Stmt],
@@ -2475,6 +3026,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
         .iter()
         .map(|(name, definition)| (name.clone(), &definition.expr))
         .collect();
+    let mut ground_evaluator = MetaGroundEvaluator::new(&stmts, source_dir.as_deref());
 
     for anchor in &mut index.anchors {
         for reference in &mut anchor.references {
@@ -2527,6 +3079,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                 &value_bindings,
                 &checker.constructors,
                 &mut visiting,
+                &mut ground_evaluator,
             );
             reference.static_value = reference.static_data.as_ref().map(MetaValue::to_source);
             if reference.static_data.is_none() {
@@ -2628,13 +3181,14 @@ fn resolve_static_meta_binding(
     bindings: &BTreeMap<String, &Expr>,
     constructors: &BTreeMap<String, (String, usize)>,
     visiting: &mut BTreeSet<String>,
+    ground_evaluator: &mut MetaGroundEvaluator,
 ) -> Option<MetaValue> {
     if !visiting.insert(name.to_string()) {
         return None;
     }
-    let result = bindings
-        .get(name)
-        .and_then(|expr| resolve_static_meta_expr(expr, bindings, constructors, visiting));
+    let result = bindings.get(name).and_then(|expr| {
+        resolve_static_meta_expr(expr, bindings, constructors, visiting, ground_evaluator)
+    });
     visiting.remove(name);
     result
 }
@@ -2644,6 +3198,7 @@ fn resolve_static_meta_expr(
     bindings: &BTreeMap<String, &Expr>,
     constructors: &BTreeMap<String, (String, usize)>,
     visiting: &mut BTreeSet<String>,
+    ground_evaluator: &mut MetaGroundEvaluator,
 ) -> Option<MetaValue> {
     match &expr.kind {
         ExprKind::Lit(Literal::Int(value)) => Some(MetaValue::Integer(*value)),
@@ -2661,14 +3216,22 @@ fn resolve_static_meta_expr(
                     arguments: Vec::new(),
                 })
             } else {
-                resolve_static_meta_binding(name, bindings, constructors, visiting)
+                resolve_static_meta_binding(
+                    name,
+                    bindings,
+                    constructors,
+                    visiting,
+                    ground_evaluator,
+                )
             }
         }
         ExprKind::App(func, args) => {
             let ExprKind::Var(constructor) = &func.kind else {
-                return None;
+                return ground_evaluator.resolve_expr(expr, bindings);
             };
-            let (qualified_type, arity) = constructors.get(constructor)?;
+            let Some((qualified_type, arity)) = constructors.get(constructor) else {
+                return ground_evaluator.resolve_expr(expr, bindings);
+            };
             if *arity != args.len() {
                 return None;
             }
@@ -2679,13 +3242,25 @@ fn resolve_static_meta_expr(
                     resolved_arguments.push(MetaValueArgument {
                         field: Some(field.to_string()),
                         binding_name: meta_binding_reference_name(value, bindings),
-                        value: resolve_static_meta_expr(value, bindings, constructors, visiting)?,
+                        value: resolve_static_meta_expr(
+                            value,
+                            bindings,
+                            constructors,
+                            visiting,
+                            ground_evaluator,
+                        )?,
                     });
                 } else {
                     resolved_arguments.push(MetaValueArgument {
                         field: None,
                         binding_name: meta_binding_reference_name(arg, bindings),
-                        value: resolve_static_meta_expr(arg, bindings, constructors, visiting)?,
+                        value: resolve_static_meta_expr(
+                            arg,
+                            bindings,
+                            constructors,
+                            visiting,
+                            ground_evaluator,
+                        )?,
                     });
                 }
             }
@@ -2699,14 +3274,30 @@ fn resolve_static_meta_expr(
         ExprKind::List(items) => {
             let resolved = items
                 .iter()
-                .map(|item| resolve_static_meta_expr(item, bindings, constructors, visiting))
+                .map(|item| {
+                    resolve_static_meta_expr(
+                        item,
+                        bindings,
+                        constructors,
+                        visiting,
+                        ground_evaluator,
+                    )
+                })
                 .collect::<Option<Vec<_>>>()?;
             Some(MetaValue::List(resolved))
         }
         ExprKind::Tuple(items) => {
             let resolved = items
                 .iter()
-                .map(|item| resolve_static_meta_expr(item, bindings, constructors, visiting))
+                .map(|item| {
+                    resolve_static_meta_expr(
+                        item,
+                        bindings,
+                        constructors,
+                        visiting,
+                        ground_evaluator,
+                    )
+                })
                 .collect::<Option<Vec<_>>>()?;
             Some(MetaValue::Tuple(resolved))
         }
@@ -2718,10 +3309,11 @@ fn resolve_static_meta_expr(
                     bindings,
                     constructors,
                     visiting,
+                    ground_evaluator,
                 )?),
             })
         }
-        _ => None,
+        _ => ground_evaluator.resolve_expr(expr, bindings),
     }
 }
 
@@ -3320,13 +3912,14 @@ Raw additions
     }
 
     #[test]
-    fn unresolved_and_non_ground_references_are_meta_only_diagnostics() {
+    fn computed_ground_references_resolve_while_missing_references_remain_diagnostics() {
         let source = r#"
 # AuditWarning(message: String)
 | warning_message() -> "computed"
 = dynamic_warning = AuditWarning(message = warning_message())
+= clock_warning = AuditWarning(message = show_int(now()))
 
---@meta::audit::warning:dynamic_warning::warning:missing_warning--
+--@meta::audit::warning:dynamic_warning::warning:missing_warning::warning:clock_warning--
 "#;
 
         let index = scan_meta_comments(source);
@@ -3336,12 +3929,20 @@ Raw additions
             .map(|diagnostic| diagnostic.message.as_str())
             .collect();
 
-        assert!(messages.iter().any(|message| {
-            message.contains("dynamic_warning") && message.contains("not a pure ground value")
-        }));
+        assert!(!messages
+            .iter()
+            .any(|message| message.contains("dynamic_warning")));
         assert!(messages.iter().any(|message| {
             message.contains("missing_warning") && message.contains("unresolved binding")
         }));
+        assert!(messages.iter().any(|message| {
+            message.contains("clock_warning") && message.contains("not a pure ground value")
+        }));
+        let dynamic_warning = &index.anchors[0].references[0];
+        assert_eq!(
+            dynamic_warning.static_value.as_deref(),
+            Some("AuditWarning(message = \"computed\")")
+        );
 
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();

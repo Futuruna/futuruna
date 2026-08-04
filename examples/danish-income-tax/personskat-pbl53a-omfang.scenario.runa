@@ -1,0 +1,246 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+
+----
+Scenariet validerer, at PBL § 53 A, stk. 1, § 53 B, stk. 1-3, og
+§ 53 A, stk. 4 og 6, udledes af produkt-, ejer-, tids-, støtte- og
+indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
+----
+
+= pbl53a_omfang_oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1)
+= pbl53a_omfang_statsstøtte = Pbl53AInstitutionsfinansiering(
+    samlet_drift_løn_og_pension_kroner = 1000000,
+    statsligt_finansieret_drift_løn_og_pension_kroner = 250000
+)
+
+| pbl53a_omfang_scenariefakta(produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, finansiering: Pbl53AInstitutionsfinansiering) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = pbl53a_omfang_oprettelsesdato,
+    produkt = produkt,
+    afsnit_i_valg = afsnit_i_valg,
+    institutionsfinansiering = finansiering,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+| pbl53a_omfang_scenarieresultat(fakta: Pbl53AOmfangsfakta) -> pbl53a_omfangsresultat(2026, fakta, [])
+| pbl53a_omfang_hjemmel(resultat: Pbl53AOmfangsresultat, nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning) -> resultat.grundfakta_gyldige && resultat.omfattes_af_par53a && resultat.stk1_hjemler_antal == 1 && match resultat.stk1_klassifikation {
+    | Pbl53AStk1Hjemmel(faktisk_nummer, faktisk_ordning) -> faktisk_nummer == nummer && faktisk_ordning == ordning
+    | _ -> Falskt
+}
+
+= pbl53a_omfang_nr1_resultat = pbl53a_liv_uden_kapitel1_omfang_fixture
+
+= pbl53a_omfang_nr2_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53AOmfattetAfKapitel1,
+        vilkår = pbl53a_almindelige_livsvilkår_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AAfkaldPåAfsnitI(
+        afgiver_identifikation = "person-1",
+        afgiver = Pbl53AForsikringsejerSomAfkaldsgiver,
+        afgivet_dato = pbl53a_omfang_oprettelsesdato
+    ),
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_nr3_resultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture
+
+= pbl53a_omfang_nr4_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53APensionskasseprodukt(
+        pensionsberettiget_identifikation = "person-1",
+        kapitel1fakta = Pbl53AOmfattetAfKapitel1,
+        karakteristika = pbl53a_pensionskassekarakteristika_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AAfkaldPåAfsnitI(
+        afgiver_identifikation = "person-1",
+        afgiver = Pbl53APensionsberettigetSomAfkaldsgiver,
+        afgivet_dato = pbl53a_omfang_oprettelsesdato
+    ),
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_nr5_resultat = pbl53a_syge_ulykke_omfang_fixture
+
+= pbl53a_omfang_nr6_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53AGarantiforsikringsprodukt(tilsagn = pbl53a_direktørpensionstilsagn_fixture),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_nr7_resultat = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture
+
+= pbl53a_omfang_nr8_fakta = pbl53a_omfang_scenariefakta(
+    produkt = Pbl53APengeEllerKreditinstitutprodukt(
+        kontohaver_identifikation = "person-1",
+        kapitel1fakta = Pbl53AOmfattetAfKapitel1,
+        institutionssted = Pbl53ADanskInstitution,
+        karakteristika = pbl53a_pengeinstitutkarakteristika_fixture
+    ),
+    afsnit_i_valg = Pbl53AAfkaldPåAfsnitI(
+        afgiver_identifikation = "person-1",
+        afgiver = Pbl53AKontohaverSomAfkaldsgiver,
+        afgivet_dato = pbl53a_omfang_oprettelsesdato
+    ),
+    finansiering = pbl53a_privat_finansiering_fixture
+)
+= pbl53a_omfang_nr8_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_nr8_fakta)
+
+= pbl53a_omfang_nr9_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53ATidligereGodkendtEfterPar15D(
+            godkendt_fra = Pbl15ADato(år = 2018, måned = 1, dag = 1),
+            godkendt_til = Pbl15ADato(år = 2025, måned = 12, dag = 31)
+        ),
+        vilkår = pbl53a_almindelige_livsvilkår_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_delvist_fradraget_indbetaling = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = "delvist-fradraget-udenlandsk-bidrag",
+    tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2018, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
+    beløb_kroner = 50000,
+    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+    par53b_udenlandsk_skattebehandling = Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(
+        positiv_skattepligtig_indkomst_kroner = 500000,
+        faktisk_fradrag_kroner = 40000
+    )
+))
+= pbl53a_omfang_delvist_fradraget_resultat = pbl53a_omfangsresultat(
+    2026,
+    pbl53a_par53b_omfang_fixture.fakta,
+    [pbl53a_omfang_delvist_fradraget_indbetaling]
+)
+
+= pbl53a_omfang_manglende_udenlandsmarkør = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = "udokumenteret-udenlandsk-bidrag",
+    tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2018, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
+    beløb_kroner = 50000,
+    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+    par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
+))
+= pbl53a_omfang_manglende_udenlandsmarkør_resultat = pbl53a_omfangsresultat(
+    2026,
+    pbl53a_par53b_omfang_fixture.fakta,
+    [pbl53a_omfang_manglende_udenlandsmarkør]
+)
+
+= pbl53a_omfang_statsstøttet_nr2_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
+    oprettelsesdato = pbl53a_omfang_nr2_resultat.fakta.oprettelsesdato,
+    produkt = pbl53a_omfang_nr2_resultat.fakta.produkt,
+    afsnit_i_valg = pbl53a_omfang_nr2_resultat.fakta.afsnit_i_valg,
+    institutionsfinansiering = pbl53a_omfang_statsstøtte,
+    par53b_oprettelsesposition = pbl53a_dansk_oprettelsesposition_fixture
+))
+= pbl53a_omfang_statsstøttet_nr8_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
+    oprettelsesdato = pbl53a_omfang_nr8_fakta.oprettelsesdato,
+    produkt = pbl53a_omfang_nr8_fakta.produkt,
+    afsnit_i_valg = pbl53a_omfang_nr8_fakta.afsnit_i_valg,
+    institutionsfinansiering = pbl53a_omfang_statsstøtte,
+    par53b_oprettelsesposition = pbl53a_dansk_oprettelsesposition_fixture
+))
+
+= pbl53a_omfang_ejer_mismatch_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ASygeOgUlykkesforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-2"
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_risikoliv_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+        vilkår = Pbl53ALivsforsikringsvilkår(
+            dækninger = [Pbl53ADødsdækning, Pbl53AInvaliditetsdækning, Pbl53ALivstruendeSygdomsdækning],
+            aftalt_udløbsdato = Pbl15ADato(år = 2059, måned = 12, dag = 31),
+            første_policedag_efter_fyldte_80_år = Pbl15ADato(år = 2060, måned = 1, dag = 1)
+        ),
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+= pbl53a_omfang_risikoliv_med_anden_dækning_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+        vilkår = Pbl53ALivsforsikringsvilkår(
+            dækninger = [Pbl53ADødsdækning, Pbl53AAndenLivsforsikringsdækning],
+            aftalt_udløbsdato = Pbl15ADato(år = 2059, måned = 12, dag = 31),
+            første_policedag_efter_fyldte_80_år = Pbl15ADato(år = 2060, måned = 1, dag = 1)
+        ),
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+= pbl53a_omfang_for_sent_afkald_resultat = pbl53a_omfang_scenarieresultat(pbl53a_omfang_scenariefakta(
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53AOmfattetAfKapitel1,
+        vilkår = pbl53a_almindelige_livsvilkår_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AAfkaldPåAfsnitI(
+        afgiver_identifikation = "person-1",
+        afgiver = Pbl53AForsikringsejerSomAfkaldsgiver,
+        afgivet_dato = Pbl15ADato(år = 2020, måned = 1, dag = 2)
+    ),
+    finansiering = pbl53a_privat_finansiering_fixture
+))
+
+| pbl53a_omfang_nr1_udledes: pbl53a_omfang_nr1_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr1_resultat, 1, Pbl53ALivsforsikringUdenKapitel1)
+| pbl53a_omfang_nr2_udledes: pbl53a_omfang_nr2_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr2_resultat, 2, Pbl53ALivsforsikringAfkaldAfsnitI)
+| pbl53a_omfang_nr3_udledes: pbl53a_omfang_nr3_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr3_resultat, 3, Pbl53APensionskasseUdenKapitel1)
+| pbl53a_omfang_nr4_udledes: pbl53a_omfang_nr4_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr4_resultat, 4, Pbl53APensionskasseAfkaldAfsnitI)
+| pbl53a_omfang_nr5_udledes: pbl53a_omfang_nr5_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr5_resultat, 5, Pbl53ASygeOgUlykkesforsikring) && pbl53a_omfang_nr5_resultat.syge_ulykke_undtaget_efter_stk4 && pbl53a_omfang_nr5_resultat.undtaget_efter_stk4
+| pbl53a_omfang_nr6_udledes: pbl53a_omfang_nr6_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr6_resultat, 6, Pbl53ADirektørGarantiforsikring) && pbl53a_omfang_nr6_resultat.direktørgaranti_undtaget_efter_stk4 && pbl53a_omfang_nr6_resultat.undtaget_efter_stk4
+| pbl53a_omfang_nr7_udledes: pbl53a_omfang_nr7_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr7_resultat, 7, Pbl53APengeinstitutUdenKapitel1)
+| pbl53a_omfang_nr8_udledes: pbl53a_omfang_nr8_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr8_resultat, 8, Pbl53APengeinstitutAfkaldAfsnitI)
+| pbl53a_omfang_nr9_udledes: pbl53a_omfang_nr9_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_nr9_resultat, 9, Pbl53ATidligerePar15DGodkendt)
+| pbl53a_omfang_par53b_udelukker_par53a: pbl53a_par53b_omfang_fixture -> pbl53a_par53b_omfang_fixture.grundfakta_gyldige && pbl53a_par53b_omfang_fixture.par53b_resultat.omfattes_af_par53b && pbl53a_par53b_omfang_fixture.stk1_hjemler_antal == 0 && pbl53a_par53b_omfang_fixture.omfattes_af_par53a == Falskt
+| pbl53a_omfang_delvist_fradrag_falder_tilbage_til_par53a: pbl53a_omfang_delvist_fradraget_resultat -> pbl53a_omfang_delvist_fradraget_resultat.par53b_resultat.indbetalingsdokumentation_konsistent && pbl53a_omfang_delvist_fradraget_resultat.par53b_resultat.samtlige_udenlandske_indbetalinger_kvalificerer == Falskt && pbl53a_omfang_delvist_fradraget_resultat.par53b_resultat.omfattes_af_par53b == Falskt && pbl53a_omfang_hjemmel(pbl53a_omfang_delvist_fradraget_resultat, 9, Pbl53ATidligerePar15DGodkendt)
+| pbl53a_omfang_manglende_udenlandsdokumentation_fejler_lukket: pbl53a_omfang_manglende_udenlandsmarkør_resultat -> pbl53a_omfang_manglende_udenlandsmarkør_resultat.par53b_resultat.indbetalingsdokumentation_konsistent == Falskt && pbl53a_omfang_manglende_udenlandsmarkør_resultat.grundfakta_gyldige == Falskt && pbl53a_omfang_manglende_udenlandsmarkør_resultat.omfattes_af_par53a == Falskt
+| pbl53a_omfang_statsstøtte_forbyder_nr2_afkald: pbl53a_omfang_statsstøttet_nr2_resultat -> pbl53a_omfang_statsstøttet_nr2_resultat.grundfakta_gyldige && pbl53a_omfang_statsstøttet_nr2_resultat.modtager_statsstøtte && pbl53a_omfang_statsstøttet_nr2_resultat.afkald_relevant_for_stk6 && pbl53a_omfang_statsstøttet_nr2_resultat.afkald_tilladt_efter_stk6 == Falskt && pbl53a_omfang_statsstøttet_nr2_resultat.omfattes_af_par53a == Falskt
+| pbl53a_omfang_statsstøtte_forbyder_ikke_nr8_afkald: pbl53a_omfang_statsstøttet_nr8_resultat -> pbl53a_omfang_statsstøttet_nr8_resultat.modtager_statsstøtte && pbl53a_omfang_statsstøttet_nr8_resultat.afkald_relevant_for_stk6 == Falskt && pbl53a_omfang_hjemmel(pbl53a_omfang_statsstøttet_nr8_resultat, 8, Pbl53APengeinstitutAfkaldAfsnitI)
+| pbl53a_omfang_syge_ulykke_kræver_samme_ejer_og_forsikrede: pbl53a_omfang_ejer_mismatch_resultat -> pbl53a_omfang_ejer_mismatch_resultat.produkt_fakta_gyldige && pbl53a_omfang_ejer_mismatch_resultat.grundfakta_gyldige == Falskt && pbl53a_omfang_ejer_mismatch_resultat.omfattes_af_par53a == Falskt
+| pbl53a_omfang_risikoliv_undtages_efter_stk4: pbl53a_omfang_risikoliv_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_risikoliv_resultat, 1, Pbl53ALivsforsikringUdenKapitel1) && pbl53a_omfang_risikoliv_resultat.risikoliv_undtaget_efter_stk4 && pbl53a_omfang_risikoliv_resultat.undtaget_efter_stk4
+| pbl53a_omfang_anden_livsdækning_ophæver_stk4_undtagelsen: pbl53a_omfang_risikoliv_med_anden_dækning_resultat -> pbl53a_omfang_hjemmel(pbl53a_omfang_risikoliv_med_anden_dækning_resultat, 1, Pbl53ALivsforsikringUdenKapitel1) && pbl53a_omfang_risikoliv_med_anden_dækning_resultat.risikoliv_undtaget_efter_stk4 == Falskt && pbl53a_omfang_risikoliv_med_anden_dækning_resultat.undtaget_efter_stk4 == Falskt
+| pbl53a_omfang_for_sent_afkald_fejler_lukket: pbl53a_omfang_for_sent_afkald_resultat -> pbl53a_omfang_for_sent_afkald_resultat.afsnit_i_valgfakta_konsistente == Falskt && pbl53a_omfang_for_sent_afkald_resultat.grundfakta_gyldige == Falskt && pbl53a_omfang_for_sent_afkald_resultat.omfattes_af_par53a == Falskt
+
+? pbl53a_omfang_nr1_udledes
+? pbl53a_omfang_nr2_udledes
+? pbl53a_omfang_nr3_udledes
+? pbl53a_omfang_nr4_udledes
+? pbl53a_omfang_nr5_udledes
+? pbl53a_omfang_nr6_udledes
+? pbl53a_omfang_nr7_udledes
+? pbl53a_omfang_nr8_udledes
+? pbl53a_omfang_nr9_udledes
+? pbl53a_omfang_par53b_udelukker_par53a
+? pbl53a_omfang_delvist_fradrag_falder_tilbage_til_par53a
+? pbl53a_omfang_manglende_udenlandsdokumentation_fejler_lukket
+? pbl53a_omfang_statsstøtte_forbyder_nr2_afkald
+? pbl53a_omfang_statsstøtte_forbyder_ikke_nr8_afkald
+? pbl53a_omfang_syge_ulykke_kræver_samme_ejer_og_forsikrede
+? pbl53a_omfang_risikoliv_undtages_efter_stk4
+? pbl53a_omfang_anden_livsdækning_ophæver_stk4_undtagelsen
+? pbl53a_omfang_for_sent_afkald_fejler_lukket

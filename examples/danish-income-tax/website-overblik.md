@@ -74,16 +74,25 @@ og
 
 Afkast fra pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A går nu gennem den samme kanoniske beregning.
-Hver ordning har en stabil identifikation og en sammenhængende række af årlige
-kildefakta. Borgeren eller AI-interviewet oplyser pensionsudbyderens PAL-afkast
-eller de faktiske depotværdier, daterede ind- og udbetalinger, begyndelsesstatus
-for skattepligt og eventuel direktørsikkerhed, ændringer i årets løb og de
-berettigedes indeståender ved årets udgang. Futuruna afleder selv den relevante
-skatteperiode, metodehistorikken, periodens betalingssummer, hver berettigets
-andel og negativt afkast til fremførsel på samme ordning. Ved ind- eller
-udtræden bruges depotværdien på ændringsdatoen; det samme gælder ved etablering
-eller ophør af en direktørsikkerhed. Et helt år uden skattepligt giver intet
-skattepligtigt afkast og etablerer ikke et nyt metodevalg.
+Borgeren eller AI-interviewet vælger ikke selv en juridisk § 53 A-kategori eller
+en undtagelse. Det oplyser det faktiske produkt, ejer eller berettigede,
+kapitel 1-status, oprettelsesdato, eventuelt afkald på afsnit I,
+institutionsfinansiering, skattemæssigt hjemsted og indbetalingernes faktiske
+udenlandske skattebehandling. Futuruna afleder alle ni kategorier i § 53 A,
+stk. 1, udelukkelsen efter § 53 B, forsikringsundtagelserne i stk. 4 og
+statsstøttebegrænsningen i stk. 6. Resultatet viser hver delkonklusion, mens
+ufuldstændige eller modstridende oplysninger fejler lukket.
+
+Hver ordning har desuden en stabil identifikation og en sammenhængende række af
+årlige kildefakta. Borgeren eller AI-interviewet oplyser pensionsudbyderens
+PAL-afkast eller de faktiske depotværdier, daterede ind- og udbetalinger,
+begyndelsesstatus for skattepligt og eventuel direktørsikkerhed, ændringer i
+årets løb og de berettigedes indeståender ved årets udgang. Futuruna afleder selv
+den relevante skatteperiode, metodehistorikken, periodens betalingssummer, hver
+berettigets andel og negativt afkast til fremførsel på samme ordning. Ved ind-
+eller udtræden bruges depotværdien på ændringsdatoen; det samme gælder ved
+etablering eller ophør af en direktørsikkerhed. Et helt år uden skattepligt
+giver intet skattepligtigt afkast og etablerer ikke et nyt metodevalg.
 
 Det bindende metodevalg håndhæves på tværs af årene. Udeladte mellemår,
 metodeskift, modstridende hændelser og flere adskilte skatteperioder i samme år
@@ -220,8 +229,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 760 eksplicitte feltmetadata-poster,
-heraf 76 for § 53 A-ordninger.
+interviewoplysninger. Kontrakten har nu 852 eksplicitte feltmetadata-poster,
+heraf 168 for § 53 A-ordninger.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

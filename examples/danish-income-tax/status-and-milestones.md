@@ -3,10 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-ee951a`
+Current implementation slice: none; next source-backed slice: `td-2a8a7b`
+Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-fad7c0`
-Latest approved language slice: `td-1ca9ba`
+Latest approved implementation slice: `td-606798`
+Latest approved language slice: `td-5545ba`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -70,14 +71,25 @@ og audits bliver i `examples/danish-income-tax/`.
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A som kildefakta. Skatteåret afledes fra den
-omgivende Personskat-sag. Hver ordning har en stabil ordnings- og
-skatteyderidentifikation samt en sammenhængende, kronologisk liste af årlige
-afkastfakta. Et år oplyser enten pensionsudbyderens PAL-afkast eller
-kalenderårets faktiske primo- og ultimodepotværdi, begyndelsesstatus for
-skattepligt og eventuel direktørsikkerhed, daterede ændringer med depotværdi og
-de faktiske berettigede ved årets udgang. Kalderen leverer ikke længere
-metodehistorik, negativ fremførsel, en beregnet afkastandel, summerede
-indbetalinger eller udbetalinger eller den skattepligtige periodes grænser.
+omgivende Personskat-sag. Ordningstypen, undtagelsen efter stk. 4 og
+udelukkelsen efter § 53 B er ikke længere juridiske konklusioner valgt af
+kalderen. Hver ordning oplyser i stedet det faktiske produkt, ejer eller
+berettigede, kapitel 1-status, oprettelsesdato, eventuelt afkald på afsnit I,
+institutionsfinansiering og personens skattepligt eller skattemæssige hjemsted
+ved oprettelsen. Indbetalingerne oplyser den faktiske udenlandske fradrags- eller
+bortseelsesbehandling. Reglerne afleder hver af stk. 1, nr. 1-9, § 53 B,
+stk. 1-3, risikoundtagelserne i stk. 4 og statsstøttebegrænsningen i stk. 6 i
+et typet forklaringsresultat. Modstridende eller ufuldstændige omfangsfakta
+fejler lukket.
+
+Hver ordning har desuden en stabil ordnings- og skatteyderidentifikation samt
+en sammenhængende, kronologisk liste af årlige afkastfakta. Et år oplyser enten
+pensionsudbyderens PAL-afkast eller kalenderårets faktiske primo- og
+ultimodepotværdi, begyndelsesstatus for skattepligt og eventuel
+direktørsikkerhed, daterede ændringer med depotværdi og de faktiske berettigede
+ved årets udgang. Kalderen leverer ikke længere metodehistorik, negativ
+fremførsel, en beregnet afkastandel, summerede indbetalinger eller udbetalinger
+eller den skattepligtige periodes grænser.
 
 Et flerårigt fold afleder den bindende metode, negativt afkast for samme
 ordning, den sammenhængende skatteperiode og periodens faktiske betalinger. Et
@@ -113,17 +125,27 @@ dokumenterede skat og udbetales senest året efter optjeningsåret. Beløbene
 føres én gang til Personskattelovens § 3 og den kanoniske AM-beregning. De to
 fokuserede scenariefiler gennemfører henholdsvis 8 og 11 invariantscenarier i
 både interpreter og compiler; den almindelige mapper-scenarie gennemfører
-yderligere 11 invariantscenarier i begge udførelsesveje.
+yderligere 11 invariantscenarier i begge udførelsesveje. Et særskilt
+omfangsscenarie gennemfører 18 invariantscenarier for de ni hjemler, § 53 B,
+stk. 4, stk. 6 og fail-closed-validering i begge udførelsesveje.
 
-Beregningskontrakten har 76 danske § 53 A-feltbeskrivelser med PBL §§ 20 og
-53 A, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har fem
+Beregningskontrakten har 168 danske § 53 A-feltbeskrivelser med PBL §§ 20,
+53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har ni
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
-grænsehændelser, berettigedes indeståender og indbetalings- eller
-udbetalingshændelser. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
+grænsehændelser, berettigedes indeståender, indbetalings- eller
+udbetalingshændelser, livsforsikringsdækninger og tre slags berettigede efter
+direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
 fem årsoptegnelser, en delårsgrænse, to berettigede, en
 arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
 13.000 kr. negativt afkast til særskilt fremførsel på den ordning, hvor tabet
 opstod.
+
+De sammensatte § 53 A-feltbeskrivelser afdækkede en sprogfejl i metadataindekset:
+typede metadata, der var bygget med rene regelkald samt `concat`, `map` og
+`flat_map`, blev accepteret, men forsvandt fra beregningsskemaet. Futuruna
+evaluerer nu sådanne deterministiske grundværdier med et afgrænset trinbudget
+og afviser effekter. Fokuserede regressionstests kræver både, at alle beregnede
+felter udstilles, og at en beregnet ukendt inputsti stadig afvises.
 
 Arbejdet afdækkede samtidig en Futuruna-fejl ved ens konstruktørnavne i flere
 sumtyper. Typekontrollen, fortolkeren og Rust-kodegenereringen bruger nu den
@@ -464,7 +486,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 760 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 852 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -514,7 +536,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`1124d85de8efb47895e770f9de2a55db90c5aedfc5b677ccc3e5df39e475bd47`.
+`32be5c4ee3c8ad4d617719d70486d98b1d15db7d388c046af6b092cf99ca1aac`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -526,8 +548,8 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 3.342 domænekolonner; 760 materialiserer en eksplicit etiket,
-mens 2.582 fortsat bruger dette fallback. Metadataudbygningen er derfor en
+projektmappe materialiserer 852 eksplicitte etiketter, mens de øvrige
+domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
@@ -2974,16 +2996,19 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
-- Pensionsbeskatningslovens § 53 A, stk. 3 har nu et dateret,
-  kildefaktabåret flerårsforløb. Reglerne afleder delårsperioder ved ind- og
-  udtræden af skattepligt, depotgrænser ved etablering og ophør af
+- Pensionsbeskatningslovens § 53 A har nu et kildefaktabåret omfang og et
+  dateret flerårsforløb. Reglerne afleder alle ni hjemler i stk. 1,
+  udelukkelsen efter § 53 B, undtagelserne i stk. 4 og
+  statsstøttebegrænsningen i stk. 6 fra produkt-, ejer-, oprettelses-,
+  finansierings- og indbetalingsfakta. De afleder også delårsperioder ved ind-
+  og udtræden af skattepligt, depotgrænser ved etablering og ophør af
   direktørsikkerhed, eksakte andele for flere berettigede, bindende metodevalg,
   negativ fremførsel pr. stabil ordning og fristen for dokumenterede
-  udbetalinger til afkastskat. År uden skattepligt er neutrale, og udeladte
-  mellemår eller flere adskilte perioder fejler lukket. De 11 fokuserede
-  tidsinvarianter passerer både interpreter og compiler. Den kanoniske
-  kontrakt har 76 § 53 A-feltmetadata-poster og fem relationelle § 53 A-ark;
-  XLSX og JSON afstemmer samme tre ordninger og fem årsoptegnelser.
+  udbetalinger til afkastskat. Ufuldstændige eller modstridende fakta fejler
+  lukket. De 18 omfangsinvarianter og 11 tidsinvarianter passerer både
+  interpreter og compiler. Den kanoniske kontrakt har 168 § 53 A-feltmetadata-
+  poster og ni relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre
+  ordninger og fem årsoptegnelser.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3121,7 +3146,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 760 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 852 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3147,7 +3172,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 3.342 domænekolonner bruger præcise feltmetadata, hvor de er
+  Arbejdsbogens domænekolonner bruger præcise feltmetadata, hvor de er
   oprettet. Alle 64 nåbare § 15 A-stier for afståelsen har nu en eksplicit
   etiket og et interviewspørgsmål; ældre, dybe stier med deterministisk læsbar
   fallback er fortsat eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og
@@ -3285,9 +3310,6 @@ Review candidates to revisit deliberately, not as broad churn:
 - `td-2a8a7b` skal skelne § 53 A-afkasthistorikken før og efter 2010 samt
   femårsgrænsen for negative afkast fra 2001 og tidligere. Den moderne
   flerårsmodel må ikke anvendes bagud uden den særskilte overgangsregel.
-- `td-606798` skal erstatte de resterende rå § 53 A-klassifikationer og
-  undtagelsesbooleans med kildedata, der afleder stk. 1, § 53 B, stk. 4 og
-  statsstøttebegrænsningen i stk. 6.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

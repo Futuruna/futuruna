@@ -17,7 +17,7 @@
 -- dele af § 11 A i pensionsbeskatningsloven-par11a.runa, § 15 B i
 -- pensionsbeskatningsloven-par15b.runa, § 20 i pensionsbeskatningsloven-par20.runa
 -- og de anvendte dele af §§ 29 og 36 i pensionsbeskatningsloven-par29.runa.
--- Ingen af de gennemgåede ændringer ændrer §§ 16, 18, 52 eller 53 A.
+-- Ingen af de gennemgåede ændringer ændrer §§ 16, 18, 52, 53 A eller 53 B.
 
 # PensionsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -47,6 +47,27 @@
     identifier = "Pensionsbeskatningsloven § 53 A",
     hentet_dato = "2026-07-18",
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 53 A er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par53b = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 53 B",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 53 B er uændret"
+)
+
+= skat_juridisk_vejledning_pbl53a_ordningstyper = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048467",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.2",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Kontrolleret mod 2026-1: produktformer og de ni hjemler i PBL § 53 A, stk. 1"
+)
+
+= skat_juridisk_vejledning_pbl53b_omfang = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048484",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.4.3",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Kontrolleret mod 2026-1: produktkreds, oprettelsesposition og fuldt udenlandsk fradrag eller bortseelse"
 )
 
 = skat_juridisk_vejledning_pbl53a_indbetalinger = PensionsbeskatningslovKildeInfo(
@@ -767,6 +788,7 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
 = pbl_par53a_kildemeta = Metadata(
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
         Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
@@ -877,16 +899,85 @@ pensionsordning gives afkald på beskatning efter reglerne i afsnit I, hvis
 pensionsordningen modtager statsstøtte.
 ----
 
+= pbl_par53b_kildemeta = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par53b),
+        Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+    )
+)
+--@label:pensionsbeskatningsloven_par53b::meta:pbl_par53b_kildemeta--
+----
+§ 53 B. Uanset § 53 A gælder reglerne i stk. 4-6 for livsforsikringer som
+nævnt i § 53 A, stk. 1, nr. 1, pensionskasseordninger som nævnt i § 53 A,
+stk. 1, nr. 3, og syge- og ulykkesforsikringer som nævnt i § 53 A, stk. 1,
+nr. 5, hvis betingelserne i stk. 2 og 3 er opfyldt. Tilsvarende gælder
+udenlandske pensionsordninger oprettet i pengeinstitutter.
+
+Stk. 2. Pensionsordningen m.v. som nævnt i stk. 1 skal være oprettet, mens
+forsikringstageren eller den pensionsberettigede ikke var skattepligtig efter
+kildeskattelovens § 1, eller mens den pågældende var skattepligtig efter
+kildeskattelovens § 1, men efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst var hjemmehørende i en fremmed stat, på Færøerne
+eller i Grønland.
+
+Stk. 3. Samtlige indbetalinger til pensionsordningen m.v. som nævnt i stk. 1,
+som er foretaget i den periode, hvor forsikringstageren eller den
+pensionsberettigede ikke var skattepligtig til respektive hjemmehørende i
+Danmark, skal være fradraget i positiv skattepligtig indkomst i overensstemmelse
+med skattelovgivningen i den stat, hvor forsikringstageren eller den
+pensionsberettigede var skattepligtig respektive hjemmehørende på
+indbetalingstidspunktet eller skal være foretaget af en arbejdsgiver, således
+at indbetalingerne i overensstemmelse med skattelovgivningen i den stat, hvor
+forsikringstageren eller den pensionsberettigede var skattepligtig respektive
+hjemmehørende på indbetalingstidspunktet, ikke er medregnet ved opgørelsen af
+den pågældendes skattepligtige indkomst.
+
+Stk. 4. For præmier og bidrag til pensionsordninger m.v. som nævnt i stk. 1
+gælder § 53 A, stk. 2.
+
+Stk. 5. Ved opgørelsen af den skattepligtige indkomst bortses fra afkast af
+pensionsordninger m.v. som nævnt i stk. 1, herunder renter og
+bonustilskrivninger.
+
+Stk. 6. Udbetalinger fra pensionsordninger m.v. som nævnt i stk. 1 medregnes
+ved opgørelsen af den skattepligtige indkomst. Dog medregnes udbetalinger fra
+ordninger svarende til danske kapitalpensionsordninger med 75 pct., når
+udbetalingen efter betingelserne i ordningen sker samlet efter, at
+pensionsudbetalingsalderen er nået, ved ejerens invaliditet, ved indtrådt
+livstruende sygdom hos ejeren eller ved ejerens død. Udbetalingerne medregnes
+ikke ved opgørelsen af den skattepligtige indkomst, i det omfang de modsvares af
+indbetalinger, som forsikringstageren eller den pensionsberettigede har foretaget
+i perioden efter, at vedkommende blev skattepligtig til respektive hjemmehørende
+i Danmark, og som ikke har kunnet fradrages ved opgørelsen af den skattepligtige
+indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
+----
+
 --@begin::pensionsbeskatningsloven_par53a--
 # Pensionsbeskatningslov53AOrdning = Pbl53ALivsforsikringUdenKapitel1 | Pbl53ALivsforsikringAfkaldAfsnitI | Pbl53APensionskasseUdenKapitel1 | Pbl53APensionskasseAfkaldAfsnitI | Pbl53ASygeOgUlykkesforsikring | Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse | Pbl53ADirektørGarantiforsikring | Pbl53APengeinstitutUdenKapitel1 | Pbl53APengeinstitutAfkaldAfsnitI | Pbl53ATidligerePar15DGodkendt
+# Pbl53AKapitel1Fakta = Pbl53AIkkeOmfattetAfKapitel1 | Pbl53AOmfattetAfKapitel1 | Pbl53ATidligereGodkendtEfterPar15D(godkendt_fra: Pbl15ADato, godkendt_til: Pbl15ADato)
+# Pbl53AAfsnitIAfkaldsgiver = Pbl53AForsikringsejerSomAfkaldsgiver | Pbl53APensionsberettigetSomAfkaldsgiver | Pbl53AKontohaverSomAfkaldsgiver | Pbl53AAndenAfkaldsgiver
+# Pbl53AAfsnitIValgfakta = Pbl53AIntetAfkaldPåAfsnitI | Pbl53AAfkaldPåAfsnitI(afgiver_identifikation: Tekst, afgiver: Pbl53AAfsnitIAfkaldsgiver, afgivet_dato: Pbl15ADato)
+# Pbl53ALivsforsikringsdækning = Pbl53ADødsdækning | Pbl53AInvaliditetsdækning | Pbl53ALivstruendeSygdomsdækning | Pbl53AAndenLivsforsikringsdækning
+# Pbl53ALivsforsikringsvilkår(dækninger: List(Pbl53ALivsforsikringsdækning), aftalt_udløbsdato: Pbl15ADato, første_policedag_efter_fyldte_80_år: Pbl15ADato)
+# Pbl53ADirektørberettigelse = Pbl53ADirektørenSomBerettiget(identifikation: Tekst) | Pbl53AEfterladtEfterDirektør(identifikation: Tekst, direktør_identifikation: Tekst) | Pbl53AAndenDirektørpensionsberettiget(identifikation: Tekst)
+# Pbl53ADirektørpensionstilsagnsfakta(identifikation: Tekst, ansættelsesforhold_identifikation: Tekst, berettigede: List(Pbl53ADirektørberettigelse))
+# Pbl53ADirektørsikkerhedsfakta = Pbl53AIngenDirektørsikkerhed | Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn: Pbl53ADirektørpensionstilsagnsfakta)
+# Pbl53APensionskassekarakteristika(selvstændig_juridisk_person: Boolsk, uafhængig_af_arbejdsgiver: Boolsk, midler_afsondret_fra_berettigedes_formue: Boolsk, vedtægter_fastlægger_pensionsydelser: Boolsk)
+# Pbl53AInstitutionssted = Pbl53ADanskInstitution | Pbl53AUdenlandskInstitution(stat: Tekst)
+# Pbl53APengeinstitutkarakteristika(standardiseret_lovreguleret_pensionsprodukt: Boolsk, pensionsmidler_adskilt_fra_øvrig_formue: Boolsk, kan_disponeres_som_almindelig_bankkonto: Boolsk)
+# Pbl53AProduktfakta = Pbl53ALivsforsikringsprodukt(ejer_identifikation: Tekst, forsikret_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, vilkår: Pbl53ALivsforsikringsvilkår, direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta) | Pbl53APensionskasseprodukt(pensionsberettiget_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, karakteristika: Pbl53APensionskassekarakteristika, direktørsikkerhed: Pbl53ADirektørsikkerhedsfakta) | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation: Tekst, forsikret_identifikation: Tekst) | Pbl53AGarantiforsikringsprodukt(tilsagn: Pbl53ADirektørpensionstilsagnsfakta) | Pbl53APengeEllerKreditinstitutprodukt(kontohaver_identifikation: Tekst, kapitel1fakta: Pbl53AKapitel1Fakta, institutionssted: Pbl53AInstitutionssted, karakteristika: Pbl53APengeinstitutkarakteristika)
+# Pbl53AInstitutionsfinansiering(samlet_drift_løn_og_pension_kroner: Heltal, statsligt_finansieret_drift_løn_og_pension_kroner: Heltal)
+# Pbl53BUdenlandskHjemsted = Pbl53BFremmedStat(stat: Tekst) | Pbl53BFærøerne | Pbl53BGrønland
+# Pbl53BOprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_uden_dansk_skattepligt: Pbl15ADato) | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_med_dbo_hjemsted_i_udlandet: Pbl15ADato)
+# Pbl53BUdenlandskIndbetalingsbehandling = Pbl53BIkkeForetagetIUdenlandsperioden | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner: Heltal, faktisk_fradrag_kroner: Heltal) | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst | Pbl53BIkkeFuldtFradragetEllerBortset
+# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
+# Pbl53BResultat(produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, omfattes_af_par53b: Boolsk)
+# Pbl53AStk1Klassifikation = Pbl53AIngenStk1Hjemmel | Pbl53AStk1Hjemmel(nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning)
+# Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
 # Pensionsbeskatningslov53AAfkastmetode = Pbl53AAfkastEfterPalPar3Til5 | Pbl53AAlternativKapitalværdi
 # Pensionsbeskatningslov53AMetodehistorik = Pbl53AFørsteAfkastopgørelse | Pbl53ATidligerePalOpgørelse | Pbl53ATidligereAlternativKapitalværdiOpgørelse
-# Pensionsbeskatningslov53AInput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk, afkast_efter_pal_par3_til_5_kroner: Heltal, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal, fremført_negativt_afkast_primo_kroner: Heltal, andel_tæller: Heltal, andel_nævner: Heltal, udbetaling_til_afkastskat_kroner: Heltal)
-# Pensionsbeskatningslov53AResultat(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattet_af_stk1: Boolsk, undtaget_efter_stk4: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, afkast_efter_valgt_metode_kroner: Heltal, afkastandel_før_negativ_fremførsel_kroner: Heltal, fremført_negativt_afkast_anvendt_kroner: Heltal, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, udbetaling_til_afkastskat_medregnes_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-
-| pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Falskt
-| exception pbl53a_syge_ulykke_undtages pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Sandt under ordning == Pbl53ASygeOgUlykkesforsikring
-| exception pbl53a_garantiforsikring_undtages pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Sandt under ordning == Pbl53ADirektørGarantiforsikring
+# Pensionsbeskatningslov53AInput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk, afkast_efter_pal_par3_til_5_kroner: Heltal, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal, fremført_negativt_afkast_primo_kroner: Heltal, andel_tæller: Heltal, andel_nævner: Heltal, udbetaling_til_afkastskat_kroner: Heltal)
+# Pensionsbeskatningslov53AResultat(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, omfattet_af_stk1: Boolsk, undtaget_efter_stk4: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, afkast_efter_valgt_metode_kroner: Heltal, afkastandel_før_negativ_fremførsel_kroner: Heltal, fremført_negativt_afkast_anvendt_kroner: Heltal, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, udbetaling_til_afkastskat_medregnes_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 | pbl53a_metodevalg_bindende_opfyldt(afkastmetode: Pensionsbeskatningslov53AAfkastmetode, metodehistorik: Pensionsbeskatningslov53AMetodehistorik) -> match metodehistorik {
     | Pbl53AFørsteAfkastopgørelse -> Sandt
     | Pbl53ATidligerePalOpgørelse -> afkastmetode == Pbl53AAfkastEfterPalPar3Til5
@@ -898,8 +989,8 @@ pensionsordningen modtager statsstøtte.
 }
 
 # Pensionsbeskatningslov53ASag(input: Pensionsbeskatningslov53AInput) {
-    | omfattet_af_stk1() -> input.omfattes_af_par53b == Falskt
-    | undtaget_efter_stk4() -> pbl53a_ordning_stk4_undtaget(input.ordning) || input.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år
+    | omfattet_af_stk1() -> input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning)
+    | undtaget_efter_stk4() -> input.omfangsresultat.undtaget_efter_stk4
     | afkastmetode_tilladt_efter_udbyderopgørelse() -> pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(input.afkastmetode, input.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget)
     | metodevalg_bindende_opfyldt() -> pbl53a_metodevalg_bindende_opfyldt(input.afkastmetode, input.metodehistorik)
     | beløb_medregnes_efter_stk3() -> omfattet_af_stk1() && undtaget_efter_stk4() == Falskt && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
@@ -919,6 +1010,7 @@ pensionsordningen modtager statsstøtte.
     | resultat() -> Pensionsbeskatningslov53AResultat(
         indkomstår = input.indkomstår,
         ordning = input.ordning,
+        omfangsresultat = input.omfangsresultat,
         omfattet_af_stk1 = omfattet_af_stk1(),
         undtaget_efter_stk4 = undtaget_efter_stk4(),
         afkastmetode_tilladt_efter_udbyderopgørelse = afkastmetode_tilladt_efter_udbyderopgørelse(),
@@ -942,7 +1034,7 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AIndbetalingsperiode = Pbl53AIndbetaltMensOrdningenErOmfattet | Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet
 # Pbl53AEjerensFradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret | Pbl53AFradragEllerBortseelsesretIDanmark | Pbl53AFradragEllerBortseelsesretIUdlandet | Pbl53AFradragEllerBortseelsesretIDanmarkOgUdlandet
 # Pbl53AIndbetaler = Pbl53AEjeren | Pbl53ANuværendeArbejdsgiver | Pbl53ATidligereArbejdsgiver | Pbl53AÆgtefællesEllerSamleversArbejdsgiver(udsendelse: Pbl53AUdsendelsesfakta) | Pbl53AAndenIndbetaler
-# Pbl53AIndbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, beløb_kroner: Heltal, periode: Pbl53AIndbetalingsperiode, indbetaler: Pbl53AIndbetaler, ejerens_fradragsstatus: Pbl53AEjerensFradragsstatus)
+# Pbl53AIndbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, beløb_kroner: Heltal, periode: Pbl53AIndbetalingsperiode, indbetaler: Pbl53AIndbetaler, ejerens_fradragsstatus: Pbl53AEjerensFradragsstatus, par53b_udenlandsk_skattebehandling: Pbl53BUdenlandskIndbetalingsbehandling)
 # Pbl53AIndbetalingsresultat(fakta: Pbl53AIndbetalingsfakta, fakta_gyldige: Boolsk, medfølgende_ægtefælle_eller_samlever_omfattet: Boolsk, eget_fradrag_i_skattepligtig_indkomst_kroner: Heltal, arbejdsgiverfradrag_for_sikkerhedsstillelse_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, fradrags_eller_bortseelsesberettiget_principal_tilføjet_kroner: Heltal)
 # Pbl53AUdbetalingsmodtager = Pbl53AEjer | Pbl53APensionsberettiget | Pbl53ABerettigetEfterEjerensEllerPensionsberettigedesDød | Pbl53AAndenUdbetalingsmodtager
 # Pbl53AKapitaludbetalingsgrund = Pbl53APensionsudbetalingsalder | Pbl53AInvaliditet | Pbl53ALivstruendeSygdom | Pbl53ADød | Pbl53AAndenUdbetalingsgrund
@@ -953,9 +1045,255 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AUdbetalingsresultat(fakta: Pbl53AUdbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet_af_par55: Boolsk, afkastskatteudbetaling_rettidig: Boolsk, fradrags_eller_bortseelsesberettiget_principal_før_kroner: Heltal, principal_fordelt_til_udbetalingen_kroner: Heltal, principal_medregnet_før_75_procent_kroner: Heltal, kapitalregel_75_procent_anvendt: Boolsk, sikkerhedsstillelse_modsvarer_udbetaling_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, pbl20_stk6_resultat: Pbl20Stk6Resultat)
 # Pbl53AHændelse = Pbl53AIndbetaling(fakta: Pbl53AIndbetalingsfakta) | Pbl53AUdbetaling(fakta: Pbl53AUdbetalingsfakta)
 # Pbl53AHændelsesresultat = Pbl53AIndbetalingBeregnet(resultat: Pbl53AIndbetalingsresultat) | Pbl53AUdbetalingBeregnet(resultat: Pbl53AUdbetalingsresultat)
-# Pbl53AForløbsinput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, hændelser: List(Pbl53AHændelse))
+# Pbl53AForløbsinput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, hændelser: List(Pbl53AHændelse))
 # Pbl53AForløbstilstand(seneste_tidspunkt: Pbl53ASenesteTidspunkt, hændelsesresultater: List(Pbl53AHændelsesresultat), alle_hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsgiverfradrag_i_indkomståret_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner: Heltal)
 # Pbl53AForløbsresultat(input: Pbl53AForløbsinput, hændelsesresultater: List(Pbl53AHændelsesresultat), identifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
+
+| pbl53a_kapitel1fakta_gyldige(fakta: Pbl53AKapitel1Fakta) -> match fakta {
+    | Pbl53ATidligereGodkendtEfterPar15D(godkendt_fra, godkendt_til) -> pbl15a_dato_gyldig(godkendt_fra) && pbl15a_dato_gyldig(godkendt_til) && pbl15a_dato_nøgle(godkendt_fra) <= pbl15a_dato_nøgle(godkendt_til)
+    | _ -> Sandt
+}
+| pbl53a_ikke_omfattet_af_kapitel1(fakta: Pbl53AKapitel1Fakta) -> fakta == Pbl53AIkkeOmfattetAfKapitel1
+| pbl53a_omfattet_af_kapitel1(fakta: Pbl53AKapitel1Fakta) -> fakta == Pbl53AOmfattetAfKapitel1
+| pbl53a_tidligere_par15d_udløbet_før_indkomstår(fakta: Pbl53AKapitel1Fakta, indkomstår: Heltal) -> match fakta {
+    | Pbl53ATidligereGodkendtEfterPar15D(_, godkendt_til) -> godkendt_til.år < indkomstår
+    | _ -> Falskt
+}
+| pbl53a_direktørberettigelse_gyldig(berettigelse: Pbl53ADirektørberettigelse) -> match berettigelse {
+    | Pbl53ADirektørenSomBerettiget(identifikation) -> identifikation != ""
+    | Pbl53AEfterladtEfterDirektør(identifikation, direktør_identifikation) -> identifikation != "" && direktør_identifikation != ""
+    | Pbl53AAndenDirektørpensionsberettiget(_) -> Falskt
+}
+| pbl53a_direktørpensionstilsagn_gyldigt(tilsagn: Pbl53ADirektørpensionstilsagnsfakta) -> tilsagn.identifikation != "" && tilsagn.ansættelsesforhold_identifikation != "" && length(tilsagn.berettigede) > 0 && all(tilsagn.berettigede, pbl53a_direktørberettigelse_gyldig)
+| pbl53a_direktørsikkerhed_gyldig(sikkerhed: Pbl53ADirektørsikkerhedsfakta) -> match sikkerhed {
+    | Pbl53AIngenDirektørsikkerhed -> Sandt
+    | Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn) -> pbl53a_direktørpensionstilsagn_gyldigt(tilsagn)
+}
+| pbl53a_har_direktørsikkerhed(sikkerhed: Pbl53ADirektørsikkerhedsfakta) -> match sikkerhed {
+    | Pbl53ASikkerhedForDirektørpensionstilsagn(_) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_pensionskassekarakteristika_opfyldt(karakteristika: Pbl53APensionskassekarakteristika) -> karakteristika.selvstændig_juridisk_person && karakteristika.uafhængig_af_arbejdsgiver && karakteristika.midler_afsondret_fra_berettigedes_formue && karakteristika.vedtægter_fastlægger_pensionsydelser
+| pbl53a_institutionssted_gyldigt(sted: Pbl53AInstitutionssted) -> match sted {
+    | Pbl53AUdenlandskInstitution(stat) -> stat != ""
+    | _ -> Sandt
+}
+| pbl53a_udenlandsk_institution(sted: Pbl53AInstitutionssted) -> match sted {
+    | Pbl53AUdenlandskInstitution(_) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika: Pbl53APengeinstitutkarakteristika) -> karakteristika.standardiseret_lovreguleret_pensionsprodukt && karakteristika.pensionsmidler_adskilt_fra_øvrig_formue && karakteristika.kan_disponeres_som_almindelig_bankkonto == Falskt
+| pbl53a_livsforsikringsvilkår_gyldige(vilkår: Pbl53ALivsforsikringsvilkår) -> length(vilkår.dækninger) > 0 && pbl15a_dato_gyldig(vilkår.aftalt_udløbsdato) && pbl15a_dato_gyldig(vilkår.første_policedag_efter_fyldte_80_år)
+| pbl53a_direktørsikkerhed_konsistent_med_kapitel1(sikkerhed: Pbl53ADirektørsikkerhedsfakta, kapitel1fakta: Pbl53AKapitel1Fakta) -> pbl53a_har_direktørsikkerhed(sikkerhed) == Falskt || pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta)
+| pbl53a_produktfakta_gyldige(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(ejer_identifikation, forsikret_identifikation, kapitel1fakta, vilkår, direktørsikkerhed) -> ejer_identifikation != "" && forsikret_identifikation != "" && pbl53a_kapitel1fakta_gyldige(kapitel1fakta) && pbl53a_livsforsikringsvilkår_gyldige(vilkår) && pbl53a_direktørsikkerhed_gyldig(direktørsikkerhed) && pbl53a_direktørsikkerhed_konsistent_med_kapitel1(direktørsikkerhed, kapitel1fakta)
+    | Pbl53APensionskasseprodukt(pensionsberettiget_identifikation, kapitel1fakta, _, direktørsikkerhed) -> pensionsberettiget_identifikation != "" && pbl53a_kapitel1fakta_gyldige(kapitel1fakta) && pbl53a_direktørsikkerhed_gyldig(direktørsikkerhed) && pbl53a_direktørsikkerhed_konsistent_med_kapitel1(direktørsikkerhed, kapitel1fakta)
+    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation != "" && forsikret_identifikation != ""
+    | Pbl53AGarantiforsikringsprodukt(tilsagn) -> pbl53a_direktørpensionstilsagn_gyldigt(tilsagn)
+    | Pbl53APengeEllerKreditinstitutprodukt(kontohaver_identifikation, kapitel1fakta, institutionssted, _) -> kontohaver_identifikation != "" && pbl53a_kapitel1fakta_gyldige(kapitel1fakta) && pbl53a_institutionssted_gyldigt(institutionssted)
+}
+| pbl53a_produkt_karakteristika_opfyldt(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53APensionskasseprodukt(_, _, karakteristika, _) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika)
+    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation == forsikret_identifikation
+    | Pbl53APengeEllerKreditinstitutprodukt(_, _, _, karakteristika) -> pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika)
+    | _ -> Sandt
+}
+| pbl53a_produkt_kapitel1fakta(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, _) -> kapitel1fakta
+    | Pbl53APensionskasseprodukt(_, kapitel1fakta, _, _) -> kapitel1fakta
+    | Pbl53APengeEllerKreditinstitutprodukt(_, kapitel1fakta, _, _) -> kapitel1fakta
+    | _ -> Pbl53AIkkeOmfattetAfKapitel1
+}
+| pbl53a_afsnit_i_valgfakta_grundgyldige(valg: Pbl53AAfsnitIValgfakta) -> match valg {
+    | Pbl53AAfkaldPåAfsnitI(afgiver_identifikation, _, afgivet_dato) -> afgiver_identifikation != "" && pbl15a_dato_gyldig(afgivet_dato)
+    | _ -> Sandt
+}
+| pbl53a_afkald_givet_ved_oprettelsen(valg: Pbl53AAfsnitIValgfakta, oprettelsesdato: Pbl15ADato) -> match valg {
+    | Pbl53AAfkaldPåAfsnitI(_, _, afgivet_dato) -> pbl15a_dato_nøgle(afgivet_dato) == pbl15a_dato_nøgle(oprettelsesdato)
+    | _ -> Falskt
+}
+| pbl53a_afkald_matcher_produkt(produkt: Pbl53AProduktfakta, valg: Pbl53AAfsnitIValgfakta, oprettelsesdato: Pbl15ADato) -> match valg {
+    | Pbl53AIntetAfkaldPåAfsnitI -> Sandt
+    | Pbl53AAfkaldPåAfsnitI(afgiver_identifikation, afgiver, _) -> pbl53a_afkald_givet_ved_oprettelsen(valg, oprettelsesdato) && match produkt {
+        | Pbl53ALivsforsikringsprodukt(ejer_identifikation, _, kapitel1fakta, _, direktørsikkerhed) -> pbl53a_omfattet_af_kapitel1(kapitel1fakta) && pbl53a_har_direktørsikkerhed(direktørsikkerhed) == Falskt && afgiver == Pbl53AForsikringsejerSomAfkaldsgiver && afgiver_identifikation == ejer_identifikation
+        | Pbl53APensionskasseprodukt(pensionsberettiget_identifikation, kapitel1fakta, _, direktørsikkerhed) -> pbl53a_omfattet_af_kapitel1(kapitel1fakta) && pbl53a_har_direktørsikkerhed(direktørsikkerhed) == Falskt && afgiver == Pbl53APensionsberettigetSomAfkaldsgiver && afgiver_identifikation == pensionsberettiget_identifikation
+        | Pbl53APengeEllerKreditinstitutprodukt(kontohaver_identifikation, kapitel1fakta, _, _) -> pbl53a_omfattet_af_kapitel1(kapitel1fakta) && afgiver == Pbl53AKontohaverSomAfkaldsgiver && afgiver_identifikation == kontohaver_identifikation
+        | _ -> Falskt
+    }
+}
+| pbl53a_afsnit_i_valgfakta_konsistente(fakta: Pbl53AOmfangsfakta) -> pbl53a_afsnit_i_valgfakta_grundgyldige(fakta.afsnit_i_valg) && pbl53a_afkald_matcher_produkt(fakta.produkt, fakta.afsnit_i_valg, fakta.oprettelsesdato)
+| pbl53a_institutionsfinansiering_gyldig(finansiering: Pbl53AInstitutionsfinansiering) -> finansiering.samlet_drift_løn_og_pension_kroner >= 0 && finansiering.statsligt_finansieret_drift_løn_og_pension_kroner >= 0 && finansiering.statsligt_finansieret_drift_løn_og_pension_kroner <= finansiering.samlet_drift_løn_og_pension_kroner
+| pbl53a_modtager_statsstøtte(finansiering: Pbl53AInstitutionsfinansiering) -> pbl53a_institutionsfinansiering_gyldig(finansiering) && finansiering.statsligt_finansieret_drift_løn_og_pension_kroner > 0
+| pbl53a_afkald_relevant_for_stk6(produkt: Pbl53AProduktfakta, valg: Pbl53AAfsnitIValgfakta) -> match valg {
+    | Pbl53AAfkaldPåAfsnitI(_, _, _) -> match produkt {
+        | Pbl53ALivsforsikringsprodukt(_, _, _, _, _) -> Sandt
+        | Pbl53APensionskasseprodukt(_, _, _, _) -> Sandt
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
+--@begin::pensionsbeskatningsloven_par53b--
+| pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted: Pbl53BUdenlandskHjemsted) -> match hjemsted {
+    | Pbl53BFremmedStat(stat) -> stat != ""
+    | _ -> Sandt
+}
+| pbl53b_oprettelsesposition_gyldig(oprettelsesdato: Pbl15ADato, position: Pbl53BOprettelsesposition) -> match position {
+    | Pbl53BOprettetUnderDanskSkattepligtOgHjemsted -> Sandt
+    | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
+    | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted, sidste_dato) -> pbl53a_udenlandsk_hjemsted_gyldigt(hjemsted) && pbl15a_dato_gyldig(sidste_dato) && pbl15a_dato_nøgle(oprettelsesdato) <= pbl15a_dato_nøgle(sidste_dato)
+}
+| pbl53b_oprettelsesbetingelse_opfyldt(position: Pbl53BOprettelsesposition) -> position != Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+| pbl53b_sidste_udenlandsdato(position: Pbl53BOprettelsesposition) -> match position {
+    | Pbl53BOprettetUdenFuldDanskSkattepligt(_, sidste_dato) -> sidste_dato
+    | Pbl53BOprettetMedDboHjemstedIUdlandet(_, sidste_dato) -> sidste_dato
+    | _ -> Pbl15ADato(år = 1, måned = 1, dag = 1)
+}
+| pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> pbl53b_oprettelsesbetingelse_opfyldt(position) && pbl15a_dato_nøgle(fakta.tidspunkt.dato) <= pbl15a_dato_nøgle(pbl53b_sidste_udenlandsdato(position))
+| pbl53b_indbetaler_er_arbejdsgiver(indbetaler: Pbl53AIndbetaler) -> indbetaler == Pbl53ANuværendeArbejdsgiver || indbetaler == Pbl53ATidligereArbejdsgiver
+| pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta: Pbl53AIndbetalingsfakta) -> match fakta.par53b_udenlandsk_skattebehandling {
+    | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_indkomst_kroner, faktisk_fradrag_kroner) -> fakta.indbetaler == Pbl53AEjeren && positiv_indkomst_kroner >= fakta.beløb_kroner && faktisk_fradrag_kroner >= fakta.beløb_kroner
+    | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst -> pbl53b_indbetaler_er_arbejdsgiver(fakta.indbetaler)
+    | _ -> Falskt
+}
+| pbl53b_indbetalingsdokumentation_konsistent(fakta: Pbl53AIndbetalingsfakta, position: Pbl53BOprettelsesposition) -> hvis pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) { fakta.periode == Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet && fakta.par53b_udenlandsk_skattebehandling != Pbl53BIkkeForetagetIUdenlandsperioden } ellers { fakta.par53b_udenlandsk_skattebehandling == Pbl53BIkkeForetagetIUdenlandsperioden }
+| pbl53b_hændelsesdokumentation_konsistent(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetalingsdokumentation_konsistent(fakta, position)
+    | _ -> Sandt
+}
+| pbl53b_hændelse_kvalificerer(hændelse: Pbl53AHændelse, position: Pbl53BOprettelsesposition) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> pbl53b_indbetaling_foretaget_i_udenlandsperioden(fakta, position) == Falskt || pbl53b_udenlandsk_indbetalingsbehandling_kvalificerer(fakta)
+    | _ -> Sandt
+}
+| pbl53b_produktkreds_omfattet(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta) -> match fakta.produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, _) -> pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
+    | Pbl53APensionskasseprodukt(_, kapitel1fakta, karakteristika, _) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika) && (pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) || pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår))
+    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation == forsikret_identifikation
+    | Pbl53APengeEllerKreditinstitutprodukt(_, kapitel1fakta, institutionssted, karakteristika) -> pbl53a_udenlandsk_institution(institutionssted) && pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika) && (pbl53a_omfattet_af_kapitel1(kapitel1fakta) == Falskt || pbl53a_afkald_givet_ved_oprettelsen(fakta.afsnit_i_valg, fakta.oprettelsesdato))
+    | _ -> Falskt
+}
+| pbl53b_resultat(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
+    = produktkreds_omfattet = pbl53b_produktkreds_omfattet(indkomstår, fakta)
+    = oprettelsesbetingelse_opfyldt = pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition)
+    = indbetalingsdokumentation_konsistent = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition))
+    = samtlige_udenlandske_indbetalinger_kvalificerer = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
+    Pbl53BResultat(
+        produktkreds_omfattet = produktkreds_omfattet,
+        oprettelsesbetingelse_opfyldt = oprettelsesbetingelse_opfyldt,
+        indbetalingsdokumentation_konsistent = indbetalingsdokumentation_konsistent,
+        samtlige_udenlandske_indbetalinger_kvalificerer = samtlige_udenlandske_indbetalinger_kvalificerer,
+        omfattes_af_par53b = produktkreds_omfattet && oprettelsesbetingelse_opfyldt && indbetalingsdokumentation_konsistent && samtlige_udenlandske_indbetalinger_kvalificerer
+    )
+}
+--@end::pensionsbeskatningsloven_par53b--
+| pbl53a_livsforsikring_uden_direktørsikkerhed(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, _, _, Pbl53AIngenDirektørsikkerhed) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_pensionskasse_uden_direktørsikkerhed(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53APensionskasseprodukt(_, _, karakteristika, Pbl53AIngenDirektørsikkerhed) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika)
+    | _ -> Falskt
+}
+| pbl53a_direktørsikkerhedsprodukt(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, sikkerhed) -> pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) && pbl53a_har_direktørsikkerhed(sikkerhed)
+    | Pbl53APensionskasseprodukt(_, kapitel1fakta, karakteristika, sikkerhed) -> pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta) && pbl53a_pensionskassekarakteristika_opfyldt(karakteristika) && pbl53a_har_direktørsikkerhed(sikkerhed)
+    | Pbl53AGarantiforsikringsprodukt(tilsagn) -> pbl53a_direktørpensionstilsagn_gyldigt(tilsagn)
+    | _ -> Falskt
+}
+| pbl53a_pengeinstitutprodukt(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53APengeEllerKreditinstitutprodukt(_, _, _, karakteristika) -> pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika)
+    | _ -> Falskt
+}
+| pbl53a_tidligere_par15d_produkt_udløbet(produkt: Pbl53AProduktfakta, indkomstår: Heltal) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, kapitel1fakta, _, Pbl53AIngenDirektørsikkerhed) -> pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
+    | Pbl53APensionskasseprodukt(_, kapitel1fakta, karakteristika, Pbl53AIngenDirektørsikkerhed) -> pbl53a_pensionskassekarakteristika_opfyldt(karakteristika) && pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
+    | Pbl53APengeEllerKreditinstitutprodukt(_, kapitel1fakta, _, karakteristika) -> pbl53a_pengeinstitutkarakteristika_opfyldt(karakteristika) && pbl53a_tidligere_par15d_udløbet_før_indkomstår(kapitel1fakta, indkomstår)
+    | _ -> Falskt
+}
+| pbl53a_stk1_nr6_ordning(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53AGarantiforsikringsprodukt(_) -> Pbl53ADirektørGarantiforsikring
+    | _ -> Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse
+}
+| pbl53a_stk1_klassifikation(nr1: Boolsk, nr2: Boolsk, nr3: Boolsk, nr4: Boolsk, nr5: Boolsk, nr6: Boolsk, nr7: Boolsk, nr8: Boolsk, nr9: Boolsk, produkt: Pbl53AProduktfakta) -> hvis nr1 { Pbl53AStk1Hjemmel(nummer = 1, ordning = Pbl53ALivsforsikringUdenKapitel1) } ellers hvis nr2 { Pbl53AStk1Hjemmel(nummer = 2, ordning = Pbl53ALivsforsikringAfkaldAfsnitI) } ellers hvis nr3 { Pbl53AStk1Hjemmel(nummer = 3, ordning = Pbl53APensionskasseUdenKapitel1) } ellers hvis nr4 { Pbl53AStk1Hjemmel(nummer = 4, ordning = Pbl53APensionskasseAfkaldAfsnitI) } ellers hvis nr5 { Pbl53AStk1Hjemmel(nummer = 5, ordning = Pbl53ASygeOgUlykkesforsikring) } ellers hvis nr6 { Pbl53AStk1Hjemmel(nummer = 6, ordning = pbl53a_stk1_nr6_ordning(produkt)) } ellers hvis nr7 { Pbl53AStk1Hjemmel(nummer = 7, ordning = Pbl53APengeinstitutUdenKapitel1) } ellers hvis nr8 { Pbl53AStk1Hjemmel(nummer = 8, ordning = Pbl53APengeinstitutAfkaldAfsnitI) } ellers hvis nr9 { Pbl53AStk1Hjemmel(nummer = 9, ordning = Pbl53ATidligerePar15DGodkendt) } ellers { Pbl53AIngenStk1Hjemmel }
+| pbl53a_stk1_hjemler_antal(nr1: Boolsk, nr2: Boolsk, nr3: Boolsk, nr4: Boolsk, nr5: Boolsk, nr6: Boolsk, nr7: Boolsk, nr8: Boolsk, nr9: Boolsk) -> foldl([nr1, nr2, nr3, nr4, nr5, nr6, nr7, nr8, nr9], 0, |antal: Heltal, opfyldt: Boolsk| antal + hvis opfyldt { 1 } ellers { 0 })
+| pbl53a_livsforsikringsdækning_er_stk4_risiko(dækning: Pbl53ALivsforsikringsdækning) -> dækning != Pbl53AAndenLivsforsikringsdækning
+| pbl53a_risikoliv_undtaget_efter_stk4(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, _, vilkår, _) -> length(vilkår.dækninger) > 0 && all(vilkår.dækninger, pbl53a_livsforsikringsdækning_er_stk4_risiko) && pbl15a_dato_nøgle(vilkår.aftalt_udløbsdato) <= pbl15a_dato_nøgle(vilkår.første_policedag_efter_fyldte_80_år)
+    | _ -> Falskt
+}
+| pbl53a_syge_ulykke_undtaget_efter_stk4(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ASygeOgUlykkesforsikringsprodukt(ejer_identifikation, forsikret_identifikation) -> ejer_identifikation == forsikret_identifikation
+    | _ -> Falskt
+}
+| pbl53a_direktørgaranti_undtaget_efter_stk4(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53AGarantiforsikringsprodukt(tilsagn) -> pbl53a_direktørpensionstilsagn_gyldigt(tilsagn)
+    | _ -> Falskt
+}
+
+# Pbl53AOmfangssag(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) {
+    | produkt_fakta_gyldige() -> pbl53a_produktfakta_gyldige(fakta.produkt)
+    | afsnit_i_valgfakta_konsistente() -> pbl53a_afsnit_i_valgfakta_konsistente(fakta)
+    | par53b_resultat() -> pbl53b_resultat(indkomstår, fakta, hændelser)
+    | grundfakta_gyldige() -> indkomstår > 0 && pbl15a_dato_gyldig(fakta.oprettelsesdato) && produkt_fakta_gyldige() && pbl53a_produkt_karakteristika_opfyldt(fakta.produkt) && afsnit_i_valgfakta_konsistente() && pbl53a_institutionsfinansiering_gyldig(fakta.institutionsfinansiering) && pbl53b_oprettelsesposition_gyldig(fakta.oprettelsesdato, fakta.par53b_oprettelsesposition) && par53b_resultat().indbetalingsdokumentation_konsistent
+    | modtager_statsstøtte() -> pbl53a_modtager_statsstøtte(fakta.institutionsfinansiering)
+    | afkald_relevant_for_stk6() -> pbl53a_afkald_relevant_for_stk6(fakta.produkt, fakta.afsnit_i_valg)
+    | afkald_tilladt_efter_stk6() -> afkald_relevant_for_stk6() == Falskt || modtager_statsstøtte() == Falskt
+    | kan_klassificeres_i_par53a() -> grundfakta_gyldige() && par53b_resultat().omfattes_af_par53b == Falskt
+    | kapitel1fakta() -> pbl53a_produkt_kapitel1fakta(fakta.produkt)
+    | afkald_givet_ved_oprettelsen() -> pbl53a_afkald_givet_ved_oprettelsen(fakta.afsnit_i_valg, fakta.oprettelsesdato)
+    | stk1_nr1_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_livsforsikring_uden_direktørsikkerhed(fakta.produkt) && pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta())
+    | stk1_nr2_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_livsforsikring_uden_direktørsikkerhed(fakta.produkt) && pbl53a_omfattet_af_kapitel1(kapitel1fakta()) && afkald_givet_ved_oprettelsen() && afkald_tilladt_efter_stk6()
+    | stk1_nr3_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_pensionskasse_uden_direktørsikkerhed(fakta.produkt) && pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta())
+    | stk1_nr4_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_pensionskasse_uden_direktørsikkerhed(fakta.produkt) && pbl53a_omfattet_af_kapitel1(kapitel1fakta()) && afkald_givet_ved_oprettelsen() && afkald_tilladt_efter_stk6()
+    | stk1_nr5_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_syge_ulykke_undtaget_efter_stk4(fakta.produkt)
+    | stk1_nr6_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_direktørsikkerhedsprodukt(fakta.produkt)
+    | stk1_nr7_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_pengeinstitutprodukt(fakta.produkt) && pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta())
+    | stk1_nr8_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_pengeinstitutprodukt(fakta.produkt) && pbl53a_omfattet_af_kapitel1(kapitel1fakta()) && afkald_givet_ved_oprettelsen()
+    | stk1_nr9_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_tidligere_par15d_produkt_udløbet(fakta.produkt, indkomstår)
+    | stk1_hjemler_antal() -> pbl53a_stk1_hjemler_antal(stk1_nr1_opfyldt(), stk1_nr2_opfyldt(), stk1_nr3_opfyldt(), stk1_nr4_opfyldt(), stk1_nr5_opfyldt(), stk1_nr6_opfyldt(), stk1_nr7_opfyldt(), stk1_nr8_opfyldt(), stk1_nr9_opfyldt())
+    | stk1_hjemmel_entydig() -> stk1_hjemler_antal() == 1
+    | stk1_klassifikation() -> pbl53a_stk1_klassifikation(stk1_nr1_opfyldt(), stk1_nr2_opfyldt(), stk1_nr3_opfyldt(), stk1_nr4_opfyldt(), stk1_nr5_opfyldt(), stk1_nr6_opfyldt(), stk1_nr7_opfyldt(), stk1_nr8_opfyldt(), stk1_nr9_opfyldt(), fakta.produkt)
+    | omfattes_af_par53a() -> kan_klassificeres_i_par53a() && stk1_hjemmel_entydig()
+    | risikoliv_undtaget_efter_stk4() -> pbl53a_risikoliv_undtaget_efter_stk4(fakta.produkt)
+    | syge_ulykke_undtaget_efter_stk4() -> pbl53a_syge_ulykke_undtaget_efter_stk4(fakta.produkt)
+    | direktørgaranti_undtaget_efter_stk4() -> pbl53a_direktørgaranti_undtaget_efter_stk4(fakta.produkt)
+    | undtaget_efter_stk4() -> omfattes_af_par53a() && (risikoliv_undtaget_efter_stk4() || syge_ulykke_undtaget_efter_stk4() || direktørgaranti_undtaget_efter_stk4())
+    | resultat() -> Pbl53AOmfangsresultat(
+        fakta = fakta,
+        grundfakta_gyldige = grundfakta_gyldige(),
+        produkt_fakta_gyldige = produkt_fakta_gyldige(),
+        afsnit_i_valgfakta_konsistente = afsnit_i_valgfakta_konsistente(),
+        modtager_statsstøtte = modtager_statsstøtte(),
+        afkald_relevant_for_stk6 = afkald_relevant_for_stk6(),
+        afkald_tilladt_efter_stk6 = afkald_tilladt_efter_stk6(),
+        par53b_resultat = par53b_resultat(),
+        stk1_nr1_opfyldt = stk1_nr1_opfyldt(),
+        stk1_nr2_opfyldt = stk1_nr2_opfyldt(),
+        stk1_nr3_opfyldt = stk1_nr3_opfyldt(),
+        stk1_nr4_opfyldt = stk1_nr4_opfyldt(),
+        stk1_nr5_opfyldt = stk1_nr5_opfyldt(),
+        stk1_nr6_opfyldt = stk1_nr6_opfyldt(),
+        stk1_nr7_opfyldt = stk1_nr7_opfyldt(),
+        stk1_nr8_opfyldt = stk1_nr8_opfyldt(),
+        stk1_nr9_opfyldt = stk1_nr9_opfyldt(),
+        stk1_hjemler_antal = stk1_hjemler_antal(),
+        stk1_hjemmel_entydig = stk1_hjemmel_entydig(),
+        stk1_klassifikation = stk1_klassifikation(),
+        risikoliv_undtaget_efter_stk4 = risikoliv_undtaget_efter_stk4(),
+        syge_ulykke_undtaget_efter_stk4 = syge_ulykke_undtaget_efter_stk4(),
+        direktørgaranti_undtaget_efter_stk4 = direktørgaranti_undtaget_efter_stk4(),
+        undtaget_efter_stk4 = undtaget_efter_stk4(),
+        omfattes_af_par53a = omfattes_af_par53a()
+    )
+}
+| pbl53a_omfangsresultat(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> Pbl53AOmfangssag(indkomstår, fakta, hændelser).resultat()
+| pbl53a_omfang_klassifikation_matcher_ordning(resultat: Pbl53AOmfangsresultat, ordning: Pensionsbeskatningslov53AOrdning) -> match resultat.stk1_klassifikation {
+    | Pbl53AStk1Hjemmel(_, klassificeret_ordning) -> klassificeret_ordning == ordning
+    | _ -> Falskt
+}
+| pbl53a_omfang_ordning(resultat: Pbl53AOmfangsresultat) -> match resultat.stk1_klassifikation {
+    | Pbl53AStk1Hjemmel(_, ordning) -> ordning
+    | _ -> Pbl53ALivsforsikringUdenKapitel1
+}
 
 | pbl53a_tidspunkt_gyldigt(tidspunkt: Pbl53ATidspunkt) -> pbl15a_dato_gyldig(tidspunkt.dato) && tidspunkt.rækkefølge_på_dagen > 0
 | pbl53a_tidspunkt_før(a: Pbl53ATidspunkt, b: Pbl53ATidspunkt) -> pbl15a_dato_nøgle(a.dato) < pbl15a_dato_nøgle(b.dato) || pbl15a_dato_nøgle(a.dato) == pbl15a_dato_nøgle(b.dato) && a.rækkefølge_på_dagen < b.rækkefølge_på_dagen
@@ -1167,7 +1505,7 @@ pensionsordningen modtager statsstøtte.
     | identifikationer_entydige() -> pbl53a_hændelsesidentifikationer_entydige(input.hændelser)
     | hændelser_kronologiske() -> tilstand().alle_hændelser_kronologiske
     | alle_hændelser_gyldige() -> tilstand().alle_hændelser_gyldige
-    | input_gyldigt() -> input.indkomstår > 0 && input.omfattes_af_par53b == Falskt && identifikationer_entydige() && alle_hændelser_gyldige()
+    | input_gyldigt() -> input.indkomstår > 0 && input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning) && identifikationer_entydige() && alle_hændelser_gyldige()
     | beløb_eller_nul(beløb_kroner: Heltal) -> hvis input_gyldigt() { beløb_kroner } ellers { 0 }
     | resultat() -> Pbl53AForløbsresultat(
         input = input,
@@ -1348,7 +1686,7 @@ pensionsordningen modtager statsstøtte.
 
 # Pbl53AMetodetilstand = Pbl53AIngenMetodeValgt | Pbl53APalMetodeValgt | Pbl53AAlternativKapitalværdiMetodeValgt
 # Pbl53AAfkastårsresultat(fakta: Pbl53AAfkastårFakta, periode_resultat: Pbl53AAfkastperiodeResultat, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, berettigelsesfakta_gyldige: Boolsk, år_kronologisk: Boolsk, år_sammenhængende: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, input_gyldigt: Boolsk, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat)
-# Pbl53AAfkastforløbsinput(ordningsidentifikation: Tekst, skatteyder_identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastår: List(Pbl53AAfkastårFakta), hændelsesforløbsresultat: Pbl53AForløbsresultat)
+# Pbl53AAfkastforløbsinput(ordningsidentifikation: Tekst, skatteyder_identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, afkastår: List(Pbl53AAfkastårFakta), hændelsesforløbsresultat: Pbl53AForløbsresultat)
 # Pbl53AAfkastforløbstilstand(ordningsidentifikation: Tekst, seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand, fremført_negativt_afkast_kroner: Heltal, årsresultater: List(Pbl53AAfkastårsresultat), år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk)
 # Pbl53AAfkastforløbsresultat(input: Pbl53AAfkastforløbsinput, ordningsidentifikation_stabil: Boolsk, afkastår_entydige: Boolsk, år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk, input_gyldigt: Boolsk, årsresultater: List(Pbl53AAfkastårsresultat), metodetilstand_ultimo: Pbl53AMetodetilstand, fremført_negativt_afkast_ultimo_kroner: Heltal)
 
@@ -1401,8 +1739,7 @@ pensionsordningen modtager statsstøtte.
     | pensionsbeskatningslov_input() -> Pensionsbeskatningslov53AInput(
         indkomstår = fakta.indkomstår,
         ordning = input.ordning,
-        omfattes_af_par53b = input.omfattes_af_par53b,
-        alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = input.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år,
+        omfangsresultat = input.omfangsresultat,
         afkastmetode = afkastmetode_for_beregning(),
         metodehistorik = metodehistorik(),
         pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = pensionsudbyder_opgjorde_pal_for_beregning(),
@@ -1417,7 +1754,7 @@ pensionsordningen modtager statsstøtte.
         udbetaling_til_afkastskat_kroner = pbl53a_afkastskatteudbetaling_for_sen_i_år_kroner(input.hændelsesforløbsresultat.hændelsesresultater, fakta.indkomstår)
     )
     | pensionsbeskatningslov_resultat() -> pensionsbeskatningslov53a_resultat(pensionsbeskatningslov_input())
-    | input_gyldigt() -> input.ordningsidentifikation != "" && input.skatteyder_identifikation != "" && input.omfattes_af_par53b == Falskt && input.hændelsesforløbsresultat.input_gyldigt && år_kronologisk() && år_sammenhængende() && periode_resultat().periode_understøttet && berettigelsesfakta_gyldige() && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
+    | input_gyldigt() -> input.ordningsidentifikation != "" && input.skatteyder_identifikation != "" && input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning) && input.hændelsesforløbsresultat.input_gyldigt && år_kronologisk() && år_sammenhængende() && periode_resultat().periode_understøttet && berettigelsesfakta_gyldige() && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
     | årsresultat() -> Pbl53AAfkastårsresultat(
         fakta = fakta,
         periode_resultat = periode_resultat(),
@@ -1467,11 +1804,102 @@ pensionsordningen modtager statsstøtte.
 | pbl53a_afkastårsresultat_for_indkomstår(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)[0]
 | pbl53a_afkastårsresultat_findes_entydigt(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> length(filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)) == 1
 
+= pbl53a_privat_finansiering_fixture = Pbl53AInstitutionsfinansiering(
+    samlet_drift_løn_og_pension_kroner = 1000000,
+    statsligt_finansieret_drift_løn_og_pension_kroner = 0
+)
+= pbl53a_dansk_oprettelsesposition_fixture = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+= pbl53a_almindelige_livsvilkår_fixture = Pbl53ALivsforsikringsvilkår(
+    dækninger = [Pbl53AAndenLivsforsikringsdækning],
+    aftalt_udløbsdato = Pbl15ADato(år = 2050, måned = 1, dag = 1),
+    første_policedag_efter_fyldte_80_år = Pbl15ADato(år = 2060, måned = 1, dag = 1)
+)
+= pbl53a_pensionskassekarakteristika_fixture = Pbl53APensionskassekarakteristika(
+    selvstændig_juridisk_person = Sandt,
+    uafhængig_af_arbejdsgiver = Sandt,
+    midler_afsondret_fra_berettigedes_formue = Sandt,
+    vedtægter_fastlægger_pensionsydelser = Sandt
+)
+= pbl53a_pengeinstitutkarakteristika_fixture = Pbl53APengeinstitutkarakteristika(
+    standardiseret_lovreguleret_pensionsprodukt = Sandt,
+    pensionsmidler_adskilt_fra_øvrig_formue = Sandt,
+    kan_disponeres_som_almindelig_bankkonto = Falskt
+)
+| pbl53a_omfang_fixture(produkt: Pbl53AProduktfakta) -> pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    produkt = produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = pbl53a_dansk_oprettelsesposition_fixture
+    ), [])
+= pbl53a_liv_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
+    ejer_identifikation = "person-1",
+    forsikret_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    vilkår = pbl53a_almindelige_livsvilkår_fixture,
+    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+))
+= pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APengeEllerKreditinstitutprodukt(
+    kontohaver_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    institutionssted = Pbl53ADanskInstitution,
+    karakteristika = pbl53a_pengeinstitutkarakteristika_fixture
+))
+= pbl53a_pensionskasse_uden_kapitel1_omfang_fixture = pbl53a_omfang_fixture(Pbl53APensionskasseprodukt(
+    pensionsberettiget_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    karakteristika = pbl53a_pensionskassekarakteristika_fixture,
+    direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+))
+= pbl53a_direktørpensionstilsagn_fixture = Pbl53ADirektørpensionstilsagnsfakta(
+    identifikation = "direktørtilsagn-1",
+    ansættelsesforhold_identifikation = "ansættelse-1",
+    berettigede = [Pbl53ADirektørenSomBerettiget(identifikation = "person-1")]
+)
+= pbl53a_direktørsikkerhed_omfang_fixture = pbl53a_omfang_fixture(Pbl53ALivsforsikringsprodukt(
+    ejer_identifikation = "arbejdsgiver-1",
+    forsikret_identifikation = "person-1",
+    kapitel1fakta = Pbl53AIkkeOmfattetAfKapitel1,
+    vilkår = pbl53a_almindelige_livsvilkår_fixture,
+    direktørsikkerhed = Pbl53ASikkerhedForDirektørpensionstilsagn(tilsagn = pbl53a_direktørpensionstilsagn_fixture)
+))
+= pbl53a_syge_ulykke_omfang_fixture = pbl53a_omfang_fixture(Pbl53ASygeOgUlykkesforsikringsprodukt(
+    ejer_identifikation = "person-1",
+    forsikret_identifikation = "person-1"
+))
+= pbl53a_par53b_indbetaling_fixture = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = "udenlandsk-bidrag-1",
+    tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2018, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
+    beløb_kroner = 50000,
+    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+    par53b_udenlandsk_skattebehandling = Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner = 500000, faktisk_fradrag_kroner = 50000)
+))
+= pbl53a_par53b_omfang_fixture = pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+    produkt = Pbl53ALivsforsikringsprodukt(
+        ejer_identifikation = "person-1",
+        forsikret_identifikation = "person-1",
+        kapitel1fakta = Pbl53ATidligereGodkendtEfterPar15D(
+            godkendt_fra = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+            godkendt_til = Pbl15ADato(år = 2022, måned = 12, dag = 31)
+        ),
+        vilkår = pbl53a_almindelige_livsvilkår_fixture,
+        direktørsikkerhed = Pbl53AIngenDirektørsikkerhed
+    ),
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUdenFuldDanskSkattepligt(
+        hjemsted = Pbl53BFremmedStat(stat = "Sverige"),
+        sidste_dato_uden_dansk_skattepligt = Pbl15ADato(år = 2019, måned = 12, dag = 31)
+    )
+    ), [pbl53a_par53b_indbetaling_fixture])
+
 = pbl53a_pal_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53ALivsforsikringUdenKapitel1,
-    omfattes_af_par53b = Falskt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsresultat = pbl53a_liv_uden_kapitel1_omfang_fixture,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
     metodehistorik = Pbl53AFørsteAfkastopgørelse,
     pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
@@ -1488,8 +1916,7 @@ pensionsordningen modtager statsstøtte.
 = pbl53a_alternativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53APengeinstitutUdenKapitel1,
-    omfattes_af_par53b = Falskt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsresultat = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture,
     afkastmetode = Pbl53AAlternativKapitalværdi,
     metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
     pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
@@ -1506,8 +1933,7 @@ pensionsordningen modtager statsstøtte.
 = pbl53a_negativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53APensionskasseUdenKapitel1,
-    omfattes_af_par53b = Falskt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsresultat = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture,
     afkastmetode = Pbl53AAlternativKapitalværdi,
     metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
     pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
@@ -1524,8 +1950,7 @@ pensionsordningen modtager statsstøtte.
 = pbl53a_stk4_undtaget_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53ASygeOgUlykkesforsikring,
-    omfattes_af_par53b = Falskt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsresultat = pbl53a_syge_ulykke_omfang_fixture,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
     metodehistorik = Pbl53ATidligerePalOpgørelse,
     pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
@@ -1542,8 +1967,7 @@ pensionsordningen modtager statsstøtte.
 = pbl53a_par53b_udelukket_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53ATidligerePar15DGodkendt,
-    omfattes_af_par53b = Sandt,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    omfangsresultat = pbl53a_par53b_omfang_fixture,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
     metodehistorik = Pbl53ATidligerePalOpgørelse,
     pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
