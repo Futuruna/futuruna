@@ -1,0 +1,130 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - udenlandske - sociale - bidrag - kildefakta
+
+= personskat_socialbidrag_felt_art = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.$variant",
+    label = "Udenlandske sociale bidrag",
+    question = Some("Har du betalt udenlandske sociale bidrag, som skal vurderes efter ligningslovens § 8 M?"),
+    help = Some("Arbejdsmarkedsbidrag af den almindelige løn beregnes allerede af Futuruna. Her oplyses kun fakta om udenlandske sociale bidrag."),
+    unit = None
+)
+= personskat_socialbidrag_felt_kildeskattepligt = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.kildeskattepligt",
+    label = "Skattepligt efter kildeskatteloven",
+    question = Some("Hvilken skattepligt efter kildeskatteloven gælder for personen?"),
+    help = Some("Fuld skattepligt efter § 1 og begrænset skattepligt efter § 2 har forskellige fradragsgrene i ligningslovens § 8 M."),
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_indeholdelse = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.arbejdsgiver_indeholdelsespligtig_af_løn",
+    label = "Arbejdsgiveren indeholder AM-bidrag",
+    question = Some("Er arbejdsgiveren indeholdelsespligtig for arbejdsmarkedsbidrag af lønnen?"),
+    help = Some("Futuruna afleder selve arbejdsmarkedsbidraget af lønnen og sikrer, at det ikke fradrages to gange."),
+    unit = None
+)
+= personskat_socialbidrag_felt_udenlandsk_beløb = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.bidrag_kroner",
+    label = "Udenlandsk socialt bidrag",
+    question = Some("Hvor meget har du betalt i obligatorisk udenlandsk socialt bidrag?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_socialbidrag_felt_udenlandsk_år = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.bidrag_vedrører_indkomstår",
+    label = "Indkomstår for udenlandsk socialt bidrag",
+    question = Some("Hvilket indkomstår vedrører det udenlandske sociale bidrag?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_socialbidrag_felt_udenlandsk_obligatorisk = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.obligatorisk",
+    label = "Udenlandsk socialt bidrag er obligatorisk",
+    question = Some("Er det udenlandske sociale bidrag obligatorisk?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_dbo_hjemsted = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo",
+    label = "Ikke hjemmehørende i udlandet efter DBO",
+    question = Some("Er personen efter en eventuel dobbeltbeskatningsoverenskomst ikke hjemmehørende i en fremmed stat, Grønland eller Færøerne?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_eu_sikring = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.omfattet_af_eu_socialsikringsforordning",
+    label = "Omfattet af EU-socialsikring",
+    question = Some("Er personen omfattet af udenlandsk social sikring efter EU's socialsikringsforordning?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_mellemfolkelig_aftale = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_socialt_bidrag.omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt",
+    label = "Omfattet af mellemfolkelig aftale",
+    question = Some("Er personen omfattet af udenlandsk social sikring efter en mellemfolkelig aftale, som Danmark har tiltrådt?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_beløb = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_arbejdsgiverbidrag.bidrag_kroner",
+    label = "Udenlandsk socialt arbejdsgiverbidrag",
+    question = Some("Hvor meget udgør det udenlandske obligatoriske sociale arbejdsgiverbidrag?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_socialbidrag_felt_arbejdsgiver_år = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_arbejdsgiverbidrag.bidrag_vedrører_indkomstår",
+    label = "Indkomstår for arbejdsgiverbidrag",
+    question = Some("Hvilket indkomstår vedrører det udenlandske arbejdsgiverbidrag?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_socialbidrag_felt_arbejdsgiver_obligatorisk = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_arbejdsgiverbidrag.obligatorisk",
+    label = "Arbejdsgiverbidraget er obligatorisk",
+    question = Some("Er det udenlandske sociale arbejdsgiverbidrag obligatorisk?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_eu = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_arbejdsgiverbidrag.omfattet_af_eu_socialsikringsforordning",
+    label = "Arbejdsgiverbidrag efter EU-socialsikring",
+    question = Some("Er arbejdsgiverbidraget omfattet af EU's socialsikringsforordning?"),
+    help = None,
+    unit = None
+)
+= personskat_socialbidrag_felt_arbejdsgiver_aftale = Beregningsfelt(
+    path = "udenlandske_sociale_bidrag.MedUdenlandskeSocialeBidragEfterLigningslov8M.fakta.udenlandsk_arbejdsgiverbidrag.aftale_om_at_bidrag_påhviler_lønmodtageren",
+    label = "Aftale om at bidraget påhviler lønmodtageren",
+    question = Some("Er der indgået en aftale efter EU-reglerne om, at arbejdsgiverbidraget påhviler lønmodtageren?"),
+    help = None,
+    unit = None
+)
+
+= personskat_udenlandske_sociale_bidrag_beregningsmeta = Beregningsmeta(
+    felter = [
+        personskat_socialbidrag_felt_art,
+        personskat_socialbidrag_felt_kildeskattepligt,
+        personskat_socialbidrag_felt_arbejdsgiver_indeholdelse,
+        personskat_socialbidrag_felt_udenlandsk_beløb,
+        personskat_socialbidrag_felt_udenlandsk_år,
+        personskat_socialbidrag_felt_udenlandsk_obligatorisk,
+        personskat_socialbidrag_felt_dbo_hjemsted,
+        personskat_socialbidrag_felt_eu_sikring,
+        personskat_socialbidrag_felt_mellemfolkelig_aftale,
+        personskat_socialbidrag_felt_arbejdsgiver_beløb,
+        personskat_socialbidrag_felt_arbejdsgiver_år,
+        personskat_socialbidrag_felt_arbejdsgiver_obligatorisk,
+        personskat_socialbidrag_felt_arbejdsgiver_eu,
+        personskat_socialbidrag_felt_arbejdsgiver_aftale
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+    )
+)
+
+--@label:beregn_personskat::meta:personskat_udenlandske_sociale_bidrag_beregningsmeta--

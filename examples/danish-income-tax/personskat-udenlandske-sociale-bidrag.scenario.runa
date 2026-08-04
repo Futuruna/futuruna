@@ -1,0 +1,167 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_udenlandske_sociale_bidrag_scenarier_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+    )
+)
+
+--@label:personskat_udenlandske_sociale_bidrag_scenarier::meta:personskat_udenlandske_sociale_bidrag_scenarier_metadata--
+----
+Scenarierne er ikke lovtekst. De fastholder kæden fra borgerens fakta gennem
+ligningslovens § 8 M og personskattelovens § 3, stk. 2, nr. 6 til den
+kanoniske beregning af personlig indkomst.
+----
+
+--@begin:personskat_udenlandske_sociale_bidrag_scenarier--
+| personskat_socialbidrag_scenarie_input(sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, skatteforhold: PersonskatSkatteforholdInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = sociale_bidrag,
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = skatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_socialbidrag_begrænset_skatteforhold() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
+    øvrig_aktieindkomst_kroner = 0,
+    ægtefælle_aktieindkomst_kroner = 0,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
+    ægtefælle_nettokapitalindkomst_kroner = 0,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
+    par8c_status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
+    personfradrag_skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+))
+| personskat_socialbidrag_anden_personfradragsstatus() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
+    øvrig_aktieindkomst_kroner = 0,
+    ægtefælle_aktieindkomst_kroner = 0,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
+    ægtefælle_nettokapitalindkomst_kroner = 0,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
+    par8c_status = IkkePar8cOmfattet,
+    personfradrag_skattepligt = Kildeskattelov48Eller48FIndkomst,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+))
+| personskat_socialbidrag_tomt_arbejdsgiverbidrag(indkomstår: Heltal) -> Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = indkomstår,
+    obligatorisk = Falskt,
+    omfattet_af_eu_socialsikringsforordning = Falskt,
+    aftale_om_at_bidrag_påhviler_lønmodtageren = Falskt
+)
+| personskat_socialbidrag_tomt_personbidrag(indkomstår: Heltal) -> Ligningslov8MUdenlandskSocialtBidragInput(
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = indkomstår,
+    obligatorisk = Falskt,
+    ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Falskt,
+    omfattet_af_eu_socialsikringsforordning = Falskt,
+    omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+)
+| personskat_socialbidrag_har_beregnet_resultat(resultat: PersonskatUdenlandskeSocialeBidragResultat, arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_personbidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, par3_fradrag_kroner: Heltal, yderligere_fradrag_kroner: Heltal) -> match resultat {
+    | BeregnetUdenlandskSocialbidragsfradrag(_, _, ligningslov_resultat, par3_resultat, arbejdsmarkedsbidrag_indregnet_kroner, yderligere_fradrag_i_personlig_indkomst_kroner) -> ligningslov_resultat.arbejdsmarkedsbidrag_fradrag_kroner == arbejdsmarkedsbidrag_fradrag_kroner && ligningslov_resultat.udenlandsk_socialt_bidrag_fradrag_kroner == udenlandsk_personbidrag_fradrag_kroner && ligningslov_resultat.udenlandsk_arbejdsgiverbidrag_fradrag_kroner == udenlandsk_arbejdsgiverbidrag_fradrag_kroner && par3_resultat.fradrag_i_personlig_indkomst_kroner == par3_fradrag_kroner && arbejdsmarkedsbidrag_indregnet_kroner == 48000 && yderligere_fradrag_i_personlig_indkomst_kroner == yderligere_fradrag_kroner
+    | _ -> Falskt
+}
+| personskat_socialbidrag_har_uforenelig_skattepligt(resultat: PersonskatUdenlandskeSocialeBidragResultat) -> match resultat {
+    | UgyldigtUdenlandskSocialbidragsgrundlag(_, grundfakta_gyldige, skattepligt_forenelig) -> grundfakta_gyldige && skattepligt_forenelig == Falskt
+    | _ -> Falskt
+}
+
+= personskat_socialbidrag_eu_fakta = PersonskatLigningslov8MFakta(
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsgiver_indeholdelsespligtig_af_løn = Sandt,
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 24000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+    ),
+    udenlandsk_arbejdsgiverbidrag = personskat_socialbidrag_tomt_arbejdsgiverbidrag(2026)
+)
+= personskat_socialbidrag_uden_indeholdelse_fakta = PersonskatLigningslov8MFakta(
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsgiver_indeholdelsespligtig_af_løn = Falskt,
+    udenlandsk_socialt_bidrag = personskat_socialbidrag_eu_fakta.udenlandsk_socialt_bidrag,
+    udenlandsk_arbejdsgiverbidrag = personskat_socialbidrag_tomt_arbejdsgiverbidrag(2026)
+)
+= personskat_socialbidrag_ikke_obligatorisk_fakta = PersonskatLigningslov8MFakta(
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsgiver_indeholdelsespligtig_af_løn = Sandt,
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 24000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Falskt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+    ),
+    udenlandsk_arbejdsgiverbidrag = personskat_socialbidrag_tomt_arbejdsgiverbidrag(2026)
+)
+= personskat_socialbidrag_forkert_år_fakta = PersonskatLigningslov8MFakta(
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsgiver_indeholdelsespligtig_af_løn = Sandt,
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 24000,
+        bidrag_vedrører_indkomstår = 2025,
+        obligatorisk = Sandt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+    ),
+    udenlandsk_arbejdsgiverbidrag = personskat_socialbidrag_tomt_arbejdsgiverbidrag(2026)
+)
+= personskat_socialbidrag_arbejdsgiver_fakta = PersonskatLigningslov8MFakta(
+    kildeskattepligt = Ll8MKildeskattelovPar2Stk1Nr1,
+    arbejdsgiver_indeholdelsespligtig_af_løn = Sandt,
+    udenlandsk_socialt_bidrag = personskat_socialbidrag_tomt_personbidrag(2026),
+    udenlandsk_arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+        bidrag_kroner = 15000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        aftale_om_at_bidrag_påhviler_lønmodtageren = Sandt
+    )
+)
+
+= personskat_socialbidrag_uden_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(personskat_ingen_udenlandske_sociale_bidrag(), StandardSkatteforhold))
+= personskat_socialbidrag_eu_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_eu_fakta), StandardSkatteforhold))
+= personskat_socialbidrag_uden_indeholdelse_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_uden_indeholdelse_fakta), StandardSkatteforhold))
+= personskat_socialbidrag_ikke_obligatorisk_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_ikke_obligatorisk_fakta), StandardSkatteforhold))
+= personskat_socialbidrag_forkert_år_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_forkert_år_fakta), StandardSkatteforhold))
+= personskat_socialbidrag_arbejdsgiver_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_arbejdsgiver_fakta), personskat_socialbidrag_begrænset_skatteforhold()))
+= personskat_socialbidrag_uforenelig_resultat = beregn_personskat(personskat_socialbidrag_scenarie_input(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_arbejdsgiver_fakta), StandardSkatteforhold))
+
+| personskat_socialbidrag_eu_fradrages_end_to_end: personskat_socialbidrag_eu_resultat -> personskat_socialbidrag_har_beregnet_resultat(personskat_socialbidrag_eu_resultat.udenlandske_sociale_bidrag, 0, 24000, 0, 24000, 24000) && personskat_socialbidrag_eu_resultat.skat.personlig_indkomst_efter_am_kroner == 528000 && personskat_socialbidrag_uden_resultat.skat.personlig_indkomst_efter_am_kroner == 552000 && personskat_socialbidrag_eu_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner < personskat_socialbidrag_uden_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner
+| personskat_socialbidrag_am_fradrages_ikke_to_gange: personskat_socialbidrag_uden_indeholdelse_resultat -> personskat_socialbidrag_har_beregnet_resultat(personskat_socialbidrag_uden_indeholdelse_resultat.udenlandske_sociale_bidrag, 48000, 24000, 0, 72000, 24000) && personskat_socialbidrag_uden_indeholdelse_resultat.skat.personlig_indkomst_efter_am_kroner == 528000
+| personskat_socialbidrag_ikke_obligatorisk_afskæres: personskat_socialbidrag_ikke_obligatorisk_resultat -> personskat_socialbidrag_har_beregnet_resultat(personskat_socialbidrag_ikke_obligatorisk_resultat.udenlandske_sociale_bidrag, 0, 0, 0, 0, 0) && personskat_socialbidrag_ikke_obligatorisk_resultat.skat.personlig_indkomst_efter_am_kroner == 552000
+| personskat_socialbidrag_forkert_indkomstår_afskæres: personskat_socialbidrag_forkert_år_resultat -> personskat_socialbidrag_har_beregnet_resultat(personskat_socialbidrag_forkert_år_resultat.udenlandske_sociale_bidrag, 0, 0, 0, 0, 0) && personskat_socialbidrag_forkert_år_resultat.skat.personlig_indkomst_efter_am_kroner == 552000
+| personskat_socialbidrag_begrænset_arbejdsgiverbidrag_fradrages: personskat_socialbidrag_arbejdsgiver_resultat -> personskat_socialbidrag_har_beregnet_resultat(personskat_socialbidrag_arbejdsgiver_resultat.udenlandske_sociale_bidrag, 0, 0, 15000, 15000, 15000) && personskat_socialbidrag_arbejdsgiver_resultat.skat.personlig_indkomst_efter_am_kroner == 537000
+| personskat_socialbidrag_uforenelig_skattepligt_afvises: personskat_socialbidrag_uforenelig_resultat -> personskat_socialbidrag_har_uforenelig_skattepligt(personskat_socialbidrag_uforenelig_resultat.udenlandske_sociale_bidrag) && personskat_socialbidrag_uforenelig_resultat.skat.personlig_indkomst_efter_am_kroner == 552000
+| personskat_socialbidrag_personfradragsundtagelse_er_ikke_skattepligtsbevis: personskat_socialbidrag_eu_fakta -> personskat_ligningslov8m_kildeskattepligt_forenelig(MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta = personskat_socialbidrag_eu_fakta), personskat_socialbidrag_anden_personfradragsstatus())
+
+? personskat_socialbidrag_eu_fradrages_end_to_end
+? personskat_socialbidrag_am_fradrages_ikke_to_gange
+? personskat_socialbidrag_ikke_obligatorisk_afskæres
+? personskat_socialbidrag_forkert_indkomstår_afskæres
+? personskat_socialbidrag_begrænset_arbejdsgiverbidrag_fradrages
+? personskat_socialbidrag_uforenelig_skattepligt_afvises
+? personskat_socialbidrag_personfradragsundtagelse_er_ikke_skattepligtsbevis
+--@end:personskat_udenlandske_sociale_bidrag_scenarier--

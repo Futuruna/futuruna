@@ -154,6 +154,62 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
 }
 
 #[test]
+fn schema_scopes_sources_through_nested_typed_metadata() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Input(first: Int, second: Int)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String)\n\
+# MetaRole = Source\n\
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)\n\
+# FieldMeta(a) = FieldMeta(fields: List(CalculationField), attachments: a)\n\
+# CalculationMeta(a) = CalculationMeta(parts: a)\n\
+# SourceInfo(url: String)\n\
+= first_source = SourceInfo(url = \"https://example.invalid/first\")\n\
+= second_source = SourceInfo(url = \"https://example.invalid/second\")\n\
+= first_meta = FieldMeta(\n\
+    fields = [CalculationField(path = \"first\", label = \"First\")],\n\
+    attachments = MetaAttachment(role = Source, value = first_source)\n\
+)\n\
+= second_meta = FieldMeta(\n\
+    fields = [CalculationField(path = \"second\", label = \"Second\")],\n\
+    attachments = MetaAttachment(role = Source, value = second_source)\n\
+)\n\
+= calculation_meta = CalculationMeta(parts = (first_meta, second_meta))\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.first + input.second)\n",
+    )
+    .expect("write nested calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0]["path"], "first");
+    assert_eq!(fields[0]["sources"].as_array().expect("sources").len(), 1);
+    assert_eq!(fields[0]["sources"][0]["binding"], "first_source");
+    assert_eq!(
+        fields[0]["sources"][0]["attachment_path"],
+        "calculation_meta.parts[0].attachments"
+    );
+    assert_eq!(fields[1]["path"], "second");
+    assert_eq!(fields[1]["sources"].as_array().expect("sources").len(), 1);
+    assert_eq!(fields[1]["sources"][0]["binding"], "second_source");
+    assert_eq!(
+        fields[1]["sources"][0]["attachment_path"],
+        "calculation_meta.parts[1].attachments"
+    );
+}
+
+#[test]
 fn schema_resolves_metadata_from_plain_imports() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/meta-imports/model.calculate.runa");
@@ -3684,6 +3740,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "årets_netto_med_kgl_par14_23_kroner": 7_000
             }]
+        },
+        "udenlandske_sociale_bidrag": {
+            "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
         },
         "cfc": { "poster": [] },
         "skatteforhold": { "$variant": "StandardSkatteforhold" },

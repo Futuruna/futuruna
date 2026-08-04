@@ -3,17 +3,14 @@
 @ importer ./metadata
 @ importer ./personskat - cfc - kildefakta
 
-# CfcBeregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
-# CfcBeregningsmeta(a) = CfcBeregningsmeta(felter: List(CfcBeregningsfelt), attachments: a)
-
-= personskat_cfc_felt_poster = CfcBeregningsfelt(
+= personskat_cfc_felt_poster = Beregningsfelt(
     path = "cfc.poster",
     label = "CFC-forhold",
     question = Some("Har du kontrollerede udenlandske selskaber eller merafkast gennem en kapital-, venture- eller infrastrukturfond?"),
     help = Some("Opret én række for hvert forhold, der skal vurderes efter ligningslovens § 16 H eller § 16 I, stk. 6 og 7."),
     unit = None
 )
-= personskat_cfc_felt_art = CfcBeregningsfelt(
+= personskat_cfc_felt_art = Beregningsfelt(
     path = "cfc.poster.$variant",
     label = "CFC-regelgrundlag",
     question = Some("Skal forholdet vurderes efter ligningslovens § 16 H eller § 16 I, stk. 6 og 7?"),
@@ -21,126 +18,126 @@
     unit = None
 )
 
-= personskat_cfc_felt_16h_fuld_skattepligt = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_fuld_skattepligt = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.fuldt_skattepligtig_eller_dødsbo",
     label = "§ 16 H - fuld skattepligt eller dødsbo",
     question = Some("Er personen fuldt skattepligtig efter kildeskattelovens § 1 eller omfattet som dødsbo?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_udenlandsk_selskab = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_udenlandsk_selskab = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.udenlandsk_selskab",
     label = "Udenlandsk selskab",
     question = Some("Er selskabet eller foreningen udenlandsk?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_ejerandel = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_ejerandel = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.direkte_indirekte_ejerandel_basispoint",
     label = "Direkte og indirekte ejerandel",
     question = Some("Hvor stor en direkte eller indirekte andel af aktiekapitalen kontrolleres?"),
     help = Some("Medregn de ejerandele, som § 16 H, stk. 6 henfører til personen."),
     unit = Some("basispoint; 10.000 = 100 pct.")
 )
-= personskat_cfc_felt_16h_stemmer = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_stemmer = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.stemmerettigheder_basispoint",
     label = "Stemmerettigheder",
     question = Some("Hvor stor en andel af stemmerettighederne råder personen over?"),
     help = None,
     unit = Some("basispoint; 10.000 = 100 pct.")
 )
-= personskat_cfc_felt_16h_faelleskontrol = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_faelleskontrol = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.fælleskontrol_med_nærtstående_fond_eller_trust",
     label = "Fælleskontrol med nærtstående, fond eller trust",
     question = Some("Kontrolleres selskabet i fællesskab med nærtstående eller med en relevant fond eller trust?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_skatteaftale = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_skatteaftale = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.aftale_om_skattesats_eller_beskatningsgrundlag",
     label = "Aftale med hjemstatens skattemyndighed",
     question = Some("Har selskabet indgået aftale om skattesats eller beskatningsgrundlag med hjemstatens skattemyndigheder?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_aktionaerregler = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_aktionaerregler = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.hjemstat_regler_indrettet_efter_kontrollerende_aktionær",
     label = "Hjemstatens regler følger aktionærens hjemsted",
     question = Some("Er hjemstatens skatteregler indrettet efter, hvor den kontrollerende aktionær er hjemmehørende?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_udenlandsk_skat = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_udenlandsk_skat = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.udenlandsk_indkomstskat_kroner",
     label = "Selskabets udenlandske indkomstskat",
     question = Some("Hvor stor er selskabets samlede udenlandske indkomstskat for perioden?"),
     help = Some("Futuruna beregner selv sammenligningen med selskabsskattelovens § 17-sats."),
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16h_cfc_indkomst = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_cfc_indkomst = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner",
     label = "Selskabets CFC-indkomst",
     question = Some("Hvad er selskabets CFC-indkomst opgjort efter § 16 H, stk. 4, og selskabsskattelovens § 32, stk. 5?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16h_samlet_indkomst = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_samlet_indkomst = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner",
     label = "Selskabets samlede skattepligtige indkomst",
     question = Some("Hvad er selskabets samlede skattepligtige indkomst opgjort efter § 16 H, stk. 4 og 5?"),
     help = Some("Beløbet bruges både til lavskatteprøven, halvdelsprøven og loftet i stk. 10."),
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16h_ikke_investeringsselskab = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_ikke_investeringsselskab = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.aktier_ikke_investeringsselskab",
     label = "Aktierne er ikke i et investeringsselskab",
     question = Some("Er aktierne eller investeringsbeviserne uden for aktieavancebeskatningslovens regler om investeringsselskaber?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_eu_eoes = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_eu_eoes = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.eu_eøs_selskab",
     label = "Selskab i EU eller EØS",
     question = Some("Er selskabet hjemmehørende i en anden EU- eller EØS-stat?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_reel_virksomhed = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_reel_virksomhed = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.reel_etablering_og_økonomisk_virksomhed",
     label = "Reel etablering og økonomisk virksomhed",
     question = Some("Er selskabet reelt etableret i staten og udøver det reel økonomisk virksomhed dér vedrørende CFC-indkomsten?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_verificerbar_dokumentation = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_verificerbar_dokumentation = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.dokumentation_kan_verificeres",
     label = "Dokumentationen kan verificeres",
     question = Some("Kan dokumentationen verificeres gennem en relevant aftale, et direktiv eller anden informationsudveksling?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16h_allerede_medregnet = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_allerede_medregnet = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12",
     label = "Indkomsten er allerede medregnet efter anden CFC-regel",
     question = Some("Er indkomsten allerede medregnet efter selskabsskattelovens § 31 A eller § 32 eller fondsbeskatningslovens § 12?"),
     help = Some("Indkomst, der allerede medregnes efter disse regler, beskattes ikke igen efter § 16 H."),
     unit = None
 )
-= personskat_cfc_felt_16h_gennemsnitlig_ejerandel = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_gennemsnitlig_ejerandel = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.gennemsnitlig_ejerandel_basispoint",
     label = "Gennemsnitlig ejerandel i indkomståret",
     question = Some("Hvad var personens gennemsnitlige andel af selskabets samlede aktiekapital i indkomståret?"),
     help = None,
     unit = Some("basispoint; 10.000 = 100 pct.")
 )
-= personskat_cfc_felt_16h_kontrolperiode = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_kontrolperiode = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.kontrolperiode_basispoint",
     label = "Andel af året med kontrol",
     question = Some("Hvor stor en del af indkomståret havde personen kontrol over selskabet?"),
     help = None,
     unit = Some("basispoint; 10.000 = hele året")
 )
-= personskat_cfc_felt_16h_fremfoert_underskud = CfcBeregningsfelt(
+= personskat_cfc_felt_16h_fremfoert_underskud = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.fremført_underskud_danske_regler_kroner",
     label = "Fremført underskud efter danske regler",
     question = Some("Hvor stort et fremført eller overført underskud kan højst medregnes efter danske regler?"),
@@ -148,56 +145,56 @@
     unit = Some("kr.")
 )
 
-= personskat_cfc_felt_16i_fuld_skattepligt = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_fuld_skattepligt = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.fuldt_skattepligtig_eller_dødsbo",
     label = "§ 16 I - fuld skattepligt eller dødsbo",
     question = Some("Er personen fuldt skattepligtig efter kildeskattelovens § 1 eller omfattet som dødsbo?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16i_kontrol = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_kontrol = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.kontrollerer_efter_par16h_stk6",
     label = "Kontrol efter § 16 H, stk. 6",
     question = Some("Kontrollerer personen selskabet efter ligningslovens § 16 H, stk. 6?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16i_fondsrolle = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_fondsrolle = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.medstifter_eller_ledelse_i_fond",
     label = "Medstifter eller ledelsesrolle i fonden",
     question = Some("Er personen eller en nærtstående medstifter eller nuværende eller tidligere deltager i ledelsen eller driften?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16i_fortrinsstilling = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_fortrinsstilling = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.selskab_har_fortrinsstilling_i_fond",
     label = "Selskabet har fortrinsstilling i fonden",
     question = Some("Har selskabet en fortrinsstilling i kapital-, venture- eller infrastrukturfonden?"),
     help = None,
     unit = None
 )
-= personskat_cfc_felt_16i_afkast = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_afkast = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.selskabets_afkast_via_fond_kroner",
     label = "Selskabets afkast via fonden",
     question = Some("Hvilket afkast har selskabet oppebåret af kapital investeret via fonden?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16i_standardafkast = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_standardafkast = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.standardafkast_kroner",
     label = "Standardafkast",
     question = Some("Hvad er standardafkastet for den kapital, selskabet har investeret via fonden?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16i_fremfoert_merafkast = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_fremfoert_merafkast = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.fremført_negativt_merafkast_kroner",
     label = "Fremført negativt merafkast",
     question = Some("Hvor stort et negativt merafkast fra tidligere indkomstår kan fremføres?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_cfc_felt_16i_ret_til_merafkast = CfcBeregningsfelt(
+= personskat_cfc_felt_16i_ret_til_merafkast = Beregningsfelt(
     path = "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.ret_til_merafkast_basispoint",
     label = "Personens ret til merafkastet",
     question = Some("Hvor stor en direkte eller indirekte andel af selskabets positive merafkast har personen ret til?"),
@@ -205,7 +202,7 @@
     unit = Some("basispoint; 10.000 = 100 pct.")
 )
 
-= personskat_cfc_beregningsmeta = CfcBeregningsmeta(
+= personskat_cfc_beregningsmeta = Beregningsmeta(
     felter = [
         personskat_cfc_felt_poster,
         personskat_cfc_felt_art,
@@ -236,6 +233,8 @@
         personskat_cfc_felt_16i_fremfoert_merafkast,
         personskat_cfc_felt_16i_ret_til_merafkast
     ],
+    spørgsmål = [],
+    beløbsfelter = [],
     attachments = (
         MetaAttachment(role = Source, value = ligningsloven_2025_1500),
         MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),

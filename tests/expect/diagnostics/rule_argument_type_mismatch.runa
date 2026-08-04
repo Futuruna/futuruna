@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: mismatched types
+-- expect-stderr: expected `Expected`, found `Actual`
+
+# Expected(amount: Int)
+# Actual(amount: Int)
+
+| required(input: Expected) -> input.amount
+
+= result = required(Actual(amount = 100))

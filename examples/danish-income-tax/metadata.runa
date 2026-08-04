@@ -5,3 +5,7 @@
 # DanskSkatMetaRolle = Field | Source | AmendmentSource | Dependency | DependencySource | FutureAmendmentSource | ParameterSource | RateSource | CurrentnessSource | HistoricalSource | TransitionSource | ExclusionSource | PreparatorySource | Guidance | GuidanceSource | TimingGuidance | MultiDisposalGuidance | GainGuidance | PengetankGuidance | BasisGuidance | ChapterGuidance | EventGuidance | IntervalGuidance | RateGuidance | TransitionGuidance | AllocationGuidance | ScaleSource | Practice | PreparatoryWork | Warning | Assumption
 # MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # Metadata(a) = Metadata(attachments: a)
+# Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
+# Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
+# Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
+# Beregningsmeta(a) = Beregningsmeta(felter: List(Beregningsfelt), spørgsmål: List(Beregningsspørgsmål), beløbsfelter: List(Beregningsbeløbsfelt), attachments: a)

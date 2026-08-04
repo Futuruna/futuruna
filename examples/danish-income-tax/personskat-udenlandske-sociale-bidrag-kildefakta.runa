@@ -1,0 +1,65 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./metadata
+@ importer ./source - status
+
+= personskat_udenlandske_sociale_bidrag_kildefakta_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+    )
+)
+
+--@label:personskat_udenlandske_sociale_bidrag_kildefakta::meta:personskat_udenlandske_sociale_bidrag_kildefakta_metadata--
+--@begin:personskat_udenlandske_sociale_bidrag_kildefakta--
+# PersonskatLigningslov8MFakta(kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsgiver_indeholdelsespligtig_af_løn: Boolsk, udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
+# PersonskatUdenlandskeSocialeBidragInput = UdenUdenlandskeSocialeBidragEfterLigningslov8M | MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta: PersonskatLigningslov8MFakta)
+# PersonskatUdenlandskeSocialeBidragResultat = IngenUdenlandskeSocialeBidragEfterLigningslov8M | UgyldigtUdenlandskSocialbidragsgrundlag(fakta: PersonskatLigningslov8MFakta, grundfakta_gyldige: Boolsk, skattepligt_forenelig_med_personskattesagen: Boolsk) | BeregnetUdenlandskSocialbidragsfradrag(fakta: PersonskatLigningslov8MFakta, ligningslov8m_input: Ligningslov8MInput, ligningslov8m_resultat: Ligningslov8MResultat, par3_stk2_nr6_resultat: Par3Stk2Nr6Resultat, arbejdsmarkedsbidrag_indregnet_i_lønmodtagermodellen_kroner: Heltal, yderligere_fradrag_i_personlig_indkomst_kroner: Heltal)
+
+| personskat_ingen_udenlandske_sociale_bidrag() -> UdenUdenlandskeSocialeBidragEfterLigningslov8M
+| personskat_udenlandske_sociale_bidrag_grundfakta_gyldige(fakta: PersonskatLigningslov8MFakta) -> fakta.udenlandsk_socialt_bidrag.bidrag_kroner >= 0 && fakta.udenlandsk_arbejdsgiverbidrag.bidrag_kroner >= 0
+| personskat_ligningslov8m_input(fakta: PersonskatLigningslov8MFakta, skatteår: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> Ligningslov8MInput(
+    indkomstår = skatteår,
+    kildeskattepligt = fakta.kildeskattepligt,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar2Stk1Nr1,
+        bidrag_kroner = arbejdsmarkedsbidrag_kroner,
+        bidrag_vedrører_indkomstår = skatteår,
+        arbejdsgiver_indeholdelsespligtig = fakta.arbejdsgiver_indeholdelsespligtig_af_løn
+    ),
+    udenlandsk_socialt_bidrag = fakta.udenlandsk_socialt_bidrag,
+    udenlandsk_arbejdsgiverbidrag = fakta.udenlandsk_arbejdsgiverbidrag
+)
+| personskat_udenlandske_sociale_bidrag_yderligere_fradrag_kroner(ligningslov_resultat: Ligningslov8MResultat, par3_resultat: Par3Stk2Nr6Resultat) -> par3_resultat.fradrag_i_personlig_indkomst_kroner - ligningslov_resultat.arbejdsmarkedsbidrag_fradrag_kroner
+| personskat_udenlandske_sociale_bidrag_resultat(input: PersonskatUdenlandskeSocialeBidragInput, skatteår: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, skattepligt_forenelig_med_personskattesagen: Boolsk) -> match input {
+    | UdenUdenlandskeSocialeBidragEfterLigningslov8M -> IngenUdenlandskeSocialeBidragEfterLigningslov8M
+    | MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta) -> hvis personskat_udenlandske_sociale_bidrag_grundfakta_gyldige(fakta) && arbejdsmarkedsbidrag_kroner >= 0 && skattepligt_forenelig_med_personskattesagen {
+        = ligningslov_input = personskat_ligningslov8m_input(fakta, skatteår, arbejdsmarkedsbidrag_kroner)
+        = ligningslov_resultat = ligningslov8m_resultat(ligningslov_input)
+        = par3_resultat = par3_stk2_nr6_resultat(ligningslov_resultat)
+        BeregnetUdenlandskSocialbidragsfradrag(
+            fakta = fakta,
+            ligningslov8m_input = ligningslov_input,
+            ligningslov8m_resultat = ligningslov_resultat,
+            par3_stk2_nr6_resultat = par3_resultat,
+            arbejdsmarkedsbidrag_indregnet_i_lønmodtagermodellen_kroner = arbejdsmarkedsbidrag_kroner,
+            yderligere_fradrag_i_personlig_indkomst_kroner = personskat_udenlandske_sociale_bidrag_yderligere_fradrag_kroner(ligningslov_resultat, par3_resultat)
+        )
+    } ellers {
+        UgyldigtUdenlandskSocialbidragsgrundlag(
+            fakta = fakta,
+            grundfakta_gyldige = personskat_udenlandske_sociale_bidrag_grundfakta_gyldige(fakta),
+            skattepligt_forenelig_med_personskattesagen = skattepligt_forenelig_med_personskattesagen
+        )
+    }
+}
+| personskat_udenlandske_sociale_bidrag_input_gyldigt(resultat: PersonskatUdenlandskeSocialeBidragResultat) -> match resultat {
+    | UgyldigtUdenlandskSocialbidragsgrundlag(_, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_udenlandske_sociale_bidrag_fradrag_kroner(resultat: PersonskatUdenlandskeSocialeBidragResultat) -> match resultat {
+    | BeregnetUdenlandskSocialbidragsfradrag(_, _, _, _, _, yderligere_fradrag_i_personlig_indkomst_kroner) -> yderligere_fradrag_i_personlig_indkomst_kroner
+    | _ -> 0
+}
+--@end:personskat_udenlandske_sociale_bidrag_kildefakta--

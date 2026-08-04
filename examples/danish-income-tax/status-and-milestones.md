@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-cd7f0d` (language subissue `td-380f7d`)
-Latest implementation slice submitted for review: `td-67f030`
-Latest approved implementation slice: `td-16c53a`
+Current focus issue: `td-c56369`
+Latest implementation slice submitted for review: `td-cd7f0d`
+Latest approved implementation slice: `td-cd7f0d`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -32,13 +32,16 @@ om et span omfatter afgrænsningen eller den ordrette tekst.
 Et anker kan desuden henvise til ét typet metadataobjekt, som indeholder
 vilkårligt mange `MetaAttachment(role = ..., value = ...)`-værdier. Indekset
 finder typede efterkommere og roller rekursivt og bevarer både den kanoniske
-binding og en stabil sti til vedhæftningen. Personskat-kontraktens 82 ankere
-bruger nu alle den korte form `::meta:<binding>`; felter og retskilder ligger i
-de typede objekter og ikke som en voksende liste i kommentarsyntaksen. Det
-danske skattekorpus har nu også en fælles `metadata.runa`-protokol med en typet
-rolle, `MetaAttachment` og `Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A
-bruger protokollen direkte, så deres kommentarer alene forbinder et label med
-ét navngivet metadataobjekt.
+binding og en stabil sti til vedhæftningen. Personskat-kontraktens tidligere 82
+`beregn_personskat`-ankre er nu samlet under ét typet
+`personskat_beregningsmetadata`-objekt og én kort
+`::meta:<binding>`-forbindelse. Felter og retskilder ligger i de typede objekter
+og ikke som en voksende liste i kommentarsyntaksen. Kilder på et ydre aggregat
+nedarves til alle dets feltbeskrivelser, mens kilder i et indlejret aggregat kun
+følger felterne i den pågældende typede del. Det danske skattekorpus har nu også
+en fælles `metadata.runa`-protokol med en typet rolle, `MetaAttachment` og
+`Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A bruger protokollen direkte,
+så deres kommentarer alene forbinder et label med ét navngivet metadataobjekt.
 Den samme form er nu gennemført for alle tidligere overbelastede ankre i
 skattekorpusset. De sidste 70 enkeltreferencer og ældre `--@source::...`-ankre
 er også flyttet ind i typede `MetaAttachment`-værdier. Alle udgivne eksempler
@@ -68,6 +71,22 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu typede
+kildefakta om udenlandske sociale bidrag efter Ligningslovens § 8 M. Skatteåret
+og det almindelige arbejdsmarkedsbidrag af lønnen afledes af den omgivende
+Personskat-sag; borgeren leverer hverken et fradragsbeløb eller en juridisk
+konklusion. Reglerne udfører først § 8 M og derefter Personskattelovens § 3,
+stk. 2, nr. 6. Da lønmodtagermodellen allerede fratrækker AM-bidraget, føres kun
+de kvalificerende udenlandske person- og arbejdsgiverbidrag ind som yderligere
+fradrag. Både § 8 M-resultatet, § 3-resultatet og det særskilte regnskab for
+AM-bidraget bevares i svaret. Syv kompilerscenarier dækker fuld og begrænset
+skattepligt, obligatoriske og frivillige bidrag, forkert indkomstår,
+arbejdsgiverens indeholdelsespligt, modstridende skattepligtsfakta og en
+personfradragsstatus, der ikke i sig selv beviser den underliggende
+kildeskattepligt. Kontrakten har 14 nye danske feltbeskrivelser i et almindeligt
+typet `Beregningsmeta`-objekt, som forbindes til beregningen med ét kort
+`::meta:`-anker.
+
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere typede CFC-forhold som kildefakta efter Ligningslovens § 16 H eller
 § 16 I, stk. 6 og 7. Skatteåret afledes fra den omgivende personsag, og
@@ -85,7 +104,7 @@ det særskilte `personskatteloven-par4b-cfc.runa`-modul.
 
 Den genererede borgerkontrakt har samtidig 28 nye danske CFC-feltbeskrivelser,
 herunder den relationelle CFC-liste, regelvalg og samtlige nødvendige
-kildefakta. Metadataen ligger i et almindeligt typet `CfcBeregningsmeta`-objekt
+kildefakta. Metadataen ligger i et almindeligt typet `Beregningsmeta`-objekt
 i et importeret modul og forbindes med ét kort `::meta:`-anker. Futurunas
 beregningskontrakt indlæser nu målrettet sådanne ankre fra rekursive imports;
 andre labels ignoreres, mens ugyldige stier og dubletter fortsat fejler lukket.
@@ -103,7 +122,7 @@ fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
 interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
 provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
 likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
-forløbet og 641 feltmetadata-poster i alt.
+forløbet og 683 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -376,7 +395,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 641 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 683 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -3022,7 +3041,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 641 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 683 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

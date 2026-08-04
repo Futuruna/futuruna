@@ -52,3 +52,19 @@ fn example_metadata_uses_thin_typed_anchors() {
         violations.join("\n")
     );
 }
+
+#[test]
+fn personskat_calculation_uses_one_composed_metadata_root() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat.calculate.runa");
+    let source = fs::read_to_string(path).expect("read Personskat calculation");
+    let anchors = source
+        .lines()
+        .filter(|line| line.starts_with("--@label:beregn_personskat::meta:"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        anchors,
+        vec!["--@label:beregn_personskat::meta:personskat_beregningsmetadata--"]
+    );
+}

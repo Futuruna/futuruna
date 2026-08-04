@@ -97,6 +97,12 @@ the same object by its own nested types.
 --@label:calculate_tax::meta:tax_input_meta--
 ```
 
+Typed metadata aggregates compose hierarchically. A role-bearing attachment on
+an outer aggregate applies to every calculation field below that aggregate. An
+attachment inside a nested aggregate applies only to fields below that nested
+aggregate. This lets a calculation attach one root metadata object while each
+domain component retains its own source, warning, and guidance trace.
+
 The anchor and its typed aggregate may live in a recursively imported metadata
 module. Calculation tooling collects only imported anchors whose label names an
 actual calculation entry or its source span, so unrelated dependency metadata

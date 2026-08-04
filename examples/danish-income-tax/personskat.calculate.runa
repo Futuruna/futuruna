@@ -5,6 +5,8 @@
 @ importer ./loenmodtager_beregning
 @ importer ./personskat - cfc - beregningsmeta
 @ importer ./personskat - cfc - kildefakta
+@ importer ./personskat - udenlandske - sociale - bidrag - beregningsmeta
+@ importer ./personskat - udenlandske - sociale - bidrag - kildefakta
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
@@ -109,14 +111,9 @@
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(AktieavancebeskatningslovInput))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
 # PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
-# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
-# Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
-# Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
-# Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
-# Beregningsmeta(a) = Beregningsmeta(felter: List(Beregningsfelt), spørgsmål: List(Beregningsspørgsmål), beløbsfelter: List(Beregningsbeløbsfelt), attachments: a)
-
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = "lønmodtager.skatteår",
     label = "Skatteår",
@@ -4483,7 +4480,6 @@
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pensionsalder--
 = personskat_meta_pbl20_udbetalinger = Beregningsmeta(
     felter = [
         personskat_felt_pbl20_udbetaling,
@@ -4505,7 +4501,6 @@
         MetaAttachment(role = DependencySource, value = ligningsloven_lbk1500_par9l),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl20_udbetalinger--
 = personskat_meta_aktiepensionsfradrag_valg = Beregningsmeta(
     felter = [
         personskat_felt_aktiepensionsfradrag_valg,
@@ -4520,7 +4515,6 @@
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_aktiepensionsfradrag_valg--
 = personskat_meta_pbl18_indbetalinger = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_indbetalinger,
@@ -4545,7 +4539,6 @@
         MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl18_indbetalinger--
 = personskat_meta_pbl18_fordelingsforløb = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_fordelingsforløb,
@@ -4567,7 +4560,6 @@
         MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl18_fordelingsforløb--
 = personskat_meta_pbl18_indeksgrundlag = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_indeksgrundlag,
@@ -4581,7 +4573,6 @@
         MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl18_indeksgrundlag--
 = personskat_meta_pbl18_særligt_grundlag = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_særligt_grundlag,
@@ -4603,7 +4594,6 @@
         MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl18_særligt_grundlag--
 = personskat_meta_pbl15a_afståelser = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_afståelser,
@@ -4633,7 +4623,6 @@
         MetaAttachment(role = GainGuidance, value = skat_pbl15a_fortjeneste_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_afståelser--
 = personskat_meta_pbl15a_regnskabsperioder = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_regnskabsperioder,
@@ -4660,7 +4649,6 @@
         MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_regnskabsperioder--
 = personskat_meta_pbl15a_selskabsregnskaber = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_selskabsregnskaber,
@@ -4689,7 +4677,6 @@
         MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_selskabsregnskaber--
 = personskat_meta_pbl15a_aktuel_periode_startår = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_aktuel_periode_startår,
@@ -4710,7 +4697,6 @@
         MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_aktuel_periode_startår--
 = personskat_meta_pbl15a_afståelsesselskaber = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_afståelsesselskaber,
@@ -4734,7 +4720,6 @@
         MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_afståelsesselskaber--
 = personskat_meta_pbl15a_holdingforløb = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_holding_personens_rækkefølge,
@@ -4772,7 +4757,6 @@
         MetaAttachment(role = TimingGuidance, value = skat_pbl15a_holdingafvikling_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_holdingforløb--
 = personskat_meta_pbl15a_ordninger = Beregningsmeta(
     felter = [
         personskat_felt_pbl15a_ordninger,
@@ -4800,7 +4784,6 @@
         MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15a_ordninger--
 = personskat_meta_pbl15b_indkomstposter = Beregningsmeta(
     felter = [
         personskat_felt_pbl15b_indkomstposter,
@@ -4818,7 +4801,6 @@
         MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15b_indkomstposter--
 = personskat_meta_pbl15b_ordninger = Beregningsmeta(
     felter = [
         personskat_felt_pbl15b_ordninger,
@@ -4844,7 +4826,6 @@
         MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15b_ordninger--
 = personskat_meta_pbl15b_historik = Beregningsmeta(
     felter = [
         personskat_felt_pbl15b_historik,
@@ -4863,7 +4844,6 @@
         MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15b_historik--
 = personskat_meta_pbl15b_rateudbetalinger = Beregningsmeta(
     felter = [
         personskat_felt_pbl15b_rateudbetalinger,
@@ -4888,7 +4868,6 @@
         MetaAttachment(role = Guidance, value = skatteforvaltningen_pbl15b_udbetalinger),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl15b_rateudbetalinger--
 = personskat_meta_pbl18_pbl54_personkreds = Beregningsmeta(
     felter = [
         personskat_felt_pbl18_pbl54_personkreds,
@@ -4911,7 +4890,6 @@
         MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_pbl18_pbl54_personkreds--
 
 = personskat_meta_erhvervsbefordring = Beregningsmeta(
     felter = [
@@ -4930,7 +4908,6 @@
         MetaAttachment(role = RateSource, value = skatteraadet_bek1333_par4_par14),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring--
 = personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads = Beregningsmeta(
     felter = [
         personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads,
@@ -4947,7 +4924,6 @@
         MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads--
 = personskat_meta_erhvervsbefordring_afholdt_udgifter = Beregningsmeta(
     felter = [
         personskat_felt_erhvervsbefordring_afholdt_udgifter,
@@ -4964,7 +4940,6 @@
         MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_afholdt_udgifter--
 = personskat_meta_erhvervsbefordring_godtgørelse = Beregningsmeta(
     felter = [
         personskat_felt_erhvervsbefordring_godtgørelse,
@@ -4982,7 +4957,6 @@
         MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_godtgørelse--
 = personskat_meta_erhvervsbefordring_eget_køretøj = Beregningsmeta(
     felter = [
         personskat_felt_erhvervsbefordring_eget_køretøj,
@@ -4999,21 +4973,18 @@
         MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_eget_køretøj--
 = personskat_metadata_skatteår = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_skatteår),
         MetaAttachment(role = Source, value = personskatteloven_2021_1284),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_skatteår--
 = personskat_metadata_kommune = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_kommune),
         MetaAttachment(role = Source, value = kommuneskatteloven_2019_935),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_kommune--
 = personskat_metadata_bruttoløn = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_bruttoløn),
@@ -5021,21 +4992,18 @@
         MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_bruttoløn--
 = personskat_metadata_befordring = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_befordring),
         MetaAttachment(role = Source, value = ligningsloven_2025_1500),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_befordring--
 = personskat_metadata_alder = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_alder),
         MetaAttachment(role = Source, value = personskatteloven_2021_1284),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_alder--
 = personskat_metadata_kirkeskat = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_kirkeskat),
@@ -5043,7 +5011,6 @@
         MetaAttachment(role = DependencySource, value = kommuneskatteloven_2019_935),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_kirkeskat--
 = personskat_metadata_renteindtægter = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_renteindtægter),
@@ -5051,7 +5018,6 @@
         MetaAttachment(role = Source, value = personskatteloven_2021_1284),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_renteindtægter--
 = personskat_meta_ejendomsdrift = Beregningsmeta(
     felter = [
         personskat_felt_ejendomsdrift,
@@ -5071,7 +5037,6 @@
         MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_ejendomsdrift--
 = personskat_metadata_fremleje = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_fremleje),
@@ -5080,7 +5045,6 @@
         MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_fremleje--
 = personskat_metadata_fremlejeform = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_fremlejeform),
@@ -5102,14 +5066,12 @@
         MetaAttachment(role = Source, value = ligningsloven_2025_1500),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_fremlejeform--
 = personskat_metadata_årsopgørelse = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_årsopgørelse),
         MetaAttachment(role = Source, value = kildeskatteloven_2024_460),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_årsopgørelse--
 = personskat_metadata_egne_ejendomssalg = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egne_ejendomssalg),
@@ -5118,14 +5080,12 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egne_ejendomssalg--
 = personskat_metadata_ægtefælles_ejendomssalg = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomssalg),
         MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_ægtefælles_ejendomssalg--
 = personskat_metadata_egne_ejendomsudgifter = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egne_ejendomsudgifter),
@@ -5135,7 +5095,6 @@
         MetaAttachment(role = Source, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egne_ejendomsudgifter--
 = personskat_metadata_egen_ejendomsidentifikation = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendomsidentifikation),
@@ -5145,7 +5104,6 @@
         MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendomsidentifikation--
 = personskat_metadata_egen_ejendoms_anskaffelsesår = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesår),
@@ -5153,7 +5111,6 @@
         MetaAttachment(role = Source, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsesår--
 = personskat_metadata_egen_ejendoms_anskaffelsessum = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsessum),
@@ -5162,7 +5119,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsessum--
 = personskat_metadata_egen_ejendoms_afståelsessum = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsessum),
@@ -5170,7 +5126,6 @@
         MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_afståelsessum--
 = personskat_metadata_egen_ejendoms_anskaffelsesgrundlag = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesgrundlag),
@@ -5179,7 +5134,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsesgrundlag--
 = personskat_metadata_egen_ejendoms_indeksering = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_indeksering),
@@ -5195,7 +5149,6 @@
         MetaAttachment(role = Source, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_indeksering--
 = personskat_metadata_egen_ikke_boligdelens_anskaffelsessum = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ikke_boligdelens_anskaffelsessum),
@@ -5206,7 +5159,6 @@
         MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ikke_boligdelens_anskaffelsessum--
 = personskat_metadata_egen_stk6_overførsel = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_stk6_overførsel),
@@ -5231,7 +5183,6 @@
         MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_stk6_overførsel--
 = personskat_metadata_egen_par5a_ejendomskategori = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par5a_ejendomskategori),
@@ -5239,7 +5190,6 @@
         MetaAttachment(role = Source, value = ebl_par5_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par5a_ejendomskategori--
 = personskat_metadata_egen_mælkekvote_identifikation = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_identifikation),
@@ -5286,7 +5236,6 @@
         MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_mælkekvote_identifikation--
 = personskat_metadata_egen_ejendomstype = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ejendomstype),
@@ -5294,7 +5243,6 @@
         MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ejendomstype--
 = personskat_metadata_egen_ordinær_genanbringelse = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse),
@@ -5303,7 +5251,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelse--
 = personskat_metadata_egen_ordinær_genanbringelse_afståelsesår = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_afståelsesår),
@@ -5323,7 +5270,6 @@
         MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelse_afståelsesår--
 = personskat_metadata_egen_ordinær_geninvestering_placering = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_placering),
@@ -5332,7 +5278,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_geninvestering_placering--
 = personskat_metadata_egen_ordinær_genanbringelsesbegæring = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelsesbegæring),
@@ -5350,7 +5295,6 @@
         MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelsesbegæring--
 = personskat_metadata_egen_par8_ejendomsart = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_ejendomsart),
@@ -5364,7 +5308,6 @@
         MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_ejendomsart--
 = personskat_metadata_egen_par8_genanbringelsesforhold = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesforhold),
@@ -5374,7 +5317,6 @@
         MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelsesforhold--
 = personskat_metadata_egen_par8_genanbringelseshjemmel = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelseshjemmel),
@@ -5384,7 +5326,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelseshjemmel--
 = personskat_metadata_egen_par8_oprindeligt_afståelsesår = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindeligt_afståelsesår),
@@ -5409,7 +5350,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_oprindeligt_afståelsesår--
 = personskat_metadata_egen_par8_geninvestering_placering = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_placering),
@@ -5419,7 +5359,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_geninvestering_placering--
 = personskat_metadata_egen_par8_udland_område = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_område),
@@ -5436,7 +5375,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_udland_område--
 = personskat_metadata_egen_par8_genanbringelsesbegæring = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesbegæring),
@@ -5447,7 +5385,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelsesbegæring--
 = personskat_metadata_egen_par8_anvendelse_før_2005 = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par8_anvendelse_før_2005),
@@ -5456,7 +5393,6 @@
         MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par8_anvendelse_før_2005--
 = personskat_metadata_egen_par9_genanbringelsesforhold = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelsesforhold),
@@ -5466,7 +5402,6 @@
         MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par9_genanbringelsesforhold--
 = personskat_metadata_egen_par9_genanbringelseshjemmel = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelseshjemmel),
@@ -5476,7 +5411,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par9_genanbringelseshjemmel--
 = personskat_metadata_egen_par9_boligandel_forøget = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_egen_par9_boligandel_forøget),
@@ -5487,7 +5421,6 @@
         MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_egen_par9_boligandel_forøget--
 = personskat_meta_egen_par11_ny_genanbringelse = Beregningsmeta(
     felter = [
         personskat_felt_egen_par11_ny_genanbringelse,
@@ -5511,7 +5444,6 @@
         MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par11_ny_genanbringelse--
 = personskat_meta_egen_par11_investeringsår = Beregningsmeta(
     felter = [
         personskat_felt_egen_par11_investeringsår,
@@ -5540,7 +5472,6 @@
         MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par11_investeringsår--
 = personskat_meta_egen_par11_placering = Beregningsmeta(
     felter = [
         personskat_felt_egen_par11_placering,
@@ -5566,7 +5497,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par11_placering--
 = personskat_meta_egen_par11_begæring = Beregningsmeta(
     felter = [
         personskat_felt_egen_par11_begæring,
@@ -5599,7 +5529,6 @@
         MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par11_begæring--
 = personskat_meta_egen_par11_hjemmel = Beregningsmeta(
     felter = [
         personskat_felt_egen_par11_hjemmel,
@@ -5618,7 +5547,6 @@
         MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par11_hjemmel--
 = personskat_meta_egen_par6d_valg = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_valg,
@@ -5640,7 +5568,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_valg--
 = personskat_meta_egen_par6d_overdrageranvendelse = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_overdrageranvendelse,
@@ -5659,7 +5586,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_overdrageranvendelse--
 = personskat_meta_egen_par6d_pantebrev = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_afdragsplan,
@@ -5686,7 +5612,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_pantebrev--
 = personskat_meta_egen_par6d_meddelelse = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_meddelelse,
@@ -5706,7 +5631,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_meddelelse--
 = personskat_meta_egen_par6d_afståelsesårets_hændelse = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_afståelsesårets_hændelse,
@@ -5739,7 +5663,6 @@
         MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_afståelsesårets_hændelse--
 = personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu = Beregningsmeta(
     felter = [],
     spørgsmål = [],
@@ -5755,7 +5678,6 @@
         MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu--
 = personskat_meta_egen_par6d_pantebrev_succession = Beregningsmeta(
     felter = [
         personskat_felt_egen_par6d_pantebrev_succession,
@@ -5791,7 +5713,6 @@
         MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_egen_par6d_pantebrev_succession--
 = personskat_meta_kursgevinst = Beregningsmeta(
     felter = [
         personskat_felt_kursgevinst,
@@ -5826,14 +5747,12 @@
         MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
     )
 )
---@label:beregn_personskat::meta:personskat_meta_kursgevinst--
 = personskat_metadata_ordinært_aktieår = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_ordinært_aktieår),
         MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_ordinært_aktieår--
 = personskat_metadata_aktiebeholdninger = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_aktiebeholdninger),
@@ -5841,7 +5760,6 @@
         MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_aktiebeholdninger--
 = personskat_metadata_aktie_boligret = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_aktie_boligret),
@@ -5849,7 +5767,6 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_aktie_boligret--
 = personskat_metadata_aktie_boligret_udsteder = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_udsteder),
@@ -5865,7 +5782,6 @@
         MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_aktie_boligret_udsteder--
 = personskat_metadata_aktie_boligret_værdipapir = PersonskatMetadata(
     attachments = (
         MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_værdipapir),
@@ -5879,7 +5795,95 @@
         MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
     )
 )
---@label:beregn_personskat::meta:personskat_metadata_aktie_boligret_værdipapir--
+
+= personskat_beregningsmetadata = Metadata(
+    attachments = (
+        personskat_meta_pensionsalder,
+        personskat_meta_pbl20_udbetalinger,
+        personskat_meta_aktiepensionsfradrag_valg,
+        personskat_meta_pbl18_indbetalinger,
+        personskat_meta_pbl18_fordelingsforløb,
+        personskat_meta_pbl18_indeksgrundlag,
+        personskat_meta_pbl18_særligt_grundlag,
+        personskat_meta_pbl15a_afståelser,
+        personskat_meta_pbl15a_regnskabsperioder,
+        personskat_meta_pbl15a_selskabsregnskaber,
+        personskat_meta_pbl15a_aktuel_periode_startår,
+        personskat_meta_pbl15a_afståelsesselskaber,
+        personskat_meta_pbl15a_holdingforløb,
+        personskat_meta_pbl15a_ordninger,
+        personskat_meta_pbl15b_indkomstposter,
+        personskat_meta_pbl15b_ordninger,
+        personskat_meta_pbl15b_historik,
+        personskat_meta_pbl15b_rateudbetalinger,
+        personskat_meta_pbl18_pbl54_personkreds,
+        personskat_meta_erhvervsbefordring,
+        personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads,
+        personskat_meta_erhvervsbefordring_afholdt_udgifter,
+        personskat_meta_erhvervsbefordring_godtgørelse,
+        personskat_meta_erhvervsbefordring_eget_køretøj,
+        personskat_metadata_skatteår,
+        personskat_metadata_kommune,
+        personskat_metadata_bruttoløn,
+        personskat_metadata_befordring,
+        personskat_metadata_alder,
+        personskat_metadata_kirkeskat,
+        personskat_metadata_renteindtægter,
+        personskat_meta_ejendomsdrift,
+        personskat_metadata_fremleje,
+        personskat_metadata_fremlejeform,
+        personskat_metadata_årsopgørelse,
+        personskat_metadata_egne_ejendomssalg,
+        personskat_metadata_ægtefælles_ejendomssalg,
+        personskat_metadata_egne_ejendomsudgifter,
+        personskat_metadata_egen_ejendomsidentifikation,
+        personskat_metadata_egen_ejendoms_anskaffelsesår,
+        personskat_metadata_egen_ejendoms_anskaffelsessum,
+        personskat_metadata_egen_ejendoms_afståelsessum,
+        personskat_metadata_egen_ejendoms_anskaffelsesgrundlag,
+        personskat_metadata_egen_ejendoms_indeksering,
+        personskat_metadata_egen_ikke_boligdelens_anskaffelsessum,
+        personskat_metadata_egen_stk6_overførsel,
+        personskat_metadata_egen_par5a_ejendomskategori,
+        personskat_metadata_egen_mælkekvote_identifikation,
+        personskat_metadata_egen_ejendomstype,
+        personskat_metadata_egen_ordinær_genanbringelse,
+        personskat_metadata_egen_ordinær_genanbringelse_afståelsesår,
+        personskat_metadata_egen_ordinær_geninvestering_placering,
+        personskat_metadata_egen_ordinær_genanbringelsesbegæring,
+        personskat_metadata_egen_par8_ejendomsart,
+        personskat_metadata_egen_par8_genanbringelsesforhold,
+        personskat_metadata_egen_par8_genanbringelseshjemmel,
+        personskat_metadata_egen_par8_oprindeligt_afståelsesår,
+        personskat_metadata_egen_par8_geninvestering_placering,
+        personskat_metadata_egen_par8_udland_område,
+        personskat_metadata_egen_par8_genanbringelsesbegæring,
+        personskat_metadata_egen_par8_anvendelse_før_2005,
+        personskat_metadata_egen_par9_genanbringelsesforhold,
+        personskat_metadata_egen_par9_genanbringelseshjemmel,
+        personskat_metadata_egen_par9_boligandel_forøget,
+        personskat_meta_egen_par11_ny_genanbringelse,
+        personskat_meta_egen_par11_investeringsår,
+        personskat_meta_egen_par11_placering,
+        personskat_meta_egen_par11_begæring,
+        personskat_meta_egen_par11_hjemmel,
+        personskat_meta_egen_par6d_valg,
+        personskat_meta_egen_par6d_overdrageranvendelse,
+        personskat_meta_egen_par6d_pantebrev,
+        personskat_meta_egen_par6d_meddelelse,
+        personskat_meta_egen_par6d_afståelsesårets_hændelse,
+        personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu,
+        personskat_meta_egen_par6d_pantebrev_succession,
+        personskat_meta_kursgevinst,
+        personskat_metadata_ordinært_aktieår,
+        personskat_metadata_aktiebeholdninger,
+        personskat_metadata_aktie_boligret,
+        personskat_metadata_aktie_boligret_udsteder,
+        personskat_metadata_aktie_boligret_værdipapir,
+    )
+)
+
+--@label:beregn_personskat::meta:personskat_beregningsmetadata--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,
@@ -5896,6 +5900,20 @@
 | personskat_angivne_skatteforhold(input: PersonskatSkatteforholdInput) -> match input {
     | StandardSkatteforhold -> lønmodtager_standard_skatteforhold()
     | SærligeSkatteforhold(forhold) -> personskat_supplerende_skatteforhold(forhold)
+}
+| personskat_ligningslov8m_kildeskattepligt_forenelig_med_personfradrag(kildeskattepligt: Ligningslov8MKildeskattepligt, personfradrag_skattepligt: PersonfradragSkattepligt) -> match personfradrag_skattepligt {
+    | FuldtSkattepligtigHerILandet -> kildeskattepligt == Ll8MKildeskattelovPar1
+    | KildeskattelovPar2HelårRelevantIndtægt -> kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr1 || kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr3
+    | KildeskattelovPar2DelårValgtRelevantIndtægt -> kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr1 || kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr3
+    | KildeskattelovPar2DelårIkkeValgt -> kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr1 || kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr3
+    | _ -> Sandt
+}
+| personskat_ligningslov8m_kildeskattepligt_forenelig(input: PersonskatUdenlandskeSocialeBidragInput, skatteforhold: PersonskatSkatteforholdInput) -> match input {
+    | UdenUdenlandskeSocialeBidragEfterLigningslov8M -> Sandt
+    | MedUdenlandskeSocialeBidragEfterLigningslov8M(fakta) -> match skatteforhold {
+        | StandardSkatteforhold -> fakta.kildeskattepligt == Ll8MKildeskattelovPar1
+        | SærligeSkatteforhold(forhold) -> personskat_ligningslov8m_kildeskattepligt_forenelig_med_personfradrag(fakta.kildeskattepligt, forhold.personfradrag_skattepligt)
+    }
 }
 | personskat_underskudsforhold(input: PersonskatUnderskudsforholdInput) -> match input {
     | StandardUnderskudsforhold -> lønmodtager_par13_standard_forhold()
@@ -6692,12 +6710,12 @@
     )
 }
 
-# PersonskatPensionsSag(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
+# PersonskatPensionsSag(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
     | lønmodtager_før_pensionsfradrag() -> LønmodtagerInput(
         skatteår = input.lønmodtager.skatteår,
         kommune = input.lønmodtager.kommune,
         bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
-        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring),
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag),
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
@@ -6757,12 +6775,13 @@
     )
 }
 
-| personskat_pensions_resultat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat) -> PersonskatPensionsSag(
+| personskat_pensions_resultat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> PersonskatPensionsSag(
     input,
     erhvervsbefordring,
     ligningsfradrag,
     kapitalindkomst,
     aktieavance,
+    udenlandske_sociale_bidrag,
     personskat_pensionsudbetalingsresultat(input.lønmodtager.skatteår, input.lønmodtager.pension)
 ).resultat()
 
@@ -6790,11 +6809,15 @@
 }
 | personskat_aktieavance_efter_pensionsfradrag(aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> PersonskatAktieavanceEfterPensionSag(aktieavance, pension).resultat()
 
-| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> LønmodtagerInput(
+| personskat_arbejdsmarkedsbidrag_kroner(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat) -> arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
+    naturalieværdi_kroner = 0
+))
+| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring),
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner,
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag),
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,
@@ -6814,12 +6837,12 @@
     personfradrag_omvalg_dato_yyyymmdd = forhold.personfradrag_omvalg_dato_yyyymmdd
 )
 | personskat_skatteforhold(input: PersonskatSkatteforholdInput, aktieavance: PersonskatAktieavanceResultat, cfc: PersonskatCfcResultat) -> personskat_skatteforhold_med_cfc(lønmodtager_skatteforhold_med_aktieindkomst_tillæg(personskat_angivne_skatteforhold(input), aktieavance.aktieindkomst_kroner), cfc)
-| personskat_lønmodtagermodel(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, cfc: PersonskatCfcResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
-    personskat_lønmodtager_input(input.lønmodtager, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension),
+| personskat_lønmodtagermodel(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    personskat_lønmodtager_input(input.lønmodtager, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension, udenlandske_sociale_bidrag),
     personskat_skatteforhold(input.skatteforhold, aktieavance, cfc),
     personskat_underskudsforhold(input.underskudsforhold)
 )
-| personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, cfc: PersonskatCfcResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension, cfc))
+| personskat_skat(input: PersonskatInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat) -> lønmodtager_breakdown_fra_model(personskat_lønmodtagermodel(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension, udenlandske_sociale_bidrag, cfc))
 | personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter) -> {
@@ -6840,10 +6863,11 @@
     = kapitalindkomst = personskat_kapitalindkomst_resultat(input.kapitalindkomst, input.lønmodtager.skatteår, aktieavance_før_pensionsfradrag)
     = erhvervsbefordring = personskat_erhvervsbefordring_resultat(input.lønmodtager.erhvervsbefordring, input.lønmodtager.skatteår)
     = ligningsfradrag = personskat_ligningsfradrag_resultat(input.lønmodtager.ligningsfradrag, input.lønmodtager, erhvervsbefordring)
-    = pension = personskat_pensions_resultat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance_før_pensionsfradrag)
+    = udenlandske_sociale_bidrag = personskat_udenlandske_sociale_bidrag_resultat(input.udenlandske_sociale_bidrag, input.lønmodtager.skatteår, personskat_arbejdsmarkedsbidrag_kroner(input.lønmodtager, erhvervsbefordring), personskat_ligningslov8m_kildeskattepligt_forenelig(input.udenlandske_sociale_bidrag, input.skatteforhold))
+    = pension = personskat_pensions_resultat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance_før_pensionsfradrag, udenlandske_sociale_bidrag)
     = aktieavance = personskat_aktieavance_efter_pensionsfradrag(aktieavance_før_pensionsfradrag, pension)
     = cfc = personskat_cfc_resultat(input.cfc, input.lønmodtager.skatteår)
-    = skat = personskat_skat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension, cfc)
+    = skat = personskat_skat(input, erhvervsbefordring, ligningsfradrag, kapitalindkomst, aktieavance, pension, udenlandske_sociale_bidrag, cfc)
     PersonskatBeregningResultat(
         skat = skat,
         pension = pension,
@@ -6851,6 +6875,7 @@
         ligningsfradrag = ligningsfradrag,
         kapitalindkomst = kapitalindkomst,
         aktieavance = aktieavance,
+        udenlandske_sociale_bidrag = udenlandske_sociale_bidrag,
         cfc = cfc,
         årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, skat, pension)
     )

@@ -1301,33 +1301,49 @@ fn calculation_metadata_references(
         return attachments
             .into_iter()
             .filter(|attachment| attachment.role != "field")
-            .map(|attachment| CalculationMetadataReference {
-                label: anchor.label.clone(),
-                role: attachment.role,
-                binding: attachment
-                    .binding_name
-                    .map(str::to_string)
-                    .unwrap_or_else(|| {
-                        format!(
-                            "{}{}",
-                            reference.binding_name,
-                            attachment.value_path.trim_start_matches('$')
-                        )
-                    }),
-                attachment_path: Some(format!(
-                    "{}{}",
-                    reference.binding_name,
-                    attachment.attachment_path.trim_start_matches('$')
-                )),
-                qualified_type: attachment.value.qualified_type().map(str::to_string),
-                value: Some(attachment.value.to_source()),
-                data: Some(calculation_meta_value_json(attachment.value)),
-                text: anchor.text.clone(),
-                symbols: symbols.clone(),
+            .map(|attachment| {
+                calculation_metadata_attachment_reference(
+                    anchor,
+                    reference,
+                    symbols.clone(),
+                    attachment,
+                )
             })
             .collect();
     }
     vec![calculation_metadata_reference(anchor, reference, symbols)]
+}
+
+fn calculation_metadata_attachment_reference(
+    anchor: &MetaAnchor,
+    reference: &MetaReference,
+    symbols: Vec<String>,
+    attachment: MetaAttachmentValue<'_>,
+) -> CalculationMetadataReference {
+    CalculationMetadataReference {
+        label: anchor.label.clone(),
+        role: attachment.role,
+        binding: attachment
+            .binding_name
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                format!(
+                    "{}{}",
+                    reference.binding_name,
+                    attachment.value_path.trim_start_matches('$')
+                )
+            }),
+        attachment_path: Some(format!(
+            "{}{}",
+            reference.binding_name,
+            attachment.attachment_path.trim_start_matches('$')
+        )),
+        qualified_type: attachment.value.qualified_type().map(str::to_string),
+        value: Some(attachment.value.to_source()),
+        data: Some(calculation_meta_value_json(attachment.value)),
+        text: anchor.text.clone(),
+        symbols,
+    }
 }
 
 fn calculation_metadata_reference(
@@ -1470,11 +1486,7 @@ fn contract_field_metadata(
             .enumerate()
             .flat_map(|(index, reference)| {
                 let nested = calculation_metadata_references(anchor, reference, Vec::new());
-                if reference.role == "field" {
-                    Vec::new()
-                } else if reference.role == "meta" && !reference.attachments().is_empty() {
-                    nested
-                } else if field_reference_indices.contains(&index) {
+                if reference.role == "field" || field_reference_indices.contains(&index) {
                     Vec::new()
                 } else {
                     nested
@@ -1491,14 +1503,24 @@ fn contract_field_metadata(
                 }
                 continue;
             }
-            for (binding, value) in field_values {
+            let scoped_sources = (reference.role == "meta")
+                .then(|| calculation_scoped_metadata_references(anchor, reference))
+                .unwrap_or_default();
+            for (binding, value_path, value) in field_values {
+                let mut field_sources = sources.clone();
+                field_sources.extend(
+                    scoped_sources
+                        .iter()
+                        .filter(|(scope_path, _)| meta_value_path_contains(scope_path, &value_path))
+                        .map(|(_, source)| source.clone()),
+                );
                 match calculation_field_metadata_from_value(
                     contract,
                     &binding,
                     value,
                     anchor,
                     &valid_paths,
-                    &sources,
+                    &field_sources,
                 ) {
                     Ok(metadata) => {
                         if let Some(previous) =
@@ -1526,7 +1548,7 @@ fn contract_field_metadata(
     }
 }
 
-fn calculation_field_values(reference: &MetaReference) -> Vec<(String, &MetaValue)> {
+fn calculation_field_values(reference: &MetaReference) -> Vec<(String, String, &MetaValue)> {
     reference
         .typed_values()
         .into_iter()
@@ -1541,9 +1563,54 @@ fn calculation_field_values(reference: &MetaReference) -> Vec<(String, &MetaValu
                     typed_value.value_path.trim_start_matches('$')
                 )
             };
-            (binding, typed_value.value)
+            (binding, typed_value.value_path, typed_value.value)
         })
         .collect()
+}
+
+fn calculation_scoped_metadata_references(
+    anchor: &MetaAnchor,
+    reference: &MetaReference,
+) -> Vec<(String, CalculationMetadataReference)> {
+    let typed_values = reference.typed_values();
+    reference
+        .attachments()
+        .into_iter()
+        .filter(|attachment| attachment.role != "field")
+        .map(|attachment| {
+            let scope_path = typed_values
+                .iter()
+                .filter(|typed_value| {
+                    !is_meta_attachment(typed_value.value)
+                        && typed_value.value_path != attachment.attachment_path
+                        && meta_value_path_contains(
+                            &typed_value.value_path,
+                            &attachment.attachment_path,
+                        )
+                })
+                .max_by_key(|typed_value| typed_value.value_path.len())
+                .map(|typed_value| typed_value.value_path.clone())
+                .unwrap_or_else(|| "$".to_string());
+            let source = calculation_metadata_attachment_reference(
+                anchor,
+                reference,
+                Vec::new(),
+                attachment,
+            );
+            (scope_path, source)
+        })
+        .collect()
+}
+
+fn is_meta_attachment(value: &MetaValue) -> bool {
+    matches!(value, MetaValue::Constructor { name, .. } if name == "MetaAttachment")
+}
+
+fn meta_value_path_contains(parent: &str, child: &str) -> bool {
+    child == parent
+        || child
+            .strip_prefix(parent)
+            .is_some_and(|suffix| suffix.starts_with('.') || suffix.starts_with('['))
 }
 
 fn calculation_field_value(value: &MetaValue) -> bool {

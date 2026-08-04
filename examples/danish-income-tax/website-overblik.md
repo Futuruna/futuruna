@@ -195,7 +195,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 579 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 683 eksplicitte feltmetadata-poster.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.
@@ -478,7 +478,11 @@ kommuner med positive efterreguleringsbeløb og fratrækker kommunens andel i
 Ligningsloven § 8 M og Personskatteloven § 3, stk. 2, nr. 6 er tilsvarende
 forbundet, så AM-bidrag og obligatoriske udenlandske sociale bidrag kun føres
 til personligt indkomstfradrag, når den relevante skattepligt, social sikring
-og eventuelle arbejdsgiveraftale opfylder lovens betingelser.
+og eventuelle arbejdsgiveraftale opfylder lovens betingelser. Den kanoniske
+`beregn_personskat`-regel modtager nu de underliggende borgerfakta, afleder selv
+skatteåret og AM-bidraget af lønnen og bevarer begge lovresultater i svaret.
+Kun de yderligere udenlandske bidrag føres ind i lønmodtagermodellen, så et
+AM-bidrag, som allerede er indregnet dér, ikke fradrages to gange.
 Personskatteloven § 3, stk. 2, nr. 7 er nu også koblet til de beregnede
 henlæggelser efter Virksomhedsskatteloven §§ 22 b og 22 d, herunder procent- og
 beløbslofter, udligningsskat, bundet konto og rettidigt indskud.
@@ -711,7 +715,10 @@ Korpussets meta-kommentarer kan nu også læses maskinelt med
 ikke indbyggede særtilfælde: enhver rolle kan pege på en almindelig Futuruna-
 binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
 lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
-semantik. Ground metadata udstilles både som læsbar Futuruna-værdi og som et
+semantik. Den kanoniske Personskat-beregning bruger ét kort meta-anker til ét
+typet rodobjekt; feltbeskrivelser, kilder og vejledning er indlejrede værdier i
+objektet og ikke ekstra syntaks i kommentaren. Ground metadata udstilles både
+som læsbar Futuruna-værdi og som et
 struktureret `data`-træ, så audits kan læse fx URL- eller advarselsfelter uden
 at parse visningstekst. En meta-reference kan ligge ved beregningsreglen og pege
 på en typet kildebinding i et rekursivt importeret kilderegister; indekset

@@ -32,6 +32,7 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
     ),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = cfc,
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
