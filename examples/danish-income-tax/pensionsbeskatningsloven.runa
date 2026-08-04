@@ -846,17 +846,29 @@ pensionsordningen modtager statsstøtte.
 --@begin::pensionsbeskatningsloven_par53a--
 # Pensionsbeskatningslov53AOrdning = Pbl53ALivsforsikringUdenKapitel1 | Pbl53ALivsforsikringAfkaldAfsnitI | Pbl53APensionskasseUdenKapitel1 | Pbl53APensionskasseAfkaldAfsnitI | Pbl53ASygeOgUlykkesforsikring | Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse | Pbl53ADirektørGarantiforsikring | Pbl53APengeinstitutUdenKapitel1 | Pbl53APengeinstitutAfkaldAfsnitI | Pbl53ATidligerePar15DGodkendt
 # Pensionsbeskatningslov53AAfkastmetode = Pbl53AAfkastEfterPalPar3Til5 | Pbl53AAlternativKapitalværdi
-# Pensionsbeskatningslov53AInput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, afkast_efter_pal_par3_til_5_kroner: Heltal, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal, fremført_negativt_afkast_primo_kroner: Heltal, andel_tæller: Heltal, andel_nævner: Heltal, udbetaling_til_afkastskat_kroner: Heltal)
-# Pensionsbeskatningslov53AResultat(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattet_af_stk1: Boolsk, undtaget_efter_stk4: Boolsk, afkast_efter_valgt_metode_kroner: Heltal, afkastandel_før_negativ_fremførsel_kroner: Heltal, fremført_negativt_afkast_anvendt_kroner: Heltal, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, udbetaling_til_afkastskat_medregnes_kroner: Heltal, kapitalindkomst_kroner: Heltal)
+# Pensionsbeskatningslov53AMetodehistorik = Pbl53AFørsteAfkastopgørelse | Pbl53ATidligerePalOpgørelse | Pbl53ATidligereAlternativKapitalværdiOpgørelse
+# Pensionsbeskatningslov53AInput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk, afkast_efter_pal_par3_til_5_kroner: Heltal, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal, fremført_negativt_afkast_primo_kroner: Heltal, andel_tæller: Heltal, andel_nævner: Heltal, udbetaling_til_afkastskat_kroner: Heltal)
+# Pensionsbeskatningslov53AResultat(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattet_af_stk1: Boolsk, undtaget_efter_stk4: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, afkast_efter_valgt_metode_kroner: Heltal, afkastandel_før_negativ_fremførsel_kroner: Heltal, fremført_negativt_afkast_anvendt_kroner: Heltal, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, udbetaling_til_afkastskat_medregnes_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 
 | pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Falskt
 | exception pbl53a_syge_ulykke_undtages pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Sandt under ordning == Pbl53ASygeOgUlykkesforsikring
 | exception pbl53a_garantiforsikring_undtages pbl53a_ordning_stk4_undtaget(ordning: Pensionsbeskatningslov53AOrdning) -> Sandt under ordning == Pbl53ADirektørGarantiforsikring
+| pbl53a_metodevalg_bindende_opfyldt(afkastmetode: Pensionsbeskatningslov53AAfkastmetode, metodehistorik: Pensionsbeskatningslov53AMetodehistorik) -> match metodehistorik {
+    | Pbl53AFørsteAfkastopgørelse -> Sandt
+    | Pbl53ATidligerePalOpgørelse -> afkastmetode == Pbl53AAfkastEfterPalPar3Til5
+    | Pbl53ATidligereAlternativKapitalværdiOpgørelse -> afkastmetode == Pbl53AAlternativKapitalværdi
+}
+| pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(afkastmetode: Pensionsbeskatningslov53AAfkastmetode, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk) -> match afkastmetode {
+    | Pbl53AAfkastEfterPalPar3Til5 -> Sandt
+    | Pbl53AAlternativKapitalværdi -> pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget == Falskt
+}
 
 # Pensionsbeskatningslov53ASag(input: Pensionsbeskatningslov53AInput) {
     | omfattet_af_stk1() -> input.omfattes_af_par53b == Falskt
     | undtaget_efter_stk4() -> pbl53a_ordning_stk4_undtaget(input.ordning) || input.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år
-    | beløb_medregnes_efter_stk3() -> omfattet_af_stk1() && undtaget_efter_stk4() == Falskt
+    | afkastmetode_tilladt_efter_udbyderopgørelse() -> pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(input.afkastmetode, input.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget)
+    | metodevalg_bindende_opfyldt() -> pbl53a_metodevalg_bindende_opfyldt(input.afkastmetode, input.metodehistorik)
+    | beløb_medregnes_efter_stk3() -> omfattet_af_stk1() && undtaget_efter_stk4() == Falskt && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
     | afkast_efter_valgt_metode_kroner() -> input.afkast_efter_pal_par3_til_5_kroner under input.afkastmetode == Pbl53AAfkastEfterPalPar3Til5
     | exception pbl53a_alternativ_kapitalværdi_afkast afkast_efter_valgt_metode_kroner() -> (input.kapitalværdi_ultimo_kroner + penge_positivt_beløb(input.udbetalinger_i_året_kroner)) - (input.kapitalværdi_primo_kroner + penge_positivt_beløb(input.indbetalinger_i_året_kroner)) under input.afkastmetode == Pbl53AAlternativKapitalværdi
     | andel_nævner() -> penge_største_beløb(input.andel_nævner, 1)
@@ -875,6 +887,8 @@ pensionsordningen modtager statsstøtte.
         ordning = input.ordning,
         omfattet_af_stk1 = omfattet_af_stk1(),
         undtaget_efter_stk4 = undtaget_efter_stk4(),
+        afkastmetode_tilladt_efter_udbyderopgørelse = afkastmetode_tilladt_efter_udbyderopgørelse(),
+        metodevalg_bindende_opfyldt = metodevalg_bindende_opfyldt(),
         afkast_efter_valgt_metode_kroner = afkast_efter_valgt_metode_kroner(),
         afkastandel_før_negativ_fremførsel_kroner = afkastandel_før_negativ_fremførsel_kroner(),
         fremført_negativt_afkast_anvendt_kroner = fremført_negativt_afkast_anvendt_kroner(),
@@ -893,6 +907,8 @@ pensionsordningen modtager statsstøtte.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
     afkast_efter_pal_par3_til_5_kroner = 28000,
     kapitalværdi_primo_kroner = 0,
     kapitalværdi_ultimo_kroner = 0,
@@ -909,6 +925,8 @@ pensionsordningen modtager statsstøtte.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastmetode = Pbl53AAlternativKapitalværdi,
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
     afkast_efter_pal_par3_til_5_kroner = 0,
     kapitalværdi_primo_kroner = 200000,
     kapitalværdi_ultimo_kroner = 230000,
@@ -925,6 +943,8 @@ pensionsordningen modtager statsstøtte.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastmetode = Pbl53AAlternativKapitalværdi,
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
     afkast_efter_pal_par3_til_5_kroner = 0,
     kapitalværdi_primo_kroner = 140000,
     kapitalværdi_ultimo_kroner = 128000,
@@ -941,6 +961,8 @@ pensionsordningen modtager statsstøtte.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
     afkast_efter_pal_par3_til_5_kroner = 18000,
     kapitalværdi_primo_kroner = 0,
     kapitalværdi_ultimo_kroner = 0,
@@ -957,6 +979,8 @@ pensionsordningen modtager statsstøtte.
     omfattes_af_par53b = Sandt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastmetode = Pbl53AAfkastEfterPalPar3Til5,
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
     afkast_efter_pal_par3_til_5_kroner = 12000,
     kapitalværdi_primo_kroner = 0,
     kapitalværdi_ultimo_kroner = 0,

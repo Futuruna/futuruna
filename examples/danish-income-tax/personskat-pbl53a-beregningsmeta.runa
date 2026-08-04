@@ -46,6 +46,20 @@
     help = Some("Valget mellem metoderne er bindende for efterfølgende indkomstår."),
     unit = None
 )
+= personskat_pbl53a_felt_metodehistorik = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.metodehistorik",
+    label = "Tidligere metodevalg for § 53 A-afkast",
+    question = Some("Er dette ordningens første afkastopgørelse, eller hvilken metode blev valgt i et tidligere indkomstår?"),
+    help = Some("Valget mellem PAL-metoden og den alternative kapitalværdimetode er bindende for efterfølgende indkomstår."),
+    unit = None
+)
+= personskat_pbl53a_felt_udbyder_opgjorde_pal_ved_metodevalg = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
+    label = "PAL-opgørelse ved metodevalget",
+    question = Some("Opgjorde pensionsudbyderen afkastet efter pensionsafkastbeskatningslovens §§ 3-5, da ordningens nuværende metode blev valgt?"),
+    help = Some("Den alternative kapitalværdimetode kan kun være valgt, hvis pensionsudbyderen ikke opgjorde afkastet efter PAL-metoden i valgåret."),
+    unit = None
+)
 = personskat_pbl53a_felt_pal_afkast = Beregningsfelt(
     path = "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
     label = "Afkast opgjort efter PAL §§ 3-5",
@@ -118,6 +132,8 @@
         personskat_pbl53a_felt_par53b,
         personskat_pbl53a_felt_stk4_livsforsikring,
         personskat_pbl53a_felt_afkastgrundlag,
+        personskat_pbl53a_felt_metodehistorik,
+        personskat_pbl53a_felt_udbyder_opgjorde_pal_ved_metodevalg,
         personskat_pbl53a_felt_pal_afkast,
         personskat_pbl53a_felt_kapitalværdi_primo,
         personskat_pbl53a_felt_kapitalværdi_ultimo,

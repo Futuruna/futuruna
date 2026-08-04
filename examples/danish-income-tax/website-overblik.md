@@ -79,7 +79,12 @@ kapitalværdier, ind- og udbetalinger. Futuruna afleder skatteåret, beregner
 afkastet, anvender kun fremført negativt afkast fra samme ordning og fører et
 positivt resultat til Personskattelovens § 4, stk. 1, nr. 13. Et negativt
 resultat bevares særskilt til senere år og kan ikke skjult modregnes i en anden
-ordning. Både lovresultater og en eventuel ugyldighed bliver i forklaringssporet.
+ordning. Ordningen oplyser også, om det er første afkastopgørelse, eller hvilken
+metode der tidligere blev valgt. Det bindende metodevalg håndhæves af reglerne;
+PAL-metoden er udgangspunktet, og kapitalværdimetoden kan kun vælges, hvis
+pensionsudbyderen ikke opgjorde PAL-afkastet i valgåret. Et senere skift
+mellem metoderne fejler lukket uden en kapitalpost. Både lovresultater og en
+eventuel ugyldighed bliver i forklaringssporet.
 
 Variantvalg gør særlige
 skatteforhold,
@@ -208,8 +213,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 699 eksplicitte feltmetadata-poster,
-heraf 15 for § 53 A-ordninger.
+interviewoplysninger. Kontrakten har nu 701 eksplicitte feltmetadata-poster,
+heraf 17 for § 53 A-ordninger.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

@@ -50,6 +50,8 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 28000),
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
     fremført_negativt_afkast_primo_kroner = 6000,
     andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
     udbetaling_til_afkastskat_kroner = 0
@@ -65,6 +67,8 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         udbetalinger_i_året_kroner = 4000,
         indbetalinger_i_året_kroner = 0
     ),
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
     fremført_negativt_afkast_primo_kroner = 5000,
     andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
     udbetaling_til_afkastskat_kroner = 0
@@ -80,9 +84,69 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         udbetalinger_i_året_kroner = 12000,
         indbetalinger_i_året_kroner = 15000
     ),
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
     fremført_negativt_afkast_primo_kroner = 0,
     andel = PersonskatPbl53AAndel(tæller = 1, nævner = 2),
     udbetaling_til_afkastskat_kroner = 3000
+)
+= personskat_pbl53a_pal_fortsat_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "livsforsikring-pal-fortsat",
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 9000),
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_skift_til_alternativ_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "ulovligt-skift-til-alternativ",
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AKapitalværdiAfkast(
+        kapitalværdi_primo_kroner = 100000,
+        kapitalværdi_ultimo_kroner = 110000,
+        udbetalinger_i_året_kroner = 0,
+        indbetalinger_i_året_kroner = 0
+    ),
+    metodehistorik = Pbl53ATidligerePalOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Falskt,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_skift_til_pal_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "ulovligt-skift-til-pal",
+    ordning = Pbl53APengeinstitutUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 10000),
+    metodehistorik = Pbl53ATidligereAlternativKapitalværdiOpgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
+)
+= personskat_pbl53a_første_alternativ_med_udbyderopgørelse_fakta = PersonskatPbl53AOrdningFakta(
+    identifikation = "første-alternativ-uden-adgang",
+    ordning = Pbl53APengeinstitutUdenKapitel1,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastgrundlag = PersonskatPbl53AKapitalværdiAfkast(
+        kapitalværdi_primo_kroner = 100000,
+        kapitalværdi_ultimo_kroner = 110000,
+        udbetalinger_i_året_kroner = 0,
+        indbetalinger_i_året_kroner = 0
+    ),
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
+    fremført_negativt_afkast_primo_kroner = 0,
+    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
+    udbetaling_til_afkastskat_kroner = 0
 )
 = personskat_pbl53a_blandet_input = PersonskatPbl53AInput(
     ordninger = [
@@ -92,6 +156,13 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     ]
 )
 = personskat_pbl53a_blandet_resultat = beregn_personskat(personskat_pbl53a_scenarie(personskat_pbl53a_blandet_input))
+= personskat_pbl53a_pal_fortsat_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_pal_fortsat_fakta]), 2026)
+= personskat_pbl53a_skift_til_alternativ_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_skift_til_alternativ_fakta]), 2026)
+= personskat_pbl53a_skift_til_pal_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_skift_til_pal_fakta]), 2026)
+= personskat_pbl53a_skift_til_alternativ_pbl_resultat = pensionsbeskatningslov53a_resultat(personskat_pbl53a_pensionsbeskatningslov_input(personskat_pbl53a_skift_til_alternativ_fakta, 2026))
+= personskat_pbl53a_skift_til_pal_pbl_resultat = pensionsbeskatningslov53a_resultat(personskat_pbl53a_pensionsbeskatningslov_input(personskat_pbl53a_skift_til_pal_fakta, 2026))
+= personskat_pbl53a_første_alternativ_uden_adgang_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [personskat_pbl53a_første_alternativ_med_udbyderopgørelse_fakta]), 2026)
+= personskat_pbl53a_første_alternativ_uden_adgang_pbl_resultat = pensionsbeskatningslov53a_resultat(personskat_pbl53a_pensionsbeskatningslov_input(personskat_pbl53a_første_alternativ_med_udbyderopgørelse_fakta, 2026))
 
 = personskat_pbl53a_dublet_input = PersonskatPbl53AInput(
     ordninger = [personskat_pbl53a_pal_fakta, personskat_pbl53a_pal_fakta]
@@ -104,6 +175,8 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
     afkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 10000),
+    metodehistorik = Pbl53AFørsteAfkastopgørelse,
+    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
     fremført_negativt_afkast_primo_kroner = 0,
     andel = PersonskatPbl53AAndel(tæller = 2, nævner = 1),
     udbetaling_til_afkastskat_kroner = 0
@@ -113,24 +186,40 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
 
 | personskat_pbl53a_positive_ordninger_samles: personskat_pbl53a_blandet_resultat -> personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.alle_input_gyldige && personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.identifikationer_entydige && length(personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.kapitalposter) == 2 && personskat_pbl53a_blandet_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 35500
 | personskat_pbl53a_pal_resultat_bevarer_regelkæden: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[0] {
-    | BeregnetPbl53AOrdning(fakta, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "livsforsikring-pal" && pensionsbeskatningslov_input.indkomstår == 2026 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 6000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 22000 && par4_resultat.kapitalindkomst_kroner == 22000
+    | BeregnetPbl53AOrdning(fakta, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "livsforsikring-pal" && pensionsbeskatningslov_input.indkomstår == 2026 && pensionsbeskatningslov_input.metodehistorik == Pbl53AFørsteAfkastopgørelse && pensionsbeskatningslov_resultat.metodevalg_bindende_opfyldt && pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 6000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 22000 && par4_resultat.kapitalindkomst_kroner == 22000
     | _ -> Falskt
 }
 | personskat_pbl53a_negativt_afkast_forbliver_på_ordningen: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[1] {
-    | BeregnetPbl53AOrdning(fakta, _, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "pensionskasse-negativ" && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == -8000 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_ultimo_kroner == 13000 && par4_resultat.kapitalindkomst_kroner == 0
+    | BeregnetPbl53AOrdning(fakta, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> fakta.identifikation == "pensionskasse-negativ" && pensionsbeskatningslov_input.metodehistorik == Pbl53ATidligereAlternativKapitalværdiOpgørelse && pensionsbeskatningslov_resultat.metodevalg_bindende_opfyldt && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == -8000 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_ultimo_kroner == 13000 && par4_resultat.kapitalindkomst_kroner == 0
     | _ -> Falskt
 }
 | personskat_pbl53a_andel_og_afkastskatteudbetaling_spores: personskat_pbl53a_blandet_resultat -> match personskat_pbl53a_blandet_resultat.kapitalindkomst.pbl53a_resultat.ordningsresultater[2] {
-    | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_resultat, _, par4_resultat) -> pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 27000 && pensionsbeskatningslov_resultat.afkastandel_før_negativ_fremførsel_kroner == 13500 && pensionsbeskatningslov_resultat.udbetaling_til_afkastskat_medregnes_kroner == 0 && par4_resultat.kapitalindkomst_kroner == 13500
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> pensionsbeskatningslov_input.metodehistorik == Pbl53AFørsteAfkastopgørelse && pensionsbeskatningslov_resultat.metodevalg_bindende_opfyldt && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 27000 && pensionsbeskatningslov_resultat.afkastandel_før_negativ_fremførsel_kroner == 13500 && pensionsbeskatningslov_resultat.udbetaling_til_afkastskat_medregnes_kroner == 0 && par4_resultat.kapitalindkomst_kroner == 13500
+    | _ -> Falskt
+}
+| personskat_pbl53a_pal_metode_fortsætter_lovligt: personskat_pbl53a_pal_fortsat_resultat -> personskat_pbl53a_pal_fortsat_resultat.alle_input_gyldige && length(personskat_pbl53a_pal_fortsat_resultat.kapitalposter) == 1 && match personskat_pbl53a_pal_fortsat_resultat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, par4_resultat) -> pensionsbeskatningslov_input.metodehistorik == Pbl53ATidligerePalOpgørelse && pensionsbeskatningslov_resultat.metodevalg_bindende_opfyldt && par4_resultat.kapitalindkomst_kroner == 9000
+    | _ -> Falskt
+}
+| personskat_pbl53a_skift_fra_pal_fejler_lukket: personskat_pbl53a_skift_til_alternativ_resultat -> personskat_pbl53a_skift_til_alternativ_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_skift_til_alternativ_resultat.kapitalposter) == 0 && personskat_pbl53a_skift_til_alternativ_pbl_resultat.metodevalg_bindende_opfyldt == Falskt && personskat_pbl53a_skift_til_alternativ_pbl_resultat.kapitalindkomst_kroner == 0 && match personskat_pbl53a_skift_til_alternativ_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige, afkastmetode_tilladt_efter_udbyderopgørelse, metodevalg_bindende_opfyldt) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige && afkastmetode_tilladt_efter_udbyderopgørelse && metodevalg_bindende_opfyldt == Falskt
+    | _ -> Falskt
+}
+| personskat_pbl53a_skift_fra_alternativ_fejler_lukket: personskat_pbl53a_skift_til_pal_resultat -> personskat_pbl53a_skift_til_pal_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_skift_til_pal_resultat.kapitalposter) == 0 && personskat_pbl53a_skift_til_pal_pbl_resultat.metodevalg_bindende_opfyldt == Falskt && personskat_pbl53a_skift_til_pal_pbl_resultat.kapitalindkomst_kroner == 0 && match personskat_pbl53a_skift_til_pal_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige, afkastmetode_tilladt_efter_udbyderopgørelse, metodevalg_bindende_opfyldt) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige && afkastmetode_tilladt_efter_udbyderopgørelse && metodevalg_bindende_opfyldt == Falskt
+    | _ -> Falskt
+}
+| personskat_pbl53a_første_alternativ_kræver_manglende_udbyderopgørelse: personskat_pbl53a_første_alternativ_uden_adgang_resultat -> personskat_pbl53a_første_alternativ_uden_adgang_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_første_alternativ_uden_adgang_resultat.kapitalposter) == 0 && personskat_pbl53a_første_alternativ_uden_adgang_pbl_resultat.afkastmetode_tilladt_efter_udbyderopgørelse == Falskt && personskat_pbl53a_første_alternativ_uden_adgang_pbl_resultat.metodevalg_bindende_opfyldt && personskat_pbl53a_første_alternativ_uden_adgang_pbl_resultat.kapitalindkomst_kroner == 0 && match personskat_pbl53a_første_alternativ_uden_adgang_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige, afkastmetode_tilladt_efter_udbyderopgørelse, metodevalg_bindende_opfyldt) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige && afkastmetode_tilladt_efter_udbyderopgørelse == Falskt && metodevalg_bindende_opfyldt
     | _ -> Falskt
 }
 | personskat_pbl53a_dublet_fejler_lukket: personskat_pbl53a_dublet_resultat -> personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_input_gyldigt == Falskt && personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_resultat.identifikationer_entydige == Falskt && length(personskat_pbl53a_dublet_resultat.kapitalindkomst.pbl53a_resultat.kapitalposter) == 0 && personskat_pbl53a_dublet_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | personskat_pbl53a_ugyldig_andel_fejler_lukket: personskat_pbl53a_ugyldig_andel_resultat -> personskat_pbl53a_ugyldig_andel_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_ugyldig_andel_resultat.kapitalposter) == 0 && match personskat_pbl53a_ugyldig_andel_resultat.ordningsresultater[0] {
-    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige == Falskt
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige, afkastmetode_tilladt_efter_udbyderopgørelse, metodevalg_bindende_opfyldt) -> skatteår_understøttet && identifikation_unik && grundfakta_gyldige == Falskt && afkastmetode_tilladt_efter_udbyderopgørelse && metodevalg_bindende_opfyldt
     | _ -> Falskt
 }
 | personskat_pbl53a_fremtidigt_år_fejler_lukket: personskat_pbl53a_fremtidigt_år_resultat -> personskat_pbl53a_fremtidigt_år_resultat.alle_input_gyldige == Falskt && length(personskat_pbl53a_fremtidigt_år_resultat.kapitalposter) == 0 && match personskat_pbl53a_fremtidigt_år_resultat.ordningsresultater[0] {
-    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige) -> skatteår_understøttet == Falskt && identifikation_unik && grundfakta_gyldige
+    | UgyldigtPbl53AGrundlag(_, skatteår_understøttet, identifikation_unik, grundfakta_gyldige, afkastmetode_tilladt_efter_udbyderopgørelse, metodevalg_bindende_opfyldt) -> skatteår_understøttet == Falskt && identifikation_unik && grundfakta_gyldige && afkastmetode_tilladt_efter_udbyderopgørelse && metodevalg_bindende_opfyldt
     | _ -> Falskt
 }
 
@@ -138,6 +227,10 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
 ? personskat_pbl53a_pal_resultat_bevarer_regelkæden
 ? personskat_pbl53a_negativt_afkast_forbliver_på_ordningen
 ? personskat_pbl53a_andel_og_afkastskatteudbetaling_spores
+? personskat_pbl53a_pal_metode_fortsætter_lovligt
+? personskat_pbl53a_skift_fra_pal_fejler_lukket
+? personskat_pbl53a_skift_fra_alternativ_fejler_lukket
+? personskat_pbl53a_første_alternativ_kræver_manglende_udbyderopgørelse
 ? personskat_pbl53a_dublet_fejler_lukket
 ? personskat_pbl53a_ugyldig_andel_fejler_lukket
 ? personskat_pbl53a_fremtidigt_år_fejler_lukket

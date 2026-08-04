@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-28
 TD epic: `td-56cf8d`
-Current implementation slice: `td-fad7c0`
+Current implementation slice: `td-40ce95`
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-59e722`
+Latest approved implementation slice: `td-fad7c0`
 Latest approved language slice: `td-1ca9ba`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -76,11 +76,16 @@ alternative kapitalværdimetode; modstridende metodefelter kan derfor ikke
 opstå. Hver ordning bevarer PBL-inputtet, PBL-resultatet og resultatet efter
 Personskattelovens § 4, stk. 1, nr. 13. Positivt afkast efter egen negativ
 fremførsel bliver kapitalindkomst, mens et negativt afkast forbliver knyttet
-til den samme identificerede ordning. Dubletidentifikationer, ugyldige andele
-og ikke-understøttede år er synlige og fejler lukket. Syv fokuserede
+til den samme identificerede ordning. Et typet metodehistorikfelt håndhæver nu
+stk. 3's bindende valg. PAL-metoden er udgangspunktet; den alternative
+kapitalværdimetode kan kun vælges, når pensionsudbyderen ikke opgjorde
+PAL-afkastet i valgåret. Fortsat brug af den valgte metode beregnes, og skift i
+begge retninger forbliver synlige, men fejler lukket uden en kapitalpost.
+Dubletidentifikationer, ugyldige andele og ikke-understøttede år er ligeledes
+synlige og fejler lukket. Elleve fokuserede
 interpreter- og kompilerscenarier dækker regelkæden. Beregningskontrakten har
-15 nye danske feltbeskrivelser med både PBL § 53 A-kilden og PSL § 4-kilden,
-699 feltmetadata-poster i alt og et særskilt relationelt regnearksark for
+17 danske feltbeskrivelser med både PBL § 53 A-kilden og PSL § 4-kilden,
+701 feltmetadata-poster i alt og et særskilt relationelt regnearksark for
 ordningerne. Den eksakte XLSX/JSON-afstemning dækker tre ordninger og fastholder
 35.500 kr. samlet kapitalindkomst samt 13.000 kr. negativt afkast til særskilt
 fremførsel på den ordning, hvor tabet opstod.
@@ -136,7 +141,7 @@ fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
 interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
 provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
 likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
-forløbet og 699 feltmetadata-poster i alt.
+forløbet og 701 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -416,7 +421,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 699 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 701 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -466,7 +471,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`1f7ad6cde40afce8e4ccf08a70563fd7bfc70e0b824aaabbc94575c27f503bf0`.
+`0d601e99c702d642b8216fb8df0cb4ebf941ebf13b8bc3e16032f8d445ac3dc2`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -478,14 +483,14 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 3.285 domænekolonner; 699 materialiserer en eksplicit etiket,
+projektmappe har 3.287 domænekolonner; 701 materialiserer en eksplicit etiket,
 mens 2.586 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
 ejendomsdrift efter § 4, stk. 1, nr. 6 og de øvrige kildefaktasager, passerer på
-659,82 sekunder i den aktuelle debug-gate. `td-6659f1`
+969,91 sekunder i den aktuelle debug-gate. `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
 
@@ -3029,7 +3034,7 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 592 nåbare definitioner, 167
+- Det genererede Personskat-regneark har nu 593 nåbare definitioner, 167
   synlige overskriftsceller inklusive `case_id` og 88 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
@@ -3062,7 +3067,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 699 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 701 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3088,7 +3093,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 3.285 domænekolonner bruger præcise feltmetadata, hvor de er
+  Arbejdsbogens 3.287 domænekolonner bruger præcise feltmetadata, hvor de er
   oprettet. Alle 64 nåbare § 15 A-stier for afståelsen har nu en eksplicit
   etiket og et interviewspørgsmål; ældre, dybe stier med deterministisk læsbar
   fallback er fortsat eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og
@@ -3223,14 +3228,14 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-9fec71` skal erstatte § 15 A's oplyste skattepligtige fortjeneste med en
-  lukket union af kildeberegnede ABL-, EBL-, AL- og KGL-resultater samt den
-  relevante ægtefællehenføring efter Kildeskattelovens § 25 A. Den nuværende
-  model afleder loft og fordeling fra fortjenesten, men afleder endnu ikke selve
-  fortjenesten på tværs af afhængighedslovene.
-- `td-d1183e` skal modellere den særskilte tidsregel fra Den juridiske
-  vejledning, når et holdingselskab afstår eller likviderer et datterselskab,
-  før holdingselskabsaktierne afstås.
+- `td-9633b6` skal fuldføre PBL § 53 A, stk. 2 og 5 med kildeafledte præmier,
+  bidrag og udbetalinger, herunder udstationeringsundtagelsen, 75-procentsgrenen
+  og afhængigheden til § 20, stk. 6.
+- `td-ee951a` skal fuldføre § 53 A, stk. 3's delårs-, sikkerhedsstillelses- og
+  fristregler som et dateret forløb med vedvarende ordningsidentitet.
+- `td-606798` skal erstatte de resterende rå § 53 A-klassifikationer og
+  undtagelsesbooleans med kildedata, der afleder stk. 1, § 53 B, stk. 4 og
+  statsstøttebegrænsningen i stk. 6.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

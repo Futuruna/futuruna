@@ -829,6 +829,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "identifikation",
             "ordning",
             "afkastgrundlag.$variant",
+            "metodehistorik",
+            "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
             "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
             "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
             "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
@@ -847,6 +849,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Type § 53 A-ordning",
             "Omfattet af PBL § 53 B",
             "Metode til opgørelse af § 53 A-afkast",
+            "Tidligere metodevalg for § 53 A-afkast",
+            "PAL-opgørelse ved metodevalget",
             "Afkast opgjort efter PAL §§ 3-5",
             "Kapitalværdi ved årets begyndelse",
             "Kapitalværdi ved årets udgang",
@@ -1082,6 +1086,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.identifikation",
             "kapitalindkomst.pbl53a.ordninger.ordning",
             "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.$variant",
+            "kapitalindkomst.pbl53a.ordninger.metodehistorik",
+            "kapitalindkomst.pbl53a.ordninger.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
             "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
             "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
             "kapitalindkomst.pbl53a.ordninger.fremført_negativt_afkast_primo_kroner",
@@ -2231,6 +2237,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("PersonskatPbl53AAfkastEfterPal".to_string()),
             ),
             (
+                "metodehistorik",
+                Data::String("Pbl53AFørsteAfkastopgørelse".to_string()),
+            ),
+            (
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
+                Data::Bool(true),
+            ),
+            (
                 "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
                 Data::Int(28_000),
             ),
@@ -2264,6 +2278,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "afkastgrundlag.$variant",
                 Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
+            ),
+            (
+                "metodehistorik",
+                Data::String("Pbl53ATidligereAlternativKapitalværdiOpgørelse".to_string()),
+            ),
+            (
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
+                Data::Bool(false),
             ),
             (
                 "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
@@ -2314,6 +2336,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "afkastgrundlag.$variant",
                 Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
+            ),
+            (
+                "metodehistorik",
+                Data::String("Pbl53AFørsteAfkastopgørelse".to_string()),
+            ),
+            (
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
+                Data::Bool(false),
             ),
             (
                 "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
@@ -4784,6 +4814,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "PersonskatPbl53AAfkastEfterPal",
                     "afkast_efter_pal_par3_til_5_kroner": 28_000
                 },
+                "metodehistorik": { "$variant": "Pbl53AFørsteAfkastopgørelse" },
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": true,
                 "fremført_negativt_afkast_primo_kroner": 6_000,
                 "andel": { "tæller": 1, "nævner": 1 },
                 "udbetaling_til_afkastskat_kroner": 0
@@ -4800,6 +4832,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "udbetalinger_i_året_kroner": 4_000,
                     "indbetalinger_i_året_kroner": 0
                 },
+                "metodehistorik": { "$variant": "Pbl53ATidligereAlternativKapitalværdiOpgørelse" },
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
                 "fremført_negativt_afkast_primo_kroner": 5_000,
                 "andel": { "tæller": 1, "nævner": 1 },
                 "udbetaling_til_afkastskat_kroner": 0
@@ -4816,6 +4850,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "udbetalinger_i_året_kroner": 12_000,
                     "indbetalinger_i_året_kroner": 15_000
                 },
+                "metodehistorik": { "$variant": "Pbl53AFørsteAfkastopgørelse" },
+                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
                 "fremført_negativt_afkast_primo_kroner": 0,
                 "andel": { "tæller": 1, "nævner": 2 },
                 "udbetaling_til_afkastskat_kroner": 3_000
@@ -5030,6 +5066,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["pensionsbeskatningslov_input"]["indkomstår"],
         2026
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][1]["pensionsbeskatningslov_input"]["metodehistorik"]
+            ["$variant"],
+        "Pbl53ATidligereAlternativKapitalværdiOpgørelse"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][1]["pensionsbeskatningslov_resultat"]
+            ["metodevalg_bindende_opfyldt"],
+        true
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][1]["pensionsbeskatningslov_resultat"]
+            ["afkastmetode_tilladt_efter_udbyderopgørelse"],
+        true
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["par4_resultat"]["kapitalindkomst_kroner"],
