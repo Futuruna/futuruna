@@ -63,6 +63,13 @@
     ændringsstatus = "Kontrolleret mod 2026-1: krone-for-krone-princippet, værditilvækst og flerårige udbetalinger"
 )
 
+= skat_juridisk_vejledning_pbl53a_afkast = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048470",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.5",
+    hentet_dato = "2026-07-28",
+    ændringsstatus = "Kontrolleret mod 2026-1: delår, flere berettigede, bindende metodevalg og negativt afkast"
+)
+
 = pensionsbeskatningsloven_lsf24_2007_par53a_stk5 = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/api/pdf/105200",
     identifier = "2007/1 LSF 24, bemærkninger til PBL § 53 A, stk. 5",
@@ -762,6 +769,7 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )
@@ -906,7 +914,7 @@ pensionsordningen modtager statsstøtte.
     | exception pbl53a_positivt_afkast_medregnes skattepligtigt_afkast_kroner() -> penge_positivt_beløb(afkastandel_før_negativ_fremførsel_kroner()) - fremført_negativt_afkast_anvendt_kroner() under beløb_medregnes_efter_stk3()
     | fremført_negativt_afkast_ultimo_kroner() -> 0
     | exception pbl53a_negativt_afkast_fremføres fremført_negativt_afkast_ultimo_kroner() -> fremført_negativt_afkast_primo_kroner() - fremført_negativt_afkast_anvendt_kroner() + penge_positivt_beløb(0 - afkastandel_før_negativ_fremførsel_kroner()) under beløb_medregnes_efter_stk3()
-    | udbetaling_til_afkastskat_medregnes_kroner() -> 0
+    | udbetaling_til_afkastskat_medregnes_kroner() -> hvis beløb_medregnes_efter_stk3() { penge_positivt_beløb(input.udbetaling_til_afkastskat_kroner) } ellers { 0 }
     | kapitalindkomst_kroner() -> skattepligtigt_afkast_kroner()
     | resultat() -> Pensionsbeskatningslov53AResultat(
         indkomstår = input.indkomstår,
@@ -927,7 +935,7 @@ pensionsordningen modtager statsstøtte.
 | pensionsbeskatningslov53a_sag(input: Pensionsbeskatningslov53AInput) -> Pensionsbeskatningslov53ASag(input)
 | pensionsbeskatningslov53a_resultat(input: Pensionsbeskatningslov53AInput) -> pensionsbeskatningslov53a_sag(input).resultat()
 
-# Pbl53ATidspunkt(indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal)
+# Pbl53ATidspunkt(dato: Pbl15ADato, rækkefølge_på_dagen: Heltal)
 # Pbl53ASenesteTidspunkt = Pbl53AIntetTidspunkt | Pbl53ARegistreretTidspunkt(tidspunkt: Pbl53ATidspunkt)
 # Pbl53AUdsendelsessted = Pbl53AFremmedStat | Pbl53AFærøerne | Pbl53AGrønland | Pbl53ADanmark
 # Pbl53AUdsendelsesfakta(startdato: Pbl15ADato, slutdato: Pbl15ADato, sted: Pbl53AUdsendelsessted, fælles_bopæl_hele_perioden: Boolsk, indbetaling_til_afsnit_i_eller_iia_under_udsendelsen: Boolsk)
@@ -940,17 +948,17 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AKapitaludbetalingsgrund = Pbl53APensionsudbetalingsalder | Pbl53AInvaliditet | Pbl53ALivstruendeSygdom | Pbl53ADød | Pbl53AAndenUdbetalingsgrund
 # Pbl53AUdbetalingsform = Pbl53AIkkeSamletKapitaludbetaling | Pbl53ASamletKapitaludbetaling(grund: Pbl53AKapitaludbetalingsgrund)
 # Pbl53AProduktart = Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing | Pbl53AAndenProduktart
-# Pbl53AUdbetalingsart = Pbl53AUdbetalingFraOrdningen(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, produktart: Pbl53AProduktart, udbetalingsform: Pbl53AUdbetalingsform, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner: Heltal)
+# Pbl53AUdbetalingsart = Pbl53AUdbetalingFraOrdningen(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, produktart: Pbl53AProduktart, udbetalingsform: Pbl53AUdbetalingsform, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AUdbetalingTilAfkastskat(kapitalværdi_umiddelbart_før_udbetalingen_kroner: Heltal, afkast_indkomstår: Heltal, dokumenteret_endelig_afkastskat_kroner: Heltal, dokumentationsdato: Pbl15ADato, pbl20_stk6_kildefakta: Pbl20Stk6KildeFakta) | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhedsstillelse_eller_tidligere_sikkerhedsstillelse_kroner: Heltal)
 # Pbl53AUdbetalingsfakta(identifikation: Tekst, tidspunkt: Pbl53ATidspunkt, modtager: Pbl53AUdbetalingsmodtager, bruttoudbetaling_kroner: Heltal, art: Pbl53AUdbetalingsart)
-# Pbl53AUdbetalingsresultat(fakta: Pbl53AUdbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet_af_par55: Boolsk, fradrags_eller_bortseelsesberettiget_principal_før_kroner: Heltal, principal_fordelt_til_udbetalingen_kroner: Heltal, principal_medregnet_før_75_procent_kroner: Heltal, kapitalregel_75_procent_anvendt: Boolsk, sikkerhedsstillelse_modsvarer_udbetaling_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, pbl20_stk6_resultat: Pbl20Stk6Resultat)
+# Pbl53AUdbetalingsresultat(fakta: Pbl53AUdbetalingsfakta, fakta_gyldige: Boolsk, modtager_omfattet_af_par55: Boolsk, afkastskatteudbetaling_rettidig: Boolsk, fradrags_eller_bortseelsesberettiget_principal_før_kroner: Heltal, principal_fordelt_til_udbetalingen_kroner: Heltal, principal_medregnet_før_75_procent_kroner: Heltal, kapitalregel_75_procent_anvendt: Boolsk, sikkerhedsstillelse_modsvarer_udbetaling_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, pbl20_stk6_resultat: Pbl20Stk6Resultat)
 # Pbl53AHændelse = Pbl53AIndbetaling(fakta: Pbl53AIndbetalingsfakta) | Pbl53AUdbetaling(fakta: Pbl53AUdbetalingsfakta)
 # Pbl53AHændelsesresultat = Pbl53AIndbetalingBeregnet(resultat: Pbl53AIndbetalingsresultat) | Pbl53AUdbetalingBeregnet(resultat: Pbl53AUdbetalingsresultat)
 # Pbl53AForløbsinput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, hændelser: List(Pbl53AHændelse))
 # Pbl53AForløbstilstand(seneste_tidspunkt: Pbl53ASenesteTidspunkt, hændelsesresultater: List(Pbl53AHændelsesresultat), alle_hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_i_indkomståret_kroner: Heltal, arbejdsgiverfradrag_i_indkomståret_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_i_indkomståret_kroner: Heltal)
 # Pbl53AForløbsresultat(input: Pbl53AForløbsinput, hændelsesresultater: List(Pbl53AHændelsesresultat), identifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk, resterende_fradrags_eller_bortseelsesberettiget_principal_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
 
-| pbl53a_tidspunkt_gyldigt(tidspunkt: Pbl53ATidspunkt) -> tidspunkt.indkomstår > 0 && tidspunkt.rækkefølge_i_indkomståret > 0
-| pbl53a_tidspunkt_før(a: Pbl53ATidspunkt, b: Pbl53ATidspunkt) -> a.indkomstår < b.indkomstår || a.indkomstår == b.indkomstår && a.rækkefølge_i_indkomståret < b.rækkefølge_i_indkomståret
+| pbl53a_tidspunkt_gyldigt(tidspunkt: Pbl53ATidspunkt) -> pbl15a_dato_gyldig(tidspunkt.dato) && tidspunkt.rækkefølge_på_dagen > 0
+| pbl53a_tidspunkt_før(a: Pbl53ATidspunkt, b: Pbl53ATidspunkt) -> pbl15a_dato_nøgle(a.dato) < pbl15a_dato_nøgle(b.dato) || pbl15a_dato_nøgle(a.dato) == pbl15a_dato_nøgle(b.dato) && a.rækkefølge_på_dagen < b.rækkefølge_på_dagen
 | pbl53a_tidspunkt_efter_seneste(seneste: Pbl53ASenesteTidspunkt, tidspunkt: Pbl53ATidspunkt) -> match seneste {
     | Pbl53AIntetTidspunkt -> Sandt
     | Pbl53ARegistreretTidspunkt(forrige) -> pbl53a_tidspunkt_før(forrige, tidspunkt)
@@ -1007,20 +1015,32 @@ pensionsordningen modtager statsstøtte.
     | Pbl53AUdbetalingFraOrdningen(_, produktart, Pbl53ASamletKapitaludbetaling(grund), _) -> produktart == Pbl53ATilsvarerDanskKapitalforsikringEllerOpsparing && pbl53a_kapitaludbetalingsgrund_omfattet(grund)
     | _ -> Falskt
 }
+| pbl53a_er_afkastskatteudbetaling(art: Pbl53AUdbetalingsart) -> match art {
+    | Pbl53AUdbetalingTilAfkastskat(_, _, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_afkastskatteudbetaling_rettidig(fakta: Pbl53AUdbetalingsfakta) -> match fakta.art {
+    | Pbl53AUdbetalingTilAfkastskat(_, afkast_indkomstår, dokumenteret_skat_kroner, dokumentationsdato, _) -> pbl53a_udbetalingsmodtager_omfattet_af_par55(fakta.modtager) && pbl15a_dato_gyldig(dokumentationsdato) && pbl15a_dato_nøgle(dokumentationsdato) <= pbl15a_dato_nøgle(fakta.tidspunkt.dato) && fakta.tidspunkt.dato.år >= afkast_indkomstår && fakta.tidspunkt.dato.år <= afkast_indkomstår + 1 && fakta.bruttoudbetaling_kroner <= dokumenteret_skat_kroner
+    | _ -> Falskt
+}
 | pbl53a_udbetalingsart_grundfakta_gyldige(ordning: Pensionsbeskatningslov53AOrdning, bruttoudbetaling_kroner: Heltal, art: Pbl53AUdbetalingsart) -> match art {
     | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, stk6_fakta) -> kapitalværdi_kroner > 0 && bruttoudbetaling_kroner <= kapitalværdi_kroner && pbl20_stk6_kildefakta_gyldige(stk6_fakta)
+    | Pbl53AUdbetalingTilAfkastskat(kapitalværdi_kroner, afkast_indkomstår, dokumenteret_skat_kroner, dokumentationsdato, stk6_fakta) -> kapitalværdi_kroner > 0 && bruttoudbetaling_kroner <= kapitalværdi_kroner && afkast_indkomstår > 0 && dokumenteret_skat_kroner > 0 && pbl15a_dato_gyldig(dokumentationsdato) && pbl20_stk6_kildefakta_gyldige(stk6_fakta)
     | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(sikkerhed_kroner) -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse && sikkerhed_kroner >= 0
 }
 | pbl53a_udbetalingsfakta_gyldige(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) -> fakta.identifikation != "" && pbl53a_tidspunkt_gyldigt(fakta.tidspunkt) && fakta.bruttoudbetaling_kroner > 0 && resterende_principal_kroner >= 0 && pbl53a_udbetalingsart_grundfakta_gyldige(ordning, fakta.bruttoudbetaling_kroner, fakta.art) && match fakta.art {
     | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, _) -> resterende_principal_kroner <= kapitalværdi_kroner
+    | Pbl53AUdbetalingTilAfkastskat(kapitalværdi_kroner, _, _, _, _) -> resterende_principal_kroner <= kapitalværdi_kroner
     | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> pbl53a_udbetalingsmodtager_omfattet_af_par55(fakta.modtager)
 }
 | pbl53a_principal_fordelt_til_udbetaling_kroner(resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) -> match fakta.art {
     | Pbl53AUdbetalingFraOrdningen(kapitalværdi_kroner, _, _, _) -> hvis fakta.bruttoudbetaling_kroner == kapitalværdi_kroner { penge_mindste_beløb(fakta.bruttoudbetaling_kroner, resterende_principal_kroner) } ellers { fakta.bruttoudbetaling_kroner * resterende_principal_kroner / kapitalværdi_kroner }
+    | Pbl53AUdbetalingTilAfkastskat(kapitalværdi_kroner, _, _, _, _) -> hvis fakta.bruttoudbetaling_kroner == kapitalværdi_kroner { penge_mindste_beløb(fakta.bruttoudbetaling_kroner, resterende_principal_kroner) } ellers { fakta.bruttoudbetaling_kroner * resterende_principal_kroner / kapitalværdi_kroner }
     | _ -> 0
 }
 | pbl53a_pbl20_stk6_kildefakta(art: Pbl53AUdbetalingsart) -> match art {
     | Pbl53AUdbetalingFraOrdningen(_, _, _, kildefakta) -> kildefakta
+    | Pbl53AUdbetalingTilAfkastskat(_, _, _, _, kildefakta) -> kildefakta
     | _ -> pbl20_stk6_ingen_kildefakta()
 }
 | pbl53a_pensionstilsagn_sikkerhed_kroner(art: Pbl53AUdbetalingsart) -> match art {
@@ -1035,13 +1055,15 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AUdbetalingssag(ordning: Pensionsbeskatningslov53AOrdning, resterende_principal_kroner: Heltal, fakta: Pbl53AUdbetalingsfakta) {
     | fakta_gyldige() -> pbl53a_udbetalingsfakta_gyldige(ordning, resterende_principal_kroner, fakta)
     | modtager_omfattet_af_par55() -> pbl53a_udbetalingsmodtager_omfattet_af_par55(fakta.modtager)
+    | afkastskatteudbetaling_rettidig() -> fakta_gyldige() && pbl53a_afkastskatteudbetaling_rettidig(fakta)
     | principal_fordelt_til_udbetalingen_kroner() -> hvis fakta_gyldige() { pbl53a_principal_fordelt_til_udbetaling_kroner(resterende_principal_kroner, fakta) } ellers { 0 }
-    | principal_medregnet_før_75_procent_kroner() -> hvis modtager_omfattet_af_par55() { principal_fordelt_til_udbetalingen_kroner() } ellers { 0 }
+    | principal_medregnet_før_75_procent_kroner() -> hvis modtager_omfattet_af_par55() && afkastskatteudbetaling_rettidig() == Falskt { principal_fordelt_til_udbetalingen_kroner() } ellers { 0 }
     | kapitalregel_75_procent_anvendt() -> fakta_gyldige() && modtager_omfattet_af_par55() && pbl53a_kapitalregel_75_procent_anvendes(fakta.art)
     | sikkerhedsstillelse_modsvarer_udbetaling_kroner() -> 0
     | exception pbl53a_stk5_pensionstilsagn_modsvarer_sikkerhed sikkerhedsstillelse_modsvarer_udbetaling_kroner() -> penge_mindste_beløb(fakta.bruttoudbetaling_kroner, pbl53a_pensionstilsagn_sikkerhed_kroner(fakta.art)) under fakta_gyldige() && pbl53a_er_arbejdsgiverens_udbetaling_efter_pensionstilsagn(fakta.art)
     | personlig_indkomst_kroner() -> hvis fakta_gyldige() { match fakta.art {
         | Pbl53AUdbetalingFraOrdningen(_, _, _, _) -> hvis kapitalregel_75_procent_anvendt() { principal_medregnet_før_75_procent_kroner() * 75 / 100 } ellers { principal_medregnet_før_75_procent_kroner() }
+        | Pbl53AUdbetalingTilAfkastskat(_, _, _, _, _) -> principal_medregnet_før_75_procent_kroner()
         | Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(_) -> fakta.bruttoudbetaling_kroner - sikkerhedsstillelse_modsvarer_udbetaling_kroner()
     } } ellers { 0 }
     | arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner() -> match fakta.art {
@@ -1052,6 +1074,7 @@ pensionsordningen modtager statsstøtte.
         kildefakta = pbl53a_pbl20_stk6_kildefakta(fakta.art),
         dansk_skattepligtig_pensionsindkomst_kroner = match fakta.art {
             | Pbl53AUdbetalingFraOrdningen(_, _, _, _) -> personlig_indkomst_kroner()
+            | Pbl53AUdbetalingTilAfkastskat(_, _, _, _, _) -> personlig_indkomst_kroner()
             | _ -> 0
         }
     )
@@ -1060,6 +1083,7 @@ pensionsordningen modtager statsstøtte.
         fakta = fakta,
         fakta_gyldige = fakta_gyldige(),
         modtager_omfattet_af_par55 = modtager_omfattet_af_par55(),
+        afkastskatteudbetaling_rettidig = afkastskatteudbetaling_rettidig(),
         fradrags_eller_bortseelsesberettiget_principal_før_kroner = resterende_principal_kroner,
         principal_fordelt_til_udbetalingen_kroner = principal_fordelt_til_udbetalingen_kroner(),
         principal_medregnet_før_75_procent_kroner = principal_medregnet_før_75_procent_kroner(),
@@ -1118,11 +1142,11 @@ pensionsordningen modtager statsstøtte.
 # Pbl53AForløbstrinSag(input: Pbl53AForløbsinput, tilstand: Pbl53AForløbstilstand, hændelse: Pbl53AHændelse) {
     | tidspunkt() -> pbl53a_hændelse_tidspunkt(hændelse)
     | kronologisk() -> pbl53a_tidspunkt_efter_seneste(tilstand.seneste_tidspunkt, tidspunkt())
-    | ikke_efter_indkomståret() -> tidspunkt().indkomstår <= input.indkomstår
+    | ikke_efter_indkomståret() -> tidspunkt().dato.år <= input.indkomstår
     | hændelsesresultat() -> pbl53a_hændelsesresultat(input.ordning, tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner, hændelse)
     | hændelse_gyldig() -> kronologisk() && ikke_efter_indkomståret() && pbl53a_hændelsesresultat_gyldigt(hændelsesresultat())
     | principal_efter_kroner() -> hvis hændelse_gyldig() { tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner + pbl53a_hændelsesresultat_principal_tilføjet_kroner(hændelsesresultat()) - pbl53a_hændelsesresultat_principal_fordelt_kroner(hændelsesresultat()) } ellers { tilstand.resterende_fradrags_eller_bortseelsesberettiget_principal_kroner }
-    | medregnes_i_indkomståret() -> hændelse_gyldig() && tidspunkt().indkomstår == input.indkomstår
+    | medregnes_i_indkomståret() -> hændelse_gyldig() && tidspunkt().dato.år == input.indkomstår
     | resultat() -> Pbl53AForløbstilstand(
         seneste_tidspunkt = Pbl53ARegistreretTidspunkt(tidspunkt()),
         hændelsesresultater = concat(tilstand.hændelsesresultater, [hændelsesresultat()]),
@@ -1161,6 +1185,288 @@ pensionsordningen modtager statsstøtte.
 }
 | pbl53a_forløbsresultat(input: Pbl53AForløbsinput) -> Pbl53AForløbssag(input).resultat()
 
+# Pbl53AAfkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner: Heltal) | Pbl53AAlternativtKapitalværdiAfkast(kalenderårets_primo_depotværdi_kroner: Heltal, kalenderårets_ultimo_depotværdi_kroner: Heltal)
+# Pbl53ASkattepligtsstatusVedÅretsBegyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse | Pbl53AIkkeSkattepligtigVedÅretsBegyndelse
+# Pbl53ASikkerhedsstatusVedÅretsBegyndelse = Pbl53ASikkerhedIkkeRelevant | Pbl53ASikkerhedBestårVedÅretsBegyndelse | Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse
+# Pbl53AAfkastgrænsehændelsesart = Pbl53ASkattepligtIndtræder | Pbl53ASkattepligtOphører | Pbl53ASikkerhedsstillelseEtableres | Pbl53ASikkerhedsstillelseOphører
+# Pbl53AAfkastgrænsehændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal, art: Pbl53AAfkastgrænsehændelsesart)
+# Pbl53ASenesteAfkastgrænsetidspunkt = Pbl53AIntetAfkastgrænsetidspunkt | Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt: Pbl15ATidspunkt)
+# Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(dato: Pbl15ADato, depotværdi_kroner: Heltal)
+# Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(startdato: Pbl15ADato, slutdato: Pbl15ADato)
+# Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ultimo_kroner: Heltal)
+# Pbl53ABerettigelsesfakta = Pbl53AEnkeltBerettiget(identifikation: Tekst) | Pbl53AFlereBerettigede(samlet_indestående_ultimo_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
+# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AAfkastgrænsehændelse), berettigelse_ultimo: Pbl53ABerettigelsesfakta)
+# Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, sikkerhedsstillelse_består: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
+# Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
+
+| pbl53a_direktørordning_kræver_sikkerhed(ordning: Pensionsbeskatningslov53AOrdning) -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse
+| pbl53a_skattepligtig_ved_årets_begyndelse(status: Pbl53ASkattepligtsstatusVedÅretsBegyndelse) -> status == Pbl53ASkattepligtigVedÅretsBegyndelse
+| pbl53a_sikkerhed_består_ved_årets_begyndelse(status: Pbl53ASikkerhedsstatusVedÅretsBegyndelse) -> status == Pbl53ASikkerhedBestårVedÅretsBegyndelse
+| pbl53a_sikkerhedsstatus_ved_årets_begyndelse_gyldig(ordning: Pensionsbeskatningslov53AOrdning, status: Pbl53ASikkerhedsstatusVedÅretsBegyndelse) -> hvis pbl53a_direktørordning_kræver_sikkerhed(ordning) { status != Pbl53ASikkerhedIkkeRelevant } ellers { status == Pbl53ASikkerhedIkkeRelevant }
+| pbl53a_afkastbeskatning_aktiv(ordning: Pensionsbeskatningslov53AOrdning, skattepligtig: Boolsk, sikkerhedsstillelse_består: Boolsk) -> skattepligtig && (pbl53a_direktørordning_kræver_sikkerhed(ordning) == Falskt || sikkerhedsstillelse_består)
+| pbl53a_skattepligt_efter_grænsehændelse(skattepligtig_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53ASkattepligtIndtræder -> Sandt
+    | Pbl53ASkattepligtOphører -> Falskt
+    | _ -> skattepligtig_før
+}
+| pbl53a_sikkerhed_efter_grænsehændelse(sikkerhed_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53ASikkerhedsstillelseEtableres -> Sandt
+    | Pbl53ASikkerhedsstillelseOphører -> Falskt
+    | _ -> sikkerhed_før
+}
+| pbl53a_grænsehændelsesovergang_gyldig(ordning: Pensionsbeskatningslov53AOrdning, tilstand: Pbl53AAfkastperiodetilstand, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53ASkattepligtIndtræder -> tilstand.skattepligtig == Falskt
+    | Pbl53ASkattepligtOphører -> tilstand.skattepligtig
+    | Pbl53ASikkerhedsstillelseEtableres -> pbl53a_direktørordning_kræver_sikkerhed(ordning) && tilstand.sikkerhedsstillelse_består == Falskt
+    | Pbl53ASikkerhedsstillelseOphører -> pbl53a_direktørordning_kræver_sikkerhed(ordning) && tilstand.sikkerhedsstillelse_består
+}
+| pbl53a_afkastgrænsetidspunkt_efter_seneste(seneste: Pbl53ASenesteAfkastgrænsetidspunkt, tidspunkt: Pbl15ATidspunkt) -> match seneste {
+    | Pbl53AIntetAfkastgrænsetidspunkt -> Sandt
+    | Pbl53ARegistreretAfkastgrænsetidspunkt(forrige) -> pbl15a_tidspunkt_før(forrige, tidspunkt)
+}
+| pbl53a_grænsehændelse_identifikation_unik(hændelser: List(Pbl53AAfkastgrænsehændelse), hændelse: Pbl53AAfkastgrænsehændelse) -> length(filter(hændelser, |anden: Pbl53AAfkastgrænsehændelse| anden.identifikation == hændelse.identifikation)) == 1
+| pbl53a_grænsehændelsesidentifikationer_entydige(hændelser: List(Pbl53AAfkastgrænsehændelse)) -> all(hændelser, |hændelse: Pbl53AAfkastgrænsehændelse| hændelse.identifikation != "" && pbl53a_grænsehændelse_identifikation_unik(hændelser, hændelse))
+| pbl53a_grænsehændelse_grundfakta_gyldige(indkomstår: Heltal, hændelse: Pbl53AAfkastgrænsehændelse) -> hændelse.identifikation != "" && pbl15a_dato_gyldig(hændelse.tidspunkt.dato) && hændelse.tidspunkt.dato.år == indkomstår && hændelse.tidspunkt.rækkefølge_på_dagen > 0 && hændelse.depotværdi_kroner >= 0
+
+# Pbl53AAfkastgrænsetrinSag(ordning: Pensionsbeskatningslov53AOrdning, indkomstår: Heltal, tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse) {
+    | kronologisk() -> pbl53a_afkastgrænsetidspunkt_efter_seneste(tilstand.seneste_tidspunkt, hændelse.tidspunkt)
+    | overgang_gyldig() -> pbl53a_grænsehændelsesovergang_gyldig(ordning, tilstand, hændelse.art)
+    | hændelse_gyldig() -> pbl53a_grænsehændelse_grundfakta_gyldige(indkomstår, hændelse) && kronologisk() && overgang_gyldig()
+    | skattepligtig_efter() -> hvis hændelse_gyldig() { pbl53a_skattepligt_efter_grænsehændelse(tilstand.skattepligtig, hændelse.art) } ellers { tilstand.skattepligtig }
+    | sikkerhed_efter() -> hvis hændelse_gyldig() { pbl53a_sikkerhed_efter_grænsehændelse(tilstand.sikkerhedsstillelse_består, hændelse.art) } ellers { tilstand.sikkerhedsstillelse_består }
+    | aktiv_efter() -> pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig_efter(), sikkerhed_efter())
+    | periode_begynder() -> hændelse_gyldig() && tilstand.afkastbeskatning_aktiv == Falskt && aktiv_efter()
+    | periode_ophører() -> hændelse_gyldig() && tilstand.afkastbeskatning_aktiv && aktiv_efter() == Falskt
+    | åbningsgrænse_efter() -> hvis periode_begynder() && tilstand.antal_sammenhængende_perioder == 0 { Pbl53ARegistreretAfkastgrænse(dato = hændelse.tidspunkt.dato, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.åbningsgrænse }
+    | lukningsgrænse_efter() -> hvis periode_ophører() { Pbl53ARegistreretAfkastgrænse(dato = hændelse.tidspunkt.dato, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.lukningsgrænse }
+    | resultat() -> Pbl53AAfkastperiodetilstand(
+        skattepligtig = skattepligtig_efter(),
+        sikkerhedsstillelse_består = sikkerhed_efter(),
+        afkastbeskatning_aktiv = aktiv_efter(),
+        seneste_tidspunkt = Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt = hændelse.tidspunkt),
+        åbningsgrænse = åbningsgrænse_efter(),
+        lukningsgrænse = lukningsgrænse_efter(),
+        antal_sammenhængende_perioder = tilstand.antal_sammenhængende_perioder + hvis periode_begynder() { 1 } ellers { 0 },
+        hændelser_kronologiske = tilstand.hændelser_kronologiske && kronologisk(),
+        overgange_gyldige = tilstand.overgange_gyldige && hændelse_gyldig()
+    )
+}
+| pbl53a_afkastgrænsetrin(ordning: Pensionsbeskatningslov53AOrdning, indkomstår: Heltal, tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse) -> Pbl53AAfkastgrænsetrinSag(ordning, indkomstår, tilstand, hændelse).resultat()
+| pbl53a_tom_afkastperiodetilstand(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta) -> {
+    = skattepligtig = pbl53a_skattepligtig_ved_årets_begyndelse(fakta.skattepligtsstatus_ved_årets_begyndelse)
+    = sikkerhed = pbl53a_sikkerhed_består_ved_årets_begyndelse(fakta.sikkerhedsstatus_ved_årets_begyndelse)
+    = aktiv = pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig, sikkerhed)
+    Pbl53AAfkastperiodetilstand(
+        skattepligtig = skattepligtig,
+        sikkerhedsstillelse_består = sikkerhed,
+        afkastbeskatning_aktiv = aktiv,
+        seneste_tidspunkt = Pbl53AIntetAfkastgrænsetidspunkt,
+        åbningsgrænse = hvis aktiv { Pbl53ARegistreretAfkastgrænse(dato = Pbl15ADato(år = fakta.indkomstår, måned = 1, dag = 1), depotværdi_kroner = pbl53a_kalenderårets_primo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { Pbl53AIngenAfkastgrænse },
+        lukningsgrænse = Pbl53AIngenAfkastgrænse,
+        antal_sammenhængende_perioder = hvis aktiv { 1 } ellers { 0 },
+        hændelser_kronologiske = Sandt,
+        overgange_gyldige = pbl53a_sikkerhedsstatus_ved_årets_begyndelse_gyldig(ordning, fakta.sikkerhedsstatus_ved_årets_begyndelse)
+    )
+}
+| pbl53a_kalenderårets_primo_depotværdi_kroner(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
+    | Pbl53AAfkastEfterPal(_) -> 0
+    | Pbl53AAlternativtKapitalværdiAfkast(primo_kroner, _) -> primo_kroner
+}
+| pbl53a_kalenderårets_ultimo_depotværdi_kroner(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
+    | Pbl53AAfkastEfterPal(_) -> 0
+    | Pbl53AAlternativtKapitalværdiAfkast(_, ultimo_kroner) -> ultimo_kroner
+}
+| pbl53a_afkastgrundlag_grundfakta_gyldige(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
+    | Pbl53AAfkastEfterPal(_) -> Sandt
+    | Pbl53AAlternativtKapitalværdiAfkast(primo_kroner, ultimo_kroner) -> primo_kroner >= 0 && ultimo_kroner >= 0
+}
+| pbl53a_afkastgrænse_dato(grænse: Pbl53AAfkastgrænse, indkomstår: Heltal) -> match grænse {
+    | Pbl53ARegistreretAfkastgrænse(dato, _) -> dato
+    | Pbl53AIngenAfkastgrænse -> Pbl15ADato(år = indkomstår, måned = 1, dag = 1)
+}
+| pbl53a_afkastgrænse_depotværdi_kroner(grænse: Pbl53AAfkastgrænse) -> match grænse {
+    | Pbl53ARegistreretAfkastgrænse(_, depotværdi_kroner) -> depotværdi_kroner
+    | Pbl53AIngenAfkastgrænse -> 0
+}
+| pbl53a_dato_i_afkastperiode(dato: Pbl15ADato, periode: Pbl53AAfkastperiode) -> match periode {
+    | Pbl53ASammenhængendeAfkastperiode(startdato, slutdato) -> pbl15a_dato_nøgle(dato) >= pbl15a_dato_nøgle(startdato) && pbl15a_dato_nøgle(dato) <= pbl15a_dato_nøgle(slutdato)
+    | Pbl53AIngenAfkastperiode -> Falskt
+}
+| pbl53a_afkastindbetaling_for_hændelse_kroner(hændelse: Pbl53AHændelse) -> match hændelse {
+    | Pbl53AIndbetaling(fakta) -> fakta.beløb_kroner
+    | _ -> 0
+}
+| pbl53a_afkastudbetaling_for_hændelse_kroner(hændelse: Pbl53AHændelse) -> match hændelse {
+    | Pbl53AUdbetaling(fakta) -> match fakta.art {
+        | Pbl53AUdbetalingFraOrdningen(_, _, _, _) -> fakta.bruttoudbetaling_kroner
+        | Pbl53AUdbetalingTilAfkastskat(_, _, _, _, _) -> fakta.bruttoudbetaling_kroner
+        | _ -> 0
+    }
+    | _ -> 0
+}
+| pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser: List(Pbl53AHændelse), periode: Pbl53AAfkastperiode, beløb: (Pbl53AHændelse) -> Heltal) -> foldl(hændelser, 0, |sum: Heltal, hændelse: Pbl53AHændelse| sum + hvis pbl53a_dato_i_afkastperiode(pbl53a_hændelse_tidspunkt(hændelse).dato, periode) { beløb(hændelse) } ellers { 0 })
+
+# Pbl53AAfkastperiodeSag(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) {
+    | foldet_tilstand() -> foldl(fakta.grænsehændelser, pbl53a_tom_afkastperiodetilstand(ordning, fakta), |tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse| pbl53a_afkastgrænsetrin(ordning, fakta.indkomstår, tilstand, hændelse))
+    | lukningsgrænse() -> hvis foldet_tilstand().afkastbeskatning_aktiv { Pbl53ARegistreretAfkastgrænse(dato = Pbl15ADato(år = fakta.indkomstår, måned = 12, dag = 31), depotværdi_kroner = pbl53a_kalenderårets_ultimo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { foldet_tilstand().lukningsgrænse }
+    | afkastperiode() -> hvis foldet_tilstand().antal_sammenhængende_perioder == 1 { Pbl53ASammenhængendeAfkastperiode(startdato = pbl53a_afkastgrænse_dato(foldet_tilstand().åbningsgrænse, fakta.indkomstår), slutdato = pbl53a_afkastgrænse_dato(lukningsgrænse(), fakta.indkomstår)) } ellers { Pbl53AIngenAfkastperiode }
+    | grænsehændelsesidentifikationer_entydige() -> pbl53a_grænsehændelsesidentifikationer_entydige(fakta.grænsehændelser)
+    | periode_understøttet() -> fakta.indkomstår > 0 && pbl53a_afkastgrundlag_grundfakta_gyldige(fakta.afkastgrundlag) && grænsehændelsesidentifikationer_entydige() && foldet_tilstand().hændelser_kronologiske && foldet_tilstand().overgange_gyldige && foldet_tilstand().antal_sammenhængende_perioder <= 1
+    | kapitalværdi_primo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(foldet_tilstand().åbningsgrænse) } ellers { 0 }
+    | kapitalværdi_ultimo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(lukningsgrænse()) } ellers { 0 }
+    | indbetalinger_i_perioden_kroner() -> hvis periode_understøttet() { pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser, afkastperiode(), pbl53a_afkastindbetaling_for_hændelse_kroner) } ellers { 0 }
+    | udbetalinger_i_perioden_kroner() -> hvis periode_understøttet() { pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser, afkastperiode(), pbl53a_afkastudbetaling_for_hændelse_kroner) } ellers { 0 }
+    | resultat() -> Pbl53AAfkastperiodeResultat(
+        fakta = fakta,
+        afkastperiode = afkastperiode(),
+        grænsehændelsesidentifikationer_entydige = grænsehændelsesidentifikationer_entydige(),
+        hændelser_kronologiske = foldet_tilstand().hændelser_kronologiske,
+        overgange_gyldige = foldet_tilstand().overgange_gyldige,
+        periode_understøttet = periode_understøttet(),
+        kapitalværdi_primo_kroner = kapitalværdi_primo_kroner(),
+        kapitalværdi_ultimo_kroner = kapitalværdi_ultimo_kroner(),
+        indbetalinger_i_perioden_kroner = indbetalinger_i_perioden_kroner(),
+        udbetalinger_i_perioden_kroner = udbetalinger_i_perioden_kroner()
+    )
+}
+| pbl53a_afkastperiode_resultat(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> Pbl53AAfkastperiodeSag(ordning, fakta, hændelser).resultat()
+
+| pbl53a_berettiget_identifikation_unik(andele: List(Pbl53ABerettigetAndel), andel: Pbl53ABerettigetAndel) -> length(filter(andele, |anden: Pbl53ABerettigetAndel| anden.identifikation == andel.identifikation)) == 1
+| pbl53a_berettigede_indestående_sum_kroner(andele: List(Pbl53ABerettigetAndel)) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + andel.indestående_ultimo_kroner)
+| pbl53a_berettigelsesfakta_gyldige(skatteyder_identifikation: Tekst, fakta: Pbl53ABerettigelsesfakta) -> match fakta {
+    | Pbl53AEnkeltBerettiget(identifikation) -> skatteyder_identifikation != "" && identifikation == skatteyder_identifikation
+    | Pbl53AFlereBerettigede(samlet_indestående_kroner, andele) -> skatteyder_identifikation != "" && samlet_indestående_kroner > 0 && length(andele) >= 2 && all(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation != "" && andel.indestående_ultimo_kroner > 0 && pbl53a_berettiget_identifikation_unik(andele, andel)) && pbl53a_berettigede_indestående_sum_kroner(andele) == samlet_indestående_kroner && length(filter(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation == skatteyder_identifikation)) == 1
+}
+| pbl53a_berettiget_andel_tæller(skatteyder_identifikation: Tekst, fakta: Pbl53ABerettigelsesfakta) -> match fakta {
+    | Pbl53AEnkeltBerettiget(_) -> 1
+    | Pbl53AFlereBerettigede(_, andele) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + hvis andel.identifikation == skatteyder_identifikation { andel.indestående_ultimo_kroner } ellers { 0 })
+}
+| pbl53a_berettiget_andel_nævner(fakta: Pbl53ABerettigelsesfakta) -> match fakta {
+    | Pbl53AEnkeltBerettiget(_) -> 1
+    | Pbl53AFlereBerettigede(samlet_indestående_kroner, _) -> samlet_indestående_kroner
+}
+
+# Pbl53AMetodetilstand = Pbl53AIngenMetodeValgt | Pbl53APalMetodeValgt | Pbl53AAlternativKapitalværdiMetodeValgt
+# Pbl53AAfkastårsresultat(fakta: Pbl53AAfkastårFakta, periode_resultat: Pbl53AAfkastperiodeResultat, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, berettigelsesfakta_gyldige: Boolsk, år_kronologisk: Boolsk, år_sammenhængende: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, input_gyldigt: Boolsk, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat)
+# Pbl53AAfkastforløbsinput(ordningsidentifikation: Tekst, skatteyder_identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastår: List(Pbl53AAfkastårFakta), hændelsesforløbsresultat: Pbl53AForløbsresultat)
+# Pbl53AAfkastforløbstilstand(ordningsidentifikation: Tekst, seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand, fremført_negativt_afkast_kroner: Heltal, årsresultater: List(Pbl53AAfkastårsresultat), år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk)
+# Pbl53AAfkastforløbsresultat(input: Pbl53AAfkastforløbsinput, ordningsidentifikation_stabil: Boolsk, afkastår_entydige: Boolsk, år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk, input_gyldigt: Boolsk, årsresultater: List(Pbl53AAfkastårsresultat), metodetilstand_ultimo: Pbl53AMetodetilstand, fremført_negativt_afkast_ultimo_kroner: Heltal)
+
+| pbl53a_afkastmetode(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
+    | Pbl53AAfkastEfterPal(_) -> Pbl53AAfkastEfterPalPar3Til5
+    | Pbl53AAlternativtKapitalværdiAfkast(_, _) -> Pbl53AAlternativKapitalværdi
+}
+| pbl53a_pal_afkast_kroner(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
+    | Pbl53AAfkastEfterPal(afkast_kroner) -> afkast_kroner
+    | _ -> 0
+}
+| pbl53a_afkastperiode_har_skattepligt(periode: Pbl53AAfkastperiode) -> match periode {
+    | Pbl53ASammenhængendeAfkastperiode(_, _) -> Sandt
+    | Pbl53AIngenAfkastperiode -> Falskt
+}
+| pbl53a_pal_afkast_i_skatteperioden_kroner(grundlag: Pbl53AAfkastgrundlag, periode: Pbl53AAfkastperiode) -> hvis pbl53a_afkastperiode_har_skattepligt(periode) { pbl53a_pal_afkast_kroner(grundlag) } ellers { 0 }
+| pbl53a_metodehistorik_fra_tilstand(tilstand: Pbl53AMetodetilstand) -> match tilstand {
+    | Pbl53AIngenMetodeValgt -> Pbl53AFørsteAfkastopgørelse
+    | Pbl53APalMetodeValgt -> Pbl53ATidligerePalOpgørelse
+    | Pbl53AAlternativKapitalværdiMetodeValgt -> Pbl53ATidligereAlternativKapitalværdiOpgørelse
+}
+| pbl53a_metodetilstand_for_metode(metode: Pensionsbeskatningslov53AAfkastmetode) -> match metode {
+    | Pbl53AAfkastEfterPalPar3Til5 -> Pbl53APalMetodeValgt
+    | Pbl53AAlternativKapitalværdi -> Pbl53AAlternativKapitalværdiMetodeValgt
+}
+| pbl53a_afkastår_indkomstår_unikt(afkastår: List(Pbl53AAfkastårFakta), fakta: Pbl53AAfkastårFakta) -> length(filter(afkastår, |andet: Pbl53AAfkastårFakta| andet.indkomstår == fakta.indkomstår)) == 1
+| pbl53a_afkastår_entydige(afkastår: List(Pbl53AAfkastårFakta)) -> all(afkastår, |fakta: Pbl53AAfkastårFakta| fakta.indkomstår > 0 && pbl53a_afkastår_indkomstår_unikt(afkastår, fakta))
+| pbl53a_afkastskatteudbetaling_for_sen_personlig_indkomst_kroner(resultat: Pbl53AHændelsesresultat, indkomstår: Heltal) -> match resultat {
+    | Pbl53AUdbetalingBeregnet(udbetaling) -> hvis pbl53a_er_afkastskatteudbetaling(udbetaling.fakta.art) && udbetaling.fakta.tidspunkt.dato.år == indkomstår && udbetaling.afkastskatteudbetaling_rettidig == Falskt { udbetaling.personlig_indkomst_kroner } ellers { 0 }
+    | _ -> 0
+}
+| pbl53a_afkastskatteudbetaling_for_sen_i_år_kroner(hændelsesresultater: List(Pbl53AHændelsesresultat), indkomstår: Heltal) -> foldl(hændelsesresultater, 0, |sum: Heltal, resultat: Pbl53AHændelsesresultat| sum + pbl53a_afkastskatteudbetaling_for_sen_personlig_indkomst_kroner(resultat, indkomstår))
+
+# Pbl53AAfkastårstrinSag(input: Pbl53AAfkastforløbsinput, tilstand: Pbl53AAfkastforløbstilstand, fakta: Pbl53AAfkastårFakta) {
+    | periode_resultat() -> pbl53a_afkastperiode_resultat(input.ordning, fakta, input.hændelsesforløbsresultat.input.hændelser)
+    | skatteperiode_findes() -> pbl53a_afkastperiode_har_skattepligt(periode_resultat().afkastperiode)
+    | afkastmetode() -> pbl53a_afkastmetode(fakta.afkastgrundlag)
+    | afkastmetode_for_beregning() -> hvis skatteperiode_findes() { afkastmetode() } ellers { match tilstand.metodetilstand {
+        | Pbl53AIngenMetodeValgt -> afkastmetode()
+        | Pbl53APalMetodeValgt -> Pbl53AAfkastEfterPalPar3Til5
+        | Pbl53AAlternativKapitalværdiMetodeValgt -> Pbl53AAlternativKapitalværdi
+    } }
+    | pensionsudbyder_opgjorde_pal_for_beregning() -> hvis skatteperiode_findes() == Falskt && tilstand.metodetilstand == Pbl53AAlternativKapitalværdiMetodeValgt { Falskt } ellers { fakta.pensionsudbyder_opgjorde_afkast_efter_pal }
+    | metodehistorik() -> pbl53a_metodehistorik_fra_tilstand(tilstand.metodetilstand)
+    | år_kronologisk() -> fakta.indkomstår > tilstand.seneste_indkomstår
+    | år_sammenhængende() -> tilstand.seneste_indkomstår == 0 || fakta.indkomstår == tilstand.seneste_indkomstår + 1
+    | berettigelsesfakta_gyldige() -> pbl53a_berettigelsesfakta_gyldige(input.skatteyder_identifikation, fakta.berettigelse_ultimo)
+    | afkastmetode_tilladt_efter_udbyderopgørelse() -> skatteperiode_findes() == Falskt || pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(afkastmetode(), fakta.pensionsudbyder_opgjorde_afkast_efter_pal)
+    | metodevalg_bindende_opfyldt() -> skatteperiode_findes() == Falskt || pbl53a_metodevalg_bindende_opfyldt(afkastmetode(), metodehistorik())
+    | pensionsbeskatningslov_input() -> Pensionsbeskatningslov53AInput(
+        indkomstår = fakta.indkomstår,
+        ordning = input.ordning,
+        omfattes_af_par53b = input.omfattes_af_par53b,
+        alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = input.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år,
+        afkastmetode = afkastmetode_for_beregning(),
+        metodehistorik = metodehistorik(),
+        pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = pensionsudbyder_opgjorde_pal_for_beregning(),
+        afkast_efter_pal_par3_til_5_kroner = pbl53a_pal_afkast_i_skatteperioden_kroner(fakta.afkastgrundlag, periode_resultat().afkastperiode),
+        kapitalværdi_primo_kroner = periode_resultat().kapitalværdi_primo_kroner,
+        kapitalværdi_ultimo_kroner = periode_resultat().kapitalværdi_ultimo_kroner,
+        udbetalinger_i_året_kroner = periode_resultat().udbetalinger_i_perioden_kroner,
+        indbetalinger_i_året_kroner = periode_resultat().indbetalinger_i_perioden_kroner,
+        fremført_negativt_afkast_primo_kroner = tilstand.fremført_negativt_afkast_kroner,
+        andel_tæller = pbl53a_berettiget_andel_tæller(input.skatteyder_identifikation, fakta.berettigelse_ultimo),
+        andel_nævner = pbl53a_berettiget_andel_nævner(fakta.berettigelse_ultimo),
+        udbetaling_til_afkastskat_kroner = pbl53a_afkastskatteudbetaling_for_sen_i_år_kroner(input.hændelsesforløbsresultat.hændelsesresultater, fakta.indkomstår)
+    )
+    | pensionsbeskatningslov_resultat() -> pensionsbeskatningslov53a_resultat(pensionsbeskatningslov_input())
+    | input_gyldigt() -> input.ordningsidentifikation != "" && input.skatteyder_identifikation != "" && input.omfattes_af_par53b == Falskt && input.hændelsesforløbsresultat.input_gyldigt && år_kronologisk() && år_sammenhængende() && periode_resultat().periode_understøttet && berettigelsesfakta_gyldige() && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
+    | årsresultat() -> Pbl53AAfkastårsresultat(
+        fakta = fakta,
+        periode_resultat = periode_resultat(),
+        metodehistorik = metodehistorik(),
+        berettigelsesfakta_gyldige = berettigelsesfakta_gyldige(),
+        år_kronologisk = år_kronologisk(),
+        år_sammenhængende = år_sammenhængende(),
+        afkastmetode_tilladt_efter_udbyderopgørelse = afkastmetode_tilladt_efter_udbyderopgørelse(),
+        metodevalg_bindende_opfyldt = metodevalg_bindende_opfyldt(),
+        input_gyldigt = input_gyldigt(),
+        pensionsbeskatningslov_input = pensionsbeskatningslov_input(),
+        pensionsbeskatningslov_resultat = pensionsbeskatningslov_resultat()
+    )
+    | resultat() -> Pbl53AAfkastforløbstilstand(
+        ordningsidentifikation = tilstand.ordningsidentifikation,
+        seneste_indkomstår = hvis år_kronologisk() { fakta.indkomstår } ellers { tilstand.seneste_indkomstår },
+        metodetilstand = hvis input_gyldigt() && skatteperiode_findes() { pbl53a_metodetilstand_for_metode(afkastmetode()) } ellers { tilstand.metodetilstand },
+        fremført_negativt_afkast_kroner = hvis input_gyldigt() { pensionsbeskatningslov_resultat().fremført_negativt_afkast_ultimo_kroner } ellers { tilstand.fremført_negativt_afkast_kroner },
+        årsresultater = concat(tilstand.årsresultater, [årsresultat()]),
+        år_kronologiske = tilstand.år_kronologiske && år_kronologisk(),
+        år_sammenhængende = tilstand.år_sammenhængende && år_sammenhængende(),
+        alle_år_gyldige = tilstand.alle_år_gyldige && input_gyldigt()
+    )
+}
+| pbl53a_afkastårstrin(input: Pbl53AAfkastforløbsinput, tilstand: Pbl53AAfkastforløbstilstand, fakta: Pbl53AAfkastårFakta) -> Pbl53AAfkastårstrinSag(input, tilstand, fakta).resultat()
+| pbl53a_tom_afkastforløbstilstand(ordningsidentifikation: Tekst) -> Pbl53AAfkastforløbstilstand(ordningsidentifikation = ordningsidentifikation, seneste_indkomstår = 0, metodetilstand = Pbl53AIngenMetodeValgt, fremført_negativt_afkast_kroner = 0, årsresultater = [], år_kronologiske = Sandt, år_sammenhængende = Sandt, alle_år_gyldige = Sandt)
+
+# Pbl53AAfkastforløbssag(input: Pbl53AAfkastforløbsinput) {
+    | tilstand() -> foldl(input.afkastår, pbl53a_tom_afkastforløbstilstand(input.ordningsidentifikation), |forløb: Pbl53AAfkastforløbstilstand, fakta: Pbl53AAfkastårFakta| pbl53a_afkastårstrin(input, forløb, fakta))
+    | ordningsidentifikation_stabil() -> input.ordningsidentifikation != "" && tilstand().ordningsidentifikation == input.ordningsidentifikation
+    | afkastår_entydige() -> length(input.afkastår) > 0 && pbl53a_afkastår_entydige(input.afkastår)
+    | input_gyldigt() -> ordningsidentifikation_stabil() && afkastår_entydige() && tilstand().år_kronologiske && tilstand().år_sammenhængende && tilstand().alle_år_gyldige
+    | resultat() -> Pbl53AAfkastforløbsresultat(
+        input = input,
+        ordningsidentifikation_stabil = ordningsidentifikation_stabil(),
+        afkastår_entydige = afkastår_entydige(),
+        år_kronologiske = tilstand().år_kronologiske,
+        år_sammenhængende = tilstand().år_sammenhængende,
+        alle_år_gyldige = tilstand().alle_år_gyldige,
+        input_gyldigt = input_gyldigt(),
+        årsresultater = tilstand().årsresultater,
+        metodetilstand_ultimo = tilstand().metodetilstand,
+        fremført_negativt_afkast_ultimo_kroner = tilstand().fremført_negativt_afkast_kroner
+    )
+}
+| pbl53a_afkastforløbsresultat(input: Pbl53AAfkastforløbsinput) -> Pbl53AAfkastforløbssag(input).resultat()
+| pbl53a_afkastårsresultat_for_indkomstår(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)[0]
+| pbl53a_afkastårsresultat_findes_entydigt(resultat: Pbl53AAfkastforløbsresultat, indkomstår: Heltal) -> length(filter(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == indkomstår)) == 1
+
 = pbl53a_pal_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,
     ordning = Pbl53ALivsforsikringUdenKapitel1,
@@ -1195,7 +1501,7 @@ pensionsordningen modtager statsstøtte.
     fremført_negativt_afkast_primo_kroner = 0,
     andel_tæller = 1,
     andel_nævner = 2,
-    udbetaling_til_afkastskat_kroner = 3000
+    udbetaling_til_afkastskat_kroner = 0
 ))
 = pbl53a_negativt_afkast_fixture = pensionsbeskatningslov53a_resultat(Pensionsbeskatningslov53AInput(
     indkomstår = 2026,

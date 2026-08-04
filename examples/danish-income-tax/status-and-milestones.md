@@ -1,9 +1,9 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-9633b6`
+Current implementation slice: `td-ee951a`
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-fad7c0`
 Latest approved language slice: `td-1ca9ba`
@@ -70,17 +70,27 @@ og audits bliver i `examples/danish-income-tax/`.
 Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A som kildefakta. Skatteåret afledes fra den
-omgivende Personskat-sag. Afkastgrundlaget er en sumtype, så en ordning enten
-oplyser et positivt eller negativt PAL-afkast eller de fire beløb til den
-alternative kapitalværdimetode; modstridende metodefelter kan derfor ikke
-opstå. Hver ordning bevarer PBL-inputtet, PBL-resultatet og resultatet efter
-Personskattelovens § 4, stk. 1, nr. 13. Positivt afkast efter egen negativ
-fremførsel bliver kapitalindkomst, mens et negativt afkast forbliver knyttet
-til den samme identificerede ordning. Et typet metodehistorikfelt håndhæver
-stk. 3's bindende valg. PAL-metoden er udgangspunktet; den alternative
-kapitalværdimetode kan kun vælges, når pensionsudbyderen ikke opgjorde
-PAL-afkastet i valgåret. Fortsat brug af den valgte metode beregnes, og skift i
-begge retninger forbliver synlige, men fejler lukket uden en kapitalpost.
+omgivende Personskat-sag. Hver ordning har en stabil ordnings- og
+skatteyderidentifikation samt en sammenhængende, kronologisk liste af årlige
+afkastfakta. Et år oplyser enten pensionsudbyderens PAL-afkast eller
+kalenderårets faktiske primo- og ultimodepotværdi, begyndelsesstatus for
+skattepligt og eventuel direktørsikkerhed, daterede ændringer med depotværdi og
+de faktiske berettigede ved årets udgang. Kalderen leverer ikke længere
+metodehistorik, negativ fremførsel, en beregnet afkastandel, summerede
+indbetalinger eller udbetalinger eller den skattepligtige periodes grænser.
+
+Et flerårigt fold afleder den bindende metode, negativt afkast for samme
+ordning, den sammenhængende skatteperiode og periodens faktiske betalinger. Et
+helt år uden skattepligt medregner intet PAL-afkast og etablerer ikke et nyt
+metodevalg. Udeladte mellemår, metodeændringer, dubletter og flere adskilte
+skatteperioder i samme år forbliver synlige og fejler lukket. Ved ind- eller
+udtræden bruger kapitalværdimetoden depotet på ændringsdatoen. For en
+direktørordning gælder det tilsvarende, når sikkerhedsstillelsen etableres eller
+ophører. Flere berettigedes afkastandel beregnes af deres eksakte, validerede
+indeståender ved årets udgang. Hver ordning bevarer årets afledte PBL-input,
+PBL-resultat og resultatet efter Personskattelovens § 4, stk. 1, nr. 13.
+Positivt afkast efter egen negativ fremførsel bliver kapitalindkomst, mens et
+negativt afkast forbliver knyttet til den samme identificerede ordning.
 
 Stk. 2 og 5 bruger nu desuden et ordnet hændelsesforløb pr. ordning.
 Arbejdsgiverens og den tidligere arbejdsgivers bidrag bliver personlig indkomst
@@ -97,18 +107,23 @@ det officielle krone-for-krone-princip som udbetalingen ganget med principalens
 andel af den aktuelle kapitalværdi. Værditilvækst medregnes ikke igen. Reglerne
 afleder modtagerkredsen efter § 55, 75-procentreglen for kvalificerende samlede
 kapitaludbetalinger og § 20, stk. 6-resultatet med mulig lempelse efter
-Ligningslovens § 33. Beløbene føres én gang til Personskattelovens § 3 og den
-kanoniske AM-beregning. Otte fokuserede invariantscenarier består både fortolket
-og kompileret, herunder positive, undtagne, delvise og ugyldige forløb.
+Ligningslovens § 33. En udbetaling til dækning af afkastskat er en dateret og
+dokumenteret hændelse og er kun undtaget, hvis beløbet ikke overstiger den
+dokumenterede skat og udbetales senest året efter optjeningsåret. Beløbene
+føres én gang til Personskattelovens § 3 og den kanoniske AM-beregning. De to
+fokuserede scenariefiler gennemfører henholdsvis 8 og 11 invariantscenarier i
+både interpreter og compiler; den almindelige mapper-scenarie gennemfører
+yderligere 11 invariantscenarier i begge udførelsesveje.
 
-Beregningskontrakten har 50 danske § 53 A-feltbeskrivelser med PBL §§ 20 og
-53 A, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har særskilte
-relationelle ark for ordninger og deres indbetalings- og
+Beregningskontrakten har 76 danske § 53 A-feltbeskrivelser med PBL §§ 20 og
+53 A, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har fem
+relationelle § 53 A-ark for ordninger, årlige fakta, daterede
+grænsehændelser, berettigedes indeståender og indbetalings- eller
 udbetalingshændelser. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
-en arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
+fem årsoptegnelser, en delårsgrænse, to berettigede, en
+arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
 13.000 kr. negativt afkast til særskilt fremførsel på den ordning, hvor tabet
-opstod. Dubletidentifikationer, ugyldige andele, ukronologiske hændelser og
-ikke-understøttede år forbliver synlige og fejler lukket.
+opstod.
 
 Arbejdet afdækkede samtidig en Futuruna-fejl ved ens konstruktørnavne i flere
 sumtyper. Typekontrollen, fortolkeren og Rust-kodegenereringen bruger nu den
@@ -449,7 +464,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 734 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 760 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -499,7 +514,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`20df2151334926fd7285e2b77965e77d0e92f1f7b6decd59e58030799c85eb1a`.
+`1124d85de8efb47895e770f9de2a55db90c5aedfc5b677ccc3e5df39e475bd47`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -511,8 +526,8 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe har 3.319 domænekolonner; 734 materialiserer en eksplicit etiket,
-mens 2.585 fortsat bruger dette fallback. Metadataudbygningen er derfor en
+projektmappe har 3.342 domænekolonner; 760 materialiserer en eksplicit etiket,
+mens 2.582 fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
@@ -2959,6 +2974,16 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Pensionsbeskatningslovens § 53 A, stk. 3 har nu et dateret,
+  kildefaktabåret flerårsforløb. Reglerne afleder delårsperioder ved ind- og
+  udtræden af skattepligt, depotgrænser ved etablering og ophør af
+  direktørsikkerhed, eksakte andele for flere berettigede, bindende metodevalg,
+  negativ fremførsel pr. stabil ordning og fristen for dokumenterede
+  udbetalinger til afkastskat. År uden skattepligt er neutrale, og udeladte
+  mellemår eller flere adskilte perioder fejler lukket. De 11 fokuserede
+  tidsinvarianter passerer både interpreter og compiler. Den kanoniske
+  kontrakt har 76 § 53 A-feltmetadata-poster og fem relationelle § 53 A-ark;
+  XLSX og JSON afstemmer samme tre ordninger og fem årsoptegnelser.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3063,8 +3088,8 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 593 nåbare definitioner, 167
-  synlige overskriftsceller inklusive `case_id` og 88 relationelle kildeark.
+- Det genererede Personskat-regneark har nu 631 nåbare definitioner, 167
+  synlige overskriftsceller inklusive `case_id` og 92 relationelle kildeark.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -3096,7 +3121,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 734 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 760 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3122,7 +3147,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Store enum-/variantvalg bruger et
   skjult `_choices`-ark med navngivne områder, så alle domænevalg kan blive
   dropdowns uden Excels 255-tegnsgrænse for indlejrede lister.
-  Arbejdsbogens 3.319 domænekolonner bruger præcise feltmetadata, hvor de er
+  Arbejdsbogens 3.342 domænekolonner bruger præcise feltmetadata, hvor de er
   oprettet. Alle 64 nåbare § 15 A-stier for afståelsen har nu en eksplicit
   etiket og et interviewspørgsmål; ældre, dybe stier med deterministisk læsbar
   fallback er fortsat eksplicit opfølgningsarbejde. XLSX-kontrakt v6 viser og
@@ -3257,8 +3282,9 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-ee951a` skal fuldføre § 53 A, stk. 3's delårs-, sikkerhedsstillelses- og
-  fristregler som et dateret forløb med vedvarende ordningsidentitet.
+- `td-2a8a7b` skal skelne § 53 A-afkasthistorikken før og efter 2010 samt
+  femårsgrænsen for negative afkast fra 2001 og tidligere. Den moderne
+  flerårsmodel må ikke anvendes bagud uden den særskilte overgangsregel.
 - `td-606798` skal erstatte de resterende rå § 53 A-klassifikationer og
   undtagelsesbooleans med kildedata, der afleder stk. 1, § 53 B, stk. 4 og
   statsstøttebegrænsningen i stk. 6.

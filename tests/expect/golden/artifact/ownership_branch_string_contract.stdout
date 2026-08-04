@@ -78,6 +78,12 @@ impl<A: fmt::Display, B: fmt::Display> fmt::Display for Pair<A, B> {
     }
 }
 
+trait Meta {
+}
+
+trait MetaRole {
+}
+
 trait Console {
     fn say(&self, msg: String) -> ();
     fn ask(&self, prompt: String) -> String;

@@ -74,17 +74,24 @@ og
 
 Afkast fra pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A går nu gennem den samme kanoniske beregning.
-Hver ordning har en stabil identifikation og oplyser enten et PAL-afkast eller
-kapitalværdier, ind- og udbetalinger. Futuruna afleder skatteåret, beregner
-afkastet, anvender kun fremført negativt afkast fra samme ordning og fører et
-positivt resultat til Personskattelovens § 4, stk. 1, nr. 13. Et negativt
-resultat bevares særskilt til senere år og kan ikke skjult modregnes i en anden
-ordning. Ordningen oplyser også, om det er første afkastopgørelse, eller hvilken
-metode der tidligere blev valgt. Det bindende metodevalg håndhæves af reglerne;
-PAL-metoden er udgangspunktet, og kapitalværdimetoden kan kun vælges, hvis
-pensionsudbyderen ikke opgjorde PAL-afkastet i valgåret. Et senere skift
-mellem metoderne fejler lukket uden en kapitalpost. Både lovresultater og en
-eventuel ugyldighed bliver i forklaringssporet.
+Hver ordning har en stabil identifikation og en sammenhængende række af årlige
+kildefakta. Borgeren eller AI-interviewet oplyser pensionsudbyderens PAL-afkast
+eller de faktiske depotværdier, daterede ind- og udbetalinger, begyndelsesstatus
+for skattepligt og eventuel direktørsikkerhed, ændringer i årets løb og de
+berettigedes indeståender ved årets udgang. Futuruna afleder selv den relevante
+skatteperiode, metodehistorikken, periodens betalingssummer, hver berettigets
+andel og negativt afkast til fremførsel på samme ordning. Ved ind- eller
+udtræden bruges depotværdien på ændringsdatoen; det samme gælder ved etablering
+eller ophør af en direktørsikkerhed. Et helt år uden skattepligt giver intet
+skattepligtigt afkast og etablerer ikke et nyt metodevalg.
+
+Det bindende metodevalg håndhæves på tværs af årene. Udeladte mellemår,
+metodeskift, modstridende hændelser og flere adskilte skatteperioder i samme år
+fejler lukket uden en kapitalpost. En dokumenteret udbetaling til dækning af
+afkastskat er kun skattefri, hvis den sker senest året efter optjeningsåret.
+Et positivt resultat føres til Personskattelovens § 4, stk. 1, nr. 13, mens et
+negativt resultat bevares på den identificerede ordning. Både lovresultater og
+en eventuel ugyldighed bliver i forklaringssporet.
 
 Variantvalg gør særlige
 skatteforhold,
@@ -213,8 +220,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 701 eksplicitte feltmetadata-poster,
-heraf 17 for § 53 A-ordninger.
+interviewoplysninger. Kontrakten har nu 760 eksplicitte feltmetadata-poster,
+heraf 76 for § 53 A-ordninger.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

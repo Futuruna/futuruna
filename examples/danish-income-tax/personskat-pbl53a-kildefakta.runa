@@ -13,84 +13,51 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
         Guidance(value = skat_juridisk_vejledning_pbl53a_indbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )
 
 --@label:personskat_pbl53a_kildefakta::meta:personskat_pbl53a_kildefakta_metadata--
 --@begin:personskat_pbl53a_kildefakta--
-# PersonskatPbl53AAfkastgrundlag = PersonskatPbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner: Heltal) | PersonskatPbl53AKapitalværdiAfkast(kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal)
-# PersonskatPbl53AAndel(tæller: Heltal, nævner: Heltal)
-# PersonskatPbl53AOrdningFakta(identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastgrundlag: PersonskatPbl53AAfkastgrundlag, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk, fremført_negativt_afkast_primo_kroner: Heltal, andel: PersonskatPbl53AAndel, udbetaling_til_afkastskat_kroner: Heltal, hændelser: List(Pbl53AHændelse))
+# PersonskatPbl53AOrdningFakta(identifikation: Tekst, skatteyder_identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse))
 # PersonskatPbl53AInput(ordninger: List(PersonskatPbl53AOrdningFakta))
-# PersonskatPbl53AOrdningsresultat = UgyldigtPbl53AGrundlag(fakta: PersonskatPbl53AOrdningFakta, skatteår_understøttet: Boolsk, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, forløbsresultat: Pbl53AForløbsresultat) | BeregnetPbl53AOrdning(fakta: PersonskatPbl53AOrdningFakta, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat, par4_input: Par4Stk1Nr13Input, par4_resultat: Par4Stk1Nr13Resultat, forløbsinput: Pbl53AForløbsinput, forløbsresultat: Pbl53AForløbsresultat, par3_input: Par3Pbl53AStk2Og5Input, par3_resultat: Par3Pbl53AStk2Og5Resultat)
+# PersonskatPbl53AOrdningsresultat = UgyldigtPbl53AGrundlag(fakta: PersonskatPbl53AOrdningFakta, skatteår_understøttet: Boolsk, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, aktuelt_afkastår_findes_entydigt: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, forløbsresultat: Pbl53AForløbsresultat, afkastforløbsresultat: Pbl53AAfkastforløbsresultat) | BeregnetPbl53AOrdning(fakta: PersonskatPbl53AOrdningFakta, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat, par4_input: Par4Stk1Nr13Input, par4_resultat: Par4Stk1Nr13Resultat, forløbsinput: Pbl53AForløbsinput, forløbsresultat: Pbl53AForløbsresultat, par3_input: Par3Pbl53AStk2Og5Input, par3_resultat: Par3Pbl53AStk2Og5Resultat, afkastforløbsinput: Pbl53AAfkastforløbsinput, afkastforløbsresultat: Pbl53AAfkastforløbsresultat)
 # PersonskatPbl53AResultat(input: PersonskatPbl53AInput, ordningsresultater: List(PersonskatPbl53AOrdningsresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
 
 | personskat_ingen_pbl53a() -> PersonskatPbl53AInput(ordninger = [])
 | personskat_pbl53a_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
 | personskat_pbl53a_identifikation_unik(ordninger: List(PersonskatPbl53AOrdningFakta), fakta: PersonskatPbl53AOrdningFakta) -> length(filter(ordninger, |anden: PersonskatPbl53AOrdningFakta| anden.identifikation == fakta.identifikation)) == 1
 | personskat_pbl53a_identifikationer_entydige(input: PersonskatPbl53AInput) -> all(input.ordninger, |fakta: PersonskatPbl53AOrdningFakta| fakta.identifikation != "" && personskat_pbl53a_identifikation_unik(input.ordninger, fakta))
-| personskat_pbl53a_afkastgrundlag_gyldigt(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AAfkastEfterPal(_) -> Sandt
-    | PersonskatPbl53AKapitalværdiAfkast(kapitalværdi_primo_kroner, kapitalværdi_ultimo_kroner, udbetalinger_i_året_kroner, indbetalinger_i_året_kroner) -> kapitalværdi_primo_kroner >= 0 && kapitalværdi_ultimo_kroner >= 0 && udbetalinger_i_året_kroner >= 0 && indbetalinger_i_året_kroner >= 0
-}
-| personskat_pbl53a_ordning_grundfakta_gyldige(fakta: PersonskatPbl53AOrdningFakta) -> fakta.fremført_negativt_afkast_primo_kroner >= 0 && fakta.andel.tæller > 0 && fakta.andel.nævner > 0 && fakta.andel.tæller <= fakta.andel.nævner && fakta.udbetaling_til_afkastskat_kroner >= 0 && personskat_pbl53a_afkastgrundlag_gyldigt(fakta.afkastgrundlag)
-| personskat_pbl53a_afkastmetode(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AAfkastEfterPal(_) -> Pbl53AAfkastEfterPalPar3Til5
-    | PersonskatPbl53AKapitalværdiAfkast(_, _, _, _) -> Pbl53AAlternativKapitalværdi
-}
-| personskat_pbl53a_metodevalg_bindende_opfyldt(fakta: PersonskatPbl53AOrdningFakta) -> pbl53a_metodevalg_bindende_opfyldt(personskat_pbl53a_afkastmetode(fakta.afkastgrundlag), fakta.metodehistorik)
-| personskat_pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(fakta: PersonskatPbl53AOrdningFakta) -> pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(personskat_pbl53a_afkastmetode(fakta.afkastgrundlag), fakta.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget)
-| personskat_pbl53a_pal_afkast_kroner(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AAfkastEfterPal(afkast_kroner) -> afkast_kroner
-    | _ -> 0
-}
-| personskat_pbl53a_kapitalværdi_primo_kroner(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AKapitalværdiAfkast(kapitalværdi_primo_kroner, _, _, _) -> kapitalværdi_primo_kroner
-    | _ -> 0
-}
-| personskat_pbl53a_kapitalværdi_ultimo_kroner(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AKapitalværdiAfkast(_, kapitalværdi_ultimo_kroner, _, _) -> kapitalværdi_ultimo_kroner
-    | _ -> 0
-}
-| personskat_pbl53a_udbetalinger_i_året_kroner(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AKapitalværdiAfkast(_, _, udbetalinger_i_året_kroner, _) -> udbetalinger_i_året_kroner
-    | _ -> 0
-}
-| personskat_pbl53a_indbetalinger_i_året_kroner(afkastgrundlag: PersonskatPbl53AAfkastgrundlag) -> match afkastgrundlag {
-    | PersonskatPbl53AKapitalværdiAfkast(_, _, _, indbetalinger_i_året_kroner) -> indbetalinger_i_året_kroner
-    | _ -> 0
-}
-| personskat_pbl53a_pensionsbeskatningslov_input(fakta: PersonskatPbl53AOrdningFakta, skatteår: Heltal) -> Pensionsbeskatningslov53AInput(
-    indkomstår = skatteår,
-    ordning = fakta.ordning,
-    omfattes_af_par53b = fakta.omfattes_af_par53b,
-    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = fakta.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år,
-    afkastmetode = personskat_pbl53a_afkastmetode(fakta.afkastgrundlag),
-    metodehistorik = fakta.metodehistorik,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = fakta.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget,
-    afkast_efter_pal_par3_til_5_kroner = personskat_pbl53a_pal_afkast_kroner(fakta.afkastgrundlag),
-    kapitalværdi_primo_kroner = personskat_pbl53a_kapitalværdi_primo_kroner(fakta.afkastgrundlag),
-    kapitalværdi_ultimo_kroner = personskat_pbl53a_kapitalværdi_ultimo_kroner(fakta.afkastgrundlag),
-    udbetalinger_i_året_kroner = personskat_pbl53a_udbetalinger_i_året_kroner(fakta.afkastgrundlag),
-    indbetalinger_i_året_kroner = personskat_pbl53a_indbetalinger_i_året_kroner(fakta.afkastgrundlag),
-    fremført_negativt_afkast_primo_kroner = fakta.fremført_negativt_afkast_primo_kroner,
-    andel_tæller = fakta.andel.tæller,
-    andel_nævner = fakta.andel.nævner,
-    udbetaling_til_afkastskat_kroner = fakta.udbetaling_til_afkastskat_kroner
-)
+| personskat_pbl53a_ordning_grundfakta_gyldige(fakta: PersonskatPbl53AOrdningFakta, skatteår: Heltal) -> fakta.identifikation != "" && fakta.skatteyder_identifikation != "" && length(fakta.afkastår) > 0 && all(fakta.afkastår, |år: Pbl53AAfkastårFakta| år.indkomstår <= skatteår)
 | personskat_pbl53a_forløbsinput(fakta: PersonskatPbl53AOrdningFakta, skatteår: Heltal) -> Pbl53AForløbsinput(
     indkomstår = skatteår,
     ordning = fakta.ordning,
     omfattes_af_par53b = fakta.omfattes_af_par53b,
     hændelser = fakta.hændelser
 )
+| personskat_pbl53a_afkastforløbsinput(fakta: PersonskatPbl53AOrdningFakta, forløbsresultat: Pbl53AForløbsresultat) -> Pbl53AAfkastforløbsinput(
+    ordningsidentifikation = fakta.identifikation,
+    skatteyder_identifikation = fakta.skatteyder_identifikation,
+    ordning = fakta.ordning,
+    omfattes_af_par53b = fakta.omfattes_af_par53b,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = fakta.alene_død_invaliditet_livstruende_sygdom_til_senest_80_år,
+    afkastår = fakta.afkastår,
+    hændelsesforløbsresultat = forløbsresultat
+)
+| personskat_pbl53a_aktuelt_afkastår_findes_entydigt(resultat: Pbl53AAfkastforløbsresultat, skatteår: Heltal) -> pbl53a_afkastårsresultat_findes_entydigt(resultat, skatteår)
+| personskat_pbl53a_aktuel_afkastmetode_tilladt(resultat: Pbl53AAfkastforløbsresultat, skatteår: Heltal) -> any(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == skatteår && årsresultat.afkastmetode_tilladt_efter_udbyderopgørelse)
+| personskat_pbl53a_aktuelt_metodevalg_bindende_opfyldt(resultat: Pbl53AAfkastforløbsresultat, skatteår: Heltal) -> any(resultat.årsresultater, |årsresultat: Pbl53AAfkastårsresultat| årsresultat.fakta.indkomstår == skatteår && årsresultat.metodevalg_bindende_opfyldt)
 | personskat_pbl53a_ordningsresultat(input: PersonskatPbl53AInput, fakta: PersonskatPbl53AOrdningFakta, skatteår: Heltal) -> {
     = forløbsinput = personskat_pbl53a_forløbsinput(fakta, skatteår)
     = forløbsresultat = pbl53a_forløbsresultat(forløbsinput)
-    hvis personskat_pbl53a_skatteår_understøttet(skatteår) && personskat_pbl53a_identifikation_unik(input.ordninger, fakta) && fakta.identifikation != "" && personskat_pbl53a_ordning_grundfakta_gyldige(fakta) && personskat_pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(fakta) && personskat_pbl53a_metodevalg_bindende_opfyldt(fakta) && forløbsresultat.input_gyldigt {
-        = pensionsbeskatningslov_input = personskat_pbl53a_pensionsbeskatningslov_input(fakta, skatteår)
-        = pensionsbeskatningslov_resultat = pensionsbeskatningslov53a_resultat(pensionsbeskatningslov_input)
+    = afkastforløbsinput = personskat_pbl53a_afkastforløbsinput(fakta, forløbsresultat)
+    = afkastforløbsresultat = pbl53a_afkastforløbsresultat(afkastforløbsinput)
+    = aktuelt_afkastår_findes_entydigt = personskat_pbl53a_aktuelt_afkastår_findes_entydigt(afkastforløbsresultat, skatteår)
+    hvis personskat_pbl53a_skatteår_understøttet(skatteår) && personskat_pbl53a_identifikation_unik(input.ordninger, fakta) && personskat_pbl53a_ordning_grundfakta_gyldige(fakta, skatteår) && forløbsresultat.input_gyldigt && afkastforløbsresultat.input_gyldigt && aktuelt_afkastår_findes_entydigt {
+        = aktuelt_årsresultat = pbl53a_afkastårsresultat_for_indkomstår(afkastforløbsresultat, skatteår)
+        = pensionsbeskatningslov_input = aktuelt_årsresultat.pensionsbeskatningslov_input
+        = pensionsbeskatningslov_resultat = aktuelt_årsresultat.pensionsbeskatningslov_resultat
         = par4_input = Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pensionsbeskatningslov_resultat)
         = par3_input = Par3Pbl53AStk2Og5Input(pbl53a_forløbsresultat = forløbsresultat)
         BeregnetPbl53AOrdning(
@@ -102,42 +69,46 @@
             forløbsinput = forløbsinput,
             forløbsresultat = forløbsresultat,
             par3_input = par3_input,
-            par3_resultat = par3_pbl53a_stk2_og_5_resultat(par3_input)
+            par3_resultat = par3_pbl53a_stk2_og_5_resultat(par3_input),
+            afkastforløbsinput = afkastforløbsinput,
+            afkastforløbsresultat = afkastforløbsresultat
         )
     } ellers {
         UgyldigtPbl53AGrundlag(
             fakta = fakta,
             skatteår_understøttet = personskat_pbl53a_skatteår_understøttet(skatteår),
             identifikation_unik = fakta.identifikation != "" && personskat_pbl53a_identifikation_unik(input.ordninger, fakta),
-            grundfakta_gyldige = personskat_pbl53a_ordning_grundfakta_gyldige(fakta),
-            afkastmetode_tilladt_efter_udbyderopgørelse = personskat_pbl53a_afkastmetode_tilladt_efter_udbyderopgørelse(fakta),
-            metodevalg_bindende_opfyldt = personskat_pbl53a_metodevalg_bindende_opfyldt(fakta),
-            forløbsresultat = forløbsresultat
+            grundfakta_gyldige = personskat_pbl53a_ordning_grundfakta_gyldige(fakta, skatteår),
+            aktuelt_afkastår_findes_entydigt = aktuelt_afkastår_findes_entydigt,
+            afkastmetode_tilladt_efter_udbyderopgørelse = personskat_pbl53a_aktuel_afkastmetode_tilladt(afkastforløbsresultat, skatteår),
+            metodevalg_bindende_opfyldt = personskat_pbl53a_aktuelt_metodevalg_bindende_opfyldt(afkastforløbsresultat, skatteår),
+            forløbsresultat = forløbsresultat,
+            afkastforløbsresultat = afkastforløbsresultat
         )
     }
 }
 | personskat_pbl53a_ordningsresultat_gyldigt(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | UgyldigtPbl53AGrundlag(_, _, _, _, _, _, _) -> Falskt
-    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, _) -> Sandt
+    | UgyldigtPbl53AGrundlag(_, _, _, _, _, _, _, _, _) -> Falskt
+    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, _, _, _) -> Sandt
 }
 | personskat_pbl53a_kapitalposter_for_ordning(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | BeregnetPbl53AOrdning(_, _, _, par4_input, par4_resultat, _, _, _, _) -> hvis par4_resultat.kapitalindkomst_kroner > 0 { [par4_stk1_nr13_kapitalpost(par4_input)] } ellers { [] }
+    | BeregnetPbl53AOrdning(_, _, _, par4_input, par4_resultat, _, _, _, _, _, _) -> hvis par4_resultat.kapitalindkomst_kroner > 0 { [par4_stk1_nr13_kapitalpost(par4_input)] } ellers { [] }
     | _ -> []
 }
 | personskat_pbl53a_personlig_indkomst_for_ordning_kroner(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, par3_resultat) -> par3_resultat.personlig_indkomst_kroner
+    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, par3_resultat, _, _) -> par3_resultat.personlig_indkomst_kroner
     | _ -> 0
 }
 | personskat_pbl53a_arbejdsmarkedsbidragspligtig_for_ordning_kroner(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, par3_resultat) -> par3_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
+    | BeregnetPbl53AOrdning(_, _, _, _, _, _, _, _, par3_resultat, _, _) -> par3_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
     | _ -> 0
 }
 | personskat_pbl53a_arbejdsgiverfradrag_for_ordning_kroner(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | BeregnetPbl53AOrdning(_, _, _, _, _, _, forløbsresultat, _, _) -> forløbsresultat.arbejdsgiverfradrag_kroner
+    | BeregnetPbl53AOrdning(_, _, _, _, _, _, forløbsresultat, _, _, _, _) -> forløbsresultat.arbejdsgiverfradrag_kroner
     | _ -> 0
 }
 | personskat_pbl53a_udenlandsk_skat_for_ordning_kroner(resultat: PersonskatPbl53AOrdningsresultat) -> match resultat {
-    | BeregnetPbl53AOrdning(_, _, _, _, _, _, forløbsresultat, _, _) -> forløbsresultat.udenlandsk_indkomstskat_til_ligningslov33_kroner
+    | BeregnetPbl53AOrdning(_, _, _, _, _, _, forløbsresultat, _, _, _, _) -> forløbsresultat.udenlandsk_indkomstskat_til_ligningslov33_kroner
     | _ -> 0
 }
 | personskat_pbl53a_resultatsum_kroner(resultater: List(PersonskatPbl53AOrdningsresultat), beløb: (PersonskatPbl53AOrdningsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: PersonskatPbl53AOrdningsresultat| sum + beløb(resultat))

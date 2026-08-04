@@ -4,17 +4,19 @@
 
 | pbl53a_stk2_stk5_scenarieordning(identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
     identifikation = identifikation,
+    skatteyder_identifikation = "person-1",
     ordning = ordning,
     omfattes_af_par53b = Falskt,
     alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
-    afkastgrundlag = PersonskatPbl53AAfkastEfterPal(
-        afkast_efter_pal_par3_til_5_kroner = 0
-    ),
-    metodehistorik = Pbl53AFørsteAfkastopgørelse,
-    pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget = Sandt,
-    fremført_negativt_afkast_primo_kroner = 0,
-    andel = PersonskatPbl53AAndel(tæller = 1, nævner = 1),
-    udbetaling_til_afkastskat_kroner = 0,
+    afkastår = [Pbl53AAfkastårFakta(
+        indkomstår = 2026,
+        afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 0),
+        pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+        skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+        sikkerhedsstatus_ved_årets_begyndelse = hvis ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse { Pbl53ASikkerhedBestårVedÅretsBegyndelse } ellers { Pbl53ASikkerhedIkkeRelevant },
+        grænsehændelser = [],
+        berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+    )],
     hændelser = hændelser
 )
 
@@ -58,7 +60,7 @@
     Pbl53AIndbetaling(
         fakta = Pbl53AIndbetalingsfakta(
             identifikation = "arbejdsgiver-2026",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 3, dag = 1), rækkefølge_på_dagen = 1),
             beløb_kroner = 60000,
             periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
             indbetaler = Pbl53ANuværendeArbejdsgiver,
@@ -83,7 +85,7 @@
 = pbl53a_medfølgende_indbetaling = Pbl53AIndbetaling(
     fakta = Pbl53AIndbetalingsfakta(
         identifikation = "medfølgende-2026",
-        tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+        tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 2, dag = 1), rækkefølge_på_dagen = 1),
         beløb_kroner = 24000,
         periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
         indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
@@ -114,7 +116,7 @@
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
                 identifikation = "medfølgende-afsnit-i-2026",
-                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 2, dag = 1), rækkefølge_på_dagen = 1),
                 beløb_kroner = 24000,
                 periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
                 indbetaler = Pbl53AÆgtefællesEllerSamleversArbejdsgiver(
@@ -136,7 +138,7 @@
     Pbl53AIndbetaling(
         fakta = Pbl53AIndbetalingsfakta(
             identifikation = "historisk-med-fradrag",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 1),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2024, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
             beløb_kroner = 500000,
             periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
             indbetaler = Pbl53AEjeren,
@@ -146,7 +148,7 @@
     Pbl53AIndbetaling(
         fakta = Pbl53AIndbetalingsfakta(
             identifikation = "historisk-uden-fradrag",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 2),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2024, måned = 1, dag = 1), rækkefølge_på_dagen = 2),
             beløb_kroner = 250000,
             periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
             indbetaler = Pbl53AEjeren,
@@ -156,7 +158,7 @@
     Pbl53AUdbetaling(
         fakta = Pbl53AUdbetalingsfakta(
             identifikation = "delvis-kapitaludbetaling",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 1),
             modtager = Pbl53AEjer,
             bruttoudbetaling_kroner = 200000,
             art = Pbl53AUdbetalingFraOrdningen(
@@ -181,7 +183,7 @@
     Pbl53AIndbetaling(
         fakta = Pbl53AIndbetalingsfakta(
             identifikation = "sikkerhed-indbetaling",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 5, dag = 1), rækkefølge_på_dagen = 1),
             beløb_kroner = 40000,
             periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
             indbetaler = Pbl53ANuværendeArbejdsgiver,
@@ -191,7 +193,7 @@
     Pbl53AUdbetaling(
         fakta = Pbl53AUdbetalingsfakta(
             identifikation = "pensionstilsagn-udbetaling",
-            tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 2),
+            tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 12, dag = 1), rækkefølge_på_dagen = 1),
             modtager = Pbl53APensionsberettiget,
             bruttoudbetaling_kroner = 120000,
             art = Pbl53AArbejdsgiverensUdbetalingEfterPensionstilsagn(
@@ -215,7 +217,7 @@
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
                 identifikation = "anden-modtager-principal",
-                tidspunkt = Pbl53ATidspunkt(indkomstår = 2024, rækkefølge_i_indkomståret = 1),
+                tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2024, måned = 1, dag = 1), rækkefølge_på_dagen = 1),
                 beløb_kroner = 100000,
                 periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
                 indbetaler = Pbl53AEjeren,
@@ -225,7 +227,7 @@
         Pbl53AUdbetaling(
             fakta = Pbl53AUdbetalingsfakta(
                 identifikation = "anden-modtager-udbetaling",
-                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 1),
                 modtager = Pbl53AAndenUdbetalingsmodtager,
                 bruttoudbetaling_kroner = 50000,
                 art = Pbl53AUdbetalingFraOrdningen(
@@ -247,7 +249,7 @@
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
                 identifikation = "senere-først",
-                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 2),
+                tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 2),
                 beløb_kroner = 10000,
                 periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
                 indbetaler = Pbl53ANuværendeArbejdsgiver,
@@ -257,7 +259,7 @@
         Pbl53AIndbetaling(
             fakta = Pbl53AIndbetalingsfakta(
                 identifikation = "tidligere-bagefter",
-                tidspunkt = Pbl53ATidspunkt(indkomstår = 2026, rækkefølge_i_indkomståret = 1),
+                tidspunkt = Pbl53ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 1),
                 beløb_kroner = 10000,
                 periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
                 indbetaler = Pbl53ANuværendeArbejdsgiver,

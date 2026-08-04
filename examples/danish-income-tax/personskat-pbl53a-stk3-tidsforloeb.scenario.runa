@@ -1,0 +1,416 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+----
+Scenariet validerer Pensionsbeskatningslovens § 53 A, stk. 3 som et dateret
+flerårsforløb. Skatteperiodens grænser, bindende metodevalg, andele ved årets
+udgang og negativt afkast afledes af kildefakta og ordningens stabile
+identifikation.
+----
+
+| pbl53a_stk3_ordning(identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse)) -> PersonskatPbl53AOrdningFakta(
+    identifikation = identifikation,
+    skatteyder_identifikation = "person-1",
+    ordning = ordning,
+    omfattes_af_par53b = Falskt,
+    alene_død_invaliditet_livstruende_sygdom_til_senest_80_år = Falskt,
+    afkastår = afkastår,
+    hændelser = hændelser
+)
+
+= pbl53a_stk3_enkelt_berettiget = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+
+| pbl53a_stk3_helårs_pal_år(indkomstår: Heltal, afkast_kroner: Heltal) -> Pbl53AAfkastårFakta(
+    indkomstår = indkomstår,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = afkast_kroner),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_tilflytningsår = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 150000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [Pbl53AAfkastgrænsehændelse(
+        identifikation = "tilflytning-2026",
+        tidspunkt = Pbl15ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 3, dag = 31),
+            rækkefølge_på_dagen = 1
+        ),
+        depotværdi_kroner = 130000,
+        art = Pbl53ASkattepligtIndtræder
+    )],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+= pbl53a_stk3_tilflytningshændelser = [
+    Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "tilflytning-indbetaling-før",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 2, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        beløb_kroner = 10000,
+        periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+        indbetaler = Pbl53AEjeren,
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+    )),
+    Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "tilflytning-indbetaling-efter",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 4, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        beløb_kroner = 5000,
+        periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+        indbetaler = Pbl53AEjeren,
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+    )),
+    Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+        identifikation = "tilflytning-udbetaling-efter",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 9, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        modtager = Pbl53AEjer,
+        bruttoudbetaling_kroner = 5000,
+        art = Pbl53AUdbetalingFraOrdningen(
+            kapitalværdi_umiddelbart_før_udbetalingen_kroner = 155000,
+            produktart = Pbl53AAndenProduktart,
+            udbetalingsform = Pbl53AIkkeSamletKapitaludbetaling,
+            pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+        )
+    ))
+]
+
+= pbl53a_stk3_fraflytningsår = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 160000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [Pbl53AAfkastgrænsehændelse(
+        identifikation = "fraflytning-2026",
+        tidspunkt = Pbl15ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 9, dag = 30),
+            rækkefølge_på_dagen = 1
+        ),
+        depotværdi_kroner = 145000,
+        art = Pbl53ASkattepligtOphører
+    )],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+= pbl53a_stk3_fraflytningshændelser = [
+    Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "fraflytning-indbetaling-før",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        beløb_kroner = 5000,
+        periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+        indbetaler = Pbl53AEjeren,
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+    )),
+    Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+        identifikation = "fraflytning-udbetaling-før",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 8, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        modtager = Pbl53AEjer,
+        bruttoudbetaling_kroner = 4000,
+        art = Pbl53AUdbetalingFraOrdningen(
+            kapitalværdi_umiddelbart_før_udbetalingen_kroner = 149000,
+            produktart = Pbl53AAndenProduktart,
+            udbetalingsform = Pbl53AIkkeSamletKapitaludbetaling,
+            pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+        )
+    )),
+    Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "fraflytning-indbetaling-efter",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 11, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        beløb_kroner = 7000,
+        periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+        indbetaler = Pbl53AEjeren,
+        ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret
+    ))
+]
+
+= pbl53a_stk3_sikkerhedsår = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 170000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse,
+    grænsehændelser = [
+        Pbl53AAfkastgrænsehændelse(
+            identifikation = "sikkerhed-etableres-2026",
+            tidspunkt = Pbl15ATidspunkt(
+                dato = Pbl15ADato(år = 2026, måned = 3, dag = 1),
+                rækkefølge_på_dagen = 1
+            ),
+            depotværdi_kroner = 120000,
+            art = Pbl53ASikkerhedsstillelseEtableres
+        ),
+        Pbl53AAfkastgrænsehændelse(
+            identifikation = "sikkerhed-ophører-2026",
+            tidspunkt = Pbl15ATidspunkt(
+                dato = Pbl15ADato(år = 2026, måned = 10, dag = 1),
+                rækkefølge_på_dagen = 1
+            ),
+            depotværdi_kroner = 160000,
+            art = Pbl53ASikkerhedsstillelseOphører
+        )
+    ],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_flere_berettigede_år = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 40000),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = Pbl53AFlereBerettigede(
+        samlet_indestående_ultimo_kroner = 400000,
+        andele = [
+            Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ultimo_kroner = 100000),
+            Pbl53ABerettigetAndel(identifikation = "person-2", indestående_ultimo_kroner = 300000)
+        ]
+    )
+)
+
+= pbl53a_stk3_negativt_2025 = Pbl53AAfkastårFakta(
+    indkomstår = 2025,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = -10000),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+= pbl53a_stk3_positivt_2026 = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 6000),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_afkastskattehændelser = [
+    Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+        identifikation = "afkastskat-historisk-principal",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2024, måned = 1, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        beløb_kroner = 100000,
+        periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+        indbetaler = Pbl53AEjeren,
+        ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet
+    )),
+    Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+        identifikation = "afkastskat-rettidig",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        modtager = Pbl53AEjer,
+        bruttoudbetaling_kroner = 10000,
+        art = Pbl53AUdbetalingTilAfkastskat(
+            kapitalværdi_umiddelbart_før_udbetalingen_kroner = 200000,
+            afkast_indkomstår = 2025,
+            dokumenteret_endelig_afkastskat_kroner = 10000,
+            dokumentationsdato = Pbl15ADato(år = 2026, måned = 3, dag = 1),
+            pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+        )
+    )),
+    Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+        identifikation = "afkastskat-for-sen",
+        tidspunkt = Pbl53ATidspunkt(
+            dato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
+            rækkefølge_på_dagen = 1
+        ),
+        modtager = Pbl53AEjer,
+        bruttoudbetaling_kroner = 10000,
+        art = Pbl53AUdbetalingTilAfkastskat(
+            kapitalværdi_umiddelbart_før_udbetalingen_kroner = 190000,
+            afkast_indkomstår = 2024,
+            dokumenteret_endelig_afkastskat_kroner = 10000,
+            dokumentationsdato = Pbl15ADato(år = 2025, måned = 3, dag = 1),
+            pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+        )
+    ))
+]
+
+= pbl53a_stk3_ikke_sammenhængende_år = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 130000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [
+        Pbl53AAfkastgrænsehændelse(
+            identifikation = "første-indtræden",
+            tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 3, dag = 1), rækkefølge_på_dagen = 1),
+            depotværdi_kroner = 105000,
+            art = Pbl53ASkattepligtIndtræder
+        ),
+        Pbl53AAfkastgrænsehændelse(
+            identifikation = "første-ophør",
+            tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 5, dag = 1), rækkefølge_på_dagen = 1),
+            depotværdi_kroner = 110000,
+            art = Pbl53ASkattepligtOphører
+        ),
+        Pbl53AAfkastgrænsehændelse(
+            identifikation = "anden-indtræden",
+            tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 9, dag = 1), rækkefølge_på_dagen = 1),
+            depotværdi_kroner = 120000,
+            art = Pbl53ASkattepligtIndtræder
+        )
+    ],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_år_uden_skattepligt = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 40000),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_mellemår_uden_skattepligt = Pbl53AAfkastårFakta(
+    indkomstår = 2025,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 140000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+)
+
+= pbl53a_stk3_gyldigt_input = PersonskatPbl53AInput(ordninger = [
+    pbl53a_stk3_ordning("tilflytning", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_tilflytningsår], pbl53a_stk3_tilflytningshændelser),
+    pbl53a_stk3_ordning("fraflytning", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_fraflytningsår], pbl53a_stk3_fraflytningshændelser),
+    pbl53a_stk3_ordning("direktør-sikkerhed", Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse, [pbl53a_stk3_sikkerhedsår], []),
+    pbl53a_stk3_ordning("flere-berettigede", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_flere_berettigede_år], []),
+    pbl53a_stk3_ordning("negativt-flerår", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_negativt_2025, pbl53a_stk3_positivt_2026], []),
+    pbl53a_stk3_ordning("afkastskat", Pbl53ALivsforsikringUdenKapitel1, [
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2025, afkast_kroner = 10000),
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2026, afkast_kroner = 10000)
+        ], pbl53a_stk3_afkastskattehændelser)
+])
+= pbl53a_stk3_gyldigt_resultat = personskat_pbl53a_resultat(pbl53a_stk3_gyldigt_input, 2026)
+
+= pbl53a_stk3_ikke_sammenhængende_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [
+    pbl53a_stk3_ordning("ikke-sammenhængende", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_ikke_sammenhængende_år], [])
+    ]), 2026)
+
+= pbl53a_stk3_uden_skattepligt_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [
+    pbl53a_stk3_ordning("uden-skattepligt", Pbl53ALivsforsikringUdenKapitel1, [pbl53a_stk3_år_uden_skattepligt], [])
+    ]), 2026)
+
+= pbl53a_stk3_årshul_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [
+    pbl53a_stk3_ordning("årshul", Pbl53ALivsforsikringUdenKapitel1, [
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2024, afkast_kroner = -10000),
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2026, afkast_kroner = 20000)
+        ], [])
+    ]), 2026)
+
+= pbl53a_stk3_neutralt_mellemår_resultat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [
+    pbl53a_stk3_ordning("neutralt-mellemår", Pbl53ALivsforsikringUdenKapitel1, [
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2024, afkast_kroner = -10000),
+        pbl53a_stk3_mellemår_uden_skattepligt,
+        pbl53a_stk3_helårs_pal_år(indkomstår = 2026, afkast_kroner = 6000)
+        ], [])
+    ]), 2026)
+
+| pbl53a_stk3_tilflytning_bruger_depot_ved_indtræden: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 130000 && pensionsbeskatningslov_input.kapitalværdi_ultimo_kroner == 150000 && pensionsbeskatningslov_input.indbetalinger_i_året_kroner == 5000 && pensionsbeskatningslov_input.udbetalinger_i_året_kroner == 5000 && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 20000
+    | _ -> Falskt
+}
+| pbl53a_stk3_fraflytning_bruger_depot_ved_ophør: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[1] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 100000 && pensionsbeskatningslov_input.kapitalværdi_ultimo_kroner == 145000 && pensionsbeskatningslov_input.indbetalinger_i_året_kroner == 5000 && pensionsbeskatningslov_input.udbetalinger_i_året_kroner == 4000 && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 44000
+    | _ -> Falskt
+}
+| pbl53a_stk3_sikkerhed_afgrænser_direktørens_afkast: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[2] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 120000 && pensionsbeskatningslov_input.kapitalværdi_ultimo_kroner == 160000 && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 40000
+    | _ -> Falskt
+}
+| pbl53a_stk3_flere_berettigede_fordeles_efter_ultimoandel: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[3] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.andel_tæller == 100000 && pensionsbeskatningslov_input.andel_nævner == 400000 && pensionsbeskatningslov_resultat.afkastandel_før_negativ_fremførsel_kroner == 10000
+    | _ -> Falskt
+}
+| pbl53a_stk3_negativt_afkast_følger_stabil_ordning: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[4] {
+    | BeregnetPbl53AOrdning(fakta, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, afkastforløbsresultat) -> fakta.identifikation == "negativt-flerår" && afkastforløbsresultat.ordningsidentifikation_stabil && pensionsbeskatningslov_input.metodehistorik == Pbl53ATidligerePalOpgørelse && pensionsbeskatningslov_input.fremført_negativt_afkast_primo_kroner == 10000 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 6000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 0 && afkastforløbsresultat.fremført_negativt_afkast_ultimo_kroner == 4000
+    | _ -> Falskt
+}
+| pbl53a_stk3_afkastskattefrist_afledes_pr_udbetaling: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[5] {
+    | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_resultat, _, _, _, forløbsresultat, _, par3_resultat, _, _) -> forløbsresultat.personlig_indkomst_kroner == 5000 && pensionsbeskatningslov_resultat.udbetaling_til_afkastskat_medregnes_kroner == 5000 && par3_resultat.personlig_indkomst_kroner == 5000 && match forløbsresultat.hændelsesresultater[1] {
+        | Pbl53AUdbetalingBeregnet(rettidig) -> rettidig.afkastskatteudbetaling_rettidig && rettidig.principal_fordelt_til_udbetalingen_kroner == 5000 && rettidig.principal_medregnet_før_75_procent_kroner == 0 && match forløbsresultat.hændelsesresultater[2] {
+            | Pbl53AUdbetalingBeregnet(for_sen) -> for_sen.afkastskatteudbetaling_rettidig == Falskt && for_sen.principal_fordelt_til_udbetalingen_kroner == 5000 && for_sen.personlig_indkomst_kroner == 5000
+            | _ -> Falskt
+        }
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
+| pbl53a_stk3_gyldige_forløb_samles: pbl53a_stk3_gyldigt_resultat -> pbl53a_stk3_gyldigt_resultat.alle_input_gyldige && length(pbl53a_stk3_gyldigt_resultat.kapitalposter) == 5 && pbl53a_stk3_gyldigt_resultat.personlig_indkomst_kroner == 5000
+| pbl53a_stk3_ikke_sammenhængende_perioder_fejler_lukket: pbl53a_stk3_ikke_sammenhængende_resultat -> pbl53a_stk3_ikke_sammenhængende_resultat.alle_input_gyldige == Falskt && length(pbl53a_stk3_ikke_sammenhængende_resultat.kapitalposter) == 0 && match pbl53a_stk3_ikke_sammenhængende_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, _, _, _, _, _, _, _, afkastforløbsresultat) -> pbl53a_afkastårsresultat_for_indkomstår(afkastforløbsresultat, 2026).periode_resultat.periode_understøttet == Falskt
+    | _ -> Falskt
+}
+| pbl53a_stk3_år_uden_skattepligt_beskatter_ikke_pal_afkast: pbl53a_stk3_uden_skattepligt_resultat -> pbl53a_stk3_uden_skattepligt_resultat.alle_input_gyldige && length(pbl53a_stk3_uden_skattepligt_resultat.kapitalposter) == 0 && match pbl53a_stk3_uden_skattepligt_resultat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, afkastforløbsresultat) -> pensionsbeskatningslov_input.afkast_efter_pal_par3_til_5_kroner == 0 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 0 && afkastforløbsresultat.metodetilstand_ultimo == Pbl53AIngenMetodeValgt
+    | _ -> Falskt
+}
+| pbl53a_stk3_udeladt_mellemår_fejler_lukket: pbl53a_stk3_årshul_resultat -> pbl53a_stk3_årshul_resultat.alle_input_gyldige == Falskt && length(pbl53a_stk3_årshul_resultat.kapitalposter) == 0 && match pbl53a_stk3_årshul_resultat.ordningsresultater[0] {
+    | UgyldigtPbl53AGrundlag(_, _, _, _, _, _, _, _, afkastforløbsresultat) -> afkastforløbsresultat.år_kronologiske && afkastforløbsresultat.år_sammenhængende == Falskt && pbl53a_afkastårsresultat_for_indkomstår(afkastforløbsresultat, 2026).år_sammenhængende == Falskt
+    | _ -> Falskt
+}
+| pbl53a_stk3_år_uden_skattepligt_bevarer_metode_og_tab: pbl53a_stk3_neutralt_mellemår_resultat -> pbl53a_stk3_neutralt_mellemår_resultat.alle_input_gyldige && length(pbl53a_stk3_neutralt_mellemår_resultat.kapitalposter) == 0 && match pbl53a_stk3_neutralt_mellemår_resultat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, afkastforløbsresultat) -> pensionsbeskatningslov_input.metodehistorik == Pbl53ATidligerePalOpgørelse && pensionsbeskatningslov_input.fremført_negativt_afkast_primo_kroner == 10000 && pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 6000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 0 && afkastforløbsresultat.metodetilstand_ultimo == Pbl53APalMetodeValgt && afkastforløbsresultat.fremført_negativt_afkast_ultimo_kroner == 4000
+    | _ -> Falskt
+}
+
+? pbl53a_stk3_tilflytning_bruger_depot_ved_indtræden
+? pbl53a_stk3_fraflytning_bruger_depot_ved_ophør
+? pbl53a_stk3_sikkerhed_afgrænser_direktørens_afkast
+? pbl53a_stk3_flere_berettigede_fordeles_efter_ultimoandel
+? pbl53a_stk3_negativt_afkast_følger_stabil_ordning
+? pbl53a_stk3_afkastskattefrist_afledes_pr_udbetaling
+? pbl53a_stk3_gyldige_forløb_samles
+? pbl53a_stk3_ikke_sammenhængende_perioder_fejler_lukket
+? pbl53a_stk3_år_uden_skattepligt_beskatter_ikke_pal_afkast
+? pbl53a_stk3_udeladt_mellemår_fejler_lukket
+? pbl53a_stk3_år_uden_skattepligt_bevarer_metode_og_tab

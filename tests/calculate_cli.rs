@@ -827,16 +827,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let pbl53a_paths = workbook_column_paths(&mut workbook, &pbl53a_sheet);
         for expected in [
             "identifikation",
+            "skatteyder_identifikation",
             "ordning",
-            "afkastgrundlag.$variant",
-            "metodehistorik",
-            "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
-            "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
-            "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
-            "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
-            "fremført_negativt_afkast_primo_kroner",
-            "andel.tæller",
-            "andel.nævner",
+            "omfattes_af_par53b",
+            "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
         ] {
             assert!(
                 pbl53a_paths.iter().any(|path| path == expected),
@@ -846,24 +840,92 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let pbl53a_headers = workbook_headers(&mut workbook, &pbl53a_sheet);
         for expected in [
             "§ 53 A-ordningens identifikation",
+            "Skatteyder på § 53 A-ordningen",
             "Type § 53 A-ordning",
             "Omfattet af PBL § 53 B",
-            "Metode til opgørelse af § 53 A-afkast",
-            "Tidligere metodevalg for § 53 A-afkast",
-            "PAL-opgørelse ved metodevalget",
-            "Afkast opgjort efter PAL §§ 3-5",
-            "Kapitalværdi ved årets begyndelse",
-            "Kapitalværdi ved årets udgang",
-            "Fremført negativt afkast ved årets begyndelse",
-            "Andel af ordningens afkast, tæller",
-            "Andel af ordningens afkast, nævner",
-            "Udbetaling til betaling af afkastskat",
+            "Livsforsikring undtaget efter § 53 A, stk. 4",
         ] {
             assert!(
                 pbl53a_headers.iter().any(|header| header == expected),
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
             );
         }
+        let pbl53a_years_path = "kapitalindkomst.pbl53a.ordninger.afkastår";
+        let pbl53a_years_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_years_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_years_sheet),
+            "Dansk personskat - Årlige afkastfakta for § 53 A-ordningen"
+        );
+        let pbl53a_year_paths = workbook_column_paths(&mut workbook, &pbl53a_years_sheet);
+        for expected in [
+            "indkomstår",
+            "afkastgrundlag.$variant",
+            "afkastgrundlag.Pbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+            "afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_primo_depotværdi_kroner",
+            "afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_ultimo_depotværdi_kroner",
+            "pensionsudbyder_opgjorde_afkast_efter_pal",
+            "skattepligtsstatus_ved_årets_begyndelse",
+            "sikkerhedsstatus_ved_årets_begyndelse",
+            "berettigelse_ultimo.$variant",
+            "berettigelse_ultimo.Pbl53AEnkeltBerettiget.identifikation",
+            "berettigelse_ultimo.Pbl53AFlereBerettigede.samlet_indestående_ultimo_kroner",
+        ] {
+            assert!(
+                pbl53a_year_paths.iter().any(|path| path == expected),
+                "missing canonical PBL § 53 A annual source-fact path {expected} on {pbl53a_years_sheet}"
+            );
+        }
+        let pbl53a_year_headers = workbook_headers(&mut workbook, &pbl53a_years_sheet);
+        for expected in [
+            "Indkomstår for afkastet",
+            "Opgørelsesgrundlag for årets § 53 A-afkast",
+            "Afkast opgjort efter PAL §§ 3-5",
+            "Depotværdi ved kalenderårets begyndelse",
+            "Depotværdi ved kalenderårets udgang",
+            "Pensionsudbyderen har opgjort årets PAL-afkast",
+            "Skattepligt ved årets begyndelse",
+            "Sikkerhedsstillelse ved årets begyndelse",
+            "Berettigede ved årets udgang",
+            "Den eneste berettigede",
+            "Samlet indestående ved årets udgang",
+        ] {
+            assert!(
+                pbl53a_year_headers.iter().any(|header| header == expected),
+                "missing human PBL § 53 A annual label {expected} on {pbl53a_years_sheet}"
+            );
+        }
+        let pbl53a_boundaries_path = "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser";
+        let pbl53a_boundaries_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_boundaries_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_boundaries_sheet),
+            "Dansk personskat - Daterede ændringer i skattepligt eller sikkerhed"
+        );
+        let pbl53a_boundary_paths = workbook_column_paths(&mut workbook, &pbl53a_boundaries_sheet);
+        for expected in [
+            "identifikation",
+            "tidspunkt.dato.år",
+            "tidspunkt.dato.måned",
+            "tidspunkt.dato.dag",
+            "tidspunkt.rækkefølge_på_dagen",
+            "depotværdi_kroner",
+            "art",
+        ] {
+            assert!(
+                pbl53a_boundary_paths.iter().any(|path| path == expected),
+                "missing canonical PBL § 53 A boundary path {expected} on {pbl53a_boundaries_sheet}"
+            );
+        }
+        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele";
+        let pbl53a_shares_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_shares_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_shares_sheet),
+            "Dansk personskat - Indeståender for flere berettigede"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_shares_sheet),
+            ["identifikation", "indestående_ultimo_kroner"]
+        );
         let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
         let pbl53a_events_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_events_path);
         assert_eq!(
@@ -874,12 +936,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "$variant",
             "Pbl53AIndbetaling.fakta.identifikation",
-            "Pbl53AIndbetaling.fakta.tidspunkt.indkomstår",
+            "Pbl53AIndbetaling.fakta.tidspunkt.dato.år",
+            "Pbl53AIndbetaling.fakta.tidspunkt.dato.måned",
+            "Pbl53AIndbetaling.fakta.tidspunkt.dato.dag",
+            "Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_på_dagen",
             "Pbl53AIndbetaling.fakta.beløb_kroner",
             "Pbl53AIndbetaling.fakta.indbetaler.$variant",
             "Pbl53AUdbetaling.fakta.bruttoudbetaling_kroner",
             "Pbl53AUdbetaling.fakta.art.$variant",
             "Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
+            "Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingTilAfkastskat.afkast_indkomstår",
+            "Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingTilAfkastskat.dokumenteret_endelig_afkastskat_kroner",
+            "Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingTilAfkastskat.dokumentationsdato.år",
         ] {
             assert!(
                 pbl53a_event_paths.iter().any(|path| path == expected),
@@ -890,13 +958,17 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Type § 53 A-hændelse",
             "Indbetalingens identifikation",
-            "Indbetalingens indkomstår",
+            "Indbetalingens år",
+            "Indbetalingens måned",
+            "Indbetalingens dag",
             "Indbetalt beløb",
             "Hvem foretog indbetalingen",
             "Udbetalingens modtager",
             "Bruttoudbetaling",
             "Type § 53 A-udbetaling",
             "Indkomstskat betalt til den anden stat",
+            "Indkomstår for den dækkede afkastskat",
+            "Dokumenteret endelig afkastskat",
             "Modsvarende sikkerhedsstillelse",
         ] {
             assert!(
@@ -1124,19 +1196,25 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.renter.ligningslov6a.$variant",
             "kapitalindkomst.renter.ligningslov6a.MedLigningslov6AFradrag.input.arbejderboliger_beløb_kroner",
             "kapitalindkomst.pbl53a.ordninger.identifikation",
+            "kapitalindkomst.pbl53a.ordninger.skatteyder_identifikation",
             "kapitalindkomst.pbl53a.ordninger.ordning",
-            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.$variant",
-            "kapitalindkomst.pbl53a.ordninger.metodehistorik",
-            "kapitalindkomst.pbl53a.ordninger.pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
-            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
-            "kapitalindkomst.pbl53a.ordninger.afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
-            "kapitalindkomst.pbl53a.ordninger.fremført_negativt_afkast_primo_kroner",
-            "kapitalindkomst.pbl53a.ordninger.andel.nævner",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.indkomstår",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.Pbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_primo_depotværdi_kroner",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.pensionsudbyder_opgjorde_afkast_efter_pal",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.skattepligtsstatus_ved_årets_begyndelse",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.tidspunkt.dato.år",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.depotværdi_kroner",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele.indestående_ultimo_kroner",
             "kapitalindkomst.pbl53a.ordninger.hændelser.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.tidspunkt.dato.år",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.indbetaler.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingFraOrdningen.pbl20_stk6_kildefakta.indkomstskat_betalt_til_staten_kroner",
+            "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AUdbetaling.fakta.art.Pbl53AUdbetalingTilAfkastskat.dokumentationsdato.år",
             "kapitalindkomst.ejendomsdrift.$variant",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.kategori",
             "kapitalindkomst.ejendomsdrift.MedEjendomsdriftEfterPar4Nr6.fakta.beliggenhed",
@@ -1973,6 +2051,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "arbejdsmarkedsbidragsloven_lbk121_par2",
             "skat_juridisk_vejledning_pbl53a_indbetalinger",
             "skat_juridisk_vejledning_pbl53a_udbetalinger",
+            "skat_juridisk_vejledning_pbl53a_afkast",
             "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
         ] {
             assert!(
@@ -2263,161 +2342,269 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         let pbl53a_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
-        for (header, value) in [
+        for (row, identifikation, ordning) in [
+            (1, "livsforsikring-pal", "Pbl53ALivsforsikringUdenKapitel1"),
             (
-                "case_id",
-                Data::String("personskat-pbl53a-2026".to_string()),
-            ),
-            ("item_id", Data::String("livsforsikring-pal".to_string())),
-            ("position", Data::Int(1)),
-            (
-                "identifikation",
-                Data::String("livsforsikring-pal".to_string()),
+                2,
+                "pensionskasse-negativ",
+                "Pbl53APensionskasseUdenKapitel1",
             ),
             (
-                "ordning",
-                Data::String("Pbl53ALivsforsikringUdenKapitel1".to_string()),
+                3,
+                "pengeinstitut-halv-andel",
+                "Pbl53APengeinstitutUdenKapitel1",
             ),
-            ("omfattes_af_par53b", Data::Bool(false)),
-            (
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
-                Data::Bool(false),
-            ),
-            (
-                "afkastgrundlag.$variant",
-                Data::String("PersonskatPbl53AAfkastEfterPal".to_string()),
-            ),
-            (
-                "metodehistorik",
-                Data::String("Pbl53AFørsteAfkastopgørelse".to_string()),
-            ),
-            (
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
-                Data::Bool(true),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
-                Data::Int(28_000),
-            ),
-            ("fremført_negativt_afkast_primo_kroner", Data::Int(6_000)),
-            ("andel.tæller", Data::Int(1)),
-            ("andel.nævner", Data::Int(1)),
-            ("udbetaling_til_afkastskat_kroner", Data::Int(0)),
         ] {
-            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 1, header, value);
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-pbl53a-2026".to_string()),
+                ),
+                ("item_id", Data::String(identifikation.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("identifikation", Data::String(identifikation.to_string())),
+                (
+                    "skatteyder_identifikation",
+                    Data::String("person-1".to_string()),
+                ),
+                ("ordning", Data::String(ordning.to_string())),
+                ("omfattes_af_par53b", Data::Bool(false)),
+                (
+                    "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
+                    Data::Bool(false),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl53a_sheet, row, header, value);
+            }
         }
-        for (header, value) in [
+        let pbl53a_years_path = "kapitalindkomst.pbl53a.ordninger.afkastår";
+        let pbl53a_years_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, pbl53a_years_path);
+        for (
+            row,
+            parent_id,
+            item_id,
+            position,
+            year,
+            basis,
+            pal_return,
+            calendar_opening,
+            calendar_closing,
+            provider_used_pal,
+            tax_status,
+            beneficiary_variant,
+            sole_beneficiary,
+            total_balance,
+        ) in [
             (
-                "case_id",
-                Data::String("personskat-pbl53a-2026".to_string()),
-            ),
-            ("item_id", Data::String("pensionskasse-negativ".to_string())),
-            ("position", Data::Int(2)),
-            (
-                "identifikation",
-                Data::String("pensionskasse-negativ".to_string()),
-            ),
-            (
-                "ordning",
-                Data::String("Pbl53APensionskasseUdenKapitel1".to_string()),
-            ),
-            ("omfattes_af_par53b", Data::Bool(false)),
-            (
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
-                Data::Bool(false),
-            ),
-            (
-                "afkastgrundlag.$variant",
-                Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
-            ),
-            (
-                "metodehistorik",
-                Data::String("Pbl53ATidligereAlternativKapitalværdiOpgørelse".to_string()),
-            ),
-            (
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
-                Data::Bool(false),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
-                Data::Int(140_000),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
-                Data::Int(128_000),
+                1,
+                "livsforsikring-pal",
+                "livsforsikring-pal-2025",
+                1,
+                2025,
+                "Pbl53AAfkastEfterPal",
+                Some(-6_000),
+                None,
+                None,
+                true,
+                "Pbl53ASkattepligtigVedÅretsBegyndelse",
+                "Pbl53AEnkeltBerettiget",
+                Some("person-1"),
+                None,
             ),
             (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.udbetalinger_i_året_kroner",
-                Data::Int(4_000),
+                2,
+                "livsforsikring-pal",
+                "livsforsikring-pal-2026",
+                2,
+                2026,
+                "Pbl53AAfkastEfterPal",
+                Some(28_000),
+                None,
+                None,
+                true,
+                "Pbl53ASkattepligtigVedÅretsBegyndelse",
+                "Pbl53AEnkeltBerettiget",
+                Some("person-1"),
+                None,
             ),
             (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.indbetalinger_i_året_kroner",
-                Data::Int(0),
+                3,
+                "pensionskasse-negativ",
+                "pensionskasse-negativ-2025",
+                1,
+                2025,
+                "Pbl53AAlternativtKapitalværdiAfkast",
+                None,
+                Some(100_000),
+                Some(95_000),
+                false,
+                "Pbl53ASkattepligtigVedÅretsBegyndelse",
+                "Pbl53AEnkeltBerettiget",
+                Some("person-1"),
+                None,
             ),
-            ("fremført_negativt_afkast_primo_kroner", Data::Int(5_000)),
-            ("andel.tæller", Data::Int(1)),
-            ("andel.nævner", Data::Int(1)),
-            ("udbetaling_til_afkastskat_kroner", Data::Int(0)),
+            (
+                4,
+                "pensionskasse-negativ",
+                "pensionskasse-negativ-2026",
+                2,
+                2026,
+                "Pbl53AAlternativtKapitalværdiAfkast",
+                None,
+                Some(140_000),
+                Some(132_000),
+                false,
+                "Pbl53ASkattepligtigVedÅretsBegyndelse",
+                "Pbl53AEnkeltBerettiget",
+                Some("person-1"),
+                None,
+            ),
+            (
+                5,
+                "pengeinstitut-halv-andel",
+                "pengeinstitut-halv-andel-2026",
+                1,
+                2026,
+                "Pbl53AAlternativtKapitalværdiAfkast",
+                None,
+                Some(190_000),
+                Some(227_000),
+                false,
+                "Pbl53AIkkeSkattepligtigVedÅretsBegyndelse",
+                "Pbl53AFlereBerettigede",
+                None,
+                Some(400_000),
+            ),
         ] {
-            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 2, header, value);
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-pbl53a-2026".to_string()),
+                ),
+                ("parent_id", Data::String(parent_id.to_string())),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(position)),
+                ("indkomstår", Data::Int(year)),
+                ("afkastgrundlag.$variant", Data::String(basis.to_string())),
+                (
+                    "pensionsudbyder_opgjorde_afkast_efter_pal",
+                    Data::Bool(provider_used_pal),
+                ),
+                (
+                    "skattepligtsstatus_ved_årets_begyndelse",
+                    Data::String(tax_status.to_string()),
+                ),
+                (
+                    "sikkerhedsstatus_ved_årets_begyndelse",
+                    Data::String("Pbl53ASikkerhedIkkeRelevant".to_string()),
+                ),
+                (
+                    "berettigelse_ultimo.$variant",
+                    Data::String(beneficiary_variant.to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl53a_years_sheet, row, header, value);
+            }
+            if let Some(value) = pal_return {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_years_sheet,
+                    row,
+                    "afkastgrundlag.Pbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
+                    Data::Int(value),
+                );
+            }
+            if let Some(value) = calendar_opening {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_years_sheet,
+                    row,
+                    "afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_primo_depotværdi_kroner",
+                    Data::Int(value),
+                );
+            }
+            if let Some(value) = calendar_closing {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_years_sheet,
+                    row,
+                    "afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_ultimo_depotværdi_kroner",
+                    Data::Int(value),
+                );
+            }
+            if let Some(value) = sole_beneficiary {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_years_sheet,
+                    row,
+                    "berettigelse_ultimo.Pbl53AEnkeltBerettiget.identifikation",
+                    Data::String(value.to_string()),
+                );
+            }
+            if let Some(value) = total_balance {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_years_sheet,
+                    row,
+                    "berettigelse_ultimo.Pbl53AFlereBerettigede.samlet_indestående_ultimo_kroner",
+                    Data::Int(value),
+                );
+            }
         }
+        let pbl53a_boundaries_path = "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser";
+        let pbl53a_boundaries_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, pbl53a_boundaries_path);
         for (header, value) in [
             (
                 "case_id",
                 Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            (
+                "parent_id",
+                Data::String("pengeinstitut-halv-andel-2026".to_string()),
             ),
             (
                 "item_id",
-                Data::String("pengeinstitut-halv-andel".to_string()),
+                Data::String("skattepligt-indtræder-2026".to_string()),
             ),
-            ("position", Data::Int(3)),
+            ("position", Data::Int(1)),
             (
                 "identifikation",
-                Data::String("pengeinstitut-halv-andel".to_string()),
+                Data::String("skattepligt-indtræder-2026".to_string()),
             ),
+            ("tidspunkt.dato.år", Data::Int(2026)),
+            ("tidspunkt.dato.måned", Data::Int(3)),
+            ("tidspunkt.dato.dag", Data::Int(1)),
+            ("tidspunkt.rækkefølge_på_dagen", Data::Int(1)),
+            ("depotværdi_kroner", Data::Int(200_000)),
             (
-                "ordning",
-                Data::String("Pbl53APengeinstitutUdenKapitel1".to_string()),
+                "art",
+                Data::String("Pbl53ASkattepligtIndtræder".to_string()),
             ),
-            ("omfattes_af_par53b", Data::Bool(false)),
-            (
-                "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år",
-                Data::Bool(false),
-            ),
-            (
-                "afkastgrundlag.$variant",
-                Data::String("PersonskatPbl53AKapitalværdiAfkast".to_string()),
-            ),
-            (
-                "metodehistorik",
-                Data::String("Pbl53AFørsteAfkastopgørelse".to_string()),
-            ),
-            (
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget",
-                Data::Bool(false),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_primo_kroner",
-                Data::Int(200_000),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.kapitalværdi_ultimo_kroner",
-                Data::Int(230_000),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.udbetalinger_i_året_kroner",
-                Data::Int(12_000),
-            ),
-            (
-                "afkastgrundlag.PersonskatPbl53AKapitalværdiAfkast.indbetalinger_i_året_kroner",
-                Data::Int(15_000),
-            ),
-            ("fremført_negativt_afkast_primo_kroner", Data::Int(0)),
-            ("andel.tæller", Data::Int(1)),
-            ("andel.nævner", Data::Int(2)),
-            ("udbetaling_til_afkastskat_kroner", Data::Int(3_000)),
         ] {
-            set_workbook_cell_by_header(sheets, &pbl53a_sheet, 3, header, value);
+            set_workbook_cell_by_header(sheets, &pbl53a_boundaries_sheet, 1, header, value);
+        }
+        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele";
+        let pbl53a_shares_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, pbl53a_shares_path);
+        for (row, person, balance) in [(1, "person-1", 200_000), (2, "person-2", 200_000)] {
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-pbl53a-2026".to_string()),
+                ),
+                (
+                    "parent_id",
+                    Data::String("pengeinstitut-halv-andel-2026".to_string()),
+                ),
+                ("item_id", Data::String(person.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("identifikation", Data::String(person.to_string())),
+                ("indestående_ultimo_kroner", Data::Int(balance)),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl53a_shares_sheet, row, header, value);
+            }
         }
         let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
         let pbl53a_events_sheet =
@@ -2445,13 +2632,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("arbejdsgiver-indbetaling-2026".to_string()),
             ),
             (
-                format!(
-                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.indkomstår"
-                ),
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.år"),
                 Data::Int(2026),
             ),
             (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_i_indkomståret"),
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.måned"),
+                Data::Int(3),
+            ),
+            (
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.dag"),
+                Data::Int(1),
+            ),
+            (
+                format!(
+                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_på_dagen"
+                ),
                 Data::Int(1),
             ),
             (
@@ -2467,9 +2662,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("Pbl53ANuværendeArbejdsgiver".to_string()),
             ),
             (
-                format!(
-                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"
-                ),
+                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"),
                 Data::String("Pbl53AUdenFradragsEllerBortseelsesret".to_string()),
             ),
         ] {
@@ -4914,26 +5107,58 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "ordninger": [
             {
                 "identifikation": "livsforsikring-pal",
+                "skatteyder_identifikation": "person-1",
                 "ordning": { "$variant": "Pbl53ALivsforsikringUdenKapitel1" },
                 "omfattes_af_par53b": false,
                 "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
-                "afkastgrundlag": {
-                    "$variant": "PersonskatPbl53AAfkastEfterPal",
-                    "afkast_efter_pal_par3_til_5_kroner": 28_000
-                },
-                "metodehistorik": { "$variant": "Pbl53AFørsteAfkastopgørelse" },
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": true,
-                "fremført_negativt_afkast_primo_kroner": 6_000,
-                "andel": { "tæller": 1, "nævner": 1 },
-                "udbetaling_til_afkastskat_kroner": 0,
+                "afkastår": [
+                    {
+                        "indkomstår": 2025,
+                        "afkastgrundlag": {
+                            "$variant": "Pbl53AAfkastEfterPal",
+                            "afkast_efter_pal_par3_til_5_kroner": -6_000
+                        },
+                        "pensionsudbyder_opgjorde_afkast_efter_pal": true,
+                        "skattepligtsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASkattepligtigVedÅretsBegyndelse"
+                        },
+                        "sikkerhedsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASikkerhedIkkeRelevant"
+                        },
+                        "grænsehændelser": [],
+                        "berettigelse_ultimo": {
+                            "$variant": "Pbl53AEnkeltBerettiget",
+                            "identifikation": "person-1"
+                        }
+                    },
+                    {
+                        "indkomstår": 2026,
+                        "afkastgrundlag": {
+                            "$variant": "Pbl53AAfkastEfterPal",
+                            "afkast_efter_pal_par3_til_5_kroner": 28_000
+                        },
+                        "pensionsudbyder_opgjorde_afkast_efter_pal": true,
+                        "skattepligtsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASkattepligtigVedÅretsBegyndelse"
+                        },
+                        "sikkerhedsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASikkerhedIkkeRelevant"
+                        },
+                        "grænsehændelser": [],
+                        "berettigelse_ultimo": {
+                            "$variant": "Pbl53AEnkeltBerettiget",
+                            "identifikation": "person-1"
+                        }
+                    }
+                ],
                 "hændelser": [
                     {
                         "$variant": "Pbl53AIndbetaling",
                         "fakta": {
                             "identifikation": "arbejdsgiver-indbetaling-2026",
                             "tidspunkt": {
-                                "indkomstår": 2026,
-                                "rækkefølge_i_indkomståret": 1
+                                "dato": { "år": 2026, "måned": 3, "dag": 1 },
+                                "rækkefølge_på_dagen": 1
                             },
                             "beløb_kroner": 60_000,
                             "periode": {
@@ -4951,40 +5176,96 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             {
                 "identifikation": "pensionskasse-negativ",
+                "skatteyder_identifikation": "person-1",
                 "ordning": { "$variant": "Pbl53APensionskasseUdenKapitel1" },
                 "omfattes_af_par53b": false,
                 "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
-                "afkastgrundlag": {
-                    "$variant": "PersonskatPbl53AKapitalværdiAfkast",
-                    "kapitalværdi_primo_kroner": 140_000,
-                    "kapitalværdi_ultimo_kroner": 128_000,
-                    "udbetalinger_i_året_kroner": 4_000,
-                    "indbetalinger_i_året_kroner": 0
-                },
-                "metodehistorik": { "$variant": "Pbl53ATidligereAlternativKapitalværdiOpgørelse" },
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
-                "fremført_negativt_afkast_primo_kroner": 5_000,
-                "andel": { "tæller": 1, "nævner": 1 },
-                "udbetaling_til_afkastskat_kroner": 0,
+                "afkastår": [
+                    {
+                        "indkomstår": 2025,
+                        "afkastgrundlag": {
+                            "$variant": "Pbl53AAlternativtKapitalværdiAfkast",
+                            "kalenderårets_primo_depotværdi_kroner": 100_000,
+                            "kalenderårets_ultimo_depotværdi_kroner": 95_000
+                        },
+                        "pensionsudbyder_opgjorde_afkast_efter_pal": false,
+                        "skattepligtsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASkattepligtigVedÅretsBegyndelse"
+                        },
+                        "sikkerhedsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASikkerhedIkkeRelevant"
+                        },
+                        "grænsehændelser": [],
+                        "berettigelse_ultimo": {
+                            "$variant": "Pbl53AEnkeltBerettiget",
+                            "identifikation": "person-1"
+                        }
+                    },
+                    {
+                        "indkomstår": 2026,
+                        "afkastgrundlag": {
+                            "$variant": "Pbl53AAlternativtKapitalværdiAfkast",
+                            "kalenderårets_primo_depotværdi_kroner": 140_000,
+                            "kalenderårets_ultimo_depotværdi_kroner": 132_000
+                        },
+                        "pensionsudbyder_opgjorde_afkast_efter_pal": false,
+                        "skattepligtsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASkattepligtigVedÅretsBegyndelse"
+                        },
+                        "sikkerhedsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASikkerhedIkkeRelevant"
+                        },
+                        "grænsehændelser": [],
+                        "berettigelse_ultimo": {
+                            "$variant": "Pbl53AEnkeltBerettiget",
+                            "identifikation": "person-1"
+                        }
+                    }
+                ],
                 "hændelser": []
             },
             {
                 "identifikation": "pengeinstitut-halv-andel",
+                "skatteyder_identifikation": "person-1",
                 "ordning": { "$variant": "Pbl53APengeinstitutUdenKapitel1" },
                 "omfattes_af_par53b": false,
                 "alene_død_invaliditet_livstruende_sygdom_til_senest_80_år": false,
-                "afkastgrundlag": {
-                    "$variant": "PersonskatPbl53AKapitalværdiAfkast",
-                    "kapitalværdi_primo_kroner": 200_000,
-                    "kapitalværdi_ultimo_kroner": 230_000,
-                    "udbetalinger_i_året_kroner": 12_000,
-                    "indbetalinger_i_året_kroner": 15_000
-                },
-                "metodehistorik": { "$variant": "Pbl53AFørsteAfkastopgørelse" },
-                "pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget": false,
-                "fremført_negativt_afkast_primo_kroner": 0,
-                "andel": { "tæller": 1, "nævner": 2 },
-                "udbetaling_til_afkastskat_kroner": 3_000,
+                "afkastår": [
+                    {
+                        "indkomstår": 2026,
+                        "afkastgrundlag": {
+                            "$variant": "Pbl53AAlternativtKapitalværdiAfkast",
+                            "kalenderårets_primo_depotværdi_kroner": 190_000,
+                            "kalenderårets_ultimo_depotværdi_kroner": 227_000
+                        },
+                        "pensionsudbyder_opgjorde_afkast_efter_pal": false,
+                        "skattepligtsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53AIkkeSkattepligtigVedÅretsBegyndelse"
+                        },
+                        "sikkerhedsstatus_ved_årets_begyndelse": {
+                            "$variant": "Pbl53ASikkerhedIkkeRelevant"
+                        },
+                        "grænsehændelser": [
+                            {
+                                "identifikation": "skattepligt-indtræder-2026",
+                                "tidspunkt": {
+                                    "dato": { "år": 2026, "måned": 3, "dag": 1 },
+                                    "rækkefølge_på_dagen": 1
+                                },
+                                "depotværdi_kroner": 200_000,
+                                "art": { "$variant": "Pbl53ASkattepligtIndtræder" }
+                            }
+                        ],
+                        "berettigelse_ultimo": {
+                            "$variant": "Pbl53AFlereBerettigede",
+                            "samlet_indestående_ultimo_kroner": 400_000,
+                            "andele": [
+                                { "identifikation": "person-1", "indestående_ultimo_kroner": 200_000 },
+                                { "identifikation": "person-2", "indestående_ultimo_kroner": 200_000 }
+                            ]
+                        }
+                    }
+                ],
                 "hændelser": []
             }
         ]
