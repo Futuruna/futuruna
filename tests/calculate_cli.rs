@@ -178,6 +178,52 @@ fn schema_resolves_metadata_from_plain_imports() {
 }
 
 #[test]
+fn schema_collects_typed_field_metadata_anchors_from_plain_imports() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation-imported-meta/model.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[0]["path"], "amount");
+    assert_eq!(fields[0]["label"], "Imported amount");
+    assert_eq!(fields[0]["binding"], "imported_calculation_meta.felter[0]");
+    assert_eq!(fields[0]["sources"][0]["binding"], "imported_source");
+}
+
+#[test]
+fn schema_rejects_matching_invalid_field_metadata_from_plain_imports() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation-imported-meta/invalid.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("targets unknown input path `not_an_input_path`"),
+        "stderr:\n{stderr}"
+    );
+}
+
+#[test]
+fn schema_rejects_duplicate_local_and_imported_field_metadata() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation-imported-meta/duplicate.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("duplicate field metadata for `amount`"),
+        "stderr:\n{stderr}"
+    );
+}
+
+#[test]
 fn json_batch_invokes_conditions_and_exceptions() {
     let fixture = fixture();
     let input_path = temp_path("json");
@@ -682,6 +728,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
             );
         }
+        let cfc_path = "cfc.poster";
+        let cfc_sheet = workbook_collection_sheet_name(&mut workbook, cfc_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &cfc_sheet),
+            "Dansk personskat - CFC-forhold"
+        );
+        let cfc_paths = workbook_column_paths(&mut workbook, &cfc_sheet);
+        for expected in [
+            "$variant",
+            "PersonskatCfcEfterLigningslov16H.fakta.udenlandsk_indkomstskat_kroner",
+            "PersonskatCfcEfterLigningslov16H.fakta.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner",
+            "PersonskatCfcEfterLigningslov16IStk6Og7.fakta.selskabets_afkast_via_fond_kroner",
+            "PersonskatCfcEfterLigningslov16IStk6Og7.fakta.ret_til_merafkast_basispoint",
+        ] {
+            assert!(
+                cfc_paths.iter().any(|path| path == expected),
+                "missing canonical CFC source-fact path {expected} on {cfc_sheet}"
+            );
+        }
+        let cfc_headers = workbook_headers(&mut workbook, &cfc_sheet);
+        for expected in [
+            "CFC-regelgrundlag",
+            "Selskabets udenlandske indkomstskat",
+            "Selskabets samlede skattepligtige indkomst",
+            "Selskabets afkast via fonden",
+            "Personens ret til merafkastet",
+        ] {
+            assert!(
+                cfc_headers.iter().any(|header| header == expected),
+                "missing human CFC input label {expected} on {cfc_sheet}"
+            );
+        }
         let pension_path = "lønmodtager.pension.pbl18_indbetalinger";
         let pension_sheet = workbook_collection_sheet_name(&mut workbook, pension_path);
         assert_eq!(
@@ -919,6 +997,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.$variant",
+            "cfc.poster.$variant",
+            "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.udenlandsk_indkomstskat_kroner",
+            "cfc.poster.PersonskatCfcEfterLigningslov16H.fakta.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner",
+            "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.selskabets_afkast_via_fond_kroner",
+            "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.fremført_negativt_merafkast_kroner",
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
@@ -943,6 +1026,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("ligningslov9b_resultat")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path == "skatteforhold.SærligeSkatteforhold.forhold.cfc_indkomst_kroner"));
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("fradragsforhold.personrolle")));
@@ -3596,6 +3685,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "årets_netto_med_kgl_par14_23_kroner": 7_000
             }]
         },
+        "cfc": { "poster": [] },
         "skatteforhold": { "$variant": "StandardSkatteforhold" },
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }

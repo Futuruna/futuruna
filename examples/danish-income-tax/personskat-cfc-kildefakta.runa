@@ -1,0 +1,118 @@
+@ sprog da
+
+@ importer ./personskatteloven - par4b - cfc
+@ importer ./metadata
+@ importer ./source - status
+
+= personskat_cfc_kildefakta_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par17_stk1),
+        MetaAttachment(role = DependencySource, value = personskatteloven_2021_1284),
+    )
+)
+
+--@label:personskat_cfc_kildefakta::meta:personskat_cfc_kildefakta_metadata--
+--@begin:personskat_cfc_kildefakta--
+# PersonskatCfcEfterLigningslov16HFakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
+# PersonskatCfcEfterLigningslov16IStk6Og7Fakta(fuldt_skattepligtig_eller_dødsbo: Boolsk, kontrollerer_efter_par16h_stk6: Boolsk, medstifter_eller_ledelse_i_fond: Boolsk, selskab_har_fortrinsstilling_i_fond: Boolsk, selskabets_afkast_via_fond_kroner: Heltal, standardafkast_kroner: Heltal, fremført_negativt_merafkast_kroner: Heltal, ret_til_merafkast_basispoint: Heltal)
+# PersonskatCfcPostInput = PersonskatCfcEfterLigningslov16H(fakta: PersonskatCfcEfterLigningslov16HFakta) | PersonskatCfcEfterLigningslov16IStk6Og7(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta)
+# PersonskatCfcInput(poster: List(PersonskatCfcPostInput))
+# PersonskatCfcPostResultat = UgyldigtCfcGrundlag(input: PersonskatCfcPostInput, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetCfcEfterLigningslov16H(fakta: PersonskatCfcEfterLigningslov16HFakta, ligningslov_input: Ligningslov16HInput, ligningslov_resultat: Ligningslov16HResultat, par4b_post: Par4bCfcIndkomstPost) | BeregnetCfcEfterLigningslov16IStk6Og7(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta, ligningslov_input: Ligningslov16IStk6Og7Input, ligningslov_resultat: Ligningslov16IStk6Og7Resultat, par4b_post: Par4bCfcIndkomstPost)
+# PersonskatCfcResultat(input: PersonskatCfcInput, postresultater: List(PersonskatCfcPostResultat), alle_input_gyldige: Boolsk, par4b_resultat: Par4bCfcIndkomstResultat)
+
+| personskat_ingen_cfc() -> PersonskatCfcInput(poster = [])
+| personskat_cfc_basispoint_gyldigt(basispoint: Heltal) -> basispoint >= 0 && basispoint <= 10000
+| personskat_cfc_post_grundfakta_gyldige(input: PersonskatCfcPostInput) -> match input {
+    | PersonskatCfcEfterLigningslov16H(fakta) -> fakta.udenlandsk_indkomstskat_kroner >= 0 && fakta.fremført_underskud_danske_regler_kroner >= 0 && personskat_cfc_basispoint_gyldigt(fakta.direkte_indirekte_ejerandel_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.stemmerettigheder_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.gennemsnitlig_ejerandel_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.kontrolperiode_basispoint)
+    | PersonskatCfcEfterLigningslov16IStk6Og7(fakta) -> fakta.fremført_negativt_merafkast_kroner >= 0 && personskat_cfc_basispoint_gyldigt(fakta.ret_til_merafkast_basispoint)
+}
+| personskat_cfc_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
+| personskat_cfc_post_gyldigt(input: PersonskatCfcPostInput, skatteår: Heltal) -> personskat_cfc_skatteår_understøttet(skatteår) && personskat_cfc_post_grundfakta_gyldige(input)
+| personskat_cfc_ll16h_input(fakta: PersonskatCfcEfterLigningslov16HFakta, skatteår: Heltal) -> Ligningslov16HInput(
+    indkomstår = skatteår,
+    fuldt_skattepligtig_eller_dødsbo = fakta.fuldt_skattepligtig_eller_dødsbo,
+    udenlandsk_selskab = fakta.udenlandsk_selskab,
+    direkte_indirekte_ejerandel_basispoint = fakta.direkte_indirekte_ejerandel_basispoint,
+    stemmerettigheder_basispoint = fakta.stemmerettigheder_basispoint,
+    fælleskontrol_med_nærtstående_fond_eller_trust = fakta.fælleskontrol_med_nærtstående_fond_eller_trust,
+    aftale_om_skattesats_eller_beskatningsgrundlag = fakta.aftale_om_skattesats_eller_beskatningsgrundlag,
+    hjemstat_regler_indrettet_efter_kontrollerende_aktionær = fakta.hjemstat_regler_indrettet_efter_kontrollerende_aktionær,
+    udenlandsk_indkomstskat_kroner = fakta.udenlandsk_indkomstskat_kroner,
+    selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner = fakta.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner,
+    selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner = fakta.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner,
+    aktier_ikke_investeringsselskab = fakta.aktier_ikke_investeringsselskab,
+    eu_eøs_selskab = fakta.eu_eøs_selskab,
+    reel_etablering_og_økonomisk_virksomhed = fakta.reel_etablering_og_økonomisk_virksomhed,
+    dokumentation_kan_verificeres = fakta.dokumentation_kan_verificeres,
+    medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12 = fakta.medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12,
+    gennemsnitlig_ejerandel_basispoint = fakta.gennemsnitlig_ejerandel_basispoint,
+    kontrolperiode_basispoint = fakta.kontrolperiode_basispoint,
+    fremført_underskud_danske_regler_kroner = fakta.fremført_underskud_danske_regler_kroner
+)
+| personskat_cfc_ll16i_input(fakta: PersonskatCfcEfterLigningslov16IStk6Og7Fakta, skatteår: Heltal) -> Ligningslov16IStk6Og7Input(
+    indkomstår = skatteår,
+    fuldt_skattepligtig_eller_dødsbo = fakta.fuldt_skattepligtig_eller_dødsbo,
+    kontrollerer_efter_par16h_stk6 = fakta.kontrollerer_efter_par16h_stk6,
+    medstifter_eller_ledelse_i_fond = fakta.medstifter_eller_ledelse_i_fond,
+    selskab_har_fortrinsstilling_i_fond = fakta.selskab_har_fortrinsstilling_i_fond,
+    selskabets_afkast_via_fond_kroner = fakta.selskabets_afkast_via_fond_kroner,
+    standardafkast_kroner = fakta.standardafkast_kroner,
+    fremført_negativt_merafkast_kroner = fakta.fremført_negativt_merafkast_kroner,
+    ret_til_merafkast_basispoint = fakta.ret_til_merafkast_basispoint
+)
+| personskat_cfc_post_resultat(input: PersonskatCfcPostInput, skatteår: Heltal) -> match input {
+    | PersonskatCfcEfterLigningslov16H(fakta) -> hvis personskat_cfc_post_gyldigt(input, skatteår) {
+        = ligningslov_input = personskat_cfc_ll16h_input(fakta, skatteår)
+        = ligningslov_resultat = ligningslov16h_resultat(ligningslov_input)
+        BeregnetCfcEfterLigningslov16H(
+            fakta = fakta,
+            ligningslov_input = ligningslov_input,
+            ligningslov_resultat = ligningslov_resultat,
+            par4b_post = par4b_cfc_post_fra_ligningslov16h_resultat(ligningslov_resultat)
+        )
+    } ellers {
+        UgyldigtCfcGrundlag(
+            input = input,
+            skatteår_understøttet = personskat_cfc_skatteår_understøttet(skatteår),
+            grundfakta_gyldige = personskat_cfc_post_grundfakta_gyldige(input)
+        )
+    }
+    | PersonskatCfcEfterLigningslov16IStk6Og7(fakta) -> hvis personskat_cfc_post_gyldigt(input, skatteår) {
+        = ligningslov_input = personskat_cfc_ll16i_input(fakta, skatteår)
+        = ligningslov_resultat = ligningslov16i_stk6_og_7_resultat(ligningslov_input)
+        BeregnetCfcEfterLigningslov16IStk6Og7(
+            fakta = fakta,
+            ligningslov_input = ligningslov_input,
+            ligningslov_resultat = ligningslov_resultat,
+            par4b_post = par4b_cfc_post_fra_ligningslov16i_stk6_og_7_resultat(ligningslov_resultat)
+        )
+    } ellers {
+        UgyldigtCfcGrundlag(
+            input = input,
+            skatteår_understøttet = personskat_cfc_skatteår_understøttet(skatteår),
+            grundfakta_gyldige = personskat_cfc_post_grundfakta_gyldige(input)
+        )
+    }
+}
+| personskat_cfc_postresultat_gyldigt(resultat: PersonskatCfcPostResultat) -> match resultat {
+    | UgyldigtCfcGrundlag(_, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_cfc_par4b_poster(resultat: PersonskatCfcPostResultat) -> match resultat {
+    | BeregnetCfcEfterLigningslov16H(_, _, _, par4b_post) -> [par4b_post]
+    | BeregnetCfcEfterLigningslov16IStk6Og7(_, _, _, par4b_post) -> [par4b_post]
+    | _ -> []
+}
+| personskat_cfc_resultat(input: PersonskatCfcInput, skatteår: Heltal) -> {
+    = postresultater = map(input.poster, |post: PersonskatCfcPostInput| personskat_cfc_post_resultat(post, skatteår))
+    = alle_input_gyldige = all(postresultater, personskat_cfc_postresultat_gyldigt)
+    = par4b_poster = hvis alle_input_gyldige { flat_map(postresultater, personskat_cfc_par4b_poster) } ellers { [] }
+    PersonskatCfcResultat(
+        input = input,
+        postresultater = postresultater,
+        alle_input_gyldige = alle_input_gyldige,
+        par4b_resultat = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(poster = par4b_poster))
+    )
+}
+--@end:personskat_cfc_kildefakta--

@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-16c53a`
+Current focus issue: `td-cd7f0d` (language subissue `td-380f7d`)
 Latest implementation slice submitted for review: `td-67f030`
-Latest approved implementation slice: `td-d1183e`
+Latest approved implementation slice: `td-16c53a`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -68,6 +68,28 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
+eller flere typede CFC-forhold som kildefakta efter Ligningslovens § 16 H eller
+§ 16 I, stk. 6 og 7. Skatteåret afledes fra den omgivende personsag, og
+§ 16 H's danske sammenligningsskat afledes af selskabets samlede skattepligtige
+indkomst og Selskabsskattelovens § 17-sats. Borgeren leverer derfor hverken et
+færdigberegnet CFC-beløb eller sammenligningsskatten. Hvert forhold bevarer
+både Ligningslov-inputtet, det fulde afhængighedsresultat og den afledte
+Personskattelov § 4 b-post. Kun en samlet gyldig liste får skattemæssig virkning;
+ugyldige basispoint eller ikke-understøttede år forbliver synlige og fejler
+lukket. Det positive § 4 b-resultat føres til § 8 b's 22 pct. CFC-skat, mens
+CFC-indkomsten fortsat holdes uden for §§ 6-8 a. Fokuserede scenarier dækker en
+blandet positiv § 16 H/§ 16 I-sag, EU/EØS-fritagelsen, fremført negativt
+merafkast og ugyldig ejerandel. § 4 b's ordrette tekst og regler ligger nu i
+det særskilte `personskatteloven-par4b-cfc.runa`-modul.
+
+Den genererede borgerkontrakt har samtidig 28 nye danske CFC-feltbeskrivelser,
+herunder den relationelle CFC-liste, regelvalg og samtlige nødvendige
+kildefakta. Metadataen ligger i et almindeligt typet `CfcBeregningsmeta`-objekt
+i et importeret modul og forbindes med ét kort `::meta:`-anker. Futurunas
+beregningskontrakt indlæser nu målrettet sådanne ankre fra rekursive imports;
+andre labels ignoreres, mens ugyldige stier og dubletter fortsat fejler lukket.
+
 Latest integration: Pensionsbeskatningslovens § 15 A har nu et typet,
 dateret holdingforløb. Et salg eller en likvidation af et datterselskab bærer
 en stabil hændelses- og selskabsidentifikation, et ordnet tidspunkt og det
@@ -81,7 +103,7 @@ fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
 interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
 provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
 likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
-forløbet og 613 feltmetadata-poster i alt.
+forløbet og 641 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -354,7 +376,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 613 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 641 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -1913,6 +1935,11 @@ encoded as a temporal rule on top of the consolidation.
 - `ligningsloven_cfc.runa` exists and checks/runs with `runa run`; it covers
   the LL § 16 H and § 16 I, stk. 6-7 CFC dependency consumed by
   Personskatteloven § 4 b.
+- `personskatteloven-par4b-cfc.runa` keeps the verbatim § 4 b source text and
+  its amount-level aggregation rules in a focused importable legal module.
+  `personskat-cfc-kildefakta.runa` adapts canonical § 16 H/§ 16 I source facts
+  to that module without caller-supplied legal conclusions, and
+  `personskat-cfc.scenario.runa` exercises the complete path through § 8 b.
 - `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
@@ -2995,7 +3022,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 613 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 641 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

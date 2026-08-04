@@ -1,0 +1,9 @@
+@ import ./fields
+
+# ImportedInput(amount: Int)
+# ImportedResult(doubled: Int)
+
+@ calculate("Imported metadata calculation")
+| calculate_imported_fields(input: ImportedInput) -> ImportedResult(
+    doubled = input.amount * 2
+)

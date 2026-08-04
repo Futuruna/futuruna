@@ -683,7 +683,12 @@ pub fn extract_calculation_contracts(
         return Err(diagnostics);
     }
 
-    let meta_index = scan_meta_comments_with_dir(source, source_dir.clone());
+    let calculation_labels = candidates
+        .iter()
+        .map(|candidate| candidate.name.clone())
+        .collect::<BTreeSet<_>>();
+    let meta_index =
+        scan_meta_comments_with_imported_labels(source, source_dir.clone(), &calculation_labels);
     let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {

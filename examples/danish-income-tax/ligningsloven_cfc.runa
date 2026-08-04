@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./selskabsskatteloven
 
 -- Ligningsloven -- CFC-afhængigheder (§§ 16 H og 16 I).
 --
@@ -99,12 +100,13 @@ Stk. 10. CFC-indkomsten efter stk. 7-9 kan ikke overstige den skattepligtiges
 andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 ----
 
-# Ligningslov16HInput(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
-# Ligningslov16HResultat(indkomstår: Heltal, kontrollerer_selskab: Boolsk, lavskat_betingelse: Boolsk, cfc_over_halvdelen_betingelse: Boolsk, betingelser_for_stk1_til_stede: Boolsk, fritaget_efter_stk2: Boolsk, omfattet_af_par16h: Boolsk, fremført_underskud_medregnet_efter_stk9_kroner: Heltal, cfc_indkomst_efter_stk9_kroner: Heltal, andel_før_stk10_kroner: Heltal, stk10_cap_kroner: Heltal, medregnet_cfc_indkomst_kroner: Heltal)
+# Ligningslov16HInput(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
+# Ligningslov16HResultat(indkomstår: Heltal, dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner: Heltal, kontrollerer_selskab: Boolsk, lavskat_betingelse: Boolsk, cfc_over_halvdelen_betingelse: Boolsk, betingelser_for_stk1_til_stede: Boolsk, fritaget_efter_stk2: Boolsk, omfattet_af_par16h: Boolsk, fremført_underskud_medregnet_efter_stk9_kroner: Heltal, cfc_indkomst_efter_stk9_kroner: Heltal, andel_før_stk10_kroner: Heltal, stk10_cap_kroner: Heltal, medregnet_cfc_indkomst_kroner: Heltal)
 
 | ll16h_over_50_pct(basispoint: Heltal) -> basispoint > 5000
 | ll16h_kontrollerer_selskab(input: Ligningslov16HInput) -> input.udenlandsk_selskab && (ll16h_over_50_pct(input.direkte_indirekte_ejerandel_basispoint) || ll16h_over_50_pct(input.stemmerettigheder_basispoint) || input.fælleskontrol_med_nærtstående_fond_eller_trust)
-| ll16h_lavskat_betingelse(input: Ligningslov16HInput) -> input.udenlandsk_indkomstskat_kroner * 4 < input.dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner * 3
+| ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), selskabsskattelov_par17_stk1_selskabsskat_basispoint(input.indkomstår))
+| ll16h_lavskat_betingelse(input: Ligningslov16HInput) -> input.udenlandsk_indkomstskat_kroner * 4 < ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input) * 3
 | ll16h_cfc_over_halvdelen_betingelse(input: Ligningslov16HInput) -> input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 2 > input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner
 | ll16h_stk1_nr1_til_3_betingelser(input: Ligningslov16HInput) -> ll16h_lavskat_betingelse(input) && ll16h_cfc_over_halvdelen_betingelse(input) && input.aktier_ikke_investeringsselskab
 | ll16h_betingelser_for_stk1_til_stede(input: Ligningslov16HInput) -> input.aftale_om_skattesats_eller_beskatningsgrundlag || input.hjemstat_regler_indrettet_efter_kontrollerende_aktionær || ll16h_stk1_nr1_til_3_betingelser(input)
@@ -123,6 +125,7 @@ andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 # Ligningslov16HSag(input: Ligningslov16HInput) {
     | resultat() -> Ligningslov16HResultat(
         indkomstår = input.indkomstår,
+        dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner = ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input),
         kontrollerer_selskab = ll16h_kontrollerer_selskab(input),
         lavskat_betingelse = ll16h_lavskat_betingelse(input),
         cfc_over_halvdelen_betingelse = ll16h_cfc_over_halvdelen_betingelse(input),
@@ -201,7 +204,6 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
     aftale_om_skattesats_eller_beskatningsgrundlag = Falskt,
     hjemstat_regler_indrettet_efter_kontrollerende_aktionær = Falskt,
     udenlandsk_indkomstskat_kroner = 40000,
-    dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner = 66000,
     selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner = 200000,
     selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner = 300000,
     aktier_ikke_investeringsselskab = Sandt,
@@ -223,7 +225,6 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
     aftale_om_skattesats_eller_beskatningsgrundlag = Falskt,
     hjemstat_regler_indrettet_efter_kontrollerende_aktionær = Falskt,
     udenlandsk_indkomstskat_kroner = 40000,
-    dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner = 66000,
     selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner = 200000,
     selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner = 300000,
     aktier_ikke_investeringsselskab = Sandt,
@@ -245,7 +246,6 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
     aftale_om_skattesats_eller_beskatningsgrundlag = Falskt,
     hjemstat_regler_indrettet_efter_kontrollerende_aktionær = Falskt,
     udenlandsk_indkomstskat_kroner = 10000,
-    dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner = 66000,
     selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner = 500000,
     selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner = 300000,
     aktier_ikke_investeringsselskab = Sandt,
@@ -280,7 +280,7 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
     ret_til_merafkast_basispoint = 5000
 ))
 
-| ll16h_stk1_medregner_forholdsmæssig_cfc: ll16h_positiv_fixture -> ll16h_positiv_fixture.omfattet_af_par16h == Sandt && ll16h_positiv_fixture.medregnet_cfc_indkomst_kroner == 120000
+| ll16h_stk1_medregner_forholdsmæssig_cfc: ll16h_positiv_fixture -> ll16h_positiv_fixture.dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner == 66000 && ll16h_positiv_fixture.omfattet_af_par16h == Sandt && ll16h_positiv_fixture.medregnet_cfc_indkomst_kroner == 120000
 | ll16h_stk2_eu_eøs_fritager: ll16h_eu_eøs_fritaget_fixture -> ll16h_eu_eøs_fritaget_fixture.fritaget_efter_stk2 == Sandt && ll16h_eu_eøs_fritaget_fixture.medregnet_cfc_indkomst_kroner == 0
 | ll16h_stk9_og_stk10_begrænser_indkomst: ll16h_stk9_stk10_fixture -> ll16h_stk9_stk10_fixture.fremført_underskud_medregnet_efter_stk9_kroner == 60000 && ll16h_stk9_stk10_fixture.stk10_cap_kroner == 180000 && ll16h_stk9_stk10_fixture.medregnet_cfc_indkomst_kroner == 180000
 | ll16i_stk6_og_stk7_medregner_merafkast_som_cfc: ll16i_stk6_og_7_fixture -> ll16i_stk6_og_7_fixture.omfattet_af_stk6 == Sandt && ll16i_stk6_og_7_fixture.positivt_merafkast_efter_fremførsel_kroner == 60000 && ll16i_stk6_og_7_fixture.medregnet_som_cfc_indkomst_kroner == 30000

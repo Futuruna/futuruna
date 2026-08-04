@@ -1381,20 +1381,29 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 // PART 2c: META COMMENTS
 // ============================================================================
 
-/// Machine-readable metadata encoded as comments.
+/// Machine-readable anchors encoded as comments.
 ///
 /// Meta comments are intentionally comments, so they remain backward-compatible
 /// with the language parser. Tooling can scan raw source and build this side
 /// index without changing evaluation semantics.
 ///
-/// Supported shapes:
+/// The canonical metadata shape contains only a label and one binding to an
+/// ordinary typed Futuruna value. Metadata structure, including multiple roles,
+/// belongs in that value rather than in the comment grammar:
+///
+/// ```text
+/// --@label:label::meta:typed_binding--
+/// --@begin:label--
+/// --@end:label--
+/// ```
+///
+/// Direct role chains and older marker spellings remain accepted only for
+/// source compatibility:
 ///
 /// ```text
 /// --@label:label::role:binding::role:another_binding--
 /// --@meta::label::role:binding--
 /// --@source::label::meta:source_binding--
-/// --@begin:label--
-/// --@end:label--
 /// --@begin::label--
 /// --@end::label--
 /// ```
@@ -1842,6 +1851,122 @@ pub fn scan_meta_comments_with_dir(source: &str, source_dir: Option<String>) -> 
     index
 }
 
+/// Scan local metadata and matching anchors from recursively imported modules.
+///
+/// Imported metadata is opt-in by label so consumers can compose annotations
+/// for a known entry without inheriting unrelated anchors from their complete
+/// dependency graph. Every imported anchor is resolved in the module where it
+/// is declared before being added to the combined index.
+pub fn scan_meta_comments_with_imported_labels(
+    source: &str,
+    source_dir: Option<String>,
+    labels: &BTreeSet<String>,
+) -> MetaIndex {
+    let mut index = scan_meta_comments_with_dir(source, source_dir.clone());
+    let mut target_labels = labels.clone();
+    for span in &index.spans {
+        if span
+            .symbols
+            .iter()
+            .any(|symbol| labels.contains(&symbol.name))
+        {
+            target_labels.insert(span.label.clone());
+        }
+    }
+    collect_imported_meta_anchors(
+        source,
+        source_dir.as_deref(),
+        &target_labels,
+        &mut BTreeSet::new(),
+        &mut index,
+    );
+    index
+}
+
+fn collect_imported_meta_anchors(
+    source: &str,
+    source_dir: Option<&str>,
+    labels: &BTreeSet<String>,
+    visited: &mut BTreeSet<String>,
+    index: &mut MetaIndex,
+) {
+    let Some(source_dir) = source_dir else {
+        return;
+    };
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let Ok(stmts) = parser.parse_program() else {
+        return;
+    };
+
+    for stmt in &stmts {
+        let Stmt::Import(import_path) = stmt else {
+            continue;
+        };
+        let Some(file_path) = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+        else {
+            continue;
+        };
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.clone());
+        if !visited.insert(canonical) {
+            continue;
+        }
+        let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
+            continue;
+        };
+        let imported_dir = std::path::Path::new(&file_path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+
+        let mut imported_index = scan_meta_comment_structure(&imported_source);
+        let targets_calculation = imported_index
+            .anchors
+            .iter()
+            .any(|anchor| labels.contains(&anchor.label))
+            || imported_source.lines().any(|line| {
+                line.trim_start().starts_with("--@")
+                    && labels
+                        .iter()
+                        .any(|label| line.contains(&format!(":{label}")))
+            });
+        imported_index
+            .comments
+            .retain(|comment| labels.contains(&comment.label));
+        imported_index
+            .anchors
+            .retain(|anchor| labels.contains(&anchor.label));
+        imported_index
+            .spans
+            .retain(|span| labels.contains(&span.label));
+        if !targets_calculation {
+            imported_index.diagnostics.clear();
+        }
+        if !imported_index.anchors.is_empty() {
+            resolve_meta_references(
+                &imported_source,
+                Some(imported_dir.clone()),
+                &mut imported_index,
+            );
+        }
+        index.comments.extend(imported_index.comments);
+        index.anchors.extend(imported_index.anchors);
+        index.spans.extend(imported_index.spans);
+        index.diagnostics.extend(imported_index.diagnostics);
+
+        collect_imported_meta_anchors(
+            &imported_source,
+            Some(&imported_dir),
+            labels,
+            visited,
+            index,
+        );
+    }
+}
+
 fn scan_meta_comment_structure(source: &str) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
     let parsed_rule_symbols = parsed_meta_rule_symbols(source);
@@ -1965,7 +2090,7 @@ fn parse_meta_comment_line(
     if kind.is_empty() || label.is_empty() {
         diagnostics.push(MetaDiagnostic {
             line: line_no,
-            message: "meta comment must use `--@kind:label--`, `--@kind::label--`, or `--@label:label::role:binding--`"
+            message: "meta comment must use `--@label:label::meta:binding--`, `--@begin:label--`, `--@end:label--`, or a legacy compatible marker"
                 .to_string(),
         });
         return None;

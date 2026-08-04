@@ -97,6 +97,12 @@ the same object by its own nested types.
 --@label:calculate_tax::meta:tax_input_meta--
 ```
 
+The anchor and its typed aggregate may live in a recursively imported metadata
+module. Calculation tooling collects only imported anchors whose label names an
+actual calculation entry or its source span, so unrelated dependency metadata
+cannot alter the contract. Imported fields use the same exact-path validation
+and duplicate checks as local fields.
+
 The emitted field binding names include stable aggregate paths such as
 `tax_input_meta.fields[0]`. Direct `field` references remain accepted for source
 compatibility; new code should attach one typed `meta` object. A `field`

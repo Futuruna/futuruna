@@ -25,6 +25,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
@@ -35,6 +36,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = aktieavance,
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
@@ -43,6 +45,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = kapitalindkomst,
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
@@ -51,6 +54,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     lønmodtager = lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
@@ -516,11 +520,12 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
-        pensionsbeskatningsafgift_kroner = 500,
+        øvrig_pensionsbeskatningsafgift_kroner = 500,
         kreditter = KildeskatPar60Kreditter(
             a_skat_og_am_indeholdt_kroner = 0,
             par68_indbetalt_kroner = 0,

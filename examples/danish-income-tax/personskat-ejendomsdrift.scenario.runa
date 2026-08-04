@@ -51,6 +51,7 @@ Futuruna.
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse

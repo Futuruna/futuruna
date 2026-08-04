@@ -1,0 +1,31 @@
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
+# CalculationMetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMeta(a) = CalculationMeta(felter: List(CalculationField), attachments: a)
+# SourceInfo(url: String)
+
+= imported_source = SourceInfo(url = "https://example.invalid/imported-fields")
+= imported_amount_field = CalculationField(
+    path = "amount",
+    label = "Imported amount",
+    question = Some("What amount should be calculated?"),
+    help = Some("This field metadata is declared in an imported module."),
+    unit = Some("currency")
+)
+= imported_calculation_meta = CalculationMeta(
+    felter = [imported_amount_field],
+    attachments = (
+        MetaAttachment(role = Source, value = imported_source),
+    )
+)
+
+--@label:calculate_imported_fields::meta:imported_calculation_meta--
+
+= unrelated_invalid_field = CalculationField(
+    path = "not_an_input_path",
+    label = "Unrelated field",
+    question = None,
+    help = None,
+    unit = None
+)
+--@label:another_calculation::meta:unrelated_invalid_field--

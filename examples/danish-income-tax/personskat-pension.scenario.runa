@@ -85,6 +85,7 @@
     lønmodtager = personskat_pension_lønmodtager(pension),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
@@ -107,6 +108,7 @@
     lønmodtager = personskat_pension_lønmodtager(pension),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = MedÅrsopgørelse(
@@ -119,6 +121,7 @@
     lønmodtager = personskat_pension_lønmodtager(pension),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = aktieavance,
+    cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse

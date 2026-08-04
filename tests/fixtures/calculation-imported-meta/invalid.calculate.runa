@@ -1,0 +1,9 @@
+@ import ./fields
+
+# InvalidImportedInput(amount: Int)
+# InvalidImportedResult(amount: Int)
+
+@ calculate
+| another_calculation(input: InvalidImportedInput) -> InvalidImportedResult(
+    amount = input.amount
+)
