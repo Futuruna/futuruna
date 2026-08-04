@@ -1,0 +1,130 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+@ importer ./pbl15a - source - fixtures.scenario
+
+-- Fokuserede scenarier for den kildeafledte fortjeneste efter PBL § 15 A.
+-- Lovtekst, vejledning og kildehenvisninger står i det tilhørende lovmodul.
+
+| pbl15a_fortjeneste_scenarie_goodwillinput(afståelsessum_kroner: Heltal) -> Afskrivningslov40Input(
+    indkomstår = 2026,
+    position = Afskrivningslov40Position(
+        grundlag = Al40ErhvervetAktiv(
+            erhverver = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = Al40Goodwill,
+            endelig_aftaledato = AfskrivningslovDato(
+                år = 2020,
+                måned = 1,
+                dag = 1
+            ),
+            anskaffelsessum_kroner = 500000,
+            beskyttelses_eller_rettighedsperiode_år = 0,
+            goodwill_erhvervet_fra_selskabsskattelov3_stk1_nr9_eller_nr18 = Falskt,
+            udbytteret_omfattet_af_ligningslov12b_stk7 = Falskt,
+            kontrol = Afskrivningslov40Kontrol(
+                overdragelse_mellem_person_og_selskab_eller_mellem_selskaber = Falskt,
+                kapitalandel_basispoint = 0,
+                stemmerettigheder_basispoint = 0,
+                ejerandel_basispoint = 0,
+                bestemmende_indflydelse_ved_vedtægt_aftale_eller_fælles_ledelse = Falskt,
+                ikkeafskrivningsberettiget_del_af_overdragerens_anskaffelsessum_kroner = 0
+            )
+        ),
+        tidligere_foretagne_afskrivninger_og_fradrag_kroner = 100000,
+        forlods_afskrivninger_kroner = 0
+    ),
+    hændelse = Al40AktivSolgt(
+        afståelsessum_kroner = afståelsessum_kroner,
+        udbytteretsaftale_omfattet_af_ligningslov12b_stk6 = Falskt
+    ),
+    valgt_afskrivning_kroner = 0
+)
+
+| pbl15a_fortjeneste_scenarie_goodwillgrundlag(afståelsessum_kroner: Heltal) -> Pbl15AFortjenestegrundlag(
+    afskrivningslovsposter = [
+        Pbl15AAfskrivningslovspost(
+            identifikation = "goodwill",
+            kilde = Pbl15AAl40GoodwillEllerImmaterieltAktiv(
+                input = pbl15a_fortjeneste_scenarie_goodwillinput(afståelsessum_kroner)
+            )
+        )
+    ],
+    ejendomsavance = Pbl15AUdenEjendomsavance,
+    aktieavance = Pbl15AUdenAktieavance,
+    kursgevinstposter = []
+)
+
+| pbl15a_fortjeneste_scenarie_blandet_grundlag() -> Pbl15AFortjenestegrundlag(
+    afskrivningslovsposter = [
+        Pbl15AAfskrivningslovspost(
+            identifikation = "goodwill-gevinst",
+            kilde = Pbl15AAl40GoodwillEllerImmaterieltAktiv(
+                input = pbl15a_fortjeneste_scenarie_goodwillinput(650000)
+            )
+        ),
+        Pbl15AAfskrivningslovspost(
+            identifikation = "goodwill-tab",
+            kilde = Pbl15AAl40GoodwillEllerImmaterieltAktiv(
+                input = pbl15a_fortjeneste_scenarie_goodwillinput(300000)
+            )
+        )
+    ],
+    ejendomsavance = Pbl15AUdenEjendomsavance,
+    aktieavance = Pbl15AUdenAktieavance,
+    kursgevinstposter = []
+)
+
+= pbl15a_fortjeneste_scenarie_egen_virksomhed = Pbl15AAfståelsesSag(pbl15a_fixture_afståelse(
+    "egen-goodwill",
+    2026,
+    Pbl15AEgenVirksomhedsfortjeneste,
+    pbl15a_fortjeneste_scenarie_goodwillgrundlag(650000)
+)).resultat()
+
+= pbl15a_fortjeneste_scenarie_hovedaktionær = Pbl15AAfståelsesSag(pbl15a_fixture_afståelse(
+    "hovedaktionær",
+    2026,
+    Pbl15AHovedaktionæraktier,
+    pbl15a_fixture_hovedaktionær_fortjenestegrundlag("hovedaktionæraktier", 400000)
+)).resultat()
+
+= pbl15a_fortjeneste_scenarie_ægtefælle = Pbl15AAfståelsesSag(pbl15a_fixture_afståelse(
+    "ægtefælles-goodwill",
+    2026,
+    Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(
+        henføringsgrundlag = Kildeskat25AFortjenestegrundlag(
+            person_identifikation = "person",
+            ægtefælle_identifikation = "ægtefælle",
+            henføring = Ksl25AStk1Virksomhedsdriver(
+                samlevende_ved_indkomstårets_udgang = Sandt,
+                samliv_ophoert_i_indkomståret = Falskt,
+                begge_ægtefæller_deltager_i_driften = Sandt,
+                personen_driver_virksomheden = Sandt,
+                personen_driver_i_overvejende_grad = Sandt
+            )
+        )
+    ),
+    pbl15a_fortjeneste_scenarie_goodwillgrundlag(650000)
+)).resultat()
+
+= pbl15a_fortjeneste_scenarie_blandet = Pbl15AAfståelsesSag(pbl15a_fixture_afståelse(
+    "blandet-goodwill",
+    2026,
+    Pbl15AEgenVirksomhedsfortjeneste,
+    pbl15a_fortjeneste_scenarie_blandet_grundlag()
+)).resultat()
+
+| pbl15a_fortjeneste_scenarie_ægtefællehenføring_bevaret(resultat: Pbl15AAfståelsesresultat) -> match resultat.ægtefællehenføringsresultat {
+    | Some(henføring) -> henføring.grundlag_gyldigt && henføring.hjemmel_opfyldt && henføring.fortjeneste_opnået_af_ægtefælle_før_am_kroner == 250000 && henføring.fortjeneste_medregnet_hos_person_før_am_kroner == 250000
+    | None -> Falskt
+}
+
+| pbl15a_fortjeneste_egen_virksomhed_afledes_fra_afskrivningsloven: pbl15a_fortjeneste_scenarie_egen_virksomhed.skattepligtig_fortjeneste_før_am_kroner -> pbl15a_fortjeneste_scenarie_egen_virksomhed.fakta_gyldige && pbl15a_fortjeneste_scenarie_egen_virksomhed.kvalificerer_til_ophørspension && length(pbl15a_fortjeneste_scenarie_egen_virksomhed.fortjenestegrundlagsresultat.afskrivningslovsresultater) == 1 && head(pbl15a_fortjeneste_scenarie_egen_virksomhed.fortjenestegrundlagsresultat.afskrivningslovsresultater).identifikation == "goodwill" && pbl15a_fortjeneste_scenarie_egen_virksomhed.skattepligtig_fortjeneste_før_am_kroner == 250000
+| pbl15a_fortjeneste_hovedaktionær_afledes_fra_abl: pbl15a_fortjeneste_scenarie_hovedaktionær.skattepligtig_fortjeneste_før_am_kroner -> pbl15a_fortjeneste_scenarie_hovedaktionær.fakta_gyldige && pbl15a_fortjeneste_scenarie_hovedaktionær.fortjenestegrundlagsresultat.aktieavanceresultat.indeholder_afståelse && pbl15a_fortjeneste_scenarie_hovedaktionær.fortjenestegrundlagsresultat.aktieavanceresultat.alle_afståelser_er_hovedaktionæraktier && pbl15a_fortjeneste_scenarie_hovedaktionær.skattepligtig_fortjeneste_før_am_kroner == 400000
+| pbl15a_fortjeneste_ægtefælle_henføres_efter_ksl25a: pbl15a_fortjeneste_scenarie_ægtefælle.skattepligtig_fortjeneste_før_am_kroner -> pbl15a_fortjeneste_scenarie_ægtefælle.fakta_gyldige && pbl15a_fortjeneste_scenarie_ægtefælle.kvalificerer_til_ophørspension && pbl15a_fortjeneste_scenarie_ægtefællehenføring_bevaret(pbl15a_fortjeneste_scenarie_ægtefælle)
+| pbl15a_fortjeneste_tab_modregnes_i_gevinst: pbl15a_fortjeneste_scenarie_blandet.skattepligtig_fortjeneste_før_am_kroner -> pbl15a_fortjeneste_scenarie_blandet.fortjenestegrundlagsresultat.alle_kilder_gyldige && pbl15a_fortjeneste_scenarie_blandet.fortjenestegrundlagsresultat.samlede_skattepligtige_fortjenester_før_am_kroner == 250000 && pbl15a_fortjeneste_scenarie_blandet.fortjenestegrundlagsresultat.samlede_fradragsberettigede_tab_kroner == 100000 && pbl15a_fortjeneste_scenarie_blandet.skattepligtig_fortjeneste_før_am_kroner == 150000
+
+? pbl15a_fortjeneste_egen_virksomhed_afledes_fra_afskrivningsloven
+? pbl15a_fortjeneste_hovedaktionær_afledes_fra_abl
+? pbl15a_fortjeneste_ægtefælle_henføres_efter_ksl25a
+? pbl15a_fortjeneste_tab_modregnes_i_gevinst

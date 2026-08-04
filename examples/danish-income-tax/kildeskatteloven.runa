@@ -30,13 +30,37 @@ lovtekst kontrolleres særskilt i source-status.runa.
 
 = kildeskatteloven_lbk460_par25a = KildeskatKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/460",
-    identifier = "Kildeskatteloven § 25 A, stk. 3-8",
+    identifier = "Kildeskatteloven § 25 A, stk. 1-8",
     hentet_dato = "2026-07-18"
 )
 
 --@label:kildeskatteloven_par25a::source:kildeskatteloven_lbk460_par25a--
 ----
 § 25 A.
+
+Indkomst, der vedrører en erhvervsvirksomhed, medregnes ved opgørelsen af
+skattepligtig indkomst, personlig indkomst og kapitalindkomst, jf.
+personskattelovens §§ 2-4, samt ved opgørelsen af den
+arbejdsmarkedsbidragspligtige indkomst hos den ægtefælle, der driver
+virksomheden. Deltager begge ægtefæller i driften, medregnes indkomst som nævnt
+i 1. pkt. hos den ægtefælle, der i overvejende grad driver virksomheden, jf.
+dog stk. 8. Anvender den ægtefælle, der driver virksomheden, ved udgangen af
+indkomståret forud for overgangen af driften af virksomheden til den anden
+ægtefælle virksomhedsordningen, jf. virksomhedsskattelovens afsnit I, kan den
+ægtefælle, som overtager driften af virksomheden, indtræde i den førstnævnte
+ægtefælles virksomhedsordning, herunder overtage indestående på konto for
+opsparet overskud, indskudskontoen og mellemregningskontoen, ved udløbet af
+indkomståret forud for overgangen af driften af virksomheden. Såfremt
+overgangen af driften vedrører en af flere virksomheder, jf.
+virksomhedsskattelovens § 2, stk. 3, kan den ægtefælle, som nu driver den
+pågældende virksomhed, overtage den del af indestående på konto for opsparet
+overskud og indskudskontoen, der svarer til den pågældende virksomhed. § 26 A,
+stk. 5, 2.-5. pkt., finder tilsvarende anvendelse.
+
+Stk. 2. Kapitalafkast efter virksomhedsskattelovens § 7, der overføres til den
+skattepligtige, medregnes dog ved opgørelsen af skattepligtig indkomst og
+kapitalindkomst hos den af ægtefællerne, der har rådighed over virksomheden som
+nævnt i § 24 A, jf. dog stk. 8.
 
 Stk. 3. Hvis ægtefæller, der er samlevende ved indkomstårets udgang, begge har
 deltaget i væsentligt omfang i driften af den ene ægtefælles eller begges
@@ -94,6 +118,10 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 --@begin::kildeskatteloven_par25a--
 # Kildeskat25AStk3Input(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
 # Kildeskat25AStk3Resultat(indkomstår: Heltal, overskud_efter_stk4_kroner: Heltal, halvdelen_af_overskuddet_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, højeste_overførsel_kroner: Heltal, stk3_betingelser_opfyldt: Boolsk, anmodet_beløb_begrænset: Boolsk, overført_til_medarbejdende_ægtefælle_kroner: Heltal, medarbejdende_ægtefælles_skattepligtige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_personlige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_kroner: Heltal, drivende_ægtefælles_skattepligtige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_personlige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_nedsættelse_kroner: Heltal)
+# Kildeskat25AStk3Fortjenestefakta(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, øvrigt_skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
+# Kildeskat25AFortjenestehenføring = Ksl25AStk1Virksomhedsdriver(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_ægtefæller_deltager_i_driften: Boolsk, personen_driver_virksomheden: Boolsk, personen_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3MedarbejdendeÆgtefælle(fakta: Kildeskat25AStk3Fortjenestefakta) | Ksl25AStk8LigeligDeltagelse(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, lønaftale_finder_anvendelse: Boolsk, personens_fordelingsandel_basispoint: Heltal)
+# Kildeskat25AFortjenestegrundlag(person_identifikation: Tekst, ægtefælle_identifikation: Tekst, henføring: Kildeskat25AFortjenestehenføring)
+# Kildeskat25AFortjenestehenføringsresultat(indkomstår: Heltal, grundlag: Kildeskat25AFortjenestegrundlag, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, stk3_resultat: Option(Kildeskat25AStk3Resultat), grundlag_gyldigt: Boolsk, hjemmel_opfyldt: Boolsk, fortjeneste_medregnet_hos_person_før_am_kroner: Heltal)
 
 | kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
 | exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
@@ -135,6 +163,50 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 
 | kildeskat25a_stk3_sag(input: Kildeskat25AStk3Input) -> Kildeskat25AStk3Sag(input)
 | kildeskat25a_stk3_resultat(input: Kildeskat25AStk3Input) -> kildeskat25a_stk3_sag(input).resultat()
+
+| kildeskat25a_stk3_input_fra_fortjeneste(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, fakta: Kildeskat25AStk3Fortjenestefakta) -> Kildeskat25AStk3Input(
+    indkomstår = indkomstår,
+    samlevende_ved_indkomstårets_udgang = fakta.samlevende_ved_indkomstårets_udgang,
+    samliv_ophoert_i_indkomståret = fakta.samliv_ophoert_i_indkomståret,
+    begge_deltaget_i_væsentligt_omfang = fakta.begge_deltaget_i_væsentligt_omfang,
+    en_ægtefælle_driver_i_overvejende_grad = fakta.en_ægtefælle_driver_i_overvejende_grad,
+    anmodet_overførsel_kroner = fakta.anmodet_overførsel_kroner,
+    arbejdsindsats_forsvarligt_maksimum_kroner = fakta.arbejdsindsats_forsvarligt_maksimum_kroner,
+    skattepligtigt_almindeligt_overskud_kroner = fakta.øvrigt_skattepligtigt_almindeligt_overskud_kroner + penge_positivt_beløb(fortjeneste_opnået_af_ægtefælle_før_am_kroner),
+    renteudgifter_kroner = fakta.renteudgifter_kroner,
+    kurstab_på_fordringer_og_gæld_kroner = fakta.kurstab_på_fordringer_og_gæld_kroner,
+    renteindtægter_kroner = fakta.renteindtægter_kroner,
+    udbytteindtægter_kroner = fakta.udbytteindtægter_kroner,
+    kursgevinster_på_fordringer_og_gæld_kroner = fakta.kursgevinster_på_fordringer_og_gæld_kroner,
+    lønaftale_finder_anvendelse = fakta.lønaftale_finder_anvendelse,
+    fordeling_efter_stk8_finder_anvendelse = fakta.fordeling_efter_stk8_finder_anvendelse
+)
+| kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, fakta: Kildeskat25AStk3Fortjenestefakta) -> kildeskat25a_stk3_resultat(kildeskat25a_stk3_input_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta))
+| kildeskat25a_fortjeneste_stk3_resultat(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, henføring: Kildeskat25AFortjenestehenføring) -> match henføring {
+    | Ksl25AStk3MedarbejdendeÆgtefælle(fakta) -> Some(kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta))
+    | _ -> None
+}
+| kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, henføring: Kildeskat25AFortjenestehenføring) -> match henføring {
+    | Ksl25AStk1Virksomhedsdriver(samlevende, samliv_ophoert, begge_deltager, personen_driver, personen_driver_overvejende) -> samlevende && samliv_ophoert == Falskt && personen_driver && (begge_deltager == Falskt || personen_driver_overvejende)
+    | Ksl25AStk3MedarbejdendeÆgtefælle(fakta) -> kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta).stk3_betingelser_opfyldt && kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta).overført_til_medarbejdende_ægtefælle_kroner > 0
+    | Ksl25AStk8LigeligDeltagelse(samlevende, samliv_ophoert, begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, lønaftale, andel_basispoint) -> samlevende && samliv_ophoert == Falskt && begge_ligeligt && hæfter_ligeligt && anmodet && sagligt_begrundet && lønaftale == Falskt && andel_basispoint > 0 && andel_basispoint <= 10000
+}
+| kildeskat25a_fortjeneste_medregnet_hos_person_før_am_kroner(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, henføring: Kildeskat25AFortjenestehenføring) -> hvis kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, henføring) {
+    match henføring {
+        | Ksl25AStk1Virksomhedsdriver(_, _, _, _, _) -> penge_positivt_beløb(fortjeneste_opnået_af_ægtefælle_før_am_kroner)
+        | Ksl25AStk3MedarbejdendeÆgtefælle(fakta) -> penge_mindste_beløb(penge_positivt_beløb(fortjeneste_opnået_af_ægtefælle_før_am_kroner), kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta).overført_til_medarbejdende_ægtefælle_kroner)
+        | Ksl25AStk8LigeligDeltagelse(_, _, _, _, _, _, _, andel_basispoint) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(fortjeneste_opnået_af_ægtefælle_før_am_kroner), andel_basispoint)
+    }
+} ellers { 0 }
+| kildeskat25a_fortjenestehenføringsresultat(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, grundlag: Kildeskat25AFortjenestegrundlag) -> Kildeskat25AFortjenestehenføringsresultat(
+    indkomstår = indkomstår,
+    grundlag = grundlag,
+    fortjeneste_opnået_af_ægtefælle_før_am_kroner = penge_positivt_beløb(fortjeneste_opnået_af_ægtefælle_før_am_kroner),
+    stk3_resultat = kildeskat25a_fortjeneste_stk3_resultat(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, grundlag.henføring),
+    grundlag_gyldigt = indkomstår > 0 && fortjeneste_opnået_af_ægtefælle_før_am_kroner >= 0 && grundlag.person_identifikation != "" && grundlag.ægtefælle_identifikation != "" && grundlag.person_identifikation != grundlag.ægtefælle_identifikation,
+    hjemmel_opfyldt = kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, grundlag.henføring),
+    fortjeneste_medregnet_hos_person_før_am_kroner = kildeskat25a_fortjeneste_medregnet_hos_person_før_am_kroner(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, grundlag.henføring)
+)
 --@end::kildeskatteloven_par25a--
 
 ----

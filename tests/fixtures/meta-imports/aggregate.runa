@@ -1,0 +1,13 @@
+@ import ./registry
+
+# MetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# Metadata(a) = Metadata(attachments: a)
+
+= imported_metadata = Metadata(
+    attachments = (
+        MetaAttachment(role = Source, value = registry_source),
+    )
+)
+
+--@label:imported_aggregate::meta:imported_metadata--

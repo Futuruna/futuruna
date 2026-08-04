@@ -74,6 +74,15 @@ Interpolation desugars to `"Result: " + show(x + 5)`.
 | `Result(a, e)` | `Result<A, E>` | `Ok(42)`, `Err("fail")` |
 | `Pair(a, b)` | `Pair<A, B>` (struct with `fst`, `snd` fields) | `Pair(1, "x")` |
 
+Tuple literals may span lines and may end in a trailing comma:
+
+```runa
+= sources = (
+    primary_source,
+    amendment_source,
+)
+```
+
 Pair construction and field access:
 ```runa
 = p = Pair(1, "hello")

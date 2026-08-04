@@ -4147,6 +4147,33 @@ fn print_meta_index_human(
         println!("references: {}", references.len());
         for reference in references {
             print_meta_reference(reference);
+            if let Some(qualified_type) = type_filter {
+                for typed_value in reference.typed_values_by_type(qualified_type) {
+                    println!(
+                        "  typed value {} type {} value {}",
+                        typed_value.value_path,
+                        typed_value.qualified_type,
+                        typed_value.value.to_source()
+                    );
+                }
+            }
+            for attachment in reference.attachments().into_iter().filter(|attachment| {
+                role_filter.is_none_or(|expected| attachment.role == expected)
+                    && type_filter.is_none_or(|expected| {
+                        !attachment
+                            .attachment
+                            .typed_values_by_type(expected)
+                            .is_empty()
+                    })
+            }) {
+                println!(
+                    "  attachment {} role {} value {} type {}",
+                    attachment.attachment_path,
+                    attachment.role,
+                    attachment.value.to_source(),
+                    attachment.value.qualified_type().unwrap_or("-")
+                );
+            }
         }
         return;
     }
@@ -4247,12 +4274,7 @@ fn meta_index_json_value(
             let anchor_references: Vec<serde_json::Value> = anchor
                 .references
                 .iter()
-                .filter(|reference| {
-                    !filtered
-                        || (type_filter.is_none_or(|expected| {
-                            reference.qualified_type.as_deref() == Some(expected)
-                        }) && role_filter.is_none_or(|expected| reference.role == expected))
-                })
+                .filter(|reference| !filtered || reference.matches(type_filter, role_filter))
                 .map(meta_reference_json)
                 .collect();
             serde_json::json!({
@@ -4310,6 +4332,26 @@ fn meta_index_json_value(
         .iter()
         .map(|reference| meta_reference_json(reference))
         .collect();
+    let typed_value_count = references
+        .iter()
+        .map(|reference| match type_filter {
+            Some(qualified_type) => reference.typed_values_by_type(qualified_type).len(),
+            None => reference.typed_values().len(),
+        })
+        .sum::<usize>();
+    let attachment_count = references
+        .iter()
+        .flat_map(|reference| reference.attachments())
+        .filter(|attachment| {
+            role_filter.is_none_or(|expected| attachment.role == expected)
+                && type_filter.is_none_or(|expected| {
+                    !attachment
+                        .attachment
+                        .typed_values_by_type(expected)
+                        .is_empty()
+                })
+        })
+        .count();
     serde_json::json!({
         "schema": "futuruna.meta.v1",
         "file": filename,
@@ -4319,6 +4361,8 @@ fn meta_index_json_value(
         },
         "counts": {
             "references": reference_values.len(),
+            "typed_values": typed_value_count,
+            "attachments": attachment_count,
             "anchors": anchors.len(),
             "spans": spans.len(),
             "diagnostics": diagnostics.len(),
@@ -4349,6 +4393,8 @@ fn print_meta_directory(
     let mut entries = Vec::new();
     let mut corpus_diagnostics = Vec::new();
     let mut total_references = 0usize;
+    let mut total_typed_values = 0usize;
+    let mut total_attachments = 0usize;
     let mut total_anchors = 0usize;
     let mut total_spans = 0usize;
 
@@ -4386,6 +4432,8 @@ fn print_meta_directory(
 
         let document = meta_index_json_value(&index, filename, type_filter, role_filter);
         total_references += document["counts"]["references"].as_u64().unwrap_or(0) as usize;
+        total_typed_values += document["counts"]["typed_values"].as_u64().unwrap_or(0) as usize;
+        total_attachments += document["counts"]["attachments"].as_u64().unwrap_or(0) as usize;
         total_anchors += document["counts"]["anchors"].as_u64().unwrap_or(0) as usize;
         total_spans += document["counts"]["spans"].as_u64().unwrap_or(0) as usize;
         entries.push((filename.clone(), index, document));
@@ -4407,6 +4455,8 @@ fn print_meta_directory(
                 "files_scanned": files.len(),
                 "files_returned": documents.len(),
                 "references": total_references,
+                "typed_values": total_typed_values,
+                "attachments": total_attachments,
                 "anchors": total_anchors,
                 "spans": total_spans,
                 "diagnostics": corpus_diagnostics.len(),
@@ -4426,13 +4476,15 @@ fn print_meta_directory(
             print_meta_diagnostics(index, filename);
         }
         println!(
-            "summary files scanned {} returned {} references {} anchors {} spans {} diagnostics {}",
+            "summary files scanned {} returned {} references {} anchors {} spans {} diagnostics {} typed values {} attachments {}",
             files.len(),
             entries.len(),
             total_references,
             total_anchors,
             total_spans,
-            corpus_diagnostics.len()
+            corpus_diagnostics.len(),
+            total_typed_values,
+            total_attachments
         );
         for diagnostic in &corpus_diagnostics {
             if diagnostic["line"].is_null() {
@@ -4451,6 +4503,34 @@ fn print_meta_directory(
 }
 
 fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
+    let typed_values = reference
+        .typed_values()
+        .into_iter()
+        .map(|typed_value| {
+            serde_json::json!({
+                "path": typed_value.value_path,
+                "type": typed_value.qualified_type,
+                "value": typed_value.value.to_source(),
+                "data": meta_value_json(typed_value.value),
+            })
+        })
+        .collect::<Vec<_>>();
+    let attachments = reference
+        .attachments()
+        .into_iter()
+        .map(|attachment| {
+            serde_json::json!({
+                "path": attachment.attachment_path,
+                "role_path": attachment.role_path,
+                "value_path": attachment.value_path,
+                "role": attachment.role,
+                "binding": attachment.binding_name,
+                "type": attachment.value.qualified_type(),
+                "value": attachment.value.to_source(),
+                "data": meta_value_json(attachment.value),
+            })
+        })
+        .collect::<Vec<_>>();
     serde_json::json!({
         "label": reference.label,
         "role": reference.role,
@@ -4458,6 +4538,8 @@ fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
         "type": reference.qualified_type,
         "value": reference.static_value,
         "data": reference.static_data.as_ref().map(meta_value_json),
+        "typed_values": typed_values,
+        "attachments": attachments,
         "definition_file": reference.definition_file,
         "definition_line": reference.definition_line,
         "comment_line": reference.comment_line,
@@ -4492,6 +4574,7 @@ fn meta_value_json(value: &MetaValue) -> serde_json::Value {
         }),
         MetaValue::Constructor {
             name,
+            qualified_type,
             applied,
             arguments,
         } => {
@@ -4500,6 +4583,7 @@ fn meta_value_json(value: &MetaValue) -> serde_json::Value {
                 .map(|argument| {
                     serde_json::json!({
                         "field": argument.field,
+                        "binding": argument.binding_name,
                         "value": meta_value_json(&argument.value),
                     })
                 })
@@ -4507,6 +4591,7 @@ fn meta_value_json(value: &MetaValue) -> serde_json::Value {
             serde_json::json!({
                 "kind": "constructor",
                 "name": name,
+                "type": qualified_type,
                 "applied": applied,
                 "arguments": arguments,
             })

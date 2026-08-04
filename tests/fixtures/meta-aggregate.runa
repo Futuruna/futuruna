@@ -1,0 +1,19 @@
+# Shape = Circle | Triangle | Square
+# Warning(code: String, message: String)
+# Metadata(shapes: List(Shape), warnings: List(Warning))
+
+= geometry_metadata = Metadata(
+    shapes = [Circle, Triangle],
+    warnings = [
+        Warning(
+            code = "GEOMETRY",
+            message = "Review this shape"
+        )
+    ]
+)
+
+--@label:shape_rule::meta:geometry_metadata--
+
+--@begin:shape_rule--
+| accepts_circle(shape: Shape) -> shape == Circle
+--@end:shape_rule--

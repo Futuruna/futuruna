@@ -2,6 +2,8 @@
 
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./pensionsbeskatningsloven - par15a - fortjeneste
+@ importer ./kildeskatteloven
 
 -- Pensionsbeskatningsloven §§ 15 og 15 A -- indeksordning og ophørspension.
 
@@ -200,7 +202,7 @@ person, der kan ligestilles hermed.
 ----
 
 --@begin:pensionsbeskatningsloven_par15a--
-# Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A | Pbl15AHovedaktionæraktier
+# Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag: Kildeskat25AFortjenestegrundlag) | Pbl15AHovedaktionæraktier
 # Pbl15AOrdningsart = Pbl15ALøbendeUdbetalinger | Pbl15ARateforsikring | Pbl15ARateopsparing
 # Pbl15AKvalifikationsårsgrund = Pbl15AEgenSelvstændigVirksomhed | Pbl15AEgetHovedaktionærforhold | Pbl15AAfdødesSelvstændigeVirksomhedVedSuccession | Pbl15AAfdødesHovedaktionærforholdVedSuccession | Pbl15ABoperiodeSomSelvstændigVedSuccession | Pbl15ABoperiodeSomHovedaktionærVedSuccession
 # Pbl15AKvalifikationsår(indkomstår: Heltal, grundlag: Pbl15AKvalifikationsårsgrund)
@@ -218,8 +220,8 @@ person, der kan ligestilles hermed.
 # Pbl15APassivKapitalFakta(seneste_tre_regnskabsperioder: List(Pbl15ARegnskabsperiode), aktuel_regnskabsperiodes_startdato: Pbl15ADato, virksomhedens_aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost), selskabsaktiver_på_overdragelsestidspunktet: List(Pbl15ASelskabsaktivopgørelse), næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk)
 # Pbl15AKapitalsammenfatning(passive_indtægter_kroner: Heltal, samlede_indtægter_kroner: Heltal, passive_aktiver_kroner: Heltal, samlede_aktiver_kroner: Heltal)
 # Pbl15APassivKapitalResultat(fakta: Pbl15APassivKapitalFakta, fakta_gyldige: Boolsk, passive_indtægter_tre_år_kroner: Heltal, samlede_indtægter_tre_år_kroner: Heltal, passive_aktiver_tre_år_kroner: Heltal, samlede_aktiver_tre_år_kroner: Heltal, passive_aktiver_ved_afståelse_kroner: Heltal, samlede_aktiver_ved_afståelse_kroner: Heltal, gennemsnitsgrænse_basispoint: Heltal, overdragelsesgrænse_basispoint: Heltal, indtægtsgrænse_nået: Boolsk, gennemsnitlig_aktivgrænse_nået: Boolsk, aktivgrænse_ved_afståelse_nået: Boolsk, overvejende_passiv_kapitalanbringelse: Boolsk)
-# Pbl15AAfståelsesfakta(identifikation: Tekst, afståelsesdato: Pbl15ADato, grundlag: Pbl15AAfståelsesgrund, skattepligtig_fortjeneste_kroner: Heltal, alder_hele_år_ved_afståelsen: Heltal, passiv_kapital: Pbl15APassivKapitalFakta, udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk, antal_ejere: Heltal, opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk)
-# Pbl15AAfståelsesresultat(fakta: Pbl15AAfståelsesfakta, fakta_gyldige: Boolsk, fyldt_55_år_før_afståelsen: Boolsk, passiv_kapital_resultat: Pbl15APassivKapitalResultat, driftsbegrænsning_opfyldt: Boolsk, kvalificerer_til_ophørspension: Boolsk, højeste_indbetaling_fra_afståelsen_kroner: Heltal)
+# Pbl15AAfståelsesfakta(identifikation: Tekst, afståelsesdato: Pbl15ADato, grundlag: Pbl15AAfståelsesgrund, fortjenestegrundlag: Pbl15AFortjenestegrundlag, alder_hele_år_ved_afståelsen: Heltal, passiv_kapital: Pbl15APassivKapitalFakta, udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk, antal_ejere: Heltal, opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk)
+# Pbl15AAfståelsesresultat(fakta: Pbl15AAfståelsesfakta, fortjenestegrundlagsresultat: Pbl15AFortjenestegrundlagsresultat, ægtefællehenføringsresultat: Option(Kildeskat25AFortjenestehenføringsresultat), skattepligtig_fortjeneste_før_am_kroner: Heltal, fakta_gyldige: Boolsk, fyldt_55_år_før_afståelsen: Boolsk, passiv_kapital_resultat: Pbl15APassivKapitalResultat, driftsbegrænsning_opfyldt: Boolsk, kvalificerer_til_ophørspension: Boolsk, højeste_indbetaling_fra_afståelsen_kroner: Heltal)
 # Pbl15AOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15AOrdningsart, oprettelsesafståelse_identifikation: Tekst)
 # Pbl15AOrdningsresultat(fakta: Pbl15AOrdningsfakta, fakta_gyldige: Boolsk, tilladt_ordningsart: Boolsk, oprettelsesafståelse_findes: Boolsk, oprettelsesafståelse_kvalificerer: Boolsk, rettidigt_oprettet_efter_afståelsen: Boolsk, kvalifikationsår_i_seneste_15_år: Heltal, mindst_10_kvalifikationsår: Boolsk, kvalificerer_som_ophørspension: Boolsk)
 # Pbl15ATidligereIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, afståelse_identifikation: Tekst, beløb_kroner: Heltal)
@@ -325,18 +327,38 @@ person, der kan ligestilles hermed.
 }
 | pbl15a_passiv_kapital_resultat(afståelsesdato: Pbl15ADato, fakta: Pbl15APassivKapitalFakta) -> Pbl15APassivKapitalSag(afståelsesdato, fakta).resultat()
 
-| pbl15a_afståelsesfakta_gyldige(fakta: Pbl15AAfståelsesfakta) -> fakta.identifikation != "" && pbl15a_dato_gyldig(fakta.afståelsesdato) && fakta.skattepligtig_fortjeneste_kroner > 0 && fakta.alder_hele_år_ved_afståelsen >= 0 && fakta.antal_ejere > 0 && pbl15a_passiv_kapital_fakta_gyldige(fakta.afståelsesdato, fakta.passiv_kapital)
+| pbl15a_afståelses_fortjenestegrundlagsresultat(fakta: Pbl15AAfståelsesfakta) -> pbl15a_fortjenestegrundlagsresultat(fakta.afståelsesdato.år, fakta.fortjenestegrundlag)
+| pbl15a_ægtefællehenføringsresultat(fakta: Pbl15AAfståelsesfakta) -> match fakta.grundlag {
+    | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag) -> Some(kildeskat25a_fortjenestehenføringsresultat(fakta.afståelsesdato.år, pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).netto_skattepligtig_fortjeneste_før_am_kroner, henføringsgrundlag))
+    | _ -> None
+}
+| pbl15a_afståelsesgrundlag_gyldigt(fakta: Pbl15AAfståelsesfakta) -> match fakta.grundlag {
+    | Pbl15AEgenVirksomhedsfortjeneste -> Sandt
+    | Pbl15AHovedaktionæraktier -> pbl15a_fortjenestegrundlag_er_udelukkende_aktieavance(fakta.fortjenestegrundlag) && pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).aktieavanceresultat.indeholder_afståelse && pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).aktieavanceresultat.alle_afståelser_er_hovedaktionæraktier
+    | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag) -> kildeskat25a_fortjenestehenføringsresultat(fakta.afståelsesdato.år, pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).netto_skattepligtig_fortjeneste_før_am_kroner, henføringsgrundlag).grundlag_gyldigt && kildeskat25a_fortjenestehenføringsresultat(fakta.afståelsesdato.år, pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).netto_skattepligtig_fortjeneste_før_am_kroner, henføringsgrundlag).hjemmel_opfyldt
+}
+| pbl15a_skattepligtig_fortjeneste_før_am_kroner(fakta: Pbl15AAfståelsesfakta) -> match fakta.grundlag {
+    | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A(henføringsgrundlag) -> kildeskat25a_fortjenestehenføringsresultat(fakta.afståelsesdato.år, pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).netto_skattepligtig_fortjeneste_før_am_kroner, henføringsgrundlag).fortjeneste_medregnet_hos_person_før_am_kroner
+    | _ -> pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).netto_skattepligtig_fortjeneste_før_am_kroner
+}
+| pbl15a_afståelsesfakta_gyldige(fakta: Pbl15AAfståelsesfakta) -> fakta.identifikation != "" && pbl15a_dato_gyldig(fakta.afståelsesdato) && pbl15a_afståelses_fortjenestegrundlagsresultat(fakta).alle_kilder_gyldige && pbl15a_skattepligtig_fortjeneste_før_am_kroner(fakta) > 0 && pbl15a_afståelsesgrundlag_gyldigt(fakta) && fakta.alder_hele_år_ved_afståelsen >= 0 && fakta.antal_ejere > 0 && pbl15a_passiv_kapital_fakta_gyldige(fakta.afståelsesdato, fakta.passiv_kapital)
 | pbl15a_driftsbegrænsning_opfyldt(fakta: Pbl15AAfståelsesfakta) -> (fakta.udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe == Falskt && fakta.antal_ejere <= 10) || fakta.opretter_deltog_i_driften_i_væsentligt_omfang
 
 # Pbl15AAfståelsesSag(fakta: Pbl15AAfståelsesfakta) {
+    | fortjenestegrundlagsresultat() -> pbl15a_afståelses_fortjenestegrundlagsresultat(fakta)
+    | ægtefællehenføringsresultat() -> pbl15a_ægtefællehenføringsresultat(fakta)
+    | skattepligtig_fortjeneste_før_am_kroner() -> pbl15a_skattepligtig_fortjeneste_før_am_kroner(fakta)
     | fakta_gyldige() -> pbl15a_afståelsesfakta_gyldige(fakta)
     | fyldt_55_år_før_afståelsen() -> fakta.alder_hele_år_ved_afståelsen >= 55
     | passiv_kapital_resultat() -> pbl15a_passiv_kapital_resultat(fakta.afståelsesdato, fakta.passiv_kapital)
     | driftsbegrænsning_opfyldt() -> pbl15a_driftsbegrænsning_opfyldt(fakta)
     | kvalificerer_til_ophørspension() -> fakta_gyldige() && fyldt_55_år_før_afståelsen() && passiv_kapital_resultat().overvejende_passiv_kapitalanbringelse == Falskt && driftsbegrænsning_opfyldt()
-    | højeste_indbetaling_fra_afståelsen_kroner() -> hvis kvalificerer_til_ophørspension() { fakta.skattepligtig_fortjeneste_kroner } ellers { 0 }
+    | højeste_indbetaling_fra_afståelsen_kroner() -> hvis kvalificerer_til_ophørspension() { skattepligtig_fortjeneste_før_am_kroner() } ellers { 0 }
     | resultat() -> Pbl15AAfståelsesresultat(
         fakta = fakta,
+        fortjenestegrundlagsresultat = fortjenestegrundlagsresultat(),
+        ægtefællehenføringsresultat = ægtefællehenføringsresultat(),
+        skattepligtig_fortjeneste_før_am_kroner = skattepligtig_fortjeneste_før_am_kroner(),
         fakta_gyldige = fakta_gyldige(),
         fyldt_55_år_før_afståelsen = fyldt_55_år_før_afståelsen(),
         passiv_kapital_resultat = passiv_kapital_resultat(),

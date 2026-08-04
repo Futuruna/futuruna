@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./kapitel - 01 - indkomst
+@ importer ./pbl15a - source - fixtures.scenario
 
 -- Scenarier for Pensionsbeskatningsloven §§ 16, 18 og 52 samt
 -- Personskatteloven § 3, stk. 2, nr. 3. Lovtekst og kildeankre ligger i
@@ -302,7 +303,7 @@
             identifikation = "virksomhedsafståelse-2026",
             afståelsesdato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
             grundlag = Pbl15AHovedaktionæraktier,
-            skattepligtig_fortjeneste_kroner = 80000,
+            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedsafståelse-2026", 80000),
             alder_hele_år_ved_afståelsen = 60,
             passiv_kapital = Pbl15APassivKapitalFakta(
                 seneste_tre_regnskabsperioder = [

@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-91feb9` (submitting for review)
-Latest implementation slice submitted for review: `td-91feb9`
+Current focus issue: `td-9fec71` (submitting for review)
+Latest implementation slice submitted for review: `td-9fec71`
 Latest approved implementation slice: `td-f84c7d`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -29,6 +29,12 @@ diagnostikker. Spansymbolerne kommer fra parserens faktiske deklarationer, så
 `>`-funktioner indekseres. Råtekstens `----`-markører og de faktiske
 indholdslinjer har nu særskilte linjefelter, så en audit ikke skal gætte på,
 om et span omfatter afgrænsningen eller den ordrette tekst.
+Et anker kan desuden henvise til ét typet metadataobjekt, som indeholder
+vilkårligt mange `MetaAttachment(role = ..., value = ...)`-værdier. Indekset
+finder typede efterkommere og roller rekursivt og bevarer både den kanoniske
+binding og en stabil sti til vedhæftningen. Personskat-kontraktens 79 ankere
+bruger nu alle den korte form `::meta:<binding>`; felter og retskilder ligger i
+de typede objekter og ikke som en voksende liste i kommentarsyntaksen.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om
@@ -319,7 +325,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 579 eksplicitte feltmetadata-poster. Alle 64 nåbare
+Kontrakten har aktuelt 586 eksplicitte feltmetadata-poster. Alle 64 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -369,7 +375,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`223e0954b8a91fd8a2d2c06c3ff573ab642b9ded0dcc94438028358b64fde9a8`.
+`b7d8ebb35c311c7219796cf84d55ea4e648dfbe54260f44902458eea05f27319`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -2867,6 +2873,15 @@ Review candidates to revisit deliberately, not as broad churn:
   sker senest 1. juli året efter. Ikke-understøttede år fejler lukket. Flere
   ordninger fordeles deterministisk i inputrækkefølge uden genbrug af fortjeneste
   eller loft.
+  Afståelsesfakta modtager ikke længere et beregnet fortjenestebeløb. Et
+  særskilt, typet kildegrundlag eksekverer de relevante resultater fra
+  Afskrivningsloven, Ejendomsavancebeskatningsloven,
+  Aktieavancebeskatningsloven og Kursgevinstloven, bevarer hvert delresultat og
+  modregner kun de tab, som kildelovens eget resultat har gjort
+  fradragsberettigede. Hovedaktionærgrenen kræver faktiske ABL-afståelser, og en
+  ægtefælles fortjeneste føres gennem en udtrykkelig KSL § 25 A, stk. 1-, 3-
+  eller 8-henføring. Fire fokuserede scenarier dækker egen virksomhed,
+  hovedaktionæraktier, ægtefællehenføring og blandede gevinster og tab.
   Interpreter og compiler gennemfører samme 27 fokuserede scenarier for
   almindelig ratepension, gyldig og ugyldig indeksordning, rettidig og for sen
   oprettelse, genbrug af en eksisterende ordning, flere § 15 A-ordninger,
@@ -2942,7 +2957,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 579 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 586 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

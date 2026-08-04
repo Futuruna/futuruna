@@ -101,6 +101,59 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
 }
 
 #[test]
+fn schema_expands_typed_aggregate_meta_into_field_metadata() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Input(monthly_income: Int, deduction: Int)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)\n\
+# MetaRole = Field | Source\n\
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)\n\
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)\n\
+# SourceInfo(url: String)\n\
+= source = SourceInfo(url = \"https://example.invalid/tax\")\n\
+= calculation_meta = CalculationMeta(fields = [\n\
+    CalculationField(path = \"monthly_income\", label = \"Monthly income\", question = Some(\"What do you earn each month?\"), help = None, unit = Some(\"currency/month\"))\n\
+], attachments = (\n\
+    MetaAttachment(role = Field, value = CalculationField(path = \"deduction\", label = \"Deduction\", question = Some(\"What may be deducted?\"), help = None, unit = Some(\"currency/year\"))),\n\
+    MetaAttachment(role = Source, value = source),\n\
+))\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.monthly_income * 12 - input.deduction)\n",
+    )
+    .expect("write aggregate calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0]["path"], "deduction");
+    assert_eq!(fields[0]["label"], "Deduction");
+    assert_eq!(
+        fields[0]["binding"],
+        "calculation_meta.attachments[0].value"
+    );
+    assert_eq!(fields[0]["sources"].as_array().expect("sources").len(), 1);
+    assert_eq!(fields[0]["sources"][0]["role"], "source");
+    assert_eq!(fields[0]["sources"][0]["binding"], "source");
+    assert_eq!(
+        fields[0]["sources"][0]["attachment_path"],
+        "calculation_meta.attachments[1]"
+    );
+    assert_eq!(fields[1]["path"], "monthly_income");
+    assert_eq!(fields[1]["label"], "Monthly income");
+    assert_eq!(fields[1]["binding"], "calculation_meta.fields[0]");
+}
+
+#[test]
 fn schema_resolves_metadata_from_plain_imports() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/meta-imports/model.calculate.runa");
@@ -792,7 +845,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.ordning_identifikation",
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.afståelse_identifikation",
             "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15BIndbetalingsgrundlag.ordning_identifikation",
-            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.skattepligtig_fortjeneste_kroner",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.kilde.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.ejendomsavance.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.aktieavance.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.input.rolle",
             "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
             "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesafståelse_identifikation",
             "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.indkomstår",
@@ -1444,24 +1502,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human interview question for {path}"
             );
         }
-        let pbl15a_disposal_metadata = metadata
-            .rows()
-            .skip(1)
-            .filter(|row| {
-                row.get(input_path_column)
-                    .map(ToString::to_string)
-                    .is_some_and(|path| path.contains("pbl15a_årsgrundlag.afståelser"))
-            })
-            .collect::<Vec<_>>();
-        assert!(
-            !pbl15a_disposal_metadata.is_empty(),
-            "missing § 15 A disposal input metadata"
-        );
-        for row in pbl15a_disposal_metadata {
-            let path = row
-                .get(input_path_column)
-                .map(ToString::to_string)
-                .expect("§ 15 A disposal input path");
+        for (path, expected_title) in [
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter",
+                "Dansk personskat - Afskrivningslovens afståelser",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter",
+                "Dansk personskat - Kursgevinster og kurstab ved afståelsen",
+            ),
+        ] {
+            let sheet = workbook_collection_sheet_name(&mut workbook, path);
+            assert_eq!(workbook_title(&mut workbook, &sheet), expected_title);
+        }
+        for path in [
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.grundlag.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.ejendomsavance.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.aktieavance.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.kilde.$variant",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.input.rolle",
+        ] {
+            let row = metadata
+                .rows()
+                .skip(1)
+                .find(|row| {
+                    row.get(input_path_column)
+                        .map(ToString::to_string)
+                        .as_deref()
+                        == Some(path)
+                })
+                .unwrap_or_else(|| panic!("missing explicit § 15 A source-boundary metadata for {path}"));
             assert!(
                 row.get(label_column)
                     .map(ToString::to_string)
@@ -1472,7 +1544,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 row.get(question_column)
                     .map(ToString::to_string)
                     .is_some_and(|question| !question.trim().is_empty()),
-                "§ 15 A input {path} fell back to a machine-derived label instead of explicit interview metadata"
+                "§ 15 A source-boundary input {path} lacks an explicit interview question"
             );
         }
         let pbl15a_period_start_row = metadata
@@ -5455,6 +5527,53 @@ fn calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("duplicate field metadata for `value`")
     );
+}
+
+#[test]
+fn aggregate_calculation_field_metadata_rejects_unknown_paths_and_duplicates() {
+    let source = |fields: &str| {
+        format!(
+            "# Input(value: Int)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String, question: String, help: String, unit: String)\n\
+# CalculationMeta(fields: List(CalculationField))\n\
+= calculation_meta = CalculationMeta(fields = [{fields}])\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.value)\n"
+        )
+    };
+
+    let unknown_path = temp_path("runa");
+    std::fs::write(
+        &unknown_path,
+        source(
+            "CalculationField(path = \"missing\", label = \"Missing\", question = \"\", help = \"\", unit = \"\")",
+        ),
+    )
+    .expect("write aggregate unknown field metadata source");
+    let output = run(&["check", unknown_path.to_str().expect("source path")]);
+    std::fs::remove_file(&unknown_path).ok();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("calculation_meta.fields[0]"));
+    assert!(stderr.contains("unknown input path `missing`"));
+
+    let duplicate_path = temp_path("runa");
+    std::fs::write(
+        &duplicate_path,
+        source(
+            "CalculationField(path = \"value\", label = \"First\", question = \"\", help = \"\", unit = \"\"), CalculationField(path = \"Input.value\", label = \"Second\", question = \"\", help = \"\", unit = \"\")",
+        ),
+    )
+    .expect("write aggregate duplicate field metadata source");
+    let output = run(&["check", duplicate_path.to_str().expect("source path")]);
+    std::fs::remove_file(&duplicate_path).ok();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("duplicate field metadata for `value`"));
+    assert!(stderr.contains("calculation_meta.fields[0]"));
+    assert!(stderr.contains("calculation_meta.fields[1]"));
 }
 
 #[test]

@@ -5,7 +5,56 @@
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:ligningsloven_lbk1500_par9l::dependency_source:pensionsbeskatningsloven_lbk1243_par18::dependency_source:pensionsbeskatningsloven_lbk1243_par15::dependency_source:pensionsbeskatningsloven_lbk1243_par15a::dependency_source:pensionsbeskatningsloven_lbk1243_par15b::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::rate_source:skatteministeriet_pbl15b_satser_2010_til_2017::rate_source:skatteministeriet_pbl15b_satser_2018_til_2024::rate_source:skatteministeriet_pbl15b_satser_2025_til_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+# PersonskatMetaRole = Field | Source | AmendmentSource | DependencySource | FutureAmendmentSource | RateSource | Guidance | TimingGuidance | MultiDisposalGuidance | GainGuidance | PengetankGuidance | PreparatorySource
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
+
+= personskat_lønmodtagerberegning_metadata = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        MetaAttachment(role = AmendmentSource, value = personskat_reform_2024_482),
+        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+        MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
+        MetaAttachment(role = DependencySource, value = ligningsloven_lbk1500_par9l),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
+        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        MetaAttachment(role = AmendmentSource, value = ligningsloven_lov616_par1),
+        MetaAttachment(role = RateSource, value = ligningsloven_bek1333_par1_par4),
+        MetaAttachment(role = Guidance, value = ligningsloven_vejledning_par9c_fri_befordring),
+        MetaAttachment(role = DependencySource, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
+        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
+        MetaAttachment(role = DependencySource, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        MetaAttachment(role = DependencySource, value = ebl_par11_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = DependencySource, value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
+        MetaAttachment(role = DependencySource, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = kommuneskatteloven_2019_935),
+        MetaAttachment(role = DependencySource, value = folkekirkens_økonomilov_2023_424),
+        MetaAttachment(role = DependencySource, value = kildeskatteloven_2024_460),
+    )
+)
+--@label:personskat_lønmodtagerberegning::meta:personskat_lønmodtagerberegning_metadata--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatErhvervsbefordring(art: Ligningslov9BBefordringsart, kilometer_i_sagen: Heltal, tres_dages_forhold: Ligningslov9B60DagesForhold)
 # PersonskatErhvervsbefordringFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, godtgørende_arbejdsgiver_identifikation: Tekst, køretøj: Ligningslov9BKøretøj, befordring: PersonskatErhvervsbefordring, udgifter: Ligningslov9BUdgifter, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
@@ -61,6 +110,7 @@
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
 # Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
 # Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
+# Beregningsmeta(a) = Beregningsmeta(felter: List(Beregningsfelt), spørgsmål: List(Beregningsspørgsmål), beløbsfelter: List(Beregningsbeløbsfelt), attachments: a)
 
 = personskat_felt_skatteår = Beregningsfelt(
     path = "lønmodtager.skatteår",
@@ -3212,18 +3262,67 @@
     unit = Some("dag")
 )
 = personskat_felt_pbl15a_afståelsesgrund = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.grundlag",
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.grundlag.$variant",
     label = "Grundlag for afståelsen",
     question = Some("Kom fortjenesten fra egen virksomhed, fra en ægtefælles fortjeneste medregnet efter KSL § 25 A eller fra hovedaktionæraktier?"),
     help = Some("Valget angiver den lovbestemte adgangsvej i PBL § 15 A, stk. 1."),
     unit = None
 )
-= personskat_felt_pbl15a_fortjeneste = Beregningsfelt(
-    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.skattepligtig_fortjeneste_kroner",
-    label = "Skattepligtig fortjeneste ved afståelsen",
-    question = Some("Hvor stor en skattepligtig fortjeneste fra denne afståelse medregnes ved personens indkomstopgørelse?"),
-    help = Some("Angiv fortjenesten før arbejdsmarkedsbidrag. Indbetalinger, der henføres til afståelsen, kan tilsammen ikke overstige dette beløb."),
-    unit = Some("kr.")
+= personskat_felt_pbl15a_afskrivningslovskilder = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter",
+    label = "Afskrivningslovens afståelser",
+    question = Some("Hvilke driftsmidler, bygninger, goodwillposter eller andre afskrivningsberettigede aktiver blev afstået?"),
+    help = Some("Tilføj de faktiske anskaffelser, afskrivninger og afståelser. Futuruna beregner hver fortjeneste eller hvert fradragsberettiget tab efter afskrivningsloven."),
+    unit = None
+)
+= personskat_felt_pbl15a_afskrivningslovspost_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.identifikation",
+    label = "Afskrivningslovspost",
+    question = Some("Hvilken entydig identifikation skal denne afståelse efter afskrivningsloven have?"),
+    help = Some("Identifikationen følger kilderesultatet gennem beregningen af den samlede fortjeneste."),
+    unit = None
+)
+= personskat_felt_pbl15a_afskrivningslovskilde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.afskrivningslovsposter.kilde.$variant",
+    label = "Bestemmelse i afskrivningsloven",
+    question = Some("Hvilken bestemmelse i afskrivningsloven skal opgøre fortjenesten eller tabet for aktivet?"),
+    help = Some("Vælg aktivets lovbestemte kildemodel og udfyld dens faktiske anskaffelses-, afskrivnings- og afståelsesforløb."),
+    unit = None
+)
+= personskat_felt_pbl15a_ejendomsavancekilde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.ejendomsavance.$variant",
+    label = "Ejendomsavance ved afståelsen",
+    question = Some("Indgik en eller flere ejendomsafståelser i virksomhedsafståelsen?"),
+    help = Some("Vælg ejendomsavance og angiv de underliggende ejendomsfakta, hvis afståelsen omfattede fast ejendom. Futuruna anvender ejendomsavancebeskatningslovens tabsrækkefølge."),
+    unit = None
+)
+= personskat_felt_pbl15a_aktieavancekilde = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.aktieavance.$variant",
+    label = "Aktieavance ved afståelsen",
+    question = Some("Indgik aktieafståelser i fortjenesten, herunder en afståelse af hovedaktionæraktier?"),
+    help = Some("Angiv aktiernes faktiske positioner og hændelser. Futuruna afleder både årets nettobeløb og om alle afståede aktier opfylder hovedaktionærkravet."),
+    unit = None
+)
+= personskat_felt_pbl15a_kursgevinstkilder = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter",
+    label = "Kursgevinster og kurstab ved afståelsen",
+    question = Some("Hvilke fordringer, gældsforhold eller finansielle kontrakter indgik i virksomhedsafståelsen?"),
+    help = Some("Tilføj de faktiske kursgevinstlovsposter. Futuruna medregner kun lovens skattepligtige gevinster og fradragsberettigede tab i nettobeløbet før arbejdsmarkedsbidrag."),
+    unit = None
+)
+= personskat_felt_pbl15a_kursgevinstpost_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.identifikation",
+    label = "Kursgevinstlovspost",
+    question = Some("Hvilken entydig identifikation skal denne fordring, gæld eller finansielle kontrakt have?"),
+    help = Some("Identifikationen gør hver beregnet gevinst og hvert fradragsberettiget tab sporbart i resultatet."),
+    unit = None
+)
+= personskat_felt_pbl15a_kursgevinstpost_rolle = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.fortjenestegrundlag.kursgevinstposter.input.rolle",
+    label = "Personens rolle efter kursgevinstloven",
+    question = Some("Skal kursgevinstlovsposten behandles for en person eller et selskab?"),
+    help = Some("PBL § 15 A vedrører personen, men kildemodellen bevarer den udtrykkelige skatteyderrolle i beregningssporet."),
+    unit = None
 )
 = personskat_felt_pbl15a_alder = Beregningsfelt(
     path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.alder_hele_år_ved_afståelsen",
@@ -3982,217 +4081,1324 @@
     unit = None
 )
 
---@label:beregn_personskat::field:personskat_felt_pensionsalder::field:personskat_felt_pbl20_udbetaling::field:personskat_felt_pbl20_udbetalingsstatus::source:ligningsloven_lbk1500_par9l::rate_source:skatteministeriet_ligningsloven_par9l_satser_2026::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
---@label:beregn_personskat::field:personskat_felt_aktiepensionsfradrag_valg::field:personskat_felt_aktiepensionsfradrag_beløb::field:personskat_felt_aktiepensionsfradrag_meddelelse::field:personskat_felt_aktiepensionsfradrag_omgørelse::source:personskatteloven_lbk1284_par4a::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
---@label:beregn_personskat::field:personskat_felt_pbl18_indbetalinger::field:personskat_felt_pbl18_identifikation::field:personskat_felt_pbl18_ordning::field:personskat_felt_pbl18_indbetalingskilde::field:personskat_felt_pbl18_fradragsretshaver::field:personskat_felt_pbl18_beløb::field:personskat_felt_pbl18_forfaldsår::field:personskat_felt_pbl18_betalingsår::field:personskat_felt_pbl18_rettidig_betaling::field:personskat_felt_pbl18_par22e_tilbagebetaling::field:personskat_felt_pbl18_par15a_placering::field:personskat_felt_pbl18_par15a_fradragsår::field:personskat_felt_pbl18_par15a_rettidig::field:personskat_felt_pbl18_am_bidrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
---@label:beregn_personskat::field:personskat_felt_pbl18_fordelingsforløb::field:personskat_felt_pbl18_kapitalindskudsår::field:personskat_felt_pbl18_kapitalindskud::field:personskat_felt_pbl18_kort_periode_første_år::field:personskat_felt_pbl18_kort_periode_samlet_beløb::field:personskat_felt_pbl18_kort_periode_efterfølgende::field:personskat_felt_pbl18_kort_periode_år::field:personskat_felt_pbl18_forhøjelsesår::field:personskat_felt_pbl18_samlet_forhøjelse::field:personskat_felt_pbl18_indeksbidrag::field:personskat_felt_pbl18_tidligere_ufratrukket::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
---@label:beregn_personskat::field:personskat_felt_pbl18_indeksgrundlag::field:personskat_felt_pbl18_indeksform::field:personskat_felt_pbl18_indekskontrakt::source:pensionsbeskatningsloven_lbk1243_par15::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
---@label:beregn_personskat::field:personskat_felt_pbl18_særligt_grundlag::field:personskat_felt_pbl18_par15a_ordning::field:personskat_felt_pbl18_par15a_afståelse::field:personskat_felt_pbl18_par15b_ordning::source:pensionsbeskatningsloven_lbk1243_par18::dependency_source:pensionsbeskatningsloven_lbk1243_par15a::dependency_source:pensionsbeskatningsloven_lbk1243_par15b::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_afståelser::field:personskat_felt_pbl15a_afståelse_identifikation::field:personskat_felt_pbl15a_afståelsesdato_år::field:personskat_felt_pbl15a_afståelsesdato_måned::field:personskat_felt_pbl15a_afståelsesdato_dag::field:personskat_felt_pbl15a_afståelsesgrund::field:personskat_felt_pbl15a_fortjeneste::field:personskat_felt_pbl15a_alder::field:personskat_felt_pbl15a_driftsmiddeludlejning::field:personskat_felt_pbl15a_antal_ejere::field:personskat_felt_pbl15a_væsentlig_deltagelse::source:pensionsbeskatningsloven_lbk1243_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_regnskabsperioder::field:personskat_felt_pbl15a_periode_rækkefølge::field:personskat_felt_pbl15a_periode_startår::field:personskat_felt_pbl15a_periode_startmåned::field:personskat_felt_pbl15a_periode_startdag::field:personskat_felt_pbl15a_periode_slutår::field:personskat_felt_pbl15a_periode_slutmåned::field:personskat_felt_pbl15a_periode_slutdag::field:personskat_felt_pbl15a_virksomhedsindtægter::field:personskat_felt_pbl15a_virksomhedsindtægt_identifikation::field:personskat_felt_pbl15a_virksomhedsindtægt_beløb::field:personskat_felt_pbl15a_virksomhedsindtægt_art::field:personskat_felt_pbl15a_virksomhedsaktiver::field:personskat_felt_pbl15a_virksomhedsaktiv_identifikation::field:personskat_felt_pbl15a_virksomhedsaktiv_værdi::field:personskat_felt_pbl15a_virksomhedsaktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_selskabsregnskaber::field:personskat_felt_pbl15a_selskabsidentifikation::field:personskat_felt_pbl15a_selskab_direkte_ejerandel::field:personskat_felt_pbl15a_selskab_indirekte_ejerveje::field:personskat_felt_pbl15a_selskab_ejervej_identifikation::field:personskat_felt_pbl15a_selskab_ejerandele_i_kæde::field:personskat_felt_pbl15a_selskab_aktiv_udlejning::field:personskat_felt_pbl15a_selskab_aktieværdi::field:personskat_felt_pbl15a_selskab_aktieafkast::field:personskat_felt_pbl15a_selskabsindtægter::field:personskat_felt_pbl15a_selskabsindtægt_identifikation::field:personskat_felt_pbl15a_selskabsindtægt_beløb::field:personskat_felt_pbl15a_selskabsindtægt_art::field:personskat_felt_pbl15a_selskabsaktiver::field:personskat_felt_pbl15a_selskabsaktiv_identifikation::field:personskat_felt_pbl15a_selskabsaktiv_værdi::field:personskat_felt_pbl15a_selskabsaktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_aktuel_periode_startår::field:personskat_felt_pbl15a_aktuel_periode_startmåned::field:personskat_felt_pbl15a_aktuel_periode_startdag::field:personskat_felt_pbl15a_afståelsesaktiver::field:personskat_felt_pbl15a_afståelsesaktiv_identifikation::field:personskat_felt_pbl15a_afståelsesaktiv_værdi::field:personskat_felt_pbl15a_afståelsesaktiv_art::field:personskat_felt_pbl15a_næringsvirksomhed::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_afståelsesselskaber::field:personskat_felt_pbl15a_afståelsesselskab_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_direkte_ejerandel::field:personskat_felt_pbl15a_afståelsesselskab_indirekte_ejerveje::field:personskat_felt_pbl15a_afståelsesselskab_ejervej_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_ejerandele_i_kæde::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_udlejning::field:personskat_felt_pbl15a_afståelsesselskab_aktieværdi::field:personskat_felt_pbl15a_afståelsesselskab_aktiver::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_identifikation::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_værdi::field:personskat_felt_pbl15a_afståelsesselskab_aktiv_art::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::pengetank_guidance:skat_pbl15a_betingelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15a_ordninger::field:personskat_felt_pbl15a_ordning_identifikation::field:personskat_felt_pbl15a_ordning_oprettelsesår::field:personskat_felt_pbl15a_ordning_oprettelsesafståelse::field:personskat_felt_pbl15a_ordning_art::field:personskat_felt_pbl15a_kvalifikationsår::field:personskat_felt_pbl15a_kvalifikationsår_år::field:personskat_felt_pbl15a_kvalifikationsår_grundlag::field:personskat_felt_pbl15a_historik::field:personskat_felt_pbl15a_historik_identifikation::field:personskat_felt_pbl15a_historik_år::field:personskat_felt_pbl15a_historik_ordning::field:personskat_felt_pbl15a_historik_afståelse::field:personskat_felt_pbl15a_historik_beløb::source:pensionsbeskatningsloven_lbk1243_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
---@label:beregn_personskat::field:personskat_felt_pbl15b_indkomstposter::field:personskat_felt_pbl15b_indkomst_identifikation::field:personskat_felt_pbl15b_indkomst_år::field:personskat_felt_pbl15b_indkomst_beløb::field:personskat_felt_pbl15b_indkomst_kilde::source:pensionsbeskatningsloven_lbk1243_par15b::rate_source:skatteministeriet_pbl15b_satser_2010_til_2017::rate_source:skatteministeriet_pbl15b_satser_2018_til_2024::rate_source:skatteministeriet_pbl15b_satser_2025_til_2026--
---@label:beregn_personskat::field:personskat_felt_pbl15b_ordninger::field:personskat_felt_pbl15b_ordning_identifikation::field:personskat_felt_pbl15b_ordning_oprettelsesår::field:personskat_felt_pbl15b_ordning_art::field:personskat_felt_pbl15b_ordning_alder::field:personskat_felt_pbl15b_ordning_påtegning::field:personskat_felt_pbl15b_udbetalingsstatus::field:personskat_felt_pbl15b_sidste_udbetalingsår::source:pensionsbeskatningsloven_lbk1243_par15b--
---@label:beregn_personskat::field:personskat_felt_pbl15b_historik::field:personskat_felt_pbl15b_historik_identifikation::field:personskat_felt_pbl15b_historik_år::field:personskat_felt_pbl15b_historik_ordning::field:personskat_felt_pbl15b_historik_beløb::field:personskat_felt_pbl15b_historik_am_bidrag::source:pensionsbeskatningsloven_lbk1243_par15b::rate_source:skatteministeriet_pbl15b_satser_2010_til_2017::rate_source:skatteministeriet_pbl15b_satser_2018_til_2024::rate_source:skatteministeriet_pbl15b_satser_2025_til_2026--
---@label:beregn_personskat::field:personskat_felt_pbl18_pbl54_personkreds::field:personskat_felt_pbl18_afgiftspligt::field:personskat_felt_pbl18_udenlandsk_overførsel::field:personskat_felt_pbl18_selvstændig_overskud::field:personskat_felt_pbl18_selvstændig_renteudgifter::field:personskat_felt_pbl18_selvstændig_kurstab::field:personskat_felt_pbl18_selvstændig_renteindtægter::field:personskat_felt_pbl18_selvstændig_udbytte::field:personskat_felt_pbl18_selvstændig_kursgevinster::field:personskat_felt_pbl18_selvstændig_afståelsesindkomst::field:personskat_felt_pbl18_livrentevalg::field:personskat_felt_pbl18_livrente_ønsket_fradrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+= personskat_meta_pensionsalder = Beregningsmeta(
+    felter = [
+        personskat_felt_pensionsalder,
+        personskat_felt_pbl20_udbetaling,
+        personskat_felt_pbl20_udbetalingsstatus
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9l),
+        MetaAttachment(role = RateSource, value = skatteministeriet_ligningsloven_par9l_satser_2026),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pensionsalder--
+= personskat_meta_aktiepensionsfradrag_valg = Beregningsmeta(
+    felter = [
+        personskat_felt_aktiepensionsfradrag_valg,
+        personskat_felt_aktiepensionsfradrag_beløb,
+        personskat_felt_aktiepensionsfradrag_meddelelse,
+        personskat_felt_aktiepensionsfradrag_omgørelse
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4a),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_aktiepensionsfradrag_valg--
+= personskat_meta_pbl18_indbetalinger = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl18_indbetalinger,
+        personskat_felt_pbl18_identifikation,
+        personskat_felt_pbl18_ordning,
+        personskat_felt_pbl18_indbetalingskilde,
+        personskat_felt_pbl18_fradragsretshaver,
+        personskat_felt_pbl18_beløb,
+        personskat_felt_pbl18_forfaldsår,
+        personskat_felt_pbl18_betalingsår,
+        personskat_felt_pbl18_rettidig_betaling,
+        personskat_felt_pbl18_par22e_tilbagebetaling,
+        personskat_felt_pbl18_par15a_placering,
+        personskat_felt_pbl18_par15a_fradragsår,
+        personskat_felt_pbl18_par15a_rettidig,
+        personskat_felt_pbl18_am_bidrag
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl18_indbetalinger--
+= personskat_meta_pbl18_fordelingsforløb = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl18_fordelingsforløb,
+        personskat_felt_pbl18_kapitalindskudsår,
+        personskat_felt_pbl18_kapitalindskud,
+        personskat_felt_pbl18_kort_periode_første_år,
+        personskat_felt_pbl18_kort_periode_samlet_beløb,
+        personskat_felt_pbl18_kort_periode_efterfølgende,
+        personskat_felt_pbl18_kort_periode_år,
+        personskat_felt_pbl18_forhøjelsesår,
+        personskat_felt_pbl18_samlet_forhøjelse,
+        personskat_felt_pbl18_indeksbidrag,
+        personskat_felt_pbl18_tidligere_ufratrukket
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl18_fordelingsforløb--
+= personskat_meta_pbl18_indeksgrundlag = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl18_indeksgrundlag,
+        personskat_felt_pbl18_indeksform,
+        personskat_felt_pbl18_indekskontrakt
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par18),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl18_indeksgrundlag--
+= personskat_meta_pbl18_særligt_grundlag = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl18_særligt_grundlag,
+        personskat_felt_pbl18_par15a_ordning,
+        personskat_felt_pbl18_par15a_afståelse,
+        personskat_felt_pbl18_par15b_ordning
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = DependencySource, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
+        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl18_særligt_grundlag--
+= personskat_meta_pbl15a_afståelser = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_afståelser,
+        personskat_felt_pbl15a_afståelse_identifikation,
+        personskat_felt_pbl15a_afståelsesdato_år,
+        personskat_felt_pbl15a_afståelsesdato_måned,
+        personskat_felt_pbl15a_afståelsesdato_dag,
+        personskat_felt_pbl15a_afståelsesgrund,
+        personskat_felt_pbl15a_afskrivningslovskilder,
+        personskat_felt_pbl15a_afskrivningslovspost_identifikation,
+        personskat_felt_pbl15a_afskrivningslovskilde,
+        personskat_felt_pbl15a_ejendomsavancekilde,
+        personskat_felt_pbl15a_aktieavancekilde,
+        personskat_felt_pbl15a_kursgevinstkilder,
+        personskat_felt_pbl15a_kursgevinstpost_identifikation,
+        personskat_felt_pbl15a_kursgevinstpost_rolle,
+        personskat_felt_pbl15a_alder,
+        personskat_felt_pbl15a_driftsmiddeludlejning,
+        personskat_felt_pbl15a_antal_ejere,
+        personskat_felt_pbl15a_væsentlig_deltagelse
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
+        MetaAttachment(role = GainGuidance, value = skat_pbl15a_fortjeneste_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_afståelser--
+= personskat_meta_pbl15a_regnskabsperioder = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_regnskabsperioder,
+        personskat_felt_pbl15a_periode_rækkefølge,
+        personskat_felt_pbl15a_periode_startår,
+        personskat_felt_pbl15a_periode_startmåned,
+        personskat_felt_pbl15a_periode_startdag,
+        personskat_felt_pbl15a_periode_slutår,
+        personskat_felt_pbl15a_periode_slutmåned,
+        personskat_felt_pbl15a_periode_slutdag,
+        personskat_felt_pbl15a_virksomhedsindtægter,
+        personskat_felt_pbl15a_virksomhedsindtægt_identifikation,
+        personskat_felt_pbl15a_virksomhedsindtægt_beløb,
+        personskat_felt_pbl15a_virksomhedsindtægt_art,
+        personskat_felt_pbl15a_virksomhedsaktiver,
+        personskat_felt_pbl15a_virksomhedsaktiv_identifikation,
+        personskat_felt_pbl15a_virksomhedsaktiv_værdi,
+        personskat_felt_pbl15a_virksomhedsaktiv_art
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_regnskabsperioder--
+= personskat_meta_pbl15a_selskabsregnskaber = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_selskabsregnskaber,
+        personskat_felt_pbl15a_selskabsidentifikation,
+        personskat_felt_pbl15a_selskab_direkte_ejerandel,
+        personskat_felt_pbl15a_selskab_indirekte_ejerveje,
+        personskat_felt_pbl15a_selskab_ejervej_identifikation,
+        personskat_felt_pbl15a_selskab_ejerandele_i_kæde,
+        personskat_felt_pbl15a_selskab_aktiv_udlejning,
+        personskat_felt_pbl15a_selskab_aktieværdi,
+        personskat_felt_pbl15a_selskab_aktieafkast,
+        personskat_felt_pbl15a_selskabsindtægter,
+        personskat_felt_pbl15a_selskabsindtægt_identifikation,
+        personskat_felt_pbl15a_selskabsindtægt_beløb,
+        personskat_felt_pbl15a_selskabsindtægt_art,
+        personskat_felt_pbl15a_selskabsaktiver,
+        personskat_felt_pbl15a_selskabsaktiv_identifikation,
+        personskat_felt_pbl15a_selskabsaktiv_værdi,
+        personskat_felt_pbl15a_selskabsaktiv_art
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_selskabsregnskaber--
+= personskat_meta_pbl15a_aktuel_periode_startår = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_aktuel_periode_startår,
+        personskat_felt_pbl15a_aktuel_periode_startmåned,
+        personskat_felt_pbl15a_aktuel_periode_startdag,
+        personskat_felt_pbl15a_afståelsesaktiver,
+        personskat_felt_pbl15a_afståelsesaktiv_identifikation,
+        personskat_felt_pbl15a_afståelsesaktiv_værdi,
+        personskat_felt_pbl15a_afståelsesaktiv_art,
+        personskat_felt_pbl15a_næringsvirksomhed
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = FutureAmendmentSource, value = pensionsbeskatningsloven_lov615_par15a),
+        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_aktuel_periode_startår--
+= personskat_meta_pbl15a_afståelsesselskaber = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_afståelsesselskaber,
+        personskat_felt_pbl15a_afståelsesselskab_identifikation,
+        personskat_felt_pbl15a_afståelsesselskab_direkte_ejerandel,
+        personskat_felt_pbl15a_afståelsesselskab_indirekte_ejerveje,
+        personskat_felt_pbl15a_afståelsesselskab_ejervej_identifikation,
+        personskat_felt_pbl15a_afståelsesselskab_ejerandele_i_kæde,
+        personskat_felt_pbl15a_afståelsesselskab_aktiv_udlejning,
+        personskat_felt_pbl15a_afståelsesselskab_aktieværdi,
+        personskat_felt_pbl15a_afståelsesselskab_aktiver,
+        personskat_felt_pbl15a_afståelsesselskab_aktiv_identifikation,
+        personskat_felt_pbl15a_afståelsesselskab_aktiv_værdi,
+        personskat_felt_pbl15a_afståelsesselskab_aktiv_art
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = AmendmentSource, value = pensionsbeskatningsloven_lov369_par15a),
+        MetaAttachment(role = PengetankGuidance, value = skat_pbl15a_betingelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_afståelsesselskaber--
+= personskat_meta_pbl15a_ordninger = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15a_ordninger,
+        personskat_felt_pbl15a_ordning_identifikation,
+        personskat_felt_pbl15a_ordning_oprettelsesår,
+        personskat_felt_pbl15a_ordning_oprettelsesafståelse,
+        personskat_felt_pbl15a_ordning_art,
+        personskat_felt_pbl15a_kvalifikationsår,
+        personskat_felt_pbl15a_kvalifikationsår_år,
+        personskat_felt_pbl15a_kvalifikationsår_grundlag,
+        personskat_felt_pbl15a_historik,
+        personskat_felt_pbl15a_historik_identifikation,
+        personskat_felt_pbl15a_historik_år,
+        personskat_felt_pbl15a_historik_ordning,
+        personskat_felt_pbl15a_historik_afståelse,
+        personskat_felt_pbl15a_historik_beløb
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15a),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15a_beløbsgrænser_2026),
+        MetaAttachment(role = Guidance, value = skat_pbl15a_ophørspension_vejledning),
+        MetaAttachment(role = TimingGuidance, value = skat_pbl15a_fradragstidspunkt_vejledning),
+        MetaAttachment(role = MultiDisposalGuidance, value = skat_pbl15a_flere_afståelser_vejledning),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15a_ordninger--
+= personskat_meta_pbl15b_indkomstposter = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15b_indkomstposter,
+        personskat_felt_pbl15b_indkomst_identifikation,
+        personskat_felt_pbl15b_indkomst_år,
+        personskat_felt_pbl15b_indkomst_beløb,
+        personskat_felt_pbl15b_indkomst_kilde
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15b_indkomstposter--
+= personskat_meta_pbl15b_ordninger = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15b_ordninger,
+        personskat_felt_pbl15b_ordning_identifikation,
+        personskat_felt_pbl15b_ordning_oprettelsesår,
+        personskat_felt_pbl15b_ordning_art,
+        personskat_felt_pbl15b_ordning_alder,
+        personskat_felt_pbl15b_ordning_påtegning,
+        personskat_felt_pbl15b_udbetalingsstatus,
+        personskat_felt_pbl15b_sidste_udbetalingsår
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15b_ordninger--
+= personskat_meta_pbl15b_historik = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl15b_historik,
+        personskat_felt_pbl15b_historik_identifikation,
+        personskat_felt_pbl15b_historik_år,
+        personskat_felt_pbl15b_historik_ordning,
+        personskat_felt_pbl15b_historik_beløb,
+        personskat_felt_pbl15b_historik_am_bidrag
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par15b),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2010_til_2017),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2018_til_2024),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pbl15b_satser_2025_til_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl15b_historik--
+= personskat_meta_pbl18_pbl54_personkreds = Beregningsmeta(
+    felter = [
+        personskat_felt_pbl18_pbl54_personkreds,
+        personskat_felt_pbl18_afgiftspligt,
+        personskat_felt_pbl18_udenlandsk_overførsel,
+        personskat_felt_pbl18_selvstændig_overskud,
+        personskat_felt_pbl18_selvstændig_renteudgifter,
+        personskat_felt_pbl18_selvstændig_kurstab,
+        personskat_felt_pbl18_selvstændig_renteindtægter,
+        personskat_felt_pbl18_selvstændig_udbytte,
+        personskat_felt_pbl18_selvstændig_kursgevinster,
+        personskat_felt_pbl18_selvstændig_afståelsesindkomst,
+        personskat_felt_pbl18_livrentevalg,
+        personskat_felt_pbl18_livrente_ønsket_fradrag
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = pensionsbeskatningsloven_lbk1243_par18),
+        MetaAttachment(role = RateSource, value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_pbl18_pbl54_personkreds--
 
---@label:beregn_personskat::field:personskat_felt_erhvervsbefordring::field:personskat_felt_erhvervsbefordring_identifikation::field:personskat_felt_erhvervsbefordring_rækkefølge::field:personskat_felt_erhvervsbefordring_arbejdsgiver_identifikation::field:personskat_felt_erhvervsbefordring_køretøj::field:personskat_felt_erhvervsbefordring_art::field:personskat_felt_erhvervsbefordring_kilometer::source:ligningsloven_lbk1500_par9b::rate_source:skatteraadet_bek1333_par4_par14--
---@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads::field:personskat_felt_erhvervsbefordring_dage_siden_sidst::field:personskat_felt_erhvervsbefordring_mange_arbejdspladser::field:personskat_felt_erhvervsbefordring_ikke_over_60::field:personskat_felt_erhvervsbefordring_regnskabspålæg::field:personskat_felt_erhvervsbefordring_regnskab_dokumenterer::source:ligningsloven_lbk1500_par9b::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
---@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_afholdt_udgifter::field:personskat_felt_erhvervsbefordring_faktiske_udgifter::field:personskat_felt_erhvervsbefordring_bro_tunnel::field:personskat_felt_erhvervsbefordring_kundeopsøgende::field:personskat_felt_erhvervsbefordring_arbejdsgivere::source:ligningsloven_lbk1500_par9b::source:personskatteloven_lbk1284_par3::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere--
---@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_godtgørelse::field:personskat_felt_erhvervsbefordring_godtgørelsesform::field:personskat_felt_erhvervsbefordring_arbejdsgiverkontrol::field:personskat_felt_erhvervsbefordring_bogføringsbilag::field:personskat_felt_erhvervsbefordring_modregnet_bruttoløn::field:personskat_felt_erhvervsbefordring_firmabil::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse--
---@label:beregn_personskat::field:personskat_felt_erhvervsbefordring_eget_køretøj::field:personskat_felt_erhvervsbefordring_firmabil_vederlag::field:personskat_felt_erhvervsbefordring_overskud_som_løn::field:personskat_felt_erhvervsbefordring_medregnet::source:ligningsloven_lbk1500_par9b::source:skatteraadet_bek1333_par4_par14::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
---@label:beregn_personskat::field:personskat_felt_skatteår::source:personskatteloven_2021_1284--
---@label:beregn_personskat::field:personskat_felt_kommune::source:kommuneskatteloven_2019_935--
---@label:beregn_personskat::field:personskat_felt_bruttoløn::source:personskatteloven_2021_1284::dependency_source:arbejdsmarkedsbidragsloven_2020_121--
---@label:beregn_personskat::field:personskat_felt_befordring::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_alder::source:personskatteloven_2021_1284--
---@label:beregn_personskat::field:personskat_felt_kirkeskat::source:folkekirkens_økonomilov_2023_424::dependency_source:kommuneskatteloven_2019_935--
---@label:beregn_personskat::field:personskat_felt_renteindtægter::source:personskatteloven_2021_1284--
---@label:beregn_personskat::field:personskat_felt_renteudgifter::source:personskatteloven_2021_1284--
---@label:beregn_personskat::field:personskat_felt_ejendomsdrift::field:personskat_felt_ejendomsdrift_kategori::field:personskat_felt_ejendomsdrift_beliggenhed::field:personskat_felt_ejendomsdrift_erhvervsudlejning::field:personskat_felt_ejendomsdrift_saerlige_betingelser::field:personskat_felt_ejendomsdrift_beloeb::source:personskatteloven_lbk1284_par4::amendment_source:personskatteloven_lov679_par4_nr6::amendment_source:personskatteloven_lov615_par4_nr6::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring--
---@label:beregn_personskat::field:personskat_felt_fremleje::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremlejerrolle::source:personskatteloven_2021_1284::dependency_source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremlejeform::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_boligstatus::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_indberetning::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_metode::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_bruttoindtægt::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_faktiske_udgifter::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_tidligere_par15p_stk3::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_stk4_samordning::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15q_dage::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_form::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_bruttoindtægt::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_årlig_leje::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_fire_måneder::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_rådighedsdage::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_par15p_udlejningsdage::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_fremleje_loftvalg::source:ligningsloven_2025_1500--
---@label:beregn_personskat::field:personskat_felt_årsopgørelse::source:kildeskatteloven_2024_460--
---@label:beregn_personskat::field:personskat_felt_egne_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomssalg::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
---@label:beregn_personskat::field:personskat_felt_egne_ejendomsudgifter::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsudgifter::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egne_ejendomsnedsættelser::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsnedsættelser::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendomsidentifikation::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomsidentifikation::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsesår::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_afståelsesår::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsesår::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsesår::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_afståelsessum::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_anskaffelsesgrundlag::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag::source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_indeksering::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendoms_indeksering::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_ejerandel::field:personskat_felt_ægtefælles_ejendoms_ejerandel::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ejendoms_afståelsesomfang::field:personskat_felt_ægtefælles_ejendoms_afståelsesomfang::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_delafståelses_anskaffelsessum::field:personskat_felt_ægtefælles_delafståelses_anskaffelsessum::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_hele_ejendommens_anskaffelsessum::field:personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ikke_boligdelens_anskaffelsessum::field:personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egne_mælkekvoter::field:personskat_felt_ægtefælles_mælkekvoter::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_overførsel::field:personskat_felt_ægtefælles_stk6_overførsel::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_ejendomskategori::field:personskat_felt_ægtefælles_stk6_ejendomskategori::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_tillægsparcelværdi::field:personskat_felt_ægtefælles_stk6_tillægsparcelværdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_teknisk_værdi::field:personskat_felt_ægtefælles_stk6_teknisk_værdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_bygningsafskrivninger::field:personskat_felt_ægtefælles_stk6_bygningsafskrivninger::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_nedrevne_bygninger::field:personskat_felt_ægtefælles_stk6_nedrevne_bygninger::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_nedskrevet_bygningsværdi::field:personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_afstået_jord_anskaffelsessum::field:personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_stk6_samlet_jord_anskaffelsessum::field:personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum::source:ebl_par5_lbk132::guidance:ebl_par5_stk6_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par5a_ejendomskategori::field:personskat_felt_ægtefælles_par5a_ejendomskategori::source:ebl_par5_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_identifikation::field:personskat_felt_ægtefælles_mælkekvote_identifikation::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesår::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesmåned::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesdag::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_oprindelige_enheder::field:personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_disponerede_enheder::field:personskat_felt_ægtefælles_mælkekvote_disponerede_enheder::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_anskaffelsesgrundlag::field:personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_købsvederlag::field:personskat_felt_ægtefælles_mælkekvote_købsvederlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi::field:personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_disposition::field:personskat_felt_ægtefælles_mælkekvote_disposition::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesår::field:personskat_felt_ægtefælles_mælkekvote_afståelsesår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesmåned::field:personskat_felt_ægtefælles_mælkekvote_afståelsesmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesdag::field:personskat_felt_ægtefælles_mælkekvote_afståelsesdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_afståelsesvederlag::field:personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsår::field:personskat_felt_ægtefælles_mælkekvote_udløbsår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsmåned::field:personskat_felt_ægtefælles_mælkekvote_udløbsmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_udløbsdag::field:personskat_felt_ægtefælles_mælkekvote_udløbsdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsår::field:personskat_felt_ægtefælles_mælkekvote_toldningsår::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsmåned::field:personskat_felt_ægtefælles_mælkekvote_toldningsmåned::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_mælkekvote_toldningsdag::field:personskat_felt_ægtefælles_mælkekvote_toldningsdag::source:ebl_par5_lbk132::guidance:ebl_par5_mælkekvote_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_ejendomstype::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_ejendomstype::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse::field:personskat_felt_ægtefælles_ordinær_genanbringelse::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_afståelsesår::field:personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_fortjeneste::field:personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse::field:personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvesteringsår::field:personskat_felt_ægtefælles_ordinær_geninvesteringsår::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag::field:personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_ejendomsstatus::field:personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_anvendelse::field:personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_geninvestering_placering::field:personskat_felt_ægtefælles_ordinær_geninvestering_placering::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelsesbegæring::field:personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_ejerskab::field:personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_kapitalandel::field:personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_stemmeandel::field:personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_selskabsbrug::field:personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_ordinær_genanbringelse_kontrol_består::field:personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består::source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_ejendomsart::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_ejendomsart::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_boligbrug::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_boligbrug::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_ejerperiode::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_ejerperiode::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_afståelsesforhold::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_afståelsesforhold::source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelsesforhold::source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelsesforhold::source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelseshjemmel::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelseshjemmel::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_oprindeligt_afståelsesår::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_oprindeligt_afståelsesår::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_oprindelig_erhvervsfortjeneste::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_oprindelig_erhvervsfortjeneste::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelsestillæg::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelsestillæg::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelsesnedslag::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelsesnedslag::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_oprindelig_erhvervsanvendelse::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_oprindelig_erhvervsanvendelse::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_geninvesteringsår::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_geninvesteringsår::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_erhvervsmæssigt_anskaffelsesgrundlag::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_erhvervsmæssigt_anskaffelsesgrundlag::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_geninvestering_ejendomsstatus::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_geninvestering_ejendomsstatus::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_geninvestering_erhvervsanvendelse::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_geninvestering_erhvervsanvendelse::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_geninvestering_placering::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_geninvestering_placering::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_udland_område::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_udland_område::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par8_udland_skattepligt::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_udland_skattepligt::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par8_udland_informationsudveksling::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_udland_informationsudveksling::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par8_udland_begæringsforhold::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_udland_begæringsforhold::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par8_udland_driftsbudget::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_udland_driftsbudget::source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelsesbegæring::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelsesbegæring::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_genanbringelse_ejerskab::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_genanbringelse_ejerskab::source:ebl_genanbringelse_lbk132::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par8_anvendelse_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par8_anvendelse_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_egen_par9_genanbringelsesforhold::source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_genanbringelsesforhold::source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_egen_par9_genanbringelseshjemmel::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_genanbringelseshjemmel::source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par9_boligandel_forøget::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_boligandel_forøget::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_egen_par9_boligandel_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_ægtefælles_par9_boligandel_før_2005::source:ebl_par8_par9_lbk132::amendment_source:ebl_genanbringelse_lov308--
---@label:beregn_personskat::field:personskat_felt_egen_par11_ny_genanbringelse::field:personskat_felt_ægtefælles_par11_ny_genanbringelse::field:personskat_felt_egen_par11_afstået_erhvervsanvendelse::field:personskat_felt_ægtefælles_par11_afstået_erhvervsanvendelse::field:personskat_felt_egen_par11_afstået_kapitalandel::field:personskat_felt_ægtefælles_par11_afstået_kapitalandel::field:personskat_felt_egen_par11_afstået_stemmeandel::field:personskat_felt_ægtefælles_par11_afstået_stemmeandel::field:personskat_felt_egen_par11_afstået_selskabsbrug::field:personskat_felt_ægtefælles_par11_afstået_selskabsbrug::field:personskat_felt_egen_par11_afstået_kontrol_består::field:personskat_felt_ægtefælles_par11_afstået_kontrol_består::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par11_investeringsår::field:personskat_felt_ægtefælles_par11_investeringsår::field:personskat_felt_egen_par11_anskaffelsesgrundlag::field:personskat_felt_ægtefælles_par11_anskaffelsesgrundlag::field:personskat_felt_egen_par11_ejendomsstatus::field:personskat_felt_ægtefælles_par11_ejendomsstatus::field:personskat_felt_egen_par11_ny_erhvervsanvendelse::field:personskat_felt_ægtefælles_par11_ny_erhvervsanvendelse::field:personskat_felt_egen_par11_ny_kapitalandel::field:personskat_felt_ægtefælles_par11_ny_kapitalandel::field:personskat_felt_egen_par11_ny_stemmeandel::field:personskat_felt_ægtefælles_par11_ny_stemmeandel::field:personskat_felt_egen_par11_ny_selskabsbrug::field:personskat_felt_ægtefælles_par11_ny_selskabsbrug::field:personskat_felt_egen_par11_ny_kontrol_består::field:personskat_felt_ægtefælles_par11_ny_kontrol_består::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026::dependency_source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par11_placering::field:personskat_felt_ægtefælles_par11_placering::field:personskat_felt_egen_par11_udland_område::field:personskat_felt_ægtefælles_par11_udland_område::field:personskat_felt_egen_par11_udland_skattepligt::field:personskat_felt_ægtefælles_par11_udland_skattepligt::field:personskat_felt_egen_par11_udland_informationsudveksling::field:personskat_felt_ægtefælles_par11_udland_informationsudveksling::field:personskat_felt_egen_par11_udland_begæringsforhold::field:personskat_felt_ægtefælles_par11_udland_begæringsforhold::field:personskat_felt_egen_par11_udland_oplysninger::field:personskat_felt_ægtefælles_par11_udland_oplysninger::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026::dependency_source:ebl_genanbringelse_lbk132::guidance:ebl_par6a_udland_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par11_begæring::field:personskat_felt_ægtefælles_par11_begæring::field:personskat_felt_egen_par11_meddelelse_år::field:personskat_felt_ægtefælles_par11_meddelelse_år::field:personskat_felt_egen_par11_meddelelse_måned::field:personskat_felt_ægtefælles_par11_meddelelse_måned::field:personskat_felt_egen_par11_meddelelse_dag::field:personskat_felt_ægtefælles_par11_meddelelse_dag::field:personskat_felt_egen_par11_begæring_år::field:personskat_felt_ægtefælles_par11_begæring_år::field:personskat_felt_egen_par11_begæring_måned::field:personskat_felt_ægtefælles_par11_begæring_måned::field:personskat_felt_egen_par11_begæring_dag::field:personskat_felt_ægtefælles_par11_begæring_dag::field:personskat_felt_egen_par11_ejerskab::field:personskat_felt_ægtefælles_par11_ejerskab::field:personskat_felt_egen_par11_samliv_afståelsesår::field:personskat_felt_ægtefælles_par11_samliv_afståelsesår::field:personskat_felt_egen_par11_samliv_investeringsår::field:personskat_felt_ægtefælles_par11_samliv_investeringsår::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026::dependency_source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par11_hjemmel::field:personskat_felt_ægtefælles_par11_hjemmel::field:personskat_felt_egen_par11_arbejdsart::field:personskat_felt_ægtefælles_par11_arbejdsart::field:personskat_felt_egen_par11_arbejde_påbegyndt::field:personskat_felt_ægtefælles_par11_arbejde_påbegyndt::source:ebl_par11_lbk132::guidance:ebl_par11_vejledning_2026::dependency_source:ebl_genanbringelse_lbk132--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_valg::field:personskat_felt_ægtefælles_par6d_valg::field:personskat_felt_egen_par6d_udskudt_fortjeneste::field:personskat_felt_ægtefælles_par6d_udskudt_fortjeneste::field:personskat_felt_egen_par6d_årligt_beløb::field:personskat_felt_ægtefælles_par6d_årligt_beløb::field:personskat_felt_egen_par6d_fordelingsår::field:personskat_felt_ægtefælles_par6d_fordelingsår::field:personskat_felt_egen_par6d_erhververens_næring::field:personskat_felt_ægtefælles_par6d_erhververens_næring::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_overdrageranvendelse::field:personskat_felt_ægtefælles_par6d_overdrageranvendelse::field:personskat_felt_egen_par6d_erhververanvendelse::field:personskat_felt_ægtefælles_par6d_erhververanvendelse::field:personskat_felt_egen_par6d_overdrager_fysisk_person::field:personskat_felt_ægtefælles_par6d_overdrager_fysisk_person::field:personskat_felt_egen_par6d_erhverver_fysisk_person::field:personskat_felt_ægtefælles_par6d_erhverver_fysisk_person::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev::field:personskat_felt_ægtefælles_par6d_pantebrev::field:personskat_felt_egen_par6d_pantebrev_kontantværdi::field:personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi::field:personskat_felt_egen_par6d_pantebrev_hovedstol::field:personskat_felt_ægtefælles_par6d_pantebrev_hovedstol::field:personskat_felt_egen_par6d_pantebrev_løbetid::field:personskat_felt_ægtefælles_par6d_pantebrev_løbetid::field:personskat_felt_egen_par6d_afdragsplan::field:personskat_felt_ægtefælles_par6d_afdragsplan::field:personskat_felt_egen_par6d_afdragsplan_år::field:personskat_felt_ægtefælles_par6d_afdragsplan_år::field:personskat_felt_egen_par6d_afdragsplan_beløb::field:personskat_felt_ægtefælles_par6d_afdragsplan_beløb::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_meddelelse::field:personskat_felt_ægtefælles_par6d_meddelelse::field:personskat_felt_egen_par6d_skattepligt::field:personskat_felt_ægtefælles_par6d_skattepligt::field:personskat_felt_egen_par6d_sikkerhed::field:personskat_felt_ægtefælles_par6d_sikkerhed::field:personskat_felt_egen_par6d_ejendomsplacering::field:personskat_felt_ægtefælles_par6d_ejendomsplacering::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_hændelse::field:personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse::field:personskat_felt_egen_par6d_årsforhold::field:personskat_felt_ægtefælles_par6d_årsforhold::field:personskat_felt_egen_par6d_årsforhold_indkomstår::field:personskat_felt_ægtefælles_par6d_årsforhold_indkomstår::field:personskat_felt_egen_par6d_årsforhold_poster::field:personskat_felt_ægtefælles_par6d_årsforhold_poster::field:personskat_felt_egen_par6d_årsforhold_posttype::field:personskat_felt_ægtefælles_par6d_årsforhold_posttype::field:personskat_felt_egen_par6d_årsforhold_afdrag_fordringsdel::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag_fordringsdel::field:personskat_felt_egen_par6d_årsforhold_afdrag::field:personskat_felt_ægtefælles_par6d_årsforhold_afdrag::field:personskat_felt_egen_par6d_årsforhold_hændelse::field:personskat_felt_ægtefælles_par6d_årsforhold_hændelse::field:personskat_felt_egen_par6d_årsforhold_pantebrev_fordringsdel::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_fordringsdel::field:personskat_felt_egen_par6d_årsforhold_pantebrev_restgæld::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_restgæld::source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu::field:personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu::field:personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu::source:ebl_par6d_lov1578::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_egen_par6d_pantebrev_succession::field:personskat_felt_egen_par6d_ksl26b_modtagers_fordringsdel::field:personskat_felt_egen_par6d_ksl26b_modtager::field:personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark::field:personskat_felt_egen_par6d_ksl26b_modtager_i_danmark::field:personskat_felt_egen_par6d_død_fordringsdel::field:personskat_felt_egen_par6d_død_restgæld::field:personskat_felt_egen_par6d_død_succession::field:personskat_felt_egen_par6d_dødsbo_fordringsdel::field:personskat_felt_egen_par6d_dødsbo_identifikation::field:personskat_felt_egen_par6d_uskiftet_bo_fordringsdel::field:personskat_felt_egen_par6d_uskiftet_bo_modtager::field:personskat_felt_egen_par6d_udlodning_bo_fordringsdel::field:personskat_felt_egen_par6d_udlodning_bo::field:personskat_felt_egen_par6d_udlodning_modtagers_fordringsdel::field:personskat_felt_egen_par6d_udlodning_modtager::field:personskat_felt_egen_par6d_udlodning_bo_skattepligtigt::field:personskat_felt_egen_par6d_udlodning_salgsvalg::field:personskat_felt_egen_par6d_udlodning_modtager_i_danmark::field:personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning::field:personskat_felt_egen_par6d_udlodning_boopgørelsesværdi::source:ebl_par6d_lov1578::preparatory_source:ebl_par6d_lovforslag36::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426--
---@label:beregn_personskat::field:personskat_felt_kursgevinst::field:personskat_felt_kgl_sælgerpantebreve::field:personskat_felt_kgl_skatteyder_identifikation::field:personskat_felt_kgl_ægtefælles_skatteyder_identifikation::field:personskat_felt_kgl_øvrigt_bagatelgrundlag::field:personskat_felt_kgl_pantebrev::field:personskat_felt_kgl_oprindelig_skatteyder::field:personskat_felt_kgl_fordringsnæring::field:personskat_felt_kgl_fordring_udenfor_næring::field:personskat_felt_kgl_vederlag_for_leverancer::field:personskat_felt_kgl_driftstilknytning::field:personskat_felt_kgl_kontrol_eller_nærtstående::field:personskat_felt_kgl_dba_fritagelse::field:personskat_felt_kgl_efterfølgende_dispositioner::field:personskat_felt_kgl_dispositionsår::field:personskat_felt_kgl_berørt_tranche::field:personskat_felt_kgl_dispositionsart::field:personskat_felt_kgl_modtagers_tranche::field:personskat_felt_kgl_berørt_hovedstol::field:personskat_felt_kgl_provenu::source:kgl_sælgerpantebrev_lbk1176::dependency_source:kgl_sælgerpantebrev_kildeskattelov_lbk460::dependency_source:kgl_sælgerpantebrev_dødsboskattelov_lbk426::guidance:kgl_ebl_par6d_vejledning_2026--
---@label:beregn_personskat::field:personskat_felt_ordinært_aktieår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15--
---@label:beregn_personskat::field:personskat_felt_aktiebeholdninger::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
---@label:beregn_personskat::field:personskat_felt_aktiehændelser::source:aktieavancebeskatningsloven_lbk1098_par23_par24_par26--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_udsteder::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_kapitalselskabsform::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_kapitalselskab_hjemsted::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_foreningstype::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_hjemsted::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_par3::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_forening_fondsbeskatning::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_værdipapirstatus::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6::guidance:aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_værdipapir::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_flerlejlighedsejendom::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_beboelse::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_grundforhold::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_grundbetingelse::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_afståelsesform::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
---@label:beregn_personskat::field:personskat_felt_aktie_boligret_endeligt_opløsningsår::source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ebl_par8_par9_lbk132--
+= personskat_meta_erhvervsbefordring = Beregningsmeta(
+    felter = [
+        personskat_felt_erhvervsbefordring,
+        personskat_felt_erhvervsbefordring_identifikation,
+        personskat_felt_erhvervsbefordring_rækkefølge,
+        personskat_felt_erhvervsbefordring_arbejdsgiver_identifikation,
+        personskat_felt_erhvervsbefordring_køretøj,
+        personskat_felt_erhvervsbefordring_art,
+        personskat_felt_erhvervsbefordring_kilometer
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = RateSource, value = skatteraadet_bek1333_par4_par14),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring--
+= personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads = Beregningsmeta(
+    felter = [
+        personskat_felt_erhvervsbefordring_dage_samme_arbejdsplads,
+        personskat_felt_erhvervsbefordring_dage_siden_sidst,
+        personskat_felt_erhvervsbefordring_mange_arbejdspladser,
+        personskat_felt_erhvervsbefordring_ikke_over_60,
+        personskat_felt_erhvervsbefordring_regnskabspålæg,
+        personskat_felt_erhvervsbefordring_regnskab_dokumenterer
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_dage_samme_arbejdsplads--
+= personskat_meta_erhvervsbefordring_afholdt_udgifter = Beregningsmeta(
+    felter = [
+        personskat_felt_erhvervsbefordring_afholdt_udgifter,
+        personskat_felt_erhvervsbefordring_faktiske_udgifter,
+        personskat_felt_erhvervsbefordring_bro_tunnel,
+        personskat_felt_erhvervsbefordring_kundeopsøgende,
+        personskat_felt_erhvervsbefordring_arbejdsgivere
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par3),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_afholdt_udgifter--
+= personskat_meta_erhvervsbefordring_godtgørelse = Beregningsmeta(
+    felter = [
+        personskat_felt_erhvervsbefordring_godtgørelse,
+        personskat_felt_erhvervsbefordring_godtgørelsesform,
+        personskat_felt_erhvervsbefordring_arbejdsgiverkontrol,
+        personskat_felt_erhvervsbefordring_bogføringsbilag,
+        personskat_felt_erhvervsbefordring_modregnet_bruttoløn,
+        personskat_felt_erhvervsbefordring_firmabil
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_godtgørelse--
+= personskat_meta_erhvervsbefordring_eget_køretøj = Beregningsmeta(
+    felter = [
+        personskat_felt_erhvervsbefordring_eget_køretøj,
+        personskat_felt_erhvervsbefordring_firmabil_vederlag,
+        personskat_felt_erhvervsbefordring_overskud_som_løn,
+        personskat_felt_erhvervsbefordring_medregnet
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ligningsloven_lbk1500_par9b),
+        MetaAttachment(role = Source, value = skatteraadet_bek1333_par4_par14),
+        MetaAttachment(role = Guidance, value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
+        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_erhvervsbefordring_eget_køretøj--
+= personskat_metadata_skatteår = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_skatteår),
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_skatteår--
+= personskat_metadata_kommune = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_kommune),
+        MetaAttachment(role = Source, value = kommuneskatteloven_2019_935),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_kommune--
+= personskat_metadata_bruttoløn = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_bruttoløn),
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        MetaAttachment(role = DependencySource, value = arbejdsmarkedsbidragsloven_2020_121),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_bruttoløn--
+= personskat_metadata_befordring = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_befordring),
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_befordring--
+= personskat_metadata_alder = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_alder),
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_alder--
+= personskat_metadata_kirkeskat = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_kirkeskat),
+        MetaAttachment(role = Source, value = folkekirkens_økonomilov_2023_424),
+        MetaAttachment(role = DependencySource, value = kommuneskatteloven_2019_935),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_kirkeskat--
+= personskat_metadata_renteindtægter = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_renteindtægter),
+        MetaAttachment(role = Field, value = personskat_felt_renteudgifter),
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_renteindtægter--
+= personskat_meta_ejendomsdrift = Beregningsmeta(
+    felter = [
+        personskat_felt_ejendomsdrift,
+        personskat_felt_ejendomsdrift_kategori,
+        personskat_felt_ejendomsdrift_beliggenhed,
+        personskat_felt_ejendomsdrift_erhvervsudlejning,
+        personskat_felt_ejendomsdrift_saerlige_betingelser,
+        personskat_felt_ejendomsdrift_beloeb
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = personskatteloven_lbk1284_par4),
+        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov679_par4_nr6),
+        MetaAttachment(role = AmendmentSource, value = personskatteloven_lov615_par4_nr6),
+        MetaAttachment(role = DependencySource, value = ejendomsskatteloven_lov678_par3),
+        MetaAttachment(role = AmendmentSource, value = ejendomsskatteloven_lov615_par3_aendring),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_ejendomsdrift--
+= personskat_metadata_fremleje = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_fremleje),
+        MetaAttachment(role = Field, value = personskat_felt_fremlejerrolle),
+        MetaAttachment(role = Source, value = personskatteloven_2021_1284),
+        MetaAttachment(role = DependencySource, value = ligningsloven_2025_1500),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_fremleje--
+= personskat_metadata_fremlejeform = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_fremlejeform),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_boligstatus),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_indberetning),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_metode),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_bruttoindtægt),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_faktiske_udgifter),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_tidligere_par15p_stk3),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_stk4_samordning),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15q_dage),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_form),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_bruttoindtægt),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_årlig_leje),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_fire_måneder),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_rådighedsdage),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_par15p_udlejningsdage),
+        MetaAttachment(role = Field, value = personskat_felt_fremleje_loftvalg),
+        MetaAttachment(role = Source, value = ligningsloven_2025_1500),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_fremlejeform--
+= personskat_metadata_årsopgørelse = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_årsopgørelse),
+        MetaAttachment(role = Source, value = kildeskatteloven_2024_460),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_årsopgørelse--
+= personskat_metadata_egne_ejendomssalg = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomssalg),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egne_ejendomssalg--
+= personskat_metadata_ægtefælles_ejendomssalg = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomssalg),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_ægtefælles_ejendomssalg--
+= personskat_metadata_egne_ejendomsudgifter = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomsudgifter),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsudgifter),
+        MetaAttachment(role = Field, value = personskat_felt_egne_ejendomsnedsættelser),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsnedsættelser),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egne_ejendomsudgifter--
+= personskat_metadata_egen_ejendomsidentifikation = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendomsidentifikation),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomsidentifikation),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsesår),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendomsidentifikation--
+= personskat_metadata_egen_ejendoms_anskaffelsesår = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsesår),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsesår--
+= personskat_metadata_egen_ejendoms_anskaffelsessum = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsessum),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsessum--
+= personskat_metadata_egen_ejendoms_afståelsessum = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsessum),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_afståelsessum--
+= personskat_metadata_egen_ejendoms_anskaffelsesgrundlag = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_anskaffelsesgrundlag),
+        MetaAttachment(role = Source, value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
+        MetaAttachment(role = DependencySource, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_anskaffelsesgrundlag--
+= personskat_metadata_egen_ejendoms_indeksering = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_indeksering),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_indeksering),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_ejerandel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_ejerandel),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendoms_afståelsesomfang),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendoms_afståelsesomfang),
+        MetaAttachment(role = Field, value = personskat_felt_egen_delafståelses_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_delafståelses_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_egen_hele_ejendommens_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_hele_ejendommens_anskaffelsessum),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendoms_indeksering--
+= personskat_metadata_egen_ikke_boligdelens_anskaffelsessum = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ikke_boligdelens_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ikke_boligdelens_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_egne_mælkekvoter),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvoter),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ikke_boligdelens_anskaffelsessum--
+= personskat_metadata_egen_stk6_overførsel = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_overførsel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_overførsel),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_ejendomskategori),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_ejendomskategori),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_tillægsparcelværdi),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_tillægsparcelværdi),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_teknisk_værdi),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_teknisk_værdi),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_bygningsafskrivninger),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_bygningsafskrivninger),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_nedrevne_bygninger),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_nedrevne_bygninger),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_nedskrevet_bygningsværdi),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_nedskrevet_bygningsværdi),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_afstået_jord_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_afstået_jord_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_egen_stk6_samlet_jord_anskaffelsessum),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_stk6_samlet_jord_anskaffelsessum),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_stk6_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_stk6_overførsel--
+= personskat_metadata_egen_par5a_ejendomskategori = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par5a_ejendomskategori),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par5a_ejendomskategori),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par5a_ejendomskategori--
+= personskat_metadata_egen_mælkekvote_identifikation = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_identifikation),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_identifikation),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesmåned),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesmåned),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesdag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesdag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_oprindelige_enheder),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_oprindelige_enheder),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_disponerede_enheder),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_disponerede_enheder),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_købsvederlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_købsvederlag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_beskattet_tildelingsværdi),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_beskattet_tildelingsværdi),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_disposition),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_disposition),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesmåned),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesmåned),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesdag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesdag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_afståelsesvederlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_afståelsesvederlag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsmåned),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsmåned),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_udløbsdag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_udløbsdag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsmåned),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsmåned),
+        MetaAttachment(role = Field, value = personskat_felt_egen_mælkekvote_toldningsdag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_mælkekvote_toldningsdag),
+        MetaAttachment(role = Source, value = ebl_par5_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par5_mælkekvote_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_mælkekvote_identifikation--
+= personskat_metadata_egen_ejendomstype = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ejendomstype),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ejendomstype),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ejendomstype--
+= personskat_metadata_egen_ordinær_genanbringelse = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelse--
+= personskat_metadata_egen_ordinær_genanbringelse_afståelsesår = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_fortjeneste),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_fortjeneste),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_oprindelig_anvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_oprindelig_anvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvesteringsår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvesteringsår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_ejendomsstatus),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_ejendomsstatus),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_anvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_anvendelse),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelse_afståelsesår--
+= personskat_metadata_egen_ordinær_geninvestering_placering = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_geninvestering_placering),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_geninvestering_placering),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_geninvestering_placering--
+= personskat_metadata_egen_ordinær_genanbringelsesbegæring = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelsesbegæring),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelsesbegæring),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_ejerskab),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_ejerskab),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_kapitalandel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_kapitalandel),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_stemmeandel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_stemmeandel),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_selskabsbrug),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_selskabsbrug),
+        MetaAttachment(role = Field, value = personskat_felt_egen_ordinær_genanbringelse_kontrol_består),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_ordinær_genanbringelse_kontrol_består),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_ordinær_genanbringelsesbegæring--
+= personskat_metadata_egen_par8_ejendomsart = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_ejendomsart),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_ejendomsart),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_boligbrug),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_boligbrug),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_ejerperiode),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_ejerperiode),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_afståelsesforhold),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_afståelsesforhold),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_ejendomsart--
+= personskat_metadata_egen_par8_genanbringelsesforhold = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesforhold),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesforhold),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelsesforhold--
+= personskat_metadata_egen_par8_genanbringelseshjemmel = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelseshjemmel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelseshjemmel),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelseshjemmel--
+= personskat_metadata_egen_par8_oprindeligt_afståelsesår = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindeligt_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindeligt_afståelsesår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindelig_erhvervsfortjeneste),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsfortjeneste),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsestillæg),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsestillæg),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesnedslag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesnedslag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_oprindelig_erhvervsanvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_oprindelig_erhvervsanvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvesteringsår),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvesteringsår),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_erhvervsmæssigt_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_erhvervsmæssigt_anskaffelsesgrundlag),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_ejendomsstatus),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_ejendomsstatus),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_erhvervsanvendelse),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_erhvervsanvendelse),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_oprindeligt_afståelsesår--
+= personskat_metadata_egen_par8_geninvestering_placering = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_geninvestering_placering),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_geninvestering_placering),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_geninvestering_placering--
+= personskat_metadata_egen_par8_udland_område = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_område),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_område),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_skattepligt),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_skattepligt),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_informationsudveksling),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_informationsudveksling),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_begæringsforhold),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_begæringsforhold),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_udland_driftsbudget),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_udland_driftsbudget),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_udland_område--
+= personskat_metadata_egen_par8_genanbringelsesbegæring = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelsesbegæring),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelsesbegæring),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_genanbringelse_ejerskab),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_genanbringelse_ejerskab),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_genanbringelsesbegæring--
+= personskat_metadata_egen_par8_anvendelse_før_2005 = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par8_anvendelse_før_2005),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par8_anvendelse_før_2005),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par8_anvendelse_før_2005--
+= personskat_metadata_egen_par9_genanbringelsesforhold = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelsesforhold),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_genanbringelsesforhold),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par9_genanbringelsesforhold--
+= personskat_metadata_egen_par9_genanbringelseshjemmel = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par9_genanbringelseshjemmel),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_genanbringelseshjemmel),
+        MetaAttachment(role = Source, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par9_genanbringelseshjemmel--
+= personskat_metadata_egen_par9_boligandel_forøget = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_egen_par9_boligandel_forøget),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_boligandel_forøget),
+        MetaAttachment(role = Field, value = personskat_felt_egen_par9_boligandel_før_2005),
+        MetaAttachment(role = Field, value = personskat_felt_ægtefælles_par9_boligandel_før_2005),
+        MetaAttachment(role = Source, value = ebl_par8_par9_lbk132),
+        MetaAttachment(role = AmendmentSource, value = ebl_genanbringelse_lov308),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_egen_par9_boligandel_forøget--
+= personskat_meta_egen_par11_ny_genanbringelse = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par11_ny_genanbringelse,
+        personskat_felt_ægtefælles_par11_ny_genanbringelse,
+        personskat_felt_egen_par11_afstået_erhvervsanvendelse,
+        personskat_felt_ægtefælles_par11_afstået_erhvervsanvendelse,
+        personskat_felt_egen_par11_afstået_kapitalandel,
+        personskat_felt_ægtefælles_par11_afstået_kapitalandel,
+        personskat_felt_egen_par11_afstået_stemmeandel,
+        personskat_felt_ægtefælles_par11_afstået_stemmeandel
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par11_afstået_selskabsbrug,
+        personskat_felt_ægtefælles_par11_afstået_selskabsbrug,
+        personskat_felt_egen_par11_afstået_kontrol_består,
+        personskat_felt_ægtefælles_par11_afstået_kontrol_består
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par11_ny_genanbringelse--
+= personskat_meta_egen_par11_investeringsår = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par11_investeringsår,
+        personskat_felt_ægtefælles_par11_investeringsår,
+        personskat_felt_egen_par11_anskaffelsesgrundlag,
+        personskat_felt_ægtefælles_par11_anskaffelsesgrundlag,
+        personskat_felt_egen_par11_ny_erhvervsanvendelse,
+        personskat_felt_ægtefælles_par11_ny_erhvervsanvendelse,
+        personskat_felt_egen_par11_ny_kapitalandel,
+        personskat_felt_ægtefælles_par11_ny_kapitalandel,
+        personskat_felt_egen_par11_ny_stemmeandel,
+        personskat_felt_ægtefælles_par11_ny_stemmeandel
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par11_ejendomsstatus,
+        personskat_felt_ægtefælles_par11_ejendomsstatus,
+        personskat_felt_egen_par11_ny_selskabsbrug,
+        personskat_felt_ægtefælles_par11_ny_selskabsbrug,
+        personskat_felt_egen_par11_ny_kontrol_består,
+        personskat_felt_ægtefælles_par11_ny_kontrol_består
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par11_investeringsår--
+= personskat_meta_egen_par11_placering = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par11_placering,
+        personskat_felt_ægtefælles_par11_placering,
+        personskat_felt_egen_par11_udland_begæringsforhold,
+        personskat_felt_ægtefælles_par11_udland_begæringsforhold
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par11_udland_område,
+        personskat_felt_ægtefælles_par11_udland_område,
+        personskat_felt_egen_par11_udland_skattepligt,
+        personskat_felt_ægtefælles_par11_udland_skattepligt,
+        personskat_felt_egen_par11_udland_informationsudveksling,
+        personskat_felt_ægtefælles_par11_udland_informationsudveksling,
+        personskat_felt_egen_par11_udland_oplysninger,
+        personskat_felt_ægtefælles_par11_udland_oplysninger
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par6a_udland_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par11_placering--
+= personskat_meta_egen_par11_begæring = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par11_begæring,
+        personskat_felt_ægtefælles_par11_begæring,
+        personskat_felt_egen_par11_meddelelse_år,
+        personskat_felt_ægtefælles_par11_meddelelse_år,
+        personskat_felt_egen_par11_meddelelse_måned,
+        personskat_felt_ægtefælles_par11_meddelelse_måned,
+        personskat_felt_egen_par11_meddelelse_dag,
+        personskat_felt_ægtefælles_par11_meddelelse_dag,
+        personskat_felt_egen_par11_begæring_år,
+        personskat_felt_ægtefælles_par11_begæring_år,
+        personskat_felt_egen_par11_begæring_måned,
+        personskat_felt_ægtefælles_par11_begæring_måned,
+        personskat_felt_egen_par11_begæring_dag,
+        personskat_felt_ægtefælles_par11_begæring_dag,
+        personskat_felt_egen_par11_ejerskab,
+        personskat_felt_ægtefælles_par11_ejerskab
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par11_samliv_afståelsesår,
+        personskat_felt_ægtefælles_par11_samliv_afståelsesår,
+        personskat_felt_egen_par11_samliv_investeringsår,
+        personskat_felt_ægtefælles_par11_samliv_investeringsår
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par11_begæring--
+= personskat_meta_egen_par11_hjemmel = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par11_hjemmel,
+        personskat_felt_ægtefælles_par11_hjemmel
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par11_arbejdsart,
+        personskat_felt_ægtefælles_par11_arbejdsart,
+        personskat_felt_egen_par11_arbejde_påbegyndt,
+        personskat_felt_ægtefælles_par11_arbejde_påbegyndt
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par11_lbk132),
+        MetaAttachment(role = Guidance, value = ebl_par11_vejledning_2026),
+        MetaAttachment(role = DependencySource, value = ebl_genanbringelse_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par11_hjemmel--
+= personskat_meta_egen_par6d_valg = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_valg,
+        personskat_felt_ægtefælles_par6d_valg,
+        personskat_felt_egen_par6d_erhververens_næring,
+        personskat_felt_ægtefælles_par6d_erhververens_næring
+    ],
+    spørgsmål = [],
+    beløbsfelter = [
+        personskat_felt_egen_par6d_udskudt_fortjeneste,
+        personskat_felt_ægtefælles_par6d_udskudt_fortjeneste,
+        personskat_felt_egen_par6d_årligt_beløb,
+        personskat_felt_ægtefælles_par6d_årligt_beløb,
+        personskat_felt_egen_par6d_fordelingsår,
+        personskat_felt_ægtefælles_par6d_fordelingsår
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_valg--
+= personskat_meta_egen_par6d_overdrageranvendelse = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_overdrageranvendelse,
+        personskat_felt_ægtefælles_par6d_overdrageranvendelse,
+        personskat_felt_egen_par6d_erhververanvendelse,
+        personskat_felt_ægtefælles_par6d_erhververanvendelse,
+        personskat_felt_egen_par6d_overdrager_fysisk_person,
+        personskat_felt_ægtefælles_par6d_overdrager_fysisk_person,
+        personskat_felt_egen_par6d_erhverver_fysisk_person,
+        personskat_felt_ægtefælles_par6d_erhverver_fysisk_person
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_overdrageranvendelse--
+= personskat_meta_egen_par6d_pantebrev = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_afdragsplan,
+        personskat_felt_ægtefælles_par6d_afdragsplan
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par6d_pantebrev,
+        personskat_felt_ægtefælles_par6d_pantebrev
+    ],
+    beløbsfelter = [
+        personskat_felt_egen_par6d_pantebrev_kontantværdi,
+        personskat_felt_ægtefælles_par6d_pantebrev_kontantværdi,
+        personskat_felt_egen_par6d_pantebrev_hovedstol,
+        personskat_felt_ægtefælles_par6d_pantebrev_hovedstol,
+        personskat_felt_egen_par6d_pantebrev_løbetid,
+        personskat_felt_ægtefælles_par6d_pantebrev_løbetid,
+        personskat_felt_egen_par6d_afdragsplan_år,
+        personskat_felt_ægtefælles_par6d_afdragsplan_år,
+        personskat_felt_egen_par6d_afdragsplan_beløb,
+        personskat_felt_ægtefælles_par6d_afdragsplan_beløb
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_pantebrev--
+= personskat_meta_egen_par6d_meddelelse = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_meddelelse,
+        personskat_felt_ægtefælles_par6d_meddelelse,
+        personskat_felt_egen_par6d_ejendomsplacering,
+        personskat_felt_ægtefælles_par6d_ejendomsplacering
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par6d_skattepligt,
+        personskat_felt_ægtefælles_par6d_skattepligt,
+        personskat_felt_egen_par6d_sikkerhed,
+        personskat_felt_ægtefælles_par6d_sikkerhed
+    ],
+    beløbsfelter = [],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_meddelelse--
+= personskat_meta_egen_par6d_afståelsesårets_hændelse = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_afståelsesårets_hændelse,
+        personskat_felt_ægtefælles_par6d_afståelsesårets_hændelse,
+        personskat_felt_egen_par6d_årsforhold,
+        personskat_felt_ægtefælles_par6d_årsforhold,
+        personskat_felt_egen_par6d_årsforhold_poster,
+        personskat_felt_ægtefælles_par6d_årsforhold_poster,
+        personskat_felt_egen_par6d_årsforhold_hændelse,
+        personskat_felt_ægtefælles_par6d_årsforhold_hændelse
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par6d_årsforhold_posttype,
+        personskat_felt_ægtefælles_par6d_årsforhold_posttype,
+        personskat_felt_egen_par6d_årsforhold_afdrag_fordringsdel,
+        personskat_felt_ægtefælles_par6d_årsforhold_afdrag_fordringsdel,
+        personskat_felt_egen_par6d_årsforhold_pantebrev_fordringsdel,
+        personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_fordringsdel
+    ],
+    beløbsfelter = [
+        personskat_felt_egen_par6d_årsforhold_indkomstår,
+        personskat_felt_ægtefælles_par6d_årsforhold_indkomstår,
+        personskat_felt_egen_par6d_årsforhold_afdrag,
+        personskat_felt_ægtefælles_par6d_årsforhold_afdrag,
+        personskat_felt_egen_par6d_årsforhold_pantebrev_restgæld,
+        personskat_felt_ægtefælles_par6d_årsforhold_pantebrev_restgæld
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = Guidance, value = ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_afståelsesårets_hændelse--
+= personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu = Beregningsmeta(
+    felter = [],
+    spørgsmål = [],
+    beløbsfelter = [
+        personskat_felt_egen_par6d_afståelsesårets_pantebrevsprovenu,
+        personskat_felt_ægtefælles_par6d_afståelsesårets_pantebrevsprovenu,
+        personskat_felt_egen_par6d_årsforhold_pantebrevsprovenu,
+        personskat_felt_ægtefælles_par6d_årsforhold_pantebrevsprovenu
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_afståelsesårets_pantebrevsprovenu--
+= personskat_meta_egen_par6d_pantebrev_succession = Beregningsmeta(
+    felter = [
+        personskat_felt_egen_par6d_pantebrev_succession,
+        personskat_felt_egen_par6d_ksl26b_overdrager_i_danmark,
+        personskat_felt_egen_par6d_ksl26b_modtager_i_danmark,
+        personskat_felt_egen_par6d_død_succession,
+        personskat_felt_egen_par6d_udlodning_bo_skattepligtigt,
+        personskat_felt_egen_par6d_udlodning_salgsvalg,
+        personskat_felt_egen_par6d_udlodning_modtager_i_danmark,
+        personskat_felt_egen_par6d_udlodning_fortsat_dansk_beskatning
+    ],
+    spørgsmål = [
+        personskat_felt_egen_par6d_ksl26b_modtagers_fordringsdel,
+        personskat_felt_egen_par6d_ksl26b_modtager,
+        personskat_felt_egen_par6d_død_fordringsdel,
+        personskat_felt_egen_par6d_dødsbo_fordringsdel,
+        personskat_felt_egen_par6d_dødsbo_identifikation,
+        personskat_felt_egen_par6d_uskiftet_bo_fordringsdel,
+        personskat_felt_egen_par6d_uskiftet_bo_modtager,
+        personskat_felt_egen_par6d_udlodning_bo_fordringsdel,
+        personskat_felt_egen_par6d_udlodning_bo,
+        personskat_felt_egen_par6d_udlodning_modtagers_fordringsdel,
+        personskat_felt_egen_par6d_udlodning_modtager
+    ],
+    beløbsfelter = [
+        personskat_felt_egen_par6d_død_restgæld,
+        personskat_felt_egen_par6d_udlodning_boopgørelsesværdi
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = ebl_par6d_lov1578),
+        MetaAttachment(role = PreparatorySource, value = ebl_par6d_lovforslag36),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_egen_par6d_pantebrev_succession--
+= personskat_meta_kursgevinst = Beregningsmeta(
+    felter = [
+        personskat_felt_kursgevinst,
+        personskat_felt_kgl_sælgerpantebreve,
+        personskat_felt_kgl_ægtefælles_skatteyder_identifikation,
+        personskat_felt_kgl_fordringsnæring,
+        personskat_felt_kgl_fordring_udenfor_næring,
+        personskat_felt_kgl_vederlag_for_leverancer,
+        personskat_felt_kgl_driftstilknytning,
+        personskat_felt_kgl_kontrol_eller_nærtstående,
+        personskat_felt_kgl_dba_fritagelse,
+        personskat_felt_kgl_efterfølgende_dispositioner,
+        personskat_felt_kgl_berørt_tranche,
+        personskat_felt_kgl_dispositionsart,
+        personskat_felt_kgl_modtagers_tranche
+    ],
+    spørgsmål = [
+        personskat_felt_kgl_skatteyder_identifikation,
+        personskat_felt_kgl_pantebrev,
+        personskat_felt_kgl_oprindelig_skatteyder
+    ],
+    beløbsfelter = [
+        personskat_felt_kgl_øvrigt_bagatelgrundlag,
+        personskat_felt_kgl_dispositionsår,
+        personskat_felt_kgl_berørt_hovedstol,
+        personskat_felt_kgl_provenu
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = kgl_sælgerpantebrev_lbk1176),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
+        MetaAttachment(role = DependencySource, value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
+        MetaAttachment(role = Guidance, value = kgl_ebl_par6d_vejledning_2026),
+    )
+)
+--@label:beregn_personskat::meta:personskat_meta_kursgevinst--
+= personskat_metadata_ordinært_aktieår = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_ordinært_aktieår),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_ordinært_aktieår--
+= personskat_metadata_aktiebeholdninger = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_aktiebeholdninger),
+        MetaAttachment(role = Field, value = personskat_felt_aktiehændelser),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_aktiebeholdninger--
+= personskat_metadata_aktie_boligret = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_aktie_boligret--
+= personskat_metadata_aktie_boligret_udsteder = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_udsteder),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_kapitalselskabsform),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_kapitalselskab_hjemsted),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_foreningstype),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_hjemsted),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_par3),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_forening_fondsbeskatning),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_værdipapirstatus),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        MetaAttachment(role = DependencySource, value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        MetaAttachment(role = Guidance, value = aktieavancebeskatningsloven_juridisk_vejledning_boligejendomme),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_aktie_boligret_udsteder--
+= personskat_metadata_aktie_boligret_værdipapir = PersonskatMetadata(
+    attachments = (
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_værdipapir),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_flerlejlighedsejendom),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_beboelse),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_grundforhold),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_grundbetingelse),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_afståelsesform),
+        MetaAttachment(role = Field, value = personskat_felt_aktie_boligret_endeligt_opløsningsår),
+        MetaAttachment(role = Source, value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        MetaAttachment(role = DependencySource, value = ebl_par8_par9_lbk132),
+    )
+)
+--@label:beregn_personskat::meta:personskat_metadata_aktie_boligret_værdipapir--
 
 | personskat_supplerende_skatteforhold(forhold: PersonskatSupplerendeSkatteforhold) -> LønmodtagerSkatteforhold(
     aktieindkomst_kroner = forhold.øvrig_aktieindkomst_kroner,

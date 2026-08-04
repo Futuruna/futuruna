@@ -104,6 +104,8 @@ pub struct CalculationMetadataReference {
     pub label: String,
     pub role: String,
     pub binding: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachment_path: Option<String>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub qualified_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1265,7 +1267,11 @@ fn contract_metadata(
             let type_relevant = reference
                 .qualified_type
                 .as_ref()
-                .is_some_and(|name| relevant_names.contains(name));
+                .is_some_and(|name| relevant_names.contains(name))
+                || reference
+                    .typed_values()
+                    .iter()
+                    .any(|value| relevant_names.contains(value.qualified_type));
             if !label_relevant && !type_relevant {
                 continue;
             }
@@ -1274,10 +1280,49 @@ fn contract_metadata(
                 .into_iter()
                 .flat_map(|span| span.symbols.iter().map(|symbol| symbol.name.clone()))
                 .collect();
-            result.push(calculation_metadata_reference(anchor, reference, symbols));
+            result.extend(calculation_metadata_references(anchor, reference, symbols));
         }
     }
     result
+}
+
+fn calculation_metadata_references(
+    anchor: &MetaAnchor,
+    reference: &MetaReference,
+    symbols: Vec<String>,
+) -> Vec<CalculationMetadataReference> {
+    let attachments = reference.attachments();
+    if reference.role == "meta" && !attachments.is_empty() {
+        return attachments
+            .into_iter()
+            .filter(|attachment| attachment.role != "field")
+            .map(|attachment| CalculationMetadataReference {
+                label: anchor.label.clone(),
+                role: attachment.role,
+                binding: attachment
+                    .binding_name
+                    .map(str::to_string)
+                    .unwrap_or_else(|| {
+                        format!(
+                            "{}{}",
+                            reference.binding_name,
+                            attachment.value_path.trim_start_matches('$')
+                        )
+                    }),
+                attachment_path: Some(format!(
+                    "{}{}",
+                    reference.binding_name,
+                    attachment.attachment_path.trim_start_matches('$')
+                )),
+                qualified_type: attachment.value.qualified_type().map(str::to_string),
+                value: Some(attachment.value.to_source()),
+                data: Some(calculation_meta_value_json(attachment.value)),
+                text: anchor.text.clone(),
+                symbols: symbols.clone(),
+            })
+            .collect();
+    }
+    vec![calculation_metadata_reference(anchor, reference, symbols)]
 }
 
 fn calculation_metadata_reference(
@@ -1289,6 +1334,7 @@ fn calculation_metadata_reference(
         label: anchor.label.clone(),
         role: reference.role.clone(),
         binding: reference.binding_name.clone(),
+        attachment_path: None,
         qualified_type: reference.qualified_type.clone(),
         value: reference.static_value.clone(),
         data: reference
@@ -1328,16 +1374,19 @@ fn calculation_meta_value_json(value: &MetaValue) -> JsonValue {
         }),
         MetaValue::Constructor {
             name,
+            qualified_type,
             applied,
             arguments,
         } => serde_json::json!({
             "kind": "constructor",
             "name": name,
+            "type": qualified_type,
             "applied": applied,
             "arguments": arguments
                 .iter()
                 .map(|argument| serde_json::json!({
                     "field": argument.field,
+                    "binding": argument.binding_name,
                     "value": calculation_meta_value_json(&argument.value),
                 }))
                 .collect::<Vec<_>>(),
@@ -1399,37 +1448,67 @@ fn contract_field_metadata(
         if anchor.label != contract.entry && !span_labels.contains(&anchor.label) {
             continue;
         }
+        let field_references = anchor
+            .references
+            .iter()
+            .enumerate()
+            .filter(|(_, reference)| reference.role == "field" || reference.role == "meta")
+            .map(|(index, reference)| (index, reference, calculation_field_values(reference)))
+            .collect::<Vec<_>>();
+        let field_reference_indices = field_references
+            .iter()
+            .filter_map(|(index, _, values)| (!values.is_empty()).then_some(*index))
+            .collect::<BTreeSet<_>>();
         let sources = anchor
             .references
             .iter()
-            .filter(|reference| reference.role != "field")
-            .map(|reference| calculation_metadata_reference(anchor, reference, Vec::new()))
-            .collect::<Vec<_>>();
-        for reference in anchor
-            .references
-            .iter()
-            .filter(|reference| reference.role == "field")
-        {
-            match calculation_field_metadata_from_reference(
-                contract,
-                reference,
-                anchor,
-                &valid_paths,
-                &sources,
-            ) {
-                Ok(metadata) => {
-                    if let Some(previous) =
-                        bindings_by_path.insert(metadata.path.clone(), metadata.binding.clone())
-                    {
-                        diagnostics.push(Diagnostic::error(format!(
-                            "calculation `{}` has duplicate field metadata for `{}` in bindings `{}` and `{}`",
-                            contract.entry, metadata.path, previous, metadata.binding
-                        )));
-                    } else {
-                        result.push(metadata);
-                    }
+            .enumerate()
+            .flat_map(|(index, reference)| {
+                let nested = calculation_metadata_references(anchor, reference, Vec::new());
+                if reference.role == "field" {
+                    Vec::new()
+                } else if reference.role == "meta" && !reference.attachments().is_empty() {
+                    nested
+                } else if field_reference_indices.contains(&index) {
+                    Vec::new()
+                } else {
+                    nested
                 }
-                Err(diagnostic) => diagnostics.push(diagnostic),
+            })
+            .collect::<Vec<_>>();
+        for (_, reference, field_values) in field_references {
+            if field_values.is_empty() {
+                if reference.role == "field" {
+                    diagnostics.push(Diagnostic::error(format!(
+                        "calculation field metadata binding `{}` must be a pure ground named record or contain one or more such records",
+                        reference.binding_name
+                    )));
+                }
+                continue;
+            }
+            for (binding, value) in field_values {
+                match calculation_field_metadata_from_value(
+                    contract,
+                    &binding,
+                    value,
+                    anchor,
+                    &valid_paths,
+                    &sources,
+                ) {
+                    Ok(metadata) => {
+                        if let Some(previous) =
+                            bindings_by_path.insert(metadata.path.clone(), metadata.binding.clone())
+                        {
+                            diagnostics.push(Diagnostic::error(format!(
+                                "calculation `{}` has duplicate field metadata for `{}` in bindings `{}` and `{}`",
+                                contract.entry, metadata.path, previous, metadata.binding
+                            )));
+                        } else {
+                            result.push(metadata);
+                        }
+                    }
+                    Err(diagnostic) => diagnostics.push(diagnostic),
+                }
             }
         }
     }
@@ -1442,23 +1521,58 @@ fn contract_field_metadata(
     }
 }
 
-fn calculation_field_metadata_from_reference(
+fn calculation_field_values(reference: &MetaReference) -> Vec<(String, &MetaValue)> {
+    reference
+        .typed_values()
+        .into_iter()
+        .filter(|typed_value| calculation_field_value(typed_value.value))
+        .map(|typed_value| {
+            let binding = if typed_value.value_path == "$" {
+                reference.binding_name.clone()
+            } else {
+                format!(
+                    "{}{}",
+                    reference.binding_name,
+                    typed_value.value_path.trim_start_matches('$')
+                )
+            };
+            (binding, typed_value.value)
+        })
+        .collect()
+}
+
+fn calculation_field_value(value: &MetaValue) -> bool {
+    let MetaValue::Constructor {
+        applied: true,
+        arguments,
+        ..
+    } = value
+    else {
+        return false;
+    };
+    let supported = ["path", "label", "question", "help", "unit"];
+    let fields = arguments
+        .iter()
+        .filter_map(|argument| argument.field.as_deref())
+        .collect::<BTreeSet<_>>();
+    arguments.len() == fields.len()
+        && fields.contains("path")
+        && fields.contains("label")
+        && fields.iter().all(|field| supported.contains(field))
+}
+
+fn calculation_field_metadata_from_value(
     contract: &CalculationContract,
-    reference: &MetaReference,
+    binding: &str,
+    value: &MetaValue,
     anchor: &MetaAnchor,
     valid_paths: &BTreeSet<String>,
     sources: &[CalculationMetadataReference],
 ) -> Result<CalculationFieldMetadata, Diagnostic> {
-    if reference.qualified_type.is_none() {
-        return Err(Diagnostic::error(format!(
-            "calculation field metadata binding `{}` has no statically known type",
-            reference.binding_name
-        )));
-    }
-    let Some(MetaValue::Constructor { arguments, .. }) = reference.static_data.as_ref() else {
+    let MetaValue::Constructor { arguments, .. } = value else {
         return Err(Diagnostic::error(format!(
             "calculation field metadata binding `{}` must be a pure ground named record",
-            reference.binding_name
+            binding
         )));
     };
     let mut fields = BTreeMap::new();
@@ -1466,13 +1580,13 @@ fn calculation_field_metadata_from_reference(
         let Some(name) = argument.field.as_deref() else {
             return Err(Diagnostic::error(format!(
                 "calculation field metadata binding `{}` must use named fields",
-                reference.binding_name
+                binding
             )));
         };
         if fields.insert(name, &argument.value).is_some() {
             return Err(Diagnostic::error(format!(
                 "calculation field metadata binding `{}` repeats field `{}`",
-                reference.binding_name, name
+                binding, name
             )));
         }
     }
@@ -1484,17 +1598,17 @@ fn calculation_field_metadata_from_reference(
     {
         return Err(Diagnostic::error(format!(
             "calculation field metadata binding `{}` has unsupported field `{}`",
-            reference.binding_name, unknown
+            binding, unknown
         )));
     }
 
-    let declared_path = required_meta_string(&fields, "path", &reference.binding_name)?;
+    let declared_path = required_meta_string(&fields, "path", binding)?;
     let path = normalize_calculation_field_path(contract, &declared_path, valid_paths).ok_or_else(
         || {
             let examples = valid_paths.iter().take(8).cloned().collect::<Vec<_>>();
             Diagnostic::error(format!(
                 "calculation field metadata binding `{}` targets unknown input path `{}` for `{}`",
-                reference.binding_name, declared_path, contract.entry
+                binding, declared_path, contract.entry
             ))
             .with_note(format!(
                 "use an exact canonical path such as {}",
@@ -1502,22 +1616,22 @@ fn calculation_field_metadata_from_reference(
             ))
         },
     )?;
-    let label = required_meta_string(&fields, "label", &reference.binding_name)?;
+    let label = required_meta_string(&fields, "label", binding)?;
     if label.trim().is_empty() {
         return Err(Diagnostic::error(format!(
             "calculation field metadata binding `{}` has an empty label",
-            reference.binding_name
+            binding
         )));
     }
 
     Ok(CalculationFieldMetadata {
         path,
         label: label.trim().to_string(),
-        question: optional_meta_string(&fields, "question", &reference.binding_name)?,
-        help: optional_meta_string(&fields, "help", &reference.binding_name)?,
-        unit: optional_meta_string(&fields, "unit", &reference.binding_name)?,
+        question: optional_meta_string(&fields, "question", binding)?,
+        help: optional_meta_string(&fields, "help", binding)?,
+        unit: optional_meta_string(&fields, "unit", binding)?,
         anchor: anchor.label.clone(),
-        binding: reference.binding_name.clone(),
+        binding: binding.to_string(),
         sources: sources.to_vec(),
     })
 }

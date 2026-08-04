@@ -67,6 +67,38 @@ optional strings, or omitted by a record type that does not declare them.
 Companion references on the same anchor, such as `source`, remain typed metadata
 and are copied into that field's source trace.
 
+For more than a few fields, put the records in an ordinary typed aggregate and
+attach that object once with the `meta` role. The calculation consumer finds
+field-shaped typed descendants recursively; other metadata consumers remain free
+to query the same object by its own nested types.
+
+```runa
+# CalculationMetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# CalculationMeta(a) = CalculationMeta(fields: List(CalculationField), attachments: a)
+
+= tax_input_meta = CalculationMeta(
+    fields = [
+        monthly_income_field,
+        filing_status_field,
+        children_field
+    ],
+    attachments = (
+        MetaAttachment(role = Source, value = tax_source),
+    )
+)
+
+--@label:calculate_tax::meta:tax_input_meta--
+```
+
+The emitted field binding names include stable aggregate paths such as
+`tax_input_meta.fields[0]`. A direct `field` reference remains supported. A
+`field` reference that is neither a field record nor an aggregate containing
+field records is an error; a generic `meta` object without calculation fields is
+simply ignored by the calculation field consumer. Nested `MetaAttachment`
+values are copied into the calculation and field source traces. Each trace keeps
+the canonical source `binding` and adds the aggregate `attachment_path`.
+
 Field metadata appears structurally in `runa schema` and participates in the
 schema fingerprint. In XLSX, the human label is the visible column header; the
 exact canonical path and all presentation data remain in the hidden `_columns`

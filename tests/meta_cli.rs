@@ -72,6 +72,94 @@ fn directory_meta_json_sweeps_typed_sources_recursively() {
 }
 
 #[test]
+fn meta_type_filter_finds_values_nested_in_typed_aggregate() {
+    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("meta-aggregate.runa");
+    let output = run_meta(&["--json", "--type", "Shape"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["references"], 1);
+    assert_eq!(document["counts"]["typed_values"], 2);
+    let reference = &document["references"][0];
+    assert_eq!(reference["binding"], "geometry_metadata");
+    assert_eq!(reference["type"], "Metadata");
+    let shape_values = reference["typed_values"]
+        .as_array()
+        .expect("typed values")
+        .iter()
+        .filter(|value| value["type"] == "Shape")
+        .collect::<Vec<_>>();
+    assert_eq!(shape_values.len(), 2);
+    assert_eq!(shape_values[0]["path"], "$.shapes[0]");
+    assert_eq!(shape_values[0]["data"]["name"], "Circle");
+    assert_eq!(shape_values[1]["path"], "$.shapes[1]");
+    assert_eq!(shape_values[1]["data"]["name"], "Triangle");
+}
+
+#[test]
+fn meta_role_filter_finds_typed_attachments_nested_in_an_aggregate() {
+    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("meta-role-aggregate.runa");
+    let output = run_meta(&["--json", "--role", "dependency_source"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["references"], 1);
+    assert_eq!(document["counts"]["attachments"], 1);
+    let attachments = document["references"][0]["attachments"]
+        .as_array()
+        .expect("attachments");
+    let dependency = attachments
+        .iter()
+        .find(|attachment| attachment["role"] == "dependency_source")
+        .expect("dependency source attachment");
+    assert_eq!(dependency["path"], "$.attachments[1]");
+    assert_eq!(dependency["value_path"], "$.attachments[1].value");
+    assert_eq!(dependency["binding"], "dependency_source");
+    assert_eq!(dependency["type"], "SourceInfo");
+}
+
+#[test]
+fn aggregate_meta_resolves_values_through_nested_plain_imports() {
+    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("meta-imports")
+        .join("aggregate.runa");
+    let output = run_meta(&["--json", "--role", "source"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["diagnostics"], 0);
+    assert_eq!(document["counts"]["attachments"], 1);
+    let attachment = &document["references"][0]["attachments"][0];
+    assert_eq!(attachment["role"], "source");
+    assert_eq!(attachment["binding"], "registry_source");
+    assert_eq!(attachment["type"], "SourceInfo");
+    assert_eq!(
+        attachment["data"]["arguments"][1]["value"]["value"],
+        "nested"
+    );
+}
+
+#[test]
 fn directory_meta_json_sweeps_warning_roles() {
     let output = run_meta(
         &["--json", "--role", "warning"],

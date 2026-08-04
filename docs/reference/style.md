@@ -171,45 +171,94 @@ required path and presentation fields.
 --@label:calculate_amount::field:amount_field--
 ```
 
-Other references may repeat as before:
+When one anchor needs many related metadata values, attach one typed aggregate
+instead of repeating the role in a long meta comment. Every constructor nested
+inside a pure ground aggregate retains its Futuruna type and a stable value path.
+Tools can therefore select the values they understand while the anchor stays
+short and domain-neutral.
+
+```runa
+# CalculationMeta(fields: List(CalculationField))
+
+= amount_meta = CalculationMeta(fields = [
+    amount_field,
+    currency_field,
+    period_field
+])
+
+--@label:calculate_amount::meta:amount_meta--
+```
+
+`runa meta --type CalculationField` finds `amount_meta` because it contains
+typed `CalculationField` descendants. JSON output reports those descendants as
+`typed_values` with paths such as `$.fields[0]`. This behavior is generic: the
+aggregate and nested types are ordinary user-defined Futuruna types, and `meta`
+is an ordinary user-defined role.
+
+When the aggregate also needs role-bearing values, define the generic
+`MetaAttachment` protocol and a typed role. This moves the role map into
+ordinary Futuruna data instead of extending the comment syntax.
 
 ```runa
 # Shape = Circle | Triangle | Square
+# ShapeMetaRole = Source | Warning
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # AuditWarning(message: Tekst)
+# ShapeMeta(a) = ShapeMeta(attachments: a)
 
 = comment_shape = Circle
 = alternate_shape = Triangle
 = shape_warning = AuditWarning(message = "Kredsen er ikke udtrykkeligt afgrænset")
+= shape_meta = ShapeMeta(
+    attachments = (
+        MetaAttachment(role = Source, value = comment_shape),
+        MetaAttachment(role = Source, value = alternate_shape),
+        MetaAttachment(role = Warning, value = shape_warning),
+    )
+)
 
---@label:shape_rule::source:comment_shape::source:alternate_shape::warning:shape_warning--
+--@label:shape_rule::meta:shape_meta--
 --@begin:shape_rule--
 | circles_rule(shape: Shape) -> shape == Circle
 --@end:shape_rule--
 ```
 
+`MetaAttachment` is an ordinary generic user-defined type with the conventional
+constructor and named fields shown above. A nullary role constructor is exposed
+as lower snake case, so `DependencySource` becomes `dependency_source`.
+Multiline tuples accept line breaks and a trailing comma. Direct
+`::ROLE:BINDING` pairs remain valid and are preferable for a single concise
+reference.
+
 Code spans use the compact `--@begin:LABEL--` and `--@end:LABEL--` forms.
 The earlier `--@begin::LABEL--` and `--@end::LABEL--` spellings remain accepted.
 
-`runa meta --type Shape file.runa` finds all references whose binding has type
-`Shape`. `runa meta --role warning file.runa` finds warning references, and the
-filters can be combined. Pure ground bindings also expose a static value and
-definition location. A reference may point to a binding in the current file or
-in any recursively reachable plain import; imported references retain the file
-and line where the binding is actually defined. Dynamic or unresolved bindings
-produce metadata diagnostics; they do not make `runa check`, interpretation, or
-generated code fail because the parser still treats every meta marker as a
-comment.
+`runa meta --type Shape file.runa` finds references whose binding has type
+`Shape` or whose typed aggregate contains a `Shape`. `runa meta --role warning
+file.runa` finds warning references, and the filters can be combined. Pure
+ground bindings also expose a static value, typed descendant paths, and
+definition location. Nested attachments additionally expose their normalized
+role, canonical value binding, attachment path, and value path. A reference may
+point to a binding in the current file or in any recursively reachable plain
+import; aggregate resolution follows referenced bindings transitively through
+nested imports. Dynamic or unresolved bindings produce metadata diagnostics;
+they do not make `runa check`, interpretation, or generated code fail because
+the parser still treats every meta marker as a comment.
 
 Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 `futuruna.meta.v1` document contains typed references, quoted source anchors,
 linked code spans and their declared types, rules, bindings, and functions, plus
 metadata diagnostics. Each ground reference retains its Futuruna rendering in
-`value` and exposes a structural `data` tree. Constructors, named arguments,
-lists, tuples, and primitive values are separate nodes, so an audit can inspect
-an `AuditWarning` field or a `SourceInfo` URL without parsing Futuruna display
-text. Expression-level forms such as `match` arms are not span symbols. `--type`
-and `--role` apply to JSON output as well, so a warning sweep can use
-`runa meta --json --role warning file.runa` without parsing presentation text.
+`value` and exposes a structural `data` tree. Constructors include their parent
+Futuruna type. Constructors, named arguments, lists, tuples, and primitive
+values are separate nodes, while `typed_values` indexes every nested constructor
+by type and value path. An audit can therefore inspect an `AuditWarning` field or
+a `SourceInfo` URL without parsing Futuruna display text. The additive
+`attachments` index makes nested `MetaAttachment` values directly queryable by
+role without parsing the structural tree. Expression-level forms such as
+`match` arms are not span symbols. `--type` and `--role` apply to JSON output as
+well, so a warning sweep can use `runa meta --json --role warning file.runa`
+without parsing presentation text.
 
 Raw-text anchors report `text_begin_marker_line` and `text_end_marker_line` for
 the `----` delimiters. `text_start_line` and `text_end_line` identify only the

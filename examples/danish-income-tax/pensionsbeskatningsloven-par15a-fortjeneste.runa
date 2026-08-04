@@ -1,0 +1,275 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./afskrivningsloven
+@ importer ./aktieavancebeskatningsloven
+@ importer ./ejendomsavancebeskatningsloven
+@ importer ./kursgevinstloven
+
+# Pbl15AFortjenesteKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par15a_fortjeneste = Pbl15AFortjenesteKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15 A, stk. 1 og 6",
+    hentet_dato = "2026-07-23"
+)
+
+= skat_pbl15a_fortjeneste_vejledning = Pbl15AFortjenesteKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048421",
+    identifier = "Den juridiske vejledning C.A.10.2.3.4, Opgørelse af fortjenesten",
+    hentet_dato = "2026-07-23"
+)
+
+--@label:pbl15a_fortjeneste_fra_kildelove::source:pensionsbeskatningsloven_lbk1243_par15a_fortjeneste::guidance:skat_pbl15a_fortjeneste_vejledning--
+----
+§ 15 A. Personer, der i forbindelse med afståelse af deres erhvervsmæssige
+virksomhed eller en andel af denne opnår en skattepligtig fortjeneste, eller som
+efter kildeskattelovens § 25 A, stk. 1, 3 eller 8, skal medregne en sådan
+fortjeneste opnået af vedkommendes ægtefælle ved indkomstopgørelsen, kan oprette
+pensionsordninger efter reglerne i stk. 5 og 6. Tilsvarende gælder en person,
+der afstår aktier i et selskab, der driver erhvervsmæssig virksomhed, og hvori
+den pågældende er hovedaktionær, jf. aktieavancebeskatningslovens § 4. Personen
+skal være fyldt 55 år inden afståelsen og skal desuden opfylde betingelserne i
+stk. 2-4.
+
+Stk. 6. Den, der opretter én eller flere pensionsordninger som nævnt i stk. 5,
+kan i alt højst indbetale et grundbeløb på 2.507.900 kr. (2010-niveau) til
+ordningerne. Grundbeløbet reguleres efter personskattelovens § 20. Indbetalingen
+til en pensionsordning hidrørende fra en given virksomhed kan dog ikke overstige
+den fortjeneste opnået ved afståelsen af virksomheden eller en andel af denne,
+som medregnes ved personens indkomstopgørelse.
+----
+
+--@begin:pbl15a_fortjeneste_fra_kildelove--
+# Pbl15AAfskrivningslovKilde = Pbl15AAl6Salg(input: Afskrivningslov6SalgInput) | Pbl15AAl9Virksomhedsophør(input: Afskrivningslov9Input) | Pbl15AAl9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | Pbl15AAl12BlandetAktiv(input: Afskrivningslov12Input) | Pbl15AAl21BygningEllerInstallation(input: Afskrivningslov21Input) | Pbl15AAl26LejetGrundEllerHjemfald(input: Afskrivningslov26Input) | Pbl15AAl39LejedeLokaler(input: Afskrivningslov39Input) | Pbl15AAl40GoodwillEllerImmaterieltAktiv(input: Afskrivningslov40Input) | Pbl15AAl40AKvote(input: Afskrivningslov40AInput) | Pbl15AAl40BLøbendeKvote(input: Afskrivningslov40BInput) | Pbl15AAl40CBetalingsrettighedEllerMælkekvote(input: Afskrivningslov40CInput) | Pbl15AAl42TelefonEllerDatakommunikation(input: Afskrivningslov42AfståelsesInput) | Pbl15AAl44AKunstneriskUdsmykning(input: Afskrivningslov44AAfståelsesInput) | Pbl15AAl44CForskudsafskrevetAktiv(input: Afskrivningslov44CInput) | Pbl15AAl50HistoriskBlandetAktiv(input: Afskrivningslov50SalgInput) | Pbl15AAl58HistoriskBygning(input: Afskrivningslov58SalgInput) | Pbl15AAl62HistoriskDriftsmiddel(input: Afskrivningslov62DriftsmiddelSalgInput) | Pbl15AAl62HistoriskMiljøanlæg(input: Afskrivningslov62MiljøanlægSalgInput)
+# Pbl15AAfskrivningslovKilderesultat = Pbl15AAl6SalgBeregnet(resultat: Afskrivningslov6SalgResultat) | Pbl15AAl9VirksomhedsophørBeregnet(resultat: Afskrivningslov9Resultat) | Pbl15AAl9EfterfølgendeSalgBeregnet(resultat: Afskrivningslov9EfterfølgendeSalgResultat) | Pbl15AAl12BlandetAktivBeregnet(resultat: Afskrivningslov12Resultat) | Pbl15AAl21BygningEllerInstallationBeregnet(resultat: Afskrivningslov21Resultat) | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(resultat: Afskrivningslov26Resultat) | Pbl15AAl39LejedeLokalerBeregnet(resultat: Afskrivningslov39Resultat) | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(resultat: Afskrivningslov40Resultat) | Pbl15AAl40AKvoteBeregnet(resultat: Afskrivningslov40AResultat) | Pbl15AAl40BLøbendeKvoteBeregnet(resultat: Afskrivningslov40BResultat) | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(resultat: Afskrivningslov40CResultat) | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(resultat: Afskrivningslov42AfståelsesResultat) | Pbl15AAl44AKunstneriskUdsmykningBeregnet(resultat: Afskrivningslov44AAfståelsesResultat) | Pbl15AAl44CForskudsafskrevetAktivBeregnet(resultat: Afskrivningslov44CResultat) | Pbl15AAl50HistoriskBlandetAktivBeregnet(resultat: Afskrivningslov50Resultat) | Pbl15AAl58HistoriskBygningBeregnet(resultat: Afskrivningslov58Resultat) | Pbl15AAl62HistoriskDriftsmiddelBeregnet(resultat: Afskrivningslov62DriftsmiddelSalgResultat) | Pbl15AAl62HistoriskMiljøanlægBeregnet(resultat: Afskrivningslov62MiljøanlægSalgResultat)
+# Pbl15AAfskrivningslovspost(identifikation: Tekst, kilde: Pbl15AAfskrivningslovKilde)
+# Pbl15AAfskrivningslovspostresultat(identifikation: Tekst, kilde: Pbl15AAfskrivningslovKilde, kilderesultat: Pbl15AAfskrivningslovKilderesultat, indkomstår: Heltal, kilde_gyldig: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+# Pbl15AEjendomsavancepost(identifikation: Tekst, input: EjendomsavancebeskatningslovInput)
+# Pbl15AEjendomsavancefremførsel = Pbl15AEblIngenFremførsel | Pbl15AEblFremførtTabFraForrigeÅr(fra_indkomstår: Heltal, tab_kroner: Heltal)
+# Pbl15AEjendomsavancegrundlag = Pbl15AUdenEjendomsavance | Pbl15AMedEjendomsavance(poster: List(Pbl15AEjendomsavancepost), fremførsel: Pbl15AEjendomsavancefremførsel)
+# Pbl15AEjendomsavancepostresultat(identifikation: Tekst, input: EjendomsavancebeskatningslovInput, resultat: EjendomsavancebeskatningslovResultat, kilde_gyldig: Boolsk)
+# Pbl15AEjendomsavancekilderesultat(grundlag: Pbl15AEjendomsavancegrundlag, postresultater: List(Pbl15AEjendomsavancepostresultat), tabsårsresultat: Option(EjendomsavancePar6Tabsårsresultat), kilder_gyldige: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+# Pbl15AAktieavancepost(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput)
+# Pbl15AAktieavancegrundlag = Pbl15AUdenAktieavance | Pbl15AMedAktieavance(poster: List(Pbl15AAktieavancepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
+# Pbl15AAktieavancepostresultat(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput, resultat: AktieavanceOrdinærHændelsesforløbResultat, kilde_gyldig: Boolsk, indeholder_hovedaktionærafståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk)
+# Pbl15AAktieavancekilderesultat(grundlag: Pbl15AAktieavancegrundlag, postresultater: List(Pbl15AAktieavancepostresultat), årsresultat: Option(AktieavanceOrdinærÅrsresultat), kilder_gyldige: Boolsk, indeholder_afståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+# Pbl15AKursgevinstpost(identifikation: Tekst, input: KursgevinstlovInput)
+# Pbl15AKursgevinstpostresultat(identifikation: Tekst, input: KursgevinstlovInput, resultat: KursgevinstlovResultat, kilde_gyldig: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
+
+# Pbl15AFortjenestegrundlag(afskrivningslovsposter: List(Pbl15AAfskrivningslovspost), ejendomsavance: Pbl15AEjendomsavancegrundlag, aktieavance: Pbl15AAktieavancegrundlag, kursgevinstposter: List(Pbl15AKursgevinstpost))
+# Pbl15AFortjenestegrundlagsresultat(indkomstår: Heltal, grundlag: Pbl15AFortjenestegrundlag, afskrivningslovsresultater: List(Pbl15AAfskrivningslovspostresultat), ejendomsavanceresultat: Pbl15AEjendomsavancekilderesultat, aktieavanceresultat: Pbl15AAktieavancekilderesultat, kursgevinstresultater: List(Pbl15AKursgevinstpostresultat), kildeidentifikationer_entydige: Boolsk, alle_kilder_gyldige: Boolsk, samlede_skattepligtige_fortjenester_før_am_kroner: Heltal, samlede_fradragsberettigede_tab_kroner: Heltal, netto_skattepligtig_fortjeneste_før_am_kroner: Heltal)
+
+| pbl15a_afskrivningslov_kilderesultat(kilde: Pbl15AAfskrivningslovKilde) -> match kilde {
+    | Pbl15AAl6Salg(input) -> Pbl15AAl6SalgBeregnet(resultat = afskrivningslov6_salg_resultat(input))
+    | Pbl15AAl9Virksomhedsophør(input) -> Pbl15AAl9VirksomhedsophørBeregnet(resultat = afskrivningslov9_resultat(input))
+    | Pbl15AAl9EfterfølgendeSalg(input) -> Pbl15AAl9EfterfølgendeSalgBeregnet(resultat = afskrivningslov9_efterfølgende_salg_resultat(input))
+    | Pbl15AAl12BlandetAktiv(input) -> Pbl15AAl12BlandetAktivBeregnet(resultat = afskrivningslov12_resultat(input))
+    | Pbl15AAl21BygningEllerInstallation(input) -> Pbl15AAl21BygningEllerInstallationBeregnet(resultat = afskrivningslov21_resultat(input))
+    | Pbl15AAl26LejetGrundEllerHjemfald(input) -> Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(resultat = afskrivningslov26_resultat(input))
+    | Pbl15AAl39LejedeLokaler(input) -> Pbl15AAl39LejedeLokalerBeregnet(resultat = afskrivningslov39_resultat(input))
+    | Pbl15AAl40GoodwillEllerImmaterieltAktiv(input) -> Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(resultat = afskrivningslov40_resultat(input))
+    | Pbl15AAl40AKvote(input) -> Pbl15AAl40AKvoteBeregnet(resultat = afskrivningslov40a_resultat(input))
+    | Pbl15AAl40BLøbendeKvote(input) -> Pbl15AAl40BLøbendeKvoteBeregnet(resultat = afskrivningslov40b_resultat(input))
+    | Pbl15AAl40CBetalingsrettighedEllerMælkekvote(input) -> Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(resultat = afskrivningslov40c_resultat(input))
+    | Pbl15AAl42TelefonEllerDatakommunikation(input) -> Pbl15AAl42TelefonEllerDatakommunikationBeregnet(resultat = afskrivningslov42_afståelses_resultat(input))
+    | Pbl15AAl44AKunstneriskUdsmykning(input) -> Pbl15AAl44AKunstneriskUdsmykningBeregnet(resultat = afskrivningslov44a_afståelses_resultat(input))
+    | Pbl15AAl44CForskudsafskrevetAktiv(input) -> Pbl15AAl44CForskudsafskrevetAktivBeregnet(resultat = afskrivningslov44c_resultat(input))
+    | Pbl15AAl50HistoriskBlandetAktiv(input) -> Pbl15AAl50HistoriskBlandetAktivBeregnet(resultat = afskrivningslov50_resultat(input))
+    | Pbl15AAl58HistoriskBygning(input) -> Pbl15AAl58HistoriskBygningBeregnet(resultat = afskrivningslov58_resultat(input))
+    | Pbl15AAl62HistoriskDriftsmiddel(input) -> Pbl15AAl62HistoriskDriftsmiddelBeregnet(resultat = afskrivningslov62_driftsmiddel_salg_resultat(input))
+    | Pbl15AAl62HistoriskMiljøanlæg(input) -> Pbl15AAl62HistoriskMiljøanlægBeregnet(resultat = afskrivningslov62_miljøanlæg_salg_resultat(input))
+}
+| pbl15a_afskrivningslov_resultat_indkomstår(resultat: Pbl15AAfskrivningslovKilderesultat) -> match resultat {
+    | Pbl15AAl6SalgBeregnet(r) -> r.indkomstår
+    | Pbl15AAl9VirksomhedsophørBeregnet(r) -> r.indkomstår
+    | Pbl15AAl9EfterfølgendeSalgBeregnet(r) -> r.indkomstår
+    | Pbl15AAl12BlandetAktivBeregnet(r) -> r.indkomstår
+    | Pbl15AAl21BygningEllerInstallationBeregnet(r) -> r.indkomstår
+    | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(r) -> r.indkomstår
+    | Pbl15AAl39LejedeLokalerBeregnet(r) -> r.indkomstår
+    | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(r) -> r.indkomstår
+    | Pbl15AAl40AKvoteBeregnet(r) -> r.indkomstår
+    | Pbl15AAl40BLøbendeKvoteBeregnet(r) -> r.indkomstår
+    | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(r) -> r.indkomstår
+    | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(r) -> r.indkomstår
+    | Pbl15AAl44AKunstneriskUdsmykningBeregnet(r) -> r.indkomstår
+    | Pbl15AAl44CForskudsafskrevetAktivBeregnet(r) -> r.indkomstår
+    | Pbl15AAl50HistoriskBlandetAktivBeregnet(r) -> r.salgsår
+    | Pbl15AAl58HistoriskBygningBeregnet(r) -> r.afståelsesår
+    | Pbl15AAl62HistoriskDriftsmiddelBeregnet(r) -> r.indkomstår
+    | Pbl15AAl62HistoriskMiljøanlægBeregnet(r) -> r.indkomstår
+}
+| pbl15a_afskrivningslov_resultat_gyldigt(resultat: Pbl15AAfskrivningslovKilderesultat) -> match resultat {
+    | Pbl15AAl6SalgBeregnet(r) -> (r.omfattet_af_stk2 || r.omfattet_af_stk4) && r.behandles_efter_par9 == Falskt
+    | Pbl15AAl9VirksomhedsophørBeregnet(r) -> r.virksomhed_solgt_eller_ophørt
+    | Pbl15AAl9EfterfølgendeSalgBeregnet(r) -> r.salg_omfattet_af_stk2
+    | Pbl15AAl12BlandetAktivBeregnet(r) -> r.omfattet_af_par12
+    | Pbl15AAl21BygningEllerInstallationBeregnet(r) -> r.omfattet_af_par21 && r.grundlag_gyldigt
+    | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(r) -> r.hændelse_matcher
+    | Pbl15AAl39LejedeLokalerBeregnet(r) -> r.position_gyldig && r.omfattet_af_par39 && r.valg_gyldigt && afskrivningslov39_afståelse(r.hændelse)
+    | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(r) -> r.position_gyldig && r.omfattet_af_par40 && r.valg_gyldigt && match r.hændelse { | Al40AktivSolgt(_, _) -> Sandt | Al40AktivOpgivet(_, _) -> Sandt | _ -> Falskt }
+    | Pbl15AAl40AKvoteBeregnet(r) -> r.position_gyldig && r.lager_gyldigt && r.omfattet_af_par40a && r.fifo_betingelse_opfyldt && r.hændelse_gyldig && (afskrivningslov40a_solgt(r.hændelse) || afskrivningslov40a_udløbet(r.hændelse))
+    | Pbl15AAl40BLøbendeKvoteBeregnet(r) -> r.position_gyldig && r.lager_gyldigt && r.omfattet_af_par40b && r.fifo_betingelse_opfyldt && r.valg_gyldigt && (afskrivningslov40b_solgt(r.hændelse) || afskrivningslov40b_udløbet(r.hændelse))
+    | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(r) -> r.input_gyldigt && r.omfattet_af_par40c && r.begivenhed == Al40CSidsteAktivAfståetEllerUdløbet
+    | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(r) -> r.position_gyldig && r.omfattet_af_par42_stk5
+    | Pbl15AAl44AKunstneriskUdsmykningBeregnet(r) -> r.position_gyldig && r.sidestillet_med_salg
+    | Pbl15AAl44CForskudsafskrevetAktivBeregnet(r) -> r.input_gyldigt && r.omfattet_af_par44c
+    | Pbl15AAl50HistoriskBlandetAktivBeregnet(r) -> r.position_gyldig && r.omfattet_af_par50_stk1
+    | Pbl15AAl58HistoriskBygningBeregnet(r) -> r.position_gyldig && r.salg_medfører_ophør_af_afskrivningsret
+    | Pbl15AAl62HistoriskDriftsmiddelBeregnet(r) -> r.input_gyldigt && r.omfattet_af_par62_stk1 && r.behandles_efter_par9 == Falskt
+    | Pbl15AAl62HistoriskMiljøanlægBeregnet(r) -> r.input_gyldigt && r.behandles_efter_par21
+}
+| pbl15a_afskrivningslov_resultat_fortjeneste_kroner(resultat: Pbl15AAfskrivningslovKilderesultat) -> match resultat {
+    | Pbl15AAl6SalgBeregnet(r) -> r.skattepligtig_indtægtsføring_kroner
+    | Pbl15AAl9VirksomhedsophørBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl9EfterfølgendeSalgBeregnet(r) -> r.skattepligtig_salgssum_eller_overskud_kroner
+    | Pbl15AAl12BlandetAktivBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl21BygningEllerInstallationBeregnet(r) -> r.skattepligtige_genvundne_afskrivninger_kroner
+    | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(r) -> r.skattepligtige_genvundne_afskrivninger_kroner
+    | Pbl15AAl39LejedeLokalerBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl40AKvoteBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl40BLøbendeKvoteBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(r) -> r.skattepligtigt_beløb_kroner
+    | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(r) -> r.skattepligtige_genvundne_afskrivninger_kroner
+    | Pbl15AAl44AKunstneriskUdsmykningBeregnet(r) -> r.skattepligtige_genvundne_afskrivninger_kroner
+    | Pbl15AAl44CForskudsafskrevetAktivBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl50HistoriskBlandetAktivBeregnet(r) -> r.skattepligtig_fortjeneste_kroner
+    | Pbl15AAl58HistoriskBygningBeregnet(_) -> 0
+    | Pbl15AAl62HistoriskDriftsmiddelBeregnet(r) -> r.skattepligtig_indtægtsføring_kroner
+    | Pbl15AAl62HistoriskMiljøanlægBeregnet(r) -> r.skattepligtige_genvundne_afskrivninger_kroner
+}
+| pbl15a_afskrivningslov_resultat_tab_kroner(resultat: Pbl15AAfskrivningslovKilderesultat) -> match resultat {
+    | Pbl15AAl6SalgBeregnet(r) -> r.fradragsberettiget_negativt_beløb_kroner
+    | Pbl15AAl9VirksomhedsophørBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl9EfterfølgendeSalgBeregnet(r) -> r.fradragsberettiget_endeligt_tab_kroner
+    | Pbl15AAl12BlandetAktivBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl21BygningEllerInstallationBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl26LejetGrundEllerHjemfaldBeregnet(r) -> r.fradragsberettiget_tab_ved_salg_kroner
+    | Pbl15AAl39LejedeLokalerBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl40GoodwillEllerImmaterieltAktivBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl40AKvoteBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl40BLøbendeKvoteBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl40CBetalingsrettighedEllerMælkekvoteBeregnet(r) -> r.fradragsberettiget_beløb_kroner
+    | Pbl15AAl42TelefonEllerDatakommunikationBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl44AKunstneriskUdsmykningBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl44CForskudsafskrevetAktivBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl50HistoriskBlandetAktivBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl58HistoriskBygningBeregnet(r) -> r.fradragsberettiget_tab_kroner
+    | Pbl15AAl62HistoriskDriftsmiddelBeregnet(_) -> 0
+    | Pbl15AAl62HistoriskMiljøanlægBeregnet(r) -> r.fradragsberettiget_tab_kroner
+}
+| pbl15a_afskrivningslovspost_resultat(indkomstår: Heltal, post: Pbl15AAfskrivningslovspost) -> Pbl15AAfskrivningslovspostresultat(
+    identifikation = post.identifikation,
+    kilde = post.kilde,
+    kilderesultat = pbl15a_afskrivningslov_kilderesultat(post.kilde),
+    indkomstår = pbl15a_afskrivningslov_resultat_indkomstår(pbl15a_afskrivningslov_kilderesultat(post.kilde)),
+    kilde_gyldig = post.identifikation != "" && pbl15a_afskrivningslov_resultat_indkomstår(pbl15a_afskrivningslov_kilderesultat(post.kilde)) == indkomstår && pbl15a_afskrivningslov_resultat_gyldigt(pbl15a_afskrivningslov_kilderesultat(post.kilde)),
+    skattepligtig_fortjeneste_kroner = hvis pbl15a_afskrivningslov_resultat_gyldigt(pbl15a_afskrivningslov_kilderesultat(post.kilde)) { pbl15a_afskrivningslov_resultat_fortjeneste_kroner(pbl15a_afskrivningslov_kilderesultat(post.kilde)) } ellers { 0 },
+    fradragsberettiget_tab_kroner = hvis pbl15a_afskrivningslov_resultat_gyldigt(pbl15a_afskrivningslov_kilderesultat(post.kilde)) { pbl15a_afskrivningslov_resultat_tab_kroner(pbl15a_afskrivningslov_kilderesultat(post.kilde)) } ellers { 0 }
+)
+
+| pbl15a_ejendomsavancepost_resultat(indkomstår: Heltal, post: Pbl15AEjendomsavancepost) -> Pbl15AEjendomsavancepostresultat(
+    identifikation = post.identifikation,
+    input = post.input,
+    resultat = ejendomsavancebeskatningslov_resultat(post.input),
+    kilde_gyldig = post.identifikation != "" && ejendomsavancebeskatningslov_resultat(post.input).input_gyldigt && ejendomsavancebeskatningslov_resultat(post.input).regelgrundlag_understøttet && ejendomsavancebeskatningslov_resultat(post.input).indkomstår == indkomstår
+)
+| pbl15a_ejendomsavance_resultater(postresultater: List(Pbl15AEjendomsavancepostresultat)) -> map(postresultater, |post: Pbl15AEjendomsavancepostresultat| post.resultat)
+| pbl15a_ejendomsavance_tabsposter(postresultater: List(Pbl15AEjendomsavancepostresultat)) -> map(postresultater, |post: Pbl15AEjendomsavancepostresultat| EjendomsavancePar6Tabspost(resultat = post.resultat))
+| pbl15a_ejendomsavance_fremførsel(fremførsel: Pbl15AEjendomsavancefremførsel) -> match fremførsel {
+    | Pbl15AEblIngenFremførsel -> EblIngenFremførsel
+    | Pbl15AEblFremførtTabFraForrigeÅr(fra_indkomstår, tab_kroner) -> EblFremførtTabFraForrigeIndkomstår(fra_indkomstår = fra_indkomstår, tab_kroner = tab_kroner)
+}
+| pbl15a_ejendomsavance_tabsårsresultat(indkomstår: Heltal, postresultater: List(Pbl15AEjendomsavancepostresultat), fremførsel: Pbl15AEjendomsavancefremførsel) -> ejendomsavance_par6_tabsårsresultat_uden_ægtefælle(EjendomsavancePar6Tabsårsgrundlag(
+    indkomstår = indkomstår,
+    tabsposter = pbl15a_ejendomsavance_tabsposter(postresultater),
+    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = pbl15a_ejendomsavance_resultater(postresultater)),
+    fremførsel = pbl15a_ejendomsavance_fremførsel(fremførsel)
+))
+| pbl15a_ejendomsavance_kilderesultat(indkomstår: Heltal, grundlag: Pbl15AEjendomsavancegrundlag) -> match grundlag {
+    | Pbl15AUdenEjendomsavance -> Pbl15AEjendomsavancekilderesultat(grundlag = grundlag, postresultater = [], tabsårsresultat = None, kilder_gyldige = Sandt, skattepligtig_fortjeneste_kroner = 0, fradragsberettiget_tab_kroner = 0)
+    | Pbl15AMedEjendomsavance(poster, fremførsel) -> Pbl15AEjendomsavancekilderesultat(
+        grundlag = grundlag,
+        postresultater = map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)),
+        tabsårsresultat = Some(pbl15a_ejendomsavance_tabsårsresultat(indkomstår, map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)), fremførsel)),
+        kilder_gyldige = length(poster) > 0 && all(map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)), |resultat: Pbl15AEjendomsavancepostresultat| resultat.kilde_gyldig) && pbl15a_ejendomsavance_tabsårsresultat(indkomstår, map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)), fremførsel).afvist_fremførsel_kroner == 0,
+        skattepligtig_fortjeneste_kroner = pbl15a_ejendomsavance_tabsårsresultat(indkomstår, map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)), fremførsel).egne_skattepligtige_fortjenester_kroner,
+        fradragsberettiget_tab_kroner = pbl15a_ejendomsavance_tabsårsresultat(indkomstår, map(poster, |post: Pbl15AEjendomsavancepost| pbl15a_ejendomsavancepost_resultat(indkomstår, post)), fremførsel).tab_modregnet_i_egne_fortjenester_kroner
+    )
+}
+
+| pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær(resultat: AktieavanceOrdinærHændelsesresultat) -> aktieavance_ordinaer_er_afståelse(resultat.hændelse) == Falskt || aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).hovedaktionæraktier
+| pbl15a_aktieavancepost_resultat(post: Pbl15AAktieavancepost) -> Pbl15AAktieavancepostresultat(
+    identifikation = post.identifikation,
+    input = post.input,
+    resultat = aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser),
+    kilde_gyldig = post.identifikation != "" && aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).alle_hændelser_gyldige,
+    indeholder_hovedaktionærafståelse = any(aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse) && aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).hovedaktionæraktier),
+    alle_afståelser_er_hovedaktionæraktier = all(aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).hændelsesresultater, pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær)
+)
+| pbl15a_aktieavance_skatteposter(postresultater: List(Pbl15AAktieavancepostresultat)) -> flat_map(postresultater, |post: Pbl15AAktieavancepostresultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(post.resultat.hændelsesresultater))
+| pbl15a_aktieavance_årsresultat(indkomstår: Heltal, postresultater: List(Pbl15AAktieavancepostresultat), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+    indkomstår = indkomstår,
+    skatteposter = pbl15a_aktieavance_skatteposter(postresultater),
+    fremført_tab_efter_par13a_kroner = fremført_tab_efter_par13a_kroner,
+    modregningsgrundlag = modregningsgrundlag,
+    gift_og_samlevende_ved_årets_udgang = gift_og_samlevende_ved_årets_udgang
+))
+| pbl15a_aktieavance_kilderesultat(indkomstår: Heltal, grundlag: Pbl15AAktieavancegrundlag) -> match grundlag {
+    | Pbl15AUdenAktieavance -> Pbl15AAktieavancekilderesultat(grundlag = grundlag, postresultater = [], årsresultat = None, kilder_gyldige = Sandt, indeholder_afståelse = Falskt, alle_afståelser_er_hovedaktionæraktier = Sandt, skattepligtig_fortjeneste_kroner = 0, fradragsberettiget_tab_kroner = 0)
+    | Pbl15AMedAktieavance(poster, fremført_tab, modregningsgrundlag, gift_og_samlevende) -> Pbl15AAktieavancekilderesultat(
+        grundlag = grundlag,
+        postresultater = map(poster, pbl15a_aktieavancepost_resultat),
+        årsresultat = Some(pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende)),
+        kilder_gyldige = length(poster) > 0 && fremført_tab >= 0 && all(map(poster, pbl15a_aktieavancepost_resultat), |resultat: Pbl15AAktieavancepostresultat| resultat.kilde_gyldig),
+        indeholder_afståelse = any(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| any(post.resultat.hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse))),
+        alle_afståelser_er_hovedaktionæraktier = all(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| post.alle_afståelser_er_hovedaktionæraktier),
+        skattepligtig_fortjeneste_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende).skattepligtige_gevinster_efter_par12_kroner,
+        fradragsberettiget_tab_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende).fradragsberettiget_tab_i_egen_aktieindkomst_kroner
+    )
+}
+
+| pbl15a_kursgevinstpost_resultat(indkomstår: Heltal, post: Pbl15AKursgevinstpost) -> Pbl15AKursgevinstpostresultat(
+    identifikation = post.identifikation,
+    input = post.input,
+    resultat = kursgevinstlov_resultat(post.input),
+    kilde_gyldig = post.identifikation != "" && kursgevinstlov_resultat(post.input).indkomstår == indkomstår && kursgevinstlov_resultat(post.input).omfattet_af_par1 && kursgevinstlov_resultat(post.input).person_eller_dødsbo_efter_par12,
+    skattepligtig_fortjeneste_kroner = kursgevinstlov_resultat(post.input).skattepligtig_gevinst_kroner,
+    fradragsberettiget_tab_kroner = kursgevinstlov_resultat(post.input).fradragsberettiget_tab_kroner
+)
+
+| pbl15a_fortjeneste_kildeidentifikationer(grundlag: Pbl15AFortjenestegrundlag) -> concat(
+    concat(
+        map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| post.identifikation),
+        match grundlag.ejendomsavance { | Pbl15AUdenEjendomsavance -> [] | Pbl15AMedEjendomsavance(poster, _) -> map(poster, |post: Pbl15AEjendomsavancepost| post.identifikation) }
+    ),
+    concat(
+        match grundlag.aktieavance { | Pbl15AUdenAktieavance -> [] | Pbl15AMedAktieavance(poster, _, _, _) -> map(poster, |post: Pbl15AAktieavancepost| post.identifikation) },
+        map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| post.identifikation)
+    )
+)
+| pbl15a_fortjeneste_kildeidentifikationer_entydige(grundlag: Pbl15AFortjenestegrundlag) -> all(pbl15a_fortjeneste_kildeidentifikationer(grundlag), |identifikation: Tekst| identifikation != "" && length(filter(pbl15a_fortjeneste_kildeidentifikationer(grundlag), |anden: Tekst| anden == identifikation)) == 1)
+| pbl15a_fortjenestegrundlag_har_kilder(grundlag: Pbl15AFortjenestegrundlag) -> length(pbl15a_fortjeneste_kildeidentifikationer(grundlag)) > 0
+| pbl15a_fortjenestegrundlag_er_udelukkende_aktieavance(grundlag: Pbl15AFortjenestegrundlag) -> length(grundlag.afskrivningslovsposter) == 0 && grundlag.ejendomsavance == Pbl15AUdenEjendomsavance && length(grundlag.kursgevinstposter) == 0 && match grundlag.aktieavance { | Pbl15AMedAktieavance(_, _, _, _) -> Sandt | _ -> Falskt }
+| pbl15a_fortjenestegrundlagsresultat(indkomstår: Heltal, grundlag: Pbl15AFortjenestegrundlag) -> Pbl15AFortjenestegrundlagsresultat(
+    indkomstår = indkomstår,
+    grundlag = grundlag,
+    afskrivningslovsresultater = map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)),
+    ejendomsavanceresultat = pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance),
+    aktieavanceresultat = pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance),
+    kursgevinstresultater = map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)),
+    kildeidentifikationer_entydige = pbl15a_fortjeneste_kildeidentifikationer_entydige(grundlag),
+    alle_kilder_gyldige = pbl15a_fortjenestegrundlag_har_kilder(grundlag) && pbl15a_fortjeneste_kildeidentifikationer_entydige(grundlag) && all(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), |resultat: Pbl15AAfskrivningslovspostresultat| resultat.kilde_gyldig) && pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).kilder_gyldige && pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).kilder_gyldige && all(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), |resultat: Pbl15AKursgevinstpostresultat| resultat.kilde_gyldig),
+    samlede_skattepligtige_fortjenester_før_am_kroner = foldl(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).skattepligtig_fortjeneste_kroner + pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).skattepligtig_fortjeneste_kroner + foldl(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), 0, |sum: Heltal, resultat: Pbl15AKursgevinstpostresultat| sum + resultat.skattepligtig_fortjeneste_kroner), |sum: Heltal, resultat: Pbl15AAfskrivningslovspostresultat| sum + resultat.skattepligtig_fortjeneste_kroner),
+    samlede_fradragsberettigede_tab_kroner = foldl(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).fradragsberettiget_tab_kroner + pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).fradragsberettiget_tab_kroner + foldl(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), 0, |sum: Heltal, resultat: Pbl15AKursgevinstpostresultat| sum + resultat.fradragsberettiget_tab_kroner), |sum: Heltal, resultat: Pbl15AAfskrivningslovspostresultat| sum + resultat.fradragsberettiget_tab_kroner),
+    netto_skattepligtig_fortjeneste_før_am_kroner = penge_positivt_beløb(
+        foldl(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).skattepligtig_fortjeneste_kroner + pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).skattepligtig_fortjeneste_kroner + foldl(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), 0, |sum: Heltal, resultat: Pbl15AKursgevinstpostresultat| sum + resultat.skattepligtig_fortjeneste_kroner), |sum: Heltal, resultat: Pbl15AAfskrivningslovspostresultat| sum + resultat.skattepligtig_fortjeneste_kroner)
+        - foldl(map(grundlag.afskrivningslovsposter, |post: Pbl15AAfskrivningslovspost| pbl15a_afskrivningslovspost_resultat(indkomstår, post)), pbl15a_ejendomsavance_kilderesultat(indkomstår, grundlag.ejendomsavance).fradragsberettiget_tab_kroner + pbl15a_aktieavance_kilderesultat(indkomstår, grundlag.aktieavance).fradragsberettiget_tab_kroner + foldl(map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| pbl15a_kursgevinstpost_resultat(indkomstår, post)), 0, |sum: Heltal, resultat: Pbl15AKursgevinstpostresultat| sum + resultat.fradragsberettiget_tab_kroner), |sum: Heltal, resultat: Pbl15AAfskrivningslovspostresultat| sum + resultat.fradragsberettiget_tab_kroner)
+    )
+)
+--@end:pbl15a_fortjeneste_fra_kildelove--

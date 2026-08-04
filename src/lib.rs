@@ -1418,6 +1418,7 @@ pub enum MetaValue {
     Unit,
     Constructor {
         name: String,
+        qualified_type: String,
         applied: bool,
         arguments: Vec<MetaValueArgument>,
     },
@@ -1446,6 +1447,7 @@ impl MetaValue {
             Self::Unit => "()".to_string(),
             Self::Constructor {
                 name,
+                qualified_type: _,
                 applied,
                 arguments,
             } => {
@@ -1486,7 +1488,186 @@ impl MetaValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaValueArgument {
     pub field: Option<String>,
+    pub binding_name: Option<String>,
     pub value: MetaValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaTypedValue<'a> {
+    pub value_path: String,
+    pub qualified_type: &'a str,
+    pub value: &'a MetaValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaAttachmentValue<'a> {
+    pub attachment_path: String,
+    pub role_path: String,
+    pub value_path: String,
+    pub role: String,
+    pub binding_name: Option<&'a str>,
+    pub attachment: &'a MetaValue,
+    pub value: &'a MetaValue,
+}
+
+impl MetaValue {
+    pub fn typed_values(&self) -> Vec<MetaTypedValue<'_>> {
+        let mut values = Vec::new();
+        self.collect_typed_values("$", &mut values);
+        values
+    }
+
+    pub fn typed_values_by_type(&self, qualified_type: &str) -> Vec<MetaTypedValue<'_>> {
+        self.typed_values()
+            .into_iter()
+            .filter(|value| value.qualified_type == qualified_type)
+            .collect()
+    }
+
+    pub fn attachments(&self) -> Vec<MetaAttachmentValue<'_>> {
+        let mut attachments = Vec::new();
+        self.collect_attachments("$", &mut attachments);
+        attachments
+    }
+
+    pub fn qualified_type(&self) -> Option<&str> {
+        match self {
+            Self::Constructor { qualified_type, .. } => Some(qualified_type),
+            _ => None,
+        }
+    }
+
+    fn collect_typed_values<'a>(&'a self, value_path: &str, values: &mut Vec<MetaTypedValue<'a>>) {
+        match self {
+            Self::Constructor {
+                qualified_type,
+                arguments,
+                ..
+            } => {
+                values.push(MetaTypedValue {
+                    value_path: value_path.to_string(),
+                    qualified_type,
+                    value: self,
+                });
+                for (index, argument) in arguments.iter().enumerate() {
+                    let child_path = match argument.field.as_deref() {
+                        Some(field) => format!("{value_path}.{field}"),
+                        None => format!("{value_path}[{index}]"),
+                    };
+                    argument.value.collect_typed_values(&child_path, values);
+                }
+            }
+            Self::List(items) | Self::Tuple(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    item.collect_typed_values(&format!("{value_path}[{index}]"), values);
+                }
+            }
+            Self::Unary { value, .. } => value.collect_typed_values(value_path, values),
+            _ => {}
+        }
+    }
+
+    fn collect_attachments<'a>(
+        &'a self,
+        value_path: &str,
+        attachments: &mut Vec<MetaAttachmentValue<'a>>,
+    ) {
+        match self {
+            Self::Constructor {
+                name,
+                applied: true,
+                arguments,
+                ..
+            } => {
+                if name == "MetaAttachment" {
+                    let role = arguments
+                        .iter()
+                        .find(|argument| argument.field.as_deref() == Some("role"));
+                    let value = arguments
+                        .iter()
+                        .find(|argument| argument.field.as_deref() == Some("value"));
+                    if arguments.len() == 2 {
+                        if let (Some(role), Some(value)) = (role, value) {
+                            if let Some(role_identifier) = meta_role_identifier(&role.value) {
+                                attachments.push(MetaAttachmentValue {
+                                    attachment_path: value_path.to_string(),
+                                    role_path: format!("{value_path}.role"),
+                                    value_path: format!("{value_path}.value"),
+                                    role: role_identifier,
+                                    binding_name: value.binding_name.as_deref(),
+                                    attachment: self,
+                                    value: &value.value,
+                                });
+                            }
+                        }
+                    }
+                }
+                for (index, argument) in arguments.iter().enumerate() {
+                    let child_path = match argument.field.as_deref() {
+                        Some(field) => format!("{value_path}.{field}"),
+                        None => format!("{value_path}[{index}]"),
+                    };
+                    argument.value.collect_attachments(&child_path, attachments);
+                }
+            }
+            Self::Constructor { .. } => {}
+            Self::List(items) | Self::Tuple(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    item.collect_attachments(&format!("{value_path}[{index}]"), attachments);
+                }
+            }
+            Self::Unary { value, .. } => value.collect_attachments(value_path, attachments),
+            _ => {}
+        }
+    }
+}
+
+fn meta_role_identifier(value: &MetaValue) -> Option<String> {
+    match value {
+        MetaValue::String(value) if !value.trim().is_empty() => Some(value.trim().to_string()),
+        MetaValue::Constructor {
+            name,
+            applied: false,
+            arguments,
+            ..
+        } if arguments.is_empty() => Some(meta_constructor_role_identifier(name)),
+        MetaValue::Constructor {
+            applied: true,
+            arguments,
+            ..
+        } => arguments.iter().find_map(|argument| {
+            matches!(argument.field.as_deref(), Some("id" | "name"))
+                .then_some(&argument.value)
+                .and_then(|value| match value {
+                    MetaValue::String(value) if !value.trim().is_empty() => {
+                        Some(value.trim().to_string())
+                    }
+                    _ => None,
+                })
+        }),
+        _ => None,
+    }
+}
+
+fn meta_constructor_role_identifier(name: &str) -> String {
+    let chars = name.chars().collect::<Vec<_>>();
+    let mut identifier = String::new();
+    for (index, character) in chars.iter().copied().enumerate() {
+        let previous = index
+            .checked_sub(1)
+            .and_then(|index| chars.get(index))
+            .copied();
+        let next = chars.get(index + 1).copied();
+        if character.is_uppercase()
+            && index > 0
+            && (previous.is_some_and(|value| value.is_lowercase() || value.is_numeric())
+                || next.is_some_and(char::is_lowercase))
+        {
+            identifier.push('_');
+        }
+        identifier.extend(character.to_lowercase());
+    }
+    identifier
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1510,6 +1691,47 @@ pub struct MetaReference {
     pub definition_file: Option<String>,
     pub definition_line: Option<usize>,
     pub comment_line: usize,
+}
+
+impl MetaReference {
+    pub fn typed_values(&self) -> Vec<MetaTypedValue<'_>> {
+        self.static_data
+            .as_ref()
+            .map(MetaValue::typed_values)
+            .unwrap_or_default()
+    }
+
+    pub fn typed_values_by_type(&self, qualified_type: &str) -> Vec<MetaTypedValue<'_>> {
+        self.static_data
+            .as_ref()
+            .map(|value| value.typed_values_by_type(qualified_type))
+            .unwrap_or_default()
+    }
+
+    pub fn attachments(&self) -> Vec<MetaAttachmentValue<'_>> {
+        self.static_data
+            .as_ref()
+            .map(MetaValue::attachments)
+            .unwrap_or_default()
+    }
+
+    pub fn matches(&self, qualified_type: Option<&str>, role: Option<&str>) -> bool {
+        let direct_match = role.is_none_or(|expected| self.role == expected)
+            && qualified_type.is_none_or(|expected| {
+                self.qualified_type.as_deref() == Some(expected)
+                    || !self.typed_values_by_type(expected).is_empty()
+            });
+        direct_match
+            || self.attachments().into_iter().any(|attachment| {
+                role.is_none_or(|expected| attachment.role == expected)
+                    && qualified_type.is_none_or(|expected| {
+                        !attachment
+                            .attachment
+                            .typed_values_by_type(expected)
+                            .is_empty()
+                    })
+            })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1580,11 +1802,7 @@ impl MetaIndex {
         self.anchors
             .iter()
             .flat_map(|anchor| anchor.references.iter())
-            .filter(|reference| {
-                qualified_type
-                    .is_none_or(|expected| reference.qualified_type.as_deref() == Some(expected))
-                    && role.is_none_or(|expected| reference.role == expected)
-            })
+            .filter(|reference| reference.matches(qualified_type, role))
             .collect()
     }
 
@@ -1956,9 +2174,55 @@ fn collect_imported_meta_bindings(
     }
 }
 
+fn meta_binding_dependencies(
+    roots: &BTreeSet<String>,
+    bindings: &BTreeMap<String, MetaBindingDefinition>,
+    constructors: &BTreeMap<String, (String, usize)>,
+) -> BTreeSet<String> {
+    let mut dependencies = BTreeSet::new();
+    let mut pending = roots.iter().cloned().collect::<Vec<_>>();
+    while let Some(name) = pending.pop() {
+        if constructors.contains_key(&name) || !dependencies.insert(name.clone()) {
+            continue;
+        }
+        let Some(definition) = bindings.get(&name) else {
+            continue;
+        };
+        let mut nested = BTreeSet::new();
+        collect_meta_expr_dependencies(&definition.expr, &mut nested);
+        pending.extend(nested);
+    }
+    dependencies
+}
+
+fn collect_meta_expr_dependencies(expr: &Expr, dependencies: &mut BTreeSet<String>) {
+    match &expr.kind {
+        ExprKind::Var(name) => {
+            dependencies.insert(name.clone());
+        }
+        ExprKind::App(function, arguments) => {
+            collect_meta_expr_dependencies(function, dependencies);
+            for argument in arguments {
+                if let Some((_, value)) = named_arg_parts(argument) {
+                    collect_meta_expr_dependencies(value, dependencies);
+                } else {
+                    collect_meta_expr_dependencies(argument, dependencies);
+                }
+            }
+        }
+        ExprKind::List(items) | ExprKind::Tuple(items) => {
+            for item in items {
+                collect_meta_expr_dependencies(item, dependencies);
+            }
+        }
+        ExprKind::UnOp(_, value) => collect_meta_expr_dependencies(value, dependencies),
+        _ => {}
+    }
+}
+
 fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut MetaIndex) {
     let mut has_valid_reference = false;
-    let mut sought_bindings = BTreeSet::new();
+    let mut referenced_bindings = BTreeSet::new();
     for anchor in &index.anchors {
         for reference in &anchor.references {
             if reference.role.is_empty() {
@@ -1979,7 +2243,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
                 });
             } else {
                 has_valid_reference = true;
-                sought_bindings.insert(reference.binding_name.clone());
+                referenced_bindings.insert(reference.binding_name.clone());
             }
         }
     }
@@ -2010,13 +2274,27 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
 
     let mut bindings = BTreeMap::new();
     collect_local_meta_bindings(source, &stmts, None, &mut bindings);
-    collect_imported_meta_bindings(
-        &stmts,
-        source_dir.as_deref(),
-        &sought_bindings,
-        &mut bindings,
-        &mut BTreeSet::new(),
-    );
+    loop {
+        let sought_bindings =
+            meta_binding_dependencies(&referenced_bindings, &bindings, &checker.constructors);
+        if sought_bindings
+            .iter()
+            .all(|name| bindings.contains_key(name))
+        {
+            break;
+        }
+        let previous_binding_count = bindings.len();
+        collect_imported_meta_bindings(
+            &stmts,
+            source_dir.as_deref(),
+            &sought_bindings,
+            &mut bindings,
+            &mut BTreeSet::new(),
+        );
+        if bindings.len() == previous_binding_count {
+            break;
+        }
+    }
 
     let value_bindings: BTreeMap<String, &Expr> = bindings
         .iter()
@@ -2121,9 +2399,10 @@ fn resolve_static_meta_expr(
         ExprKind::Lit(Literal::Bool(value)) => Some(MetaValue::Boolean(*value)),
         ExprKind::Unit => Some(MetaValue::Unit),
         ExprKind::Var(name) => {
-            if matches!(constructors.get(name), Some((_, 0))) {
+            if let Some((qualified_type, 0)) = constructors.get(name) {
                 Some(MetaValue::Constructor {
                     name: name.clone(),
+                    qualified_type: qualified_type.clone(),
                     applied: false,
                     arguments: Vec::new(),
                 })
@@ -2135,7 +2414,7 @@ fn resolve_static_meta_expr(
             let ExprKind::Var(constructor) = &func.kind else {
                 return None;
             };
-            let (_, arity) = constructors.get(constructor)?;
+            let (qualified_type, arity) = constructors.get(constructor)?;
             if *arity != args.len() {
                 return None;
             }
@@ -2145,17 +2424,20 @@ fn resolve_static_meta_expr(
                 if let Some((field, value)) = named_arg_parts(arg) {
                     resolved_arguments.push(MetaValueArgument {
                         field: Some(field.to_string()),
+                        binding_name: meta_binding_reference_name(value, bindings),
                         value: resolve_static_meta_expr(value, bindings, constructors, visiting)?,
                     });
                 } else {
                     resolved_arguments.push(MetaValueArgument {
                         field: None,
+                        binding_name: meta_binding_reference_name(arg, bindings),
                         value: resolve_static_meta_expr(arg, bindings, constructors, visiting)?,
                     });
                 }
             }
             Some(MetaValue::Constructor {
                 name: constructor.clone(),
+                qualified_type: qualified_type.clone(),
                 applied: true,
                 arguments: resolved_arguments,
             })
@@ -2187,6 +2469,16 @@ fn resolve_static_meta_expr(
         }
         _ => None,
     }
+}
+
+fn meta_binding_reference_name<'a>(
+    expr: &'a Expr,
+    bindings: &BTreeMap<String, &Expr>,
+) -> Option<String> {
+    let ExprKind::Var(name) = &expr.kind else {
+        return None;
+    };
+    bindings.contains_key(name).then(|| name.clone())
 }
 
 fn parsed_meta_rule_symbols(source: &str) -> Option<BTreeMap<usize, Vec<String>>> {
@@ -2489,14 +2781,17 @@ Raw additions
             warning[0].static_data,
             Some(MetaValue::Constructor {
                 name: "AuditWarning".to_string(),
+                qualified_type: "AuditWarning".to_string(),
                 applied: true,
                 arguments: vec![
                     MetaValueArgument {
                         field: Some("code".to_string()),
+                        binding_name: None,
                         value: MetaValue::String("GEOMETRY".to_string()),
                     },
                     MetaValueArgument {
                         field: Some("message".to_string()),
+                        binding_name: None,
                         value: MetaValue::String("Review this shape".to_string()),
                     },
                 ],
@@ -2505,6 +2800,79 @@ Raw additions
         assert!(warning[0].definition_line.is_some());
         assert_eq!(index.anchors_for_label("geometry").len(), 1);
         assert_eq!(index.spans_for_reference(warning[0]).len(), 1);
+    }
+
+    #[test]
+    fn typed_meta_aggregates_expose_nested_values_by_type_and_path() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+# AuditWarning(code: String, message: String)
+# MetaBundle(shapes: List(Shape), warnings: List(AuditWarning))
+
+= geometry_meta = MetaBundle(
+    shapes = [Circle, Triangle],
+    warnings = [AuditWarning(code = "GEOMETRY", message = "Review this shape")]
+)
+
+--@label:geometry::meta:geometry_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let reference = &index.anchors[0].references[0];
+        assert_eq!(reference.qualified_type.as_deref(), Some("MetaBundle"));
+        let shapes = reference.typed_values_by_type("Shape");
+        assert_eq!(shapes.len(), 2);
+        assert_eq!(shapes[0].value_path, "$.shapes[0]");
+        assert_eq!(shapes[0].value.to_source(), "Circle");
+        assert_eq!(shapes[1].value_path, "$.shapes[1]");
+        assert_eq!(shapes[1].value.to_source(), "Triangle");
+        let warnings = reference.typed_values_by_type("AuditWarning");
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].value_path, "$.warnings[0]");
+        assert_eq!(index.references_by_type("Shape"), vec![reference]);
+        assert_eq!(index.references_by_type("AuditWarning"), vec![reference]);
+    }
+
+    #[test]
+    fn typed_meta_attachments_preserve_nested_roles_values_and_paths() {
+        let source = r#"
+# MetaRole = Source | DependencySource
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# SourceInfo(url: String)
+# MetaBundle(a) = MetaBundle(sources: a)
+
+= primary = SourceInfo(url = "https://example.invalid/primary")
+= dependency = SourceInfo(url = "https://example.invalid/dependency")
+= geometry_meta = MetaBundle(sources = (
+    MetaAttachment(role = Source, value = primary),
+    MetaAttachment(role = DependencySource, value = dependency)
+))
+
+--@label:geometry::meta:geometry_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let reference = &index.anchors[0].references[0];
+        let attachments = reference.attachments();
+        assert_eq!(attachments.len(), 2);
+        assert_eq!(attachments[0].role, "source");
+        assert_eq!(attachments[0].attachment_path, "$.sources[0]");
+        assert_eq!(attachments[0].value_path, "$.sources[0].value");
+        assert_eq!(attachments[0].binding_name, Some("primary"));
+        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
+        assert_eq!(attachments[1].role, "dependency_source");
+        assert_eq!(index.references_by_role("source"), vec![reference]);
+        assert_eq!(
+            index.references_matching(Some("SourceInfo"), Some("dependency_source")),
+            vec![reference]
+        );
+        assert!(index
+            .references_matching(Some("Shape"), Some("source"))
+            .is_empty());
     }
 
     #[test]
@@ -6602,17 +6970,32 @@ impl Parser {
             // Parenthesized expression, unit, or tuple
             TokenKind::LParen => {
                 self.advance();
+                while self.peek_kind() == TokenKind::Semi {
+                    self.advance();
+                }
                 if self.peek_kind() == TokenKind::RParen {
                     self.advance();
                     return Ok(ExprKind::Unit.into());
                 }
                 let expr = self.parse_expr()?;
+                while self.peek_kind() == TokenKind::Semi {
+                    self.advance();
+                }
                 if self.peek_kind() == TokenKind::Comma {
                     // Tuple
                     let mut elems = vec![expr];
                     while self.peek_kind() == TokenKind::Comma {
                         self.advance();
+                        while self.peek_kind() == TokenKind::Semi {
+                            self.advance();
+                        }
+                        if self.peek_kind() == TokenKind::RParen {
+                            break;
+                        }
                         elems.push(self.parse_expr()?);
+                        while self.peek_kind() == TokenKind::Semi {
+                            self.advance();
+                        }
                     }
                     self.expect(TokenKind::RParen)?;
                     return Ok(ExprKind::Tuple(elems).into());
@@ -19220,5 +19603,14 @@ mod tests {
             "expected span to cover through ')', got end col {}",
             end_col
         );
+    }
+
+    #[test]
+    fn parses_multiline_tuple_literals_with_a_trailing_comma() {
+        let expr = parse_expr_from("= x = (\n    1,\n    2,\n)");
+        let ExprKind::Tuple(items) = expr.kind else {
+            panic!("expected tuple, got {:?}", expr.kind);
+        };
+        assert_eq!(items.len(), 2);
     }
 }

@@ -1,0 +1,103 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+
+| pbl15a_fixture_dato(år: Heltal, måned: Heltal, dag: Heltal) -> Pbl15ADato(
+    år = år,
+    måned = måned,
+    dag = dag
+)
+
+| pbl15a_fixture_aktiv_regnskabsperiode(indkomstår: Heltal, rækkefølge: Heltal) -> Pbl15ARegnskabsperiode(
+    rækkefølge_fra_ældste = rækkefølge,
+    startdato = pbl15a_fixture_dato(indkomstår, 1, 1),
+    slutdato = pbl15a_fixture_dato(indkomstår, 12, 31),
+    virksomhedens_indtægter = [
+        Pbl15AIndtægtspost(
+            identifikation = "driftsindtægt",
+            beløb_kroner = 1000000,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    virksomhedens_aktiver = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ],
+    selskabsregnskaber = []
+)
+
+| pbl15a_fixture_aktiv_kapital(afståelsesår: Heltal) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsperioder = [
+        pbl15a_fixture_aktiv_regnskabsperiode(afståelsesår - 3, 1),
+        pbl15a_fixture_aktiv_regnskabsperiode(afståelsesår - 2, 2),
+        pbl15a_fixture_aktiv_regnskabsperiode(afståelsesår - 1, 3)
+    ],
+    aktuel_regnskabsperiodes_startdato = pbl15a_fixture_dato(afståelsesår, 1, 1),
+    virksomhedens_aktiver_på_overdragelsestidspunktet = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv-ved-afståelse",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ],
+    selskabsaktiver_på_overdragelsestidspunktet = [],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+
+| pbl15a_fixture_afståelse(identifikation: Tekst, afståelsesår: Heltal, grundlag: Pbl15AAfståelsesgrund, fortjenestegrundlag: Pbl15AFortjenestegrundlag) -> Pbl15AAfståelsesfakta(
+    identifikation = identifikation,
+    afståelsesdato = pbl15a_fixture_dato(afståelsesår, 7, 1),
+    grundlag = grundlag,
+    fortjenestegrundlag = fortjenestegrundlag,
+    alder_hele_år_ved_afståelsen = 60,
+    passiv_kapital = pbl15a_fixture_aktiv_kapital(afståelsesår),
+    udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,
+    antal_ejere = 1,
+    opretter_deltog_i_driften_i_væsentligt_omfang = Sandt
+)
+
+| pbl15a_fixture_hovedaktionær_fortjenestegrundlag(identifikation: Tekst, fortjeneste_kroner: Heltal) -> Pbl15AFortjenestegrundlag(
+    afskrivningslovsposter = [],
+    ejendomsavance = Pbl15AUdenEjendomsavance,
+    aktieavance = Pbl15AMedAktieavance(
+        poster = [
+            Pbl15AAktieavancepost(
+                identifikation = identifikation,
+                input = AktieavanceOrdinærHændelsesforløbInput(
+                    position_primo = AktieavanceOrdinærPosition(
+                        selskabsidentifikation = identifikation,
+                        kapitalmængde = AblPålydendeAktiekapital(antal_aktier = 100, samlet_pålydende_kroner = 100000),
+                        anskaffelsessum_kroner = 100000
+                    ),
+                    hændelser = [
+                        AblOrdinærAfståelse(
+                            kapitalmængde = AblPålydendeAktiekapital(antal_aktier = 100, samlet_pålydende_kroner = 100000),
+                            afståelsessum_kroner = 100000 + fortjeneste_kroner,
+                            vilkår = AktieavanceOrdinærAfståelsesvilkår(
+                                markedsstatus = AblIkkeOptagetTilHandel,
+                                har_tidligere_været_optaget_til_handel = Falskt,
+                                hovedaktionæraktier = Sandt,
+                                afståede_aktiers_handelsværdi_kroner = 0,
+                                beholdte_aktiers_handelsværdi_kroner = 0,
+                                oplysningsstatus = AblOplystRettidigt,
+                                boligret = AblUdenBoligret
+                            )
+                        )
+                    ]
+                )
+            )
+        ],
+        fremført_tab_efter_par13a_kroner = 0,
+        modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+            udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+            udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+            udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+            ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+        ),
+        gift_og_samlevende_ved_årets_udgang = Falskt
+    ),
+    kursgevinstposter = []
+)

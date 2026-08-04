@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./personskat.calculate
+@ importer ./pbl15a - source - fixtures.scenario
 
 -- Kanoniske scenarier for den kildefaktabaserede pensionsgren. Lovtekst og
 -- kildeankre ligger i pensionsbeskatningsloven.runa,
@@ -214,7 +215,7 @@
             identifikation = "virksomhedssalg-1",
             afståelsesdato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
             grundlag = Pbl15AHovedaktionæraktier,
-            skattepligtig_fortjeneste_kroner = 100000,
+            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedssalg-1", 100000),
             alder_hele_år_ved_afståelsen = 60,
             passiv_kapital = Pbl15APassivKapitalFakta(
                 seneste_tre_regnskabsperioder = [
