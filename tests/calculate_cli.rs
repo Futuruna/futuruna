@@ -906,6 +906,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "identifikation",
             "skatteyder_identifikation",
             "omfangsfakta.oprettelsesdato.år",
+            "omfangsfakta.oprindelig_rettighedshaver_identifikation",
+            "omfangsfakta.kapitalværdi_ved_oprettelsen_kroner",
             "omfangsfakta.overgangsvalgfristfakta.$variant",
             "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.år",
             "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen",
@@ -927,6 +929,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "§ 53 A-ordningens identifikation",
             "Skatteyder på § 53 A-ordningen",
             "Ordningens oprettelsesdato - år",
+            "Oprindelig rettighedshaver til ordningen",
+            "Kapitalværdi ved ordningens oprettelse",
             "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B",
             "Arvedato for det senere overgangsvalg - år",
             "Fuld dansk skattepligt ved den senere arv",
@@ -952,12 +956,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         assert_eq!(
             workbook_column_paths(&mut workbook, &pbl53a_acquisitions_sheet),
-            ["dato.år", "dato.måned", "dato.dag", "måde"]
+            [
+                "identifikation",
+                "tidspunkt.dato.år",
+                "tidspunkt.dato.måned",
+                "tidspunkt.dato.dag",
+                "tidspunkt.rækkefølge_på_dagen",
+                "overdrager_identifikation",
+                "erhverver_identifikation",
+                "kapitalværdi_på_erhvervelsestidspunktet_kroner",
+                "måde",
+            ]
         );
         for expected in [
+            "Erhvervelsens identifikation",
             "Dato for senere erhvervelse - år",
             "Dato for senere erhvervelse - måned",
             "Dato for senere erhvervelse - dag",
+            "Erhvervelsens rækkefølge på dagen",
+            "Rettighedshaver før erhvervelsen",
+            "Rettighedshaver efter erhvervelsen",
+            "Kapitalværdi ved erhvervelsen",
             "Erhvervelsesmåden",
         ] {
             assert!(
@@ -1113,6 +1132,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 pbl53a_boundary_paths.iter().any(|path| path == expected),
                 "missing canonical PBL § 53 A boundary path {expected} on {pbl53a_boundaries_sheet}"
+            );
+        }
+        let input_choice_values: Vec<String> = workbook
+            .worksheet_range("_choices")
+            .expect("input choice metadata")
+            .rows()
+            .skip(1)
+            .filter_map(|row| row.get(1))
+            .map(ToString::to_string)
+            .collect();
+        for expected in [
+            "Pbl53ASkattepligtIndtræder",
+            "Pbl53ASkattepligtOphører",
+            "Pbl53ASikkerhedsstillelseEtableres",
+            "Pbl53ASikkerhedsstillelseOphører",
+        ] {
+            assert!(
+                input_choice_values.iter().any(|value| value == expected),
+                "missing caller-facing PBL § 53 A boundary choice {expected}"
+            );
+        }
+        for derived in ["Pbl53ARettighedErhverves", "Pbl53ARettighedAfstås"] {
+            assert!(
+                input_choice_values.iter().all(|value| value != derived),
+                "derived PBL § 53 A ownership boundary {derived} must not be caller-facing"
             );
         }
         let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele";
@@ -2254,6 +2298,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
             "pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1",
+            "pensionsbeskatningsloven_lsf229_1992_par6",
             "pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3",
             "pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3",
             "pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7",
@@ -2589,6 +2634,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ),
                 ("omfangsfakta.oprettelsesdato.dag", Data::Int(1)),
                 (
+                    "omfangsfakta.oprindelig_rettighedshaver_identifikation",
+                    Data::String(
+                        if row == 1 {
+                            "tidligere-ejer"
+                        } else {
+                            "person-1"
+                        }
+                        .to_string(),
+                    ),
+                ),
+                (
+                    "omfangsfakta.kapitalværdi_ved_oprettelsen_kroner",
+                    Data::Int(if row == 3 { 190_000 } else { 100_000 }),
+                ),
+                (
                     "omfangsfakta.overgangsvalgfristfakta.$variant",
                     Data::String(
                         if row == 1 {
@@ -2809,9 +2869,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("livsforsikring-pal-erhvervelse-1".to_string()),
             ),
             ("position", Data::Int(1)),
-            ("dato.år", Data::Int(2024)),
-            ("dato.måned", Data::Int(3)),
-            ("dato.dag", Data::Int(15)),
+            ("identifikation", Data::String("arv-2024".to_string())),
+            ("tidspunkt.dato.år", Data::Int(2024)),
+            ("tidspunkt.dato.måned", Data::Int(3)),
+            ("tidspunkt.dato.dag", Data::Int(15)),
+            ("tidspunkt.rækkefølge_på_dagen", Data::Int(1)),
+            (
+                "overdrager_identifikation",
+                Data::String("tidligere-ejer".to_string()),
+            ),
+            (
+                "erhverver_identifikation",
+                Data::String("person-1".to_string()),
+            ),
+            (
+                "kapitalværdi_på_erhvervelsestidspunktet_kroner",
+                Data::Int(200_000),
+            ),
             ("måde", Data::String("Pbl53AErhvervetVedArv".to_string())),
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_acquisitions_sheet, 1, header, value);
@@ -5608,9 +5682,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 1990, "måned": 1, "dag": 1 },
+                    "oprindelig_rettighedshaver_identifikation": "tidligere-ejer",
+                    "kapitalværdi_ved_oprettelsen_kroner": 100_000,
                     "erhvervelser": [
                         {
-                            "dato": { "år": 2024, "måned": 3, "dag": 15 },
+                            "identifikation": "arv-2024",
+                            "tidspunkt": {
+                                "dato": { "år": 2024, "måned": 3, "dag": 15 },
+                                "rækkefølge_på_dagen": 1
+                            },
+                            "overdrager_identifikation": "tidligere-ejer",
+                            "erhverver_identifikation": "person-1",
+                            "kapitalværdi_på_erhvervelsestidspunktet_kroner": 200_000,
                             "måde": { "$variant": "Pbl53AErhvervetVedArv" }
                         }
                     ],
@@ -5728,6 +5811,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "oprindelig_rettighedshaver_identifikation": "person-1",
+                    "kapitalværdi_ved_oprettelsen_kroner": 100_000,
                     "erhvervelser": [],
                     "overgangsvalgfristfakta": {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
@@ -5806,6 +5891,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "oprindelig_rettighedshaver_identifikation": "person-1",
+                    "kapitalværdi_ved_oprettelsen_kroner": 190_000,
                     "erhvervelser": [],
                     "overgangsvalgfristfakta": {
                         "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
@@ -6092,9 +6179,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         1
     );
     assert_eq!(
-        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]["dato"]
-            ["år"],
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]
+            ["tidspunkt"]["dato"]["år"],
         2024
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]
+            ["overdrager_identifikation"],
+        "tidligere-ejer"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]
+            ["erhverver_identifikation"],
+        "person-1"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]
+            ["kapitalværdi_på_erhvervelsestidspunktet_kroner"],
+        200_000
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]["måde"]

@@ -4,6 +4,8 @@
 
 = pbl53a_overgang_omfangsfakta_1995 = Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1995, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
@@ -15,6 +17,8 @@
 
 = pbl53a_overgang_omfangsfakta_1990 = Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],

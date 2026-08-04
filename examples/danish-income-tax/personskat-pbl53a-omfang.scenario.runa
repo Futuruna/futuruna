@@ -16,6 +16,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 
 | pbl53a_omfang_scenariefakta(produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, finansiering: Pbl53AInstitutionsfinansiering) -> Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_oprettelsesdato,
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 0,
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
@@ -141,6 +143,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 
 = pbl53a_omfang_statsstøttet_nr2_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_nr2_resultat.fakta.oprettelsesdato,
+    oprindelig_rettighedshaver_identifikation = pbl53a_omfang_nr2_resultat.fakta.oprindelig_rettighedshaver_identifikation,
+    kapitalværdi_ved_oprettelsen_kroner = pbl53a_omfang_nr2_resultat.fakta.kapitalværdi_ved_oprettelsen_kroner,
     erhvervelser = pbl53a_omfang_nr2_resultat.fakta.erhvervelser,
     overgangsvalgfristfakta = pbl53a_omfang_nr2_resultat.fakta.overgangsvalgfristfakta,
     overgangsvalg = pbl53a_omfang_nr2_resultat.fakta.overgangsvalg,
@@ -151,6 +155,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 ))
 = pbl53a_omfang_statsstøttet_nr8_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_nr8_fakta.oprettelsesdato,
+    oprindelig_rettighedshaver_identifikation = pbl53a_omfang_nr8_fakta.oprindelig_rettighedshaver_identifikation,
+    kapitalværdi_ved_oprettelsen_kroner = pbl53a_omfang_nr8_fakta.kapitalværdi_ved_oprettelsen_kroner,
     erhvervelser = pbl53a_omfang_nr8_fakta.erhvervelser,
     overgangsvalgfristfakta = pbl53a_omfang_nr8_fakta.overgangsvalgfristfakta,
     overgangsvalg = pbl53a_omfang_nr8_fakta.overgangsvalg,

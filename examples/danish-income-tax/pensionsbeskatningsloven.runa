@@ -77,6 +77,13 @@
     ændringsstatus = "Indførte § 53 A for livsforsikringer oprettet eller erhvervet fra 18. februar 1992 og undtog arv af en ældre forsikring"
 )
 
+= pensionsbeskatningsloven_lsf229_1992_par6 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/199112K00229",
+    identifier = "1991/1 LSF 229, bemærkninger til § 6",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Oprettelse sidestilles med erhvervelse; køberen omfattes af § 53 A fra erhvervelsen"
+)
+
 = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1 = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2004/1388",
     identifier = "LOV nr. 1388 af 20/12/2004, § 5, nr. 2, og § 7, stk. 1",
@@ -1027,7 +1034,9 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53BOprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_uden_dansk_skattepligt: Pbl15ADato) | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_med_dbo_hjemsted_i_udlandet: Pbl15ADato)
 # Pbl53BUdenlandskIndbetalingsbehandling = Pbl53BIkkeForetagetIUdenlandsperioden | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner: Heltal, faktisk_fradrag_kroner: Heltal) | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst | Pbl53BIkkeFuldtFradragetEllerBortset
 # Pbl53AErhvervelsesmåde = Pbl53AErhvervetVedArv | Pbl53AErhvervetPåAndenMåde
-# Pbl53AErhvervelseshændelse(dato: Pbl15ADato, måde: Pbl53AErhvervelsesmåde)
+# Pbl53AErhvervelseshændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, overdrager_identifikation: Tekst, erhverver_identifikation: Tekst, kapitalværdi_på_erhvervelsestidspunktet_kroner: Heltal, måde: Pbl53AErhvervelsesmåde)
+# Pbl53ARettighedsperiodeslutning = Pbl53AÅbenRettighedsperiode | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_slutningen_kroner: Heltal)
+# Pbl53ARettighedsperiode(identifikation: Tekst, rettighedshaver_identifikation: Tekst, starttidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_starten_kroner: Heltal, slutning: Pbl53ARettighedsperiodeslutning)
 # Pbl53AOvergangsvalgmål = Pbl53AValgAfPar53A | Pbl53AValgAfPar53B
 # Pbl53AOvergangsvalgmodtager = Pbl53AValgMeddeltSkattestyrelsen | Pbl53AValgMeddeltIndberettendePensionsudbyder | Pbl53AValgMeddeltAndenModtager
 # Pbl53AOvergangsvalgvirkning = Pbl53AValgVirkningFraModtagelse | Pbl53AValgVirkningFra1Januar2004
@@ -1038,9 +1047,9 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53AOvergangsvalgmeddelelsesresultat(meddelelse: Pbl53AOvergangsvalgmeddelelse, datoer_gyldige: Boolsk, beslutning_ikke_efter_modtagelse: Boolsk, modtager_gyldig: Boolsk, fristgrundlag_gyldigt: Boolsk, rettidig: Boolsk, historisk_ordning_uden_valg: Boolsk, mål_i_øvrigt_anvendeligt: Boolsk, ønsket_virkning_tilladt: Boolsk, meddelelse_opfylder_betingelser: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart)
 # Pbl53AOvergangsvalgfold(seneste_modtagelsesdato_nøgle: Heltal, datoer_gyldige: Boolsk, kronologiske: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart, gyldige_meddelelser_antal: Heltal, senere_modstridende_valg: Boolsk)
 # Pbl53AOvergangsvalgresultat(fakta_gyldige: Boolsk, fristfakta_gyldige: Boolsk, datoer_gyldige: Boolsk, meddelelser_kronologiske: Boolsk, meddelelsesresultater: List(Pbl53AOvergangsvalgmeddelelsesresultat), gyldige_meddelelser_antal: Heltal, valg_gyldigt: Boolsk, valg_bindende: Boolsk, valgt_regime: Pbl53AValgtOvergangsregime, virkningsstart: Pbl53AModerneVirkningsstart, senere_modstridende_valg: Boolsk)
-# Pbl53AErhvervelsesfold(seneste_dato_nøgle: Heltal, datoer_gyldige: Boolsk, kronologiske: Boolsk, alle_efter_oprettelsen: Boolsk, moderne_virkningsstart: Pbl53AModerneVirkningsstart, kvalificerende_arv_efter_skæringsdato: Boolsk)
-# Pbl53AOvergangsresultat(fakta_gyldige: Boolsk, erhvervelsesdatoer_gyldige: Boolsk, erhvervelser_kronologiske: Boolsk, alle_erhvervelser_efter_oprettelsen: Boolsk, valgresultat: Pbl53AOvergangsvalgresultat, moderne_virkningsstart: Pbl53AModerneVirkningsstart, arveundtagelse_bevarer_historisk_regime: Boolsk, historisk_par50_eller_statsskattelov: Boolsk)
-# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
+# Pbl53AErhvervelsesfold(seneste_tidspunkt: Pbl15ATidspunkt, datoer_gyldige: Boolsk, kronologiske: Boolsk, alle_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, aktuel_rettighedshaver_identifikation: Tekst, aktuel_rettighedsperiode: Pbl53ARettighedsperiode, afsluttede_rettighedsperioder: List(Pbl53ARettighedsperiode), moderne_virkningsstart: Pbl53AModerneVirkningsstart, kvalificerende_arv_efter_skæringsdato: Boolsk)
+# Pbl53AOvergangsresultat(fakta_gyldige: Boolsk, erhvervelsesidentifikationer_entydige: Boolsk, erhvervelsesdatoer_gyldige: Boolsk, erhvervelser_kronologiske: Boolsk, alle_erhvervelser_efter_oprettelsen: Boolsk, rettighedskæde_sammenhængende: Boolsk, rettighedsperioder: List(Pbl53ARettighedsperiode), valgresultat: Pbl53AOvergangsvalgresultat, moderne_virkningsstart: Pbl53AModerneVirkningsstart, arveundtagelse_bevarer_historisk_regime: Boolsk, historisk_par50_eller_statsskattelov: Boolsk)
+# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, oprindelig_rettighedshaver_identifikation: Tekst, kapitalværdi_ved_oprettelsen_kroner: Heltal, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
 # Pbl53BResultat(overgang_har_virkning: Boolsk, produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, i_øvrigt_anvendelig: Boolsk, omfattes_af_par53b: Boolsk)
 # Pbl53AStk1Klassifikation = Pbl53AIngenStk1Hjemmel | Pbl53AStk1Hjemmel(nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning)
 # Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, overgangsresultat: Pbl53AOvergangsresultat, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, par53a_i_øvrigt_anvendelig: Boolsk, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
@@ -1111,7 +1120,7 @@ stk. 2-4.
 | pbl53a_overgangsvalg_ordinær_frist_nøgle() -> 20060101
 | pbl53a_overgangsvalg_tilbagevirkende_beslutningsfrist_nøgle() -> 20050401
 | pbl53a_overgangsvalg_tilbagevirkende_startdato() -> Pbl15ADato(år = 2004, måned = 1, dag = 1)
-| pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta: Pbl53AOmfangsfakta, arvedato: Pbl15ADato) -> any(fakta.erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| pbl15a_dato_nøgle(erhvervelse.dato) == pbl15a_dato_nøgle(arvedato) && pbl53a_erhvervelse_er_kvalificerende_arv(fakta.produkt, erhvervelse))
+| pbl53a_overgangsvalg_har_kvalificerende_arv_på_dato(fakta: Pbl53AOmfangsfakta, arvedato: Pbl15ADato) -> any(fakta.erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| pbl15a_dato_nøgle(erhvervelse.tidspunkt.dato) == pbl15a_dato_nøgle(arvedato) && pbl53a_erhvervelse_er_kvalificerende_arv(fakta.produkt, erhvervelse))
 | pbl53a_overgangsvalgfristfakta_gyldige(fakta: Pbl53AOmfangsfakta) -> match fakta.overgangsvalgfristfakta {
     | Pbl53AIntetOvergangsvalgfristgrundlag -> Sandt
     | Pbl53AFuldSkattepligtVedLovensIkrafttræden -> Sandt
@@ -1225,18 +1234,49 @@ stk. 2-4.
 | pbl53a_moderne_virkningsstart_fra_oprettelse(oprettelsesdato: Pbl15ADato) -> hvis pbl15a_dato_nøgle(oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() { Pbl53AModerneVirkningsstartFra(dato = oprettelsesdato) } ellers { Pbl53AIngenModerneVirkningsstart }
 | pbl53a_moderne_virkningsstart_fra_erhvervelse(nuværende: Pbl53AModerneVirkningsstart, produkt: Pbl53AProduktfakta, erhvervelse: Pbl53AErhvervelseshændelse) -> match nuværende {
     | Pbl53AModerneVirkningsstartFra(_) -> nuværende
-    | Pbl53AIngenModerneVirkningsstart -> hvis pbl15a_dato_nøgle(erhvervelse.dato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse) == Falskt { Pbl53AModerneVirkningsstartFra(dato = erhvervelse.dato) } ellers { Pbl53AIngenModerneVirkningsstart }
+    | Pbl53AIngenModerneVirkningsstart -> hvis pbl15a_dato_nøgle(erhvervelse.tidspunkt.dato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse) == Falskt { Pbl53AModerneVirkningsstartFra(dato = erhvervelse.tidspunkt.dato) } ellers { Pbl53AIngenModerneVirkningsstart }
 }
+| pbl53a_erhvervelsesidentifikation_unik(erhvervelser: List(Pbl53AErhvervelseshændelse), erhvervelse: Pbl53AErhvervelseshændelse) -> length(filter(erhvervelser, |anden: Pbl53AErhvervelseshændelse| anden.identifikation == erhvervelse.identifikation)) == 1
+| pbl53a_erhvervelsesidentifikationer_entydige(erhvervelser: List(Pbl53AErhvervelseshændelse)) -> all(erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| erhvervelse.identifikation != "" && pbl53a_erhvervelsesidentifikation_unik(erhvervelser, erhvervelse))
+| pbl53a_luk_rettighedsperiode(periode: Pbl53ARettighedsperiode, erhvervelse: Pbl53AErhvervelseshændelse) -> Pbl53ARettighedsperiode(
+    identifikation = periode.identifikation,
+    rettighedshaver_identifikation = periode.rettighedshaver_identifikation,
+    starttidspunkt = periode.starttidspunkt,
+    kapitalværdi_ved_starten_kroner = periode.kapitalværdi_ved_starten_kroner,
+    slutning = Pbl53ARettighedsperiodeSlutter(
+        erhvervelse_identifikation = erhvervelse.identifikation,
+        tidspunkt = erhvervelse.tidspunkt,
+        kapitalværdi_ved_slutningen_kroner = erhvervelse.kapitalværdi_på_erhvervelsestidspunktet_kroner
+    )
+)
+| pbl53a_ny_rettighedsperiode(erhvervelse: Pbl53AErhvervelseshændelse) -> Pbl53ARettighedsperiode(
+    identifikation = erhvervelse.identifikation,
+    rettighedshaver_identifikation = erhvervelse.erhverver_identifikation,
+    starttidspunkt = erhvervelse.tidspunkt,
+    kapitalværdi_ved_starten_kroner = erhvervelse.kapitalværdi_på_erhvervelsestidspunktet_kroner,
+    slutning = Pbl53AÅbenRettighedsperiode
+)
+| pbl53a_rettighedsperioder_fra_fold(tilstand: Pbl53AErhvervelsesfold) -> concat(tilstand.afsluttede_rettighedsperioder, [tilstand.aktuel_rettighedsperiode])
 | pbl53a_erhvervelsesfold_trin(oprettelsesdato: Pbl15ADato, produkt: Pbl53AProduktfakta, tilstand: Pbl53AErhvervelsesfold, erhvervelse: Pbl53AErhvervelseshændelse) -> {
-    = dato_nøgle = pbl15a_dato_nøgle(erhvervelse.dato)
-    = dato_gyldig = pbl15a_dato_gyldig(erhvervelse.dato)
+    = oprettelsestidspunkt = Pbl15ATidspunkt(dato = oprettelsesdato, rækkefølge_på_dagen = 0)
+    = dato_gyldig = pbl15a_tidspunkt_gyldigt(erhvervelse.tidspunkt)
+    = kronologisk = hvis dato_gyldig { pbl15a_tidspunkt_før(tilstand.seneste_tidspunkt, erhvervelse.tidspunkt) } ellers { Falskt }
+    = efter_oprettelsen = hvis dato_gyldig { pbl15a_tidspunkt_før(oprettelsestidspunkt, erhvervelse.tidspunkt) } ellers { Falskt }
+    = rettighedskæde_sammenhængende = erhvervelse.overdrager_identifikation != "" && erhvervelse.erhverver_identifikation != "" && erhvervelse.overdrager_identifikation != erhvervelse.erhverver_identifikation && erhvervelse.overdrager_identifikation == tilstand.aktuel_rettighedshaver_identifikation && erhvervelse.kapitalværdi_på_erhvervelsestidspunktet_kroner >= 0
+    = erhvervelse_gyldig = dato_gyldig && kronologisk && efter_oprettelsen && rettighedskæde_sammenhængende
+    = afsluttede_rettighedsperioder = hvis erhvervelse_gyldig { concat(tilstand.afsluttede_rettighedsperioder, [pbl53a_luk_rettighedsperiode(tilstand.aktuel_rettighedsperiode, erhvervelse)]) } ellers { tilstand.afsluttede_rettighedsperioder }
+    = aktuel_rettighedsperiode = hvis erhvervelse_gyldig { pbl53a_ny_rettighedsperiode(erhvervelse) } ellers { tilstand.aktuel_rettighedsperiode }
     Pbl53AErhvervelsesfold(
-        seneste_dato_nøgle = dato_nøgle,
+        seneste_tidspunkt = hvis dato_gyldig && kronologisk { erhvervelse.tidspunkt } ellers { tilstand.seneste_tidspunkt },
         datoer_gyldige = tilstand.datoer_gyldige && dato_gyldig,
-        kronologiske = tilstand.kronologiske && dato_gyldig && dato_nøgle > tilstand.seneste_dato_nøgle,
-        alle_efter_oprettelsen = tilstand.alle_efter_oprettelsen && dato_gyldig && dato_nøgle > pbl15a_dato_nøgle(oprettelsesdato),
-        moderne_virkningsstart = pbl53a_moderne_virkningsstart_fra_erhvervelse(tilstand.moderne_virkningsstart, produkt, erhvervelse),
-        kvalificerende_arv_efter_skæringsdato = tilstand.kvalificerende_arv_efter_skæringsdato || dato_gyldig && dato_nøgle >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse)
+        kronologiske = tilstand.kronologiske && kronologisk,
+        alle_efter_oprettelsen = tilstand.alle_efter_oprettelsen && efter_oprettelsen,
+        rettighedskæde_sammenhængende = tilstand.rettighedskæde_sammenhængende && rettighedskæde_sammenhængende,
+        aktuel_rettighedshaver_identifikation = hvis erhvervelse_gyldig { erhvervelse.erhverver_identifikation } ellers { tilstand.aktuel_rettighedshaver_identifikation },
+        aktuel_rettighedsperiode = aktuel_rettighedsperiode,
+        afsluttede_rettighedsperioder = afsluttede_rettighedsperioder,
+        moderne_virkningsstart = hvis erhvervelse_gyldig { pbl53a_moderne_virkningsstart_fra_erhvervelse(tilstand.moderne_virkningsstart, produkt, erhvervelse) } ellers { tilstand.moderne_virkningsstart },
+        kvalificerende_arv_efter_skæringsdato = tilstand.kvalificerende_arv_efter_skæringsdato || erhvervelse_gyldig && pbl15a_dato_nøgle(erhvervelse.tidspunkt.dato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse)
     )
 }
 | pbl53a_moderne_virkningsstart_efter_overgangsvalg(erhvervelsesstart: Pbl53AModerneVirkningsstart, valgresultat: Pbl53AOvergangsvalgresultat) -> match erhvervelsesstart {
@@ -1244,19 +1284,31 @@ stk. 2-4.
     | Pbl53AIngenModerneVirkningsstart -> hvis valgresultat.valg_gyldigt { valgresultat.virkningsstart } ellers { Pbl53AIngenModerneVirkningsstart }
 }
 | pbl53a_overgangsresultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
+    = oprettelsestidspunkt = Pbl15ATidspunkt(dato = fakta.oprettelsesdato, rækkefølge_på_dagen = 0)
     = tilstand = foldl(
         fakta.erhvervelser,
         Pbl53AErhvervelsesfold(
-            seneste_dato_nøgle = pbl15a_dato_nøgle(fakta.oprettelsesdato),
+            seneste_tidspunkt = oprettelsestidspunkt,
             datoer_gyldige = Sandt,
             kronologiske = Sandt,
             alle_efter_oprettelsen = Sandt,
+            rettighedskæde_sammenhængende = Sandt,
+            aktuel_rettighedshaver_identifikation = fakta.oprindelig_rettighedshaver_identifikation,
+            aktuel_rettighedsperiode = Pbl53ARettighedsperiode(
+                identifikation = "oprettelse",
+                rettighedshaver_identifikation = fakta.oprindelig_rettighedshaver_identifikation,
+                starttidspunkt = oprettelsestidspunkt,
+                kapitalværdi_ved_starten_kroner = fakta.kapitalværdi_ved_oprettelsen_kroner,
+                slutning = Pbl53AÅbenRettighedsperiode
+            ),
+            afsluttede_rettighedsperioder = [],
             moderne_virkningsstart = pbl53a_moderne_virkningsstart_fra_oprettelse(fakta.oprettelsesdato),
             kvalificerende_arv_efter_skæringsdato = Falskt
         ),
         |fold: Pbl53AErhvervelsesfold, erhvervelse: Pbl53AErhvervelseshændelse| pbl53a_erhvervelsesfold_trin(fakta.oprettelsesdato, fakta.produkt, fold, erhvervelse)
     )
-    = erhvervelsesfakta_gyldige = pbl15a_dato_gyldig(fakta.oprettelsesdato) && tilstand.datoer_gyldige && tilstand.kronologiske && tilstand.alle_efter_oprettelsen
+    = erhvervelsesidentifikationer_entydige = pbl53a_erhvervelsesidentifikationer_entydige(fakta.erhvervelser)
+    = erhvervelsesfakta_gyldige = pbl15a_dato_gyldig(fakta.oprettelsesdato) && fakta.oprindelig_rettighedshaver_identifikation != "" && fakta.kapitalværdi_ved_oprettelsen_kroner >= 0 && erhvervelsesidentifikationer_entydige && tilstand.datoer_gyldige && tilstand.kronologiske && tilstand.alle_efter_oprettelsen && tilstand.rettighedskæde_sammenhængende
     = historisk_ordning_uden_valg = erhvervelsesfakta_gyldige && tilstand.moderne_virkningsstart == Pbl53AIngenModerneVirkningsstart
     = valgresultat = pbl53a_overgangsvalgresultat(fakta, hændelser, historisk_ordning_uden_valg)
     = moderne_virkningsstart = pbl53a_moderne_virkningsstart_efter_overgangsvalg(tilstand.moderne_virkningsstart, valgresultat)
@@ -1264,9 +1316,12 @@ stk. 2-4.
     = historisk_regime = fakta_gyldige && moderne_virkningsstart == Pbl53AIngenModerneVirkningsstart
     Pbl53AOvergangsresultat(
         fakta_gyldige = fakta_gyldige,
+        erhvervelsesidentifikationer_entydige = erhvervelsesidentifikationer_entydige,
         erhvervelsesdatoer_gyldige = tilstand.datoer_gyldige,
         erhvervelser_kronologiske = tilstand.kronologiske,
         alle_erhvervelser_efter_oprettelsen = tilstand.alle_efter_oprettelsen,
+        rettighedskæde_sammenhængende = tilstand.rettighedskæde_sammenhængende,
+        rettighedsperioder = pbl53a_rettighedsperioder_fra_fold(tilstand),
         valgresultat = valgresultat,
         moderne_virkningsstart = moderne_virkningsstart,
         arveundtagelse_bevarer_historisk_regime = historisk_regime && tilstand.kvalificerende_arv_efter_skæringsdato,
@@ -1873,6 +1928,7 @@ stk. 2-4.
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
         TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
@@ -1886,6 +1942,15 @@ stk. 2-4.
 virkning for forsikring og pensionsordning, der oprettes eller erhverves den
 18. februar 1992 eller senere. Loven har dog ikke virkning for arv faldet den
 18. februar 1992 eller senere af en forsikring oprettet før denne dato.
+
+Bemærkninger til § 6:
+
+Med oprettelse sidestilles erhvervelse. Køber en person den 18. februar 1992
+eller senere en forsikring, der er oprettet før denne dato, bliver vedkommende
+omfattet af reglerne i § 53 A. De foreslåede regler skal ikke have virkning for
+forsikring, der er erhvervet den 18. februar 1992 eller senere, hvis den
+skattepligtiges rettigheder til forsikringen er overgået til den skattepligtige
+som følge af den tidligere ejers død efter denne dato.
 
 § 53 A.
 
@@ -1936,59 +2001,141 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 # Pbl53AAfkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner: Heltal) | Pbl53AAlternativtKapitalværdiAfkast(kalenderårets_primo_depotværdi_kroner: Heltal, kalenderårets_ultimo_depotværdi_kroner: Heltal)
 # Pbl53ASkattepligtsstatusVedÅretsBegyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse | Pbl53AIkkeSkattepligtigVedÅretsBegyndelse
 # Pbl53ASikkerhedsstatusVedÅretsBegyndelse = Pbl53ASikkerhedIkkeRelevant | Pbl53ASikkerhedBestårVedÅretsBegyndelse | Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse
-# Pbl53AAfkastgrænsehændelsesart = Pbl53ASkattepligtIndtræder | Pbl53ASkattepligtOphører | Pbl53ASikkerhedsstillelseEtableres | Pbl53ASikkerhedsstillelseOphører
+# Pbl53AOplystAfkastgrænsehændelsesart = Pbl53ASkattepligtIndtræder | Pbl53ASkattepligtOphører | Pbl53ASikkerhedsstillelseEtableres | Pbl53ASikkerhedsstillelseOphører
+# Pbl53AOplystAfkastgrænsehændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal, art: Pbl53AOplystAfkastgrænsehændelsesart)
+# Pbl53AAfkastgrænsehændelsesart = Pbl53AOplystAfkastgrænse(art: Pbl53AOplystAfkastgrænsehændelsesart) | Pbl53ARettighedErhverves | Pbl53ARettighedAfstås
 # Pbl53AAfkastgrænsehændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal, art: Pbl53AAfkastgrænsehændelsesart)
 # Pbl53ASenesteAfkastgrænsetidspunkt = Pbl53AIntetAfkastgrænsetidspunkt | Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt: Pbl15ATidspunkt)
-# Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(dato: Pbl15ADato, depotværdi_kroner: Heltal)
-# Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(startdato: Pbl15ADato, slutdato: Pbl15ADato)
+# Pbl53AAfkastgrænserækkefølgetilstand(seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, kronologiske: Boolsk)
+# Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal)
+# Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(starttidspunkt: Pbl15ATidspunkt, sluttidspunkt_eksklusiv: Pbl15ATidspunkt)
 # Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ultimo_kroner: Heltal)
 # Pbl53ABerettigelsesfakta = Pbl53AEnkeltBerettiget(identifikation: Tekst) | Pbl53AFlereBerettigede(samlet_indestående_ultimo_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
-# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AAfkastgrænsehændelse), berettigelse_ultimo: Pbl53ABerettigelsesfakta)
-# Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, sikkerhedsstillelse_består: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
-# Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
+# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse), berettigelse_ultimo: Pbl53ABerettigelsesfakta)
+# Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, rettighedshaver: Boolsk, sikkerhedsstillelse_består: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
+# Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, afledte_rettighedsgrænsehændelser: List(Pbl53AAfkastgrænsehændelse), samlede_grænsehændelser: List(Pbl53AAfkastgrænsehændelse), overgangsfakta_gyldige: Boolsk, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, oplyste_grænsehændelser_kronologiske: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
 
 | pbl53a_direktørordning_kræver_sikkerhed(ordning: Pensionsbeskatningslov53AOrdning) -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse
 | pbl53a_skattepligtig_ved_årets_begyndelse(status: Pbl53ASkattepligtsstatusVedÅretsBegyndelse) -> status == Pbl53ASkattepligtigVedÅretsBegyndelse
 | pbl53a_sikkerhed_består_ved_årets_begyndelse(status: Pbl53ASikkerhedsstatusVedÅretsBegyndelse) -> status == Pbl53ASikkerhedBestårVedÅretsBegyndelse
 | pbl53a_sikkerhedsstatus_ved_årets_begyndelse_gyldig(ordning: Pensionsbeskatningslov53AOrdning, status: Pbl53ASikkerhedsstatusVedÅretsBegyndelse) -> hvis pbl53a_direktørordning_kræver_sikkerhed(ordning) { status != Pbl53ASikkerhedIkkeRelevant } ellers { status == Pbl53ASikkerhedIkkeRelevant }
-| pbl53a_afkastbeskatning_aktiv(ordning: Pensionsbeskatningslov53AOrdning, skattepligtig: Boolsk, sikkerhedsstillelse_består: Boolsk) -> skattepligtig && (pbl53a_direktørordning_kræver_sikkerhed(ordning) == Falskt || sikkerhedsstillelse_består)
-| pbl53a_skattepligt_efter_grænsehændelse(skattepligtig_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+| pbl53a_afkastbeskatning_aktiv(ordning: Pensionsbeskatningslov53AOrdning, skattepligtig: Boolsk, rettighedshaver: Boolsk, sikkerhedsstillelse_består: Boolsk) -> skattepligtig && rettighedshaver && (pbl53a_direktørordning_kræver_sikkerhed(ordning) == Falskt || sikkerhedsstillelse_består)
+| pbl53a_skattepligt_efter_oplyst_grænsehændelse(skattepligtig_før: Boolsk, art: Pbl53AOplystAfkastgrænsehændelsesart) -> match art {
     | Pbl53ASkattepligtIndtræder -> Sandt
     | Pbl53ASkattepligtOphører -> Falskt
     | _ -> skattepligtig_før
 }
-| pbl53a_sikkerhed_efter_grænsehændelse(sikkerhed_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+| pbl53a_skattepligt_efter_grænsehændelse(skattepligtig_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53AOplystAfkastgrænse(oplyst_art) -> pbl53a_skattepligt_efter_oplyst_grænsehændelse(skattepligtig_før, oplyst_art)
+    | _ -> skattepligtig_før
+}
+| pbl53a_sikkerhed_efter_oplyst_grænsehændelse(sikkerhed_før: Boolsk, art: Pbl53AOplystAfkastgrænsehændelsesart) -> match art {
     | Pbl53ASikkerhedsstillelseEtableres -> Sandt
     | Pbl53ASikkerhedsstillelseOphører -> Falskt
     | _ -> sikkerhed_før
 }
-| pbl53a_grænsehændelsesovergang_gyldig(ordning: Pensionsbeskatningslov53AOrdning, tilstand: Pbl53AAfkastperiodetilstand, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+| pbl53a_sikkerhed_efter_grænsehændelse(sikkerhed_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53AOplystAfkastgrænse(oplyst_art) -> pbl53a_sikkerhed_efter_oplyst_grænsehændelse(sikkerhed_før, oplyst_art)
+    | _ -> sikkerhed_før
+}
+| pbl53a_rettighed_efter_grænsehændelse(rettighed_før: Boolsk, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53ARettighedErhverves -> Sandt
+    | Pbl53ARettighedAfstås -> Falskt
+    | _ -> rettighed_før
+}
+| pbl53a_oplyst_grænsehændelsesovergang_gyldig(ordning: Pensionsbeskatningslov53AOrdning, tilstand: Pbl53AAfkastperiodetilstand, art: Pbl53AOplystAfkastgrænsehændelsesart) -> match art {
     | Pbl53ASkattepligtIndtræder -> tilstand.skattepligtig == Falskt
     | Pbl53ASkattepligtOphører -> tilstand.skattepligtig
     | Pbl53ASikkerhedsstillelseEtableres -> pbl53a_direktørordning_kræver_sikkerhed(ordning) && tilstand.sikkerhedsstillelse_består == Falskt
     | Pbl53ASikkerhedsstillelseOphører -> pbl53a_direktørordning_kræver_sikkerhed(ordning) && tilstand.sikkerhedsstillelse_består
 }
+| pbl53a_grænsehændelsesovergang_gyldig(ordning: Pensionsbeskatningslov53AOrdning, tilstand: Pbl53AAfkastperiodetilstand, art: Pbl53AAfkastgrænsehændelsesart) -> match art {
+    | Pbl53AOplystAfkastgrænse(oplyst_art) -> pbl53a_oplyst_grænsehændelsesovergang_gyldig(ordning, tilstand, oplyst_art)
+    | Pbl53ARettighedErhverves -> tilstand.rettighedshaver == Falskt
+    | Pbl53ARettighedAfstås -> tilstand.rettighedshaver
+}
 | pbl53a_afkastgrænsetidspunkt_efter_seneste(seneste: Pbl53ASenesteAfkastgrænsetidspunkt, tidspunkt: Pbl15ATidspunkt) -> match seneste {
     | Pbl53AIntetAfkastgrænsetidspunkt -> Sandt
     | Pbl53ARegistreretAfkastgrænsetidspunkt(forrige) -> pbl15a_tidspunkt_før(forrige, tidspunkt)
 }
+| pbl53a_afkastgrænserækkefølge_trin(tilstand: Pbl53AAfkastgrænserækkefølgetilstand, hændelse: Pbl53AOplystAfkastgrænsehændelse) -> Pbl53AAfkastgrænserækkefølgetilstand(
+    seneste_tidspunkt = Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt = hændelse.tidspunkt),
+    kronologiske = tilstand.kronologiske && pbl53a_afkastgrænsetidspunkt_efter_seneste(tilstand.seneste_tidspunkt, hændelse.tidspunkt)
+)
+| pbl53a_oplyste_grænsehændelser_kronologiske(hændelser: List(Pbl53AOplystAfkastgrænsehændelse)) -> foldl(
+    hændelser,
+    Pbl53AAfkastgrænserækkefølgetilstand(seneste_tidspunkt = Pbl53AIntetAfkastgrænsetidspunkt, kronologiske = Sandt),
+    |tilstand: Pbl53AAfkastgrænserækkefølgetilstand, hændelse: Pbl53AOplystAfkastgrænsehændelse| pbl53a_afkastgrænserækkefølge_trin(tilstand, hændelse)
+).kronologiske
 | pbl53a_grænsehændelse_identifikation_unik(hændelser: List(Pbl53AAfkastgrænsehændelse), hændelse: Pbl53AAfkastgrænsehændelse) -> length(filter(hændelser, |anden: Pbl53AAfkastgrænsehændelse| anden.identifikation == hændelse.identifikation)) == 1
 | pbl53a_grænsehændelsesidentifikationer_entydige(hændelser: List(Pbl53AAfkastgrænsehændelse)) -> all(hændelser, |hændelse: Pbl53AAfkastgrænsehændelse| hændelse.identifikation != "" && pbl53a_grænsehændelse_identifikation_unik(hændelser, hændelse))
-| pbl53a_grænsehændelse_grundfakta_gyldige(indkomstår: Heltal, hændelse: Pbl53AAfkastgrænsehændelse) -> hændelse.identifikation != "" && pbl15a_dato_gyldig(hændelse.tidspunkt.dato) && hændelse.tidspunkt.dato.år == indkomstår && hændelse.tidspunkt.rækkefølge_på_dagen > 0 && hændelse.depotværdi_kroner >= 0
+| pbl53a_er_afledt_rettighedsgrænse(art: Pbl53AAfkastgrænsehændelsesart) -> art == Pbl53ARettighedErhverves || art == Pbl53ARettighedAfstås
+| pbl53a_grænsehændelse_grundfakta_gyldige(indkomstår: Heltal, hændelse: Pbl53AAfkastgrænsehændelse) -> hændelse.identifikation != "" && pbl15a_dato_gyldig(hændelse.tidspunkt.dato) && hændelse.tidspunkt.dato.år == indkomstår && (hændelse.tidspunkt.rækkefølge_på_dagen > 0 || hændelse.tidspunkt.rækkefølge_på_dagen == 0 && pbl53a_er_afledt_rettighedsgrænse(hændelse.art)) && hændelse.depotværdi_kroner >= 0
+| pbl53a_rettighedsperiode_omfatter_tidspunkt(periode: Pbl53ARettighedsperiode, tidspunkt: Pbl15ATidspunkt) -> (periode.starttidspunkt == tidspunkt || pbl15a_tidspunkt_før(periode.starttidspunkt, tidspunkt)) && match periode.slutning {
+    | Pbl53AÅbenRettighedsperiode -> Sandt
+    | Pbl53ARettighedsperiodeSlutter(_, sluttidspunkt, _) -> pbl15a_tidspunkt_før(tidspunkt, sluttidspunkt)
+}
+| pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat) -> {
+    = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
+    overgang.fakta_gyldige && any(overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| periode.rettighedshaver_identifikation == skatteyder_identifikation && pbl53a_rettighedsperiode_omfatter_tidspunkt(periode, årsbegyndelse))
+}
+| pbl53a_rettighedsperiode_startgrænse_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> hvis periode.rettighedshaver_identifikation == skatteyder_identifikation && periode.starttidspunkt.dato.år == indkomstår && periode.starttidspunkt != Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0) {
+    [Pbl53AAfkastgrænsehændelse(
+        identifikation = "rettighed-erhverves:" + periode.identifikation,
+        tidspunkt = periode.starttidspunkt,
+        depotværdi_kroner = periode.kapitalværdi_ved_starten_kroner,
+        art = Pbl53ARettighedErhverves
+    )]
+} ellers {
+    []
+}
+| pbl53a_rettighedsperiode_slutgrænse_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> hvis periode.rettighedshaver_identifikation != skatteyder_identifikation {
+    []
+} ellers {
+    match periode.slutning {
+        | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation, tidspunkt, kapitalværdi_kroner) -> hvis tidspunkt.dato.år == indkomstår {
+            [Pbl53AAfkastgrænsehændelse(
+                identifikation = "rettighed-afstås:" + erhvervelse_identifikation,
+                tidspunkt = tidspunkt,
+                depotværdi_kroner = kapitalværdi_kroner,
+                art = Pbl53ARettighedAfstås
+            )]
+        } ellers {
+            []
+        }
+        | Pbl53AÅbenRettighedsperiode -> []
+    }
+}
+| pbl53a_rettighedsperiode_grænser_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> concat(
+    pbl53a_rettighedsperiode_startgrænse_i_år(skatteyder_identifikation, indkomstår, periode),
+    pbl53a_rettighedsperiode_slutgrænse_i_år(skatteyder_identifikation, indkomstår, periode)
+)
+| pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat) -> flat_map(overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| pbl53a_rettighedsperiode_grænser_i_år(skatteyder_identifikation, indkomstår, periode))
+| pbl53a_oplyst_afkastgrænsehændelse_som_intern(hændelse: Pbl53AOplystAfkastgrænsehændelse) -> Pbl53AAfkastgrænsehændelse(
+    identifikation = hændelse.identifikation,
+    tidspunkt = hændelse.tidspunkt,
+    depotværdi_kroner = hændelse.depotværdi_kroner,
+    art = Pbl53AOplystAfkastgrænse(art = hændelse.art)
+)
+| pbl53a_oplyste_afkastgrænsehændelser_som_interne(hændelser: List(Pbl53AOplystAfkastgrænsehændelse)) -> map(hændelser, pbl53a_oplyst_afkastgrænsehændelse_som_intern)
+| pbl53a_afkastgrænsehændelse_sorteringsnøgle(hændelse: Pbl53AAfkastgrænsehændelse) -> pbl15a_dato_nøgle(hændelse.tidspunkt.dato) * 1000000 + hændelse.tidspunkt.rækkefølge_på_dagen
+| pbl53a_samlede_grænsehændelser(oplyste: List(Pbl53AOplystAfkastgrænsehændelse), afledte: List(Pbl53AAfkastgrænsehændelse)) -> sort_by(concat(pbl53a_oplyste_afkastgrænsehændelser_som_interne(oplyste), afledte), pbl53a_afkastgrænsehændelse_sorteringsnøgle)
 
 # Pbl53AAfkastgrænsetrinSag(ordning: Pensionsbeskatningslov53AOrdning, indkomstår: Heltal, tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse) {
     | kronologisk() -> pbl53a_afkastgrænsetidspunkt_efter_seneste(tilstand.seneste_tidspunkt, hændelse.tidspunkt)
     | overgang_gyldig() -> pbl53a_grænsehændelsesovergang_gyldig(ordning, tilstand, hændelse.art)
     | hændelse_gyldig() -> pbl53a_grænsehændelse_grundfakta_gyldige(indkomstår, hændelse) && kronologisk() && overgang_gyldig()
     | skattepligtig_efter() -> hvis hændelse_gyldig() { pbl53a_skattepligt_efter_grænsehændelse(tilstand.skattepligtig, hændelse.art) } ellers { tilstand.skattepligtig }
+    | rettighedshaver_efter() -> hvis hændelse_gyldig() { pbl53a_rettighed_efter_grænsehændelse(tilstand.rettighedshaver, hændelse.art) } ellers { tilstand.rettighedshaver }
     | sikkerhed_efter() -> hvis hændelse_gyldig() { pbl53a_sikkerhed_efter_grænsehændelse(tilstand.sikkerhedsstillelse_består, hændelse.art) } ellers { tilstand.sikkerhedsstillelse_består }
-    | aktiv_efter() -> pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig_efter(), sikkerhed_efter())
+    | aktiv_efter() -> pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig_efter(), rettighedshaver_efter(), sikkerhed_efter())
     | periode_begynder() -> hændelse_gyldig() && tilstand.afkastbeskatning_aktiv == Falskt && aktiv_efter()
     | periode_ophører() -> hændelse_gyldig() && tilstand.afkastbeskatning_aktiv && aktiv_efter() == Falskt
-    | åbningsgrænse_efter() -> hvis periode_begynder() && tilstand.antal_sammenhængende_perioder == 0 { Pbl53ARegistreretAfkastgrænse(dato = hændelse.tidspunkt.dato, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.åbningsgrænse }
-    | lukningsgrænse_efter() -> hvis periode_ophører() { Pbl53ARegistreretAfkastgrænse(dato = hændelse.tidspunkt.dato, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.lukningsgrænse }
+    | åbningsgrænse_efter() -> hvis periode_begynder() && tilstand.antal_sammenhængende_perioder == 0 { Pbl53ARegistreretAfkastgrænse(tidspunkt = hændelse.tidspunkt, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.åbningsgrænse }
+    | lukningsgrænse_efter() -> hvis periode_ophører() { Pbl53ARegistreretAfkastgrænse(tidspunkt = hændelse.tidspunkt, depotværdi_kroner = hændelse.depotværdi_kroner) } ellers { tilstand.lukningsgrænse }
     | resultat() -> Pbl53AAfkastperiodetilstand(
         skattepligtig = skattepligtig_efter(),
+        rettighedshaver = rettighedshaver_efter(),
         sikkerhedsstillelse_består = sikkerhed_efter(),
         afkastbeskatning_aktiv = aktiv_efter(),
         seneste_tidspunkt = Pbl53ARegistreretAfkastgrænsetidspunkt(tidspunkt = hændelse.tidspunkt),
@@ -2000,20 +2147,23 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     )
 }
 | pbl53a_afkastgrænsetrin(ordning: Pensionsbeskatningslov53AOrdning, indkomstår: Heltal, tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse) -> Pbl53AAfkastgrænsetrinSag(ordning, indkomstår, tilstand, hændelse).resultat()
-| pbl53a_tom_afkastperiodetilstand(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta) -> {
+| pbl53a_tom_afkastperiodetilstand(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta) -> {
     = skattepligtig = pbl53a_skattepligtig_ved_årets_begyndelse(fakta.skattepligtsstatus_ved_årets_begyndelse)
+    = rettighedshaver = pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation, fakta.indkomstår, overgang)
     = sikkerhed = pbl53a_sikkerhed_består_ved_årets_begyndelse(fakta.sikkerhedsstatus_ved_årets_begyndelse)
-    = aktiv = pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig, sikkerhed)
+    = aktiv = pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig, rettighedshaver, sikkerhed)
+    = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = fakta.indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
     Pbl53AAfkastperiodetilstand(
         skattepligtig = skattepligtig,
+        rettighedshaver = rettighedshaver,
         sikkerhedsstillelse_består = sikkerhed,
         afkastbeskatning_aktiv = aktiv,
         seneste_tidspunkt = Pbl53AIntetAfkastgrænsetidspunkt,
-        åbningsgrænse = hvis aktiv { Pbl53ARegistreretAfkastgrænse(dato = Pbl15ADato(år = fakta.indkomstår, måned = 1, dag = 1), depotværdi_kroner = pbl53a_kalenderårets_primo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { Pbl53AIngenAfkastgrænse },
+        åbningsgrænse = hvis aktiv { Pbl53ARegistreretAfkastgrænse(tidspunkt = årsbegyndelse, depotværdi_kroner = pbl53a_kalenderårets_primo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { Pbl53AIngenAfkastgrænse },
         lukningsgrænse = Pbl53AIngenAfkastgrænse,
         antal_sammenhængende_perioder = hvis aktiv { 1 } ellers { 0 },
         hændelser_kronologiske = Sandt,
-        overgange_gyldige = pbl53a_sikkerhedsstatus_ved_årets_begyndelse_gyldig(ordning, fakta.sikkerhedsstatus_ved_årets_begyndelse)
+        overgange_gyldige = overgang.fakta_gyldige && pbl53a_sikkerhedsstatus_ved_årets_begyndelse_gyldig(ordning, fakta.sikkerhedsstatus_ved_årets_begyndelse)
     )
 }
 | pbl53a_kalenderårets_primo_depotværdi_kroner(grundlag: Pbl53AAfkastgrundlag) -> match grundlag {
@@ -2028,16 +2178,17 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     | Pbl53AAfkastEfterPal(_) -> Sandt
     | Pbl53AAlternativtKapitalværdiAfkast(primo_kroner, ultimo_kroner) -> primo_kroner >= 0 && ultimo_kroner >= 0
 }
-| pbl53a_afkastgrænse_dato(grænse: Pbl53AAfkastgrænse, indkomstår: Heltal) -> match grænse {
-    | Pbl53ARegistreretAfkastgrænse(dato, _) -> dato
-    | Pbl53AIngenAfkastgrænse -> Pbl15ADato(år = indkomstår, måned = 1, dag = 1)
+| pbl53a_afkastgrænse_tidspunkt(grænse: Pbl53AAfkastgrænse, indkomstår: Heltal) -> match grænse {
+    | Pbl53ARegistreretAfkastgrænse(tidspunkt, _) -> tidspunkt
+    | Pbl53AIngenAfkastgrænse -> Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
 }
 | pbl53a_afkastgrænse_depotværdi_kroner(grænse: Pbl53AAfkastgrænse) -> match grænse {
     | Pbl53ARegistreretAfkastgrænse(_, depotværdi_kroner) -> depotværdi_kroner
     | Pbl53AIngenAfkastgrænse -> 0
 }
-| pbl53a_dato_i_afkastperiode(dato: Pbl15ADato, periode: Pbl53AAfkastperiode) -> match periode {
-    | Pbl53ASammenhængendeAfkastperiode(startdato, slutdato) -> pbl15a_dato_nøgle(dato) >= pbl15a_dato_nøgle(startdato) && pbl15a_dato_nøgle(dato) <= pbl15a_dato_nøgle(slutdato)
+| pbl53a_hændelsestidspunkt_som_pbl15a(tidspunkt: Pbl53ATidspunkt) -> Pbl15ATidspunkt(dato = tidspunkt.dato, rækkefølge_på_dagen = tidspunkt.rækkefølge_på_dagen)
+| pbl53a_tidspunkt_i_afkastperiode(tidspunkt: Pbl15ATidspunkt, periode: Pbl53AAfkastperiode) -> match periode {
+    | Pbl53ASammenhængendeAfkastperiode(starttidspunkt, sluttidspunkt_eksklusiv) -> (tidspunkt == starttidspunkt || pbl15a_tidspunkt_før(starttidspunkt, tidspunkt)) && pbl15a_tidspunkt_før(tidspunkt, sluttidspunkt_eksklusiv)
     | Pbl53AIngenAfkastperiode -> Falskt
 }
 | pbl53a_afkastindbetaling_for_hændelse_kroner(hændelse: Pbl53AHændelse) -> match hændelse {
@@ -2052,23 +2203,31 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     }
     | _ -> 0
 }
-| pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser: List(Pbl53AHændelse), periode: Pbl53AAfkastperiode, beløb: (Pbl53AHændelse) -> Heltal) -> foldl(hændelser, 0, |sum: Heltal, hændelse: Pbl53AHændelse| sum + hvis pbl53a_dato_i_afkastperiode(pbl53a_hændelse_tidspunkt(hændelse).dato, periode) { beløb(hændelse) } ellers { 0 })
+| pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser: List(Pbl53AHændelse), periode: Pbl53AAfkastperiode, beløb: (Pbl53AHændelse) -> Heltal) -> foldl(hændelser, 0, |sum: Heltal, hændelse: Pbl53AHændelse| sum + hvis pbl53a_tidspunkt_i_afkastperiode(pbl53a_hændelsestidspunkt_som_pbl15a(pbl53a_hændelse_tidspunkt(hændelse)), periode) { beløb(hændelse) } ellers { 0 })
 
-# Pbl53AAfkastperiodeSag(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) {
-    | foldet_tilstand() -> foldl(fakta.grænsehændelser, pbl53a_tom_afkastperiodetilstand(ordning, fakta), |tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse| pbl53a_afkastgrænsetrin(ordning, fakta.indkomstår, tilstand, hændelse))
-    | lukningsgrænse() -> hvis foldet_tilstand().afkastbeskatning_aktiv { Pbl53ARegistreretAfkastgrænse(dato = Pbl15ADato(år = fakta.indkomstår, måned = 12, dag = 31), depotværdi_kroner = pbl53a_kalenderårets_ultimo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { foldet_tilstand().lukningsgrænse }
-    | afkastperiode() -> hvis foldet_tilstand().antal_sammenhængende_perioder == 1 { Pbl53ASammenhængendeAfkastperiode(startdato = pbl53a_afkastgrænse_dato(foldet_tilstand().åbningsgrænse, fakta.indkomstår), slutdato = pbl53a_afkastgrænse_dato(lukningsgrænse(), fakta.indkomstår)) } ellers { Pbl53AIngenAfkastperiode }
-    | grænsehændelsesidentifikationer_entydige() -> pbl53a_grænsehændelsesidentifikationer_entydige(fakta.grænsehændelser)
-    | periode_understøttet() -> fakta.indkomstår > 0 && pbl53a_afkastgrundlag_grundfakta_gyldige(fakta.afkastgrundlag) && grænsehændelsesidentifikationer_entydige() && foldet_tilstand().hændelser_kronologiske && foldet_tilstand().overgange_gyldige && foldet_tilstand().antal_sammenhængende_perioder <= 1
+# Pbl53AAfkastperiodeSag(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) {
+    | afledte_rettighedsgrænsehændelser() -> pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation, fakta.indkomstår, overgang)
+    | samlede_grænsehændelser() -> pbl53a_samlede_grænsehændelser(fakta.grænsehændelser, afledte_rettighedsgrænsehændelser())
+    | foldet_tilstand() -> foldl(samlede_grænsehændelser(), pbl53a_tom_afkastperiodetilstand(ordning, skatteyder_identifikation, overgang, fakta), |tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse| pbl53a_afkastgrænsetrin(ordning, fakta.indkomstår, tilstand, hændelse))
+    | lukningsgrænse() -> hvis foldet_tilstand().afkastbeskatning_aktiv { Pbl53ARegistreretAfkastgrænse(tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = fakta.indkomstår + 1, måned = 1, dag = 1), rækkefølge_på_dagen = 0), depotværdi_kroner = pbl53a_kalenderårets_ultimo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { foldet_tilstand().lukningsgrænse }
+    | afkastperiode() -> hvis foldet_tilstand().antal_sammenhængende_perioder == 1 { Pbl53ASammenhængendeAfkastperiode(starttidspunkt = pbl53a_afkastgrænse_tidspunkt(foldet_tilstand().åbningsgrænse, fakta.indkomstår), sluttidspunkt_eksklusiv = pbl53a_afkastgrænse_tidspunkt(lukningsgrænse(), fakta.indkomstår + 1)) } ellers { Pbl53AIngenAfkastperiode }
+    | grænsehændelsesidentifikationer_entydige() -> pbl53a_grænsehændelsesidentifikationer_entydige(samlede_grænsehændelser())
+    | oplyste_grænsehændelser_kronologiske() -> pbl53a_oplyste_grænsehændelser_kronologiske(fakta.grænsehændelser)
+    | hændelser_kronologiske() -> oplyste_grænsehændelser_kronologiske() && foldet_tilstand().hændelser_kronologiske
+    | periode_understøttet() -> skatteyder_identifikation != "" && overgang.fakta_gyldige && fakta.indkomstår > 0 && pbl53a_afkastgrundlag_grundfakta_gyldige(fakta.afkastgrundlag) && grænsehændelsesidentifikationer_entydige() && hændelser_kronologiske() && foldet_tilstand().overgange_gyldige && foldet_tilstand().antal_sammenhængende_perioder <= 1
     | kapitalværdi_primo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(foldet_tilstand().åbningsgrænse) } ellers { 0 }
     | kapitalværdi_ultimo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(lukningsgrænse()) } ellers { 0 }
     | indbetalinger_i_perioden_kroner() -> hvis periode_understøttet() { pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser, afkastperiode(), pbl53a_afkastindbetaling_for_hændelse_kroner) } ellers { 0 }
     | udbetalinger_i_perioden_kroner() -> hvis periode_understøttet() { pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser, afkastperiode(), pbl53a_afkastudbetaling_for_hændelse_kroner) } ellers { 0 }
     | resultat() -> Pbl53AAfkastperiodeResultat(
         fakta = fakta,
+        afledte_rettighedsgrænsehændelser = afledte_rettighedsgrænsehændelser(),
+        samlede_grænsehændelser = samlede_grænsehændelser(),
+        overgangsfakta_gyldige = overgang.fakta_gyldige,
         afkastperiode = afkastperiode(),
         grænsehændelsesidentifikationer_entydige = grænsehændelsesidentifikationer_entydige(),
-        hændelser_kronologiske = foldet_tilstand().hændelser_kronologiske,
+        oplyste_grænsehændelser_kronologiske = oplyste_grænsehændelser_kronologiske(),
+        hændelser_kronologiske = hændelser_kronologiske(),
         overgange_gyldige = foldet_tilstand().overgange_gyldige,
         periode_understøttet = periode_understøttet(),
         kapitalværdi_primo_kroner = kapitalværdi_primo_kroner(),
@@ -2077,7 +2236,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
         udbetalinger_i_perioden_kroner = udbetalinger_i_perioden_kroner()
     )
 }
-| pbl53a_afkastperiode_resultat(ordning: Pensionsbeskatningslov53AOrdning, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> Pbl53AAfkastperiodeSag(ordning, fakta, hændelser).resultat()
+| pbl53a_afkastperiode_resultat(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> Pbl53AAfkastperiodeSag(ordning, skatteyder_identifikation, overgang, fakta, hændelser).resultat()
 
 | pbl53a_berettiget_identifikation_unik(andele: List(Pbl53ABerettigetAndel), andel: Pbl53ABerettigetAndel) -> length(filter(andele, |anden: Pbl53ABerettigetAndel| anden.identifikation == andel.identifikation)) == 1
 | pbl53a_berettigede_indestående_sum_kroner(andele: List(Pbl53ABerettigetAndel)) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + andel.indestående_ultimo_kroner)
@@ -2214,7 +2373,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 | pbl53a_afkastskatteudbetaling_for_sen_i_år_kroner(hændelsesresultater: List(Pbl53AHændelsesresultat), indkomstår: Heltal) -> foldl(hændelsesresultater, 0, |sum: Heltal, resultat: Pbl53AHændelsesresultat| sum + pbl53a_afkastskatteudbetaling_for_sen_personlig_indkomst_kroner(resultat, indkomstår))
 
 # Pbl53AAfkastårstrinSag(input: Pbl53AAfkastforløbsinput, tilstand: Pbl53AAfkastforløbstilstand, fakta: Pbl53AAfkastårFakta) {
-    | periode_resultat() -> pbl53a_afkastperiode_resultat(input.ordning, fakta, input.hændelsesforløbsresultat.input.hændelser)
+    | periode_resultat() -> pbl53a_afkastperiode_resultat(input.ordning, input.skatteyder_identifikation, input.omfangsresultat.overgangsresultat, fakta, input.hændelsesforløbsresultat.input.hændelser)
     | skatteperiode_findes() -> pbl53a_afkastperiode_har_skattepligt(periode_resultat().afkastperiode)
     | afkastregelregime() -> pbl53a_afkastregelregime(fakta.indkomstår, input.omfangsresultat.overgangsresultat)
     | regelregime_understøttet() -> pbl53a_afkastregelregime_understøttet(afkastregelregime())
@@ -2343,6 +2502,8 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 )
 | pbl53a_omfang_fixture(produkt: Pbl53AProduktfakta) -> pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 0,
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
@@ -2397,6 +2558,8 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 ))
 = pbl53a_par53b_omfang_fixture = pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 0,
     erhvervelser = [],
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],

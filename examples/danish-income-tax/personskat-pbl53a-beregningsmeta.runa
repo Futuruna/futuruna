@@ -95,7 +95,14 @@
 ]
 
 = personskat_pbl53a_omfang_enkeltfelter = map([
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.oprindelig_rettighedshaver_identifikation", label = "Oprindelig rettighedshaver til ordningen", question = "Hvem havde retten til ordningen, da den blev oprettet?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.kapitalværdi_ved_oprettelsen_kroner", label = "Kapitalværdi ved ordningens oprettelse", question = "Hvad var ordningens kapitalværdi, da den blev oprettet?", unit = Some("kr.")),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser", label = "Senere erhvervelser af ordningen", question = "Er ordningen efter oprettelsen overgået til en ny ejer en eller flere gange?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.identifikation", label = "Erhvervelsens identifikation", question = "Hvilken entydig identifikation skal denne overgang af rettigheder have?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.tidspunkt.rækkefølge_på_dagen", label = "Erhvervelsens rækkefølge på dagen", question = "I hvilken rækkefølge skete erhvervelsen blandt ordningens hændelser samme dag?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.overdrager_identifikation", label = "Rettighedshaver før erhvervelsen", question = "Hvem overdrog retten til ordningen ved denne erhvervelse?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.erhverver_identifikation", label = "Rettighedshaver efter erhvervelsen", question = "Hvem erhvervede retten til ordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.kapitalværdi_på_erhvervelsestidspunktet_kroner", label = "Kapitalværdi ved erhvervelsen", question = "Hvad var ordningens kapitalværdi på erhvervelsestidspunktet?", unit = Some("kr.")),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.måde", label = "Erhvervelsesmåden", question = "Skete denne erhvervelse ved arv eller på anden måde?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.$variant", label = "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B", question = "Hvilket fristgrundlag gjaldt for et eventuelt bindende valg for den historiske ordning?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen", label = "Fuld dansk skattepligt ved den senere arv", question = "Var arvingen fuldt skattepligtig til Danmark på arvedatoen?", unit = None),
@@ -150,7 +157,7 @@
 
 = personskat_pbl53a_omfang_datofelter = flat_map([
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.oprettelsesdato", label = "Ordningens oprettelsesdato", question = "Hvornår blev ordningen oprettet?"),
-    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.dato", label = "Dato for senere erhvervelse", question = "Hvornår overgik ordningen til den nye ejer?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.tidspunkt.dato", label = "Dato for senere erhvervelse", question = "Hvornår overgik ordningen til den nye rettighedshaver?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereIndtrådtFuldSkattepligt.indtrædelsesdato", label = "Dato for senere fuld dansk skattepligt", question = "Hvornår indtrådte den fulde danske skattepligt?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereIndtrådtFuldSkattepligt.oplysningsfrist", label = "Oplysningsfrist efter senere fuld skattepligt", question = "Hvornår udløb oplysningsfristen for indtrædelsesåret?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato", label = "Arvedato for det senere overgangsvalg", question = "Hvornår blev den historiske livsforsikring arvet?"),
@@ -210,7 +217,7 @@
     path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.Pbl53AAlternativtKapitalværdiAfkast.kalenderårets_primo_depotværdi_kroner",
     label = "Depotværdi ved kalenderårets begyndelse",
     question = Some("Hvad var ordningens depotværdi ved kalenderårets begyndelse?"),
-    help = Some("Ved indtræden eller sikkerhedsstillelse i løbet af året bruger Futuruna i stedet depotværdien ved den daterede grænsehændelse."),
+    help = Some("Ved erhvervelse, indtræden eller sikkerhedsstillelse i løbet af året bruger Futuruna i stedet depotværdien ved den afledte eller oplyste grænsehændelse."),
     unit = Some("kr.")
 )
 = personskat_pbl53a_felt_kalender_ultimo = Beregningsfelt(
@@ -756,6 +763,7 @@
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
         TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),

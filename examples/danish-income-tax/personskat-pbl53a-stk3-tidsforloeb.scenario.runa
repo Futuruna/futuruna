@@ -39,7 +39,7 @@ identifikation.
     pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
     skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
-    grænsehændelser = [Pbl53AAfkastgrænsehændelse(
+    grænsehændelser = [Pbl53AOplystAfkastgrænsehændelse(
         identifikation = "tilflytning-2026",
         tidspunkt = Pbl15ATidspunkt(
             dato = Pbl15ADato(år = 2026, måned = 3, dag = 31),
@@ -101,7 +101,7 @@ identifikation.
     pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
-    grænsehændelser = [Pbl53AAfkastgrænsehændelse(
+    grænsehændelser = [Pbl53AOplystAfkastgrænsehændelse(
         identifikation = "fraflytning-2026",
         tidspunkt = Pbl15ATidspunkt(
             dato = Pbl15ADato(år = 2026, måned = 9, dag = 30),
@@ -164,7 +164,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedBestårIkkeVedÅretsBegyndelse,
     grænsehændelser = [
-        Pbl53AAfkastgrænsehændelse(
+        Pbl53AOplystAfkastgrænsehændelse(
             identifikation = "sikkerhed-etableres-2026",
             tidspunkt = Pbl15ATidspunkt(
                 dato = Pbl15ADato(år = 2026, måned = 3, dag = 1),
@@ -173,7 +173,7 @@ identifikation.
             depotværdi_kroner = 120000,
             art = Pbl53ASikkerhedsstillelseEtableres
         ),
-        Pbl53AAfkastgrænsehændelse(
+        Pbl53AOplystAfkastgrænsehændelse(
             identifikation = "sikkerhed-ophører-2026",
             tidspunkt = Pbl15ATidspunkt(
                 dato = Pbl15ADato(år = 2026, måned = 10, dag = 1),
@@ -278,19 +278,19 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [
-        Pbl53AAfkastgrænsehændelse(
+        Pbl53AOplystAfkastgrænsehændelse(
             identifikation = "første-indtræden",
             tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 3, dag = 1), rækkefølge_på_dagen = 1),
             depotværdi_kroner = 105000,
             art = Pbl53ASkattepligtIndtræder
         ),
-        Pbl53AAfkastgrænsehændelse(
+        Pbl53AOplystAfkastgrænsehændelse(
             identifikation = "første-ophør",
             tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 5, dag = 1), rækkefølge_på_dagen = 1),
             depotværdi_kroner = 110000,
             art = Pbl53ASkattepligtOphører
         ),
-        Pbl53AAfkastgrænsehændelse(
+        Pbl53AOplystAfkastgrænsehændelse(
             identifikation = "anden-indtræden",
             tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 9, dag = 1), rækkefølge_på_dagen = 1),
             depotværdi_kroner = 120000,

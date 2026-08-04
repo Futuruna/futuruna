@@ -1,0 +1,247 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+----
+Scenariet validerer, at oprettelse og senere erhvervelser danner en entydig,
+halvåben rettighedskæde. Den enkelte skatteyders afkastperiode og åbningsværdi
+afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følge.
+----
+
+| pbl53a_erhvervelsesår_hændelse(identifikation: Tekst, dato: Pbl15ADato, rækkefølge_på_dagen: Heltal, overdrager_identifikation: Tekst, erhverver_identifikation: Tekst, kapitalværdi_kroner: Heltal) -> Pbl53AErhvervelseshændelse(
+    identifikation = identifikation,
+    tidspunkt = Pbl15ATidspunkt(dato = dato, rækkefølge_på_dagen = rækkefølge_på_dagen),
+    overdrager_identifikation = overdrager_identifikation,
+    erhverver_identifikation = erhverver_identifikation,
+    kapitalværdi_på_erhvervelsestidspunktet_kroner = kapitalværdi_kroner,
+    måde = Pbl53AErhvervetPåAndenMåde
+)
+
+| pbl53a_erhvervelsesår_omfangsfakta(oprindelig_rettighedshaver_identifikation: Tekst, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = oprindelig_rettighedshaver_identifikation,
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
+    erhvervelser = erhvervelser,
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_erhvervelsesår_afkastfakta(skatteyder_identifikation: Tekst) -> Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 160000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = skatteyder_identifikation)
+)
+
+| pbl53a_erhvervelsesår_indbetaling(identifikation: Tekst, dato: Pbl15ADato, beløb_kroner: Heltal) -> Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = identifikation,
+    tidspunkt = Pbl53ATidspunkt(dato = dato, rækkefølge_på_dagen = 1),
+    beløb_kroner = beløb_kroner,
+    periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+    par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
+))
+
+| pbl53a_erhvervelsesår_udbetaling(identifikation: Tekst, dato: Pbl15ADato, beløb_kroner: Heltal) -> Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+    identifikation = identifikation,
+    tidspunkt = Pbl53ATidspunkt(dato = dato, rækkefølge_på_dagen = 1),
+    modtager = Pbl53AEjer,
+    bruttoudbetaling_kroner = beløb_kroner,
+    art = Pbl53AUdbetalingFraOrdningen(
+        kapitalværdi_umiddelbart_før_udbetalingen_kroner = 155000,
+        produktart = Pbl53AAndenProduktart,
+        udbetalingsform = Pbl53AIkkeSamletKapitaludbetaling,
+        pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+    )
+))
+
+| pbl53a_erhvervelsesår_periode_resultat(skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
+    = overgang = pbl53a_overgangsresultat(omfangsfakta, hændelser)
+    pbl53a_afkastperiode_resultat(
+        ordning = Pbl53ALivsforsikringUdenKapitel1,
+        skatteyder_identifikation = skatteyder_identifikation,
+        overgang = overgang,
+        fakta = pbl53a_erhvervelsesår_afkastfakta(skatteyder_identifikation),
+        hændelser = hændelser
+    )
+}
+
+= pbl53a_erhvervelsesår_januar_fakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "tidligere-ejer",
+    erhvervelser = [pbl53a_erhvervelsesår_hændelse(
+        identifikation = "køb-1-januar",
+        dato = Pbl15ADato(år = 2026, måned = 1, dag = 1),
+        rækkefølge_på_dagen = 1,
+        overdrager_identifikation = "tidligere-ejer",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 120000
+    )]
+)
+= pbl53a_erhvervelsesår_januar_resultat = pbl53a_erhvervelsesår_periode_resultat("person-1", pbl53a_erhvervelsesår_januar_fakta, [])
+
+= pbl53a_erhvervelsesår_midte_hændelser = [
+    pbl53a_erhvervelsesår_indbetaling("indbetaling-før-erhvervelse", Pbl15ADato(år = 2026, måned = 3, dag = 1), 10000),
+    pbl53a_erhvervelsesår_indbetaling("indbetaling-efter-erhvervelse", Pbl15ADato(år = 2026, måned = 7, dag = 1), 5000),
+    pbl53a_erhvervelsesår_udbetaling("udbetaling-efter-erhvervelse", Pbl15ADato(år = 2026, måned = 11, dag = 1), 4000)
+]
+= pbl53a_erhvervelsesår_midte_fakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "tidligere-ejer",
+    erhvervelser = [pbl53a_erhvervelsesår_hændelse(
+        identifikation = "køb-1-juni",
+        dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+        rækkefølge_på_dagen = 2,
+        overdrager_identifikation = "tidligere-ejer",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 130000
+    )]
+)
+= pbl53a_erhvervelsesår_midte_resultat = pbl53a_erhvervelsesår_periode_resultat("person-1", pbl53a_erhvervelsesår_midte_fakta, pbl53a_erhvervelsesår_midte_hændelser)
+
+= pbl53a_erhvervelsesår_midte_personskat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [PersonskatPbl53AOrdningFakta(
+    identifikation = "erhvervet-livsforsikring",
+    skatteyder_identifikation = "person-1",
+    omfangsfakta = pbl53a_erhvervelsesår_midte_fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [pbl53a_erhvervelsesår_afkastfakta("person-1")],
+    hændelser = pbl53a_erhvervelsesår_midte_hændelser
+    )]), 2026)
+
+= pbl53a_erhvervelsesår_kæde_fakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "ejer-a",
+    erhvervelser = [
+        pbl53a_erhvervelsesår_hændelse(
+            identifikation = "a-til-b",
+            dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+            rækkefølge_på_dagen = 1,
+            overdrager_identifikation = "ejer-a",
+            erhverver_identifikation = "ejer-b",
+            kapitalværdi_kroner = 130000
+        ),
+        pbl53a_erhvervelsesår_hændelse(
+            identifikation = "b-til-c",
+            dato = Pbl15ADato(år = 2026, måned = 10, dag = 1),
+            rækkefølge_på_dagen = 1,
+            overdrager_identifikation = "ejer-b",
+            erhverver_identifikation = "person-1",
+            kapitalværdi_kroner = 150000
+        )
+    ]
+)
+= pbl53a_erhvervelsesår_kæde_overgang = pbl53a_overgangsresultat(pbl53a_erhvervelsesår_kæde_fakta, [])
+= pbl53a_erhvervelsesår_ejer_a_periode = head(filter(pbl53a_erhvervelsesår_kæde_overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| periode.rettighedshaver_identifikation == "ejer-a"))
+= pbl53a_erhvervelsesår_ejer_b_periode = head(filter(pbl53a_erhvervelsesår_kæde_overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| periode.rettighedshaver_identifikation == "ejer-b"))
+= pbl53a_erhvervelsesår_ejer_c_periode = head(filter(pbl53a_erhvervelsesår_kæde_overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| periode.rettighedshaver_identifikation == "person-1"))
+= pbl53a_erhvervelsesår_ejer_a_afkastperiode = pbl53a_erhvervelsesår_periode_resultat("ejer-a", pbl53a_erhvervelsesår_kæde_fakta, [])
+= pbl53a_erhvervelsesår_ejer_b_afkastperiode = pbl53a_erhvervelsesår_periode_resultat("ejer-b", pbl53a_erhvervelsesår_kæde_fakta, [])
+= pbl53a_erhvervelsesår_ejer_c_afkastperiode = pbl53a_erhvervelsesår_periode_resultat("person-1", pbl53a_erhvervelsesår_kæde_fakta, [])
+
+= pbl53a_erhvervelsesår_dublet_fakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "ejer-a",
+    erhvervelser = [
+        pbl53a_erhvervelsesår_hændelse("dublet", Pbl15ADato(år = 2026, måned = 5, dag = 1), 1, "ejer-a", "ejer-b", 120000),
+        pbl53a_erhvervelsesår_hændelse("dublet", Pbl15ADato(år = 2026, måned = 9, dag = 1), 1, "ejer-b", "person-1", 145000)
+    ]
+)
+= pbl53a_erhvervelsesår_dublet_overgang = pbl53a_overgangsresultat(pbl53a_erhvervelsesår_dublet_fakta, [])
+= pbl53a_erhvervelsesår_dublet_periode = pbl53a_erhvervelsesår_periode_resultat("person-1", pbl53a_erhvervelsesår_dublet_fakta, [])
+
+= pbl53a_erhvervelsesår_brudt_kæde_fakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "ejer-a",
+    erhvervelser = [pbl53a_erhvervelsesår_hændelse("brudt-kæde", Pbl15ADato(år = 2026, måned = 5, dag = 1), 1, "ukendt-ejer", "person-1", 120000)]
+)
+= pbl53a_erhvervelsesår_brudt_kæde_overgang = pbl53a_overgangsresultat(pbl53a_erhvervelsesår_brudt_kæde_fakta, [])
+
+= pbl53a_erhvervelsesår_omvendte_grænser_omfangsfakta = pbl53a_erhvervelsesår_omfangsfakta(
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    erhvervelser = []
+)
+= pbl53a_erhvervelsesår_omvendte_grænser_overgang = pbl53a_overgangsresultat(pbl53a_erhvervelsesår_omvendte_grænser_omfangsfakta, [])
+= pbl53a_erhvervelsesår_omvendte_grænser_fakta = Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = 150000
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [
+        Pbl53AOplystAfkastgrænsehændelse(
+            identifikation = "skattepligt-ophører",
+            tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 9, dag = 1), rækkefølge_på_dagen = 1),
+            depotværdi_kroner = 140000,
+            art = Pbl53ASkattepligtOphører
+        ),
+        Pbl53AOplystAfkastgrænsehændelse(
+            identifikation = "skattepligt-indtræder",
+            tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 3, dag = 1), rækkefølge_på_dagen = 1),
+            depotværdi_kroner = 110000,
+            art = Pbl53ASkattepligtIndtræder
+        )
+    ],
+    berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+)
+= pbl53a_erhvervelsesår_omvendte_grænser_resultat = pbl53a_afkastperiode_resultat(
+    ordning = Pbl53ALivsforsikringUdenKapitel1,
+    skatteyder_identifikation = "person-1",
+    overgang = pbl53a_erhvervelsesår_omvendte_grænser_overgang,
+    fakta = pbl53a_erhvervelsesår_omvendte_grænser_fakta,
+    hændelser = []
+)
+
+| pbl53a_erhvervelsesår_januar_bruger_erhvervelsesværdi: pbl53a_erhvervelsesår_januar_resultat -> pbl53a_erhvervelsesår_januar_resultat.periode_understøttet && pbl53a_erhvervelsesår_januar_resultat.kapitalværdi_primo_kroner == 120000 && match pbl53a_erhvervelsesår_januar_resultat.afkastperiode {
+    | Pbl53ASammenhængendeAfkastperiode(starttidspunkt, _) -> starttidspunkt == Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 1, dag = 1), rækkefølge_på_dagen = 1)
+    | _ -> Falskt
+}
+
+| pbl53a_erhvervelsesår_midte_filtrerer_tidligere_hændelser: pbl53a_erhvervelsesår_midte_resultat -> pbl53a_erhvervelsesår_midte_resultat.periode_understøttet && pbl53a_erhvervelsesår_midte_resultat.kapitalværdi_primo_kroner == 130000 && pbl53a_erhvervelsesår_midte_resultat.kapitalværdi_ultimo_kroner == 160000 && pbl53a_erhvervelsesår_midte_resultat.indbetalinger_i_perioden_kroner == 5000 && pbl53a_erhvervelsesår_midte_resultat.udbetalinger_i_perioden_kroner == 4000
+
+| pbl53a_erhvervelsesår_midte_beregner_personskat: pbl53a_erhvervelsesår_midte_personskat -> pbl53a_erhvervelsesår_midte_personskat.alle_input_gyldige && length(pbl53a_erhvervelsesår_midte_personskat.kapitalposter) == 1 && pbl53a_erhvervelsesår_midte_personskat.kapitalposter[0].beløb_kroner == 29000 && match pbl53a_erhvervelsesår_midte_personskat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 130000 && pensionsbeskatningslov_input.indbetalinger_i_året_kroner == 5000 && pensionsbeskatningslov_input.udbetalinger_i_året_kroner == 4000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 29000
+    | _ -> Falskt
+}
+
+| pbl53a_erhvervelsesår_rettighedsperioder_er_halvåbne: pbl53a_erhvervelsesår_kæde_overgang -> pbl53a_erhvervelsesår_kæde_overgang.fakta_gyldige && length(pbl53a_erhvervelsesår_kæde_overgang.rettighedsperioder) == 3 && match pbl53a_erhvervelsesår_ejer_a_periode.slutning {
+    | Pbl53ARettighedsperiodeSlutter(_, a_slut, _) -> a_slut == pbl53a_erhvervelsesår_ejer_b_periode.starttidspunkt && match pbl53a_erhvervelsesår_ejer_b_periode.slutning {
+        | Pbl53ARettighedsperiodeSlutter(_, b_slut, _) -> b_slut == pbl53a_erhvervelsesår_ejer_c_periode.starttidspunkt
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
+
+| pbl53a_erhvervelsesår_tre_ejere_får_adskilte_afkastperioder: pbl53a_erhvervelsesår_kæde_overgang -> pbl53a_erhvervelsesår_ejer_a_afkastperiode.periode_understøttet && pbl53a_erhvervelsesår_ejer_b_afkastperiode.periode_understøttet && pbl53a_erhvervelsesår_ejer_c_afkastperiode.periode_understøttet && match pbl53a_erhvervelsesår_ejer_a_afkastperiode.afkastperiode {
+    | Pbl53ASammenhængendeAfkastperiode(_, a_slut) -> match pbl53a_erhvervelsesår_ejer_b_afkastperiode.afkastperiode {
+        | Pbl53ASammenhængendeAfkastperiode(b_start, b_slut) -> a_slut == b_start && match pbl53a_erhvervelsesår_ejer_c_afkastperiode.afkastperiode {
+            | Pbl53ASammenhængendeAfkastperiode(c_start, _) -> b_slut == c_start
+            | _ -> Falskt
+        }
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
+
+| pbl53a_erhvervelsesår_dublet_fejler_lukket: pbl53a_erhvervelsesår_dublet_overgang -> pbl53a_erhvervelsesår_dublet_overgang.erhvervelsesidentifikationer_entydige == Falskt && pbl53a_erhvervelsesår_dublet_overgang.fakta_gyldige == Falskt && pbl53a_erhvervelsesår_dublet_periode.periode_understøttet == Falskt && pbl53a_erhvervelsesår_dublet_periode.kapitalværdi_primo_kroner == 0
+
+| pbl53a_erhvervelsesår_brudt_kæde_fejler_lukket: pbl53a_erhvervelsesår_brudt_kæde_overgang -> pbl53a_erhvervelsesår_brudt_kæde_overgang.rettighedskæde_sammenhængende == Falskt && pbl53a_erhvervelsesår_brudt_kæde_overgang.fakta_gyldige == Falskt
+
+| pbl53a_erhvervelsesår_omvendte_oplyste_grænser_fejler_lukket: pbl53a_erhvervelsesår_omvendte_grænser_resultat -> pbl53a_erhvervelsesår_omvendte_grænser_resultat.oplyste_grænsehændelser_kronologiske == Falskt && pbl53a_erhvervelsesår_omvendte_grænser_resultat.hændelser_kronologiske == Falskt && pbl53a_erhvervelsesår_omvendte_grænser_resultat.periode_understøttet == Falskt && pbl53a_erhvervelsesår_omvendte_grænser_resultat.kapitalværdi_primo_kroner == 0
+
+? pbl53a_erhvervelsesår_januar_bruger_erhvervelsesværdi
+? pbl53a_erhvervelsesår_midte_filtrerer_tidligere_hændelser
+? pbl53a_erhvervelsesår_midte_beregner_personskat
+? pbl53a_erhvervelsesår_rettighedsperioder_er_halvåbne
+? pbl53a_erhvervelsesår_tre_ejere_får_adskilte_afkastperioder
+? pbl53a_erhvervelsesår_dublet_fejler_lukket
+? pbl53a_erhvervelsesår_brudt_kæde_fejler_lukket
+? pbl53a_erhvervelsesår_omvendte_oplyste_grænser_fejler_lukket

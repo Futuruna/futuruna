@@ -24188,6 +24188,26 @@ impl RustCodegen {
         self.binary_global_binding_types =
             self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
 
+        // Rule bodies can project fields from top-level values, while those values can
+        // themselves be produced by value-returning rules. Resolve both sides together
+        // so an otherwise known global record type is not lost at the field projection.
+        for _ in 0..stmts.len().max(1) {
+            let before_binding_types = self.binary_global_binding_types.clone();
+            let before_fn_types = self.types.fn_types.clone();
+            let before_return_types = self.fn_return_types.clone();
+
+            self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
+            self.binary_global_binding_types =
+                self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+
+            if self.binary_global_binding_types == before_binding_types
+                && self.types.fn_types == before_fn_types
+                && self.fn_return_types == before_return_types
+            {
+                break;
+            }
+        }
+
         // Emit rules as Rust functions (Catala-style: exception > conditional default > unconditional default > clause)
         {
             // Pre-register Prolog-style rule functions so type propagation works across groups
@@ -32743,6 +32763,10 @@ impl RustCodegen {
     fn current_type_env(&self) -> BTreeMap<String, FirTy> {
         let mut env = self.var_fir_types.clone();
         for (name, rust_ty) in &self.var_types {
+            env.entry(name.clone())
+                .or_insert_with(|| Self::rust_type_to_fir(rust_ty));
+        }
+        for (name, rust_ty) in &self.binary_global_binding_types {
             env.entry(name.clone())
                 .or_insert_with(|| Self::rust_type_to_fir(rust_ty));
         }
@@ -46105,6 +46129,23 @@ for x in [1, 2] {
             "true",
             "nullary rule field projections of top-level rule-derived values should use hidden globals"
         );
+    }
+
+    #[test]
+    fn compiled_top_level_binding_projection_uses_known_global_type() {
+        let source = r#"
+# Payload(value: Int)
+# Fixture(fakta: Payload)
+# Unrelated = Alternative(fakta: Payload) | Empty
+
+| make_fixture() -> Fixture(fakta = Payload(value = 42))
+= fixture = make_fixture()
+| project_fixture() -> fixture.fakta
+= projected = project_fixture()
+@ print(show(projected.value))
+"#;
+
+        assert_eq!(compile_and_run_test_program(source).trim(), "42");
     }
 
     fn interpret_test_source_expect_runtime_failure(source: &str, expected_substrings: &[&str]) {

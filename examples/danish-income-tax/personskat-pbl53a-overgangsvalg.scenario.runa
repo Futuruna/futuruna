@@ -12,6 +12,8 @@
 
 | pbl53a_overgangsvalg_fakta(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
     erhvervelser = erhvervelser,
     overgangsvalgfristfakta = overgangsvalgfristfakta,
     overgangsvalg = overgangsvalg,
@@ -191,7 +193,11 @@
 
 = pbl53a_overgangsvalg_arvedato = Pbl15ADato(år = 2022, måned = 4, dag = 9)
 = pbl53a_overgangsvalg_arvehændelse = Pbl53AErhvervelseshændelse(
-    dato = pbl53a_overgangsvalg_arvedato,
+    identifikation = "arv-2022",
+    tidspunkt = Pbl15ATidspunkt(dato = pbl53a_overgangsvalg_arvedato, rækkefølge_på_dagen = 1),
+    overdrager_identifikation = "person-1",
+    erhverver_identifikation = "arving-1",
+    kapitalværdi_på_erhvervelsestidspunktet_kroner = 150000,
     måde = Pbl53AErhvervetVedArv
 )
 = pbl53a_overgangsvalg_arvemeddelelse = pbl53a_overgangsvalg_meddelelse(

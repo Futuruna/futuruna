@@ -4,6 +4,8 @@
 
 | pbl53a_erhvervelsesovergang_fakta(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "ejer-0",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
     erhvervelser = erhvervelser,
     overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
     overgangsvalg = [],
@@ -11,6 +13,15 @@
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,
     par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_erhvervelsesovergang_hændelse(identifikation: Tekst, dato: Pbl15ADato, overdrager_identifikation: Tekst, erhverver_identifikation: Tekst, kapitalværdi_kroner: Heltal, måde: Pbl53AErhvervelsesmåde) -> Pbl53AErhvervelseshændelse(
+    identifikation = identifikation,
+    tidspunkt = Pbl15ATidspunkt(dato = dato, rækkefølge_på_dagen = 1),
+    overdrager_identifikation = overdrager_identifikation,
+    erhverver_identifikation = erhverver_identifikation,
+    kapitalværdi_på_erhvervelsestidspunktet_kroner = kapitalværdi_kroner,
+    måde = måde
 )
 
 | pbl53a_erhvervelsesovergang_resultat(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> pbl53a_omfangsresultat(
@@ -24,16 +35,24 @@
 
 = pbl53a_erhvervelsesovergang_overdraget_1995 = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "overdragelse-1995",
         dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 125000,
         måde = Pbl53AErhvervetPåAndenMåde
     )]
 )
 
 = pbl53a_erhvervelsesovergang_arvet_2022 = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "arv-2022",
         dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 175000,
         måde = Pbl53AErhvervetVedArv
     )]
 )
@@ -41,12 +60,20 @@
 = pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
     erhvervelser = [
-        Pbl53AErhvervelseshændelse(
+        pbl53a_erhvervelsesovergang_hændelse(
+            identifikation = "overdragelse-1995",
             dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+            overdrager_identifikation = "ejer-0",
+            erhverver_identifikation = "ejer-1",
+            kapitalværdi_kroner = 125000,
             måde = Pbl53AErhvervetPåAndenMåde
         ),
-        Pbl53AErhvervelseshændelse(
+        pbl53a_erhvervelsesovergang_hændelse(
+            identifikation = "arv-2022",
             dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+            overdrager_identifikation = "ejer-1",
+            erhverver_identifikation = "person-1",
+            kapitalværdi_kroner = 175000,
             måde = Pbl53AErhvervetVedArv
         )
     ]
@@ -54,32 +81,48 @@
 
 = pbl53a_erhvervelsesovergang_arvet_pengeinstitut = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_pengeinstitut,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "bankarv-2022",
         dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 175000,
         måde = Pbl53AErhvervetVedArv
     )]
 )
 
 = pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "overdragelse-1991",
         dato = Pbl15ADato(år = 1991, måned = 7, dag = 1),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 105000,
         måde = Pbl53AErhvervetPåAndenMåde
     )]
 )
 
 = pbl53a_erhvervelsesovergang_erhvervet_på_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "overdragelse-skæringsdato",
         dato = Pbl15ADato(år = 1992, måned = 2, dag = 18),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 110000,
         måde = Pbl53AErhvervetPåAndenMåde
     )]
 )
 
 = pbl53a_erhvervelsesovergang_erhvervet_dagen_før_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
-    erhvervelser = [Pbl53AErhvervelseshændelse(
+    erhvervelser = [pbl53a_erhvervelsesovergang_hændelse(
+        identifikation = "overdragelse-dagen-før",
         dato = Pbl15ADato(år = 1992, måned = 2, dag = 17),
+        overdrager_identifikation = "ejer-0",
+        erhverver_identifikation = "person-1",
+        kapitalværdi_kroner = 110000,
         måde = Pbl53AErhvervetPåAndenMåde
     )]
 )
@@ -92,12 +135,20 @@
 = pbl53a_erhvervelsesovergang_omvendt_kronologi = pbl53a_erhvervelsesovergang_resultat(
     produkt = pbl53a_erhvervelsesovergang_livsforsikring,
     erhvervelser = [
-        Pbl53AErhvervelseshændelse(
+        pbl53a_erhvervelsesovergang_hændelse(
+            identifikation = "arv-2022",
             dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+            overdrager_identifikation = "ejer-0",
+            erhverver_identifikation = "ejer-1",
+            kapitalværdi_kroner = 175000,
             måde = Pbl53AErhvervetVedArv
         ),
-        Pbl53AErhvervelseshændelse(
+        pbl53a_erhvervelsesovergang_hændelse(
+            identifikation = "overdragelse-1995",
             dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+            overdrager_identifikation = "ejer-1",
+            erhverver_identifikation = "person-1",
+            kapitalværdi_kroner = 125000,
             måde = Pbl53AErhvervetPåAndenMåde
         )
     ]

@@ -8,6 +8,7 @@
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        PreparatorySource(value = pensionsbeskatningsloven_lsf229_1992_par6),
         TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
