@@ -119,7 +119,7 @@ fjernes provenuet fra afståelsesopgørelsen; en afvikling efter den eksplicitte
 interpreter- og kompilerscenarier dækker fortsat ejerskab, salg med beholdt
 provenu, et hændelsesforløb uden holding, rettidig likvidation og sen
 likvidation. Den kanoniske kontrakt har 27 nye danske feltmetadata-poster for
-forløbet og 683 feltmetadata-poster i alt.
+forløbet og 684 feltmetadata-poster i alt.
 
 Latest integration: Pensionsbeskatningslovens §§ 16 og 18 bruger nu en særskilt
 kildebelagt årsparameterportefølje for 2010-2026. Hvert resultat bærer både
@@ -348,11 +348,14 @@ erstatningsregel i § 9 D. Borgeren angiver arbejdsdage, afstand,
 befordringsformål, godtgørelser, bropassager, særlig transport og eventuelle
 § 9 D-forhold. Skatteåret og § 9 C's aftrapningsindkomst afledes i den
 nuværende almindelige lønmodtagervej fra det omgivende skatteår og
-AM-bidragsgrundlaget; de er ikke regnearksfelter. § 9 D-resultatet afledes også
-internt. Ugyldige eller årsmæssigt forkerte fakta bevares i resultatets
-auditspor, men får ingen skattemæssig virkning. Arbejdsgiverbetalt fri
-befordring føres til personlig indkomst uden at forhøje lønnens AM-grundlag,
-mens et gyldigt § 9 D-fradrag erstatter det ordinære § 9 C-fradrag.
+AM-bidragsgrundlaget; de er ikke regnearksfelter. Hvis modposten for fri bil er
+AM-bidragspligtig, indgår den også i det endelige aftrapningsgrundlag.
+§ 9 D-resultatet afledes internt. Ugyldige eller årsmæssigt forkerte fakta
+bevares i resultatets auditspor, men får ingen skattemæssig virkning.
+Arbejdsgiverbetalt befordring er et typet kildefaktum: et frikort til offentlig
+transport føres til personlig B-indkomst uden AM-bidrag, mens modposten ved fri
+bil føres til AM-bidragspligtig personlig indkomst. Et gyldigt § 9 D-fradrag
+erstatter det ordinære § 9 C-fradrag.
 
 Den samme graf modtager renteindtægter, renteudgifter, valgfri fradrag efter
 Ligningslovens §§ 6 og 6 A samt identificerede omkostninger efter
@@ -396,7 +399,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 683 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 684 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -3042,7 +3045,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 683 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 684 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

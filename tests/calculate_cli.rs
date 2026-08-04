@@ -979,6 +979,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
             "lønmodtager.ligningsfradrag.befordring.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsdage",
+            "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsgiverbetalt_befordring",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.$variant",
             "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
             "lønmodtager.erhvervsbefordring.sager.identifikation",
@@ -1583,6 +1584,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "kronologiske rækkefølge",
             ),
             (
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsgiverbetalt_befordring",
+                "Arbejdsgiverbetalt transport",
+                "Hvilken form",
+            ),
+            (
                 "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.identifikation",
                 "Virksomhedsafståelse",
                 "entydig identifikation",
@@ -1977,6 +1983,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "aktieavance.ordinært_aktieår.$variant",
                         Data::String("UdenOrdinærtAktieår".to_string()),
+                    ),
+                    (
+                        "udenlandske_sociale_bidrag.$variant",
+                        Data::String(
+                            "UdenUdenlandskeSocialeBidragEfterLigningslov8M".to_string(),
+                        ),
                     ),
                     (
                         "underskudsforhold.$variant",
@@ -2406,8 +2418,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::Bool(false),
             ),
             (
-                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen",
-                Data::Bool(false),
+                "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.arbejdsgiverbetalt_befordring",
+                Data::String("UdenArbejdsgiverbetaltBefordring".to_string()),
             ),
             (
                 "lønmodtager.ligningsfradrag.befordring.MedBefordringsfradrag.fakta.broer.storebælt_bil_motorcykel_passager",
@@ -4031,7 +4043,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning": false,
                 "ligningslov9d": { "$variant": "UdenLigningslov9D" },
                 "fradrag_udelukket_folketingshverv_m_v": false,
-                "fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen": false,
+                "arbejdsgiverbetalt_befordring": {
+                    "$variant": "UdenArbejdsgiverbetaltBefordring"
+                },
                 "broer": {
                     "storebælt_bil_motorcykel_passager": 0,
                     "storebælt_kollektiv_passager": 0,

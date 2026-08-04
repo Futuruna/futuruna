@@ -63,7 +63,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     årsopgørelse = UdenÅrsopgørelse
 )
-| personskat_calculate_befordringsfakta(fri_befordring: Boolsk, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
+| personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
     arbejdsdage = 203,
     daglige_befordringskilometer = 60,
     bopæl_i_yderkommune_eller_lille_ø = Falskt,
@@ -72,7 +72,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
     ligningslov9d = ligningslov9d,
     fradrag_udelukket_folketingshverv_m_v = Falskt,
-    fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = fri_befordring,
+    arbejdsgiverbetalt_befordring = arbejdsgiverbetalt_befordring,
     broer = ll9c_ingen_bropassager(),
     særlig_transport = ll9c_ingen_særlig_transport()
 )
@@ -371,8 +371,18 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     gift_samlevende_ved_indkomstårets_udgang = Falskt
 )))))
 
-= personskat_calculate_befordring_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(Falskt, UdenLigningslov9D))))
-= personskat_calculate_fri_befordring_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(Sandt, UdenLigningslov9D))))
+= personskat_calculate_befordring_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    ligningslov9d = UdenLigningslov9D
+))))
+= personskat_calculate_fri_offentlig_befordring_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
+    arbejdsgiverbetalt_befordring = ArbejdsgiverbetaltOffentligTransportForHeleStrækningen,
+    ligningslov9d = UdenLigningslov9D
+))))
+= personskat_calculate_fri_bil_befordring_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
+    arbejdsgiverbetalt_befordring = ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen,
+    ligningslov9d = UdenLigningslov9D
+))))
 = personskat_calculate_ll9d_input = Ligningslov9DInput(
     skatteår = 2026,
     befordringsformål = Par9DArbejdsplads,
@@ -386,7 +396,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         faktisk_udgift_opgøres_efter_erhvervssats = Falskt
     )
 )
-= personskat_calculate_ll9d_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(Falskt, MedLigningslov9D(input = personskat_calculate_ll9d_input)))))
+= personskat_calculate_ll9d_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    ligningslov9d = MedLigningslov9D(input = personskat_calculate_ll9d_input)
+))))
 = personskat_calculate_ll9d_forkert_år_input = Ligningslov9DInput(
     skatteår = 2025,
     befordringsformål = Par9DArbejdsplads,
@@ -400,7 +413,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         faktisk_udgift_opgøres_efter_erhvervssats = Falskt
     )
 )
-= personskat_calculate_ll9d_forkert_år_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(Falskt, MedLigningslov9D(input = personskat_calculate_ll9d_forkert_år_input)))))
+= personskat_calculate_ll9d_forkert_år_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    ligningslov9d = MedLigningslov9D(input = personskat_calculate_ll9d_forkert_år_input)
+))))
 
 = personskat_calculate_ordinær_position = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-ORDINÆR-1",
@@ -591,9 +607,14 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | _ -> Falskt
 }
 | personskat_calculate_befordring_afledes: personskat_calculate_befordring_resultat -> personskat_calculate_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 0 && personskat_calculate_befordring_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 23166 && personskat_calculate_befordring_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 203308
-| personskat_calculate_fri_befordring_føder_personlig_indkomst: personskat_calculate_fri_befordring_resultat -> personskat_calculate_fri_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_fri_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_fri_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 23166 && personskat_calculate_fri_befordring_resultat.skat.øvrig_personlig_indkomst_kroner == 23166 && personskat_calculate_fri_befordring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_fri_offentlig_befordring_føder_personlig_indkomst_uden_am: personskat_calculate_fri_offentlig_befordring_resultat -> personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 0 && personskat_calculate_fri_offentlig_befordring_resultat.skat.bruttoløn_kroner == 600000 && personskat_calculate_fri_offentlig_befordring_resultat.skat.øvrig_personlig_indkomst_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_fri_bil_føder_personlig_indkomst_med_am: personskat_calculate_fri_bil_befordring_resultat -> personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.skat.bruttoløn_kroner == 623166 && personskat_calculate_fri_bil_befordring_resultat.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_calculate_fri_bil_befordring_resultat.skat.arbejdsmarkedsbidrag_kroner == 49853
+| personskat_calculate_fri_bil_modpost_indgår_i_ll9c_aftrapningsgrundlag: personskat_calculate_fri_bil_befordring_resultat -> match personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.befordring {
+    | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner == 623166
+    | _ -> Falskt
+}
 | personskat_calculate_ll9d_betingelser_erstatter_ll9c: personskat_calculate_ll9d_resultat -> personskat_calculate_ll9d_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_ll9d_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 8000 && personskat_calculate_ll9d_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 8000 && match personskat_calculate_ll9d_resultat.ligningsfradrag.befordring {
-    | BeregnetBefordringsfradrag(_, ligningslov9d_resultat, _, ligningslov9c_resultat, samlet_ligningsfradrag_kroner, _) -> ligningslov9d_resultat.omfattet_af_par9d && ligningslov9d_resultat.fradrag_kroner == 8000 && ligningslov9c_resultat.berettiget_til_ordinært_fradrag == Falskt && ligningslov9c_resultat.samlet_befordringsfradrag_kroner == 0 && samlet_ligningsfradrag_kroner == 8000
+    | BeregnetBefordringsfradrag(_, ligningslov9d_resultat, _, ligningslov9c_resultat, samlet_ligningsfradrag_kroner, _, _) -> ligningslov9d_resultat.omfattet_af_par9d && ligningslov9d_resultat.fradrag_kroner == 8000 && ligningslov9c_resultat.berettiget_til_ordinært_fradrag == Falskt && ligningslov9c_resultat.samlet_befordringsfradrag_kroner == 0 && samlet_ligningsfradrag_kroner == 8000
     | _ -> Falskt
 }
 | personskat_calculate_ll9d_forkert_år_afvises: personskat_calculate_ll9d_forkert_år_resultat -> personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.alle_input_gyldige == Falskt && personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726 && match personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.befordring {
@@ -633,7 +654,9 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ordinær_genanbringelse_afledes_fra_kildefakta
 ? personskat_calculate_par11_stk2_afledes_fra_kildefakta
 ? personskat_calculate_befordring_afledes
-? personskat_calculate_fri_befordring_føder_personlig_indkomst
+? personskat_calculate_fri_offentlig_befordring_føder_personlig_indkomst_uden_am
+? personskat_calculate_fri_bil_føder_personlig_indkomst_med_am
+? personskat_calculate_fri_bil_modpost_indgår_i_ll9c_aftrapningsgrundlag
 ? personskat_calculate_ll9d_betingelser_erstatter_ll9c
 ? personskat_calculate_ll9d_forkert_år_afvises
 ? personskat_calculate_ordinær_aktieavance_afledes

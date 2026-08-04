@@ -157,8 +157,11 @@ og
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 med de relevante senere ændringer bevaret ved de enkelte lovblokke.
 
-Fri arbejdsgiverbetalt befordring bliver personlig indkomst uden at blive
-gjort til AM-bidragspligtig løn.
+Arbejdsgiverbetalt befordring er et typet kildefaktum. Et frikort til offentlig
+transport bliver personlig B-indkomst uden AM-bidrag, mens modposten ved fri
+bil bliver AM-bidragspligtig personlig indkomst. Afgrænsningen følger
+[Den juridiske vejledning C.A.5.14.4.4](https://info.skat.dk/data.aspx?oid=1976849)
+og [SKM2025.537.BR](https://info.skat.dk/data.aspx?oid=2459313).
 § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre
 dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene
 kobles fortsat på det samme input, så den samlede borgerarbejdsbog udbygges fra
@@ -195,7 +198,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 683 eksplicitte feltmetadata-poster.
+interviewoplysninger. Kontrakten har nu 684 eksplicitte feltmetadata-poster.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

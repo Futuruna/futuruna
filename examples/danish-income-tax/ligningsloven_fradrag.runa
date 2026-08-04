@@ -1047,6 +1047,16 @@ stk. 5.
     identifier = "Den juridiske vejledning, C.A.5.14.4.3",
     hentet_dato = "2026-07-18"
 )
+= ligningsloven_vejledning_par9c_frikort_offentlig_befordring = LigningslovFradragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976849",
+    identifier = "Den juridiske vejledning, C.A.5.14.4.4",
+    hentet_dato = "2026-07-24"
+)
+= ligningsloven_skm2025_537_br_fri_bil = LigningslovFradragKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2459313",
+    identifier = "SKM2025.537.BR",
+    hentet_dato = "2026-07-24"
+)
 
 = ligningsloven_par9c_par9d_metadata = Metadata(
     attachments = (
@@ -1054,6 +1064,8 @@ stk. 5.
         AmendmentSource(value = ligningsloven_lov616_par1),
         RateSource(value = ligningsloven_bek1333_par1_par4),
         Guidance(value = ligningsloven_vejledning_par9c_fri_befordring),
+        Guidance(value = ligningsloven_vejledning_par9c_frikort_offentlig_befordring),
+        Practice(value = ligningsloven_skm2025_537_br_fri_bil),
     )
 )
 
