@@ -5,6 +5,8 @@
 | pbl53a_erhvervelsesovergang_fakta(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
     erhvervelser = erhvervelser,
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
     produkt = produkt,
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,

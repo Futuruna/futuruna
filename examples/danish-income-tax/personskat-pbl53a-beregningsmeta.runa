@@ -97,6 +97,14 @@
 = personskat_pbl53a_omfang_enkeltfelter = map([
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser", label = "Senere erhvervelser af ordningen", question = "Er ordningen efter oprettelsen overgået til en ny ejer en eller flere gange?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.måde", label = "Erhvervelsesmåden", question = "Skete denne erhvervelse ved arv eller på anden måde?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.$variant", label = "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B", question = "Hvilket fristgrundlag gjaldt for et eventuelt bindende valg for den historiske ordning?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen", label = "Fuld dansk skattepligt ved den senere arv", question = "Var arvingen fuldt skattepligtig til Danmark på arvedatoen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.tidligere_ejer_fuld_skattepligtig_i_ejerperioden", label = "Tidligere ejers danske skattepligt", question = "Var en tidligere ejer fuldt skattepligtig til Danmark, mens vedkommende ejede ordningen?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.tidligere_ejer_havde_valgt_afsnit_iia", label = "Tidligere ejers overgangsvalg", question = "Havde en tidligere ejer allerede valgt behandling efter PBL afsnit II A?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg", label = "Meddelelser om bindende overgangsvalg", question = "Blev der meddelt et valg om behandling efter PBL § 53 A eller § 53 B?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.mål", label = "Valgt pensionsbeskatningsregel", question = "Gjaldt meddelelsen behandling efter PBL § 53 A eller § 53 B?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.modtager", label = "Modtager af overgangsvalget", question = "Blev valget meddelt Skattestyrelsen, den indberettende pensionsudbyder eller en anden modtager?", unit = None),
+    PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.ønsket_virkning", label = "Ønsket virkning af overgangsvalget", question = "Skulle valget have virkning fra modtagelsen eller tilbagevirkende fra 1. januar 2004?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.$variant", label = "Ordningens faktiske produkttype", question = "Hvilket forsikrings-, pensionskasse- eller pengeinstitutprodukt er der faktisk oprettet?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.ejer_identifikation", label = "Livsforsikringens ejer", question = "Hvem ejer livsforsikringen?", unit = None),
     PersonskatPbl53AFelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.forsikret_identifikation", label = "Personen forsikret ved livsforsikringen", question = "Hvem er forsikret ved livsforsikringen?", unit = None),
@@ -143,6 +151,12 @@
 = personskat_pbl53a_omfang_datofelter = flat_map([
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.oprettelsesdato", label = "Ordningens oprettelsesdato", question = "Hvornår blev ordningen oprettet?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser.dato", label = "Dato for senere erhvervelse", question = "Hvornår overgik ordningen til den nye ejer?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereIndtrådtFuldSkattepligt.indtrædelsesdato", label = "Dato for senere fuld dansk skattepligt", question = "Hvornår indtrådte den fulde danske skattepligt?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereIndtrådtFuldSkattepligt.oplysningsfrist", label = "Oplysningsfrist efter senere fuld skattepligt", question = "Hvornår udløb oplysningsfristen for indtrædelsesåret?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato", label = "Arvedato for det senere overgangsvalg", question = "Hvornår blev den historiske livsforsikring arvet?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.oplysningsfrist", label = "Oplysningsfrist efter senere arv", question = "Hvornår udløb oplysningsfristen for det år, hvor forsikringen blev arvet?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.beslutningsdato", label = "Beslutningsdato for overgangsvalget", question = "Hvornår blev beslutningen om overgangsvalget truffet?"),
+    PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg.modtagelsesdato", label = "Modtagelsesdato for overgangsvalget", question = "Hvornår modtog Skattestyrelsen eller den indberettende pensionsudbyder valget?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_fra", label = "Start på livsforsikringens § 15 D-godkendelse", question = "Hvornår begyndte livsforsikringens tidligere § 15 D-godkendelse?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.kapitel1fakta.Pbl53ATidligereGodkendtEfterPar15D.godkendt_til", label = "Slut på livsforsikringens § 15 D-godkendelse", question = "Hvornår udløb livsforsikringens tidligere § 15 D-godkendelse?"),
     PersonskatPbl53ADatofelttekst(path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.aftalt_udløbsdato", label = "Livsforsikringens aftalte udløbsdato", question = "Hvornår udløber livsforsikringen efter aftalen?"),
@@ -742,6 +756,7 @@
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
         TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
@@ -754,8 +769,10 @@
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
         Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
         Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
         Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+        Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )

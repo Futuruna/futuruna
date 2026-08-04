@@ -906,6 +906,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "identifikation",
             "skatteyder_identifikation",
             "omfangsfakta.oprettelsesdato.år",
+            "omfangsfakta.overgangsvalgfristfakta.$variant",
+            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.år",
+            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen",
             "omfangsfakta.produkt.$variant",
             "omfangsfakta.afsnit_i_valg.$variant",
             "omfangsfakta.institutionsfinansiering.samlet_drift_løn_og_pension_kroner",
@@ -924,6 +927,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "§ 53 A-ordningens identifikation",
             "Skatteyder på § 53 A-ordningen",
             "Ordningens oprettelsesdato - år",
+            "Fristgrundlag for overgangsvalg efter PBL §§ 53 A eller 53 B",
+            "Arvedato for det senere overgangsvalg - år",
+            "Fuld dansk skattepligt ved den senere arv",
             "Ordningens faktiske produkttype",
             "Afkald på beskatning efter PBL afsnit I",
             "Institutionens samlede drift, løn og pension",
@@ -959,6 +965,41 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human PBL § 53 A acquisition label {expected} on {pbl53a_acquisitions_sheet}"
+            );
+        }
+        let pbl53a_elections_path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg";
+        let pbl53a_elections_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_elections_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_elections_sheet),
+            "Dansk personskat - Meddelelser om bindende overgangsvalg"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_elections_sheet),
+            [
+                "beslutningsdato.år",
+                "beslutningsdato.måned",
+                "beslutningsdato.dag",
+                "modtagelsesdato.år",
+                "modtagelsesdato.måned",
+                "modtagelsesdato.dag",
+                "mål",
+                "modtager",
+                "ønsket_virkning",
+            ]
+        );
+        for expected in [
+            "Beslutningsdato for overgangsvalget - år",
+            "Modtagelsesdato for overgangsvalget - år",
+            "Valgt pensionsbeskatningsregel",
+            "Modtager af overgangsvalget",
+            "Ønsket virkning af overgangsvalget",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &pbl53a_elections_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL § 53 A election label {expected} on {pbl53a_elections_sheet}"
             );
         }
         let pbl53a_opening_losses_path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast";
@@ -2540,13 +2581,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ),
                 (
                     "omfangsfakta.oprettelsesdato.år",
-                    Data::Int(2020),
+                    Data::Int(if row == 1 { 1990 } else { 2020 }),
                 ),
                 (
                     "omfangsfakta.oprettelsesdato.måned",
                     Data::Int(1),
                 ),
                 ("omfangsfakta.oprettelsesdato.dag", Data::Int(1)),
+                (
+                    "omfangsfakta.overgangsvalgfristfakta.$variant",
+                    Data::String(
+                        if row == 1 {
+                            "Pbl53ASenereArvUnderFuldSkattepligt"
+                        } else {
+                            "Pbl53AIntetOvergangsvalgfristgrundlag"
+                        }
+                        .to_string(),
+                    ),
+                ),
                 (
                     "omfangsfakta.produkt.$variant",
                     Data::String(produkt.to_string()),
@@ -2577,6 +2629,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             match row {
                 1 => {
                     for (header, value) in [
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.år",
+                            Data::Int(2024),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.måned",
+                            Data::Int(3),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.arvedato.dag",
+                            Data::Int(15),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.oplysningsfrist.år",
+                            Data::Int(2025),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.oplysningsfrist.måned",
+                            Data::Int(7),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.oplysningsfrist.dag",
+                            Data::Int(1),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.fuld_skattepligtig_på_arvedatoen",
+                            Data::Bool(true),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.tidligere_ejer_fuld_skattepligtig_i_ejerperioden",
+                            Data::Bool(false),
+                        ),
+                        (
+                            "omfangsfakta.overgangsvalgfristfakta.Pbl53ASenereArvUnderFuldSkattepligt.tidligere_ejer_havde_valgt_afsnit_iia",
+                            Data::Bool(false),
+                        ),
                         (
                             "omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.ejer_identifikation",
                             Data::String("person-1".to_string()),
@@ -2727,6 +2815,39 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("måde", Data::String("Pbl53AErhvervetVedArv".to_string())),
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_acquisitions_sheet, 1, header, value);
+        }
+        let pbl53a_elections_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.overgangsvalg",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("parent_id", Data::String("livsforsikring-pal".to_string())),
+            (
+                "item_id",
+                Data::String("livsforsikring-pal-overgangsvalg-1".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            ("beslutningsdato.år", Data::Int(2024)),
+            ("beslutningsdato.måned", Data::Int(4)),
+            ("beslutningsdato.dag", Data::Int(1)),
+            ("modtagelsesdato.år", Data::Int(2024)),
+            ("modtagelsesdato.måned", Data::Int(4)),
+            ("modtagelsesdato.dag", Data::Int(3)),
+            ("mål", Data::String("Pbl53AValgAfPar53A".to_string())),
+            (
+                "modtager",
+                Data::String("Pbl53AValgMeddeltSkattestyrelsen".to_string()),
+            ),
+            (
+                "ønsket_virkning",
+                Data::String("Pbl53AValgVirkningFraModtagelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_elections_sheet, 1, header, value);
         }
         let pbl53a_coverages_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -5486,11 +5607,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "identifikation": "livsforsikring-pal",
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
-                    "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "oprettelsesdato": { "år": 1990, "måned": 1, "dag": 1 },
                     "erhvervelser": [
                         {
                             "dato": { "år": 2024, "måned": 3, "dag": 15 },
                             "måde": { "$variant": "Pbl53AErhvervetVedArv" }
+                        }
+                    ],
+                    "overgangsvalgfristfakta": {
+                        "$variant": "Pbl53ASenereArvUnderFuldSkattepligt",
+                        "arvedato": { "år": 2024, "måned": 3, "dag": 15 },
+                        "oplysningsfrist": { "år": 2025, "måned": 7, "dag": 1 },
+                        "fuld_skattepligtig_på_arvedatoen": true,
+                        "tidligere_ejer_fuld_skattepligtig_i_ejerperioden": false,
+                        "tidligere_ejer_havde_valgt_afsnit_iia": false
+                    },
+                    "overgangsvalg": [
+                        {
+                            "beslutningsdato": { "år": 2024, "måned": 4, "dag": 1 },
+                            "modtagelsesdato": { "år": 2024, "måned": 4, "dag": 3 },
+                            "mål": { "$variant": "Pbl53AValgAfPar53A" },
+                            "modtager": { "$variant": "Pbl53AValgMeddeltSkattestyrelsen" },
+                            "ønsket_virkning": { "$variant": "Pbl53AValgVirkningFraModtagelse" }
                         }
                     ],
                     "produkt": {
@@ -5591,6 +5729,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
                     "erhvervelser": [],
+                    "overgangsvalgfristfakta": {
+                        "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
+                    },
+                    "overgangsvalg": [],
                     "produkt": {
                         "$variant": "Pbl53APensionskasseprodukt",
                         "pensionsberettiget_identifikation": "person-1",
@@ -5665,6 +5807,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
                     "erhvervelser": [],
+                    "overgangsvalgfristfakta": {
+                        "$variant": "Pbl53AIntetOvergangsvalgfristgrundlag"
+                    },
+                    "overgangsvalg": [],
                     "produkt": {
                         "$variant": "Pbl53APengeEllerKreditinstitutprodukt",
                         "kontohaver_identifikation": "person-1",
@@ -5954,6 +6100,33 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]["måde"]
             ["$variant"],
         "Pbl53AErhvervetVedArv"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["overgangsvalgfristfakta"]
+            ["$variant"],
+        "Pbl53ASenereArvUnderFuldSkattepligt"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["overgangsvalg"]
+            .as_array()
+            .expect("PBL § 53 A election notices")
+            .len(),
+        1
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["overgangsvalg"][0]["mål"]
+            ["$variant"],
+        "Pbl53AValgAfPar53A"
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["valgresultat"]["valg_gyldigt"],
+        true
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["omfangsresultat"]["overgangsresultat"]
+            ["moderne_virkningsstart"]["dato"],
+        serde_json::json!({ "år": 2024, "måned": 4, "dag": 3 })
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["pensionsbeskatningslov_input"]["indkomstår"],

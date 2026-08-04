@@ -51,6 +51,10 @@
 -- Retsinformation, LBK nr. 1243 af 26/11/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1243
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1243/dan/xml
+-- Overgangskilde for PBL §§ 53 A og 53 B:
+-- Retsinformation, LOV nr. 1388 af 20/12/2004.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2004/1388
+-- XML: https://www.retsinformation.dk/eli/lta/2004/1388/dan/xml
 -- Retsinformation, LBK nr. 1181 af 21/09/2023.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/1181
 -- XML: https://www.retsinformation.dk/eli/lta/2023/1181/dan/xml
@@ -264,6 +268,15 @@ PopularTitle: Pensionsbeskatningsloven
 Status: Valid
 StartDate: 2024-11-28
 EndDate: 2026-07-01
+
+Officiel XML-metadata for 2004/1388, hentet 2026-07-29:
+DocumentTitle: Lov om ændring af forskellige skattelove (Justering af reglerne om pensionsordninger)
+Status: Valid
+DiesSigni: 2004-12-20
+StartDate: 2004-12-20
+EndDate: 2026-06-23
+Offentliggørelsesdato i dokumentvisningen: 2004-12-21
+Ikrafttrædelse efter § 7, stk. 1: 2004-12-22
 
 Officiel XML-metadata for 2023/1181, hentet 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om beskatning af søfolk (sømandsbeskatningsloven)
@@ -603,6 +616,15 @@ EndDate: 2026-07-01
     hentet_yyyymmdd = 20260718,
     metadata_start_yyyymmdd = 20241128,
     metadata_end_yyyymmdd = 20260701
+)
+= pensionsbeskatningslov_overgangsvalg_2004_1388 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2004/1388",
+    år = 2004,
+    nummer = 1388,
+    status = Gældende,
+    hentet_yyyymmdd = 20260729,
+    metadata_start_yyyymmdd = 20041220,
+    metadata_end_yyyymmdd = 20260623
 )
 = sømandsbeskatningsloven_2023_1181 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2023/1181",

@@ -17,6 +17,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 | pbl53a_omfang_scenariefakta(produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, finansiering: Pbl53AInstitutionsfinansiering) -> Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_oprettelsesdato,
     erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
     produkt = produkt,
     afsnit_i_valg = afsnit_i_valg,
     institutionsfinansiering = finansiering,
@@ -140,6 +142,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 = pbl53a_omfang_statsstøttet_nr2_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_nr2_resultat.fakta.oprettelsesdato,
     erhvervelser = pbl53a_omfang_nr2_resultat.fakta.erhvervelser,
+    overgangsvalgfristfakta = pbl53a_omfang_nr2_resultat.fakta.overgangsvalgfristfakta,
+    overgangsvalg = pbl53a_omfang_nr2_resultat.fakta.overgangsvalg,
     produkt = pbl53a_omfang_nr2_resultat.fakta.produkt,
     afsnit_i_valg = pbl53a_omfang_nr2_resultat.fakta.afsnit_i_valg,
     institutionsfinansiering = pbl53a_omfang_statsstøtte,
@@ -148,6 +152,8 @@ indbetalingsfakta. Ingen juridisk klassifikation vælges af kalderen.
 = pbl53a_omfang_statsstøttet_nr8_resultat = pbl53a_omfang_scenarieresultat(Pbl53AOmfangsfakta(
     oprettelsesdato = pbl53a_omfang_nr8_fakta.oprettelsesdato,
     erhvervelser = pbl53a_omfang_nr8_fakta.erhvervelser,
+    overgangsvalgfristfakta = pbl53a_omfang_nr8_fakta.overgangsvalgfristfakta,
+    overgangsvalg = pbl53a_omfang_nr8_fakta.overgangsvalg,
     produkt = pbl53a_omfang_nr8_fakta.produkt,
     afsnit_i_valg = pbl53a_omfang_nr8_fakta.afsnit_i_valg,
     institutionsfinansiering = pbl53a_omfang_statsstøtte,

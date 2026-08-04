@@ -1,0 +1,334 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+| pbl53a_overgangsvalg_meddelelse(beslutningsdato: Pbl15ADato, modtagelsesdato: Pbl15ADato, mål: Pbl53AOvergangsvalgmål, ønsket_virkning: Pbl53AOvergangsvalgvirkning) -> Pbl53AOvergangsvalgmeddelelse(
+    beslutningsdato = beslutningsdato,
+    modtagelsesdato = modtagelsesdato,
+    mål = mål,
+    modtager = Pbl53AValgMeddeltSkattestyrelsen,
+    ønsket_virkning = ønsket_virkning
+)
+
+| pbl53a_overgangsvalg_fakta(produkt: Pbl53AProduktfakta, par53b_oprettelsesposition: Pbl53BOprettelsesposition, erhvervelser: List(Pbl53AErhvervelseshændelse), overgangsvalgfristfakta: Pbl53AOvergangsvalgfristfakta, overgangsvalg: List(Pbl53AOvergangsvalgmeddelelse)) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    erhvervelser = erhvervelser,
+    overgangsvalgfristfakta = overgangsvalgfristfakta,
+    overgangsvalg = overgangsvalg,
+    produkt = produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = par53b_oprettelsesposition
+)
+
+| pbl53a_overgangsvalg_resultat(fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> pbl53a_omfangsresultat(
+    indkomstår = 2026,
+    fakta = fakta,
+    hændelser = hændelser
+)
+
+= pbl53a_overgangsvalg_par53a_produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt
+= pbl53a_overgangsvalg_dansk_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+= pbl53a_overgangsvalg_udenlandsk_oprettelsesposition = Pbl53BOprettetUdenFuldDanskSkattepligt(
+    hjemsted = Pbl53BFremmedStat(stat = "Sverige"),
+    sidste_dato_uden_dansk_skattepligt = Pbl15ADato(år = 2000, måned = 12, dag = 31)
+)
+= pbl53a_overgangsvalg_udenlandsk_indbetaling = Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = "historisk-udenlandsk-bidrag",
+    tidspunkt = Pbl53ATidspunkt(
+        dato = Pbl15ADato(år = 1991, måned = 1, dag = 2),
+        rækkefølge_på_dagen = 1
+    ),
+    beløb_kroner = 50000,
+    periode = Pbl53AHistoriskIndbetalingFørOrdningenBlevOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AFradragEllerBortseelsesretIUdlandet,
+    par53b_udenlandsk_skattebehandling = Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(
+        positiv_skattepligtig_indkomst_kroner = 100000,
+        faktisk_fradrag_kroner = 50000
+    )
+))
+
+= pbl53a_overgangsvalg_dagen_før_ikrafttræden_fakta = pbl53a_overgangsvalg_fakta(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53ASenereIndtrådtFuldSkattepligt(
+        indtrædelsesdato = Pbl15ADato(år = 2004, måned = 12, dag = 21),
+        oplysningsfrist = Pbl15ADato(år = 2005, måned = 7, dag = 1)
+    ),
+    overgangsvalg = []
+)
+= pbl53a_overgangsvalg_på_ikrafttrædelsesdagen_fakta = pbl53a_overgangsvalg_fakta(
+    produkt = pbl53a_overgangsvalg_par53a_produkt,
+    par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53ASenereIndtrådtFuldSkattepligt(
+        indtrædelsesdato = Pbl15ADato(år = 2004, måned = 12, dag = 22),
+        oplysningsfrist = Pbl15ADato(år = 2005, måned = 7, dag = 1)
+    ),
+    overgangsvalg = []
+)
+
+= pbl53a_overgangsvalg_rettidig_meddelelse = pbl53a_overgangsvalg_meddelelse(
+    beslutningsdato = Pbl15ADato(år = 2005, måned = 6, dag = 1),
+    modtagelsesdato = Pbl15ADato(år = 2005, måned = 6, dag = 10),
+    mål = Pbl53AValgAfPar53A,
+    ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+)
+= pbl53a_overgangsvalg_rettidigt_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [pbl53a_overgangsvalg_rettidig_meddelelse]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_tilbagevirkende_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2005, måned = 3, dag = 31),
+            modtagelsesdato = Pbl15ADato(år = 2005, måned = 12, dag = 1),
+            mål = Pbl53AValgAfPar53A,
+            ønsket_virkning = Pbl53AValgVirkningFra1Januar2004
+        )]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_for_sent_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2006, måned = 1, dag = 2),
+            modtagelsesdato = Pbl15ADato(år = 2006, måned = 1, dag = 2),
+            mål = Pbl53AValgAfPar53A,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_par53b_ikke_anvendelig_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2005, måned = 6, dag = 1),
+            modtagelsesdato = Pbl15ADato(år = 2005, måned = 6, dag = 10),
+            mål = Pbl53AValgAfPar53B,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_par53b_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_udenlandsk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2005, måned = 7, dag = 1),
+            modtagelsesdato = Pbl15ADato(år = 2005, måned = 7, dag = 8),
+            mål = Pbl53AValgAfPar53B,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = [pbl53a_overgangsvalg_udenlandsk_indbetaling]
+)
+
+= pbl53a_overgangsvalg_senere_fuld_skattepligt_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53ASenereIndtrådtFuldSkattepligt(
+            indtrædelsesdato = Pbl15ADato(år = 2022, måned = 7, dag = 1),
+            oplysningsfrist = Pbl15ADato(år = 2023, måned = 7, dag = 1)
+        ),
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2022, måned = 7, dag = 2),
+            modtagelsesdato = Pbl15ADato(år = 2022, måned = 7, dag = 5),
+            mål = Pbl53AValgAfPar53A,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_senere_fuld_skattepligt_for_sent_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53ASenereIndtrådtFuldSkattepligt(
+            indtrædelsesdato = Pbl15ADato(år = 2022, måned = 7, dag = 1),
+            oplysningsfrist = Pbl15ADato(år = 2023, måned = 7, dag = 1)
+        ),
+        overgangsvalg = [pbl53a_overgangsvalg_meddelelse(
+            beslutningsdato = Pbl15ADato(år = 2023, måned = 7, dag = 2),
+            modtagelsesdato = Pbl15ADato(år = 2023, måned = 7, dag = 2),
+            mål = Pbl53AValgAfPar53A,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_arvedato = Pbl15ADato(år = 2022, måned = 4, dag = 9)
+= pbl53a_overgangsvalg_arvehændelse = Pbl53AErhvervelseshændelse(
+    dato = pbl53a_overgangsvalg_arvedato,
+    måde = Pbl53AErhvervetVedArv
+)
+= pbl53a_overgangsvalg_arvemeddelelse = pbl53a_overgangsvalg_meddelelse(
+    beslutningsdato = Pbl15ADato(år = 2022, måned = 5, dag = 1),
+    modtagelsesdato = Pbl15ADato(år = 2022, måned = 5, dag = 4),
+    mål = Pbl53AValgAfPar53A,
+    ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+)
+
+| pbl53a_overgangsvalg_arveresultat(tidligere_ejer_fuld_skattepligtig_i_ejerperioden: Boolsk) -> pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [pbl53a_overgangsvalg_arvehændelse],
+        overgangsvalgfristfakta = Pbl53ASenereArvUnderFuldSkattepligt(
+            arvedato = pbl53a_overgangsvalg_arvedato,
+            oplysningsfrist = Pbl15ADato(år = 2023, måned = 7, dag = 1),
+            fuld_skattepligtig_på_arvedatoen = Sandt,
+            tidligere_ejer_fuld_skattepligtig_i_ejerperioden = tidligere_ejer_fuld_skattepligtig_i_ejerperioden,
+            tidligere_ejer_havde_valgt_afsnit_iia = Falskt
+        ),
+        overgangsvalg = [pbl53a_overgangsvalg_arvemeddelelse]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_arv_første_mulighed_resultat = pbl53a_overgangsvalg_arveresultat(
+    tidligere_ejer_fuld_skattepligtig_i_ejerperioden = Falskt
+)
+= pbl53a_overgangsvalg_arv_efter_dansk_ejer_resultat = pbl53a_overgangsvalg_arveresultat(
+    tidligere_ejer_fuld_skattepligtig_i_ejerperioden = Sandt
+)
+
+= pbl53a_overgangsvalg_bindende_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [
+            pbl53a_overgangsvalg_meddelelse(
+                beslutningsdato = Pbl15ADato(år = 2005, måned = 1, dag = 10),
+                modtagelsesdato = Pbl15ADato(år = 2005, måned = 1, dag = 12),
+                mål = Pbl53AValgAfPar53A,
+                ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+            ),
+            pbl53a_overgangsvalg_meddelelse(
+                beslutningsdato = Pbl15ADato(år = 2005, måned = 8, dag = 1),
+                modtagelsesdato = Pbl15ADato(år = 2005, måned = 8, dag = 3),
+                mål = Pbl53AValgAfPar53B,
+                ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+            )
+        ]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_omvendt_kronologi_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [
+            pbl53a_overgangsvalg_meddelelse(
+                beslutningsdato = Pbl15ADato(år = 2005, måned = 12, dag = 1),
+                modtagelsesdato = Pbl15ADato(år = 2005, måned = 12, dag = 2),
+                mål = Pbl53AValgAfPar53A,
+                ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+            ),
+            pbl53a_overgangsvalg_meddelelse(
+                beslutningsdato = Pbl15ADato(år = 2005, måned = 11, dag = 1),
+                modtagelsesdato = Pbl15ADato(år = 2005, måned = 11, dag = 2),
+                mål = Pbl53AValgAfPar53A,
+                ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+            )
+        ]
+    ),
+    hændelser = []
+)
+
+= pbl53a_overgangsvalg_ugyldig_modtager_resultat = pbl53a_overgangsvalg_resultat(
+    fakta = pbl53a_overgangsvalg_fakta(
+        produkt = pbl53a_overgangsvalg_par53a_produkt,
+        par53b_oprettelsesposition = pbl53a_overgangsvalg_dansk_oprettelsesposition,
+        erhvervelser = [],
+        overgangsvalgfristfakta = Pbl53AFuldSkattepligtVedLovensIkrafttræden,
+        overgangsvalg = [Pbl53AOvergangsvalgmeddelelse(
+            beslutningsdato = Pbl15ADato(år = 2005, måned = 6, dag = 1),
+            modtagelsesdato = Pbl15ADato(år = 2005, måned = 6, dag = 10),
+            mål = Pbl53AValgAfPar53A,
+            modtager = Pbl53AValgMeddeltAndenModtager,
+            ønsket_virkning = Pbl53AValgVirkningFraModtagelse
+        )]
+    ),
+    hændelser = []
+)
+
+| pbl53a_overgangsvalg_rettidigt_aktiverer_par53a: pbl53a_overgangsvalg_rettidigt_resultat -> pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valg_bindende && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.valgresultat.valgt_regime == Pbl53AOvergangsvalgTilPar53A && pbl53a_overgangsvalg_rettidigt_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2005, måned = 6, dag = 10)) && pbl53a_overgangsvalg_rettidigt_resultat.omfattes_af_par53a
+
+| pbl53a_overgangsvalg_tilbagevirkende_fra_2004: pbl53a_overgangsvalg_tilbagevirkende_resultat -> pbl53a_overgangsvalg_tilbagevirkende_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_tilbagevirkende_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2004, måned = 1, dag = 1))
+
+| pbl53a_overgangsvalg_efter_ordinær_frist_er_uden_virkning: pbl53a_overgangsvalg_for_sent_resultat -> pbl53a_overgangsvalg_for_sent_resultat.overgangsresultat.valgresultat.fakta_gyldige && pbl53a_overgangsvalg_for_sent_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_for_sent_resultat.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_overgangsvalg_for_sent_resultat.omfattes_af_par53a == Falskt
+
+| pbl53a_overgangsvalg_kræver_at_målet_i_øvrigt_er_anvendeligt: pbl53a_overgangsvalg_par53b_ikke_anvendelig_resultat -> pbl53a_overgangsvalg_par53b_ikke_anvendelig_resultat.overgangsresultat.valgresultat.meddelelsesresultater[0].mål_i_øvrigt_anvendeligt == Falskt && pbl53a_overgangsvalg_par53b_ikke_anvendelig_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_par53b_ikke_anvendelig_resultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_overgangsvalg_kan_vælge_par53b: pbl53a_overgangsvalg_par53b_resultat -> pbl53a_overgangsvalg_par53b_resultat.overgangsresultat.valgresultat.valgt_regime == Pbl53AOvergangsvalgTilPar53B && pbl53a_overgangsvalg_par53b_resultat.par53b_resultat.i_øvrigt_anvendelig && pbl53a_overgangsvalg_par53b_resultat.par53b_resultat.omfattes_af_par53b && pbl53a_overgangsvalg_par53b_resultat.omfattes_af_par53a == Falskt
+
+| pbl53a_overgangsvalg_ved_senere_fuld_skattepligt_følger_oplysningsfristen: pbl53a_overgangsvalg_senere_fuld_skattepligt_resultat -> pbl53a_overgangsvalg_senere_fuld_skattepligt_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_senere_fuld_skattepligt_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2022, måned = 7, dag = 5))
+
+| pbl53a_overgangsvalg_ved_senere_fuld_skattepligt_fejler_efter_oplysningsfristen: pbl53a_overgangsvalg_senere_fuld_skattepligt_for_sent_resultat -> pbl53a_overgangsvalg_senere_fuld_skattepligt_for_sent_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_senere_fuld_skattepligt_for_sent_resultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_overgangsvalg_ved_arv_kan_træffes_ved_første_mulighed: pbl53a_overgangsvalg_arv_første_mulighed_resultat -> pbl53a_overgangsvalg_arv_første_mulighed_resultat.overgangsresultat.arveundtagelse_bevarer_historisk_regime == Falskt && pbl53a_overgangsvalg_arv_første_mulighed_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_arv_første_mulighed_resultat.omfattes_af_par53a
+
+| pbl53a_overgangsvalg_ved_arv_kræver_at_tidligere_ejer_ikke_havde_dansk_skattepligt: pbl53a_overgangsvalg_arv_efter_dansk_ejer_resultat -> pbl53a_overgangsvalg_arv_efter_dansk_ejer_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_arv_efter_dansk_ejer_resultat.overgangsresultat.arveundtagelse_bevarer_historisk_regime
+
+| pbl53a_overgangsvalg_første_gyldige_valg_forbliver_bindende: pbl53a_overgangsvalg_bindende_resultat -> pbl53a_overgangsvalg_bindende_resultat.overgangsresultat.valgresultat.valg_gyldigt && pbl53a_overgangsvalg_bindende_resultat.overgangsresultat.valgresultat.valgt_regime == Pbl53AOvergangsvalgTilPar53A && pbl53a_overgangsvalg_bindende_resultat.overgangsresultat.valgresultat.gyldige_meddelelser_antal == 1 && pbl53a_overgangsvalg_bindende_resultat.overgangsresultat.valgresultat.senere_modstridende_valg && pbl53a_overgangsvalg_bindende_resultat.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2005, måned = 1, dag = 12))
+
+| pbl53a_overgangsvalg_omvendt_kronologi_fejler_lukket: pbl53a_overgangsvalg_omvendt_kronologi_resultat -> pbl53a_overgangsvalg_omvendt_kronologi_resultat.overgangsresultat.valgresultat.meddelelser_kronologiske == Falskt && pbl53a_overgangsvalg_omvendt_kronologi_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_omvendt_kronologi_resultat.overgangsresultat.fakta_gyldige == Falskt && pbl53a_overgangsvalg_omvendt_kronologi_resultat.omfattes_af_par53a == Falskt
+
+| pbl53a_overgangsvalg_ukendt_modtager_er_uden_virkning: pbl53a_overgangsvalg_ugyldig_modtager_resultat -> pbl53a_overgangsvalg_ugyldig_modtager_resultat.overgangsresultat.valgresultat.meddelelsesresultater[0].modtager_gyldig == Falskt && pbl53a_overgangsvalg_ugyldig_modtager_resultat.overgangsresultat.valgresultat.valg_gyldigt == Falskt && pbl53a_overgangsvalg_ugyldig_modtager_resultat.overgangsresultat.historisk_par50_eller_statsskattelov
+
+| pbl53a_overgangsvalg_lovens_ikrafttrædelsesdato_følger_bekendtgørelsen: pbl53a_overgangsvalg_på_ikrafttrædelsesdagen_fakta -> pbl53a_overgangsvalg_lovens_ikrafttræden_nøgle() == 20041222
+
+| pbl53a_overgangsvalg_senere_skattepligt_afgrænses_ved_ikrafttrædelsen: pbl53a_overgangsvalg_dagen_før_ikrafttræden_fakta -> pbl53a_overgangsvalgfristfakta_gyldige(pbl53a_overgangsvalg_dagen_før_ikrafttræden_fakta) == Falskt && pbl53a_overgangsvalgfristfakta_gyldige(pbl53a_overgangsvalg_på_ikrafttrædelsesdagen_fakta)
+
+? pbl53a_overgangsvalg_rettidigt_aktiverer_par53a
+? pbl53a_overgangsvalg_tilbagevirkende_fra_2004
+? pbl53a_overgangsvalg_efter_ordinær_frist_er_uden_virkning
+? pbl53a_overgangsvalg_kræver_at_målet_i_øvrigt_er_anvendeligt
+? pbl53a_overgangsvalg_kan_vælge_par53b
+? pbl53a_overgangsvalg_ved_senere_fuld_skattepligt_følger_oplysningsfristen
+? pbl53a_overgangsvalg_ved_senere_fuld_skattepligt_fejler_efter_oplysningsfristen
+? pbl53a_overgangsvalg_ved_arv_kan_træffes_ved_første_mulighed
+? pbl53a_overgangsvalg_ved_arv_kræver_at_tidligere_ejer_ikke_havde_dansk_skattepligt
+? pbl53a_overgangsvalg_første_gyldige_valg_forbliver_bindende
+? pbl53a_overgangsvalg_omvendt_kronologi_fejler_lukket
+? pbl53a_overgangsvalg_ukendt_modtager_er_uden_virkning
+? pbl53a_overgangsvalg_lovens_ikrafttrædelsesdato_følger_bekendtgørelsen
+? pbl53a_overgangsvalg_senere_skattepligt_afgrænses_ved_ikrafttrædelsen

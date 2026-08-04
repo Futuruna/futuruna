@@ -86,6 +86,19 @@ statsstøttebegrænsningen i stk. 6. Det afleder også, om en ordning fra før d
 livsforsikring bevarer den historiske retsstilling. Resultatet viser hver
 delkonklusion, mens ufuldstændige eller modstridende oplysninger fejler lukket.
 
+For en historisk ordning oplyses et eventuelt overgangsvalg som daterede
+kildedata: beslutning, modtagelse, modtager og valgt § 53 A- eller § 53 B-regime.
+Futuruna afleder selv den ordinære frist før 2006, særvirkningen fra 1. januar
+2004, lovens ikrafttræden den 22. december 2004, fristen ved senere fuld
+skattepligt og den første valgmulighed ved senere
+arv. Det første gyldige valg er bindende. Et senere modstridende forsøg bliver
+synligt i forklaringssporet uden at omskrive det allerede valgte regime.
+Kilderne er
+[LOV nr. 1388 af 20. december 2004, § 5, nr. 2](https://www.retsinformation.dk/eli/lta/2004/1388),
+[Den juridiske vejledning C.A.10.4.2.5](https://info.skat.dk/data.aspx?oid=2048459)
+og
+[SKM2023.171.SR](https://info.skat.dk/data.aspx?oid=2383693).
+
 Hver ordning har desuden en stabil identifikation og en sammenhængende række af
 årlige kildefakta. Borgeren eller AI-interviewet oplyser pensionsudbyderens
 PAL-afkast eller de faktiske depotværdier, daterede ind- og udbetalinger,
@@ -232,8 +245,9 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 863 eksplicitte feltmetadata-poster,
-heraf 179 for § 53 A-ordninger.
+interviewoplysninger. Kontrakten har nu 889 eksplicitte feltmetadata-poster,
+heraf 205 for § 53 A-ordninger. De historiske overgangsvalg ligger i det
+tolvte relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

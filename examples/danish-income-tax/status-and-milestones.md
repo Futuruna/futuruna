@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8280fa` (implementation complete; review pending)
-Next source-backed slices: `td-8ddbca`, `td-f2ca68` and `td-14667b`
+Current implementation slice: `td-8ddbca` (in review; implementation and verification complete)
+Next source-backed slices: `td-e16a8d`, `td-f2ca68` and `td-14667b`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-606798`
@@ -157,11 +157,29 @@ invarianter for skæringsdatoen, overdragelse uden tilbagevirkende kraft,
 direkte arv, overdragelse efterfulgt af arv, produktgrænsen for
 arveundtagelsen og fail-closed kronologi i begge udførelsesveje.
 
-Beregningskontrakten har 179 danske § 53 A-feltbeskrivelser med PBL §§ 20,
-53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har elleve
+Historiske ordninger kan nu desuden bære daterede meddelelser om det bindende
+valg af § 53 A eller § 53 B efter LOV nr. 1388 af 20. december 2004. Reglerne
+afleder ikrafttrædelsen den 22. december 2004 fra bekendtgørelsen dagen før,
+den ordinære frist før 2006, særvirkningen fra 1. januar 2004,
+fristvejen ved senere fuld skattepligt og Skatterådets første-valgmulighed ved
+senere arv. De kontrollerer modtager, beslutnings- og modtagelsesdato, om det
+valgte regelsæt i øvrigt er anvendeligt og om tidligere ejere af en arvet
+livsforsikring allerede havde dansk skattepligt eller valgt afsnit II A. Det
+første gyldige valg forbliver bindende; et senere modstridende forsøg kan ses i
+resultatet, men ændrer ikke regimet. Fjorten fokuserede invarianter passerer i både
+interpreter og compiler.
+
+Den ældre blanket 49.020 uden et særskilt mål-felt er ikke presset ind i den
+eksplicitte måltype. SKM2025.658.LSR's særlige virkning for sådanne historiske
+blanketter kræver yderligere kildefakta om blanketversion og senere påberåbelse
+og er registreret som `td-e16a8d`.
+
+Beregningskontrakten har 205 danske § 53 A-feltbeskrivelser med PBL §§ 20,
+53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har tolv
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
 grænsehændelser, berettigedes indeståender, indbetalings- eller
-udbetalingshændelser, senere erhvervelser, livsforsikringsdækninger, daterede
+udbetalingshændelser, senere erhvervelser, overgangsvalg,
+livsforsikringsdækninger, daterede
 negative afkast ved forløbets åbning og tre slags berettigede efter
 direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
 en senere erhvervelse, fem årsoptegnelser, en delårsgrænse, to berettigede, en
@@ -515,7 +533,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 852 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 889 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -565,7 +583,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`32be5c4ee3c8ad4d617719d70486d98b1d15db7d388c046af6b092cf99ca1aac`.
+`9f87813e448f3658c21ab4a2808ee67383d6d7178c522c3b48413e7e6b46a14f`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -577,7 +595,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 852 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 889 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -2404,8 +2422,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 79-87% complete as an executable research corpus,
-  and roughly 67-76% complete as a production-grade calculator for
+- Working estimate: roughly 80-88% complete as an executable research corpus,
+  and roughly 68-77% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -3040,10 +3058,13 @@ Review candidates to revisit deliberately, not as broad churn:
   overgangsinvarianter dækker 2001, 2002, 2009, 2010 og dokumenteret
   åbningshistorik i begge udførelsesveje. Elleve yderligere invarianter afleder
   moderne eller historisk regime fra oprettelse, almindelige erhvervelser og
-  kvalificerende arv og afviser ugyldige erhvervelsesforløb. Den kanoniske
-  kontrakt har 863 felter i alt, heraf 179 § 53 A-feltmetadata-poster, og elleve
+  kvalificerende arv og afviser ugyldige erhvervelsesforløb. Fjorten yderligere
+  invarianter dækker bindende valg af § 53 A eller § 53 B, ikrafttrædelsen den
+  22. december 2004, den ordinære 2006-frist, særvirkningen fra 1. januar 2004, senere fuld skattepligt, første
+  valgmulighed ved arv, modtager og modstridende valg. Den kanoniske kontrakt
+  har 889 felter i alt, heraf 205 § 53 A-feltmetadata-poster, og tolv
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
-  erhvervelse og fem årsoptegnelser.
+  erhvervelse, et dateret overgangsvalg og fem årsoptegnelser.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3181,7 +3202,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 852 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 889 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3342,10 +3363,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Efter uafhængig review af `td-2a8a7b` skal `td-8280fa` udvide § 53 A's
-  overgangsfakta for ordninger oprettet før den 18. februar 1992 med senere
-  erhvervelse og den særskilte arveundtagelse. Den nuværende model fejler
-  bevidst lukket for disse post-2010-forløb.
+- Efter uafhængig review af `td-8ddbca` skal `td-e16a8d` modellere den ældre
+  blanket 49.020 uden et særskilt § 53 A-/§ 53 B-målfelt. `td-f2ca68` skal
+  derefter kildeafklare og
+  modellere, hvornår materielle kontraktændringer skaber en ny ordning efter
+  § 53 A. `td-14667b` følger særskilt op på afkastgrænsen ved erhvervelse midt i
+  et indkomstår.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

@@ -8,6 +8,7 @@
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
         HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
+        TransitionSource(value = pensionsbeskatningsloven_lov1388_par5_nr2_og_par7_stk1),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
         TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
@@ -20,8 +21,10 @@
         Guidance(value = skat_juridisk_vejledning_pbl53a_udbetalinger),
         Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
         Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_overgangsvalg),
         Guidance(value = skat_juridisk_vejledning_pbl53a_ordningstyper),
         Guidance(value = skat_juridisk_vejledning_pbl53b_omfang),
+        Practice(value = skat_skm2023_171_sr_pbl53a_arvevalg),
         PreparatorySource(value = pensionsbeskatningsloven_lsf24_2007_par53a_stk5),
     )
 )
