@@ -5,7 +5,7 @@
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:ligningsloven_lbk1500_par9l::dependency_source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
+--@label:personskat_lønmodtagerberegning::source:personskatteloven_2021_1284::amendment_source:personskat_reform_2024_482::dependency_source:arbejdsmarkedsbidragsloven_2020_121::dependency_source:ligningsloven_2025_1500::dependency_source:ligningsloven_lbk1500_par9l::dependency_source:pensionsbeskatningsloven_lbk1243_par18::dependency_source:pensionsbeskatningsloven_lbk1243_par15::dependency_source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026::guidance:ligningsloven_juridisk_vejledning_par9b_godtgørelse::guidance:ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere::amendment_source:ligningsloven_lov616_par1::rate_source:ligningsloven_bek1333_par1_par4::guidance:ligningsloven_vejledning_par9c_fri_befordring::dependency_source:aktieavancebeskatningsloven_lbk1098_par12_til_par15::dependency_source:ejendomsskatteloven_lov678_par3::amendment_source:ejendomsskatteloven_lov615_par3_aendring::dependency_source:ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4::dependency_source:ebl_par11_lbk132::dependency_source:ebl_par5_lbk132::dependency_source:ebl_par8_par9_lbk132::dependency_source:ebl_genanbringelse_lbk132::amendment_source:ebl_genanbringelse_lov308::dependency_source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5::dependency_source:ebl_par6d_lov1578::guidance:ebl_par6d_vejledning_2026::dependency_source:kgl_sælgerpantebrev_lbk1176::guidance:kgl_ebl_par6d_vejledning_2026::dependency_source:kommuneskatteloven_2019_935::dependency_source:folkekirkens_økonomilov_2023_424::dependency_source:kildeskatteloven_2024_460--
 --@begin:personskat_lønmodtagerberegning--
 # PersonskatErhvervsbefordring(art: Ligningslov9BBefordringsart, kilometer_i_sagen: Heltal, tres_dages_forhold: Ligningslov9B60DagesForhold)
 # PersonskatErhvervsbefordringFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, godtgørende_arbejdsgiver_identifikation: Tekst, køretøj: Ligningslov9BKøretøj, befordring: PersonskatErhvervsbefordring, udgifter: Ligningslov9BUdgifter, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
@@ -21,7 +21,7 @@
 # PersonskatBefordringsfradragResultat = IntetBefordringsfradrag | UgyldigtBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, befordring: PersonskatBefordringsfradragResultat, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
-# PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
 # PersonskatPensionsResultat(pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(øvrig_aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
@@ -3120,6 +3120,27 @@
     help = Some("Tilføj ét beløb pr. kontrakt. Der kan højst vælges bidrag for seks kontrakter i årets samlede pensionsgrundlag."),
     unit = Some("kr./år")
 )
+= personskat_felt_pbl18_indeksgrundlag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.$variant",
+    label = "Grundlag for indeksordningen",
+    question = Some("Er indbetalingen knyttet til en indeksordning efter PBL § 15?"),
+    help = Some("Vælg kun § 15-grundlaget for en indeksordning. Andre pensionsindbetalinger skal bruge den almindelige ikke-indeksvariant."),
+    unit = None
+)
+= personskat_felt_pbl18_indeksform = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.Pbl18Par15Indeksordning.fakta.form",
+    label = "Indeksordningens form",
+    question = Some("Er indeksordningen oprettet som en forsikring eller som en opsparingskonto?"),
+    help = Some("PBL § 15 tillader begge former, når den lovbestemte indekskontrakt er tilknyttet."),
+    unit = None
+)
+= personskat_felt_pbl18_indekskontrakt = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.Pbl18Par15Indeksordning.fakta.indekskontrakt_efter_pristalsloven",
+    label = "Indekskontrakt efter pristalsloven",
+    question = Some("Er der knyttet en indekskontrakt efter lov om pristalsreguleret alderdomsforsikring og alderdomsopsparing til ordningen?"),
+    help = Some("Uden den lovbestemte indekskontrakt er ordningen ikke omfattet af PBL § 15 og fejler derfor lukket."),
+    unit = None
+)
 = personskat_felt_pbl18_tidligere_ufratrukket = Beregningsfelt(
     path = "lønmodtager.pension.pbl18_indbetalinger.forfaldne_ikke_tidligere_fratrukket_kroner",
     label = "Tidligere forfaldne beløb uden fradrag",
@@ -3127,11 +3148,291 @@
     help = Some("Beløbet afgrænser den resterende fradragsramme ved opfyldningsfradrag og den selvstændiges 30-procentsvalg."),
     unit = Some("kr.")
 )
-= personskat_felt_pbl18_særligt_maksimum = Beregningsfelt(
-    path = "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsmaksimum_kroner",
-    label = "Særligt maksimum for ordningen",
-    question = Some("Hvilket dokumenteret særligt fradragsmaksimum gælder for denne § 15-, § 15 A- eller § 15 B-ordning?"),
-    help = Some("Angiv nul for ordninger uden et særskilt maksimum. Beløbet er et kildefaktum fra den konkrete ordning og kan kun begrænse fradraget."),
+= personskat_felt_pbl18_særligt_grundlag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.$variant",
+    label = "Særligt pensionsgrundlag",
+    question = Some("Er indbetalingen en almindelig pensionsindbetaling, en ophørspension efter PBL § 15 A eller en sportspension efter PBL § 15 B?"),
+    help = Some("Vælg § 15 A-grundlaget, når indbetalingen skal forbindes med en konkret ophørspension og en konkret virksomhedsafståelse. § 15 B fejler lukket, indtil sportspensionens egen kildemodel er tilsluttet."),
+    unit = None
+)
+= personskat_felt_pbl18_par15a_ordning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.ordning_identifikation",
+    label = "Ophørspension for indbetalingen",
+    question = Some("Hvilken registreret ophørspension efter PBL § 15 A modtog denne indbetaling?"),
+    help = Some("Identifikationen skal svare til én ordning i ophørspensionsgrundlaget. Flere indbetalinger og afståelser kan bruge samme ordning."),
+    unit = None
+)
+= personskat_felt_pbl18_par15a_afståelse = Beregningsfelt(
+    path = "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.afståelse_identifikation",
+    label = "Virksomhedsafståelse for indbetalingen",
+    question = Some("Hvilken konkret virksomheds- eller aktieafståelse finansierer denne § 15 A-indbetaling?"),
+    help = Some("Futuruna bruger forbindelsen til at håndhæve både den enkelte afståelses skattepligtige fortjeneste og det fælles maksimum på tværs af ordninger."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelser = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser",
+    label = "Afståelser bag ophørspensionen",
+    question = Some("Hvilke hele eller delvise virksomheds- eller hovedaktionærafståelser skal kunne finansiere ophørspensionen?"),
+    help = Some("Tilføj hver afståelse særskilt, så dens fortjeneste og egen tiårsperiode kan spores."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelse_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.identifikation",
+    label = "Virksomhedsafståelse",
+    question = Some("Hvilken entydig identifikation skal denne afståelse have?"),
+    help = Some("Brug samme identifikation på de pensionsindbetalinger, der hidrører fra afståelsen."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.afståelsesår",
+    label = "Afståelsesår",
+    question = Some("I hvilket indkomstår blev virksomheden, virksomhedsandelen eller hovedaktionæraktierne afstået?"),
+    help = Some("Året starter den selvstændige tiårsperiode for indbetalinger fra denne afståelse."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_afståelsesgrund = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.grundlag",
+    label = "Grundlag for afståelsen",
+    question = Some("Kom fortjenesten fra egen virksomhed, fra en ægtefælles fortjeneste medregnet efter KSL § 25 A eller fra hovedaktionæraktier?"),
+    help = Some("Valget angiver den lovbestemte adgangsvej i PBL § 15 A, stk. 1."),
+    unit = None
+)
+= personskat_felt_pbl15a_fortjeneste = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.skattepligtig_fortjeneste_kroner",
+    label = "Skattepligtig fortjeneste ved afståelsen",
+    question = Some("Hvor stor en skattepligtig fortjeneste fra denne afståelse medregnes ved personens indkomstopgørelse?"),
+    help = Some("Angiv fortjenesten før arbejdsmarkedsbidrag. Indbetalinger, der henføres til afståelsen, kan tilsammen ikke overstige dette beløb."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_alder = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.alder_hele_år_ved_afståelsen",
+    label = "Alder ved afståelsen",
+    question = Some("Hvor mange hele år var personen fyldt inden afståelsen?"),
+    help = Some("PBL § 15 A kræver, at personen var fyldt 55 år inden afståelsen."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_regnskabsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår",
+    label = "Tre regnskabsår før afståelsen",
+    question = Some("Hvilke tre seneste regnskabsår skal indgå i vurderingen af passiv kapitalanbringelse?"),
+    help = Some("Tilføj præcis de tre forskellige indkomstår umiddelbart før afståelsesåret med deres indtægts- og aktivposter efter de lovbestemte koncern- og udlejningsklassifikationer."),
+    unit = None
+)
+= personskat_felt_pbl15a_regnskabsår_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indkomstår",
+    label = "Regnskabsår",
+    question = Some("Hvilket indkomstår vedrører dette regnskab?"),
+    help = Some("Året skal være entydigt blandt de tre regnskabsår."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_indtægter = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter",
+    label = "Regnskabsårets indtægtsposter",
+    question = Some("Hvilke nettoomsætnings- og øvrige regnskabsførte indtægtsposter havde virksomheden i dette regnskabsår?"),
+    help = Some("Klassificér hver post efter dens faktiske kilde. Futuruna udelader koncernintern leje og beregner selv 50-procentsgrænsen."),
+    unit = None
+)
+= personskat_felt_pbl15a_indtægt_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.identifikation",
+    label = "Indtægtspost",
+    question = Some("Hvilken entydig betegnelse har indtægtsposten i dette regnskabsår?"),
+    help = Some("Betegnelsen bruges alene til sporbarhed i beregningsresultatet."),
+    unit = None
+)
+= personskat_felt_pbl15a_indtægt_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.beløb_kroner",
+    label = "Indtægtspostens beløb",
+    question = Some("Hvor stort er det regnskabsførte beløb for indtægtsposten?"),
+    help = Some("Angiv et ikke-negativt beløb før den lovbestemte passive eller aktive klassifikation."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_indtægt_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.indtægter.art",
+    label = "Indtægtspostens art",
+    question = Some("Stammer indtægten fra passiv ejendom, kontanter eller værdipapirer, aktiv udlejning, landbrug eller skov, koncernintern udlejning eller øvrig drift?"),
+    help = Some("Aktiv ejendomsudlejning efter ABL § 34, stk. 7, behandles som aktiv for afståelser fra 2025; koncernintern leje holdes helt ude af brøken."),
+    unit = None
+)
+= personskat_felt_pbl15a_regnskabsaktiver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver",
+    label = "Regnskabsårets aktiver",
+    question = Some("Hvilke aktiver og forholdsmæssigt medregnede underliggende selskabsaktiver havde virksomheden i dette regnskabsår?"),
+    help = Some("For ejerandele på mindst 25 procent oplyses de forholdsmæssige underliggende aktiver; selve aktieværdien medregnes ikke dobbelt."),
+    unit = None
+)
+= personskat_felt_pbl15a_regnskabsaktiv_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.identifikation",
+    label = "Aktivpost",
+    question = Some("Hvilken entydig betegnelse har aktivposten i dette regnskabsår?"),
+    help = Some("Betegnelsen bevarer forbindelsen til regnskab eller dokumentation."),
+    unit = None
+)
+= personskat_felt_pbl15a_regnskabsaktiv_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.handelsværdi_kroner",
+    label = "Aktivets handelsværdi",
+    question = Some("Hvad var aktivpostens handelsværdi i regnskabsåret?"),
+    help = Some("Futuruna summerer de medregnede værdier og tester selv den gennemsnitlige 50-procentsgrænse."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_regnskabsaktiv_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.seneste_tre_regnskabsår.aktiver.art",
+    label = "Aktivets art",
+    question = Some("Er aktivet passiv udlejningsejendom, aktiv udlejning, landbrugs- eller skovejendom, kontanter, værdipapirer, en ABL § 18-andel, koncernintern driftsejendom eller et øvrigt driftsaktiv?"),
+    help = Some("Klassifikationen bestemmer, om værdien er passiv eller aktiv. ABL § 18-andele medregnes som ikke-passive; ejerandele på mindst 25 procent erstattes i inputtet af deres forholdsmæssige underliggende aktiver."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesaktiver = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet",
+    label = "Aktiver på overdragelsestidspunktet",
+    question = Some("Hvilke aktiver havde virksomheden på selve overdragelsestidspunktet?"),
+    help = Some("Disse poster bruges til den selvstændige 50-procentsprøve på overdragelsestidspunktet."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesaktiv_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.identifikation",
+    label = "Aktiv ved overdragelsen",
+    question = Some("Hvilken entydig betegnelse har aktivet på overdragelsestidspunktet?"),
+    help = Some("Brug en betegnelse, der kan genfindes i overdragelsesbalancen."),
+    unit = None
+)
+= personskat_felt_pbl15a_afståelsesaktiv_værdi = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.handelsværdi_kroner",
+    label = "Handelsværdi ved overdragelsen",
+    question = Some("Hvad var aktivets handelsværdi på overdragelsestidspunktet?"),
+    help = Some("Beløbet indgår i forholdstallet på overdragelsestidspunktet."),
+    unit = Some("kr.")
+)
+= personskat_felt_pbl15a_afståelsesaktiv_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.aktiver_på_overdragelsestidspunktet.art",
+    label = "Aktivets art ved overdragelsen",
+    question = Some("Hvilken lovbestemt aktivtype havde posten på overdragelsestidspunktet?"),
+    help = Some("Futuruna anvender samme daterede passive, aktive og udeladte klassifikation som for regnskabsårene."),
+    unit = None
+)
+= personskat_felt_pbl15a_næringsvirksomhed = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.passiv_kapital.næringsvirksomhed_med_værdipapirer_eller_finansiering",
+    label = "Næring med værdipapirer eller finansiering",
+    question = Some("Udøvede personen eller hovedaktionærselskabet næringsvirksomhed med køb og salg af værdipapirer eller finansieringsvirksomhed?"),
+    help = Some("Når denne lovbestemte næringsundtagelse er dokumenteret, anvendes forbuddet mod passiv kapitalanbringelse ikke."),
+    unit = None
+)
+= personskat_felt_pbl15a_driftsmiddeludlejning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe",
+    label = "Udlejning af driftsmidler eller skibe",
+    question = Some("Bestod virksomheden i udlejning af afskrivningsberettigede driftsmidler eller skibe?"),
+    help = Some("Forholdet afskærer som udgangspunkt § 15 A, medmindre opretteren deltog væsentligt i driften."),
+    unit = None
+)
+= personskat_felt_pbl15a_antal_ejere = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.antal_ejere",
+    label = "Antal ejere",
+    question = Some("Hvor mange ejere havde den afståede virksomhed?"),
+    help = Some("Mere end ti ejere kræver, at opretteren deltog i virksomhedens drift i væsentligt omfang."),
+    unit = Some("personer")
+)
+= personskat_felt_pbl15a_væsentlig_deltagelse = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.opretter_deltog_i_driften_i_væsentligt_omfang",
+    label = "Væsentlig deltagelse i driften",
+    question = Some("Deltog opretteren af ophørspensionen i virksomhedens drift i væsentligt omfang?"),
+    help = Some("Oplysningen er afgørende ved driftsmiddel- eller skibsudlejning og ved virksomheder med mere end ti ejere."),
+    unit = None
+)
+= personskat_felt_pbl15a_ordninger = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.ordninger",
+    label = "Ophørspensionsordninger",
+    question = Some("Hvilke pensionsordninger er oprettet som ophørspension efter PBL § 15 A?"),
+    help = Some("Flere ordninger er tilladt, men de deler personens samlede regulerede maksimum."),
+    unit = None
+)
+= personskat_felt_pbl15a_ordning_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
+    label = "Ophørspensionsordning",
+    question = Some("Hvilken entydig identifikation har ophørspensionsordningen?"),
+    help = Some("Brug identifikationen på hver indbetaling, der er foretaget til ordningen."),
+    unit = None
+)
+= personskat_felt_pbl15a_ordning_oprettelsesår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesår",
+    label = "Oprettelsesår for ophørspensionen",
+    question = Some("I hvilket indkomstår blev ophørspensionsordningen oprettet?"),
+    help = Some("De mindst ti kvalifikationsår måles inden for de femten år før dette år, og ordningen skal være oprettet senest året efter den afståelse, der oprettede den."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_ordning_oprettelsesafståelse = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesafståelse_identifikation",
+    label = "Afståelse, der oprettede ophørspensionen",
+    question = Some("Hvilken virksomheds- eller aktieafståelse blev ophørspensionsordningen oprindeligt oprettet i forbindelse med?"),
+    help = Some("Henvis til afståelsens entydige identifikation. En eksisterende ophørspension kan senere modtage fortjeneste fra andre kvalificerende afståelser."),
+    unit = None
+)
+= personskat_felt_pbl15a_ordning_art = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.art",
+    label = "Ophørspensionens art",
+    question = Some("Er ordningen en pension med løbende udbetalinger, en rateforsikring eller en rateopsparing?"),
+    help = Some("Kun de tre former i PBL § 15 A, stk. 5, er tilladt."),
+    unit = None
+)
+= personskat_felt_pbl15a_kvalifikationsår = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår",
+    label = "År som selvstændig eller hovedaktionær",
+    question = Some("I hvilke indkomstår drev personen kvalificerende selvstændig virksomhed eller var hovedaktionær i erhvervsvirksomhed?"),
+    help = Some("Tilføj hvert år én gang. Dokumenterede år fra afdøde og boperioden kan angives med deres særlige successionsgrundlag."),
+    unit = None
+)
+= personskat_felt_pbl15a_kvalifikationsår_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.indkomstår",
+    label = "Kvalifikationsår",
+    question = Some("Hvilket indkomstår vedrører denne kvalificerende erhvervsaktivitet?"),
+    help = Some("Futuruna tæller kun unikke år i den relevante femtenårsperiode."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_kvalifikationsår_grundlag = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.grundlag",
+    label = "Grundlag for kvalifikationsåret",
+    question = Some("Bygger året på egen selvstændig virksomhed, eget hovedaktionærforhold eller dokumenteret succession fra en afdød eller boperiode?"),
+    help = Some("Grundlaget bevarer PBL § 15 A, stk. 2's forskellige veje til at blive anset for at have drevet virksomheden."),
+    unit = None
+)
+= personskat_felt_pbl15a_historik = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger",
+    label = "Tidligere indbetalinger på ophørspension",
+    question = Some("Hvilke § 15 A-indbetalinger er foretaget før det aktuelle indkomstår?"),
+    help = Some("Historikken gør det muligt at aflede resterende fortjeneste og fælles maksimum uden at spørge efter et manuelt beregnet restbeløb."),
+    unit = None
+)
+= personskat_felt_pbl15a_historik_identifikation = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.identifikation",
+    label = "Tidligere pensionsindbetaling",
+    question = Some("Hvilken entydig identifikation har den tidligere indbetaling?"),
+    help = Some("Identifikationen skal være forskellig fra andre historiske indbetalinger."),
+    unit = None
+)
+= personskat_felt_pbl15a_historik_år = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.indbetalingsår",
+    label = "År for tidligere indbetaling",
+    question = Some("I hvilket indkomstår blev den tidligere indbetaling foretaget?"),
+    help = Some("Året skal ligge før beregningsåret og inden for den relevante afståelses tiårsperiode."),
+    unit = Some("år")
+)
+= personskat_felt_pbl15a_historik_ordning = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.ordning_identifikation",
+    label = "Ordning for tidligere indbetaling",
+    question = Some("Hvilken ophørspensionsordning modtog den tidligere indbetaling?"),
+    help = Some("Identifikationen skal findes blandt de oplyste ophørspensionsordninger."),
+    unit = None
+)
+= personskat_felt_pbl15a_historik_afståelse = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.afståelse_identifikation",
+    label = "Afståelse for tidligere indbetaling",
+    question = Some("Hvilken virksomhedsafståelse hidrørte den tidligere indbetaling fra?"),
+    help = Some("Forbindelsen bruges til at undgå dobbelt brug af samme skattepligtige fortjeneste."),
+    unit = None
+)
+= personskat_felt_pbl15a_historik_beløb = Beregningsfelt(
+    path = "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.beløb_kroner",
+    label = "Tidligere indbetalt beløb",
+    question = Some("Hvor stort et beløb blev tidligere indbetalt på ophørspensionen?"),
+    help = Some("Beløbet reducerer både den relevante afståelses fortjenesteloft og personens fælles regulerede maksimum."),
     unit = Some("kr.")
 )
 = personskat_felt_pbl18_pbl54_personkreds = Beregningsfelt(
@@ -3264,7 +3565,12 @@
 --@label:beregn_personskat::field:personskat_felt_pensionsalder::field:personskat_felt_pbl20_udbetaling::field:personskat_felt_pbl20_udbetalingsstatus::source:ligningsloven_lbk1500_par9l::rate_source:skatteministeriet_ligningsloven_par9l_satser_2026::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
 --@label:beregn_personskat::field:personskat_felt_aktiepensionsfradrag_valg::field:personskat_felt_aktiepensionsfradrag_beløb::field:personskat_felt_aktiepensionsfradrag_meddelelse::field:personskat_felt_aktiepensionsfradrag_omgørelse::source:personskatteloven_lbk1284_par4a::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
 --@label:beregn_personskat::field:personskat_felt_pbl18_indbetalinger::field:personskat_felt_pbl18_identifikation::field:personskat_felt_pbl18_ordning::field:personskat_felt_pbl18_indbetalingskilde::field:personskat_felt_pbl18_fradragsretshaver::field:personskat_felt_pbl18_beløb::field:personskat_felt_pbl18_forfaldsår::field:personskat_felt_pbl18_betalingsår::field:personskat_felt_pbl18_rettidig_betaling::field:personskat_felt_pbl18_par22e_tilbagebetaling::field:personskat_felt_pbl18_par15a_placering::field:personskat_felt_pbl18_par15a_fradragsår::field:personskat_felt_pbl18_par15a_rettidig::field:personskat_felt_pbl18_am_bidrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
---@label:beregn_personskat::field:personskat_felt_pbl18_fordelingsforløb::field:personskat_felt_pbl18_kapitalindskudsår::field:personskat_felt_pbl18_kapitalindskud::field:personskat_felt_pbl18_kort_periode_første_år::field:personskat_felt_pbl18_kort_periode_samlet_beløb::field:personskat_felt_pbl18_kort_periode_efterfølgende::field:personskat_felt_pbl18_kort_periode_år::field:personskat_felt_pbl18_forhøjelsesår::field:personskat_felt_pbl18_samlet_forhøjelse::field:personskat_felt_pbl18_indeksbidrag::field:personskat_felt_pbl18_tidligere_ufratrukket::field:personskat_felt_pbl18_særligt_maksimum::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+--@label:beregn_personskat::field:personskat_felt_pbl18_fordelingsforløb::field:personskat_felt_pbl18_kapitalindskudsår::field:personskat_felt_pbl18_kapitalindskud::field:personskat_felt_pbl18_kort_periode_første_år::field:personskat_felt_pbl18_kort_periode_samlet_beløb::field:personskat_felt_pbl18_kort_periode_efterfølgende::field:personskat_felt_pbl18_kort_periode_år::field:personskat_felt_pbl18_forhøjelsesår::field:personskat_felt_pbl18_samlet_forhøjelse::field:personskat_felt_pbl18_indeksbidrag::field:personskat_felt_pbl18_tidligere_ufratrukket::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+--@label:beregn_personskat::field:personskat_felt_pbl18_indeksgrundlag::field:personskat_felt_pbl18_indeksform::field:personskat_felt_pbl18_indekskontrakt::source:pensionsbeskatningsloven_lbk1243_par15::dependency_source:pensionsbeskatningsloven_lbk1243_par18--
+--@label:beregn_personskat::field:personskat_felt_pbl18_særligt_grundlag::field:personskat_felt_pbl18_par15a_ordning::field:personskat_felt_pbl18_par15a_afståelse::source:pensionsbeskatningsloven_lbk1243_par18::dependency_source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_afståelser::field:personskat_felt_pbl15a_afståelse_identifikation::field:personskat_felt_pbl15a_afståelsesår::field:personskat_felt_pbl15a_afståelsesgrund::field:personskat_felt_pbl15a_fortjeneste::field:personskat_felt_pbl15a_alder::field:personskat_felt_pbl15a_driftsmiddeludlejning::field:personskat_felt_pbl15a_antal_ejere::field:personskat_felt_pbl15a_væsentlig_deltagelse::source:pensionsbeskatningsloven_lbk1243_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_regnskabsår::field:personskat_felt_pbl15a_regnskabsår_år::field:personskat_felt_pbl15a_indtægter::field:personskat_felt_pbl15a_indtægt_identifikation::field:personskat_felt_pbl15a_indtægt_beløb::field:personskat_felt_pbl15a_indtægt_art::field:personskat_felt_pbl15a_regnskabsaktiver::field:personskat_felt_pbl15a_regnskabsaktiv_identifikation::field:personskat_felt_pbl15a_regnskabsaktiv_værdi::field:personskat_felt_pbl15a_regnskabsaktiv_art::field:personskat_felt_pbl15a_afståelsesaktiver::field:personskat_felt_pbl15a_afståelsesaktiv_identifikation::field:personskat_felt_pbl15a_afståelsesaktiv_værdi::field:personskat_felt_pbl15a_afståelsesaktiv_art::field:personskat_felt_pbl15a_næringsvirksomhed::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::guidance:skat_pbl15a_ophørspension_vejledning--
+--@label:beregn_personskat::field:personskat_felt_pbl15a_ordninger::field:personskat_felt_pbl15a_ordning_identifikation::field:personskat_felt_pbl15a_ordning_oprettelsesår::field:personskat_felt_pbl15a_ordning_oprettelsesafståelse::field:personskat_felt_pbl15a_ordning_art::field:personskat_felt_pbl15a_kvalifikationsår::field:personskat_felt_pbl15a_kvalifikationsår_år::field:personskat_felt_pbl15a_kvalifikationsår_grundlag::field:personskat_felt_pbl15a_historik::field:personskat_felt_pbl15a_historik_identifikation::field:personskat_felt_pbl15a_historik_år::field:personskat_felt_pbl15a_historik_ordning::field:personskat_felt_pbl15a_historik_afståelse::field:personskat_felt_pbl15a_historik_beløb::source:pensionsbeskatningsloven_lbk1243_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
 --@label:beregn_personskat::field:personskat_felt_pbl18_pbl54_personkreds::field:personskat_felt_pbl18_afgiftspligt::field:personskat_felt_pbl18_udenlandsk_overførsel::field:personskat_felt_pbl18_selvstændig_overskud::field:personskat_felt_pbl18_selvstændig_renteudgifter::field:personskat_felt_pbl18_selvstændig_kurstab::field:personskat_felt_pbl18_selvstændig_renteindtægter::field:personskat_felt_pbl18_selvstændig_udbytte::field:personskat_felt_pbl18_selvstændig_kursgevinster::field:personskat_felt_pbl18_selvstændig_afståelsesindkomst::field:personskat_felt_pbl18_livrentevalg::field:personskat_felt_pbl18_livrente_ønsket_fradrag::source:pensionsbeskatningsloven_lbk1243_par18::rate_source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
 
 --@label:beregn_personskat::field:personskat_felt_erhvervsbefordring::field:personskat_felt_erhvervsbefordring_identifikation::field:personskat_felt_erhvervsbefordring_rækkefølge::field:personskat_felt_erhvervsbefordring_arbejdsgiver_identifikation::field:personskat_felt_erhvervsbefordring_køretøj::field:personskat_felt_erhvervsbefordring_art::field:personskat_felt_erhvervsbefordring_kilometer::source:ligningsloven_lbk1500_par9b::rate_source:skatteraadet_bek1333_par4_par14--
@@ -4239,6 +4545,12 @@
     pbl18_indbetalinger = [],
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(
+        afståelser = [],
+        ordninger = [],
+        kvalifikationsår = [],
+        tidligere_indbetalinger = []
+    ),
     aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst,
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
@@ -4262,6 +4574,7 @@
         personlig_indkomst_før_pensionsfradrag_kroner = personlig_indkomst_før_pensionsfradrag_kroner(),
         selvstændig_overskud = input.lønmodtager.pension.pbl18_selvstændig_overskud,
         livrentevalg = input.lønmodtager.pension.pbl18_livrentevalg,
+        par15a_årsgrundlag = input.lønmodtager.pension.pbl15a_årsgrundlag,
         indbetalinger = input.lønmodtager.pension.pbl18_indbetalinger
     )
     | årsresultat() -> pbl18_årsresultat(årsinput())

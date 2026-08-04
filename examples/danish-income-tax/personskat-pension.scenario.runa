@@ -23,23 +23,32 @@
     betaling = personskat_pension_betaling(beløb_kroner, arbejdsmarkedsbidrag_kroner),
     fordelingsforløb = Pbl18IngenTiårsfordeling,
     indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
     forfaldne_ikke_tidligere_fratrukket_kroner = 0,
-    særligt_ordningsmaksimum_kroner = 0,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
     begrænsninger = Pbl18Begrænsninger(
         pbl54_personkreds_opfyldt = Sandt,
         afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
         udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
     )
 )
-| personskat_pensionsinput_med_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> PersonskatPensionsInput(
+| personskat_tomt_par15a_årsgrundlag() -> Pbl15AÅrsgrundlag(
+    afståelser = [],
+    ordninger = [],
+    kvalifikationsår = [],
+    tidligere_indbetalinger = []
+)
+| personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), par15a_årsgrundlag: Pbl15AÅrsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> PersonskatPensionsInput(
     pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl15a_årsgrundlag = par15a_årsgrundlag,
     aktiepensionsfradrag_valg = aktiepensionsfradrag_valg,
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
 )
+| personskat_pensionsinput_med_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger, personskat_tomt_par15a_årsgrundlag(), aktiepensionsfradrag_valg)
 | personskat_pensionsinput(indbetalinger: List(Pbl18Årsindbetaling)) -> personskat_pensionsinput_med_aktiefradrag(indbetalinger, UdenAktiepensionsfradragIAktieindkomst)
 | personskat_pension_lønmodtager(pension: PersonskatPensionsInput) -> PersonskatLønmodtagerInput(
     skatteår = 2026,
@@ -84,8 +93,12 @@
     ),
     fordelingsforløb = Pbl18IngenTiårsfordeling,
     indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
     forfaldne_ikke_tidligere_fratrukket_kroner = 0,
-    særligt_ordningsmaksimum_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(
+        ordning_identifikation = "ophørspension-1",
+        afståelse_identifikation = "virksomhedssalg-1"
+    ),
     begrænsninger = Pbl18Begrænsninger(
         pbl54_personkreds_opfyldt = Sandt,
         afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
@@ -109,13 +122,86 @@
     ),
     fordelingsforløb = Pbl18IngenTiårsfordeling,
     indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
     forfaldne_ikke_tidligere_fratrukket_kroner = 0,
-    særligt_ordningsmaksimum_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(
+        ordning_identifikation = "ophørspension-1",
+        afståelse_identifikation = "virksomhedssalg-1"
+    ),
     begrænsninger = Pbl18Begrænsninger(
         pbl54_personkreds_opfyldt = Sandt,
         afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
         udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
     )
+)
+
+| personskat_par15a_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
+    indkomstår = indkomstår,
+    indtægter = [
+        Pbl15AIndtægtspost(
+            identifikation = "driftsindtægt",
+            beløb_kroner = 1000000,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    aktiver = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ]
+)
+
+= personskat_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [
+        Pbl15AAfståelsesfakta(
+            identifikation = "virksomhedssalg-1",
+            afståelsesår = 2026,
+            grundlag = Pbl15AHovedaktionæraktier,
+            skattepligtig_fortjeneste_kroner = 100000,
+            alder_hele_år_ved_afståelsen = 60,
+            passiv_kapital = Pbl15APassivKapitalFakta(
+                seneste_tre_regnskabsår = [
+                    personskat_par15a_regnskabsår(2023),
+                    personskat_par15a_regnskabsår(2024),
+                    personskat_par15a_regnskabsår(2025)
+                ],
+                aktiver_på_overdragelsestidspunktet = [
+                    Pbl15AAktivpost(
+                        identifikation = "driftsaktiv-ved-salg",
+                        handelsværdi_kroner = 2000000,
+                        art = Pbl15AØvrigtDriftsaktiv
+                    )
+                ],
+                næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+            ),
+            udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,
+            antal_ejere = 1,
+            opretter_deltog_i_driften_i_væsentligt_omfang = Sandt
+        )
+    ],
+    ordninger = [
+        Pbl15AOrdningsfakta(
+            identifikation = "ophørspension-1",
+            oprettelsesår = 2026,
+            art = Pbl15ARateopsparing,
+            oprettelsesafståelse_identifikation = "virksomhedssalg-1"
+        )
+    ],
+    kvalifikationsår = [
+        Pbl15AKvalifikationsår(indkomstår = 2016, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2017, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2018, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2019, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2020, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2021, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2022, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2023, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2024, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2025, grundlag = Pbl15AEgetHovedaktionærforhold)
+    ],
+    tidligere_indbetalinger = []
 )
 
 = personskat_par15a_aktieposition = AktieavanceOrdinærPosition(
@@ -172,8 +258,9 @@
     personskat_pension_indbetaling("samme-id", Pbl18EgenIndbetaling, 30000, 0)
 ])))
 = personskat_par15a_aktiefradrag_resultat = beregn_personskat(personskat_pension_input_med_aktieavance(
-    personskat_pensionsinput_med_aktiefradrag(
+    personskat_pensionsinput_med_par15a_og_aktiefradrag(
         [personskat_par15a_indbetaling("par15a-hovedaktionær", 100000)],
+        personskat_par15a_årsgrundlag,
         MedAktiepensionsfradragIAktieindkomst(
             ønsket_fradrag_kroner = 70000,
             meddelelse_dato_yyyymmdd = 20270501,
@@ -183,8 +270,9 @@
     personskat_par15a_aktieavance
 ))
 = personskat_ugyldig_par15a_aktiefradrag_resultat = beregn_personskat(personskat_pension_input_med_aktieavance(
-    personskat_pensionsinput_med_aktiefradrag(
+    personskat_pensionsinput_med_par15a_og_aktiefradrag(
         [personskat_ugyldig_par15a_indbetaling("ugyldig-par15a", 100000)],
+        personskat_par15a_årsgrundlag,
         MedAktiepensionsfradragIAktieindkomst(
             ønsket_fradrag_kroner = 70000,
             meddelelse_dato_yyyymmdd = 20270501,

@@ -30,6 +30,13 @@
     fradragsvalgte_kontraktbidrag_kroner = []
 )
 
+= pension_tomt_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [],
+    ordninger = [],
+    kvalifikationsår = [],
+    tidligere_indbetalinger = []
+)
+
 = pension_standardbegrænsninger = Pbl18Begrænsninger(
     pbl54_personkreds_opfyldt = Sandt,
     afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
@@ -72,7 +79,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 100000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
@@ -102,7 +108,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 200000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner = 100000)
     ),
@@ -132,7 +137,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 200000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_selvstændigt_overskud,
         valg = Pbl18Selvstændig30PctValg
     ),
@@ -159,7 +163,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 20000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
@@ -186,7 +189,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 20000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
@@ -215,7 +217,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 70000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
@@ -242,7 +243,6 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 10000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
@@ -269,19 +269,87 @@
     fradragsramme = Pbl18Fradragsramme(
         personlig_indkomst_før_pensionsfradrag_kroner = 600000,
         forfaldne_ikke_tidligere_fratrukket_kroner = 50000,
-        særligt_ordningsmaksimum_kroner = 0,
         selvstændig_overskud = pension_intet_selvstændigt_overskud,
         valg = Pbl18FordeltFradrag
     ),
     begrænsninger = pension_udenlandsk_overførsel
 ))
 
-= pension_par15a = pbl18_resultat(Pbl18Input(
-    indkomstår = 2026,
+| pension_par15a_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
+    indkomstår = indkomstår,
+    indtægter = [
+        Pbl15AIndtægtspost(
+            identifikation = "aktiv-drift",
+            beløb_kroner = 1000000,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    aktiver = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ]
+)
+
+= pension_par15a_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [
+        Pbl15AAfståelsesfakta(
+            identifikation = "virksomhedsafståelse-2026",
+            afståelsesår = 2026,
+            grundlag = Pbl15AHovedaktionæraktier,
+            skattepligtig_fortjeneste_kroner = 80000,
+            alder_hele_år_ved_afståelsen = 60,
+            passiv_kapital = Pbl15APassivKapitalFakta(
+                seneste_tre_regnskabsår = [
+                    pension_par15a_regnskabsår(2023),
+                    pension_par15a_regnskabsår(2024),
+                    pension_par15a_regnskabsår(2025)
+                ],
+                aktiver_på_overdragelsestidspunktet = [
+                    Pbl15AAktivpost(
+                        identifikation = "driftsaktiv-ved-afståelse",
+                        handelsværdi_kroner = 2000000,
+                        art = Pbl15AØvrigtDriftsaktiv
+                    )
+                ],
+                næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+            ),
+            udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,
+            antal_ejere = 1,
+            opretter_deltog_i_driften_i_væsentligt_omfang = Sandt
+        )
+    ],
+    ordninger = [
+        Pbl15AOrdningsfakta(
+            identifikation = "ophørspension-2026",
+            oprettelsesår = 2026,
+            art = Pbl15ARateopsparing,
+            oprettelsesafståelse_identifikation = "virksomhedsafståelse-2026"
+        )
+    ],
+    kvalifikationsår = [
+        Pbl15AKvalifikationsår(indkomstår = 2016, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2017, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2018, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2019, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2020, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2021, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2022, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2023, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2024, grundlag = Pbl15AEgetHovedaktionærforhold),
+        Pbl15AKvalifikationsår(indkomstår = 2025, grundlag = Pbl15AEgetHovedaktionærforhold)
+    ],
+    tidligere_indbetalinger = []
+)
+
+= pension_par15a_indbetaling = Pbl18Årsindbetaling(
+    identifikation = "ophørspensionsindbetaling-2026",
     ordning = Pbl18Par15ARateordning,
     indbetalingskilde = Pbl18EgenIndbetaling,
     fradragsretshaver = Pbl18OrdningensEjer,
-    betaling = Pbl18Betaling(
+    betaling = Pbl18Årsbetaling(
         beløb_kroner = 80000,
         forfaldsår = 2026,
         betalingsår = 2026,
@@ -291,19 +359,26 @@
             fradragsår = 2026,
             indbetalt_senest_1_juli_efterfølgende = Sandt
         ),
-        arbejdsgiverindbetalinger_kroner = 0,
-        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+        arbejdsmarkedsbidrag_kroner = 0
     ),
     fordelingsforløb = Pbl18IngenTiårsfordeling,
     indeksvalg = pension_ingen_indekskontrakter,
-    fradragsramme = Pbl18Fradragsramme(
-        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
-        forfaldne_ikke_tidligere_fratrukket_kroner = 80000,
-        særligt_ordningsmaksimum_kroner = 80000,
-        selvstændig_overskud = pension_intet_selvstændigt_overskud,
-        valg = Pbl18FordeltFradrag
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = 80000,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(
+        ordning_identifikation = "ophørspension-2026",
+        afståelse_identifikation = "virksomhedsafståelse-2026"
     ),
     begrænsninger = pension_standardbegrænsninger
+)
+
+= pension_par15a = pbl18_årsresultat(Pbl18Årsinput(
+    indkomstår = 2026,
+    personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+    selvstændig_overskud = pension_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pension_par15a_årsgrundlag,
+    indbetalinger = [pension_par15a_indbetaling]
 ))
 
 = pension_aktiefradragsvalg = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
@@ -316,12 +391,12 @@
 
 = pension_aktiefradrag = par4a_pensionsfradrag_resultat(AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = 50000,
-    pbl15a_grundlag = par4a_pbl15a_grundlag_fra_pbl18(pension_par15a),
+    pbl15a_grundlag = par4a_pbl15a_grundlag_fra_pbl18_år(pension_par15a),
     valg_resultat = pension_aktiefradragsvalg
 ))
 
 = pension_par3_par15a = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
-    grundlag = Par3Nr3Pbl18(resultat = pension_par15a),
+    grundlag = Par3Nr3Pbl18År(resultat = pension_par15a),
     aktiepensionsfradrag_resultat = pension_aktiefradrag
 ))
 
@@ -367,7 +442,7 @@
     stk2_nr2_input = Par3Stk2Nr2Input(poster = []),
     stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [
         Par3Stk2Nr3Post(resultat = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
-            grundlag = Par3Nr3Pbl18(resultat = pension_par15a),
+            grundlag = Par3Nr3Pbl18År(resultat = pension_par15a),
             aktiepensionsfradrag_resultat = pension_aktiefradrag
         )))
     ])
@@ -389,8 +464,9 @@
     ),
     fordelingsforløb = Pbl18IngenTiårsfordeling,
     indeksvalg = pension_ingen_indekskontrakter,
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
     forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
-    særligt_ordningsmaksimum_kroner = 0,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
     begrænsninger = pension_standardbegrænsninger
 )
 | pension_årslivrenteindbetaling(identifikation: Tekst, indskud_kroner: Heltal) -> Pbl18Årsindbetaling(
@@ -412,8 +488,9 @@
         indskud_kroner = indskud_kroner
     ),
     indeksvalg = pension_ingen_indekskontrakter,
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
     forfaldne_ikke_tidligere_fratrukket_kroner = indskud_kroner,
-    særligt_ordningsmaksimum_kroner = 0,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
     begrænsninger = pension_standardbegrænsninger
 )
 
@@ -422,6 +499,7 @@
     personlig_indkomst_før_pensionsfradrag_kroner = 600000,
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
     indbetalinger = [
         pension_årsrateindbetaling("Arbejdsgiverordning", Pbl18Arbejdsgiverindbetaling, 40000, 3200),
         pension_årsrateindbetaling("Privat rate A", Pbl18EgenIndbetaling, 40000, 0),
@@ -434,6 +512,7 @@
     personlig_indkomst_før_pensionsfradrag_kroner = 600000,
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner = 100000),
+    par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
     indbetalinger = [
         pension_årslivrenteindbetaling("Livrente A", 100000),
         pension_årslivrenteindbetaling("Livrente B", 100000)
@@ -445,6 +524,7 @@
     personlig_indkomst_før_pensionsfradrag_kroner = 600000,
     selvstændig_overskud = pension_intet_selvstændigt_overskud,
     livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
     indbetalinger = [
         pension_årsrateindbetaling("Samme ordning", Pbl18EgenIndbetaling, 20000, 0),
         pension_årsrateindbetaling("Samme ordning", Pbl18EgenIndbetaling, 30000, 0)

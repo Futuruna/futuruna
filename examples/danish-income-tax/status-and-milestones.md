@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-23
 TD epic: `td-56cf8d`
-Current focus issue: `td-67f030` (in review)
-Latest implementation slice submitted for review: `td-67f030`
+Current focus issue: `td-f84c7d` (in review)
+Latest implementation slice submitted for review: `td-f84c7d`
 Latest approved implementation slice: `td-4fd64a`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -52,14 +52,21 @@ Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu en
 årsportefølje af identificerede pensionsindbetalinger efter
 Pensionsbeskatningslovens § 18. Reglerne afleder fradragsåret, deler § 16-loftet
 mellem ordningerne, giver arbejdsgiverindbetalinger prioritet efter indeholdt
-arbejdsmarkedsbidrag og anvender ét fælles valg for livsvarig livrente. Det
-afledte § 18-fradrag føres gennem Personskattelovens § 3, stk. 2, nr. 3 og
-genbruges som grundlag for Ligningslovens § 9 L. For ordninger efter
-Pensionsbeskatningslovens § 15 A kan et typet valg i stedet placere en del af
-fradraget i positiv aktieindkomst efter Personskattelovens § 4 a; kun resten
-fradrages i personlig indkomst. Dermed kan samme indbetaling ikke fradrages to
-gange. Ugyldige årsporteføljer bevares i resultatsporet, men giver hverken
-personligt fradrag, aktieindkomstfradrag eller ekstra pensionsfradrag.
+arbejdsmarkedsbidrag og anvender ét fælles valg for livsvarig livrente. En
+indeksordning skal nu bære de typede § 15-fakta om ordningsform og den
+lovbestemte indekskontrakt. Ophørspension efter § 15 A tager tilsvarende imod
+afståelser, fortjenester, passive kapitalposter, ordninger, kvalifikationsår og
+tidligere indbetalinger som kildefakta. Reglerne afleder selv personens fælles
+regulerede loft, hver afståelses resterende fortjeneste og den aktuelle
+fordeling i indbetalingernes angivne rækkefølge. Det tidligere rå felt
+`særligt_ordningsmaksimum_kroner` er fjernet. Det afledte § 18-fradrag føres
+gennem Personskattelovens § 3, stk. 2, nr. 3 og genbruges som grundlag for
+Ligningslovens § 9 L. Et gyldigt § 15 A-valg kan i stedet placere en del i
+positiv aktieindkomst efter Personskattelovens § 4 a; kun resten fradrages i
+personlig indkomst. Dermed kan hverken fortjeneste, fælles loft eller samme
+indbetaling bruges to gange. Ugyldige årsporteføljer bevares i resultatsporet,
+men giver hverken personligt fradrag, aktieindkomstfradrag eller ekstra
+pensionsfradrag.
 
 `@ calculate("Dansk personskat")` vises nu som titelrække på hovedarket og som
 præfiks på alle relationelle ark. Læseren validerer titlerne sammen med den
@@ -2802,6 +2809,32 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Pensionsbeskatningslovens §§ 15 og 15 A står nu med ordret lovtekst og typede
+  kildeankre i et særskilt juridisk modul. § 15 A-modellen håndterer
+  alderskravet, ti kvalifikationsår inden for de seneste femten år, succession,
+  den passive kapitalprøve, 2013/2014-overgangen, ændringen for aktiv udlejning
+  fra 2025, tilladte ordningsformer, hver afståelses fortjenesteloft og den
+  fælles tiårige indbetalingshistorik. Hver ordning henviser til den afståelse,
+  der oprindeligt oprettede den. En ny ordning skal være oprettet senest året
+  efter denne afståelse, mens en allerede gyldig ophørspension kan modtage
+  fortjeneste fra en senere kvalificerende afståelse. Det regulerede samlede
+  maksimum er 3.285.400 kr. for 2025 og 3.443.400 kr. for 2026 og afledes af det
+  seneste indbetalingsår. Det særskilte fradragsloft i afståelsesåret følger
+  derimod afståelsesårets beløbsgrænse, også når betalingen sker senest 1. juli
+  året efter. Ikke-understøttede år fejler lukket. Flere ordninger fordeles
+  deterministisk i inputrækkefølge uden genbrug af fortjeneste eller loft.
+  Interpreter og compiler gennemfører samme fokuserede scenarier for almindelig
+  ratepension, gyldig og ugyldig indeksordning, rettidig og for sen oprettelse,
+  genbrug af en eksisterende ordning, flere § 15 A-ordninger, overgrænse,
+  ugyldige fakta og tidligere udnyttet loft.
+- Den kanoniske beregningskontrakt udstiller kun disse kildefakta. De nye
+  pensionsstier har hver en eksplicit dansk etiket, et interviewspørgsmål,
+  hjælp, relevant enhed og typede kilder. `@ calculate("Dansk personskat")`
+  navngiver selve beregningen og arbejdsbogen; det er ikke en erstatning for
+  feltmetadata. De stabile maskinstier ligger i den skjulte kontrakt. Det gør
+  arbejdsbogen velegnet som et struktureret udvekslingsformat, hvor en AI kan
+  interviewe borgeren og udfylde fakta, mens Futuruna alene validerer,
+  beregner og forklarer resultatet deterministisk.
 - `personskat.calculate.runa` forbinder nu den kanoniske borgergrænse med
   kildefakta for erhvervsmæssig befordring efter Ligningslovens § 9 B,
   befordring efter §§ 9 C/9 D, almindelige renter,
@@ -3017,10 +3050,18 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-f84c7d` skal erstatte det midlertidigt oplyste
-  `særligt_ordningsmaksimum_kroner` med typede kildefakta og afledte maksima
-  efter Pensionsbeskatningslovens §§ 15 og 15 A. Samme arbejde skal understøtte
-  flere kvalificerende særordninger uden dobbelt brug af fradragsrammen.
+- `td-03c48a` skal give Pensionsbeskatningslovens § 15 B sit eget kildebelagte domæne og
+  årsloft. Den eksisterende typede § 15 B-markør fejler bevidst lukket, indtil
+  den juridiske kildeberegning er koblet til § 18-årsporteføljen.
+- `td-91feb9` skal uddybe § 15 A's passive kapitalprøve med eksakte
+  regnskabsperioder og et typet 25-procents look-through til underliggende
+  selskabsindtægter og -aktiver. Indtil da er den nuværende postklassifikation
+  eksplicit kildeinput og ikke en fuldt afledt selskabskæde.
+- `td-9fec71` skal erstatte § 15 A's oplyste skattepligtige fortjeneste med en
+  lukket union af kildeberegnede ABL-, EBL-, AL- og KGL-resultater samt den
+  relevante ægtefællehenføring efter Kildeskattelovens § 25 A. Den nuværende
+  model afleder loft og fordeling fra fortjenesten, men afleder endnu ikke selve
+  fortjenesten på tværs af afhængighedslovene.
 - `td-7dcbba` skal udvide de kildebelagte årsparametre for § 18 ud over de nu
   understøttede indkomstår 2025 og 2026. Ikke-understøttede år skal fortsat
   fremgå tydeligt og fejle lukket.

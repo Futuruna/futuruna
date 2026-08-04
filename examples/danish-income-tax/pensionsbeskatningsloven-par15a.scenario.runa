@@ -1,0 +1,540 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven
+
+-- Fokuserede scenarier for PBL § 15 A's kildefakta og PBL § 18's
+-- deterministiske årsfordeling. Lovtekst og kilder ligger i
+-- pensionsbeskatningsloven-par15-15a.runa og pensionsbeskatningsloven.runa.
+
+= pbl15a_scenarie_intet_selvstændigt_overskud = Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 0,
+    renteudgifter_kroner = 0,
+    kurstab_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_kroner = 0,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+
+= pbl15a_scenarie_standardbegrænsninger = Pbl18Begrænsninger(
+    pbl54_personkreds_opfyldt = Sandt,
+    afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
+    udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
+)
+
+= pbl15a_scenarie_tomt_årsgrundlag = Pbl15AÅrsgrundlag(
+    afståelser = [],
+    ordninger = [],
+    kvalifikationsår = [],
+    tidligere_indbetalinger = []
+)
+
+= pbl15a_scenarie_kvalifikationsår = [
+    Pbl15AKvalifikationsår(indkomstår = 2014, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2015, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2016, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2017, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2018, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2019, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2020, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2021, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2022, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2023, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2024, grundlag = Pbl15AEgetHovedaktionærforhold),
+    Pbl15AKvalifikationsår(indkomstår = 2025, grundlag = Pbl15AEgetHovedaktionærforhold)
+]
+
+| pbl15a_scenarie_aktivt_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
+    indkomstår = indkomstår,
+    indtægter = [
+        Pbl15AIndtægtspost(
+            identifikation = "driftsindtægt",
+            beløb_kroner = 1000000,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    aktiver = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ]
+)
+
+| pbl15a_scenarie_aktiv_kapital(afståelsesår: Heltal) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsår = [
+        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 3),
+        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 2),
+        pbl15a_scenarie_aktivt_regnskabsår(afståelsesår - 1)
+    ],
+    aktiver_på_overdragelsestidspunktet = [
+        Pbl15AAktivpost(
+            identifikation = "driftsaktiv-ved-afståelse",
+            handelsværdi_kroner = 2000000,
+            art = Pbl15AØvrigtDriftsaktiv
+        )
+    ],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+
+| pbl15a_scenarie_afståelse(identifikation: Tekst, afståelsesår: Heltal, fortjeneste_kroner: Heltal, alder: Heltal) -> Pbl15AAfståelsesfakta(
+    identifikation = identifikation,
+    afståelsesår = afståelsesår,
+    grundlag = Pbl15AHovedaktionæraktier,
+    skattepligtig_fortjeneste_kroner = fortjeneste_kroner,
+    alder_hele_år_ved_afståelsen = alder,
+    passiv_kapital = pbl15a_scenarie_aktiv_kapital(afståelsesår),
+    udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,
+    antal_ejere = 1,
+    opretter_deltog_i_driften_i_væsentligt_omfang = Sandt
+)
+
+| pbl15a_scenarie_ordning(identifikation: Tekst, oprettelsesår: Heltal, oprettelsesafståelse_identifikation: Tekst) -> Pbl15AOrdningsfakta(
+    identifikation = identifikation,
+    oprettelsesår = oprettelsesår,
+    art = Pbl15ARateopsparing,
+    oprettelsesafståelse_identifikation = oprettelsesafståelse_identifikation
+)
+
+| pbl15a_scenarie_årsgrundlag(afståelser: List(Pbl15AAfståelsesfakta), ordninger: List(Pbl15AOrdningsfakta), tidligere_indbetalinger: List(Pbl15ATidligereIndbetaling)) -> Pbl15AÅrsgrundlag(
+    afståelser = afståelser,
+    ordninger = ordninger,
+    kvalifikationsår = pbl15a_scenarie_kvalifikationsår,
+    tidligere_indbetalinger = tidligere_indbetalinger
+)
+
+| pbl15a_scenarie_indbetaling(identifikation: Tekst, beløb_kroner: Heltal, ordning_identifikation: Tekst, afståelse_identifikation: Tekst) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Par15ARateordning,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_kroner,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18Par15AIndbetalingsår,
+        arbejdsmarkedsbidrag_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(
+        ordning_identifikation = ordning_identifikation,
+        afståelse_identifikation = afståelse_identifikation
+    ),
+    begrænsninger = pbl15a_scenarie_standardbegrænsninger
+)
+
+| pbl15a_scenarie_indbetaling_efter_afståelsesåret(identifikation: Tekst, beløb_kroner: Heltal, ordning_identifikation: Tekst, afståelse_identifikation: Tekst) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Par15ARateordning,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_kroner,
+        forfaldsår = 2025,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18Par15AAfståelsesår(
+            fradragsår = 2025,
+            indbetalt_senest_1_juli_efterfølgende = Sandt
+        ),
+        arbejdsmarkedsbidrag_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18Par15AIndbetalingsgrundlag(
+        ordning_identifikation = ordning_identifikation,
+        afståelse_identifikation = afståelse_identifikation
+    ),
+    begrænsninger = pbl15a_scenarie_standardbegrænsninger
+)
+
+| pbl15a_scenarie_almindelig_rate(identifikation: Tekst, beløb_kroner: Heltal) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Rateopsparing,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_kroner,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
+    begrænsninger = pbl15a_scenarie_standardbegrænsninger
+)
+
+| pbl15_scenarie_indeksindbetaling(identifikation: Tekst, fakta: Pbl15Indeksordningsfakta) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Indeksordning,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = 10000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = [10000]),
+    indeksordningsgrundlag = Pbl18Par15Indeksordning(fakta = fakta),
+    forfaldne_ikke_tidligere_fratrukket_kroner = 10000,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
+    begrænsninger = pbl15a_scenarie_standardbegrænsninger
+)
+
+| pbl15a_scenarie_årsresultat(grundlag: Pbl15AÅrsgrundlag, indbetalinger: List(Pbl18Årsindbetaling)) -> pbl18_årsresultat(Pbl18Årsinput(
+    indkomstår = 2026,
+    personlig_indkomst_før_pensionsfradrag_kroner = 5000000,
+    selvstændig_overskud = pbl15a_scenarie_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = grundlag,
+    indbetalinger = indbetalinger
+))
+
+= pbl15a_scenarie_almindeligt_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_tomt_årsgrundlag,
+    [pbl15a_scenarie_almindelig_rate("almindelig-rate", 50000)]
+)
+
+= pbl15_scenarie_gyldig_indeksordning = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_tomt_årsgrundlag,
+    [
+        pbl15_scenarie_indeksindbetaling(
+            "gyldig-indeksordning",
+            Pbl15Indeksordningsfakta(
+                form = Pbl15Opsparingskonto,
+                indekskontrakt_efter_pristalsloven = Sandt
+            )
+        )
+    ]
+)
+
+= pbl15_scenarie_ugyldig_indeksordning = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_tomt_årsgrundlag,
+    [
+        pbl15_scenarie_indeksindbetaling(
+            "ugyldig-indeksordning",
+            Pbl15Indeksordningsfakta(
+                form = Pbl15Forsikring,
+                indekskontrakt_efter_pristalsloven = Falskt
+            )
+        )
+    ]
+)
+
+= pbl15a_scenarie_flere_grundlag = pbl15a_scenarie_årsgrundlag(
+    [
+        pbl15a_scenarie_afståelse("afståelse-a", 2026, 2500000, 60),
+        pbl15a_scenarie_afståelse("afståelse-b", 2026, 2500000, 60)
+    ],
+    [
+        pbl15a_scenarie_ordning("ordning-a", 2026, "afståelse-a"),
+        pbl15a_scenarie_ordning("ordning-b", 2026, "afståelse-b")
+    ],
+    []
+)
+
+= pbl15a_scenarie_flere_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_flere_grundlag,
+    [
+        pbl15a_scenarie_indbetaling("indbetaling-a", 1000000, "ordning-a", "afståelse-a"),
+        pbl15a_scenarie_indbetaling("indbetaling-b", 1200000, "ordning-b", "afståelse-b")
+    ]
+)
+
+= pbl15a_scenarie_samlet_over_loft_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_flere_grundlag,
+    [
+        pbl15a_scenarie_indbetaling("første-indbetaling", 2000000, "ordning-a", "afståelse-a"),
+        pbl15a_scenarie_indbetaling("anden-indbetaling", 2000000, "ordning-b", "afståelse-b")
+    ]
+)
+
+= pbl15a_scenarie_efterfølgende_juli_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("afståelse-2025", 2025, 4000000, 60)],
+    [pbl15a_scenarie_ordning("ordning-2025", 2025, "afståelse-2025")],
+    []
+)
+
+= pbl15a_scenarie_efterfølgende_juli_resultat = pbl18_årsresultat(Pbl18Årsinput(
+    indkomstår = 2025,
+    personlig_indkomst_før_pensionsfradrag_kroner = 5000000,
+    selvstændig_overskud = pbl15a_scenarie_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pbl15a_scenarie_efterfølgende_juli_grundlag,
+    indbetalinger = [
+        pbl15a_scenarie_indbetaling_efter_afståelsesåret(
+            "indbetaling-inden-juli-2026",
+            3443400,
+            "ordning-2025",
+            "afståelse-2025"
+        )
+    ]
+))
+
+= pbl15a_scenarie_for_sent_oprettet_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("afståelse-2024", 2024, 1000000, 60)],
+    [pbl15a_scenarie_ordning("for-sent-oprettet-ordning", 2026, "afståelse-2024")],
+    []
+)
+
+= pbl15a_scenarie_for_sent_oprettet_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_for_sent_oprettet_grundlag,
+    [pbl15a_scenarie_indbetaling("for-sen-første-indbetaling", 100000, "for-sent-oprettet-ordning", "afståelse-2024")]
+)
+
+= pbl15a_scenarie_eksisterende_ordning_grundlag = pbl15a_scenarie_årsgrundlag(
+    [
+        pbl15a_scenarie_afståelse("oprettelsesafståelse-2024", 2024, 1000000, 60),
+        pbl15a_scenarie_afståelse("senere-afståelse-2026", 2026, 1000000, 60)
+    ],
+    [pbl15a_scenarie_ordning("eksisterende-ordning", 2024, "oprettelsesafståelse-2024")],
+    []
+)
+
+= pbl15a_scenarie_eksisterende_ordning_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_eksisterende_ordning_grundlag,
+    [pbl15a_scenarie_indbetaling("senere-fortjeneste", 100000, "eksisterende-ordning", "senere-afståelse-2026")]
+)
+
+= pbl15a_scenarie_delt_afståelse_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("fælles-afståelse", 2026, 1000000, 60)],
+    [
+        pbl15a_scenarie_ordning("første-ordning", 2026, "fælles-afståelse"),
+        pbl15a_scenarie_ordning("anden-ordning", 2026, "fælles-afståelse")
+    ],
+    []
+)
+
+= pbl15a_scenarie_delt_afståelse_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_delt_afståelse_grundlag,
+    [
+        pbl15a_scenarie_indbetaling("første-fra-afståelse", 700000, "første-ordning", "fælles-afståelse"),
+        pbl15a_scenarie_indbetaling("anden-fra-afståelse", 700000, "anden-ordning", "fælles-afståelse")
+    ]
+)
+
+= pbl15a_scenarie_ugyldigt_aldersgrundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("for-ung-afståelse", 2026, 1000000, 54)],
+    [pbl15a_scenarie_ordning("ugyldig-ordning", 2026, "for-ung-afståelse")],
+    []
+)
+
+= pbl15a_scenarie_ugyldigt_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_ugyldigt_aldersgrundlag,
+    [pbl15a_scenarie_indbetaling("ugyldig-indbetaling", 100000, "ugyldig-ordning", "for-ung-afståelse")]
+)
+
+= pbl15a_scenarie_nulfortjeneste_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("afståelse-uden-fortjeneste", 2026, 0, 60)],
+    [pbl15a_scenarie_ordning("ordning-uden-fortjeneste", 2026, "afståelse-uden-fortjeneste")],
+    []
+)
+
+= pbl15a_scenarie_nulfortjeneste_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_nulfortjeneste_grundlag,
+    [pbl15a_scenarie_indbetaling("indbetaling-uden-fortjeneste", 100000, "ordning-uden-fortjeneste", "afståelse-uden-fortjeneste")]
+)
+
+= pbl15a_scenarie_tidligere_fuldt_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("tidligere-afståelse", 2025, 5000000, 60)],
+    [pbl15a_scenarie_ordning("tidligere-ordning", 2025, "tidligere-afståelse")],
+    [
+        Pbl15ATidligereIndbetaling(
+            identifikation = "fuldt-loft-2025",
+            indbetalingsår = 2025,
+            ordning_identifikation = "tidligere-ordning",
+            afståelse_identifikation = "tidligere-afståelse",
+            beløb_kroner = pbl15a_reguleret_samlet_maksimum_kroner(2025)
+        )
+    ]
+)
+
+= pbl15a_scenarie_tidligere_fuldt_resultat = pbl15a_scenarie_årsresultat(
+    pbl15a_scenarie_tidligere_fuldt_grundlag,
+    [pbl15a_scenarie_indbetaling("forsøgt-efterfyldning", 100000, "tidligere-ordning", "tidligere-afståelse")]
+)
+
+= pbl15a_scenarie_historik_efter_fuldt_grundlag = pbl15a_scenarie_årsgrundlag(
+    [pbl15a_scenarie_afståelse("historisk-afståelse", 2024, 5000000, 60)],
+    [pbl15a_scenarie_ordning("historisk-ordning", 2024, "historisk-afståelse")],
+    [
+        Pbl15ATidligereIndbetaling(
+            identifikation = "fuldt-loft-2024",
+            indbetalingsår = 2024,
+            ordning_identifikation = "historisk-ordning",
+            afståelse_identifikation = "historisk-afståelse",
+            beløb_kroner = pbl15a_reguleret_samlet_maksimum_kroner(2024)
+        ),
+        Pbl15ATidligereIndbetaling(
+            identifikation = "ulovlig-efterfyldning-2025",
+            indbetalingsår = 2025,
+            ordning_identifikation = "historisk-ordning",
+            afståelse_identifikation = "historisk-afståelse",
+            beløb_kroner = 100
+        )
+    ]
+)
+
+= pbl15a_scenarie_historik_efter_fuldt_resultat = pbl15a_årsgrundlagsresultat(
+    pbl15a_scenarie_historik_efter_fuldt_grundlag
+)
+
+| pbl15a_scenarie_fordelingsregnskabsår(indkomstår: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_art: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15ARegnskabsår(
+    indkomstår = indkomstår,
+    indtægter = [
+        Pbl15AIndtægtspost(identifikation = "passiv", beløb_kroner = passivt_kroner, art = passiv_art),
+        Pbl15AIndtægtspost(identifikation = "aktiv", beløb_kroner = aktivt_kroner, art = Pbl15AØvrigDriftsindtægt)
+    ],
+    aktiver = [
+        Pbl15AAktivpost(identifikation = "passiv", handelsværdi_kroner = passivt_kroner, art = passiv_aktivart),
+        Pbl15AAktivpost(identifikation = "aktiv", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
+    ]
+)
+
+| pbl15a_scenarie_fordelingsfakta(afståelsesår: Heltal, passivt_kroner: Heltal, aktivt_kroner: Heltal, passiv_art: Pbl15AIndtægtsart, passiv_aktivart: Pbl15AAktivart) -> Pbl15APassivKapitalFakta(
+    seneste_tre_regnskabsår = [
+        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 3, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
+        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 2, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart),
+        pbl15a_scenarie_fordelingsregnskabsår(afståelsesår - 1, passivt_kroner, aktivt_kroner, passiv_art, passiv_aktivart)
+    ],
+    aktiver_på_overdragelsestidspunktet = [
+        Pbl15AAktivpost(identifikation = "passiv-ved-afståelse", handelsværdi_kroner = passivt_kroner, art = passiv_aktivart),
+        Pbl15AAktivpost(identifikation = "aktiv-ved-afståelse", handelsværdi_kroner = aktivt_kroner, art = Pbl15AØvrigtDriftsaktiv)
+    ],
+    næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+)
+
+= pbl15a_scenarie_2013_tres_procent_passiv = pbl15a_passiv_kapital_resultat(
+    2013,
+    pbl15a_scenarie_fordelingsfakta(
+        2013,
+        60,
+        40,
+        Pbl15AKontantEllerVærdipapirindtægt,
+        Pbl15AVærdipapirer
+    )
+)
+
+= pbl15a_scenarie_2014_tres_procent_ved_afståelse = pbl15a_passiv_kapital_resultat(
+    2014,
+    pbl15a_scenarie_fordelingsfakta(
+        2014,
+        60,
+        40,
+        Pbl15AKontantEllerVærdipapirindtægt,
+        Pbl15AVærdipapirer
+    )
+)
+
+= pbl15a_scenarie_aktiv_udlejning_2024 = pbl15a_passiv_kapital_resultat(
+    2024,
+    pbl15a_scenarie_fordelingsfakta(
+        2024,
+        100,
+        0,
+        Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7,
+        Pbl15AAktivUdlejningsejendomEfterAbl34Stk7
+    )
+)
+
+= pbl15a_scenarie_aktiv_udlejning_2025 = pbl15a_passiv_kapital_resultat(
+    2025,
+    pbl15a_scenarie_fordelingsfakta(
+        2025,
+        100,
+        0,
+        Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7,
+        Pbl15AAktivUdlejningsejendomEfterAbl34Stk7
+    )
+)
+
+| pbl15a_scenarie_abl18_regnskabsår(indkomstår: Heltal) -> Pbl15ARegnskabsår(
+    indkomstår = indkomstår,
+    indtægter = [
+        Pbl15AIndtægtspost(
+            identifikation = "driftsindtægt",
+            beløb_kroner = 100,
+            art = Pbl15AØvrigDriftsindtægt
+        )
+    ],
+    aktiver = [
+        Pbl15AAktivpost(
+            identifikation = "abl18-andel",
+            handelsværdi_kroner = 100,
+            art = Pbl15AAndelOmfattetAfAbl18
+        )
+    ]
+)
+
+= pbl15a_scenarie_abl18_resultat = pbl15a_passiv_kapital_resultat(
+    2026,
+    Pbl15APassivKapitalFakta(
+        seneste_tre_regnskabsår = [
+            pbl15a_scenarie_abl18_regnskabsår(2023),
+            pbl15a_scenarie_abl18_regnskabsår(2024),
+            pbl15a_scenarie_abl18_regnskabsår(2025)
+        ],
+        aktiver_på_overdragelsestidspunktet = [
+            Pbl15AAktivpost(
+                identifikation = "abl18-andel-ved-afståelse",
+                handelsværdi_kroner = 100,
+                art = Pbl15AAndelOmfattetAfAbl18
+            )
+        ],
+        næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
+    )
+)
+
+| pbl15a_almindelig_rate_er_uændret: pbl15a_scenarie_almindeligt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15a_scenarie_almindeligt_resultat.input_gyldigt && pbl15a_scenarie_almindeligt_resultat.rate_og_ophørende_fradrag_kroner == 50000 && pbl15a_scenarie_almindeligt_resultat.par15a_fradrag_kroner == 0
+| pbl15_indeksordning_kræver_kontrakt_efter_pristalsloven: pbl15_scenarie_gyldig_indeksordning.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15_scenarie_gyldig_indeksordning.input_gyldigt && pbl15_scenarie_gyldig_indeksordning.samlet_fradrag_i_skattepligtig_indkomst_kroner == 10000 && pbl15_scenarie_ugyldig_indeksordning.input_gyldigt == Falskt && pbl15_scenarie_ugyldig_indeksordning.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
+| pbl15a_flere_ordninger_deler_kildefakta: pbl15a_scenarie_flere_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_flere_resultat.input_gyldigt && length(pbl15a_scenarie_flere_resultat.par15a_indbetalingsresultater) == 2 && pbl15a_scenarie_flere_resultat.par15a_indbetalingsresultater[0].tildelt_fradrag_kroner == 1000000 && pbl15a_scenarie_flere_resultat.par15a_indbetalingsresultater[1].tildelt_fradrag_kroner == 1200000 && pbl15a_scenarie_flere_resultat.par15a_fradrag_kroner == 2200000
+| pbl15a_samlet_loft_fordeles_i_angivet_rækkefølge: pbl15a_scenarie_samlet_over_loft_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_samlet_over_loft_resultat.input_gyldigt && pbl15a_scenarie_samlet_over_loft_resultat.par15a_reguleret_samlet_maksimum_kroner == 3443400 && pbl15a_scenarie_samlet_over_loft_resultat.par15a_indbetalingsresultater[0].tildelt_fradrag_kroner == 2000000 && pbl15a_scenarie_samlet_over_loft_resultat.par15a_indbetalingsresultater[1].tildelt_fradrag_kroner == 1443400 && pbl15a_scenarie_samlet_over_loft_resultat.par15a_indbetalingsresultater[1].afskåret_fradrag_kroner == 556600
+| pbl15a_seneste_indbetalingsår_og_afståelsesårets_fradragsloft_adskilles: pbl15a_scenarie_efterfølgende_juli_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_efterfølgende_juli_resultat.input_gyldigt && pbl15a_scenarie_efterfølgende_juli_resultat.par15a_maksimums_indbetalingsår == 2026 && pbl15a_scenarie_efterfølgende_juli_resultat.par15a_reguleret_samlet_maksimum_kroner == 3443400 && pbl15a_scenarie_efterfølgende_juli_resultat.par15a_årets_fradragsmaksimum_kroner == 3285400 && pbl15a_scenarie_efterfølgende_juli_resultat.par15a_indbetalingsresultater[0].tildelt_fradrag_kroner == 3285400 && pbl15a_scenarie_efterfølgende_juli_resultat.par15a_indbetalingsresultater[0].afskåret_fradrag_kroner == 158000
+| pbl15a_ordning_skal_oprettes_senest_året_efter_afståelsen: pbl15a_scenarie_for_sent_oprettet_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15a_scenarie_for_sent_oprettet_resultat.input_gyldigt == Falskt && pbl15a_scenarie_for_sent_oprettet_resultat.par15a_grundlagsresultat.ordningsresultater[0].rettidigt_oprettet_efter_afståelsen == Falskt && pbl15a_scenarie_for_sent_oprettet_resultat.par15a_indbetalingsresultater[0].forbindelse_gyldig == Falskt && pbl15a_scenarie_for_sent_oprettet_resultat.par15a_fradrag_kroner == 0
+| pbl15a_eksisterende_ordning_kan_modtage_senere_fortjeneste: pbl15a_scenarie_eksisterende_ordning_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_eksisterende_ordning_resultat.input_gyldigt && pbl15a_scenarie_eksisterende_ordning_resultat.par15a_grundlagsresultat.ordningsresultater[0].kvalificerer_som_ophørspension && pbl15a_scenarie_eksisterende_ordning_resultat.par15a_indbetalingsresultater[0].forbindelse_gyldig && pbl15a_scenarie_eksisterende_ordning_resultat.par15a_fradrag_kroner == 100000
+| pbl15a_afståelsesfortjeneste_kan_ikke_genbruges: pbl15a_scenarie_delt_afståelse_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_delt_afståelse_resultat.input_gyldigt && pbl15a_scenarie_delt_afståelse_resultat.par15a_indbetalingsresultater[0].tildelt_fradrag_kroner == 700000 && pbl15a_scenarie_delt_afståelse_resultat.par15a_indbetalingsresultater[1].tildelt_fradrag_kroner == 300000 && pbl15a_scenarie_delt_afståelse_resultat.par15a_fradrag_kroner == 1000000
+| pbl15a_ugyldig_afståelse_fejler_lukket: pbl15a_scenarie_ugyldigt_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15a_scenarie_ugyldigt_resultat.input_gyldigt == Falskt && pbl15a_scenarie_ugyldigt_resultat.par15a_indbetalingsresultater[0].forbindelse_gyldig == Falskt && pbl15a_scenarie_ugyldigt_resultat.par15a_fradrag_kroner == 0
+| pbl15a_nulfortjeneste_fejler_lukket: pbl15a_scenarie_nulfortjeneste_resultat.samlet_fradrag_i_skattepligtig_indkomst_kroner -> pbl15a_scenarie_nulfortjeneste_resultat.input_gyldigt == Falskt && pbl15a_scenarie_nulfortjeneste_resultat.par15a_indbetalingsresultater[0].forbindelse_gyldig == Falskt && pbl15a_scenarie_nulfortjeneste_resultat.par15a_fradrag_kroner == 0
+| pbl15a_fuldt_tidligere_loft_genåbnes_ikke: pbl15a_scenarie_tidligere_fuldt_resultat.par15a_fradrag_kroner -> pbl15a_scenarie_tidligere_fuldt_resultat.input_gyldigt && pbl15a_scenarie_tidligere_fuldt_resultat.par15a_tidligere_indbetalinger_kroner == 3285400 && pbl15a_scenarie_tidligere_fuldt_resultat.par15a_indbetalingsresultater[0].tildelt_fradrag_kroner == 0
+| pbl15a_historik_må_ikke_fortsætte_efter_fuldt_loft: pbl15a_scenarie_historik_efter_fuldt_resultat.grundfakta_gyldige -> pbl15a_scenarie_historik_efter_fuldt_resultat.grundfakta_gyldige && pbl15a_historik_inden_for_samlet_loft(pbl15a_scenarie_historik_efter_fuldt_resultat) && pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(pbl15a_scenarie_historik_efter_fuldt_resultat) == Falskt && pbl15a_årsgrundlag_gyldigt_for_indkomstår(pbl15a_scenarie_historik_efter_fuldt_resultat, 2026) == Falskt
+| pbl15a_2013_bruger_75_procent: pbl15a_scenarie_2013_tres_procent_passiv.overvejende_passiv_kapitalanbringelse -> pbl15a_scenarie_2013_tres_procent_passiv.fakta_gyldige && pbl15a_scenarie_2013_tres_procent_passiv.gennemsnitsgrænse_basispoint == 7500 && pbl15a_scenarie_2013_tres_procent_passiv.overdragelsesgrænse_basispoint == 7500 && pbl15a_scenarie_2013_tres_procent_passiv.overvejende_passiv_kapitalanbringelse == Falskt
+| pbl15a_2014_overdragelse_bruger_50_procent: pbl15a_scenarie_2014_tres_procent_ved_afståelse.overvejende_passiv_kapitalanbringelse -> pbl15a_scenarie_2014_tres_procent_ved_afståelse.gennemsnitsgrænse_basispoint == 7500 && pbl15a_scenarie_2014_tres_procent_ved_afståelse.overdragelsesgrænse_basispoint == 5000 && pbl15a_scenarie_2014_tres_procent_ved_afståelse.gennemsnitlig_aktivgrænse_nået == Falskt && pbl15a_scenarie_2014_tres_procent_ved_afståelse.aktivgrænse_ved_afståelse_nået
+| pbl15a_aktiv_udlejning_skifter_i_2025: pbl15a_scenarie_aktiv_udlejning_2025.overvejende_passiv_kapitalanbringelse -> pbl15a_scenarie_aktiv_udlejning_2024.overvejende_passiv_kapitalanbringelse && pbl15a_scenarie_aktiv_udlejning_2025.overvejende_passiv_kapitalanbringelse == Falskt
+| pbl15a_abl18_andel_bevares_i_totalen: pbl15a_scenarie_abl18_resultat.samlede_aktiver_tre_år_kroner -> pbl15a_scenarie_abl18_resultat.fakta_gyldige && pbl15a_scenarie_abl18_resultat.samlede_aktiver_tre_år_kroner == 300 && pbl15a_scenarie_abl18_resultat.passive_aktiver_tre_år_kroner == 0 && pbl15a_scenarie_abl18_resultat.samlede_aktiver_ved_afståelse_kroner == 100
+
+? pbl15a_almindelig_rate_er_uændret
+? pbl15_indeksordning_kræver_kontrakt_efter_pristalsloven
+? pbl15a_flere_ordninger_deler_kildefakta
+? pbl15a_samlet_loft_fordeles_i_angivet_rækkefølge
+? pbl15a_seneste_indbetalingsår_og_afståelsesårets_fradragsloft_adskilles
+? pbl15a_ordning_skal_oprettes_senest_året_efter_afståelsen
+? pbl15a_eksisterende_ordning_kan_modtage_senere_fortjeneste
+? pbl15a_afståelsesfortjeneste_kan_ikke_genbruges
+? pbl15a_ugyldig_afståelse_fejler_lukket
+? pbl15a_nulfortjeneste_fejler_lukket
+? pbl15a_fuldt_tidligere_loft_genåbnes_ikke
+? pbl15a_historik_må_ikke_fortsætte_efter_fuldt_loft
+? pbl15a_2013_bruger_75_procent
+? pbl15a_2014_overdragelse_bruger_50_procent
+? pbl15a_aktiv_udlejning_skifter_i_2025
+? pbl15a_abl18_andel_bevares_i_totalen

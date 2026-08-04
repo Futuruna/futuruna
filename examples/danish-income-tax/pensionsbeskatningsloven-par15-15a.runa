@@ -1,0 +1,362 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
+
+-- Pensionsbeskatningsloven §§ 15 og 15 A -- indeksordning og ophørspension.
+
+# Pbl15KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par15 = Pbl15KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 15 er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par15a = Pbl15KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 15 A",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Sammenholdt med LOV nr. 369 af 09/04/2025 og LOV nr. 615 af 30/06/2026"
+)
+
+= pensionsbeskatningsloven_lov369_par15a = Pbl15KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/369",
+    identifier = "LOV nr. 369 af 09/04/2025, § 10 og § 14, stk. 4",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Aktiv udlejning efter ABL § 34, stk. 7, gælder for overdragelser fra og med 1. januar 2025"
+)
+
+= pensionsbeskatningsloven_lov615_par15a = Pbl15KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026, § 11 og § 16, stk. 5",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Naturejendom føjes til § 15 A, stk. 3, 5. pkt., med virkning fra 1. januar 2027"
+)
+
+= skatteministeriet_pbl15a_beløbsgrænser_2026 = Pbl15KildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven",
+    identifier = "PBL § 15 A, stk. 6, regulerede beløbsgrænser 2025-2026",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "2025: 3.285.400 kr.; 2026: 3.443.400 kr."
+)
+
+= skat_pbl15a_ophørspension_vejledning = Pbl15KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048421",
+    identifier = "Den juridiske vejledning C.A.10.2.3.4, Indbetalinger til ophørspension",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Det samlede loft følger sidste indbetalingsår; fradraget i afståelsesåret kan højst bruge dette års loft; hver afståelse begrænses af sin skattepligtige fortjeneste"
+)
+
+= skat_pbl15a_fradragstidspunkt_vejledning = Pbl15KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048422",
+    identifier = "Den juridiske vejledning C.A.10.2.3.5, Fradragsret og fradragstidspunkt for ophørspension",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Ordningen skal være oprettet senest i indkomståret efter afståelsen"
+)
+
+= skat_pbl15a_flere_afståelser_vejledning = Pbl15KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048419",
+    identifier = "Den juridiske vejledning C.A.10.2.3.2, Reglen i PBL § 15 A om ophørspension",
+    hentet_dato = "2026-07-23",
+    ændringsstatus = "Fortjeneste ved afståelse af flere virksomheder kan indbetales på samme ophørspensionsordning"
+)
+
+--@label:pensionsbeskatningsloven_par15::source:pensionsbeskatningsloven_lbk1243_par15--
+----
+§ 15. En indeksordning skal være oprettet som en forsikring eller en
+opsparingskonto med tilknyttet indekskontrakt i henhold til lov om
+pristalsreguleret alderdomsforsikring og alderdomsopsparing.
+----
+
+--@begin:pensionsbeskatningsloven_par15--
+# Pbl15Indeksordningsform = Pbl15Forsikring | Pbl15Opsparingskonto
+# Pbl15Indeksordningsfakta(form: Pbl15Indeksordningsform, indekskontrakt_efter_pristalsloven: Boolsk)
+# Pbl15Indeksordningsresultat(fakta: Pbl15Indeksordningsfakta, tilladt_form: Boolsk, indekskontrakt_tilknyttet: Boolsk, omfattet_af_par15: Boolsk)
+
+| pbl15_indeksordningsform_tilladt(form: Pbl15Indeksordningsform) -> form == Pbl15Forsikring || form == Pbl15Opsparingskonto
+| pbl15_indeksordning_omfattet(fakta: Pbl15Indeksordningsfakta) -> pbl15_indeksordningsform_tilladt(fakta.form) && fakta.indekskontrakt_efter_pristalsloven
+| pbl15_indeksordningsresultat(fakta: Pbl15Indeksordningsfakta) -> Pbl15Indeksordningsresultat(
+    fakta = fakta,
+    tilladt_form = pbl15_indeksordningsform_tilladt(fakta.form),
+    indekskontrakt_tilknyttet = fakta.indekskontrakt_efter_pristalsloven,
+    omfattet_af_par15 = pbl15_indeksordning_omfattet(fakta)
+)
+--@end:pensionsbeskatningsloven_par15--
+
+--@label:pensionsbeskatningsloven_par15a::source:pensionsbeskatningsloven_lbk1243_par15a::amendment_source:pensionsbeskatningsloven_lov369_par15a::future_amendment_source:pensionsbeskatningsloven_lov615_par15a::rate_source:skatteministeriet_pbl15a_beløbsgrænser_2026::guidance:skat_pbl15a_ophørspension_vejledning::timing_guidance:skat_pbl15a_fradragstidspunkt_vejledning::multi_disposal_guidance:skat_pbl15a_flere_afståelser_vejledning--
+----
+Pensionsordninger for tidligere selvstændigt erhvervsdrivende
+
+§ 15 A. Personer, der i forbindelse med afståelse af deres erhvervsmæssige
+virksomhed eller en andel af denne opnår en skattepligtig fortjeneste, eller som
+efter kildeskattelovens § 25 A, stk. 1, 3 eller 8, skal medregne en sådan
+fortjeneste opnået af vedkommendes ægtefælle ved indkomstopgørelsen, kan oprette
+pensionsordninger efter reglerne i stk. 5 og 6. Tilsvarende gælder en person,
+der afstår aktier i et selskab, der driver erhvervsmæssig virksomhed, og hvori
+den pågældende er hovedaktionær, jf. aktieavancebeskatningslovens § 4. Personen
+skal være fyldt 55 år inden afståelsen og skal desuden opfylde betingelserne i
+stk. 2-4.
+
+Stk. 2. Den, der opretter en pensionsordning omfattet af stk. 5 og 6, skal i en
+periode på mindst 10 år inden for de seneste 15 år forud for det indkomstår,
+hvori pensionsordningen oprettes, have drevet selvstændig erhvervsmæssig
+virksomhed eller have været hovedaktionær som nævnt i
+aktieavancebeskatningslovens § 4, i et selskab, der driver erhvervsmæssig
+virksomhed. Det er ikke et krav, at perioden efter 1. pkt. skal udgøre en
+sammenhængende periode på mindst 10 år. En længstlevende ægtefælle efter en
+person, der drev selvstændig erhvervsmæssig virksomhed eller var hovedaktionær,
+jf. 1. pkt., og som efter dødsfaldet er indtrådt i boets eller afdødes
+skattemæssige stilling med hensyn til virksomheden eller aktiebesiddelsen efter
+dødsboskattelovens § 36, jf. § 43, eller § 59, anses for at have drevet
+selvstændig erhvervsmæssig virksomhed eller have været hovedaktionær, jf. 1.
+pkt., i samme periode, som den nu afdøde har drevet sådan virksomhed eller været
+hovedaktionær forud for dødsfaldet. Er den længstlevende ægtefælle indtrådt i
+boets skattemæssige stilling med hensyn til virksomheden eller aktiebesiddelsen
+efter dødsboskattelovens § 36, jf. § 43, anses den længstlevende ægtefælle
+endvidere for at have drevet selvstændig erhvervsmæssig virksomhed henholdsvis
+have været hovedaktionær i boperioden.
+
+Stk. 3. Den erhvervsmæssige virksomhed som nævnt i stk. 1 og 2 må ikke i
+overvejende grad have bestået af passiv kapitalanbringelse, jf. stk. 4, og for så
+vidt angår selskaber aktieavancebeskatningslovens § 34, stk. 6. I relation til
+betingelserne for oprettelse af en pensionsordning omfattet af stk. 5 og 6 udgør
+procentsatserne for gennemsnitsberegningerne i aktieavancebeskatningslovens § 34,
+stk. 6, 75 pct., medmindre der i gennemsnitsberegningen alene indgår regnskabsår,
+der begynder den 1. januar 2012 eller senere. Procentsatsen i
+aktieavancebeskatningslovens § 34, stk. 6, knyttet til overdragelsestidspunktet
+udgør i relation til betingelserne for oprettelse af en pensionsordning omfattet
+af stk. 5 og 6 75 pct. for afståelser, der sker senest den 31. december 2013. 1.
+pkt., finder dog ikke anvendelse, når personen eller et selskab, hvori personen
+har været hovedaktionær, har udøvet næringsvirksomhed ved køb og salg af
+værdipapirer eller ved finansieringsvirksomhed. Udlejning af fast ejendom som
+anført i aktieavancebeskatningslovens § 34, stk. 7, og bortforpagtning af fast
+ejendom, som efter ejendomsvurderingsloven anses for landbrugs- eller
+skovejendom, anses ikke som passiv kapitalanbringelse ved anvendelsen af 1. pkt.
+Den erhvervsmæssige virksomhed som nævnt i stk. 1 må endvidere ikke have bestået
+i udlejning af afskrivningsberettigede driftsmidler eller skibe eller have haft
+mere end 10 ejere, medmindre opretteren af pensionsordningen har deltaget i
+virksomhedens drift i væsentligt omfang.
+
+Stk. 4. En persons erhvervsmæssige virksomhed anses for i overvejende grad at
+have bestået i passiv kapitalanbringelse som nævnt i stk. 3, 1. pkt., hvis mindst
+50 pct. af indtægterne, jf. dog 7. pkt., hvorved forstås den regnskabsmæssige
+nettoomsætning tillagt summen af øvrige regnskabsførte indtægter, fra den
+erhvervsmæssige virksomhed opgjort som gennemsnittet af de seneste 3 regnskabsår
+stammer fra fast ejendom, kontanter, værdipapirer el.lign., der efter stk. 3, 1.
+pkt., skal anses for passiv kapitalanbringelse, eller hvis handelsværdien af
+virksomhedens sådanne ejendomme, kontanter, værdipapirer el.lign. enten på
+overdragelsestidspunktet eller opgjort som gennemsnittet af de seneste 3
+regnskabsår udgør mindst 50 pct. af handelsværdien af virksomhedens samlede
+aktiver, jf. dog 7. og 8. pkt. Besiddelse af andele omfattet af
+aktieavancebeskatningslovens § 18 anses ved bedømmelsen ikke som besiddelse af
+værdipapirer. Afkastet og værdien af aktier i selskaber, hvori virksomheden
+direkte eller indirekte ejer mindst 25 pct. af aktie- eller anpartskapitalen,
+eller som udøver virksomhed med aktiv udlejning af fast ejendom, jf.
+aktieavancebeskatningslovens § 34, stk. 7, medregnes ikke. I stedet medregnes en
+til ejerforholdet svarende del af selskabets indtægter og aktiver ved
+bedømmelsen. Ved bedømmelsen ses der bort fra indkomst ved udlejning af fast
+ejendom mellem virksomheden og et selskab som nævnt i 3. pkt. eller mellem
+sådanne selskaber. Fast ejendom, som udlejes mellem virksomheden og et selskab
+som nævnt i 3. pkt. eller mellem sådanne selskaber, og som lejer anvender i
+driften, anses ved bedømmelsen ikke som en udlejningsejendom. Procentsatserne for
+gennemsnitsberegningerne i 1. pkt. udgør 75 pct., medmindre der i
+gennemsnitsberegningen alene indgår regnskabsår, der begynder den 1. januar 2012
+eller senere. Procentsatsen knyttet til overdragelsestidspunktet udgør 75 pct.
+for afståelser, der sker senest den 31. december 2013.
+
+Stk. 5. Pensionsordningen skal være en pensionsordning med løbende udbetalinger,
+jf. § 2, nr. 4, og §§ 5 og 5 A, en rateforsikring, jf. § 8, eller en
+rateopsparing i pensionsøjemed, jf. § 11 A. For rateforsikringer finder § 8, stk.
+1, nr. 3, 1. pkt., ikke anvendelse, og for rateopsparinger i pensionsøjemed
+finder § 11 A, stk. 1, nr. 4, 1. pkt., ikke anvendelse.
+
+Stk. 6. Den, der opretter én eller flere pensionsordninger som nævnt i stk. 5,
+kan i alt højst indbetale et grundbeløb på 2.507.900 kr. (2010-niveau) til
+ordningerne. Grundbeløbet reguleres efter personskattelovens § 20. Indbetalingen
+til en pensionsordning hidrørende fra en given virksomhed kan dog ikke overstige
+den fortjeneste opnået ved afståelsen af virksomheden eller en andel af denne,
+som medregnes ved personens indkomstopgørelse.
+
+Stk. 7. Indbetaling som nævnt i stk. 6 skal foretages inden for en periode på 10
+år. 10-års-perioden begynder i det år, hvori hele virksomheden eller en andel af
+denne er afstået.
+
+Stk. 8. Skatteministeren kan fastsætte nærmere regler om de pensionsordninger,
+der er omhandlet i stk. 1-7, herunder om, at størrelsen af fortjenesten som nævnt
+i stk. 6 og af allerede foretagne indskud på ordningerne skal dokumenteres ved
+en erklæring fra en advokat, en statsautoriseret eller registreret revisor, en
+konsulent i driftsøkonomi, jf. § 1 i lov om tilskud til jordbrugets
+konsulentvirksomhed, et medlem af Foreningen af Danske Revisorer eller en
+person, der kan ligestilles hermed.
+----
+
+--@begin:pensionsbeskatningsloven_par15a--
+# Pbl15AAfståelsesgrund = Pbl15AEgenVirksomhedsfortjeneste | Pbl15AÆgtefællefortjenesteEfterKildeskattelov25A | Pbl15AHovedaktionæraktier
+# Pbl15AOrdningsart = Pbl15ALøbendeUdbetalinger | Pbl15ARateforsikring | Pbl15ARateopsparing
+# Pbl15AKvalifikationsårsgrund = Pbl15AEgenSelvstændigVirksomhed | Pbl15AEgetHovedaktionærforhold | Pbl15AAfdødesSelvstændigeVirksomhedVedSuccession | Pbl15AAfdødesHovedaktionærforholdVedSuccession | Pbl15ABoperiodeSomSelvstændigVedSuccession | Pbl15ABoperiodeSomHovedaktionærVedSuccession
+# Pbl15AKvalifikationsår(indkomstår: Heltal, grundlag: Pbl15AKvalifikationsårsgrund)
+# Pbl15AIndtægtsart = Pbl15APassivEjendomsindtægt | Pbl15AKontantEllerVærdipapirindtægt | Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7 | Pbl15ALandbrugsEllerSkovindtægt | Pbl15AKoncerninternUdlejningsindtægt | Pbl15AØvrigDriftsindtægt
+# Pbl15AIndtægtspost(identifikation: Tekst, beløb_kroner: Heltal, art: Pbl15AIndtægtsart)
+# Pbl15AAktivart = Pbl15APassivUdlejningsejendom | Pbl15AAktivUdlejningsejendomEfterAbl34Stk7 | Pbl15ALandbrugsEllerSkovejendom | Pbl15AKontanter | Pbl15AVærdipapirer | Pbl15AAndelOmfattetAfAbl18 | Pbl15AKoncerninternDriftsejendom | Pbl15AØvrigtDriftsaktiv
+# Pbl15AAktivpost(identifikation: Tekst, handelsværdi_kroner: Heltal, art: Pbl15AAktivart)
+# Pbl15ARegnskabsår(indkomstår: Heltal, indtægter: List(Pbl15AIndtægtspost), aktiver: List(Pbl15AAktivpost))
+# Pbl15APassivKapitalFakta(seneste_tre_regnskabsår: List(Pbl15ARegnskabsår), aktiver_på_overdragelsestidspunktet: List(Pbl15AAktivpost), næringsvirksomhed_med_værdipapirer_eller_finansiering: Boolsk)
+# Pbl15APassivKapitalResultat(fakta: Pbl15APassivKapitalFakta, fakta_gyldige: Boolsk, passive_indtægter_tre_år_kroner: Heltal, samlede_indtægter_tre_år_kroner: Heltal, passive_aktiver_tre_år_kroner: Heltal, samlede_aktiver_tre_år_kroner: Heltal, passive_aktiver_ved_afståelse_kroner: Heltal, samlede_aktiver_ved_afståelse_kroner: Heltal, gennemsnitsgrænse_basispoint: Heltal, overdragelsesgrænse_basispoint: Heltal, indtægtsgrænse_nået: Boolsk, gennemsnitlig_aktivgrænse_nået: Boolsk, aktivgrænse_ved_afståelse_nået: Boolsk, overvejende_passiv_kapitalanbringelse: Boolsk)
+# Pbl15AAfståelsesfakta(identifikation: Tekst, afståelsesår: Heltal, grundlag: Pbl15AAfståelsesgrund, skattepligtig_fortjeneste_kroner: Heltal, alder_hele_år_ved_afståelsen: Heltal, passiv_kapital: Pbl15APassivKapitalFakta, udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe: Boolsk, antal_ejere: Heltal, opretter_deltog_i_driften_i_væsentligt_omfang: Boolsk)
+# Pbl15AAfståelsesresultat(fakta: Pbl15AAfståelsesfakta, fakta_gyldige: Boolsk, fyldt_55_år_før_afståelsen: Boolsk, passiv_kapital_resultat: Pbl15APassivKapitalResultat, driftsbegrænsning_opfyldt: Boolsk, kvalificerer_til_ophørspension: Boolsk, højeste_indbetaling_fra_afståelsen_kroner: Heltal)
+# Pbl15AOrdningsfakta(identifikation: Tekst, oprettelsesår: Heltal, art: Pbl15AOrdningsart, oprettelsesafståelse_identifikation: Tekst)
+# Pbl15AOrdningsresultat(fakta: Pbl15AOrdningsfakta, fakta_gyldige: Boolsk, tilladt_ordningsart: Boolsk, oprettelsesafståelse_findes: Boolsk, oprettelsesafståelse_kvalificerer: Boolsk, rettidigt_oprettet_efter_afståelsen: Boolsk, kvalifikationsår_i_seneste_15_år: Heltal, mindst_10_kvalifikationsår: Boolsk, kvalificerer_som_ophørspension: Boolsk)
+# Pbl15ATidligereIndbetaling(identifikation: Tekst, indbetalingsår: Heltal, ordning_identifikation: Tekst, afståelse_identifikation: Tekst, beløb_kroner: Heltal)
+# Pbl15AÅrsgrundlag(afståelser: List(Pbl15AAfståelsesfakta), ordninger: List(Pbl15AOrdningsfakta), kvalifikationsår: List(Pbl15AKvalifikationsår), tidligere_indbetalinger: List(Pbl15ATidligereIndbetaling))
+# Pbl15AÅrsgrundlagsresultat(grundlag: Pbl15AÅrsgrundlag, afståelsesresultater: List(Pbl15AAfståelsesresultat), ordningsresultater: List(Pbl15AOrdningsresultat), identifikationer_entydige: Boolsk, kvalifikationsår_entydige: Boolsk, grundfakta_gyldige: Boolsk)
+
+| pbl15a_understøttet_indkomstår(indkomstår: Heltal) -> indkomstår >= 2009 && indkomstår <= 2026
+| pbl15a_reguleret_samlet_maksimum_kroner(indkomstår: Heltal) -> 0
+| exception pbl15a_regulerer_stk6_grundbeløbet pbl15a_reguleret_samlet_maksimum_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = 2507900,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+)) under pbl15a_understøttet_indkomstår(indkomstår)
+
+| pbl15a_indtægtspost_gyldig(post: Pbl15AIndtægtspost) -> post.identifikation != "" && post.beløb_kroner >= 0
+| pbl15a_aktivpost_gyldig(post: Pbl15AAktivpost) -> post.identifikation != "" && post.handelsværdi_kroner >= 0
+| pbl15a_indtægtsidentifikation_unik(poster: List(Pbl15AIndtægtspost), post: Pbl15AIndtægtspost) -> length(filter(poster, |anden: Pbl15AIndtægtspost| anden.identifikation == post.identifikation)) == 1
+| pbl15a_aktividentifikation_unik(poster: List(Pbl15AAktivpost), post: Pbl15AAktivpost) -> length(filter(poster, |anden: Pbl15AAktivpost| anden.identifikation == post.identifikation)) == 1
+| pbl15a_regnskabsår_gyldigt(regnskabsår: Pbl15ARegnskabsår) -> regnskabsår.indkomstår > 0 && all(regnskabsår.indtægter, |post: Pbl15AIndtægtspost| pbl15a_indtægtspost_gyldig(post) && pbl15a_indtægtsidentifikation_unik(regnskabsår.indtægter, post)) && all(regnskabsår.aktiver, |post: Pbl15AAktivpost| pbl15a_aktivpost_gyldig(post) && pbl15a_aktividentifikation_unik(regnskabsår.aktiver, post))
+| pbl15a_regnskabsår_entydigt(regnskabsår: List(Pbl15ARegnskabsår), år: Pbl15ARegnskabsår) -> length(filter(regnskabsår, |andet: Pbl15ARegnskabsår| andet.indkomstår == år.indkomstår)) == 1
+| pbl15a_regnskabsår_er_et_af_de_seneste_tre(afståelsesår: Heltal, år: Pbl15ARegnskabsår) -> år.indkomstår >= afståelsesår - 3 && år.indkomstår < afståelsesår
+| pbl15a_passiv_kapital_fakta_gyldige(afståelsesår: Heltal, fakta: Pbl15APassivKapitalFakta) -> length(fakta.seneste_tre_regnskabsår) == 3 && all(fakta.seneste_tre_regnskabsår, |år: Pbl15ARegnskabsår| pbl15a_regnskabsår_gyldigt(år) && pbl15a_regnskabsår_entydigt(fakta.seneste_tre_regnskabsår, år) && pbl15a_regnskabsår_er_et_af_de_seneste_tre(afståelsesår, år)) && all(fakta.aktiver_på_overdragelsestidspunktet, |post: Pbl15AAktivpost| pbl15a_aktivpost_gyldig(post) && pbl15a_aktividentifikation_unik(fakta.aktiver_på_overdragelsestidspunktet, post))
+
+| pbl15a_indtægt_medregnes_i_total(post: Pbl15AIndtægtspost) -> post.art != Pbl15AKoncerninternUdlejningsindtægt
+| pbl15a_indtægt_er_passiv(afståelsesår: Heltal, post: Pbl15AIndtægtspost) -> post.art == Pbl15APassivEjendomsindtægt || post.art == Pbl15AKontantEllerVærdipapirindtægt || (post.art == Pbl15AAktivUdlejningsindtægtEfterAbl34Stk7 && afståelsesår < 2025)
+| pbl15a_aktiv_medregnes_i_total(post: Pbl15AAktivpost) -> Sandt
+| pbl15a_aktiv_er_passiv(afståelsesår: Heltal, post: Pbl15AAktivpost) -> post.art == Pbl15APassivUdlejningsejendom || post.art == Pbl15AKontanter || post.art == Pbl15AVærdipapirer || (post.art == Pbl15AAktivUdlejningsejendomEfterAbl34Stk7 && afståelsesår < 2025)
+| pbl15a_indtægtssum_kroner(poster: List(Pbl15AIndtægtspost), medregnes: (Pbl15AIndtægtspost) -> Boolsk) -> foldl(poster, 0, |sum: Heltal, post: Pbl15AIndtægtspost| sum + hvis medregnes(post) { post.beløb_kroner } ellers { 0 })
+| pbl15a_passiv_indtægtssum_kroner(afståelsesår: Heltal, poster: List(Pbl15AIndtægtspost)) -> foldl(poster, 0, |sum: Heltal, post: Pbl15AIndtægtspost| sum + hvis pbl15a_indtægt_er_passiv(afståelsesår, post) { post.beløb_kroner } ellers { 0 })
+| pbl15a_aktivsum_kroner(poster: List(Pbl15AAktivpost), medregnes: (Pbl15AAktivpost) -> Boolsk) -> foldl(poster, 0, |sum: Heltal, post: Pbl15AAktivpost| sum + hvis medregnes(post) { post.handelsværdi_kroner } ellers { 0 })
+| pbl15a_passiv_aktivsum_kroner(afståelsesår: Heltal, poster: List(Pbl15AAktivpost)) -> foldl(poster, 0, |sum: Heltal, post: Pbl15AAktivpost| sum + hvis pbl15a_aktiv_er_passiv(afståelsesår, post) { post.handelsværdi_kroner } ellers { 0 })
+| pbl15a_treårs_indtægter_kroner(fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.seneste_tre_regnskabsår, 0, |sum: Heltal, år: Pbl15ARegnskabsår| sum + pbl15a_indtægtssum_kroner(år.indtægter, pbl15a_indtægt_medregnes_i_total))
+| pbl15a_treårs_passive_indtægter_kroner(afståelsesår: Heltal, fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.seneste_tre_regnskabsår, 0, |sum: Heltal, år: Pbl15ARegnskabsår| sum + pbl15a_passiv_indtægtssum_kroner(afståelsesår, år.indtægter))
+| pbl15a_treårs_aktiver_kroner(fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.seneste_tre_regnskabsår, 0, |sum: Heltal, år: Pbl15ARegnskabsår| sum + pbl15a_aktivsum_kroner(år.aktiver, pbl15a_aktiv_medregnes_i_total))
+| pbl15a_treårs_passive_aktiver_kroner(afståelsesår: Heltal, fakta: Pbl15APassivKapitalFakta) -> foldl(fakta.seneste_tre_regnskabsår, 0, |sum: Heltal, år: Pbl15ARegnskabsår| sum + pbl15a_passiv_aktivsum_kroner(afståelsesår, år.aktiver))
+| pbl15a_alle_regnskabsår_fra_2012(fakta: Pbl15APassivKapitalFakta) -> all(fakta.seneste_tre_regnskabsår, |år: Pbl15ARegnskabsår| år.indkomstår >= 2012)
+| pbl15a_gennemsnitsgrænse_basispoint(fakta: Pbl15APassivKapitalFakta) -> hvis pbl15a_alle_regnskabsår_fra_2012(fakta) { 5000 } ellers { 7500 }
+| pbl15a_overdragelsesgrænse_basispoint(afståelsesår: Heltal) -> hvis afståelsesår <= 2013 { 7500 } ellers { 5000 }
+| pbl15a_mindst_grænse(del_kroner: Heltal, total_kroner: Heltal, grænse_basispoint: Heltal) -> total_kroner > 0 && del_kroner * 10000 >= total_kroner * grænse_basispoint
+
+# Pbl15APassivKapitalSag(afståelsesår: Heltal, fakta: Pbl15APassivKapitalFakta) {
+    | fakta_gyldige() -> pbl15a_passiv_kapital_fakta_gyldige(afståelsesår, fakta)
+    | passive_indtægter_tre_år_kroner() -> pbl15a_treårs_passive_indtægter_kroner(afståelsesår, fakta)
+    | samlede_indtægter_tre_år_kroner() -> pbl15a_treårs_indtægter_kroner(fakta)
+    | passive_aktiver_tre_år_kroner() -> pbl15a_treårs_passive_aktiver_kroner(afståelsesår, fakta)
+    | samlede_aktiver_tre_år_kroner() -> pbl15a_treårs_aktiver_kroner(fakta)
+    | passive_aktiver_ved_afståelse_kroner() -> pbl15a_passiv_aktivsum_kroner(afståelsesår, fakta.aktiver_på_overdragelsestidspunktet)
+    | samlede_aktiver_ved_afståelse_kroner() -> pbl15a_aktivsum_kroner(fakta.aktiver_på_overdragelsestidspunktet, pbl15a_aktiv_medregnes_i_total)
+    | gennemsnitsgrænse_basispoint() -> pbl15a_gennemsnitsgrænse_basispoint(fakta)
+    | overdragelsesgrænse_basispoint() -> pbl15a_overdragelsesgrænse_basispoint(afståelsesår)
+    | indtægtsgrænse_nået() -> pbl15a_mindst_grænse(passive_indtægter_tre_år_kroner(), samlede_indtægter_tre_år_kroner(), gennemsnitsgrænse_basispoint())
+    | gennemsnitlig_aktivgrænse_nået() -> pbl15a_mindst_grænse(passive_aktiver_tre_år_kroner(), samlede_aktiver_tre_år_kroner(), gennemsnitsgrænse_basispoint())
+    | aktivgrænse_ved_afståelse_nået() -> pbl15a_mindst_grænse(passive_aktiver_ved_afståelse_kroner(), samlede_aktiver_ved_afståelse_kroner(), overdragelsesgrænse_basispoint())
+    | overvejende_passiv_kapitalanbringelse() -> fakta_gyldige() && fakta.næringsvirksomhed_med_værdipapirer_eller_finansiering == Falskt && (indtægtsgrænse_nået() || gennemsnitlig_aktivgrænse_nået() || aktivgrænse_ved_afståelse_nået())
+    | resultat() -> Pbl15APassivKapitalResultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        passive_indtægter_tre_år_kroner = passive_indtægter_tre_år_kroner(),
+        samlede_indtægter_tre_år_kroner = samlede_indtægter_tre_år_kroner(),
+        passive_aktiver_tre_år_kroner = passive_aktiver_tre_år_kroner(),
+        samlede_aktiver_tre_år_kroner = samlede_aktiver_tre_år_kroner(),
+        passive_aktiver_ved_afståelse_kroner = passive_aktiver_ved_afståelse_kroner(),
+        samlede_aktiver_ved_afståelse_kroner = samlede_aktiver_ved_afståelse_kroner(),
+        gennemsnitsgrænse_basispoint = gennemsnitsgrænse_basispoint(),
+        overdragelsesgrænse_basispoint = overdragelsesgrænse_basispoint(),
+        indtægtsgrænse_nået = indtægtsgrænse_nået(),
+        gennemsnitlig_aktivgrænse_nået = gennemsnitlig_aktivgrænse_nået(),
+        aktivgrænse_ved_afståelse_nået = aktivgrænse_ved_afståelse_nået(),
+        overvejende_passiv_kapitalanbringelse = overvejende_passiv_kapitalanbringelse()
+    )
+}
+| pbl15a_passiv_kapital_resultat(afståelsesår: Heltal, fakta: Pbl15APassivKapitalFakta) -> Pbl15APassivKapitalSag(afståelsesår, fakta).resultat()
+
+| pbl15a_afståelsesfakta_gyldige(fakta: Pbl15AAfståelsesfakta) -> fakta.identifikation != "" && fakta.afståelsesår > 0 && fakta.skattepligtig_fortjeneste_kroner > 0 && fakta.alder_hele_år_ved_afståelsen >= 0 && fakta.antal_ejere > 0 && pbl15a_passiv_kapital_fakta_gyldige(fakta.afståelsesår, fakta.passiv_kapital)
+| pbl15a_driftsbegrænsning_opfyldt(fakta: Pbl15AAfståelsesfakta) -> (fakta.udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe == Falskt && fakta.antal_ejere <= 10) || fakta.opretter_deltog_i_driften_i_væsentligt_omfang
+
+# Pbl15AAfståelsesSag(fakta: Pbl15AAfståelsesfakta) {
+    | fakta_gyldige() -> pbl15a_afståelsesfakta_gyldige(fakta)
+    | fyldt_55_år_før_afståelsen() -> fakta.alder_hele_år_ved_afståelsen >= 55
+    | passiv_kapital_resultat() -> pbl15a_passiv_kapital_resultat(fakta.afståelsesår, fakta.passiv_kapital)
+    | driftsbegrænsning_opfyldt() -> pbl15a_driftsbegrænsning_opfyldt(fakta)
+    | kvalificerer_til_ophørspension() -> fakta_gyldige() && fyldt_55_år_før_afståelsen() && passiv_kapital_resultat().overvejende_passiv_kapitalanbringelse == Falskt && driftsbegrænsning_opfyldt()
+    | højeste_indbetaling_fra_afståelsen_kroner() -> hvis kvalificerer_til_ophørspension() { fakta.skattepligtig_fortjeneste_kroner } ellers { 0 }
+    | resultat() -> Pbl15AAfståelsesresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        fyldt_55_år_før_afståelsen = fyldt_55_år_før_afståelsen(),
+        passiv_kapital_resultat = passiv_kapital_resultat(),
+        driftsbegrænsning_opfyldt = driftsbegrænsning_opfyldt(),
+        kvalificerer_til_ophørspension = kvalificerer_til_ophørspension(),
+        højeste_indbetaling_fra_afståelsen_kroner = højeste_indbetaling_fra_afståelsen_kroner()
+    )
+}
+| pbl15a_afståelsesresultat(fakta: Pbl15AAfståelsesfakta) -> Pbl15AAfståelsesSag(fakta).resultat()
+
+| pbl15a_kvalifikationsår_gyldigt(år: Pbl15AKvalifikationsår) -> år.indkomstår > 0
+| pbl15a_kvalifikationsår_entydigt(kvalifikationsår: List(Pbl15AKvalifikationsår), år: Pbl15AKvalifikationsår) -> length(filter(kvalifikationsår, |andet: Pbl15AKvalifikationsår| andet.indkomstår == år.indkomstår)) == 1
+| pbl15a_kvalifikationsår_i_seneste_15_år(oprettelsesår: Heltal, kvalifikationsår: List(Pbl15AKvalifikationsår)) -> length(filter(kvalifikationsår, |år: Pbl15AKvalifikationsår| år.indkomstår >= oprettelsesår - 15 && år.indkomstår < oprettelsesår))
+| pbl15a_ordningsart_tilladt(art: Pbl15AOrdningsart) -> art == Pbl15ALøbendeUdbetalinger || art == Pbl15ARateforsikring || art == Pbl15ARateopsparing
+| pbl15a_ordningsfakta_gyldige(fakta: Pbl15AOrdningsfakta) -> fakta.identifikation != "" && fakta.oprettelsesår > 0 && fakta.oprettelsesafståelse_identifikation != ""
+| pbl15a_ordnings_oprettelsesafståelse_findes(fakta: Pbl15AOrdningsfakta, afståelser: List(Pbl15AAfståelsesresultat)) -> any(afståelser, |afståelse: Pbl15AAfståelsesresultat| afståelse.fakta.identifikation == fakta.oprettelsesafståelse_identifikation)
+| pbl15a_ordnings_oprettelsesafståelse_kvalificerer(fakta: Pbl15AOrdningsfakta, afståelser: List(Pbl15AAfståelsesresultat)) -> any(afståelser, |afståelse: Pbl15AAfståelsesresultat| afståelse.fakta.identifikation == fakta.oprettelsesafståelse_identifikation && afståelse.kvalificerer_til_ophørspension)
+| pbl15a_ordning_rettidigt_oprettet_efter_afståelsen(fakta: Pbl15AOrdningsfakta, afståelser: List(Pbl15AAfståelsesresultat)) -> any(afståelser, |afståelse: Pbl15AAfståelsesresultat| afståelse.fakta.identifikation == fakta.oprettelsesafståelse_identifikation && fakta.oprettelsesår >= afståelse.fakta.afståelsesår && fakta.oprettelsesår <= afståelse.fakta.afståelsesår + 1)
+| pbl15a_ordningsresultat(fakta: Pbl15AOrdningsfakta, kvalifikationsår: List(Pbl15AKvalifikationsår), afståelser: List(Pbl15AAfståelsesresultat)) -> Pbl15AOrdningsresultat(
+    fakta = fakta,
+    fakta_gyldige = pbl15a_ordningsfakta_gyldige(fakta),
+    tilladt_ordningsart = pbl15a_ordningsart_tilladt(fakta.art),
+    oprettelsesafståelse_findes = pbl15a_ordnings_oprettelsesafståelse_findes(fakta, afståelser),
+    oprettelsesafståelse_kvalificerer = pbl15a_ordnings_oprettelsesafståelse_kvalificerer(fakta, afståelser),
+    rettidigt_oprettet_efter_afståelsen = pbl15a_ordning_rettidigt_oprettet_efter_afståelsen(fakta, afståelser),
+    kvalifikationsår_i_seneste_15_år = pbl15a_kvalifikationsår_i_seneste_15_år(fakta.oprettelsesår, kvalifikationsår),
+    mindst_10_kvalifikationsår = pbl15a_kvalifikationsår_i_seneste_15_år(fakta.oprettelsesår, kvalifikationsår) >= 10,
+    kvalificerer_som_ophørspension = pbl15a_ordningsfakta_gyldige(fakta) && pbl15a_ordningsart_tilladt(fakta.art) && pbl15a_ordnings_oprettelsesafståelse_kvalificerer(fakta, afståelser) && pbl15a_ordning_rettidigt_oprettet_efter_afståelsen(fakta, afståelser) && pbl15a_kvalifikationsår_i_seneste_15_år(fakta.oprettelsesår, kvalifikationsår) >= 10
+)
+
+| pbl15a_afståelsesidentifikation_unik(afståelser: List(Pbl15AAfståelsesfakta), afståelse: Pbl15AAfståelsesfakta) -> length(filter(afståelser, |anden: Pbl15AAfståelsesfakta| anden.identifikation == afståelse.identifikation)) == 1
+| pbl15a_ordningsidentifikation_unik(ordninger: List(Pbl15AOrdningsfakta), ordning: Pbl15AOrdningsfakta) -> length(filter(ordninger, |anden: Pbl15AOrdningsfakta| anden.identifikation == ordning.identifikation)) == 1
+| pbl15a_historikidentifikation_unik(indbetalinger: List(Pbl15ATidligereIndbetaling), indbetaling: Pbl15ATidligereIndbetaling) -> length(filter(indbetalinger, |anden: Pbl15ATidligereIndbetaling| anden.identifikation == indbetaling.identifikation)) == 1
+| pbl15a_årsgrundlag_identifikationer_entydige(grundlag: Pbl15AÅrsgrundlag) -> all(grundlag.afståelser, |afståelse: Pbl15AAfståelsesfakta| pbl15a_afståelsesidentifikation_unik(grundlag.afståelser, afståelse)) && all(grundlag.ordninger, |ordning: Pbl15AOrdningsfakta| pbl15a_ordningsidentifikation_unik(grundlag.ordninger, ordning)) && all(grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_historikidentifikation_unik(grundlag.tidligere_indbetalinger, indbetaling))
+| pbl15a_årsgrundlag_kvalifikationsår_entydige(grundlag: Pbl15AÅrsgrundlag) -> all(grundlag.kvalifikationsår, |år: Pbl15AKvalifikationsår| pbl15a_kvalifikationsår_gyldigt(år) && pbl15a_kvalifikationsår_entydigt(grundlag.kvalifikationsår, år))
+| pbl15a_årsgrundlagsresultat(grundlag: Pbl15AÅrsgrundlag) -> {
+    = afståelsesresultater = map(grundlag.afståelser, pbl15a_afståelsesresultat)
+    Pbl15AÅrsgrundlagsresultat(
+        grundlag = grundlag,
+        afståelsesresultater = afståelsesresultater,
+        ordningsresultater = map(grundlag.ordninger, |ordning: Pbl15AOrdningsfakta| pbl15a_ordningsresultat(ordning, grundlag.kvalifikationsår, afståelsesresultater)),
+        identifikationer_entydige = pbl15a_årsgrundlag_identifikationer_entydige(grundlag),
+        kvalifikationsår_entydige = pbl15a_årsgrundlag_kvalifikationsår_entydige(grundlag),
+        grundfakta_gyldige = pbl15a_årsgrundlag_identifikationer_entydige(grundlag) && pbl15a_årsgrundlag_kvalifikationsår_entydige(grundlag) && all(grundlag.afståelser, pbl15a_afståelsesfakta_gyldige) && all(grundlag.ordninger, pbl15a_ordningsfakta_gyldige)
+    )
+}
+
+| pbl15a_afståelse_findes(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> length(filter(resultat.afståelsesresultater, |afståelse: Pbl15AAfståelsesresultat| afståelse.fakta.identifikation == identifikation)) == 1
+| pbl15a_afståelse_kvalificerer(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> any(resultat.afståelsesresultater, |afståelse: Pbl15AAfståelsesresultat| afståelse.fakta.identifikation == identifikation && afståelse.kvalificerer_til_ophørspension)
+| pbl15a_afståelsesår(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> foldl(resultat.afståelsesresultater, 0, |år: Heltal, afståelse: Pbl15AAfståelsesresultat| hvis afståelse.fakta.identifikation == identifikation { afståelse.fakta.afståelsesår } ellers { år })
+| pbl15a_afståelsesfortjeneste_kroner(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> foldl(resultat.afståelsesresultater, 0, |beløb: Heltal, afståelse: Pbl15AAfståelsesresultat| hvis afståelse.fakta.identifikation == identifikation { afståelse.højeste_indbetaling_fra_afståelsen_kroner } ellers { beløb })
+| pbl15a_ordning_findes(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> length(filter(resultat.ordningsresultater, |ordning: Pbl15AOrdningsresultat| ordning.fakta.identifikation == identifikation)) == 1
+| pbl15a_ordning_kvalificerer(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> any(resultat.ordningsresultater, |ordning: Pbl15AOrdningsresultat| ordning.fakta.identifikation == identifikation && ordning.kvalificerer_som_ophørspension)
+| pbl15a_ordningsår(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> foldl(resultat.ordningsresultater, 0, |år: Heltal, ordning: Pbl15AOrdningsresultat| hvis ordning.fakta.identifikation == identifikation { ordning.fakta.oprettelsesår } ellers { år })
+| pbl15a_ordningsart(resultat: Pbl15AÅrsgrundlagsresultat, identifikation: Tekst) -> foldl(resultat.ordningsresultater, Pbl15ALøbendeUdbetalinger, |art: Pbl15AOrdningsart, ordning: Pbl15AOrdningsresultat| hvis ordning.fakta.identifikation == identifikation { ordning.fakta.art } ellers { art })
+| pbl15a_tiårsperiode_omfatter_indbetalingsår(afståelsesår: Heltal, indbetalingsår: Heltal) -> indbetalingsår >= afståelsesår && indbetalingsår <= afståelsesår + 9
+| pbl15a_indbetalingsforbindelse_gyldig(resultat: Pbl15AÅrsgrundlagsresultat, ordning_identifikation: Tekst, afståelse_identifikation: Tekst, indbetalingsår: Heltal, ordningsart: Pbl15AOrdningsart) -> resultat.grundfakta_gyldige && pbl15a_ordning_findes(resultat, ordning_identifikation) && pbl15a_afståelse_findes(resultat, afståelse_identifikation) && pbl15a_ordning_kvalificerer(resultat, ordning_identifikation) && pbl15a_afståelse_kvalificerer(resultat, afståelse_identifikation) && pbl15a_ordningsart(resultat, ordning_identifikation) == ordningsart && pbl15a_ordningsår(resultat, ordning_identifikation) <= pbl15a_afståelsesår(resultat, afståelse_identifikation) + 1 && pbl15a_ordningsår(resultat, ordning_identifikation) <= indbetalingsår && pbl15a_tiårsperiode_omfatter_indbetalingsår(pbl15a_afståelsesår(resultat, afståelse_identifikation), indbetalingsår)
+
+| pbl15a_tidligere_indbetaling_gyldig(resultat: Pbl15AÅrsgrundlagsresultat, indkomstår: Heltal, indbetaling: Pbl15ATidligereIndbetaling) -> indbetaling.identifikation != "" && indbetaling.indbetalingsår > 0 && indbetaling.indbetalingsår < indkomstår && indbetaling.beløb_kroner > 0 && pbl15a_indbetalingsforbindelse_gyldig(resultat, indbetaling.ordning_identifikation, indbetaling.afståelse_identifikation, indbetaling.indbetalingsår, pbl15a_ordningsart(resultat, indbetaling.ordning_identifikation))
+| pbl15a_tidligere_indbetalinger_kroner(grundlag: Pbl15AÅrsgrundlag) -> foldl(grundlag.tidligere_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl15ATidligereIndbetaling| sum + indbetaling.beløb_kroner)
+| pbl15a_tidligere_indbetalinger_for_afståelse_kroner(grundlag: Pbl15AÅrsgrundlag, afståelse_identifikation: Tekst) -> foldl(grundlag.tidligere_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl15ATidligereIndbetaling| sum + hvis indbetaling.afståelse_identifikation == afståelse_identifikation { indbetaling.beløb_kroner } ellers { 0 })
+| pbl15a_sidste_tidligere_indbetalingsår(grundlag: Pbl15AÅrsgrundlag) -> foldl(grundlag.tidligere_indbetalinger, 0, |seneste: Heltal, indbetaling: Pbl15ATidligereIndbetaling| penge_største_beløb(seneste, indbetaling.indbetalingsår))
+| pbl15a_tidligere_indbetalinger_til_og_med_år_kroner(grundlag: Pbl15AÅrsgrundlag, indkomstår: Heltal) -> foldl(grundlag.tidligere_indbetalinger, 0, |sum: Heltal, indbetaling: Pbl15ATidligereIndbetaling| sum + hvis indbetaling.indbetalingsår <= indkomstår { indbetaling.beløb_kroner } ellers { 0 })
+| pbl15a_tidligere_maksimum_nået_i_år(grundlag: Pbl15AÅrsgrundlag, indkomstår: Heltal) -> indkomstår > 0 && pbl15a_tidligere_indbetalinger_til_og_med_år_kroner(grundlag, indkomstår) >= pbl15a_reguleret_samlet_maksimum_kroner(indkomstår)
+| pbl15a_tidligere_maksimum_fuldt_udnyttet(grundlag: Pbl15AÅrsgrundlag) -> any(grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_maksimum_nået_i_år(grundlag, indbetaling.indbetalingsår))
+| pbl15a_historik_inden_for_afståelseslofter(resultat: Pbl15AÅrsgrundlagsresultat) -> all(resultat.afståelsesresultater, |afståelse: Pbl15AAfståelsesresultat| pbl15a_tidligere_indbetalinger_for_afståelse_kroner(resultat.grundlag, afståelse.fakta.identifikation) <= afståelse.højeste_indbetaling_fra_afståelsen_kroner)
+| pbl15a_historik_inden_for_samlet_loft(resultat: Pbl15AÅrsgrundlagsresultat) -> all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_indbetalinger_til_og_med_år_kroner(resultat.grundlag, indbetaling.indbetalingsår) <= pbl15a_reguleret_samlet_maksimum_kroner(indbetaling.indbetalingsår))
+| pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(resultat: Pbl15AÅrsgrundlagsresultat) -> all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| all(resultat.grundlag.tidligere_indbetalinger, |tidligere: Pbl15ATidligereIndbetaling| tidligere.indbetalingsår >= indbetaling.indbetalingsår || pbl15a_tidligere_maksimum_nået_i_år(resultat.grundlag, tidligere.indbetalingsår) == Falskt))
+| pbl15a_årsgrundlag_gyldigt_for_indkomstår(resultat: Pbl15AÅrsgrundlagsresultat, indkomstår: Heltal) -> pbl15a_understøttet_indkomstår(indkomstår) && resultat.grundfakta_gyldige && all(resultat.grundlag.tidligere_indbetalinger, |indbetaling: Pbl15ATidligereIndbetaling| pbl15a_tidligere_indbetaling_gyldig(resultat, indkomstår, indbetaling)) && pbl15a_historik_inden_for_afståelseslofter(resultat) && pbl15a_historik_inden_for_samlet_loft(resultat) && pbl15a_historik_fortsætter_ikke_efter_fuldt_loft(resultat)
+--@end:pensionsbeskatningsloven_par15a--

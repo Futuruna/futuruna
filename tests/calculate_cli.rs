@@ -665,8 +665,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Samlet indbetalingsperiode",
                 "Første år med pensionsforhøjelsen",
                 "Samlet pensionsforhøjelse",
+                "Grundlag for indeksordningen",
+                "Indeksordningens form",
+                "Indekskontrakt efter pristalsloven",
                 "Tidligere forfaldne beløb uden fradrag",
-                "Særligt maksimum for ordningen",
+                "Særligt pensionsgrundlag",
+                "Ophørspension for indbetalingen",
+                "Virksomhedsafståelse for indbetalingen",
                 "Personkredsen i PBL § 54 er opfyldt",
                 "Afgiftspligt for hele ordningen er indtrådt",
                 "Udenlandsk overførsel med bevaret tidligere fradrag",
@@ -733,6 +738,17 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.pension.pbl18_indbetalinger.betaling.arbejdsmarkedsbidrag_kroner",
             "lønmodtager.pension.pbl18_indbetalinger.fordelingsforløb.$variant",
             "lønmodtager.pension.pbl18_indbetalinger.indeksvalg.fradragsvalgte_kontraktbidrag_kroner",
+            "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.$variant",
+            "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.Pbl18Par15Indeksordning.fakta.form",
+            "lønmodtager.pension.pbl18_indbetalinger.indeksordningsgrundlag.Pbl18Par15Indeksordning.fakta.indekskontrakt_efter_pristalsloven",
+            "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.$variant",
+            "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.ordning_identifikation",
+            "lønmodtager.pension.pbl18_indbetalinger.særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.afståelse_identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.skattepligtig_fortjeneste_kroner",
+            "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesafståelse_identifikation",
+            "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.indkomstår",
+            "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.beløb_kroner",
             "lønmodtager.pension.pbl20_indkomstskattepligtig_udbetaling_kroner",
             "lønmodtager.pension.pbl20_udbetaling_status",
             "kapitalindkomst.renter.renteindtægter_kroner",
@@ -1277,6 +1293,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Rækkefølge i indkomståret",
                 "kronologiske rækkefølge",
             ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.afståelser.identifikation",
+                "Virksomhedsafståelse",
+                "entydig identifikation",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.identifikation",
+                "Ophørspensionsordning",
+                "entydig identifikation",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.ordninger.oprettelsesafståelse_identifikation",
+                "Afståelse, der oprettede ophørspensionen",
+                "Hvilken virksomheds- eller aktieafståelse",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår.indkomstår",
+                "Kvalifikationsår",
+                "Hvilket indkomstår",
+            ),
+            (
+                "lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.beløb_kroner",
+                "Tidligere indbetalt beløb",
+                "Hvor stort et beløb",
+            ),
         ] {
             let row = metadata
                 .rows()
@@ -1287,7 +1328,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         .as_deref()
                         == Some(path)
                 })
-                .unwrap_or_else(|| panic!("missing § 9 B metadata for {path}"));
+                .unwrap_or_else(|| panic!("missing human field metadata for {path}"));
             assert_eq!(
                 row.get(label_column).map(ToString::to_string).as_deref(),
                 Some(expected_label)
@@ -1334,6 +1375,32 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 business_travel_sources.contains(expected),
                 "missing business-travel source {expected}"
+            );
+        }
+        let pension_history_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.pension.pbl15a_årsgrundlag.tidligere_indbetalinger.beløb_kroner")
+            })
+            .expect("§ 15 A pension-history metadata");
+        let pension_history_sources = pension_history_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("§ 15 A pension-history sources");
+        for expected in [
+            "pensionsbeskatningsloven_lbk1243_par15a",
+            "skatteministeriet_pbl15a_beløbsgrænser_2026",
+            "skat_pbl15a_ophørspension_vejledning",
+            "skat_pbl15a_fradragstidspunkt_vejledning",
+            "skat_pbl15a_flere_afståelser_vejledning",
+        ] {
+            assert!(
+                pension_history_sources.contains(expected),
+                "missing § 15 A pension source {expected}"
             );
         }
         let property_income_row = metadata
@@ -3182,6 +3249,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "pbl18_livrentevalg": {
                     "$variant": "Pbl18FordeltFradrag"
                 },
+                "pbl15a_årsgrundlag": {
+                    "afståelser": [],
+                    "ordninger": [],
+                    "kvalifikationsår": [],
+                    "tidligere_indbetalinger": []
+                },
                 "aktiepensionsfradrag_valg": {
                     "$variant": "UdenAktiepensionsfradragIAktieindkomst"
                 },
@@ -4754,6 +4827,80 @@ fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() 
                     .as_str()
                     .is_some_and(|message| message.contains(expected))
         }));
+    }
+}
+
+#[test]
+fn xlsx_required_nested_product_with_only_empty_collections_round_trips_every_case() {
+    let source_path = temp_path("runa");
+    let input_path = temp_path("xlsx");
+    std::fs::write(
+        &source_path,
+        "# EmptyCollections(items: List(Int), names: Set(String), values: Map(String, Int))\n\
+# EmptyCollectionsInput(marker: Int, nested: EmptyCollections)\n\
+@ calculate\n\
+> echo_empty_collections(input: EmptyCollectionsInput) -> EmptyCollectionsInput { input }\n",
+    )
+    .expect("write empty nested collections calculation");
+    let template = run(&[
+        "template",
+        source_path.to_str().expect("source path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    edit_workbook(&input_path, |sheets| {
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            1,
+            "case_id",
+            Data::String("first".to_string()),
+        );
+        set_workbook_cell_by_header(sheets, "cases", 1, "marker", Data::Int(1));
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            2,
+            "case_id",
+            Data::String("second".to_string()),
+        );
+        set_workbook_cell_by_header(sheets, "cases", 2, "marker", Data::Int(2));
+    });
+
+    let output = run(&[
+        "call",
+        source_path.to_str().expect("source path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&source_path).ok();
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .is_empty());
+    assert_eq!(result["results"].as_array().expect("results").len(), 2);
+    for (index, marker) in [1, 2].into_iter().enumerate() {
+        assert_eq!(result["results"][index]["result"]["marker"], marker);
+        assert_eq!(
+            result["results"][index]["result"]["nested"],
+            serde_json::json!({ "items": [], "names": [], "values": {} })
+        );
     }
 }
 
