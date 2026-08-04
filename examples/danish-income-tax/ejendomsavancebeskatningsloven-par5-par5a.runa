@@ -242,7 +242,11 @@ reguleres efter stk. 1 fra kalenderåret for vedligeholdelsesarbejdets eller
 forbedringens fuldførelse til det kalenderår, hvori ejendommen afstås.
 ----
 
---@label:ebl_par5_par5a_natur_fra_2027::amendment_source:ebl_par5_lov615--
+= ebl_par5_par5a_natur_fra_2027_ændringsmeta = MetaAttachment(
+    role = AmendmentSource,
+    value = ebl_par5_lov615
+)
+--@label:ebl_par5_par5a_natur_fra_2027::meta:ebl_par5_par5a_natur_fra_2027_ændringsmeta--
 ----
 I § 5, stk. 6, 1. pkt., ændres »landbrugsejendom« til: »landbrugs-, skov- og
 naturejendom«.

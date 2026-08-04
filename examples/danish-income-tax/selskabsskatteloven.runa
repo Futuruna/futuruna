@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Selskabsskatteloven — selected dependency slice for Personskatteloven.
@@ -16,7 +17,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:selskabsskatteloven_par1_stk1_nr1::source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6--
+= selskabslov_par1_stk1_nr1_kildemeta = MetaAttachment(
+    role = Source,
+    value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
+)
+--@label:selskabsskatteloven_par1_stk1_nr1::meta:selskabslov_par1_stk1_nr1_kildemeta--
 ----
 § 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
 foreninger m.v., der er hjemmehørende her i landet:
@@ -50,7 +55,11 @@ foreninger m.v., der er hjemmehørende her i landet:
 | selskabsskattelov1_stk1_nr1_resultat(input: Selskabsskattelov1Stk1Nr1Input) -> selskabsskattelov1_stk1_nr1_sag(input).resultat()
 --@end:selskabsskatteloven_par1_stk1_nr1--
 
---@label:selskabsskatteloven_par1_stk1_nr6::source:selskabsskatteloven_lbk279_par1_stk1_nr1_nr6--
+= selskabslov_par1_stk1_nr6_kildemeta = MetaAttachment(
+    role = Source,
+    value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6
+)
+--@label:selskabsskatteloven_par1_stk1_nr6::meta:selskabslov_par1_stk1_nr6_kildemeta--
 ----
 § 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
 foreninger m.v., der er hjemmehørende her i landet:
@@ -186,7 +195,11 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
     hentet_dato = "2026-07-18"
 )
 
---@label:selskabsskatteloven_par17_stk1::source:selskabsskatteloven_lbk1241_par17_stk1--
+= selskabslov_par17_stk1_kildemeta = MetaAttachment(
+    role = Source,
+    value = selskabsskatteloven_lbk1241_par17_stk1
+)
+--@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta--
 ----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 b, 2 d-2 j og 3 a-5 b,
 og § 3, stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes
@@ -195,7 +208,11 @@ kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
 efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 ----
 
---@label:selskabsskatteloven_par17_stk1::source:selskabsskatteloven_lbk279_par17_stk1--
+= selskabslov_par17_stk1_kildemeta_2 = MetaAttachment(
+    role = Source,
+    value = selskabsskatteloven_lbk279_par17_stk1
+)
+--@label:selskabsskatteloven_par17_stk1::meta:selskabslov_par17_stk1_kildemeta_2--
 ----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3,
 stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den

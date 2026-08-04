@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par23 - 27
 @ importer ./kursgevinstloven - par32
@@ -11,7 +12,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par17_klassifikation::source:aktieavancebeskatningsloven_lbk1098_par17_klassifikation--
+= abl_par17_klassifikation_kildemeta = MetaAttachment(
+    role = Source,
+    value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation
+)
+--@label:aktieavancebeskatningsloven_par17_klassifikation::meta:abl_par17_klassifikation_kildemeta--
 ----
 § 17. Hvis den skattepligtige udøver næring ved køb og salg af aktier,
 medregnes gevinst og tab ved afståelse af aktier, som er erhvervet som led i

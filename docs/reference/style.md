@@ -129,16 +129,27 @@ The `----` block quotes the source. The `--` comment explains the code. Don't mi
 
 ## Meta comments are typed anchors
 
-Meta comments attach arbitrary roles to ordinary Futuruna bindings without
-changing evaluation semantics. The metadata index resolves each binding through
-Futuruna's type information, so tools can query metadata by role or by the
-referenced domain type.
+Meta comments attach one ordinary typed Futuruna value to a label without
+changing evaluation semantics. The comment is only an attachment point; roles,
+sources, warnings, fields, and other structure belong in the referenced value.
+The metadata index resolves that value through Futuruna's type information, so
+tools can query metadata by role or by domain type.
 
 ```runa
+# MetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
 # SourceInfo(url: Tekst, identifier: Tekst)
-= grundlov_par3 = SourceInfo(url = "https://www.retsinformation.dk/eli/lta/1953/169", identifier = "§ 3")
 
---@label:grundlov_par3::source:grundlov_par3--
+= grundlov_par3_source = SourceInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1953/169",
+    identifier = "§ 3"
+)
+= grundlov_par3_meta = MetaAttachment(
+    role = Source,
+    value = grundlov_par3_source
+)
+
+--@label:grundlov_par3::meta:grundlov_par3_meta--
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
 ----
@@ -148,31 +159,15 @@ referenced domain type.
 --@end:grundlov_par3--
 ```
 
-The generic form is `--@label:LABEL::ROLE:BINDING--`. The explicit
-`--@meta::LABEL::ROLE:BINDING--` spelling is equivalent. Roles are user-defined;
-`source`, `warning`, and `assumption` are conventions rather than privileged
-types.
-
-References may repeat, including the same role, and their order is preserved.
-Calculation files conventionally use `--@label:ENTRY::field:BINDING--` for a
-typed field-target record; see [Typed Calculations](calculations.md) for the
-required path and presentation fields.
-
-```runa
-# CalculationField(path: String, label: String, question: String?, help: String?, unit: String?)
-= amount_field = CalculationField(
-    path = "amount",
-    label = "Amount",
-    question = Some("What amount should be calculated?"),
-    help = None,
-    unit = Some("currency")
-)
-
---@label:calculate_amount::field:amount_field--
-```
+The canonical form is `--@label:LABEL::meta:BINDING--`. A single role-bearing
+value can point directly to a typed `MetaAttachment`, as above. Direct
+`::ROLE:BINDING` pairs and the older `--@meta::...` spelling remain accepted
+for source compatibility, but they are not the style for new code. A shipped
+example must use one `meta` reference so the comment grammar cannot grow into a
+second schema language.
 
 When one anchor needs many related metadata values, attach one typed aggregate
-instead of repeating the role in a long meta comment. Every constructor nested
+instead of adding references to the comment. Every constructor nested
 inside a pure ground aggregate retains its Futuruna type and a stable value path.
 Tools can therefore select the values they understand while the anchor stays
 short and domain-neutral.
@@ -226,10 +221,10 @@ ordinary Futuruna data instead of extending the comment syntax.
 `MetaAttachment` is an ordinary generic user-defined type with the conventional
 constructor and named fields shown above. A nullary role constructor is exposed
 as lower snake case, so `DependencySource` becomes `dependency_source`.
-Multiline tuples accept line breaks and a trailing comma. Direct
-`::ROLE:BINDING` pairs remain valid for source compatibility, but new structured
-metadata should attach one typed aggregate through `::meta:BINDING`, including
-when the aggregate initially contains only one role-bearing value. The comment
+Multiline tuples accept line breaks and a trailing comma. Use a root
+`MetaAttachment` for one role-bearing value and a domain-shaped aggregate for
+several related values. Both attach through one `::meta:BINDING` pair. Direct
+`::ROLE:BINDING` pairs remain valid only for source compatibility. The comment
 stays an attachment point; metadata structure does not belong in its grammar.
 
 Code spans use the compact `--@begin:LABEL--` and `--@end:LABEL--` forms.

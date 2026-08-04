@@ -60,7 +60,11 @@ lovtekst kontrolleres særskilt i source-status.runa.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8::source:ligningsloven_lbk1500_par8--
+= ll_par8_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8
+)
+--@label:ligningsloven_par8::meta:ll_par8_kildemeta--
 ----
 § 8. Ved opgørelsen af den skattepligtige indkomst fradrages udgifter, som i
 forbindelse med den skattepligtiges erhverv er afholdt til rejser, reklame og
@@ -125,7 +129,11 @@ udgifter.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8b::source:ligningsloven_lbk1500_par8b--
+= ll_par8b_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8b
+)
+--@label:ligningsloven_par8b::meta:ll_par8b_kildemeta--
 ----
 § 8 B. Ved opgørelsen af den skattepligtige indkomst kan udgifter, som
 afholdes til forsøgs- og forskningsvirksomhed i tilknytning til den
@@ -295,7 +303,11 @@ deles med 100.000.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8k::source:ligningsloven_lbk1500_par8k--
+= ll_par8k_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8k
+)
+--@label:ligningsloven_par8k::meta:ll_par8k_kildemeta--
 ----
 § 8 K. Ved opgørelsen af den skattepligtige indkomst kan udgifter, der
 afholdes til nyplantning af fredskov, fradrages med indtil 20 pct. årligt.
@@ -424,7 +436,11 @@ om skattemæssige afskrivninger mv.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8l::source:ligningsloven_lbk1500_par8l--
+= ll_par8l_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8l
+)
+--@label:ligningsloven_par8l::meta:ll_par8l_kildemeta--
 ----
 § 8 L. Ved opgørelsen af den skattepligtige indkomst kan fradrages beløb, som
 efter lov om friplejeboliger er indbetalt til Landsbyggefonden som følge af,
@@ -467,7 +483,11 @@ anden anvendelse efter kapitel 9 i lov om friplejeboliger.
     hentet_dato = "2026-07-18"
 )
 
---@source::ligningsloven_par8m::meta:ligningsloven_lbk1500_par8m--
+= ll_par8m_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8m
+)
+--@label:ligningsloven_par8m::meta:ll_par8m_kildemeta--
 ----
 § 8 M. Arbejdsmarkedsbidrag af indkomst omfattet af § 2, stk. 1, nr. 2, og §§
 4 og 5 i lov om arbejdsmarkedsbidrag fragår ved opgørelsen af den pågældendes
@@ -558,7 +578,11 @@ af bidrag efter stk. 4.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par8n::source:ligningsloven_lbk1500_par8n--
+= ll_par8n_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par8n
+)
+--@label:ligningsloven_par8n::meta:ll_par8n_kildemeta--
 ----
 § 8 N. Ved opgørelsen af den skattepligtige indkomst kan fradrages
 erhvervsmæssige lønudgifter til personer i ansættelsesforhold,
@@ -2165,7 +2189,11 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par14::source:ligningsloven_lbk1500_par14--
+= ll_par14_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par14
+)
+--@label:ligningsloven_par14::meta:ll_par14_kildemeta--
 ----
 § 14. Ved opgørelsen af den skattepligtige indkomst kan fradrages beløb, som i
 indkomståret er anvendt til skatter og afgifter, bortset fra
@@ -2248,7 +2276,11 @@ og 6. pkt., finder tilsvarende anvendelse.
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par14f::source:ligningsloven_lbk1500_par14f--
+= ll_par14f_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par14f
+)
+--@label:ligningsloven_par14f::meta:ll_par14f_kildemeta--
 ----
 § 14 F. Ved opgørelsen af en arbejdsgivers skattepligtige indkomst kan
 fradrages bidrag til en fond, hvis formål er at betrygge eller forbedre kårene
@@ -2842,7 +2874,11 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     hentet_dato = "2026-07-18"
 )
 
---@label:ligningsloven_par30a::source:ligningsloven_lbk1500_par30a--
+= ll_par30a_kildemeta = MetaAttachment(
+    role = Source,
+    value = ligningsloven_lbk1500_par30a
+)
+--@label:ligningsloven_par30a::meta:ll_par30a_kildemeta--
 ----
 § 30 A. Ved opgørelsen af den skattepligtige indkomst kan skattepligtige
 personer, der driver selvstændig erhvervsvirksomhed, fradrage udgifter til

@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Varelagerloven -- Personskatteloven § 3, stk. 2, nr. 5.
@@ -16,7 +17,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:varelagerloven_par1::source:varelagerloven_lbk1088_par1--
+= varelager_par1_kildemeta = MetaAttachment(
+    role = Source,
+    value = varelagerloven_lbk1088_par1
+)
+--@label:varelagerloven_par1::meta:varelager_par1_kildemeta--
 ----
 § 1. Ved opgørelsen af den skattepligtige indkomst kan næringsdrivende
 personer, dødsboer samt selskaber og foreninger vælge at opgøre deres varelagre

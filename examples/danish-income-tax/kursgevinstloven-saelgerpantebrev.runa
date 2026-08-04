@@ -351,7 +351,11 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 }
 --@end:kgl_sælgerpantebrev_lovgrundlag--
 
---@label:kgl_sælgerpantebrev_ebl_par6d_samspil::guidance:kgl_sælgerpantebrev_vejledning_2026--
+= kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta = MetaAttachment(
+    role = Guidance,
+    value = kgl_sælgerpantebrev_vejledning_2026
+)
+--@label:kgl_sælgerpantebrev_ebl_par6d_samspil::meta:kgl_sælgerpantebrev_ebl_par6d_samspil_vejledningsmeta--
 ----
 Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
 betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.

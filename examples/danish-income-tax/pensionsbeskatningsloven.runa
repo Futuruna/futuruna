@@ -676,7 +676,11 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input).resultat()
 --@end::pensionsbeskatningsloven_par18--
 
---@label:pensionsbeskatningsloven_par52::source:pensionsbeskatningsloven_lbk1243_par52--
+= pbl_par52_kildemeta = MetaAttachment(
+    role = Source,
+    value = pensionsbeskatningsloven_lbk1243_par52
+)
+--@label:pensionsbeskatningsloven_par52::meta:pbl_par52_kildemeta--
 ----
 § 52. Ved opgørelsen af en arbejdsgivers skattepligtige indkomst kan fradrages
 bidrag til en hjælpe- og understøttelsesfond, hvis betingelserne i stk. 2-4 er
@@ -723,7 +727,11 @@ virksomhedens ansatte, der kan nyde godt af fondens virke.
 | pbl52_resultat(input: Pbl52Input) -> pbl52_sag(input).resultat()
 --@end::pensionsbeskatningsloven_par52--
 
---@label:pensionsbeskatningsloven_par53a::source:pensionsbeskatningsloven_lbk1243_par53a--
+= pbl_par53a_kildemeta = MetaAttachment(
+    role = Source,
+    value = pensionsbeskatningsloven_lbk1243_par53a
+)
+--@label:pensionsbeskatningsloven_par53a::meta:pbl_par53a_kildemeta--
 ----
 § 53 A. Reglerne i stk. 2-5 gælder for livsforsikring, der ikke omfattes af
 kapitel 1, livsforsikring, der opfylder betingelserne i kapitel 1, men hvor

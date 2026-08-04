@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 # AktieavanceInvesteringsklassifikationKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
@@ -10,7 +11,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_par19b_til_par22::source:aktieavancebeskatningsloven_lbk1098_par19b_til_par22--
+= abl_par19b_til_par22_kildemeta = MetaAttachment(
+    role = Source,
+    value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22
+)
+--@label:aktieavancebeskatningsloven_par19b_til_par22::meta:abl_par19b_til_par22_kildemeta--
 ----
 § 19 B. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et
 investeringsselskab, jf. § 19, der er aktiebaseret, jf. stk. 2-6, medregnes ved

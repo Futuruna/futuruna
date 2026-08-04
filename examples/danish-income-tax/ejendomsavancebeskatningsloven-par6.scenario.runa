@@ -1,11 +1,16 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./ejendomsavancebeskatningsloven
 
 -- Kilde: Retsinformation, LBK nr. 132 af 25/01/2019.
 -- https://www.retsinformation.dk/eli/lta/2019/132
 
---@label:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
+= ebl_par6_stk3_til_5_scenarie_kildemeta = MetaAttachment(
+    role = Source,
+    value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5
+)
+--@label:ejendomsavancebeskatningsloven_par6_stk3_til_5_scenarie::meta:ebl_par6_stk3_til_5_scenarie_kildemeta--
 ----
 Stk. 3. I fortjeneste, der i et givet indkomstår er skattepligtig efter stk. 1,
 kan den skattepligtige fradrage indkomstårets tab ved afståelse af fast ejendom,

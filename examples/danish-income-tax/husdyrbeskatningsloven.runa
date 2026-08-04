@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Husdyrbeskatningsloven -- Personskatteloven § 3, stk. 2, nr. 4.
@@ -34,7 +35,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:husdyrbeskatningsloven_par2::source:husdyrbeskatningsloven_lbk1099_par2--
+= hbl_par2_kildemeta = MetaAttachment(
+    role = Source,
+    value = husdyrbeskatningsloven_lbk1099_par2
+)
+--@label:husdyrbeskatningsloven_par2::meta:hbl_par2_kildemeta--
 ----
 § 2. Ved opgørelsen af den skattepligtige indkomst skal landbrugere opgøre
 værdien af deres besætninger på grundlag af:
@@ -113,7 +118,11 @@ Indkomstår       pct.
 | husdyr_par2_resultat(input: HusdyrPar2Input) -> husdyr_par2_sag(input).resultat()
 --@end:husdyrbeskatningsloven_par2--
 
---@label:husdyrbeskatningsloven_par8::source:husdyrbeskatningsloven_lbk1099_par8--
+= hbl_par8_kildemeta = MetaAttachment(
+    role = Source,
+    value = husdyrbeskatningsloven_lbk1099_par8
+)
+--@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta--
 ----
 § 8. Loven har virkning fra og med indkomståret 1981. Normalhandelsværdier som
 nævnt i § 2 fastsættes første gang med virkning for opgørelsen af værdien af
@@ -223,7 +232,11 @@ at den nævnte formindskelse af en stambesætning efter de hidtil gældende regl
 kunne ske, uden at fortjenesten skulle medregnes ved indkomstopgørelsen.
 ----
 
---@label:husdyrbeskatningsloven_par8::source:husdyrbeskatningsloven_bek543_par1_par5--
+= hbl_par8_kildemeta_2 = MetaAttachment(
+    role = Source,
+    value = husdyrbeskatningsloven_bek543_par1_par5
+)
+--@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_2--
 ----
 § 1. Ved opgørelsen af den skattepligtige indkomst og formue skal landbrugere
 opgøre værdien af deres besætninger på grundlag af:
@@ -345,7 +358,11 @@ til § 4, stk. 4, er opnået fradrag for hele det resterende forskelsbeløb ved
 indkomstopgørelsen for indkomståret 1981.
 ----
 
---@label:husdyrbeskatningsloven_par8::source:skattestyrelsen_husdyr_forskelsbeløb_04013--
+= hbl_par8_kildemeta_3 = MetaAttachment(
+    role = Source,
+    value = skattestyrelsen_husdyr_forskelsbeløb_04013
+)
+--@label:husdyrbeskatningsloven_par8::meta:hbl_par8_kildemeta_3--
 --@begin:husdyrbeskatningsloven_par8--
 # HusdyrPar8Dyregruppe = HusdyrPar8Kvæg | HusdyrPar8Svin | HusdyrPar8Får | HusdyrPar8Heste
 # HusdyrPar8Rettighedshaver = HusdyrPar8Landbruger | HusdyrPar8DødsboMed1980Stambesætning | HusdyrPar8IkkeOmfattet

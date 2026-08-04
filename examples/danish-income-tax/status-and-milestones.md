@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-24
 TD epic: `td-56cf8d`
-Current focus issue: `td-e07112`
+Current focus issue: `td-16c53a`
 Latest implementation slice submitted for review: `td-67f030`
 Latest approved implementation slice: `td-d1183e`
 
@@ -40,12 +40,15 @@ rolle, `MetaAttachment` og `Metadata`. Pensionsbeskatningslovens §§ 15 og 15 A
 bruger protokollen direkte, så deres kommentarer alene forbinder et label med
 ét navngivet metadataobjekt.
 Den samme form er nu gennemført for alle tidligere overbelastede ankre i
-skattekorpusset. Der findes derfor ikke længere danske skattemetakommentarer,
-som indlejrer flere `::rolle:binding`-par. Den direkte form er fortsat
-bagudkompatibel, men nye korpusankre bruger også ved én reference et typet
-metadataobjekt. Metadata skal ligge i almindelige Futuruna-typer og forbindes
-med `--@label:<label>::meta:<binding>--`. En korpustest afviser markører over
-160 tegn eller markører med mere end ét direkte rollepar.
+skattekorpusset. De sidste 70 enkeltreferencer og ældre `--@source::...`-ankre
+er også flyttet ind i typede `MetaAttachment`-værdier. Alle udgivne eksempler
+bruger derfor nu præcis én kort
+`--@label:<label>::meta:<binding>--`-forbindelse. Den direkte form er fortsat
+bagudkompatibel i sproget og dækkes af kompatibilitetsfixtures, men den er ikke
+korpusformat. Metadata ligger i almindelige Futuruna-typer; et enkelt rollepar
+kan være en `MetaAttachment` direkte, mens flere relaterede værdier kan ligge i
+et domæneformet aggregat. En rekursiv korpustest afviser enhver direkte rolle,
+ældre ankerstavemåde, ekstra reference eller markør over 160 tegn.
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om

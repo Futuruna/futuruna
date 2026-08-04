@@ -2876,6 +2876,39 @@ Raw additions
     }
 
     #[test]
+    fn typed_meta_attachment_can_be_the_anchor_root() {
+        let source = r#"
+# MetaRole = Source
+# MetaAttachment(r, a) = MetaAttachment(role: r, value: a)
+# SourceInfo(url: String)
+
+= primary = SourceInfo(url = "https://example.invalid/primary")
+= geometry_meta = MetaAttachment(role = Source, value = primary)
+
+--@label:geometry::meta:geometry_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let reference = &index.anchors[0].references[0];
+        assert_eq!(reference.role, "meta");
+        assert_eq!(reference.qualified_type.as_deref(), Some("MetaAttachment"));
+        let attachments = reference.attachments();
+        assert_eq!(attachments.len(), 1);
+        assert_eq!(attachments[0].role, "source");
+        assert_eq!(attachments[0].attachment_path, "$");
+        assert_eq!(attachments[0].value_path, "$.value");
+        assert_eq!(attachments[0].binding_name, Some("primary"));
+        assert_eq!(attachments[0].value.qualified_type(), Some("SourceInfo"));
+        assert_eq!(index.references_by_role("source"), vec![reference]);
+        assert_eq!(
+            index.references_matching(Some("SourceInfo"), Some("source")),
+            vec![reference]
+        );
+    }
+
+    #[test]
     fn span_symbols_include_rules_but_not_match_arms() {
         let source = r#"
 # Shape = Circle | Triangle | Square

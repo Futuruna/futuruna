@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Arbejdsmarkedsbidragsloven — afhængig lovkilde for lønmodtagerens AM-bidrag.
@@ -77,7 +78,11 @@ LOV nr. 96 af 04/02/2025, § 7, stk. 4:
 | exception arbejdsmarkedsbidrag_unge_fritaget_fra_2026 arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> 0 under input.skatteår >= 2026 && input.alder_ved_indkomstårets_udløb <= 17
 | arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> penge_beløb_gange_basispoint_kroner(grundlag_kroner, arbejdsmarkedsbidrag_sats_for_person_basispoint(input))
 
---@source::arbejdsmarkedsbidragsloven_par2::meta:arbejdsmarkedsbidragsloven_lbk121_par2--
+= amb_par2_kildemeta = MetaAttachment(
+    role = Source,
+    value = arbejdsmarkedsbidragsloven_lbk121_par2
+)
+--@label:arbejdsmarkedsbidragsloven_par2::meta:amb_par2_kildemeta--
 ----
 § 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
 indkomster, jf. dog stk. 2 og § 3:
@@ -217,7 +222,11 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 | arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input).resultat()
 --@end::arbejdsmarkedsbidragsloven_par2--
 
---@source::arbejdsmarkedsbidragsloven_par3::meta:arbejdsmarkedsbidragsloven_lbk121_par3--
+= amb_par3_kildemeta = MetaAttachment(
+    role = Source,
+    value = arbejdsmarkedsbidragsloven_lbk121_par3
+)
+--@label:arbejdsmarkedsbidragsloven_par3::meta:amb_par3_kildemeta--
 ----
 § 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
 1) Vederlag omfattet af sømandsbeskatningslovens §§ 5-8.

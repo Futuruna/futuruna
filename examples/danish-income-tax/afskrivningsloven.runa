@@ -333,7 +333,11 @@ ejendomskategorierne i § 40 C, stk. 8, og § 42, stk. 1.
 Begge ændringer og deres virkningstidspunkter er modelleret særskilt.
 ----
 
---@label:afskrivningsloven_2027_ejendomskategori::amendment_source:afskrivningsloven_lov615--
+= al_2027_ejendomskategori_ændringsmeta = MetaAttachment(
+    role = AmendmentSource,
+    value = afskrivningsloven_lov615
+)
+--@label:afskrivningsloven_2027_ejendomskategori::meta:al_2027_ejendomskategori_ændringsmeta--
 ----
 § 3. I afskrivningsloven, jf. lovbekendtgørelse nr. 1222 af 13. oktober
 2025, som ændret ved § 2 i lov nr. 749 af 20. juni 2025, foretages følgende
@@ -356,7 +360,11 @@ og 15 har virkning fra og med den 1. januar 2027.
 | afskrivningslov42_ejendomskategori_omfattet(indkomstår: Heltal, kategori: AfskrivningslovEjendomskategori) -> kategori == AlLandbrugsejendom || (indkomstår >= 2027 && (kategori == AlSkovejendom || kategori == AlNaturejendom))
 --@end:afskrivningsloven_2027_ejendomskategori--
 
---@label:afskrivningsloven_par1_par2::source:afskrivningsloven_lbk1222--
+= al_par1_par2_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par1_par2::meta:al_par1_par2_kildemeta--
 ----
 § 1. Efter reglerne i denne lov kan skattemæssig afskrivning foretages
 på udgifter til anskaffelse og forbedring af aktiver, der benyttes
@@ -402,7 +410,11 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 )
 --@end:afskrivningsloven_par1_par2--
 
---@label:afskrivningsloven_par3::source:afskrivningsloven_lbk1222--
+= al_par3_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par3::meta:al_par3_kildemeta--
 ----
 § 3. Driftsmidler og skibe anses for anskaffet, når driftsmidlet eller skibet er
 
@@ -458,7 +470,11 @@ Kunstværker kan dog afskrives efter §§ 44 A og 44 B.
 )
 --@end:afskrivningsloven_par3--
 
---@label:afskrivningsloven_par4::source:afskrivningsloven_lbk1222--
+= al_par4_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par4::meta:al_par4_kildemeta--
 ----
 § 4. Ændrer en skattepligtig benyttelsen af driftsmidler eller skibe fra
 udelukkende erhvervsmæssig benyttelse til privat benyttelse eller omvendt,
@@ -1300,7 +1316,11 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 )
 --@end:afskrivningsloven_par6--
 
---@label:afskrivningsloven_par7::source:afskrivningsloven_lbk1222--
+= al_par7_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par7::meta:al_par7_kildemeta--
 ----
 § 7. Udgift til reparation af et skadelidt driftsmiddel eller skib fradrages i
 den skattepligtige indkomst for det indkomstår, hvori reparationen foretages.
@@ -1688,7 +1708,11 @@ forholdet mellem den erhvervsmæssige benyttelse for indkomstårene forud for
 salgsåret og den samlede benyttelse for disse indkomstår.
 ----
 
---@label:afskrivningsloven_par12::guidance:afskrivningsloven_par11_par13_juridisk_vejledning--
+= al_par12_vejledningsmeta = MetaAttachment(
+    role = Guidance,
+    value = afskrivningsloven_par11_par13_juridisk_vejledning
+)
+--@label:afskrivningsloven_par12::meta:al_par12_vejledningsmeta--
 ----
 Den juridiske vejledning, afsnit "Anskaffelse og afhændelse i samme
 indkomstår":
@@ -2369,7 +2393,11 @@ til ejerboligen. Tilsvarende medregnes etagearealet af denne bygningsdel ikke
 efter stk. 1.
 ----
 
---@label:afskrivningsloven_par19_ikrafttraedelsesnote::source:afskrivningsloven_lbk1222--
+= al_par19_ikrafttraedelsesnote_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par19_ikrafttraedelsesnote::meta:al_par19_ikrafttraedelsesnote_kildemeta--
 ----
 1) § 19, stk. 5, 2. pkt., har i denne affattelse virkning for bygninger, der
 anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
@@ -3155,7 +3183,11 @@ ydes erstatning efter vurdering for bygninger eller ejendom omfattet af stk. 1,
 lejeperiodens udløb på vilkår, der afviger fra markedsvilkår.
 ----
 
---@label:afskrivningsloven_par25_hjemfaldsskala::source:afskrivningsloven_par25_hjemfaldsbekendtgørelse--
+= al_par25_hjemfaldsskala_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_par25_hjemfaldsbekendtgørelse
+)
+--@label:afskrivningsloven_par25_hjemfaldsskala::meta:al_par25_hjemfaldsskala_kildemeta--
 ----
 § 1. Efterstående tabel skal anvendes ved afskrivning på ejendomme med
 hjemfaldsforpligtelse eller anden forpligtelse af lignende art.
@@ -4063,7 +4095,11 @@ skatteforvaltningens eller andre myndigheders egne forhold.
 ))
 --@end:afskrivningsloven_par36--
 
---@label:afskrivningsloven_par37::source:afskrivningsloven_lbk1222--
+= al_par37_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par37::meta:al_par37_kildemeta--
 ----
 § 37. (Ophævet)
 ----
@@ -5341,7 +5377,11 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
 | afskrivningslov40d_til_par40c_resultat(overførsel: Afskrivningslov40DPar40COverførsel) -> afskrivningslov40c_resultat(afskrivningslov40d_til_par40c_input(overførsel))
 --@end:afskrivningsloven_par40d--
 
---@label:afskrivningsloven_par41::source:afskrivningsloven_lbk1222--
+= al_par41_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par41::meta:al_par41_kildemeta--
 ----
 § 41. (Ophævet)
 ----
@@ -6328,7 +6368,11 @@ dog tilladelse fra told- og skatteforvaltningen.
 )
 --@end:afskrivningsloven_par51--
 
---@label:afskrivningsloven_par52::source:afskrivningsloven_lbk1222--
+= al_par52_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par52::meta:al_par52_kildemeta--
 ----
 § 52. En skattepligtig, der har afskrevet efter denne lov, kan ændre den
 oplysning om afskrivningssatsen, der skal gives til told- og
@@ -6370,7 +6414,11 @@ udøvelse af kompetencen efter 1. pkt.
 | afskrivningslov52_resultat(input: Afskrivningslov52Input) -> afskrivningslov52_sag(input).resultat()
 --@end:afskrivningsloven_par52--
 
---@label:afskrivningsloven_par53::source:afskrivningsloven_lbk1222--
+= al_par53_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par53::meta:al_par53_kildemeta--
 ----
 § 53. (Ophævet)
 ----
@@ -6381,7 +6429,11 @@ udøvelse af kompetencen efter 1. pkt.
 | afskrivningslov53_status() -> Al53Ophævet
 --@end:afskrivningsloven_par53--
 
---@label:afskrivningsloven_par54::source:afskrivningsloven_lbk1222--
+= al_par54_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par54::meta:al_par54_kildemeta--
 ----
 § 54. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende og har
 virkning fra og med indkomståret 1999, jf. dog stk. 3-8.
@@ -6502,7 +6554,11 @@ social service, og som udsættes for et tilsvarende slid,".
 | afskrivningslov54_historisk_par18b_ordlyd_gælder(dato: AfskrivningslovDato, indkomståret_1998_slutdato: AfskrivningslovDato) -> afskrivningslov_dato_gyldig(indkomståret_1998_slutdato) && afskrivningslov_dato_yyyymmdd(indkomståret_1998_slutdato) >= 19980701 && afskrivningslov_dato_mellem_inklusive(dato, AfskrivningslovDato(år = 1998, måned = 7, dag = 1), indkomståret_1998_slutdato)
 --@end:afskrivningsloven_par54--
 
---@label:afskrivningsloven_par55::source:afskrivningsloven_lbk1222--
+= al_par55_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par55::meta:al_par55_kildemeta--
 ----
 § 55. På bygninger, der i indkomståret 1998 er omfattet af lov om
 skattemæssige afskrivninger m.v. § 18, stk. 1, litra a, jf.
@@ -6538,7 +6594,11 @@ over 40.
 )
 --@end:afskrivningsloven_par55--
 
---@label:afskrivningsloven_par56::source:afskrivningsloven_lbk1222--
+= al_par56_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par56::meta:al_par56_kildemeta--
 ----
 § 56. Samtlige afskrivninger, herunder forskudsafskrivninger og forlods
 afskrivninger, der efter de hidtil gældende regler er foretaget for
@@ -6586,7 +6646,11 @@ virkning for indkomståret 1991 og senere indkomstår.
 | afskrivningslov56_resultat(input: Afskrivningslov56Input) -> Afskrivningslov56Sag(input).resultat()
 --@end:afskrivningsloven_par56--
 
---@label:afskrivningsloven_par57::source:afskrivningsloven_lbk1222--
+= al_par57_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par57::meta:al_par57_kildemeta--
 ----
 § 57. Den afskrivningsberettigede saldoværdi for skibe ved udgangen af
 indkomståret 1998 efter den hidtil gældende § 12 i lov om skattemæssige
@@ -6611,7 +6675,11 @@ jf. lovbekendtgørelse nr. 932 af 24. oktober 1996.
 )
 --@end:afskrivningsloven_par57--
 
---@label:afskrivningsloven_par58::source:afskrivningsloven_lbk1222--
+= al_par58_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par58::meta:al_par58_kildemeta--
 ----
 § 58. Bestemmelserne i § 25, stk. 1-3, afskærer ikke adgangen til at afskrive
 på bygning eller fast ejendom anskaffet i indkomståret 1998 eller tidligere
@@ -6737,7 +6805,11 @@ pågældende ejendomstype, jf. § 13, stk. 5, i lov nr. 1729 af 17. december
 | afskrivningslov58a_resultat(input: Afskrivningslov58AInput) -> Afskrivningslov58ASag(input).resultat()
 --@end:afskrivningsloven_par58a--
 
---@label:afskrivningsloven_par59::source:afskrivningsloven_lbk1222--
+= al_par59_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par59::meta:al_par59_kildemeta--
 ----
 § 59. Bestemmelsen i § 27 afskærer ikke adgangen til at afskrive på
 dræningsanlæg anskaffet i indkomståret 1998 eller tidligere, og hvorpå der
@@ -6818,7 +6890,11 @@ lovbekendtgørelse nr. 819 af 3. november 1997.
 | afskrivningslov60_resultat(input: Afskrivningslov60Input) -> Afskrivningslov60Sag(input).resultat()
 --@end:afskrivningsloven_par60--
 
---@label:afskrivningsloven_par61::source:afskrivningsloven_lbk1222--
+= al_par61_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par61::meta:al_par61_kildemeta--
 ----
 § 61. Uanset § 45 skal der ikke ske kontantomregning af anskaffelsessummen
 m.v. for aktiver, der er anskaffet i indkomståret 1998 eller tidligere
@@ -6922,7 +6998,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov62_miljøanlæg_salg_resultat(input: Afskrivningslov62MiljøanlægSalgInput) -> Afskrivningslov62MiljøanlægSalgSag(input).resultat()
 --@end:afskrivningsloven_par62--
 
---@label:afskrivningsloven_par63::source:afskrivningsloven_lbk1222--
+= al_par63_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par63::meta:al_par63_kildemeta--
 ----
 § 63. (Ophævet)
 ----
@@ -6933,7 +7013,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov63_status() -> Al63Ophævet
 --@end:afskrivningsloven_par63--
 
---@label:afskrivningsloven_par64::source:afskrivningsloven_lbk1222--
+= al_par64_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par64::meta:al_par64_kildemeta--
 ----
 § 64. (Ophævet)
 ----
@@ -6944,7 +7028,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov64_status() -> Al64Ophævet
 --@end:afskrivningsloven_par64--
 
---@label:afskrivningsloven_par65::source:afskrivningsloven_lbk1222--
+= al_par65_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par65::meta:al_par65_kildemeta--
 ----
 § 65. (Ophævet)
 ----
@@ -6955,7 +7043,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov65_status() -> Al65Ophævet
 --@end:afskrivningsloven_par65--
 
---@label:afskrivningsloven_par66::source:afskrivningsloven_lbk1222--
+= al_par66_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par66::meta:al_par66_kildemeta--
 ----
 § 66. (Ophævet)
 ----
@@ -6966,7 +7058,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov66_status() -> Al66Ophævet
 --@end:afskrivningsloven_par66--
 
---@label:afskrivningsloven_par67::source:afskrivningsloven_lbk1222--
+= al_par67_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par67::meta:al_par67_kildemeta--
 ----
 § 67. (Ophævet)
 ----
@@ -6977,7 +7073,11 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
 | afskrivningslov67_status() -> Al67Ophævet
 --@end:afskrivningsloven_par67--
 
---@label:afskrivningsloven_par68::source:afskrivningsloven_lbk1222--
+= al_par68_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par68::meta:al_par68_kildemeta--
 ----
 § 68. For aktiver, der er anskaffet før den 12. maj 1989 til erhvervsmæssig
 udlejning, og som hidtil har været omfattet af reglerne i afsnit V A i lov om
@@ -7020,7 +7120,11 @@ overførselstidspunktet.
 | afskrivningslov68_resultat(input: Afskrivningslov68Input) -> Afskrivningslov68Sag(input).resultat()
 --@end:afskrivningsloven_par68--
 
---@label:afskrivningsloven_par69::source:afskrivningsloven_lbk1222--
+= al_par69_kildemeta = MetaAttachment(
+    role = Source,
+    value = afskrivningsloven_lbk1222
+)
+--@label:afskrivningsloven_par69::meta:al_par69_kildemeta--
 ----
 § 69. Loven gælder ikke for Færøerne og Grønland.
 ----

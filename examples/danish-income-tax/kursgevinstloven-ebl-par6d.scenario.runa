@@ -1,8 +1,13 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven - ebl - par6d
 
---@label:kgl_ebl_par6d_scenarier::guidance:kgl_ebl_par6d_vejledning_2026--
+= kgl_ebl_par6d_scenarier_vejledningsmeta = MetaAttachment(
+    role = Guidance,
+    value = kgl_ebl_par6d_vejledning_2026
+)
+--@label:kgl_ebl_par6d_scenarier::meta:kgl_ebl_par6d_scenarier_vejledningsmeta--
 --@begin:kgl_ebl_par6d_scenarier--
 | kgl_ebl_par6d_scenarie_afdragsplan() -> [
     EblPar6DAfdragsplanpost(år_efter_afståelsen = 1, hovedstol_forfalder_kroner = 375000),

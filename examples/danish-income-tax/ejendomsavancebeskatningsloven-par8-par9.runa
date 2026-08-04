@@ -204,12 +204,20 @@ Told- og skatteforvaltningen kan i ganske særlige tilfælde dispensere fra denn
 frist.
 ----
 
---@label:ebl_par9_stk1_tredje_pkt_2020::amendment_source:ebl_par9_lov1580--
+= ebl_par9_stk1_tredje_pkt_2020_ændringsmeta = MetaAttachment(
+    role = AmendmentSource,
+    value = ebl_par9_lov1580
+)
+--@label:ebl_par9_stk1_tredje_pkt_2020::meta:ebl_par9_stk1_tredje_pkt_2020_ændringsmeta--
 ----
 I § 9, stk. 1, 3. pkt., ændres »§ 2, stk. 2« til: »§ 2, stk. 3«.
 ----
 
---@label:ebl_par9_erhverv_og_overgang_fra_2025::amendment_source:ebl_par9_lov562--
+= ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta = MetaAttachment(
+    role = AmendmentSource,
+    value = ebl_par9_lov562
+)
+--@label:ebl_par9_erhverv_og_overgang_fra_2025::meta:ebl_par9_erhverv_og_overgang_fra_2025_ændringsmeta--
 ----
 I § 9, stk. 1, 2. pkt., ændres », der indeholder en eller to selvstændige
 lejligheder, hvor ejendommen både tjener eller har tjent til bolig for ejeren og
@@ -233,7 +241,11 @@ ejerens foranledning.
 Loven træder i kraft den 1. juli 2025.
 ----
 
---@label:ebl_par9_natur_fra_2027::amendment_source:ebl_par9_lov615--
+= ebl_par9_natur_fra_2027_ændringsmeta = MetaAttachment(
+    role = AmendmentSource,
+    value = ebl_par9_lov615
+)
+--@label:ebl_par9_natur_fra_2027::meta:ebl_par9_natur_fra_2027_ændringsmeta--
 ----
 I § 5 A, stk. 1, 1. pkt., og § 9, stk. 1, 1. pkt., ændres »landbrugs- eller
 skovejendom« til: »landbrugs-, skov- og naturejendom«.

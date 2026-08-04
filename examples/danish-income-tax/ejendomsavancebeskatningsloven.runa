@@ -379,7 +379,11 @@ lov.
     hentet_dato = "2026-07-18"
 )
 
---@label:ejendomsavancebeskatningsloven_par6_stk3_til_5::source:ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5--
+= ebl_par6_stk3_til_5_kildemeta = MetaAttachment(
+    role = Source,
+    value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5
+)
+--@label:ejendomsavancebeskatningsloven_par6_stk3_til_5::meta:ebl_par6_stk3_til_5_kildemeta--
 ----
 Stk. 3. I fortjeneste, der i et givet indkomstår er skattepligtig efter stk. 1,
 kan den skattepligtige fradrage indkomstårets tab ved afståelse af fast ejendom,

@@ -25,7 +25,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:ebl_par6d_ikrafttræden::source:ebl_par6d_lov1578--
+= ebl_par6d_ikrafttræden_kildemeta = MetaAttachment(
+    role = Source,
+    value = ebl_par6d_lov1578
+)
+--@label:ebl_par6d_ikrafttræden::meta:ebl_par6d_ikrafttræden_kildemeta--
 ----
 § 3
 

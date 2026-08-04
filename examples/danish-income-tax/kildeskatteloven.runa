@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
@@ -34,7 +35,11 @@ lovtekst kontrolleres særskilt i source-status.runa.
     hentet_dato = "2026-07-18"
 )
 
---@label:kildeskatteloven_par25a::source:kildeskatteloven_lbk460_par25a--
+= ksl_par25a_kildemeta = MetaAttachment(
+    role = Source,
+    value = kildeskatteloven_lbk460_par25a
+)
+--@label:kildeskatteloven_par25a::meta:ksl_par25a_kildemeta--
 ----
 § 25 A.
 

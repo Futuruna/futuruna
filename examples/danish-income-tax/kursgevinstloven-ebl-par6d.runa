@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./kursgevinstloven - saelgerpantebrev
 @ importer ./ejendomsavancebeskatningsloven - par6d
 
@@ -11,7 +12,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:kgl_ebl_par6d_samspil::guidance:kgl_ebl_par6d_vejledning_2026--
+= kgl_ebl_par6d_samspil_vejledningsmeta = MetaAttachment(
+    role = Guidance,
+    value = kgl_ebl_par6d_vejledning_2026
+)
+--@label:kgl_ebl_par6d_samspil::meta:kgl_ebl_par6d_samspil_vejledningsmeta--
 ----
 Udskydelse af beskatningen ved udstedelse af et sælgerpantebrev, der opfylder
 betingelserne i EBL § 6 D, berøres ikke af beskatningen efter kursgevinstloven.

@@ -28,16 +28,19 @@ fn example_metadata_uses_thin_typed_anchors() {
             if !is_metadata_anchor {
                 continue;
             }
+            let canonical = line
+                .strip_prefix("--@label:")
+                .and_then(|body| body.strip_suffix("--"))
+                .and_then(|body| body.split_once("::meta:"))
+                .is_some_and(|(label, binding)| {
+                    !label.is_empty()
+                        && !binding.is_empty()
+                        && !label.contains("::")
+                        && !binding.contains("::")
+                        && !binding.contains(':')
+                });
 
-            let separator_count = line.matches("::").count();
-            let direct_pair_count =
-                if line.starts_with("--@meta::") || line.starts_with("--@source::") {
-                    separator_count.saturating_sub(1)
-                } else {
-                    separator_count
-                };
-
-            if line.chars().count() > 160 || direct_pair_count > 1 {
+            if !canonical || line.chars().count() > 160 {
                 violations.push(format!("{}:{}: {line}", path.display(), index + 1));
             }
         }
@@ -45,7 +48,7 @@ fn example_metadata_uses_thin_typed_anchors() {
 
     assert!(
         violations.is_empty(),
-        "Example metadata comments must remain thin typed anchors:\n{}",
+        "Example metadata comments must be one thin --@label:LABEL::meta:BINDING-- anchor:\n{}",
         violations.join("\n")
     );
 }

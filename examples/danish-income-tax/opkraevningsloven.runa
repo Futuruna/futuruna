@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 
 -- Opkrævningsloven — afhængig lovkilde for betaling af indeholdt A-skat og
@@ -252,7 +253,11 @@ eller indberetning, anvendelse.
     hentet_dato = "2026-07-18"
 )
 
---@source::opkraevningsloven_par7_stk1_stk2::meta:opkrævningsloven_lbk1040_par7--
+= opkrævning_par7_stk1_stk2_kildemeta = MetaAttachment(
+    role = Source,
+    value = opkrævningsloven_lbk1040_par7
+)
+--@label:opkraevningsloven_par7_stk1_stk2::meta:opkrævning_par7_stk1_stk2_kildemeta--
 ----
 § 7. Betales et beløb ikke rettidigt, eller er der ydet henstand med
 betalingen, skal der betales en månedlig rente som fastsat efter stk. 2 med
@@ -329,7 +334,11 @@ beregning efter Opkrævningsloven § 7.
 Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 ----
 
---@source::opkraevning_par7_nationalbank_statbank::meta:opkrævning_par7_nationalbank_statbank_dnruupi--
+= opkraevning_par7_nationalbank_statbank_kildemeta = MetaAttachment(
+    role = Source,
+    value = opkrævning_par7_nationalbank_statbank_dnruupi
+)
+--@label:opkraevning_par7_nationalbank_statbank::meta:opkraevning_par7_nationalbank_statbank_kildemeta--
 ----
 Danmarks Nationalbank / Statistikbanken DNRUUPI, hentet via api.statbank.dk
 2026-07-06.

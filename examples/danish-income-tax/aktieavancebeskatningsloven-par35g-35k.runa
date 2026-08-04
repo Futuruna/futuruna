@@ -16,7 +16,11 @@
     hentet_dato = "2026-07-18"
 )
 
---@label:aktieavancebeskatningsloven_lov1755_par8_stk1::source:aktieavancebeskatningsloven_lov1755_par35g_til_par35k--
+= abl_lov1755_par8_stk1_kildemeta = MetaAttachment(
+    role = Source,
+    value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k
+)
+--@label:aktieavancebeskatningsloven_lov1755_par8_stk1::meta:abl_lov1755_par8_stk1_kildemeta--
 ----
 § 8
 
