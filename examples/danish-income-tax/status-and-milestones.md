@@ -136,7 +136,11 @@ Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu en
 årsportefølje af identificerede pensionsindbetalinger efter
 Pensionsbeskatningslovens § 18. Reglerne afleder fradragsåret, deler § 16-loftet
 mellem ordningerne, giver arbejdsgiverindbetalinger prioritet efter indeholdt
-arbejdsmarkedsbidrag og anvender ét fælles valg for livsvarig livrente. En
+arbejdsmarkedsbidrag og anvender ét fælles valg for livsvarig livrente. Et
+aktivt tiårigt fordelingsforløb viderefører fradragsretten efter det oprindelige
+betalingsår. Det ordinært fordelte livrentefradrag begrænses samtidig af de
+forfaldne præmier, bidrag og indskud, som endnu ikke er fratrukket, også når den
+beregnede tiendedel er større end den resterende fradragsramme. En
 indeksordning skal nu bære de typede § 15-fakta om ordningsform og den
 lovbestemte indekskontrakt. Ophørspension efter § 15 A tager tilsvarende imod
 afståelser, fortjenester, passive kapitalposter, ordninger, kvalifikationsår og

@@ -356,6 +356,12 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_ordningsbeløb_kroner(input: Pbl18Input) -> pbl18_indbetalt_beløb_kroner(input)
 | exception pbl18_højst_seks_indekskontrakter pbl18_ordningsbeløb_kroner(input: Pbl18Input) -> penge_mindste_beløb(penge_positivt_beløb(input.betaling.beløb_kroner), pbl18_indeksbidrag_første_seks_kroner(input.indeksvalg)) under input.ordning == Pbl18Indeksordning
 | pbl18_tiårsperiode_omfatter_indkomstår(første_år: Heltal, indkomstår: Heltal) -> indkomstår >= første_år && indkomstår <= første_år + 9
+| pbl18_tiårsfordeling_omfatter_indkomstår(fordelingsforløb: Pbl18Fordelingsforløb, indkomstår: Heltal) -> match fordelingsforløb {
+    | Pbl18Kapitalindskud(indskudsår, _) -> indskudsår > 0 && pbl18_tiårsperiode_omfatter_indkomstår(indskudsår, indkomstår)
+    | Pbl18KortIndbetalingsperiode(første_forfaldsår, _, efterfølgende_tilsvarende_ordning, samlet_indbetalingsperiode_år) -> første_forfaldsår > 0 && (efterfølgende_tilsvarende_ordning == Falskt || samlet_indbetalingsperiode_år < 10) && pbl18_tiårsperiode_omfatter_indkomstår(første_forfaldsår, indkomstår)
+    | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår, _) -> første_forhøjelsesår > 0 && pbl18_tiårsperiode_omfatter_indkomstår(første_forhøjelsesår, indkomstår)
+    | _ -> Falskt
+}
 | pbl18_fordelingsfradrag_kroner(input: Pbl18Input) -> match input.fordelingsforløb {
     | Pbl18IngenTiårsfordeling -> pbl18_ordningsbeløb_kroner(input)
     | Pbl18Kapitalindskud(indskudsår, indskud_kroner) -> hvis pbl18_tiårsperiode_omfatter_indkomstår(indskudsår, input.indkomstår) { penge_positivt_beløb(indskud_kroner) / 10 } ellers { 0 }
@@ -384,14 +390,18 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_selvstændigt_overskud_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.skattepligtigt_overskud_før_vsl22b_kroner + pbl18_selvstændige_tillæg_kroner(input) - pbl18_selvstændige_fradrag_fra_overskud_kroner(input))
 | pbl18_selvstændig_30_pct_kroner(input: Pbl18Input) -> pbl18_selvstændigt_overskud_kroner(input.fradragsramme.selvstændig_overskud) * 3000 / 10000
 | pbl18_resterende_fradragsramme_kroner(input: Pbl18Input) -> penge_positivt_beløb(input.fradragsramme.forfaldne_ikke_tidligere_fratrukket_kroner)
+| pbl18_fordelt_årsfradrag_kroner(input: Pbl18Input) -> pbl18_beløb_efter_par16_loft_kroner(input)
+| exception pbl18_livrente_begrænses_af_resterende_fradragsramme pbl18_fordelt_årsfradrag_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_beløb_efter_par16_loft_kroner(input), pbl18_resterende_fradragsramme_kroner(input)) under input.ordning == Pbl18LivsvarigLivrente
 | pbl18_valgt_årsfradrag_kroner(input: Pbl18Input) -> match input.fradragsramme.valg {
-    | Pbl18FordeltFradrag -> pbl18_beløb_efter_par16_loft_kroner(input)
-    | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner) -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår) { penge_mindste_beløb(penge_mindste_beløb(penge_positivt_beløb(ønsket_fradrag_kroner), pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_beløb_efter_par16_loft_kroner(input) }
-    | Pbl18Selvstændig30PctValg -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_selvstændig_30_pct_kroner(input) { penge_mindste_beløb(pbl18_selvstændig_30_pct_kroner(input), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_beløb_efter_par16_loft_kroner(input) }
+    | Pbl18FordeltFradrag -> pbl18_fordelt_årsfradrag_kroner(input)
+    | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner) -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår) { penge_mindste_beløb(penge_mindste_beløb(penge_positivt_beløb(ønsket_fradrag_kroner), pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_fordelt_årsfradrag_kroner(input) }
+    | Pbl18Selvstændig30PctValg -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_selvstændig_30_pct_kroner(input) { penge_mindste_beløb(pbl18_selvstændig_30_pct_kroner(input), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_fordelt_årsfradrag_kroner(input) }
 }
 | pbl18_beløb_efter_personlig_indkomst_loft_kroner(input: Pbl18Input) -> pbl18_valgt_årsfradrag_kroner(input)
 | exception pbl18_kapitalordning_begrænses_af_personlig_indkomst pbl18_beløb_efter_personlig_indkomst_loft_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_valgt_årsfradrag_kroner(input), penge_positivt_beløb(input.fradragsramme.personlig_indkomst_før_pensionsfradrag_kroner)) under pbl18_ordning_har_personlig_indkomst_loft(input.ordning)
-| pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input: Pbl18Input) -> pbl18_ordning_omfattet_af_kapitel1(input.ordning) && pbl18_ordning_udelukket_fra_fradrag(input.ordning) == Falskt && input.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_fradragsretshaver_opfyldt(input.fradragsretshaver) && input.begrænsninger.pbl54_personkreds_opfyldt && input.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt == Falskt && input.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens == Falskt && pbl18_fradragsår(input.ordning, input.betaling) == input.indkomstår
+| pbl18_fradragsret_i_indkomståret(input: Pbl18Input) -> pbl18_fradragsår(input.ordning, input.betaling) == input.indkomstår
+| exception pbl18_tiårsfordeling_fortsætter_fradragsretten pbl18_fradragsret_i_indkomståret(input: Pbl18Input) -> Sandt under input.ordning == Pbl18LivsvarigLivrente && pbl18_tiårsfordeling_omfatter_indkomstår(input.fordelingsforløb, input.indkomstår)
+| pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input: Pbl18Input) -> pbl18_ordning_omfattet_af_kapitel1(input.ordning) && pbl18_ordning_udelukket_fra_fradrag(input.ordning) == Falskt && input.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_fradragsretshaver_opfyldt(input.fradragsretshaver) && input.begrænsninger.pbl54_personkreds_opfyldt && input.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt == Falskt && input.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens == Falskt && pbl18_fradragsret_i_indkomståret(input)
 | pbl18_grundlæggende_fradragsret(input: Pbl18Input) -> pbl18_grundlæggende_betingelser_uden_særligt_årsgrundlag(input) && pbl18_ordning_kræver_særligt_årsgrundlag(input.ordning) == Falskt
 | pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> 0
 | exception pbl18_fradragsret_opfyldt pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> pbl18_beløb_efter_personlig_indkomst_loft_kroner(input) under pbl18_grundlæggende_fradragsret(input)
@@ -541,7 +551,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
     | Pbl18Grundbeløbsvalg(_) -> Sandt
     | _ -> Falskt
 }
-| pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> beregnet_årsfradrag_kroner
+| pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> penge_mindste_beløb(beregnet_årsfradrag_kroner, resterende_fradragsramme_kroner)
 | exception pbl18_årslivrente_opfyldningsgrundbeløbsvalg pbl18_årslivrente_valgt_fradrag_kroner(input: Pbl18Årsinput, beregnet_årsfradrag_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> match input.livrentevalg {
     | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner) -> penge_mindste_beløb(penge_mindste_beløb(penge_positivt_beløb(ønsket_fradrag_kroner), pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)), resterende_fradragsramme_kroner)
     | _ -> beregnet_årsfradrag_kroner
