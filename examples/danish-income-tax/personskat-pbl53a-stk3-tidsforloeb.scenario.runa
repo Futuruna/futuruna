@@ -13,6 +13,7 @@ identifikation.
     identifikation = identifikation,
     skatteyder_identifikation = "person-1",
     omfangsfakta = omfangsfakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = afkastår,
     hændelser = hændelser
 )

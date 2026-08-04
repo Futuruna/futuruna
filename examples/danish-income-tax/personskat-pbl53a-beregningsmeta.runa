@@ -26,6 +26,48 @@
     help = Some("Identifikationen sammenholdes med de berettigede ved hvert års udgang."),
     unit = None
 )
+= personskat_pbl53a_felt_afkastforløbsåbning = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.$variant",
+    label = "Historik før det første angivne afkastår",
+    question = Some("Er det første angivne afkastår ordningens første skattepligtige afkastår, eller fortsætter beregningen en dokumenteret historik?"),
+    help = Some("Vælg dokumenteret historik, hvis ordningen allerede havde et bindende metodevalg eller fremført negativt afkast før det første år i arket."),
+    unit = None
+)
+= personskat_pbl53a_felt_tidligere_seneste_indkomstår = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.seneste_indkomstår",
+    label = "Seneste indkomstår før afkastforløbet",
+    question = Some("Hvilket indkomstår ligger umiddelbart før det første angivne afkastår?"),
+    help = Some("Året skal ligge umiddelbart før første række med årlige afkastfakta."),
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_tidligere_metodetilstand = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.metodetilstand",
+    label = "Bindende afkastmetode før afkastforløbet",
+    question = Some("Var PAL-metoden eller den alternative kapitalværdimetode allerede bindende før det første angivne år?"),
+    help = Some("Før 2010 skal der ikke angives et bindende moderne metodevalg. Fra 2010 følger valget ordningen i senere skattepligtige år."),
+    unit = None
+)
+= personskat_pbl53a_felt_tidligere_negative_afkast = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast",
+    label = "Fremførte negative afkast ved afkastforløbets begyndelse",
+    question = Some("Hvilke uudnyttede negative afkast fra samme ordning var dokumenteret før det første angivne år?"),
+    help = Some("Angiv hvert oprindelsesår særskilt. Tab fra 2001 eller tidligere kan kun bruges i oprindelsesåret og de fem følgende indkomstår; tab fra 2002 eller senere har ingen tilsvarende femårsgrænse."),
+    unit = None
+)
+= personskat_pbl53a_felt_tidligere_negativt_afkast_opstået_år = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast.opstået_indkomstår",
+    label = "Oprindelsesår for fremført negativt afkast",
+    question = Some("I hvilket indkomstår opstod det negative afkast?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl53a_felt_tidligere_negativt_afkast_resterende = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast.resterende_kroner",
+    label = "Resterende fremført negativt afkast",
+    question = Some("Hvor meget af det negative afkast var endnu ikke modregnet før det første angivne år?"),
+    help = None,
+    unit = Some("kr.")
+)
 
 # PersonskatPbl53AFelttekst(path: Tekst, label: Tekst, question: Tekst, unit: Tekst?)
 # PersonskatPbl53ADatofelttekst(path: Tekst, label: Tekst, question: Tekst)
@@ -123,7 +165,7 @@
     path = "kapitalindkomst.pbl53a.ordninger.afkastår",
     label = "Årlige afkastfakta for § 53 A-ordningen",
     question = Some("Hvilke indkomstår skal indgå i ordningens afkastforløb?"),
-    help = Some("Angiv årene kronologisk fra det første relevante år. Futuruna udleder metodehistorik og fremført negativt afkast inden for den stabile ordning."),
+    help = Some("Angiv sammenhængende år kronologisk. Til og med 2009 kræves kapitalværdimetoden; fra 2010 udleder Futuruna det bindende metodevalg og de daterede tabsbalancer inden for den stabile ordning."),
     unit = None
 )
 = personskat_pbl53a_felt_afkastår_indkomstår = Beregningsfelt(
@@ -615,6 +657,12 @@
         personskat_pbl53a_felt_ordninger,
         personskat_pbl53a_felt_identifikation,
         personskat_pbl53a_felt_skatteyder_identifikation,
+        personskat_pbl53a_felt_afkastforløbsåbning,
+        personskat_pbl53a_felt_tidligere_seneste_indkomstår,
+        personskat_pbl53a_felt_tidligere_metodetilstand,
+        personskat_pbl53a_felt_tidligere_negative_afkast,
+        personskat_pbl53a_felt_tidligere_negativt_afkast_opstået_år,
+        personskat_pbl53a_felt_tidligere_negativt_afkast_resterende,
         personskat_pbl53a_felt_afkastår,
         personskat_pbl53a_felt_afkastår_indkomstår,
         personskat_pbl53a_felt_afkastgrundlag,
@@ -690,6 +738,9 @@
     beløbsfelter = [],
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
+        AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
+        TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
         DependencySource(value = personskatteloven_lbk1284_par3),

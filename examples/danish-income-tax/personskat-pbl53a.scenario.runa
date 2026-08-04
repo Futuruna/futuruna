@@ -68,6 +68,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "livsforsikring-pal",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [
         personskat_pbl53a_helårs_pal_år(indkomstår = 2025, afkast_kroner = -6000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget),
         personskat_pbl53a_helårs_pal_år(indkomstår = 2026, afkast_kroner = 28000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)
@@ -78,6 +79,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "pensionskasse-negativ",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_pensionskasse_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [
         personskat_pbl53a_helårs_alternativt_år(indkomstår = 2025, primo_kroner = 100000, ultimo_kroner = 95000, pensionsudbyder_opgjorde_afkast_efter_pal = Falskt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget),
         personskat_pbl53a_helårs_alternativt_år(indkomstår = 2026, primo_kroner = 140000, ultimo_kroner = 128000, pensionsudbyder_opgjorde_afkast_efter_pal = Falskt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)
@@ -101,6 +103,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "pengeinstitut-halv-andel",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [personskat_pbl53a_helårs_alternativt_år(
         indkomstår = 2026,
         primo_kroner = 200000,
@@ -142,6 +145,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "livsforsikring-pal-fortsat",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [
         personskat_pbl53a_helårs_pal_år(indkomstår = 2025, afkast_kroner = 1000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget),
         personskat_pbl53a_helårs_pal_år(indkomstår = 2026, afkast_kroner = 9000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)
@@ -152,6 +156,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "ulovligt-skift-til-alternativ",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [
         personskat_pbl53a_helårs_pal_år(indkomstår = 2025, afkast_kroner = 5000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget),
         personskat_pbl53a_helårs_alternativt_år(indkomstår = 2026, primo_kroner = 100000, ultimo_kroner = 110000, pensionsudbyder_opgjorde_afkast_efter_pal = Falskt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)
@@ -162,6 +167,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "ulovligt-skift-til-pal",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [
         personskat_pbl53a_helårs_alternativt_år(indkomstår = 2025, primo_kroner = 100000, ultimo_kroner = 105000, pensionsudbyder_opgjorde_afkast_efter_pal = Falskt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget),
         personskat_pbl53a_helårs_pal_år(indkomstår = 2026, afkast_kroner = 10000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)
@@ -172,6 +178,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "første-alternativ-uden-adgang",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [personskat_pbl53a_helårs_alternativt_år(indkomstår = 2026, primo_kroner = 100000, ultimo_kroner = 110000, pensionsudbyder_opgjorde_afkast_efter_pal = Sandt, berettigelse_ultimo = personskat_pbl53a_enkelt_berettiget)],
     hændelser = []
 )
@@ -197,6 +204,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     identifikation = "ugyldig-andel",
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [personskat_pbl53a_helårs_pal_år(
         indkomstår = 2026,
         afkast_kroner = 10000,

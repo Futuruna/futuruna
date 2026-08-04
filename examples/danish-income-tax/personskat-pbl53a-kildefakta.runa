@@ -7,6 +7,9 @@
 = personskat_pbl53a_kildefakta_metadata = Metadata(
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
+        AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
+        TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par53b),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par20),
         DependencySource(value = personskatteloven_lbk1284_par3),
@@ -23,7 +26,7 @@
 
 --@label:personskat_pbl53a_kildefakta::meta:personskat_pbl53a_kildefakta_metadata--
 --@begin:personskat_pbl53a_kildefakta--
-# PersonskatPbl53AOrdningFakta(identifikation: Tekst, skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse))
+# PersonskatPbl53AOrdningFakta(identifikation: Tekst, skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, afkastforløbsåbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta), hændelser: List(Pbl53AHændelse))
 # PersonskatPbl53AInput(ordninger: List(PersonskatPbl53AOrdningFakta))
 # PersonskatPbl53AOrdningsresultat = UgyldigtPbl53AGrundlag(fakta: PersonskatPbl53AOrdningFakta, skatteår_understøttet: Boolsk, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, omfangsresultat: Pbl53AOmfangsresultat, aktuelt_afkastår_findes_entydigt: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, forløbsresultat: Pbl53AForløbsresultat, afkastforløbsresultat: Pbl53AAfkastforløbsresultat) | BeregnetPbl53AOrdning(fakta: PersonskatPbl53AOrdningFakta, omfangsresultat: Pbl53AOmfangsresultat, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat, par4_input: Par4Stk1Nr13Input, par4_resultat: Par4Stk1Nr13Resultat, forløbsinput: Pbl53AForløbsinput, forløbsresultat: Pbl53AForløbsresultat, par3_input: Par3Pbl53AStk2Og5Input, par3_resultat: Par3Pbl53AStk2Og5Resultat, afkastforløbsinput: Pbl53AAfkastforløbsinput, afkastforløbsresultat: Pbl53AAfkastforløbsresultat)
 # PersonskatPbl53AResultat(input: PersonskatPbl53AInput, ordningsresultater: List(PersonskatPbl53AOrdningsresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal, arbejdsgiverfradrag_kroner: Heltal, udenlandsk_indkomstskat_til_ligningslov33_kroner: Heltal)
@@ -44,6 +47,7 @@
     skatteyder_identifikation = fakta.skatteyder_identifikation,
     ordning = ordning,
     omfangsresultat = omfangsresultat,
+    åbning = fakta.afkastforløbsåbning,
     afkastår = fakta.afkastår,
     hændelsesforløbsresultat = forløbsresultat
 )

@@ -1,0 +1,153 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+= pbl53a_overgang_omfangsfakta_1995 = Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1995, måned = 1, dag = 1),
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.afsnit_i_valg,
+    institutionsfinansiering = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.institutionsfinansiering,
+    par53b_oprettelsesposition = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.par53b_oprettelsesposition
+)
+
+= pbl53a_overgang_omfangsfakta_1990 = Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.afsnit_i_valg,
+    institutionsfinansiering = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.institutionsfinansiering,
+    par53b_oprettelsesposition = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.par53b_oprettelsesposition
+)
+
+= pbl53a_overgang_berettiget = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+
+| pbl53a_overgang_kapitalværdiår(indkomstår: Heltal, primo_kroner: Heltal, ultimo_kroner: Heltal) -> Pbl53AAfkastårFakta(
+    indkomstår = indkomstår,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = primo_kroner,
+        kalenderårets_ultimo_depotværdi_kroner = ultimo_kroner
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_overgang_berettiget
+)
+
+| pbl53a_overgang_palår(indkomstår: Heltal, afkast_kroner: Heltal) -> Pbl53AAfkastårFakta(
+    indkomstår = indkomstår,
+    afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = afkast_kroner),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    berettigelse_ultimo = pbl53a_overgang_berettiget
+)
+
+| pbl53a_overgang_afkastforløb(omfangsfakta: Pbl53AOmfangsfakta, åbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta)) -> {
+    = omfangsresultat = pbl53a_omfangsresultat(2010, omfangsfakta, [])
+    = ordning = pbl53a_omfang_ordning(omfangsresultat)
+    = hændelsesforløbsresultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+        indkomstår = 2010,
+        ordning = ordning,
+        omfangsresultat = omfangsresultat,
+        hændelser = []
+    ))
+    pbl53a_afkastforløbsresultat(Pbl53AAfkastforløbsinput(
+        ordningsidentifikation = "historisk-livsforsikring",
+        skatteyder_identifikation = "person-1",
+        ordning = ordning,
+        omfangsresultat = omfangsresultat,
+        åbning = åbning,
+        afkastår = afkastår,
+        hændelsesforløbsresultat = hændelsesforløbsresultat
+    ))
+}
+
+= pbl53a_overgang_2001_til_2010 = pbl53a_overgang_afkastforløb(
+    omfangsfakta = pbl53a_overgang_omfangsfakta_1995,
+    åbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2001, primo_kroner = 100000, ultimo_kroner = 90000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2002, primo_kroner = 100000, ultimo_kroner = 92000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2003, primo_kroner = 100000, ultimo_kroner = 100000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2004, primo_kroner = 100000, ultimo_kroner = 100000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2005, primo_kroner = 100000, ultimo_kroner = 100000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2006, primo_kroner = 100000, ultimo_kroner = 100000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2007, primo_kroner = 100000, ultimo_kroner = 105000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2008, primo_kroner = 100000, ultimo_kroner = 100000),
+        pbl53a_overgang_kapitalværdiår(indkomstår = 2009, primo_kroner = 100000, ultimo_kroner = 101000),
+        pbl53a_overgang_palår(indkomstår = 2010, afkast_kroner = 10000)
+    ]
+)
+
+= pbl53a_overgang_ugyldig_pal_i_2009 = pbl53a_overgang_afkastforløb(
+    omfangsfakta = pbl53a_overgang_omfangsfakta_1995,
+    åbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [pbl53a_overgang_palår(indkomstår = 2009, afkast_kroner = 10000)]
+)
+
+= pbl53a_overgang_ikke_understøttet_før_1992 = pbl53a_overgang_afkastforløb(
+    omfangsfakta = pbl53a_overgang_omfangsfakta_1990,
+    åbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [pbl53a_overgang_kapitalværdiår(indkomstår = 2010, primo_kroner = 100000, ultimo_kroner = 110000)]
+)
+
+= pbl53a_overgang_dokumenteret_2002_saldo = pbl53a_overgang_afkastforløb(
+    omfangsfakta = pbl53a_overgang_omfangsfakta_1995,
+    åbning = Pbl53ADokumenteretTidligereAfkasthistorik(
+        seneste_indkomstår = 2024,
+        metodetilstand = Pbl53APalMetodeValgt,
+        fremførte_negative_afkast = [Pbl53ANegativtAfkastSaldo(opstået_indkomstår = 2002, resterende_kroner = 1000)]
+    ),
+    afkastår = [pbl53a_overgang_palår(indkomstår = 2025, afkast_kroner = 600)]
+)
+
+= pbl53a_overgang_udløbet_åbningssaldo = pbl53a_overgang_afkastforløb(
+    omfangsfakta = pbl53a_overgang_omfangsfakta_1995,
+    åbning = Pbl53ADokumenteretTidligereAfkasthistorik(
+        seneste_indkomstår = 2006,
+        metodetilstand = Pbl53AIngenMetodeValgt,
+        fremførte_negative_afkast = [Pbl53ANegativtAfkastSaldo(opstået_indkomstår = 2001, resterende_kroner = 10000)]
+    ),
+    afkastår = [pbl53a_overgang_kapitalværdiår(indkomstår = 2007, primo_kroner = 100000, ultimo_kroner = 110000)]
+)
+
+| pbl53a_overgang_2001_tab_får_dateret_femårssaldo: pbl53a_overgang_2001_til_2010 -> {
+    = årsresultat = pbl53a_afkastårsresultat_for_indkomstår(pbl53a_overgang_2001_til_2010, 2001)
+    årsresultat.afkastregelregime == Pbl53AHistoriskKapitalværdiTilOgMed2009 && årsresultat.pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == -10000 && length(årsresultat.fremførte_negative_afkast_ultimo) == 1 && årsresultat.fremførte_negative_afkast_ultimo[0].opstået_indkomstår == 2001 && årsresultat.fremførte_negative_afkast_ultimo[0].resterende_kroner == 10000
+}
+
+| pbl53a_overgang_2002_tab_får_ubegrænset_særskilt_saldo: pbl53a_overgang_2001_til_2010 -> {
+    = årsresultat = pbl53a_afkastårsresultat_for_indkomstår(pbl53a_overgang_2001_til_2010, 2002)
+    årsresultat.afkastregelregime == Pbl53AHistoriskKapitalværdiTilOgMed2009 && length(årsresultat.fremførte_negative_afkast_ultimo) == 2 && årsresultat.fremførte_negative_afkast_ultimo[1].opstået_indkomstår == 2002 && årsresultat.fremførte_negative_afkast_ultimo[1].resterende_kroner == 8000
+}
+
+| pbl53a_overgang_2001_saldo_udløber_før_2007: pbl53a_overgang_2001_til_2010 -> {
+    = årsresultat = pbl53a_afkastårsresultat_for_indkomstår(pbl53a_overgang_2001_til_2010, 2007)
+    length(årsresultat.udløbne_negative_afkast_i_året) == 1 && årsresultat.udløbne_negative_afkast_i_året[0].opstået_indkomstår == 2001 && årsresultat.pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 5000 && årsresultat.fremførte_negative_afkast_ultimo[0].opstået_indkomstår == 2002 && årsresultat.fremførte_negative_afkast_ultimo[0].resterende_kroner == 3000
+}
+
+| pbl53a_overgang_2009_bruger_pligtig_kapitalværdimetode: pbl53a_overgang_2001_til_2010 -> {
+    = årsresultat = pbl53a_afkastårsresultat_for_indkomstår(pbl53a_overgang_2001_til_2010, 2009)
+    årsresultat.afkastregelregime == Pbl53AHistoriskKapitalværdiTilOgMed2009 && årsresultat.metodehistorik == Pbl53AFørsteAfkastopgørelse && årsresultat.pensionsbeskatningslov_input.afkastmetode == Pbl53AAlternativKapitalværdi && årsresultat.pensionsbeskatningslov_resultat.fremført_negativt_afkast_ultimo_kroner == 2000
+}
+
+| pbl53a_overgang_2010_starter_moderne_metodevalg: pbl53a_overgang_2001_til_2010 -> {
+    = årsresultat = pbl53a_afkastårsresultat_for_indkomstår(pbl53a_overgang_2001_til_2010, 2010)
+    pbl53a_overgang_2001_til_2010.input_gyldigt && årsresultat.afkastregelregime == Pbl53AModerneMetodevalgFra2010 && årsresultat.metodehistorik == Pbl53AFørsteAfkastopgørelse && årsresultat.pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 2000 && årsresultat.pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 8000 && pbl53a_overgang_2001_til_2010.metodetilstand_ultimo == Pbl53APalMetodeValgt && length(pbl53a_overgang_2001_til_2010.fremførte_negative_afkast_ultimo) == 0
+}
+
+| pbl53a_overgang_pal_i_2009_fejler_lukket: pbl53a_overgang_ugyldig_pal_i_2009 -> pbl53a_overgang_ugyldig_pal_i_2009.input_gyldigt == Falskt && pbl53a_overgang_ugyldig_pal_i_2009.årsresultater[0].afkastmetode_tilladt_efter_udbyderopgørelse == Falskt
+| pbl53a_overgang_før_1992_fejler_lukket: pbl53a_overgang_ikke_understøttet_før_1992 -> pbl53a_overgang_ikke_understøttet_før_1992.input_gyldigt == Falskt && pbl53a_overgang_ikke_understøttet_før_1992.årsresultater[0].afkastregelregime == Pbl53AHistorikIkkeUnderstøttet && pbl53a_overgang_ikke_understøttet_før_1992.årsresultater[0].regelregime_understøttet == Falskt
+| pbl53a_overgang_2002_åbningssaldo_forbliver_anvendelig: pbl53a_overgang_dokumenteret_2002_saldo -> pbl53a_overgang_dokumenteret_2002_saldo.åbningshistorik_gyldig && pbl53a_overgang_dokumenteret_2002_saldo.input_gyldigt && pbl53a_overgang_dokumenteret_2002_saldo.årsresultater[0].pensionsbeskatningslov_resultat.fremført_negativt_afkast_anvendt_kroner == 600 && pbl53a_overgang_dokumenteret_2002_saldo.fremførte_negative_afkast_ultimo[0].opstået_indkomstår == 2002 && pbl53a_overgang_dokumenteret_2002_saldo.fremførte_negative_afkast_ultimo[0].resterende_kroner == 400
+| pbl53a_overgang_udløbet_åbningssaldo_fejler_lukket: pbl53a_overgang_udløbet_åbningssaldo -> pbl53a_overgang_udløbet_åbningssaldo.åbningshistorik_gyldig == Falskt && pbl53a_overgang_udløbet_åbningssaldo.input_gyldigt == Falskt
+
+? pbl53a_overgang_2001_tab_får_dateret_femårssaldo
+? pbl53a_overgang_2002_tab_får_ubegrænset_særskilt_saldo
+? pbl53a_overgang_2001_saldo_udløber_før_2007
+? pbl53a_overgang_2009_bruger_pligtig_kapitalværdimetode
+? pbl53a_overgang_2010_starter_moderne_metodevalg
+? pbl53a_overgang_pal_i_2009_fejler_lukket
+? pbl53a_overgang_før_1992_fejler_lukket
+? pbl53a_overgang_2002_åbningssaldo_forbliver_anvendelig
+? pbl53a_overgang_udløbet_åbningssaldo_fejler_lukket

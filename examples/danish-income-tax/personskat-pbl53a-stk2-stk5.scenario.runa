@@ -6,6 +6,7 @@
     identifikation = identifikation,
     skatteyder_identifikation = "person-1",
     omfangsfakta = omfangsfakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
     afkastår = [Pbl53AAfkastårFakta(
         indkomstår = 2026,
         afkastgrundlag = Pbl53AAfkastEfterPal(afkast_efter_pal_par3_til_5_kroner = 0),

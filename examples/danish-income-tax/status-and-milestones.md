@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: none; next source-backed slice: `td-2a8a7b`
+Current implementation slice: `td-2a8a7b` (implementation complete; review pending)
+Next source-backed slice: `td-8280fa`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-606798`
@@ -104,6 +105,20 @@ PBL-resultat og resultatet efter Personskattelovens § 4, stk. 1, nr. 13.
 Positivt afkast efter egen negativ fremførsel bliver kapitalindkomst, mens et
 negativt afkast forbliver knyttet til den samme identificerede ordning.
 
+Afkastforløbet har nu en eksplicit, typet åbning: enten erklæres det første
+angivne år som ordningens første afkastår, eller også leveres seneste
+dokumenterede år, den allerede bindende moderne metode og daterede, uudnyttede
+negative afkast. Til og med 2009 kræver reglerne den historiske
+kapitalværdimetode uden at etablere et moderne metodevalg. Fra 2010 anvendes
+det moderne metodevalg for ordninger oprettet den 18. februar 1992 eller
+senere. Negative afkast fra 2001 og tidligere udløber efter oprindelsesåret og
+de fem følgende indkomstår, mens saldi fra 2002 og senere bevarer den
+ubegrænsede fremførsel efter samme ordning. Oprindelsesåret bevares gennem
+hele foldet, så udløb og modregning kan forklares særskilt. Ordninger oprettet
+før skæringsdatoen fejler foreløbig lukket i 2010 og senere, fordi senere
+erhvervelse og arveundtagelsen kræver yderligere kildefakta; det resterende
+arbejde er registreret som `td-8280fa`.
+
 Stk. 2 og 5 bruger nu desuden et ordnet hændelsesforløb pr. ordning.
 Arbejdsgiverens og den tidligere arbejdsgivers bidrag bliver personlig indkomst
 med AM-grundlag; bidrag fra en udsendt ægtefælles eller samlevers arbejdsgiver
@@ -127,14 +142,18 @@ fokuserede scenariefiler gennemfører henholdsvis 8 og 11 invariantscenarier i
 både interpreter og compiler; den almindelige mapper-scenarie gennemfører
 yderligere 11 invariantscenarier i begge udførelsesveje. Et særskilt
 omfangsscenarie gennemfører 18 invariantscenarier for de ni hjemler, § 53 B,
-stk. 4, stk. 6 og fail-closed-validering i begge udførelsesveje.
+stk. 4, stk. 6 og fail-closed-validering i begge udførelsesveje. Et nyt
+overgangsscenarie gennemfører desuden 9 invariantscenarier for 2001-, 2002-,
+2009- og 2010-grænserne samt dokumenteret åbningshistorik i både interpreter og
+compiler.
 
-Beregningskontrakten har 168 danske § 53 A-feltbeskrivelser med PBL §§ 20,
-53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har ni
+Beregningskontrakten har 174 danske § 53 A-feltbeskrivelser med PBL §§ 20,
+53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har ti
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
 grænsehændelser, berettigedes indeståender, indbetalings- eller
-udbetalingshændelser, livsforsikringsdækninger og tre slags berettigede efter
-direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
+udbetalingshændelser, livsforsikringsdækninger, daterede negative afkast ved
+forløbets åbning og tre slags berettigede efter direktørpensionstilsagn. Den
+eksakte XLSX/JSON-afstemning dækker tre ordninger,
 fem årsoptegnelser, en delårsgrænse, to berettigede, en
 arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
 13.000 kr. negativt afkast til særskilt fremførsel på den ordning, hvor tabet
@@ -3002,13 +3021,16 @@ Review candidates to revisit deliberately, not as broad churn:
   statsstøttebegrænsningen i stk. 6 fra produkt-, ejer-, oprettelses-,
   finansierings- og indbetalingsfakta. De afleder også delårsperioder ved ind-
   og udtræden af skattepligt, depotgrænser ved etablering og ophør af
-  direktørsikkerhed, eksakte andele for flere berettigede, bindende metodevalg,
-  negativ fremførsel pr. stabil ordning og fristen for dokumenterede
-  udbetalinger til afkastskat. Ufuldstændige eller modstridende fakta fejler
-  lukket. De 18 omfangsinvarianter og 11 tidsinvarianter passerer både
-  interpreter og compiler. Den kanoniske kontrakt har 168 § 53 A-feltmetadata-
-  poster og ni relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre
-  ordninger og fem årsoptegnelser.
+  direktørsikkerhed, eksakte andele for flere berettigede, det historiske
+  metoderegime til og med 2009, det bindende moderne metodevalg fra 2010,
+  dateret negativ fremførsel med femårsgrænsen for saldi fra 2001 og tidligere
+  samt fristen for dokumenterede udbetalinger til afkastskat. Ufuldstændige
+  eller modstridende fakta fejler lukket. De 18 omfangsinvarianter og 11
+  tidsinvarianter passerer både interpreter og compiler. Ni særskilte
+  overgangsinvarianter dækker 2001, 2002, 2009, 2010 og dokumenteret
+  åbningshistorik i begge udførelsesveje. Den kanoniske kontrakt har 174
+  § 53 A-feltmetadata-poster og ti relationelle § 53 A-ark; XLSX og JSON
+  afstemmer samme tre ordninger og fem årsoptegnelser.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3307,9 +3329,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- `td-2a8a7b` skal skelne § 53 A-afkasthistorikken før og efter 2010 samt
-  femårsgrænsen for negative afkast fra 2001 og tidligere. Den moderne
-  flerårsmodel må ikke anvendes bagud uden den særskilte overgangsregel.
+- Efter uafhængig review af `td-2a8a7b` skal `td-8280fa` udvide § 53 A's
+  overgangsfakta for ordninger oprettet før den 18. februar 1992 med senere
+  erhvervelse og den særskilte arveundtagelse. Den nuværende model fejler
+  bevidst lukket for disse post-2010-forløb.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

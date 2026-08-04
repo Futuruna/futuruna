@@ -910,6 +910,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "omfangsfakta.afsnit_i_valg.$variant",
             "omfangsfakta.institutionsfinansiering.samlet_drift_løn_og_pension_kroner",
             "omfangsfakta.par53b_oprettelsesposition.$variant",
+            "afkastforløbsåbning.$variant",
+            "afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.seneste_indkomstår",
+            "afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.metodetilstand",
         ] {
             assert!(
                 pbl53a_paths.iter().any(|path| path == expected),
@@ -925,10 +928,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Afkald på beskatning efter PBL afsnit I",
             "Institutionens samlede drift, løn og pension",
             "Skattepligt og skattemæssigt hjemsted ved oprettelsen",
+            "Historik før det første angivne afkastår",
+            "Seneste indkomstår før afkastforløbet",
+            "Bindende afkastmetode før afkastforløbet",
         ] {
             assert!(
                 pbl53a_headers.iter().any(|header| header == expected),
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
+            );
+        }
+        let pbl53a_opening_losses_path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast";
+        let pbl53a_opening_losses_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_opening_losses_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_opening_losses_sheet),
+            "Dansk personskat - Fremførte negative afkast ved afkastforløbets begyndelse"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_opening_losses_sheet),
+            ["opstået_indkomstår", "resterende_kroner"]
+        );
+        for expected in [
+            "Oprindelsesår for fremført negativt afkast",
+            "Resterende fremført negativt afkast",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &pbl53a_opening_losses_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL § 53 A opening-loss label {expected} on {pbl53a_opening_losses_sheet}"
             );
         }
         let pbl53a_coverages_path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.Pbl53ALivsforsikringsprodukt.vilkår.dækninger";
@@ -1307,6 +1335,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.omfangsfakta.produkt.$variant",
             "kapitalindkomst.pbl53a.ordninger.omfangsfakta.afsnit_i_valg.$variant",
             "kapitalindkomst.pbl53a.ordninger.omfangsfakta.par53b_oprettelsesposition.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.seneste_indkomstår",
+            "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.metodetilstand",
+            "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast.opstået_indkomstår",
+            "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast.resterende_kroner",
             "kapitalindkomst.pbl53a.ordninger.afkastår.indkomstår",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.$variant",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastgrundlag.Pbl53AAfkastEfterPal.afkast_efter_pal_par3_til_5_kroner",
@@ -2155,6 +2188,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("PBL § 53 A sources");
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
+            "pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3",
+            "pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3",
+            "pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7",
             "pensionsbeskatningsloven_lbk1243_par53b",
             "pensionsbeskatningsloven_lbk1243_par20",
             "personskatteloven_lbk1284_par3",
@@ -2504,6 +2540,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 (
                     "omfangsfakta.par53b_oprettelsesposition.$variant",
                     Data::String("Pbl53BOprettetUnderDanskSkattepligtOgHjemsted".to_string()),
+                ),
+                (
+                    "afkastforløbsåbning.$variant",
+                    Data::String("Pbl53AIngenTidligereAfkasthistorik".to_string()),
                 ),
             ] {
                 set_workbook_cell_by_header(sheets, &pbl53a_sheet, row, header, value);
@@ -5422,6 +5462,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
                     }
                 },
+                "afkastforløbsåbning": {
+                    "$variant": "Pbl53AIngenTidligereAfkasthistorik"
+                },
                 "afkastår": [
                     {
                         "indkomstår": 2025,
@@ -5514,6 +5557,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
                     }
                 },
+                "afkastforløbsåbning": {
+                    "$variant": "Pbl53AIngenTidligereAfkasthistorik"
+                },
                 "afkastår": [
                     {
                         "indkomstår": 2025,
@@ -5582,6 +5628,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "par53b_oprettelsesposition": {
                         "$variant": "Pbl53BOprettetUnderDanskSkattepligtOgHjemsted"
                     }
+                },
+                "afkastforløbsåbning": {
+                    "$variant": "Pbl53AIngenTidligereAfkasthistorik"
                 },
                 "afkastår": [
                     {
