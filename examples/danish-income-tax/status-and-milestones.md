@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-2a8a7b` (implementation complete; review pending)
-Next source-backed slice: `td-8280fa`
+Current implementation slice: `td-8280fa` (implementation complete; review pending)
+Next source-backed slices: `td-8ddbca`, `td-f2ca68` and `td-14667b`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-606798`
@@ -115,9 +115,16 @@ senere. Negative afkast fra 2001 og tidligere udløber efter oprindelsesåret og
 de fem følgende indkomstår, mens saldi fra 2002 og senere bevarer den
 ubegrænsede fremførsel efter samme ordning. Oprindelsesåret bevares gennem
 hele foldet, så udløb og modregning kan forklares særskilt. Ordninger oprettet
-før skæringsdatoen fejler foreløbig lukket i 2010 og senere, fordi senere
-erhvervelse og arveundtagelsen kræver yderligere kildefakta; det resterende
-arbejde er registreret som `td-8280fa`.
+før skæringsdatoen bevarer nu en kronologisk liste af senere erhvervelser. En
+almindelig erhvervelse den 18. februar 1992 eller senere aktiverer de moderne
+regler fra erhvervelsen. Direkte arv af en ældre livsforsikring bevarer derimod
+den historiske behandling efter den tidligere § 50 eller statsskatteloven,
+mens en senere arv ikke ophæver virkningen af en allerede sket almindelig
+erhvervelse. Ugyldige datoer, omvendt kronologi og erhvervelser før oprettelsen
+fejler lukket. Bindende tilvalg af de moderne regler og materielle
+kontraktændringer, der kan udgøre en ny ordning, er registreret særskilt som
+`td-8ddbca` og `td-f2ca68`. En eventuel afkastgrænse ved erhvervelse midt i et
+indkomstår er registreret som `td-14667b` og skal kildeafklares særskilt.
 
 Stk. 2 og 5 bruger nu desuden et ordnet hændelsesforløb pr. ordning.
 Arbejdsgiverens og den tidligere arbejdsgivers bidrag bliver personlig indkomst
@@ -145,16 +152,19 @@ omfangsscenarie gennemfører 18 invariantscenarier for de ni hjemler, § 53 B,
 stk. 4, stk. 6 og fail-closed-validering i begge udførelsesveje. Et nyt
 overgangsscenarie gennemfører desuden 9 invariantscenarier for 2001-, 2002-,
 2009- og 2010-grænserne samt dokumenteret åbningshistorik i både interpreter og
-compiler.
+compiler. Et særskilt erhvervelsesovergangsscenarie gennemfører 11 yderligere
+invarianter for skæringsdatoen, overdragelse uden tilbagevirkende kraft,
+direkte arv, overdragelse efterfulgt af arv, produktgrænsen for
+arveundtagelsen og fail-closed kronologi i begge udførelsesveje.
 
-Beregningskontrakten har 174 danske § 53 A-feltbeskrivelser med PBL §§ 20,
-53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har ti
+Beregningskontrakten har 179 danske § 53 A-feltbeskrivelser med PBL §§ 20,
+53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder. Regnearket har elleve
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
 grænsehændelser, berettigedes indeståender, indbetalings- eller
-udbetalingshændelser, livsforsikringsdækninger, daterede negative afkast ved
-forløbets åbning og tre slags berettigede efter direktørpensionstilsagn. Den
-eksakte XLSX/JSON-afstemning dækker tre ordninger,
-fem årsoptegnelser, en delårsgrænse, to berettigede, en
+udbetalingshændelser, senere erhvervelser, livsforsikringsdækninger, daterede
+negative afkast ved forløbets åbning og tre slags berettigede efter
+direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
+en senere erhvervelse, fem årsoptegnelser, en delårsgrænse, to berettigede, en
 arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
 13.000 kr. negativt afkast til særskilt fremførsel på den ordning, hvor tabet
 opstod.
@@ -3028,9 +3038,12 @@ Review candidates to revisit deliberately, not as broad churn:
   eller modstridende fakta fejler lukket. De 18 omfangsinvarianter og 11
   tidsinvarianter passerer både interpreter og compiler. Ni særskilte
   overgangsinvarianter dækker 2001, 2002, 2009, 2010 og dokumenteret
-  åbningshistorik i begge udførelsesveje. Den kanoniske kontrakt har 174
-  § 53 A-feltmetadata-poster og ti relationelle § 53 A-ark; XLSX og JSON
-  afstemmer samme tre ordninger og fem årsoptegnelser.
+  åbningshistorik i begge udførelsesveje. Elleve yderligere invarianter afleder
+  moderne eller historisk regime fra oprettelse, almindelige erhvervelser og
+  kvalificerende arv og afviser ugyldige erhvervelsesforløb. Den kanoniske
+  kontrakt har 863 felter i alt, heraf 179 § 53 A-feltmetadata-poster, og elleve
+  relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
+  erhvervelse og fem årsoptegnelser.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for

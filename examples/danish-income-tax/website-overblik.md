@@ -76,12 +76,15 @@ Afkast fra pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A går nu gennem den samme kanoniske beregning.
 Borgeren eller AI-interviewet vælger ikke selv en juridisk § 53 A-kategori eller
 en undtagelse. Det oplyser det faktiske produkt, ejer eller berettigede,
-kapitel 1-status, oprettelsesdato, eventuelt afkald på afsnit I,
+kapitel 1-status, oprettelsesdato, senere daterede erhvervelser og om de skete
+ved arv, eventuelt afkald på afsnit I,
 institutionsfinansiering, skattemæssigt hjemsted og indbetalingernes faktiske
 udenlandske skattebehandling. Futuruna afleder alle ni kategorier i § 53 A,
 stk. 1, udelukkelsen efter § 53 B, forsikringsundtagelserne i stk. 4 og
-statsstøttebegrænsningen i stk. 6. Resultatet viser hver delkonklusion, mens
-ufuldstændige eller modstridende oplysninger fejler lukket.
+statsstøttebegrænsningen i stk. 6. Det afleder også, om en ordning fra før den
+18. februar 1992 senere er blevet omfattet, eller om direkte arv af en ældre
+livsforsikring bevarer den historiske retsstilling. Resultatet viser hver
+delkonklusion, mens ufuldstændige eller modstridende oplysninger fejler lukket.
 
 Hver ordning har desuden en stabil identifikation og en sammenhængende række af
 årlige kildefakta. Borgeren eller AI-interviewet oplyser pensionsudbyderens
@@ -229,8 +232,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 852 eksplicitte feltmetadata-poster,
-heraf 168 for § 53 A-ordninger.
+interviewoplysninger. Kontrakten har nu 863 eksplicitte feltmetadata-poster,
+heraf 179 for § 53 A-ordninger.
 Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.

@@ -4,6 +4,7 @@
 
 = pbl53a_overgang_omfangsfakta_1995 = Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1995, måned = 1, dag = 1),
+    erhvervelser = [],
     produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
     afsnit_i_valg = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.afsnit_i_valg,
     institutionsfinansiering = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.institutionsfinansiering,
@@ -12,6 +13,7 @@
 
 = pbl53a_overgang_omfangsfakta_1990 = Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    erhvervelser = [],
     produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
     afsnit_i_valg = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.afsnit_i_valg,
     institutionsfinansiering = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.institutionsfinansiering,

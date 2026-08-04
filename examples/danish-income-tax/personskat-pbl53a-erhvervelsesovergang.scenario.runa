@@ -1,0 +1,136 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+| pbl53a_erhvervelsesovergang_fakta(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    erhvervelser = erhvervelser,
+    produkt = produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_erhvervelsesovergang_resultat(produkt: Pbl53AProduktfakta, erhvervelser: List(Pbl53AErhvervelseshændelse)) -> pbl53a_omfangsresultat(
+    indkomstår = 2026,
+    fakta = pbl53a_erhvervelsesovergang_fakta(produkt, erhvervelser),
+    hændelser = []
+)
+
+= pbl53a_erhvervelsesovergang_livsforsikring = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt
+= pbl53a_erhvervelsesovergang_pengeinstitut = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta.produkt
+
+= pbl53a_erhvervelsesovergang_overdraget_1995 = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+        måde = Pbl53AErhvervetPåAndenMåde
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_arvet_2022 = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+        måde = Pbl53AErhvervetVedArv
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [
+        Pbl53AErhvervelseshændelse(
+            dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+            måde = Pbl53AErhvervetPåAndenMåde
+        ),
+        Pbl53AErhvervelseshændelse(
+            dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+            måde = Pbl53AErhvervetVedArv
+        )
+    ]
+)
+
+= pbl53a_erhvervelsesovergang_arvet_pengeinstitut = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_pengeinstitut,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+        måde = Pbl53AErhvervetVedArv
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 1991, måned = 7, dag = 1),
+        måde = Pbl53AErhvervetPåAndenMåde
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_erhvervet_på_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 1992, måned = 2, dag = 18),
+        måde = Pbl53AErhvervetPåAndenMåde
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_erhvervet_dagen_før_skæringsdato = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [Pbl53AErhvervelseshændelse(
+        dato = Pbl15ADato(år = 1992, måned = 2, dag = 17),
+        måde = Pbl53AErhvervetPåAndenMåde
+    )]
+)
+
+= pbl53a_erhvervelsesovergang_uden_senere_erhvervelse = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = []
+)
+
+= pbl53a_erhvervelsesovergang_omvendt_kronologi = pbl53a_erhvervelsesovergang_resultat(
+    produkt = pbl53a_erhvervelsesovergang_livsforsikring,
+    erhvervelser = [
+        Pbl53AErhvervelseshændelse(
+            dato = Pbl15ADato(år = 2022, måned = 4, dag = 9),
+            måde = Pbl53AErhvervetVedArv
+        ),
+        Pbl53AErhvervelseshændelse(
+            dato = Pbl15ADato(år = 1995, måned = 6, dag = 1),
+            måde = Pbl53AErhvervetPåAndenMåde
+        )
+    ]
+)
+
+| pbl53a_erhvervelsesovergang_overdragelse_aktiverer_moderne_regler: pbl53a_erhvervelsesovergang_overdraget_1995 -> pbl53a_erhvervelsesovergang_overdraget_1995.grundfakta_gyldige && pbl53a_erhvervelsesovergang_overdraget_1995.omfattes_af_par53a && pbl53a_erhvervelsesovergang_overdraget_1995.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 1995, måned = 6, dag = 1))
+
+| pbl53a_erhvervelsesovergang_overdragelse_bevarer_historisk_afkastmetode_til_2009: pbl53a_erhvervelsesovergang_overdraget_1995 -> pbl53a_afkastregelregime(2009, pbl53a_erhvervelsesovergang_overdraget_1995.overgangsresultat) == Pbl53AHistoriskKapitalværdiTilOgMed2009 && pbl53a_afkastregelregime(2010, pbl53a_erhvervelsesovergang_overdraget_1995.overgangsresultat) == Pbl53AModerneMetodevalgFra2010
+
+| pbl53a_erhvervelsesovergang_overdragelse_har_ikke_tilbagevirkende_kraft: pbl53a_erhvervelsesovergang_overdraget_1995 -> pbl53a_afkastregelregime(1994, pbl53a_erhvervelsesovergang_overdraget_1995.overgangsresultat) == Pbl53AHistorikIkkeUnderstøttet && pbl53a_afkastregelregime(1995, pbl53a_erhvervelsesovergang_overdraget_1995.overgangsresultat) == Pbl53AHistoriskKapitalværdiTilOgMed2009
+
+| pbl53a_erhvervelsesovergang_arv_bevarer_historisk_retsstilling: pbl53a_erhvervelsesovergang_arvet_2022 -> pbl53a_erhvervelsesovergang_arvet_2022.grundfakta_gyldige && pbl53a_erhvervelsesovergang_arvet_2022.overgangsresultat.arveundtagelse_bevarer_historisk_regime && pbl53a_erhvervelsesovergang_arvet_2022.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_erhvervelsesovergang_arvet_2022.omfattes_af_par53a == Falskt && pbl53a_erhvervelsesovergang_arvet_2022.par53b_resultat.overgang_har_virkning == Falskt
+
+| pbl53a_erhvervelsesovergang_senere_arv_ophæver_ikke_tidligere_virkning: pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet -> pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet.omfattes_af_par53a && pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet.overgangsresultat.arveundtagelse_bevarer_historisk_regime == Falskt && pbl53a_erhvervelsesovergang_overdraget_og_senere_arvet.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 1995, måned = 6, dag = 1))
+
+| pbl53a_erhvervelsesovergang_pengeinstitutarv_er_almindelig_erhvervelse: pbl53a_erhvervelsesovergang_arvet_pengeinstitut -> pbl53a_erhvervelsesovergang_arvet_pengeinstitut.omfattes_af_par53a && pbl53a_erhvervelsesovergang_arvet_pengeinstitut.overgangsresultat.arveundtagelse_bevarer_historisk_regime == Falskt && pbl53a_erhvervelsesovergang_arvet_pengeinstitut.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 2022, måned = 4, dag = 9))
+
+| pbl53a_erhvervelsesovergang_før_skæringsdato_forbliver_historisk: pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato -> pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato.grundfakta_gyldige && pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato.overgangsresultat.arveundtagelse_bevarer_historisk_regime == Falskt && pbl53a_erhvervelsesovergang_erhvervet_før_skæringsdato.omfattes_af_par53a == Falskt
+
+| pbl53a_erhvervelsesovergang_skæringsdato_er_inkluderet: pbl53a_erhvervelsesovergang_erhvervet_på_skæringsdato -> pbl53a_erhvervelsesovergang_erhvervet_på_skæringsdato.omfattes_af_par53a && pbl53a_erhvervelsesovergang_erhvervet_på_skæringsdato.overgangsresultat.moderne_virkningsstart == Pbl53AModerneVirkningsstartFra(dato = Pbl15ADato(år = 1992, måned = 2, dag = 18))
+
+| pbl53a_erhvervelsesovergang_dagen_før_skæringsdato_forbliver_historisk: pbl53a_erhvervelsesovergang_erhvervet_dagen_før_skæringsdato -> pbl53a_erhvervelsesovergang_erhvervet_dagen_før_skæringsdato.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_erhvervelsesovergang_erhvervet_dagen_før_skæringsdato.omfattes_af_par53a == Falskt
+
+| pbl53a_erhvervelsesovergang_uden_erhvervelse_forbliver_historisk: pbl53a_erhvervelsesovergang_uden_senere_erhvervelse -> pbl53a_erhvervelsesovergang_uden_senere_erhvervelse.grundfakta_gyldige && pbl53a_erhvervelsesovergang_uden_senere_erhvervelse.overgangsresultat.historisk_par50_eller_statsskattelov && pbl53a_erhvervelsesovergang_uden_senere_erhvervelse.omfattes_af_par53a == Falskt
+
+| pbl53a_erhvervelsesovergang_omvendt_kronologi_fejler_lukket: pbl53a_erhvervelsesovergang_omvendt_kronologi -> pbl53a_erhvervelsesovergang_omvendt_kronologi.overgangsresultat.erhvervelser_kronologiske == Falskt && pbl53a_erhvervelsesovergang_omvendt_kronologi.overgangsresultat.fakta_gyldige == Falskt && pbl53a_erhvervelsesovergang_omvendt_kronologi.grundfakta_gyldige == Falskt && pbl53a_erhvervelsesovergang_omvendt_kronologi.omfattes_af_par53a == Falskt
+
+? pbl53a_erhvervelsesovergang_overdragelse_aktiverer_moderne_regler
+? pbl53a_erhvervelsesovergang_overdragelse_bevarer_historisk_afkastmetode_til_2009
+? pbl53a_erhvervelsesovergang_overdragelse_har_ikke_tilbagevirkende_kraft
+? pbl53a_erhvervelsesovergang_arv_bevarer_historisk_retsstilling
+? pbl53a_erhvervelsesovergang_senere_arv_ophæver_ikke_tidligere_virkning
+? pbl53a_erhvervelsesovergang_pengeinstitutarv_er_almindelig_erhvervelse
+? pbl53a_erhvervelsesovergang_før_skæringsdato_forbliver_historisk
+? pbl53a_erhvervelsesovergang_skæringsdato_er_inkluderet
+? pbl53a_erhvervelsesovergang_dagen_før_skæringsdato_forbliver_historisk
+? pbl53a_erhvervelsesovergang_uden_erhvervelse_forbliver_historisk
+? pbl53a_erhvervelsesovergang_omvendt_kronologi_fejler_lukket

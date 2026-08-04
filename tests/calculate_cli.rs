@@ -937,6 +937,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human PBL § 53 A input label {expected} on {pbl53a_sheet}"
             );
         }
+        let pbl53a_acquisitions_path = "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser";
+        let pbl53a_acquisitions_sheet =
+            workbook_collection_sheet_name(&mut workbook, pbl53a_acquisitions_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &pbl53a_acquisitions_sheet),
+            "Dansk personskat - Senere erhvervelser af ordningen"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &pbl53a_acquisitions_sheet),
+            ["dato.år", "dato.måned", "dato.dag", "måde"]
+        );
+        for expected in [
+            "Dato for senere erhvervelse - år",
+            "Dato for senere erhvervelse - måned",
+            "Dato for senere erhvervelse - dag",
+            "Erhvervelsesmåden",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &pbl53a_acquisitions_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL § 53 A acquisition label {expected} on {pbl53a_acquisitions_sheet}"
+            );
+        }
         let pbl53a_opening_losses_path = "kapitalindkomst.pbl53a.ordninger.afkastforløbsåbning.Pbl53ADokumenteretTidligereAfkasthistorik.fremførte_negative_afkast";
         let pbl53a_opening_losses_sheet =
             workbook_collection_sheet_name(&mut workbook, pbl53a_opening_losses_path);
@@ -2188,6 +2212,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("PBL § 53 A sources");
         for expected in [
             "pensionsbeskatningsloven_lbk1243_par53a",
+            "pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1",
             "pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3",
             "pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3",
             "pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7",
@@ -2199,6 +2224,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skat_juridisk_vejledning_pbl53a_indbetalinger",
             "skat_juridisk_vejledning_pbl53a_udbetalinger",
             "skat_juridisk_vejledning_pbl53a_afkast",
+            "skat_juridisk_vejledning_pbl53a_overgang",
             "skat_juridisk_vejledning_pbl53a_ordningstyper",
             "skat_juridisk_vejledning_pbl53b_omfang",
             "pensionsbeskatningsloven_lsf24_2007_par53a_stk5",
@@ -2679,6 +2705,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }
                 _ => unreachable!(),
             }
+        }
+        let pbl53a_acquisitions_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl53a-2026".to_string()),
+            ),
+            ("parent_id", Data::String("livsforsikring-pal".to_string())),
+            (
+                "item_id",
+                Data::String("livsforsikring-pal-erhvervelse-1".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            ("dato.år", Data::Int(2024)),
+            ("dato.måned", Data::Int(3)),
+            ("dato.dag", Data::Int(15)),
+            ("måde", Data::String("Pbl53AErhvervetVedArv".to_string())),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl53a_acquisitions_sheet, 1, header, value);
         }
         let pbl53a_coverages_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -5439,6 +5487,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "erhvervelser": [
+                        {
+                            "dato": { "år": 2024, "måned": 3, "dag": 15 },
+                            "måde": { "$variant": "Pbl53AErhvervetVedArv" }
+                        }
+                    ],
                     "produkt": {
                         "$variant": "Pbl53ALivsforsikringsprodukt",
                         "ejer_identifikation": "person-1",
@@ -5536,6 +5590,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "erhvervelser": [],
                     "produkt": {
                         "$variant": "Pbl53APensionskasseprodukt",
                         "pensionsberettiget_identifikation": "person-1",
@@ -5609,6 +5664,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteyder_identifikation": "person-1",
                 "omfangsfakta": {
                     "oprettelsesdato": { "år": 2020, "måned": 1, "dag": 1 },
+                    "erhvervelser": [],
                     "produkt": {
                         "$variant": "Pbl53APengeEllerKreditinstitutprodukt",
                         "kontohaver_identifikation": "person-1",
@@ -5881,6 +5937,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("positive PBL § 53 A capital posts")
             .len(),
         2
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"]
+            .as_array()
+            .expect("PBL § 53 A acquisition history")
+            .len(),
+        1
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]["dato"]
+            ["år"],
+        2024
+    );
+    assert_eq!(
+        pbl53a_result["ordningsresultater"][0]["fakta"]["omfangsfakta"]["erhvervelser"][0]["måde"]
+            ["$variant"],
+        "Pbl53AErhvervetVedArv"
     );
     assert_eq!(
         pbl53a_result["ordningsresultater"][0]["pensionsbeskatningslov_input"]["indkomstår"],

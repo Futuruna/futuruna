@@ -70,6 +70,13 @@
     ændringsstatus = "Den omskrevne § 53 A-afkastregel har virkning fra 1. januar 2010 for ordninger oprettet eller erhvervet 18. februar 1992 eller senere"
 )
 
+= pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1992/569",
+    identifier = "LOV nr. 569 af 24/06/1992, § 1, nr. 11, og § 6, stk. 1",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Indførte § 53 A for livsforsikringer oprettet eller erhvervet fra 18. februar 1992 og undtog arv af en ældre forsikring"
+)
+
 = pensionsbeskatningsloven_lbk1243_par53b = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 53 B",
@@ -110,6 +117,13 @@
     identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.5",
     hentet_dato = "2026-07-28",
     ændringsstatus = "Kontrolleret mod 2026-1: delår, flere berettigede, bindende metodevalg og negativt afkast"
+)
+
+= skat_juridisk_vejledning_pbl53a_overgang = PensionsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048471",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.6",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Kontrolleret mod 2026-1: overdragelse efter skæringsdatoen, arveundtagelsen og fortsat behandling efter den tidligere § 50"
 )
 
 = pensionsbeskatningsloven_lsf24_2007_par53a_stk5 = PensionsbeskatningslovKildeInfo(
@@ -991,10 +1005,15 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53BUdenlandskHjemsted = Pbl53BFremmedStat(stat: Tekst) | Pbl53BFærøerne | Pbl53BGrønland
 # Pbl53BOprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted | Pbl53BOprettetUdenFuldDanskSkattepligt(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_uden_dansk_skattepligt: Pbl15ADato) | Pbl53BOprettetMedDboHjemstedIUdlandet(hjemsted: Pbl53BUdenlandskHjemsted, sidste_dato_med_dbo_hjemsted_i_udlandet: Pbl15ADato)
 # Pbl53BUdenlandskIndbetalingsbehandling = Pbl53BIkkeForetagetIUdenlandsperioden | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner: Heltal, faktisk_fradrag_kroner: Heltal) | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst | Pbl53BIkkeFuldtFradragetEllerBortset
-# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
-# Pbl53BResultat(produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, omfattes_af_par53b: Boolsk)
+# Pbl53AErhvervelsesmåde = Pbl53AErhvervetVedArv | Pbl53AErhvervetPåAndenMåde
+# Pbl53AErhvervelseshændelse(dato: Pbl15ADato, måde: Pbl53AErhvervelsesmåde)
+# Pbl53AModerneVirkningsstart = Pbl53AIngenModerneVirkningsstart | Pbl53AModerneVirkningsstartFra(dato: Pbl15ADato)
+# Pbl53AErhvervelsesfold(seneste_dato_nøgle: Heltal, datoer_gyldige: Boolsk, kronologiske: Boolsk, alle_efter_oprettelsen: Boolsk, moderne_virkningsstart: Pbl53AModerneVirkningsstart, kvalificerende_arv_efter_skæringsdato: Boolsk)
+# Pbl53AOvergangsresultat(fakta_gyldige: Boolsk, erhvervelsesdatoer_gyldige: Boolsk, erhvervelser_kronologiske: Boolsk, alle_erhvervelser_efter_oprettelsen: Boolsk, moderne_virkningsstart: Pbl53AModerneVirkningsstart, arveundtagelse_bevarer_historisk_regime: Boolsk, historisk_par50_eller_statsskattelov: Boolsk)
+# Pbl53AOmfangsfakta(oprettelsesdato: Pbl15ADato, erhvervelser: List(Pbl53AErhvervelseshændelse), produkt: Pbl53AProduktfakta, afsnit_i_valg: Pbl53AAfsnitIValgfakta, institutionsfinansiering: Pbl53AInstitutionsfinansiering, par53b_oprettelsesposition: Pbl53BOprettelsesposition)
+# Pbl53BResultat(overgang_har_virkning: Boolsk, produktkreds_omfattet: Boolsk, oprettelsesbetingelse_opfyldt: Boolsk, indbetalingsdokumentation_konsistent: Boolsk, samtlige_udenlandske_indbetalinger_kvalificerer: Boolsk, omfattes_af_par53b: Boolsk)
 # Pbl53AStk1Klassifikation = Pbl53AIngenStk1Hjemmel | Pbl53AStk1Hjemmel(nummer: Heltal, ordning: Pensionsbeskatningslov53AOrdning)
-# Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
+# Pbl53AOmfangsresultat(fakta: Pbl53AOmfangsfakta, grundfakta_gyldige: Boolsk, produkt_fakta_gyldige: Boolsk, afsnit_i_valgfakta_konsistente: Boolsk, overgangsresultat: Pbl53AOvergangsresultat, modtager_statsstøtte: Boolsk, afkald_relevant_for_stk6: Boolsk, afkald_tilladt_efter_stk6: Boolsk, par53b_resultat: Pbl53BResultat, stk1_nr1_opfyldt: Boolsk, stk1_nr2_opfyldt: Boolsk, stk1_nr3_opfyldt: Boolsk, stk1_nr4_opfyldt: Boolsk, stk1_nr5_opfyldt: Boolsk, stk1_nr6_opfyldt: Boolsk, stk1_nr7_opfyldt: Boolsk, stk1_nr8_opfyldt: Boolsk, stk1_nr9_opfyldt: Boolsk, stk1_hjemler_antal: Heltal, stk1_hjemmel_entydig: Boolsk, stk1_klassifikation: Pbl53AStk1Klassifikation, risikoliv_undtaget_efter_stk4: Boolsk, syge_ulykke_undtaget_efter_stk4: Boolsk, direktørgaranti_undtaget_efter_stk4: Boolsk, undtaget_efter_stk4: Boolsk, omfattes_af_par53a: Boolsk)
 # Pensionsbeskatningslov53AAfkastmetode = Pbl53AAfkastEfterPalPar3Til5 | Pbl53AAlternativKapitalværdi
 # Pensionsbeskatningslov53AMetodehistorik = Pbl53AFørsteAfkastopgørelse | Pbl53ATidligerePalOpgørelse | Pbl53ATidligereAlternativKapitalværdiOpgørelse
 # Pbl53AAfkastregelregime = Pbl53AHistoriskKapitalværdiTilOgMed2009 | Pbl53AModerneMetodevalgFra2010 | Pbl53AHistorikIkkeUnderstøttet
@@ -1009,10 +1028,64 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
     | Pbl53AAfkastEfterPalPar3Til5 -> Sandt
     | Pbl53AAlternativKapitalværdi -> pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget == Falskt
 }
-| pbl53a_afkastregelregime(indkomstår: Heltal, oprettelsesdato: Pbl15ADato) -> hvis indkomstår <= 2009 {
+| pbl53a_overgangsskæringsdato_nøgle() -> 19920218
+| pbl53a_produkt_omfattet_af_arveundtagelsen(produkt: Pbl53AProduktfakta) -> match produkt {
+    | Pbl53ALivsforsikringsprodukt(_, _, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+| pbl53a_erhvervelse_er_kvalificerende_arv(produkt: Pbl53AProduktfakta, erhvervelse: Pbl53AErhvervelseshændelse) -> erhvervelse.måde == Pbl53AErhvervetVedArv && pbl53a_produkt_omfattet_af_arveundtagelsen(produkt)
+| pbl53a_moderne_virkningsstart_fra_oprettelse(oprettelsesdato: Pbl15ADato) -> hvis pbl15a_dato_nøgle(oprettelsesdato) >= pbl53a_overgangsskæringsdato_nøgle() { Pbl53AModerneVirkningsstartFra(dato = oprettelsesdato) } ellers { Pbl53AIngenModerneVirkningsstart }
+| pbl53a_moderne_virkningsstart_fra_erhvervelse(nuværende: Pbl53AModerneVirkningsstart, produkt: Pbl53AProduktfakta, erhvervelse: Pbl53AErhvervelseshændelse) -> match nuværende {
+    | Pbl53AModerneVirkningsstartFra(_) -> nuværende
+    | Pbl53AIngenModerneVirkningsstart -> hvis pbl15a_dato_nøgle(erhvervelse.dato) >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse) == Falskt { Pbl53AModerneVirkningsstartFra(dato = erhvervelse.dato) } ellers { Pbl53AIngenModerneVirkningsstart }
+}
+| pbl53a_erhvervelsesfold_trin(oprettelsesdato: Pbl15ADato, produkt: Pbl53AProduktfakta, tilstand: Pbl53AErhvervelsesfold, erhvervelse: Pbl53AErhvervelseshændelse) -> {
+    = dato_nøgle = pbl15a_dato_nøgle(erhvervelse.dato)
+    = dato_gyldig = pbl15a_dato_gyldig(erhvervelse.dato)
+    Pbl53AErhvervelsesfold(
+        seneste_dato_nøgle = dato_nøgle,
+        datoer_gyldige = tilstand.datoer_gyldige && dato_gyldig,
+        kronologiske = tilstand.kronologiske && dato_gyldig && dato_nøgle > tilstand.seneste_dato_nøgle,
+        alle_efter_oprettelsen = tilstand.alle_efter_oprettelsen && dato_gyldig && dato_nøgle > pbl15a_dato_nøgle(oprettelsesdato),
+        moderne_virkningsstart = pbl53a_moderne_virkningsstart_fra_erhvervelse(tilstand.moderne_virkningsstart, produkt, erhvervelse),
+        kvalificerende_arv_efter_skæringsdato = tilstand.kvalificerende_arv_efter_skæringsdato || dato_gyldig && dato_nøgle >= pbl53a_overgangsskæringsdato_nøgle() && pbl53a_erhvervelse_er_kvalificerende_arv(produkt, erhvervelse)
+    )
+}
+| pbl53a_overgangsresultat(fakta: Pbl53AOmfangsfakta) -> {
+    = tilstand = foldl(
+        fakta.erhvervelser,
+        Pbl53AErhvervelsesfold(
+            seneste_dato_nøgle = pbl15a_dato_nøgle(fakta.oprettelsesdato),
+            datoer_gyldige = Sandt,
+            kronologiske = Sandt,
+            alle_efter_oprettelsen = Sandt,
+            moderne_virkningsstart = pbl53a_moderne_virkningsstart_fra_oprettelse(fakta.oprettelsesdato),
+            kvalificerende_arv_efter_skæringsdato = Falskt
+        ),
+        |fold: Pbl53AErhvervelsesfold, erhvervelse: Pbl53AErhvervelseshændelse| pbl53a_erhvervelsesfold_trin(fakta.oprettelsesdato, fakta.produkt, fold, erhvervelse)
+    )
+    = fakta_gyldige = pbl15a_dato_gyldig(fakta.oprettelsesdato) && tilstand.datoer_gyldige && tilstand.kronologiske && tilstand.alle_efter_oprettelsen
+    = historisk_regime = fakta_gyldige && tilstand.moderne_virkningsstart == Pbl53AIngenModerneVirkningsstart
+    Pbl53AOvergangsresultat(
+        fakta_gyldige = fakta_gyldige,
+        erhvervelsesdatoer_gyldige = tilstand.datoer_gyldige,
+        erhvervelser_kronologiske = tilstand.kronologiske,
+        alle_erhvervelser_efter_oprettelsen = tilstand.alle_efter_oprettelsen,
+        moderne_virkningsstart = tilstand.moderne_virkningsstart,
+        arveundtagelse_bevarer_historisk_regime = historisk_regime && tilstand.kvalificerende_arv_efter_skæringsdato,
+        historisk_par50_eller_statsskattelov = historisk_regime
+    )
+}
+| pbl53a_moderne_regler_har_virkning_i_indkomstår(overgang: Pbl53AOvergangsresultat, indkomstår: Heltal) -> overgang.fakta_gyldige && match overgang.moderne_virkningsstart {
+    | Pbl53AModerneVirkningsstartFra(dato) -> dato.år <= indkomstår
+    | Pbl53AIngenModerneVirkningsstart -> Falskt
+}
+| pbl53a_afkastregelregime(indkomstår: Heltal, overgang: Pbl53AOvergangsresultat) -> hvis pbl53a_moderne_regler_har_virkning_i_indkomstår(overgang, indkomstår) == Falskt {
+    Pbl53AHistorikIkkeUnderstøttet
+} ellers hvis indkomstår <= 2009 {
     Pbl53AHistoriskKapitalværdiTilOgMed2009
 } ellers {
-    hvis pbl15a_dato_nøgle(oprettelsesdato) >= 19920218 { Pbl53AModerneMetodevalgFra2010 } ellers { Pbl53AHistorikIkkeUnderstøttet }
+    Pbl53AModerneMetodevalgFra2010
 }
 | pbl53a_afkastregelregime_understøttet(regime: Pbl53AAfkastregelregime) -> regime != Pbl53AHistorikIkkeUnderstøttet
 | pbl53a_afkastmetode_tilladt_i_regime(regime: Pbl53AAfkastregelregime, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, pensionsudbyder_opgjorde_afkast_efter_pal_ved_metodevalget: Boolsk) -> match regime {
@@ -1027,7 +1100,7 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 }
 
 # Pensionsbeskatningslov53ASag(input: Pensionsbeskatningslov53AInput) {
-    | afkastregelregime() -> pbl53a_afkastregelregime(input.indkomstår, input.omfangsresultat.fakta.oprettelsesdato)
+    | afkastregelregime() -> pbl53a_afkastregelregime(input.indkomstår, input.omfangsresultat.overgangsresultat)
     | regelregime_understøttet() -> pbl53a_afkastregelregime_understøttet(afkastregelregime())
     | ordning_bestod_i_indkomståret() -> input.indkomstår >= input.omfangsresultat.fakta.oprettelsesdato.år
     | omfattet_af_stk1() -> input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning)
@@ -1216,16 +1289,19 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
     | _ -> Falskt
 }
 | pbl53b_resultat(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
+    = overgangsresultat = pbl53a_overgangsresultat(fakta)
+    = overgang_har_virkning = pbl53a_moderne_regler_har_virkning_i_indkomstår(overgangsresultat, indkomstår)
     = produktkreds_omfattet = pbl53b_produktkreds_omfattet(indkomstår, fakta)
     = oprettelsesbetingelse_opfyldt = pbl53b_oprettelsesbetingelse_opfyldt(fakta.par53b_oprettelsesposition)
     = indbetalingsdokumentation_konsistent = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelsesdokumentation_konsistent(hændelse, fakta.par53b_oprettelsesposition))
     = samtlige_udenlandske_indbetalinger_kvalificerer = all(hændelser, |hændelse: Pbl53AHændelse| pbl53b_hændelse_kvalificerer(hændelse, fakta.par53b_oprettelsesposition))
     Pbl53BResultat(
+        overgang_har_virkning = overgang_har_virkning,
         produktkreds_omfattet = produktkreds_omfattet,
         oprettelsesbetingelse_opfyldt = oprettelsesbetingelse_opfyldt,
         indbetalingsdokumentation_konsistent = indbetalingsdokumentation_konsistent,
         samtlige_udenlandske_indbetalinger_kvalificerer = samtlige_udenlandske_indbetalinger_kvalificerer,
-        omfattes_af_par53b = produktkreds_omfattet && oprettelsesbetingelse_opfyldt && indbetalingsdokumentation_konsistent && samtlige_udenlandske_indbetalinger_kvalificerer
+        omfattes_af_par53b = overgang_har_virkning && produktkreds_omfattet && oprettelsesbetingelse_opfyldt && indbetalingsdokumentation_konsistent && samtlige_udenlandske_indbetalinger_kvalificerer
     )
 }
 --@end::pensionsbeskatningsloven_par53b--
@@ -1276,12 +1352,13 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53AOmfangssag(indkomstår: Heltal, fakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) {
     | produkt_fakta_gyldige() -> pbl53a_produktfakta_gyldige(fakta.produkt)
     | afsnit_i_valgfakta_konsistente() -> pbl53a_afsnit_i_valgfakta_konsistente(fakta)
+    | overgangsresultat() -> pbl53a_overgangsresultat(fakta)
     | par53b_resultat() -> pbl53b_resultat(indkomstår, fakta, hændelser)
-    | grundfakta_gyldige() -> indkomstår > 0 && pbl15a_dato_gyldig(fakta.oprettelsesdato) && produkt_fakta_gyldige() && pbl53a_produkt_karakteristika_opfyldt(fakta.produkt) && afsnit_i_valgfakta_konsistente() && pbl53a_institutionsfinansiering_gyldig(fakta.institutionsfinansiering) && pbl53b_oprettelsesposition_gyldig(fakta.oprettelsesdato, fakta.par53b_oprettelsesposition) && par53b_resultat().indbetalingsdokumentation_konsistent
+    | grundfakta_gyldige() -> indkomstår > 0 && pbl15a_dato_gyldig(fakta.oprettelsesdato) && overgangsresultat().fakta_gyldige && produkt_fakta_gyldige() && pbl53a_produkt_karakteristika_opfyldt(fakta.produkt) && afsnit_i_valgfakta_konsistente() && pbl53a_institutionsfinansiering_gyldig(fakta.institutionsfinansiering) && pbl53b_oprettelsesposition_gyldig(fakta.oprettelsesdato, fakta.par53b_oprettelsesposition) && par53b_resultat().indbetalingsdokumentation_konsistent
     | modtager_statsstøtte() -> pbl53a_modtager_statsstøtte(fakta.institutionsfinansiering)
     | afkald_relevant_for_stk6() -> pbl53a_afkald_relevant_for_stk6(fakta.produkt, fakta.afsnit_i_valg)
     | afkald_tilladt_efter_stk6() -> afkald_relevant_for_stk6() == Falskt || modtager_statsstøtte() == Falskt
-    | kan_klassificeres_i_par53a() -> grundfakta_gyldige() && par53b_resultat().omfattes_af_par53b == Falskt
+    | kan_klassificeres_i_par53a() -> grundfakta_gyldige() && pbl53a_moderne_regler_har_virkning_i_indkomstår(overgangsresultat(), indkomstår) && par53b_resultat().omfattes_af_par53b == Falskt
     | kapitel1fakta() -> pbl53a_produkt_kapitel1fakta(fakta.produkt)
     | afkald_givet_ved_oprettelsen() -> pbl53a_afkald_givet_ved_oprettelsen(fakta.afsnit_i_valg, fakta.oprettelsesdato)
     | stk1_nr1_opfyldt() -> kan_klassificeres_i_par53a() && pbl53a_livsforsikring_uden_direktørsikkerhed(fakta.produkt) && pbl53a_ikke_omfattet_af_kapitel1(kapitel1fakta())
@@ -1306,6 +1383,7 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
         grundfakta_gyldige = grundfakta_gyldige(),
         produkt_fakta_gyldige = produkt_fakta_gyldige(),
         afsnit_i_valgfakta_konsistente = afsnit_i_valgfakta_konsistente(),
+        overgangsresultat = overgangsresultat(),
         modtager_statsstøtte = modtager_statsstøtte(),
         afkald_relevant_for_stk6 = afkald_relevant_for_stk6(),
         afkald_tilladt_efter_stk6 = afkald_tilladt_efter_stk6(),
@@ -1570,14 +1648,21 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 = pbl53a_afkastovergang_kildemeta = Metadata(
     attachments = (
         Source(value = pensionsbeskatningsloven_lbk1243_par53a),
+        HistoricalSource(value = pensionsbeskatningsloven_lov569_par1_nr11_og_par6_stk1),
         HistoricalSource(value = pensionsbeskatningsloven_historisk_lbk1120_par53a_stk3),
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
         TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
     )
 )
 
 --@label:pensionsbeskatningsloven_par53a_afkastovergang::meta:pbl53a_afkastovergang_kildemeta--
 ----
+§ 6. Loven træder i kraft dagen efter bekendtgørelsen i Lovtidende og har
+virkning for forsikring og pensionsordning, der oprettes eller erhverves den
+18. februar 1992 eller senere. Loven har dog ikke virkning for arv faldet den
+18. februar 1992 eller senere af en forsikring oprettet før denne dato.
+
 § 53 A.
 
 Stk. 3. Ved opgørelsen af den skattepligtige indkomst medregnes afkastet af
@@ -1862,15 +1947,15 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     )
 }
 | pbl53a_første_afkastår(input: Pbl53AAfkastforløbsinput) -> hvis length(input.afkastår) > 0 { input.afkastår[0].indkomstår } ellers { 0 }
-| pbl53a_metodetilstand_gyldig_ved_åbning(oprettelsesdato: Pbl15ADato, seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand) -> hvis seneste_indkomstår <= 2009 {
+| pbl53a_metodetilstand_gyldig_ved_åbning(overgang: Pbl53AOvergangsresultat, seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand) -> hvis seneste_indkomstår <= 2009 {
     metodetilstand == Pbl53AIngenMetodeValgt
 } ellers {
-    pbl53a_afkastregelregime(seneste_indkomstår, oprettelsesdato) == Pbl53AModerneMetodevalgFra2010
+    pbl53a_afkastregelregime(seneste_indkomstår, overgang) == Pbl53AModerneMetodevalgFra2010
 }
 | pbl53a_åbningssaldi_gyldige(input: Pbl53AAfkastforløbsinput, seneste_indkomstår: Heltal, saldi: List(Pbl53ANegativtAfkastSaldo)) -> pbl53a_negative_afkast_saldi_kronologiske(saldi) && all(saldi, |saldo: Pbl53ANegativtAfkastSaldo| saldo.opstået_indkomstår >= input.omfangsresultat.fakta.oprettelsesdato.år && saldo.opstået_indkomstår <= seneste_indkomstår && saldo.resterende_kroner > 0 && pbl53a_negativt_afkast_saldo_anvendelig_i_år(saldo, pbl53a_første_afkastår(input)))
 | pbl53a_afkastforløbsåbning_gyldig(input: Pbl53AAfkastforløbsinput) -> match input.åbning {
     | Pbl53AIngenTidligereAfkasthistorik -> Sandt
-    | Pbl53ADokumenteretTidligereAfkasthistorik(seneste_indkomstår, metodetilstand, saldi) -> seneste_indkomstår > 0 && pbl53a_første_afkastår(input) == seneste_indkomstår + 1 && input.omfangsresultat.fakta.oprettelsesdato.år <= seneste_indkomstår && pbl53a_metodetilstand_gyldig_ved_åbning(input.omfangsresultat.fakta.oprettelsesdato, seneste_indkomstår, metodetilstand) && pbl53a_åbningssaldi_gyldige(input, seneste_indkomstår, saldi)
+    | Pbl53ADokumenteretTidligereAfkasthistorik(seneste_indkomstår, metodetilstand, saldi) -> seneste_indkomstår > 0 && pbl53a_første_afkastår(input) == seneste_indkomstår + 1 && input.omfangsresultat.fakta.oprettelsesdato.år <= seneste_indkomstår && pbl53a_metodetilstand_gyldig_ved_åbning(input.omfangsresultat.overgangsresultat, seneste_indkomstår, metodetilstand) && pbl53a_åbningssaldi_gyldige(input, seneste_indkomstår, saldi)
 }
 | pbl53a_afkastforløbstilstand_fra_åbning(input: Pbl53AAfkastforløbsinput) -> match input.åbning {
     | Pbl53AIngenTidligereAfkasthistorik -> Pbl53AAfkastforløbstilstand(
@@ -1907,7 +1992,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 # Pbl53AAfkastårstrinSag(input: Pbl53AAfkastforløbsinput, tilstand: Pbl53AAfkastforløbstilstand, fakta: Pbl53AAfkastårFakta) {
     | periode_resultat() -> pbl53a_afkastperiode_resultat(input.ordning, fakta, input.hændelsesforløbsresultat.input.hændelser)
     | skatteperiode_findes() -> pbl53a_afkastperiode_har_skattepligt(periode_resultat().afkastperiode)
-    | afkastregelregime() -> pbl53a_afkastregelregime(fakta.indkomstår, input.omfangsresultat.fakta.oprettelsesdato)
+    | afkastregelregime() -> pbl53a_afkastregelregime(fakta.indkomstår, input.omfangsresultat.overgangsresultat)
     | regelregime_understøttet() -> pbl53a_afkastregelregime_understøttet(afkastregelregime())
     | afkastmetode() -> pbl53a_afkastmetode(fakta.afkastgrundlag)
     | afkastmetode_for_beregning() -> match afkastregelregime() {
@@ -2034,6 +2119,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 )
 | pbl53a_omfang_fixture(produkt: Pbl53AProduktfakta) -> pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    erhvervelser = [],
     produkt = produkt,
     afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
     institutionsfinansiering = pbl53a_privat_finansiering_fixture,
@@ -2085,6 +2171,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 ))
 = pbl53a_par53b_omfang_fixture = pbl53a_omfangsresultat(2026, Pbl53AOmfangsfakta(
     oprettelsesdato = Pbl15ADato(år = 2017, måned = 1, dag = 1),
+    erhvervelser = [],
     produkt = Pbl53ALivsforsikringsprodukt(
         ejer_identifikation = "person-1",
         forsikret_identifikation = "person-1",
