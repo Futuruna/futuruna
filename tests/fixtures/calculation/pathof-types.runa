@@ -1,0 +1,3 @@
+# ImportedChild(age: Int)
+# ImportedIncome = ImportedWage(amount: Int) | ImportedBusiness(profit: Int)
+# ImportedInput(children: List(ImportedChild), income: ImportedIncome)

@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-80abd7` (afled senere boligklassifikation efter EBL §§ 8, stk. 5, og 9, stk. 4 fra daterede kildefakta; implementation and verification complete, pending independent review)
+Current implementation slice: select the next material calculation gap under `td-2d84ec`
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
-Current language support slice: none
+Current language support slice: `td-2e3b7e` (`pathof`-referencer er implementeret og verificeret; pending independent review)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
-Latest approved implementation slice: `td-2c1961`
+Latest approved implementation slice: `td-80abd7`
 Latest approved language slice: `td-29d539`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -50,6 +50,19 @@ ankerstavemåder, ekstra referencer og markører over 160 tegn. Rust-kodegenerat
 normaliserer samtidig generiske typeparametre med fuld Unicode-versalisering, så
 typede danske metadatafelter som `årsopgørelse` bruger samme Rust-typeparameter
 i deklarationer, felter og markørimplementeringer.
+
+Beregningsmetadata kan nu bruge den strukturelle kompileringstidsværdi
+`pathof(PersonskatInput::felt::underfelt)` i stedet for en uigennemsigtig
+tekststi. Rodtypen og hvert segment kontrolleres mod lokale og importerede typer
+under `runa check`; lister, mængder, valgfrie værdier og map-værdier gennemløbes
+uden kunstige indekssegmenter, mens sumtyper kræver en udtrykkelig variant eller
+den afsluttende diskriminator `$variant`. Udtrykket sænkes til den samme
+kanoniske tekststi som hidtil, så kontrakt-, JSON- og XLSX-formaterne er
+bagudkompatible. Personskat-filen bruger formen på både `skatteår` og tre dybe,
+flerlinjede EBL §§ 8/9-stier. Den fulde Personskat-kontrol og hele Rust-suiten,
+inklusive den kanoniske XLSX-rundtur, passerer med både ældre tekststier og nye
+strukturelle stier.
+
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
 Personskattelovens § 3 udstiller nu også en typet `warning` om

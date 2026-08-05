@@ -122,7 +122,7 @@
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatBeregningResultat(skat: LønmodtagerBreakdown, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
-    path = "lønmodtager.skatteår",
+    path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
     question = Some("Hvilket indkomstår skal skatten beregnes for?"),
     help = Some("Satser, beløbsgrænser og lovregler afhænger af skatteåret."),
@@ -2054,7 +2054,22 @@
     unit = None
 )
 = personskat_felt_egen_par8_anvendelsesændringsår = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.år",
+    path = pathof(
+        PersonskatInput::
+        kapitalindkomst::
+        ejendomsavance::
+        MedEjendomsavance::
+        fakta::
+        egne_afståelser::
+        ejendomstype::
+        EblBoligejendom::
+        fakta::
+        genanbringelsesforhold::
+        EblPar8GenanbringelseEfterStk5::
+        anvendelsesændring::
+        ændringsdato::
+        år
+    ),
     label = "§ 8-anvendelsesændring: år",
     question = Some("Hvilket år ændrede ejendommen anvendelse til en § 8-boligejendom?"),
     help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
@@ -2124,7 +2139,22 @@
     unit = None
 )
 = personskat_felt_egen_par9_boligandelsændringsår = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.år",
+    path = pathof(
+        PersonskatInput::
+        kapitalindkomst::
+        ejendomsavance::
+        MedEjendomsavance::
+        fakta::
+        egne_afståelser::
+        ejendomstype::
+        EblLandbrugSkovNaturEllerBlandetEjendom::
+        fakta::
+        genanbringelsesforhold::
+        EblPar9GenanbringelseEfterStk4::
+        boligandelsændring::
+        ændringsdato::
+        år
+    ),
     label = "§ 9-boligandelsændring: år",
     question = Some("Hvilket år blev boligandelen i ejendommen ændret?"),
     help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
@@ -2180,7 +2210,21 @@
     unit = Some("promille")
 )
 = personskat_felt_egen_par9_boligandel_efter_ændringen = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_efter_ændringen_promille",
+    path = pathof(
+        PersonskatInput::
+        kapitalindkomst::
+        ejendomsavance::
+        MedEjendomsavance::
+        fakta::
+        egne_afståelser::
+        ejendomstype::
+        EblLandbrugSkovNaturEllerBlandetEjendom::
+        fakta::
+        genanbringelsesforhold::
+        EblPar9GenanbringelseEfterStk4::
+        boligandelsændring::
+        boligandel_efter_ændringen_promille
+    ),
     label = "Boligandel efter ændringen",
     question = Some("Hvor stor var ejendommens boligandel efter ændringen?"),
     help = Some("§ 9, stk. 4, kan kun anvendes, når denne andel er større end andelen ved genanbringelsen."),

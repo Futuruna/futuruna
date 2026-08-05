@@ -155,6 +155,62 @@ fn schema_expands_typed_aggregate_meta_into_field_metadata() {
 }
 
 #[test]
+fn schema_lowers_structural_pathof_field_metadata_to_canonical_paths() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Child(age: Int)\n\
+# Income = Wage(amount: Int) | Business(profit: Int)\n\
+# Input(children: List(Child), income: Income)\n\
+# Result(value: Int)\n\
+# CalculationField(path: String, label: String)\n\
+# CalculationMeta(fields: List(CalculationField))\n\
+# impl Meta for CalculationMeta {}\n\
+= calculation_meta = CalculationMeta(fields = [\n\
+    CalculationField(path = pathof(Input::children::age), label = \"Child age\"),\n\
+    CalculationField(path = pathof(Input::income::$variant), label = \"Income kind\"),\n\
+    CalculationField(path = pathof(Input::income::Wage::amount), label = \"Wage amount\")\n\
+])\n\
+--@label:calculate::meta:calculation_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write pathof calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 3);
+    assert_eq!(fields[0]["path"], "children.age");
+    assert_eq!(fields[1]["path"], "income.$variant");
+    assert_eq!(fields[2]["path"], "income.Wage.amount");
+}
+
+#[test]
+fn schema_checks_pathof_against_plain_imported_types() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation/pathof-import.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0]["path"], "children.age");
+    assert_eq!(fields[1]["path"], "income.ImportedWage.amount");
+}
+
+#[test]
 fn schema_expands_computed_typed_aggregate_meta_into_field_metadata() {
     let path = temp_path("runa");
     std::fs::write(

@@ -1,0 +1,22 @@
+@ import ./pathof-types
+
+# PathofResult(value: Int)
+# CalculationField(path: String, label: String)
+# CalculationMeta(fields: List(CalculationField))
+# impl Meta for CalculationMeta {}
+
+= pathof_import_meta = CalculationMeta(fields = [
+    CalculationField(
+        path = pathof(ImportedInput::children::age),
+        label = "Imported child age"
+    ),
+    CalculationField(
+        path = pathof(ImportedInput::income::ImportedWage::amount),
+        label = "Imported wage amount"
+    )
+])
+
+--@label:calculate_imported::meta:pathof_import_meta--
+
+@ calculate("Imported structural paths")
+| calculate_imported(input: ImportedInput) -> PathofResult(value = 0)

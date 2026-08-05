@@ -13612,7 +13612,416 @@ fn lsp_source_dir(uri: &str) -> Option<String> {
 
 // ── Go-to-definition ────────────────────────────────────────────────
 
+#[derive(Clone)]
+struct LspPathDocument {
+    uri: String,
+    source: String,
+    statements: Vec<Stmt>,
+}
+
+#[derive(Clone)]
+struct LspPathTypeDeclaration {
+    document: usize,
+    owner: String,
+    fields: BTreeMap<String, Ty>,
+    variants: Vec<String>,
+}
+
+#[derive(Clone)]
+struct LspPathVariantDeclaration {
+    document: usize,
+    owner: String,
+    variant: String,
+    fields: BTreeMap<String, Ty>,
+}
+
+#[derive(Default)]
+struct LspPathSchema {
+    types: BTreeMap<String, LspPathTypeDeclaration>,
+    variants: BTreeMap<(String, String), LspPathVariantDeclaration>,
+}
+
+#[derive(Clone)]
+enum LspPathCursor {
+    Type(String),
+    Variant { parent: String, name: String },
+}
+
+fn lsp_document_uri(path: &std::path::Path) -> String {
+    format!("file://{}", path.to_string_lossy().replace(' ', "%20"))
+}
+
+fn lsp_collect_path_documents(
+    uri: &str,
+    source: &str,
+    visited: &mut BTreeSet<String>,
+    documents: &mut Vec<LspPathDocument>,
+) {
+    if !visited.insert(uri.to_string()) {
+        return;
+    }
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let Ok(statements) = parser.parse_program() else {
+        return;
+    };
+
+    if let Some(source_dir) = lsp_source_dir(uri) {
+        for statement in &statements {
+            let Stmt::Import(import_path) = statement else {
+                continue;
+            };
+            let Some(file_path) =
+                Interpreter::resolve_import_path_for_source(import_path, &source_dir)
+            else {
+                continue;
+            };
+            let path = std::fs::canonicalize(&file_path)
+                .unwrap_or_else(|_| std::path::PathBuf::from(&file_path));
+            let Ok(imported_source) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let imported_uri = lsp_document_uri(&path);
+            lsp_collect_path_documents(&imported_uri, &imported_source, visited, documents);
+        }
+    }
+
+    documents.push(LspPathDocument {
+        uri: uri.to_string(),
+        source: source.to_string(),
+        statements,
+    });
+}
+
+fn lsp_path_schema(documents: &[LspPathDocument]) -> LspPathSchema {
+    let mut schema = LspPathSchema::default();
+    for (document, source) in documents.iter().enumerate() {
+        for statement in &source.statements {
+            match statement {
+                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                    let mut fields = BTreeMap::new();
+                    let variant_names = variants
+                        .iter()
+                        .map(|variant| variant.name.clone())
+                        .collect::<Vec<_>>();
+                    for variant in variants {
+                        let variant_fields = variant
+                            .fields
+                            .iter()
+                            .map(|field| (field.name.clone(), field.ty.clone()))
+                            .collect::<BTreeMap<_, _>>();
+                        fields.extend(variant_fields.clone());
+                        schema.variants.insert(
+                            (name.clone(), variant.name.clone()),
+                            LspPathVariantDeclaration {
+                                document,
+                                owner: name.clone(),
+                                variant: variant.name.clone(),
+                                fields: variant_fields,
+                            },
+                        );
+                    }
+                    schema.types.insert(
+                        name.clone(),
+                        LspPathTypeDeclaration {
+                            document,
+                            owner: name.clone(),
+                            fields,
+                            variants: if variants.len() > 1 {
+                                variant_names
+                            } else {
+                                Vec::new()
+                            },
+                        },
+                    );
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                    schema.types.insert(
+                        name.clone(),
+                        LspPathTypeDeclaration {
+                            document,
+                            owner: name.clone(),
+                            fields: params
+                                .iter()
+                                .filter_map(|parameter| {
+                                    parameter
+                                        .ty
+                                        .as_ref()
+                                        .map(|ty| (parameter.name.clone(), ty.clone()))
+                                })
+                                .collect(),
+                            variants: Vec::new(),
+                        },
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+    schema
+}
+
+fn lsp_path_transparent_ty(ty: &Ty) -> &Ty {
+    match ty {
+        Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+            lsp_path_transparent_ty(inner)
+        }
+        Ty::App(constructor, arguments) => {
+            let Ty::Name(name) = constructor.as_ref() else {
+                return ty;
+            };
+            let inner = match name.as_str() {
+                "List" | "Set" | "Option" => arguments.first(),
+                "Map" => arguments.get(1),
+                _ => None,
+            };
+            inner.map(lsp_path_transparent_ty).unwrap_or(ty)
+        }
+        _ => ty,
+    }
+}
+
+fn lsp_path_cursor_from_ty(ty: &Ty) -> Option<LspPathCursor> {
+    match lsp_path_transparent_ty(ty) {
+        Ty::Name(name) => Some(LspPathCursor::Type(name.clone())),
+        Ty::App(constructor, _) => match constructor.as_ref() {
+            Ty::Name(name) => Some(LspPathCursor::Type(name.clone())),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn lsp_path_cursor_step(
+    schema: &LspPathSchema,
+    cursor: &LspPathCursor,
+    segment: &str,
+) -> Option<LspPathCursor> {
+    match cursor {
+        LspPathCursor::Type(type_name) => {
+            let declaration = schema.types.get(type_name)?;
+            if declaration
+                .variants
+                .iter()
+                .any(|variant| variant == segment)
+            {
+                return Some(LspPathCursor::Variant {
+                    parent: type_name.clone(),
+                    name: segment.to_string(),
+                });
+            }
+            declaration
+                .fields
+                .get(segment)
+                .and_then(lsp_path_cursor_from_ty)
+        }
+        LspPathCursor::Variant { parent, name } => schema
+            .variants
+            .get(&(parent.clone(), name.clone()))?
+            .fields
+            .get(segment)
+            .and_then(lsp_path_cursor_from_ty),
+    }
+}
+
+fn lsp_cursor_char_offset(source: &str, line: u32, col: u32) -> Option<usize> {
+    let mut offset = 0usize;
+    for (index, source_line) in source.split_inclusive('\n').enumerate() {
+        if index == line as usize {
+            let line_chars = source_line.trim_end_matches('\n').chars().count();
+            return Some(offset + (col as usize).min(line_chars));
+        }
+        offset += source_line.chars().count();
+    }
+    (line as usize == source.lines().count()).then_some(offset)
+}
+
+fn lsp_pathof_reference_at(
+    source: &str,
+    statements: &[Stmt],
+    line: u32,
+    col: u32,
+) -> Option<(Vec<String>, usize)> {
+    let offset = lsp_cursor_char_offset(source, line, col)?;
+    let mut found = None;
+    for statement in statements {
+        walk_ast_stmt(statement, &mut |child| {
+            if found.is_some() {
+                return;
+            }
+            let AstChild::Expr(expression) = child else {
+                return;
+            };
+            let ExprKind::App(function, arguments) = &expression.kind else {
+                return;
+            };
+            if !matches!(&function.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
+                return;
+            }
+            let Some(index) = arguments
+                .iter()
+                .position(|argument| offset >= argument.span.start && offset <= argument.span.end)
+            else {
+                return;
+            };
+            let parts = arguments
+                .iter()
+                .map(|argument| match &argument.kind {
+                    ExprKind::Lit(Literal::Str(part)) => Some(part.clone()),
+                    _ => None,
+                })
+                .collect::<Option<Vec<_>>>();
+            if let Some(parts) = parts {
+                found = Some((parts, index));
+            }
+        });
+    }
+    found
+}
+
+fn lsp_identifier_pos_after(line: &str, name: &str, start: usize) -> Option<u32> {
+    for (relative, _) in line.get(start..)?.match_indices(name) {
+        let byte = start + relative;
+        let before = line[..byte].chars().next_back();
+        let after = line[byte + name.len()..].chars().next();
+        let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+        if before.is_none_or(|character| !is_identifier(character))
+            && after.is_none_or(|character| !is_identifier(character))
+        {
+            return Some(line[..byte].chars().count() as u32);
+        }
+    }
+    None
+}
+
+fn lsp_find_type_member_pos(
+    source: &str,
+    owner: &str,
+    section: Option<&str>,
+    member: &str,
+) -> Option<(u32, u32)> {
+    let (line_index, owner_col) = lsp_find_def_pos(source, owner)?;
+    let line = source.lines().nth(line_index as usize)?;
+    let owner_byte = line
+        .char_indices()
+        .nth(owner_col as usize)
+        .map(|(byte, _)| byte)
+        .unwrap_or(line.len());
+    let mut start = owner_byte + owner.len();
+    if let Some(section) = section {
+        let section_col = lsp_identifier_pos_after(line, section, start)? as usize;
+        start = line
+            .char_indices()
+            .nth(section_col)
+            .map(|(byte, _)| byte + section.len())
+            .unwrap_or(line.len());
+    }
+    Some((line_index, lsp_identifier_pos_after(line, member, start)?))
+}
+
+fn lsp_path_location(
+    documents: &[LspPathDocument],
+    document: usize,
+    owner: &str,
+    section: Option<&str>,
+    symbol: &str,
+) -> Option<serde_json::Value> {
+    let document = documents.get(document)?;
+    let (line, character) = if symbol == owner && section.is_none() {
+        lsp_find_def_pos(&document.source, owner)?
+    } else {
+        lsp_find_type_member_pos(&document.source, owner, section, symbol)?
+    };
+    Some(serde_json::json!({
+        "uri": document.uri,
+        "range": {
+            "start": {"line": line, "character": character},
+            "end": {"line": line, "character": character + symbol.chars().count() as u32}
+        }
+    }))
+}
+
+fn lsp_pathof_definition(
+    uri: &str,
+    source: &str,
+    line: u32,
+    col: u32,
+) -> Option<serde_json::Value> {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let statements = parser.parse_program().ok()?;
+    let (parts, selected) = lsp_pathof_reference_at(source, &statements, line, col)?;
+    let root = parts.first()?;
+
+    let mut documents = Vec::new();
+    lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
+    let schema = lsp_path_schema(&documents);
+    let root_declaration = schema.types.get(root)?;
+    if selected == 0 {
+        return lsp_path_location(
+            &documents,
+            root_declaration.document,
+            &root_declaration.owner,
+            None,
+            root,
+        );
+    }
+
+    let mut cursor = LspPathCursor::Type(root.clone());
+    for segment in parts.iter().skip(1).take(selected - 1) {
+        cursor = lsp_path_cursor_step(&schema, &cursor, segment)?;
+    }
+    let target = parts.get(selected)?;
+    match cursor {
+        LspPathCursor::Type(type_name) => {
+            let declaration = schema.types.get(&type_name)?;
+            if target == "$variant" {
+                return lsp_path_location(
+                    &documents,
+                    declaration.document,
+                    &declaration.owner,
+                    None,
+                    &declaration.owner,
+                );
+            }
+            if declaration.variants.iter().any(|variant| variant == target) {
+                return lsp_path_location(
+                    &documents,
+                    declaration.document,
+                    &declaration.owner,
+                    None,
+                    target,
+                );
+            }
+            declaration.fields.get(target)?;
+            lsp_path_location(
+                &documents,
+                declaration.document,
+                &declaration.owner,
+                None,
+                target,
+            )
+        }
+        LspPathCursor::Variant { parent, name } => {
+            let declaration = schema.variants.get(&(parent, name))?;
+            declaration.fields.get(target)?;
+            lsp_path_location(
+                &documents,
+                declaration.document,
+                &declaration.owner,
+                Some(&declaration.variant),
+                target,
+            )
+        }
+    }
+}
+
 fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::Value {
+    if let Some(location) = lsp_pathof_definition(uri, source, line, col) {
+        return location;
+    }
     let word = match lsp_word_at(source, line, col) {
         Some(w) => w,
         None => return serde_json::Value::Null,
@@ -16404,6 +16813,13 @@ impl<'a> LoweringCtx<'a> {
 
     /// Lower an AST expression to FIR with type resolution.
     fn lower_expr(&mut self, expr: &Expr) -> FirExpr {
+        if let Some(path) = pathof_canonical_path(expr) {
+            return FirExpr {
+                kind: FirExprKind::Lit(Literal::Str(path)),
+                span: expr.span,
+                ty: FirTy::String,
+            };
+        }
         match &expr.kind {
             ExprKind::Var(name) => {
                 let ty = self
@@ -35171,6 +35587,9 @@ impl RustCodegen {
     }
 
     fn emit_expr(&mut self, expr: &Expr) -> String {
+        if let Some(path) = pathof_canonical_path(expr) {
+            return format!("{:?}.to_string()", path);
+        }
         match &expr.kind {
             ExprKind::Var(name) => {
                 // Nullary constructor
@@ -45963,6 +46382,95 @@ for x in [1, 2] {
     fn compile_and_run_test_file(path: &std::path::Path) -> String {
         let source = std::fs::read_to_string(path).expect("read test file");
         compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
+    }
+
+    #[test]
+    fn pathof_top_level_bindings_compile_to_canonical_strings() {
+        let source = r#"
+# Nested(value: Int)
+# Input(nested: Nested)
+= field_path = pathof(Input::nested::value)
+@ print(field_path)
+"#;
+        assert_eq!(interpret_test_source(source, None).trim(), "nested.value");
+        assert_eq!(
+            compile_and_run_test_source(source, None).trim(),
+            "nested.value"
+        );
+    }
+
+    #[test]
+    fn lsp_pathof_definition_navigates_fields_variants_and_discriminators() {
+        let source = r#"# Child(age: Int)
+# Income = Wage(amount: Int) | Business(profit: Int)
+# Input(children: List(Child), income: Income)
+= child_path = pathof(Input::children::age)
+= wage_path = pathof(Input::income::Wage::amount)
+= kind_path = pathof(Input::income::$variant)
+"#;
+        let position = |needle: &str| {
+            let offset = source.rfind(needle).expect("path segment in source");
+            let prefix = &source[..offset];
+            (
+                prefix.lines().count().saturating_sub(1) as u32,
+                prefix
+                    .lines()
+                    .last()
+                    .map(str::chars)
+                    .map(Iterator::count)
+                    .unwrap_or(0) as u32,
+            )
+        };
+
+        let (line, col) = position("age)");
+        let age = lsp_pathof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("child age definition");
+        assert_eq!(age["range"]["start"]["line"], 0);
+        assert_eq!(age["range"]["start"]["character"], 8);
+
+        let (line, col) = position("Wage::amount");
+        let wage = lsp_pathof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("wage variant definition");
+        assert_eq!(wage["range"]["start"]["line"], 1);
+        assert_eq!(wage["range"]["start"]["character"], 11);
+
+        let (line, col) = position("amount)");
+        let amount = lsp_pathof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("wage amount definition");
+        assert_eq!(amount["range"]["start"]["line"], 1);
+        assert_eq!(amount["range"]["start"]["character"], 16);
+
+        let (line, col) = position("variant)");
+        let discriminator = lsp_pathof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("income discriminator definition");
+        assert_eq!(discriminator["range"]["start"]["line"], 1);
+        assert_eq!(discriminator["range"]["start"]["character"], 2);
+    }
+
+    #[test]
+    fn lsp_pathof_definition_navigates_plain_imported_types() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/calculation/pathof-import.calculate.runa");
+        let source = std::fs::read_to_string(&path).expect("pathof fixture");
+        let offset = source.find("children::age").expect("imported path") + "children::".len();
+        let prefix = &source[..offset];
+        let line = prefix.lines().count().saturating_sub(1) as u32;
+        let col = prefix
+            .lines()
+            .last()
+            .map(str::chars)
+            .map(Iterator::count)
+            .unwrap_or(0) as u32;
+        let uri = lsp_document_uri(&std::fs::canonicalize(path).expect("canonical fixture"));
+
+        let definition =
+            lsp_pathof_definition(&uri, &source, line, col).expect("imported child age definition");
+        assert!(definition["uri"]
+            .as_str()
+            .expect("definition URI")
+            .ends_with("/pathof-types.runa"));
+        assert_eq!(definition["range"]["start"]["line"], 0);
+        assert_eq!(definition["range"]["start"]["character"], 16);
     }
 
     fn interpret_test_source(source: &str, filename: Option<&str>) -> String {

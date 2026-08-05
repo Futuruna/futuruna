@@ -49,7 +49,7 @@ contains the fields and their provenance.
     section = "income"
 )
 = monthly_income_field = CalculationField(
-    path = "monthly_income",
+    path = pathof(Input::monthly_income),
     label = "Monthly income before tax",
     question = Some("What do you earn before tax each month?"),
     help = Some("Use the gross amount before deductions."),
@@ -71,6 +71,17 @@ a path such as `children.age`, while `children` can describe the collection
 itself. `input.monthly_income` and `TaxInput.monthly_income` are accepted and
 normalized to the canonical path. Unknown paths and duplicate metadata for one
 path are errors.
+
+Prefer `pathof(InputType::field::nested_field)` for new metadata. It is checked
+against the declared or plainly imported type graph during `runa check`, has
+type `String`, and lowers to the same canonical string stored in the contract.
+`List`, `Set`, optional, and string-keyed `Map` value traversal is transparent:
+`pathof(Input::children::age)` lowers to `"children.age"`. Sum types require an
+explicit constructor segment, such as
+`pathof(Input::income::WageIncome::amount)`. Their discriminator uses the
+terminal form `pathof(Input::income::$variant)`. A misspelled segment is
+reported at that segment. Literal paths remain supported for generated data and
+backward compatibility.
 
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
 `path` and `label` are required strings. The other fields may be strings,

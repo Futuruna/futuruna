@@ -232,6 +232,14 @@ path. Unknown targets and duplicate metadata for one path fail contract
 extraction. Non-`field` references on the same anchor are retained as typed
 source/context links for that field.
 
+New source should author paths with
+`pathof(InputType::field::nested_field)`. This compile-time expression has type
+`String`, traverses declared and plainly imported record schemas, crosses
+collections to their element or value type, and requires explicit sum-type
+constructor selectors. A terminal `$variant` segment names the discriminator.
+It lowers to the same canonical path string before metadata serialization, so
+it neither changes the contract schema nor invalidates legacy literal paths.
+
 Field metadata cannot add requiredness, alternatives, defaults, or constraints
 that contradict the Futuruna type. It is nevertheless part of the contract hash,
 because a generated interview or workbook must not silently keep stale labels or

@@ -189,6 +189,27 @@ typed `CalculationField` descendants. JSON output reports those descendants as
 aggregate and nested types are ordinary user-defined Futuruna types. Only the
 two empty marker traits and the label attachment edge are standardized.
 
+When metadata names a field in another declared schema, use a structural path
+instead of repeating that field path as an opaque string:
+
+```runa
+# Household(children: List(Child), income: Income)
+# Child(age: Int)
+# Income = Wage(amount: Int) | Business(profit: Int)
+
+= child_age_path = pathof(Household::children::age)
+= wage_path = pathof(Household::income::Wage::amount)
+= income_kind_path = pathof(Household::income::$variant)
+```
+
+`pathof` is a generic compile-time `String` value. The root type is checked but
+omitted from the result, so these values lower to `"children.age"`,
+`"income.Wage.amount"`, and `"income.$variant"`. Collection elements are
+traversed implicitly; sum alternatives are explicit. Plainly imported types are
+resolved through the same declaration graph. This gives metadata consumers a
+stable serialized string without sacrificing source navigation or rename-time
+checking. Existing string values remain valid.
+
 When the aggregate also needs role-bearing values, define a sum type whose
 variants each have one named `value` field and implement the standard
 `MetaRole` marker. This moves the role map into ordinary Futuruna data instead

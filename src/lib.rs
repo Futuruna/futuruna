@@ -1101,6 +1101,23 @@ impl Lexer {
                 continue;
             }
 
+            // Structural path selector used by pathof(...::$variant).
+            if c == '$'
+                && self
+                    .peek2()
+                    .is_some_and(|next| next.is_alphabetic() || next == '_')
+            {
+                self.advance();
+                let word = self.read_word();
+                tokens.push(Token::new(
+                    TokenKind::Ident,
+                    format!("${}", word),
+                    line,
+                    col,
+                ));
+                continue;
+            }
+
             // Words: identifiers, keywords, type names, booleans
             // Uses the keyword table (set by @ sprog / @ language declaration)
             if c.is_alphabetic() || c == '_' {
@@ -4307,6 +4324,7 @@ pub enum ExprKind {
 }
 
 pub const NAMED_ARG_MARKER: &str = "__named_arg";
+pub const PATHOF_MARKER: &str = "__pathof";
 
 /// Expression AST node: wraps ExprKind with source location.
 #[derive(Debug, Clone)]
@@ -4370,6 +4388,29 @@ pub fn has_named_args(args: &[Expr]) -> bool {
 
 pub fn all_named_args(args: &[Expr]) -> bool {
     args.iter().all(is_named_arg_expr)
+}
+
+/// Return the canonical path represented by the parser's internal `pathof`
+/// call. The root type is used for checking but is not part of the serialized
+/// calculation path.
+pub fn pathof_canonical_path(expr: &Expr) -> Option<String> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == PATHOF_MARKER)
+        || arguments.len() < 2
+    {
+        return None;
+    }
+    let segments = arguments
+        .iter()
+        .skip(1)
+        .map(|argument| match &argument.kind {
+            ExprKind::Lit(Literal::Str(segment)) => Some(segment.as_str()),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(segments.join("."))
 }
 
 pub fn reorder_named_args_by_names(param_order: &[String], args: &[Expr]) -> Option<Vec<Expr>> {
@@ -7918,11 +7959,81 @@ impl Parser {
         paren_depth > 0 || bracket_depth > 0
     }
 
+    fn parse_pathof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
+        self.expect(TokenKind::LParen)?;
+        self.skip_semis();
+
+        let root = self.advance();
+        if root.kind != TokenKind::Type {
+            return Err(format!(
+                "{}:{}: pathof root must be a declared type name, got `{}`",
+                root.line, root.col, root.text
+            ));
+        }
+        let mut arguments = vec![Expr::new(
+            ExprKind::Lit(Literal::Str(root.text.clone())),
+            self.token_span(&root),
+        )];
+
+        loop {
+            self.skip_semis();
+            if self.peek_kind() == TokenKind::RParen {
+                break;
+            }
+            let first_colon = self.expect(TokenKind::Colon)?;
+            if self.peek_kind() != TokenKind::Colon {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: pathof segments use `::`; expected a second `:` after {}:{}",
+                    token.line, token.col, first_colon.line, first_colon.col
+                ));
+            }
+            self.advance();
+            self.skip_semis();
+            let segment = self.advance();
+            if !matches!(
+                segment.kind,
+                TokenKind::Ident | TokenKind::Type | TokenKind::KW | TokenKind::Bool_
+            ) {
+                return Err(format!(
+                    "{}:{}: expected a field, variant, or `$variant` after `::`, got `{}`",
+                    segment.line, segment.col, segment.text
+                ));
+            }
+            if segment.text.starts_with('$') && segment.text != "$variant" {
+                return Err(format!(
+                    "{}:{}: unknown pathof selector `{}`; only `$variant` is supported",
+                    segment.line, segment.col, segment.text
+                ));
+            }
+            arguments.push(Expr::new(
+                ExprKind::Lit(Literal::Str(segment.text.clone())),
+                self.token_span(&segment),
+            ));
+        }
+
+        if arguments.len() == 1 {
+            return Err(format!(
+                "{}:{}: pathof requires at least one field or variant segment",
+                root.line, root.col
+            ));
+        }
+        self.expect(TokenKind::RParen)?;
+        let function = Expr::new(
+            ExprKind::Var(PATHOF_MARKER.to_string()),
+            self.token_span(&start_tok),
+        );
+        Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok))
+    }
+
     pub fn parse_atom(&mut self) -> Result<Expr, String> {
         match self.peek_kind() {
             // Identifiers and type constructors
             TokenKind::Ident => {
                 let tok = self.advance();
+                if tok.text == "pathof" && self.peek_kind() == TokenKind::LParen {
+                    return self.parse_pathof_expr(tok);
+                }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
             }
@@ -10772,6 +10883,11 @@ impl Interpreter {
                 }
                 // Check if this is an effect operation call dispatched to a handler
                 if let ExprKind::Var(ref fn_name) = (*func).kind {
+                    if fn_name == PATHOF_MARKER {
+                        return pathof_canonical_path(expr)
+                            .map(Value::Str)
+                            .unwrap_or(Value::Unit);
+                    }
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
                         return result;
                     }
@@ -15370,6 +15486,9 @@ pub struct TypeChecker {
     type_fields: BTreeMap<String, BTreeSet<String>>,
     /// Type name -> field name -> field type name.
     type_field_types: BTreeMap<String, BTreeMap<String, String>>,
+    /// Type name -> field name -> declared field type, retained structurally for
+    /// compile-time schema traversal such as `pathof`.
+    type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Rule/function name -> inferred value return type name.
     rule_return_types: BTreeMap<String, String>,
     /// RuleScope name -> scoped member name -> inferred value return type name.
@@ -15435,6 +15554,7 @@ impl TypeChecker {
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
             type_field_types: BTreeMap::new(),
+            type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
             rule_scope_member_return_types: BTreeMap::new(),
             var_types: vec![BTreeMap::new()],
@@ -16261,6 +16381,156 @@ impl TypeChecker {
             .cloned()
     }
 
+    fn pathof_transparent_ty(ty: &Ty) -> &Ty {
+        match ty {
+            Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                Self::pathof_transparent_ty(inner)
+            }
+            Ty::App(constructor, arguments) => {
+                let Ty::Name(name) = constructor.as_ref() else {
+                    return ty;
+                };
+                let inner = match name.as_str() {
+                    "List" | "Set" | "Option" => arguments.first(),
+                    "Map" => arguments.get(1),
+                    _ => None,
+                };
+                inner.map(Self::pathof_transparent_ty).unwrap_or(ty)
+            }
+            _ => ty,
+        }
+    }
+
+    fn pathof_named_type(ty: &Ty) -> Option<&str> {
+        match ty {
+            Ty::Name(name) => Some(name),
+            Ty::App(constructor, _) => match constructor.as_ref() {
+                Ty::Name(name) => Some(name),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn check_pathof_expr(&mut self, expr: &Expr, arguments: &[Expr]) {
+        if arguments.len() < 2 {
+            self.error_at_expr(
+                expr,
+                "pathof requires a root type and at least one path segment".to_string(),
+            );
+            return;
+        }
+
+        let ExprKind::Lit(Literal::Str(root)) = &arguments[0].kind else {
+            self.error_at_expr(
+                &arguments[0],
+                "pathof root must be a declared type name".to_string(),
+            );
+            return;
+        };
+        if !self.types.contains(root) {
+            self.error_at_expr(
+                &arguments[0],
+                format!("pathof references unknown type `{}`", root),
+            );
+            return;
+        }
+
+        let mut current = Ty::Name(root.clone());
+        for (index, argument) in arguments.iter().enumerate().skip(1) {
+            let ExprKind::Lit(Literal::Str(segment)) = &argument.kind else {
+                self.error_at_expr(
+                    argument,
+                    "pathof segments must be structural names".to_string(),
+                );
+                return;
+            };
+            current = Self::pathof_transparent_ty(&current).clone();
+            let Some(type_name) = Self::pathof_named_type(&current).map(str::to_string) else {
+                self.error_at_expr(
+                    argument,
+                    format!(
+                        "pathof cannot traverse `{}` through non-record type `{}`",
+                        segment, current
+                    ),
+                );
+                return;
+            };
+
+            let variants = self.type_variants.get(&type_name).cloned();
+            if segment == "$variant" {
+                if variants.as_ref().is_none_or(Vec::is_empty) {
+                    self.error_at_expr(
+                        argument,
+                        format!(
+                            "pathof selector `$variant` requires a sum type, but `{}` has no alternatives",
+                            type_name
+                        ),
+                    );
+                } else if index + 1 != arguments.len() {
+                    self.error_at_expr(
+                        argument,
+                        "pathof selector `$variant` is a terminal discriminator path".to_string(),
+                    );
+                }
+                return;
+            }
+
+            if let Some(variants) = variants.filter(|variants| !variants.is_empty()) {
+                if variants.contains(segment) {
+                    if index + 1 == arguments.len() {
+                        self.error_at_expr(
+                            argument,
+                            format!(
+                                "pathof variant selector `{}` must be followed by a field; use `$variant` to target the discriminator",
+                                segment
+                            ),
+                        );
+                        return;
+                    }
+                    current = Ty::Name(segment.clone());
+                    continue;
+                }
+                self.error_at_expr(
+                    argument,
+                    format!(
+                        "pathof must select a variant of `{}` before traversing its fields; expected one of: {}",
+                        type_name,
+                        variants.join(", ")
+                    ),
+                );
+                return;
+            }
+
+            let field_ty = self
+                .type_field_tys
+                .get(&type_name)
+                .and_then(|fields| fields.get(segment))
+                .cloned();
+            let Some(field_ty) = field_ty else {
+                let known_fields = self
+                    .type_field_tys
+                    .get(&type_name)
+                    .map(|fields| fields.keys().cloned().collect::<Vec<_>>())
+                    .unwrap_or_default();
+                let suffix = if known_fields.is_empty() {
+                    String::new()
+                } else {
+                    format!("; known fields: {}", known_fields.join(", "))
+                };
+                self.error_at_expr(
+                    argument,
+                    format!(
+                        "pathof type `{}` has no field `{}`{}",
+                        type_name, segment, suffix
+                    ),
+                );
+                return;
+            };
+            current = field_ty;
+        }
+    }
+
     fn constructor_pattern_field_type_name(
         &self,
         constructor: &str,
@@ -16392,6 +16662,9 @@ impl TypeChecker {
                         return args.get(1).and_then(|value| {
                             self.infer_expr_type_name_with_locals(value, locals)
                         });
+                    }
+                    if name == PATHOF_MARKER {
+                        return Some("String".to_string());
                     }
                     if let Some(parent) = self.constructor_parent_for_args(name, args) {
                         return Some(parent);
@@ -17233,6 +17506,7 @@ impl TypeChecker {
                     self.types.insert(name.clone());
                     let mut type_field_names = BTreeSet::new();
                     let mut type_field_types = BTreeMap::new();
+                    let mut type_field_tys = BTreeMap::new();
                     let mut variant_names = Vec::new();
                     for variant in variants {
                         let field_count = variant.fields.len();
@@ -17266,8 +17540,18 @@ impl TypeChecker {
                                     .map(|ty| (field.name.clone(), ty))
                             })
                             .collect();
+                        let variant_field_tys: BTreeMap<String, Ty> = variant
+                            .fields
+                            .iter()
+                            .map(|field| (field.name.clone(), field.ty.clone()))
+                            .collect();
                         for (field_name, field_ty) in &variant_field_types {
                             type_field_types
+                                .entry(field_name.clone())
+                                .or_insert_with(|| field_ty.clone());
+                        }
+                        for (field_name, field_ty) in &variant_field_tys {
+                            type_field_tys
                                 .entry(field_name.clone())
                                 .or_insert_with(|| field_ty.clone());
                         }
@@ -17279,6 +17563,10 @@ impl TypeChecker {
                             self.type_field_types
                                 .insert(variant.name.clone(), variant_field_types);
                         }
+                        if !variant_field_tys.is_empty() {
+                            self.type_field_tys
+                                .insert(variant.name.clone(), variant_field_tys);
+                        }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
                             self.user_functions.insert(name.clone());
@@ -17289,6 +17577,9 @@ impl TypeChecker {
                     }
                     if !type_field_types.is_empty() {
                         self.type_field_types.insert(name.clone(), type_field_types);
+                    }
+                    if !type_field_tys.is_empty() {
+                        self.type_field_tys.insert(name.clone(), type_field_tys);
                     }
                     if variants.len() > 1 {
                         self.type_variants.insert(name.clone(), variant_names);
@@ -17339,6 +17630,16 @@ impl TypeChecker {
                     if !rule_scope_field_types.is_empty() {
                         self.type_field_types
                             .insert(name.clone(), rule_scope_field_types);
+                    }
+                    let rule_scope_field_tys: BTreeMap<String, Ty> = params
+                        .iter()
+                        .filter_map(|param| {
+                            param.ty.as_ref().map(|ty| (param.name.clone(), ty.clone()))
+                        })
+                        .collect();
+                    if !rule_scope_field_tys.is_empty() {
+                        self.type_field_tys
+                            .insert(name.clone(), rule_scope_field_tys);
                     }
                     self.rule_scope_methods
                         .insert(name.clone(), Self::rule_scope_method_arities(body));
@@ -18115,6 +18416,10 @@ impl TypeChecker {
                 }
             }
             ExprKind::App(func, args) => {
+                if matches!(&func.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
+                    self.check_pathof_expr(expr, args);
+                    return;
+                }
                 if let ExprKind::Field(base, method) = &func.as_ref().kind {
                     self.check_expr(base, _in_fn);
                     if let ExprKind::Var(module_name) = &base.kind {
@@ -21026,6 +21331,133 @@ mod tests {
             "expected named-field runtime constructor, got: {}",
             output
         );
+    }
+
+    #[test]
+    fn pathof_checks_and_lowers_structural_record_collection_and_variant_paths() {
+        let source = r#"
+# Child(age: Int)
+# Income = Wage(amount: Int) | Business(profit: Int)
+# Input(children: List(Child), children_by_name: Map(String, Child), optional_child: Child?, income: Income)
+
+= child_age = pathof(Input::children::age)
+= mapped_child_age = pathof(Input::children_by_name::age)
+= optional_child_age = pathof(Input::optional_child::age)
+= income_variant = pathof(Input::income::$variant)
+= wage_amount = pathof(Input::income::Wage::amount)
+"#;
+
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.is_empty(),
+            "valid structural paths should type-check: {diagnostics:?}"
+        );
+
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("pathof source should parse");
+        let paths = statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Bind(_, _, expression) => pathof_canonical_path(expression),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            vec![
+                "children.age",
+                "children_by_name.age",
+                "optional_child.age",
+                "income.$variant",
+                "income.Wage.amount",
+            ]
+        );
+    }
+
+    #[test]
+    fn pathof_rejects_unknown_fields_and_implicit_sum_traversal() {
+        let unknown_field = r#"
+# Child(age: Int)
+# Input(children: List(Child))
+= field = pathof(Input::children::missing)
+"#;
+        let diagnostics = check_source_for_diagnostics(unknown_field);
+        let diagnostic = diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic
+                    .message
+                    .contains("pathof type `Child` has no field `missing`")
+            })
+            .expect("unknown path segment diagnostic");
+        let span = diagnostic.span.expect("unknown segment span");
+        assert_eq!(
+            unknown_field
+                .chars()
+                .skip(span.start)
+                .take(span.end - span.start)
+                .collect::<String>(),
+            "missing"
+        );
+
+        let implicit_variant = r#"
+# Income = Wage(amount: Int) | Business(profit: Int)
+# Input(income: Income)
+= field = pathof(Input::income::amount)
+"#;
+        let diagnostics = check_source_for_diagnostics(implicit_variant);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("must select a variant of `Income`")
+        }));
+    }
+
+    #[test]
+    fn pathof_rejects_unknown_roots_and_non_sum_variant_selectors() {
+        let unknown_root = "= field = pathof(Missing::value)";
+        let diagnostics = check_source_for_diagnostics(unknown_root);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("pathof references unknown type `Missing`")
+        }));
+
+        let non_sum = r#"
+# Input(value: Int)
+= field = pathof(Input::$variant)
+"#;
+        let diagnostics = check_source_for_diagnostics(non_sum);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("selector `$variant` requires a sum type")
+        }));
+
+        let terminal_variant = r#"
+# Income = Wage(amount: Int) | Business(profit: Int)
+# Input(income: Income)
+= field = pathof(Input::income::Wage)
+"#;
+        let diagnostics = check_source_for_diagnostics(terminal_variant);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("use `$variant` to target the discriminator")
+        }));
+    }
+
+    #[test]
+    fn pathof_evaluates_as_a_string() {
+        let source = r#"
+# Input(nested: Nested)
+# Nested(value: Int)
+@ print(pathof(Input::nested::value))
+"#;
+        let output = eval_source(source).expect("pathof should evaluate");
+        assert_eq!(output.trim(), "nested.value");
     }
 
     /// Helper: parse source and return the first expression from a binding
