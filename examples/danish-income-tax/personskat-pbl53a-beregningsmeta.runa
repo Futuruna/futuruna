@@ -345,11 +345,18 @@
     help = Some("Den enkelte rettighedshaver afledes af det daterede ejerforløb. Kun flere samtidige berettigede kræver særskilte andelsfakta."),
     unit = None
 )
-= personskat_pbl53a_felt_berettigedes_rettighedsperiode = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
-    label = "Rettighedsperiode for de berettigede",
-    question = Some("Hvilken afledt rettighedsperiode tilhører de samtidige berettigede?"),
-    help = Some("Brug identifikationen fra oprettelsen eller den erhvervelse, som begyndte den fælles rettighedsperiode."),
+= personskat_pbl53a_felt_berettigedes_rettighedsperiodestart = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.$variant",
+    label = "Rettighedsperiodens begyndelse",
+    question = Some("Begyndte de samtidige berettigedes rettighedsperiode ved ordningens oprettelse eller ved en senere erhvervelse?"),
+    help = Some("Vælg den faktiske begivenhed, som begyndte rettighedsperioden. Futuruna knytter den til den afledte ejerhistorik."),
+    unit = None
+)
+= personskat_pbl53a_felt_berettigedes_erhvervelsesidentifikation = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.Pbl53ARettighedsperiodeFraErhvervelse.erhvervelsesidentifikation",
+    label = "Erhvervelse, der begyndte rettighedsperioden",
+    question = Some("Hvilken registreret erhvervelse begyndte de samtidige berettigedes rettighedsperiode?"),
+    help = Some("Brug samme entydige identifikation som på den daterede erhvervelse i ordningens ejerhistorik."),
     unit = None
 )
 = personskat_pbl53a_felt_samlet_indestående = Beregningsfelt(
@@ -739,7 +746,8 @@
         personskat_pbl53a_felt_grænsehændelse_depotværdi,
         personskat_pbl53a_felt_grænsehændelse_art,
         personskat_pbl53a_felt_berettigelse,
-        personskat_pbl53a_felt_berettigedes_rettighedsperiode,
+        personskat_pbl53a_felt_berettigedes_rettighedsperiodestart,
+        personskat_pbl53a_felt_berettigedes_erhvervelsesidentifikation,
         personskat_pbl53a_felt_samlet_indestående,
         personskat_pbl53a_felt_berettigede_andele,
         personskat_pbl53a_felt_berettiget_identifikation,

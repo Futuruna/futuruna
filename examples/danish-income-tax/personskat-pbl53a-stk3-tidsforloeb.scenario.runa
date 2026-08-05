@@ -194,7 +194,7 @@ identifikation.
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
     afkastfordeling = Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(
-        rettighedsperiode_identifikation = "oprettelse",
+        rettighedsperiodereference = Pbl53ARettighedsperiodeFraOprettelsen,
         samlet_indestående_ved_afkastperiodens_udgang_kroner = 400000,
         andele = [
             Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ved_afkastperiodens_udgang_kroner = 100000),

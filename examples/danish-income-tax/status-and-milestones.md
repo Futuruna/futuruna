@@ -1,13 +1,13 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-f6c38f` (repeated PBL § 53 A ownership periods across tax years; implementation and focused verification complete, pending independent review)
-Next source-backed slice: `td-ef2f36` (typed PBL § 53 A references for multiple beneficiaries)
+Current implementation slice: `td-ef2f36` (typed PBL § 53 A references for multiple beneficiaries; implementation and cross-format verification complete, pending independent review)
+Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-b3b1b9`
+Latest approved implementation slice: `td-f6c38f`
 Latest approved language slice: `td-5545ba`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -232,11 +232,15 @@ kapitalindkomst. Flere adskilte ejerperioder i samme år bevares som
 giver ingen kapitalpost. Otte fokuserede invarianter passerer i både interpreter
 og compiler.
 
-En afgrænset opfølgning er bevaret uden at blokere dette resultat:
-`td-ef2f36` skal erstatte den første periodes interne tekstnøgle med en typet
-eller skemabegrænset kildereference.
+Fordelingsfakta for flere samtidige berettigede bruger nu den samme typede
+oprindelse som de afledte rettighedsperioder. Kalderen vælger enten perioden fra
+ordningens oprettelse eller perioden fra en navngiven erhvervelse. Den interne
+tekstnøgle `oprettelse` er ikke længere en del af JSON- eller XLSX-kontrakten.
+En ukendt eller tom erhvervelsesreference fejler lukket. Et fokuseret
+erhvervelsesscenarie fordeler 29.000 kr. afkast med 40.000/160.000 til 7.250 kr.
+for den berettigede i både interpreter og compiler.
 
-Beregningskontrakten har 260 danske § 53 A-feltbeskrivelser med Aftalelovens
+Beregningskontrakten har 261 danske § 53 A-feltbeskrivelser med Aftalelovens
 § 6, PBL §§ 20, 53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder.
 Regnearket har fjorten
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
@@ -600,7 +604,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 944 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 945 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -650,7 +654,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`82d828db11dbbfa4fde7c038cfc1de50ae8baf5d66a3c15c97892aa18add32aa`.
+`f62701bf7784faf21df5c2e884b74a347ee1847925edba653dae2cada265b99d`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -662,15 +666,15 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 944 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 945 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
 nulstiller derefter miljø og runtime-tilstand for hver sag. Den fulde
 XLSX/JSON-afstemning, inklusive historiske § 6 D-, KGL- og § 11-forløb,
 ejendomsdrift efter § 4, stk. 1, nr. 6, PBL § 53 A og de øvrige
-kildefaktasager, passerer på 2.767,30 sekunder i den aktuelle debug-gate med
-de nye kontraktændringssager.
+kildefaktasager, passerer på 1.766,88 sekunder i den aktuelle debug-gate med
+den typede rettighedsperiodereference.
 `td-6659f1`
 følger op på kontraktcache eller et kompileret beregningsspor, så samme
 deterministiske kontrakt kan bruges interaktivt i et AI-interview.
@@ -2471,7 +2475,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-07-29, the corpus should be treated as a source-backed first-slice
+As of 2026-07-30, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -3133,16 +3137,18 @@ Review candidates to revisit deliberately, not as broad churn:
   invarianter dækker den tidligere blanket 49.020 uden målinput, afleder både
   § 53 A og § 53 B fra ordningens øvrige fakta, respekterer en påberåbelse af
   intet valg og afviser både manglende påberåbelse og den nye blanket i det
-  historiske spor. Ni nye invarianter
+  historiske spor. Ti fokuserede invarianter
   dækker erhvervelse 1. januar og midt i året, tre på hinanden følgende
   rettighedshavere, halvåbne perioder, dubletter, brudte kæder og en fuld
   beregning, hvor DKK 130.000 i erhvervelsesværdi og betalinger efter
   erhvervelsen giver DKK 29.000 i skattepligtigt afkast. Den tidligere ejer
   får samtidig en separat fuld beregning på DKK 20.000 frem til det eksakte
-  overdragelsestidspunkt. En omvendt oplyst
+  overdragelsestidspunkt. En typet reference til erhvervelsen fordeler desuden
+  DKK 29.000 mellem samtidige berettigede med 40.000/160.000 og giver DKK
+  7.250 til den valgte skatteyder. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 944 felter i alt, heraf 260 § 53 A-feltmetadata-poster, og fjorten
+  har 945 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3302,7 +3308,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 944 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 945 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3463,10 +3469,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Det næste kildeunderbyggede PBL-hul er en typet eller skemabegrænset reference
-  til den første afledte afkastperiode ved flere berettigede, særskilt sporet i
-  `td-ef2f36`. Årsafgrænset genkøb, den daterede rettighedskæde og
-  kontraktændringsgrænsen er nu fælles grundlag.
+- Rangér det næste materielle, kildeunderbyggede beregningshul under
+  `td-2d84ec`, når den typede PBL § 53 A-periodereference er uafhængigt
+  gennemgået. Årsafgrænset genkøb, den daterede rettighedskæde,
+  kontraktændringsgrænsen og periodens typede oprindelse er nu fælles grundlag.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

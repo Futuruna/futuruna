@@ -1188,7 +1188,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skattepligtsstatus_ved_årets_begyndelse",
             "sikkerhedsstatus_ved_årets_begyndelse",
             "afkastfordeling.$variant",
-            "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+            "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.$variant",
+            "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.Pbl53ARettighedsperiodeFraErhvervelse.erhvervelsesidentifikation",
             "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.samlet_indestående_ved_afkastperiodens_udgang_kroner",
         ] {
             assert!(
@@ -1207,7 +1208,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skattepligt ved årets begyndelse",
             "Sikkerhedsstillelse ved årets begyndelse",
             "Fordeling af afkastet",
-            "Rettighedsperiode for de berettigede",
+            "Rettighedsperiodens begyndelse",
+            "Erhvervelse, der begyndte rettighedsperioden",
             "Samlet indestående ved afkastperiodens udgang",
         ] {
             assert!(
@@ -1250,6 +1252,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Pbl53ASkattepligtOphører",
             "Pbl53ASikkerhedsstillelseEtableres",
             "Pbl53ASikkerhedsstillelseOphører",
+            "Pbl53ARettighedsperiodeFraOprettelsen",
+            "Pbl53ARettighedsperiodeFraErhvervelse",
         ] {
             assert!(
                 input_choice_values.iter().any(|value| value == expected),
@@ -1262,6 +1266,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "derived PBL § 53 A ownership boundary {derived} must not be caller-facing"
             );
         }
+        assert!(
+            input_choice_values
+                .iter()
+                .all(|value| value != "oprettelse"),
+            "the internal initial PBL § 53 A rights-period key must not be caller-facing"
+        );
         let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele";
         let pbl53a_shares_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_shares_path);
         assert_eq!(
@@ -1564,7 +1574,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.tidspunkt.dato.år",
             "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.depotværdi_kroner",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.$variant",
-            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.Pbl53ARettighedsperiodeFraErhvervelse.erhvervelsesidentifikation",
             "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele.indestående_ved_afkastperiodens_udgang_kroner",
             "kapitalindkomst.pbl53a.ordninger.hændelser.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
@@ -3231,7 +3242,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             provider_used_pal,
             tax_status,
             allocation_variant,
-            rights_period_id,
+            rights_period_origin,
             total_balance,
         ) in [
             (
@@ -3316,7 +3327,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 false,
                 "Pbl53AIkkeSkattepligtigVedÅretsBegyndelse",
                 "Pbl53AFlereBerettigedeVedAfkastperiodensUdgang",
-                Some("oprettelse"),
+                Some("Pbl53ARettighedsperiodeFraOprettelsen"),
                 Some(400_000),
             ),
             (
@@ -3390,12 +3401,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     Data::Int(value),
                 );
             }
-            if let Some(value) = rights_period_id {
+            if let Some(value) = rights_period_origin {
                 set_workbook_cell_by_header(
                     sheets,
                     &pbl53a_years_sheet,
                     row,
-                    "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+                    "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiodereference.$variant",
                     Data::String(value.to_string()),
                 );
             }
@@ -6292,7 +6303,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         ],
                         "afkastfordeling": {
                             "$variant": "Pbl53AFlereBerettigedeVedAfkastperiodensUdgang",
-                            "rettighedsperiode_identifikation": "oprettelse",
+                            "rettighedsperiodereference": {
+                                "$variant": "Pbl53ARettighedsperiodeFraOprettelsen"
+                            },
                             "samlet_indestående_ved_afkastperiodens_udgang_kroner": 400_000,
                             "andele": [
                                 { "identifikation": "person-1", "indestående_ved_afkastperiodens_udgang_kroner": 200_000 },

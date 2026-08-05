@@ -96,6 +96,10 @@ generhverver den, vælger Futuruna kun den ejerperiode, der skærer det aktuelle
 indkomstår. År helt uden ejerskab ignoreres. Flere adskilte ejerperioder i samme
 år bliver derimod vist som et typet, flertydigt resultat og fejler lukket, fordi
 den nuværende beregning kræver én sammenhængende afkastperiode.
+Ved flere berettigede vælges perioden med en typet kilde: enten ordningens
+oprettelse eller en identificeret erhvervelse i ejerhistorikken. Den interne
+tekstnøgle for oprettelsen er ikke et borgerfelt, og en ukendt erhvervelse
+fejler lukket.
 
 En materiel ændring af en historisk kontrakt får tilsvarende en eksakt
 afkastgrænse. Kildedata angiver, om kapitalværdien på virkningstidspunktet
@@ -267,8 +271,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 944 eksplicitte feltmetadata-poster,
-heraf 260 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
+interviewoplysninger. Kontrakten har nu 945 eksplicitte feltmetadata-poster,
+heraf 261 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
 Alle 98 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og

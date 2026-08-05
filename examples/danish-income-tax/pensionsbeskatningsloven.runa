@@ -1070,8 +1070,9 @@ indkomst her i landet eller i udlandet, jf. stk. 4 og § 53 A, stk. 2.
 # Pbl53BUdenlandskIndbetalingsbehandling = Pbl53BIkkeForetagetIUdenlandsperioden | Pbl53BEjerbidragFuldtFradragetIPositivIndkomst(positiv_skattepligtig_indkomst_kroner: Heltal, faktisk_fradrag_kroner: Heltal) | Pbl53BArbejdsgiverbidragFuldtBortsetFraIndkomst | Pbl53BIkkeFuldtFradragetEllerBortset
 # Pbl53AErhvervelsesmåde = Pbl53AErhvervetVedArv | Pbl53AErhvervetPåAndenMåde
 # Pbl53AErhvervelseshændelse(identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, overdrager_identifikation: Tekst, erhverver_identifikation: Tekst, kapitalværdi_på_erhvervelsestidspunktet_kroner: Heltal, måde: Pbl53AErhvervelsesmåde)
+# Pbl53ARettighedsperiodereference = Pbl53ARettighedsperiodeFraOprettelsen | Pbl53ARettighedsperiodeFraErhvervelse(erhvervelsesidentifikation: Tekst)
 # Pbl53ARettighedsperiodeslutning = Pbl53AÅbenRettighedsperiode | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation: Tekst, tidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_slutningen_kroner: Heltal)
-# Pbl53ARettighedsperiode(identifikation: Tekst, rettighedshaver_identifikation: Tekst, starttidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_starten_kroner: Heltal, slutning: Pbl53ARettighedsperiodeslutning)
+# Pbl53ARettighedsperiode(identifikation: Tekst, reference: Pbl53ARettighedsperiodereference, rettighedshaver_identifikation: Tekst, starttidspunkt: Pbl15ATidspunkt, kapitalværdi_ved_starten_kroner: Heltal, slutning: Pbl53ARettighedsperiodeslutning)
 # Pbl53AKontraktdelsrepræsentation = Pbl53AHeleKontrakten | Pbl53AHistoriskRestEfterDelviseKontraktændringer | Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation: Tekst)
 # Pbl53AForhåndsaftalefakta = Pbl53AIngenDokumenteretForhåndsaftale | Pbl53ADokumenteretForhåndsaftale(bindende_fra_dato: Pbl15ADato, vilkår_fuldt_fastlagt: Boolsk, indtræder_uden_nyt_valg: Boolsk) | Pbl53AForhåndsaftaleUoplyst
 # Pbl53APræmieforhøjelsesgrundlag = Pbl53ANyPræmieforhøjelse | Pbl53AAutomatiskPristalsreguleringUdenIndflydelse | Pbl53AAutomatiskForhøjelseVedBonustilskrivning | Pbl53AFørskæringsaftaltReguleringValgtLavere | Pbl53APræmieforhøjelsesgrundlagUoplyst
@@ -1686,6 +1687,7 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
 | pbl53a_erhvervelsesidentifikationer_entydige(erhvervelser: List(Pbl53AErhvervelseshændelse)) -> all(erhvervelser, |erhvervelse: Pbl53AErhvervelseshændelse| erhvervelse.identifikation != "" && pbl53a_erhvervelsesidentifikation_unik(erhvervelser, erhvervelse))
 | pbl53a_luk_rettighedsperiode(periode: Pbl53ARettighedsperiode, erhvervelse: Pbl53AErhvervelseshændelse) -> Pbl53ARettighedsperiode(
     identifikation = periode.identifikation,
+    reference = periode.reference,
     rettighedshaver_identifikation = periode.rettighedshaver_identifikation,
     starttidspunkt = periode.starttidspunkt,
     kapitalværdi_ved_starten_kroner = periode.kapitalværdi_ved_starten_kroner,
@@ -1697,6 +1699,7 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
 )
 | pbl53a_ny_rettighedsperiode(erhvervelse: Pbl53AErhvervelseshændelse) -> Pbl53ARettighedsperiode(
     identifikation = erhvervelse.identifikation,
+    reference = Pbl53ARettighedsperiodeFraErhvervelse(erhvervelsesidentifikation = erhvervelse.identifikation),
     rettighedshaver_identifikation = erhvervelse.erhverver_identifikation,
     starttidspunkt = erhvervelse.tidspunkt,
     kapitalværdi_ved_starten_kroner = erhvervelse.kapitalværdi_på_erhvervelsestidspunktet_kroner,
@@ -1753,6 +1756,7 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
             aktuel_rettighedshaver_identifikation = fakta.oprindelig_rettighedshaver_identifikation,
             aktuel_rettighedsperiode = Pbl53ARettighedsperiode(
                 identifikation = "oprettelse",
+                reference = Pbl53ARettighedsperiodeFraOprettelsen,
                 rettighedshaver_identifikation = fakta.oprindelig_rettighedshaver_identifikation,
                 starttidspunkt = oprettelsestidspunkt,
                 kapitalværdi_ved_starten_kroner = fakta.kapitalværdi_ved_oprettelsen_kroner,
@@ -2485,7 +2489,7 @@ for dette.
 # Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal)
 # Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(starttidspunkt: Pbl15ATidspunkt, sluttidspunkt_eksklusiv: Pbl15ATidspunkt)
 # Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ved_afkastperiodens_udgang_kroner: Heltal)
-# Pbl53AAfkastfordelingsfakta = Pbl53AAfledtEnkeltRettighedshaver | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation: Tekst, samlet_indestående_ved_afkastperiodens_udgang_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
+# Pbl53AAfkastfordelingsfakta = Pbl53AAfledtEnkeltRettighedshaver | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiodereference: Pbl53ARettighedsperiodereference, samlet_indestående_ved_afkastperiodens_udgang_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
 # Pbl53ARettighedsperiodevalg = Pbl53AIngenRettighedsperiodeIIndkomståret | Pbl53AEntydigRettighedsperiodeIIndkomståret(identifikation: Tekst) | Pbl53AFlereRettighedsperioderIIndkomståret(identifikationer: List(Tekst))
 # Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse), afkastfordeling: Pbl53AAfkastfordelingsfakta)
 # Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, rettighedshaver: Boolsk, sikkerhedsstillelse_består: Boolsk, par53a_har_virkning: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
@@ -2582,7 +2586,7 @@ for dette.
 }
 | pbl53a_rettighedsperiode_matcher_afkastfordeling(skatteyder_identifikation: Tekst, afkastfordeling: Pbl53AAfkastfordelingsfakta, periode: Pbl53ARettighedsperiode) -> match afkastfordeling {
     | Pbl53AAfledtEnkeltRettighedshaver -> periode.rettighedshaver_identifikation == skatteyder_identifikation
-    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation, _, _) -> periode.identifikation == rettighedsperiode_identifikation
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiodereference, _, _) -> periode.reference == rettighedsperiodereference
 }
 | pbl53a_rettighedsperiode_skærer_indkomstår(indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> {
     = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
@@ -2809,9 +2813,13 @@ for dette.
 
 | pbl53a_berettiget_identifikation_unik(andele: List(Pbl53ABerettigetAndel), andel: Pbl53ABerettigetAndel) -> length(filter(andele, |anden: Pbl53ABerettigetAndel| anden.identifikation == andel.identifikation)) == 1
 | pbl53a_berettigede_indestående_sum_kroner(andele: List(Pbl53ABerettigetAndel)) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + andel.indestående_ved_afkastperiodens_udgang_kroner)
+| pbl53a_rettighedsperiodereference_grundfakta_gyldige(reference: Pbl53ARettighedsperiodereference) -> match reference {
+    | Pbl53ARettighedsperiodeFraOprettelsen -> Sandt
+    | Pbl53ARettighedsperiodeFraErhvervelse(erhvervelsesidentifikation) -> erhvervelsesidentifikation != ""
+}
 | pbl53a_afkastfordelingsfakta_gyldige(skatteyder_identifikation: Tekst, periode_resultat: Pbl53AAfkastperiodeResultat, fakta: Pbl53AAfkastfordelingsfakta) -> match fakta {
     | Pbl53AAfledtEnkeltRettighedshaver -> skatteyder_identifikation != "" && periode_resultat.rettighedsperiode_findes_entydigt
-    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation, samlet_indestående_kroner, andele) -> skatteyder_identifikation != "" && rettighedsperiode_identifikation != "" && periode_resultat.rettighedsperiode_findes_entydigt && samlet_indestående_kroner > 0 && length(andele) >= 2 && all(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation != "" && andel.indestående_ved_afkastperiodens_udgang_kroner > 0 && pbl53a_berettiget_identifikation_unik(andele, andel)) && pbl53a_berettigede_indestående_sum_kroner(andele) == samlet_indestående_kroner && length(filter(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation == skatteyder_identifikation)) == 1
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiodereference, samlet_indestående_kroner, andele) -> skatteyder_identifikation != "" && pbl53a_rettighedsperiodereference_grundfakta_gyldige(rettighedsperiodereference) && periode_resultat.rettighedsperiode_findes_entydigt && samlet_indestående_kroner > 0 && length(andele) >= 2 && all(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation != "" && andel.indestående_ved_afkastperiodens_udgang_kroner > 0 && pbl53a_berettiget_identifikation_unik(andele, andel)) && pbl53a_berettigede_indestående_sum_kroner(andele) == samlet_indestående_kroner && length(filter(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation == skatteyder_identifikation)) == 1
 }
 | pbl53a_berettiget_andel_tæller(skatteyder_identifikation: Tekst, fakta: Pbl53AAfkastfordelingsfakta) -> match fakta {
     | Pbl53AAfledtEnkeltRettighedshaver -> 1

@@ -99,7 +99,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         ))
     ]
 )
-| personskat_pbl53a_halv_andel_fakta_med_periode(skatteyder_identifikation: Tekst, rettighedsperiode_identifikation: Tekst) -> PersonskatPbl53AOrdningFakta(
+| personskat_pbl53a_halv_andel_fakta_med_periode(skatteyder_identifikation: Tekst, rettighedsperiodereference: Pbl53ARettighedsperiodereference) -> PersonskatPbl53AOrdningFakta(
     identifikation = "pengeinstitut-halv-andel",
     skatteyder_identifikation = skatteyder_identifikation,
     omfangsfakta = pbl53a_pengeinstitut_uden_kapitel1_omfang_fixture.fakta,
@@ -110,7 +110,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         ultimo_kroner = 230000,
         pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
         afkastfordeling = Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(
-            rettighedsperiode_identifikation = rettighedsperiode_identifikation,
+            rettighedsperiodereference = rettighedsperiodereference,
             samlet_indestående_ved_afkastperiodens_udgang_kroner = 230000,
             andele = [
                 Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ved_afkastperiodens_udgang_kroner = 115000),
@@ -142,10 +142,10 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         ))
     ]
 )
-| personskat_pbl53a_halv_andel_fakta_for(skatteyder_identifikation: Tekst) -> personskat_pbl53a_halv_andel_fakta_med_periode(skatteyder_identifikation, "oprettelse")
+| personskat_pbl53a_halv_andel_fakta_for(skatteyder_identifikation: Tekst) -> personskat_pbl53a_halv_andel_fakta_med_periode(skatteyder_identifikation, Pbl53ARettighedsperiodeFraOprettelsen)
 = personskat_pbl53a_halv_andel_fakta = personskat_pbl53a_halv_andel_fakta_for("person-1")
 = personskat_pbl53a_halv_andel_person2_fakta = personskat_pbl53a_halv_andel_fakta_for("person-2")
-= personskat_pbl53a_ukendt_rettighedsperiode_fakta = personskat_pbl53a_halv_andel_fakta_med_periode("person-1", "ukendt-periode")
+= personskat_pbl53a_ukendt_rettighedsperiode_fakta = personskat_pbl53a_halv_andel_fakta_med_periode("person-1", Pbl53ARettighedsperiodeFraErhvervelse(erhvervelsesidentifikation = "ukendt-periode"))
 = personskat_pbl53a_pal_fortsat_fakta = PersonskatPbl53AOrdningFakta(
     identifikation = "livsforsikring-pal-fortsat",
     skatteyder_identifikation = "person-1",
@@ -217,7 +217,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         afkast_kroner = 10000,
         pensionsudbyder_opgjorde_afkast_efter_pal = Sandt,
         afkastfordeling = Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(
-            rettighedsperiode_identifikation = "oprettelse",
+            rettighedsperiodereference = Pbl53ARettighedsperiodeFraOprettelsen,
             samlet_indestående_ved_afkastperiodens_udgang_kroner = 100000,
             andele = [
                 Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ved_afkastperiodens_udgang_kroner = 60000),
