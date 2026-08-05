@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-31
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8746cb` (alle 98 kommuners 2024-2026-årsparametre fra officielle tabeller til kanonisk Personskat og arbejdsbog; afventer uafhængig gennemgang)
+Current implementation slice: `td-7ddea6` (Kursgevinstlovens §§ 19-24 A for gæld afledes fra kildefakta og føres gennem kanonisk Personskat; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Next source-backed slice: `td-2d84ec` (rangér næste materielle posture-/afhængighedshul efter uafhængig gennemgang)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
@@ -182,6 +182,24 @@ tomme Personskat-arbejdsbog er gyldig, men har aktuelt 303 ark, fordi også
 inaktive sumtypegrenes relationelle strukturer materialiseres. Den særskilte
 UX-opfølgning `td-70d182` skal reducere denne topologi uden at svække den typede
 kontrakt eller rundturen.
+
+Latest debt integration: Kursgevinstlovens §§ 19-24 A modtager nu identificerede
+gældsposter som observerbare kildefakta. Arbejdsbogen udstiller tolv danske
+feltbeskrivelser om blandt andet værdier, frigørelsesart, valuta,
+finansieringsnæring, selskabsforbindelse, gældsordning og særlige § 22-hændelser.
+AI'en vælger ikke den anvendelige paragraf og indtaster ikke et særskilt skatteår
+for gældsposten. Personskat leverer indkomståret, mens Futurunas `|`-regler
+afleder prioriteten mellem §§ 19, 21, 22, 23, 24 og 24 A, den samlede
+2.000-kronersgrænse for § 23 og kapital- eller personlig-indkomstvirkningen.
+Seks kanoniske Personskat-scenarier og syvogtredive fokuserede gældsscenarier
+passerer både fortolket og kompileret. En udfyldt XLSX-gældsrække med 3.000 kr. i
+valutagevinst giver samme komplette Personskat-resultat som de tilsvarende typede
+JSON-fakta; indkomståret og § 23-behandlingen afledes i begge forløb. Kildesporet
+peger på gældende lovtekst og Den juridiske vejledning for §§ 19, 21, 22, 23 og
+24. Den resterende finjustering
+`td-ebc41c` skal erstatte den valgte kategori for en frivillig samlet
+kreditorordning med kreditor- og aftalefakta, så også dette § 24-kriterium
+afledes af reglerne.
 
 Realitetstesten fastlægger fem generelle revisionsprincipper for korpusset.
 Offentlige beregningsgrænser skal modtage observerbare kildefakta, ikke
@@ -856,7 +874,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 1.011 eksplicitte feltmetadata-poster. Heraf beskriver
+Kontrakten har aktuelt 1.345 eksplicitte feltmetadata-poster. Heraf beskriver
 66 egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
 ejerboligfordeling, frister, regulering og afskrivningsforhold. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
@@ -908,7 +926,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`f7888383db2de1828e5619b5d9d2589db427a8a603109feebaf6d0dae27b4e1c`.
+`3c0da053523f6bd30d60b5a9b256133973e65511e695d74b06a8c47061f06f5d`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -920,7 +938,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 1.011 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 1.345 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -3431,7 +3449,7 @@ Review candidates to revisit deliberately, not as broad churn:
   7.250 til den valgte skatteyder. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 1.011 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
+  har 1.345 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3591,7 +3609,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 1.011 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 1.345 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

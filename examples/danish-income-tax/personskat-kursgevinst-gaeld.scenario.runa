@@ -1,0 +1,188 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_kursgevinst_gæld_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_gæld),
+        DependencySource(value = personskatteloven_lbk1284_par4),
+    )
+)
+
+--@label:personskat_kursgevinst_gæld_scenarier::meta:personskat_kursgevinst_gæld_scenarier_metadata--
+----
+Fokuserede regressionsscenarier for den kanoniske beregningsgrænse.
+
+Scenarierne er ikke lovtekst. De fastholder arbejdsdelingen: En AI eller et
+menneske udfylder observerbare gældsfakta i den genererede arbejdsbog, mens
+Futuruna afleder indkomståret, anvendelig hjemmel, bagatelgrænse,
+indkomstklassifikation og skatteberegning deterministisk.
+----
+
+--@begin:personskat_kursgevinst_gæld_scenarier--
+| personskat_kursgevinst_gæld_scenarie_fakta(
+    identifikation: Tekst,
+    værdi_ved_påtagelse_kroner: Heltal,
+    værdi_ved_frigørelse_kroner: Heltal,
+    erhvervsforhold: KursgevinstlovGældErhvervsforhold,
+    valuta: KursgevinstlovGældValuta
+) -> KursgevinstlovGældFakta(
+    identifikation = identifikation,
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = værdi_ved_påtagelse_kroner,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = værdi_ved_frigørelse_kroner,
+        fordringens_værdi_for_kreditor_kroner = værdi_ved_frigørelse_kroner
+    ),
+    frigørelsesart = KglGældOrdinærIndfrielse,
+    erhvervsforhold = erhvervsforhold,
+    valuta = valuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = KglIngenSamletGældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+
+| personskat_kursgevinst_gæld_scenarie_input(gældsposter: List(KursgevinstlovGældFakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = PersonskatKapitalindkomstInput(
+        renter = PersonskatRenteInput(
+            renteindtægter_kroner = 0,
+            renteudgifter_kroner = 0,
+            næringsstatus = IkkeNæring,
+            ligningslov6 = UdenLigningslov6Kurstab,
+            ligningslov6a = UdenLigningslov6AFradrag
+        ),
+        virksomhedskapital = personskat_ingen_virksomhedskapital(),
+        pbl53a = personskat_ingen_pbl53a(),
+        ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+        ejendomsavance = UdenEjendomsavance,
+        kursgevinst = MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+            skatteyder_identifikation = "Borger",
+            ægtefælles_skatteyder_identifikation = None,
+            sælgerpantebreve = [],
+            gældsposter = gældsposter,
+            øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0
+        )),
+        fremleje = UdenFremlejeEfterLigningslov15Q,
+        omkostninger = []
+    ),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_kursgevinst_gæld_valutagevinst = personskat_kursgevinst_gæld_scenarie_fakta(
+    identifikation = "USD-lån",
+    værdi_ved_påtagelse_kroner = 100000,
+    værdi_ved_frigørelse_kroner = 97000,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta
+)
+= personskat_kursgevinst_gæld_valutatab = personskat_kursgevinst_gæld_scenarie_fakta(
+    identifikation = "EUR-lån",
+    værdi_ved_påtagelse_kroner = 100000,
+    værdi_ved_frigørelse_kroner = 101000,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta
+)
+= personskat_kursgevinst_gæld_finansieringsnæring = personskat_kursgevinst_gæld_scenarie_fakta(
+    identifikation = "Finansieringsgæld",
+    værdi_ved_påtagelse_kroner = 100000,
+    værdi_ved_frigørelse_kroner = 90000,
+    erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
+    valuta = KglGældDanskeKroner
+)
+| personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(identifikation: Tekst, gældsordning: KursgevinstlovGældsordning) -> KursgevinstlovGældFakta(
+    identifikation = identifikation,
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = 100000,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = 20000,
+        fordringens_værdi_for_kreditor_kroner = 30000
+    ),
+    frigørelsesart = KglGældEftergivelse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = gældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+= personskat_kursgevinst_gæld_singulær_valutaeftergivelse = personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(
+    identifikation = "Singulær USD-eftergivelse",
+    gældsordning = KglIngenSamletGældsordning
+)
+= personskat_kursgevinst_gæld_samlet_valutaakkord = personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(
+    identifikation = "Samlet USD-akkord",
+    gældsordning = KglFrivilligSamletKreditorordning
+)
+
+= personskat_kursgevinst_gæld_valutagevinst_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_valutagevinst
+]))
+= personskat_kursgevinst_gæld_bagatel_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_valutagevinst,
+    personskat_kursgevinst_gæld_valutatab
+]))
+= personskat_kursgevinst_gæld_dublet_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_valutagevinst,
+    personskat_kursgevinst_gæld_valutagevinst
+]))
+= personskat_kursgevinst_gæld_finansieringsnæring_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_finansieringsnæring
+]))
+= personskat_kursgevinst_gæld_singulær_valutaeftergivelse_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_singulær_valutaeftergivelse
+]))
+= personskat_kursgevinst_gæld_samlet_valutaakkord_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([
+    personskat_kursgevinst_gæld_samlet_valutaakkord
+]))
+
+| personskat_kursgevinst_gæld_valutagevinst_når_helt_til_skatten: personskat_kursgevinst_gæld_valutagevinst_resultat -> {
+    = kursgevinst = personskat_kursgevinst_gæld_valutagevinst_resultat.kapitalindkomst.kursgevinst_resultat
+    kursgevinst.input_gyldigt && length(kursgevinst.gældsresultater) == 1 && length(kursgevinst.kursgevinstlov_resultater) == 1 && kursgevinst.årets_samlede_netto_efter_par14_kroner == 3000 && head(kursgevinst.gældsresultater).input_gyldigt && head(kursgevinst.gældsresultater).gældsresultat.input.indkomstår == 2026 && contains(head(kursgevinst.gældsresultater).gældsresultat.hjemler, KglGældPar23) && personskat_kursgevinst_gæld_valutagevinst_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 3000 && personskat_kursgevinst_gæld_valutagevinst_resultat.skat.nettokapitalindkomst_kroner == 3000
+}
+| personskat_kursgevinst_gæld_årsnetto_styrer_bagatelgrænsen: personskat_kursgevinst_gæld_bagatel_resultat -> {
+    = kursgevinst = personskat_kursgevinst_gæld_bagatel_resultat.kapitalindkomst.kursgevinst_resultat
+    kursgevinst.input_gyldigt && kursgevinst.årets_samlede_netto_efter_par14_kroner == 2000 && length(kursgevinst.gældsresultater) == 2 && all(kursgevinst.gældsresultater, |resultat: KursgevinstlovResultat| resultat.bagatelgrænse_afskærer) && personskat_kursgevinst_gæld_bagatel_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+}
+| personskat_kursgevinst_gæld_dubletidentifikation_afvises: personskat_kursgevinst_gæld_dublet_resultat -> {
+    = kursgevinst = personskat_kursgevinst_gæld_dublet_resultat.kapitalindkomst.kursgevinst_resultat
+    kursgevinst.input_gyldigt == Falskt && length(kursgevinst.gældsresultater) == 2 && length(kursgevinst.kursgevinstlov_resultater) == 0 && length(kursgevinst.kapitalposter) == 0 && personskat_kursgevinst_gæld_dublet_resultat.kapitalindkomst.alle_input_gyldige == Falskt
+}
+| personskat_kursgevinst_gæld_finansieringsnæring_bliver_personlig_indkomst: personskat_kursgevinst_gæld_finansieringsnæring_resultat -> {
+    = kapitalindkomst = personskat_kursgevinst_gæld_finansieringsnæring_resultat.kapitalindkomst
+    kapitalindkomst.kursgevinst_resultat.input_gyldigt && kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 10000 && head(kapitalindkomst.kursgevinst_resultat.gældsresultater).personlig_reklassifikation == KglFinansieringsNæring
+}
+| personskat_kursgevinst_gæld_singulær_valutaeftergivelse_følger_par23: personskat_kursgevinst_gæld_singulær_valutaeftergivelse_resultat -> {
+    = kursgevinst = personskat_kursgevinst_gæld_singulær_valutaeftergivelse_resultat.kapitalindkomst.kursgevinst_resultat
+    kursgevinst.input_gyldigt && kursgevinst.årets_samlede_netto_efter_par14_kroner == 80000 && head(kursgevinst.gældsresultater).gældsresultat.behandling == KglGældBehandlesEfterPar23 && personskat_kursgevinst_gæld_singulær_valutaeftergivelse_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 80000
+}
+| personskat_kursgevinst_gæld_samlet_valutaakkord_følger_par24: personskat_kursgevinst_gæld_samlet_valutaakkord_resultat -> {
+    = kursgevinst = personskat_kursgevinst_gæld_samlet_valutaakkord_resultat.kapitalindkomst.kursgevinst_resultat
+    kursgevinst.input_gyldigt && kursgevinst.årets_samlede_netto_efter_par14_kroner == 0 && head(kursgevinst.gældsresultater).gældsresultat.behandling == KglGældBehandlesEfterPar24 && head(kursgevinst.gældsresultater).gældsresultat.bagatelgrænse_afskærer == Falskt && personskat_kursgevinst_gæld_samlet_valutaakkord_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 10000
+}
+
+? personskat_kursgevinst_gæld_valutagevinst_når_helt_til_skatten
+? personskat_kursgevinst_gæld_årsnetto_styrer_bagatelgrænsen
+? personskat_kursgevinst_gæld_dubletidentifikation_afvises
+? personskat_kursgevinst_gæld_finansieringsnæring_bliver_personlig_indkomst
+? personskat_kursgevinst_gæld_singulær_valutaeftergivelse_følger_par23
+? personskat_kursgevinst_gæld_samlet_valutaakkord_følger_par24
+
+@ print("Kanoniske Personskat-gældsscenarier: 6")
+--@end:personskat_kursgevinst_gæld_scenarier--

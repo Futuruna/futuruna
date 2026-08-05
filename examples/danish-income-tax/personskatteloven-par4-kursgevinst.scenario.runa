@@ -49,9 +49,7 @@ skattepligtig nettogevinst på finansielle kontrakter i et tidligere indkomstår
         realiseret_i_indkomståret = Sandt
     ),
     udøver_fordrings_eller_kontraktnæring = udøver_kontraktnæring,
-    driver_finansieringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = Falskt,
-    gæld_vedrører_finansieringsnæring = Falskt,
     anvender_lagerprincip_efter_par25 = Falskt
 )
 | par4_nr2_scenarie_kontraktpost(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, udøver_kontraktnæring: Boolsk, relation: KursgevinstPar32Kontraktrelation) -> KursgevinstPar32Kontraktpost(

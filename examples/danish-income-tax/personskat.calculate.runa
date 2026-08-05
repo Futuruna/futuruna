@@ -108,9 +108,9 @@
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), egne_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
 # PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), egne_skadegenopførelsesresultater: List(EblPar10Resultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_skadegenopførelsesresultater: List(EblPar10Resultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
-# PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal)
+# PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), gældsposter: List(KursgevinstlovGældFakta), øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner: Heltal)
 # PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
-# PersonskatKursgevinstResultat(input: PersonskatKursgevinstInput, input_gyldigt: Boolsk, sælgerpantebrevsresultater: List(KglEblPar6DSælgerpantebrevsresultat), årets_samlede_netto_efter_par14_kroner: Heltal, kursgevinstlov_resultater: List(KursgevinstlovResultat), kapitalposter: List(Par4Kapitalpost))
+# PersonskatKursgevinstResultat(input: PersonskatKursgevinstInput, input_gyldigt: Boolsk, sælgerpantebrevsresultater: List(KglEblPar6DSælgerpantebrevsresultat), gældsresultater: List(KursgevinstlovResultat), årets_samlede_netto_efter_par14_kroner: Heltal, kursgevinstlov_resultater: List(KursgevinstlovResultat), kapitalposter: List(Par4Kapitalpost))
 # PersonskatFremlejerrolle = PersonskatFremlejendeLejer | PersonskatUdlejendeAndelshaver
 # PersonskatLigningslov15PSamordningsfakta(udlejningsform: Ligningslov15PUdlejningsform, bruttolejeindtægt_kroner: Heltal, årlig_leje_eller_boligafgift_kroner: Heltal, samme_personer_mindst_fire_måneder: Boolsk, lejet_eller_ejet_dage: Heltal, udlejningsdage: Heltal)
 # PersonskatLigningslov15QStk4Input = UdenSamordningMedLigningslov15P | MedSamordningMedLigningslov15P(par15q_udlejningsdage: Heltal, par15p_fakta: PersonskatLigningslov15PSamordningsfakta, loftvalg: Ligningslov15QStk4Loftvalg)
@@ -3772,8 +3772,8 @@
 = personskat_felt_kursgevinst = Beregningsfelt(
     path = "kapitalindkomst.kursgevinst.$variant",
     label = "Kursgevinster og kurstab",
-    question = Some("Har du sælgerpantebreve fra et ejendomssalg, som skal behandles efter kursgevinstloven?"),
-    help = Some("Oplysningerne kobles til sælgerpantebrevet under ejendomssalget, så afdrag, afståelse og indfrielse behandles deterministisk efter kursgevinstloven."),
+    question = Some("Har du gæld, fordringer eller sælgerpantebreve, som skal behandles efter kursgevinstloven?"),
+    help = Some("Oplys kildefakta om hvert forhold. Futuruna afleder den juridiske behandling og beregner gevinst eller tab deterministisk."),
     unit = None
 )
 = personskat_felt_kgl_sælgerpantebreve = Beregningsfelt(
@@ -3796,10 +3796,89 @@
     unit = None
 )
 = personskat_felt_kgl_øvrigt_bagatelgrundlag = Beregningsbeløbsfelt(
-    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
     label = "Andre gevinster og tab i bagatelgrundlaget",
-    question = "Hvad er årets samlede nettobeløb for øvrige fordringer, valutagæld og obligationsbaserede investeringsbeviser, som indgår i KGL § 14-grænsen?",
+    question = "Hvad er årets samlede nettobeløb for øvrige fordringer og obligationsbaserede investeringsbeviser, som indgår i KGL § 14-grænsen, men ikke er oplyst særskilt her?",
     unit = "kr./år"
+)
+= personskat_felt_kgl_gældsposter = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter",
+    label = "Gældsposter",
+    question = Some("Hvilke gældsposter havde gevinst, tab, eftergivelse eller en anden relevant hændelse i indkomståret?"),
+    help = Some("Tilføj én række pr. gældsforhold. En AI eller et menneske udfylder de observerbare fakta; Futuruna vælger reglerne i KGL §§ 19-24 A."),
+    unit = None
+)
+= personskat_felt_kgl_gæld_identifikation = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.identifikation",
+    label = "Gældens identifikation",
+    question = "Hvilken entydig identifikation skal bruges for gældsforholdet?"
+)
+= personskat_felt_kgl_gæld_påtagelsesværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.beløb.gældens_værdi_ved_påtagelse_kroner",
+    label = "Gældens værdi ved påtagelsen",
+    question = "Hvad var gældens værdi, da du påtog dig den?",
+    unit = "kr."
+)
+= personskat_felt_kgl_gæld_frigørelsesværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+    label = "Gældens værdi ved frigørelse eller indfrielse",
+    question = "Hvilken værdi blev gælden frigjort eller indfriet til?",
+    unit = "kr."
+)
+= personskat_felt_kgl_gæld_kreditorværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.beløb.fordringens_værdi_for_kreditor_kroner",
+    label = "Fordringens værdi for kreditor",
+    question = "Hvad var fordringens værdi for kreditor på tidspunktet for en eventuel gældseftergivelse?",
+    unit = "kr."
+)
+= personskat_felt_kgl_gæld_frigørelsesart = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.frigørelsesart",
+    label = "Hvordan gælden ophørte eller blev reduceret",
+    question = Some("Blev gælden indfriet, eftergivet, forældet, sammenfaldt den med kreditors krav, eller blev den prækluderet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_gæld_erhvervsforhold = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.erhvervsforhold",
+    label = "Gældens forbindelse til finansieringsnæring",
+    question = Some("Driver du næringsvirksomhed ved finansiering, og vedrører gælden denne virksomhed?"),
+    help = Some("Futuruna skelner mellem ingen finansieringsnæring, finansieringsnæring uden tilknytning og finansieringsnæring med tilknytning til denne gæld."),
+    unit = None
+)
+= personskat_felt_kgl_gæld_valuta = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.valuta",
+    label = "Gældens valuta og regulering",
+    question = Some("Er gælden i danske kroner eller fremmed valuta, og reguleres restgælden efter en anden valuta?"),
+    help = Some("Dansk gæld, som valutareguleres, behandles som fremmed valuta. Fremmed gæld, som reguleres efter danske kroner, behandles som dansk gæld."),
+    unit = None
+)
+= personskat_felt_kgl_gæld_selskabsfakta = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.selskabsfakta.$variant",
+    label = "Nuværende eller tidligere selskabsgæld",
+    question = Some("Er gælden nu eller tidligere ydet af et selskab, hvor du eller dine nærtstående har ejet aktier siden gældspåtagelsen?"),
+    help = Some("Vælg den faktiske gældshistorik. Futuruna afleder selv, om KGL § 21, stk. 2 finder anvendelse."),
+    unit = None
+)
+= personskat_felt_kgl_gældsordning = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning",
+    label = "Samlet gældsordning",
+    question = Some("Indgår nedsættelsen i en tvangsakkord, en samlet frivillig kreditorordning eller en gældssanering?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_gæld_ikke_indbetalt_selskabskapital = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.vedrører_ikke_indbetalt_selskabskapital",
+    label = "Ikke indbetalt selskabskapital",
+    question = Some("Vedrører gælden selskabskapital, som ikke er indbetalt?"),
+    help = Some("Gevinst og tab på denne gæld medregnes ikke efter KGL § 24 A."),
+    unit = None
+)
+= personskat_felt_kgl_gæld_par22_hændelse = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.par22_hændelse.$variant",
+    label = "Særlig lånehændelse efter KGL § 22",
+    question = Some("Er der tale om stiftelse eller refinansiering med overkurs, frigørelse fra et lån med varierende rente, ekstraordinær indfrielse af et kontantlån eller årlig § 22 A-beskatning?"),
+    help = Some("Vælg ingen særlig hændelse for almindelig indfrielse, valutagæld eller gældseftergivelse uden et § 22-forhold."),
+    unit = None
 )
 = personskat_felt_kgl_pantebrev = Beregningsspørgsmål(
     path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.sælgerpantebreve.sælgerpantebrev_identifikation",
@@ -7076,7 +7155,15 @@
     felter = [
         personskat_felt_kursgevinst,
         personskat_felt_kgl_sælgerpantebreve,
+        personskat_felt_kgl_gældsposter,
         personskat_felt_kgl_ægtefælles_skatteyder_identifikation,
+        personskat_felt_kgl_gæld_frigørelsesart,
+        personskat_felt_kgl_gæld_erhvervsforhold,
+        personskat_felt_kgl_gæld_valuta,
+        personskat_felt_kgl_gæld_selskabsfakta,
+        personskat_felt_kgl_gældsordning,
+        personskat_felt_kgl_gæld_ikke_indbetalt_selskabskapital,
+        personskat_felt_kgl_gæld_par22_hændelse,
         personskat_felt_kgl_fordringsnæring,
         personskat_felt_kgl_fordring_udenfor_næring,
         personskat_felt_kgl_vederlag_for_leverancer,
@@ -7090,17 +7177,22 @@
     ],
     spørgsmål = [
         personskat_felt_kgl_skatteyder_identifikation,
+        personskat_felt_kgl_gæld_identifikation,
         personskat_felt_kgl_pantebrev,
         personskat_felt_kgl_oprindelig_skatteyder
     ],
     beløbsfelter = [
         personskat_felt_kgl_øvrigt_bagatelgrundlag,
+        personskat_felt_kgl_gæld_påtagelsesværdi,
+        personskat_felt_kgl_gæld_frigørelsesværdi,
+        personskat_felt_kgl_gæld_kreditorværdi,
         personskat_felt_kgl_dispositionsår,
         personskat_felt_kgl_berørt_hovedstol,
         personskat_felt_kgl_provenu
     ],
     attachments = (
         Source(value = kgl_sælgerpantebrev_lbk1176),
+        Source(value = kursgevinstloven_lbk1176_gæld),
         DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
         DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
         Guidance(value = kgl_ebl_par6d_vejledning_2026),
@@ -7689,6 +7781,13 @@
 | personskat_kgl_sælgerpantebrevsresultater(fakta: List(KglEblPar6DSælgerpantebrevsfakta), resultater: List(EjendomsavancebeskatningslovResultat)) -> flat_map(fakta, |pantebrevsfakta: KglEblPar6DSælgerpantebrevsfakta| map(personskat_kgl_matchende_par6d_resultater(pantebrevsfakta, resultater), |resultat: EjendomsavancebeskatningslovResultat| kgl_ebl_par6d_resultat(pantebrevsfakta, resultat.par6d_resultat)))
 | personskat_kgl_rå_netto_i_indkomstår_kroner(resultat: KglEblPar6DSælgerpantebrevsresultat, skatteår: Heltal, skatteyder_identifikation: Tekst) -> kgl_sælgerpantebrev_rå_netto_for_skatteyder_i_indkomstår_kroner(resultat.kursgevinstresultat, skatteår, skatteyder_identifikation)
 | personskat_kgl_årets_samlede_netto_kroner(resultater: List(KglEblPar6DSælgerpantebrevsresultat), skatteår: Heltal, skatteyder_identifikation: Tekst, øvrigt_netto_kroner: Heltal) -> foldl(resultater, øvrigt_netto_kroner, |sum: Heltal, resultat: KglEblPar6DSælgerpantebrevsresultat| sum + personskat_kgl_rå_netto_i_indkomstår_kroner(resultat, skatteår, skatteyder_identifikation))
+| personskat_kgl_gældsidentifikation_unik(gældsposter: List(KursgevinstlovGældFakta), gæld: KursgevinstlovGældFakta) -> gæld.identifikation != "" && length(filter(gældsposter, |anden: KursgevinstlovGældFakta| anden.identifikation == gæld.identifikation)) == 1
+| personskat_kgl_gældsinput(gæld: KursgevinstlovGældFakta, skatteår: Heltal) -> kursgevinstlov_gæld_input(skatteår, gæld)
+| personskat_kgl_gældsfakta_gyldige(gæld: KursgevinstlovGældFakta, skatteår: Heltal) -> kursgevinstlov_gæld_input_gyldigt(personskat_kgl_gældsinput(gæld, skatteår))
+| personskat_kgl_alle_gældsfakta_gyldige(gældsposter: List(KursgevinstlovGældFakta), skatteår: Heltal) -> all(gældsposter, |gæld: KursgevinstlovGældFakta| personskat_kgl_gældsidentifikation_unik(gældsposter, gæld) && personskat_kgl_gældsfakta_gyldige(gæld, skatteår))
+| personskat_kgl_gæld_rå_netto_kroner(gæld: KursgevinstlovGældFakta, skatteår: Heltal) -> hvis personskat_kgl_gældsfakta_gyldige(gæld, skatteår) { kgl_gæld_rå_netto_til_par14_23_kroner(gæld) } ellers { 0 }
+| personskat_kgl_gældsposters_rå_netto_kroner(gældsposter: List(KursgevinstlovGældFakta), skatteår: Heltal) -> foldl(gældsposter, 0, |sum: Heltal, gæld: KursgevinstlovGældFakta| sum + personskat_kgl_gæld_rå_netto_kroner(gæld, skatteår))
+| personskat_kgl_gældsresultater(gældsposter: List(KursgevinstlovGældFakta), skatteår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(gældsposter, |gæld: KursgevinstlovGældFakta| kursgevinstlov_resultat_fra_gæld(personskat_kgl_gældsinput(gæld, skatteår), årets_samlede_netto_kroner))
 | personskat_kgl_resultater_i_indkomstår(resultat: KglEblPar6DSælgerpantebrevsresultat, skatteår: Heltal, skatteyder_identifikation: Tekst, årets_samlede_netto_kroner: Heltal) -> map(kgl_sælgerpantebrev_personrealiseringer_for_skatteyder_i_indkomstår(resultat.kursgevinstresultat, skatteår, skatteyder_identifikation), |disposition: KglSælgerpantebrevDispositionsresultat| kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition, årets_samlede_netto_kroner, resultat.skatteforhold))
 | personskat_kgl_alle_resultater_i_indkomstår(resultater: List(KglEblPar6DSælgerpantebrevsresultat), skatteår: Heltal, skatteyder_identifikation: Tekst, årets_samlede_netto_kroner: Heltal) -> flat_map(resultater, |resultat: KglEblPar6DSælgerpantebrevsresultat| personskat_kgl_resultater_i_indkomstår(resultat, skatteår, skatteyder_identifikation, årets_samlede_netto_kroner))
 | personskat_kgl_kapitalpost(resultat: KursgevinstlovResultat) -> par4_stk1_nr2_kapitalpost(Par4Stk1Nr2Input(kursgevinstlov_resultat = resultat))
@@ -7701,9 +7800,13 @@
         | UdenKursgevinst -> []
         | MedKursgevinst(fakta) -> fakta.sælgerpantebreve
     }
+    | gældsposter() -> match input {
+        | UdenKursgevinst -> []
+        | MedKursgevinst(fakta) -> fakta.gældsposter
+    }
     | øvrigt_netto_kroner() -> match input {
         | UdenKursgevinst -> 0
-        | MedKursgevinst(fakta) -> fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner
+        | MedKursgevinst(fakta) -> fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner
     }
     | skatteyder_identifikation() -> match input {
         | UdenKursgevinst -> ""
@@ -7718,21 +7821,25 @@
     }
     | inputvariant_matcher_ebl() -> match input {
         | UdenKursgevinst -> length(par6d_resultater()) == 0
-        | MedKursgevinst(_) -> length(sælgerpantebrevsfakta()) > 0 && personskat_kgl_alle_fakta_matcher_entydigt(sælgerpantebrevsfakta(), par6d_resultater()) && personskat_kgl_alle_par6d_resultater_matcher_entydigt(par6d_resultater(), sælgerpantebrevsfakta())
+        | MedKursgevinst(_) -> (length(sælgerpantebrevsfakta()) > 0 || length(gældsposter()) > 0) && personskat_kgl_alle_fakta_matcher_entydigt(sælgerpantebrevsfakta(), par6d_resultater()) && personskat_kgl_alle_par6d_resultater_matcher_entydigt(par6d_resultater(), sælgerpantebrevsfakta())
     }
     | sælgerpantebrevsresultater() -> personskat_kgl_sælgerpantebrevsresultater(sælgerpantebrevsfakta(), par6d_resultater())
     | alle_sælgerpantebrevsresultater_gyldige() -> all(sælgerpantebrevsresultater(), |resultat: KglEblPar6DSælgerpantebrevsresultat| resultat.input_gyldigt)
+    | alle_gældsfakta_gyldige() -> personskat_kgl_alle_gældsfakta_gyldige(gældsposter(), skatteår)
     | skatteyderidentifikationer_gyldige() -> skatteyder_identifikation() != "" && (ægtefælles_skatteyder_identifikation() == "" || ægtefælles_skatteyder_identifikation() != skatteyder_identifikation())
     | fortjenestefordeling_dækker_beregning() -> all(personskat_kgl_fortjenestemedregninger(sælgerpantebrevsresultater()), |medregning: KglEblPar6DFortjenestemedregning| personskat_kgl_fortjenestemedregning_tilhører_beregning(medregning, skatteyder_identifikation(), ægtefælles_skatteyder_identifikation()))
-    | input_gyldigt() -> skatteår > 0 && inputvariant_matcher_ebl() && match input { | UdenKursgevinst -> Sandt | MedKursgevinst(_) -> skatteyderidentifikationer_gyldige() } && alle_sælgerpantebrevsresultater_gyldige() && fortjenestefordeling_dækker_beregning()
-    | årets_samlede_netto_efter_par14_kroner() -> personskat_kgl_årets_samlede_netto_kroner(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation(), øvrigt_netto_kroner())
-    | kursgevinstlov_resultater_før_validering() -> personskat_kgl_alle_resultater_i_indkomstår(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation(), årets_samlede_netto_efter_par14_kroner())
+    | input_gyldigt() -> skatteår > 0 && inputvariant_matcher_ebl() && match input { | UdenKursgevinst -> Sandt | MedKursgevinst(_) -> skatteyderidentifikationer_gyldige() } && alle_sælgerpantebrevsresultater_gyldige() && alle_gældsfakta_gyldige() && fortjenestefordeling_dækker_beregning()
+    | gældsposters_rå_netto_kroner() -> personskat_kgl_gældsposters_rå_netto_kroner(gældsposter(), skatteår)
+    | årets_samlede_netto_efter_par14_kroner() -> personskat_kgl_årets_samlede_netto_kroner(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation(), øvrigt_netto_kroner() + gældsposters_rå_netto_kroner())
+    | gældsresultater() -> personskat_kgl_gældsresultater(gældsposter(), skatteår, årets_samlede_netto_efter_par14_kroner())
+    | kursgevinstlov_resultater_før_validering() -> concat(personskat_kgl_alle_resultater_i_indkomstår(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation(), årets_samlede_netto_efter_par14_kroner()), gældsresultater())
     | kursgevinstlov_resultater() -> hvis input_gyldigt() { kursgevinstlov_resultater_før_validering() } ellers { [] }
     | kapitalposter() -> map(kursgevinstlov_resultater(), personskat_kgl_kapitalpost)
     | resultat() -> PersonskatKursgevinstResultat(
         input = input,
         input_gyldigt = input_gyldigt(),
         sælgerpantebrevsresultater = sælgerpantebrevsresultater(),
+        gældsresultater = gældsresultater(),
         årets_samlede_netto_efter_par14_kroner = årets_samlede_netto_efter_par14_kroner(),
         kursgevinstlov_resultater = kursgevinstlov_resultater(),
         kapitalposter = kapitalposter()

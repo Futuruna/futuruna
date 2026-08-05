@@ -438,9 +438,7 @@ af ejendommen.
     gæld = kgl_tom_gæld(),
     kontrakt = kgl_tom_kontrakt(),
     udøver_fordrings_eller_kontraktnæring = skatteforhold.udøver_fordringsnæring,
-    driver_finansieringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = skatteforhold.fordring_erhvervet_udenfor_næring,
-    gæld_vedrører_finansieringsnæring = Falskt,
     anvender_lagerprincip_efter_par25 = Falskt
 )
 | kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition: KglSælgerpantebrevDispositionsresultat, årets_samlede_netto_efter_par14_kroner: Heltal, skatteforhold: KglSælgerpantebrevSkatteforhold) -> kursgevinstlov_resultat(kgl_sælgerpantebrev_kursgevinstlov_input(disposition, årets_samlede_netto_efter_par14_kroner, skatteforhold))

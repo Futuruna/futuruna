@@ -1,0 +1,500 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# KursgevinstlovGældKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kursgevinstloven_lbk1176_gæld = KursgevinstlovGældKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "Kursgevinstloven §§ 19-24 A",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_lov1883_par22a = KursgevinstlovGældKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2015/1883",
+    identifier = "LOV nr. 1883 af 29/12/2015, § 1, nr. 3, og § 8, stk. 3",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_vejledning_par19 = KursgevinstlovGældKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946013",
+    identifier = "Den juridiske vejledning, C.B.1.4.3.1: KGL § 19",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_vejledning_par21 = KursgevinstlovGældKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946015",
+    identifier = "Den juridiske vejledning, C.B.1.4.3.3: KGL § 21",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_vejledning_par22 = KursgevinstlovGældKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946016",
+    identifier = "Den juridiske vejledning, C.B.1.4.3.4: KGL § 22, stk. 1",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_vejledning_par23 = KursgevinstlovGældKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946019",
+    identifier = "Den juridiske vejledning, C.B.1.4.3.7: KGL § 23",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_vejledning_par24 = KursgevinstlovGældKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946020",
+    identifier = "Den juridiske vejledning, C.B.1.5: KGL § 24",
+    hentet_dato = "2026-07-31"
+)
+
+= kursgevinstloven_gæld_par19_par21_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_gæld),
+        Guidance(value = kursgevinstloven_vejledning_par19),
+        Guidance(value = kursgevinstloven_vejledning_par21),
+    )
+)
+
+--@label:kursgevinstloven_gæld_par19_par21::meta:kursgevinstloven_gæld_par19_par21_metadata--
+----
+§ 19. Hvis personen eller dødsboet driver næringsvirksomhed ved finansiering, og
+gælden vedrører denne virksomhed, medregnes gevinst og tab på gæld ved
+opgørelsen af den skattepligtige indkomst, jf. dog § 24 om gevinst som følge af
+gældseftergivelse ved akkord m.v.
+
+§ 20. Gevinst og tab på gæld skal medregnes ved opgørelsen af den
+skattepligtige indkomst efter §§ 21-23.
+
+§ 21. Gevinst ved eftergivelse, forældelse, konfusion eller præklusion af gæld
+medregnes i det omfang, gælden nedskrives til et lavere beløb end fordringens
+værdi for kreditor på tidspunktet for gældseftergivelsen m.v., jf. tillige § 24
+om gevinst som følge af gældseftergivelse ved akkord m.v.
+
+Stk. 2. Gevinst ved eftergivelse, forældelse, konfusion eller præklusion af gæld
+til selskaber m.v., hvori den skattepligtige eller dennes nærtstående som nævnt
+i aktieavancebeskatningslovens § 4, stk. 2, direkte eller indirekte ejer eller på
+noget tidspunkt siden påtagelsen af gælden har ejet aktier, medregnes ved
+opgørelsen af den skattepligtige indkomst.
+1. pkt. finder tilsvarende anvendelse på gevinst på gæld, hvor gælden tidligere
+har været til et selskab omfattet af 1. pkt., og hvor debitor var insolvent ved
+overdragelsen fra selskabet.
+1. og 2. pkt. gælder ikke, hvor det långivende selskab er et pengeinstitut, og
+personen direkte og indirekte højst ejer eller har ejet 5 pct. af aktiekapitalen.
+1. og 2. pkt. gælder ikke, i det omfang den påtagne forpligtelse er omfattet af
+ligningslovens § 16 E.
+----
+
+--@begin:kursgevinstloven_gæld_par19_par21--
+# KursgevinstlovGældDato(år: Heltal, måned: Heltal, dag: Heltal)
+# KursgevinstlovGældValuta = KglGældDanskeKroner | KglGældFremmedValuta | KglGældDanskeKronerValutareguleret | KglGældFremmedValutaKronereguleret
+# KursgevinstlovGældErhvervsforhold = KglGældUdenFinansieringsnæring | KglGældFinansieringsnæringUdenVirksomhedstilknytning | KglGældFinansieringsnæringMedVirksomhedstilknytning
+# KursgevinstlovGældFrigørelsesart = KglGældOrdinærIndfrielse | KglGældEftergivelse | KglGældForældelse | KglGældKonfusion | KglGældPræklusion
+# KursgevinstlovGældsordning = KglIngenSamletGældsordning | KglTvangsakkordIRekonstruktion | KglFrivilligSamletKreditorordning | KglGældssanering
+# KursgevinstlovPar21Stk2Selskabsfakta = KglIngenPar21Stk2Selskabsgæld | KglAktuelGældTilSelskab(personen_eller_nærtstående_har_ejet_aktier_siden_gældspåtagelsen: Boolsk, långiver_er_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk) | KglOverdragetGældFraSelskab(personen_eller_nærtstående_har_ejet_aktier_i_det_tidligere_selskab_siden_gældspåtagelsen: Boolsk, debitor_insolvent_ved_overdragelsen: Boolsk, tidligere_långiver_var_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_i_det_tidligere_selskab_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk)
+# KursgevinstlovGældBeløb(gældens_værdi_ved_påtagelse_kroner: Heltal, gældens_værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
+
+| kgl_gæld_tom_par21_stk2_selskabsfakta() -> KglIngenPar21Stk2Selskabsgæld
+
+| kgl_gæld_er_finansieringsnæring(erhvervsforhold: KursgevinstlovGældErhvervsforhold) -> erhvervsforhold == KglGældFinansieringsnæringMedVirksomhedstilknytning
+| kgl_gæld_er_eftergivelse_mv(art: KursgevinstlovGældFrigørelsesart) -> art == KglGældEftergivelse || art == KglGældForældelse || art == KglGældKonfusion || art == KglGældPræklusion
+| kgl_gæld_par21_stk2_ejerforbindelse(fakta: KursgevinstlovPar21Stk2Selskabsfakta) -> match fakta {
+    | KglIngenPar21Stk2Selskabsgæld -> Falskt
+    | KglAktuelGældTilSelskab(har_ejet, _, _, _) -> har_ejet
+    | KglOverdragetGældFraSelskab(har_ejet, insolvent, _, _, _) -> har_ejet && insolvent
+}
+| kgl_gæld_par21_stk2_pengeinstitut_undtagelse(fakta: KursgevinstlovPar21Stk2Selskabsfakta) -> match fakta {
+    | KglIngenPar21Stk2Selskabsgæld -> Falskt
+    | KglAktuelGældTilSelskab(_, pengeinstitut, ejerandel, _) -> pengeinstitut && ejerandel <= 500
+    | KglOverdragetGældFraSelskab(_, _, pengeinstitut, ejerandel, _) -> pengeinstitut && ejerandel <= 500
+}
+| kgl_gæld_par21_stk2_ligningslov16e_undtagelse(fakta: KursgevinstlovPar21Stk2Selskabsfakta) -> match fakta {
+    | KglIngenPar21Stk2Selskabsgæld -> Falskt
+    | KglAktuelGældTilSelskab(_, _, _, omfattet) -> omfattet
+    | KglOverdragetGældFraSelskab(_, _, _, _, omfattet) -> omfattet
+}
+| kgl_gæld_par21_stk2_anvendes(fakta: KursgevinstlovPar21Stk2Selskabsfakta) -> kgl_gæld_par21_stk2_ejerforbindelse(fakta) && kgl_gæld_par21_stk2_pengeinstitut_undtagelse(fakta) == Falskt && kgl_gæld_par21_stk2_ligningslov16e_undtagelse(fakta) == Falskt
+| kgl_gæld_par21_stk2_selskabsfakta_gyldige(fakta: KursgevinstlovPar21Stk2Selskabsfakta) -> match fakta {
+    | KglIngenPar21Stk2Selskabsgæld -> Sandt
+    | KglAktuelGældTilSelskab(_, _, ejerandel, _) -> ejerandel >= 0 && ejerandel <= 10000
+    | KglOverdragetGældFraSelskab(_, _, _, ejerandel, _) -> ejerandel >= 0 && ejerandel <= 10000
+}
+| kgl_gæld_bruttogevinst_kroner(beløb: KursgevinstlovGældBeløb) -> penge_positivt_beløb(beløb.gældens_værdi_ved_påtagelse_kroner - beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner)
+| kgl_gæld_bruttotab_kroner(beløb: KursgevinstlovGældBeløb) -> penge_positivt_beløb(beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner - beløb.gældens_værdi_ved_påtagelse_kroner)
+| kgl_gæld_par21_stk1_skattepligtig_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> penge_mindste_beløb(kgl_gæld_bruttogevinst_kroner(beløb), penge_positivt_beløb(beløb.fordringens_værdi_for_kreditor_kroner - beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner))
+| kgl_gæld_par21_stk2_skattepligtig_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> kgl_gæld_bruttogevinst_kroner(beløb)
+--@end:kursgevinstloven_gæld_par19_par21--
+
+= kursgevinstloven_gæld_par22_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_gæld),
+        Guidance(value = kursgevinstloven_vejledning_par22),
+    )
+)
+
+--@label:kursgevinstloven_gæld_par22::meta:kursgevinstloven_gæld_par22_metadata--
+----
+§ 22. Hvis en fordring stiftes på sådanne vilkår, at fordringens værdi på
+tidspunktet for debitors påtagelse af gælden overstiger det beløb, som debitor
+skal indfri, skal debitor medregne denne gevinst.
+§ 25 og § 26, stk. 5, anvendes ikke.
+En debitors overtagelse af en gæld, der er stiftet på de vilkår, som er nævnt i
+1. pkt., eller en refinansiering af et lån betragtes som stiftelse af en ny gæld.
+I disse tilfælde opgøres den skattepligtige gevinst efter 1. pkt. som forskellen
+mellem fordringens værdi på refinansierings- eller overtagelsestidspunktet og
+det beløb, som debitor skal indfri.
+Reglen i 1. pkt. gælder ikke lån ydet af et selskab, en person eller et dødsbo,
+der driver næringsvirksomhed ved finansiering, med sikkerhed i fast ejendom
+eller skibe eller med direkte hæftelse eller garanti fra centralregeringer,
+centralbanker, offentlige enheder eller regionale eller lokale myndigheder i et
+land inden for EU eller EØS, hvis lånet enten er baseret på obligationer, der
+ikke oversteg pari på tidspunktet for lånets udbetaling, eller er ydet på
+grundlag af et lånetilbud afgivet mindre end 6 måneder før lånets udbetaling og
+lånet er baseret på obligationer, der ikke oversteg pari på tilbudstidspunktet.
+
+Stk. 2. Hvis en fordring stiftes på sådanne vilkår, at fordringen forrentes med
+en pålydende rente, der har varierende sats i adskilte perioder i fordringens
+løbetid, skal gevinst, som ikke er omfattet af stk. 1, og som en debitor
+realiserer ved frigørelse for gæld ifølge en sådan fordring, medregnes.
+Reglen i 1. pkt. gælder ikke, hvis renten varierer månedsvis, og lånet ydet med
+sikkerhed som nævnt i stk. 1, 5. pkt., er baseret på fastforrentede obligationer
+eller værdipapirer, og kreditor er et selskab eller en person eller et dødsbo,
+der driver næringsvirksomhed ved finansiering.
+
+Stk. 3. Gevinst, som en debitor opnår ved ekstraordinær hel eller delvis
+indfrielse af et kontantlån i danske kroner, medregnes, hvis lånet er ydet med
+sikkerhed som nævnt i stk. 1, 5. pkt., af et selskab eller en person eller et
+dødsbo, der driver næringsvirksomhed ved finansiering.
+Det gælder dog ikke indfrielse, som foretages af sælger, og indfrielse, som
+foretages af køber i forbindelse med overdragelse af fast ejendom, såfremt
+gælden indfries eller opsiges til indfrielse i perioden fra 6 måneder før til 6
+måneder efter afståelsestidspunktet henholdsvis anskaffelsestidspunktet, og der
+for sælger henholdsvis køber er tale om første indfrielse inden for det
+pågældende tidsrum.
+2. pkt. finder ikke anvendelse ved ejerskifte mellem ægtefæller, medmindre
+indfrielsen sker ved ejerskifte som led i separation eller skilsmisse.
+2. pkt. finder heller ikke anvendelse ved en persons afståelse af en ejendom til
+et selskab m.v. som nævnt i selskabsskattelovens §§ 1 og 2 eller
+fondsbeskatningslovens § 1, hvor personen og dennes ægtefælle på grund af
+aktiebesiddelse, vedtægtsbestemmelse eller aftale har bestemmende indflydelse på
+selskabets handlemåde.
+Bestemmende indflydelse på grund af aktiebesiddelse foreligger altid ved
+ejerskab eller rådighed over stemmerettigheder, således at der direkte eller
+indirekte ejes mere end 50 pct. af aktiekapitalen eller rådes over mere end 50
+pct. af stemmerne.
+
+Stk. 4. Stk. 3, 1. pkt., finder ikke anvendelse, såfremt indfrielsen sker efter
+krav fra kreditor.
+Stk. 3, 1. pkt., finder endvidere ikke anvendelse ved indfrielse, som sker i
+forbindelse med en længstlevende ægtefælles overtagelse af en fast ejendom i
+forbindelse med skifte af et dødsbo eller ved udlevering til ægtefællen,
+herunder til hensidden i uskiftet bo.
+2. pkt. finder kun anvendelse, såfremt den afdøde ægtefælle på tidspunktet for
+dødsfaldet var ejer af den faste ejendom.
+Stk. 3, 1. pkt., finder ikke anvendelse ved indfrielse, som sker, i forbindelse
+med at en efterladt samlever, jf. dødsboskattelovens § 96, stk. 5, overtager en
+fast ejendom i forbindelse med skifte af et dødsbo.
+4. pkt. finder kun anvendelse, hvis den afdøde samlever på tidspunktet for
+dødsfaldet var ejer af den faste ejendom.
+Tidsfristerne i stk. 3, 2. pkt., for indfrielse eller opsigelse til indfrielse
+af gælden finder tilsvarende anvendelse, idet der ved afståelsestidspunktet eller
+anskaffelsestidspunktet i denne sammenhæng forstås henholdsvis
+udlodningstidspunktet eller tidspunktet for udlevering.
+----
+
+--@begin:kursgevinstloven_gæld_par22--
+# KursgevinstlovPar22Sikkerhed = KglPar22IngenKvalificerendeSikkerhed | KglPar22PantIFastEjendom | KglPar22PantISkib | KglPar22EuEøsOffentligHæftelseEllerGaranti
+# KursgevinstlovPar22Lånetilbud(dato: KursgevinstlovGældDato, obligationskurs_basispoint: Heltal)
+# KursgevinstlovPar22Realkreditgrundlag(långiver_driver_finansieringsnæring: Boolsk, sikkerhed: KursgevinstlovPar22Sikkerhed, lånet_baseret_på_obligationer: Boolsk, udbetalingsdato: KursgevinstlovGældDato, obligationskurs_ved_udbetaling_basispoint: Heltal, lånetilbud: Option(KursgevinstlovPar22Lånetilbud))
+# KursgevinstlovPar22Stiftelsesart = KglPar22NyGæld | KglPar22OvertagetGæld | KglPar22RefinansieretGæld
+# KursgevinstlovPar22Stk1Fakta(stiftelsesart: KursgevinstlovPar22Stiftelsesart, stiftelsesdato: KursgevinstlovGældDato, fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner: Heltal, aftalt_indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
+# KursgevinstlovPar22Stk2Fakta(frigørelsesdato: KursgevinstlovGældDato, nominelle_rentesatser_basispoint: List(Heltal), rente_varierer_månedsvis: Boolsk, lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer: Boolsk, realiseret_gevinst_ved_frigørelse_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
+# KursgevinstlovPar22Stk3Parter = KglPar22UafhængigeParter | KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse | KglPar22ÆgtefællerVedSeparationEllerSkilsmisse | KglPar22PersonTilKontrolleretSelskab
+# KursgevinstlovPar22Stk3Ejerskifte = KglPar22IntetEjerskifte | KglPar22SælgerIndfrier(overdragelsesdato: KursgevinstlovGældDato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22KøberIndfrier(overdragelsesdato: KursgevinstlovGældDato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22LængstlevendeÆgtefælleOvertager(overdragelsesdato: KursgevinstlovGældDato, afdøde_ejede_ejendommen: Boolsk) | KglPar22EfterladtSamleverOvertager(overdragelsesdato: KursgevinstlovGældDato, afdøde_ejede_ejendommen: Boolsk)
+# KursgevinstlovPar22Stk3Fakta(indfrielses_eller_opsigelsesdato: KursgevinstlovGældDato, ekstraordinær_indfrielse: Boolsk, kontantlån_i_danske_kroner: Boolsk, obligationsrestgæld_kroner: Heltal, indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag, indfrielse_efter_krav_fra_kreditor: Boolsk, ejerskifte: KursgevinstlovPar22Stk3Ejerskifte)
+
+| kgl_gæld_dato_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
+| kgl_gæld_dage_i_måned(år: Heltal, måned: Heltal) -> hvis måned < 1 || måned > 12 { 0 } ellers { hvis måned == 2 { hvis kgl_gæld_dato_skudår(år) { 29 } ellers { 28 } } ellers { hvis måned == 4 || måned == 6 || måned == 9 || måned == 11 { 30 } ellers { 31 } } }
+| kgl_gæld_dato_gyldig(dato: KursgevinstlovGældDato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= kgl_gæld_dage_i_måned(dato.år, dato.måned)
+| kgl_gæld_dato_nøgle(dato: KursgevinstlovGældDato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
+| kgl_gæld_dato_plus_måneder(dato: KursgevinstlovGældDato, måneder: Heltal) -> KursgevinstlovGældDato(
+    år = (dato.år * 12 + dato.måned - 1 + måneder) / 12,
+    måned = (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1,
+    dag = penge_mindste_beløb(dato.dag, kgl_gæld_dage_i_måned((dato.år * 12 + dato.måned - 1 + måneder) / 12, (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1))
+)
+| kgl_gæld_dato_inden_for_seks_måneder(venstre: KursgevinstlovGældDato, højre: KursgevinstlovGældDato) -> kgl_gæld_dato_gyldig(venstre) && kgl_gæld_dato_gyldig(højre) && hvis kgl_gæld_dato_nøgle(venstre) <= kgl_gæld_dato_nøgle(højre) { kgl_gæld_dato_nøgle(højre) <= kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(venstre, 6)) } ellers { kgl_gæld_dato_nøgle(venstre) <= kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(højre, 6)) }
+| kgl_gæld_lånetilbud_mindre_end_seks_måneder_før_udbetaling(tilbud: KursgevinstlovPar22Lånetilbud, udbetalingsdato: KursgevinstlovGældDato) -> kgl_gæld_dato_gyldig(tilbud.dato) && kgl_gæld_dato_gyldig(udbetalingsdato) && kgl_gæld_dato_nøgle(tilbud.dato) <= kgl_gæld_dato_nøgle(udbetalingsdato) && kgl_gæld_dato_nøgle(udbetalingsdato) < kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(tilbud.dato, 6))
+| kgl_gæld_par22_kvalificerende_sikkerhed(sikkerhed: KursgevinstlovPar22Sikkerhed) -> sikkerhed != KglPar22IngenKvalificerendeSikkerhed
+| kgl_gæld_par22_realkreditgrundlag_gyldigt(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> kgl_gæld_dato_gyldig(grundlag.udbetalingsdato) && grundlag.obligationskurs_ved_udbetaling_basispoint >= 0 && match grundlag.lånetilbud { | Some(tilbud) -> tilbud.obligationskurs_basispoint >= 0 && kgl_gæld_dato_gyldig(tilbud.dato) | None -> Sandt }
+| kgl_gæld_par22_stk1_obligationsundtagelse(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> grundlag.långiver_driver_finansieringsnæring && kgl_gæld_par22_kvalificerende_sikkerhed(grundlag.sikkerhed) && grundlag.lånet_baseret_på_obligationer && (grundlag.obligationskurs_ved_udbetaling_basispoint <= 10000 || match grundlag.lånetilbud { | Some(tilbud) -> tilbud.obligationskurs_basispoint <= 10000 && kgl_gæld_lånetilbud_mindre_end_seks_måneder_før_udbetaling(tilbud, grundlag.udbetalingsdato) | None -> Falskt })
+| kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta: KursgevinstlovPar22Stk1Fakta) -> penge_positivt_beløb(fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner - fakta.aftalt_indfrielsesbeløb_kroner)
+| kgl_gæld_par22_stk1_input_gyldigt(fakta: KursgevinstlovPar22Stk1Fakta) -> kgl_gæld_dato_gyldig(fakta.stiftelsesdato) && fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner >= 0 && fakta.aftalt_indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
+| kgl_gæld_par22_stk1_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk1Fakta) -> hvis kgl_gæld_par22_stk1_input_gyldigt(fakta) && kgl_gæld_par22_stk1_obligationsundtagelse(fakta.realkreditgrundlag) == Falskt { kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta) } ellers { 0 }
+| kgl_gæld_par22_stk2_varierende_rente(fakta: KursgevinstlovPar22Stk2Fakta) -> length(fakta.nominelle_rentesatser_basispoint) >= 2 && length(distinct(fakta.nominelle_rentesatser_basispoint)) >= 2
+| kgl_gæld_par22_stk2_månedsundtagelse(fakta: KursgevinstlovPar22Stk2Fakta) -> fakta.rente_varierer_månedsvis && kgl_gæld_par22_kvalificerende_sikkerhed(fakta.realkreditgrundlag.sikkerhed) && fakta.lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer && fakta.realkreditgrundlag.långiver_driver_finansieringsnæring
+| kgl_gæld_par22_stk2_input_gyldigt(fakta: KursgevinstlovPar22Stk2Fakta) -> kgl_gæld_dato_gyldig(fakta.frigørelsesdato) && fakta.realiseret_gevinst_ved_frigørelse_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
+| kgl_gæld_par22_stk2_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk2Fakta) -> hvis kgl_gæld_par22_stk2_input_gyldigt(fakta) && kgl_gæld_par22_stk2_varierende_rente(fakta) && kgl_gæld_par22_stk2_månedsundtagelse(fakta) == Falskt { fakta.realiseret_gevinst_ved_frigørelse_kroner } ellers { 0 }
+| kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte) -> match ejerskifte {
+    | KglPar22IntetEjerskifte -> Sandt
+    | KglPar22SælgerIndfrier(dato, tidligere, _) -> kgl_gæld_dato_gyldig(dato) && tidligere >= 0
+    | KglPar22KøberIndfrier(dato, tidligere, _) -> kgl_gæld_dato_gyldig(dato) && tidligere >= 0
+    | KglPar22LængstlevendeÆgtefælleOvertager(dato, _) -> kgl_gæld_dato_gyldig(dato)
+    | KglPar22EfterladtSamleverOvertager(dato, _) -> kgl_gæld_dato_gyldig(dato)
+}
+| kgl_gæld_par22_stk3_almindeligt_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: KursgevinstlovGældDato) -> match ejerskifte {
+    | KglPar22SælgerIndfrier(overdragelsesdato, tidligere, parter) -> tidligere == 0 && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato) && parter != KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse && parter != KglPar22PersonTilKontrolleretSelskab
+    | KglPar22KøberIndfrier(overdragelsesdato, tidligere, parter) -> tidligere == 0 && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato) && parter != KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse && parter != KglPar22PersonTilKontrolleretSelskab
+    | _ -> Falskt
+}
+| kgl_gæld_par22_stk4_dødsbo_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: KursgevinstlovGældDato) -> match ejerskifte {
+    | KglPar22LængstlevendeÆgtefælleOvertager(overdragelsesdato, afdøde_ejede) -> afdøde_ejede && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato)
+    | KglPar22EfterladtSamleverOvertager(overdragelsesdato, afdøde_ejede) -> afdøde_ejede && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato)
+    | _ -> Falskt
+}
+| kgl_gæld_par22_stk3_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_par22_stk3_almindeligt_ejerskifte_undtaget(fakta.ejerskifte, fakta.indfrielses_eller_opsigelsesdato)
+| kgl_gæld_par22_stk4_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> fakta.indfrielse_efter_krav_fra_kreditor || kgl_gæld_par22_stk4_dødsbo_ejerskifte_undtaget(fakta.ejerskifte, fakta.indfrielses_eller_opsigelsesdato)
+| kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_par22_stk3_undtagelse(fakta) || kgl_gæld_par22_stk4_undtagelse(fakta)
+| kgl_gæld_par22_stk3_input_gyldigt(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_dato_gyldig(fakta.indfrielses_eller_opsigelsesdato) && fakta.obligationsrestgæld_kroner >= 0 && fakta.indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag) && kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(fakta.ejerskifte)
+| kgl_gæld_par22_stk3_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk3Fakta) -> hvis kgl_gæld_par22_stk3_input_gyldigt(fakta) && fakta.ekstraordinær_indfrielse && fakta.kontantlån_i_danske_kroner && fakta.realkreditgrundlag.långiver_driver_finansieringsnæring && kgl_gæld_par22_kvalificerende_sikkerhed(fakta.realkreditgrundlag.sikkerhed) && kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta) == Falskt { penge_positivt_beløb(fakta.obligationsrestgæld_kroner - fakta.indfrielsesbeløb_kroner) } ellers { 0 }
+--@end:kursgevinstloven_gæld_par22--
+
+= kursgevinstloven_gæld_par22a_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_gæld),
+        AmendmentSource(value = kursgevinstloven_lov1883_par22a),
+    )
+)
+
+--@label:kursgevinstloven_gæld_par22a::meta:kursgevinstloven_gæld_par22a_metadata--
+----
+§ 22 A. En skattepligtig gevinst omfattet af § 22, stk. 1, beskattes efter
+reglerne i stk. 2, hvis
+1) lånet er ydet af et selskab, en person eller et dødsbo, der driver
+næringsvirksomhed ved finansiering, med sikkerhed i fast ejendom eller skibe,
+2) lånet er inkonverterbart og direkte baseret på obligationer optaget til
+handel på et reguleret marked,
+3) lånets rente ved stiftelsen udgør 0 pct. og
+4) lånets rente ikke i obligationernes løbetid kan blive mindre end 0 pct.
+
+Stk. 2. Debitor skal for hvert indkomstår, indtil debitor bliver frigjort fra
+gælden, medregne en renteindtægt svarende til, at gevinsten udgjorde en fast
+negativ rente på lånet i perioden fra lånets stiftelse til det førstkommende
+tidspunkt af enten obligationernes udløb eller lånets udløb.
+Renteindtægten beregnes ud fra den aftalte afdragsprofil ved stiftelsen.
+Har debitor i perioder afdragsfrihed, foretages beregningen med denne
+forudsætning, hvis perioderne er fastlagt ved stiftelsen.
+
+Stk. 3. Indberettes den skattepligtige renteindtægt efter stk. 2 ikke efter
+skatteindberetningslovens § 13 for det indkomstår, hvori lånet er stiftet, kan
+debitor vælge, at beskatningen af gevinsten omfattet af stk. 1 i stedet skal ske
+efter § 22, stk. 1.
+
+LOV nr. 1883 af 29/12/2015:
+
+§ 8
+Stk. 3. § 1, nr. 3, har virkning for skattepligtige gevinster efter
+kursgevinstlovens § 22, stk. 1, når stiftelsen, refinansieringen eller
+overtagelsen sker den 1. januar 2016 eller senere.
+----
+
+--@begin:kursgevinstloven_gæld_par22a--
+# KursgevinstlovPar22ABeskatningsvalg = KglPar22AÅrligFordeling | KglPar22Stk1BeskatningValgtEfterManglendeIndberetning
+# KursgevinstlovPar22AFakta(stiftelsesfakta: KursgevinstlovPar22Stk1Fakta, inkonverterbart_lån: Boolsk, direkte_baseret_på_obligationer_på_reguleret_marked: Boolsk, rente_ved_stiftelsen_basispoint: Heltal, lavest_mulige_rente_i_obligationernes_løbetid_basispoint: Heltal, obligationernes_udløbsår: Heltal, lånets_udløbsår: Heltal, frigørelsesår: Option(Heltal), renteindtægt_indberettet_efter_sil13_i_stiftelsesåret: Boolsk, årets_indberettede_renteindtægt_kroner: Heltal, beskatningsvalg: KursgevinstlovPar22ABeskatningsvalg)
+
+| kgl_gæld_par22a_virkningstid_opfyldt(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_dato_nøgle(fakta.stiftelsesfakta.stiftelsesdato) >= 20160101
+| kgl_gæld_par22a_kvalificeret(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_par22_stk1_input_gyldigt(fakta.stiftelsesfakta) && kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta.stiftelsesfakta) > 0 && kgl_gæld_par22_stk1_obligationsundtagelse(fakta.stiftelsesfakta.realkreditgrundlag) == Falskt && fakta.stiftelsesfakta.realkreditgrundlag.långiver_driver_finansieringsnæring && (fakta.stiftelsesfakta.realkreditgrundlag.sikkerhed == KglPar22PantIFastEjendom || fakta.stiftelsesfakta.realkreditgrundlag.sikkerhed == KglPar22PantISkib) && fakta.inkonverterbart_lån && fakta.direkte_baseret_på_obligationer_på_reguleret_marked && fakta.rente_ved_stiftelsen_basispoint == 0 && fakta.lavest_mulige_rente_i_obligationernes_løbetid_basispoint >= 0 && kgl_gæld_par22a_virkningstid_opfyldt(fakta)
+| kgl_gæld_par22a_sidste_fordelingsår(fakta: KursgevinstlovPar22AFakta) -> penge_mindste_beløb(fakta.obligationernes_udløbsår, fakta.lånets_udløbsår)
+| kgl_gæld_par22a_frigjort_før_indkomstår(fakta: KursgevinstlovPar22AFakta, indkomstår: Heltal) -> match fakta.frigørelsesår { | Some(år) -> år < indkomstår | None -> Falskt }
+| kgl_gæld_par22a_input_gyldigt(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_par22a_kvalificeret(fakta) && fakta.obligationernes_udløbsår >= fakta.stiftelsesfakta.stiftelsesdato.år && fakta.lånets_udløbsår >= fakta.stiftelsesfakta.stiftelsesdato.år && fakta.årets_indberettede_renteindtægt_kroner >= 0 && match fakta.frigørelsesår { | Some(år) -> år >= fakta.stiftelsesfakta.stiftelsesdato.år | None -> Sandt } && hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { fakta.renteindtægt_indberettet_efter_sil13_i_stiftelsesåret == Falskt } ellers { Sandt }
+| kgl_gæld_par22a_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22AFakta, indkomstår: Heltal) -> hvis kgl_gæld_par22a_input_gyldigt(fakta) == Falskt { 0 } ellers { hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { hvis indkomstår == fakta.stiftelsesfakta.stiftelsesdato.år { kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta.stiftelsesfakta) } ellers { 0 } } ellers { hvis indkomstår >= fakta.stiftelsesfakta.stiftelsesdato.år && indkomstår <= kgl_gæld_par22a_sidste_fordelingsår(fakta) && kgl_gæld_par22a_frigjort_før_indkomstår(fakta, indkomstår) == Falskt { fakta.årets_indberettede_renteindtægt_kroner } ellers { 0 } } }
+--@end:kursgevinstloven_gæld_par22a--
+
+= kursgevinstloven_gæld_par23_par24a_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_gæld),
+        Guidance(value = kursgevinstloven_vejledning_par23),
+        Guidance(value = kursgevinstloven_vejledning_par24),
+    )
+)
+
+--@label:kursgevinstloven_gæld_par23_par24a::meta:kursgevinstloven_gæld_par23_par24a_metadata--
+----
+§ 23. Gevinst og tab på gæld i fremmed valuta medregnes i det omfang, gevinsten
+eller tabet ikke er omfattet af § 22 eller § 24 A.
+1. pkt. finder dog alene anvendelse, hvis årets nettogevinst eller nettotab
+sammenlagt med nettogevinster og nettotab omfattet af § 14 og gevinst og tab på
+investeringsbeviser i obligationsbaserede investeringsinstitutter med
+minimumsbeskatning, jf. aktieavancebeskatningslovens § 22, overstiger 2.000 kr.
+Gæld i danske kroner anses som gæld i fremmed valuta, hvis restgælden reguleres
+i forhold til en eller flere valutakurser.
+Gæld i fremmed valuta betragtes som gæld i danske kroner, hvis restgælden
+reguleres i forhold til danske kroner.
+
+§ 24. Gevinst på gæld som følge af tvangsakkord i en rekonstruktion eller aftale
+om en samlet ordning mellem en debitor og dennes kreditorer om bortfald eller
+nedsættelse af debitors gæld (frivillig akkord) medregnes ikke ved opgørelsen af
+den skattepligtige indkomst.
+Den skattefri gevinst opgøres som forskellen mellem gældens værdi ved påtagelsen
+og fordringens værdi for kreditor på tidspunktet for gældseftergivelsen.
+Med gældsnedsættelse sidestilles hel eller delvis konvertering af gælden til
+aktier eller konvertible obligationer.
+
+Stk. 2. Stk. 1, 1. pkt., gælder tilsvarende for gevinst på gæld som følge af
+gældssanering.
+
+Stk. 3. Stk. 1 og 2 finder ikke anvendelse på gæld, der er omfattet af § 21,
+stk. 2.
+
+§ 24 A. Gevinst og tab på fordringer og gæld vedrørende ikke indbetalt
+selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
+----
+
+--@begin:kursgevinstloven_gæld_par23_par24a--
+# KursgevinstlovPar22Hændelse = KglIngenPar22Hændelse | KglPar22Stk1Stiftelse(fakta: KursgevinstlovPar22Stk1Fakta) | KglPar22Stk2Frigørelse(fakta: KursgevinstlovPar22Stk2Fakta) | KglPar22Stk3Indfrielse(fakta: KursgevinstlovPar22Stk3Fakta) | KglPar22AÅrsbeskatning(fakta: KursgevinstlovPar22AFakta)
+# KursgevinstlovGældHjemmel = KglGældPar19 | KglGældPar20 | KglGældPar21Stk1 | KglGældPar21Stk2 | KglGældPar22Stk1 | KglGældPar22Stk2 | KglGældPar22Stk3 | KglGældPar22Stk3Undtagelse | KglGældPar22Stk4Undtagelse | KglGældPar22A | KglGældPar23 | KglGældPar24Stk1 | KglGældPar24Stk2 | KglGældPar24Stk3 | KglGældPar24A
+# KursgevinstlovGældBehandling = KglGældUgyldigtGrundlag | KglGældBehandlesEfterPar19 | KglGældBehandlesEfterPar20 | KglGældBehandlesEfterPar21Stk1 | KglGældBehandlesEfterPar21Stk2 | KglGældBehandlesEfterPar22 | KglGældBehandlesEfterPar23 | KglGældBehandlesEfterPar24 | KglGældBehandlesEfterPar24A
+# KursgevinstlovGældFakta(identifikation: Tekst, beløb: KursgevinstlovGældBeløb, frigørelsesart: KursgevinstlovGældFrigørelsesart, erhvervsforhold: KursgevinstlovGældErhvervsforhold, valuta: KursgevinstlovGældValuta, selskabsfakta: KursgevinstlovPar21Stk2Selskabsfakta, gældsordning: KursgevinstlovGældsordning, vedrører_ikke_indbetalt_selskabskapital: Boolsk, par22_hændelse: KursgevinstlovPar22Hændelse)
+# KursgevinstlovGældInput(indkomstår: Heltal, fakta: KursgevinstlovGældFakta)
+# KursgevinstlovGældResultat(input: KursgevinstlovGældInput, input_gyldigt: Boolsk, behandling: KursgevinstlovGældBehandling, hjemler: List(KursgevinstlovGældHjemmel), behandles_som_fremmed_valuta: Boolsk, par21_stk2_anvendes: Boolsk, par22_anvendes: Boolsk, par24_anvendes: Boolsk, par24a_anvendes: Boolsk, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, ikke_medregnet_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_indkomst_efter_par19: Boolsk)
+
+| kgl_gæld_behandles_som_fremmed_valuta(valuta: KursgevinstlovGældValuta) -> valuta == KglGældFremmedValuta || valuta == KglGældDanskeKronerValutareguleret
+| kgl_gæld_par24_anvendes(ordning: KursgevinstlovGældsordning) -> ordning == KglTvangsakkordIRekonstruktion || ordning == KglFrivilligSamletKreditorordning || ordning == KglGældssanering
+| kgl_gæld_par24_skattefri_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> penge_mindste_beløb(kgl_gæld_bruttogevinst_kroner(beløb), penge_positivt_beløb(beløb.gældens_værdi_ved_påtagelse_kroner - beløb.fordringens_værdi_for_kreditor_kroner))
+| kgl_gæld_par22_hændelse_input_gyldigt(hændelse: KursgevinstlovPar22Hændelse) -> match hændelse {
+    | KglIngenPar22Hændelse -> Sandt
+    | KglPar22Stk1Stiftelse(fakta) -> kgl_gæld_par22_stk1_input_gyldigt(fakta)
+    | KglPar22Stk2Frigørelse(fakta) -> kgl_gæld_par22_stk2_input_gyldigt(fakta)
+    | KglPar22Stk3Indfrielse(fakta) -> kgl_gæld_par22_stk3_input_gyldigt(fakta)
+    | KglPar22AÅrsbeskatning(fakta) -> kgl_gæld_par22a_input_gyldigt(fakta)
+}
+| kgl_gæld_par22_beløb_konsistente(beløb: KursgevinstlovGældBeløb, hændelse: KursgevinstlovPar22Hændelse) -> match hændelse {
+    | KglIngenPar22Hændelse -> Sandt
+    | KglPar22Stk1Stiftelse(fakta) -> beløb.gældens_værdi_ved_påtagelse_kroner == fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner && beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner == fakta.aftalt_indfrielsesbeløb_kroner
+    | KglPar22Stk2Frigørelse(fakta) -> kgl_gæld_bruttogevinst_kroner(beløb) == fakta.realiseret_gevinst_ved_frigørelse_kroner && kgl_gæld_bruttotab_kroner(beløb) == 0
+    | KglPar22Stk3Indfrielse(fakta) -> beløb.gældens_værdi_ved_påtagelse_kroner == fakta.obligationsrestgæld_kroner && beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner == fakta.indfrielsesbeløb_kroner
+    | KglPar22AÅrsbeskatning(fakta) -> beløb.gældens_værdi_ved_påtagelse_kroner == fakta.stiftelsesfakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner && beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner == fakta.stiftelsesfakta.aftalt_indfrielsesbeløb_kroner
+}
+| kgl_gæld_par22_hændelse_har_skattepligtig_gevinst(hændelse: KursgevinstlovPar22Hændelse, indkomstår: Heltal) -> kgl_gæld_par22_skattepligtig_gevinst_kroner(hændelse, indkomstår) > 0
+| kgl_gæld_par22_skattepligtig_gevinst_kroner(hændelse: KursgevinstlovPar22Hændelse, indkomstår: Heltal) -> match hændelse {
+    | KglIngenPar22Hændelse -> 0
+    | KglPar22Stk1Stiftelse(fakta) -> hvis fakta.stiftelsesdato.år == indkomstår { kgl_gæld_par22_stk1_skattepligtig_gevinst_kroner(fakta) } ellers { 0 }
+    | KglPar22Stk2Frigørelse(fakta) -> hvis fakta.frigørelsesdato.år == indkomstår { kgl_gæld_par22_stk2_skattepligtig_gevinst_kroner(fakta) } ellers { 0 }
+    | KglPar22Stk3Indfrielse(fakta) -> hvis fakta.indfrielses_eller_opsigelsesdato.år == indkomstår { kgl_gæld_par22_stk3_skattepligtig_gevinst_kroner(fakta) } ellers { 0 }
+    | KglPar22AÅrsbeskatning(fakta) -> kgl_gæld_par22a_skattepligtig_gevinst_kroner(fakta, indkomstår)
+}
+| kgl_gæld_par22_hjemler(hændelse: KursgevinstlovPar22Hændelse) -> match hændelse {
+    | KglIngenPar22Hændelse -> []
+    | KglPar22Stk1Stiftelse(_) -> [KglGældPar22Stk1]
+    | KglPar22Stk2Frigørelse(_) -> [KglGældPar22Stk2]
+    | KglPar22Stk3Indfrielse(fakta) -> concat(concat([KglGældPar22Stk3], hvis kgl_gæld_par22_stk3_undtagelse(fakta) { [KglGældPar22Stk3Undtagelse] } ellers { [] }), hvis kgl_gæld_par22_stk4_undtagelse(fakta) { [KglGældPar22Stk4Undtagelse] } ellers { [] })
+    | KglPar22AÅrsbeskatning(fakta) -> hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { [KglGældPar22A, KglGældPar22Stk1] } ellers { [KglGældPar22A] }
+}
+| kgl_gæld_par23_nettoomfattet(fakta: KursgevinstlovGældFakta) -> kgl_gæld_behandles_som_fremmed_valuta(fakta.valuta) && kgl_gæld_er_finansieringsnæring(fakta.erhvervsforhold) == Falskt && fakta.vedrører_ikke_indbetalt_selskabskapital == Falskt && match fakta.par22_hændelse { | KglIngenPar22Hændelse -> Sandt | _ -> Falskt } && (kgl_gæld_er_eftergivelse_mv(fakta.frigørelsesart) == Falskt || (kgl_gæld_par21_stk2_anvendes(fakta.selskabsfakta) == Falskt && kgl_gæld_par24_anvendes(fakta.gældsordning) == Falskt))
+| kgl_gæld_rå_netto_til_par14_23_kroner(fakta: KursgevinstlovGældFakta) -> hvis kgl_gæld_par23_nettoomfattet(fakta) { kgl_gæld_bruttogevinst_kroner(fakta.beløb) - kgl_gæld_bruttotab_kroner(fakta.beløb) } ellers { 0 }
+
+# KursgevinstlovGældSag(input: KursgevinstlovGældInput, årets_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal) {
+    | beløb_gyldige() -> input.fakta.beløb.gældens_værdi_ved_påtagelse_kroner >= 0 && input.fakta.beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner >= 0 && input.fakta.beløb.fordringens_værdi_for_kreditor_kroner >= 0
+    | eftergivelse_mv() -> kgl_gæld_er_eftergivelse_mv(input.fakta.frigørelsesart)
+    | par24a_anvendes() -> input.fakta.vedrører_ikke_indbetalt_selskabskapital
+    | par21_stk2_betingelser_opfyldt() -> eftergivelse_mv() && kgl_gæld_par21_stk2_anvendes(input.fakta.selskabsfakta)
+    | par24_anvendes() -> par24a_anvendes() == Falskt && eftergivelse_mv() && kgl_gæld_par24_anvendes(input.fakta.gældsordning) && par21_stk2_betingelser_opfyldt() == Falskt
+    | par19_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && kgl_gæld_er_finansieringsnæring(input.fakta.erhvervsforhold)
+    | par21_stk2_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && par19_anvendes() == Falskt && par21_stk2_betingelser_opfyldt()
+    | par22_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && par19_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && eftergivelse_mv() == Falskt && match input.fakta.par22_hændelse { | KglIngenPar22Hændelse -> Falskt | _ -> Sandt }
+    | par23_anvendes() -> par24a_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && par24_anvendes() == Falskt && par22_anvendes() == Falskt && par19_anvendes() == Falskt && kgl_gæld_par23_nettoomfattet(input.fakta)
+    | par21_stk1_anvendes() -> par24a_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && par24_anvendes() == Falskt && par22_anvendes() == Falskt && par19_anvendes() == Falskt && par23_anvendes() == Falskt && eftergivelse_mv()
+    | fremmed_valuta() -> kgl_gæld_behandles_som_fremmed_valuta(input.fakta.valuta)
+    | input_gyldigt() -> input.fakta.identifikation != "" && input.indkomstår > 0 && beløb_gyldige() && kgl_gæld_par21_stk2_selskabsfakta_gyldige(input.fakta.selskabsfakta) && kgl_gæld_par22_hændelse_input_gyldigt(input.fakta.par22_hændelse) && kgl_gæld_par22_beløb_konsistente(input.fakta.beløb, input.fakta.par22_hændelse) && eftergivelsesordning_konsistent() && frigørelsesart_og_par22_konsistente() && par22_hændelsesår_konsistent()
+    | eftergivelsesordning_konsistent() -> hvis input.fakta.gældsordning == KglIngenSamletGældsordning { Sandt } ellers { eftergivelse_mv() }
+    | frigørelsesart_og_par22_konsistente() -> eftergivelse_mv() == Falskt || match input.fakta.par22_hændelse { | KglIngenPar22Hændelse -> Sandt | _ -> Falskt }
+    | par22_hændelsesår_konsistent() -> match input.fakta.par22_hændelse {
+        | KglIngenPar22Hændelse -> Sandt
+        | KglPar22Stk1Stiftelse(fakta) -> fakta.stiftelsesdato.år == input.indkomstår
+        | KglPar22Stk2Frigørelse(fakta) -> fakta.frigørelsesdato.år == input.indkomstår
+        | KglPar22Stk3Indfrielse(fakta) -> fakta.indfrielses_eller_opsigelsesdato.år == input.indkomstår
+        | KglPar22AÅrsbeskatning(fakta) -> input.indkomstår >= fakta.stiftelsesfakta.stiftelsesdato.år
+    }
+    | behandling_uden_validering() -> KglGældBehandlesEfterPar20
+    | exception kgl_gæld_behandling_par19 behandling_uden_validering() -> KglGældBehandlesEfterPar19 under par19_anvendes()
+    | exception kgl_gæld_behandling_par21_stk1 behandling_uden_validering() -> KglGældBehandlesEfterPar21Stk1 under par21_stk1_anvendes()
+    | exception kgl_gæld_behandling_par21_stk2 behandling_uden_validering() -> KglGældBehandlesEfterPar21Stk2 under par21_stk2_anvendes()
+    | exception kgl_gæld_behandling_par22 behandling_uden_validering() -> KglGældBehandlesEfterPar22 under par22_anvendes()
+    | exception kgl_gæld_behandling_par23 behandling_uden_validering() -> KglGældBehandlesEfterPar23 under par23_anvendes()
+    | exception kgl_gæld_behandling_par24 behandling_uden_validering() -> KglGældBehandlesEfterPar24 under par24_anvendes()
+    | exception kgl_gæld_behandling_par24a behandling_uden_validering() -> KglGældBehandlesEfterPar24A under par24a_anvendes()
+    | behandling() -> hvis input_gyldigt() { behandling_uden_validering() } ellers { KglGældUgyldigtGrundlag }
+    | bagatelgrænse_afskærer() -> behandling() == KglGældBehandlesEfterPar23 && kgl_gæld_absolut_beløb(årets_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner) <= 2000
+    | bruttogevinst_kroner() -> kgl_gæld_bruttogevinst_kroner(input.fakta.beløb)
+    | bruttotab_kroner() -> kgl_gæld_bruttotab_kroner(input.fakta.beløb)
+    | par21_stk1_gevinst_kroner() -> kgl_gæld_par21_stk1_skattepligtig_gevinst_kroner(input.fakta.beløb)
+    | par22_gevinst_kroner() -> kgl_gæld_par22_skattepligtig_gevinst_kroner(input.fakta.par22_hændelse, input.indkomstår)
+    | skattepligtig_gevinst_kroner() -> match behandling() {
+        | KglGældUgyldigtGrundlag -> 0
+        | KglGældBehandlesEfterPar19 -> bruttogevinst_kroner()
+        | KglGældBehandlesEfterPar20 -> 0
+        | KglGældBehandlesEfterPar21Stk1 -> par21_stk1_gevinst_kroner()
+        | KglGældBehandlesEfterPar21Stk2 -> kgl_gæld_par21_stk2_skattepligtig_gevinst_kroner(input.fakta.beløb)
+        | KglGældBehandlesEfterPar22 -> par22_gevinst_kroner()
+        | KglGældBehandlesEfterPar23 -> hvis bagatelgrænse_afskærer() { 0 } ellers { bruttogevinst_kroner() }
+        | KglGældBehandlesEfterPar24 -> par21_stk1_gevinst_kroner()
+        | KglGældBehandlesEfterPar24A -> 0
+    }
+    | fradragsberettiget_tab_kroner() -> match behandling() {
+        | KglGældBehandlesEfterPar19 -> bruttotab_kroner()
+        | KglGældBehandlesEfterPar23 -> hvis bagatelgrænse_afskærer() { 0 } ellers { bruttotab_kroner() }
+        | _ -> 0
+    }
+    | ikke_medregnet_gevinst_kroner() -> penge_positivt_beløb(bruttogevinst_kroner() - skattepligtig_gevinst_kroner())
+    | personlig_indkomst_efter_par19() -> behandling() == KglGældBehandlesEfterPar19 && (skattepligtig_gevinst_kroner() > 0 || fradragsberettiget_tab_kroner() > 0)
+    | hjemler() -> match behandling() {
+        | KglGældUgyldigtGrundlag -> []
+        | KglGældBehandlesEfterPar19 -> [KglGældPar19]
+        | KglGældBehandlesEfterPar20 -> [KglGældPar20]
+        | KglGældBehandlesEfterPar21Stk1 -> [KglGældPar21Stk1]
+        | KglGældBehandlesEfterPar21Stk2 -> hvis kgl_gæld_par24_anvendes(input.fakta.gældsordning) { [KglGældPar21Stk2, KglGældPar24Stk3] } ellers { [KglGældPar21Stk2] }
+        | KglGældBehandlesEfterPar22 -> kgl_gæld_par22_hjemler(input.fakta.par22_hændelse)
+        | KglGældBehandlesEfterPar23 -> [KglGældPar23]
+        | KglGældBehandlesEfterPar24 -> hvis input.fakta.gældsordning == KglGældssanering { [KglGældPar24Stk2, KglGældPar21Stk1] } ellers { [KglGældPar24Stk1, KglGældPar21Stk1] }
+        | KglGældBehandlesEfterPar24A -> [KglGældPar24A]
+    }
+    | resultat() -> KursgevinstlovGældResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        behandling = behandling(),
+        hjemler = hjemler(),
+        behandles_som_fremmed_valuta = fremmed_valuta(),
+        par21_stk2_anvendes = par21_stk2_anvendes(),
+        par22_anvendes = par22_anvendes(),
+        par24_anvendes = par24_anvendes(),
+        par24a_anvendes = par24a_anvendes(),
+        bagatelgrænse_afskærer = bagatelgrænse_afskærer(),
+        bruttogevinst_kroner = bruttogevinst_kroner(),
+        bruttotab_kroner = bruttotab_kroner(),
+        skattepligtig_gevinst_kroner = skattepligtig_gevinst_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        ikke_medregnet_gevinst_kroner = ikke_medregnet_gevinst_kroner(),
+        netto_efter_kursgevinstloven_kroner = skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner(),
+        personlig_indkomst_efter_par19 = personlig_indkomst_efter_par19()
+    )
+}
+
+| kgl_gæld_absolut_beløb(beløb_kroner: Heltal) -> penge_største_beløb(beløb_kroner, 0 - beløb_kroner)
+| kursgevinstlov_gæld_input(indkomstår: Heltal, fakta: KursgevinstlovGældFakta) -> KursgevinstlovGældInput(indkomstår = indkomstår, fakta = fakta)
+| kursgevinstlov_gæld_sag(input: KursgevinstlovGældInput, årets_netto_kroner: Heltal) -> KursgevinstlovGældSag(input, årets_netto_kroner)
+| kursgevinstlov_gæld_resultat(input: KursgevinstlovGældInput, årets_netto_kroner: Heltal) -> kursgevinstlov_gæld_sag(input, årets_netto_kroner).resultat()
+| kursgevinstlov_gæld_input_gyldigt(input: KursgevinstlovGældInput) -> kursgevinstlov_gæld_resultat(input, 0).input_gyldigt
+| kgl_gæld_tom_input() -> kursgevinstlov_gæld_input(1, KursgevinstlovGældFakta(
+    identifikation = "ikke-anvendt-gæld",
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = 0,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = 0,
+        fordringens_værdi_for_kreditor_kroner = 0
+    ),
+    frigørelsesart = KglGældOrdinærIndfrielse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældDanskeKroner,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = KglIngenSamletGældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+))
+--@end:kursgevinstloven_gæld_par23_par24a--

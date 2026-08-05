@@ -2083,7 +2083,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.kursgevinst.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.ægtefælles_skatteyder_identifikation",
-            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
             "kapitalindkomst.fremleje.$variant",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
@@ -2490,6 +2490,52 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human KGL seller-note label {expected} on {kgl_seller_note_sheet}"
+            );
+        }
+        let kgl_debt_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter";
+        let kgl_debt_sheet = workbook_collection_sheet_name(&mut workbook, kgl_debt_path);
+        let kgl_debt_paths = workbook_column_paths(&mut workbook, &kgl_debt_sheet);
+        for expected in [
+            "identifikation",
+            "beløb.gældens_værdi_ved_påtagelse_kroner",
+            "beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+            "beløb.fordringens_værdi_for_kreditor_kroner",
+            "frigørelsesart",
+            "erhvervsforhold",
+            "valuta",
+            "selskabsfakta.$variant",
+            "gældsordning",
+            "vedrører_ikke_indbetalt_selskabskapital",
+            "par22_hændelse.$variant",
+        ] {
+            assert!(
+                kgl_debt_paths.iter().any(|path| path == expected),
+                "missing canonical KGL debt source-fact path {expected} on {kgl_debt_sheet}"
+            );
+        }
+        for forbidden in ["indkomstår", "behandling"] {
+            assert!(
+                !kgl_debt_paths.iter().any(|path| path == forbidden),
+                "derived KGL debt field {forbidden} leaked into {kgl_debt_sheet}"
+            );
+        }
+        let kgl_debt_headers = workbook_headers(&mut workbook, &kgl_debt_sheet);
+        for expected in [
+            "Gældens identifikation",
+            "Gældens værdi ved påtagelsen",
+            "Gældens værdi ved frigørelse eller indfrielse",
+            "Fordringens værdi for kreditor",
+            "Hvordan gælden ophørte eller blev reduceret",
+            "Gældens forbindelse til finansieringsnæring",
+            "Gældens valuta og regulering",
+            "Nuværende eller tidligere selskabsgæld",
+            "Samlet gældsordning",
+            "Ikke indbetalt selskabskapital",
+            "Særlig lånehændelse efter KGL § 22",
+        ] {
+            assert!(
+                kgl_debt_headers.iter().any(|header| header == expected),
+                "missing human KGL debt label {expected} on {kgl_debt_sheet}"
             );
         }
         let kgl_disposition_path =
@@ -3197,6 +3243,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 11, "personskat-pbl53a-overdrager-2026");
         fill_wage_case(sheets, 12, "personskat-aegtefaelleoverfoersler-2025");
         fill_wage_case(sheets, 13, "personskat-ejendomsskatter-2025");
+        fill_wage_case(sheets, 14, "personskat-kgl-gaeld-2026");
+        for (header, value) in [
+            (
+                "kapitalindkomst.kursgevinst.$variant",
+                Data::String("MedKursgevinst".to_string()),
+            ),
+            (
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
+                Data::String("Borger".to_string()),
+            ),
+            (
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
+                Data::Int(0),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 14, header, value);
+        }
         for (header, value) in [
             ("lønmodtager.skatteår", Data::String("2025".to_string())),
             (
@@ -4826,7 +4889,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("Sælger".to_string()),
             ),
             (
-                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner",
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
                 Data::Int(0),
             ),
         ] {
@@ -5494,6 +5557,55 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, &kgl_seller_note_sheet, 1, header, value);
+        }
+        let kgl_debt_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-gaeld-2026".to_string()),
+            ),
+            ("item_id", Data::String("usd-laan-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("USD-lån".to_string())),
+            (
+                "beløb.gældens_værdi_ved_påtagelse_kroner",
+                Data::Int(100_000),
+            ),
+            (
+                "beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+                Data::Int(97_000),
+            ),
+            (
+                "beløb.fordringens_værdi_for_kreditor_kroner",
+                Data::Int(97_000),
+            ),
+            (
+                "frigørelsesart",
+                Data::String("KglGældOrdinærIndfrielse".to_string()),
+            ),
+            (
+                "erhvervsforhold",
+                Data::String("KglGældUdenFinansieringsnæring".to_string()),
+            ),
+            ("valuta", Data::String("KglGældFremmedValuta".to_string())),
+            (
+                "selskabsfakta.$variant",
+                Data::String("KglIngenPar21Stk2Selskabsgæld".to_string()),
+            ),
+            (
+                "gældsordning",
+                Data::String("KglIngenSamletGældsordning".to_string()),
+            ),
+            ("vedrører_ikke_indbetalt_selskabskapital", Data::Bool(false)),
+            (
+                "par22_hændelse.$variant",
+                Data::String("KglIngenPar22Hændelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &kgl_debt_sheet, 1, header, value);
         }
         let own_milk_quota_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -6649,6 +6761,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "$variant": "MedKursgevinst",
             "fakta": {
                 "skatteyder_identifikation": "Sælger",
+                "ægtefælles_skatteyder_identifikation": null,
                 "sælgerpantebreve": [{
                     "sælgerpantebrev_identifikation": "sælgerpantebrev-2025",
                     "oprindelig_skatteyder_identifikation": "Sælger",
@@ -6662,7 +6775,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     },
                     "dispositioner_efter_ebl_forløbet": []
                 }],
-                "øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner": 0
+                "gældsposter": [],
+                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
             }
         },
         "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
@@ -7472,6 +7586,40 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(property_tax_case);
+    let mut debt_case = json_input["cases"][0].clone();
+    debt_case["case_id"] = Value::String("personskat-kgl-gaeld-2026".into());
+    debt_case["input"]["kapitalindkomst"]["kursgevinst"] = serde_json::json!({
+        "$variant": "MedKursgevinst",
+        "fakta": {
+            "skatteyder_identifikation": "Borger",
+            "ægtefælles_skatteyder_identifikation": null,
+            "sælgerpantebreve": [],
+            "gældsposter": [{
+                "identifikation": "USD-lån",
+                "beløb": {
+                    "gældens_værdi_ved_påtagelse_kroner": 100_000,
+                    "gældens_værdi_ved_frigørelse_eller_indfrielse_kroner": 97_000,
+                    "fordringens_værdi_for_kreditor_kroner": 97_000
+                },
+                "frigørelsesart": { "$variant": "KglGældOrdinærIndfrielse" },
+                "erhvervsforhold": { "$variant": "KglGældUdenFinansieringsnæring" },
+                "valuta": { "$variant": "KglGældFremmedValuta" },
+                "selskabsfakta": { "$variant": "KglIngenPar21Stk2Selskabsgæld" },
+                "gældsordning": { "$variant": "KglIngenSamletGældsordning" },
+                "vedrører_ikke_indbetalt_selskabskapital": false,
+                "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
+            }],
+            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
+        }
+    });
+    debt_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(debt_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -7538,6 +7686,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         xlsx_property_tax_result["result"],
         json_property_tax_result["result"]
+    );
+    let xlsx_debt_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-gaeld-2026")
+        .expect("XLSX KGL debt result");
+    let json_debt_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-gaeld-2026")
+        .expect("JSON KGL debt result");
+    assert_eq!(xlsx_debt_result["result"], json_debt_result["result"]);
+    assert_eq!(
+        xlsx_debt_result["result"]["kapitalindkomst"]["kursgevinst_resultat"]
+            ["årets_samlede_netto_efter_par14_kroner"],
+        3_000
+    );
+    assert_eq!(
+        xlsx_debt_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        3_000
     );
     assert_eq!(
         xlsx_property_tax_result["result"]["ejendomsskatter"]["samlet_ejendomsværdiskat_øre"],

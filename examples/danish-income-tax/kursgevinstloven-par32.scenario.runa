@@ -43,9 +43,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
         realiseret_i_indkomståret = Sandt
     ),
     udøver_fordrings_eller_kontraktnæring = Falskt,
-    driver_finansieringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = Falskt,
-    gæld_vedrører_finansieringsnæring = Falskt,
     anvender_lagerprincip_efter_par25 = Falskt
 ))
 | kgl_par32_scenarie_almindelig_post(indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal) -> KursgevinstPar32Kontraktpost(

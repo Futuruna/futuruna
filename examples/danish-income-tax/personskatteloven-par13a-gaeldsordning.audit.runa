@@ -82,9 +82,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
             realiseret_i_indkomståret = Sandt
         ),
         udøver_fordrings_eller_kontraktnæring = Falskt,
-        driver_finansieringsnæring = Falskt,
         fordring_erhvervet_udenfor_næring = Falskt,
-        gæld_vedrører_finansieringsnæring = Falskt,
         anvender_lagerprincip_efter_par25 = Falskt
     )),
     relation = KglPar32AlmindeligKontrakt,

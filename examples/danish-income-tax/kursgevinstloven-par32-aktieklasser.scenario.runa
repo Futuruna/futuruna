@@ -189,9 +189,7 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
         realiseret_i_indkomståret = Sandt
     ),
     udøver_fordrings_eller_kontraktnæring = Falskt,
-    driver_finansieringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = Falskt,
-    gæld_vedrører_finansieringsnæring = Falskt,
     anvender_lagerprincip_efter_par25 = Falskt
 ))
 | kgl_par32_aktieklasse_scenarie_aktiebaseret_kontraktpost(indkomstår: Heltal, tab_kroner: Heltal) -> KursgevinstPar32Kontraktpost(

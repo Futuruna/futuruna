@@ -62,6 +62,24 @@ kanoniske svar. AI'en skal ikke selv gætte skatteregler eller beregne skatten:
 Futuruna validerer fakta og udfører den kildebundne beregning deterministisk.
 Resultatet bevarer de juridiske mellemresultater, så AI'en bagefter kan forklare
 hvilken regel, betingelse, undtagelse og kilde der førte til beløbet.
+Der er ikke et automatisk PDF- eller dokumentimporttrin. AI'en eller et menneske
+læser kildedokumenterne og udfylder arbejdsbogen; Futuruna tager først over ved
+den typede validering og beregning. `@ importer` i en Futuruna-fil betyder alene,
+at filen bruger definitioner fra et andet Futuruna-modul.
+
+Kursgevinstlovens §§ 19-24 A viser denne arbejdsdeling konkret. For hver
+gældspost spørger kontrakten efter tolv grupper af kildefakta, blandt andet
+værdier, frigørelsesart, valuta, finansieringsnæring, selskabsforbindelse,
+gældsordning og særlige § 22-hændelser. Den spørger ikke borgeren eller AI'en om,
+hvilken paragraf der gælder. Futuruna afleder indkomståret fra den samlede
+Personskat-sag, prioriteten mellem §§ 19, 21, 22, 23, 24 og 24 A, § 23's samlede
+2.000-kronersgrænse og den endelige kapital- eller
+personlig-indkomstklassifikation. Seks kanoniske Personskat-scenarier og
+syvogtredive fokuserede gældsscenarier passerer både fortolket og kompileret.
+En faktisk udfyldt gældsrække i den genererede XLSX-arbejdsbog giver samme
+komplette Personskat-resultat som de tilsvarende typede JSON-fakta: 3.000 kr. i
+valutagevinst føres til kapitalindkomsten, mens indkomståret og § 23-behandlingen
+afledes af reglerne.
 
 Pensionsgrenen viser samspillet i praksis. Borgeren eller AI-interviewet
 oplyser de faktiske indbetalinger, ordningstyper, betalingsår og relevante
@@ -319,7 +337,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 1.011 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 1.345 eksplicitte feltmetadata-poster,
 heraf 261 for § 53 A-ordninger og 66 for egne og ægtefællens skadegenopførelser
 efter Ejendomsavancebeskatningslovens § 10. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.

@@ -2093,9 +2093,7 @@ fra og med den 1. januar 2027.
     gæld = kgl_tom_gæld(),
     kontrakt = kgl_tom_kontrakt(),
     udøver_fordrings_eller_kontraktnæring = Falskt,
-    driver_finansieringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = Falskt,
-    gæld_vedrører_finansieringsnæring = Falskt,
     anvender_lagerprincip_efter_par25 = Falskt
 )
 = par4_stk1_nr2_tab_fixture = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_tab_kgl_input)
