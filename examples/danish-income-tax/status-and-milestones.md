@@ -3763,6 +3763,28 @@ Review candidates to revisit deliberately, not as broad churn:
   the aggregate itself. Remaining workbook gaps are therefore the remaining
   source-law branches that have not yet reached `PersonskatInput`, not
   hand-authored workbook topology.
+- The 2026-08-01 calculation-boundary audit now inventories every public
+  `@ calculate` entry with `runa audit --entry ... --json`. The four entries in
+  `investeringsklassifikation.calculate.runa` accept typed source-fact graphs
+  and derive their legal classifications: § 19 reaches 45 callable families,
+  §§ 19 A-20 A reach 80, §§ 19 B-19 C reach 65, and §§ 21-22 reach 65. Their
+  large `not_reached` sets are expected because the shared imported corpus is
+  broader than each focused classifier.
+  The canonical `beregn_personskat` entry loads 65 source modules and reaches
+  3.060 of 7.934 registered callable families. These counts are inventory
+  evidence, not a completeness percentage: a reached RuleScope conservatively
+  marks all its members reached, and `not_reached` means review candidate rather
+  than proof of impossible dynamic or external invocation.
+  The review classifies ABL § 9's company portfolio ledger, advance
+  registration, withholding regulations, final-settlement helpers and terminal
+  provisions as intentionally separate calculation/workflow boundaries. It
+  confirms material Personskat composition gaps for ABL § 5 A (`td-6766a4`),
+  paired § 13 A loss offsets (`td-ed02d8`), the richer § 17 source model
+  (`td-699438`), §§ 35 G-35 K (`td-0b0a4b`) and §§ 37-40 (`td-3681f7`). It also
+  confirms public caller-derived current-law values in the residual KGL annual
+  net (`td-5beddd`), untyped capital expenses (`td-151941`) and the PSL § 13
+  deficit-eligibility flag (`td-292327`). Fixtures remain deliberately outside
+  the canonical graph.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
