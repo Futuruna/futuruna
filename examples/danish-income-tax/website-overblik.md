@@ -607,6 +607,23 @@ AM-bidrag, som allerede er indregnet dér, ikke fradrages to gange.
 Personskatteloven § 3, stk. 2, nr. 7 er nu også koblet til de beregnede
 henlæggelser efter Virksomhedsskatteloven §§ 22 b og 22 d, herunder procent- og
 beløbslofter, udligningsskat, bundet konto og rettidigt indskud.
+
+Virksomhedsskattelovens kapitalafkast efter § 7 er tilsvarende ført tilbage til
+sine kilder. Borgeren oplyser aktiver, gæld, konti, overførsler og eventuelle
+boliger for den lovbestemte nærtståendekreds. Futuruna afleder selv det signerede
+afkastgrundlag efter § 8 og beregner satserne efter §§ 9 og 9 a fra årets seks
+første månedsobservationer hos Danmarks Nationalbank. For både 2025 og 2026 giver
+reglernes afrundingskæde en kapitalafkastsats på 2 pct. og en
+rentekorrektionssats på 5 pct. 2025-resultatet stemmer med Skatteministeriets
+offentliggjorte satsoversigt; 2026-resultatet står særskilt som beregnet, men
+endnu ikke offentliggjort dér pr. 30. juli 2026. Dermed indtaster borgeren eller
+AI-interviewet ikke selv lovens afkastgrundlag eller sats som en færdig juridisk
+konklusion. Kilderne er
+[Virksomhedsskatteloven, LBK nr. 1836/2021](https://www.retsinformation.dk/eli/lta/2021/1836),
+[Danmarks Nationalbanks DNRUUPI-tabel](https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da)
+og
+[Skatteministeriets satsoversigt](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven).
+
 Personskatteloven § 3, stk. 2, nr. 8 og 9 modtager nu tilsvarende typede
 resultater fra Ligningsloven §§ 9 B og 8 O. § 9 B-reglerne afgør bl.a.
 60-dages-perioder, Skatterådets kilometersatser, skattefri eller personlig

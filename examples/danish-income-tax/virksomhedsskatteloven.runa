@@ -39,6 +39,26 @@
     identifier = "Den juridiske vejledning C.C.5.5.2 Udligningsskat, ophør af skattepligt og konkurs",
     hentet_dato = "2026-07-18"
 )
+= virksomhedsskatteloven_lbk1836_par8 = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 8",
+    hentet_dato = "2026-07-30"
+)
+= virksomhedsskatteloven_lbk1836_par9_par9a = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven §§ 9 og 9 a",
+    hentet_dato = "2026-07-30"
+)
+= virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9 = VirksomhedsskattelovKildeInfo(
+    url = "https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da",
+    identifier = "DNRUUPI AL20/EFFR/1100/Z01/ALLE/ALLE januar-juni 2025 og 2026",
+    hentet_dato = "2026-07-30"
+)
+= virksomhedsskatteloven_skatteministeriet_satser_par9_par9a = VirksomhedsskattelovKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven",
+    identifier = "Skatteministeriets satser og beløbsgrænser i virksomhedsskatteloven",
+    hentet_dato = "2026-07-30"
+)
 
 ----
 § 7. Kapitalafkast beregnes som afkastgrundlaget gange afkastsatsen.
@@ -78,6 +98,370 @@ hele måneder, regnskabsperioden omfatter.
 }
 | virksomhedsskattelov7_sag(input: Virksomhedsskattelov7Input) -> Virksomhedsskattelov7Sag(input)
 | virksomhedsskattelov7_resultat(input: Virksomhedsskattelov7Input) -> virksomhedsskattelov7_sag(input).resultat()
+
+= virksomhedsskatteloven_par8_metadata = Metadata(
+    attachments = Source(value = virksomhedsskatteloven_lbk1836_par8)
+)
+
+--@label:virksomhedsskatteloven_par8::meta:virksomhedsskatteloven_par8_metadata--
+----
+§ 8. Virksomhedens afkastgrundlag opgøres ved indkomstårets begyndelse som
+virksomhedens aktiver med fradrag af gæld, beløb, der er afsat efter §§ 4 og 10,
+stk. 1, indestående på mellemregningskonto efter § 4 a, beløb, der i tidligere
+indkomstår er omfattet af § 4 b, stk. 1, og beløb, der overføres fra
+virksomhedsordningen til privatøkonomien med virkning fra indkomstårets
+begyndelse. Ved etablering af ny virksomhed opgøres afkastgrundlaget dog på
+tidspunktet for virksomhedens start.
+
+Stk. 2. Fast ejendom medregnes til den kontante anskaffelsessum. Er ejendommen
+anskaffet før 1. januar 1987, kan den skattepligtige i stedet vælge at anvende
+værdien ved 18. alm. vurdering med tillæg af eventuel ikke medregnet
+anskaffelsessum for ombygning, forbedringer m.v. For så vidt angår øvrige
+aktiver finder bestemmelserne i § 3, stk. 4, 2.-8. pkt., tilsvarende anvendelse.
+Ved opgørelsen fragår virksomhedens gæld til kursværdien, jf. dog stk. 3.
+
+Stk. 3. Ved opgørelsen, jf. stk. 1, fragår forskellen mellem værdien af fast
+ejendom, der stilles til rådighed som bolig for den skattepligtiges eller dennes
+ægtefælles forældre og bedsteforældre samt børn og børnebørn og disses
+ægtefæller, og en andel af gælden til kursværdien i virksomhedsordningen. Den
+nævnte gældsandel opgøres på grundlag af den kontante anskaffelsessum for
+ejendommen med tillæg af anskaffelsessum for ombygning, forbedringer m.v., som
+er foretaget efter anskaffelsen af ejendommen, i forhold til de samlede aktiver
+i virksomhedsordningen. Værdien af øvrige aktiver opgøres efter bestemmelserne i
+§ 3, stk. 4, 2.-8. pkt., mens fast ejendom, der ikke er omfattet af 1. pkt.,
+medregnes til den kontante anskaffelsessum. Har den skattepligtige valgt at
+anvende 18. alm. vurdering med tillæg af eventuel ikke medregnet anskaffelsessum
+for ombygning, forbedringer m.v., jf. stk. 2, 2. pkt., skal den faste ejendom
+medregnes til denne værdi.
+----
+
+--@begin:virksomhedsskatteloven_par8--
+# Virksomhedsskattelov8Opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse | Vsl8NyVirksomhedsStart
+# Virksomhedsskattelov8Nærtståenderelation = Vsl8SkattepligtigesEllerÆgtefællesForælder | Vsl8SkattepligtigesEllerÆgtefællesBedsteforælder | Vsl8SkattepligtigesEllerÆgtefællesBarn | Vsl8SkattepligtigesEllerÆgtefællesBarnebarn | Vsl8BarnsEllerBarnebarnsÆgtefælle
+# Virksomhedsskattelov8Boliganvendelse = Vsl8IkkeStilletTilRådighedSomNærtståendeBolig | Vsl8StilletTilRådighedSomNærtståendeBolig(relation: Virksomhedsskattelov8Nærtståenderelation)
+# Virksomhedsskattelov8FastEjendomsværdiansættelse = Vsl8KontantAnskaffelsessum | Vsl8AttendeAlmindeligeVurdering(vurdering_kroner: Heltal, ikke_medregnet_anskaffelsessum_for_ombygning_og_forbedringer_kroner: Heltal)
+# Virksomhedsskattelov8FastEjendomFakta(anskaffelsesår: Heltal, kontant_anskaffelsessum_kroner: Heltal, anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner: Heltal, værdiansættelse: Virksomhedsskattelov8FastEjendomsværdiansættelse, boliganvendelse: Virksomhedsskattelov8Boliganvendelse)
+# Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag = Vsl8Anskaffelsessum(anskaffelsessum_kroner: Heltal) | Vsl8KontantomregnetAnskaffelsessum(kontantværdi_kroner: Heltal)
+# Virksomhedsskattelov8Værdiansættelse = Vsl8FastEjendom(fakta: Virksomhedsskattelov8FastEjendomFakta) | Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(afskrivningsberettiget_saldoværdi_kroner: Heltal) | Vsl8DelvistErhvervsmæssigtDriftsmiddelEllerSkib(uafskrevet_erhvervsmæssigt_beløb_kroner: Heltal) | Vsl8AndenLøsøregenstand(handelsværdi_kroner: Heltal) | Vsl8Varelager(værdi_efter_varelagerloven_kroner: Heltal) | Vsl8Husdyrbesætning(værdi_efter_husdyrbesætningsloven_kroner: Heltal) | Vsl8ØvrigtAktiv(anskaffelsesgrundlag: Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag, skattemæssige_afskrivninger_kroner: Heltal)
+# Virksomhedsskattelov8Aktiv(identifikation: Tekst, værdiansættelse: Virksomhedsskattelov8Værdiansættelse)
+# Virksomhedsskattelov8Gældspost(identifikation: Tekst, kursværdi_kroner: Heltal)
+# Virksomhedsskattelov8Privatoverførselsvirkning = Vsl8VirkningFraIndkomståretsBegyndelse | Vsl8VirkningSenereIIndkomståret
+# Virksomhedsskattelov8Privatoverførsel(identifikation: Tekst, beløb_kroner: Heltal, virkning: Virksomhedsskattelov8Privatoverførselsvirkning)
+# Virksomhedsskattelov8Fradragsposter(gældsposter: List(Virksomhedsskattelov8Gældspost), afsat_efter_par4_kroner: Heltal, afsat_efter_par10_stk1_kroner: Heltal, indestående_på_mellemregningskonto_efter_par4a_kroner: Heltal, tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner: Heltal, overførsler_til_privatøkonomien: List(Virksomhedsskattelov8Privatoverførsel))
+# Virksomhedsskattelov8Input(indkomstår: Heltal, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov8Aktiv), fradragsposter: Virksomhedsskattelov8Fradragsposter)
+# Virksomhedsskattelov8AktivResultat(aktiv: Virksomhedsskattelov8Aktiv, input_gyldigt: Boolsk, værdi_kroner: Heltal, er_nærtstående_bolig: Boolsk, gældsfordelingsgrundlag_kroner: Heltal)
+# Virksomhedsskattelov8NærtståendeBoligkorrektion = Vsl8IngenNærtståendeBoligkorrektion | Vsl8NærtståendeBoligkorrektion(aktiv_identifikation: Tekst, relation: Virksomhedsskattelov8Nærtståenderelation, ejendomsværdi_kroner: Heltal, gældsfordelingsgrundlag_kroner: Heltal, samlede_aktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, henført_gældsandel_kroner: Heltal, forskel_til_fradrag_kroner: Heltal)
+# Virksomhedsskattelov8Resultat(input: Virksomhedsskattelov8Input, aktivresultater: List(Virksomhedsskattelov8AktivResultat), nærtstående_boligkorrektioner: List(Virksomhedsskattelov8NærtståendeBoligkorrektion), aktividentifikationer_entydige: Boolsk, gældsidentifikationer_entydige: Boolsk, overførselsidentifikationer_entydige: Boolsk, aktivinput_gyldige: Boolsk, fradragsposter_gyldige: Boolsk, nærtstående_gældsfordeling_mulig: Boolsk, input_gyldigt: Boolsk, samlede_aktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, afsat_efter_par4_kroner: Heltal, afsat_efter_par10_stk1_kroner: Heltal, indestående_på_mellemregningskonto_efter_par4a_kroner: Heltal, tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner: Heltal, overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner: Heltal, nærtstående_boligforskelle_til_fradrag_kroner: Heltal, afkastgrundlag_før_validering_kroner: Heltal, afkastgrundlag_kroner: Heltal)
+
+| virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_kroner(grundlag: Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag) -> match grundlag {
+    | Vsl8Anskaffelsessum(anskaffelsessum_kroner) -> anskaffelsessum_kroner
+    | Vsl8KontantomregnetAnskaffelsessum(kontantværdi_kroner) -> kontantværdi_kroner
+}
+| virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_gyldigt(grundlag: Virksomhedsskattelov8ØvrigtAktivAnskaffelsesgrundlag) -> virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_kroner(grundlag) >= 0
+| virksomhedsskattelov8_fast_ejendom_værdiansættelse_gyldig(fakta: Virksomhedsskattelov8FastEjendomFakta) -> match fakta.værdiansættelse {
+    | Vsl8KontantAnskaffelsessum -> Sandt
+    | Vsl8AttendeAlmindeligeVurdering(vurdering_kroner, ikke_medregnet_kroner) -> fakta.anskaffelsesår < 1987 && vurdering_kroner >= 0 && ikke_medregnet_kroner >= 0
+}
+| virksomhedsskattelov8_fast_ejendom_input_gyldigt(fakta: Virksomhedsskattelov8FastEjendomFakta) -> fakta.anskaffelsesår > 0 && fakta.kontant_anskaffelsessum_kroner >= 0 && fakta.anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner >= 0 && virksomhedsskattelov8_fast_ejendom_værdiansættelse_gyldig(fakta)
+| virksomhedsskattelov8_fast_ejendom_værdi_kroner(fakta: Virksomhedsskattelov8FastEjendomFakta) -> match fakta.værdiansættelse {
+    | Vsl8KontantAnskaffelsessum -> fakta.kontant_anskaffelsessum_kroner
+    | Vsl8AttendeAlmindeligeVurdering(vurdering_kroner, ikke_medregnet_kroner) -> vurdering_kroner + ikke_medregnet_kroner
+}
+| virksomhedsskattelov8_fast_ejendom_gældsfordelingsgrundlag_kroner(fakta: Virksomhedsskattelov8FastEjendomFakta) -> fakta.kontant_anskaffelsessum_kroner + fakta.anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner
+| virksomhedsskattelov8_fast_ejendom_er_nærtstående_bolig(fakta: Virksomhedsskattelov8FastEjendomFakta) -> match fakta.boliganvendelse {
+    | Vsl8StilletTilRådighedSomNærtståendeBolig(_) -> Sandt
+    | _ -> Falskt
+}
+| virksomhedsskattelov8_aktiv_input_gyldigt(aktiv: Virksomhedsskattelov8Aktiv) -> aktiv.identifikation != "" && match aktiv.værdiansættelse {
+    | Vsl8FastEjendom(fakta) -> virksomhedsskattelov8_fast_ejendom_input_gyldigt(fakta)
+    | Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(_) -> Sandt
+    | Vsl8DelvistErhvervsmæssigtDriftsmiddelEllerSkib(_) -> Sandt
+    | Vsl8AndenLøsøregenstand(handelsværdi_kroner) -> handelsværdi_kroner >= 0
+    | Vsl8Varelager(værdi_kroner) -> værdi_kroner >= 0
+    | Vsl8Husdyrbesætning(værdi_kroner) -> værdi_kroner >= 0
+    | Vsl8ØvrigtAktiv(anskaffelsesgrundlag, afskrivninger_kroner) -> virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_gyldigt(anskaffelsesgrundlag) && afskrivninger_kroner >= 0 && afskrivninger_kroner <= virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_kroner(anskaffelsesgrundlag)
+}
+| virksomhedsskattelov8_aktiv_værdi_kroner(aktiv: Virksomhedsskattelov8Aktiv) -> match aktiv.værdiansættelse {
+    | Vsl8FastEjendom(fakta) -> virksomhedsskattelov8_fast_ejendom_værdi_kroner(fakta)
+    | Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(saldoværdi_kroner) -> penge_positivt_beløb(saldoværdi_kroner)
+    | Vsl8DelvistErhvervsmæssigtDriftsmiddelEllerSkib(uafskrevet_beløb_kroner) -> penge_positivt_beløb(uafskrevet_beløb_kroner)
+    | Vsl8AndenLøsøregenstand(handelsværdi_kroner) -> handelsværdi_kroner
+    | Vsl8Varelager(værdi_kroner) -> værdi_kroner
+    | Vsl8Husdyrbesætning(værdi_kroner) -> værdi_kroner
+    | Vsl8ØvrigtAktiv(anskaffelsesgrundlag, afskrivninger_kroner) -> penge_positivt_beløb(virksomhedsskattelov8_øvrigt_aktiv_anskaffelsesgrundlag_kroner(anskaffelsesgrundlag) - afskrivninger_kroner)
+}
+| virksomhedsskattelov8_aktiv_er_nærtstående_bolig(aktiv: Virksomhedsskattelov8Aktiv) -> match aktiv.værdiansættelse {
+    | Vsl8FastEjendom(fakta) -> virksomhedsskattelov8_fast_ejendom_er_nærtstående_bolig(fakta)
+    | _ -> Falskt
+}
+| virksomhedsskattelov8_aktiv_gældsfordelingsgrundlag_kroner(aktiv: Virksomhedsskattelov8Aktiv) -> match aktiv.værdiansættelse {
+    | Vsl8FastEjendom(fakta) -> virksomhedsskattelov8_fast_ejendom_gældsfordelingsgrundlag_kroner(fakta)
+    | _ -> 0
+}
+| virksomhedsskattelov8_aktiv_resultat(aktiv: Virksomhedsskattelov8Aktiv) -> Virksomhedsskattelov8AktivResultat(
+    aktiv = aktiv,
+    input_gyldigt = virksomhedsskattelov8_aktiv_input_gyldigt(aktiv),
+    værdi_kroner = virksomhedsskattelov8_aktiv_værdi_kroner(aktiv),
+    er_nærtstående_bolig = virksomhedsskattelov8_aktiv_er_nærtstående_bolig(aktiv),
+    gældsfordelingsgrundlag_kroner = virksomhedsskattelov8_aktiv_gældsfordelingsgrundlag_kroner(aktiv)
+)
+| virksomhedsskattelov8_aktiv_identifikation_unik(aktiver: List(Virksomhedsskattelov8Aktiv), aktiv: Virksomhedsskattelov8Aktiv) -> length(filter(aktiver, |anden: Virksomhedsskattelov8Aktiv| anden.identifikation == aktiv.identifikation)) == 1
+| virksomhedsskattelov8_aktividentifikationer_entydige(aktiver: List(Virksomhedsskattelov8Aktiv)) -> all(aktiver, |aktiv: Virksomhedsskattelov8Aktiv| virksomhedsskattelov8_aktiv_identifikation_unik(aktiver, aktiv))
+| virksomhedsskattelov8_gældsidentifikation_unik(gældsposter: List(Virksomhedsskattelov8Gældspost), gældspost: Virksomhedsskattelov8Gældspost) -> length(filter(gældsposter, |anden: Virksomhedsskattelov8Gældspost| anden.identifikation == gældspost.identifikation)) == 1
+| virksomhedsskattelov8_gældsidentifikationer_entydige(gældsposter: List(Virksomhedsskattelov8Gældspost)) -> all(gældsposter, |gældspost: Virksomhedsskattelov8Gældspost| virksomhedsskattelov8_gældsidentifikation_unik(gældsposter, gældspost))
+| virksomhedsskattelov8_overførselsidentifikation_unik(overførsler: List(Virksomhedsskattelov8Privatoverførsel), overførsel: Virksomhedsskattelov8Privatoverførsel) -> length(filter(overførsler, |anden: Virksomhedsskattelov8Privatoverførsel| anden.identifikation == overførsel.identifikation)) == 1
+| virksomhedsskattelov8_overførselsidentifikationer_entydige(overførsler: List(Virksomhedsskattelov8Privatoverførsel)) -> all(overførsler, |overførsel: Virksomhedsskattelov8Privatoverførsel| virksomhedsskattelov8_overførselsidentifikation_unik(overførsler, overførsel))
+| virksomhedsskattelov8_gældspost_gyldig(gældspost: Virksomhedsskattelov8Gældspost) -> gældspost.identifikation != "" && gældspost.kursværdi_kroner >= 0
+| virksomhedsskattelov8_overførsel_gyldig(overførsel: Virksomhedsskattelov8Privatoverførsel) -> overførsel.identifikation != "" && overførsel.beløb_kroner >= 0
+| virksomhedsskattelov8_fradragsposter_gyldige(fradragsposter: Virksomhedsskattelov8Fradragsposter) -> fradragsposter.afsat_efter_par4_kroner >= 0 && fradragsposter.afsat_efter_par10_stk1_kroner >= 0 && fradragsposter.indestående_på_mellemregningskonto_efter_par4a_kroner >= 0 && fradragsposter.tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner >= 0 && all(fradragsposter.gældsposter, virksomhedsskattelov8_gældspost_gyldig) && all(fradragsposter.overførsler_til_privatøkonomien, virksomhedsskattelov8_overførsel_gyldig)
+| virksomhedsskattelov8_samlede_aktiver_kroner(aktivresultater: List(Virksomhedsskattelov8AktivResultat)) -> foldl(aktivresultater, 0, |sum: Heltal, resultat: Virksomhedsskattelov8AktivResultat| sum + resultat.værdi_kroner)
+| virksomhedsskattelov8_gæld_til_kursværdi_kroner(gældsposter: List(Virksomhedsskattelov8Gældspost)) -> foldl(gældsposter, 0, |sum: Heltal, gældspost: Virksomhedsskattelov8Gældspost| sum + gældspost.kursværdi_kroner)
+| virksomhedsskattelov8_overført_fra_indkomstårets_begyndelse_kroner(overførsler: List(Virksomhedsskattelov8Privatoverførsel)) -> foldl(overførsler, 0, |sum: Heltal, overførsel: Virksomhedsskattelov8Privatoverførsel| sum + hvis overførsel.virkning == Vsl8VirkningFraIndkomståretsBegyndelse { overførsel.beløb_kroner } ellers { 0 })
+| virksomhedsskattelov8_nærtstående_boligkorrektion(aktiv: Virksomhedsskattelov8Aktiv, samlede_aktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal) -> match aktiv.værdiansættelse {
+    | Vsl8FastEjendom(fakta) -> match fakta.boliganvendelse {
+        | Vsl8StilletTilRådighedSomNærtståendeBolig(relation) -> Vsl8NærtståendeBoligkorrektion(
+            aktiv_identifikation = aktiv.identifikation,
+            relation = relation,
+            ejendomsværdi_kroner = virksomhedsskattelov8_fast_ejendom_værdi_kroner(fakta),
+            gældsfordelingsgrundlag_kroner = virksomhedsskattelov8_fast_ejendom_gældsfordelingsgrundlag_kroner(fakta),
+            samlede_aktiver_kroner = samlede_aktiver_kroner,
+            gæld_til_kursværdi_kroner = gæld_til_kursværdi_kroner,
+            henført_gældsandel_kroner = hvis samlede_aktiver_kroner > 0 { gæld_til_kursværdi_kroner * virksomhedsskattelov8_fast_ejendom_gældsfordelingsgrundlag_kroner(fakta) / samlede_aktiver_kroner } ellers { 0 },
+            forskel_til_fradrag_kroner = virksomhedsskattelov8_fast_ejendom_værdi_kroner(fakta) - hvis samlede_aktiver_kroner > 0 { gæld_til_kursværdi_kroner * virksomhedsskattelov8_fast_ejendom_gældsfordelingsgrundlag_kroner(fakta) / samlede_aktiver_kroner } ellers { 0 }
+        )
+        | _ -> Vsl8IngenNærtståendeBoligkorrektion
+    }
+    | _ -> Vsl8IngenNærtståendeBoligkorrektion
+}
+| virksomhedsskattelov8_nærtstående_boligkorrektion_forskel_kroner(korrektion: Virksomhedsskattelov8NærtståendeBoligkorrektion) -> match korrektion {
+    | Vsl8NærtståendeBoligkorrektion(_, _, _, _, _, _, _, forskel_kroner) -> forskel_kroner
+    | Vsl8IngenNærtståendeBoligkorrektion -> 0
+}
+| virksomhedsskattelov8_nærtstående_boligforskelle_kroner(korrektioner: List(Virksomhedsskattelov8NærtståendeBoligkorrektion)) -> foldl(korrektioner, 0, |sum: Heltal, korrektion: Virksomhedsskattelov8NærtståendeBoligkorrektion| sum + virksomhedsskattelov8_nærtstående_boligkorrektion_forskel_kroner(korrektion))
+
+# Virksomhedsskattelov8Sag(input: Virksomhedsskattelov8Input) {
+    | aktivresultater() -> map(input.aktiver, virksomhedsskattelov8_aktiv_resultat)
+    | samlede_aktiver_kroner() -> virksomhedsskattelov8_samlede_aktiver_kroner(aktivresultater())
+    | gæld_til_kursværdi_kroner() -> virksomhedsskattelov8_gæld_til_kursværdi_kroner(input.fradragsposter.gældsposter)
+    | nærtstående_aktiver() -> filter(input.aktiver, virksomhedsskattelov8_aktiv_er_nærtstående_bolig)
+    | nærtstående_boligkorrektioner() -> map(nærtstående_aktiver(), |aktiv: Virksomhedsskattelov8Aktiv| virksomhedsskattelov8_nærtstående_boligkorrektion(aktiv, samlede_aktiver_kroner(), gæld_til_kursværdi_kroner()))
+    | aktividentifikationer_entydige() -> virksomhedsskattelov8_aktividentifikationer_entydige(input.aktiver)
+    | gældsidentifikationer_entydige() -> virksomhedsskattelov8_gældsidentifikationer_entydige(input.fradragsposter.gældsposter)
+    | overførselsidentifikationer_entydige() -> virksomhedsskattelov8_overførselsidentifikationer_entydige(input.fradragsposter.overførsler_til_privatøkonomien)
+    | aktivinput_gyldige() -> all(aktivresultater(), |resultat: Virksomhedsskattelov8AktivResultat| resultat.input_gyldigt)
+    | fradragsposter_gyldige() -> virksomhedsskattelov8_fradragsposter_gyldige(input.fradragsposter)
+    | nærtstående_gældsfordeling_mulig() -> length(nærtstående_aktiver()) == 0 || samlede_aktiver_kroner() > 0
+    | input_gyldigt() -> input.indkomstår > 0 && aktividentifikationer_entydige() && gældsidentifikationer_entydige() && overførselsidentifikationer_entydige() && aktivinput_gyldige() && fradragsposter_gyldige() && nærtstående_gældsfordeling_mulig()
+    | overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner() -> virksomhedsskattelov8_overført_fra_indkomstårets_begyndelse_kroner(input.fradragsposter.overførsler_til_privatøkonomien)
+    | nærtstående_boligforskelle_til_fradrag_kroner() -> virksomhedsskattelov8_nærtstående_boligforskelle_kroner(nærtstående_boligkorrektioner())
+    | afkastgrundlag_før_validering_kroner() -> samlede_aktiver_kroner() - gæld_til_kursværdi_kroner() - input.fradragsposter.afsat_efter_par4_kroner - input.fradragsposter.afsat_efter_par10_stk1_kroner - input.fradragsposter.indestående_på_mellemregningskonto_efter_par4a_kroner - input.fradragsposter.tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner - overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner() - nærtstående_boligforskelle_til_fradrag_kroner()
+    | afkastgrundlag_kroner() -> 0
+    | exception vsl8_gyldigt_afkastgrundlag afkastgrundlag_kroner() -> afkastgrundlag_før_validering_kroner() under input_gyldigt()
+    | resultat() -> Virksomhedsskattelov8Resultat(
+        input = input,
+        aktivresultater = aktivresultater(),
+        nærtstående_boligkorrektioner = nærtstående_boligkorrektioner(),
+        aktividentifikationer_entydige = aktividentifikationer_entydige(),
+        gældsidentifikationer_entydige = gældsidentifikationer_entydige(),
+        overførselsidentifikationer_entydige = overførselsidentifikationer_entydige(),
+        aktivinput_gyldige = aktivinput_gyldige(),
+        fradragsposter_gyldige = fradragsposter_gyldige(),
+        nærtstående_gældsfordeling_mulig = nærtstående_gældsfordeling_mulig(),
+        input_gyldigt = input_gyldigt(),
+        samlede_aktiver_kroner = samlede_aktiver_kroner(),
+        gæld_til_kursværdi_kroner = gæld_til_kursværdi_kroner(),
+        afsat_efter_par4_kroner = input.fradragsposter.afsat_efter_par4_kroner,
+        afsat_efter_par10_stk1_kroner = input.fradragsposter.afsat_efter_par10_stk1_kroner,
+        indestående_på_mellemregningskonto_efter_par4a_kroner = input.fradragsposter.indestående_på_mellemregningskonto_efter_par4a_kroner,
+        tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = input.fradragsposter.tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner,
+        overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner = overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner(),
+        nærtstående_boligforskelle_til_fradrag_kroner = nærtstående_boligforskelle_til_fradrag_kroner(),
+        afkastgrundlag_før_validering_kroner = afkastgrundlag_før_validering_kroner(),
+        afkastgrundlag_kroner = afkastgrundlag_kroner()
+    )
+}
+| virksomhedsskattelov8_sag(input: Virksomhedsskattelov8Input) -> Virksomhedsskattelov8Sag(input)
+| virksomhedsskattelov8_resultat(input: Virksomhedsskattelov8Input) -> virksomhedsskattelov8_sag(input).resultat()
+--@end:virksomhedsskatteloven_par8--
+
+= virksomhedsskatteloven_par9_par9a_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_lbk1836_par9_par9a),
+        RateSource(value = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9),
+        RateSource(value = virksomhedsskatteloven_skatteministeriet_satser_par9_par9a),
+    )
+)
+
+--@label:virksomhedsskatteloven_par9_par9a::meta:virksomhedsskatteloven_par9_par9a_metadata--
+----
+§ 9. Den i § 7 nævnte afkastsats opgøres en gang årligt. Satsen beregnes på
+grundlag af et simpelt gennemsnit af den af Danmarks Nationalbank opgjorte
+kassekreditrente for ikkefinansielle selskaber i de første 6 måneder af det til
+indkomståret svarende kalenderår. Den af Nationalbanken opgjorte månedlige
+kassekreditrente for ikkefinansielle selskaber opgøres i henhold til Den
+Europæiske Centralbanks forordning (EF) nr. 63/2002 af 20. december 2001
+vedrørende statistik over de monetære finansielle institutioners rentesatser på
+indlån fra og udlån til husholdninger og ikkefinansielle selskaber (ECB/2001/18).
+Den af Nationalbanken opgjorte månedlige kassekreditrente for ikkefinansielle
+selskaber opgøres som et vægtet gennemsnit af den effektive rentesats for den
+udestående lånemasse opgjort med to decimaler. Det simple gennemsnit, jf. 2.
+pkt., opgøres med én decimal. Satsen nedsættes med 2 procentpoint og nedrundes
+derefter til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
+----
+
+----
+§ 9 a. En gang årligt opgøres en rentekorrektionssats. Ved opgørelsen af satsen
+finder § 9, 2.-5. pkt., anvendelse. Den herved opgjorte sats oprundes derefter
+til nærmeste hele procentsats. Satsen kan ikke være mindre end 0 pct.
+----
+
+----
+Danmarks Nationalbank / Statistikbanken DNRUUPI, hentet via api.statbank.dk
+2026-07-30.
+
+Query:
+INSTRNAT = AL20, kassekreditter (revolverende lån) og overtræk.
+DATA = EFFR, effektiv rentesats (pct.).
+INDSEK = 1100, ikke-finansielle selskaber.
+VALUTA = Z01, alle valutaer.
+LØBETID1 = ALLE, alle løbetider.
+FORMÅL = ALLE, alle formål.
+Tid = 2025M01-2025M06 og 2026M01-2026M06.
+
+INDHOLD:
+2025M01 5,026
+2025M02 4,849
+2025M03 4,686
+2025M04 4,550
+2025M05 4,393
+2025M06 4,178
+2026M01 4,173
+2026M02 4,149
+2026M03 4,124
+2026M04 4,159
+2026M05 4,209
+2026M06 4,293
+
+Skatteministeriets satsoversigt angiver for 2025 en afkastsats på 2 pct. og en
+rentekorrektionssats på 5 pct. For 2026 står begge satser som "Fastlægges
+senere" pr. 2026-07-30; de seks lovbestemte Nationalbank-observationer er
+tilgængelige og giver henholdsvis 2 pct. og 5 pct. efter §§ 9 og 9 a.
+----
+
+--@begin:virksomhedsskatteloven_par9_par9a--
+# Virksomhedsskattelov9Måned = Vsl9Januar | Vsl9Februar | Vsl9Marts | Vsl9April | Vsl9Maj | Vsl9Juni
+# Virksomhedsskattelov9Månedsrente(indkomstår: Heltal, statistikperiode: Tekst, måned: Virksomhedsskattelov9Måned, effektiv_rentesats_milliprocent: Heltal, effektiv_rentesats_basispoint: Heltal)
+# Virksomhedsskattelov9Offentliggørelsesstatus = Vsl9OffentliggjortAfSkatteministeriet(afkastsats_basispoint: Heltal, rentekorrektionssats_basispoint: Heltal, kilde_url: Tekst) | Vsl9AfventerSkatteministerietsOffentliggørelse(kilde_url: Tekst) | Vsl9IndkomstårIkkeKildebelagt
+# Virksomhedsskattelov9Og9AResultat(indkomstår: Heltal, månedsrenter: List(Virksomhedsskattelov9Månedsrente), månedsdata_komplette: Boolsk, månedsrenter_sum_basispoint: Heltal, simpelt_gennemsnit_en_decimal_basispoint: Heltal, sats_efter_nedsættelse_med_to_procentpoint_basispoint: Heltal, afkastsats_efter_par9_basispoint: Heltal, rentekorrektionssats_efter_par9a_basispoint: Heltal, offentliggørelsesstatus: Virksomhedsskattelov9Offentliggørelsesstatus, offentliggjort_sammenligning_mulig: Boolsk, matcher_offentliggjorte_satser: Boolsk)
+
+| virksomhedsskattelov9_måneder() -> [Vsl9Januar, Vsl9Februar, Vsl9Marts, Vsl9April, Vsl9Maj, Vsl9Juni]
+| virksomhedsskattelov9_månedskode(måned: Virksomhedsskattelov9Måned) -> match måned {
+    | Vsl9Januar -> "01"
+    | Vsl9Februar -> "02"
+    | Vsl9Marts -> "03"
+    | Vsl9April -> "04"
+    | Vsl9Maj -> "05"
+    | Vsl9Juni -> "06"
+}
+| virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 0
+| exception vsl9_statbank_2025_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 5026 under indkomstår == 2025 && måned == Vsl9Januar
+| exception vsl9_statbank_2025_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4849 under indkomstår == 2025 && måned == Vsl9Februar
+| exception vsl9_statbank_2025_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4686 under indkomstår == 2025 && måned == Vsl9Marts
+| exception vsl9_statbank_2025_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4550 under indkomstår == 2025 && måned == Vsl9April
+| exception vsl9_statbank_2025_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4393 under indkomstår == 2025 && måned == Vsl9Maj
+| exception vsl9_statbank_2025_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4178 under indkomstår == 2025 && måned == Vsl9Juni
+| exception vsl9_statbank_2026_januar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4173 under indkomstår == 2026 && måned == Vsl9Januar
+| exception vsl9_statbank_2026_februar virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4149 under indkomstår == 2026 && måned == Vsl9Februar
+| exception vsl9_statbank_2026_marts virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4124 under indkomstår == 2026 && måned == Vsl9Marts
+| exception vsl9_statbank_2026_april virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4159 under indkomstår == 2026 && måned == Vsl9April
+| exception vsl9_statbank_2026_maj virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4209 under indkomstår == 2026 && måned == Vsl9Maj
+| exception vsl9_statbank_2026_juni virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> 4293 under indkomstår == 2026 && måned == Vsl9Juni
+| virksomhedsskattelov9_månedsrente(indkomstår: Heltal, måned: Virksomhedsskattelov9Måned) -> Virksomhedsskattelov9Månedsrente(
+    indkomstår = indkomstår,
+    statistikperiode = hvis virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned) > 0 { vis(indkomstår) + "M" + virksomhedsskattelov9_månedskode(måned) } ellers { "" },
+    måned = måned,
+    effektiv_rentesats_milliprocent = virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned),
+    effektiv_rentesats_basispoint = penge_basispoint_fra_milliprocent_afrundet_til_to_decimaler(virksomhedsskattelov9_effektiv_rentesats_milliprocent(indkomstår, måned))
+)
+| virksomhedsskattelov9_månedsrenter(indkomstår: Heltal) -> map(virksomhedsskattelov9_måneder(), |måned: Virksomhedsskattelov9Måned| virksomhedsskattelov9_månedsrente(indkomstår, måned))
+| virksomhedsskattelov9_månedsdata_komplette(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> length(månedsrenter) == 6 && all(månedsrenter, |rente: Virksomhedsskattelov9Månedsrente| rente.effektiv_rentesats_milliprocent > 0)
+| virksomhedsskattelov9_månedsrenter_sum_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> foldl(månedsrenter, 0, |sum: Heltal, rente: Virksomhedsskattelov9Månedsrente| sum + rente.effektiv_rentesats_basispoint)
+| virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> hvis virksomhedsskattelov9_månedsdata_komplette(månedsrenter) { (virksomhedsskattelov9_månedsrenter_sum_basispoint(månedsrenter) + 30) / 60 * 10 } ellers { 0 }
+| virksomhedsskattelov9_sats_efter_nedsættelse_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_positivt_beløb(virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter) - 200)
+| virksomhedsskattelov9_afkastsats_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_basispoint_nedrundet_til_hel_procent(virksomhedsskattelov9_sats_efter_nedsættelse_basispoint(månedsrenter))
+| virksomhedsskattelov9a_rentekorrektionssats_basispoint(månedsrenter: List(Virksomhedsskattelov9Månedsrente)) -> penge_basispoint_afrundet_op_til_hel_procent(virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter))
+| virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9IndkomstårIkkeKildebelagt
+| exception vsl9_skatteministeriet_2025_offentliggjort virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9OffentliggjortAfSkatteministeriet(
+    afkastsats_basispoint = 200,
+    rentekorrektionssats_basispoint = 500,
+    kilde_url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven"
+) under indkomstår == 2025
+| exception vsl9_skatteministeriet_2026_afventer virksomhedsskattelov9_offentliggørelsesstatus(indkomstår: Heltal) -> Vsl9AfventerSkatteministerietsOffentliggørelse(
+    kilde_url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven"
+) under indkomstår == 2026
+| virksomhedsskattelov9_offentliggjort_sammenligning_mulig(status: Virksomhedsskattelov9Offentliggørelsesstatus) -> match status {
+    | Vsl9OffentliggjortAfSkatteministeriet(_, _, _) -> Sandt
+    | _ -> Falskt
+}
+| virksomhedsskattelov9_matcher_offentliggjorte_satser(status: Virksomhedsskattelov9Offentliggørelsesstatus, afkastsats_basispoint: Heltal, rentekorrektionssats_basispoint: Heltal) -> match status {
+    | Vsl9OffentliggjortAfSkatteministeriet(offentliggjort_afkastsats, offentliggjort_rentekorrektionssats, _) -> afkastsats_basispoint == offentliggjort_afkastsats && rentekorrektionssats_basispoint == offentliggjort_rentekorrektionssats
+    | _ -> Falskt
+}
+
+# Virksomhedsskattelov9Og9ASag(indkomstår: Heltal) {
+    | månedsrenter() -> virksomhedsskattelov9_månedsrenter(indkomstår)
+    | månedsdata_komplette() -> virksomhedsskattelov9_månedsdata_komplette(månedsrenter())
+    | månedsrenter_sum_basispoint() -> virksomhedsskattelov9_månedsrenter_sum_basispoint(månedsrenter())
+    | simpelt_gennemsnit_en_decimal_basispoint() -> virksomhedsskattelov9_simpelt_gennemsnit_en_decimal_basispoint(månedsrenter())
+    | sats_efter_nedsættelse_med_to_procentpoint_basispoint() -> virksomhedsskattelov9_sats_efter_nedsættelse_basispoint(månedsrenter())
+    | afkastsats_efter_par9_basispoint() -> virksomhedsskattelov9_afkastsats_basispoint(månedsrenter())
+    | rentekorrektionssats_efter_par9a_basispoint() -> virksomhedsskattelov9a_rentekorrektionssats_basispoint(månedsrenter())
+    | offentliggørelsesstatus() -> virksomhedsskattelov9_offentliggørelsesstatus(indkomstår)
+    | offentliggjort_sammenligning_mulig() -> virksomhedsskattelov9_offentliggjort_sammenligning_mulig(offentliggørelsesstatus())
+    | matcher_offentliggjorte_satser() -> virksomhedsskattelov9_matcher_offentliggjorte_satser(offentliggørelsesstatus(), afkastsats_efter_par9_basispoint(), rentekorrektionssats_efter_par9a_basispoint())
+    | resultat() -> Virksomhedsskattelov9Og9AResultat(
+        indkomstår = indkomstår,
+        månedsrenter = månedsrenter(),
+        månedsdata_komplette = månedsdata_komplette(),
+        månedsrenter_sum_basispoint = månedsrenter_sum_basispoint(),
+        simpelt_gennemsnit_en_decimal_basispoint = simpelt_gennemsnit_en_decimal_basispoint(),
+        sats_efter_nedsættelse_med_to_procentpoint_basispoint = sats_efter_nedsættelse_med_to_procentpoint_basispoint(),
+        afkastsats_efter_par9_basispoint = afkastsats_efter_par9_basispoint(),
+        rentekorrektionssats_efter_par9a_basispoint = rentekorrektionssats_efter_par9a_basispoint(),
+        offentliggørelsesstatus = offentliggørelsesstatus(),
+        offentliggjort_sammenligning_mulig = offentliggjort_sammenligning_mulig(),
+        matcher_offentliggjorte_satser = matcher_offentliggjorte_satser()
+    )
+}
+| virksomhedsskattelov9_og_9a_sag(indkomstår: Heltal) -> Virksomhedsskattelov9Og9ASag(indkomstår)
+| virksomhedsskattelov9_og_9a_resultat(indkomstår: Heltal) -> virksomhedsskattelov9_og_9a_sag(indkomstår).resultat()
+
+# Virksomhedsskattelov7KildeInput(par8_input: Virksomhedsskattelov8Input, skattepligtigt_overskud_kroner: Heltal, regnskabsperiode_hele_måneder: Heltal)
+# Virksomhedsskattelov7KildeResultat(input: Virksomhedsskattelov7KildeInput, par8_resultat: Virksomhedsskattelov8Resultat, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par7_input: Virksomhedsskattelov7Input, par7_resultat: Virksomhedsskattelov7Resultat, input_gyldigt: Boolsk)
+# Virksomhedsskattelov7KildeSag(input: Virksomhedsskattelov7KildeInput) {
+    | par8_resultat() -> virksomhedsskattelov8_resultat(input.par8_input)
+    | par9_og_9a_resultat() -> virksomhedsskattelov9_og_9a_resultat(input.par8_input.indkomstår)
+    | par7_input() -> Virksomhedsskattelov7Input(
+        indkomstår = input.par8_input.indkomstår,
+        afkastgrundlag_kroner = par8_resultat().afkastgrundlag_kroner,
+        kapitalafkastsats_basispoint = par9_og_9a_resultat().afkastsats_efter_par9_basispoint,
+        skattepligtigt_overskud_kroner = input.skattepligtigt_overskud_kroner,
+        regnskabsperiode_hele_måneder = input.regnskabsperiode_hele_måneder
+    )
+    | par7_resultat() -> virksomhedsskattelov7_resultat(par7_input())
+    | input_gyldigt() -> par8_resultat().input_gyldigt && par9_og_9a_resultat().månedsdata_komplette && input.skattepligtigt_overskud_kroner >= 0 && input.regnskabsperiode_hele_måneder >= 0
+    | resultat() -> Virksomhedsskattelov7KildeResultat(
+        input = input,
+        par8_resultat = par8_resultat(),
+        par9_og_9a_resultat = par9_og_9a_resultat(),
+        par7_input = par7_input(),
+        par7_resultat = par7_resultat(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| virksomhedsskattelov7_kilde_sag(input: Virksomhedsskattelov7KildeInput) -> Virksomhedsskattelov7KildeSag(input)
+| virksomhedsskattelov7_kilde_resultat(input: Virksomhedsskattelov7KildeInput) -> virksomhedsskattelov7_kilde_sag(input).resultat()
+--@end:virksomhedsskatteloven_par9_par9a--
 
 ----
 § 22 a. Skattepligtige personer, der driver selvstændig erhvervsvirksomhed, kan
@@ -452,7 +836,7 @@ konjunkturudligningsordningen.
         samlet_udligningsskat_til_modregning_kroner = 0,
         samlet_konto_hævet_kroner = 0,
         opgørelser = []
-    ), virksomhedsskattelov_udlignings_fifo_trin)
+        ), virksomhedsskattelov_udlignings_fifo_trin)
     | indtægtsført_henlæggelse_kroner() -> fifo_resultat().samlet_indtægtsført_kroner
     | udligningsskat_til_modregning_kroner() -> fifo_resultat().samlet_udligningsskat_til_modregning_kroner
     | konto_hævet_kroner() -> fifo_resultat().samlet_konto_hævet_kroner

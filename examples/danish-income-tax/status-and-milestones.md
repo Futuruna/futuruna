@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: select the next material calculation gap under `td-2d84ec`
+Current implementation slice: `td-8e40ea` (Virksomhedsskatteloven §§ 8-9 a implemented and verified; pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: `td-2e3b7e` (`pathof`-referencer er implementeret og verificeret; pending independent review)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
@@ -81,6 +81,21 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: Virksomhedsskattelovens § 8 afleder nu det signerede
+kapitalafkastgrundlag fra typede aktiver, gældsposter, konti, hensættelser,
+privatoverførsler og boliger stillet til rådighed for den lovbestemte
+nærtståendekreds. Fast ejendom og § 3, stk. 4's øvrige aktivarter beholder hver
+sin værdiansættelse, mens dubletidentifikationer og ugyldige historiske
+vurderingsvalg fejler lukket. §§ 9 og 9 a afleder 2025- og 2026-satserne fra de
+seks lovbestemte månedsobservationer i Danmarks Nationalbanks DNRUUPI-tabel,
+inklusive afrunding til to decimaler, simpelt gennemsnit med én decimal,
+2-procentpointnedsættelse og henholdsvis ned- og oprunding. § 7's
+kildegrænse modtager derfor ikke længere et færdigberegnet afkastgrundlag eller
+en kapitalafkastsats fra kalderen. Den fokuserede scenariofil passerer både
+fortolket og kompileret og sammenholder 2025-resultatet 2/5 pct. med
+Skatteministeriets offentliggjorte satser; 2026-resultatet 2/5 pct. bevares med
+status som endnu ikke offentliggjort på satsoversigten pr. 30. juli 2026.
 
 Latest integration: Ejendomsavancebeskatningslovens § 10 bærer nu hver
 genopført ejendom som et typet objekt med stabil identifikation og faktiske
@@ -1879,10 +1894,15 @@ Current § 4 and § 13 amendment/dependency sources:
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
-  - §§ 7, 22 a, 22 c and 23 a are modeled as the Personskatteloven § 4,
-    stk. 1, nr. 3/3 a dependency for business capital return, including the
-    § 23 a personal-income election before the remaining capital return can
-    flow into capital income.
+  - §§ 7-9 a are modeled as the Personskatteloven § 4, stk. 1, nr. 3
+    dependency for business capital return. § 8 derives the signed basis from
+    typed assets, debts, accounts, transfers and family-housing facts. §§ 9
+    and 9 a derive the 2025/2026 annual rates from six official Nationalbank
+    observations with the statutory rounding. The § 7 source wrapper consumes
+    those results without caller-supplied basis or rate.
+  - §§ 22 a, 22 c and 23 a provide the remaining § 4, stk. 1, nr. 3/3 a
+    capital-return branches, including the § 23 a personal-income election
+    before the remaining capital return can flow into capital income.
   - § 11, stk. 1-3 is modeled as the Personskatteloven § 4, stk. 1, nr. 8
     dependency for rentekorrektion, including the negative indskudskonto
     basis, afkastgrundlag and net-financing caps, the stk. 2
@@ -2349,12 +2369,19 @@ encoded as a temporal rule on top of the consolidation.
   missing acquisition information, housing rights, invalid disposals, own
   § 4 a net share income and the spouse's transferred § 4 a loss post.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
-  covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
-  dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
-  the § 11 rentekorrektion dependency consumed by § 4, stk. 1, nr. 8. It also
-  covers the §§ 22 b/22 d new-reserve calculation consumed by § 3, stk. 2,
-  nr. 7 plus FIFO recognition, mandatory recognition events, account release,
+  covers the Virksomhedsskatteloven §§ 7-9 a/22 a/22 c/23 a capital-return
+  dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a,
+  including a source-derived § 8 basis and §§ 9/9 a rates, and the § 11
+  rentekorrektion dependency consumed by § 4, stk. 1, nr. 8. It also covers
+  the §§ 22 b/22 d new-reserve calculation consumed by § 3, stk. 2, nr. 7 plus
+  FIFO recognition, mandatory recognition events, account release,
   corresponding-tax settlement and the § 3, stk. 1 gross-income bridge.
+- `virksomhedsskatteloven-par8-par9a.scenario.runa` exists and passes
+  interpreted and compiled execution. It covers every § 8 asset valuation
+  family, signed deductions, family-housing debt allocation, invalid duplicate
+  identities and the pre-1987 valuation boundary, both 2025/2026 rate chains,
+  unsupported-year failure, publication posture and the source-derived § 7
+  result.
 - `personskatteloven-par3-indtaegtsfoering.scenario.runa` exists and
   checks/runs with `runa run`; it covers voluntary partial FIFO recognition,
   the ten-year and deficit rules, ordinary cessation, transition to the

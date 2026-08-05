@@ -1,0 +1,182 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./virksomhedsskatteloven
+
+= virksomhedsskatteloven_par8_par9a_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_lbk1836_par8),
+        Source(value = virksomhedsskatteloven_lbk1836_par9_par9a),
+        RateSource(value = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9),
+        RateSource(value = virksomhedsskatteloven_skatteministeriet_satser_par9_par9a),
+    )
+)
+
+--@label:virksomhedsskatteloven_par8_par9a_scenarier::meta:virksomhedsskatteloven_par8_par9a_scenarier_metadata--
+--@begin:virksomhedsskatteloven_par8_par9a_scenarier--
+| virksomhedsskattelov8_scenarie_almindelig_ejendom() -> Virksomhedsskattelov8Aktiv(
+    identifikation = "Erhvervsejendom",
+    værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
+        anskaffelsesår = 2005,
+        kontant_anskaffelsessum_kroner = 1000000,
+        anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner = 0,
+        værdiansættelse = Vsl8KontantAnskaffelsessum,
+        boliganvendelse = Vsl8IkkeStilletTilRådighedSomNærtståendeBolig
+    ))
+)
+| virksomhedsskattelov8_scenarie_nærtstående_ejendom() -> Virksomhedsskattelov8Aktiv(
+    identifikation = "Forældrebolig",
+    værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
+        anskaffelsesår = 1985,
+        kontant_anskaffelsessum_kroner = 400000,
+        anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner = 100000,
+        værdiansættelse = Vsl8AttendeAlmindeligeVurdering(
+            vurdering_kroner = 350000,
+            ikke_medregnet_anskaffelsessum_for_ombygning_og_forbedringer_kroner = 50000
+        ),
+        boliganvendelse = Vsl8StilletTilRådighedSomNærtståendeBolig(
+            relation = Vsl8SkattepligtigesEllerÆgtefællesForælder
+        )
+    ))
+)
+| virksomhedsskattelov8_scenarie_aktiver() -> [
+    virksomhedsskattelov8_scenarie_almindelig_ejendom(),
+    virksomhedsskattelov8_scenarie_nærtstående_ejendom(),
+    Virksomhedsskattelov8Aktiv(
+        identifikation = "Negativ driftsmiddelsaldo",
+        værdiansættelse = Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(
+            afskrivningsberettiget_saldoværdi_kroner = -30000
+        )
+    ),
+    Virksomhedsskattelov8Aktiv(
+        identifikation = "Varelager",
+        værdiansættelse = Vsl8Varelager(værdi_efter_varelagerloven_kroner = 200000)
+    ),
+    Virksomhedsskattelov8Aktiv(
+        identifikation = "Kontantomregnet øvrigt aktiv",
+        værdiansættelse = Vsl8ØvrigtAktiv(
+            anskaffelsesgrundlag = Vsl8KontantomregnetAnskaffelsessum(kontantværdi_kroner = 100000),
+            skattemæssige_afskrivninger_kroner = 30000
+        )
+    ),
+]
+| virksomhedsskattelov8_scenarie_fradragsposter() -> Virksomhedsskattelov8Fradragsposter(
+    gældsposter = [
+        Virksomhedsskattelov8Gældspost(identifikation = "Realkredit", kursværdi_kroner = 300000),
+        Virksomhedsskattelov8Gældspost(identifikation = "Banklån", kursværdi_kroner = 200000),
+    ],
+    afsat_efter_par4_kroner = 10000,
+    afsat_efter_par10_stk1_kroner = 20000,
+    indestående_på_mellemregningskonto_efter_par4a_kroner = 30000,
+    tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = 40000,
+    overførsler_til_privatøkonomien = [
+        Virksomhedsskattelov8Privatoverførsel(
+            identifikation = "Overførsel ved årets begyndelse",
+            beløb_kroner = 50000,
+            virkning = Vsl8VirkningFraIndkomståretsBegyndelse
+        ),
+        Virksomhedsskattelov8Privatoverførsel(
+            identifikation = "Senere privat overførsel",
+            beløb_kroner = 70000,
+            virkning = Vsl8VirkningSenereIIndkomståret
+        ),
+    ]
+)
+| virksomhedsskattelov8_scenarie_input(indkomstår: Heltal) -> Virksomhedsskattelov8Input(
+    indkomstår = indkomstår,
+    opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+    aktiver = virksomhedsskattelov8_scenarie_aktiver(),
+    fradragsposter = virksomhedsskattelov8_scenarie_fradragsposter()
+)
+| virksomhedsskattelov8_scenarie_dublet_input() -> Virksomhedsskattelov8Input(
+    indkomstår = 2025,
+    opgørelsestidspunkt = Vsl8NyVirksomhedsStart,
+    aktiver = [
+        virksomhedsskattelov8_scenarie_almindelig_ejendom(),
+        virksomhedsskattelov8_scenarie_almindelig_ejendom(),
+    ],
+    fradragsposter = Virksomhedsskattelov8Fradragsposter(
+        gældsposter = [],
+        afsat_efter_par4_kroner = 0,
+        afsat_efter_par10_stk1_kroner = 0,
+        indestående_på_mellemregningskonto_efter_par4a_kroner = 0,
+        tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = 0,
+        overførsler_til_privatøkonomien = []
+    )
+)
+| virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_input() -> Virksomhedsskattelov8Input(
+    indkomstår = 2025,
+    opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+    aktiver = [Virksomhedsskattelov8Aktiv(
+        identifikation = "Ejendom anskaffet i 1987",
+        værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
+            anskaffelsesår = 1987,
+            kontant_anskaffelsessum_kroner = 500000,
+            anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner = 0,
+            værdiansættelse = Vsl8AttendeAlmindeligeVurdering(
+                vurdering_kroner = 400000,
+                ikke_medregnet_anskaffelsessum_for_ombygning_og_forbedringer_kroner = 0
+            ),
+            boliganvendelse = Vsl8IkkeStilletTilRådighedSomNærtståendeBolig
+        ))
+    )],
+    fradragsposter = Virksomhedsskattelov8Fradragsposter(
+        gældsposter = [],
+        afsat_efter_par4_kroner = 0,
+        afsat_efter_par10_stk1_kroner = 0,
+        indestående_på_mellemregningskonto_efter_par4a_kroner = 0,
+        tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = 0,
+        overførsler_til_privatøkonomien = []
+    )
+)
+
+= virksomhedsskattelov8_scenarie_resultat = virksomhedsskattelov8_resultat(
+    virksomhedsskattelov8_scenarie_input(2025)
+)
+= virksomhedsskattelov7_scenarie_kilde_resultat = virksomhedsskattelov7_kilde_resultat(
+    Virksomhedsskattelov7KildeInput(
+        par8_input = virksomhedsskattelov8_scenarie_input(2025),
+        skattepligtigt_overskud_kroner = 1000000,
+        regnskabsperiode_hele_måneder = 12
+    )
+)
+= virksomhedsskattelov9_scenarie_2025_resultat = virksomhedsskattelov9_og_9a_resultat(2025)
+= virksomhedsskattelov9_scenarie_2026_resultat = virksomhedsskattelov9_og_9a_resultat(2026)
+= virksomhedsskattelov9_scenarie_ukendt_resultat = virksomhedsskattelov9_og_9a_resultat(2024)
+= virksomhedsskattelov8_scenarie_dublet_resultat = virksomhedsskattelov8_resultat(
+    virksomhedsskattelov8_scenarie_dublet_input()
+)
+= virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_resultat = virksomhedsskattelov8_resultat(
+    virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_input()
+)
+
+| virksomhedsskattelov8_scenarie_værdiansættelser_dækket: virksomhedsskattelov8_scenarie_resultat -> virksomhedsskattelov8_scenarie_resultat.input_gyldigt && virksomhedsskattelov8_scenarie_resultat.samlede_aktiver_kroner == 1670000 && length(virksomhedsskattelov8_scenarie_resultat.aktivresultater) == 5
+| virksomhedsskattelov8_scenarie_fradragsposter_dækket: virksomhedsskattelov8_scenarie_resultat -> virksomhedsskattelov8_scenarie_resultat.gæld_til_kursværdi_kroner == 500000 && virksomhedsskattelov8_scenarie_resultat.afsat_efter_par4_kroner == 10000 && virksomhedsskattelov8_scenarie_resultat.afsat_efter_par10_stk1_kroner == 20000 && virksomhedsskattelov8_scenarie_resultat.indestående_på_mellemregningskonto_efter_par4a_kroner == 30000 && virksomhedsskattelov8_scenarie_resultat.tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner == 40000 && virksomhedsskattelov8_scenarie_resultat.overført_til_privatøkonomien_fra_indkomstårets_begyndelse_kroner == 50000
+| virksomhedsskattelov8_scenarie_nærtstående_gældsandel_dækket: virksomhedsskattelov8_scenarie_resultat -> length(virksomhedsskattelov8_scenarie_resultat.nærtstående_boligkorrektioner) == 1 && match head(virksomhedsskattelov8_scenarie_resultat.nærtstående_boligkorrektioner) {
+    | Vsl8NærtståendeBoligkorrektion(identifikation, relation, ejendomsværdi, fordelingsgrundlag, samlede_aktiver, gæld, gældsandel, forskel) -> identifikation == "Forældrebolig" && relation == Vsl8SkattepligtigesEllerÆgtefællesForælder && ejendomsværdi == 400000 && fordelingsgrundlag == 500000 && samlede_aktiver == 1670000 && gæld == 500000 && gældsandel == 149700 && forskel == 250300
+    | _ -> Falskt
+}
+| virksomhedsskattelov8_scenarie_signed_afkastgrundlag_dækket: virksomhedsskattelov8_scenarie_resultat -> virksomhedsskattelov8_scenarie_resultat.nærtstående_boligforskelle_til_fradrag_kroner == 250300 && virksomhedsskattelov8_scenarie_resultat.afkastgrundlag_før_validering_kroner == 769700 && virksomhedsskattelov8_scenarie_resultat.afkastgrundlag_kroner == 769700
+| virksomhedsskattelov9_scenarie_2025_satser_dækket: virksomhedsskattelov9_scenarie_2025_resultat -> virksomhedsskattelov9_scenarie_2025_resultat.månedsdata_komplette && virksomhedsskattelov9_scenarie_2025_resultat.månedsrenter_sum_basispoint == 2769 && virksomhedsskattelov9_scenarie_2025_resultat.simpelt_gennemsnit_en_decimal_basispoint == 460 && virksomhedsskattelov9_scenarie_2025_resultat.sats_efter_nedsættelse_med_to_procentpoint_basispoint == 260 && virksomhedsskattelov9_scenarie_2025_resultat.afkastsats_efter_par9_basispoint == 200 && virksomhedsskattelov9_scenarie_2025_resultat.rentekorrektionssats_efter_par9a_basispoint == 500 && virksomhedsskattelov9_scenarie_2025_resultat.offentliggjort_sammenligning_mulig && virksomhedsskattelov9_scenarie_2025_resultat.matcher_offentliggjorte_satser
+| virksomhedsskattelov9_scenarie_2026_satser_dækket: virksomhedsskattelov9_scenarie_2026_resultat -> virksomhedsskattelov9_scenarie_2026_resultat.månedsdata_komplette && virksomhedsskattelov9_scenarie_2026_resultat.månedsrenter_sum_basispoint == 2510 && virksomhedsskattelov9_scenarie_2026_resultat.simpelt_gennemsnit_en_decimal_basispoint == 420 && virksomhedsskattelov9_scenarie_2026_resultat.afkastsats_efter_par9_basispoint == 200 && virksomhedsskattelov9_scenarie_2026_resultat.rentekorrektionssats_efter_par9a_basispoint == 500 && virksomhedsskattelov9_scenarie_2026_resultat.offentliggjort_sammenligning_mulig == Falskt && match virksomhedsskattelov9_scenarie_2026_resultat.offentliggørelsesstatus {
+    | Vsl9AfventerSkatteministerietsOffentliggørelse(kilde_url) -> kilde_url != ""
+    | _ -> Falskt
+}
+| virksomhedsskattelov7_scenarie_kildeafledning_dækket: virksomhedsskattelov7_scenarie_kilde_resultat -> virksomhedsskattelov7_scenarie_kilde_resultat.input_gyldigt && virksomhedsskattelov7_scenarie_kilde_resultat.par7_input.afkastgrundlag_kroner == 769700 && virksomhedsskattelov7_scenarie_kilde_resultat.par7_input.kapitalafkastsats_basispoint == 200 && virksomhedsskattelov7_scenarie_kilde_resultat.par7_resultat.kapitalafkast_kroner == 15394
+| virksomhedsskattelov9_scenarie_ukendt_år_fejler_lukket: virksomhedsskattelov9_scenarie_ukendt_resultat -> virksomhedsskattelov9_scenarie_ukendt_resultat.månedsdata_komplette == Falskt && virksomhedsskattelov9_scenarie_ukendt_resultat.afkastsats_efter_par9_basispoint == 0 && virksomhedsskattelov9_scenarie_ukendt_resultat.rentekorrektionssats_efter_par9a_basispoint == 0 && virksomhedsskattelov9_scenarie_ukendt_resultat.offentliggørelsesstatus == Vsl9IndkomstårIkkeKildebelagt
+| virksomhedsskattelov8_scenarie_dublet_fejler_lukket: virksomhedsskattelov8_scenarie_dublet_resultat -> virksomhedsskattelov8_scenarie_dublet_resultat.aktividentifikationer_entydige == Falskt && virksomhedsskattelov8_scenarie_dublet_resultat.input_gyldigt == Falskt && virksomhedsskattelov8_scenarie_dublet_resultat.afkastgrundlag_kroner == 0
+| virksomhedsskattelov8_scenarie_1987_valg_fejler_lukket: virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_resultat -> virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_resultat.aktivinput_gyldige == Falskt && virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_resultat.input_gyldigt == Falskt && virksomhedsskattelov8_scenarie_ugyldigt_1987_valg_resultat.afkastgrundlag_kroner == 0
+
+? virksomhedsskattelov8_scenarie_værdiansættelser_dækket
+? virksomhedsskattelov8_scenarie_fradragsposter_dækket
+? virksomhedsskattelov8_scenarie_nærtstående_gældsandel_dækket
+? virksomhedsskattelov8_scenarie_signed_afkastgrundlag_dækket
+? virksomhedsskattelov9_scenarie_2025_satser_dækket
+? virksomhedsskattelov9_scenarie_2026_satser_dækket
+? virksomhedsskattelov7_scenarie_kildeafledning_dækket
+? virksomhedsskattelov9_scenarie_ukendt_år_fejler_lukket
+? virksomhedsskattelov8_scenarie_dublet_fejler_lukket
+? virksomhedsskattelov8_scenarie_1987_valg_fejler_lukket
+
+@ print("Virksomhedsskatteloven §§ 8-9 a source-derived scenarios passed")
+--@end:virksomhedsskatteloven_par8_par9a_scenarier--
