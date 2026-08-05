@@ -53,15 +53,13 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 | par13a_audit_tomt_abl_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(
     udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
     udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-    udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-    ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+    udbytter_for_aktier_omfattet_af_par44_kroner = 0
 )
 | par13a_audit_abl_fremført_tab(indkomstår: Heltal, tab_kroner: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = indkomstår,
     skatteposter = [],
     fremført_tab_efter_par13a_kroner = tab_kroner,
-    modregningsgrundlag = par13a_audit_tomt_abl_modregningsgrundlag(),
-    gift_og_samlevende_ved_årets_udgang = Falskt
+    modregningsgrundlag = par13a_audit_tomt_abl_modregningsgrundlag()
 ))
 | par13a_audit_kgl_tabspost(indkomstår: Heltal, tab_kroner: Heltal) -> KursgevinstPar32Kontraktpost(
     resultat = kursgevinstlov_resultat(KursgevinstlovInput(

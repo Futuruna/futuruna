@@ -1,0 +1,75 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven
+
+----
+Scenarierne validerer kildefakta til ABL § 44 og den afledte § 13 A-
+udbytteklassifikation. Scenariet er ikke lovtekst.
+----
+
+| abl_par44_scenarie_aktivklassifikation(indkomstår: Heltal) -> AktieavanceAktivklassifikationInput(
+    indkomstår = indkomstår,
+    aktiv = AblOrdinærAktiePar12Til15,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblIngenInvesteringsklassifikation
+)
+
+| abl_par44_scenarie_input(egen_kursværdi_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_kroner: Heltal, har_statusændring: Boolsk) -> AktieavancePar44Input(
+    identifikation = "historisk-aktie",
+    indkomstår = 2026,
+    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1)),
+    børsstatus_pr_31_december_2005 = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
+    beholdningsfakta = AktieavancePar44Beholdningsfakta(
+        egen_kursværdi_pr_31_december_2005_kroner = egen_kursværdi_kroner,
+        ægtefællestatus = ægtefællestatus,
+        ægtefælles_kursværdi_pr_31_december_2005_kroner = ægtefælles_kursværdi_kroner
+    ),
+    aktivklassifikation = abl_par44_scenarie_aktivklassifikation(2026),
+    har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked = har_statusændring,
+    historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E
+)
+
+| abl_par44_scenarie_input_med_børs_og_historik(børsstatus: AktieavancePar44Børsstatus2005, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus) -> AktieavancePar44Input(
+    identifikation = "historisk-aktie",
+    indkomstår = 2026,
+    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1)),
+    børsstatus_pr_31_december_2005 = børsstatus,
+    beholdningsfakta = AktieavancePar44Beholdningsfakta(
+        egen_kursværdi_pr_31_december_2005_kroner = 100000,
+        ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
+        ægtefælles_kursværdi_pr_31_december_2005_kroner = 0
+    ),
+    aktivklassifikation = abl_par44_scenarie_aktivklassifikation(2026),
+    har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked = Falskt,
+    historisk_undtagelsesstatus = historisk_undtagelsesstatus
+)
+
+= abl_par44_enlig_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136600, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt))
+= abl_par44_enlig_over_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136601, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt))
+= abl_par44_ægtefæller_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefællerHelePerioden, 143100, Falskt))
+= abl_par44_ægtefælle_død_i_perioden = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefælleDødIPerioden, 143100, Falskt))
+= abl_par44_statusændret = aktieavance_par44_resultat(abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, Sandt))
+= abl_par44_nasdaq_uden_valg = aktieavance_par44_resultat(abl_par44_scenarie_input_med_børs_og_historik(AblPar44KunNasdaqUdenRettidigtHelhedsvalg, AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E))
+= abl_par44_historisk_par2c = aktieavance_par44_resultat(abl_par44_scenarie_input_med_børs_og_historik(AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2, AblPar44OmfattetAfHistoriskPar2C))
+= abl_par44_udbyttekilde = aktieavance_par13a_udbytte_kilderesultat(AblPar13AUdbytteForAktieOmfattetAfPar44(par44_input = abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt)))
+
+| scenarie_abl_par44_enlig_på_grænsen_omfattes: abl_par44_enlig_under_grænsen -> abl_par44_enlig_under_grænsen.input_gyldigt && abl_par44_enlig_under_grænsen.beholdningsgrænse_pr_31_december_2005_kroner == 136600 && abl_par44_enlig_under_grænsen.omfattet_af_par44
+| scenarie_abl_par44_enlig_over_grænsen_afvises: abl_par44_enlig_over_grænsen -> abl_par44_enlig_over_grænsen.input_gyldigt && abl_par44_enlig_over_grænsen.beholdningsbetingelse_opfyldt == Falskt && abl_par44_enlig_over_grænsen.omfattet_af_par44 == Falskt
+| scenarie_abl_par44_ægtefæller_bruger_fælles_grænse: abl_par44_ægtefæller_under_grænsen -> abl_par44_ægtefæller_under_grænsen.samlet_kursværdi_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefæller_under_grænsen.beholdningsgrænse_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefæller_under_grænsen.omfattet_af_par44
+| scenarie_abl_par44_ægtefælles_dødsfald_bevarer_fælles_grænse_i_perioden: abl_par44_ægtefælle_død_i_perioden -> abl_par44_ægtefælle_død_i_perioden.samlet_kursværdi_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefælle_død_i_perioden.beholdningsgrænse_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefælle_død_i_perioden.omfattet_af_par44
+| scenarie_abl_par44_statusændring_afskærer: abl_par44_statusændret -> abl_par44_statusændret.input_gyldigt && abl_par44_statusændret.omfattet_af_par44 == Falskt
+| scenarie_abl_par44_nasdaq_uden_rettidigt_valg_afskærer: abl_par44_nasdaq_uden_valg -> abl_par44_nasdaq_uden_valg.input_gyldigt && abl_par44_nasdaq_uden_valg.børsbetingelse_opfyldt == Falskt && abl_par44_nasdaq_uden_valg.omfattet_af_par44 == Falskt
+| scenarie_abl_par44_historisk_par2c_afskærer: abl_par44_historisk_par2c -> abl_par44_historisk_par2c.input_gyldigt && abl_par44_historisk_par2c.børsbetingelse_opfyldt && abl_par44_historisk_par2c.beholdningsbetingelse_opfyldt && abl_par44_historisk_par2c.omfattet_af_par44 == Falskt
+| scenarie_abl_par44_udbytte_føder_par13a: abl_par44_udbyttekilde -> abl_par44_udbyttekilde.input_gyldigt && abl_par44_udbyttekilde.udbytte_for_aktie_omfattet_af_par44 && abl_par44_udbyttekilde.udbytte_for_aktie_med_gevinst_efter_par12 == Falskt
+
+? scenarie_abl_par44_enlig_på_grænsen_omfattes
+? scenarie_abl_par44_enlig_over_grænsen_afvises
+? scenarie_abl_par44_ægtefæller_bruger_fælles_grænse
+? scenarie_abl_par44_ægtefælles_dødsfald_bevarer_fælles_grænse_i_perioden
+? scenarie_abl_par44_statusændring_afskærer
+? scenarie_abl_par44_nasdaq_uden_rettidigt_valg_afskærer
+? scenarie_abl_par44_historisk_par2c_afskærer
+? scenarie_abl_par44_udbytte_føder_par13a

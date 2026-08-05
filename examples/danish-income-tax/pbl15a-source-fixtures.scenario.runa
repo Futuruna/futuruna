@@ -96,10 +96,8 @@
         modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
             udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
             udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-            udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-            ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
-        ),
-        gift_og_samlevende_ved_årets_udgang = Falskt
+            udbytter_for_aktier_omfattet_af_par44_kroner = 0
+        )
     ),
     kursgevinstposter = []
 )

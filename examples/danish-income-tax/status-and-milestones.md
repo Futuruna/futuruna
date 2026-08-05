@@ -1,20 +1,22 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-6766a4` (ABL § 5 A reducerer nu ordinære aktietab før §§ 13/13 A/14 og den kanoniske Personskat-beregning; afventer uafhængig gennemgang)
+Current implementation slice: `td-ed02d8` (ABL § 13 A's egen- og ægtefællemodregning afledes nu ved den kanoniske Personskat-pargrænse; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-ed02d8` (afled ABL § 13 A's ægtefællemodregning ved Personskat-pargrænsen)
+Next source-backed slice: `td-699438` (før den typede ABL § 17-klassifikation gennem den kanoniske Personskat-beregning)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
+Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
-Current compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
+Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
+Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
-Deferred performance issues: `td-6659f1`, `td-6b2cba`, `td-95076b`
+Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
 Latest approved implementation slice: `td-8e40ea`
@@ -976,7 +978,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`a32f5f49c1599caaa0fa48b6f882d5c6c315d4dc79e4defa9eac7bb227dc525b`.
+`92f3fe8b57cdf4d3667a18453805197019fc93f199523ad2ff199c1e1f2ba8f9`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -988,7 +990,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 1.364 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 1.577 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -1011,7 +1013,15 @@ kapitalindkomst, når den nødvendige ægtefælleidentifikation mangler. Den
 tidligere gentagne RuleScope-evaluering brugte mere end 22 minutter uden at nå
 assertionerne; den materialiserede graf afslutter samme fokuserede scenario på
 omkring fire minutter inklusive generering, kompilering og kørsel. Generisk
-RuleScope-memoisering og kontraktcache er fortsat selvstændigt performancearbejde.
+RuleScope-memoisering er nu implementeret i den kompilerede backend under
+`td-95076b`: nul-argumentsregler cachelagres kun under én offentlig
+RuleScope-rodevaluering, og parameteriserede regler samt almindelige metoder
+deler samme evalueringsramme. En instrumenteret compiler-regression beviser, at
+to søskendekald kun udfører den underliggende regel én gang. Den fulde
+`runa`-binsuite passerer 372 tests, og det sammensatte Personskat-pensionsscenario
+gik fra mere end 30 minutters fuld CPU uden afslutning til omtrent 89 sekunder
+med alle 13 invarianter bestået. Kontraktcache er fortsat selvstændigt
+performancearbejde.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen
@@ -3804,9 +3814,11 @@ Review candidates to revisit deliberately, not as broad churn:
   The review classifies ABL § 9's company portfolio ledger, advance
   registration, withholding regulations, final-settlement helpers and terminal
   provisions as intentionally separate calculation/workflow boundaries. It
-  confirms material Personskat composition gaps for ABL § 5 A (`td-6766a4`),
-  paired § 13 A loss offsets (`td-ed02d8`), the richer § 17 source model
-  (`td-699438`), §§ 35 G-35 K (`td-0b0a4b`) and §§ 37-40 (`td-3681f7`). It also
+  identified material Personskat composition gaps for ABL § 5 A
+  (`td-6766a4`) and paired § 13 A loss offsets (`td-ed02d8`), which are now
+  implemented and awaiting independent review. The remaining ranked gaps include
+  the richer § 17 source model (`td-699438`), §§ 35 G-35 K (`td-0b0a4b`) and
+  §§ 37-40 (`td-3681f7`). It also
   confirms public caller-derived current-law values in the residual KGL annual
   net (`td-5beddd`), untyped capital expenses (`td-151941`) and the PSL § 13
   deficit-eligibility flag (`td-292327`). Fixtures remain deliberately outside
@@ -3821,6 +3833,27 @@ Review candidates to revisit deliberately, not as broad churn:
   inputs Danish labels, interview questions and the § 5 A source. The generated
   XLSX now round-trips an actual reduced-loss case through its nested dividend
   sheet and matches the equivalent JSON result exactly.
+- The second material reachability gap is now closed under `td-ed02d8`. ABL
+  § 13 A's annual calculation is split into a preliminary result for each person
+  and one paired result that derives both transfer directions from the spouses'
+  source years. Own offset capacity is calculated from validated § 12 gains,
+  typed dividend-source classifications, § 19 B net gains and § 44 holdings;
+  neither spouse supplies the other's positive net amount as an input. The
+  canonical Personskat pair graph computes the reciprocal result once before
+  either person's § 4 a amount is assembled. A 50.000 kr. loss against the
+  spouse's 12.000 kr. qualifying dividend therefore transfers 12.000 kr. and
+  carries 38.000 kr.; without year-end cohabitation all 50.000 kr. are carried.
+  Pair transfer is additionally disabled when either person's typed source year
+  is invalid, so a carried loss cannot leak through an otherwise rejected input.
+  Current ABL §§ 12-15 and §§ 17-22, current § 44, the historical § 4, stk. 2,
+  and the official 136.600/273.100 kr. adjusted-threshold guidance are attached
+  as typed sources. The generated Personskat workbook exposes the new § 13 A and
+  § 44 source facts with Danish labels and related child sheets, and the same
+  married case produces identical XLSX and JSON results. Focused § 44,
+  ordinary-share, KGL § 32, pension and debt-restructuring scenarios all pass.
+  `td-85ed17` separately tracks § 44, stk. 3's deemed acquisition basis after a
+  status change and the typed lineage for bonus shares under stk. 2; this slice
+  does not claim those gain/loss mechanics are complete.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
@@ -3879,10 +3912,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Afled ABL § 13 A's egne og ægtefællens modregningsgrundlag ved den kanoniske
-  Personskat-pargrænse under `td-ed02d8`. Den ordinære årsberegning skal modtage
-  begge personers kildeår og selv føre tabet gennem egen aktieindkomst,
-  ægtefællen og fremførslen uden caller-leverede positive nettobeløb.
+- Route the typed ABL § 17 source classification through the canonical
+  Personskat boundary under `td-699438`. Keep the ordinary § 17 counter-test and
+  its legal source facts inside the ABL result rather than reintroducing a raw
+  caller-selected income category.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

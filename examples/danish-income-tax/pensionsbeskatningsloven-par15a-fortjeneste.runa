@@ -61,7 +61,7 @@ som medregnes ved personens indkomstopgørelse.
 # Pbl15AEjendomsavancekilderesultat(grundlag: Pbl15AEjendomsavancegrundlag, postresultater: List(Pbl15AEjendomsavancepostresultat), tabsårsresultat: Option(EjendomsavancePar6Tabsårsresultat), kilder_gyldige: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
 # Pbl15AAktieavancepost(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput)
-# Pbl15AAktieavancegrundlag = Pbl15AUdenAktieavance | Pbl15AMedAktieavance(poster: List(Pbl15AAktieavancepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk)
+# Pbl15AAktieavancegrundlag = Pbl15AUdenAktieavance | Pbl15AMedAktieavance(poster: List(Pbl15AAktieavancepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag)
 # Pbl15AAktieavancepostresultat(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput, resultat: AktieavanceOrdinærHændelsesforløbResultat, kilde_gyldig: Boolsk, indeholder_hovedaktionærafståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk)
 # Pbl15AAktieavancekilderesultat(grundlag: Pbl15AAktieavancegrundlag, postresultater: List(Pbl15AAktieavancepostresultat), årsresultat: Option(AktieavanceOrdinærÅrsresultat), kilder_gyldige: Boolsk, indeholder_afståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
@@ -221,24 +221,23 @@ som medregnes ved personens indkomstopgørelse.
     alle_afståelser_er_hovedaktionæraktier = all(aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).hændelsesresultater, pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær)
 )
 | pbl15a_aktieavance_skatteposter(postresultater: List(Pbl15AAktieavancepostresultat)) -> flat_map(postresultater, |post: Pbl15AAktieavancepostresultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(post.resultat.hændelsesresultater))
-| pbl15a_aktieavance_årsresultat(indkomstår: Heltal, postresultater: List(Pbl15AAktieavancepostresultat), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag, gift_og_samlevende_ved_årets_udgang: Boolsk) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+| pbl15a_aktieavance_årsresultat(indkomstår: Heltal, postresultater: List(Pbl15AAktieavancepostresultat), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = indkomstår,
     skatteposter = pbl15a_aktieavance_skatteposter(postresultater),
     fremført_tab_efter_par13a_kroner = fremført_tab_efter_par13a_kroner,
-    modregningsgrundlag = modregningsgrundlag,
-    gift_og_samlevende_ved_årets_udgang = gift_og_samlevende_ved_årets_udgang
+    modregningsgrundlag = modregningsgrundlag
 ))
 | pbl15a_aktieavance_kilderesultat(indkomstår: Heltal, grundlag: Pbl15AAktieavancegrundlag) -> match grundlag {
     | Pbl15AUdenAktieavance -> Pbl15AAktieavancekilderesultat(grundlag = grundlag, postresultater = [], årsresultat = None, kilder_gyldige = Sandt, indeholder_afståelse = Falskt, alle_afståelser_er_hovedaktionæraktier = Sandt, skattepligtig_fortjeneste_kroner = 0, fradragsberettiget_tab_kroner = 0)
-    | Pbl15AMedAktieavance(poster, fremført_tab, modregningsgrundlag, gift_og_samlevende) -> Pbl15AAktieavancekilderesultat(
+    | Pbl15AMedAktieavance(poster, fremført_tab, modregningsgrundlag) -> Pbl15AAktieavancekilderesultat(
         grundlag = grundlag,
         postresultater = map(poster, pbl15a_aktieavancepost_resultat),
-        årsresultat = Some(pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende)),
+        årsresultat = Some(pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag)),
         kilder_gyldige = length(poster) > 0 && fremført_tab >= 0 && all(map(poster, pbl15a_aktieavancepost_resultat), |resultat: Pbl15AAktieavancepostresultat| resultat.kilde_gyldig),
         indeholder_afståelse = any(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| any(post.resultat.hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse))),
         alle_afståelser_er_hovedaktionæraktier = all(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| post.alle_afståelser_er_hovedaktionæraktier),
-        skattepligtig_fortjeneste_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende).skattepligtige_gevinster_efter_par12_kroner,
-        fradragsberettiget_tab_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag, gift_og_samlevende).fradragsberettiget_tab_i_egen_aktieindkomst_kroner
+        skattepligtig_fortjeneste_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag).skattepligtige_gevinster_efter_par12_kroner,
+        fradragsberettiget_tab_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag).fradragsberettiget_tab_i_egen_aktieindkomst_kroner
     )
 }
 
@@ -257,13 +256,13 @@ som medregnes ved personens indkomstopgørelse.
         match grundlag.ejendomsavance { | Pbl15AUdenEjendomsavance -> [] | Pbl15AMedEjendomsavance(poster, _) -> map(poster, |post: Pbl15AEjendomsavancepost| post.identifikation) }
     ),
     concat(
-        match grundlag.aktieavance { | Pbl15AUdenAktieavance -> [] | Pbl15AMedAktieavance(poster, _, _, _) -> map(poster, |post: Pbl15AAktieavancepost| post.identifikation) },
+        match grundlag.aktieavance { | Pbl15AUdenAktieavance -> [] | Pbl15AMedAktieavance(poster, _, _) -> map(poster, |post: Pbl15AAktieavancepost| post.identifikation) },
         map(grundlag.kursgevinstposter, |post: Pbl15AKursgevinstpost| post.identifikation)
     )
 )
 | pbl15a_fortjeneste_kildeidentifikationer_entydige(grundlag: Pbl15AFortjenestegrundlag) -> all(pbl15a_fortjeneste_kildeidentifikationer(grundlag), |identifikation: Tekst| identifikation != "" && length(filter(pbl15a_fortjeneste_kildeidentifikationer(grundlag), |anden: Tekst| anden == identifikation)) == 1)
 | pbl15a_fortjenestegrundlag_har_kilder(grundlag: Pbl15AFortjenestegrundlag) -> length(pbl15a_fortjeneste_kildeidentifikationer(grundlag)) > 0
-| pbl15a_fortjenestegrundlag_er_udelukkende_aktieavance(grundlag: Pbl15AFortjenestegrundlag) -> length(grundlag.afskrivningslovsposter) == 0 && grundlag.ejendomsavance == Pbl15AUdenEjendomsavance && length(grundlag.kursgevinstposter) == 0 && match grundlag.aktieavance { | Pbl15AMedAktieavance(_, _, _, _) -> Sandt | _ -> Falskt }
+| pbl15a_fortjenestegrundlag_er_udelukkende_aktieavance(grundlag: Pbl15AFortjenestegrundlag) -> length(grundlag.afskrivningslovsposter) == 0 && grundlag.ejendomsavance == Pbl15AUdenEjendomsavance && length(grundlag.kursgevinstposter) == 0 && match grundlag.aktieavance { | Pbl15AMedAktieavance(_, _, _) -> Sandt | _ -> Falskt }
 | pbl15a_fortjenestegrundlagsresultat(indkomstår: Heltal, grundlag: Pbl15AFortjenestegrundlag) -> Pbl15AFortjenestegrundlagsresultat(
     indkomstår = indkomstår,
     grundlag = grundlag,

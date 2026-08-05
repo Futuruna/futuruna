@@ -105,11 +105,10 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     ),
     oplysninger = AblPar19BOplysningerIkkeIndsendt
 )
-| kgl_par32_aktieklasse_scenarie_modregningsgrundlag(ægtefælles_positive_nettobeløb_kroner: Heltal) -> AktieavanceOrdinærPar13AModregningsgrundlag(
+| kgl_par32_aktieklasse_scenarie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(
     udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
     udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-    udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-    ægtefælles_positive_nettobeløb_efter_par13a_kroner = ægtefælles_positive_nettobeløb_kroner
+    udbytter_for_aktier_omfattet_af_par44_kroner = 0
 )
 | kgl_par32_aktieklasse_scenarie_par13a_post(art: AktieavanceSkattepostArt, markedsstatus: AktieavanceOrdinærMarkedsstatus, gevinst_kroner: Heltal, tab_kroner: Heltal) -> AktieavanceSkattepost(
     art = art,
@@ -128,13 +127,13 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     anskaffelsessum_kroner = anskaffelsessum_kroner,
     oplysningsstatus = AblOplystRettidigt
 ))
-| kgl_par32_aktieklasse_scenarie_par13a_årsresultat(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), ægtefælles_positive_nettobeløb_kroner: Heltal, gift_og_samlevende: Boolsk) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+| kgl_par32_aktieklasse_scenarie_par13a_årsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost)) -> AktieavanceOrdinærÅrsinput(
     indkomstår = indkomstår,
     skatteposter = skatteposter,
     fremført_tab_efter_par13a_kroner = 0,
-    modregningsgrundlag = kgl_par32_aktieklasse_scenarie_modregningsgrundlag(ægtefælles_positive_nettobeløb_kroner),
-    gift_og_samlevende_ved_årets_udgang = gift_og_samlevende
-))
+    modregningsgrundlag = kgl_par32_aktieklasse_scenarie_modregningsgrundlag()
+)
+| kgl_par32_aktieklasse_scenarie_par13a_årsresultat(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost)) -> aktieavance_ordinaer_årsresultat(kgl_par32_aktieklasse_scenarie_par13a_årsinput(indkomstår, skatteposter))
 | kgl_par32_aktieklasse_scenarie_lagerårsresultat(indkomstår: Heltal, aktiv: AktieavancePar23Aktiv, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, oplysningsbetingelse_efter_par19d_opfyldt: Boolsk) -> aktieavance_par23_lager_årsresultat(AktieavancePar23LagerÅrsinput(
     princip_resultat = aktieavance_par23_princip_resultat(AktieavancePar23PrincipInput(
         indkomstår = indkomstår,
@@ -233,9 +232,7 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     grundlag = kgl_par32_aktieklasse_scenarie_aktieårsgrundlag(
         par13a_årsresultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
             indkomstår = 2026,
-            skatteposter = [kgl_par32_par20_resultat.skattepost, kgl_par32_par21_resultat.skattepost],
-            ægtefælles_positive_nettobeløb_kroner = 0,
-            gift_og_samlevende = Falskt
+            skatteposter = [kgl_par32_par20_resultat.skattepost, kgl_par32_par21_resultat.skattepost]
         ),
         supplerende_årsresultater = []
     ),
@@ -376,9 +373,7 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 = kgl_par32_par13a_tab_før_kontrakttab_grundlag = KursgevinstPar32Aktieårsgrundlag(
     par13a_årsresultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
         indkomstår = 2026,
-        skatteposter = [kgl_par32_par13a_tabspost_4000],
-        ægtefælles_positive_nettobeløb_kroner = 0,
-        gift_og_samlevende = Falskt
+        skatteposter = [kgl_par32_par13a_tabspost_4000]
     ),
     supplerende_årsresultater = [KglPar32AblLagerÅrsresultat(resultat = kgl_par32_19b_reguleret_lager)]
 )
@@ -442,28 +437,27 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
     indkomstår = 2026
 )
 
-= kgl_par32_ægtefælle_venstre_par13a_resultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+= kgl_par32_ægtefælle_venstre_par13a_input = kgl_par32_aktieklasse_scenarie_par13a_årsinput(
     indkomstår = 2026,
     skatteposter = [kgl_par32_aktieklasse_scenarie_par13a_post(
         art = AblSkattepostOrdinærAktie,
         markedsstatus = AblOptagetTilHandelPåReguleretMarked,
         gevinst_kroner = 0,
         tab_kroner = 8000
-    )],
-    ægtefælles_positive_nettobeløb_kroner = 10000,
-    gift_og_samlevende = Sandt
+    )]
 )
-= kgl_par32_ægtefælle_højre_par13a_resultat = kgl_par32_aktieklasse_scenarie_par13a_årsresultat(
+= kgl_par32_ægtefælle_højre_par13a_input = kgl_par32_aktieklasse_scenarie_par13a_årsinput(
     indkomstår = 2026,
     skatteposter = [kgl_par32_aktieklasse_scenarie_par13a_post(
         art = AblSkattepostOrdinærAktie,
         markedsstatus = AblOptagetTilHandelPåReguleretMarked,
         gevinst_kroner = 10000,
         tab_kroner = 0
-    )],
-    ægtefælles_positive_nettobeløb_kroner = 0,
-    gift_og_samlevende = Sandt
+    )]
 )
+= kgl_par32_ægtefælle_par13a_årsparresultat = aktieavance_ordinaer_årsparresultat(kgl_par32_ægtefælle_venstre_par13a_input, kgl_par32_ægtefælle_højre_par13a_input, Sandt)
+= kgl_par32_ægtefælle_venstre_par13a_resultat = kgl_par32_ægtefælle_par13a_årsparresultat.hovedperson
+= kgl_par32_ægtefælle_højre_par13a_resultat = kgl_par32_ægtefælle_par13a_årsparresultat.ægtefælle
 = kgl_par32_ægtefælle_par13a_før_kgl_resultat = kursgevinst_par32_ægtefællepar_resultat(KursgevinstPar32ÆgtefælleparInput(
     venstre = kgl_par32_aktieklasse_scenarie_person(
         identifikation = "abl-tabshaver",

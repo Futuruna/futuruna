@@ -413,8 +413,8 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
     | resultat() -> kgl_par32_aktiegevinstgrundlagsresultat_fra_klassificerede(grundlag, indkomstår, klassificerede_supplerende_resultater())
 }
 | kgl_par32_aktiegevinstgrundlagsresultat(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal) -> KursgevinstPar32AktiegevinstgrundlagSag(grundlag, indkomstår).resultat()
-| kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0, ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0)
-| kgl_par32_tomt_par13a_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag(), gift_og_samlevende_ved_årets_udgang = Falskt))
+| kgl_par32_tomt_aktie_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0)
+| kgl_par32_tomt_par13a_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag()))
 | kgl_par32_tomt_aktieårsgrundlag(indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(indkomstår), supplerende_årsresultater = [])
 | kgl_par32_ingen_aktiemodregning() -> KursgevinstPar32Aktiemodregningsvalg(omfang = KglPar32IngenAktiemodregning, beløb = KglPar32MaksimalAktiemodregning)
 

@@ -2773,9 +2773,9 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 )
 | par4a_aktiepost(input: Par4aAktieavancebeskatningslovInput) -> par4a_aktieavancebeskatningslov_sag(input).aktiepost()
 | par4a_aktiepost_fra_aktieavancebeskatningslov(input: AktieavancebeskatningslovInput) -> par4a_aktiepost(par4a_aktieavancebeskatningslov_input_fra_aktieavancebeskatningslov(input))
-| par4a_ægtefællepost_fra_abl_ordinaert_tab(resultat: AktieavanceOrdinærÅrsresultat) -> Par4aAktiepost(
+| par4a_ægtefællepost_fra_modtaget_abl_ordinaert_tab(resultat: AktieavanceOrdinærÅrsresultat) -> Par4aAktiepost(
     art = AktieFortjenesteTab,
-    beløb_kroner = 0 - resultat.tab_overført_til_ægtefælle_kroner,
+    beløb_kroner = 0 - resultat.tab_modtaget_fra_ægtefælle_kroner,
     afgrænsning = AktiepostOmfattetAfStk1,
     personlig_reklassifikation = IngenAktieTilPersonligUndtagelse
 )

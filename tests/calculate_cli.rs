@@ -1211,6 +1211,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skattemæssigt hjemsted for pensionistnedslag",
             "Årsopgørelse",
             "Ordinært aktieår",
+            "Fremført tab på markedsaktier",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -1289,6 +1290,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktiv.$variant",
             "aktiv.PersonskatAndelsbevis.forrentning",
             "beløb_kroner",
+            "par13a_kildefakta.$variant",
+            "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.markedsstatus",
+            "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.indkomstår",
+            "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.aktiv",
+            "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.par17_modprøve.næringsstatus",
+            "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.investeringsklassifikation.$variant",
+            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.identifikation",
+            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.beholdningsfakta.egen_kursværdi_pr_31_december_2005_kroner",
+            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.historisk_undtagelsesstatus",
         ] {
             assert!(
                 dividend_paths.iter().any(|path| path == expected),
@@ -1306,6 +1316,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Aktiv bag udlodningen",
             "Andelsbevisets forrentning",
             "Modtaget udlodning",
+            "Udbyttets grundlag efter ABL § 13 A",
+            "Udbytteaktiens markedsstatus",
+            "Indkomstår for ABL-klassifikationen",
+            "Aktivets ABL-kategori",
+            "Næring med køb og salg af aktier",
+            "Investeringsaktivets klassifikationsgrundlag",
+            "Den historiske akties identifikation",
+            "Egen børsnoteret beholdning den 31. december 2005",
+            "Historisk undtagelse efter § 2 c eller § 2 e",
         ] {
             assert!(
                 dividend_headers.iter().any(|header| header == expected),
@@ -2679,14 +2698,78 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
-            "aktiv",
-            "par17_modprøve.næringsstatus",
-            "par17_modprøve.erhvervelsesstatus",
-            "investeringsklassifikation.$variant",
+            "input.aktiv",
+            "input.par17_modprøve.næringsstatus",
+            "input.par17_modprøve.erhvervelsesstatus",
+            "input.investeringsklassifikation.$variant",
+            "markedsstatus",
         ] {
             assert!(
                 special_asset_paths.iter().any(|path| path == expected),
                 "missing canonical source-level ABL input path {expected}"
+            );
+        }
+        assert_eq!(
+            workbook_title(&mut workbook, "aktieavance_særlige_aktiver"),
+            "Dansk personskat - Andre aktiver efter aktieavancebeskatningsloven"
+        );
+        let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
+        for expected in [
+            "Det særlige aktivs indkomstår",
+            "Det særlige aktivs ABL-kategori",
+            "Det særlige aktivs afståelsessum",
+            "Det særlige aktivs anskaffelsessum",
+            "Næring med køb og salg af det særlige aktiv",
+            "Det særlige aktiv erhvervet som led i næring",
+            "Det særlige aktivs investeringsklassifikation",
+            "Årets netto efter KGL §§ 14-23",
+            "Det særlige aktivs markedsstatus",
+        ] {
+            assert!(
+                special_asset_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human special-asset label {expected}"
+            );
+        }
+        let ordinary_investment_certificates_path =
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.investeringsbeviser";
+        let ordinary_investment_certificates_sheet =
+            workbook_collection_sheet_name(&mut workbook, ordinary_investment_certificates_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &ordinary_investment_certificates_sheet),
+            "Dansk personskat - Investeringsbeviser efter ABL § 13 A"
+        );
+        let ordinary_investment_certificate_paths =
+            workbook_column_paths(&mut workbook, &ordinary_investment_certificates_sheet);
+        for expected in [
+            "indkomstår",
+            "art",
+            "afståelsessum_kroner",
+            "anskaffelsessum_kroner",
+            "oplysningsstatus",
+        ] {
+            assert!(
+                ordinary_investment_certificate_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical § 13 A investment-certificate path {expected}"
+            );
+        }
+        let ordinary_investment_certificate_headers =
+            workbook_headers(&mut workbook, &ordinary_investment_certificates_sheet);
+        for expected in [
+            "Investeringsbevisets indkomstår",
+            "Investeringsbevisets art",
+            "Investeringsbevisets afståelsessum",
+            "Investeringsbevisets anskaffelsessum",
+            "Oplysningsstatus for investeringsbeviset",
+        ] {
+            assert!(
+                ordinary_investment_certificate_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human § 13 A investment-certificate label {expected}"
             );
         }
         let ordinary_holdings_path =
@@ -3644,6 +3727,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("PersonskatAlmindeligAktie".to_string()),
             ),
             ("Modtaget udlodning", Data::Int(12_000)),
+            (
+                "Udbyttets grundlag efter ABL § 13 A",
+                Data::String("AblPar13AUdbytteUdenForModregningsgrundlag".to_string()),
+            ),
         ] {
             set_workbook_cell_by_header(sheets, "aktieavance_udbytter", 1, header, value);
         }
@@ -3673,7 +3760,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             (
                 "aktieavance.ordinært_aktieår.$variant",
-                Data::String("UdenOrdinærtAktieår".to_string()),
+                Data::String("MedOrdinærtAktieår".to_string()),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.fremført_tab_efter_par13a_kroner",
+                Data::Int(0),
             ),
             (
                 "ægtefælle.$variant",
@@ -3813,6 +3908,98 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 12, header, value);
+        }
+        let par13a_investment_certificates_path =
+            "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.investeringsbeviser";
+        let par13a_investment_certificates_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par13a_investment_certificates_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-aegtefaelleoverfoersler-2025".to_string()),
+            ),
+            ("item_id", Data::String("par13a-tab-bevis".to_string())),
+            ("position", Data::Int(1)),
+            ("indkomstår", Data::Int(2025)),
+            (
+                "art",
+                Data::String("AblPar21AktiebaseretMinimumsbevis".to_string()),
+            ),
+            ("afståelsessum_kroner", Data::Int(50_000)),
+            ("anskaffelsessum_kroner", Data::Int(100_000)),
+            (
+                "oplysningsstatus",
+                Data::String("AblOplystRettidigt".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                &par13a_investment_certificates_sheet,
+                1,
+                header,
+                value,
+            );
+        }
+        let spouse_dividend_path = "ægtefælle.MedÆgtefælle.fakta.aktieavance.udbytter";
+        let spouse_dividend_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, spouse_dividend_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-aegtefaelleoverfoersler-2025".to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("par13a-aegtefaelle-udbytte".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("par13a-aegtefaelle-udbytte".to_string()),
+            ),
+            (
+                "udlodder",
+                Data::String("Ll16AAlmindeligtSelskab".to_string()),
+            ),
+            (
+                "modtager",
+                Data::String("Ll16AAktuelAktionær".to_string()),
+            ),
+            (
+                "aktiv.$variant",
+                Data::String("PersonskatAlmindeligAktie".to_string()),
+            ),
+            ("beløb_kroner", Data::Int(12_000)),
+            (
+                "par13a_kildefakta.$variant",
+                Data::String("AblPar13AUdbytteForMarkedsaktieEfterPar12".to_string()),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.markedsstatus",
+                Data::String("AblOptagetTilHandelPåReguleretMarked".to_string()),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.aktiv",
+                Data::String("AblOrdinærAktiePar12Til15".to_string()),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.par17_modprøve.næringsstatus",
+                Data::String("AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier".to_string()),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.par17_modprøve.erhvervelsesstatus",
+                Data::String("AblPar17IkkeErhvervetSomLedINæringsvej".to_string()),
+            ),
+            (
+                "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.investeringsklassifikation.$variant",
+                Data::String("AblIngenInvesteringsklassifikation".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &spouse_dividend_sheet, 1, header, value);
         }
         set_workbook_cell_by_header(
             sheets,
@@ -4987,26 +5174,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.fremført_tab_efter_par13a_kroner",
                 Data::Int(0),
-            ),
-            (
-                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_for_aktier_med_gevinst_efter_par12_kroner",
-                Data::Int(0),
-            ),
-            (
-                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner",
-                Data::Int(0),
-            ),
-            (
-                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.udbytter_for_aktier_omfattet_af_par44_kroner",
-                Data::Int(0),
-            ),
-            (
-                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.modregningsgrundlag.ægtefælles_positive_nettobeløb_efter_par13a_kroner",
-                Data::Int(0),
-            ),
-            (
-                "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.gift_og_samlevende_ved_årets_udgang",
-                Data::Bool(false),
             ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 3, header, value);
@@ -6664,32 +6831,45 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("abl-par17-1".to_string())),
             ("position", Data::Int(1)),
-            ("indkomstår", Data::Int(2026)),
-            ("aktiv", Data::String("AblNæringsaktiePar17".to_string())),
-            ("afståelsessum_kroner", Data::Int(37_000)),
-            ("anskaffelsessum_kroner", Data::Int(30_000)),
+            ("input.indkomstår", Data::Int(2026)),
             (
-                "par17_modprøve.næringsstatus",
+                "input.aktiv",
+                Data::String("AblNæringsaktiePar17".to_string()),
+            ),
+            ("input.afståelsessum_kroner", Data::Int(37_000)),
+            ("input.anskaffelsessum_kroner", Data::Int(30_000)),
+            (
+                "input.par17_modprøve.næringsstatus",
                 Data::String("AblPar17UdøverNæringVedKøbOgSalgAfAktier".to_string()),
             ),
             (
-                "par17_modprøve.erhvervelsesstatus",
+                "input.par17_modprøve.erhvervelsesstatus",
                 Data::String("AblPar17ErhvervetSomLedINæringsvej".to_string()),
             ),
             (
-                "koncernintern_konvertibel_eller_tegningsret",
-                Data::Bool(false),
-            ),
-            ("andelsforening_stiftet_før_22_maj_1987", Data::Bool(false)),
-            (
-                "afståelse_sker_for_at_undgå_likvidationsbeskatning",
+                "input.koncernintern_konvertibel_eller_tegningsret",
                 Data::Bool(false),
             ),
             (
-                "investeringsklassifikation.$variant",
+                "input.andelsforening_stiftet_før_22_maj_1987",
+                Data::Bool(false),
+            ),
+            (
+                "input.afståelse_sker_for_at_undgå_likvidationsbeskatning",
+                Data::Bool(false),
+            ),
+            (
+                "input.investeringsklassifikation.$variant",
                 Data::String("AblIngenInvesteringsklassifikation".to_string()),
             ),
-            ("årets_netto_med_kgl_par14_23_kroner", Data::Int(7_000)),
+            (
+                "input.årets_netto_med_kgl_par14_23_kroner",
+                Data::Int(7_000),
+            ),
+            (
+                "markedsstatus",
+                Data::String("AblIkkeOptagetTilHandel".to_string()),
+            ),
         ] {
             set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 1, header, value);
         }
@@ -6875,25 +7055,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "aktieavance": {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
             "særlige_aktiver": [{
-                "indkomstår": 2026,
-                "aktiv": { "$variant": "AblNæringsaktiePar17" },
-                "afståelsessum_kroner": 37_000,
-                "anskaffelsessum_kroner": 30_000,
-                "par17_modprøve": {
-                    "næringsstatus": {
-                        "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
+                "input": {
+                    "indkomstår": 2026,
+                    "aktiv": { "$variant": "AblNæringsaktiePar17" },
+                    "afståelsessum_kroner": 37_000,
+                    "anskaffelsessum_kroner": 30_000,
+                    "par17_modprøve": {
+                        "næringsstatus": {
+                            "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
+                        },
+                        "erhvervelsesstatus": {
+                            "$variant": "AblPar17ErhvervetSomLedINæringsvej"
+                        }
                     },
-                    "erhvervelsesstatus": {
-                        "$variant": "AblPar17ErhvervetSomLedINæringsvej"
-                    }
+                    "koncernintern_konvertibel_eller_tegningsret": false,
+                    "andelsforening_stiftet_før_22_maj_1987": false,
+                    "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
+                    "investeringsklassifikation": {
+                        "$variant": "AblIngenInvesteringsklassifikation"
+                    },
+                    "årets_netto_med_kgl_par14_23_kroner": 7_000
                 },
-                "koncernintern_konvertibel_eller_tegningsret": false,
-                "andelsforening_stiftet_før_22_maj_1987": false,
-                "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
-                "investeringsklassifikation": {
-                    "$variant": "AblIngenInvesteringsklassifikation"
-                },
-                "årets_netto_med_kgl_par14_23_kroner": 7_000
+                "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" }
             }],
             "udbytter": []
         },
@@ -7234,14 +7417,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     }]
                 }],
                 "investeringsbeviser": [],
-                "fremført_tab_efter_par13a_kroner": 0,
-                "modregningsgrundlag": {
-                    "udbytter_for_aktier_med_gevinst_efter_par12_kroner": 0,
-                    "udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner": 0,
-                    "udbytter_for_aktier_omfattet_af_par44_kroner": 0,
-                    "ægtefælles_positive_nettobeløb_efter_par13a_kroner": 0
-                },
-                "gift_og_samlevende_ved_årets_udgang": false
+                "fremført_tab_efter_par13a_kroner": 0
             }
         },
         "særlige_aktiver": [],
@@ -8221,6 +8397,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     spouse_case["input"]["lønmodtager"]["kommune"] =
         serde_json::json!({ "$variant": "Frederiksberg" });
     spouse_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    spouse_case["input"]["aktieavance"]["ordinært_aktieår"] = serde_json::json!({
+        "$variant": "MedOrdinærtAktieår",
+        "input": {
+            "indkomstår": 2025,
+            "hændelsesforløb": [],
+            "investeringsbeviser": [{
+                "indkomstår": 2025,
+                "art": { "$variant": "AblPar21AktiebaseretMinimumsbevis" },
+                "afståelsessum_kroner": 50_000,
+                "anskaffelsessum_kroner": 100_000,
+                "oplysningsstatus": { "$variant": "AblOplystRettidigt" }
+            }],
+            "fremført_tab_efter_par13a_kroner": 0
+        }
+    });
     spouse_case["input"]["ægtefælle"] = serde_json::json!({
         "$variant": "MedÆgtefælle",
         "fakta": {
@@ -8296,7 +8487,34 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktieavance": {
                 "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
                 "særlige_aktiver": [],
-                "udbytter": []
+                "udbytter": [{
+                    "identifikation": "par13a-aegtefaelle-udbytte",
+                    "udlodder": { "$variant": "Ll16AAlmindeligtSelskab" },
+                    "modtager": { "$variant": "Ll16AAktuelAktionær" },
+                    "aktiv": { "$variant": "PersonskatAlmindeligAktie" },
+                    "beløb_kroner": 12_000,
+                    "par13a_kildefakta": {
+                        "$variant": "AblPar13AUdbytteForMarkedsaktieEfterPar12",
+                        "markedsstatus": {
+                            "$variant": "AblOptagetTilHandelPåReguleretMarked"
+                        },
+                        "aktivklassifikation": {
+                            "indkomstår": 2025,
+                            "aktiv": { "$variant": "AblOrdinærAktiePar12Til15" },
+                            "par17_modprøve": {
+                                "næringsstatus": {
+                                    "$variant": "AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier"
+                                },
+                                "erhvervelsesstatus": {
+                                    "$variant": "AblPar17IkkeErhvervetSomLedINæringsvej"
+                                }
+                            },
+                            "investeringsklassifikation": {
+                                "$variant": "AblIngenInvesteringsklassifikation"
+                            }
+                        }
+                    }
+                }]
             },
             "udenlandske_sociale_bidrag": {
                 "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
@@ -8519,7 +8737,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "udlodder": { "$variant": "Ll16AAlmindeligtSelskab" },
             "modtager": { "$variant": "Ll16AAktuelAktionær" },
             "aktiv": { "$variant": "PersonskatAlmindeligAktie" },
-            "beløb_kroner": 12_000
+            "beløb_kroner": 12_000,
+            "par13a_kildefakta": {
+                "$variant": "AblPar13AUdbytteUdenForModregningsgrundlag"
+            }
         }]
     });
     json_input["cases"]
@@ -8816,6 +9037,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         xlsx_spouse_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"],
         184_895
+    );
+    let spouse_transfer_sender_year =
+        &xlsx_spouse_result["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]["årsresultat"];
+    assert_eq!(
+        spouse_transfer_sender_year["årets_tab_efter_par13a_kroner"],
+        50_000
+    );
+    assert_eq!(
+        spouse_transfer_sender_year["tab_overført_til_ægtefælle_kroner"],
+        12_000
+    );
+    assert_eq!(
+        spouse_transfer_sender_year["tab_fremført_til_følgende_indkomstår_kroner"],
+        38_000
+    );
+    let spouse_transfer_recipient =
+        &xlsx_spouse_result["result"]["ægtefælle"]["grundlag"]["aktieavance"];
+    assert_eq!(spouse_transfer_recipient["aktieindkomst_kroner"], 0);
+    assert_eq!(
+        spouse_transfer_recipient["udbytter"][0]["par13a_kilderesultat"]
+            ["udbytte_for_aktie_med_gevinst_efter_par12"],
+        true
+    );
+    let spouse_transfer_recipient_year =
+        &spouse_transfer_recipient["ordinært_aktieår"]["resultat"]["årsresultat"];
+    assert_eq!(
+        spouse_transfer_recipient_year["tab_modtaget_fra_ægtefælle_kroner"],
+        12_000
+    );
+    assert_eq!(
+        spouse_transfer_recipient_year["netto_aktieindkomst_fra_ordinære_aktier_kroner"],
+        -12_000
     );
     assert_eq!(
         result["results"][1]["result"],

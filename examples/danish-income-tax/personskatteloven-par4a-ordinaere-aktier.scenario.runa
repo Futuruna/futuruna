@@ -257,10 +257,8 @@
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
         udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
-    ),
-    gift_og_samlevende_ved_årets_udgang = Falskt
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
+    )
 ))
 = abl_ordinaer_gennemsnit_par4a = par4a_aktieavancebeskatningslov_resultat(Par4aAktieavancebeskatningslovInput(
     aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat_fra_ordinaere_aktier(abl_ordinaer_gennemsnit_årsresultat)
@@ -334,10 +332,8 @@
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
         udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
-    ),
-    gift_og_samlevende_ved_årets_udgang = Falskt
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
+    )
 ))
 
 = abl_ordinaer_tidligere_noteret_tab = aktieavance_ordinaer_hændelsesresultat(
@@ -379,25 +375,63 @@
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
         udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
-    ),
-    gift_og_samlevende_ved_årets_udgang = Falskt
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
+    )
 ))
-= abl_ordinaer_par13a_ægtefælle_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
+= abl_ordinaer_par13a_hovedperson_årsinput = AktieavanceOrdinærÅrsinput(
     indkomstår = 2026,
     skatteposter = aktieavance_skatteposter_fra_ordinaere_hændelsesresultater([abl_ordinaer_tidligere_noteret_tab]),
     fremført_tab_efter_par13a_kroner = 0,
     modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
         udbytter_for_aktier_med_gevinst_efter_par12_kroner = 30000,
         udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
-        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
-        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 12000
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
+    )
+)
+= abl_ordinaer_par13a_ægtefælle_årsinput = AktieavanceOrdinærÅrsinput(
+    indkomstår = 2026,
+    skatteposter = [],
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 12000,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
+    )
+)
+= abl_ordinaer_par13a_ægtefælle_årspar = aktieavance_ordinaer_årsparresultat(abl_ordinaer_par13a_hovedperson_årsinput, abl_ordinaer_par13a_ægtefælle_årsinput, Sandt)
+= abl_ordinaer_par13a_ægtefælle_årsresultat = abl_ordinaer_par13a_ægtefælle_årspar.hovedperson
+= abl_ordinaer_par13a_ægtefælle_modtagerårsresultat = abl_ordinaer_par13a_ægtefælle_årspar.ægtefælle
+= abl_ordinaer_par13a_ægtefælle_par4a_post = par4a_aktiepost_resultat(
+    par4a_ægtefællepost_fra_modtaget_abl_ordinaert_tab(abl_ordinaer_par13a_ægtefælle_modtagerårsresultat)
+)
+= abl_ordinaer_par13a_ugyldig_hovedperson = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    investeringsbeviser = [AktieavancePar13AInvesteringsbevisInput(
+        indkomstår = 2025,
+        art = AblPar21AktiebaseretMinimumsbevis,
+        afståelsessum_kroner = 50000,
+        anskaffelsessum_kroner = 100000,
+        oplysningsstatus = AblOplystRettidigt
+    )],
+    fremført_tab_efter_par13a_kroner = 50000
+)
+= abl_ordinaer_par13a_gyldig_ægtefælle = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= abl_ordinaer_par13a_ugyldigt_personpar = aktieavance_ordinaer_person_årsparresultat(
+    hovedperson = abl_ordinaer_par13a_ugyldig_hovedperson,
+    hovedpersons_modregningsgrundlag = aktieavance_ordinaer_tomt_par13a_modregningsgrundlag(),
+    ægtefælle = abl_ordinaer_par13a_gyldig_ægtefælle,
+    ægtefælles_modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 12000,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0
     ),
     gift_og_samlevende_ved_årets_udgang = Sandt
-))
-= abl_ordinaer_par13a_ægtefælle_par4a_post = par4a_aktiepost_resultat(
-    par4a_ægtefællepost_fra_abl_ordinaert_tab(abl_ordinaer_par13a_ægtefælle_årsresultat)
 )
 
 = abl_ordinaer_noteret_tab_uden_oplysning = aktieavance_ordinaer_hændelsesresultat(
@@ -677,8 +711,9 @@
 | scenarie_abl_par5a_manglende_kildefakta_afviser_tabsafståelse: abl_ordinaer_unoteret_tab_uden_par5a_kildefakta -> abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.hændelse_gyldig == Falskt && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.par5a_kildefakta_gyldige == Falskt && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.position_efter == abl_ordinaer_position_primo
 | scenarie_abl_par13_stk2_tidligere_noteret_følger_par13a: abl_ordinaer_tidligere_noteret_tab -> abl_ordinaer_tidligere_noteret_tab.tab_behandles_efter_par13a && abl_ordinaer_tidligere_noteret_tab.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_tidligere_noteret_tab.tab_til_modregning_efter_par13a_kroner == 50000
 | scenarie_abl_par13a_tidligere_noteret_gevinst_er_udenfor_modregningsgrundlaget: abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag -> abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.skattepligtige_gevinster_efter_par12_kroner == 30000 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.eget_modregningsgrundlag_efter_par13a_kroner == 0 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 0 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.tab_fremført_til_følgende_indkomstår_kroner == 50000
-| scenarie_abl_par13a_ægtefælle_og_fremførsel: abl_ordinaer_par13a_ægtefælle_årsresultat -> abl_ordinaer_par13a_ægtefælle_årsresultat.årets_og_fremførte_tab_efter_par13a_kroner == 50000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 30000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_overført_til_ægtefælle_kroner == 12000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 8000
+| scenarie_abl_par13a_ægtefælle_og_fremførsel: abl_ordinaer_par13a_ægtefælle_årspar -> abl_ordinaer_par13a_ægtefælle_årspar.par_gyldigt && abl_ordinaer_par13a_ægtefælle_årsresultat.årets_og_fremførte_tab_efter_par13a_kroner == 50000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 30000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_overført_til_ægtefælle_kroner == 12000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 8000 && abl_ordinaer_par13a_ægtefælle_modtagerårsresultat.tab_modtaget_fra_ægtefælle_kroner == 12000 && abl_ordinaer_par13a_ægtefælle_modtagerårsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == -12000
 | scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a: abl_ordinaer_par13a_ægtefælle_par4a_post -> abl_ordinaer_par13a_ægtefælle_par4a_post.medregnes_i_aktieindkomst && abl_ordinaer_par13a_ægtefælle_par4a_post.aktieindkomst_kroner == -12000 && abl_ordinaer_par13a_ægtefælle_par4a_post.personlig_indkomst_kroner == 0
+| scenarie_abl_par13a_ugyldigt_personpar_overfører_ikke_tab: abl_ordinaer_par13a_ugyldigt_personpar -> abl_ordinaer_par13a_ugyldigt_personpar.par_gyldigt == Falskt && abl_ordinaer_par13a_ugyldigt_personpar.hovedperson.alle_input_gyldige == Falskt && abl_ordinaer_par13a_ugyldigt_personpar.hovedperson.årsresultat.tab_overført_til_ægtefælle_kroner == 0 && abl_ordinaer_par13a_ugyldigt_personpar.ægtefælle.årsresultat.tab_modtaget_fra_ægtefælle_kroner == 0
 | scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab: abl_ordinaer_noteret_tab_uden_oplysning -> abl_ordinaer_noteret_tab_uden_oplysning.oplysningsbetingelse_efter_par14_opfyldt == Falskt && abl_ordinaer_noteret_tab_uden_oplysning.tab_til_modregning_efter_par13a_kroner == 0 && abl_ordinaer_noteret_tab_uden_oplysning.tab_afskåret_efter_par14_kroner == 30000
 | scenarie_abl_par15_boligret_gevinst_er_skattefri: abl_ordinaer_boligret_gevinst -> abl_ordinaer_boligret_gevinst.bruttogevinst_kroner == 80000 && abl_ordinaer_boligret_gevinst.skattefri_efter_par15 && abl_ordinaer_boligret_gevinst.skattepligtig_gevinst_efter_par12_kroner == 0 && match abl_ordinaer_boligret_gevinst.par15_resultat {
     | AblPar15Vurderet(klassifikation, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.værdipapir_og_ejendom_omfattet && ebl_resultat.beboelseskrav_opfyldt && ebl_resultat.grundkrav_opfyldt && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
@@ -745,6 +780,7 @@
 ? scenarie_abl_par13a_tidligere_noteret_gevinst_er_udenfor_modregningsgrundlaget
 ? scenarie_abl_par13a_ægtefælle_og_fremførsel
 ? scenarie_abl_par13a_ægtefællepost_føder_personskattelov_par4a
+? scenarie_abl_par13a_ugyldigt_personpar_overfører_ikke_tab
 ? scenarie_abl_par14_manglende_oplysning_afskærer_noteret_tab
 ? scenarie_abl_par15_boligret_gevinst_er_skattefri
 ? scenarie_abl_par15_sel_nr6_forening_er_skattefri
