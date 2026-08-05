@@ -129,7 +129,7 @@
 # PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat)
-# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: List(EjendomsskattelovOrdinærPersonEjendomFakta), årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
@@ -483,11 +483,116 @@
     unit = Some("kr./år")
 )
 = personskat_felt_ejendomsskatter = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter),
+    path = refof(EjendomsskattelovPersonÅrsfakta::ejendomme),
     label = "Ejendomme med ejendomsskatter",
     question = Some("Har du ejet en bolig eller anden fast ejendom, hvor ejendomsværdiskat eller grundskyld skal indgå i årsopgørelsen?"),
-    help = Some("Tilføj én række pr. ejendom. Futuruna udleder 80-procentsgrundlag, lovens 30/360-periode, ejerandel og kommunal grundskyldssats fra kildefakta. Denne ordinære grænse omfatter endnu ikke nedslag, rabat eller stigningsbegrænsning."),
+    help = Some("Tilføj én række pr. ejendom. Futuruna udleder grundlag, perioder, ejerandel, nedslag og overgangsstatus fra kildefakta og afviser beregningen, hvis nødvendige historiske vurderinger mangler."),
     unit = None
+)
+= personskat_felt_ejendomsskat_ejer_folkepensionsalder = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::person::ejer_folkepensionsalder::$variant),
+    label = "Din folkepensionsalder",
+    question = Some("Har du nået folkepensionsalderen inden udgangen af skatteåret, og på hvilken dato skete det i givet fald?"),
+    help = Some("Datoen bruges til at udlede pensionistnedslaget efter ejendomsskattelovens § 25; feltet er ikke et valg af selve nedslaget."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aegtefaelle_folkepensionsalder = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::person::samlevende_ægtefælles_folkepensionsalder::$variant),
+    label = "Samlevende ægtefælles folkepensionsalder",
+    question = Some("Har din samlevende ægtefælle nået folkepensionsalderen inden udgangen af skatteåret, og på hvilken dato skete det i givet fald?"),
+    help = Some("Feltet bruges kun for en ægtefælle, som du er gift og samlevende med ved skatteårets udgang."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_hjemsted = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::person::skattemæssigt_hjemsted::$variant),
+    label = "Skattemæssigt hjemsted for pensionistnedslag",
+    question = Some("Er du fuldt skattepligtig efter kildeskattelovens § 1 eller skattemæssigt hjemmehørende uden for Danmark?"),
+    help = Some("Ved udenlandsk hjemsted skal både meddelte indkomstoplysninger og mulighed for administrativ udveksling fremgå af kildefakta."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_eget_udbytte = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovPersonKildeFakta::egen_udbytteindkomst_kroner),
+    label = "Din udbytteindkomst i aktieindkomsten",
+    question = Some("Hvor stor en del af din aktieindkomst er udbytteindkomst?"),
+    help = Some("Beløbet gør det muligt at anvende udbytteundtagelsen i § 26 uden at bede om et færdigberegnet nedslag."),
+    unit = Some("kr./år")
+)
+= personskat_felt_ejendomsskat_aegtefaelles_udbytte = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovPersonKildeFakta::ægtefælles_udbytteindkomst_kroner),
+    label = "Ægtefællens udbytteindkomst i aktieindkomsten",
+    question = Some("Hvor stor en del af din samlevende ægtefælles aktieindkomst er udbytteindkomst?"),
+    help = Some("Beløbet indgår kun i det fælles indkomstgrundlag efter § 26, når ægtefællerne er gift og samlevende ved årets udgang."),
+    unit = Some("kr./år")
+)
+= personskat_felt_ejendomsskat_egen_historisk_aktieloen = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovPersonKildeFakta::egne_historiske_aktielønshændelser),
+    label = "Din historiske afgiftsberigtigede aktieløn",
+    question = Some("Har du udnyttet eller afstået købe- eller tegningsretter, som blev tildelt før den 1. juli 2003?"),
+    help = Some("Tilføj hver dokumenteret hændelse. Futuruna udleder selv, om den skal indgå i indkomstgrundlaget for pensionistnedslaget."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aegtefaelles_historisk_aktieloen = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovPersonKildeFakta::ægtefælles_historiske_aktielønshændelser),
+    label = "Ægtefællens historiske afgiftsberigtigede aktieløn",
+    question = Some("Har din samlevende ægtefælle udnyttet eller afstået købe- eller tegningsretter, som blev tildelt før den 1. juli 2003?"),
+    help = Some("Hændelserne indgår kun i det fælles indkomstgrundlag, når ægtefællerne er gift og samlevende ved årets udgang."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aktieloen_identifikation = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::identifikation),
+    label = "Aktielønshændelsens identifikation",
+    question = Some("Hvilken stabil identifikation har købe- eller tegningsretten i dokumentationen?"),
+    help = Some("Identifikationen forhindrer, at den samme hændelse medregnes flere gange."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aktieloen_tildelingsaar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::tildelingsdato::år),
+    label = "Aktielønnens tildelingsår",
+    question = Some("I hvilket år blev købe- eller tegningsretten tildelt?"),
+    help = Some("Kun rettigheder tildelt før den 1. juli 2003 kan være omfattet af overgangsreglen."),
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_aktieloen_tildelingsmaaned = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::tildelingsdato::måned),
+    label = "Aktielønnens tildelingsmåned",
+    question = Some("I hvilken måned blev købe- eller tegningsretten tildelt?"),
+    help = Some("Angiv måned som 1-12; den fulde dato afgør, om tildelingen skete før den 1. juli 2003."),
+    unit = Some("måned")
+)
+= personskat_felt_ejendomsskat_aktieloen_tildelingsdag = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::tildelingsdato::dag),
+    label = "Aktielønnens tildelingsdag",
+    question = Some("På hvilken dag i måneden blev købe- eller tegningsretten tildelt?"),
+    help = Some("Den fulde dato afgør, om tildelingen skete før den 1. juli 2003."),
+    unit = Some("dag")
+)
+= personskat_felt_ejendomsskat_aktieloen_realisationsaar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::udnyttelses_eller_afståelsesdato::år),
+    label = "År for udnyttelse eller afståelse af aktieløn",
+    question = Some("I hvilket år blev købe- eller tegningsretten udnyttet eller afstået?"),
+    help = Some("Beløbet indgår i det indkomstår, hvor en omfattet rettighed udnyttes eller afstås, tidligst i 2007."),
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_aktieloen_realisationsmaaned = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::udnyttelses_eller_afståelsesdato::måned),
+    label = "Måned for udnyttelse eller afståelse af aktieløn",
+    question = Some("I hvilken måned blev købe- eller tegningsretten udnyttet eller afstået?"),
+    help = Some("Angiv måned som 1-12 for den dokumenterede udnyttelse eller afståelse."),
+    unit = Some("måned")
+)
+= personskat_felt_ejendomsskat_aktieloen_realisationsdag = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::udnyttelses_eller_afståelsesdato::dag),
+    label = "Dag for udnyttelse eller afståelse af aktieløn",
+    question = Some("På hvilken dag i måneden blev købe- eller tegningsretten udnyttet eller afstået?"),
+    help = Some("Angiv dagen fra dokumentationen for udnyttelsen eller afståelsen."),
+    unit = Some("dag")
+)
+= personskat_felt_ejendomsskat_aktieloen_beloeb = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovAfgiftsberigtigetAktieløn::afgiftsberigtiget_beløb_kroner),
+    label = "Afgiftsberigtiget aktielønsbeløb",
+    question = Some("Hvilket afgiftsberigtiget beløb fremgår af dokumentationen for hændelsen?"),
+    help = Some("Angiv kildebeløbet i kroner; Futuruna afgør anvendelsesåret og overgangsbetingelserne."),
+    unit = Some("kr.")
 )
 = personskat_felt_ejendomsskat_identifikation = TypetBeregningsfelt(
     path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::identifikation),
@@ -572,6 +677,349 @@
     question = Some("Hvor stor en ejerandel er registreret for dig?"),
     help = Some("Angiv andelen i basispoint, hvor 10.000 er 100 procent og 5.000 er 50 procent."),
     unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_oprindelig_erhvervelse = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::oprindelig_erhvervelsesdato::år),
+    label = "Oprindeligt erhvervelsesår i ejerforløbet",
+    question = Some("I hvilket år begyndte det ejerforløb, som din nuværende ret til ejendommen bygger på?"),
+    help = Some("Datoen og efterfølgende ejerskifter afgør rettigheder efter §§ 23-24 og overgangsrabatten; indtast ikke en berettigelsesvurdering."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejerskifter = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEjerskabshistorik::ejerskifter),
+    label = "Ejerskifter i ejerforløbet",
+    question = Some("Er ejendommen senere overdraget mellem ejere, ægtefæller, længstlevende eller medejere?"),
+    help = Some("Tilføj hændelserne kronologisk. Futuruna udleder selv, om en historisk ret bevares eller bortfalder."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejerskiftedato = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::ejerskifter::dato::år),
+    label = "Ejerskiftets år",
+    question = Some("I hvilket år blev ejerskiftet registreret?"),
+    help = Some("Ejerskifter skal stå i kronologisk rækkefølge efter den oprindelige erhvervelse."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejerskifteart = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::ejerskifter::art::$variant),
+    label = "Ejerskiftets faktiske relation",
+    question = Some("Var overdragelsen almindelig, mellem ægtefæller, til længstlevende, ved skilsmisse før bodeling eller mellem medejere?"),
+    help = Some("Relationen styrer lovens udtrykkelige undtagelser til bortfald; den er ikke et felt for ønsket skattemæssig behandling."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_boliganvendelse = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovNedslagsfakta::boliganvendelse),
+    label = "Boligens anvendelse",
+    question = Some("Er ejendommen helårsbolig, fritidsbolig eller fritidsbolig med tilladt helårsanvendelse?"),
+    help = Some("Anvendelsen bestemmer beløbsgrænsen for pensionistnedslaget efter § 25."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_boligenheder = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovNedslagsfakta::selvstændige_boligenheder),
+    label = "Selvstændige boligenheder",
+    question = Some("Hvor mange selvstændige boligenheder omfatter ejendomsværdiskattegrundlaget?"),
+    help = Some("Antallet anvendes ved maksimum og faste beløb efter §§ 24-25."),
+    unit = Some("boligenheder")
+)
+= personskat_felt_ejendomsskat_ejendomsform = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovNedslagsfakta::ejendomsform),
+    label = "Ejerlejlighedsstatus",
+    question = Some("Er ejendommen en ejerlejlighed?"),
+    help = Some("Ejere af ejerlejligheder kan ikke få det yderligere nedslag efter § 24."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_fredet = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovNedslagsfakta::fredet_og_omfattet_af_ligningslovens_par15k),
+    label = "Fredet ejendom med fradrag efter ligningslovens § 15 K",
+    question = Some("Er ejendommen fredet og omfattet af fradraget efter ligningslovens § 15 K?"),
+    help = Some("Kun kombinationen af fredning og § 15 K-status afskærer det yderligere nedslag efter § 24."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_par24_grundlag = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::par24_beregningsgrundlag::$variant),
+    label = "Værdigrundlag for tofamilieshus efter § 24",
+    question = Some("Skal § 24 anvende samme ejendomsværdi som § 13 eller hele ejendomsværdien for et tofamilieshus?"),
+    help = Some("Ved tofamilieshuse angives den offentlige ejendomsværdi for hele ejendommen; Futuruna beregner selv 80-procentsgrundlaget."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_pensionistsuccession = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::pensionistsuccession::$variant),
+    label = "Længstlevendes rådighed over ejendommen",
+    question = Some("Bevarer en længstlevende ægtefælle rådigheden efter dødsfald eller flytning på plejehjem?"),
+    help = Some("Hændelsesdato, separation, bevaret rådighed og eventuelt nyt ægteskab bruges til at udlede succession efter § 25, stk. 3."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_succession_aegtefaelle_folkepensionsalder = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovPensionistsuccession::EjskLængstlevendeBevarerRådighed::ægtefælles_folkepensionsalder::$variant),
+    label = "Tidligere ægtefælles folkepensionsalder ved succession",
+    question = Some("Havde den ægtefælle, hvis pensionistnedslag videreføres, nået folkepensionsalderen, og på hvilken dato?"),
+    help = Some("Dette historiske aldersgrundlag hører til dødsfaldet eller flytningen på plejehjem og holdes adskilt fra en eventuel nuværende samlevende ægtefælle."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_udenlandske_skatter = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovNedslagsfakta::udenlandske_ejendomsskatter),
+    label = "Udenlandske skatter og afgifter på ejendommen",
+    question = Some("Hvilke udenlandske skatter eller afgifter er betalt for denne ejendom?"),
+    help = Some("Angiv art og betalt beløb. Futuruna medregner kun værdibaseret ejendomsskat efter § 27 og udelukker grundskat, tinglysning, overdragelse og belåning."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_udenlandsk_skatteart = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovUdenlandskEjendomsskatBetaling::art),
+    label = "Udenlandsk skatte- eller afgiftsart",
+    question = Some("Hvilken type udenlandsk skat eller afgift blev betalt?"),
+    help = Some("Klassifikationen afgør, om betalingen kan krediteres efter § 27."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_udenlandsk_betalt = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovUdenlandskEjendomsskatBetaling::betalt_øre),
+    label = "Betalt udenlandsk ejendomsskat",
+    question = Some("Hvor meget blev betalt af denne udenlandske skat eller afgift?"),
+    help = Some("Beløbet angives i øre, så kreditten kan begrænses præcist til den opgjorte ejendomsværdiskat."),
+    unit = Some("øre")
+)
+= personskat_felt_ejendomsskat_overgangskategori = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOvergangsomfang::vurderingskategori),
+    label = "Vurderingskategori for overgangsregler",
+    question = Some("Hvilken vurderingskategori havde ejendommen ved anvendelsen af rabatordningen og stigningsbegrænsningen?"),
+    help = Some("Kategorien er en kendsgerning fra vurderingen. Futuruna udleder selv, om §§ 38 eller 44 finder anvendelse."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_overgang_ejerkreds = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOvergangsomfang::ejerkreds),
+    label = "Ejerkreds for overgangsregler",
+    question = Some("Består ejerkredsen kun af fysiske personer, eller indgår et dødsbo, en juridisk person eller en person undtaget efter kildeskattelovens § 3?"),
+    help = Some("Ejerkredsen afgør afgrænsningen mellem grundskyldrabat efter § 38 og stigningsbegrænsning efter § 44."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_rabatvurderinger = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::overgangsvurderinger::rabat::$variant),
+    label = "Kildegrundlag for skatterabat",
+    question = Some("Foreligger vurderingerne og de historiske kildeoplysninger, som er nødvendige for at opgøre skatterabatten fra 2024?"),
+    help = Some("Vælg kun oplyst, når kildefakta kan udfyldes. Futuruna beregner forskelsbeløb og rabat; indtast ikke et færdigt rabatbeløb."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_stigningsvurderinger = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter::ejendomme::overgangsvurderinger::stigningsbegrænsning::$variant),
+    label = "Kildegrundlag for stigningsbegrænsning",
+    question = Some("Foreligger de historiske grundværdier, som er nødvendige for at opgøre stigningsbegrænsningen i grundskyld?"),
+    help = Some("Vælg kun oplyst, når hvert kalenderårs kildefakta kan udfyldes. Futuruna udleder selv loftet efter § 45."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_overgang_byggeri = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabat2024Fakta::byggeri::$variant),
+    label = "Ny- eller ombygning ved overgangen",
+    question = Some("Var ejendommen nybygget eller ombygget omkring den 1. januar 2024?"),
+    help = Some("Færdigmeldingen og ejendommens tilstand før ombygningen afgør, hvilket sammenligningsgrundlag § 36 tillader."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_overgang_faerdigmeldt_dato = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovByggeriVedOvergang::EjskNybygningVedOvergang::færdigmeldt_dato),
+    label = "Færdigmeldelsesdato",
+    question = Some("På hvilken dato blev byggeriet færdigmeldt til kommunen?"),
+    help = Some("Angiv datoen fra kommunens registrering; en manglende færdigmelding repræsenteres som ingen dato."),
+    unit = Some("dato")
+)
+= personskat_felt_ejendomsskat_overgang_faerdigmelding_underkendt = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovByggeriVedOvergang::EjskNybygningVedOvergang::færdigmelding_underkendt_for_forsæt_eller_grov_uagtsomhed),
+    label = "Færdigmelding underkendt",
+    question = Some("Har Skatteforvaltningen underkendt færdigmeldingen på grund af forsæt eller grov uagtsomhed?"),
+    help = Some("Angiv den faktiske afgørelse; feltet er ikke en vurdering af, om en underkendelse burde ske."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_overgang_foer_ombygning = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovByggeriVedOvergang::EjskOmbygningVedOvergang::sammenligningsfakta_vedrører_ejendommen_før_ombygning),
+    label = "Sammenligningsgrundlag før ombygning",
+    question = Some("Vedrører de historiske vurderingsoplysninger ejendommen i dens tilstand før ombygningen?"),
+    help = Some("Feltet bruges, når en ombygning ikke var færdigmeldt senest den 1. januar 2024."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_tidligere_ejendomsvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereEjendomsværdiskat2024Fakta::ejendomsværdi_året_før_kroner),
+    label = "Ejendomsværdi året før 2024",
+    question = Some("Hvilken ejendomsværdi var ansat for ejendommen i året før 2024?"),
+    help = Some("Angiv den historiske vurdering før 80-procentsleddet; Futuruna vælger selv det laveste skattestopgrundlag."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdi_2001 = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereEjendomsværdiskat2024Fakta::ejendomsværdi_2001_kroner),
+    label = "Ejendomsværdi i 2001-niveau",
+    question = Some("Hvilken værdi er registreret for ejendommen i 2001-niveau til skattestopberegningen?"),
+    help = Some("Futuruna tillægger selv 5 procent efter den tidligere ejendomsværdiskattelovs § 4 a."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdi_2002 = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereEjendomsværdiskat2024Fakta::ejendomsværdi_2002_kroner),
+    label = "Ejendomsværdi i 2002-niveau",
+    question = Some("Hvilken værdi er registreret for ejendommen i 2002-niveau til skattestopberegningen?"),
+    help = Some("Angiv kildeværdien; Futuruna sammenholder den med 2001-værdien og vurderingen året før."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_tidligere_aarsskat = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEvslHistoriskeBegrænsningsfakta::foregående_indkomstårs_ejendomsværdiskat_øre),
+    label = "Foregående års ejendomsværdiskat ved historisk loft",
+    question = Some("Foreligger den ejendomsværdiskat, som dannede grundlag for den historiske stigningsbegrænsning?"),
+    help = Some("Angiv ingen værdi, hvis §§ 9 eller 9 a ikke blev anvendt; ellers angives det opgjorte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_ejendomsskat_par9b_nedsaettelse = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEvslHistoriskeBegrænsningsfakta::par9b_nedsættelse_øre),
+    label = "Historisk nedsættelse efter § 9 b",
+    question = Some("Hvor stor en nedsættelse efter den tidligere ejendomsværdiskattelovs § 9 b var registreret?"),
+    help = Some("Angiv kildebeløbet i øre; Futuruna indarbejder det i 2024-sammenligningen."),
+    unit = Some("øre")
+)
+= personskat_felt_ejendomsskat_historisk_ejerbolig = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEvslHistoriskeBegrænsningsfakta::vurderet_helt_eller_delvis_benyttet_til_ejerbolig),
+    label = "Historisk vurderet som ejerbolig",
+    question = Some("Var ejendommen vurderet som helt eller delvist benyttet til ejerbolig?"),
+    help = Some("Oplysningen indgår i betingelserne for de historiske begrænsninger efter §§ 9 og 9 a."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_historisk_lejemaal = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEvslHistoriskeBegrænsningsfakta::ejerlejlighed_frigjort_for_lejemål),
+    label = "Ejerlejlighed frigjort for lejemål",
+    question = Some("Blev ejerlejligheden frigjort for et lejemål i det historiske sammenligningsforløb?"),
+    help = Some("En sådan ændring kan afskære den historiske stigningsbegrænsning."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_historisk_ombygning = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovEvslHistoriskeBegrænsningsfakta::ombygning_over_100_procent),
+    label = "Historisk ombygning over 100 procent",
+    question = Some("Medførte en ombygning en værdistigning på mere end 100 procent i det historiske forløb?"),
+    help = Some("Oplysningen indgår i afgrænsningen af de tidligere §§ 9 og 9 a."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_tidligere_grundvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereGrundskyld2024Fakta::grundværdi_efter_fradrag_og_fritagelser_kroner),
+    label = "Afgiftspligtig grundværdi efter gamle regler",
+    question = Some("Hvilken afgiftspligtig grundværdi efter fradrag og fritagelser indgår som den aktuelle kandidat i 2024-sammenligningen?"),
+    help = Some("Angiv kildeværdien, herunder det lovbestemte forsigtighedsprincip hvor det er indarbejdet; Futuruna vælger selv den laveste loftsværdi."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_foregaaende_grundvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereGrundskyld2024Fakta::foregående_års_afgiftspligtige_grundværdi_kroner),
+    label = "Foregående års afgiftspligtige grundværdi",
+    question = Some("Hvilken afgiftspligtig grundværdi dannede grundlag for grundskylden året før 2024?"),
+    help = Some("Futuruna anvender selv reguleringsprocenten på 2,8 procent."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_grundskyldspromille_2023 = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovTidligereGrundskyld2024Fakta::grundskyld_promille_2023_tiendedele),
+    label = "Grundskyldspromille for 2023",
+    question = Some("Hvilken grundskyldspromille var fastsat for ejendommen for skatteåret 2023?"),
+    help = Some("Angiv satsen i tiendedele promille, eksempelvis 260 for 26,0 promille."),
+    unit = Some("0,1 promille")
+)
+= personskat_felt_ejendomsskat_fritaget_grundandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabat2024Fakta::grundskyld_fritaget_basispoint),
+    label = "Grundandel fritaget for grundskyld i 2024",
+    question = Some("Hvor stor en del af grundværdien var fritaget for grundskyld den 1. januar 2024?"),
+    help = Some("Angiv andelen i basispoint. Ved 10.000 opgøres intet forskelsbeløb for grundskyld."),
+    unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_samme_boligenhed = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabat2024Fakta::grundskyld_kan_fordeles_på_samme_boligenhed),
+    label = "Grundskyld kan henføres til samme boligenhed",
+    question = Some("Kan grundskylden og ejendomsværdiskatten henføres til den samme boligenhed?"),
+    help = Some("Når svaret er sandt, sammenholder Futuruna positive og negative forskelsbeløb efter § 40."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_rabathaendelser = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatOvergangsfakta::hændelser),
+    label = "Hændelser der ændrer skatterabatten",
+    question = Some("Er der siden 1. januar 2024 sket overdragelser eller anvendelsesændringer, som kan ændre rabatten?"),
+    help = Some("Tilføj de registrerede hændelser kronologisk. Futuruna udleder selv nedsættelse, bevarelse og bortfald."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_rabathaendelse_aar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatHændelse::dato::år),
+    label = "År for rabathændelse",
+    question = Some("I hvilket år fik hændelsen virkning efter det autoritative register?"),
+    help = Some("Hændelsesdatoen bruges til lovens 30/360-forholdsmæssige beregning."),
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_rabathaendelse_art = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatHændelse::art::$variant),
+    label = "Art af rabathændelse",
+    question = Some("Var hændelsen en delvis eller fuld overdragelse, ægtefællesuccession, bortfald af BFE-nummer eller en anvendelsesændring?"),
+    help = Some("Vælg den registrerede hændelse; Futuruna anvender undtagelserne i §§ 41 og 43."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_rabat_ny_ejerandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatHændelseArt::EjskDelvisOverdragelseTilFysiskePersoner::ny_ejerandel_basispoint),
+    label = "Ejerandel efter delvis overdragelse",
+    question = Some("Hvor stor var din registrerede ejerandel efter den delvise overdragelse?"),
+    help = Some("Angiv den resterende andel i basispoint; Futuruna nedsætter rabatten forholdsmæssigt."),
+    unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_stigningsaar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsbegrænsningsfakta::tidligere_år),
+    label = "Tidligere år for stigningsbegrænsning",
+    question = Some("Hvilke kalenderår fra og med 2024 ligger før det år, der skal beregnes?"),
+    help = Some("Tilføj hvert år én gang i ubrudt kronologisk rækkefølge; Futuruna fører loftet videre år for år."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_stigningsaar_kalenderaar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::kalenderår),
+    label = "Kalenderår i loftsforløbet",
+    question = Some("Hvilket kalenderår vedrører denne historiske grundværdi?"),
+    help = Some("Årene skal begynde med 2024 og slutte året før beregningsåret uden huller."),
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_stigningsaar_kommune = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::kommune),
+    label = "Kommune i loftsåret",
+    question = Some("Hvilken kommune og dermed grundskyldssats gjaldt for ejendommen dette år?"),
+    help = Some("Angiv kommunen som kildefaktum; satsen hentes fra Futurunas årsparametre."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_stigningsaar_grundvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::grundværdi_kroner),
+    label = "Grundværdi i loftsåret",
+    question = Some("Hvilken offentligt ansat grundværdi gjaldt dette kalenderår?"),
+    help = Some("Angiv vurderingen før beregning af grundskyld; Futuruna anvender forsigtighedsprincippet og årets sats."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_stigningsaar_produktionsjord = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::produktionsjord),
+    label = "Produktionsjord i loftsåret",
+    question = Some("Var grundværdien produktionsjord dette kalenderår?"),
+    help = Some("Statussen styrer beregningsgrundlaget efter § 17."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_stigningsaar_ejerandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::ejerandel_basispoint),
+    label = "Ejerandel i loftsåret",
+    question = Some("Hvor stor en registreret ejerandel vedrørte grundskylden dette kalenderår?"),
+    help = Some("Angiv andelen i basispoint for det historiske år."),
+    unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_stigningsaar_almen = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::almen_bolig),
+    label = "Almen bolig i loftsåret",
+    question = Some("Var ejendommen en almen bolig omfattet af lov om almene boliger dette kalenderår?"),
+    help = Some("Til og med 2040 anvendes 3,50 procent i stedet for 4,75 procent for almene boliger."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_stigningsaar_haendelse = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsårsfakta::hændelse),
+    label = "Loftshændelse i kalenderåret",
+    question = Some("Indtraf en hændelse, som efter § 45, stk. 3, nulstiller stigningsbegrænsningen dette år?"),
+    help = Some("Vælg den faktiske hændelse. Ophør af grundskyldsfritagelse er særskilt og nulstiller ikke loftet."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aktuel_almen = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsbegrænsningsfakta::aktuel_almen_bolig),
+    label = "Almen bolig i beregningsåret",
+    question = Some("Er ejendommen en almen bolig omfattet af lov om almene boliger i beregningsåret?"),
+    help = Some("Oplysningen vælger den lovbestemte stigningssats; satsen selv skal ikke indtastes."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aktuel_stigningshaendelse = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovStigningsbegrænsningsfakta::aktuel_hændelse),
+    label = "Loftshændelse i beregningsåret",
+    question = Some("Indtraf en nyopståen, omkategorisering, anvendelsesændring eller anden § 45-hændelse i beregningsåret?"),
+    help = Some("Futuruna udleder, om årets grundskyld bliver nyt udgangspunkt eller fortsat begrænses."),
+    unit = None
 )
 = personskat_felt_årsopgørelse = Beregningsfelt(
     path = "årsopgørelse.$variant",
@@ -5774,6 +6222,21 @@
 = personskat_meta_ejendomsskatter = TypetBeregningsmeta(
     felter = [
         personskat_felt_ejendomsskatter,
+        personskat_felt_ejendomsskat_ejer_folkepensionsalder,
+        personskat_felt_ejendomsskat_aegtefaelle_folkepensionsalder,
+        personskat_felt_ejendomsskat_hjemsted,
+        personskat_felt_ejendomsskat_eget_udbytte,
+        personskat_felt_ejendomsskat_aegtefaelles_udbytte,
+        personskat_felt_ejendomsskat_egen_historisk_aktieloen,
+        personskat_felt_ejendomsskat_aegtefaelles_historisk_aktieloen,
+        personskat_felt_ejendomsskat_aktieloen_identifikation,
+        personskat_felt_ejendomsskat_aktieloen_tildelingsaar,
+        personskat_felt_ejendomsskat_aktieloen_tildelingsmaaned,
+        personskat_felt_ejendomsskat_aktieloen_tildelingsdag,
+        personskat_felt_ejendomsskat_aktieloen_realisationsaar,
+        personskat_felt_ejendomsskat_aktieloen_realisationsmaaned,
+        personskat_felt_ejendomsskat_aktieloen_realisationsdag,
+        personskat_felt_ejendomsskat_aktieloen_beloeb,
         personskat_felt_ejendomsskat_identifikation,
         personskat_felt_ejendomsskat_kommune,
         personskat_felt_ejendomsskat_kategori,
@@ -5785,12 +6248,68 @@
         personskat_felt_ejendomsskat_produktionsjord,
         personskat_felt_ejendomsskat_ejendomsvaerdiperiode,
         personskat_felt_ejendomsskat_grundskyldsperiode,
-        personskat_felt_ejendomsskat_ejerandel
+        personskat_felt_ejendomsskat_ejerandel,
+        personskat_felt_ejendomsskat_oprindelig_erhvervelse,
+        personskat_felt_ejendomsskat_ejerskifter,
+        personskat_felt_ejendomsskat_ejerskiftedato,
+        personskat_felt_ejendomsskat_ejerskifteart,
+        personskat_felt_ejendomsskat_boliganvendelse,
+        personskat_felt_ejendomsskat_boligenheder,
+        personskat_felt_ejendomsskat_ejendomsform,
+        personskat_felt_ejendomsskat_fredet,
+        personskat_felt_ejendomsskat_par24_grundlag,
+        personskat_felt_ejendomsskat_pensionistsuccession,
+        personskat_felt_ejendomsskat_succession_aegtefaelle_folkepensionsalder,
+        personskat_felt_ejendomsskat_udenlandske_skatter,
+        personskat_felt_ejendomsskat_udenlandsk_skatteart,
+        personskat_felt_ejendomsskat_udenlandsk_betalt,
+        personskat_felt_ejendomsskat_overgangskategori,
+        personskat_felt_ejendomsskat_overgang_ejerkreds,
+        personskat_felt_ejendomsskat_rabatvurderinger,
+        personskat_felt_ejendomsskat_stigningsvurderinger,
+        personskat_felt_ejendomsskat_overgang_byggeri,
+        personskat_felt_ejendomsskat_overgang_faerdigmeldt_dato,
+        personskat_felt_ejendomsskat_overgang_faerdigmelding_underkendt,
+        personskat_felt_ejendomsskat_overgang_foer_ombygning,
+        personskat_felt_ejendomsskat_tidligere_ejendomsvaerdi,
+        personskat_felt_ejendomsskat_ejendomsvaerdi_2001,
+        personskat_felt_ejendomsskat_ejendomsvaerdi_2002,
+        personskat_felt_ejendomsskat_tidligere_aarsskat,
+        personskat_felt_ejendomsskat_par9b_nedsaettelse,
+        personskat_felt_ejendomsskat_historisk_ejerbolig,
+        personskat_felt_ejendomsskat_historisk_lejemaal,
+        personskat_felt_ejendomsskat_historisk_ombygning,
+        personskat_felt_ejendomsskat_tidligere_grundvaerdi,
+        personskat_felt_ejendomsskat_foregaaende_grundvaerdi,
+        personskat_felt_ejendomsskat_grundskyldspromille_2023,
+        personskat_felt_ejendomsskat_fritaget_grundandel,
+        personskat_felt_ejendomsskat_samme_boligenhed,
+        personskat_felt_ejendomsskat_rabathaendelser,
+        personskat_felt_ejendomsskat_rabathaendelse_aar,
+        personskat_felt_ejendomsskat_rabathaendelse_art,
+        personskat_felt_ejendomsskat_rabat_ny_ejerandel,
+        personskat_felt_ejendomsskat_stigningsaar,
+        personskat_felt_ejendomsskat_stigningsaar_kalenderaar,
+        personskat_felt_ejendomsskat_stigningsaar_kommune,
+        personskat_felt_ejendomsskat_stigningsaar_grundvaerdi,
+        personskat_felt_ejendomsskat_stigningsaar_produktionsjord,
+        personskat_felt_ejendomsskat_stigningsaar_ejerandel,
+        personskat_felt_ejendomsskat_stigningsaar_almen,
+        personskat_felt_ejendomsskat_stigningsaar_haendelse,
+        personskat_felt_ejendomsskat_aktuel_almen,
+        personskat_felt_ejendomsskat_aktuel_stigningshaendelse
     ],
     spørgsmål = [],
     beløbsfelter = [],
     attachments = (
         DependencySource(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        RateSource(value = ejendomsskatteloven_skm_satser_2025_2026),
+        DependencySource(value = ejendomsskatteloven_lov678_par23_til_27),
+        ParameterSource(value = ejendomsskatteloven_skm_satser_2025_2026),
+        TransitionSource(value = ejendomsskatteloven_lov394_historisk_aktieloen),
+        AmendmentSource(value = ejendomsskatteloven_lov515_historisk_aktieloen),
+        DependencySource(value = ejendomsskatteloven_lov678_par35_til_45),
+        AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr31_til_33),
         AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17),
         Guidance(value = ejendomsskatteloven_vejledning_30_360),
     )
@@ -7979,13 +8498,34 @@
         )
     }
 }
+| personskat_ejendomsskat_indkomstkomponenter(grundlag: PersonskatPersonGrundlagResultat) -> EjendomsskattelovIndkomstkomponenter(
+    personlig_indkomst_kroner = personlig_indkomst_efter_am(grundlag.lønmodtager_input),
+    kapitalindkomst_kroner = grundlag.lønmodtager_input.nettokapitalindkomst_kroner,
+    aktieindkomst_kroner = grundlag.individuelle_skatteforhold.aktieindkomst_kroner
+)
+| personskat_ejendomsskat_ægtefælle_indkomstkomponenter(ægtefælle: PersonskatÆgtefælleBeregningResultat) -> match ægtefælle {
+    | IngenÆgtefælleberegning -> EjendomsskattelovIndkomstkomponenter(personlig_indkomst_kroner = 0, kapitalindkomst_kroner = 0, aktieindkomst_kroner = 0)
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> personskat_ejendomsskat_indkomstkomponenter(grundlag)
+}
+| personskat_ejendomsskat_gift_og_samlevende(ægtefælle: PersonskatÆgtefælleBeregningResultat) -> match ægtefælle {
+    | IngenÆgtefælleberegning -> Falskt
+    | BeregnetÆgtefælle(_, _, _, samlevende) -> samlevende
+}
+| personskat_ejendomsskat_årskontekst(hovedgrundlag: PersonskatPersonGrundlagResultat, parberegning: PersonskatParberegningResultat, fakta: EjendomsskattelovPersonÅrsfakta) -> EjendomsskattelovPersonÅrskontekst(
+    indkomstår = hovedgrundlag.lønmodtager_input.skatteår,
+    kildefakta = fakta.person,
+    egen_indkomst = personskat_ejendomsskat_indkomstkomponenter(hovedgrundlag),
+    ægtefælles_indkomst = personskat_ejendomsskat_ægtefælle_indkomstkomponenter(parberegning.ægtefælle),
+    gift_og_samlevende_ved_indkomstårets_udgang = personskat_ejendomsskat_gift_og_samlevende(parberegning.ægtefælle)
+)
 | personskat_beregning_resultat(input: PersonskatInput) -> {
     = hovedgrundlag = personskat_person_grundlag(personskat_hovedperson_fakta(input))
     = parberegning = personskat_parberegning(hovedgrundlag, input.ægtefælle)
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
     = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(input.lønmodtager.skatteår, parberegning.hovedskatteforhold)
     = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = skat.samlet_inkl_am_efter_personfradrag_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
-    = ejendomsskatter = ejendomsskattelov_person_årsresultat(input.lønmodtager.skatteår, input.ejendomsskatter)
+    = ejendomsskatteårskontekst = personskat_ejendomsskat_årskontekst(hovedgrundlag, parberegning, input.ejendomsskatter)
+    = ejendomsskatter = ejendomsskattelov_person_årsresultat(ejendomsskatteårskontekst, input.ejendomsskatter.ejendomme)
     = samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner + ejendomsskatter.samlet_ejendomsskat_kroner
     PersonskatBeregningResultat(
         skat = skat,

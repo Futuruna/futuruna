@@ -1203,6 +1203,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Samordning med langtidsudlejning",
             "Personen, som beregningen vedrører",
             "Din ægtefælles identifikation",
+            "Din folkepensionsalder",
+            "Samlevende ægtefælles folkepensionsalder",
+            "Skattemæssigt hjemsted for pensionistnedslag",
             "Årsopgørelse",
             "Ordinært aktieår",
         ] {
@@ -1269,7 +1272,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
             );
         }
-        let property_tax_path = "ejendomsskatter";
+        let property_tax_path = "ejendomsskatter.ejendomme";
         let property_tax_sheet = workbook_collection_sheet_name(&mut workbook, property_tax_path);
         assert_eq!(
             workbook_title(&mut workbook, &property_tax_sheet),
@@ -1277,14 +1280,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         let property_tax_paths = workbook_column_paths(&mut workbook, &property_tax_sheet);
         for expected in [
-            "identifikation",
-            "kommune",
-            "kategori",
-            "ejendomsværdi_kroner",
-            "grundværdi_kroner",
-            "ejendomsværdiskatteperiode.$variant",
-            "grundskyldsperiode.$variant",
-            "ejerandel_basispoint",
+            "ordinært_grundlag.identifikation",
+            "ordinært_grundlag.kommune",
+            "ordinært_grundlag.kategori",
+            "ordinært_grundlag.ejendomsværdi_kroner",
+            "ordinært_grundlag.grundværdi_kroner",
+            "ordinært_grundlag.ejendomsværdiskatteperiode.$variant",
+            "ordinært_grundlag.grundskyldsperiode.$variant",
+            "ordinært_grundlag.ejerandel_basispoint",
+            "nedslagsfakta.ejerskabshistorik.oprindelig_erhvervelsesdato.år",
+            "nedslagsfakta.pensionistsuccession.$variant",
+            "overgangsomfang.vurderingskategori",
+            "overgangsvurderinger.rabat.$variant",
         ] {
             assert!(
                 property_tax_paths.iter().any(|path| path == expected),
@@ -1301,6 +1308,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Periode med ejendomsværdiskat",
             "Periode med grundskyld",
             "Registreret ejerandel",
+            "Oprindeligt erhvervelsesår i ejerforløbet",
+            "Længstlevendes rådighed over ejendommen",
+            "Vurderingskategori for overgangsregler",
+            "Kildegrundlag for skatterabat",
         ] {
             assert!(
                 property_tax_headers.iter().any(|header| header == expected),
@@ -3114,6 +3125,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenÆgtefælle".to_string()),
                     ),
                     (
+                        "ejendomsskatter.person.ejer_folkepensionsalder.$variant",
+                        Data::String("EjskFolkepensionsalderIkkeOpnået".to_string()),
+                    ),
+                    (
+                        "ejendomsskatter.person.samlevende_ægtefælles_folkepensionsalder.$variant",
+                        Data::String("EjskFolkepensionsalderIkkeOpnået".to_string()),
+                    ),
+                    (
+                        "ejendomsskatter.person.skattemæssigt_hjemsted.$variant",
+                        Data::String(
+                            "EjskFuldtSkattepligtigEfterKildeskattelovensPar1".to_string(),
+                        ),
+                    ),
+                    (
+                        "ejendomsskatter.person.egen_udbytteindkomst_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
+                        "ejendomsskatter.person.ægtefælles_udbytteindkomst_kroner",
+                        Data::String("0".to_string()),
+                    ),
+                    (
                         "årsopgørelse.$variant",
                         Data::String("UdenÅrsopgørelse".to_string()),
                     ),
@@ -3288,7 +3321,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             Data::String("2025".to_string()),
         );
         let property_tax_sheet =
-            workbook_collection_sheet_name_from_rows(sheets, "ejendomsskatter");
+            workbook_collection_sheet_name_from_rows(sheets, "ejendomsskatter.ejendomme");
         for (header, value) in [
             (
                 "case_id",
@@ -3296,51 +3329,118 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("ejerbolig-1".to_string())),
             ("position", Data::Int(1)),
-            ("identifikation", Data::String("ejerbolig-1".to_string())),
-            ("kommune", Data::String("København".to_string())),
-            ("kategori", Data::String("EjskEnBoligenhed".to_string())),
-            ("beliggenhed", Data::String("EjskDanmark".to_string())),
-            ("erhvervsmæssigt_udlejet", Data::Bool(false)),
             (
-                "særlige_betingelser_for_nr6_til_nr8_opfyldt",
+                "ordinært_grundlag.identifikation",
+                Data::String("ejerbolig-1".to_string()),
+            ),
+            (
+                "ordinært_grundlag.kommune",
+                Data::String("København".to_string()),
+            ),
+            (
+                "ordinært_grundlag.kategori",
+                Data::String("EjskEnBoligenhed".to_string()),
+            ),
+            (
+                "ordinært_grundlag.beliggenhed",
+                Data::String("EjskDanmark".to_string()),
+            ),
+            (
+                "ordinært_grundlag.erhvervsmæssigt_udlejet",
+                Data::Bool(false),
+            ),
+            (
+                "ordinært_grundlag.særlige_betingelser_for_nr6_til_nr8_opfyldt",
                 Data::Bool(true),
             ),
-            ("ejendomsværdi_kroner", Data::Int(3_710_000)),
-            ("grundværdi_kroner", Data::Int(3_363_000)),
-            ("produktionsjord", Data::Bool(false)),
             (
-                "ejendomsværdiskatteperiode.$variant",
+                "ordinært_grundlag.ejendomsværdi_kroner",
+                Data::Int(3_710_000),
+            ),
+            ("ordinært_grundlag.grundværdi_kroner", Data::Int(3_363_000)),
+            ("ordinært_grundlag.produktionsjord", Data::Bool(false)),
+            (
+                "ordinært_grundlag.ejendomsværdiskatteperiode.$variant",
                 Data::String("EjendomsskatFraOgMed".to_string()),
             ),
             (
-                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.år",
+                "ordinært_grundlag.ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.år",
                 Data::Int(2025),
             ),
             (
-                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.måned",
+                "ordinært_grundlag.ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.måned",
                 Data::Int(8),
             ),
             (
-                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.dag",
+                "ordinært_grundlag.ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.dag",
                 Data::Int(1),
             ),
             (
-                "grundskyldsperiode.$variant",
+                "ordinært_grundlag.grundskyldsperiode.$variant",
                 Data::String("EjendomsskatFraOgMed".to_string()),
             ),
             (
-                "grundskyldsperiode.EjendomsskatFraOgMed.dato.år",
+                "ordinært_grundlag.grundskyldsperiode.EjendomsskatFraOgMed.dato.år",
                 Data::Int(2025),
             ),
             (
-                "grundskyldsperiode.EjendomsskatFraOgMed.dato.måned",
+                "ordinært_grundlag.grundskyldsperiode.EjendomsskatFraOgMed.dato.måned",
                 Data::Int(8),
             ),
             (
-                "grundskyldsperiode.EjendomsskatFraOgMed.dato.dag",
+                "ordinært_grundlag.grundskyldsperiode.EjendomsskatFraOgMed.dato.dag",
                 Data::Int(1),
             ),
-            ("ejerandel_basispoint", Data::Int(5_000)),
+            ("ordinært_grundlag.ejerandel_basispoint", Data::Int(5_000)),
+            (
+                "nedslagsfakta.ejerskabshistorik.oprindelig_erhvervelsesdato.år",
+                Data::Int(2025),
+            ),
+            (
+                "nedslagsfakta.ejerskabshistorik.oprindelig_erhvervelsesdato.måned",
+                Data::Int(8),
+            ),
+            (
+                "nedslagsfakta.ejerskabshistorik.oprindelig_erhvervelsesdato.dag",
+                Data::Int(1),
+            ),
+            (
+                "nedslagsfakta.boliganvendelse",
+                Data::String("EjskHelårsbolig".to_string()),
+            ),
+            ("nedslagsfakta.selvstændige_boligenheder", Data::Int(1)),
+            (
+                "nedslagsfakta.ejendomsform",
+                Data::String("EjskIkkeEjerlejlighed".to_string()),
+            ),
+            (
+                "nedslagsfakta.fredet_og_omfattet_af_ligningslovens_par15k",
+                Data::Bool(false),
+            ),
+            (
+                "nedslagsfakta.par24_beregningsgrundlag.$variant",
+                Data::String("EjskPar24SammeVærdiSomPar13".to_string()),
+            ),
+            (
+                "nedslagsfakta.pensionistsuccession.$variant",
+                Data::String("EjskIngenPensionistsuccession".to_string()),
+            ),
+            (
+                "overgangsomfang.vurderingskategori",
+                Data::String("EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1".to_string()),
+            ),
+            (
+                "overgangsomfang.ejerkreds",
+                Data::String("EjskKunFysiskeEjere".to_string()),
+            ),
+            (
+                "overgangsvurderinger.rabat.$variant",
+                Data::String("EjskIngenRabatvurderingerOplyst".to_string()),
+            ),
+            (
+                "overgangsvurderinger.stigningsbegrænsning.$variant",
+                Data::String("EjskIngenStigningsvurderingerOplyst".to_string()),
+            ),
         ] {
             set_workbook_cell_by_header(sheets, &property_tax_sheet, 1, header, value);
         }
@@ -5939,7 +6039,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
         },
         "cfc": { "poster": [] },
-        "ejendomsskatter": [],
+        "ejendomsskatter": {
+            "person": {
+                "ejer_folkepensionsalder": {
+                    "$variant": "EjskFolkepensionsalderIkkeOpnået"
+                },
+                "samlevende_ægtefælles_folkepensionsalder": {
+                    "$variant": "EjskFolkepensionsalderIkkeOpnået"
+                },
+                "skattemæssigt_hjemsted": {
+                    "$variant": "EjskFuldtSkattepligtigEfterKildeskattelovensPar1"
+                },
+                "egen_udbytteindkomst_kroner": 0,
+                "ægtefælles_udbytteindkomst_kroner": 0,
+                "egne_historiske_aktielønshændelser": [],
+                "ægtefælles_historiske_aktielønshændelser": []
+            },
+            "ejendomme": []
+        },
         "skatteforhold": { "$variant": "StandardSkatteforhold" },
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
         "ægtefælle": { "$variant": "UdenÆgtefælle" },
@@ -7273,25 +7390,54 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     property_tax_case["case_id"] = Value::String("personskat-ejendomsskatter-2025".into());
     property_tax_case["input"]["lønmodtager"]["skatteår"] = serde_json::json!(2025);
     property_tax_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
-    property_tax_case["input"]["ejendomsskatter"] = serde_json::json!([{
-        "identifikation": "ejerbolig-1",
-        "kommune": { "$variant": "København" },
-        "kategori": { "$variant": "EjskEnBoligenhed" },
-        "beliggenhed": { "$variant": "EjskDanmark" },
-        "erhvervsmæssigt_udlejet": false,
-        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
-        "ejendomsværdi_kroner": 3_710_000,
-        "grundværdi_kroner": 3_363_000,
-        "produktionsjord": false,
-        "ejendomsværdiskatteperiode": {
-            "$variant": "EjendomsskatFraOgMed",
-            "dato": { "år": 2025, "måned": 8, "dag": 1 }
+    property_tax_case["input"]["ejendomsskatter"]["ejendomme"] = serde_json::json!([{
+        "ordinært_grundlag": {
+            "identifikation": "ejerbolig-1",
+            "kommune": { "$variant": "København" },
+            "kategori": { "$variant": "EjskEnBoligenhed" },
+            "beliggenhed": { "$variant": "EjskDanmark" },
+            "erhvervsmæssigt_udlejet": false,
+            "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+            "ejendomsværdi_kroner": 3_710_000,
+            "grundværdi_kroner": 3_363_000,
+            "produktionsjord": false,
+            "ejendomsværdiskatteperiode": {
+                "$variant": "EjendomsskatFraOgMed",
+                "dato": { "år": 2025, "måned": 8, "dag": 1 }
+            },
+            "grundskyldsperiode": {
+                "$variant": "EjendomsskatFraOgMed",
+                "dato": { "år": 2025, "måned": 8, "dag": 1 }
+            },
+            "ejerandel_basispoint": 5_000
         },
-        "grundskyldsperiode": {
-            "$variant": "EjendomsskatFraOgMed",
-            "dato": { "år": 2025, "måned": 8, "dag": 1 }
+        "nedslagsfakta": {
+            "ejerskabshistorik": {
+                "oprindelig_erhvervelsesdato": { "år": 2025, "måned": 8, "dag": 1 },
+                "ejerskifter": []
+            },
+            "boliganvendelse": { "$variant": "EjskHelårsbolig" },
+            "selvstændige_boligenheder": 1,
+            "ejendomsform": { "$variant": "EjskIkkeEjerlejlighed" },
+            "fredet_og_omfattet_af_ligningslovens_par15k": false,
+            "par24_beregningsgrundlag": {
+                "$variant": "EjskPar24SammeVærdiSomPar13"
+            },
+            "pensionistsuccession": { "$variant": "EjskIngenPensionistsuccession" },
+            "udenlandske_ejendomsskatter": []
         },
-        "ejerandel_basispoint": 5_000
+        "overgangsomfang": {
+            "vurderingskategori": {
+                "$variant": "EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1"
+            },
+            "ejerkreds": { "$variant": "EjskKunFysiskeEjere" }
+        },
+        "overgangsvurderinger": {
+            "rabat": { "$variant": "EjskIngenRabatvurderingerOplyst" },
+            "stigningsbegrænsning": {
+                "$variant": "EjskIngenStigningsvurderingerOplyst"
+            }
+        }
     }]);
     json_input["cases"]
         .as_array_mut()

@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-31
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0b472c` (ordinær ejendomsværdiskat og grundskyld fra kildefakta til kanonisk Personskat; pending independent review)
+Current implementation slice: `td-4a61a9` (Ejendomsskattelovens §§ 23-27 og §§ 35-45 fra kildefakta til kanonisk Personskat; pending independent review)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slices: `td-4a61a9` (nedslag, rabat og overgangsregler) og `td-8746cb` (alle kommuners årsparametre)
+Next source-backed slice: `td-8746cb` (alle kommuners årsparametre)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -15,6 +15,7 @@ Current language support slice: `td-d25733` (genbrugelige, typede beregningsfelt
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
+Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
 Latest approved implementation slice: `td-8e40ea`
 Latest approved language slice: `td-8a34e0`
 
@@ -138,6 +139,37 @@ afvige med en krone fra at trække flere allerede afrundede delvirkninger fra
 en allerede afrundet baseline, så afstemninger skal fastholde lovens enhed og
 afrundingstrin gennem hele beregningskæden.
 
+Latest property-tax integration: Ejendomsskattelovens §§ 23-27 og §§ 35-45
+er nu forbundet med den kanoniske Personskat-beregning. Reglerne afleder
+pensionistnedslag, tidligere-ejer-nedslag, skatterabat og
+stigningsbegrænsning fra vurderinger, ejerandele, hændelser og historiske
+kildefakta. De offentlige resultater skelner mellem ugyldige, ikke relevante
+og anvendte grene, og hvert nedslag indgår præcis én gang i ejendommens
+slutskat. De fokuserede scenarier gengiver blandt andet Skattestyrelsens
+2024-eksempel med 5.090 kr. efter gamle regler, 6.180 kr. efter nye regler og
+1.090 kr. i rabat. De fastholder også, at pensionistnedslag holdes uden for
+forskelsbeløbet, samt grænserne på 4,75 pct. og 3,50 pct. for
+stigningsbegrænsningen.
+
+Kildegennemgangen mod Skatteministeriets aktuelle satsoversigt og Den juridiske
+vejledning har samtidig udvidet den ordinære grænse til 2026: § 22 anvender
+9.007.000 kr., mens § 26 anvender 239.800 kr. for enlige og 368.800 kr. for
+ægtepar. Ægtefællers kapital- og aktieindkomst nettosummeres nu før det positive
+beløb udvælges. Historisk afgiftsberigtiget aktieløn afledes fra tildelings- og
+realisationsdatoer med entydige hændelses-id'er, og en længstlevendes succession
+bærer den tidligere ægtefælles aldersgrundlag i selve hændelsen i stedet for at
+genbruge feltet for en nuværende samlevende ægtefælle.
+
+Den genererede arbejdsbog udstiller overgangsreglernes kildefakta med danske
+etiketter, spørgsmål, hjælp og kilder. Der findes ikke et automatisk PDF- eller
+dokumentimporttrin. En AI eller et menneske læser dokumenterne eller gennemfører
+interviewet og udfylder arbejdsbogen; Futuruna indlæser og typevaliderer derefter
+fakta, udfører reglerne deterministisk og eksporterer resultatet. Den komplette
+tomme Personskat-arbejdsbog er gyldig, men har aktuelt 303 ark, fordi også
+inaktive sumtypegrenes relationelle strukturer materialiseres. Den særskilte
+UX-opfølgning `td-70d182` skal reducere denne topologi uden at svække den typede
+kontrakt eller rundturen.
+
 Realitetstesten fastlægger fem generelle revisionsprincipper for korpusset.
 Offentlige beregningsgrænser skal modtage observerbare kildefakta, ikke
 afledte retskonklusioner, skattegrundlag eller skattebeløb. Ugyldige input,
@@ -167,10 +199,11 @@ typet ægtefælleprofil og samlivsstatus. § 13-, § 10- og § 11-resultater kan
 længere leveres som rå reduktionsbeløb. JSON- og XLSX-kontrakten udstiller de
 samme kildefakta med danske spørgsmål og med både LBK 1284/2021 og LOV
 1564/2023 i kildesporet. Den ordinære boligskat indgår nu én gang i det
-kanoniske skattetotal og i årsopgørelsen. En generel boligskattegrænse kræver
-fortsat kildefaktabåret dækning af nedslag, rabat, overgangsregler og alle
-kommuner; de resterende investerings-, ligningsfradrags-, virksomhedsunderskuds-
-og personlige indkomstposter er heller ikke fuldt dækket. Den generelle opfølgning
+kanoniske skattetotal og i årsopgørelsen. Den generelle boligskattegrænse har
+nu også kildefaktabåret dækning af nedslag, rabat og overgangsregler; alle
+kommuners årsparametre mangler fortsat. De resterende investerings-,
+ligningsfradrags-, virksomhedsunderskuds- og personlige indkomstposter er heller
+ikke fuldt dækket. Den generelle opfølgning
 `td-ba70c7` skal derfor kontrollere alle offentlige beregningsgrænser for
 afledte input, utilgængelige regelgrene og manglende flerpersons- eller
 tværårsscenarier.

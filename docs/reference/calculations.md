@@ -171,9 +171,11 @@ rule evaluation.
 An AI client can therefore present the calculation title, ask each field's
 `question`, map the answer to `path`, and submit canonical JSON or XLSX. The AI
 gathers facts and explains the returned rule trace; Futuruna remains the
-deterministic calculator. A visible machine path in a generated workbook means
-that field still lacks explicit presentation metadata; it is a stable fallback,
-not the intended final interview wording.
+deterministic calculator. Futuruna does not parse PDFs or infer facts from source
+documents: the AI or a human reads those documents and fills the generated
+workbook. A visible machine path in a generated workbook means that field still
+lacks explicit presentation metadata; it is a stable fallback, not the intended
+final interview wording.
 
 ## Inspect The Contract
 

@@ -84,7 +84,7 @@ tidligere kilometer udledes af forløbet og er ikke kildefakta.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_erhvervsbefordring_beregn(skatteår: Heltal, sager: List(PersonskatErhvervsbefordringFakta)) -> beregn_personskat(personskat_erhvervsbefordring_input(skatteår, sager))

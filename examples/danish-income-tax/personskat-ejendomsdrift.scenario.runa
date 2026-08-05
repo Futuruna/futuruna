@@ -58,7 +58,7 @@ Futuruna.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_ejendomsdrift_scenarie_fakta(kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, overskud_eller_underskud_kroner: Heltal) -> PersonskatEjendomsdriftFakta(

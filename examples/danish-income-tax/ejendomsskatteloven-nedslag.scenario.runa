@@ -1,0 +1,279 @@
+@ sprog da
+
+@ importer ./ejendomsskatteloven
+
+| ejsk_nedslag_scenarie_ordinært_grundlag(identifikation: Tekst) -> EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = identifikation,
+    kommune = København,
+    kategori = EjskEnBoligenhed,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = 1000000,
+    grundværdi_kroner = 800000,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = HeleEjendomsskatteåret,
+    grundskyldsperiode = HeleEjendomsskatteåret,
+    ejerandel_basispoint = 10000
+)
+
+| ejsk_nedslag_scenarie_personkontekst(personlig_indkomst_kroner: Heltal, folkepensionsalder: EjendomsskattelovFolkepensionsalder) -> EjendomsskattelovPersonÅrskontekst(
+    indkomstår = 2025,
+    kildefakta = EjendomsskattelovPersonKildeFakta(
+        ejer_folkepensionsalder = folkepensionsalder,
+        samlevende_ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        skattemæssigt_hjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1,
+        egen_udbytteindkomst_kroner = 0,
+        ægtefælles_udbytteindkomst_kroner = 0,
+        egne_historiske_aktielønshændelser = [],
+        ægtefælles_historiske_aktielønshændelser = []
+    ),
+    egen_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = personlig_indkomst_kroner,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    ægtefælles_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    gift_og_samlevende_ved_indkomstårets_udgang = Falskt
+)
+
+| ejsk_nedslag_scenarie_succession_kontekst() -> EjendomsskattelovPersonÅrskontekst(
+    indkomstår = 2025,
+    kildefakta = EjendomsskattelovPersonKildeFakta(
+        ejer_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        samlevende_ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        skattemæssigt_hjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1,
+        egen_udbytteindkomst_kroner = 0,
+        ægtefælles_udbytteindkomst_kroner = 0,
+        egne_historiske_aktielønshændelser = [],
+        ægtefælles_historiske_aktielønshændelser = []
+    ),
+    egen_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    ægtefælles_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    gift_og_samlevende_ved_indkomstårets_udgang = Falskt
+)
+
+| ejsk_nedslag_scenarie_fakta(historik: EjendomsskattelovEjerskabshistorik) -> EjendomsskattelovNedslagsfakta(
+    ejerskabshistorik = historik,
+    boliganvendelse = EjskHelårsbolig,
+    selvstændige_boligenheder = 1,
+    ejendomsform = EjskIkkeEjerlejlighed,
+    fredet_og_omfattet_af_ligningslovens_par15k = Falskt,
+    par24_beregningsgrundlag = EjskPar24SammeVærdiSomPar13,
+    pensionistsuccession = EjskIngenPensionistsuccession,
+    udenlandske_ejendomsskatter = []
+)
+
+= ejsk_nedslag_før_1998 = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    ejsk_nedslag_scenarie_ordinært_grundlag("før-1998"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1998, måned = 7, dag = 1),
+        ejerskifter = []
+    ))
+)
+
+= ejsk_nedslag_almindeligt_ejerskifte = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    ejsk_nedslag_scenarie_ordinært_grundlag("almindeligt-ejerskifte"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1990, måned = 1, dag = 1),
+        ejerskifter = [EjendomsskattelovEjerskifte(
+            dato = EjendomsskattelovDato(år = 2000, måned = 1, dag = 1),
+            art = EjskAlmindeligtEjerskifte
+        )]
+    ))
+)
+
+= ejsk_nedslag_ægtefælle_ejerskifte = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    ejsk_nedslag_scenarie_ordinært_grundlag("ægtefælle-ejerskifte"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1990, måned = 1, dag = 1),
+        ejerskifter = [EjendomsskattelovEjerskifte(
+            dato = EjendomsskattelovDato(år = 2020, måned = 1, dag = 1),
+            art = EjskOverdragelseMellemÆgtefæller
+        )]
+    ))
+)
+
+= ejsk_nedslag_medejer_før_skæringsdato = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    ejsk_nedslag_scenarie_ordinært_grundlag("medejer-før"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1990, måned = 1, dag = 1),
+        ejerskifter = [EjendomsskattelovEjerskifte(
+            dato = EjendomsskattelovDato(år = 2020, måned = 1, dag = 1),
+            art = EjskOverdragelseMellemMedejere(modtagers_første_delerhvervelse = EjendomsskattelovDato(år = 1997, måned = 1, dag = 1))
+        )]
+    ))
+)
+
+= ejsk_nedslag_medejer_efter_skæringsdato = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    ejsk_nedslag_scenarie_ordinært_grundlag("medejer-efter"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 1990, måned = 1, dag = 1),
+        ejerskifter = [EjendomsskattelovEjerskifte(
+            dato = EjendomsskattelovDato(år = 2020, måned = 1, dag = 1),
+            art = EjskOverdragelseMellemMedejere(modtagers_første_delerhvervelse = EjendomsskattelovDato(år = 1999, måned = 1, dag = 1))
+        )]
+    ))
+)
+
+= ejsk_nedslag_pensionist_lav_indkomst = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2024, måned = 12, dag = 31))),
+    ejsk_nedslag_scenarie_ordinært_grundlag("pensionist-lav-indkomst"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+        ejerskifter = []
+    ))
+)
+
+= ejsk_nedslag_pensionist_høj_indkomst = ejendomsskattelov_nedslag_resultat(
+    ejsk_nedslag_scenarie_personkontekst(300000, EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2024, måned = 12, dag = 31))),
+    ejsk_nedslag_scenarie_ordinært_grundlag("pensionist-høj-indkomst"),
+    ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+        ejerskifter = []
+    ))
+)
+
+= ejsk_nedslag_ægtefæller_samlet_nettoindkomst = ejendomsskattelov_par26_gift_indkomstgrundlag_kroner(EjendomsskattelovPersonÅrskontekst(
+    indkomstår = 2025,
+    kildefakta = EjendomsskattelovPersonKildeFakta(
+        ejer_folkepensionsalder = EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2024, måned = 12, dag = 31)),
+        samlevende_ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        skattemæssigt_hjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1,
+        egen_udbytteindkomst_kroner = 3000,
+        ægtefælles_udbytteindkomst_kroner = 0,
+        egne_historiske_aktielønshændelser = [],
+        ægtefælles_historiske_aktielønshændelser = []
+    ),
+    egen_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 13000,
+        aktieindkomst_kroner = 10000
+    ),
+    ægtefælles_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = -3000,
+        aktieindkomst_kroner = -3000
+    ),
+    gift_og_samlevende_ved_indkomstårets_udgang = Sandt
+))
+
+= ejsk_nedslag_historisk_aktieløn = ejendomsskattelov_par26_gift_indkomstgrundlag_kroner(EjendomsskattelovPersonÅrskontekst(
+    indkomstår = 2025,
+    kildefakta = EjendomsskattelovPersonKildeFakta(
+        ejer_folkepensionsalder = EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2024, måned = 12, dag = 31)),
+        samlevende_ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        skattemæssigt_hjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1,
+        egen_udbytteindkomst_kroner = 0,
+        ægtefælles_udbytteindkomst_kroner = 0,
+        egne_historiske_aktielønshændelser = [
+            EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation = "kvalificerende", tildelingsdato = EjendomsskattelovDato(år = 2003, måned = 6, dag = 30), udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2025, måned = 5, dag = 1), afgiftsberigtiget_beløb_kroner = 20000),
+            EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation = "på-skæringsdato", tildelingsdato = EjendomsskattelovDato(år = 2003, måned = 7, dag = 1), udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2025, måned = 5, dag = 1), afgiftsberigtiget_beløb_kroner = 30000),
+            EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation = "før-2007", tildelingsdato = EjendomsskattelovDato(år = 2003, måned = 6, dag = 1), udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2006, måned = 12, dag = 31), afgiftsberigtiget_beløb_kroner = 40000)
+        ],
+        ægtefælles_historiske_aktielønshændelser = [EjendomsskattelovAfgiftsberigtigetAktieløn(
+            identifikation = "ægtefælle-kvalificerende",
+            tildelingsdato = EjendomsskattelovDato(år = 2002, måned = 1, dag = 1),
+            udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2025, måned = 6, dag = 1),
+            afgiftsberigtiget_beløb_kroner = 5000
+        )]
+    ),
+    egen_indkomst = EjendomsskattelovIndkomstkomponenter(personlig_indkomst_kroner = 0, kapitalindkomst_kroner = 0, aktieindkomst_kroner = 0),
+    ægtefælles_indkomst = EjendomsskattelovIndkomstkomponenter(personlig_indkomst_kroner = 0, kapitalindkomst_kroner = 0, aktieindkomst_kroner = 0),
+    gift_og_samlevende_ved_indkomstårets_udgang = Sandt
+))
+
+= ejsk_nedslag_succession_uden_aldersgrundlag = EjskLængstlevendeBevarerRådighed(
+    hændelsesdato = EjendomsskattelovDato(år = 2025, måned = 3, dag = 1),
+    ægtefæller_ikke_separerede = Sandt,
+    rådighed_bevaret = Sandt,
+    ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+    nyt_ægteskab = None
+)
+= ejsk_nedslag_succession_med_aldersgrundlag = EjskLængstlevendeBevarerRådighed(
+    hændelsesdato = EjendomsskattelovDato(år = 2025, måned = 3, dag = 1),
+    ægtefæller_ikke_separerede = Sandt,
+    rådighed_bevaret = Sandt,
+    ægtefælles_folkepensionsalder = EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2024, måned = 12, dag = 31)),
+    nyt_ægteskab = None
+)
+= ejsk_nedslag_succession_uden_aldersgrundlag_resultat = ejendomsskattelov_par25_pensionsbetingelse_opfyldt(ejsk_nedslag_scenarie_succession_kontekst(), ejsk_nedslag_succession_uden_aldersgrundlag)
+= ejsk_nedslag_succession_med_aldersgrundlag_resultat = ejendomsskattelov_par25_pensionsbetingelse_opfyldt(ejsk_nedslag_scenarie_succession_kontekst(), ejsk_nedslag_succession_med_aldersgrundlag)
+
+= ejsk_nedslag_2026_satser = (
+    ejendomsskattelov_par22_grundbeløb_kroner(2026),
+    ejendomsskattelov_par26_enlig_grundbeløb_kroner(2026),
+    ejendomsskattelov_par26_gift_grundbeløb_kroner(2026)
+)
+
+= ejsk_nedslag_dobbelt_aktielønsidentifikation = ejendomsskattelov_aktielønshændelser_input_gyldige([
+    EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation = "samme-id", tildelingsdato = EjendomsskattelovDato(år = 2003, måned = 6, dag = 1), udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2025, måned = 5, dag = 1), afgiftsberigtiget_beløb_kroner = 10000),
+    EjendomsskattelovAfgiftsberigtigetAktieløn(identifikation = "samme-id", tildelingsdato = EjendomsskattelovDato(år = 2003, måned = 6, dag = 2), udnyttelses_eller_afståelsesdato = EjendomsskattelovDato(år = 2025, måned = 5, dag = 2), afgiftsberigtiget_beløb_kroner = 20000)
+])
+
+= ejsk_nedslag_overgangsfakta_mangler = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_nedslag_scenarie_personkontekst(200000, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_nedslag_scenarie_ordinært_grundlag("overgang-mangler"),
+        nedslagsfakta = ejsk_nedslag_scenarie_fakta(EjendomsskattelovEjerskabshistorik(
+            oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2020, måned = 1, dag = 1),
+            ejerskifter = []
+        )),
+        overgangsomfang = EjendomsskattelovOvergangsomfang(
+            vurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1,
+            ejerkreds = EjskKunFysiskeEjere
+        ),
+        overgangsvurderinger = ejendomsskattelov_ingen_overgangsvurderinger()
+    )
+)
+
+= ejsk_nedslag_udenlandsk_skatteart = ejendomsskattelov_par27_kvalificerende_udenlandsk_skat_øre([
+    EjendomsskattelovUdenlandskEjendomsskatBetaling(art = EjskVærdibaseretUdenlandskEjendomsskat, betalt_øre = 120000),
+    EjendomsskattelovUdenlandskEjendomsskatBetaling(art = EjskUdenlandskGrundskat, betalt_øre = 80000),
+    EjendomsskattelovUdenlandskEjendomsskatBetaling(art = EjskUdenlandskTinglysningsafgift, betalt_øre = 40000)
+])
+
+| ejsk_nedslag_skæringsdato_inkluderet: ejsk_nedslag_før_1998 -> ejsk_nedslag_før_1998.kapabilitet == EjskUnderstøttet && ejsk_nedslag_før_1998.par23_berettiget && ejsk_nedslag_før_1998.par24_berettiget && ejsk_nedslag_før_1998.skat_før_nedslag_øre == 408000 && ejsk_nedslag_før_1998.par23_nedslag_øre == 80000 && ejsk_nedslag_før_1998.par24_nedslag_øre == 120000 && ejsk_nedslag_før_1998.skat_efter_par23_til_par27_øre == 208000
+| ejsk_nedslag_almindeligt_ejerskifte_afskærer: ejsk_nedslag_almindeligt_ejerskifte -> ejsk_nedslag_almindeligt_ejerskifte.par23_berettiget == Falskt && ejsk_nedslag_almindeligt_ejerskifte.par24_berettiget == Falskt && ejsk_nedslag_almindeligt_ejerskifte.skat_efter_par23_til_par27_øre == 408000
+| ejsk_nedslag_ægtefælle_bevarer: ejsk_nedslag_ægtefælle_ejerskifte -> ejsk_nedslag_ægtefælle_ejerskifte.par23_berettiget && ejsk_nedslag_ægtefælle_ejerskifte.par24_berettiget
+| ejsk_nedslag_kun_historisk_medejer_bevarer: ejsk_nedslag_medejer_før_skæringsdato -> ejsk_nedslag_medejer_før_skæringsdato.par23_berettiget && ejsk_nedslag_medejer_før_skæringsdato.par24_berettiget && ejsk_nedslag_medejer_efter_skæringsdato.par23_berettiget == Falskt && ejsk_nedslag_medejer_efter_skæringsdato.par24_berettiget == Falskt
+| ejsk_nedslag_pensionist_kan_nulstille_skat: ejsk_nedslag_pensionist_lav_indkomst -> ejsk_nedslag_pensionist_lav_indkomst.par25_berettiget && ejsk_nedslag_pensionist_lav_indkomst.par25_nedslag_før_par26_øre == 600000 && ejsk_nedslag_pensionist_lav_indkomst.par26_reduktion_af_nedslag_øre == 0 && ejsk_nedslag_pensionist_lav_indkomst.skat_efter_par23_til_par27_øre == 0
+| ejsk_nedslag_pensionist_aftrappes_med_fem_procent: ejsk_nedslag_pensionist_høj_indkomst -> ejsk_nedslag_pensionist_høj_indkomst.par25_berettiget && ejsk_nedslag_pensionist_høj_indkomst.par26_reduktion_af_nedslag_øre == 356000 && ejsk_nedslag_pensionist_høj_indkomst.par25_nedslag_efter_par26_øre == 244000 && ejsk_nedslag_pensionist_høj_indkomst.skat_efter_par23_til_par27_øre == 164000
+| ejsk_nedslag_ægtefæller_modregner_negative_indkomster: ejsk_nedslag_ægtefæller_samlet_nettoindkomst -> ejsk_nedslag_ægtefæller_samlet_nettoindkomst == 14000
+| ejsk_nedslag_historisk_aktieløn_afledes_fra_datoer: ejsk_nedslag_historisk_aktieløn -> ejsk_nedslag_historisk_aktieløn == 25000
+| ejsk_nedslag_succession_kræver_historisk_aldersgrundlag: ejsk_nedslag_succession_uden_aldersgrundlag_resultat -> ejsk_nedslag_succession_uden_aldersgrundlag_resultat == Falskt && ejsk_nedslag_succession_med_aldersgrundlag_resultat
+| ejsk_nedslag_2026_officielle_beløbsgrænser: ejsk_nedslag_2026_satser -> ejsk_nedslag_2026_satser == (9007000, 239800, 368800) && ejendomsskattelov_par22_grundbeløb_understøttet(2026) && ejendomsskattelov_par26_grundbeløb_understøttet(2026)
+| ejsk_nedslag_aktieløn_identifikationer_skal_være_entydige: ejsk_nedslag_dobbelt_aktielønsidentifikation -> ejsk_nedslag_dobbelt_aktielønsidentifikation == Falskt
+| ejsk_nedslag_overgang_fejler_lukket: ejsk_nedslag_overgangsfakta_mangler -> ejsk_nedslag_overgangsfakta_mangler.input_gyldigt && ejsk_nedslag_overgangsfakta_mangler.overgangskapabilitet == EjskManglerKildefakta && ejsk_nedslag_overgangsfakta_mangler.regelgrundlag_understøttet == Falskt && ejsk_nedslag_overgangsfakta_mangler.samlet_ejendomsskat_øre == 0
+| ejsk_nedslag_par27_udelukker_grund_og_tinglysning: ejsk_nedslag_udenlandsk_skatteart -> ejsk_nedslag_udenlandsk_skatteart == 120000
+
+? ejsk_nedslag_skæringsdato_inkluderet
+? ejsk_nedslag_almindeligt_ejerskifte_afskærer
+? ejsk_nedslag_ægtefælle_bevarer
+? ejsk_nedslag_kun_historisk_medejer_bevarer
+? ejsk_nedslag_pensionist_kan_nulstille_skat
+? ejsk_nedslag_pensionist_aftrappes_med_fem_procent
+? ejsk_nedslag_ægtefæller_modregner_negative_indkomster
+? ejsk_nedslag_historisk_aktieløn_afledes_fra_datoer
+? ejsk_nedslag_succession_kræver_historisk_aldersgrundlag
+? ejsk_nedslag_2026_officielle_beløbsgrænser
+? ejsk_nedslag_aktieløn_identifikationer_skal_være_entydige
+? ejsk_nedslag_overgang_fejler_lukket
+? ejsk_nedslag_par27_udelukker_grund_og_tinglysning

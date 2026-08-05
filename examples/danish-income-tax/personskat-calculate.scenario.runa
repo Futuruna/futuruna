@@ -30,7 +30,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
@@ -44,7 +44,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
@@ -56,7 +56,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_lønmodtager(lønmodtager: PersonskatLønmodtagerInput) -> PersonskatInput(
@@ -68,7 +68,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
@@ -575,7 +575,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
         øvrig_pensionsbeskatningsafgift_kroner = 500,
@@ -634,20 +634,43 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [EjendomsskattelovOrdinærPersonEjendomFakta(
-        identifikation = "kanonisk-ejerbolig",
-        kommune = København,
-        kategori = EjskEnBoligenhed,
-        beliggenhed = EjskDanmark,
-        erhvervsmæssigt_udlejet = Falskt,
-        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
-        ejendomsværdi_kroner = 3710000,
-        grundværdi_kroner = 3363000,
-        produktionsjord = Falskt,
-        ejendomsværdiskatteperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
-        grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
-        ejerandel_basispoint = 5000
-    )],
+    ejendomsskatter = EjendomsskattelovPersonÅrsfakta(
+        person = ejendomsskattelov_ingen_person_kildefakta(),
+        ejendomme = [EjendomsskattelovPersonEjendomFakta(
+            ordinært_grundlag = EjendomsskattelovOrdinærPersonEjendomFakta(
+                identifikation = "kanonisk-ejerbolig",
+                kommune = København,
+                kategori = EjskEnBoligenhed,
+                beliggenhed = EjskDanmark,
+                erhvervsmæssigt_udlejet = Falskt,
+                særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+                ejendomsværdi_kroner = 3710000,
+                grundværdi_kroner = 3363000,
+                produktionsjord = Falskt,
+                ejendomsværdiskatteperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+                grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+                ejerandel_basispoint = 5000
+            ),
+            nedslagsfakta = EjendomsskattelovNedslagsfakta(
+                ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
+                    oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2025, måned = 8, dag = 1),
+                    ejerskifter = []
+                ),
+                boliganvendelse = EjskHelårsbolig,
+                selvstændige_boligenheder = 1,
+                ejendomsform = EjskIkkeEjerlejlighed,
+                fredet_og_omfattet_af_ligningslovens_par15k = Falskt,
+                par24_beregningsgrundlag = EjskPar24SammeVærdiSomPar13,
+                pensionistsuccession = EjskIngenPensionistsuccession,
+                udenlandske_ejendomsskatter = []
+            ),
+            overgangsomfang = EjendomsskattelovOvergangsomfang(
+                vurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1,
+                ejerkreds = EjskKunFysiskeEjere
+            ),
+            overgangsvurderinger = ejendomsskattelov_ingen_overgangsvurderinger()
+        )]
+    ),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 0,
         øvrig_pensionsbeskatningsafgift_kroner = 0,

@@ -43,7 +43,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
-    ejendomsskatter = [],
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
 

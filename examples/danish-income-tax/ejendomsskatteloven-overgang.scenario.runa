@@ -1,0 +1,297 @@
+@ sprog da
+
+@ importer ./ejendomsskatteloven
+
+| ejsk_overgang_kontekst(indkomstår: Heltal, pensionsalder: EjendomsskattelovFolkepensionsalder) -> EjendomsskattelovPersonÅrskontekst(
+    indkomstår = indkomstår,
+    kildefakta = EjendomsskattelovPersonKildeFakta(
+        ejer_folkepensionsalder = pensionsalder,
+        samlevende_ægtefælles_folkepensionsalder = EjskFolkepensionsalderIkkeOpnået,
+        skattemæssigt_hjemsted = EjskFuldtSkattepligtigEfterKildeskattelovensPar1,
+        egen_udbytteindkomst_kroner = 0,
+        ægtefælles_udbytteindkomst_kroner = 0,
+        egne_historiske_aktielønshændelser = [],
+        ægtefælles_historiske_aktielønshændelser = []
+    ),
+    egen_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    ægtefælles_indkomst = EjendomsskattelovIndkomstkomponenter(
+        personlig_indkomst_kroner = 0,
+        kapitalindkomst_kroner = 0,
+        aktieindkomst_kroner = 0
+    ),
+    gift_og_samlevende_ved_indkomstårets_udgang = Falskt
+)
+
+| ejsk_overgang_ordinært_grundlag(identifikation: Tekst, ejendomsværdi_kroner: Heltal, grundværdi_kroner: Heltal, ejerandel_basispoint: Heltal, kategori: EjendomsskattelovPar3Kategori) -> EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = identifikation,
+    kommune = København,
+    kategori = kategori,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = ejendomsværdi_kroner,
+    grundværdi_kroner = grundværdi_kroner,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = HeleEjendomsskatteåret,
+    grundskyldsperiode = HeleEjendomsskatteåret,
+    ejerandel_basispoint = ejerandel_basispoint
+)
+
+| ejsk_overgang_nedslagsfakta(erhvervelsesdato: EjendomsskattelovDato) -> EjendomsskattelovNedslagsfakta(
+    ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
+        oprindelig_erhvervelsesdato = erhvervelsesdato,
+        ejerskifter = []
+    ),
+    boliganvendelse = EjskHelårsbolig,
+    selvstændige_boligenheder = 1,
+    ejendomsform = EjskIkkeEjerlejlighed,
+    fredet_og_omfattet_af_ligningslovens_par15k = Falskt,
+    par24_beregningsgrundlag = EjskPar24SammeVærdiSomPar13,
+    pensionistsuccession = EjskIngenPensionistsuccession,
+    udenlandske_ejendomsskatter = []
+)
+
+| ejsk_overgang_historisk_ejendomsværdiskat(beregningsgrundlag_kroner: Heltal) -> EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(
+    ejendomsværdi_året_før_kroner = beregningsgrundlag_kroner * 100 / 80,
+    ejendomsværdi_2001_kroner = beregningsgrundlag_kroner,
+    ejendomsværdi_2002_kroner = beregningsgrundlag_kroner,
+    historisk_begrænsning = EjendomsskattelovEvslHistoriskeBegrænsningsfakta(
+        foregående_indkomstårs_ejendomsværdiskat_øre = None,
+        par9b_nedsættelse_øre = 0,
+        vurderet_helt_eller_delvis_benyttet_til_ejerbolig = Sandt,
+        ejerlejlighed_frigjort_for_lejemål = Falskt,
+        ombygning_over_100_procent = Falskt
+    ),
+    udenlandske_ejendomsskatter = []
+)
+
+| ejsk_overgang_historisk_grundskyld(afgiftspligtig_grundværdi_kroner: Heltal, foregående_grundværdi_kroner: Heltal, promille_tiendedele: Heltal) -> EjendomsskattelovTidligereGrundskyld2024Fakta(
+    grundværdi_efter_fradrag_og_fritagelser_kroner = afgiftspligtig_grundværdi_kroner,
+    foregående_års_afgiftspligtige_grundværdi_kroner = foregående_grundværdi_kroner,
+    grundskyld_promille_2023_tiendedele = promille_tiendedele
+)
+
+| ejsk_overgang_ejerbolig_omfang() -> EjendomsskattelovOvergangsomfang(
+    vurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1,
+    ejerkreds = EjskKunFysiskeEjere
+)
+
+| ejsk_overgang_anden_ejendom_omfang() -> EjendomsskattelovOvergangsomfang(
+    vurderingskategori = EjskAndenVurderingskategori,
+    ejerkreds = EjskKunFysiskeEjere
+)
+
+| ejsk_overgang_rabat_2024_fakta(identifikation: Tekst, ny_ejendomsværdi_kroner: Heltal, tidligere_beregningsgrundlag_kroner: Heltal, erhvervelsesdato: EjendomsskattelovDato, pensionsalder: EjendomsskattelovFolkepensionsalder) -> EjendomsskattelovRabat2024Fakta(
+    kontekst_2024 = ejsk_overgang_kontekst(2024, pensionsalder),
+    ny_lov_helårsgrundlag = ejsk_overgang_ordinært_grundlag(identifikation, ny_ejendomsværdi_kroner, 0, 10000, EjskEnBoligenhed),
+    ny_lov_nedslagsfakta = ejsk_overgang_nedslagsfakta(erhvervelsesdato),
+    tidligere_ejendomsværdiskat = ejsk_overgang_historisk_ejendomsværdiskat(tidligere_beregningsgrundlag_kroner),
+    tidligere_grundskyld = ejsk_overgang_historisk_grundskyld(0, 0, 0),
+    byggeri = EjskIngenNyEllerOmbygning,
+    grundskyld_fritaget_basispoint = 0,
+    grundskyld_kan_fordeles_på_samme_boligenhed = Sandt
+)
+
+= ejsk_overgang_officielt_rabatgrundlag = ejsk_overgang_rabat_2024_fakta(
+    "officielt-rabateksempel",
+    2250000,
+    850000,
+    EjendomsskattelovDato(år = 1998, måned = 7, dag = 1),
+    EjskFolkepensionsalderIkkeOpnået
+)
+
+= ejsk_overgang_officielt_resultat = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2024, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_officielt_rabatgrundlag.ny_lov_helårsgrundlag,
+        nedslagsfakta = ejsk_overgang_officielt_rabatgrundlag.ny_lov_nedslagsfakta,
+        overgangsomfang = ejsk_overgang_ejerbolig_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskRabatvurderingerOplyst(EjendomsskattelovRabatOvergangsfakta(
+                rabat_2024 = ejsk_overgang_officielt_rabatgrundlag,
+                hændelser = []
+            )),
+            stigningsbegrænsning = EjskIngenStigningsvurderingerOplyst
+        )
+    )
+)
+
+= ejsk_overgang_pensionist_rabatgrundlag = ejsk_overgang_rabat_2024_fakta(
+    "officielt-pensionisteksempel",
+    2000000,
+    850000,
+    EjendomsskattelovDato(år = 2020, måned = 1, dag = 1),
+    EjskFolkepensionsalderOpnået(opnået_dato = EjendomsskattelovDato(år = 2023, måned = 1, dag = 1))
+)
+= ejsk_overgang_pensionist_tidligere = ejendomsskattelov_tidligere_ejendomsværdiskat_2024_resultat(ejsk_overgang_pensionist_rabatgrundlag)
+= ejsk_overgang_pensionist_ny = ejendomsskattelov_nedslag_resultat(
+    ejsk_overgang_pensionist_rabatgrundlag.kontekst_2024,
+    ejsk_overgang_pensionist_rabatgrundlag.ny_lov_helårsgrundlag,
+    ejsk_overgang_pensionist_rabatgrundlag.ny_lov_nedslagsfakta
+)
+= ejsk_overgang_pensionist_rabat = ejendomsskattelov_rabat_2024_resultat(ejsk_overgang_ejerbolig_omfang(), ejsk_overgang_pensionist_rabatgrundlag)
+
+= ejsk_overgang_delvis_overdragelse_resultat = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_ordinært_grundlag("officielt-rabateksempel", 2250000, 0, 5000, EjskEnBoligenhed),
+        nedslagsfakta = ejsk_overgang_officielt_rabatgrundlag.ny_lov_nedslagsfakta,
+        overgangsomfang = ejsk_overgang_ejerbolig_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskRabatvurderingerOplyst(EjendomsskattelovRabatOvergangsfakta(
+                rabat_2024 = ejsk_overgang_officielt_rabatgrundlag,
+                hændelser = [EjendomsskattelovRabatHændelse(
+                    dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+                    art = EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint = 5000)
+                )]
+            )),
+            stigningsbegrænsning = EjskIngenStigningsvurderingerOplyst
+        )
+    )
+)
+
+= ejsk_overgang_før_overdragelse = EjendomsskattelovRabatBeløbstilstand(
+    ejerandel_basispoint = 10000,
+    rabat_ejendomsværdiskat_helår_øre = 100000,
+    rabat_grundskyld_helår_øre = 200000,
+    input_gyldigt = Sandt
+)
+= ejsk_overgang_til_juridisk_person = ejendomsskattelov_rabatbeløb_efter_hændelse(
+    ejsk_overgang_før_overdragelse,
+    EjendomsskattelovRabatHændelse(
+        dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+        art = EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint = 5000)
+    )
+)
+= ejsk_overgang_til_ægtefælle = ejendomsskattelov_rabatbeløb_efter_hændelse(
+    ejsk_overgang_før_overdragelse,
+    EjendomsskattelovRabatHændelse(
+        dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+        art = EjskÆgtefælleOvertagerRabat
+    )
+)
+= ejsk_overgang_almindeligt_ejerskifte = ejendomsskattelov_rabatbeløb_efter_hændelse(
+    ejsk_overgang_før_overdragelse,
+    EjendomsskattelovRabatHændelse(
+        dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+        art = EjskAlmindeligtFuldtEjerskifte
+    )
+)
+
+= ejsk_overgang_stigningshistorik_2024 = EjendomsskattelovStigningsårsfakta(
+    kalenderår = 2024,
+    kommune = København,
+    grundværdi_kroner = 1500000,
+    produktionsjord = Falskt,
+    ejerandel_basispoint = 10000,
+    almen_bolig = Falskt,
+    hændelse = EjskIngenStigningshændelse
+)
+= ejsk_overgang_stigningsfakta_2025 = EjendomsskattelovStigningsbegrænsningsfakta(
+    tidligere_grundskyld_2024 = ejsk_overgang_historisk_grundskyld(200000, 200000, 260),
+    tidligere_år = [ejsk_overgang_stigningshistorik_2024],
+    aktuel_almen_bolig = Falskt,
+    aktuel_hændelse = EjskIngenStigningshændelse
+)
+= ejsk_overgang_stigning_2024 = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2024,
+    ejsk_overgang_anden_ejendom_omfang(),
+    EjendomsskattelovStigningsbegrænsningsfakta(
+        tidligere_grundskyld_2024 = ejsk_overgang_historisk_grundskyld(200000, 200000, 260),
+        tidligere_år = [],
+        aktuel_almen_bolig = Falskt,
+        aktuel_hændelse = EjskIngenStigningshændelse
+    ),
+    ejsk_overgang_ordinært_grundlag("stigning-2024", 0, 1500000, 10000, EjskAndenEjendom)
+)
+= ejsk_overgang_stigning_2025 = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    ejsk_overgang_stigningsfakta_2025,
+    ejsk_overgang_ordinært_grundlag("stigning-2025", 0, 2000000, 10000, EjskAndenEjendom)
+)
+= ejsk_overgang_almen_stigning_2025 = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    EjendomsskattelovStigningsbegrænsningsfakta(
+        tidligere_grundskyld_2024 = ejsk_overgang_stigningsfakta_2025.tidligere_grundskyld_2024,
+        tidligere_år = [EjendomsskattelovStigningsårsfakta(
+            kalenderår = 2024,
+            kommune = København,
+            grundværdi_kroner = 1500000,
+            produktionsjord = Falskt,
+            ejerandel_basispoint = 10000,
+            almen_bolig = Sandt,
+            hændelse = EjskIngenStigningshændelse
+        )],
+        aktuel_almen_bolig = Sandt,
+        aktuel_hændelse = EjskIngenStigningshændelse
+    ),
+    ejsk_overgang_ordinært_grundlag("almen-stigning-2025", 0, 2000000, 10000, EjskAndenEjendom)
+)
+= ejsk_overgang_nulstillet_stigning_2025 = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    EjendomsskattelovStigningsbegrænsningsfakta(
+        tidligere_grundskyld_2024 = ejsk_overgang_stigningsfakta_2025.tidligere_grundskyld_2024,
+        tidligere_år = [ejsk_overgang_stigningshistorik_2024],
+        aktuel_almen_bolig = Falskt,
+        aktuel_hændelse = EjskOmkategoriseretEjendom
+    ),
+    ejsk_overgang_ordinært_grundlag("nulstillet-stigning-2025", 0, 2000000, 10000, EjskAndenEjendom)
+)
+= ejsk_overgang_fritagelse_ophørt_2025 = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    EjendomsskattelovStigningsbegrænsningsfakta(
+        tidligere_grundskyld_2024 = ejsk_overgang_stigningsfakta_2025.tidligere_grundskyld_2024,
+        tidligere_år = [ejsk_overgang_stigningshistorik_2024],
+        aktuel_almen_bolig = Falskt,
+        aktuel_hændelse = EjskGrundskyldsfritagelseOphørt
+    ),
+    ejsk_overgang_ordinært_grundlag("fritagelse-ophørt-2025", 0, 2000000, 10000, EjskAndenEjendom)
+)
+= ejsk_overgang_offentlig_stigningsberegning = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_ordinært_grundlag("offentlig-stigning-2025", 0, 2000000, 10000, EjskAndenEjendom),
+        nedslagsfakta = ejsk_overgang_nedslagsfakta(EjendomsskattelovDato(år = 2025, måned = 1, dag = 1)),
+        overgangsomfang = ejsk_overgang_anden_ejendom_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskIngenRabatvurderingerOplyst,
+            stigningsbegrænsning = EjskStigningsvurderingerOplyst(ejsk_overgang_stigningsfakta_2025)
+        )
+    )
+)
+
+| ejsk_overgang_officielt_eksempel_giver_1090_kroner: ejsk_overgang_officielt_resultat -> ejsk_overgang_officielt_resultat.regelgrundlag_understøttet && ejsk_overgang_officielt_resultat.overgang.rabat_ejendomsværdiskat_øre == 109000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_før_overgang_øre == 618000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_øre == 509000
+| ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet: ejsk_overgang_pensionist_rabat -> ejsk_overgang_pensionist_tidligere.skat_øre == 467500 && ejsk_overgang_pensionist_tidligere.skat_til_forskelsbeløb_øre == 782000 && ejsk_overgang_pensionist_ny.skat_efter_par23_til_par27_øre == 216000 && ejsk_overgang_pensionist_rabat.ny_ejendomsværdiskat_øre == 816000 && ejsk_overgang_pensionist_rabat.forskelsbeløb_ejendomsværdiskat_øre == 34000
+| ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat: ejsk_overgang_officielt_resultat -> ejendomsskattelov_par40_rabat_ejendomsværdiskat_øre(300000, -100000, Sandt, Sandt) == 200000 && ejendomsskattelov_par40_rabat_grundskyld_øre(300000, -100000, Sandt, Sandt) == 0
+| ejsk_overgang_delvis_overdragelse_følger_ejerandelen: ejsk_overgang_delvis_overdragelse_resultat -> ejsk_overgang_delvis_overdragelse_resultat.regelgrundlag_understøttet && ejsk_overgang_delvis_overdragelse_resultat.overgang.rabat_ejendomsværdiskat_øre == 54500 && ejsk_overgang_delvis_overdragelse_resultat.ejendomsværdiskat_øre == 254500
+| ejsk_overgang_juridisk_medejer_fjerner_grundskyldrabat: ejsk_overgang_til_juridisk_person -> ejsk_overgang_til_juridisk_person.input_gyldigt && ejsk_overgang_til_juridisk_person.ejerandel_basispoint == 5000 && ejsk_overgang_til_juridisk_person.rabat_ejendomsværdiskat_helår_øre == 50000 && ejsk_overgang_til_juridisk_person.rabat_grundskyld_helår_øre == 0
+| ejsk_overgang_ægtefælle_bevarer_rabat: ejsk_overgang_til_ægtefælle -> ejsk_overgang_til_ægtefælle == ejsk_overgang_før_overdragelse
+| ejsk_overgang_almindeligt_ejerskifte_fjerner_rabat: ejsk_overgang_almindeligt_ejerskifte -> ejsk_overgang_almindeligt_ejerskifte.ejerandel_basispoint == 0 && ejsk_overgang_almindeligt_ejerskifte.rabat_ejendomsværdiskat_helår_øre == 0 && ejsk_overgang_almindeligt_ejerskifte.rabat_grundskyld_helår_øre == 0
+| ejsk_overgang_2024_loft_følger_tidligere_grundskyld: ejsk_overgang_stigning_2024 -> ejsk_overgang_stigning_2024.kapabilitet == EjskUnderstøttet && ejsk_overgang_stigning_2024.ordinær_grundskyld_øre == 612000 && ejsk_overgang_stigning_2024.grundskyld_efter_stigningsbegrænsning_øre == 520000 && ejsk_overgang_stigning_2024.begrænsning_øre == 92000
+| ejsk_overgang_2025_loft_tillægger_4_75_procent_af_ordinær_skat: ejsk_overgang_stigning_2025 -> ejsk_overgang_stigning_2025.foregående_års_grundskyld_øre == 520000 && ejsk_overgang_stigning_2025.ordinær_grundskyld_øre == 816000 && ejsk_overgang_stigning_2025.stigningssats_basispoint == 475 && ejsk_overgang_stigning_2025.grundskyld_efter_stigningsbegrænsning_øre == 558760
+| ejsk_overgang_almen_bolig_bruger_3_50_procent: ejsk_overgang_almen_stigning_2025 -> ejsk_overgang_almen_stigning_2025.stigningssats_basispoint == 350 && ejsk_overgang_almen_stigning_2025.grundskyld_efter_stigningsbegrænsning_øre == 548560
+| ejsk_overgang_omkategorisering_nulstiller_loftet: ejsk_overgang_nulstillet_stigning_2025 -> ejsk_overgang_nulstillet_stigning_2025.nulstillet_til_ordinær_grundskyld && ejsk_overgang_nulstillet_stigning_2025.grundskyld_efter_stigningsbegrænsning_øre == 816000
+| ejsk_overgang_ophørt_fritagelse_nulstiller_ikke_loftet: ejsk_overgang_fritagelse_ophørt_2025 -> ejsk_overgang_fritagelse_ophørt_2025.nulstillet_til_ordinær_grundskyld == Falskt && ejsk_overgang_fritagelse_ophørt_2025.grundskyld_efter_stigningsbegrænsning_øre == 558760
+| ejsk_overgang_offentlig_beregning_anvender_loftet_præcis_en_gang: ejsk_overgang_offentlig_stigningsberegning -> ejsk_overgang_offentlig_stigningsberegning.regelgrundlag_understøttet && ejsk_overgang_offentlig_stigningsberegning.grundskyld_før_overgang_øre == 816000 && ejsk_overgang_offentlig_stigningsberegning.grundskyld_øre == 558760 && ejsk_overgang_offentlig_stigningsberegning.samlet_ejendomsskat_øre == 558760
+
+? ejsk_overgang_officielt_eksempel_giver_1090_kroner
+? ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet
+? ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat
+? ejsk_overgang_delvis_overdragelse_følger_ejerandelen
+? ejsk_overgang_juridisk_medejer_fjerner_grundskyldrabat
+? ejsk_overgang_ægtefælle_bevarer_rabat
+? ejsk_overgang_almindeligt_ejerskifte_fjerner_rabat
+? ejsk_overgang_2024_loft_følger_tidligere_grundskyld
+? ejsk_overgang_2025_loft_tillægger_4_75_procent_af_ordinær_skat
+? ejsk_overgang_almen_bolig_bruger_3_50_procent
+? ejsk_overgang_omkategorisering_nulstiller_loftet
+? ejsk_overgang_ophørt_fritagelse_nulstiller_ikke_loftet
+? ejsk_overgang_offentlig_beregning_anvender_loftet_præcis_en_gang
