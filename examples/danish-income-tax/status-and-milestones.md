@@ -3,10 +3,10 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-01
 TD epic: `td-56cf8d`
-Current implementation slice: `td-af1e87` (Etableringskontolovens §§ 1-4 er forbundet med den kanoniske Personskat-beregning gennem PSL § 3, stk. 2, nr. 11 og et særskilt ligningsfradrag; afventer uafhængig gennemgang)
+Current implementation slice: `td-6766a4` (ABL § 5 A reducerer nu ordinære aktietab før §§ 13/13 A/14 og den kanoniske Personskat-beregning; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-2d84ec` (rangér næste materielle posture-/afhængighedshul efter uafhængig gennemgang)
-Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
+Next source-backed slice: `td-ed02d8` (afled ABL § 13 A's ægtefællemodregning ved Personskat-pargrænsen)
+Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
@@ -924,7 +924,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 1.364 eksplicitte feltmetadata-poster. Heraf beskriver
+Kontrakten har aktuelt 1.482 eksplicitte feltmetadata-poster. Heraf beskriver
 66 egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
 ejerboligfordeling, frister, regulering og afskrivningsforhold. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
@@ -1093,6 +1093,27 @@ aggregering. De eksisterende atten § 9-scenarier passerer fortsat i begge
 backends. Metadataindekset udstiller § 5 A som en opløst
 `dependency_source`; kun fortolkningsvalget om rækkefølgen mellem samtidige
 tabsbeholdninger består som advarsel.
+
+Den ordinære personaktiegren anvender nu det samme § 5 A-resultat før §§ 13,
+13 A og 14. Bruttotabet afledes fortsat af positionen og afståelsen; kalderen
+kan kun levere de typede kildefakta om anvendelsesgrundlag, skatteyder,
+ejertidsudbytter, præferenceudbytter og eventuelle koncernbeløb. Et
+skattepligtigt tab uden disse fakta fejler lukket og kan hverken ændre
+positionen eller danne et fradrag. Gevinster og tab, der allerede er skattefrie
+efter § 15, kræver dem ikke. Den fokuserede kæde beviser både uændret tab,
+reduktion og manglende fakta i interpreter og kompileret kode. Den kanoniske
+`beregn_personskat`-kæde reducerer et bruttotab på 30.000 kr. med 12.000 kr. og
+fører kun 18.000 kr. videre til § 13 og negativ aktieindkomst. Typede
+beregningsfelter giver arbejdsbogen danske spørgsmål og kildespor for hele
+§ 5 A-faktagrafen. Ejertidsudbytter og koncernbeløb materialiseres som to
+relationelle underark i stedet for brede gentagne kolonner. En udfyldt
+XLSX-rundtur med 12.000 kr. i skattefrit ejertidsudbytte giver samme fulde
+Personskat-resultat som det tilsvarende JSON-input og bevarer både bruttotabet
+på 30.000 kr., reduktionen på 12.000 kr. og § 13-tabet på 18.000 kr. Den
+kanoniske scenariefil passerer desuden i kompileret kode. § 5 A-modulet og den
+øvrige ABL-gren deler én `AktieavancebeskatningslovKildeInfo`-type, så
+`runa meta --type` finder lov, undtagelse, ændringslove og vejledninger i samme
+kildesweep uden en importcyklus.
 
 Kursgevinstloven § 32 er nu en kildebundet, typet
 årsopgørelse frem for et egnethedsflag leveret af kalderen. Den fordeler årets
@@ -2531,7 +2552,9 @@ encoded as a temporal rule on top of the consolidation.
   consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22
   dependency slice consumed by § 4, stk. 1, nr. 5. The ordinary path includes
   persistent average-basis positions, realization events, listed/unlisted loss
-  treatment, spouse transfer/carry-forward and the § 14/§ 15 conditions.
+  treatment, spouse transfer/carry-forward and the § 14/§ 15 conditions. Each
+  taxable loss now derives a § 5 A result from typed per-disposal source facts
+  before §§ 13, 13 A and 14 consume the reduced loss.
 - `aktieavancebeskatningsloven-par5a.runa` and
   `aktieavancebeskatningsloven-par5a.scenario.runa` exist and pass interpreted
   and compiled execution. Twenty focused scenarios cover every reduction
@@ -2578,10 +2601,13 @@ encoded as a temporal rule on top of the consolidation.
   and compiled execution. Eighteen focused scenarios cover the current § 9
   annual ledger, including § 5 A-reduced post losses.
 - `personskatteloven-par4a-ordinaere-aktier.scenario.runa` exists and
-  checks/runs in both backends; 17 focused scenarios cover average basis,
-  partial disposals, main-shareholder allocation, listed/unlisted losses,
-  missing acquisition information, housing rights, invalid disposals, own
-  § 4 a net share income and the spouse's transferred § 4 a loss post.
+  checks/runs in both backends. Focused scenarios cover average basis, partial
+  disposals, main-shareholder allocation, listed/unlisted losses, missing
+  acquisition information, housing rights, invalid disposals, § 5 A reduction,
+  rejection of a taxable loss without § 5 A facts, own § 4 a net share income
+  and the spouse's transferred § 4 a loss post. The canonical
+  `personskat-calculate.scenario.runa` also proves the reduced loss through
+  `beregn_personskat`.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
   covers the Virksomhedsskatteloven §§ 7-9 a/22 a/22 c/23 a capital-return
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a,
@@ -3785,6 +3811,16 @@ Review candidates to revisit deliberately, not as broad churn:
   net (`td-5beddd`), untyped capital expenses (`td-151941`) and the PSL § 13
   deficit-eligibility flag (`td-292327`). Fixtures remain deliberately outside
   the canonical graph.
+- The first material reachability gap is now closed: ordinary
+  `AblOrdinærAfståelse` loss events carry typed § 5 A source facts, derive their
+  own gross loss and § 5 A result, and expose both the reduction and remaining
+  loss. §§ 13, 13 A and 14 only see the remaining loss. Missing source facts
+  reject a taxable loss before annual aggregation, while gains and § 15-exempt
+  losses use an explicit no-facts variant. The same graph is reachable from
+  `beregn_personskat`, and 17 typed field references give its nested workbook
+  inputs Danish labels, interview questions and the § 5 A source. The generated
+  XLSX now round-trips an actual reduced-loss case through its nested dividend
+  sheet and matches the equivalent JSON result exactly.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
@@ -3843,10 +3879,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Rangér det næste materielle, kildeunderbyggede beregningshul under
-  `td-2d84ec`, når den typede PBL § 53 A-periodereference er uafhængigt
-  gennemgået. Årsafgrænset genkøb, den daterede rettighedskæde,
-  kontraktændringsgrænsen og periodens typede oprindelse er nu fælles grundlag.
+- Afled ABL § 13 A's egne og ægtefællens modregningsgrundlag ved den kanoniske
+  Personskat-pargrænse under `td-ed02d8`. Den ordinære årsberegning skal modtage
+  begge personers kildeår og selv føre tabet gennem egen aktieindkomst,
+  ægtefællen og fremførslen uden caller-leverede positive nettobeløb.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

@@ -289,7 +289,8 @@
         hændelse = AblOrdinærAfståelse(
             kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5),
             afståelsessum_kroner = 7500,
-            vilkår = abl_unoteret_vilkår
+            vilkår = abl_unoteret_vilkår,
+            par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
         )
     )
 )
@@ -318,7 +319,8 @@
     AblOrdinærAfståelse(
         kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5),
         afståelsessum_kroner = 8000,
-        vilkår = abl_unoteret_vilkår
+        vilkår = abl_unoteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_par27_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(

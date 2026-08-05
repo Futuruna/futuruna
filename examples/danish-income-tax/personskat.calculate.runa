@@ -4127,6 +4127,125 @@
     help = Some("Tilføj hændelserne i den rækkefølge, de skal behandles for beholdningen."),
     unit = None
 )
+= personskat_felt_aktie_par5a_kildefakta = TypetBeregningsfelt(
+    path = refof(PersonskatInput::aktieavance::ordinært_aktieår::MedOrdinærtAktieår::input::hændelsesforløb::hændelser::AblOrdinærAfståelse::par5a_kildefakta::$variant),
+    label = "Kildedata til tabsbegrænsning efter ABL § 5 A",
+    question = Some("Kræver afståelsen oplysninger om skattefrie udbytter og andre beløb, der kan reducere aktietabet efter ABL § 5 A?"),
+    help = Some("Vælg kildedata, når afståelsen giver et skattepligtigt tab. Ved gevinst eller et tab, der allerede er skattefrit efter ABL § 15, kræves de ikke."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_anvendelsesgrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatInput::aktieavance::ordinært_aktieår::MedOrdinærtAktieår::input::hændelsesforløb::hændelser::AblOrdinærAfståelse::par5a_kildefakta::AblOrdinærPar5AKildefakta::fakta::anvendelsesgrundlag),
+    label = "Tidsmæssigt grundlag for ABL § 5 A",
+    question = Some("Er der tale om en afståelse den 24. november 2010 eller senere, en tidligere afståelse, et omfattende tidligere statusskifte eller en § 22-undtagelse?"),
+    help = Some("§ 5 A anvendes på afståelser fra og med 24. november 2010 og på de udtrykkeligt omfattede tidligere statusskifter. § 22, stk. 6, hører ikke til denne ordinære gren."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_skatteydergrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatInput::aktieavance::ordinært_aktieår::MedOrdinærtAktieår::input::hændelsesforløb::hændelser::AblOrdinærAfståelse::par5a_kildefakta::AblOrdinærPar5AKildefakta::fakta::skatteydergrundlag),
+    label = "Skatteydergrundlag for ABL § 5 A",
+    question = Some("Hvilken skatteyderkategori gælder for den, der har afstået aktierne?"),
+    help = Some("Personberegningen bruger normalt kategorien person skattepligtig efter ABL § 7. Kategorien afgør også, om koncernbeløb efter stk. 3 kan medregnes."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_ejertidsudbytter = TypetBeregningsfelt(
+    path = refof(PersonskatInput::aktieavance::ordinært_aktieår::MedOrdinærtAktieår::input::hændelsesforløb::hændelser::AblOrdinærAfståelse::par5a_kildefakta::AblOrdinærPar5AKildefakta::fakta::ejertidsudbytter),
+    label = "Udbytter modtaget i ejertiden",
+    question = Some("Hvilke udbytter af de afståede aktier blev modtaget i ejertiden?"),
+    help = Some("Medtag hver udlodning med dens retlige art. Kun skattefrie udbytter og en forøget dobbeltbeskatningslempelse reducerer tabet efter stk. 1."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_ejertidsudbytte_art = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AEjertidsudbytte::$variant),
+    label = "Udbyttets art efter ABL § 5 A",
+    question = Some("Var udbyttet skattefrit, omfattet af en forøget dobbeltbeskatningslempelse eller et andet udbytte?"),
+    help = Some("Klassifikationen bestemmer, om og med hvilket beløb udbyttet indgår i tabsreduktionen."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_ejertidsudbytte_beløb = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AEjertidsudbytte::AblPar5ASkattefritUdbytteAfPågældendeAktier::beløb_kroner),
+    label = "Skattefrit udbytte af de afståede aktier",
+    question = Some("Hvor stort var det skattefrie udbytte?"),
+    help = Some("Beløbet indgår i reduktionsgrundlaget efter ABL § 5 A, stk. 1, nr. 1."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_lempelsesudbytte_beløb = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AEjertidsudbytte::AblPar5AUdbytteMedDobbeltbeskatningslempelse::beløb_kroner),
+    label = "Udbytte med dobbeltbeskatningslempelse",
+    question = Some("Hvor stort var udbyttet med dobbeltbeskatningslempelse?"),
+    help = Some("Selve udbyttet dokumenteres her; tabsreduktionen bruger kun den del af lempelsen, der overstiger den betalte udenlandske skat."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_lempelse = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AEjertidsudbytte::AblPar5AUdbytteMedDobbeltbeskatningslempelse::lempelse_kroner),
+    label = "Opnået dobbeltbeskatningslempelse",
+    question = Some("Hvor stor lempelse blev opnået for udbyttet?"),
+    help = Some("Den forøgede lempelse beregnes som lempelsen minus den skat, der faktisk blev betalt i den fremmede stat."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_udenlandsk_skat = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AEjertidsudbytte::AblPar5AUdbytteMedDobbeltbeskatningslempelse::betalt_skat_i_fremmed_stat_kroner),
+    label = "Betalt skat i den fremmede stat",
+    question = Some("Hvor meget skat blev faktisk betalt i den fremmede stat af udbyttet?"),
+    help = Some("Beløbet trækkes fra den opnåede lempelse for at finde den del, der reducerer aktietabet."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_præferenceudbytte = TypetBeregningsfelt(
+    path = refof(AktieavancePar5APræferenceposition::modtaget_tilsvarende_udbytte_kroner),
+    label = "Tilsvarende udbytte på præferenceaktier",
+    question = Some("Hvor meget tilsvarende udbytte er modtaget på udbyttepræferenceaktier i selskabet?"),
+    help = Some("Det uudnyttede beløb forhøjer reduktionsgrundlaget efter ABL § 5 A, stk. 2."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_præferenceudbytte_anvendt = TypetBeregningsfelt(
+    path = refof(AktieavancePar5APræferenceposition::allerede_anvendt_til_tabsreduktion_kroner),
+    label = "Præferenceudbytte allerede anvendt",
+    question = Some("Hvor meget af præferenceudbyttet har allerede reduceret et tabsfradrag?"),
+    help = Some("Kun den endnu uudnyttede del kan reducere dette tab."),
+    unit = Some("kr.")
+)
+= personskat_felt_aktie_par5a_koncernbeløb = TypetBeregningsfelt(
+    path = refof(PersonskatInput::aktieavance::ordinært_aktieår::MedOrdinærtAktieår::input::hændelsesforløb::hændelser::AblOrdinærAfståelse::par5a_kildefakta::AblOrdinærPar5AKildefakta::fakta::koncernbeløb),
+    label = "Koncernbeløb efter ABL § 5 A, stk. 3",
+    question = Some("Er der tilskud eller udbytter på præferenceaktier mellem relevante koncernselskaber, som skal prøves efter stk. 3?"),
+    help = Some("Tilføj hvert beløb med art, yder, modtager og personens kontrolforhold. Kun lovens præcise relationskæde medregnes."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_koncernbeløb_art = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AKoncernbeløb::art),
+    label = "Koncernbeløbets art",
+    question = Some("Er koncernbeløbet et tilskud, et udbytte af præferenceaktier eller et andet beløb?"),
+    help = Some("Stk. 3 omfatter tilskud og udbytte af udbyttepræferenceaktier."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_koncernbeløb_yder = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AKoncernbeløb::yderrelation),
+    label = "Yderens relation til det tabsgivende selskab",
+    question = Some("Hvilken relation har det ydende selskab til det aktietabsgivende koncernselskab?"),
+    help = Some("Yderen skal være det aktietabsgivende selskab eller et koncernselskab, som det kontrollerer direkte eller indirekte."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_koncernbeløb_modtager = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AKoncernbeløb::modtagerrelation),
+    label = "Modtagerens relation til det tabsgivende selskab",
+    question = Some("Hvilken relation har det modtagende selskab til det aktietabsgivende koncernselskab?"),
+    help = Some("Modtageren skal være et koncernselskab, som det aktietabsgivende selskab ikke kontrollerer direkte eller indirekte."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_koncernbeløb_personkontrol = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AKoncernbeløb::personkontrol),
+    label = "Personens kontrol over yder og modtager",
+    question = Some("Har personen direkte eller indirekte bestemmende indflydelse over både det ydende og det modtagende selskab?"),
+    help = Some("For personer skattepligtige efter ABL § 7 medregnes beløbet kun, når personen kontrollerer begge selskaber."),
+    unit = None
+)
+= personskat_felt_aktie_par5a_koncernbeløb_beløb = TypetBeregningsfelt(
+    path = refof(AktieavancePar5AKoncernbeløb::beløb_kroner),
+    label = "Tilskud eller præferenceudbytte mellem koncernselskaber",
+    question = Some("Hvor stort var koncernbeløbet?"),
+    help = Some("Beløbet medregnes kun, når art og samtlige relationsbetingelser i ABL § 5 A, stk. 3, er opfyldt."),
+    unit = Some("kr.")
+)
 = personskat_felt_aktie_boligret = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
     label = "Boligret efter ABL § 15",
@@ -7365,6 +7484,28 @@
         Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
     )
 )
+= personskat_metadata_aktie_par5a = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_aktie_par5a_kildefakta),
+        Field(value = personskat_felt_aktie_par5a_anvendelsesgrundlag),
+        Field(value = personskat_felt_aktie_par5a_skatteydergrundlag),
+        Field(value = personskat_felt_aktie_par5a_ejertidsudbytter),
+        Field(value = personskat_felt_aktie_par5a_ejertidsudbytte_art),
+        Field(value = personskat_felt_aktie_par5a_ejertidsudbytte_beløb),
+        Field(value = personskat_felt_aktie_par5a_lempelsesudbytte_beløb),
+        Field(value = personskat_felt_aktie_par5a_lempelse),
+        Field(value = personskat_felt_aktie_par5a_udenlandsk_skat),
+        Field(value = personskat_felt_aktie_par5a_præferenceudbytte),
+        Field(value = personskat_felt_aktie_par5a_præferenceudbytte_anvendt),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb_art),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb_yder),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb_modtager),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb_personkontrol),
+        Field(value = personskat_felt_aktie_par5a_koncernbeløb_beløb),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par5a),
+    )
+)
 = personskat_metadata_aktie_boligret = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_aktie_boligret),
@@ -7496,6 +7637,7 @@
         personskat_metadata_udbytter,
         personskat_metadata_ordinært_aktieår,
         personskat_metadata_aktiebeholdninger,
+        personskat_metadata_aktie_par5a,
         personskat_metadata_aktie_boligret,
         personskat_metadata_aktie_boligret_udsteder,
         personskat_metadata_aktie_boligret_værdipapir,

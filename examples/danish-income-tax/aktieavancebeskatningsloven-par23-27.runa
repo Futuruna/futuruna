@@ -603,10 +603,11 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
     kapitalmængde = kapitalmængde,
     anskaffelsessum_kroner = aktieavance_par26_stk2_anskaffelsessum_kroner(faktisk_anskaffelsessum_kroner, status)
 )
-| aktieavance_par26_stk2_afståelseshændelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, prisinput: AktieavancePar26Stk2Afståelsesprisinput, vilkår: AktieavanceOrdinærAfståelsesvilkår) -> AblOrdinærAfståelse(
+| aktieavance_par26_stk2_afståelseshændelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, prisinput: AktieavancePar26Stk2Afståelsesprisinput, vilkår: AktieavanceOrdinærAfståelsesvilkår, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta) -> AblOrdinærAfståelse(
     kapitalmængde = kapitalmængde,
     afståelsessum_kroner = aktieavance_par26_stk2_afståelsessum_kroner(prisinput),
-    vilkår = vilkår
+    vilkår = vilkår,
+    par5a_kildefakta = par5a_kildefakta
 )
 
 # AktieavancePar26Stk6Beholdningsgruppe = AblBeholdningMedIndbetalingEfterLl7N | AblBeholdningUdenIndbetalingEfterLl7N

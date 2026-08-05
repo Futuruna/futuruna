@@ -154,6 +154,30 @@
     oplysningsstatus = AblOplystRettidigt,
     boligret = abl_ordinaer_ingen_boligret
 )
+= abl_ordinaer_par5a_uden_reduktionsgrundlag = AblOrdinærPar5AKildefakta(
+    fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+        skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+        ejertidsudbytter = [],
+        præferenceposition = AktieavancePar5APræferenceposition(
+            modtaget_tilsvarende_udbytte_kroner = 0,
+            allerede_anvendt_til_tabsreduktion_kroner = 0
+        ),
+        koncernbeløb = []
+    )
+)
+| abl_ordinaer_par5a_med_skattefrit_udbytte(beløb_kroner: Heltal) -> AblOrdinærPar5AKildefakta(
+    fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+        skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+        ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = beløb_kroner)],
+        præferenceposition = AktieavancePar5APræferenceposition(
+            modtaget_tilsvarende_udbytte_kroner = 0,
+            allerede_anvendt_til_tabsreduktion_kroner = 0
+        ),
+        koncernbeløb = []
+    )
+)
 | abl_ordinaer_boligret_vilkår_for(boligret: AktieavanceOrdinærBoligretInput) -> AktieavanceOrdinærAfståelsesvilkår(
     markedsstatus = AblIkkeOptagetTilHandel,
     har_tidligere_været_optaget_til_handel = Falskt,
@@ -171,7 +195,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(boligret)
+        vilkår = abl_ordinaer_boligret_vilkår_for(boligret),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 
@@ -201,7 +226,8 @@
             samlet_pålydende_kroner = 5000
         ),
         afståelsessum_kroner = 90000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_andet_delsalg = aktieavance_ordinaer_hændelsesresultat(
@@ -212,7 +238,8 @@
             samlet_pålydende_kroner = 5000
         ),
         afståelsessum_kroner = 40000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
     )
 )
 = abl_ordinaer_gennemsnit_hændelsesforløb = aktieavance_ordinaer_hændelsesforløb(
@@ -247,7 +274,8 @@
             samlet_pålydende_kroner = 5000
         ),
         afståelsessum_kroner = 90000,
-        vilkår = abl_ordinaer_hovedaktionær_vilkår
+        vilkår = abl_ordinaer_hovedaktionær_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_hovedaktionær_nulværdi_delsalg = aktieavance_ordinaer_hændelsesresultat(
@@ -258,7 +286,8 @@
             samlet_pålydende_kroner = 5000
         ),
         afståelsessum_kroner = 90000,
-        vilkår = abl_ordinaer_hovedaktionær_nulværdi_vilkår
+        vilkår = abl_ordinaer_hovedaktionær_nulværdi_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
     )
 )
 
@@ -270,7 +299,32 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 70000,
-        vilkår = abl_ordinaer_unoteret_vilkår
+        vilkår = abl_ordinaer_unoteret_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
+    )
+)
+= abl_ordinaer_unoteret_tab_reduceret_efter_par5a = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 70000,
+        vilkår = abl_ordinaer_unoteret_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_med_skattefrit_udbytte(beløb_kroner = 12000)
+    )
+)
+= abl_ordinaer_unoteret_tab_uden_par5a_kildefakta = aktieavance_ordinaer_hændelsesresultat(
+    abl_ordinaer_position_primo,
+    AblOrdinærAfståelse(
+        kapitalmængde = AblPålydendeAktiekapital(
+            antal_aktier = 100,
+            samlet_pålydende_kroner = 10000
+        ),
+        afståelsessum_kroner = 70000,
+        vilkår = abl_ordinaer_unoteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_unoteret_tab_årsresultat = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
@@ -294,7 +348,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 50000,
-        vilkår = abl_ordinaer_tidligere_noteret_vilkår
+        vilkår = abl_ordinaer_tidligere_noteret_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
     )
 )
 = abl_ordinaer_tidligere_noteret_gevinst_position = AktieavanceOrdinærPosition(
@@ -313,7 +368,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 130000,
-        vilkår = abl_ordinaer_tidligere_noteret_vilkår
+        vilkår = abl_ordinaer_tidligere_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag = aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
@@ -352,7 +408,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 70000,
-        vilkår = abl_ordinaer_noteret_manglende_oplysning_vilkår
+        vilkår = abl_ordinaer_noteret_manglende_oplysning_vilkår,
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
     )
 )
 = abl_ordinaer_boligret_gevinst = aktieavance_ordinaer_hændelsesresultat(
@@ -363,7 +420,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_boligret_forening_gevinst = abl_ordinaer_boligret_gevinst_resultat_for(abl_ordinaer_position_primo, abl_ordinaer_boligret_forening_opfyldt)
@@ -378,7 +436,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 70000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_opfyldt),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_gevinst = aktieavance_ordinaer_hændelsesresultat(
@@ -389,7 +448,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald_tab = aktieavance_ordinaer_hændelsesresultat(
@@ -400,7 +460,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 70000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_uden_tidsmæssigt_sammenfald),
+        par5a_kildefakta = abl_ordinaer_par5a_uden_reduktionsgrundlag
     )
 )
 = abl_ordinaer_boligret_med_uopfyldt_grundkrav_gevinst = aktieavance_ordinaer_hændelsesresultat(
@@ -411,7 +472,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_med_uopfyldt_grundkrav)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_med_uopfyldt_grundkrav),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_boligret_likvidation_før_endelig_opløsning_gevinst = aktieavance_ordinaer_hændelsesresultat(
@@ -422,7 +484,8 @@
             samlet_pålydende_kroner = 10000
         ),
         afståelsessum_kroner = 180000,
-        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_likvidation_før_endelig_opløsning)
+        vilkår = abl_ordinaer_boligret_vilkår_for(abl_ordinaer_boligret_likvidation_før_endelig_opløsning),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_ugyldigt_salg = aktieavance_ordinaer_hændelsesresultat(
@@ -433,7 +496,8 @@
             samlet_pålydende_kroner = 10100
         ),
         afståelsessum_kroner = 120000,
-        vilkår = abl_ordinaer_unoteret_vilkår
+        vilkår = abl_ordinaer_unoteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_usammenhængende_fuldt_salg = aktieavance_ordinaer_hændelsesresultat(
@@ -444,7 +508,8 @@
             samlet_pålydende_kroner = 5000
         ),
         afståelsessum_kroner = 120000,
-        vilkår = abl_ordinaer_unoteret_vilkår
+        vilkår = abl_ordinaer_unoteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 
@@ -465,7 +530,8 @@
     AblOrdinærAfståelse(
         kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 80),
         afståelsessum_kroner = 160000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_blandet_kapitalform_uden_fordelingsgrundlag = aktieavance_ordinaer_hændelsesresultat(
@@ -476,7 +542,8 @@
             samlet_pålydende_kroner = 8000
         ),
         afståelsessum_kroner = 160000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 
@@ -508,7 +575,8 @@
             kapitalforhøjelse_kroner = 50000
         ),
         afståelsessum_kroner = 80000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_blandet_pålydende_delsalg = aktieavance_ordinaer_hændelsesresultat(
@@ -519,7 +587,8 @@
             samlet_pålydende_kroner = 50000
         ),
         afståelsessum_kroner = 120000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_blandet_fuldt_salg = aktieavance_ordinaer_hændelsesresultat(
@@ -537,7 +606,8 @@
             )
         ),
         afståelsessum_kroner = 200000,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 = abl_ordinaer_blandet_udokumenteret_stykkapital_anskaffelse = aktieavance_ordinaer_hændelsesresultat(
@@ -586,7 +656,8 @@
             kapitalforhøjelse_kroner = 1000
         ),
         afståelsessum_kroner = 1400,
-        vilkår = abl_ordinaer_noteret_vilkår
+        vilkår = abl_ordinaer_noteret_vilkår,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 
@@ -598,7 +669,12 @@
 | scenarie_abl_ordinaer_føder_personskattelov_par4a: abl_ordinaer_gennemsnit_par4a -> abl_ordinaer_gennemsnit_par4a.effektiv_aktiv == AblOrdinærAktiePar12Til15 && abl_ordinaer_gennemsnit_par4a.afgrænsning == AktiepostOmfattetAfStk1 && abl_ordinaer_gennemsnit_par4a.aktieindkomst_kroner == 10000 && abl_ordinaer_gennemsnit_par4a.personlig_indkomst_kroner == 0
 | scenarie_abl_par26_hovedaktionær_fordeler_efter_handelsværdi: abl_ordinaer_hovedaktionær_delsalg -> abl_ordinaer_hovedaktionær_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 80000 && abl_ordinaer_hovedaktionær_delsalg.bruttogevinst_kroner == 10000 && abl_ordinaer_hovedaktionær_delsalg.position_efter.anskaffelsessum_kroner == 20000
 | scenarie_abl_par26_hovedaktionær_tillader_værdiløs_rest: abl_ordinaer_hovedaktionær_nulværdi_delsalg -> abl_ordinaer_hovedaktionær_nulværdi_delsalg.hændelse_gyldig && abl_ordinaer_hovedaktionær_nulværdi_delsalg.anskaffelsessum_henført_til_afståelse_kroner == 100000 && abl_ordinaer_hovedaktionær_nulværdi_delsalg.bruttotab_kroner == 10000 && abl_ordinaer_hovedaktionær_nulværdi_delsalg.position_efter.anskaffelsessum_kroner == 0
-| scenarie_abl_par13_unoteret_tab_fradrages_direkte: abl_ordinaer_unoteret_tab_årsresultat -> abl_ordinaer_unoteret_tab_årsresultat.direkte_fradrag_efter_par13_kroner == 30000 && abl_ordinaer_unoteret_tab_årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == -30000 && abl_ordinaer_unoteret_tab_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 0
+| scenarie_abl_par13_unoteret_tab_fradrages_direkte: abl_ordinaer_unoteret_tab_årsresultat -> abl_ordinaer_unoteret_tab.par5a_kildefakta_gyldige && abl_ordinaer_unoteret_tab.tabsreduktion_efter_par5a_kroner == 0 && abl_ordinaer_unoteret_tab.tab_efter_par5a_kroner == 30000 && abl_ordinaer_unoteret_tab_årsresultat.direkte_fradrag_efter_par13_kroner == 30000 && abl_ordinaer_unoteret_tab_årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == -30000 && abl_ordinaer_unoteret_tab_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 0
+| scenarie_abl_par5a_reducerer_tab_før_par13: abl_ordinaer_unoteret_tab_reduceret_efter_par5a -> abl_ordinaer_unoteret_tab_reduceret_efter_par5a.hændelse_gyldig && abl_ordinaer_unoteret_tab_reduceret_efter_par5a.bruttotab_kroner == 30000 && abl_ordinaer_unoteret_tab_reduceret_efter_par5a.tabsreduktion_efter_par5a_kroner == 12000 && abl_ordinaer_unoteret_tab_reduceret_efter_par5a.tab_efter_par5a_kroner == 18000 && abl_ordinaer_unoteret_tab_reduceret_efter_par5a.fradragsberettiget_tab_efter_par13_kroner == 18000 && match abl_ordinaer_unoteret_tab_reduceret_efter_par5a.par5a_resultat {
+    | Some(resultat) -> resultat.input.bruttotab_ved_afståelse_kroner == 30000 && resultat.input_gyldigt && resultat.tabsreduktion_efter_par5a_kroner == 12000
+    | None -> Falskt
+}
+| scenarie_abl_par5a_manglende_kildefakta_afviser_tabsafståelse: abl_ordinaer_unoteret_tab_uden_par5a_kildefakta -> abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.hændelse_gyldig == Falskt && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.par5a_kildefakta_gyldige == Falskt && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_unoteret_tab_uden_par5a_kildefakta.position_efter == abl_ordinaer_position_primo
 | scenarie_abl_par13_stk2_tidligere_noteret_følger_par13a: abl_ordinaer_tidligere_noteret_tab -> abl_ordinaer_tidligere_noteret_tab.tab_behandles_efter_par13a && abl_ordinaer_tidligere_noteret_tab.fradragsberettiget_tab_efter_par13_kroner == 0 && abl_ordinaer_tidligere_noteret_tab.tab_til_modregning_efter_par13a_kroner == 50000
 | scenarie_abl_par13a_tidligere_noteret_gevinst_er_udenfor_modregningsgrundlaget: abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag -> abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.skattepligtige_gevinster_efter_par12_kroner == 30000 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.eget_modregningsgrundlag_efter_par13a_kroner == 0 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 0 && abl_ordinaer_tidligere_noteret_gevinst_udenfor_modregningsgrundlag.tab_fremført_til_følgende_indkomstår_kroner == 50000
 | scenarie_abl_par13a_ægtefælle_og_fremførsel: abl_ordinaer_par13a_ægtefælle_årsresultat -> abl_ordinaer_par13a_ægtefælle_årsresultat.årets_og_fremførte_tab_efter_par13a_kroner == 50000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_modregnet_i_egne_udbytter_og_gevinster_kroner == 30000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_overført_til_ægtefælle_kroner == 12000 && abl_ordinaer_par13a_ægtefælle_årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 8000
@@ -663,6 +739,8 @@
 ? scenarie_abl_par26_hovedaktionær_fordeler_efter_handelsværdi
 ? scenarie_abl_par26_hovedaktionær_tillader_værdiløs_rest
 ? scenarie_abl_par13_unoteret_tab_fradrages_direkte
+? scenarie_abl_par5a_reducerer_tab_før_par13
+? scenarie_abl_par5a_manglende_kildefakta_afviser_tabsafståelse
 ? scenarie_abl_par13_stk2_tidligere_noteret_følger_par13a
 ? scenarie_abl_par13a_tidligere_noteret_gevinst_er_udenfor_modregningsgrundlaget
 ? scenarie_abl_par13a_ægtefælle_og_fremførsel

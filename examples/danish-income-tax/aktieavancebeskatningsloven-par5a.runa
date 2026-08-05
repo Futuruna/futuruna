@@ -1,8 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./aktieavancebeskatningsloven
 @ importer ./pengebeloeb
+@ importer ./aktieavancebeskatningsloven - kilder
 
 = aktieavancebeskatningsloven_lbk1098_par5a = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
@@ -29,6 +29,16 @@
     identifier = "Den juridiske vejledning C.B.2.3.6: § 5 A før modregning efter § 9",
     hentet_dato = "2026-07-18"
 )
+= aktieavancebeskatningsloven_par5a_lov1755 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1755",
+    identifier = "LOV nr. 1755 af 29/12/2025, § 2: indsætter ABL §§ 35 G-35 K uden at ændre § 5 A",
+    hentet_dato = "2026-07-18"
+)
+= aktieavancebeskatningsloven_par5a_lov615 = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2026/615",
+    identifier = "LOV nr. 615 af 30/06/2026, § 4: ændrer ABL § 34 uden at ændre § 5 A",
+    hentet_dato = "2026-07-18"
+)
 
 = aktieavancebeskatningsloven_par5a_metadata = Metadata(
     attachments = (
@@ -37,8 +47,8 @@
         AmendmentSource(value = aktieavancebeskatningsloven_lov254_par1_nr7_par14_stk5_og_11),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par5a),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par9_par5a),
-        AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
-        AmendmentSource(value = aktieavancebeskatningsloven_lov615),
+        AmendmentSource(value = aktieavancebeskatningsloven_par5a_lov1755),
+        AmendmentSource(value = aktieavancebeskatningsloven_par5a_lov615),
     )
 )
 
@@ -97,7 +107,8 @@ statusskifte sker inden den 24. november 2010.
 # AktieavancePar5AModtagerrelation = AblPar5AKoncernselskabIkkeKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AKoncernselskabKontrolleretAfAktietabsgivendeKoncernselskab | AblPar5AIkkeKoncernselskabEfterSelskabsskattelovPar31C
 # AktieavancePar5APersonkontrol = AblPar5APersonKontrollererYderOgModtager | AblPar5APersonKontrollererIkkeBådeYderOgModtager | AblPar5APersonkontrolIkkeRelevant
 # AktieavancePar5AKoncernbeløb(art: AktieavancePar5AKoncernbeløbsart, yderrelation: AktieavancePar5AYderrelation, modtagerrelation: AktieavancePar5AModtagerrelation, personkontrol: AktieavancePar5APersonkontrol, beløb_kroner: Heltal)
-# AktieavancePar5AInput(bruttotab_ved_afståelse_kroner: Heltal, anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
+# AktieavancePar5AFakta(anvendelsesgrundlag: AktieavancePar5AAnvendelsesgrundlag, skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, ejertidsudbytter: List(AktieavancePar5AEjertidsudbytte), præferenceposition: AktieavancePar5APræferenceposition, koncernbeløb: List(AktieavancePar5AKoncernbeløb))
+# AktieavancePar5AInput(bruttotab_ved_afståelse_kroner: Heltal, fakta: AktieavancePar5AFakta)
 # AktieavancePar5AResultat(input: AktieavancePar5AInput, input_gyldigt: Boolsk, reglen_finder_anvendelse: Boolsk, skattefrie_udbytter_efter_stk1_nr1_kroner: Heltal, forøget_lempelse_efter_stk1_nr2_kroner: Heltal, reduktionsgrundlag_efter_stk1_kroner: Heltal, uudnyttede_præferenceudbytter_efter_stk2_kroner: Heltal, koncernbeløb_efter_stk3_kroner: Heltal, samlet_reduktionsgrundlag_kroner: Heltal, tabsreduktion_efter_par5a_kroner: Heltal, fradragsberettiget_tab_efter_par5a_kroner: Heltal)
 # AktieavancePar5ALagerafståelsesresultat(afståelsesidentifikation: Tekst, resultat: AktieavancePar5AResultat)
 # AktieavancePar5ABehandling = AblPar5AUdenAfståelsestab | AblPar5AEnkeltAfståelse(resultat: AktieavancePar5AResultat) | AblPar5ALagerafståelser(resultater: List(AktieavancePar5ALagerafståelsesresultat))
@@ -121,15 +132,15 @@ statusskifte sker inden den 24. november 2010.
 | aktieavance_par5a_koncernbeløb_efter_stk3_kroner(skatteydergrundlag: AktieavancePar5ASkatteydergrundlag, koncernbeløb: AktieavancePar5AKoncernbeløb) -> hvis aktieavance_par5a_koncernbeløb_omfattet_af_stk3(skatteydergrundlag, koncernbeløb) { koncernbeløb.beløb_kroner } ellers { 0 }
 
 # AktieavancePar5ASag(input: AktieavancePar5AInput) {
-    | alle_ejertidsudbytter_gyldige() -> foldl(input.ejertidsudbytter, Sandt, |gyldige: Boolsk, udbytte: AktieavancePar5AEjertidsudbytte| gyldige && aktieavance_par5a_ejertidsudbytte_gyldigt(udbytte))
-    | alle_koncernbeløb_gyldige() -> foldl(input.koncernbeløb, Sandt, |gyldige: Boolsk, koncernbeløb: AktieavancePar5AKoncernbeløb| gyldige && aktieavance_par5a_koncernbeløb_gyldigt(input.skatteydergrundlag, koncernbeløb))
-    | input_gyldigt() -> input.bruttotab_ved_afståelse_kroner >= 0 && alle_ejertidsudbytter_gyldige() && aktieavance_par5a_præferenceposition_gyldig(input.præferenceposition) && alle_koncernbeløb_gyldige()
-    | reglen_finder_anvendelse() -> input_gyldigt() && (input.anvendelsesgrundlag == AblPar5AAfståelseDen24November2010EllerSenere || input.anvendelsesgrundlag == AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11)
-    | skattefrie_udbytter_efter_stk1_nr1_kroner() -> hvis input_gyldigt() { foldl(input.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_skattefrit_udbytte_efter_stk1_nr1_kroner(udbytte)) } ellers { 0 }
-    | forøget_lempelse_efter_stk1_nr2_kroner() -> hvis input_gyldigt() { foldl(input.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_forøget_lempelse_efter_stk1_nr2_kroner(udbytte)) } ellers { 0 }
+    | alle_ejertidsudbytter_gyldige() -> foldl(input.fakta.ejertidsudbytter, Sandt, |gyldige: Boolsk, udbytte: AktieavancePar5AEjertidsudbytte| gyldige && aktieavance_par5a_ejertidsudbytte_gyldigt(udbytte))
+    | alle_koncernbeløb_gyldige() -> foldl(input.fakta.koncernbeløb, Sandt, |gyldige: Boolsk, koncernbeløb: AktieavancePar5AKoncernbeløb| gyldige && aktieavance_par5a_koncernbeløb_gyldigt(input.fakta.skatteydergrundlag, koncernbeløb))
+    | input_gyldigt() -> input.bruttotab_ved_afståelse_kroner >= 0 && alle_ejertidsudbytter_gyldige() && aktieavance_par5a_præferenceposition_gyldig(input.fakta.præferenceposition) && alle_koncernbeløb_gyldige()
+    | reglen_finder_anvendelse() -> input_gyldigt() && (input.fakta.anvendelsesgrundlag == AblPar5AAfståelseDen24November2010EllerSenere || input.fakta.anvendelsesgrundlag == AblPar5AStatusskifteFørDen24November2010EfterLov254Par14Stk11)
+    | skattefrie_udbytter_efter_stk1_nr1_kroner() -> hvis input_gyldigt() { foldl(input.fakta.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_skattefrit_udbytte_efter_stk1_nr1_kroner(udbytte)) } ellers { 0 }
+    | forøget_lempelse_efter_stk1_nr2_kroner() -> hvis input_gyldigt() { foldl(input.fakta.ejertidsudbytter, 0, |sum: Heltal, udbytte: AktieavancePar5AEjertidsudbytte| sum + aktieavance_par5a_forøget_lempelse_efter_stk1_nr2_kroner(udbytte)) } ellers { 0 }
     | reduktionsgrundlag_efter_stk1_kroner() -> skattefrie_udbytter_efter_stk1_nr1_kroner() + forøget_lempelse_efter_stk1_nr2_kroner()
-    | uudnyttede_præferenceudbytter_efter_stk2_kroner() -> hvis input_gyldigt() { aktieavance_par5a_uudnyttede_præferenceudbytter_kroner(input.præferenceposition) } ellers { 0 }
-    | koncernbeløb_efter_stk3_kroner() -> hvis input_gyldigt() { foldl(input.koncernbeløb, 0, |sum: Heltal, koncernbeløb: AktieavancePar5AKoncernbeløb| sum + aktieavance_par5a_koncernbeløb_efter_stk3_kroner(input.skatteydergrundlag, koncernbeløb)) } ellers { 0 }
+    | uudnyttede_præferenceudbytter_efter_stk2_kroner() -> hvis input_gyldigt() { aktieavance_par5a_uudnyttede_præferenceudbytter_kroner(input.fakta.præferenceposition) } ellers { 0 }
+    | koncernbeløb_efter_stk3_kroner() -> hvis input_gyldigt() { foldl(input.fakta.koncernbeløb, 0, |sum: Heltal, koncernbeløb: AktieavancePar5AKoncernbeløb| sum + aktieavance_par5a_koncernbeløb_efter_stk3_kroner(input.fakta.skatteydergrundlag, koncernbeløb)) } ellers { 0 }
     | samlet_reduktionsgrundlag_kroner() -> reduktionsgrundlag_efter_stk1_kroner() + uudnyttede_præferenceudbytter_efter_stk2_kroner() + koncernbeløb_efter_stk3_kroner()
     | tabsreduktion_efter_par5a_kroner() -> 0
     | exception abl_par5a_reducerer_afståelsestabet tabsreduktion_efter_par5a_kroner() -> penge_mindste_beløb(input.bruttotab_ved_afståelse_kroner, samlet_reduktionsgrundlag_kroner()) under reglen_finder_anvendelse()

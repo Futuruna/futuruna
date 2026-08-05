@@ -204,7 +204,8 @@
             beholdte_aktiers_handelsværdi_kroner = 0,
             oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
             boligret = AblUdenBoligret
-        )
+        ),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
     )
 )
 

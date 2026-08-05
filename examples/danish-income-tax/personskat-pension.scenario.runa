@@ -405,7 +405,8 @@
         beholdte_aktiers_handelsværdi_kroner = 0,
         oplysningsstatus = AblOplystRettidigt,
         boligret = AblUdenBoligret
-    )
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
 )
 = personskat_par15a_aktieår = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,

@@ -466,7 +466,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         beholdte_aktiers_handelsværdi_kroner = 0,
         oplysningsstatus = AblOplystRettidigt,
         boligret = AblUdenBoligret
-    )
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
 )
 = personskat_calculate_ordinært_aktieår = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
@@ -488,6 +489,59 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
+    særlige_aktiver = [],
+    udbytter = []
+)))
+= personskat_calculate_par5a_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-PAR5A-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsessum_kroner = 30000
+)
+= personskat_calculate_par5a_afståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    afståelsessum_kroner = 0,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(
+        fakta = AktieavancePar5AFakta(
+            anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+            skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+            ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 12000)],
+            præferenceposition = AktieavancePar5APræferenceposition(
+                modtaget_tilsvarende_udbytte_kroner = 0,
+                allerede_anvendt_til_tabsreduktion_kroner = 0
+            ),
+            koncernbeløb = []
+        )
+    )
+)
+= personskat_calculate_par5a_aktieår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [
+        AktieavanceOrdinærHændelsesforløbInput(
+            position_primo = personskat_calculate_par5a_position,
+            hændelser = [personskat_calculate_par5a_afståelse]
+        )
+    ],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0,
+    modregningsgrundlag = AktieavanceOrdinærPar13AModregningsgrundlag(
+        udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0,
+        udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0,
+        udbytter_for_aktier_omfattet_af_par44_kroner = 0,
+        ægtefælles_positive_nettobeløb_efter_par13a_kroner = 0
+    ),
+    gift_og_samlevende_ved_årets_udgang = Falskt
+)
+= personskat_calculate_par5a_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_par5a_aktieår),
     særlige_aktiver = [],
     udbytter = []
 )))
@@ -517,7 +571,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             ),
             afståelsesform = AblPar15AlmindeligAfståelse
         )
-    )
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
 )
 = personskat_calculate_boligret_aktieår = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
@@ -830,6 +885,11 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | _ -> Falskt
 }
 | personskat_calculate_ordinær_aktieavance_afledes: personskat_calculate_ordinær_aktie_resultat -> personskat_calculate_ordinær_aktie_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ordinær_aktie_resultat.aktieavance.aktieindkomst_kroner == 5000 && personskat_calculate_ordinær_aktie_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_calculate_ordinær_aktie_resultat.endelig_aktieindkomstskat_kroner == 1350 && personskat_calculate_ordinær_aktie_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == personskat_calculate_ordinær_aktie_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner + 1350
+| personskat_calculate_par5a_spor_er_reduceret(resultat: PersonskatOrdinærtAktieårResultat) -> match resultat {
+    | BeregnetOrdinærtAktieår(årsresultat) -> any(årsresultat.hændelsesforløbsresultater, |forløb: AktieavanceOrdinærHændelsesforløbResultat| any(forløb.hændelsesresultater, |hændelse: AktieavanceOrdinærHændelsesresultat| hændelse.hændelse_gyldig && hændelse.bruttotab_kroner == 30000 && hændelse.tabsreduktion_efter_par5a_kroner == 12000 && hændelse.tab_efter_par5a_kroner == 18000 && hændelse.fradragsberettiget_tab_efter_par13_kroner == 18000))
+    | _ -> Falskt
+}
+| personskat_calculate_par5a_reducerer_tab_før_personskattelov: personskat_calculate_par5a_resultat -> personskat_calculate_par5a_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par5a_resultat.aktieavance.aktieindkomst_kroner == -18000 && personskat_calculate_par5a_spor_er_reduceret(personskat_calculate_par5a_resultat.aktieavance.ordinært_aktieår)
 | personskat_calculate_boligret_spor_er_skattefrit(resultat: PersonskatOrdinærtAktieårResultat) -> match resultat {
     | BeregnetOrdinærtAktieår(årsresultat) -> any(årsresultat.hændelsesforløbsresultater, |forløb: AktieavanceOrdinærHændelsesforløbResultat| any(forløb.hændelsesresultater, |hændelse: AktieavanceOrdinærHændelsesresultat| hændelse.bruttogevinst_kroner == 5000 && hændelse.skattefri_efter_par15 && hændelse.skattepligtig_gevinst_efter_par12_kroner == 0 && match hændelse.par15_resultat {
             | AblPar15Vurderet(klassifikation, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
@@ -885,6 +945,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ll9d_betingelser_erstatter_ll9c
 ? personskat_calculate_ll9d_forkert_år_afvises
 ? personskat_calculate_ordinær_aktieavance_afledes
+? personskat_calculate_par5a_reducerer_tab_før_personskattelov
 ? personskat_calculate_abl_par15_boligret_afledes
 ? personskat_calculate_19c_kapital_afledes
 ? personskat_calculate_19c_personlig_afledes_uden_am

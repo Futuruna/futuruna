@@ -17,11 +17,13 @@
 
 | par5a_scenarie_resultat(input: Par5AScenarieInput) -> aktieavance_par5a_resultat(AktieavancePar5AInput(
     bruttotab_ved_afståelse_kroner = input.bruttotab_ved_afståelse_kroner,
-    anvendelsesgrundlag = input.anvendelsesgrundlag,
-    skatteydergrundlag = input.skatteydergrundlag,
-    ejertidsudbytter = input.ejertidsudbytter,
-    præferenceposition = input.præferenceposition,
-    koncernbeløb = input.koncernbeløb
+    fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = input.anvendelsesgrundlag,
+        skatteydergrundlag = input.skatteydergrundlag,
+        ejertidsudbytter = input.ejertidsudbytter,
+        præferenceposition = input.præferenceposition,
+        koncernbeløb = input.koncernbeløb
+    )
 ))
 
 = par5a_kvalificerende_tilskud_25000 = AktieavancePar5AKoncernbeløb(

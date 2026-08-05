@@ -27,14 +27,16 @@
 ))
 | par9_scenarie_par5a_resultat_uden_reduktion(bruttotab_ved_afståelse_kroner: Heltal) -> aktieavance_par5a_resultat(AktieavancePar5AInput(
     bruttotab_ved_afståelse_kroner = bruttotab_ved_afståelse_kroner,
-    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
-    skatteydergrundlag = AblPar5AAndenSkattepligtig,
-    ejertidsudbytter = [],
-    præferenceposition = AktieavancePar5APræferenceposition(
-        modtaget_tilsvarende_udbytte_kroner = 0,
-        allerede_anvendt_til_tabsreduktion_kroner = 0
-    ),
-    koncernbeløb = []
+    fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+        skatteydergrundlag = AblPar5AAndenSkattepligtig,
+        ejertidsudbytter = [],
+        præferenceposition = AktieavancePar5APræferenceposition(
+            modtaget_tilsvarende_udbytte_kroner = 0,
+            allerede_anvendt_til_tabsreduktion_kroner = 0
+        ),
+        koncernbeløb = []
+    )
 ))
 | par9_scenarie_lagerpost(input: Par9ScenarieLagerpostInput) -> aktieavance_par9_post_resultat(AktieavancePar9PostInput(
     aktivstatus = input.aktivstatus,
