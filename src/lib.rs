@@ -15758,7 +15758,7 @@ impl TypeChecker {
                     if self.type_has_scoped_members(type_name) {
                         self.define_rule_scope_var(name, type_name);
                     } else {
-                        self.define_var_type_name(name, type_name);
+                        self.define_var_type_name(name, &ty.to_string());
                     }
                 }
             }
@@ -15908,7 +15908,7 @@ impl TypeChecker {
     fn type_name_from_ty(ty: &Ty) -> Option<String> {
         match ty {
             Ty::Name(type_name) => Some(type_name.clone()),
-            Ty::App(base, _) => Self::type_name_from_ty(base),
+            Ty::App(_, _) => Some(ty.to_string()),
             Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
                 Self::type_name_from_ty(inner)
             }
@@ -20099,6 +20099,27 @@ mod tests {
                 "constructor pattern `Transfer` expects 2 fields but got 1"
             )),
             "under-arity positional constructor patterns should be rejected before codegen, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_preserves_generic_variant_field_type_in_match_binding() {
+        let source = r#"
+# Entry(value: Int)
+# Payload = Empty | Entries(values: List(Entry))
+
+| payload_values(payload: Payload) -> match payload {
+    | Empty -> [Entry(value = 0)]
+    | Entries(values) -> values
+}
+
+= values = payload_values(Entries(values = [Entry(value = 42)]))
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "generic variant fields should retain their full element type in match bindings, got: {:?}",
             diags
         );
     }

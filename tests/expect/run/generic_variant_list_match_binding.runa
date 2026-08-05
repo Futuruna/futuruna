@@ -1,0 +1,18 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 42
+--
+-- A field bound from a sum-variant pattern retains its complete generic type.
+-- Returning it from one arm must agree with a concrete List(Entry) in another.
+
+# Entry(value: Int)
+# Payload = Empty | Entries(values: List(Entry))
+
+| payload_values(payload: Payload) -> match payload {
+    | Empty -> [Entry(value = 0)]
+    | Entries(values) -> values
+}
+
+= values = payload_values(Entries(values = [Entry(value = 42)]))
+
+@ print(show(head(values).value))
