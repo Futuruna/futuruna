@@ -206,6 +206,16 @@
       ]
     },
     {
+      "id": "typed-program-references",
+      "kind": "language",
+      "name": "Typed compiler-checked program references",
+      "stage": "preview",
+      "docs": [
+        "docs/reference/style.md",
+        "docs/rfcs/typed-program-references.md"
+      ]
+    },
+    {
       "id": "typed-calculation-contracts",
       "kind": "tooling",
       "name": "Typed calculation contracts and input adapters",
@@ -390,6 +400,13 @@
   ],
   "documents": [
     {
+      "path": "docs/rfcs/typed-program-references.md",
+      "stage": "preview",
+      "surfaces": [
+        "typed-program-references"
+      ]
+    },
+    {
       "path": "docs/rfcs/typed-calculation-contracts.md",
       "stage": "preview",
       "surfaces": [
@@ -436,6 +453,7 @@
         "reactive-stateful-surfaces",
         "rust-interop",
         "style-and-modeling-guidance",
+        "typed-program-references",
         "typed-calculation-contracts"
       ]
     },
@@ -496,6 +514,7 @@
       "surfaces": [
         "style-and-modeling-guidance",
         "source-meta-comment-tooling",
+        "typed-program-references",
         "exploratory-audit-tooling"
       ]
     },

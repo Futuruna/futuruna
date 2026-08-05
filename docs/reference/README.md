@@ -7,6 +7,7 @@ feature_stage_surfaces:
   - reactive-stateful-surfaces
   - rust-interop
   - style-and-modeling-guidance
+  - typed-program-references
   - typed-calculation-contracts
 ---
 

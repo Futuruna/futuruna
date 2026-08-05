@@ -1,0 +1,13 @@
+# ImportedRecord(value: Int)
+
+# ImportedScope(seed: Int) {
+    | total() -> seed
+}
+
+> imported_function(value: Int) -> Int {
+    value
+}
+
+| imported_rule(value: Int) -> value > 0
+
+= imported_binding = 7

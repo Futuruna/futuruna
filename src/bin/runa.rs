@@ -13625,6 +13625,7 @@ struct LspPathTypeDeclaration {
     owner: String,
     fields: BTreeMap<String, Ty>,
     variants: Vec<String>,
+    scoped_members: BTreeSet<String>,
 }
 
 #[derive(Clone)]
@@ -13733,10 +13734,28 @@ fn lsp_path_schema(documents: &[LspPathDocument]) -> LspPathSchema {
                             } else {
                                 Vec::new()
                             },
+                            scoped_members: BTreeSet::new(),
                         },
                     );
                 }
-                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    let scoped_members = body
+                        .iter()
+                        .filter_map(|statement| match statement {
+                            Stmt::Rule(Rule::Clause { head, .. })
+                            | Stmt::Rule(Rule::Default { head, .. })
+                            | Stmt::Rule(Rule::Exception { head, .. }) => match &head.kind {
+                                ExprKind::App(function, _arguments) => match &function.kind {
+                                    ExprKind::Var(name) => Some(name.clone()),
+                                    _ => None,
+                                },
+                                ExprKind::Var(name) => Some(name.clone()),
+                                _ => None,
+                            },
+                            Stmt::Defn(Defn::Fn { name, .. }) => Some(name.clone()),
+                            _ => None,
+                        })
+                        .collect();
                     schema.types.insert(
                         name.clone(),
                         LspPathTypeDeclaration {
@@ -13752,6 +13771,7 @@ fn lsp_path_schema(documents: &[LspPathDocument]) -> LspPathSchema {
                                 })
                                 .collect(),
                             variants: Vec::new(),
+                            scoped_members,
                         },
                     );
                 }
@@ -13880,6 +13900,55 @@ fn lsp_pathof_reference_at(
     found
 }
 
+fn lsp_refof_reference_at(
+    source: &str,
+    statements: &[Stmt],
+    line: u32,
+    col: u32,
+) -> Option<(String, Vec<String>, usize)> {
+    let offset = lsp_cursor_char_offset(source, line, col)?;
+    let mut found = None;
+    for statement in statements {
+        walk_ast_stmt(statement, &mut |child| {
+            if found.is_some() {
+                return;
+            }
+            let AstChild::Expr(expression) = child else {
+                return;
+            };
+            let ExprKind::App(function, arguments) = &expression.kind else {
+                return;
+            };
+            if !matches!(&function.kind, ExprKind::Var(name) if name == REFOF_MARKER)
+                || arguments.len() < 2
+            {
+                return;
+            }
+            let ExprKind::Lit(Literal::Str(mode)) = &arguments[0].kind else {
+                return;
+            };
+            let visible = &arguments[1..];
+            let Some(index) = visible
+                .iter()
+                .position(|argument| offset >= argument.span.start && offset <= argument.span.end)
+            else {
+                return;
+            };
+            let parts = visible
+                .iter()
+                .map(|argument| match &argument.kind {
+                    ExprKind::Lit(Literal::Str(part)) => Some(part.clone()),
+                    _ => None,
+                })
+                .collect::<Option<Vec<_>>>();
+            if let Some(parts) = parts {
+                found = Some((mode.clone(), parts, index));
+            }
+        });
+    }
+    found
+}
+
 fn lsp_identifier_pos_after(line: &str, name: &str, start: usize) -> Option<u32> {
     for (relative, _) in line.get(start..)?.match_indices(name) {
         let byte = start + relative;
@@ -13920,6 +13989,41 @@ fn lsp_find_type_member_pos(
     Some((line_index, lsp_identifier_pos_after(line, member, start)?))
 }
 
+fn lsp_find_rule_scope_member_pos(source: &str, owner: &str, member: &str) -> Option<(u32, u32)> {
+    let (owner_line, _) = lsp_find_def_pos(source, owner)?;
+    let mut entered_body = false;
+    let mut brace_depth = 0i32;
+    for (line_index, line) in source.lines().enumerate().skip(owner_line as usize) {
+        if entered_body {
+            let trimmed = line.trim_start();
+            if let Some(rest) = trimmed
+                .strip_prefix('|')
+                .or_else(|| trimmed.strip_prefix('>'))
+                .map(str::trim_start)
+            {
+                if rest.starts_with(member) {
+                    let after = &rest[member.len()..];
+                    if after.starts_with('(') || after.starts_with(' ') || after.starts_with("->") {
+                        let column = line.find(member)? as u32;
+                        return Some((line_index as u32, column));
+                    }
+                }
+            }
+        }
+
+        let opens = line.chars().filter(|character| *character == '{').count() as i32;
+        let closes = line.chars().filter(|character| *character == '}').count() as i32;
+        if opens > 0 {
+            entered_body = true;
+        }
+        brace_depth += opens - closes;
+        if entered_body && brace_depth <= 0 {
+            break;
+        }
+    }
+    None
+}
+
 fn lsp_path_location(
     documents: &[LspPathDocument],
     document: usize,
@@ -13953,6 +14057,15 @@ fn lsp_pathof_definition(
     let mut parser = Parser::new(tokens, source);
     let statements = parser.parse_program().ok()?;
     let (parts, selected) = lsp_pathof_reference_at(source, &statements, line, col)?;
+    lsp_structural_reference_definition(uri, source, &parts, selected)
+}
+
+fn lsp_structural_reference_definition(
+    uri: &str,
+    source: &str,
+    parts: &[String],
+    selected: usize,
+) -> Option<serde_json::Value> {
     let root = parts.first()?;
 
     let mut documents = Vec::new();
@@ -13995,6 +14108,21 @@ fn lsp_pathof_definition(
                     target,
                 );
             }
+            if declaration.scoped_members.contains(target) {
+                let document = documents.get(declaration.document)?;
+                let (line, character) =
+                    lsp_find_rule_scope_member_pos(&document.source, &declaration.owner, target)?;
+                return Some(serde_json::json!({
+                    "uri": document.uri,
+                    "range": {
+                        "start": {"line": line, "character": character},
+                        "end": {
+                            "line": line,
+                            "character": character + target.chars().count() as u32
+                        }
+                    }
+                }));
+            }
             declaration.fields.get(target)?;
             lsp_path_location(
                 &documents,
@@ -14018,7 +14146,42 @@ fn lsp_pathof_definition(
     }
 }
 
+fn lsp_refof_definition(uri: &str, source: &str, line: u32, col: u32) -> Option<serde_json::Value> {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let statements = parser.parse_program().ok()?;
+    let (mode, parts, selected) = lsp_refof_reference_at(source, &statements, line, col)?;
+    if mode == "type" {
+        return lsp_structural_reference_definition(uri, source, &parts, selected);
+    }
+    if mode != "symbol" || selected != 0 {
+        return None;
+    }
+    let symbol = parts.first()?;
+    let mut documents = Vec::new();
+    lsp_collect_path_documents(uri, source, &mut BTreeSet::new(), &mut documents);
+    for document in documents.iter().rev() {
+        if let Some((line, character)) = lsp_find_def_pos(&document.source, symbol) {
+            return Some(serde_json::json!({
+                "uri": document.uri,
+                "range": {
+                    "start": {"line": line, "character": character},
+                    "end": {
+                        "line": line,
+                        "character": character + symbol.chars().count() as u32
+                    }
+                }
+            }));
+        }
+    }
+    None
+}
+
 fn lsp_definition(uri: &str, source: &str, line: u32, col: u32) -> serde_json::Value {
+    if let Some(location) = lsp_refof_definition(uri, source, line, col) {
+        return location;
+    }
     if let Some(location) = lsp_pathof_definition(uri, source, line, col) {
         return location;
     }
@@ -14048,6 +14211,17 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
             if rest.starts_with(name) {
                 let after = &rest[name.len()..];
                 if after.starts_with('(') || after.starts_with(' ') {
+                    let col = line.find(name).unwrap_or(0);
+                    return Some((idx as u32, col as u32));
+                }
+            }
+        }
+        // Rule: | name(...)
+        if t.starts_with('|') {
+            let rest = t[1..].trim();
+            if rest.starts_with(name) {
+                let after = &rest[name.len()..];
+                if after.starts_with('(') || after.starts_with(' ') || after.starts_with("->") {
                     let col = line.find(name).unwrap_or(0);
                     return Some((idx as u32, col as u32));
                 }
@@ -16819,6 +16993,9 @@ impl<'a> LoweringCtx<'a> {
                 span: expr.span,
                 ty: FirTy::String,
             };
+        }
+        if let Some(reference) = refof_reference_expr(expr) {
+            return self.lower_expr(&reference);
         }
         match &expr.kind {
             ExprKind::Var(name) => {
@@ -35590,6 +35767,9 @@ impl RustCodegen {
         if let Some(path) = pathof_canonical_path(expr) {
             return format!("{:?}.to_string()", path);
         }
+        if let Some(reference) = refof_reference_expr(expr) {
+            return self.emit_expr(&reference);
+        }
         match &expr.kind {
             ExprKind::Var(name) => {
                 // Nullary constructor
@@ -40224,6 +40404,15 @@ mod tests {
     fn formatter_combines_scope_and_continuation_indentation() {
         let source = "# Case(input: Input) {\n| result() -> Result(\nvalue = input.value,\nentries = [\nEntry(name = \"one\")\n]\n)\n}\n";
         let expected = "# Case(input: Input) {\n    | result() -> Result(\n        value = input.value,\n        entries = [\n            Entry(name = \"one\")\n        ]\n    )\n}\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
+    }
+
+    #[test]
+    fn formatter_preserves_multiline_refof_targets() {
+        let source = "= reference = Evidence(\ntarget = refof(\nInput::children::value\n)\n)\n";
+        let expected = "= reference = Evidence(\n    target = refof(\n        Input::children::value\n    )\n)\n";
 
         assert_eq!(format_runa_source(source), expected);
         assert_eq!(format_runa_source(expected), expected);
@@ -46400,6 +46589,39 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn refof_top_level_bindings_compile_to_typed_reference_values() {
+        let source = r#"
+# Input(value: Int)
+| answer() -> 42
+= symbol_ref = refof(answer)
+= type_ref = refof(Input)
+= member_ref = refof(Input::value)
+@ print(show(symbol_ref))
+@ print(show(type_ref))
+@ print(show(member_ref))
+"#;
+        let expected = "ProgramSymbolReference(name: answer)\nProgramTypeReference(name: Input)\nProgramMemberReference(root_type: Input, path: value)";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_source(source, None).trim(), expected);
+    }
+
+    #[test]
+    fn refof_plain_imported_targets_compile_to_typed_reference_values() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/reference/refof-import.runa");
+        let expected = "ProgramSymbolReference(name: imported_rule)";
+        assert_eq!(
+            interpret_test_source(
+                &std::fs::read_to_string(&path).expect("refof import fixture"),
+                path.to_str()
+            )
+            .trim(),
+            expected
+        );
+        assert_eq!(compile_and_run_test_file(&path).trim(), expected);
+    }
+
+    #[test]
     fn lsp_pathof_definition_navigates_fields_variants_and_discriminators() {
         let source = r#"# Child(age: Int)
 # Income = Wage(amount: Int) | Business(profit: Int)
@@ -46471,6 +46693,89 @@ for x in [1, 2] {
             .ends_with("/pathof-types.runa"));
         assert_eq!(definition["range"]["start"]["line"], 0);
         assert_eq!(definition["range"]["start"]["character"], 16);
+    }
+
+    #[test]
+    fn lsp_refof_definition_navigates_symbols_types_fields_and_scoped_members() {
+        let source = r#"# Input(value: Int)
+# Case(input: Input) {
+    | total() -> input.value
+}
+| answer() -> 42
+= threshold = 10
+= rule_ref = refof(answer)
+= binding_ref = refof(threshold)
+= type_ref = refof(Input)
+= field_ref = refof(Input::value)
+= scoped_ref = refof(Case::total)
+"#;
+        let position = |needle: &str| {
+            let offset = source.rfind(needle).expect("refof target in source");
+            let prefix = &source[..offset];
+            (
+                prefix.lines().count().saturating_sub(1) as u32,
+                prefix
+                    .lines()
+                    .last()
+                    .map(str::chars)
+                    .map(Iterator::count)
+                    .unwrap_or(0) as u32,
+            )
+        };
+
+        let (line, col) = position("answer)");
+        let rule = lsp_refof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("rule definition");
+        assert_eq!(rule["range"]["start"]["line"], 4);
+
+        let (line, col) = position("threshold)");
+        let binding = lsp_refof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("binding definition");
+        assert_eq!(binding["range"]["start"]["line"], 5);
+
+        let (line, col) = position("Input)");
+        let type_ref = lsp_refof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("type definition");
+        assert_eq!(type_ref["range"]["start"]["line"], 0);
+
+        let (line, col) = position("value)");
+        let field = lsp_refof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("field definition");
+        assert_eq!(field["range"]["start"]["line"], 0);
+        assert_eq!(field["range"]["start"]["character"], 8);
+
+        let (line, col) = position("total)");
+        let scoped = lsp_refof_definition("file:///tmp/model.runa", source, line, col)
+            .expect("scoped rule definition");
+        assert_eq!(scoped["range"]["start"]["line"], 2);
+        assert_eq!(scoped["range"]["start"]["character"], 6);
+    }
+
+    #[test]
+    fn lsp_refof_definition_navigates_plain_imported_symbols() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/reference/refof-import.runa");
+        let source = std::fs::read_to_string(&path).expect("refof fixture");
+        let offset = source
+            .find("imported_rule)")
+            .expect("imported rule reference");
+        let prefix = &source[..offset];
+        let line = prefix.lines().count().saturating_sub(1) as u32;
+        let col = prefix
+            .lines()
+            .last()
+            .map(str::chars)
+            .map(Iterator::count)
+            .unwrap_or(0) as u32;
+        let uri = lsp_document_uri(&std::fs::canonicalize(path).expect("canonical fixture"));
+
+        let definition =
+            lsp_refof_definition(&uri, &source, line, col).expect("imported rule definition");
+        assert!(definition["uri"]
+            .as_str()
+            .expect("definition URI")
+            .ends_with("/refof-declarations.runa"));
+        assert_eq!(definition["range"]["start"]["line"], 10);
     }
 
     fn interpret_test_source(source: &str, filename: Option<&str>) -> String {

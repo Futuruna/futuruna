@@ -60,6 +60,23 @@
     hentet_dato = "2026-07-30"
 )
 
+= virksomhedsskatteloven_par8_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par8,
+    mål = refof(virksomhedsskattelov8_resultat)
+)
+= virksomhedsskatteloven_par9_par9a_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par9_par9a,
+    mål = refof(virksomhedsskattelov9_og_9a_resultat)
+)
+= virksomhedsskatteloven_nationalbank_par9_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9,
+    mål = refof(virksomhedsskattelov9_effektiv_rentesats_milliprocent)
+)
+= virksomhedsskatteloven_skatteministeriet_par9_par9a_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_skatteministeriet_satser_par9_par9a,
+    mål = refof(virksomhedsskattelov9_offentliggørelsesstatus)
+)
+
 ----
 § 7. Kapitalafkast beregnes som afkastgrundlaget gange afkastsatsen.
 Kapitalafkastgrundlaget opgøres efter § 8 og kapitalafkastsatsen efter § 9.
@@ -100,7 +117,7 @@ hele måneder, regnskabsperioden omfatter.
 | virksomhedsskattelov7_resultat(input: Virksomhedsskattelov7Input) -> virksomhedsskattelov7_sag(input).resultat()
 
 = virksomhedsskatteloven_par8_metadata = Metadata(
-    attachments = Source(value = virksomhedsskatteloven_lbk1836_par8)
+    attachments = Source(value = virksomhedsskatteloven_par8_kildebelæg)
 )
 
 --@label:virksomhedsskatteloven_par8::meta:virksomhedsskatteloven_par8_metadata--
@@ -286,9 +303,9 @@ medregnes til denne værdi.
 
 = virksomhedsskatteloven_par9_par9a_metadata = Metadata(
     attachments = (
-        Source(value = virksomhedsskatteloven_lbk1836_par9_par9a),
-        RateSource(value = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9),
-        RateSource(value = virksomhedsskatteloven_skatteministeriet_satser_par9_par9a),
+        Source(value = virksomhedsskatteloven_par9_par9a_kildebelæg),
+        RateSource(value = virksomhedsskatteloven_nationalbank_par9_kildebelæg),
+        RateSource(value = virksomhedsskatteloven_skatteministeriet_par9_par9a_kildebelæg),
     )
 )
 

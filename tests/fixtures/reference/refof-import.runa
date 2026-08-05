@@ -1,0 +1,10 @@
+@ import ./refof - declarations
+
+= imported_rule_ref = refof(imported_rule)
+= imported_function_ref = refof(imported_function)
+= imported_binding_ref = refof(imported_binding)
+= imported_type_ref = refof(ImportedRecord)
+= imported_field_ref = refof(ImportedRecord::value)
+= imported_scoped_rule_ref = refof(ImportedScope::total)
+
+@ print(show(imported_rule_ref))

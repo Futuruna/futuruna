@@ -104,6 +104,35 @@ fn meta_type_filter_finds_values_nested_in_typed_aggregate() {
 }
 
 #[test]
+fn meta_json_preserves_typed_program_references() {
+    let target = fixture_dir("meta-refof.runa");
+    let output = run_meta(&["--json", "--type", "ProgramReference"], &target);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let document = parse_json(&output);
+    assert_eq!(document["counts"]["diagnostics"], 0);
+    assert_eq!(document["counts"]["references"], 1);
+    let reference = &document["references"][0];
+    let program_reference = reference["typed_values"]
+        .as_array()
+        .expect("typed values")
+        .iter()
+        .find(|value| value["type"] == "ProgramReference")
+        .expect("nested ProgramReference");
+    assert_eq!(program_reference["path"], "$.target");
+    assert_eq!(program_reference["data"]["name"], "ProgramSymbolReference");
+    assert_eq!(program_reference["data"]["arguments"][0]["field"], "name");
+    assert_eq!(
+        program_reference["data"]["arguments"][0]["value"]["value"],
+        "tax_due"
+    );
+}
+
+#[test]
 fn meta_role_filter_finds_typed_attachments_nested_in_an_aggregate() {
     let target = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")

@@ -1,0 +1,14 @@
+# SourceInfo(url: String)
+# Evidence(source: SourceInfo, target: ProgramReference)
+# impl Meta for Evidence {}
+
+= legal_source = SourceInfo(url = "https://example.invalid/law")
+= tax_evidence = Evidence(
+    source = legal_source,
+    target = refof(tax_due)
+)
+
+--@label:tax_due::meta:tax_evidence--
+--@begin:tax_due--
+| tax_due(income: Int) -> income / 2
+--@end:tax_due--

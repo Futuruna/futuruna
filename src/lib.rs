@@ -587,6 +587,10 @@ const TAU_PRELUDE: &str = r#"
 # Result(a, e) = Ok(a) | Err(e)
 # Pair(a, b) = Pair(fst: a, snd: b)
 
+-- A serializable, compiler-checked pointer to a declaration or structural
+-- member in the current program. `refof(...)` constructs these values.
+# ProgramReference = ProgramSymbolReference(name: String) | ProgramTypeReference(name: String) | ProgramMemberReference(root_type: String, path: String)
+
 -- Marker trait for values deliberately exposed through a meta label.
 # trait Meta {}
 
@@ -4325,6 +4329,7 @@ pub enum ExprKind {
 
 pub const NAMED_ARG_MARKER: &str = "__named_arg";
 pub const PATHOF_MARKER: &str = "__pathof";
+pub const REFOF_MARKER: &str = "__refof";
 
 /// Expression AST node: wraps ExprKind with source location.
 #[derive(Debug, Clone)]
@@ -4411,6 +4416,77 @@ pub fn pathof_canonical_path(expr: &Expr) -> Option<String> {
         })
         .collect::<Option<Vec<_>>>()?;
     Some(segments.join("."))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProgramReferenceLiteral {
+    Symbol { name: String },
+    Type { name: String },
+    Member { root_type: String, path: String },
+}
+
+/// Decode the parser's internal `refof` expression into its portable value.
+pub fn refof_literal(expr: &Expr) -> Option<ProgramReferenceLiteral> {
+    let ExprKind::App(function, arguments) = &expr.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == REFOF_MARKER) || arguments.len() < 2
+    {
+        return None;
+    }
+    let ExprKind::Lit(Literal::Str(mode)) = &arguments[0].kind else {
+        return None;
+    };
+    let ExprKind::Lit(Literal::Str(root)) = &arguments[1].kind else {
+        return None;
+    };
+    let segments = arguments
+        .iter()
+        .skip(2)
+        .map(|argument| match &argument.kind {
+            ExprKind::Lit(Literal::Str(segment)) => Some(segment.as_str()),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+
+    match (mode.as_str(), segments.is_empty()) {
+        ("symbol", true) => Some(ProgramReferenceLiteral::Symbol { name: root.clone() }),
+        ("type", true) => Some(ProgramReferenceLiteral::Type { name: root.clone() }),
+        ("type", false) => Some(ProgramReferenceLiteral::Member {
+            root_type: root.clone(),
+            path: segments.join("."),
+        }),
+        _ => None,
+    }
+}
+
+/// Lower `refof` to an ordinary prelude constructor so every runtime and
+/// metadata consumer observes the same typed, serializable value.
+pub fn refof_reference_expr(expr: &Expr) -> Option<Expr> {
+    let (constructor, arguments) = match refof_literal(expr)? {
+        ProgramReferenceLiteral::Symbol { name } => (
+            "ProgramSymbolReference",
+            vec![Expr::new(ExprKind::Lit(Literal::Str(name)), expr.span)],
+        ),
+        ProgramReferenceLiteral::Type { name } => (
+            "ProgramTypeReference",
+            vec![Expr::new(ExprKind::Lit(Literal::Str(name)), expr.span)],
+        ),
+        ProgramReferenceLiteral::Member { root_type, path } => (
+            "ProgramMemberReference",
+            vec![
+                Expr::new(ExprKind::Lit(Literal::Str(root_type)), expr.span),
+                Expr::new(ExprKind::Lit(Literal::Str(path)), expr.span),
+            ],
+        ),
+    };
+    Some(Expr::new(
+        ExprKind::App(
+            Box::new(Expr::new(ExprKind::Var(constructor.to_string()), expr.span)),
+            arguments,
+        ),
+        expr.span,
+    ))
 }
 
 pub fn reorder_named_args_by_names(param_order: &[String], args: &[Expr]) -> Option<Vec<Expr>> {
@@ -8026,6 +8102,84 @@ impl Parser {
         Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok))
     }
 
+    fn parse_refof_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
+        self.expect(TokenKind::LParen)?;
+        self.skip_semis();
+
+        let root = self.advance();
+        let mode = match root.kind {
+            TokenKind::Ident => "symbol",
+            TokenKind::Type => "type",
+            _ => {
+                return Err(format!(
+                    "{}:{}: refof target must start with a declared symbol or type name, got `{}`",
+                    root.line, root.col, root.text
+                ));
+            }
+        };
+        let mut arguments = vec![
+            Expr::new(
+                ExprKind::Lit(Literal::Str(mode.to_string())),
+                self.token_span(&start_tok),
+            ),
+            Expr::new(
+                ExprKind::Lit(Literal::Str(root.text.clone())),
+                self.token_span(&root),
+            ),
+        ];
+
+        loop {
+            self.skip_semis();
+            if self.peek_kind() == TokenKind::RParen {
+                break;
+            }
+            if mode == "symbol" {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: refof symbol references are terminal; qualify members from a type name",
+                    token.line, token.col
+                ));
+            }
+            let first_colon = self.expect(TokenKind::Colon)?;
+            if self.peek_kind() != TokenKind::Colon {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: refof segments use `::`; expected a second `:` after {}:{}",
+                    token.line, token.col, first_colon.line, first_colon.col
+                ));
+            }
+            self.advance();
+            self.skip_semis();
+            let segment = self.advance();
+            if !matches!(
+                segment.kind,
+                TokenKind::Ident | TokenKind::Type | TokenKind::KW | TokenKind::Bool_
+            ) {
+                return Err(format!(
+                    "{}:{}: expected a field, variant, scoped member, or `$variant` after `::`, got `{}`",
+                    segment.line, segment.col, segment.text
+                ));
+            }
+            if segment.text.starts_with('$') && segment.text != "$variant" {
+                return Err(format!(
+                    "{}:{}: unknown refof selector `{}`; only `$variant` is supported",
+                    segment.line, segment.col, segment.text
+                ));
+            }
+            arguments.push(Expr::new(
+                ExprKind::Lit(Literal::Str(segment.text.clone())),
+                self.token_span(&segment),
+            ));
+        }
+
+        self.expect(TokenKind::RParen)?;
+        let function = Expr::new(
+            ExprKind::Var(REFOF_MARKER.to_string()),
+            self.token_span(&start_tok),
+        );
+        Ok(self.spanned(ExprKind::App(Box::new(function), arguments), &start_tok))
+    }
+
     pub fn parse_atom(&mut self) -> Result<Expr, String> {
         match self.peek_kind() {
             // Identifiers and type constructors
@@ -8033,6 +8187,9 @@ impl Parser {
                 let tok = self.advance();
                 if tok.text == "pathof" && self.peek_kind() == TokenKind::LParen {
                     return self.parse_pathof_expr(tok);
+                }
+                if tok.text == "refof" && self.peek_kind() == TokenKind::LParen {
+                    return self.parse_refof_expr(tok);
                 }
                 let span = self.token_span(&tok);
                 Ok(Expr::new(ExprKind::Var(tok.text), span))
@@ -10886,6 +11043,11 @@ impl Interpreter {
                     if fn_name == PATHOF_MARKER {
                         return pathof_canonical_path(expr)
                             .map(Value::Str)
+                            .unwrap_or(Value::Unit);
+                    }
+                    if fn_name == REFOF_MARKER {
+                        return refof_reference_expr(expr)
+                            .map(|reference| self.eval(&reference, env))
                             .unwrap_or(Value::Unit);
                     }
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
@@ -15443,6 +15605,23 @@ impl TypeConstructorSignature {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ProgramSymbolKind {
+    Rule,
+    Function,
+    Binding,
+}
+
+impl ProgramSymbolKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Rule => "rule",
+            Self::Function => "function",
+            Self::Binding => "binding",
+        }
+    }
+}
+
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
@@ -15503,6 +15682,8 @@ pub struct TypeChecker {
     pub scopes: Vec<BTreeSet<String>>,
     /// user-defined functions (distinct from rule functions for arity checks)
     pub user_functions: BTreeSet<String>,
+    /// Declaration categories addressable through `refof(symbol)`.
+    reference_symbols: BTreeMap<String, BTreeSet<ProgramSymbolKind>>,
     /// source file directory (for resolving @ import paths)
     pub source_dir: Option<String>,
     /// already-imported file paths (prevents cycles)
@@ -15562,6 +15743,7 @@ impl TypeChecker {
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
+            reference_symbols: BTreeMap::new(),
             source_dir: None,
             imported: BTreeSet::new(),
             source_text: String::new(),
@@ -15827,6 +16009,13 @@ impl TypeChecker {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
         }
+    }
+
+    fn register_reference_symbol(&mut self, name: &str, kind: ProgramSymbolKind) {
+        self.reference_symbols
+            .entry(name.to_string())
+            .or_default()
+            .insert(kind);
     }
 
     fn define_rule_scope_var(&mut self, name: &str, scope_name: &str) {
@@ -16412,11 +16601,20 @@ impl TypeChecker {
         }
     }
 
-    fn check_pathof_expr(&mut self, expr: &Expr, arguments: &[Expr]) {
+    fn check_structural_path_expr(
+        &mut self,
+        expr: &Expr,
+        arguments: &[Expr],
+        operation: &str,
+        allow_terminal_variant: bool,
+    ) {
         if arguments.len() < 2 {
             self.error_at_expr(
                 expr,
-                "pathof requires a root type and at least one path segment".to_string(),
+                format!(
+                    "{} requires a root type and at least one path segment",
+                    operation
+                ),
             );
             return;
         }
@@ -16424,14 +16622,14 @@ impl TypeChecker {
         let ExprKind::Lit(Literal::Str(root)) = &arguments[0].kind else {
             self.error_at_expr(
                 &arguments[0],
-                "pathof root must be a declared type name".to_string(),
+                format!("{} root must be a declared type name", operation),
             );
             return;
         };
         if !self.types.contains(root) {
             self.error_at_expr(
                 &arguments[0],
-                format!("pathof references unknown type `{}`", root),
+                format!("{} references unknown type `{}`", operation, root),
             );
             return;
         }
@@ -16441,7 +16639,7 @@ impl TypeChecker {
             let ExprKind::Lit(Literal::Str(segment)) = &argument.kind else {
                 self.error_at_expr(
                     argument,
-                    "pathof segments must be structural names".to_string(),
+                    format!("{} segments must be structural names", operation),
                 );
                 return;
             };
@@ -16450,8 +16648,8 @@ impl TypeChecker {
                 self.error_at_expr(
                     argument,
                     format!(
-                        "pathof cannot traverse `{}` through non-record type `{}`",
-                        segment, current
+                        "{} cannot traverse `{}` through non-record type `{}`",
+                        operation, segment, current
                     ),
                 );
                 return;
@@ -16463,14 +16661,17 @@ impl TypeChecker {
                     self.error_at_expr(
                         argument,
                         format!(
-                            "pathof selector `$variant` requires a sum type, but `{}` has no alternatives",
-                            type_name
+                            "{} selector `$variant` requires a sum type, but `{}` has no alternatives",
+                            operation, type_name
                         ),
                     );
                 } else if index + 1 != arguments.len() {
                     self.error_at_expr(
                         argument,
-                        "pathof selector `$variant` is a terminal discriminator path".to_string(),
+                        format!(
+                            "{} selector `$variant` is a terminal discriminator path",
+                            operation
+                        ),
                     );
                 }
                 return;
@@ -16479,13 +16680,15 @@ impl TypeChecker {
             if let Some(variants) = variants.filter(|variants| !variants.is_empty()) {
                 if variants.contains(segment) {
                     if index + 1 == arguments.len() {
-                        self.error_at_expr(
-                            argument,
-                            format!(
-                                "pathof variant selector `{}` must be followed by a field; use `$variant` to target the discriminator",
-                                segment
-                            ),
-                        );
+                        if !allow_terminal_variant {
+                            self.error_at_expr(
+                                argument,
+                                format!(
+                                    "{} variant selector `{}` must be followed by a field; use `$variant` to target the discriminator",
+                                    operation, segment
+                                ),
+                            );
+                        }
                         return;
                     }
                     current = Ty::Name(segment.clone());
@@ -16494,8 +16697,8 @@ impl TypeChecker {
                 self.error_at_expr(
                     argument,
                     format!(
-                        "pathof must select a variant of `{}` before traversing its fields; expected one of: {}",
-                        type_name,
+                        "{} must select a variant of `{}` before traversing its fields; expected one of: {}",
+                        operation, type_name,
                         variants.join(", ")
                     ),
                 );
@@ -16521,14 +16724,118 @@ impl TypeChecker {
                 self.error_at_expr(
                     argument,
                     format!(
-                        "pathof type `{}` has no field `{}`{}",
-                        type_name, segment, suffix
+                        "{} type `{}` has no field `{}`{}",
+                        operation, type_name, segment, suffix
                     ),
                 );
                 return;
             };
             current = field_ty;
         }
+    }
+
+    fn check_pathof_expr(&mut self, expr: &Expr, arguments: &[Expr]) {
+        self.check_structural_path_expr(expr, arguments, "pathof", false);
+    }
+
+    fn check_refof_expr(&mut self, expr: &Expr, arguments: &[Expr]) {
+        if arguments.len() < 2 {
+            self.error_at_expr(expr, "refof requires a declaration target".to_string());
+            return;
+        }
+        let ExprKind::Lit(Literal::Str(mode)) = &arguments[0].kind else {
+            self.error_at_expr(expr, "invalid internal refof target mode".to_string());
+            return;
+        };
+        let ExprKind::Lit(Literal::Str(root)) = &arguments[1].kind else {
+            self.error_at_expr(expr, "refof target must be a declared name".to_string());
+            return;
+        };
+
+        if mode == "symbol" {
+            let Some(kinds) = self.reference_symbols.get(root) else {
+                self.error_at_expr(
+                    &arguments[1],
+                    format!("refof references unknown symbol `{}`", root),
+                );
+                return;
+            };
+            if kinds.len() > 1 {
+                let labels = kinds
+                    .iter()
+                    .map(|kind| kind.label())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                self.error_at_expr(
+                    &arguments[1],
+                    format!(
+                        "refof symbol `{}` is ambiguous; it is declared as: {}",
+                        root, labels
+                    ),
+                );
+            }
+            return;
+        }
+
+        if mode != "type" {
+            self.error_at_expr(expr, "invalid internal refof target mode".to_string());
+            return;
+        }
+        if !self.types.contains(root) {
+            self.error_at_expr(
+                &arguments[1],
+                format!("refof references unknown type `{}`", root),
+            );
+            return;
+        }
+        if arguments.len() == 2 {
+            return;
+        }
+
+        if self.type_has_scoped_members(root) {
+            let ExprKind::Lit(Literal::Str(member)) = &arguments[2].kind else {
+                self.error_at_expr(
+                    &arguments[2],
+                    "refof scoped member must be a declared name".to_string(),
+                );
+                return;
+            };
+            let field = self
+                .type_field_tys
+                .get(root)
+                .is_some_and(|fields| fields.contains_key(member));
+            let scoped_rule = self
+                .rule_scope_methods
+                .get(root)
+                .is_some_and(|methods| methods.contains_key(member));
+            let scoped_function = self
+                .rule_scope_value_methods
+                .get(root)
+                .is_some_and(|methods| methods.contains_key(member));
+            let matches =
+                usize::from(field) + usize::from(scoped_rule) + usize::from(scoped_function);
+            if matches > 1 {
+                self.error_at_expr(
+                    &arguments[2],
+                    format!(
+                        "refof member `{}::{}` is ambiguous between a captured field and scoped callable",
+                        root, member
+                    ),
+                );
+                return;
+            }
+            if scoped_rule || scoped_function {
+                if arguments.len() > 3 {
+                    self.error_at_expr(
+                        &arguments[3],
+                        format!("refof scoped member `{}::{}` is terminal", root, member),
+                    );
+                }
+                return;
+            }
+        }
+
+        self.check_structural_path_expr(expr, &arguments[1..], "refof", true);
     }
 
     fn constructor_pattern_field_type_name(
@@ -16665,6 +16972,9 @@ impl TypeChecker {
                     }
                     if name == PATHOF_MARKER {
                         return Some("String".to_string());
+                    }
+                    if name == REFOF_MARKER {
+                        return Some("ProgramReference".to_string());
                     }
                     if let Some(parent) = self.constructor_parent_for_args(name, args) {
                         return Some(parent);
@@ -17487,6 +17797,7 @@ impl TypeChecker {
                         params.iter().map(|param| param.name.clone()).collect(),
                     );
                     self.user_functions.insert(name.clone());
+                    self.register_reference_symbol(name, ProgramSymbolKind::Function);
                     self.define_var(name);
                 }
                 Stmt::Defn(Defn::Actor { name, .. }) => {
@@ -17591,6 +17902,7 @@ impl TypeChecker {
                                 name.clone(),
                                 params.iter().map(|param| param.name.clone()).collect(),
                             );
+                            self.register_reference_symbol(name, ProgramSymbolKind::Function);
                         }
                     }
                 }
@@ -17661,6 +17973,7 @@ impl TypeChecker {
                             op_name.clone(),
                             params.iter().map(|param| param.name.clone()).collect(),
                         );
+                        self.register_reference_symbol(op_name, ProgramSymbolKind::Function);
                     }
                     self.effect_ops.insert(name.clone(), ops_map);
                 }
@@ -17678,6 +17991,7 @@ impl TypeChecker {
                                 .map(|param| param.name.clone())
                                 .collect(),
                         );
+                        self.register_reference_symbol(&method.name, ProgramSymbolKind::Function);
                         method_names.push(method.name.clone());
                         self.trait_method_receivers.insert(
                             (name.clone(), method.name.clone()),
@@ -17699,6 +18013,7 @@ impl TypeChecker {
                                 name.clone(),
                                 params.iter().map(|param| param.name.clone()).collect(),
                             );
+                            self.register_reference_symbol(name, ProgramSymbolKind::Function);
                             method_names.push(name.clone());
                             self.impl_method_receivers.insert(
                                 (trait_name.clone(), for_type.clone(), name.clone()),
@@ -17710,15 +18025,19 @@ impl TypeChecker {
                         .insert((trait_name.clone(), for_type.clone()), method_names);
                 }
                 Stmt::Bind(Pat::Var(name), _, _) => {
+                    self.register_reference_symbol(name, ProgramSymbolKind::Binding);
                     self.define_var(name);
                 }
                 Stmt::MonadicBind(Pat::Var(name), _, _) => {
+                    self.register_reference_symbol(name, ProgramSymbolKind::Binding);
                     self.define_var(name);
                 }
                 Stmt::StreamBind(name, _) => {
+                    self.register_reference_symbol(name, ProgramSymbolKind::Binding);
                     self.define_var(name);
                 }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
+                    self.register_reference_symbol(name, ProgramSymbolKind::Binding);
                     self.define_var(name);
                     self.collect_declarations(body);
                 }
@@ -17733,12 +18052,14 @@ impl TypeChecker {
                                     .entry(fname.clone())
                                     .or_insert(param_names);
                             }
+                            self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
                             self.define_var(fname);
                         }
                     } else if let ExprKind::Var(fname) = &head.kind {
                         // Zero-arg rule without parens: | foo -> Bar
                         self.functions.entry(fname.clone()).or_insert(0);
                         self.function_params.entry(fname.clone()).or_insert(vec![]);
+                        self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
                         self.define_var(fname);
                     }
                     if let Stmt::Rule(rule) = stmt {
@@ -17779,6 +18100,10 @@ impl TypeChecker {
                                         params_str.split(',').count()
                                     };
                                     self.functions.insert(fn_name.clone(), arity);
+                                    self.register_reference_symbol(
+                                        &fn_name,
+                                        ProgramSymbolKind::Function,
+                                    );
                                     self.define_var(&fn_name);
                                 }
                             }
@@ -18418,6 +18743,10 @@ impl TypeChecker {
             ExprKind::App(func, args) => {
                 if matches!(&func.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
                     self.check_pathof_expr(expr, args);
+                    return;
+                }
+                if matches!(&func.kind, ExprKind::Var(name) if name == REFOF_MARKER) {
+                    self.check_refof_expr(expr, args);
                     return;
                 }
                 if let ExprKind::Field(base, method) = &func.as_ref().kind {
@@ -21458,6 +21787,163 @@ mod tests {
 "#;
         let output = eval_source(source).expect("pathof should evaluate");
         assert_eq!(output.trim(), "nested.value");
+    }
+
+    #[test]
+    fn refof_checks_symbols_types_structural_paths_and_scoped_members() {
+        let source = r#"
+# Child(value: Int)
+# Input(children: List(Child))
+# Income = Wage(amount: Int) | Business(profit: Int)
+# Case(input: Input) {
+    | total() -> input.children
+    > helper() -> Int { 1 }
+}
+
+> calculate(input: Int) -> Int { input }
+| eligible(input: Int) -> input > 0
+= threshold = 10
+
+= rule_ref = refof(eligible)
+= function_ref = refof(calculate)
+= binding_ref = refof(threshold)
+= type_ref = refof(Input)
+= field_ref = refof(Input::children::value)
+= variant_ref = refof(Income::Wage)
+= discriminator_ref = refof(Income::$variant)
+= scoped_rule_ref = refof(Case::total)
+= scoped_function_ref = refof(Case::helper)
+"#;
+
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.is_empty(),
+            "valid program references should type-check: {diagnostics:?}"
+        );
+
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("refof source should parse");
+        let references = statements
+            .iter()
+            .filter_map(|statement| match statement {
+                Stmt::Bind(_, _, expression) => refof_literal(expression),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            references,
+            vec![
+                ProgramReferenceLiteral::Symbol {
+                    name: "eligible".to_string()
+                },
+                ProgramReferenceLiteral::Symbol {
+                    name: "calculate".to_string()
+                },
+                ProgramReferenceLiteral::Symbol {
+                    name: "threshold".to_string()
+                },
+                ProgramReferenceLiteral::Type {
+                    name: "Input".to_string()
+                },
+                ProgramReferenceLiteral::Member {
+                    root_type: "Input".to_string(),
+                    path: "children.value".to_string()
+                },
+                ProgramReferenceLiteral::Member {
+                    root_type: "Income".to_string(),
+                    path: "Wage".to_string()
+                },
+                ProgramReferenceLiteral::Member {
+                    root_type: "Income".to_string(),
+                    path: "$variant".to_string()
+                },
+                ProgramReferenceLiteral::Member {
+                    root_type: "Case".to_string(),
+                    path: "total".to_string()
+                },
+                ProgramReferenceLiteral::Member {
+                    root_type: "Case".to_string(),
+                    path: "helper".to_string()
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn refof_rejects_unknown_and_ambiguous_targets() {
+        let unknown_symbol = "= target = refof(missing_rule)";
+        let diagnostics = check_source_for_diagnostics(unknown_symbol);
+        assert!(diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("refof references unknown symbol `missing_rule`")));
+
+        let unknown_field = r#"
+# Input(value: Int)
+= target = refof(Input::missing)
+"#;
+        let diagnostics = check_source_for_diagnostics(unknown_field);
+        assert!(diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("refof type `Input` has no field `missing`")));
+
+        let ambiguous_symbol = r#"
+> duplicate() -> Int { 1 }
+| duplicate() -> 1
+= target = refof(duplicate)
+"#;
+        let diagnostics = check_source_for_diagnostics(ambiguous_symbol);
+        assert!(diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("refof symbol `duplicate` is ambiguous")));
+
+        let ambiguous_member = r#"
+# Case(result: Int) {
+    | result() -> result
+}
+= target = refof(Case::result)
+"#;
+        let diagnostics = check_source_for_diagnostics(ambiguous_member);
+        assert!(diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("refof member `Case::result` is ambiguous")));
+    }
+
+    #[test]
+    fn refof_evaluates_as_typed_program_reference_data() {
+        let source = r#"
+# Input(value: Int)
+| answer() -> 42
+@ print(show(refof(answer)))
+@ print(show(refof(Input)))
+@ print(show(refof(Input::value)))
+"#;
+        let output = eval_source(source).expect("refof should evaluate");
+        assert_eq!(
+            output.trim(),
+            "ProgramSymbolReference(name: answer)\nProgramTypeReference(name: Input)\nProgramMemberReference(root_type: Input, path: value)"
+        );
+    }
+
+    #[test]
+    fn refof_resolves_plain_imported_declarations() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/reference/refof-import.runa");
+        let source = std::fs::read_to_string(&path).expect("refof import fixture");
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let user_statements = parser.parse_program().expect("refof import fixture parses");
+        let statements = prepend_prelude(parse_prelude(), &user_statements);
+        let source_dir = path
+            .parent()
+            .map(|parent| parent.to_string_lossy().to_string());
+        let diagnostics = TypeChecker::check_with_diagnostics(&statements, source_dir, &source);
+        assert!(
+            diagnostics.is_empty(),
+            "plain imported references should type-check: {diagnostics:?}"
+        );
     }
 
     /// Helper: parse source and return the first expression from a binding

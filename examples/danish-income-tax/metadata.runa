@@ -4,6 +4,7 @@
 
 # DanskSkatMeta(a) = Field(value: a) | Source(value: a) | AmendmentSource(value: a) | Dependency(value: a) | DependencySource(value: a) | FutureAmendmentSource(value: a) | ParameterSource(value: a) | RateSource(value: a) | CurrentnessSource(value: a) | HistoricalSource(value: a) | TransitionSource(value: a) | ExclusionSource(value: a) | PreparatorySource(value: a) | Guidance(value: a) | GuidanceSource(value: a) | TimingGuidance(value: a) | MultiDisposalGuidance(value: a) | GainGuidance(value: a) | PengetankGuidance(value: a) | BasisGuidance(value: a) | ChapterGuidance(value: a) | EventGuidance(value: a) | IntervalGuidance(value: a) | RateGuidance(value: a) | TransitionGuidance(value: a) | AllocationGuidance(value: a) | ScaleSource(value: a) | Practice(value: a) | PreparatoryWork(value: a) | Warning(value: a) | Assumption(value: a)
 # Metadata(a) = Metadata(attachments: a)
+# Kildebelæg(a) = Kildebelæg(kilde: a, mål: ProgramReference)
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
 # Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
 # Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)

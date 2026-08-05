@@ -3,6 +3,7 @@ feature_stage: preview
 feature_stage_surfaces:
   - style-and-modeling-guidance
   - source-meta-comment-tooling
+  - typed-program-references
   - exploratory-audit-tooling
 ---
 
@@ -209,6 +210,32 @@ traversed implicitly; sum alternatives are explicit. Plainly imported types are
 resolved through the same declaration graph. This gives metadata consumers a
 stable serialized string without sacrificing source navigation or rename-time
 checking. Existing string values remain valid.
+
+When metadata points to a Futuruna declaration or member rather than an external
+data field, use `refof` and declare the metadata field as `ProgramReference`:
+
+```runa
+# SourceInfo(url: String)
+# Evidence(source: SourceInfo, target: ProgramReference)
+# impl Meta for Evidence {}
+
+= source_info = SourceInfo(url = "https://example.invalid/law")
+= evidence = Evidence(
+    source = source_info,
+    target = refof(calculate_tax)
+)
+
+--@label:calculate_tax::meta:evidence--
+| calculate_tax(income: Int) -> income / 2
+```
+
+`refof(rule_name)`, `refof(TypeName)`, and
+`refof(TypeName::field::nested_field)` produce typed `ProgramReference` values.
+Rules, functions, bindings, types, structural fields, and RuleScope members are
+checked against local and plain imported declarations. Misspelled or ambiguous
+targets fail `runa check`, and definition navigation follows the reference.
+Creating a reference does not execute its target and does not add a rule
+dependency; only actual calls define the program's dependency graph.
 
 When the aggregate also needs role-bearing values, define a sum type whose
 variants each have one named `value` field and implement the standard

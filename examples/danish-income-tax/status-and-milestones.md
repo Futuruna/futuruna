@@ -5,7 +5,8 @@ Last updated: 2026-07-30
 TD epic: `td-56cf8d`
 Current implementation slice: `td-8e40ea` (Virksomhedsskatteloven §§ 8-9 a implemented and verified; pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
-Current language support slice: `td-2e3b7e` (`pathof`-referencer er implementeret og verificeret; pending independent review)
+Current language support slice: `td-8a34e0` (`refof`-referencer er implementeret og verificeret; pending independent review)
+Previous language support slice: `td-2e3b7e` (`pathof`-referencer er implementeret og verificeret; pending independent review)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Latest approved implementation slice: `td-80abd7`
 Latest approved language slice: `td-29d539`
@@ -62,6 +63,18 @@ bagudkompatible. Personskat-filen bruger formen på både `skatteår` og tre dyb
 flerlinjede EBL §§ 8/9-stier. Den fulde Personskat-kontrol og hele Rust-suiten,
 inklusive den kanoniske XLSX-rundtur, passerer med både ældre tekststier og nye
 strukturelle stier.
+
+Metadata kan nu pege på regler, funktioner, bindinger, typer, strukturelle
+felter og RuleScope-medlemmer med `refof(...)`. Udtrykket giver en almindelig
+typet `ProgramReference`-værdi og kontrolleres mod både lokale deklarationer og
+almindelige importer. Ukendte, ugyldige og tvetydige mål afvises, mens
+fortolkeren, Rust-kompileringen, metadata-JSON og LSP-navigation bevarer samme
+reference. Referencen udfører ikke målet og skaber ikke en parallel
+afhængighedsgraf; kun faktiske regel- og funktionskald bestemmer afhængigheder.
+Virksomhedsskattelovens §§ 8-9 a bruger den generiske `Kildebelæg`-type til at
+knytte lovtekst, Nationalbank-data og ministerielle satser til de konkrete
+regler, som kilderne underbygger, uden at de underliggende kildetyper bliver
+usøgbare i metadataindekset.
 
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;
