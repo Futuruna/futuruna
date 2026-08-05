@@ -182,16 +182,17 @@
                         ejendomme = [
                             EblPar10Genopførelsesejendom(
                                 identifikation = "Genopført erhvervsejendom A",
-                                genopførelsesudgifter_kroner = 400000
+                                erhvervsmæssige_genopførelsesudgifter_kroner = 400000,
+                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
                             ),
                             EblPar10Genopførelsesejendom(
                                 identifikation = "Genopført erhvervsejendom B",
-                                genopførelsesudgifter_kroner = 200000
+                                erhvervsmæssige_genopførelsesudgifter_kroner = 200000,
+                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
                             ),
                         ]
                     ),
                     fristforhold = EblPar10UdenFristforlængelse,
-                    erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
                     afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
                     regulering = EblGenanbragtFortjenesteregulering(
                         tillæg_for_genanbragt_del_kroner = 0,

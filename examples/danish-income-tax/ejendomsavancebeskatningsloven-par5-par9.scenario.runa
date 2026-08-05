@@ -107,7 +107,7 @@
     arbejde_påbegyndt = Sandt
 ))
 
-= ebl_par10_delvis_genopførelse = ebl_par10_resultat(EblPar10Fakta(
+= ebl_par10_delvis_genopførelse = ebl_par10_genanbringelsesresultat(EblPar10Fakta(
     skadedato = EblDato(år = 2024, måned = 3, dag = 1),
     erstatningssum_endeligt_fastsat_indkomstår = 2024,
     genopførelsesindkomstår = 2025,
@@ -117,11 +117,11 @@
     genopførelsessted = EblPar10GenopførelsePåSammeEjendom(
         ejendom = EblPar10Genopførelsesejendom(
             identifikation = "Den skadelidte ejendom",
-            genopførelsesudgifter_kroner = 150000
+            erhvervsmæssige_genopførelsesudgifter_kroner = 150000,
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
         )
     ),
     fristforhold = EblPar10UdenFristforlængelse,
-    erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
     afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
     regulering = EblGenanbragtFortjenesteregulering(
         tillæg_for_genanbragt_del_kroner = 0,

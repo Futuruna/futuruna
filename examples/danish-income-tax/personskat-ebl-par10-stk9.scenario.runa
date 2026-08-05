@@ -1,0 +1,84 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_ebl_par10_stk9_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par10_boligbenyttelse_vejledning_2026),
+        Practice(value = ebl_par10_stk9_skm2012_410_lsr),
+    )
+)
+
+--@label:personskat_ebl_par10_stk9_scenarier::meta:personskat_ebl_par10_stk9_scenarier_metadata--
+--@begin:personskat_ebl_par10_stk9_scenarier--
+= personskat_ebl_par10_stk9_skadefakta = PersonskatEjendomsavanceSkadefakta(
+    identifikation = "blandet-brandgenopførelse",
+    par10_fakta = EblPar10Fakta(
+        skadedato = EblDato(år = 2025, måned = 3, dag = 1),
+        erstatningssum_endeligt_fastsat_indkomstår = 2025,
+        genopførelsesindkomstår = 2026,
+        skadelidt_ejendom_omfattet_af_par8 = Falskt,
+        erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner = 500000,
+        reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = 300000,
+        genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = EblPar10Genopførelsesejendom(
+            identifikation = "blandet-ejendom",
+            erhvervsmæssige_genopførelsesudgifter_kroner = 50000,
+            ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+                ejerbolig_genopførelsesudgifter_kroner = 200000,
+                erhvervserstatning_anvendt_kroner = 200000,
+                reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
+                ejerbolig_tjener_til_bolig_fra_indkomstår = 2026
+            )
+        )),
+        fristforhold = EblPar10UdenFristforlængelse,
+        afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
+        regulering = EblGenanbragtFortjenesteregulering(
+            tillæg_for_genanbragt_del_kroner = 0,
+            nedslag_for_genanbragt_del_kroner = 0
+        )
+    )
+)
+
+= personskat_ebl_par10_stk9_årsinput = MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
+    egne_afståelser = [],
+    egne_skadegenopførelser = [personskat_ebl_par10_stk9_skadefakta],
+    eget_fremført_tab = MedFremførtEjendomstab(fra_indkomstår = 2025, tab_kroner = 100000),
+    ægtefælles_afståelser = [],
+    ægtefælles_skadegenopførelser = [],
+    ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+= personskat_ebl_par10_stk9_ejendomsavance_resultat = personskat_ejendomsavance_resultat(personskat_ebl_par10_stk9_årsinput, 2026)
+= personskat_ebl_par10_stk9_kapitalindkomst_resultat = personskat_kapitalindkomst_resultat(
+    PersonskatKapitalindkomstInput(
+        renter = PersonskatRenteInput(
+            renteindtægter_kroner = 0,
+            renteudgifter_kroner = 0,
+            næringsstatus = IkkeNæring,
+            ligningslov6 = UdenLigningslov6Kurstab,
+            ligningslov6a = UdenLigningslov6AFradrag
+        ),
+        pbl53a = personskat_ingen_pbl53a(),
+        ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+        ejendomsavance = personskat_ebl_par10_stk9_årsinput,
+        kursgevinst = UdenKursgevinst,
+        fremleje = UdenFremlejeEfterLigningslov15Q,
+        omkostninger = []
+    ),
+    2026,
+    personskat_aktieavance_resultat(personskat_ingen_aktieavance(), 2026)
+)
+
+| personskat_ebl_par10_stk9_sporer_tabsadskillelse(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(_, _, egne_skadegenopførelsesresultater, _, _, eget_tabsårsresultat, _, par4_resultat) -> length(egne_skadegenopførelsesresultater) == 1 && head(egne_skadegenopførelsesresultater).genanbringelsesresultat.straks_beskattet_fortjeneste_kroner == 50000 && head(egne_skadegenopførelsesresultater).skattepligtig_erstatningssum_efter_stk9_kroner == 200000 && eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner == 50000 && eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner == 50000 && eget_tabsårsresultat.tab_fremført_til_følgende_indkomstår_kroner == 50000 && par4_resultat.ejendomsavance_efter_tabsmodregning_kroner == 0 && par4_resultat.skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner == 200000 && par4_resultat.kapitalindkomst_kroner == 200000
+    | _ -> Falskt
+}
+| personskat_ebl_par10_stk9_adskiller_bruttobeløb_fra_tabsmodregning: personskat_ebl_par10_stk9_ejendomsavance_resultat -> personskat_ebl_par10_stk9_sporer_tabsadskillelse(personskat_ebl_par10_stk9_ejendomsavance_resultat)
+| personskat_ebl_par10_stk9_flyder_til_kapitalindkomst: personskat_ebl_par10_stk9_kapitalindkomst_resultat -> personskat_ebl_par10_stk9_kapitalindkomst_resultat.alle_input_gyldige && personskat_ebl_par10_stk9_sporer_tabsadskillelse(personskat_ebl_par10_stk9_kapitalindkomst_resultat.ejendomsavance_resultat) && personskat_ebl_par10_stk9_kapitalindkomst_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 200000
+
+? personskat_ebl_par10_stk9_adskiller_bruttobeløb_fra_tabsmodregning
+? personskat_ebl_par10_stk9_flyder_til_kapitalindkomst
+--@end:personskat_ebl_par10_stk9_scenarier--

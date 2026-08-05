@@ -1125,8 +1125,8 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr13Resultat(omfattet_af_pensionsbeskatningslov53a_stk3: Boolsk, skattepligtigt_afkast_kroner: Heltal, fremført_negativt_afkast_ultimo_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr14Input(ejendomsavancebeskatningslov_resultat: EjendomsavancebeskatningslovResultat)
 # Par4Stk1Nr14Resultat(skattepligtig_efter_ejendomsavancebeskatningsloven: Boolsk, undtaget_efter_ejendomsavancebeskatningslov11: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, tab_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-# Par4Stk1Nr14Årsinput(eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat)
-# Par4Stk1Nr14Årsresultat(indkomstår: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, egne_tab_modregnet_kroner: Heltal, ægtefælles_tab_modtaget_kroner: Heltal, kapitalindkomst_kroner: Heltal)
+# Par4Stk1Nr14Årsinput(eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner: Heltal)
+# Par4Stk1Nr14Årsresultat(indkomstår: Heltal, egne_skattepligtige_fortjenester_kroner: Heltal, egne_tab_modregnet_kroner: Heltal, ægtefælles_tab_modtaget_kroner: Heltal, ejendomsavance_efter_tabsmodregning_kroner: Heltal, skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr15Input(ligningslov12b_resultat: Ligningslov12BResultat)
 # Par4Stk1Nr15Resultat(omfattet_af_ligningslov12b_stk4_til_7_eller_9: Boolsk, skattepligtige_beløb_kroner: Heltal, fradragsberettigede_beløb_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr16Input(afskrivningslov40c_resultat: Afskrivningslov40CResultat)
@@ -1787,12 +1787,16 @@ fra og med den 1. januar 2027.
     | egne_skattepligtige_fortjenester_kroner() -> input.eget_tabsårsresultat.egne_skattepligtige_fortjenester_kroner
     | egne_tab_modregnet_kroner() -> input.eget_tabsårsresultat.tab_modregnet_i_egne_fortjenester_kroner
     | ægtefælles_tab_modtaget_kroner() -> input.ægtefælles_tabsårsresultat.tab_overført_til_ægtefælle_kroner
-    | kapitalindkomst_kroner() -> penge_positivt_beløb(egne_skattepligtige_fortjenester_kroner() - egne_tab_modregnet_kroner() - ægtefælles_tab_modtaget_kroner())
+    | ejendomsavance_efter_tabsmodregning_kroner() -> penge_positivt_beløb(egne_skattepligtige_fortjenester_kroner() - egne_tab_modregnet_kroner() - ægtefælles_tab_modtaget_kroner())
+    | skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner() -> penge_positivt_beløb(input.skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner)
+    | kapitalindkomst_kroner() -> ejendomsavance_efter_tabsmodregning_kroner() + skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner()
     | resultat() -> Par4Stk1Nr14Årsresultat(
         indkomstår = input.eget_tabsårsresultat.indkomstår,
         egne_skattepligtige_fortjenester_kroner = egne_skattepligtige_fortjenester_kroner(),
         egne_tab_modregnet_kroner = egne_tab_modregnet_kroner(),
         ægtefælles_tab_modtaget_kroner = ægtefælles_tab_modtaget_kroner(),
+        ejendomsavance_efter_tabsmodregning_kroner = ejendomsavance_efter_tabsmodregning_kroner(),
+        skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner = skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner(),
         kapitalindkomst_kroner = kapitalindkomst_kroner()
     )
 }

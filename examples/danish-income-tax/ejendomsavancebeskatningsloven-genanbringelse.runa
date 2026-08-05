@@ -43,10 +43,22 @@
     hentet_dato = "2026-07-30"
 )
 
+= ebl_par10_boligbenyttelse_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948738",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.17.4",
+    hentet_dato = "2026-07-30"
+)
+
 = ebl_par10_klassifikationsskifte_vejledning_2026 = EblGenanbringelseKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1948739",
     identifier = "Den juridiske vejledning 2026-1, C.H.2.1.17.5",
     hentet_dato = "2026-07-18"
+)
+
+= ebl_par10_stk9_skm2012_410_lsr = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2062845",
+    identifier = "SKM2012.410.LSR",
+    hentet_dato = "2026-07-30"
 )
 
 = ebl_par6c_afg10051 = EblGenanbringelseKildeInfo(
@@ -286,7 +298,9 @@ eller nybygningen med fortjenesten.
         Source(value = ebl_genanbringelse_lbk132),
         DependencySource(value = afskrivningsloven_lbk1222),
         Guidance(value = ebl_par10_anden_ejendom_vejledning_2026),
+        Guidance(value = ebl_par10_boligbenyttelse_vejledning_2026),
         Guidance(value = ebl_par10_klassifikationsskifte_vejledning_2026),
+        Practice(value = ebl_par10_stk9_skm2012_410_lsr),
     )
 )
 
@@ -376,12 +390,14 @@ afskrivningslovens § 24 samtidig anvendes.
 # EblPar10Fristforhold = EblPar10UdenFristforlængelse | EblPar10FristforlængelseTilladt(til_indkomstår: Heltal)
 # EblPar10Meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2 | EblPar10BegæringEfterAnsættelsesændring(meddelelse_modtaget: EblDato, begæring_indgivet: EblDato) | EblPar10MeddelelseForSen
 # EblPar10AndenEjendomsgrund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested | EblPar10SammeEjersErhvervsejendommeUdgørDriftsenhed
-# EblPar10Genopførelsesejendom(identifikation: Tekst, genopførelsesudgifter_kroner: Heltal)
+# EblPar10Ejerboliganvendelse = EblPar10IngenEjerboliganvendelse | EblPar10ErhvervserstatningAnvendtTilEjerbolig(ejerbolig_genopførelsesudgifter_kroner: Heltal, erhvervserstatning_anvendt_kroner: Heltal, reguleret_anskaffelsessum_for_skaderamt_del_kroner: Heltal, ejerbolig_tjener_til_bolig_fra_indkomstår: Heltal)
+# EblPar10Genopførelsesejendom(identifikation: Tekst, erhvervsmæssige_genopførelsesudgifter_kroner: Heltal, ejerboliganvendelse: EblPar10Ejerboliganvendelse)
 # EblPar10Genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom: EblPar10Genopførelsesejendom) | EblPar10GenopførelsePåAndreEjendomme(grund: EblPar10AndenEjendomsgrund, meddelelse: EblPar10Meddelelse, ejendomme: List(EblPar10Genopførelsesejendom))
 # EblPar10AfskrivningsaktivTilknytning(aktiv_identifikation: Tekst, ejendomsidentifikation: Tekst)
 # EblPar10Afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger | EblPar10AfskrivningsberettigedeBygninger(par24_input: Afskrivningslov24Input, aktivtilknytninger: List(EblPar10AfskrivningsaktivTilknytning))
-# EblPar10Fakta(skadedato: EblDato, erstatningssum_endeligt_fastsat_indkomstår: Heltal, genopførelsesindkomstår: Heltal, skadelidt_ejendom_omfattet_af_par8: Boolsk, erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner: Heltal, reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner: Heltal, genopførelsessted: EblPar10Genopførelsessted, fristforhold: EblPar10Fristforhold, erhvervserstatning_anvendt_til_ejerbolig_kroner: Heltal, afskrivningsforhold: EblPar10Afskrivningsforhold, regulering: EblGenanbragtFortjenesteregulering)
-# EblPar10AfskrivningssamordningsResultat(afskrivningsberettigede_bygninger: Boolsk, samordning_gyldig: Boolsk, samtidig_anvendelse: Boolsk, ebl_par10_resultat: EblGenanbringelsesResultat, par21_resultat_før_samordning: Option(Afskrivningslov21Resultat), par21_resultat_efter_samordning: Option(Afskrivningslov21Resultat), par24_kandidatresultat: Option(Afskrivningslov24KandidatResultat), par24_resultat: Option(Afskrivningslov24Resultat))
+# EblPar10Fakta(skadedato: EblDato, erstatningssum_endeligt_fastsat_indkomstår: Heltal, genopførelsesindkomstår: Heltal, skadelidt_ejendom_omfattet_af_par8: Boolsk, erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner: Heltal, reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner: Heltal, genopførelsessted: EblPar10Genopførelsessted, fristforhold: EblPar10Fristforhold, afskrivningsforhold: EblPar10Afskrivningsforhold, regulering: EblGenanbragtFortjenesteregulering)
+# EblPar10Resultat(fakta: EblPar10Fakta, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, erhvervsmæssige_genopførelsesudgifter_kroner: Heltal, ejerbolig_genopførelsesudgifter_kroner: Heltal, erhvervserstatning_anvendt_til_ejerbolig_kroner: Heltal, reguleret_anskaffelsessum_henført_til_ejerbolig_kroner: Heltal, ordinær_erhvervserstatning_efter_stk9_kroner: Heltal, ordinær_reguleret_anskaffelsessum_efter_stk9_kroner: Heltal, medregningsindkomstår_efter_stk9: Heltal, skattepligtig_erstatningssum_efter_stk9_kroner: Heltal, ordinært_straks_beskattet_indkomstår: Heltal, genanbringelsesresultat: EblGenanbringelsesResultat)
+# EblPar10AfskrivningssamordningsResultat(afskrivningsberettigede_bygninger: Boolsk, samordning_gyldig: Boolsk, samtidig_anvendelse: Boolsk, ebl_par10_resultat: EblPar10Resultat, par21_resultat_før_samordning: Option(Afskrivningslov21Resultat), par21_resultat_efter_samordning: Option(Afskrivningslov21Resultat), par24_kandidatresultat: Option(Afskrivningslov24KandidatResultat), par24_resultat: Option(Afskrivningslov24Resultat))
 # EblPar10Ejendomsfordeling(ejendomsidentifikation: Tekst, genopførelsesudgifter_kroner: Heltal, fordelingsandel_tæller_kroner: Heltal, fordelingsandel_nævner_kroner: Heltal, overført_anskaffelsessum_efter_stk8_kroner: Heltal, tillæg_til_anskaffelsessum_efter_stk7_kroner: Heltal, oprindelig_erhvervsfortjeneste_kroner: Heltal, genanbragt_fortjeneste_kroner: Heltal, straks_beskattet_fortjeneste_kroner: Heltal, aktivt_anskaffelsessumsnedslag_kroner: Heltal, skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner: Heltal)
 # EblPar10Fordelingstilstand(samlede_genopførelsesudgifter_kroner: Heltal, resterende_genopførelsesudgifter_kroner: Heltal, resterende_overført_anskaffelsessum_efter_stk8_kroner: Heltal, resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner: Heltal, resterende_oprindelig_erhvervsfortjeneste_kroner: Heltal, resterende_genanbragt_fortjeneste_kroner: Heltal, resterende_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner: Heltal, fordelinger: List(EblPar10Ejendomsfordeling))
 # EblPar10FordelingsResultat(input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, afskrivningsforhold_afstemt: Boolsk, betingelser_opfyldt: Boolsk, samlede_genopførelsesudgifter_kroner: Heltal, overført_anskaffelsessum_efter_stk8_i_alt_kroner: Heltal, tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner: Heltal, fordelinger: List(EblPar10Ejendomsfordeling), fordelinger_afstemmer: Boolsk)
@@ -400,7 +416,37 @@ afskrivningslovens § 24 samtidig anvendes.
     | EblPar10GenopførelsePåAndreEjendomme(_, _, ejendomme) -> ejendomme
 }
 | ebl_par10_ejendomsidentifikation_antal(ejendomme: List(EblPar10Genopførelsesejendom), identifikation: Tekst) -> foldl(ejendomme, 0, |antal: Heltal, ejendom: EblPar10Genopførelsesejendom| antal + hvis ejendom.identifikation == identifikation { 1 } ellers { 0 })
-| ebl_par10_genopførelsesejendomme_gyldige(ejendomme: List(EblPar10Genopførelsesejendom)) -> length(ejendomme) > 0 && all(ejendomme, |ejendom: EblPar10Genopførelsesejendom| ejendom.identifikation != "" && ejendom.genopførelsesudgifter_kroner > 0 && ebl_par10_ejendomsidentifikation_antal(ejendomme, ejendom.identifikation) == 1)
+| ebl_par10_ejerbolig_genopførelsesudgifter_kroner(ejendom: EblPar10Genopførelsesejendom) -> match ejendom.ejerboliganvendelse {
+    | EblPar10IngenEjerboliganvendelse -> 0
+    | EblPar10ErhvervserstatningAnvendtTilEjerbolig(ejerbolig_genopførelsesudgifter_kroner, _, _, _) -> ejerbolig_genopførelsesudgifter_kroner
+}
+| ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_kroner_for_ejendom(ejendom: EblPar10Genopførelsesejendom) -> match ejendom.ejerboliganvendelse {
+    | EblPar10IngenEjerboliganvendelse -> 0
+    | EblPar10ErhvervserstatningAnvendtTilEjerbolig(_, erhvervserstatning_anvendt_kroner, _, _) -> erhvervserstatning_anvendt_kroner
+}
+| ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_kroner_for_ejendom(ejendom: EblPar10Genopførelsesejendom) -> match ejendom.ejerboliganvendelse {
+    | EblPar10IngenEjerboliganvendelse -> 0
+    | EblPar10ErhvervserstatningAnvendtTilEjerbolig(_, _, reguleret_anskaffelsessum_for_skaderamt_del_kroner, _) -> reguleret_anskaffelsessum_for_skaderamt_del_kroner
+}
+| ebl_par10_ejerbolig_tjener_til_bolig_fra_indkomstår(ejendom: EblPar10Genopførelsesejendom) -> match ejendom.ejerboliganvendelse {
+    | EblPar10IngenEjerboliganvendelse -> 0
+    | EblPar10ErhvervserstatningAnvendtTilEjerbolig(_, _, _, ejerbolig_tjener_til_bolig_fra_indkomstår) -> ejerbolig_tjener_til_bolig_fra_indkomstår
+}
+| ebl_par10_ejerboliganvendelse_gyldig(anvendelse: EblPar10Ejerboliganvendelse) -> match anvendelse {
+    | EblPar10IngenEjerboliganvendelse -> Sandt
+    | EblPar10ErhvervserstatningAnvendtTilEjerbolig(ejerbolig_genopførelsesudgifter_kroner, erhvervserstatning_anvendt_kroner, reguleret_anskaffelsessum_for_skaderamt_del_kroner, ejerbolig_tjener_til_bolig_fra_indkomstår) -> ejerbolig_genopførelsesudgifter_kroner > 0 && erhvervserstatning_anvendt_kroner > 0 && erhvervserstatning_anvendt_kroner <= ejerbolig_genopførelsesudgifter_kroner && reguleret_anskaffelsessum_for_skaderamt_del_kroner >= 0 && ejerbolig_tjener_til_bolig_fra_indkomstår > 0
+}
+| ebl_par10_samlede_genopførelsesudgifter_for_ejendom_kroner(ejendom: EblPar10Genopførelsesejendom) -> ejendom.erhvervsmæssige_genopførelsesudgifter_kroner + ebl_par10_ejerbolig_genopførelsesudgifter_kroner(ejendom)
+| ebl_par10_genopførelsesejendomme_gyldige(ejendomme: List(EblPar10Genopførelsesejendom)) -> length(ejendomme) > 0 && all(ejendomme, |ejendom: EblPar10Genopførelsesejendom| ejendom.identifikation != "" && ejendom.erhvervsmæssige_genopførelsesudgifter_kroner >= 0 && ebl_par10_ejerboliganvendelse_gyldig(ejendom.ejerboliganvendelse) && ebl_par10_samlede_genopførelsesudgifter_for_ejendom_kroner(ejendom) > 0 && ebl_par10_ejendomsidentifikation_antal(ejendomme, ejendom.identifikation) == 1)
+| ebl_par10_erhvervsejendomme(fakta: EblPar10Fakta) -> filter(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), |ejendom: EblPar10Genopførelsesejendom| ejendom.erhvervsmæssige_genopførelsesudgifter_kroner > 0)
+| ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta: EblPar10Fakta) -> foldl(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), 0, |sum: Heltal, ejendom: EblPar10Genopførelsesejendom| sum + ejendom.erhvervsmæssige_genopførelsesudgifter_kroner)
+| ebl_par10_ejerbolig_genopførelsesudgifter_i_alt_kroner(fakta: EblPar10Fakta) -> foldl(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), 0, |sum: Heltal, ejendom: EblPar10Genopførelsesejendom| sum + ebl_par10_ejerbolig_genopførelsesudgifter_kroner(ejendom))
+| ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_i_alt_kroner(fakta: EblPar10Fakta) -> foldl(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), 0, |sum: Heltal, ejendom: EblPar10Genopførelsesejendom| sum + ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_kroner_for_ejendom(ejendom))
+| ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_i_alt_kroner(fakta: EblPar10Fakta) -> foldl(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), 0, |sum: Heltal, ejendom: EblPar10Genopførelsesejendom| sum + ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_kroner_for_ejendom(ejendom))
+| ebl_par10_samlede_genopførelsesudgifter_kroner(fakta: EblPar10Fakta) -> ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta) + ebl_par10_ejerbolig_genopførelsesudgifter_i_alt_kroner(fakta)
+| ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner - ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_i_alt_kroner(fakta))
+| ebl_par10_ordinær_reguleret_anskaffelsessum_efter_stk9_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner - ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_i_alt_kroner(fakta))
+| ebl_par10_stk9_anvendelsesår_understøttet(fakta: EblPar10Fakta) -> all(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), |ejendom: EblPar10Genopførelsesejendom| ebl_par10_ejerbolig_tjener_til_bolig_fra_indkomstår(ejendom) == 0 || ebl_par10_ejerbolig_tjener_til_bolig_fra_indkomstår(ejendom) == fakta.genopførelsesindkomstår)
 | ebl_par10_afskrivningsaktiv_antal(aktiver: List(Afskrivningslov24GenopførtAktiv), identifikation: Tekst) -> foldl(aktiver, 0, |antal: Heltal, aktiv: Afskrivningslov24GenopførtAktiv| antal + hvis aktiv.identifikation == identifikation { 1 } ellers { 0 })
 | ebl_par10_aktivtilknytning_antal(tilknytninger: List(EblPar10AfskrivningsaktivTilknytning), aktiv_identifikation: Tekst) -> foldl(tilknytninger, 0, |antal: Heltal, tilknytning: EblPar10AfskrivningsaktivTilknytning| antal + hvis tilknytning.aktiv_identifikation == aktiv_identifikation { 1 } ellers { 0 })
 | ebl_par10_tilknyttede_afskrivningsudgifter_kroner(aktiver: List(Afskrivningslov24GenopførtAktiv), tilknytninger: List(EblPar10AfskrivningsaktivTilknytning), ejendomsidentifikation: Tekst) -> foldl(aktiver, 0, |sum: Heltal, aktiv: Afskrivningslov24GenopførtAktiv| sum + hvis any(tilknytninger, |tilknytning: EblPar10AfskrivningsaktivTilknytning| tilknytning.aktiv_identifikation == aktiv.identifikation && tilknytning.ejendomsidentifikation == ejendomsidentifikation) { aktiv.genopførelsesudgift_kroner } ellers { 0 })
@@ -414,13 +460,13 @@ afskrivningslovens § 24 samtidig anvendes.
 | ebl_par10_afskrivningsaktiver_tilknyttet_gyldigt(fakta: EblPar10Fakta, par24_input: Afskrivningslov24Input, tilknytninger: List(EblPar10AfskrivningsaktivTilknytning)) -> {
     = ejendomme = ebl_par10_genopførelsesejendomme(fakta.genopførelsessted)
     = aktiver = par24_input.genopførte_aktiver
-    length(tilknytninger) == length(aktiver) && all(aktiver, |aktiv: Afskrivningslov24GenopførtAktiv| aktiv.identifikation != "" && ebl_par10_afskrivningsaktiv_antal(aktiver, aktiv.identifikation) == 1 && ebl_par10_aktivtilknytning_antal(tilknytninger, aktiv.identifikation) == 1) && all(tilknytninger, |tilknytning: EblPar10AfskrivningsaktivTilknytning| tilknytning.aktiv_identifikation != "" && tilknytning.ejendomsidentifikation != "" && ebl_par10_afskrivningsaktiv_antal(aktiver, tilknytning.aktiv_identifikation) == 1 && ebl_par10_ejendomsidentifikation_antal(ejendomme, tilknytning.ejendomsidentifikation) == 1) && all(ejendomme, |ejendom: EblPar10Genopførelsesejendom| ebl_par10_tilknyttede_afskrivningsudgifter_kroner(aktiver, tilknytninger, ejendom.identifikation) <= ejendom.genopførelsesudgifter_kroner)
+    length(tilknytninger) == length(aktiver) && all(aktiver, |aktiv: Afskrivningslov24GenopførtAktiv| aktiv.identifikation != "" && ebl_par10_afskrivningsaktiv_antal(aktiver, aktiv.identifikation) == 1 && ebl_par10_aktivtilknytning_antal(tilknytninger, aktiv.identifikation) == 1) && all(tilknytninger, |tilknytning: EblPar10AfskrivningsaktivTilknytning| tilknytning.aktiv_identifikation != "" && tilknytning.ejendomsidentifikation != "" && ebl_par10_afskrivningsaktiv_antal(aktiver, tilknytning.aktiv_identifikation) == 1 && ebl_par10_ejendomsidentifikation_antal(ejendomme, tilknytning.ejendomsidentifikation) == 1) && all(ejendomme, |ejendom: EblPar10Genopførelsesejendom| ebl_par10_tilknyttede_afskrivningsudgifter_kroner(aktiver, tilknytninger, ejendom.identifikation) <= ejendom.erhvervsmæssige_genopførelsesudgifter_kroner)
 }
 | ebl_par10_afskrivningsforhold_afstemt(fakta: EblPar10Fakta) -> match fakta.afskrivningsforhold {
     | EblPar10IngenAfskrivningsberettigedeBygninger -> Sandt
     | EblPar10AfskrivningsberettigedeBygninger(par24_input, aktivtilknytninger) -> {
         = par24_kandidat = afskrivningslov24_kandidatresultat(par24_input)
-        par24_kandidat.betingelser_før_stk10_opfyldt && par24_input.skadeår == fakta.skadedato.år && par24_input.erstatningssum_endeligt_fastsat_år == fakta.erstatningssum_endeligt_fastsat_indkomstår && par24_input.genopførelsesår == fakta.genopførelsesindkomstår && par24_input.modtaget_erstatnings_eller_forsikringssum_kroner <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_afskrivningsplacering_afstemt(fakta.genopførelsessted, par24_input.placering) && ebl_par10_afskrivningsaktiver_tilknyttet_gyldigt(fakta, par24_input, aktivtilknytninger)
+        par24_kandidat.betingelser_før_stk10_opfyldt && par24_input.skadeår == fakta.skadedato.år && par24_input.erstatningssum_endeligt_fastsat_år == fakta.erstatningssum_endeligt_fastsat_indkomstår && par24_input.genopførelsesår == fakta.genopførelsesindkomstår && par24_input.modtaget_erstatnings_eller_forsikringssum_kroner <= ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta) && ebl_par10_afskrivningsplacering_afstemt(fakta.genopførelsessted, par24_input.placering) && ebl_par10_afskrivningsaktiver_tilknyttet_gyldigt(fakta, par24_input, aktivtilknytninger)
     }
 }
 | ebl_par10_genopførelse_på_anden_ejendom(sted: EblPar10Genopførelsessted) -> match sted {
@@ -431,8 +477,8 @@ afskrivningslovens § 24 samtidig anvendes.
     | EblPar10GenopførelsePåSammeEjendom(ejendom) -> ebl_par10_genopførelsesejendomme_gyldige([ejendom])
     | EblPar10GenopførelsePåAndreEjendomme(_, meddelelse, ejendomme) -> ebl_par10_meddelelse_gyldig(meddelelse) && ebl_par10_genopførelsesejendomme_gyldige(ejendomme)
 }
-| ebl_par10_genopførelsesudgifter_kroner(fakta: EblPar10Fakta) -> foldl(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), 0, |sum: Heltal, ejendom: EblPar10Genopførelsesejendom| sum + ejendom.genopførelsesudgifter_kroner)
-| ebl_par10_regelgrundlag_understøttet(fakta: EblPar10Fakta) -> fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner == 0
+| ebl_par10_genopførelsesudgifter_kroner(fakta: EblPar10Fakta) -> ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta)
+| ebl_par10_regelgrundlag_understøttet(fakta: EblPar10Fakta) -> ebl_par10_stk9_anvendelsesår_understøttet(fakta)
 | ebl_par10_ordinær_sidste_genopførelsesår(fakta: EblPar10Fakta) -> penge_største_beløb(fakta.skadedato.år + 1, fakta.erstatningssum_endeligt_fastsat_indkomstår + 1)
 | ebl_par10_sidste_genopførelsesår(fakta: EblPar10Fakta) -> match fakta.fristforhold {
     | EblPar10UdenFristforlængelse -> ebl_par10_ordinær_sidste_genopførelsesår(fakta)
@@ -444,13 +490,14 @@ afskrivningslovens § 24 samtidig anvendes.
 }
 | ebl_par10_genopførelsessted_betingelser_opfyldt(fakta: EblPar10Fakta) -> match fakta.genopførelsessted {
     | EblPar10GenopførelsePåSammeEjendom(_) -> Sandt
-    | EblPar10GenopførelsePåAndreEjendomme(_, meddelelse, _) -> ebl_par10_genopførelsesudgifter_kroner(fakta) >= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_meddelelse_rettidig(meddelelse)
+    | EblPar10GenopførelsePåAndreEjendomme(_, meddelelse, _) -> ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta) >= ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta) && ebl_par10_meddelelse_rettidig(meddelelse)
 }
-| ebl_par10_grundinput_gyldigt(fakta: EblPar10Fakta) -> ebl_dato_gyldig(fakta.skadedato) && fakta.erstatningssum_endeligt_fastsat_indkomstår >= fakta.skadedato.år && fakta.genopførelsesindkomstår >= fakta.skadedato.år && fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner >= 0 && fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner >= 0 && ebl_par10_genopførelsessted_gyldigt(fakta.genopførelsessted) && ebl_par10_genopførelsesudgifter_kroner(fakta) > 0 && fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner >= 0 && fakta.erhvervserstatning_anvendt_til_ejerbolig_kroner <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_fristforhold_gyldigt(fakta) && ebl_par10_afskrivningsforhold_afstemt(fakta)
-| ebl_par10_betingelser_opfyldt(fakta: EblPar10Fakta) -> ebl_par10_grundinput_gyldigt(fakta) && ebl_par10_regelgrundlag_understøttet(fakta) && fakta.skadelidt_ejendom_omfattet_af_par8 == Falskt && fakta.genopførelsesindkomstår <= ebl_par10_sidste_genopførelsesår(fakta) && ebl_par10_genopførelsessted_betingelser_opfyldt(fakta)
-| ebl_par10_oprindelig_erhvervsfortjeneste_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner - fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner)
-| ebl_par10_overskydende_forskelsbeløb_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner - ebl_par10_genopførelsesudgifter_kroner(fakta) - fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner)
-| ebl_par10_resultat(fakta: EblPar10Fakta) -> {
+| ebl_par10_ejerboligår_gyldige(fakta: EblPar10Fakta) -> all(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), |ejendom: EblPar10Genopførelsesejendom| ebl_par10_ejerbolig_tjener_til_bolig_fra_indkomstår(ejendom) == 0 || ebl_par10_ejerbolig_tjener_til_bolig_fra_indkomstår(ejendom) >= fakta.skadedato.år)
+| ebl_par10_grundinput_gyldigt(fakta: EblPar10Fakta) -> ebl_dato_gyldig(fakta.skadedato) && fakta.erstatningssum_endeligt_fastsat_indkomstår >= fakta.skadedato.år && fakta.genopførelsesindkomstår >= fakta.skadedato.år && fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner >= 0 && fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner >= 0 && ebl_par10_genopførelsessted_gyldigt(fakta.genopførelsessted) && ebl_par10_samlede_genopførelsesudgifter_kroner(fakta) > 0 && ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_i_alt_kroner(fakta) <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_i_alt_kroner(fakta) <= fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner && ebl_par10_ejerboligår_gyldige(fakta) && ebl_par10_fristforhold_gyldigt(fakta) && ebl_par10_afskrivningsforhold_afstemt(fakta)
+| ebl_par10_betingelser_opfyldt(fakta: EblPar10Fakta) -> ebl_par10_grundinput_gyldigt(fakta) && ebl_par10_regelgrundlag_understøttet(fakta) && fakta.skadelidt_ejendom_omfattet_af_par8 == Falskt && ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta) > 0 && ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta) > 0 && fakta.genopførelsesindkomstår <= ebl_par10_sidste_genopførelsesår(fakta) && ebl_par10_genopførelsessted_betingelser_opfyldt(fakta)
+| ebl_par10_oprindelig_erhvervsfortjeneste_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta) - ebl_par10_ordinær_reguleret_anskaffelsessum_efter_stk9_kroner(fakta))
+| ebl_par10_overskydende_forskelsbeløb_kroner(fakta: EblPar10Fakta) -> penge_positivt_beløb(ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta) - ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta) - ebl_par10_ordinær_reguleret_anskaffelsessum_efter_stk9_kroner(fakta))
+| ebl_par10_genanbringelsesresultat(fakta: EblPar10Fakta) -> {
     = grundinput_gyldigt = ebl_par10_grundinput_gyldigt(fakta)
     = regelgrundlag_understøttet = ebl_par10_regelgrundlag_understøttet(fakta)
     = betingelser_opfyldt_før_regulering = ebl_par10_betingelser_opfyldt(fakta)
@@ -473,6 +520,29 @@ afskrivningslovens § 24 samtidig anvendes.
         skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = hvis genanbragt_fortjeneste_kroner > 0 { ebl_genanbragt_skattepligtig_fortjeneste_kroner(genanbragt_fortjeneste_kroner, fakta.regulering) } ellers { 0 }
     )
 }
+| ebl_par10_resultat(fakta: EblPar10Fakta) -> {
+    = genanbringelsesresultat = ebl_par10_genanbringelsesresultat(fakta)
+    = erhvervserstatning_anvendt_til_ejerbolig_kroner = ebl_par10_erhvervserstatning_anvendt_til_ejerbolig_i_alt_kroner(fakta)
+    = stk9_finder_anvendelse = genanbringelsesresultat.input_gyldigt && genanbringelsesresultat.regelgrundlag_understøttet && fakta.skadelidt_ejendom_omfattet_af_par8 == Falskt && erhvervserstatning_anvendt_til_ejerbolig_kroner > 0
+    = ordinært_straks_beskattet_indkomstår = hvis genanbringelsesresultat.straks_beskattet_fortjeneste_kroner > 0 { hvis genanbringelsesresultat.betingelser_opfyldt { ebl_par10_sidste_genopførelsesår(fakta) } ellers { fakta.skadedato.år } } ellers { 0 }
+    EblPar10Resultat(
+        fakta = fakta,
+        input_gyldigt = genanbringelsesresultat.input_gyldigt,
+        regelgrundlag_understøttet = genanbringelsesresultat.regelgrundlag_understøttet,
+        erhvervsmæssige_genopførelsesudgifter_kroner = ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta),
+        ejerbolig_genopførelsesudgifter_kroner = ebl_par10_ejerbolig_genopførelsesudgifter_i_alt_kroner(fakta),
+        erhvervserstatning_anvendt_til_ejerbolig_kroner = erhvervserstatning_anvendt_til_ejerbolig_kroner,
+        reguleret_anskaffelsessum_henført_til_ejerbolig_kroner = ebl_par10_reguleret_anskaffelsessum_henført_til_ejerbolig_i_alt_kroner(fakta),
+        ordinær_erhvervserstatning_efter_stk9_kroner = ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta),
+        ordinær_reguleret_anskaffelsessum_efter_stk9_kroner = ebl_par10_ordinær_reguleret_anskaffelsessum_efter_stk9_kroner(fakta),
+        medregningsindkomstår_efter_stk9 = hvis stk9_finder_anvendelse { fakta.genopførelsesindkomstår } ellers { 0 },
+        skattepligtig_erstatningssum_efter_stk9_kroner = hvis stk9_finder_anvendelse { erhvervserstatning_anvendt_til_ejerbolig_kroner } ellers { 0 },
+        ordinært_straks_beskattet_indkomstår = ordinært_straks_beskattet_indkomstår,
+        genanbringelsesresultat = genanbringelsesresultat
+    )
+}
+| ebl_par10_ordinær_fortjeneste_i_indkomstår_kroner(resultat: EblPar10Resultat, indkomstår: Heltal) -> hvis resultat.ordinært_straks_beskattet_indkomstår == indkomstår { resultat.genanbringelsesresultat.straks_beskattet_fortjeneste_kroner } ellers { 0 }
+| ebl_par10_stk9_erstatningssum_i_indkomstår_kroner(resultat: EblPar10Resultat, indkomstår: Heltal) -> hvis resultat.medregningsindkomstår_efter_stk9 == indkomstår { resultat.skattepligtig_erstatningssum_efter_stk9_kroner } ellers { 0 }
 
 | ebl_par10_afskrivningssamordningsresultat(fakta: EblPar10Fakta) -> match fakta.afskrivningsforhold {
     | EblPar10IngenAfskrivningsberettigedeBygninger -> {
@@ -492,7 +562,7 @@ afskrivningslovens § 24 samtidig anvendes.
         = par21_før = par24_input.par21_forsikringsresultat
         = kandidat = afskrivningslov24_kandidatresultat(par24_input)
         = ebl_resultat = ebl_par10_resultat(fakta)
-        = samtidig_anvendelse = kandidat.betingelser_før_stk10_opfyldt && ebl_resultat.betingelser_opfyldt
+        = samtidig_anvendelse = kandidat.betingelser_før_stk10_opfyldt && ebl_resultat.genanbringelsesresultat.betingelser_opfyldt
         = par21_efter = Afskrivningslov21Resultat(
             indkomstår = par21_før.indkomstår,
             skatteyder = par21_før.skatteyder,
@@ -558,22 +628,22 @@ afskrivningslovens § 24 samtidig anvendes.
     }
 }
 
-| ebl_par10_overført_anskaffelsessum_efter_stk8_i_alt_kroner(fakta: EblPar10Fakta) -> hvis ebl_par10_genopførelse_på_anden_ejendom(fakta.genopførelsessted) { fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner } ellers { 0 }
-| ebl_par10_tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner(fakta: EblPar10Fakta) -> hvis ebl_par10_genopførelse_på_anden_ejendom(fakta.genopførelsessted) { penge_positivt_beløb(ebl_par10_genopførelsesudgifter_kroner(fakta) - fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner) } ellers { 0 }
+| ebl_par10_overført_anskaffelsessum_efter_stk8_i_alt_kroner(fakta: EblPar10Fakta) -> hvis ebl_par10_genopførelse_på_anden_ejendom(fakta.genopførelsessted) { ebl_par10_ordinær_reguleret_anskaffelsessum_efter_stk9_kroner(fakta) } ellers { 0 }
+| ebl_par10_tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner(fakta: EblPar10Fakta) -> hvis ebl_par10_genopførelse_på_anden_ejendom(fakta.genopførelsessted) { penge_positivt_beløb(ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta) - ebl_par10_ordinær_erhvervserstatning_efter_stk9_kroner(fakta)) } ellers { 0 }
 | ebl_par10_resterende_forholdsfordeling_kroner(resterende_beløb_kroner: Heltal, ejendommens_genopførelsesudgifter_kroner: Heltal, resterende_genopførelsesudgifter_kroner: Heltal) -> hvis resterende_beløb_kroner <= 0 || ejendommens_genopførelsesudgifter_kroner <= 0 || resterende_genopførelsesudgifter_kroner <= 0 { 0 } ellers { hvis ejendommens_genopførelsesudgifter_kroner == resterende_genopførelsesudgifter_kroner { resterende_beløb_kroner } ellers { resterende_beløb_kroner * ejendommens_genopførelsesudgifter_kroner / resterende_genopførelsesudgifter_kroner } }
 
 # EblPar10FordelingstrinSag(tilstand: EblPar10Fordelingstilstand, ejendom: EblPar10Genopførelsesejendom) {
-    | overført_anskaffelsessum_efter_stk8_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_overført_anskaffelsessum_efter_stk8_kroner, ejendom.genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
-    | tillæg_til_anskaffelsessum_efter_stk7_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner, ejendom.genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
-    | oprindelig_erhvervsfortjeneste_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_oprindelig_erhvervsfortjeneste_kroner, ejendom.genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
-    | genanbragt_fortjeneste_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_genanbragt_fortjeneste_kroner, ejendom.genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
+    | overført_anskaffelsessum_efter_stk8_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_overført_anskaffelsessum_efter_stk8_kroner, ejendom.erhvervsmæssige_genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
+    | tillæg_til_anskaffelsessum_efter_stk7_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner, ejendom.erhvervsmæssige_genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
+    | oprindelig_erhvervsfortjeneste_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_oprindelig_erhvervsfortjeneste_kroner, ejendom.erhvervsmæssige_genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
+    | genanbragt_fortjeneste_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_genanbragt_fortjeneste_kroner, ejendom.erhvervsmæssige_genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
     | straks_beskattet_fortjeneste_kroner() -> oprindelig_erhvervsfortjeneste_kroner() - genanbragt_fortjeneste_kroner()
     | aktivt_anskaffelsessumsnedslag_kroner() -> genanbragt_fortjeneste_kroner()
-    | skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner, ejendom.genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
+    | skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner() -> ebl_par10_resterende_forholdsfordeling_kroner(tilstand.resterende_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner, ejendom.erhvervsmæssige_genopførelsesudgifter_kroner, tilstand.resterende_genopførelsesudgifter_kroner)
     | ejendomsfordeling() -> EblPar10Ejendomsfordeling(
         ejendomsidentifikation = ejendom.identifikation,
-        genopførelsesudgifter_kroner = ejendom.genopførelsesudgifter_kroner,
-        fordelingsandel_tæller_kroner = ejendom.genopførelsesudgifter_kroner,
+        genopførelsesudgifter_kroner = ejendom.erhvervsmæssige_genopførelsesudgifter_kroner,
+        fordelingsandel_tæller_kroner = ejendom.erhvervsmæssige_genopførelsesudgifter_kroner,
         fordelingsandel_nævner_kroner = tilstand.samlede_genopførelsesudgifter_kroner,
         overført_anskaffelsessum_efter_stk8_kroner = overført_anskaffelsessum_efter_stk8_kroner(),
         tillæg_til_anskaffelsessum_efter_stk7_kroner = tillæg_til_anskaffelsessum_efter_stk7_kroner(),
@@ -585,7 +655,7 @@ afskrivningslovens § 24 samtidig anvendes.
     )
     | resultat() -> EblPar10Fordelingstilstand(
         samlede_genopførelsesudgifter_kroner = tilstand.samlede_genopførelsesudgifter_kroner,
-        resterende_genopførelsesudgifter_kroner = tilstand.resterende_genopførelsesudgifter_kroner - ejendom.genopførelsesudgifter_kroner,
+        resterende_genopførelsesudgifter_kroner = tilstand.resterende_genopførelsesudgifter_kroner - ejendom.erhvervsmæssige_genopførelsesudgifter_kroner,
         resterende_overført_anskaffelsessum_efter_stk8_kroner = tilstand.resterende_overført_anskaffelsessum_efter_stk8_kroner - overført_anskaffelsessum_efter_stk8_kroner(),
         resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner = tilstand.resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner - tillæg_til_anskaffelsessum_efter_stk7_kroner(),
         resterende_oprindelig_erhvervsfortjeneste_kroner = tilstand.resterende_oprindelig_erhvervsfortjeneste_kroner - oprindelig_erhvervsfortjeneste_kroner(),
@@ -596,8 +666,8 @@ afskrivningslovens § 24 samtidig anvendes.
 }
 
 | ebl_par10_fordeling_initial(fakta: EblPar10Fakta, genanbringelsesresultat: EblGenanbringelsesResultat) -> EblPar10Fordelingstilstand(
-    samlede_genopførelsesudgifter_kroner = ebl_par10_genopførelsesudgifter_kroner(fakta),
-    resterende_genopførelsesudgifter_kroner = ebl_par10_genopførelsesudgifter_kroner(fakta),
+    samlede_genopførelsesudgifter_kroner = ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta),
+    resterende_genopførelsesudgifter_kroner = ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta),
     resterende_overført_anskaffelsessum_efter_stk8_kroner = ebl_par10_overført_anskaffelsessum_efter_stk8_i_alt_kroner(fakta),
     resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner = ebl_par10_tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner(fakta),
     resterende_oprindelig_erhvervsfortjeneste_kroner = genanbringelsesresultat.oprindelig_erhvervsfortjeneste_kroner,
@@ -608,8 +678,8 @@ afskrivningslovens § 24 samtidig anvendes.
 | ebl_par10_fordelingstrin(tilstand: EblPar10Fordelingstilstand, ejendom: EblPar10Genopførelsesejendom) -> EblPar10FordelingstrinSag(tilstand, ejendom).resultat()
 
 # EblPar10FordelingsSag(fakta: EblPar10Fakta) {
-    | genanbringelsesresultat() -> ebl_par10_resultat(fakta)
-    | ejendomme() -> ebl_par10_genopførelsesejendomme(fakta.genopførelsessted)
+    | genanbringelsesresultat() -> ebl_par10_genanbringelsesresultat(fakta)
+    | ejendomme() -> ebl_par10_erhvervsejendomme(fakta)
     | initial() -> ebl_par10_fordeling_initial(fakta, genanbringelsesresultat())
     | sluttilstand() -> hvis genanbringelsesresultat().betingelser_opfyldt { foldl(ejendomme(), initial(), ebl_par10_fordelingstrin) } ellers { initial() }
     | fordelinger() -> hvis genanbringelsesresultat().betingelser_opfyldt { sluttilstand().fordelinger } ellers { [] }
@@ -619,7 +689,7 @@ afskrivningslovens § 24 samtidig anvendes.
         regelgrundlag_understøttet = genanbringelsesresultat().regelgrundlag_understøttet,
         afskrivningsforhold_afstemt = ebl_par10_afskrivningsforhold_afstemt(fakta),
         betingelser_opfyldt = genanbringelsesresultat().betingelser_opfyldt,
-        samlede_genopførelsesudgifter_kroner = ebl_par10_genopførelsesudgifter_kroner(fakta),
+        samlede_genopførelsesudgifter_kroner = ebl_par10_erhvervsmæssige_genopførelsesudgifter_kroner(fakta),
         overført_anskaffelsessum_efter_stk8_i_alt_kroner = ebl_par10_overført_anskaffelsessum_efter_stk8_i_alt_kroner(fakta),
         tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner = ebl_par10_tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner(fakta),
         fordelinger = fordelinger(),
@@ -634,9 +704,9 @@ afskrivningslovens § 24 samtidig anvendes.
 | ebl_par10_fordelt_aktivt_anskaffelsessumsnedslag_kroner(fordelinger: List(EblPar10Ejendomsfordeling), ejendomsidentifikation: Tekst) -> foldl(fordelinger, 0, |sum: Heltal, fordeling: EblPar10Ejendomsfordeling| sum + hvis fordeling.ejendomsidentifikation == ejendomsidentifikation { fordeling.aktivt_anskaffelsessumsnedslag_kroner } ellers { 0 })
 | ebl_par10_fordelt_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner(fordelinger: List(EblPar10Ejendomsfordeling), ejendomsidentifikation: Tekst) -> foldl(fordelinger, 0, |sum: Heltal, fordeling: EblPar10Ejendomsfordeling| sum + hvis fordeling.ejendomsidentifikation == ejendomsidentifikation { fordeling.skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner } ellers { 0 })
 | ebl_par10_resultat_for_ejendom(fakta: EblPar10Fakta, ejendomsidentifikation: Tekst) -> {
-    = samlet_resultat = ebl_par10_resultat(fakta)
+    = samlet_resultat = ebl_par10_genanbringelsesresultat(fakta)
     = fordelingsresultat = ebl_par10_fordelingsresultat(fakta)
-    = ejendom_findes_præcis_en_gang = ebl_par10_ejendomsidentifikation_antal(ebl_par10_genopførelsesejendomme(fakta.genopførelsessted), ejendomsidentifikation) == 1
+    = ejendom_findes_præcis_en_gang = ebl_par10_ejendomsidentifikation_antal(ebl_par10_erhvervsejendomme(fakta), ejendomsidentifikation) == 1
     = input_gyldigt = samlet_resultat.input_gyldigt && ejendom_findes_præcis_en_gang
     = betingelser_opfyldt = samlet_resultat.betingelser_opfyldt && ejendom_findes_præcis_en_gang
     EblGenanbringelsesResultat(

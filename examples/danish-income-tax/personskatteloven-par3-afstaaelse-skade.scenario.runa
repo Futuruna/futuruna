@@ -164,10 +164,10 @@
     reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = 450000,
     genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = EblPar10Genopførelsesejendom(
         identifikation = "ejendom-a",
-        genopførelsesudgifter_kroner = 500000
+        erhvervsmæssige_genopførelsesudgifter_kroner = 500000,
+        ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
     )),
     fristforhold = EblPar10UdenFristforlængelse,
-    erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
     afskrivningsforhold = EblPar10AfskrivningsberettigedeBygninger(
         par24_input = par24_input,
         aktivtilknytninger = [EblPar10AfskrivningsaktivTilknytning(

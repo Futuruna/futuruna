@@ -5349,6 +5349,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "genanbringelse": { "$variant": "EblUdenAktivGenanbringelse" }
                     }
                 }],
+                "egne_skadegenopførelser": [],
                 "eget_fremført_tab": {
                     "$variant": "MedFremførtEjendomstab",
                     "fra_indkomstår": 2025,
@@ -5385,6 +5386,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "genanbringelse": { "$variant": "EblUdenAktivGenanbringelse" }
                     }
                 }],
+                "ægtefælles_skadegenopførelser": [],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": true
             }
@@ -5595,10 +5597,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         }
                     }
                 }],
+                "egne_skadegenopførelser": [],
                 "eget_fremført_tab": {
                     "$variant": "UdenFremførtEjendomstab"
                 },
                 "ægtefælles_afståelser": [],
+                "ægtefælles_skadegenopførelser": [],
                 "ægtefælles_fremførte_tab": {
                     "$variant": "UdenFremførtEjendomstab"
                 },
@@ -5737,8 +5741,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "genanbringelse": { "$variant": "EblUdenAktivGenanbringelse" }
                     }
                 }],
+                "egne_skadegenopførelser": [],
                 "eget_fremført_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "ægtefælles_afståelser": [],
+                "ægtefælles_skadegenopførelser": [],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": false
             }
@@ -5854,8 +5860,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         }
                     }
                 }],
+                "egne_skadegenopførelser": [],
                 "eget_fremført_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "ægtefælles_afståelser": [],
+                "ægtefælles_skadegenopførelser": [],
                 "ægtefælles_fremførte_tab": { "$variant": "UdenFremførtEjendomstab" },
                 "gift_samlevende_ved_indkomstårets_udgang": false
             }

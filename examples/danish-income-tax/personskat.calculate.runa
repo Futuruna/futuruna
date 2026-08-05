@@ -98,9 +98,10 @@
 # PersonskatEjendomsdriftResultat = IngenEjendomsdriftEfterPar4Nr6 | BeregnetEjendomsdriftEfterPar4Nr6(fakta: PersonskatEjendomsdriftFakta, ejendomsskattelov_input: EjendomsskattelovPar3Input, par4_input: Par4Stk1Nr6Input, par4_resultat: Par4Stk1Nr6Resultat)
 # PersonskatEjendomsavanceFremførsel = UdenFremførtEjendomstab | MedFremførtEjendomstab(fra_indkomstår: Heltal, tab_kroner: Heltal)
 # PersonskatEjendomsavanceFakta(identifikation: Tekst, afståelsesdato: EblDato, afståelse: EjendomsavancebeskatningslovAfståelse, erhvervet_som_led_i_næring: Boolsk, kontant_anskaffelsessum_kroner: Heltal, gæld_kursværdi_ved_anskaffelse_kroner: Heltal, par5_fakta: EblPar5Fakta, par4_stk8_anskaffelse_udeladt_kroner: Heltal, kontant_afståelsessum_kroner: Heltal, overdragne_gældsposter_kursværdi_kroner: Heltal, par4_stk8_afståelsesværdi_udeladt_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par11_stk2_valg: EblPar11Stk2Valg, par6d_valg: EblPar6DValg)
-# PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
+# PersonskatEjendomsavanceSkadefakta(identifikation: Tekst, par10_fakta: EblPar10Fakta)
+# PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), egne_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
-# PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
+# PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), egne_skadegenopførelsesresultater: List(EblPar10Resultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_skadegenopførelsesresultater: List(EblPar10Resultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
 # PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), øvrigt_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal)
 # PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
 # PersonskatKursgevinstResultat(input: PersonskatKursgevinstInput, input_gyldigt: Boolsk, sælgerpantebrevsresultater: List(KglEblPar6DSælgerpantebrevsresultat), årets_samlede_netto_efter_par14_kroner: Heltal, kursgevinstlov_resultater: List(KursgevinstlovResultat), kapitalposter: List(Par4Kapitalpost))
@@ -441,6 +442,468 @@
     question = Some("Har din ægtefælle afstået fast ejendom i indkomståret?"),
     help = Some("Oplysningerne bruges til den lovbestemte overførsel af ejendomstab mellem samlevende ægtefæller."),
     unit = None
+)
+= personskat_felt_egne_ejendomsskader = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser",
+    label = "Dine genopførelser efter ejendomsskade",
+    question = Some("Har du modtaget erstatning eller forsikring efter en ejendomsskade og foretaget genopførelse efter § 10?"),
+    help = Some("Tilføj ét forløb pr. skade. Futuruna fordeler erstatningen mellem erhvervsmæssig genopførelse og eventuel ejerbolig og samordner med afskrivningsloven."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomsskader = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser",
+    label = "Din ægtefælles genopførelser efter ejendomsskade",
+    question = Some("Har din ægtefælle modtaget erstatning eller forsikring efter en ejendomsskade og foretaget genopførelse efter § 10?"),
+    help = Some("Oplysningerne bruges ved opgørelsen og den lovbestemte overførsel af ejendomstab mellem samlevende ægtefæller."),
+    unit = None
+)
+= personskat_felt_egen_ejendomsskade_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.identifikation",
+    label = "Skadesforløb",
+    question = Some("Hvilken entydig identifikation skal skadesforløbet have?"),
+    help = Some("Brug eksempelvis ejendommens adresse og skadedato, så resultatet kan spores særskilt."),
+    unit = None
+)
+= personskat_felt_ægtefælles_ejendomsskade_identifikation = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.identifikation",
+    label = "Skadesforløb",
+    question = Some("Hvilken entydig identifikation skal din ægtefælles skadesforløb have?"),
+    help = Some("Brug eksempelvis ejendommens adresse og skadedato, så resultatet kan spores særskilt."),
+    unit = None
+)
+= personskat_felt_egen_ejendomsskade_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.skadedato.år",
+    label = "Skadeår",
+    question = Some("I hvilket år indtraf ejendomsskaden?"),
+    help = Some("Skadedatoen indleder fristforløbet efter ejendomsavancebeskatningslovens § 10."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ejendomsskade_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.skadedato.år",
+    label = "Skadeår",
+    question = Some("I hvilket år indtraf din ægtefælles ejendomsskade?"),
+    help = Some("Skadedatoen indleder fristforløbet efter ejendomsavancebeskatningslovens § 10."),
+    unit = Some("år")
+)
+= personskat_felt_egen_ejendomsskade_måned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.skadedato.måned",
+    label = "Skademåned",
+    question = Some("I hvilken måned indtraf ejendomsskaden?"),
+    help = Some("Angiv måneden som 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_ægtefælles_ejendomsskade_måned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.skadedato.måned",
+    label = "Skademåned",
+    question = Some("I hvilken måned indtraf din ægtefælles ejendomsskade?"),
+    help = Some("Angiv måneden som 1 til 12."),
+    unit = Some("måned")
+)
+= personskat_felt_egen_ejendomsskade_dag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.skadedato.dag",
+    label = "Skadedag",
+    question = Some("På hvilken dag i måneden indtraf ejendomsskaden?"),
+    help = Some("Angiv en gyldig kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_ægtefælles_ejendomsskade_dag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.skadedato.dag",
+    label = "Skadedag",
+    question = Some("På hvilken dag i måneden indtraf din ægtefælles ejendomsskade?"),
+    help = Some("Angiv en gyldig kalenderdag."),
+    unit = Some("dag")
+)
+= personskat_felt_egen_erstatning_endeligt_fastsat_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.erstatningssum_endeligt_fastsat_indkomstår",
+    label = "År hvor erstatningen blev endeligt fastsat",
+    question = Some("I hvilket indkomstår blev erstatnings- eller forsikringssummen endeligt fastsat?"),
+    help = Some("Året indgår i § 10-fristen for genopførelse."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_erstatning_endeligt_fastsat_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.erstatningssum_endeligt_fastsat_indkomstår",
+    label = "År hvor erstatningen blev endeligt fastsat",
+    question = Some("I hvilket indkomstår blev din ægtefælles erstatnings- eller forsikringssum endeligt fastsat?"),
+    help = Some("Året indgår i § 10-fristen for genopførelse."),
+    unit = Some("år")
+)
+= personskat_felt_egen_genopførelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsesindkomstår",
+    label = "Genopførelsesår",
+    question = Some("I hvilket indkomstår blev genopførelsen foretaget?"),
+    help = Some("Futuruna prøver året mod den ordinære eller forlængede frist efter § 10."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_genopførelsesår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsesindkomstår",
+    label = "Genopførelsesår",
+    question = Some("I hvilket indkomstår blev din ægtefælles genopførelse foretaget?"),
+    help = Some("Futuruna prøver året mod den ordinære eller forlængede frist efter § 10."),
+    unit = Some("år")
+)
+= personskat_felt_egen_skadelidt_ejendom_par8 = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.skadelidt_ejendom_omfattet_af_par8",
+    label = "Skadelidt ejendom omfattet af parcelhusreglen",
+    question = Some("Var den skadelidte ejendom omfattet af ejendomsavancebeskatningslovens § 8?"),
+    help = Some("§ 10 kan kun anvendes, når den skadelidte ejendom ikke er omfattet af § 8."),
+    unit = None
+)
+= personskat_felt_ægtefælles_skadelidt_ejendom_par8 = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.skadelidt_ejendom_omfattet_af_par8",
+    label = "Skadelidt ejendom omfattet af parcelhusreglen",
+    question = Some("Var din ægtefælles skadelidte ejendom omfattet af ejendomsavancebeskatningslovens § 8?"),
+    help = Some("§ 10 kan kun anvendes, når den skadelidte ejendom ikke er omfattet af § 8."),
+    unit = None
+)
+= personskat_felt_egen_skadeerstatning = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner",
+    label = "Erstatnings- eller forsikringssum efter § 9",
+    question = Some("Hvor stor er den del af erstatnings- eller forsikringssummen, som ikke er skattefri efter § 9?"),
+    help = Some("Beløbet fordeles mellem den ordinære erhvervsdel og en eventuel ejerboligdel efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_skadeerstatning = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner",
+    label = "Erstatnings- eller forsikringssum efter § 9",
+    question = Some("Hvor stor er den del af din ægtefælles erstatnings- eller forsikringssum, som ikke er skattefri efter § 9?"),
+    help = Some("Beløbet fordeles mellem den ordinære erhvervsdel og en eventuel ejerboligdel efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_skaderamt_erhvervsdel_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner",
+    label = "Reguleret anskaffelsessum for den skaderamte erhvervsdel",
+    question = Some("Hvad er den regulerede anskaffelsessum for den skaderamte erhvervsmæssige del?"),
+    help = Some("Den del, der kan henføres til ejerboliggenopførelse, holdes uden for den ordinære avanceopgørelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_skaderamt_erhvervsdel_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner",
+    label = "Reguleret anskaffelsessum for den skaderamte erhvervsdel",
+    question = Some("Hvad er den regulerede anskaffelsessum for din ægtefælles skaderamte erhvervsmæssige del?"),
+    help = Some("Den del, der kan henføres til ejerboliggenopførelse, holdes uden for den ordinære avanceopgørelse."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_genopførelsessted = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.$variant",
+    label = "Placering af genopførelsen",
+    question = Some("Skete genopførelsen på den skadelidte ejendom eller på andre ejendomme?"),
+    help = Some("Genopførelse på andre ejendomme kræver en af de særlige grunde og rettidig meddelelse efter § 10."),
+    unit = None
+)
+= personskat_felt_ægtefælles_genopførelsessted = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.$variant",
+    label = "Placering af genopførelsen",
+    question = Some("Skete din ægtefælles genopførelse på den skadelidte ejendom eller på andre ejendomme?"),
+    help = Some("Genopførelse på andre ejendomme kræver en af de særlige grunde og rettidig meddelelse efter § 10."),
+    unit = None
+)
+= personskat_felt_egen_genopførelsesejendom = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.identifikation",
+    label = "Genopført ejendom",
+    question = Some("Hvilken ejendom blev genopført?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_ægtefælles_genopførelsesejendom = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.identifikation",
+    label = "Genopført ejendom",
+    question = Some("Hvilken af din ægtefælles ejendomme blev genopført?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_egen_genopførelsesejendom_erhvervsudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.erhvervsmæssige_genopførelsesudgifter_kroner",
+    label = "Erhvervsmæssige genopførelsesudgifter",
+    question = Some("Hvor store var de erhvervsmæssige genopførelsesudgifter på ejendommen?"),
+    help = Some("Beløbet sætter loftet over den ordinære genanbringelse efter § 10."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_genopførelsesejendom_erhvervsudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.erhvervsmæssige_genopførelsesudgifter_kroner",
+    label = "Erhvervsmæssige genopførelsesudgifter",
+    question = Some("Hvor store var din ægtefælles erhvervsmæssige genopførelsesudgifter på ejendommen?"),
+    help = Some("Beløbet sætter loftet over den ordinære genanbringelse efter § 10."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_genopførelsesejendom_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.$variant",
+    label = "Erhvervserstatning anvendt til ejerbolig",
+    question = Some("Blev en del af erhvervserstatningen anvendt til at genopføre en ejerbolig?"),
+    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    unit = None
+)
+= personskat_felt_ægtefælles_genopførelsesejendom_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.$variant",
+    label = "Erhvervserstatning anvendt til ejerbolig",
+    question = Some("Blev en del af din ægtefælles erhvervserstatning anvendt til at genopføre en ejerbolig?"),
+    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    unit = None
+)
+= personskat_felt_egen_ejerbolig_genopførelsesudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    label = "Genopførelsesudgifter til ejerboligen",
+    question = Some("Hvor store var genopførelsesudgifterne til ejerboligdelen?"),
+    help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ejerbolig_genopførelsesudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    label = "Genopførelsesudgifter til ejerboligen",
+    question = Some("Hvor store var din ægtefælles genopførelsesudgifter til ejerboligdelen?"),
+    help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_erhvervserstatning_til_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    label = "Erhvervserstatning anvendt til ejerboligen",
+    question = Some("Hvor stor en del af erhvervserstatningen blev anvendt til ejerboligen?"),
+    help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_erhvervserstatning_til_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    label = "Erhvervserstatning anvendt til ejerboligen",
+    question = Some("Hvor stor en del af din ægtefælles erhvervserstatning blev anvendt til ejerboligen?"),
+    help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    label = "Anskaffelsessum henført til ejerboligdelen",
+    question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til den skaderamte del, der blev ejerbolig?"),
+    help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    label = "Anskaffelsessum henført til ejerboligdelen",
+    question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til din ægtefælles skaderamte del, der blev ejerbolig?"),
+    help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_ejerbolig_fra_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
+    label = "Ejerbolig fra indkomstår",
+    question = Some("Fra hvilket indkomstår tjente den genopførte del til bolig for ejeren eller husstanden?"),
+    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_ejerbolig_fra_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
+    label = "Ejerbolig fra indkomstår",
+    question = Some("Fra hvilket indkomstår tjente din ægtefælles genopførte del til bolig for ejeren eller husstanden?"),
+    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
+    unit = Some("år")
+)
+= personskat_felt_egen_anden_ejendomsgrund = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.grund",
+    label = "Grund til genopførelse på en anden ejendom",
+    question = Some("Hvorfor kunne genopførelse ske på en anden ejendom?"),
+    help = Some("Vælg enten en retlig eller myndighedsmæssig hindring på skadestedet eller, at samme ejers erhvervsejendomme udgør en driftsenhed."),
+    unit = None
+)
+= personskat_felt_ægtefælles_anden_ejendomsgrund = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.grund",
+    label = "Grund til genopførelse på en anden ejendom",
+    question = Some("Hvorfor kunne din ægtefælles genopførelse ske på en anden ejendom?"),
+    help = Some("Vælg enten en retlig eller myndighedsmæssig hindring på skadestedet eller, at samme ejers erhvervsejendomme udgør en driftsenhed."),
+    unit = None
+)
+= personskat_felt_egen_anden_ejendomsmeddelelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.meddelelse.$variant",
+    label = "Meddelelse om genopførelse på andre ejendomme",
+    question = Some("Hvordan blev valget om genopførelse på andre ejendomme meddelt?"),
+    help = Some("Vælg rettidig oplysning, begæring efter en ansættelsesændring eller for sen meddelelse."),
+    unit = None
+)
+= personskat_felt_ægtefælles_anden_ejendomsmeddelelse = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.meddelelse.$variant",
+    label = "Meddelelse om genopførelse på andre ejendomme",
+    question = Some("Hvordan blev din ægtefælles valg om genopførelse på andre ejendomme meddelt?"),
+    help = Some("Vælg rettidig oplysning, begæring efter en ansættelsesændring eller for sen meddelelse."),
+    unit = None
+)
+= personskat_felt_egne_andre_genopførelsesejendomme = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme",
+    label = "Andre genopførelsesejendomme",
+    question = Some("På hvilke andre ejendomme blev der genopført?"),
+    help = Some("Tilføj én række pr. ejendom. Den ordinære genanbringelse fordeles efter de erhvervsmæssige genopførelsesudgifter."),
+    unit = None
+)
+= personskat_felt_ægtefælles_andre_genopførelsesejendomme = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme",
+    label = "Andre genopførelsesejendomme",
+    question = Some("På hvilke andre ejendomme blev din ægtefælles genopførelse foretaget?"),
+    help = Some("Tilføj én række pr. ejendom. Den ordinære genanbringelse fordeles efter de erhvervsmæssige genopførelsesudgifter."),
+    unit = None
+)
+= personskat_felt_egen_anden_genopførelsesejendom = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.identifikation",
+    label = "Genopført ejendom",
+    question = Some("Hvilken anden ejendom vedrører denne genopførelse?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_ægtefælles_anden_genopførelsesejendom = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.identifikation",
+    label = "Genopført ejendom",
+    question = Some("Hvilken anden ejendom vedrører din ægtefælles genopførelse?"),
+    help = Some("Brug en entydig adresse, matrikelbetegnelse eller anden identifikation."),
+    unit = None
+)
+= personskat_felt_egen_anden_genopførelsesejendom_erhvervsudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.erhvervsmæssige_genopførelsesudgifter_kroner",
+    label = "Erhvervsmæssige genopførelsesudgifter",
+    question = Some("Hvor store var de erhvervsmæssige genopførelsesudgifter på denne ejendom?"),
+    help = Some("Beløbet indgår i fordelingen af den ordinære genanbringelse mellem ejendommene."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_anden_genopførelsesejendom_erhvervsudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.erhvervsmæssige_genopførelsesudgifter_kroner",
+    label = "Erhvervsmæssige genopførelsesudgifter",
+    question = Some("Hvor store var din ægtefælles erhvervsmæssige genopførelsesudgifter på denne ejendom?"),
+    help = Some("Beløbet indgår i fordelingen af den ordinære genanbringelse mellem ejendommene."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_anden_genopførelsesejendom_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.$variant",
+    label = "Erhvervserstatning anvendt til ejerbolig",
+    question = Some("Blev en del af erhvervserstatningen anvendt til at genopføre en ejerbolig på denne ejendom?"),
+    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    unit = None
+)
+= personskat_felt_ægtefælles_anden_genopførelsesejendom_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.$variant",
+    label = "Erhvervserstatning anvendt til ejerbolig",
+    question = Some("Blev en del af din ægtefælles erhvervserstatning anvendt til at genopføre en ejerbolig på denne ejendom?"),
+    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    unit = None
+)
+= personskat_felt_egen_anden_ejerbolig_genopførelsesudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    label = "Genopførelsesudgifter til ejerboligen",
+    question = Some("Hvor store var genopførelsesudgifterne til ejerboligdelen på denne ejendom?"),
+    help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_anden_ejerbolig_genopførelsesudgift = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    label = "Genopførelsesudgifter til ejerboligen",
+    question = Some("Hvor store var din ægtefælles genopførelsesudgifter til ejerboligdelen på denne ejendom?"),
+    help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_anden_erhvervserstatning_til_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    label = "Erhvervserstatning anvendt til ejerboligen",
+    question = Some("Hvor stor en del af erhvervserstatningen blev anvendt til ejerboligen på denne ejendom?"),
+    help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_anden_erhvervserstatning_til_ejerbolig = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    label = "Erhvervserstatning anvendt til ejerboligen",
+    question = Some("Hvor stor en del af din ægtefælles erhvervserstatning blev anvendt til ejerboligen på denne ejendom?"),
+    help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_anden_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    label = "Anskaffelsessum henført til ejerboligdelen",
+    question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til den skaderamte del, der blev ejerbolig på denne ejendom?"),
+    help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_anden_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    label = "Anskaffelsessum henført til ejerboligdelen",
+    question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til din ægtefælles skaderamte del, der blev ejerbolig på denne ejendom?"),
+    help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_anden_ejerbolig_fra_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
+    label = "Ejerbolig fra indkomstår",
+    question = Some("Fra hvilket indkomstår tjente den genopførte del på denne ejendom til bolig for ejeren eller husstanden?"),
+    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_anden_ejerbolig_fra_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
+    label = "Ejerbolig fra indkomstår",
+    question = Some("Fra hvilket indkomstår tjente din ægtefælles genopførte del på denne ejendom til bolig for ejeren eller husstanden?"),
+    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
+    unit = Some("år")
+)
+= personskat_felt_egen_genopførelsesfrist = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.fristforhold.$variant",
+    label = "Fristforlængelse for genopførelse",
+    question = Some("Er der meddelt en særlig fristforlængelse for genopførelse?"),
+    help = Some("Uden forlængelse gælder den ordinære frist efter § 10, stk. 2."),
+    unit = None
+)
+= personskat_felt_ægtefælles_genopførelsesfrist = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.fristforhold.$variant",
+    label = "Fristforlængelse for genopførelse",
+    question = Some("Er der meddelt en særlig fristforlængelse for din ægtefælles genopførelse?"),
+    help = Some("Uden forlængelse gælder den ordinære frist efter § 10, stk. 2."),
+    unit = None
+)
+= personskat_felt_egen_genopførelsesfrist_til_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.fristforhold.EblPar10FristforlængelseTilladt.til_indkomstår",
+    label = "Forlænget frist til indkomstår",
+    question = Some("Til hvilket indkomstår er genopførelsesfristen forlænget?"),
+    help = Some("Genopførelsen skal være foretaget senest i dette indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_genopførelsesfrist_til_år = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.fristforhold.EblPar10FristforlængelseTilladt.til_indkomstår",
+    label = "Forlænget frist til indkomstår",
+    question = Some("Til hvilket indkomstår er din ægtefælles genopførelsesfrist forlænget?"),
+    help = Some("Genopførelsen skal være foretaget senest i dette indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_egen_genopførelse_afskrivningsforhold = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.afskrivningsforhold.$variant",
+    label = "Afskrivningsberettigede bygninger i genopførelsen",
+    question = Some("Omfatter genopførelsen bygninger eller installationer, der er afskrivningsberettigede?"),
+    help = Some("Ved afskrivningsberettigede aktiver samordner Futuruna § 10 med afskrivningslovens §§ 21 og 24."),
+    unit = None
+)
+= personskat_felt_ægtefælles_genopførelse_afskrivningsforhold = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.afskrivningsforhold.$variant",
+    label = "Afskrivningsberettigede bygninger i genopførelsen",
+    question = Some("Omfatter din ægtefælles genopførelse bygninger eller installationer, der er afskrivningsberettigede?"),
+    help = Some("Ved afskrivningsberettigede aktiver samordner Futuruna § 10 med afskrivningslovens §§ 21 og 24."),
+    unit = None
+)
+= personskat_felt_egen_genanbringelsestillæg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.regulering.tillæg_for_genanbragt_del_kroner",
+    label = "Tillæg til genanbragt fortjeneste",
+    question = Some("Skal der beregnes et lovbestemt tillæg for den genanbragte del?"),
+    help = Some("Angiv 0, når der ikke er et særskilt tillæg."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_genanbringelsestillæg = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.regulering.tillæg_for_genanbragt_del_kroner",
+    label = "Tillæg til genanbragt fortjeneste",
+    question = Some("Skal der beregnes et lovbestemt tillæg for din ægtefælles genanbragte del?"),
+    help = Some("Angiv 0, når der ikke er et særskilt tillæg."),
+    unit = Some("kr.")
+)
+= personskat_felt_egen_genanbringelsesnedslag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.regulering.nedslag_for_genanbragt_del_kroner",
+    label = "Nedslag i genanbragt fortjeneste",
+    question = Some("Skal der beregnes et lovbestemt nedslag for den genanbragte del?"),
+    help = Some("Angiv 0, når der ikke er et særskilt nedslag."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_genanbringelsesnedslag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.regulering.nedslag_for_genanbragt_del_kroner",
+    label = "Nedslag i genanbragt fortjeneste",
+    question = Some("Skal der beregnes et lovbestemt nedslag for din ægtefælles genanbragte del?"),
+    help = Some("Angiv 0, når der ikke er et særskilt nedslag."),
+    unit = Some("kr.")
 )
 = personskat_felt_egne_ejendomsudgifter = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.vedligeholdelses_og_forbedringsudgifter",
@@ -5103,6 +5566,80 @@
         Source(value = ejendomsavancebeskatningsloven_lbk132_par6_stk3_til_5),
     )
 )
+= personskat_metadata_ejendomsskader = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_egne_ejendomsskader),
+        Field(value = personskat_felt_ægtefælles_ejendomsskader),
+        Field(value = personskat_felt_egen_ejendomsskade_identifikation),
+        Field(value = personskat_felt_ægtefælles_ejendomsskade_identifikation),
+        Field(value = personskat_felt_egen_ejendomsskade_år),
+        Field(value = personskat_felt_ægtefælles_ejendomsskade_år),
+        Field(value = personskat_felt_egen_ejendomsskade_måned),
+        Field(value = personskat_felt_ægtefælles_ejendomsskade_måned),
+        Field(value = personskat_felt_egen_ejendomsskade_dag),
+        Field(value = personskat_felt_ægtefælles_ejendomsskade_dag),
+        Field(value = personskat_felt_egen_erstatning_endeligt_fastsat_år),
+        Field(value = personskat_felt_ægtefælles_erstatning_endeligt_fastsat_år),
+        Field(value = personskat_felt_egen_genopførelsesår),
+        Field(value = personskat_felt_ægtefælles_genopførelsesår),
+        Field(value = personskat_felt_egen_skadelidt_ejendom_par8),
+        Field(value = personskat_felt_ægtefælles_skadelidt_ejendom_par8),
+        Field(value = personskat_felt_egen_skadeerstatning),
+        Field(value = personskat_felt_ægtefælles_skadeerstatning),
+        Field(value = personskat_felt_egen_skaderamt_erhvervsdel_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_skaderamt_erhvervsdel_anskaffelsessum),
+        Field(value = personskat_felt_egen_genopførelsessted),
+        Field(value = personskat_felt_ægtefælles_genopførelsessted),
+        Field(value = personskat_felt_egen_genopførelsesejendom),
+        Field(value = personskat_felt_ægtefælles_genopførelsesejendom),
+        Field(value = personskat_felt_egen_genopførelsesejendom_erhvervsudgift),
+        Field(value = personskat_felt_ægtefælles_genopførelsesejendom_erhvervsudgift),
+        Field(value = personskat_felt_egen_genopførelsesejendom_ejerbolig),
+        Field(value = personskat_felt_ægtefælles_genopførelsesejendom_ejerbolig),
+        Field(value = personskat_felt_egen_ejerbolig_genopførelsesudgift),
+        Field(value = personskat_felt_ægtefælles_ejerbolig_genopførelsesudgift),
+        Field(value = personskat_felt_egen_erhvervserstatning_til_ejerbolig),
+        Field(value = personskat_felt_ægtefælles_erhvervserstatning_til_ejerbolig),
+        Field(value = personskat_felt_egen_ejerbolig_historisk_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_ejerbolig_historisk_anskaffelsessum),
+        Field(value = personskat_felt_egen_ejerbolig_fra_år),
+        Field(value = personskat_felt_ægtefælles_ejerbolig_fra_år),
+        Field(value = personskat_felt_egen_anden_ejendomsgrund),
+        Field(value = personskat_felt_ægtefælles_anden_ejendomsgrund),
+        Field(value = personskat_felt_egen_anden_ejendomsmeddelelse),
+        Field(value = personskat_felt_ægtefælles_anden_ejendomsmeddelelse),
+        Field(value = personskat_felt_egne_andre_genopførelsesejendomme),
+        Field(value = personskat_felt_ægtefælles_andre_genopførelsesejendomme),
+        Field(value = personskat_felt_egen_anden_genopførelsesejendom),
+        Field(value = personskat_felt_ægtefælles_anden_genopførelsesejendom),
+        Field(value = personskat_felt_egen_anden_genopførelsesejendom_erhvervsudgift),
+        Field(value = personskat_felt_ægtefælles_anden_genopførelsesejendom_erhvervsudgift),
+        Field(value = personskat_felt_egen_anden_genopførelsesejendom_ejerbolig),
+        Field(value = personskat_felt_ægtefælles_anden_genopførelsesejendom_ejerbolig),
+        Field(value = personskat_felt_egen_anden_ejerbolig_genopførelsesudgift),
+        Field(value = personskat_felt_ægtefælles_anden_ejerbolig_genopførelsesudgift),
+        Field(value = personskat_felt_egen_anden_erhvervserstatning_til_ejerbolig),
+        Field(value = personskat_felt_ægtefælles_anden_erhvervserstatning_til_ejerbolig),
+        Field(value = personskat_felt_egen_anden_ejerbolig_historisk_anskaffelsessum),
+        Field(value = personskat_felt_ægtefælles_anden_ejerbolig_historisk_anskaffelsessum),
+        Field(value = personskat_felt_egen_anden_ejerbolig_fra_år),
+        Field(value = personskat_felt_ægtefælles_anden_ejerbolig_fra_år),
+        Field(value = personskat_felt_egen_genopførelsesfrist),
+        Field(value = personskat_felt_ægtefælles_genopførelsesfrist),
+        Field(value = personskat_felt_egen_genopførelsesfrist_til_år),
+        Field(value = personskat_felt_ægtefælles_genopførelsesfrist_til_år),
+        Field(value = personskat_felt_egen_genopførelse_afskrivningsforhold),
+        Field(value = personskat_felt_ægtefælles_genopførelse_afskrivningsforhold),
+        Field(value = personskat_felt_egen_genanbringelsestillæg),
+        Field(value = personskat_felt_ægtefælles_genanbringelsestillæg),
+        Field(value = personskat_felt_egen_genanbringelsesnedslag),
+        Field(value = personskat_felt_ægtefælles_genanbringelsesnedslag),
+        Source(value = ebl_genanbringelse_lbk132),
+        DependencySource(value = afskrivningsloven_lbk1222),
+        Guidance(value = ebl_par10_boligbenyttelse_vejledning_2026),
+        Practice(value = ebl_par10_stk9_skm2012_410_lsr),
+    )
+)
 = personskat_metadata_egne_ejendomsudgifter = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_egne_ejendomsudgifter),
@@ -5860,6 +6397,7 @@
     ejendomsavance = (
         personskat_metadata_egne_ejendomssalg,
         personskat_metadata_ægtefælles_ejendomssalg,
+        personskat_metadata_ejendomsskader,
         personskat_metadata_egne_ejendomsudgifter,
         personskat_metadata_egen_ejendomsidentifikation,
         personskat_metadata_egen_ejendoms_anskaffelsesår,
@@ -6221,14 +6759,22 @@
 | personskat_ejendomsavance_afståelser_grundfakta_gyldige(afståelser: List(PersonskatEjendomsavanceFakta), skatteår: Heltal) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_grundfakta_gyldige(afståelser, fakta, personskat_ejendomsavance_afståelsesresultat(fakta), skatteår))
 | personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta: PersonskatEjendomsavanceFakta, resultat: EjendomsavancebeskatningslovResultat) -> resultat.regelgrundlag_understøttet && (resultat.omfattet_af_loven || fakta.erhvervet_som_led_i_næring)
 | personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(afståelser: List(PersonskatEjendomsavanceFakta)) -> all(afståelser, |fakta: PersonskatEjendomsavanceFakta| personskat_ejendomsavance_fortjenesteafgrænsning_understøttet(fakta, personskat_ejendomsavance_afståelsesresultat(fakta)))
+| personskat_ejendomsavance_skadegenopførelsesresultat(fakta: PersonskatEjendomsavanceSkadefakta) -> ebl_par10_resultat(fakta.par10_fakta)
+| personskat_ejendomsavance_skadegenopførelsesresultater(skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta)) -> map(skadegenopførelser, personskat_ejendomsavance_skadegenopførelsesresultat)
+| personskat_ejendomsavance_skadeidentifikation_unik(skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), fakta: PersonskatEjendomsavanceSkadefakta) -> length(filter(skadegenopførelser, |anden: PersonskatEjendomsavanceSkadefakta| anden.identifikation == fakta.identifikation)) == 1
+| personskat_ejendomsavance_skadegrundfakta_gyldige(skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), fakta: PersonskatEjendomsavanceSkadefakta, resultat: EblPar10Resultat, skatteår: Heltal) -> fakta.identifikation != "" && personskat_ejendomsavance_skadeidentifikation_unik(skadegenopførelser, fakta) && fakta.par10_fakta.skadedato.år <= skatteår && fakta.par10_fakta.genopførelsesindkomstår <= skatteår && fakta.par10_fakta.skadelidt_ejendom_omfattet_af_par8 == Falskt && resultat.input_gyldigt
+| personskat_ejendomsavance_skadegenopførelser_grundfakta_gyldige(skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), skatteår: Heltal) -> all(skadegenopførelser, |fakta: PersonskatEjendomsavanceSkadefakta| personskat_ejendomsavance_skadegrundfakta_gyldige(skadegenopførelser, fakta, personskat_ejendomsavance_skadegenopførelsesresultat(fakta), skatteår))
+| personskat_ejendomsavance_skadegenopførelser_understøttet(skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta)) -> all(skadegenopførelser, |fakta: PersonskatEjendomsavanceSkadefakta| personskat_ejendomsavance_skadegenopførelsesresultat(fakta).regelgrundlag_understøttet)
+| personskat_ejendomsavance_skade_ordinær_fortjeneste_i_indkomstår_kroner(resultater: List(EblPar10Resultat), skatteår: Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: EblPar10Resultat| sum + ebl_par10_ordinær_fortjeneste_i_indkomstår_kroner(resultat, skatteår))
+| personskat_ejendomsavance_skade_stk9_erstatningssum_i_indkomstår_kroner(resultater: List(EblPar10Resultat), skatteår: Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: EblPar10Resultat| sum + ebl_par10_stk9_erstatningssum_i_indkomstår_kroner(resultat, skatteår))
 | personskat_ejendomsavance_tabspost_fra_resultat(resultat: EjendomsavancebeskatningslovResultat) -> EjendomsavancePar6Tabspost(resultat = resultat)
 | personskat_ejendomsavance_tabspost(fakta: PersonskatEjendomsavanceFakta) -> personskat_ejendomsavance_tabspost_fra_resultat(personskat_ejendomsavance_afståelsesresultat(fakta))
 | personskat_ejendomsavance_tabsposter(afståelser: List(PersonskatEjendomsavanceFakta)) -> map(afståelser, personskat_ejendomsavance_tabspost)
 | personskat_ejendomsavance_tabsposter_fra_resultater(resultater: List(EjendomsavancebeskatningslovResultat)) -> map(resultater, personskat_ejendomsavance_tabspost_fra_resultat)
-| personskat_ejendomsavance_tabsårsgrundlag(afståelser: List(PersonskatEjendomsavanceFakta), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(
+| personskat_ejendomsavance_tabsårsgrundlag(afståelser: List(PersonskatEjendomsavanceFakta), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal, øvrige_skattepligtige_fortjenester_kroner: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(
     indkomstår = skatteår,
     tabsposter = personskat_ejendomsavance_tabsposter(afståelser),
-    fortjenestegrundlag = EblPar6FortjenesterFraResultater(resultater = personskat_ejendomsavance_afståelsesresultater(afståelser)),
+    fortjenestegrundlag = EblPar6FordeltFortjenesteKroner(beløb_kroner = ejendomsavance_par6_skattepligtige_fortjenester_kroner(personskat_ejendomsavance_afståelsesresultater(afståelser), skatteår) + øvrige_skattepligtige_fortjenester_kroner),
     fremførsel = personskat_ejendomsavance_fremførsel(fremførsel)
 )
 | personskat_ejendomsavance_fordelt_tabsårsgrundlag(resultater: List(EjendomsavancebeskatningslovResultat), fremførsel: PersonskatEjendomsavanceFremførsel, skatteår: Heltal, fordelt_fortjeneste_kroner: Heltal) -> EjendomsavancePar6Tabsårsgrundlag(
@@ -6237,15 +6783,15 @@
     fortjenestegrundlag = EblPar6FordeltFortjenesteKroner(beløb_kroner = fordelt_fortjeneste_kroner),
     fremførsel = personskat_ejendomsavance_fremførsel(fremførsel)
 )
-| personskat_ejendomsavance_ægtefælledata_relevant(fakta: PersonskatEjendomsavanceÅrsfakta) -> fakta.gift_samlevende_ved_indkomstårets_udgang || (length(fakta.ægtefælles_afståelser) == 0 && fakta.ægtefælles_fremførte_tab == UdenFremførtEjendomstab)
+| personskat_ejendomsavance_ægtefælledata_relevant(fakta: PersonskatEjendomsavanceÅrsfakta) -> fakta.gift_samlevende_ved_indkomstårets_udgang || (length(fakta.ægtefælles_afståelser) == 0 && length(fakta.ægtefælles_skadegenopførelser) == 0 && fakta.ægtefælles_fremførte_tab == UdenFremførtEjendomstab)
 | personskat_ejendomsavance_resultat(input: PersonskatEjendomsavanceInput, skatteår: Heltal) -> match input {
     | UdenEjendomsavance -> IngenEjendomsavance
     | MedEjendomsavance(fakta) -> {
-        = egne_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.egne_afståelser, skatteår)
-        = ægtefælles_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.ægtefælles_afståelser, skatteår)
+        = egne_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.egne_afståelser, skatteår) && personskat_ejendomsavance_skadegenopførelser_grundfakta_gyldige(fakta.egne_skadegenopførelser, skatteår)
+        = ægtefælles_grundfakta_gyldige = personskat_ejendomsavance_afståelser_grundfakta_gyldige(fakta.ægtefælles_afståelser, skatteår) && personskat_ejendomsavance_skadegenopførelser_grundfakta_gyldige(fakta.ægtefælles_skadegenopførelser, skatteår)
         = grundfakta_gyldige = skatteår > 0 && egne_grundfakta_gyldige && ægtefælles_grundfakta_gyldige
-        = egne_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.egne_afståelser)
-        = ægtefælles_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.ægtefælles_afståelser)
+        = egne_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.egne_afståelser) && personskat_ejendomsavance_skadegenopførelser_understøttet(fakta.egne_skadegenopførelser)
+        = ægtefælles_fortjenesteafgrænsninger_understøttet = personskat_ejendomsavance_afståelser_fortjenesteafgrænsninger_understøttet(fakta.ægtefælles_afståelser) && personskat_ejendomsavance_skadegenopførelser_understøttet(fakta.ægtefælles_skadegenopførelser)
         = fortjenesteafgrænsninger_understøttet = egne_fortjenesteafgrænsninger_understøttet && ægtefælles_fortjenesteafgrænsninger_understøttet
         = egne_årsforløb_dækker_skatteår = ejendomsavance_par6_resultater_dækker_indkomstår(personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser), skatteår)
         = ægtefælles_årsforløb_dækker_skatteår = ejendomsavance_par6_resultater_dækker_indkomstår(personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser), skatteår)
@@ -6254,22 +6800,29 @@
         = ægtefælledata_relevant = personskat_ejendomsavance_ægtefælledata_relevant(fakta)
         hvis grundfakta_gyldige && fortjenesteafgrænsninger_understøttet && årsforløb_dækker_skatteår && fremførsler_gyldige && ægtefælledata_relevant {
             = egne_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.egne_afståelser)
+            = egne_skadegenopførelsesresultater = personskat_ejendomsavance_skadegenopførelsesresultater(fakta.egne_skadegenopførelser)
             = ægtefælles_afståelsesresultater = personskat_ejendomsavance_afståelsesresultater(fakta.ægtefælles_afståelser)
+            = ægtefælles_skadegenopførelsesresultater = personskat_ejendomsavance_skadegenopførelsesresultater(fakta.ægtefælles_skadegenopførelser)
+            = egne_ordinære_skadefortjenester_kroner = personskat_ejendomsavance_skade_ordinær_fortjeneste_i_indkomstår_kroner(egne_skadegenopførelsesresultater, skatteår)
+            = ægtefælles_ordinære_skadefortjenester_kroner = personskat_ejendomsavance_skade_ordinær_fortjeneste_i_indkomstår_kroner(ægtefælles_skadegenopførelsesresultater, skatteår)
             = ægtefællepar_resultat = ejendomsavance_par6_ægtefællepar_resultat(EjendomsavancePar6ÆgtefælleparInput(
-                venstre = personskat_ejendomsavance_tabsårsgrundlag(fakta.egne_afståelser, fakta.eget_fremført_tab, skatteår),
-                højre = personskat_ejendomsavance_tabsårsgrundlag(fakta.ægtefælles_afståelser, fakta.ægtefælles_fremførte_tab, skatteår),
+                venstre = personskat_ejendomsavance_tabsårsgrundlag(fakta.egne_afståelser, fakta.eget_fremført_tab, skatteår, egne_ordinære_skadefortjenester_kroner),
+                højre = personskat_ejendomsavance_tabsårsgrundlag(fakta.ægtefælles_afståelser, fakta.ægtefælles_fremførte_tab, skatteår, ægtefælles_ordinære_skadefortjenester_kroner),
                 gift_samlevende_ved_indkomstårets_udgang = fakta.gift_samlevende_ved_indkomstårets_udgang
             ))
             = eget_tabsårsresultat = ægtefællepar_resultat.venstre
             = ægtefælles_tabsårsresultat = ægtefællepar_resultat.højre
             = par4_resultat = par4_stk1_nr14_årsresultat(Par4Stk1Nr14Årsinput(
                 eget_tabsårsresultat = eget_tabsårsresultat,
-                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat
+                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat,
+                skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner = personskat_ejendomsavance_skade_stk9_erstatningssum_i_indkomstår_kroner(egne_skadegenopførelsesresultater, skatteår)
             ))
             BeregnetEjendomsavance(
                 fakta = fakta,
                 egne_afståelsesresultater = egne_afståelsesresultater,
+                egne_skadegenopførelsesresultater = egne_skadegenopførelsesresultater,
                 ægtefælles_afståelsesresultater = ægtefælles_afståelsesresultater,
+                ægtefælles_skadegenopførelsesresultater = ægtefælles_skadegenopførelsesresultater,
                 eget_tabsårsresultat = eget_tabsårsresultat,
                 ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat,
                 par4_resultat = par4_resultat
@@ -6291,15 +6844,23 @@
     | _ -> Sandt
 }
 | personskat_ejendomsavance_kapitalposter(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
-    | BeregnetEjendomsavance(_, _, _, _, _, par4_resultat) -> [par4_stk1_nr14_års_kapitalpost(par4_resultat)]
+    | BeregnetEjendomsavance(_, _, _, _, _, _, _, par4_resultat) -> [par4_stk1_nr14_års_kapitalpost(par4_resultat)]
     | _ -> []
 }
 | personskat_egne_ejendomsavance_resultater(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
-    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _) -> egne_afståelsesresultater
+    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _, _, _) -> egne_afståelsesresultater
+    | _ -> []
+}
+| personskat_egne_ejendomsskade_resultater(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(_, _, egne_skadegenopførelsesresultater, _, _, _, _, _) -> egne_skadegenopførelsesresultater
     | _ -> []
 }
 | personskat_ægtefælles_ejendomsavance_resultater(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
-    | BeregnetEjendomsavance(_, _, ægtefælles_afståelsesresultater, _, _, _) -> ægtefælles_afståelsesresultater
+    | BeregnetEjendomsavance(_, _, _, ægtefælles_afståelsesresultater, _, _, _, _) -> ægtefælles_afståelsesresultater
+    | _ -> []
+}
+| personskat_ægtefælles_ejendomsskade_resultater(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(_, _, _, _, ægtefælles_skadegenopførelsesresultater, _, _, _) -> ægtefælles_skadegenopførelsesresultater
     | _ -> []
 }
 | personskat_alle_ejendomsavance_resultater(resultat: PersonskatEjendomsavanceResultat) -> concat(personskat_egne_ejendomsavance_resultater(resultat), personskat_ægtefælles_ejendomsavance_resultater(resultat))
@@ -6390,9 +6951,9 @@
     | egne_fordelte_par6d_fortjenester_kroner() -> personskat_kgl_ebl_fordelt_fortjeneste_for_person_i_indkomstår_kroner(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation())
     | ægtefælles_fordelte_par6d_fortjenester_kroner() -> personskat_kgl_ebl_fordelt_fortjeneste_for_person_i_indkomstår_kroner(sælgerpantebrevsresultater(), skatteår, ægtefælles_skatteyder_identifikation())
     | resultat() -> match ejendomsavance_resultat {
-        | BeregnetEjendomsavance(fakta, egne_afståelsesresultater, ægtefælles_afståelsesresultater, _, _, _) -> hvis kursgevinst_resultat.input_gyldigt {
-            = egne_fortjenester_kroner = personskat_ejendomsavance_afståelsesårsgrundfortjenester_kroner(egne_afståelsesresultater, skatteår) + egne_fordelte_par6d_fortjenester_kroner()
-            = ægtefælles_fortjenester_kroner = personskat_ejendomsavance_afståelsesårsgrundfortjenester_kroner(ægtefælles_afståelsesresultater, skatteår) + ægtefælles_fordelte_par6d_fortjenester_kroner()
+        | BeregnetEjendomsavance(fakta, egne_afståelsesresultater, egne_skadegenopførelsesresultater, ægtefælles_afståelsesresultater, ægtefælles_skadegenopførelsesresultater, _, _, _) -> hvis kursgevinst_resultat.input_gyldigt {
+            = egne_fortjenester_kroner = personskat_ejendomsavance_afståelsesårsgrundfortjenester_kroner(egne_afståelsesresultater, skatteår) + egne_fordelte_par6d_fortjenester_kroner() + personskat_ejendomsavance_skade_ordinær_fortjeneste_i_indkomstår_kroner(egne_skadegenopførelsesresultater, skatteår)
+            = ægtefælles_fortjenester_kroner = personskat_ejendomsavance_afståelsesårsgrundfortjenester_kroner(ægtefælles_afståelsesresultater, skatteår) + ægtefælles_fordelte_par6d_fortjenester_kroner() + personskat_ejendomsavance_skade_ordinær_fortjeneste_i_indkomstår_kroner(ægtefælles_skadegenopførelsesresultater, skatteår)
             = ægtefællepar_resultat = ejendomsavance_par6_ægtefællepar_resultat(EjendomsavancePar6ÆgtefælleparInput(
                 venstre = personskat_ejendomsavance_fordelt_tabsårsgrundlag(egne_afståelsesresultater, fakta.eget_fremført_tab, skatteår, egne_fortjenester_kroner),
                 højre = personskat_ejendomsavance_fordelt_tabsårsgrundlag(ægtefælles_afståelsesresultater, fakta.ægtefælles_fremførte_tab, skatteår, ægtefælles_fortjenester_kroner),
@@ -6402,12 +6963,15 @@
             = ægtefælles_tabsårsresultat = ægtefællepar_resultat.højre
             = par4_resultat = par4_stk1_nr14_årsresultat(Par4Stk1Nr14Årsinput(
                 eget_tabsårsresultat = eget_tabsårsresultat,
-                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat
+                ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat,
+                skattepligtige_erstatningssummer_efter_ebl_par10_stk9_kroner = personskat_ejendomsavance_skade_stk9_erstatningssum_i_indkomstår_kroner(egne_skadegenopførelsesresultater, skatteår)
             ))
             BeregnetEjendomsavance(
                 fakta = fakta,
                 egne_afståelsesresultater = egne_afståelsesresultater,
+                egne_skadegenopførelsesresultater = egne_skadegenopførelsesresultater,
                 ægtefælles_afståelsesresultater = ægtefælles_afståelsesresultater,
+                ægtefælles_skadegenopførelsesresultater = ægtefælles_skadegenopførelsesresultater,
                 eget_tabsårsresultat = eget_tabsårsresultat,
                 ægtefælles_tabsårsresultat = ægtefælles_tabsårsresultat,
                 par4_resultat = par4_resultat

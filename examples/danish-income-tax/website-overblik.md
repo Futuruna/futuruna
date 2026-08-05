@@ -216,6 +216,18 @@ begge endelige lovresultater. Dermed kan beregningen forklare både, hvorfor en
 genvunden afskrivning udskydes ved rettidig genopførelse, og hvorfor den
 ordinære § 21-beskatning står ved magt, når kildefakta ikke stemmer overens.
 
+Hvis en del af erhvervserstatningen bruges til at genopføre en ejerbolig,
+holder § 10, stk. 9 nu den anvendte bruttosum adskilt fra den ordinære
+ejendomsavance. Hver genopførelsesejendom oplyser de faktiske
+ejerboligudgifter, den anvendte erstatning, den historiske anskaffelsessum for
+den skaderamte del og året, hvor boligen tages i brug. Futuruna trækker
+ejerboligdelen ud af den ordinære avance og medregner samtidig hele
+erstatningssummen uden anskaffelsessumsfradrag. Et fremført ejendomstab kan
+derfor modregnes i en ordinær § 10-fortjeneste, men ikke i stk. 9-beløbet.
+Resultatet føres særskilt gennem Personskattelovens § 4 og bevarer både
+fordelingen, tabsforløbet og en eventuel Afskrivningslov § 24-samordning i
+forklaringssporet.
+
 § 11, stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
 ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver
 skattefri efter stk. 1, mens den regulerede gamle fortjeneste beskattes
@@ -292,8 +304,9 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 945 eksplicitte feltmetadata-poster,
-heraf 261 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
+interviewoplysninger. Kontrakten har nu 1.011 eksplicitte feltmetadata-poster,
+heraf 261 for § 53 A-ordninger og 66 for egne og ægtefællens skadegenopførelser
+efter Ejendomsavancebeskatningslovens § 10. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
 Alle 98 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og

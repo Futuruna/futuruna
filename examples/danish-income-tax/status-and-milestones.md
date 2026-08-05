@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-2c1961` (source-derived coordination of Afskrivningsloven §§ 21/24 and Ejendomsavancebeskatningsloven § 10; implementation and verification complete, pending independent review)
+Current implementation slice: `td-a2ebb4` (Ejendomsavancebeskatningsloven § 10, stk. 9 om erhvervserstatning anvendt til ejerbolig; implementation and verification complete, pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-8cb07d`
+Latest approved implementation slice: `td-2c1961`
 Latest approved language slice: `td-29d539`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -111,6 +111,32 @@ udskydes; modstridende kildefakta bevarer i stedet den ordinære
 uafhængigt af en EBL-til/fra-kontakt. Sytten EBL § 10-invarianter, ti
 AL §§ 21-24/Personskatteloven-invarianter og de berørte overgangsscenarier
 passerer i både interpreter og compiler.
+
+Ejendomsavancebeskatningslovens § 10, stk. 9 er nu også et beregnet
+beløbsspor frem for en ikke-understøttet stilling. Hver identificeret
+genopførelsesejendom bærer erhvervsmæssige udgifter og et typet valg mellem
+ingen ejerboliganvendelse og erhvervserstatning anvendt til ejerbolig. I det
+sidste tilfælde oplyses ejerboligens genopførelsesudgifter, den anvendte
+erstatning, den historiske anskaffelsessum for den skaderamte del og året for
+boligbrug. Reglerne validerer både hver ejendom og de samlede fordelinger,
+trækker ejerboligdelen ud af den ordinære avanceopgørelse og medregner samtidig
+hele den anvendte erstatningssum efter stk. 9 uden fradrag for den historiske
+anskaffelsessum. Det ordinære § 10-resultat og samordningen med
+Afskrivningslovens § 24 bevares som særskilte forklaringsspor.
+
+Den kanoniske `beregn_personskat`-graf modtager egne og en samlevende
+ægtefælles identificerede skadegenopførelser. Kun den ordinære
+ejendomsfortjeneste går gennem Ejendomsavancebeskatningslovens § 6-tabsspor;
+personens bruttobeløb efter § 10, stk. 9 lægges derefter særskilt til
+kapitalindkomsten efter Personskattelovens § 4, stk. 1, nr. 14. Et blandet
+scenarie med 50.000 kr. i ordinær straksbeskatning, 100.000 kr. i fremført tab
+og 200.000 kr. i ejerboligerstatning modregner kun de 50.000 kr. og ender med
+200.000 kr. i kapitalindkomst samt 50.000 kr. i fortsat fremført tab.
+Nul-, delvis- og fuld ejerboliganvendelse, ugyldige fordelinger, senere
+klassifikationsskifte, AL-samordning og den kanoniske kapitalindkomst passerer
+i de fokuserede interpreter- og compiler-scenarier. Senere boligbrug end
+genopførelsesåret fejler foreløbig udtrykkeligt lukket, fordi det følger et
+andet klassifikationsskifteregelsæt.
 
 Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
@@ -647,7 +673,9 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 945 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 1.011 eksplicitte feltmetadata-poster. Heraf beskriver
+66 egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
+ejerboligfordeling, frister, regulering og afskrivningsforhold. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -697,7 +725,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`f62701bf7784faf21df5c2e884b74a347ee1847925edba653dae2cada265b99d`.
+`f7888383db2de1828e5619b5d9d2589db427a8a603109feebaf6d0dae27b4e1c`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -709,7 +737,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 945 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 1.011 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -3158,13 +3186,17 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
-- Ejendomsavancebeskatningslovens § 10, stk. 5-8 bruger nu identificerede
+- Ejendomsavancebeskatningslovens § 10, stk. 5-9 bruger nu identificerede
   genopførelsesejendomme frem for et løst antal. Reglerne validerer grund,
   meddelelse, entydige identifikationer og positive udgifter, fordeler
   stk. 7- og stk. 8-beløbene efter de faktiske udgiftsandele og afstemmer
   afrundingsresten. Et ejendomsspecifikt genanbringelsesresultat sender kun den
   valgte ejendoms aktive anskaffelsessumsnedslag videre til et senere salg.
-  Elleve fokuserede scenarier og § 9-auditten passerer i begge backends.
+  Stk. 9 holder ejerboligens anvendte bruttosum uden for både den ordinære
+  avance og § 6-tabsmodregningen, men fører den særskilt til § 4-kapitalindkomst
+  uden anskaffelsessumsfradrag. AL §§ 21/24-sporet og den kanoniske Personskat-
+  integration bevarer begge beløb. De fokuserede fordelings-, stk. 9-,
+  afskrivnings-, audit- og kanoniske scenarier passerer i begge backends.
 - Pensionsbeskatningslovens § 53 A har nu et kildefaktabåret omfang og et
   dateret flerårsforløb. Reglerne afleder alle ni hjemler i stk. 1,
   udelukkelsen efter § 53 B, undtagelserne i stk. 4 og
@@ -3198,7 +3230,7 @@ Review candidates to revisit deliberately, not as broad churn:
   7.250 til den valgte skatteyder. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 945 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
+  har 1.011 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3358,7 +3390,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 945 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 1.011 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3553,11 +3585,12 @@ Review candidates to revisit deliberately, not as broad churn:
   executable and round-trip through the canonical Personskat contract, and
   § 6 D now carries seller-note installment taxation, owner-attributed annual
   EBL gain after partial succession and the separate KGL realization across
-  years. § 10 now allocates reconstruction across identified properties and
-  routes the selected property's deferred gain into later disposal. Remaining
-  bounded work includes the typed Afskrivningsloven § 24 coordination
-  (`td-8cb07d`), non-spouse beneficiaries and remaining bounded dependency
-  rules.
+  years. § 10 now allocates reconstruction across identified properties,
+  coordinates directly with Afskrivningslovens §§ 21 og 24, separates the
+  stk. 9 owner-home gross amount from ordinary EBL gain and routes the selected
+  property's deferred gain into later disposal. Remaining bounded work includes
+  later owner-home classification changes, non-spouse beneficiaries and the
+  remaining source-ranked dependency rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same

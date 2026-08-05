@@ -131,8 +131,10 @@
         ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
         ejendomsavance = MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
             egne_afståelser = hvis skatteyder_identifikation == "Sælger" { [personskat_par6d_scenarie_ejendom(ejendommens_afståelsesår, årsforhold)] } ellers { [] },
+            egne_skadegenopførelser = [],
             eget_fremført_tab = UdenFremførtEjendomstab,
             ægtefælles_afståelser = hvis skatteyder_identifikation == "Sælger" { [] } ellers { [personskat_par6d_scenarie_ejendom(ejendommens_afståelsesår, årsforhold)] },
+            ægtefælles_skadegenopførelser = [],
             ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
             gift_samlevende_ved_indkomstårets_udgang = Sandt
         )),

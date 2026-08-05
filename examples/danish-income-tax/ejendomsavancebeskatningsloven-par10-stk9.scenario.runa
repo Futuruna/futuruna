@@ -1,0 +1,132 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ejendomsavancebeskatningsloven
+
+= ebl_par10_stk9_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par10_boligbenyttelse_vejledning_2026),
+        Practice(value = ebl_par10_stk9_skm2012_410_lsr),
+    )
+)
+
+--@label:ebl_par10_stk9_scenarier::meta:ebl_par10_stk9_scenarier_metadata--
+--@begin:ebl_par10_stk9_scenarier--
+| ebl_par10_stk9_scenarie_fakta(ejendom: EblPar10Genopførelsesejendom, samlet_erstatning_kroner: Heltal, samlet_reguleret_anskaffelsessum_kroner: Heltal) -> EblPar10Fakta(
+    skadedato = EblDato(år = 2024, måned = 3, dag = 1),
+    erstatningssum_endeligt_fastsat_indkomstår = 2024,
+    genopførelsesindkomstår = 2025,
+    skadelidt_ejendom_omfattet_af_par8 = Falskt,
+    erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner = samlet_erstatning_kroner,
+    reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = samlet_reguleret_anskaffelsessum_kroner,
+    genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = ejendom),
+    fristforhold = EblPar10UdenFristforlængelse,
+    afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
+    regulering = EblGenanbragtFortjenesteregulering(
+        tillæg_for_genanbragt_del_kroner = 0,
+        nedslag_for_genanbragt_del_kroner = 0
+    )
+)
+
+= ebl_par10_stk9_uden_ejerboliganvendelse = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "erhvervsejendom",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 500000,
+        ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+    ),
+    500000,
+    300000
+))
+
+= ebl_par10_stk9_delvis_ejerboliganvendelse = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "blandet-genopførelse",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 300000,
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerbolig_genopførelsesudgifter_kroner = 200000,
+            erhvervserstatning_anvendt_kroner = 200000,
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
+            ejerbolig_tjener_til_bolig_fra_indkomstår = 2025
+        )
+    ),
+    500000,
+    300000
+))
+
+= ebl_par10_stk9_fuld_ejerboliganvendelse = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "genopført-ejerbolig",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 0,
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerbolig_genopførelsesudgifter_kroner = 500000,
+            erhvervserstatning_anvendt_kroner = 500000,
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 300000,
+            ejerbolig_tjener_til_bolig_fra_indkomstår = 2025
+        )
+    ),
+    500000,
+    300000
+))
+
+= ebl_par10_stk9_erstatning_over_ejerboligudgift = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "ugyldig-erstatningsfordeling",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 300000,
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerbolig_genopførelsesudgifter_kroner = 200000,
+            erhvervserstatning_anvendt_kroner = 250000,
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
+            ejerbolig_tjener_til_bolig_fra_indkomstår = 2025
+        )
+    ),
+    500000,
+    300000
+))
+
+= ebl_par10_stk9_anskaffelsessum_over_samlet_grundlag = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "ugyldig-anskaffelsessumsfordeling",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 300000,
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerbolig_genopførelsesudgifter_kroner = 200000,
+            erhvervserstatning_anvendt_kroner = 200000,
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 301000,
+            ejerbolig_tjener_til_bolig_fra_indkomstår = 2025
+        )
+    ),
+    500000,
+    300000
+))
+
+= ebl_par10_stk9_senere_klassifikationsskifte = ebl_par10_resultat(ebl_par10_stk9_scenarie_fakta(
+    EblPar10Genopførelsesejendom(
+        identifikation = "senere-ejerbolig",
+        erhvervsmæssige_genopførelsesudgifter_kroner = 300000,
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerbolig_genopførelsesudgifter_kroner = 200000,
+            erhvervserstatning_anvendt_kroner = 200000,
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
+            ejerbolig_tjener_til_bolig_fra_indkomstår = 2026
+        )
+    ),
+    500000,
+    300000
+))
+
+| ebl_par10_stk9_nul_anvendelse_bevarer_ordinært_lovspor: ebl_par10_stk9_uden_ejerboliganvendelse -> ebl_par10_stk9_uden_ejerboliganvendelse.input_gyldigt && ebl_par10_stk9_uden_ejerboliganvendelse.regelgrundlag_understøttet && ebl_par10_stk9_uden_ejerboliganvendelse.skattepligtig_erstatningssum_efter_stk9_kroner == 0 && ebl_par10_stk9_uden_ejerboliganvendelse.genanbringelsesresultat.betingelser_opfyldt && ebl_par10_stk9_uden_ejerboliganvendelse.genanbringelsesresultat.genanbragt_fortjeneste_kroner == 200000
+| ebl_par10_stk9_delvis_anvendelse_adskiller_brutto_og_ordinær_fortjeneste: ebl_par10_stk9_delvis_ejerboliganvendelse -> ebl_par10_stk9_delvis_ejerboliganvendelse.input_gyldigt && ebl_par10_stk9_delvis_ejerboliganvendelse.regelgrundlag_understøttet && ebl_par10_stk9_delvis_ejerboliganvendelse.erhvervserstatning_anvendt_til_ejerbolig_kroner == 200000 && ebl_par10_stk9_delvis_ejerboliganvendelse.reguleret_anskaffelsessum_henført_til_ejerbolig_kroner == 100000 && ebl_par10_stk9_delvis_ejerboliganvendelse.ordinær_erhvervserstatning_efter_stk9_kroner == 300000 && ebl_par10_stk9_delvis_ejerboliganvendelse.ordinær_reguleret_anskaffelsessum_efter_stk9_kroner == 200000 && ebl_par10_stk9_delvis_ejerboliganvendelse.skattepligtig_erstatningssum_efter_stk9_kroner == 200000 && ebl_par10_stk9_delvis_ejerboliganvendelse.genanbringelsesresultat.oprindelig_erhvervsfortjeneste_kroner == 100000 && ebl_par10_stk9_delvis_ejerboliganvendelse.genanbringelsesresultat.genanbragt_fortjeneste_kroner == 100000
+| ebl_par10_stk9_bruttobeløbet_får_intet_anskaffelsessumsfradrag: ebl_par10_stk9_fuld_ejerboliganvendelse -> ebl_par10_stk9_fuld_ejerboliganvendelse.input_gyldigt && ebl_par10_stk9_fuld_ejerboliganvendelse.regelgrundlag_understøttet && ebl_par10_stk9_fuld_ejerboliganvendelse.erhvervserstatning_anvendt_til_ejerbolig_kroner == 500000 && ebl_par10_stk9_fuld_ejerboliganvendelse.reguleret_anskaffelsessum_henført_til_ejerbolig_kroner == 300000 && ebl_par10_stk9_fuld_ejerboliganvendelse.skattepligtig_erstatningssum_efter_stk9_kroner == 500000 && ebl_par10_stk9_fuld_ejerboliganvendelse.genanbringelsesresultat.oprindelig_erhvervsfortjeneste_kroner == 0 && ebl_par10_stk9_fuld_ejerboliganvendelse.genanbringelsesresultat.genanbragt_fortjeneste_kroner == 0
+| ebl_par10_stk9_medregnes_kun_i_det_afledte_indkomstår: ebl_par10_stk9_fuld_ejerboliganvendelse -> ebl_par10_stk9_fuld_ejerboliganvendelse.medregningsindkomstår_efter_stk9 == 2025 && ebl_par10_stk9_erstatningssum_i_indkomstår_kroner(ebl_par10_stk9_fuld_ejerboliganvendelse, 2024) == 0 && ebl_par10_stk9_erstatningssum_i_indkomstår_kroner(ebl_par10_stk9_fuld_ejerboliganvendelse, 2025) == 500000
+| ebl_par10_stk9_afviser_erstatning_over_ejerboligudgift: ebl_par10_stk9_erstatning_over_ejerboligudgift -> ebl_par10_stk9_erstatning_over_ejerboligudgift.input_gyldigt == Falskt && ebl_par10_stk9_erstatning_over_ejerboligudgift.skattepligtig_erstatningssum_efter_stk9_kroner == 0
+| ebl_par10_stk9_afviser_for_stor_henført_anskaffelsessum: ebl_par10_stk9_anskaffelsessum_over_samlet_grundlag -> ebl_par10_stk9_anskaffelsessum_over_samlet_grundlag.input_gyldigt == Falskt && ebl_par10_stk9_anskaffelsessum_over_samlet_grundlag.skattepligtig_erstatningssum_efter_stk9_kroner == 0
+| ebl_par10_stk9_senere_klassifikationsskifte_failer_lukket: ebl_par10_stk9_senere_klassifikationsskifte -> ebl_par10_stk9_senere_klassifikationsskifte.input_gyldigt && ebl_par10_stk9_senere_klassifikationsskifte.regelgrundlag_understøttet == Falskt && ebl_par10_stk9_senere_klassifikationsskifte.skattepligtig_erstatningssum_efter_stk9_kroner == 0
+
+? ebl_par10_stk9_nul_anvendelse_bevarer_ordinært_lovspor
+? ebl_par10_stk9_delvis_anvendelse_adskiller_brutto_og_ordinær_fortjeneste
+? ebl_par10_stk9_bruttobeløbet_får_intet_anskaffelsessumsfradrag
+? ebl_par10_stk9_medregnes_kun_i_det_afledte_indkomstår
+? ebl_par10_stk9_afviser_erstatning_over_ejerboligudgift
+? ebl_par10_stk9_afviser_for_stor_henført_anskaffelsessum
+? ebl_par10_stk9_senere_klassifikationsskifte_failer_lukket
+--@end:ebl_par10_stk9_scenarier--
