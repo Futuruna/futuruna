@@ -43,6 +43,7 @@ Futuruna selv afleder fradrag, kapitalindkomst og ugyldige metodevalg.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_fremleje_scenarie_fakta(bruttolejeindtægt_kroner: Heltal, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: PersonskatLigningslov15QStk4Input) -> PersonskatFremlejeFakta(

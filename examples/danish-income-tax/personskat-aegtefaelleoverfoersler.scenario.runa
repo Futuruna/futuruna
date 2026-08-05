@@ -53,6 +53,7 @@
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = ægtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 

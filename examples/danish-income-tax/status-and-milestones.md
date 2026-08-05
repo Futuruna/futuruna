@@ -3,12 +3,14 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-31
 TD epic: `td-56cf8d`
-Current implementation slice: `td-a89feb` (Virksomhedsskattelovens § 22 a, stk. 4-8, årsparametre og kanonisk erhvervskapital; in progress)
-Current fidelity slice: `td-3759c6` (indgående ægtefælleoverførsler fra kildefakta til kanonisk Personskat; pending independent review)
-Next source-backed slice: færdiggør `td-a89feb`, og fortsæt derefter den materielle beregningskø under `td-2d84ec`
+Current implementation slice: `td-0b472c` (ordinær ejendomsværdiskat og grundskyld fra kildefakta til kanonisk Personskat; pending independent review)
+Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
+Next source-backed slices: `td-4a61a9` (nedslag, rabat og overgangsregler) og `td-8746cb` (alle kommuners årsparametre)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
+Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
+Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
@@ -120,6 +122,10 @@ Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
 eller ejendomsidentifikationer. Scenariet rammer 29.059.034 øre i beregnet skat,
 3.716.680 øre i overskydende skat og 8.200 øre i resterende udbetaling præcist.
+Boligskatterne er ikke længere lokale, forudberegnede formler i scenariet.
+Ejendomsskattelovens regler udleder 80-procentsgrundlagene, 150 af 360 dage,
+ejerandelen og kommunens sats fra vurderings- og periodefakta og beregner
+315.350 øre i ejendomsværdiskat samt 285.855 øre i grundskyld.
 Årsopgørelsen viser ægtefælleoverførslernes virkning, men ikke ægtefællens
 underliggende poster. Scenariet markerer derfor sin minimale rekonstruktion som
 en antagelse: ingen anden indkomst og 39.617 kr. i renteudgifter. Fra disse
@@ -131,6 +137,20 @@ afstemning. Slutbeløbet genberegnes fra det reducerede skattegrundlag. Det kan
 afvige med en krone fra at trække flere allerede afrundede delvirkninger fra
 en allerede afrundet baseline, så afstemninger skal fastholde lovens enhed og
 afrundingstrin gennem hele beregningskæden.
+
+Realitetstesten fastlægger fem generelle revisionsprincipper for korpusset.
+Offentlige beregningsgrænser skal modtage observerbare kildefakta, ikke
+afledte retskonklusioner, skattegrundlag eller skattebeløb. Ugyldige input,
+gyldige forhold uden for en regels anvendelsesområde og endnu ikke
+understøttede regelgrene skal kunne skelnes i resultaterne. Hver skatteart skal
+have ét kanonisk kompositionspunkt med en bevarelsesinvariant mod dobbelt eller
+manglende medregning. Eksakte enheder og lovbestemte afrundingstrin skal
+bevares, indtil reglerne selv kræver en konvertering. Endelig kan datoens
+civile struktur genbruges, mens 30/360, faktiske kalenderdage og andre
+lovbestemte dagtællinger skal forblive særskilte politikker. Kildesporet er
+også tidsligt: selv en materielt uændret formel skal have en ændringskilde, når
+dens placering eller styknummer ændres. De målrettede opfølgninger ejes af
+`td-ba70c7`, `td-24963d`, `td-bf5e81`, `td-01c72e` og `td-091de2`.
 
 Realitetstesten har nu fundet fem materielle integrationsfejl: Frederiksberg og
 kommunens 2025-sats manglede, § 9 L-fradraget blev afkortet i stedet for
@@ -146,10 +166,11 @@ Den kanoniske `PersonskatInput` modtager nu enten ingen ægtefælle eller en hel
 typet ægtefælleprofil og samlivsstatus. § 13-, § 10- og § 11-resultater kan ikke
 længere leveres som rå reduktionsbeløb. JSON- og XLSX-kontrakten udstiller de
 samme kildefakta med danske spørgsmål og med både LBK 1284/2021 og LOV
-1564/2023 i kildesporet. En fuld enkeltgrænseafstemning mod den private
-årsopgørelse kræver fortsat kanonisk samordning af boligskatter samt
-source-backed dækning af de resterende investerings-, ligningsfradrags-,
-virksomhedsunderskuds- og personlige indkomstposter. Den generelle opfølgning
+1564/2023 i kildesporet. Den ordinære boligskat indgår nu én gang i det
+kanoniske skattetotal og i årsopgørelsen. En generel boligskattegrænse kræver
+fortsat kildefaktabåret dækning af nedslag, rabat, overgangsregler og alle
+kommuner; de resterende investerings-, ligningsfradrags-, virksomhedsunderskuds-
+og personlige indkomstposter er heller ikke fuldt dækket. Den generelle opfølgning
 `td-ba70c7` skal derfor kontrollere alle offentlige beregningsgrænser for
 afledte input, utilgængelige regelgrene og manglende flerpersons- eller
 tværårsscenarier.

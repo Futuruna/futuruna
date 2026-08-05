@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
+@ importer ./ejendomsskatteloven
 @ importer ./personskat - cfc - beregningsmeta
 @ importer ./personskat - cfc - kildefakta
 @ importer ./personskat - pbl53a - beregningsmeta
@@ -53,6 +54,9 @@
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
         DependencySource(value = ejendomsskatteloven_lov678_par3),
         AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
+        DependencySource(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17),
+        Guidance(value = ejendomsskatteloven_vejledning_30_360),
         DependencySource(value = ejendomsavancebeskatningsloven_lbk132_par1_par1a_par2_par4),
         DependencySource(value = ebl_par11_lbk132),
         DependencySource(value = ebl_par5_lbk132),
@@ -125,9 +129,9 @@
 # PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat)
-# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: List(EjendomsskattelovOrdinærPersonEjendomFakta), årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -477,6 +481,97 @@
     question = Some("Hvad er årets samlede overskud eller underskud fra ejendommen?"),
     help = Some("Angiv overskud som et positivt beløb og underskud som et negativt beløb. Futuruna afgør derefter, om beløbet hører til kapitalindkomsten."),
     unit = Some("kr./år")
+)
+= personskat_felt_ejendomsskatter = TypetBeregningsfelt(
+    path = refof(PersonskatInput::ejendomsskatter),
+    label = "Ejendomme med ejendomsskatter",
+    question = Some("Har du ejet en bolig eller anden fast ejendom, hvor ejendomsværdiskat eller grundskyld skal indgå i årsopgørelsen?"),
+    help = Some("Tilføj én række pr. ejendom. Futuruna udleder 80-procentsgrundlag, lovens 30/360-periode, ejerandel og kommunal grundskyldssats fra kildefakta. Denne ordinære grænse omfatter endnu ikke nedslag, rabat eller stigningsbegrænsning."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_identifikation = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::identifikation),
+    label = "Ejendommens identifikation",
+    question = Some("Hvilken entydig identifikation skal ejendommen have i beregningen?"),
+    help = Some("Brug en stabil, ikke-følsom identifikation, så ejendommen kan spores i resultatets forklaring."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_kommune = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::kommune),
+    label = "Ejendommens kommune",
+    question = Some("I hvilken kommune ligger ejendommen?"),
+    help = Some("Ejendommens kommune bestemmer grundskyldssatsen og kan være en anden end din bopælskommune."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_kategori = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::kategori),
+    label = "Ejendomskategori",
+    question = Some("Hvilken kategori efter ejendomsskattelovens § 3 tilhører ejendommen?"),
+    help = Some("Kategorien afgør, om ejendommen er omfattet af ejendomsværdiskat."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_beliggenhed = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::beliggenhed),
+    label = "Ejendommens landestatus",
+    question = Some("Ligger ejendommen i Danmark eller uden for Danmark?"),
+    help = Some("Den ordinære grundskyldsberegning i denne grænse vedrører danske ejendomme."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_erhvervsudlejning = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::erhvervsmæssigt_udlejet),
+    label = "Erhvervsmæssigt udlejet ejendom",
+    question = Some("Er ejendommen udlejet erhvervsmæssigt?"),
+    help = Some("Erhvervsmæssig udlejning afskærer ejendomsværdiskat efter § 3, stk. 3."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_saerlige_betingelser = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::særlige_betingelser_for_nr6_til_nr8_opfyldt),
+    label = "Særlige ejerboligbetingelser",
+    question = Some("Er de særlige betingelser for de relevante ejerlejligheds- og boligfællesskabskategorier opfyldt?"),
+    help = Some("Feltet er kun materielt for kategorierne med særlige vurderings-, meddelelses- eller historiske betingelser."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::ejendomsværdi_kroner),
+    label = "Vurderet ejendomsværdi",
+    question = Some("Hvad er den offentligt ansatte ejendomsværdi, før 20-procentsforsigtighedsnedslaget?"),
+    help = Some("Angiv vurderingen, ikke det allerede reducerede beskatningsgrundlag og ikke den beregnede ejendomsværdiskat."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_grundvaerdi = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::grundværdi_kroner),
+    label = "Vurderet grundværdi",
+    question = Some("Hvad er den offentligt ansatte grundværdi, før 20-procentsforsigtighedsnedslaget?"),
+    help = Some("Angiv vurderingen, ikke det allerede reducerede grundskyldsgrundlag og ikke den beregnede grundskyld."),
+    unit = Some("kr.")
+)
+= personskat_felt_ejendomsskat_produktionsjord = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::produktionsjord),
+    label = "Produktionsjord",
+    question = Some("Er grundværdien produktionsjord efter ejendomsvurderingslovens § 28?"),
+    help = Some("Produktionsjord har et særskilt grundlag og en særskilt sats efter ejendomsskattelovens §§ 17 og 28."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiperiode = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::ejendomsværdiskatteperiode::$variant),
+    label = "Periode med ejendomsværdiskat",
+    question = Some("Hvilken del af indkomståret kunne ejendommen tjene som bolig for dig eller din husstand?"),
+    help = Some("Vælg hele året eller angiv start og eventuel slutdato. Futuruna anvender lovens 30-dagesmåneder og 360-dagesår."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_grundskyldsperiode = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::grundskyldsperiode::$variant),
+    label = "Periode med grundskyld",
+    question = Some("Hvilken del af indkomståret ejede du ejendommen?"),
+    help = Some("Grundskyld løber fra overtagelsesdagen til og med dagen før en købers overtagelsesdag efter lovens 30/360-kalender."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejerandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::ejerandel_basispoint),
+    label = "Registreret ejerandel",
+    question = Some("Hvor stor en ejerandel er registreret for dig?"),
+    help = Some("Angiv andelen i basispoint, hvor 10.000 er 100 procent og 5.000 er 50 procent."),
+    unit = Some("basispoint")
 )
 = personskat_felt_årsopgørelse = Beregningsfelt(
     path = "årsopgørelse.$variant",
@@ -5676,6 +5771,30 @@
         AmendmentSource(value = ejendomsskatteloven_lov615_par3_aendring),
     )
 )
+= personskat_meta_ejendomsskatter = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_ejendomsskatter,
+        personskat_felt_ejendomsskat_identifikation,
+        personskat_felt_ejendomsskat_kommune,
+        personskat_felt_ejendomsskat_kategori,
+        personskat_felt_ejendomsskat_beliggenhed,
+        personskat_felt_ejendomsskat_erhvervsudlejning,
+        personskat_felt_ejendomsskat_saerlige_betingelser,
+        personskat_felt_ejendomsskat_ejendomsvaerdi,
+        personskat_felt_ejendomsskat_grundvaerdi,
+        personskat_felt_ejendomsskat_produktionsjord,
+        personskat_felt_ejendomsskat_ejendomsvaerdiperiode,
+        personskat_felt_ejendomsskat_grundskyldsperiode,
+        personskat_felt_ejendomsskat_ejerandel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        DependencySource(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17),
+        Guidance(value = ejendomsskatteloven_vejledning_30_360),
+    )
+)
 = personskat_metadata_fremleje = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_fremleje),
@@ -6555,6 +6674,7 @@
         personskat_metadata_befordring,
         personskat_metadata_alder,
         personskat_metadata_kirkeskat,
+        personskat_meta_ejendomsskatter,
     ),
     kapitalindkomst = (
         personskat_metadata_renteindtægter,
@@ -7865,6 +7985,8 @@
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
     = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(input.lønmodtager.skatteår, parberegning.hovedskatteforhold)
     = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = skat.samlet_inkl_am_efter_personfradrag_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
+    = ejendomsskatter = ejendomsskattelov_person_årsresultat(input.lønmodtager.skatteår, input.ejendomsskatter)
+    = samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner + ejendomsskatter.samlet_ejendomsskat_kroner
     PersonskatBeregningResultat(
         skat = skat,
         indgående_ægtefælle = parberegning.hovedskat.indgående_ægtefælle,
@@ -7872,6 +7994,8 @@
         positiv_aktieindkomstskat = positiv_aktieindkomstskat,
         endelig_aktieindkomstskat_kroner = positiv_aktieindkomstskat.endelig_skat_kroner,
         samlet_skat_inkl_endelig_aktieindkomstskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
+        ejendomsskatter = ejendomsskatter,
+        samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_ejendomsskatter_kroner,
         pension = hovedgrundlag.pension,
         erhvervsbefordring = hovedgrundlag.erhvervsbefordring,
         ligningsfradrag = hovedgrundlag.ligningsfradrag,
@@ -7879,7 +8003,7 @@
         aktieavance = hovedgrundlag.aktieavance,
         udenlandske_sociale_bidrag = hovedgrundlag.udenlandske_sociale_bidrag,
         cfc = hovedgrundlag.cfc,
-        årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, samlet_skat_inkl_endelig_aktieindkomstskat_kroner, hovedgrundlag.pension)
+        årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, samlet_skat_inkl_ejendomsskatter_kroner, hovedgrundlag.pension)
     )
 }
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)

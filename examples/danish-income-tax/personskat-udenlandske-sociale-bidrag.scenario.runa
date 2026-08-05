@@ -36,6 +36,7 @@ kanoniske beregning af personlig indkomst.
     skatteforhold = skatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_socialbidrag_begrænset_skatteforhold() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(

@@ -37,6 +37,7 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_cfc_ll16h_fakta(eu_eøs_selskab: Boolsk, reel_etablering: Boolsk, dokumentation_kan_verificeres: Boolsk) -> PersonskatCfcEfterLigningslov16HFakta(

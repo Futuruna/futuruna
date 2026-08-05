@@ -1249,6 +1249,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
             );
         }
+        let property_tax_path = "ejendomsskatter";
+        let property_tax_sheet = workbook_collection_sheet_name(&mut workbook, property_tax_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &property_tax_sheet),
+            "Dansk personskat - Ejendomme med ejendomsskatter"
+        );
+        let property_tax_paths = workbook_column_paths(&mut workbook, &property_tax_sheet);
+        for expected in [
+            "identifikation",
+            "kommune",
+            "kategori",
+            "ejendomsværdi_kroner",
+            "grundværdi_kroner",
+            "ejendomsværdiskatteperiode.$variant",
+            "grundskyldsperiode.$variant",
+            "ejerandel_basispoint",
+        ] {
+            assert!(
+                property_tax_paths.iter().any(|path| path == expected),
+                "missing canonical property-tax source-fact path {expected} on {property_tax_sheet}"
+            );
+        }
+        let property_tax_headers = workbook_headers(&mut workbook, &property_tax_sheet);
+        for expected in [
+            "Ejendommens identifikation",
+            "Ejendommens kommune",
+            "Ejendomskategori",
+            "Vurderet ejendomsværdi",
+            "Vurderet grundværdi",
+            "Periode med ejendomsværdiskat",
+            "Periode med grundskyld",
+            "Registreret ejerandel",
+        ] {
+            assert!(
+                property_tax_headers.iter().any(|header| header == expected),
+                "missing human property-tax input label {expected} on {property_tax_sheet}"
+            );
+        }
         let cfc_path = "cfc.poster";
         let cfc_sheet = workbook_collection_sheet_name(&mut workbook, cfc_path);
         assert_eq!(
@@ -3076,6 +3114,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 10, "personskat-pbl53a-2026");
         fill_wage_case(sheets, 11, "personskat-pbl53a-overdrager-2026");
         fill_wage_case(sheets, 12, "personskat-aegtefaelleoverfoersler-2025");
+        fill_wage_case(sheets, 13, "personskat-ejendomsskatter-2025");
         for (header, value) in [
             ("lønmodtager.skatteår", Data::String("2025".to_string())),
             (
@@ -3220,6 +3259,70 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 12, header, value);
+        }
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            13,
+            "lønmodtager.skatteår",
+            Data::String("2025".to_string()),
+        );
+        let property_tax_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, "ejendomsskatter");
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-ejendomsskatter-2025".to_string()),
+            ),
+            ("item_id", Data::String("ejerbolig-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("ejerbolig-1".to_string())),
+            ("kommune", Data::String("København".to_string())),
+            ("kategori", Data::String("EjskEnBoligenhed".to_string())),
+            ("beliggenhed", Data::String("EjskDanmark".to_string())),
+            ("erhvervsmæssigt_udlejet", Data::Bool(false)),
+            (
+                "særlige_betingelser_for_nr6_til_nr8_opfyldt",
+                Data::Bool(true),
+            ),
+            ("ejendomsværdi_kroner", Data::Int(3_710_000)),
+            ("grundværdi_kroner", Data::Int(3_363_000)),
+            ("produktionsjord", Data::Bool(false)),
+            (
+                "ejendomsværdiskatteperiode.$variant",
+                Data::String("EjendomsskatFraOgMed".to_string()),
+            ),
+            (
+                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.år",
+                Data::Int(2025),
+            ),
+            (
+                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.måned",
+                Data::Int(8),
+            ),
+            (
+                "ejendomsværdiskatteperiode.EjendomsskatFraOgMed.dato.dag",
+                Data::Int(1),
+            ),
+            (
+                "grundskyldsperiode.$variant",
+                Data::String("EjendomsskatFraOgMed".to_string()),
+            ),
+            (
+                "grundskyldsperiode.EjendomsskatFraOgMed.dato.år",
+                Data::Int(2025),
+            ),
+            (
+                "grundskyldsperiode.EjendomsskatFraOgMed.dato.måned",
+                Data::Int(8),
+            ),
+            (
+                "grundskyldsperiode.EjendomsskatFraOgMed.dato.dag",
+                Data::Int(1),
+            ),
+            ("ejerandel_basispoint", Data::Int(5_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, &property_tax_sheet, 1, header, value);
         }
         let business_travel_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -5816,6 +5919,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
         },
         "cfc": { "poster": [] },
+        "ejendomsskatter": [],
         "skatteforhold": { "$variant": "StandardSkatteforhold" },
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
         "ægtefælle": { "$variant": "UdenÆgtefælle" },
@@ -7145,6 +7249,34 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(spouse_case);
+    let mut property_tax_case = json_input["cases"][0].clone();
+    property_tax_case["case_id"] = Value::String("personskat-ejendomsskatter-2025".into());
+    property_tax_case["input"]["lønmodtager"]["skatteår"] = serde_json::json!(2025);
+    property_tax_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    property_tax_case["input"]["ejendomsskatter"] = serde_json::json!([{
+        "identifikation": "ejerbolig-1",
+        "kommune": { "$variant": "København" },
+        "kategori": { "$variant": "EjskEnBoligenhed" },
+        "beliggenhed": { "$variant": "EjskDanmark" },
+        "erhvervsmæssigt_udlejet": false,
+        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+        "ejendomsværdi_kroner": 3_710_000,
+        "grundværdi_kroner": 3_363_000,
+        "produktionsjord": false,
+        "ejendomsværdiskatteperiode": {
+            "$variant": "EjendomsskatFraOgMed",
+            "dato": { "år": 2025, "måned": 8, "dag": 1 }
+        },
+        "grundskyldsperiode": {
+            "$variant": "EjendomsskatFraOgMed",
+            "dato": { "år": 2025, "måned": 8, "dag": 1 }
+        },
+        "ejerandel_basispoint": 5_000
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(property_tax_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -7196,6 +7328,41 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-aegtefaelleoverfoersler-2025")
         .expect("JSON spouse-transfer result");
     assert_eq!(xlsx_spouse_result["result"], json_spouse_result["result"]);
+    let xlsx_property_tax_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskatter-2025")
+        .expect("XLSX property-tax result");
+    let json_property_tax_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskatter-2025")
+        .expect("JSON property-tax result");
+    assert_eq!(
+        xlsx_property_tax_result["result"],
+        json_property_tax_result["result"]
+    );
+    assert_eq!(
+        xlsx_property_tax_result["result"]["ejendomsskatter"]["samlet_ejendomsværdiskat_øre"],
+        315_350
+    );
+    assert_eq!(
+        xlsx_property_tax_result["result"]["ejendomsskatter"]["samlet_grundskyld_øre"],
+        285_855
+    );
+    assert_eq!(
+        xlsx_property_tax_result["result"]["ejendomsskatter"]["samlet_ejendomsskat_øre"],
+        601_205
+    );
+    assert_eq!(
+        xlsx_property_tax_result["result"]["samlet_skat_inkl_ejendomsskatter_kroner"],
+        xlsx_property_tax_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]
+            .as_i64()
+            .expect("income and stock tax subtotal")
+            + 6_012
+    );
     assert_eq!(
         xlsx_spouse_result["result"]["indgående_ægtefælle"]["par13_indkomstfradrag_kroner"],
         39_617

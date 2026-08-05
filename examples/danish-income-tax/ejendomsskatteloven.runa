@@ -1,6 +1,8 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./pengebeloeb
+@ importer ./skatteaar - parametre
 
 # EjendomsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -14,6 +16,24 @@
     url = "https://www.retsinformation.dk/eli/lta/2026/615",
     identifier = "LOV nr. 615 af 30/06/2026, § 2, nr. 2-3, og § 16, stk. 5",
     hentet_dato = "2026-07-18"
+)
+
+= ejendomsskatteloven_lov678_par13_til_31_og_par72 = EjendomsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/678",
+    identifier = "Ejendomsskatteloven §§ 13, 15-19, 22, 28, 31 og 72",
+    hentet_dato = "2026-07-31"
+)
+
+= ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17 = EjendomsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/562",
+    identifier = "LOV nr. 562 af 27/05/2025 § 1, nr. 5, 6 og 15-17, og § 17",
+    hentet_dato = "2026-07-31"
+)
+
+= ejendomsskatteloven_vejledning_30_360 = EjendomsskattelovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948982",
+    identifier = "Den juridiske vejledning 2026-1, C.H.4.2.5.1",
+    hentet_dato = "2026-07-31"
 )
 
 -- Ejendomsskatteloven -- Personskatteloven-afhængighed for § 4, stk. 1, nr. 6.
@@ -197,3 +217,318 @@ fra og med den 1. januar 2027.
 | ejsk_2027_udland_stk2_følger_psl_nr6_kategorier: ejsk_2027_udland_fixture -> ejsk_2027_udland_fixture.stk1_hjemmel == EjskPar3Stk1Nr9 && ejsk_2027_udland_fixture.stk2_udland == Sandt && ejsk_2027_udland_fixture.omfattet_af_ejendomsværdiskat == Sandt
 | ejsk_erhvervsudlejning_afskærer_ejendomsværdiskat_og_psl_nr6: ejsk_2027_erhvervsudlejet_fixture -> ejsk_2027_erhvervsudlejet_fixture.omfattet_af_ejendomsværdiskat == Falskt && ejsk_2027_erhvervsudlejet_fixture.omfattet_af_personskattelov_par4_nr6 == Falskt
 --@end:ejendomsskatteloven_par3--
+
+= ejendomsskatteloven_par72_metadata = Metadata(
+    attachments = (
+        Source(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        Guidance(value = ejendomsskatteloven_vejledning_30_360),
+    )
+)
+
+--@label:ejendomsskatteloven_par72::meta:ejendomsskatteloven_par72_metadata--
+----
+§ 72. I hele loven anses indkomståret og kalenderåret at udgøre 360 dage med
+30 dage i hver kalendermåned.
+----
+
+--@begin:ejendomsskatteloven_par72--
+# EjendomsskattelovDato(år: Heltal, måned: Heltal, dag: Heltal)
+# EjendomsskattelovÅrsperiode = HeleEjendomsskatteåret | EjendomsskatFraOgMed(dato: EjendomsskattelovDato) | EjendomsskatTilOgMed(dato: EjendomsskattelovDato) | EjendomsskatFraOgMedTilOgMed(fra_dato: EjendomsskattelovDato, til_dato: EjendomsskattelovDato)
+# EjendomsskattelovPeriodeResultat(periode: EjendomsskattelovÅrsperiode, datoer_gyldige: Boolsk, skattepligtige_dage: Heltal, indkomstårets_dage: Heltal)
+
+| ejendomsskattelov_dato_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
+| ejendomsskattelov_dato_dage_i_måned(år: Heltal, måned: Heltal) -> match måned {
+    | 2 -> hvis ejendomsskattelov_dato_skudår(år) { 29 } ellers { 28 }
+    | 4 -> 30
+    | 6 -> 30
+    | 9 -> 30
+    | 11 -> 30
+    | _ -> 31
+}
+| ejendomsskattelov_dato_gyldig(dato: EjendomsskattelovDato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= ejendomsskattelov_dato_dage_i_måned(dato.år, dato.måned)
+| ejendomsskattelov_par72_normaliseret_dag(dag: Heltal) -> hvis dag > 30 { 30 } ellers { dag }
+| ejendomsskattelov_par72_dagnummer(dato: EjendomsskattelovDato) -> (dato.måned - 1) * 30 + ejendomsskattelov_par72_normaliseret_dag(dato.dag)
+| ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår: Heltal, periode: EjendomsskattelovÅrsperiode) -> match periode {
+    | HeleEjendomsskatteåret -> Sandt
+    | EjendomsskatFraOgMed(dato) -> ejendomsskattelov_dato_gyldig(dato) && dato.år == indkomstår
+    | EjendomsskatTilOgMed(dato) -> ejendomsskattelov_dato_gyldig(dato) && dato.år == indkomstår
+    | EjendomsskatFraOgMedTilOgMed(fra_dato, til_dato) -> ejendomsskattelov_dato_gyldig(fra_dato) && ejendomsskattelov_dato_gyldig(til_dato) && fra_dato.år == indkomstår && til_dato.år == indkomstår && ejendomsskattelov_par72_dagnummer(fra_dato) <= ejendomsskattelov_par72_dagnummer(til_dato)
+}
+| ejendomsskattelov_par72_skattepligtige_dage(periode: EjendomsskattelovÅrsperiode) -> match periode {
+    | HeleEjendomsskatteåret -> 360
+    | EjendomsskatFraOgMed(dato) -> 361 - ejendomsskattelov_par72_dagnummer(dato)
+    | EjendomsskatTilOgMed(dato) -> ejendomsskattelov_par72_dagnummer(dato)
+    | EjendomsskatFraOgMedTilOgMed(fra_dato, til_dato) -> ejendomsskattelov_par72_dagnummer(til_dato) - ejendomsskattelov_par72_dagnummer(fra_dato) + 1
+}
+| ejendomsskattelov_par72_periode_resultat(indkomstår: Heltal, periode: EjendomsskattelovÅrsperiode) -> EjendomsskattelovPeriodeResultat(
+    periode = periode,
+    datoer_gyldige = ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, periode),
+    skattepligtige_dage = hvis ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, periode) { ejendomsskattelov_par72_skattepligtige_dage(periode) } ellers { 0 },
+    indkomstårets_dage = 360
+)
+
+= ejsk_par72_august_til_december_fixture = ejendomsskattelov_par72_periode_resultat(2025, EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)))
+| ejsk_par72_august_til_december_er_150_dage: ejsk_par72_august_til_december_fixture -> ejsk_par72_august_til_december_fixture.datoer_gyldige && ejsk_par72_august_til_december_fixture.skattepligtige_dage == 150 && ejsk_par72_august_til_december_fixture.indkomstårets_dage == 360
+--@end:ejendomsskatteloven_par72--
+
+= ejendomsskatteloven_ejendomsværdiskat_metadata = Metadata(
+    attachments = (
+        Source(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        AmendmentSource(value = ejendomsskatteloven_lov562_par1_nr5_6_15_17_og_par17),
+        Guidance(value = ejendomsskatteloven_vejledning_30_360),
+    )
+)
+
+--@label:ejendomsskatteloven_ejendomsvaerdiskat::meta:ejendomsskatteloven_ejendomsværdiskat_metadata--
+----
+§ 13. Ejendomsværdiskatten opgøres som beskatningsgrundlaget efter stk. 2-4
+ganget med ejendomsværdiskattesatsen i § 22 med fradrag for nedslagsbeløb
+efter §§ 15, 23-25 og 27 og rabat efter § 40, stk. 2, og med tillæg efter § 26.
+
+Stk. 2. Beskatningsgrundlaget for ejendomsværdiskatten for ejendomme, der er
+omfattet af § 3, stk. 1, udgør 80 pct. af den ejendomsværdi, der efter
+ejendomsvurderingsloven er ansat for den pågældende ejendom for det
+forudgående indkomstår, jf. dog stk. 3-6.
+
+§ 15. Ejendomsværdiskatten opgøres på helårsniveau efter §§ 22-26.
+
+Stk. 2. Kan ejendommen ikke tjene til bolig for den skattepligtige eller
+dennes husstand i hele indkomståret, eller anvendes en ejendom til formål, som
+ikke er ejendomsværdiskattepligtige, nedsættes den beregnede
+ejendomsværdiskat forholdsmæssigt med den periode af indkomståret, ejendommen
+ikke kan tjene til bolig for den skattepligtige eller dennes husstand eller
+ejendommen ikke anvendes til ejendomsværdiskattepligtige formål, jf. dog
+stk. 5, 1. pkt.
+
+§ 16. For ejendomme, der er ejet af to eller flere fysiske personer, og for
+ejendomme omfattet af § 3, stk. 1, nr. 2, påhviler ejendomsværdiskat ejerne
+efter de ejerandele, der er registreret i et autoritativt register.
+
+§ 22. Ejendomsværdiskatten opgøres for ejendommen.
+For tofamilieshuse, jf. § 3, stk. 1, nr. 2, opgøres ejendomsværdiskatten dog
+pr. boligenhed.
+
+Stk. 2. Ejendomsværdiskattesatsen er 5,1 promille af den del af
+beskatningsgrundlaget efter §§ 13 og 14, der ikke overstiger et grundbeløb på
+9.200.000 kr. (2024-niveau).
+Ejendomsværdiskattesatsen er 14,0 promille af den del af
+beskatningsgrundlaget efter §§ 13 og 14, der overstiger grundbeløbet nævnt i
+1. pkt.
+
+Stk. 3. Grundbeløbet nævnt i stk. 2, 1. pkt., reguleres hvert andet år i
+forhold til et ejerboligværdiindeks, jf. stk. 4.
+Ved reguleringen forhøjes eller nedsættes beløbet med samme procent som den,
+hvormed ejerboligværdiindekset afviger fra 100,0.
+Det regulerede beløb afrundes opad til nærmeste kronebeløb, der kan deles med
+1.000.
+Grundbeløbet reguleres første gang for indkomståret 2026.
+
+LOV nr. 562 af 27. maj 2025 § 1, nr. 5, 6 og 15-17:
+
+5. I § 13, stk. 1, indsættes efter »stk. 2-4«: »eller § 14«.
+
+6. I § 13, stk. 1, indsættes som 2. og 3. pkt.:
+»Ejendomsværdiskatten opgøres for ejendommen. For tofamilieshuse, jf. § 3,
+stk. 1, nr. 2, opgøres ejendomsværdiskatten dog pr. boligenhed.«
+
+15. § 22, stk. 1, ophæves.
+Stk. 2-5 bliver herefter stk. 1-4.
+
+16. I § 22, stk. 3, 1. pkt., der bliver stk. 2, 1. pkt., ændres »stk. 2,
+1. pkt.« til: »stk. 1, 1. pkt.«, og »stk. 4« ændres til: »stk. 3«.
+
+17. I § 22, stk. 4, 1. pkt., der bliver stk. 3, 1. pkt., ændres »stk. 3« til:
+»stk. 2«.
+
+LOV nr. 562 af 27. maj 2025 § 17, stk. 1:
+
+Loven træder i kraft den 1. juli 2025.
+----
+
+--@begin:ejendomsskatteloven_ejendomsvaerdiskat--
+# EjendomsskattelovOrdinærPersonEjendomFakta(identifikation: Tekst, kommune: Kommune, kategori: EjendomsskattelovPar3Kategori, beliggenhed: EjendomsskattelovPar3Beliggenhed, erhvervsmæssigt_udlejet: Boolsk, særlige_betingelser_for_nr6_til_nr8_opfyldt: Boolsk, ejendomsværdi_kroner: Heltal, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode, grundskyldsperiode: EjendomsskattelovÅrsperiode, ejerandel_basispoint: Heltal)
+# EjendomsskattelovEjendomsværdiskatResultat(par3_resultat: EjendomsskattelovPar3Resultat, periode: EjendomsskattelovPeriodeResultat, beskatningsgrundlag_kroner: Heltal, lavt_satsgrundlag_kroner: Heltal, højt_satsgrundlag_kroner: Heltal, lav_sats_promille_tiendedele: Heltal, høj_sats_promille_tiendedele: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
+# EjendomsskattelovGrundskyldResultat(periode: EjendomsskattelovPeriodeResultat, kommune: Kommune, grundskyld_promille_tiendedele: Heltal, beskatningsgrundlag_kroner: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
+# EjendomsskattelovOrdinærPersonEjendomResultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta, ejendomsværdiskat: EjendomsskattelovEjendomsværdiskatResultat, grundskyld: EjendomsskattelovGrundskyldResultat, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, samlet_ejendomsskat_øre: Heltal, samlet_ejendomsskat_kroner: Heltal)
+# EjendomsskattelovPersonÅrsresultat(indkomstår: Heltal, ejendomsresultater: List(EjendomsskattelovOrdinærPersonEjendomResultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk, samlet_ejendomsværdiskat_øre: Heltal, samlet_grundskyld_øre: Heltal, samlet_ejendomsskat_øre: Heltal, samlet_ejendomsskat_kroner: Heltal)
+
+| ejendomsskattelov_tom_øre_beregning() -> PengeØreBeregning(tæller = 0, nævner = 1, øre_nedrundet = 0)
+| ejendomsskattelov_ejerandel_gyldig(ejerandel_basispoint: Heltal) -> ejerandel_basispoint > 0 && ejerandel_basispoint <= 10000
+| ejendomsskattelov_par13_beskatningsgrundlag_kroner(ejendomsværdi_kroner: Heltal) -> ejendomsværdi_kroner * 80 / 100
+| ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 9200000 under indkomstår == 2024 || indkomstår == 2025
+| ejendomsskattelov_par22_grundbeløb_understøttet(indkomstår: Heltal) -> indkomstår == 2024 || indkomstår == 2025
+| ejendomsskattelov_par22_lavt_satsgrundlag_kroner(indkomstår: Heltal, beskatningsgrundlag_kroner: Heltal) -> penge_mindste_beløb(beskatningsgrundlag_kroner, ejendomsskattelov_par22_grundbeløb_kroner(indkomstår))
+| ejendomsskattelov_par22_højt_satsgrundlag_kroner(indkomstår: Heltal, beskatningsgrundlag_kroner: Heltal) -> penge_positivt_beløb(beskatningsgrundlag_kroner - ejendomsskattelov_par22_grundbeløb_kroner(indkomstår))
+| ejendomsskattelov_ejendomsværdiskat_regelgrundlag_understøttet(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_par22_grundbeløb_understøttet(indkomstår) && fakta.beliggenhed == EjskDanmark
+| ejendomsskattelov_ejendomsværdiskat_input_gyldigt(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.identifikation != "" && fakta.ejendomsværdi_kroner >= 0 && ejendomsskattelov_ejerandel_gyldig(fakta.ejerandel_basispoint) && ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, fakta.ejendomsværdiskatteperiode)
+| ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_tom_øre_beregning()
+| exception ejsk_ordinær_ejendomsværdiskat_beregnes ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> penge_øre_beregning(
+    (ejendomsskattelov_par22_lavt_satsgrundlag_kroner(indkomstår, ejendomsskattelov_par13_beskatningsgrundlag_kroner(fakta.ejendomsværdi_kroner)) * 51 + ejendomsskattelov_par22_højt_satsgrundlag_kroner(indkomstår, ejendomsskattelov_par13_beskatningsgrundlag_kroner(fakta.ejendomsværdi_kroner)) * 140) * ejendomsskattelov_par72_skattepligtige_dage(fakta.ejendomsværdiskatteperiode) * fakta.ejerandel_basispoint,
+    100 * 360 * 10000
+) under ejendomsskattelov_ejendomsværdiskat_regelgrundlag_understøttet(indkomstår, fakta) && ejendomsskattelov_ejendomsværdiskat_input_gyldigt(indkomstår, fakta) && ejendomsskattelov_par3_omfattet_af_ejendomsværdiskat(EjendomsskattelovPar3Input(indkomstår = indkomstår, kategori = fakta.kategori, beliggenhed = fakta.beliggenhed, erhvervsmæssigt_udlejet = fakta.erhvervsmæssigt_udlejet, særlige_betingelser_for_nr6_til_nr8_opfyldt = fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt))
+| ejendomsskattelov_ejendomsværdiskat_resultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> {
+    = par3_resultat = ejendomsskattelov_par3_resultat(EjendomsskattelovPar3Input(indkomstår = indkomstår, kategori = fakta.kategori, beliggenhed = fakta.beliggenhed, erhvervsmæssigt_udlejet = fakta.erhvervsmæssigt_udlejet, særlige_betingelser_for_nr6_til_nr8_opfyldt = fakta.særlige_betingelser_for_nr6_til_nr8_opfyldt))
+    = periode = ejendomsskattelov_par72_periode_resultat(indkomstår, fakta.ejendomsværdiskatteperiode)
+    = beskatningsgrundlag_kroner = ejendomsskattelov_par13_beskatningsgrundlag_kroner(fakta.ejendomsværdi_kroner)
+    = input_gyldigt = ejendomsskattelov_ejendomsværdiskat_input_gyldigt(indkomstår, fakta)
+    = regelgrundlag_understøttet = ejendomsskattelov_ejendomsværdiskat_regelgrundlag_understøttet(indkomstår, fakta)
+    = beregning = ejendomsskattelov_ejendomsværdiskat_beregning(indkomstår, fakta)
+    EjendomsskattelovEjendomsværdiskatResultat(
+        par3_resultat = par3_resultat,
+        periode = periode,
+        beskatningsgrundlag_kroner = beskatningsgrundlag_kroner,
+        lavt_satsgrundlag_kroner = hvis regelgrundlag_understøttet { ejendomsskattelov_par22_lavt_satsgrundlag_kroner(indkomstår, beskatningsgrundlag_kroner) } ellers { 0 },
+        højt_satsgrundlag_kroner = hvis regelgrundlag_understøttet { ejendomsskattelov_par22_højt_satsgrundlag_kroner(indkomstår, beskatningsgrundlag_kroner) } ellers { 0 },
+        lav_sats_promille_tiendedele = 51,
+        høj_sats_promille_tiendedele = 140,
+        ejerandel_basispoint = fakta.ejerandel_basispoint,
+        beregning = beregning,
+        skat_øre = beregning.øre_nedrundet,
+        skat_kroner = beregning.øre_nedrundet / 100,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet
+    )
+}
+--@end:ejendomsskatteloven_ejendomsvaerdiskat--
+
+= ejendomsskatteloven_grundskyld_metadata = Metadata(
+    attachments = (
+        Source(value = ejendomsskatteloven_lov678_par13_til_31_og_par72),
+        Guidance(value = ejendomsskatteloven_vejledning_30_360),
+    )
+)
+
+--@label:ejendomsskatteloven_grundskyld::meta:ejendomsskatteloven_grundskyld_metadata--
+----
+§ 17. Grundskylden opgøres som beskatningsgrundlaget efter stk. 2 og 3 ganget
+med grundskyldssatsen i § 28 med fradrag for grundforbedringer efter
+ejendomsvurderingslovens §§ 22 og 23 og for fritagelse efter § 5, stk. 2, og
+§ 7, stk. 2.
+Derudover fradrages rabat efter § 40, stk. 3, eller begrænsning af stigninger i
+grundskyld efter § 45.
+
+Stk. 2. Beskatningsgrundlaget for grundskylden for et indkomstår eller
+kalenderår udgør 80 pct. af den grundværdi, der efter
+ejendomsvurderingsloven er ansat for den pågældende ejendom i det forudgående
+indkomstår eller kalenderår, jf. dog stk. 3 og 4.
+
+§ 18. Grundskylden opgøres på helårsniveau efter § 28.
+
+Stk. 2. Ved erhvervelse af en ejendom bliver ejeren omfattet af pligten til at
+svare grundskyld fra og med overtagelsesdagen.
+Ved afståelse af en ejendom skal ejeren svare grundskyld til og med dagen før
+overtagelsesdagen.
+
+§ 19. For ejendomme, der er ejet af to eller flere fysiske personer, og for
+ejendomme omfattet af § 3, stk. 1, nr. 2, påhviler grundskylden ejerne efter
+de ejerandele, der er registreret i et autoritativt register.
+
+§ 28. Kommunalbestyrelsen fastsætter satsen for grundskyld i forbindelse med
+den endelige vedtagelse af kommunens årsbudget for det kommende regnskabsår.
+Satsen kan højst udgøre 30 promille, jf. dog stk. 2.
+For indkomstårene og kalenderårene 2024-2028 kan kommunalbestyrelsen dog ikke
+fastsætte satsen for grundskyld efter 1. og 2. pkt. højere end satsen angivet
+for den pågældende kommune i bilag 1.
+
+§ 31. Ejendomsværdiskat af ejendomme nævnt i § 3 og grundskyld af ejendomme
+nævnt i § 3, stk. 1, nr. 3 og 4, og ejendomsvurderingslovens § 3, stk. 1,
+nr. 1, der alene er ejet af fysiske personer, opkræves af told- og
+skatteforvaltningen via forskuds- og årsopgørelsen hos den eller de fysiske
+personer, der ejer ejendommen i henhold til et autoritativt register.
+----
+
+--@begin:ejendomsskatteloven_grundskyld--
+| ejendomsskattelov_par17_beskatningsgrundlag_kroner(grundværdi_kroner: Heltal) -> grundværdi_kroner * 80 / 100
+| ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.beliggenhed == EjskDanmark && fakta.produktionsjord == Falskt && kommune_understøttet_i_år(indkomstår, fakta.kommune)
+| ejendomsskattelov_grundskyld_input_gyldigt(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> fakta.identifikation != "" && fakta.grundværdi_kroner >= 0 && ejendomsskattelov_ejerandel_gyldig(fakta.ejerandel_basispoint) && ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, fakta.grundskyldsperiode)
+| ejendomsskattelov_grundskyld_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> ejendomsskattelov_tom_øre_beregning()
+| exception ejsk_ordinær_grundskyld_beregnes ejendomsskattelov_grundskyld_beregning(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> penge_øre_beregning(
+    ejendomsskattelov_par17_beskatningsgrundlag_kroner(fakta.grundværdi_kroner) * kommunale_parametre_for(indkomstår, fakta.kommune).grundskyld_promille_tiendedele * ejendomsskattelov_par72_skattepligtige_dage(fakta.grundskyldsperiode) * fakta.ejerandel_basispoint,
+    100 * 360 * 10000
+) under ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår, fakta) && ejendomsskattelov_grundskyld_input_gyldigt(indkomstår, fakta)
+| ejendomsskattelov_grundskyld_resultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> {
+    = periode = ejendomsskattelov_par72_periode_resultat(indkomstår, fakta.grundskyldsperiode)
+    = input_gyldigt = ejendomsskattelov_grundskyld_input_gyldigt(indkomstår, fakta)
+    = regelgrundlag_understøttet = ejendomsskattelov_grundskyld_regelgrundlag_understøttet(indkomstår, fakta)
+    = beregning = ejendomsskattelov_grundskyld_beregning(indkomstår, fakta)
+    EjendomsskattelovGrundskyldResultat(
+        periode = periode,
+        kommune = fakta.kommune,
+        grundskyld_promille_tiendedele = hvis regelgrundlag_understøttet { kommunale_parametre_for(indkomstår, fakta.kommune).grundskyld_promille_tiendedele } ellers { 0 },
+        beskatningsgrundlag_kroner = ejendomsskattelov_par17_beskatningsgrundlag_kroner(fakta.grundværdi_kroner),
+        ejerandel_basispoint = fakta.ejerandel_basispoint,
+        beregning = beregning,
+        skat_øre = beregning.øre_nedrundet,
+        skat_kroner = beregning.øre_nedrundet / 100,
+        input_gyldigt = input_gyldigt,
+        regelgrundlag_understøttet = regelgrundlag_understøttet
+    )
+}
+| ejendomsskattelov_ordinær_person_ejendom_resultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> {
+    = ejendomsværdiskat = ejendomsskattelov_ejendomsværdiskat_resultat(indkomstår, fakta)
+    = grundskyld = ejendomsskattelov_grundskyld_resultat(indkomstår, fakta)
+    = samlet_ejendomsskat_øre = ejendomsværdiskat.skat_øre + grundskyld.skat_øre
+    EjendomsskattelovOrdinærPersonEjendomResultat(
+        indkomstår = indkomstår,
+        fakta = fakta,
+        ejendomsværdiskat = ejendomsværdiskat,
+        grundskyld = grundskyld,
+        input_gyldigt = ejendomsværdiskat.input_gyldigt && grundskyld.input_gyldigt,
+        regelgrundlag_understøttet = ejendomsværdiskat.regelgrundlag_understøttet && grundskyld.regelgrundlag_understøttet,
+        samlet_ejendomsskat_øre = samlet_ejendomsskat_øre,
+        samlet_ejendomsskat_kroner = samlet_ejendomsskat_øre / 100
+    )
+}
+| ejendomsskattelov_ejendomsresultater(indkomstår: Heltal, ejendomme: List(EjendomsskattelovOrdinærPersonEjendomFakta)) -> map(ejendomme, |fakta: EjendomsskattelovOrdinærPersonEjendomFakta| ejendomsskattelov_ordinær_person_ejendom_resultat(indkomstår, fakta))
+| ejendomsskattelov_ejendomme_med_identifikation(ejendomme: List(EjendomsskattelovOrdinærPersonEjendomFakta), identifikation: Tekst) -> filter(ejendomme, |fakta: EjendomsskattelovOrdinærPersonEjendomFakta| fakta.identifikation == identifikation)
+| ejendomsskattelov_identifikationer_entydige(ejendomme: List(EjendomsskattelovOrdinærPersonEjendomFakta)) -> all(ejendomme, |fakta: EjendomsskattelovOrdinærPersonEjendomFakta| length(ejendomsskattelov_ejendomme_med_identifikation(ejendomme, fakta.identifikation)) == 1)
+| ejendomsskattelov_person_årsresultat(indkomstår: Heltal, ejendomme: List(EjendomsskattelovOrdinærPersonEjendomFakta)) -> {
+    = resultater = ejendomsskattelov_ejendomsresultater(indkomstår, ejendomme)
+    = samlet_ejendomsværdiskat_øre = foldl(resultater, 0, |sum: Heltal, resultat: EjendomsskattelovOrdinærPersonEjendomResultat| sum + resultat.ejendomsværdiskat.skat_øre)
+    = samlet_grundskyld_øre = foldl(resultater, 0, |sum: Heltal, resultat: EjendomsskattelovOrdinærPersonEjendomResultat| sum + resultat.grundskyld.skat_øre)
+    = samlet_ejendomsskat_øre = samlet_ejendomsværdiskat_øre + samlet_grundskyld_øre
+    EjendomsskattelovPersonÅrsresultat(
+        indkomstår = indkomstår,
+        ejendomsresultater = resultater,
+        identifikationer_entydige = ejendomsskattelov_identifikationer_entydige(ejendomme),
+        alle_input_gyldige = ejendomsskattelov_identifikationer_entydige(ejendomme) && all(resultater, |resultat: EjendomsskattelovOrdinærPersonEjendomResultat| resultat.input_gyldigt),
+        regelgrundlag_understøttet = all(resultater, |resultat: EjendomsskattelovOrdinærPersonEjendomResultat| resultat.regelgrundlag_understøttet),
+        samlet_ejendomsværdiskat_øre = samlet_ejendomsværdiskat_øre,
+        samlet_grundskyld_øre = samlet_grundskyld_øre,
+        samlet_ejendomsskat_øre = samlet_ejendomsskat_øre,
+        samlet_ejendomsskat_kroner = samlet_ejendomsskat_øre / 100
+    )
+}
+
+= ejsk_2025_ordinær_halvårsandel_fixture = ejendomsskattelov_ordinær_person_ejendom_resultat(2025, EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = "fixture-ejendom",
+    kommune = København,
+    kategori = EjskEnBoligenhed,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = 3710000,
+    grundværdi_kroner = 3363000,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+    grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+    ejerandel_basispoint = 5000
+))
+| ejsk_2025_ordinær_halvårsandel_udleder_begge_skatter: ejsk_2025_ordinær_halvårsandel_fixture -> ejsk_2025_ordinær_halvårsandel_fixture.input_gyldigt && ejsk_2025_ordinær_halvårsandel_fixture.regelgrundlag_understøttet && ejsk_2025_ordinær_halvårsandel_fixture.ejendomsværdiskat.beskatningsgrundlag_kroner == 2968000 && ejsk_2025_ordinær_halvårsandel_fixture.grundskyld.beskatningsgrundlag_kroner == 2690400 && ejsk_2025_ordinær_halvårsandel_fixture.ejendomsværdiskat.skat_øre == 315350 && ejsk_2025_ordinær_halvårsandel_fixture.grundskyld.skat_øre == 285855 && ejsk_2025_ordinær_halvårsandel_fixture.samlet_ejendomsskat_øre == 601205
+
+= ejsk_2025_erhvervsudlejet_fixture = ejendomsskattelov_ordinær_person_ejendom_resultat(2025, EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = "fixture-erhvervsudlejet",
+    kommune = København,
+    kategori = EjskEnBoligenhed,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Sandt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = 3710000,
+    grundværdi_kroner = 3363000,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+    grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+    ejerandel_basispoint = 5000
+))
+| ejsk_2025_erhvervsudlejning_er_gyldigt_nul_i_ejendomsværdiskat: ejsk_2025_erhvervsudlejet_fixture -> ejsk_2025_erhvervsudlejet_fixture.input_gyldigt && ejsk_2025_erhvervsudlejet_fixture.regelgrundlag_understøttet && ejsk_2025_erhvervsudlejet_fixture.ejendomsværdiskat.par3_resultat.omfattet_af_ejendomsværdiskat == Falskt && ejsk_2025_erhvervsudlejet_fixture.ejendomsværdiskat.skat_øre == 0 && ejsk_2025_erhvervsudlejet_fixture.grundskyld.skat_øre == 285855
+--@end:ejendomsskatteloven_grundskyld--

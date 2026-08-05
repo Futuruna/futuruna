@@ -30,6 +30,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
@@ -43,6 +44,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
@@ -54,6 +56,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_lønmodtager(lønmodtager: PersonskatLønmodtagerInput) -> PersonskatInput(
@@ -65,6 +68,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
@@ -571,6 +575,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [],
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
         øvrig_pensionsbeskatningsafgift_kroner = 500,
@@ -600,6 +605,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     skatteforhold = input.skatteforhold,
     underskudsforhold = input.underskudsforhold,
     ægtefælle = input.ægtefælle,
+    ejendomsskatter = input.ejendomsskatter,
     årsopgørelse = årsopgørelse
 )
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
@@ -609,6 +615,59 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     )),
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
+
+= personskat_calculate_ejendomsskat_input = PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2025,
+        kommune = Frederiksberg,
+        bruttoløn_kroner = 600000,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = [EjendomsskattelovOrdinærPersonEjendomFakta(
+        identifikation = "kanonisk-ejerbolig",
+        kommune = København,
+        kategori = EjskEnBoligenhed,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+        ejendomsværdi_kroner = 3710000,
+        grundværdi_kroner = 3363000,
+        produktionsjord = Falskt,
+        ejendomsværdiskatteperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+        grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+        ejerandel_basispoint = 5000
+    )],
+    årsopgørelse = MedÅrsopgørelse(
+        overført_restskat_mv_kroner = 0,
+        øvrig_pensionsbeskatningsafgift_kroner = 0,
+        kreditter = KildeskatPar60Kreditter(
+            a_skat_og_am_indeholdt_kroner = 0,
+            par68_indbetalt_kroner = 0,
+            b_skat_betalt_kroner = 0,
+            udbytteskat_modregningsberettiget_kroner = 0,
+            frivillig_indbetaling_par59_kroner = 0,
+            virksomhedsordning_beløb_kroner = 0,
+            personskattelov_par8a_stk5_beløb_kroner = 0,
+            afskrivningslov_acontoskat_kroner = 0,
+            am_lov_par6_beløb_kroner = 0,
+            seniornedslag_kroner = 0,
+            energiafgiftskompensation_kroner = 0,
+            tilbagebetalt_par55_kroner = 0
+        )
+    )
+)
+= personskat_calculate_ejendomsskat_resultat = beregn_personskat(personskat_calculate_ejendomsskat_input)
 
 | personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.personfradrag_kroner == 54100
@@ -687,6 +746,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_kroner == 210076 && årsopgørelsesinput.slutskat_kroner == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner && årsopgørelsesresultat.slutskat_med_tillæg_kroner == 211576
 }
+| personskat_calculate_ejendomsskatter_udledes_og_indgår_en_gang: personskat_calculate_ejendomsskat_resultat -> personskat_calculate_ejendomsskat_resultat.ejendomsskatter.identifikationer_entydige && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.alle_input_gyldige && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.regelgrundlag_understøttet && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsværdiskat_øre == 315350 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_grundskyld_øre == 285855 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_øre == 601205 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_kroner == 6012 && personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_ejendomsskatter_kroner == personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + 6012 && match personskat_calculate_ejendomsskat_resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> Falskt
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, _) -> årsopgørelsesinput.slutskat_kroner == personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_ejendomsskatter_kroner
+}
 
 ? personskat_calculate_am_bidrag
 ? personskat_calculate_personfradrag
@@ -716,3 +779,4 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes
 ? personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse
+? personskat_calculate_ejendomsskatter_udledes_og_indgår_en_gang
