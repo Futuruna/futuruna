@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8cb07d` (typed Afskrivningsloven § 24 dependency for EBL § 10; implementation and verification complete, pending independent review)
+Current implementation slice: `td-2c1961` (source-derived coordination of Afskrivningsloven §§ 21/24 and Ejendomsavancebeskatningsloven § 10; implementation and verification complete, pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-30d94e`
+Latest approved implementation slice: `td-8cb07d`
 Latest approved language slice: `td-29d539`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -95,12 +95,22 @@ ukendte ejendomme, dobbelte aktividentifikationer og modstridende beløb eller
 kildefakta fejler lukket og bliver synlige som
 `afskrivningsforhold_afstemt = Falskt`. Afskrivningslovens gældende LBK nr.
 1222 af 13. oktober 2025 er samtidig knyttet til den ordrette § 10-blok som en
-typet `dependency_source`. Seksten fokuserede invarianter, de underliggende
-AL §§ 21-24-scenarier og den relevante § 9-audit passerer i både interpreter og
-compiler. De to resterende gensidige anvendelsesfelter i Afskrivningslovens
-selvstændige § 21- og § 24-API kan ikke alene skabe et gyldigt EBL-resultat,
-men deres fulde erstatning med en fælles kildefaktabaseret samordning er
-registreret som `td-2c1961`.
+typet `dependency_source`.
+
+De sidste to kalderstyrede anvendelsesfelter er nu fjernet. Det selvstændige
+§ 21-spor beregner først den ordinære fortjeneste eller det ordinære tab uden
+at kende § 24-konklusionen. § 24 beregner derefter et typet kandidatresultat
+for betingelserne før stk. 10. En fælles EBL § 10-samordning afstemmer de to
+loves skadeår, erstatningsfastsættelse, genopførelsesår, placering, beløb,
+aktiver og ejendomme og afleder først derefter den samtidige anvendelse. Dens
+forklaringsspor bevarer § 21 før og efter samordning, § 24-kandidaten, det
+endelige § 24-resultat og EBL § 10-resultatet. Et gyldigt forløb kan derfor
+vise, at 50.000 kr. først beregnes som genvundne afskrivninger og derefter
+udskydes; modstridende kildefakta bevarer i stedet den ordinære
+§ 21-beskatning. § 24, stk. 11's fristsvigt og femprocents tillæg afledes
+uafhængigt af en EBL-til/fra-kontakt. Sytten EBL § 10-invarianter, ti
+AL §§ 21-24/Personskatteloven-invarianter og de berørte overgangsscenarier
+passerer i både interpreter og compiler.
 
 Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter

@@ -381,6 +381,7 @@ afskrivningslovens § 24 samtidig anvendes.
 # EblPar10AfskrivningsaktivTilknytning(aktiv_identifikation: Tekst, ejendomsidentifikation: Tekst)
 # EblPar10Afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger | EblPar10AfskrivningsberettigedeBygninger(par24_input: Afskrivningslov24Input, aktivtilknytninger: List(EblPar10AfskrivningsaktivTilknytning))
 # EblPar10Fakta(skadedato: EblDato, erstatningssum_endeligt_fastsat_indkomstår: Heltal, genopførelsesindkomstår: Heltal, skadelidt_ejendom_omfattet_af_par8: Boolsk, erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner: Heltal, reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner: Heltal, genopførelsessted: EblPar10Genopførelsessted, fristforhold: EblPar10Fristforhold, erhvervserstatning_anvendt_til_ejerbolig_kroner: Heltal, afskrivningsforhold: EblPar10Afskrivningsforhold, regulering: EblGenanbragtFortjenesteregulering)
+# EblPar10AfskrivningssamordningsResultat(afskrivningsberettigede_bygninger: Boolsk, samordning_gyldig: Boolsk, samtidig_anvendelse: Boolsk, ebl_par10_resultat: EblGenanbringelsesResultat, par21_resultat_før_samordning: Option(Afskrivningslov21Resultat), par21_resultat_efter_samordning: Option(Afskrivningslov21Resultat), par24_kandidatresultat: Option(Afskrivningslov24KandidatResultat), par24_resultat: Option(Afskrivningslov24Resultat))
 # EblPar10Ejendomsfordeling(ejendomsidentifikation: Tekst, genopførelsesudgifter_kroner: Heltal, fordelingsandel_tæller_kroner: Heltal, fordelingsandel_nævner_kroner: Heltal, overført_anskaffelsessum_efter_stk8_kroner: Heltal, tillæg_til_anskaffelsessum_efter_stk7_kroner: Heltal, oprindelig_erhvervsfortjeneste_kroner: Heltal, genanbragt_fortjeneste_kroner: Heltal, straks_beskattet_fortjeneste_kroner: Heltal, aktivt_anskaffelsessumsnedslag_kroner: Heltal, skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner: Heltal)
 # EblPar10Fordelingstilstand(samlede_genopførelsesudgifter_kroner: Heltal, resterende_genopførelsesudgifter_kroner: Heltal, resterende_overført_anskaffelsessum_efter_stk8_kroner: Heltal, resterende_tillæg_til_anskaffelsessum_efter_stk7_kroner: Heltal, resterende_oprindelig_erhvervsfortjeneste_kroner: Heltal, resterende_genanbragt_fortjeneste_kroner: Heltal, resterende_skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner: Heltal, fordelinger: List(EblPar10Ejendomsfordeling))
 # EblPar10FordelingsResultat(input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, afskrivningsforhold_afstemt: Boolsk, betingelser_opfyldt: Boolsk, samlede_genopførelsesudgifter_kroner: Heltal, overført_anskaffelsessum_efter_stk8_i_alt_kroner: Heltal, tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner: Heltal, fordelinger: List(EblPar10Ejendomsfordeling), fordelinger_afstemmer: Boolsk)
@@ -418,8 +419,8 @@ afskrivningslovens § 24 samtidig anvendes.
 | ebl_par10_afskrivningsforhold_afstemt(fakta: EblPar10Fakta) -> match fakta.afskrivningsforhold {
     | EblPar10IngenAfskrivningsberettigedeBygninger -> Sandt
     | EblPar10AfskrivningsberettigedeBygninger(par24_input, aktivtilknytninger) -> {
-        = par24_resultat = afskrivningslov24_resultat(par24_input)
-        par24_resultat.par24_finder_anvendelse && par24_input.ejendomsavancebeskatningslov10_anvendes_samtidig && par24_input.skadeår == fakta.skadedato.år && par24_input.erstatningssum_endeligt_fastsat_år == fakta.erstatningssum_endeligt_fastsat_indkomstår && par24_input.genopførelsesår == fakta.genopførelsesindkomstår && par24_input.modtaget_erstatnings_eller_forsikringssum_kroner <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_afskrivningsplacering_afstemt(fakta.genopførelsessted, par24_input.placering) && ebl_par10_afskrivningsaktiver_tilknyttet_gyldigt(fakta, par24_input, aktivtilknytninger)
+        = par24_kandidat = afskrivningslov24_kandidatresultat(par24_input)
+        par24_kandidat.betingelser_før_stk10_opfyldt && par24_input.skadeår == fakta.skadedato.år && par24_input.erstatningssum_endeligt_fastsat_år == fakta.erstatningssum_endeligt_fastsat_indkomstår && par24_input.genopførelsesår == fakta.genopførelsesindkomstår && par24_input.modtaget_erstatnings_eller_forsikringssum_kroner <= fakta.erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner && ebl_par10_afskrivningsplacering_afstemt(fakta.genopførelsessted, par24_input.placering) && ebl_par10_afskrivningsaktiver_tilknyttet_gyldigt(fakta, par24_input, aktivtilknytninger)
     }
 }
 | ebl_par10_genopførelse_på_anden_ejendom(sted: EblPar10Genopførelsessted) -> match sted {
@@ -471,6 +472,90 @@ afskrivningslovens § 24 samtidig anvendes.
         aktivt_anskaffelsessumsnedslag_kroner = genanbragt_fortjeneste_kroner,
         skattepligtig_genanbragt_fortjeneste_ved_senere_afståelse_kroner = hvis genanbragt_fortjeneste_kroner > 0 { ebl_genanbragt_skattepligtig_fortjeneste_kroner(genanbragt_fortjeneste_kroner, fakta.regulering) } ellers { 0 }
     )
+}
+
+| ebl_par10_afskrivningssamordningsresultat(fakta: EblPar10Fakta) -> match fakta.afskrivningsforhold {
+    | EblPar10IngenAfskrivningsberettigedeBygninger -> {
+        = ebl_resultat = ebl_par10_resultat(fakta)
+        EblPar10AfskrivningssamordningsResultat(
+            afskrivningsberettigede_bygninger = Falskt,
+            samordning_gyldig = ebl_resultat.input_gyldigt,
+            samtidig_anvendelse = Falskt,
+            ebl_par10_resultat = ebl_resultat,
+            par21_resultat_før_samordning = None,
+            par21_resultat_efter_samordning = None,
+            par24_kandidatresultat = None,
+            par24_resultat = None
+        )
+    }
+    | EblPar10AfskrivningsberettigedeBygninger(par24_input, _) -> {
+        = par21_før = par24_input.par21_forsikringsresultat
+        = kandidat = afskrivningslov24_kandidatresultat(par24_input)
+        = ebl_resultat = ebl_par10_resultat(fakta)
+        = samtidig_anvendelse = kandidat.betingelser_før_stk10_opfyldt && ebl_resultat.betingelser_opfyldt
+        = par21_efter = Afskrivningslov21Resultat(
+            indkomstår = par21_før.indkomstår,
+            skatteyder = par21_før.skatteyder,
+            omfattet_af_par21 = par21_før.omfattet_af_par21,
+            par24_finder_anvendelse = samtidig_anvendelse,
+            grundlag_gyldigt = par21_før.grundlag_gyldigt,
+            blandet_installation_efter_par15_stk3 = par21_før.blandet_installation_efter_par15_stk3,
+            samlede_anskaffelses_og_forbedringsudgifter_kroner = par21_før.samlede_anskaffelses_og_forbedringsudgifter_kroner,
+            afskrivningsberettiget_anskaffelsesgrundlag_kroner = par21_før.afskrivningsberettiget_anskaffelsesgrundlag_kroner,
+            samlet_salgssum_kroner = par21_før.samlet_salgssum_kroner,
+            salgssum_til_par21_kroner = par21_før.salgssum_til_par21_kroner,
+            samlede_beregnede_afskrivninger_kroner = par21_før.samlede_beregnede_afskrivninger_kroner,
+            samlede_foretagne_afskrivninger_kroner = par21_før.samlede_foretagne_afskrivninger_kroner,
+            samlede_maksimalt_mulige_afskrivninger_kroner = par21_før.samlede_maksimalt_mulige_afskrivninger_kroner,
+            nedskrevet_værdi_kroner = par21_før.nedskrevet_værdi_kroner,
+            rå_fortjeneste_kroner = par21_før.rå_fortjeneste_kroner,
+            rå_tab_kroner = par21_før.rå_tab_kroner,
+            beregnede_genvundne_afskrivninger_før_par24_kroner = par21_før.beregnede_genvundne_afskrivninger_før_par24_kroner,
+            beregnet_tab_før_par24_og_kontrol_kroner = par21_før.beregnet_tab_før_par24_og_kontrol_kroner,
+            bestemmende_indflydelse = par21_før.bestemmende_indflydelse,
+            tab_afskåret_efter_stk5_kroner = par21_før.tab_afskåret_efter_stk5_kroner,
+            skattepligtige_genvundne_afskrivninger_kroner = hvis samtidig_anvendelse { 0 } ellers { par21_før.skattepligtige_genvundne_afskrivninger_kroner },
+            fradragsberettiget_tab_kroner = hvis samtidig_anvendelse { 0 } ellers { par21_før.fradragsberettiget_tab_kroner }
+        )
+        = par24_resultat = Afskrivningslov24Resultat(
+            skatteyder = kandidat.skatteyder,
+            par21_forsikringsresultat_matcher = kandidat.par21_forsikringsresultat_matcher,
+            ordinært_seneste_genopførelsesår = kandidat.ordinært_seneste_genopførelsesår,
+            seneste_genopførelsesår = kandidat.seneste_genopførelsesår,
+            rettidig_genopførelse = kandidat.rettidig_genopførelse,
+            placering_omfattet = kandidat.placering_omfattet,
+            anden_ejendom = kandidat.anden_ejendom,
+            genopførelsesudgifter_mindst_forsikringssum_ved_anden_ejendom = kandidat.genopførelsesudgifter_mindst_forsikringssum_ved_anden_ejendom,
+            ejendomsavancebeskatningslov10_anvendes_samtidig = samtidig_anvendelse,
+            par24_finder_anvendelse = samtidig_anvendelse,
+            genvundne_afskrivninger_udskudt_kroner = hvis samtidig_anvendelse { kandidat.genvundne_afskrivninger_udskudt_kroner } ellers { 0 },
+            forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner = hvis samtidig_anvendelse { kandidat.forskelsbeløb_forsikringssum_over_genopførelsesudgift_kroner } ellers { 0 },
+            forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner = hvis samtidig_anvendelse { kandidat.forskelsbeløb_fragår_i_afskrivningsgrundlaget_kroner } ellers { 0 },
+            forskelsbeløb_anses_som_foretaget_afskrivning_kroner = hvis samtidig_anvendelse { kandidat.forskelsbeløb_anses_som_foretaget_afskrivning_kroner } ellers { 0 },
+            skattepligtigt_overskydende_forskelsbeløb_kroner = hvis samtidig_anvendelse { kandidat.skattepligtigt_overskydende_forskelsbeløb_kroner } ellers { 0 },
+            overskydende_genopførelsesudgift_kroner = hvis samtidig_anvendelse { kandidat.overskydende_genopførelsesudgift_kroner } ellers { 0 },
+            nyt_afskrivningsgrundlag_efter_stk4_eller_stk8_kroner = hvis samtidig_anvendelse { kandidat.nyt_afskrivningsgrundlag_efter_stk4_eller_stk8_kroner } ellers { 0 },
+            videreført_afskrivningsgrundlag_kroner = hvis samtidig_anvendelse { kandidat.videreført_afskrivningsgrundlag_kroner } ellers { 0 },
+            videreførte_foretagne_afskrivninger_kroner = hvis samtidig_anvendelse { kandidat.videreførte_foretagne_afskrivninger_kroner } ellers { 0 },
+            samlet_afskrivningsgrundlag_efter_genopførelse_kroner = hvis samtidig_anvendelse { kandidat.samlet_afskrivningsgrundlag_efter_genopførelse_kroner } ellers { 0 },
+            fordelinger = hvis samtidig_anvendelse { kandidat.fordelinger } ellers { [] },
+            fristsvigt_efter_stk11 = kandidat.fristsvigt_efter_stk11,
+            antal_tillægsår = kandidat.antal_tillægsår,
+            fem_procent_tillæg_kroner = kandidat.fem_procent_tillæg_kroner,
+            skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner = kandidat.skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner,
+            samlet_skattepligtigt_beløb_kroner = (hvis samtidig_anvendelse { kandidat.skattepligtigt_overskydende_forskelsbeløb_kroner } ellers { 0 }) + kandidat.skattepligtige_genvundne_afskrivninger_ved_fristsvigt_kroner
+        )
+        EblPar10AfskrivningssamordningsResultat(
+            afskrivningsberettigede_bygninger = Sandt,
+            samordning_gyldig = ebl_resultat.input_gyldigt && kandidat.par21_forsikringsresultat_matcher,
+            samtidig_anvendelse = samtidig_anvendelse,
+            ebl_par10_resultat = ebl_resultat,
+            par21_resultat_før_samordning = Some(par21_før),
+            par21_resultat_efter_samordning = Some(par21_efter),
+            par24_kandidatresultat = Some(kandidat),
+            par24_resultat = Some(par24_resultat)
+        )
+    }
 }
 
 | ebl_par10_overført_anskaffelsessum_efter_stk8_i_alt_kroner(fakta: EblPar10Fakta) -> hvis ebl_par10_genopførelse_på_anden_ejendom(fakta.genopførelsessted) { fakta.reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner } ellers { 0 }

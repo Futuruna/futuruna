@@ -208,7 +208,13 @@ EBL § 10 selv det typede resultat efter Afskrivningslovens § 24. Identificered
 afskrivningsaktiver knyttes til de relevante genopførte ejendomme, og reglerne
 afstemmer år, placeringsgrund, beløbsgrænser og genopførelsesudgifter. Manglende,
 dobbelte eller modstridende forbindelser giver derfor ikke et resultat valgt med
-et ja/nej-felt, men et synligt ugyldigt beregningsgrundlag.
+et ja/nej-felt, men et synligt ugyldigt beregningsgrundlag. Afskrivningslovens
+§ 21 beregnes først som sit eget lovspor, mens § 24 leverer en kandidat frem til
+det gensidige krav i stk. 10. EBL-samordningen afleder derefter begge loves
+endelige virkning og bevarer § 21 før og efter samordningen, § 24-kandidaten og
+begge endelige lovresultater. Dermed kan beregningen forklare både, hvorfor en
+genvunden afskrivning udskydes ved rettidig genopførelse, og hvorfor den
+ordinære § 21-beskatning står ved magt, når kildefakta ikke stemmer overens.
 
 § 11, stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
 ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver

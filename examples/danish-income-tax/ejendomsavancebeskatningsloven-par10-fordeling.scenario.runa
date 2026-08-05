@@ -162,7 +162,6 @@
     nedskrevet_værdi_resultat = ebl_par10_afskrivningsscenarie_nedskrevet_værdi,
     salg_gennemført = Sandt,
     samlet_salgssum_kroner = 500000,
-    par24_finder_anvendelse = Sandt,
     kontrol = Afskrivningslov21Kontrol(
         sælgerne_er_en_eller_flere_personer = Sandt,
         køber_er_selskab_mv = Falskt,
@@ -172,7 +171,7 @@
     )
 ))
 
-| ebl_par10_afskrivningsscenarie_par24_input(genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, skadeår: Heltal, ebl_par10_anvendes_samtidig: Boolsk) -> Afskrivningslov24Input(
+| ebl_par10_afskrivningsscenarie_par24_input(genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, skadeår: Heltal) -> Afskrivningslov24Input(
     par21_forsikringsresultat = ebl_par10_afskrivningsscenarie_par21,
     modtaget_erstatnings_eller_forsikringssum_kroner = 500000,
     genopførelse_eller_ombygning_foretages = Sandt,
@@ -183,8 +182,7 @@
     erstatningssum_endeligt_fastsat_år = 2024,
     genopførelsesår = 2025,
     opgørelsesår = 2025,
-    frist = Al24OrdinærFrist,
-    ejendomsavancebeskatningslov10_anvendes_samtidig = ebl_par10_anvendes_samtidig
+    frist = Al24OrdinærFrist
 )
 
 = ebl_par10_afskrivningsscenarie_aktiv_a = Afskrivningslov24GenopførtAktiv(
@@ -239,28 +237,30 @@
     )
 )
 
-= ebl_par10_afskrivningsscenarie_gyldigt = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(
-        ebl_par10_afskrivningsscenarie_aktiver,
-        Al24AndenEjendomISammeDriftsenhed,
-        2024,
-        Sandt
-    ),
+= ebl_par10_afskrivningsscenarie_gyldigt_par24_input = ebl_par10_afskrivningsscenarie_par24_input(
+    ebl_par10_afskrivningsscenarie_aktiver,
+    Al24AndenEjendomISammeDriftsenhed,
+    2024
+)
+= ebl_par10_afskrivningsscenarie_gyldige_fakta = ebl_par10_afskrivningsscenarie_fakta(
+    ebl_par10_afskrivningsscenarie_gyldigt_par24_input,
     ebl_par10_afskrivningsscenarie_tilknytninger
-))
+)
+= ebl_par10_afskrivningsscenarie_gyldigt = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_gyldige_fakta)
+= ebl_par10_afskrivningsscenarie_samordning = ebl_par10_afskrivningssamordningsresultat(ebl_par10_afskrivningsscenarie_gyldige_fakta)
 = ebl_par10_afskrivningsscenarie_manglende_tilknytning = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024, Sandt),
+    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024),
     [ebl_par10_afskrivningsscenarie_tilknytning_a]
 ))
 = ebl_par10_afskrivningsscenarie_dublet_tilknytning = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024, Sandt),
+    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024),
     [
         ebl_par10_afskrivningsscenarie_tilknytning_a,
         ebl_par10_afskrivningsscenarie_tilknytning_a,
     ]
 ))
 = ebl_par10_afskrivningsscenarie_ukendt_ejendom = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024, Sandt),
+    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024),
     [
         ebl_par10_afskrivningsscenarie_tilknytning_a,
         EblPar10AfskrivningsaktivTilknytning(
@@ -276,23 +276,20 @@
             Afskrivningslov24GenopførtAktiv(identifikation = "bygning-b", genopførelsesudgift_kroner = 150000),
         ],
         Al24AndenEjendomISammeDriftsenhed,
-        2024,
-        Sandt
+        2024
     ),
     ebl_par10_afskrivningsscenarie_tilknytninger
 ))
 = ebl_par10_afskrivningsscenarie_modstridende_placering = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomHindretAfLovEllerMyndighed, 2024, Sandt),
+    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomHindretAfLovEllerMyndighed, 2024),
     ebl_par10_afskrivningsscenarie_tilknytninger
 ))
-= ebl_par10_afskrivningsscenarie_modstridende_skadeår = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2023, Sandt),
+= ebl_par10_afskrivningsscenarie_modstridende_skadeår_fakta = ebl_par10_afskrivningsscenarie_fakta(
+    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2023),
     ebl_par10_afskrivningsscenarie_tilknytninger
-))
-= ebl_par10_afskrivningsscenarie_uden_samtidig_ebl = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
-    ebl_par10_afskrivningsscenarie_par24_input(ebl_par10_afskrivningsscenarie_aktiver, Al24AndenEjendomISammeDriftsenhed, 2024, Falskt),
-    ebl_par10_afskrivningsscenarie_tilknytninger
-))
+)
+= ebl_par10_afskrivningsscenarie_modstridende_skadeår = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_modstridende_skadeår_fakta)
+= ebl_par10_afskrivningsscenarie_modstridende_samordning = ebl_par10_afskrivningssamordningsresultat(ebl_par10_afskrivningsscenarie_modstridende_skadeår_fakta)
 = ebl_par10_afskrivningsscenarie_dublet_aktiv = ebl_par10_fordelingsresultat(ebl_par10_afskrivningsscenarie_fakta(
     ebl_par10_afskrivningsscenarie_par24_input(
         [
@@ -300,14 +297,38 @@
             Afskrivningslov24GenopførtAktiv(identifikation = "bygning-a", genopførelsesudgift_kroner = 200000),
         ],
         Al24AndenEjendomISammeDriftsenhed,
-        2024,
-        Sandt
+        2024
     ),
     [
         ebl_par10_afskrivningsscenarie_tilknytning_a,
         ebl_par10_afskrivningsscenarie_tilknytning_a,
     ]
 ))
+
+| ebl_par10_afskrivningsscenarie_sporer_ordinær_par21_før_samordning(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par21_resultat_før_samordning {
+    | Some(par21) -> par21.par24_finder_anvendelse == Falskt && par21.beregnede_genvundne_afskrivninger_før_par24_kroner == 50000 && par21.skattepligtige_genvundne_afskrivninger_kroner == 50000
+    | None -> Falskt
+}
+| ebl_par10_afskrivningsscenarie_sporer_samordnet_par21(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par21_resultat_efter_samordning {
+    | Some(par21) -> par21.par24_finder_anvendelse && par21.beregnede_genvundne_afskrivninger_før_par24_kroner == 50000 && par21.skattepligtige_genvundne_afskrivninger_kroner == 0
+    | None -> Falskt
+}
+| ebl_par10_afskrivningsscenarie_sporer_par24_kandidat(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par24_kandidatresultat {
+    | Some(par24) -> par24.betingelser_før_stk10_opfyldt && par24.genvundne_afskrivninger_udskudt_kroner == 50000
+    | None -> Falskt
+}
+| ebl_par10_afskrivningsscenarie_sporer_samtidig_par24(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par24_resultat {
+    | Some(par24) -> par24.ejendomsavancebeskatningslov10_anvendes_samtidig && par24.par24_finder_anvendelse && par24.genvundne_afskrivninger_udskudt_kroner == 50000
+    | None -> Falskt
+}
+| ebl_par10_afskrivningsscenarie_bevarer_par21_ved_modstrid(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par21_resultat_efter_samordning {
+    | Some(par21) -> par21.par24_finder_anvendelse == Falskt && par21.skattepligtige_genvundne_afskrivninger_kroner == 50000
+    | None -> Falskt
+}
+| ebl_par10_afskrivningsscenarie_afviser_par24_ved_modstrid(resultat: EblPar10AfskrivningssamordningsResultat) -> match resultat.par24_resultat {
+    | Some(par24) -> par24.ejendomsavancebeskatningslov10_anvendes_samtidig == Falskt && par24.par24_finder_anvendelse == Falskt && par24.genvundne_afskrivninger_udskudt_kroner == 0
+    | None -> Falskt
+}
 
 | ebl_par10_fordeling_scenarie_afleder_stk7_og_stk8_totaler: ebl_par10_fordeling_scenarie_resultat -> ebl_par10_fordeling_scenarie_resultat.input_gyldigt && ebl_par10_fordeling_scenarie_resultat.regelgrundlag_understøttet && ebl_par10_fordeling_scenarie_resultat.afskrivningsforhold_afstemt && ebl_par10_fordeling_scenarie_resultat.betingelser_opfyldt && ebl_par10_fordeling_scenarie_resultat.samlede_genopførelsesudgifter_kroner == 600000 && ebl_par10_fordeling_scenarie_resultat.overført_anskaffelsessum_efter_stk8_i_alt_kroner == 300000 && ebl_par10_fordeling_scenarie_resultat.tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner == 100000 && length(ebl_par10_fordeling_scenarie_resultat.fordelinger) == 2 && ebl_par10_fordeling_scenarie_resultat.fordelinger_afstemmer
 | ebl_par10_fordeling_scenarie_fordeler_ejendom_a_efter_udgiftsandel: ebl_par10_fordeling_scenarie_fordeling_a -> ebl_par10_fordeling_scenarie_fordeling_a.fordelingsandel_tæller_kroner == 400000 && ebl_par10_fordeling_scenarie_fordeling_a.fordelingsandel_nævner_kroner == 600000 && ebl_par10_fordeling_scenarie_fordeling_a.overført_anskaffelsessum_efter_stk8_kroner == 200000 && ebl_par10_fordeling_scenarie_fordeling_a.tillæg_til_anskaffelsessum_efter_stk7_kroner == 66666 && ebl_par10_fordeling_scenarie_fordeling_a.genanbragt_fortjeneste_kroner == 133333 && ebl_par10_fordeling_scenarie_fordeling_a.aktivt_anskaffelsessumsnedslag_kroner == 133333
@@ -321,9 +342,10 @@
 | ebl_par10_fordeling_scenarie_en_anden_ejendom_får_hele_beløbet: ebl_par10_fordeling_scenarie_en_ejendoms_fordeling -> ebl_par10_fordeling_scenarie_en_ejendom.input_gyldigt && ebl_par10_fordeling_scenarie_en_ejendom.betingelser_opfyldt && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.overført_anskaffelsessum_efter_stk8_kroner == 300000 && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.tillæg_til_anskaffelsessum_efter_stk7_kroner == 100000 && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.aktivt_anskaffelsessumsnedslag_kroner == 200000
 | ebl_par10_fordeling_scenarie_samme_ejendom_bevarer_delvis_genopførelse: ebl_par10_fordeling_scenarie_samme_ejendom -> ebl_par10_fordeling_scenarie_samme_ejendom.input_gyldigt && ebl_par10_fordeling_scenarie_samme_ejendom.betingelser_opfyldt && ebl_par10_fordeling_scenarie_samme_ejendom.oprindelig_erhvervsfortjeneste_kroner == 200000 && ebl_par10_fordeling_scenarie_samme_ejendom.genanbragt_fortjeneste_kroner == 150000 && ebl_par10_fordeling_scenarie_samme_ejendom.straks_beskattet_fortjeneste_kroner == 50000 && ebl_par10_fordeling_scenarie_samme_ejendom.aktivt_anskaffelsessumsnedslag_kroner == 150000
 | ebl_par10_afskrivningsscenarie_accepterer_afstemt_par24: ebl_par10_afskrivningsscenarie_gyldigt -> ebl_par10_afskrivningsscenarie_gyldigt.input_gyldigt && ebl_par10_afskrivningsscenarie_gyldigt.afskrivningsforhold_afstemt && ebl_par10_afskrivningsscenarie_gyldigt.betingelser_opfyldt && length(ebl_par10_afskrivningsscenarie_gyldigt.fordelinger) == 2 && ebl_par10_afskrivningsscenarie_gyldigt.fordelinger_afstemmer
+| ebl_par10_afskrivningsscenarie_afleder_begge_lovspor: ebl_par10_afskrivningsscenarie_samordning -> ebl_par10_afskrivningsscenarie_samordning.afskrivningsberettigede_bygninger && ebl_par10_afskrivningsscenarie_samordning.samordning_gyldig && ebl_par10_afskrivningsscenarie_samordning.samtidig_anvendelse && ebl_par10_afskrivningsscenarie_samordning.ebl_par10_resultat.betingelser_opfyldt && ebl_par10_afskrivningsscenarie_sporer_ordinær_par21_før_samordning(ebl_par10_afskrivningsscenarie_samordning) && ebl_par10_afskrivningsscenarie_sporer_samordnet_par21(ebl_par10_afskrivningsscenarie_samordning) && ebl_par10_afskrivningsscenarie_sporer_par24_kandidat(ebl_par10_afskrivningsscenarie_samordning) && ebl_par10_afskrivningsscenarie_sporer_samtidig_par24(ebl_par10_afskrivningsscenarie_samordning)
 | ebl_par10_afskrivningsscenarie_afviser_manglende_og_dublet_tilknytning: ebl_par10_afskrivningsscenarie_manglende_tilknytning -> ebl_par10_afskrivningsscenarie_manglende_tilknytning.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_manglende_tilknytning.input_gyldigt == Falskt && ebl_par10_afskrivningsscenarie_dublet_tilknytning.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_dublet_tilknytning.input_gyldigt == Falskt
 | ebl_par10_afskrivningsscenarie_afviser_ukendt_ejendom_og_for_stor_udgift: ebl_par10_afskrivningsscenarie_ukendt_ejendom -> ebl_par10_afskrivningsscenarie_ukendt_ejendom.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_ukendt_ejendom.input_gyldigt == Falskt && ebl_par10_afskrivningsscenarie_for_stor_udgift.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_for_stor_udgift.input_gyldigt == Falskt
-| ebl_par10_afskrivningsscenarie_afviser_modstridende_kildefakta: ebl_par10_afskrivningsscenarie_modstridende_placering -> ebl_par10_afskrivningsscenarie_modstridende_placering.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_modstridende_skadeår.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_uden_samtidig_ebl.afskrivningsforhold_afstemt == Falskt
+| ebl_par10_afskrivningsscenarie_afviser_modstridende_kildefakta: ebl_par10_afskrivningsscenarie_modstridende_placering -> ebl_par10_afskrivningsscenarie_modstridende_placering.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_modstridende_skadeår.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_modstridende_samordning.samordning_gyldig == Falskt && ebl_par10_afskrivningsscenarie_modstridende_samordning.samtidig_anvendelse == Falskt && ebl_par10_afskrivningsscenarie_bevarer_par21_ved_modstrid(ebl_par10_afskrivningsscenarie_modstridende_samordning) && ebl_par10_afskrivningsscenarie_afviser_par24_ved_modstrid(ebl_par10_afskrivningsscenarie_modstridende_samordning)
 | ebl_par10_afskrivningsscenarie_afviser_dublet_aktiv_i_par24: ebl_par10_afskrivningsscenarie_dublet_aktiv -> ebl_par10_afskrivningsscenarie_dublet_aktiv.afskrivningsforhold_afstemt == Falskt && ebl_par10_afskrivningsscenarie_dublet_aktiv.input_gyldigt == Falskt
 
 ? ebl_par10_fordeling_scenarie_afleder_stk7_og_stk8_totaler
@@ -338,6 +360,7 @@
 ? ebl_par10_fordeling_scenarie_en_anden_ejendom_får_hele_beløbet
 ? ebl_par10_fordeling_scenarie_samme_ejendom_bevarer_delvis_genopførelse
 ? ebl_par10_afskrivningsscenarie_accepterer_afstemt_par24
+? ebl_par10_afskrivningsscenarie_afleder_begge_lovspor
 ? ebl_par10_afskrivningsscenarie_afviser_manglende_og_dublet_tilknytning
 ? ebl_par10_afskrivningsscenarie_afviser_ukendt_ejendom_og_for_stor_udgift
 ? ebl_par10_afskrivningsscenarie_afviser_modstridende_kildefakta
