@@ -15713,6 +15713,8 @@ struct RustCodegen {
     binary_global_env_fns: BTreeSet<String>,
     /// Arity for binary-mode free functions that require the hidden globals env
     binary_global_env_fn_arities: BTreeMap<String, usize>,
+    /// Binary-mode RuleScope members that require the hidden globals env
+    binary_global_env_rule_scope_methods: BTreeSet<(String, String)>,
     /// Rust types for binary-mode top-level globals captured once in main
     binary_global_binding_types: BTreeMap<String, String>,
     /// A hidden globals argument is currently available for function calls/wrappers
@@ -15784,6 +15786,8 @@ struct RustCodegen {
     scope_stream_bindings: BTreeMap<String, Vec<String>>,
     /// RuleScope method names visible while emitting a RuleScope method body.
     current_rule_scope_methods: BTreeSet<String>,
+    /// RuleScope type currently being emitted, for hidden-global member calls.
+    current_rule_scope_name: Option<String>,
     /// Stored invariants for ? verification: name -> (subject_expr, predicate_expr)
     codegen_invariants: BTreeMap<String, (Expr, Expr)>,
     /// Actor handle variables: var_name -> actor_name (for qualifying __Ask in ask())
@@ -20086,82 +20090,103 @@ fn collect_mutable_vars(stmts: &[&Stmt], mutable: &mut BTreeSet<String>) {
 }
 
 fn collect_called_vars(stmt: &Stmt, called: &mut BTreeSet<String>) {
+    let mut member_calls = BTreeSet::new();
+    collect_called_targets(stmt, called, &mut member_calls);
+}
+
+fn collect_called_targets(
+    stmt: &Stmt,
+    called: &mut BTreeSet<String>,
+    member_calls: &mut BTreeSet<String>,
+) {
     match stmt {
-        Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => collect_called_vars_expr(expr, called),
+        Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => {
+            collect_called_targets_expr(expr, called, member_calls)
+        }
         Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
-            collect_called_vars_expr(iter, called);
+            collect_called_targets_expr(iter, called, member_calls);
             for s in body {
-                collect_called_vars(s, called);
+                collect_called_targets(s, called, member_calls);
             }
         }
         _ => {}
     }
 }
 
-fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
+fn collect_called_targets_expr(
+    expr: &Expr,
+    called: &mut BTreeSet<String>,
+    member_calls: &mut BTreeSet<String>,
+) {
     match &expr.kind {
         ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = &func.as_ref().kind {
-                called.insert(name.clone());
+            match &func.as_ref().kind {
+                ExprKind::Var(name) => {
+                    called.insert(name.clone());
+                }
+                ExprKind::Field(_, method) => {
+                    member_calls.insert(method.clone());
+                }
+                _ => {}
             }
-            collect_called_vars_expr(func, called);
+            collect_called_targets_expr(func, called, member_calls);
             for a in args {
-                collect_called_vars_expr(a, called);
+                collect_called_targets_expr(a, called, member_calls);
             }
         }
         ExprKind::BinOp(_, l, r) => {
-            collect_called_vars_expr(l, called);
-            collect_called_vars_expr(r, called);
+            collect_called_targets_expr(l, called, member_calls);
+            collect_called_targets_expr(r, called, member_calls);
         }
         ExprKind::UnOp(_, inner) | ExprKind::Try(inner) => {
-            collect_called_vars_expr(inner, called);
+            collect_called_targets_expr(inner, called, member_calls);
         }
         ExprKind::If(c, t, e) => {
-            collect_called_vars_expr(c, called);
-            collect_called_vars_expr(t, called);
-            collect_called_vars_expr(e, called);
+            collect_called_targets_expr(c, called, member_calls);
+            collect_called_targets_expr(t, called, member_calls);
+            collect_called_targets_expr(e, called, member_calls);
         }
         ExprKind::Block(stmts) => {
             for s in stmts {
-                collect_called_vars(s, called);
+                collect_called_targets(s, called, member_calls);
             }
         }
         ExprKind::Match(scrutinee, arms) => {
-            collect_called_vars_expr(scrutinee, called);
+            collect_called_targets_expr(scrutinee, called, member_calls);
             for arm in arms {
-                collect_called_vars_expr(&arm.body, called);
+                collect_called_targets_expr(&arm.body, called, member_calls);
             }
         }
-        ExprKind::Lambda(_, body) => collect_called_vars_expr(body, called),
+        ExprKind::Lambda(_, body) => collect_called_targets_expr(body, called, member_calls),
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for elem in elems {
-                collect_called_vars_expr(elem, called);
+                collect_called_targets_expr(elem, called, member_calls);
             }
         }
         ExprKind::Effect(_, args) => {
             for a in args {
-                collect_called_vars_expr(a, called);
+                collect_called_targets_expr(a, called, member_calls);
             }
         }
         ExprKind::Handle { handlers, body, .. } => {
             for handler in handlers {
-                collect_called_vars_expr(&handler.body, called);
+                collect_called_targets_expr(&handler.body, called, member_calls);
             }
-            collect_called_vars_expr(body, called);
+            collect_called_targets_expr(body, called, member_calls);
         }
         ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for goal in goals {
-                collect_called_vars_expr(goal, called);
+                collect_called_targets_expr(goal, called, member_calls);
             }
         }
         ExprKind::Pipe(lhs, rhs) => {
-            collect_called_vars_expr(lhs, called);
-            collect_called_vars_expr(rhs, called);
+            collect_called_targets_expr(lhs, called, member_calls);
+            collect_called_targets_expr(rhs, called, member_calls);
         }
-        ExprKind::Field(obj, _) => collect_called_vars_expr(obj, called),
+        ExprKind::Field(obj, _) => collect_called_targets_expr(obj, called, member_calls),
         ExprKind::Index(arr, idx) => {
-            collect_called_vars_expr(arr, called);
-            collect_called_vars_expr(idx, called);
+            collect_called_targets_expr(arr, called, member_calls);
+            collect_called_targets_expr(idx, called, member_calls);
         }
         _ => {}
     }
@@ -20470,6 +20495,7 @@ impl RustCodegen {
             getter_stream_bindings: BTreeSet::new(),
             binary_global_env_fns: BTreeSet::new(),
             binary_global_env_fn_arities: BTreeMap::new(),
+            binary_global_env_rule_scope_methods: BTreeSet::new(),
             binary_global_binding_types: BTreeMap::new(),
             binary_global_env_arg_in_scope: false,
             binary_global_value_refs_in_scope: false,
@@ -20503,6 +20529,7 @@ impl RustCodegen {
             scope_bindings: BTreeMap::new(),
             scope_stream_bindings: BTreeMap::new(),
             current_rule_scope_methods: BTreeSet::new(),
+            current_rule_scope_name: None,
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
@@ -24925,14 +24952,6 @@ impl RustCodegen {
         let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
         self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
 
-        // First pass: emit type declarations
-        for stmt in stmts {
-            if let Stmt::TypeDecl(decl) = stmt {
-                out.push_str(&self.emit_type_decl(decl));
-                out.push('\n');
-            }
-        }
-
         // Collect all top-level bindings and effect calls into main()
         let mut main_stmts = Vec::new();
         let mut fn_stmts = Vec::new();
@@ -24972,11 +24991,14 @@ impl RustCodegen {
         self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
         self.lib_static_names
             .extend(self.collect_rule_top_level_binding_getter_names(&main_stmts, &rule_groups));
+        self.lib_static_names
+            .extend(self.collect_rule_scope_top_level_binding_getter_names(&main_stmts, stmts));
         let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
         (
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
-        ) = self.collect_binary_global_env_fn_names(&fn_stmts, &rule_groups);
+            self.binary_global_env_rule_scope_methods,
+        ) = self.collect_binary_global_env_fn_names(stmts, &fn_stmts, &rule_groups);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
@@ -25018,6 +25040,15 @@ impl RustCodegen {
                 && self.fn_return_types == before_return_types
             {
                 break;
+            }
+        }
+
+        // First pass: emit type declarations after hidden-global dependency analysis.
+        // RuleScope methods need that analysis while their signatures and bodies are emitted.
+        for stmt in stmts {
+            if let Stmt::TypeDecl(decl) = stmt {
+                out.push_str(&self.emit_type_decl(decl));
+                out.push('\n');
             }
         }
 
@@ -25905,7 +25936,9 @@ impl RustCodegen {
     }
 
     fn uses_binary_global_env(&self) -> bool {
-        !self.lib_mode && !self.binary_global_env_fns.is_empty()
+        !self.lib_mode
+            && (!self.binary_global_env_fns.is_empty()
+                || !self.binary_global_env_rule_scope_methods.is_empty())
     }
 
     fn rule_group_name(rule: &Rule) -> Option<String> {
@@ -25939,6 +25972,23 @@ impl RustCodegen {
             }
         }
         rule_groups
+    }
+
+    fn collect_rule_scope_declarations<'a>(
+        stmts: &'a [Stmt],
+        declarations: &mut Vec<(&'a str, &'a [Param], &'a [Stmt])>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    declarations.push((name.as_str(), params, body));
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    Self::collect_rule_scope_declarations(body, declarations);
+                }
+                _ => {}
+            }
+        }
     }
 
     fn register_value_returning_rule_signatures<'a>(
@@ -26163,18 +26213,97 @@ impl RustCodegen {
         getter_names
     }
 
+    fn collect_rule_scope_top_level_binding_getter_names(
+        &self,
+        main_stmts: &[&Stmt],
+        stmts: &[Stmt],
+    ) -> BTreeSet<String> {
+        let (top_level_names, bind_exprs) = Self::top_level_binding_exprs(main_stmts);
+        let mut getter_names = BTreeSet::new();
+        let mut declarations = Vec::new();
+        Self::collect_rule_scope_declarations(stmts, &mut declarations);
+
+        for (_, scope_params, body) in declarations {
+            let scope_bound: BTreeSet<String> = scope_params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect();
+            let rule_groups = Self::collect_rule_groups_from_stmts(body);
+            for rules in rule_groups.values() {
+                let mut bound = scope_bound.clone();
+                bound.extend(Self::rule_params(rules));
+                for rule in rules {
+                    let mut exprs = Vec::new();
+                    Self::rule_value_and_condition_exprs(rule, &mut exprs);
+                    for expr in exprs {
+                        let mut free = BTreeSet::new();
+                        collect_true_free_vars(expr, &mut free, &bound);
+                        getter_names.extend(
+                            free.into_iter()
+                                .filter(|name| top_level_names.contains(name.as_str())),
+                        );
+                    }
+                }
+            }
+
+            for method in Self::rule_scope_defn_methods(body) {
+                let Defn::Fn { params, body, .. } = method else {
+                    continue;
+                };
+                let mut bound = scope_bound.clone();
+                bound.extend(params.iter().map(|param| param.name.clone()));
+                bound.insert("self".to_string());
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(body, &mut free, &bound);
+                getter_names.extend(
+                    free.into_iter()
+                        .filter(|name| top_level_names.contains(name.as_str())),
+                );
+            }
+        }
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let current: Vec<String> = getter_names.iter().cloned().collect();
+            for getter_name in current {
+                let Some(expr) = bind_exprs.get(&getter_name) else {
+                    continue;
+                };
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(expr, &mut free, &BTreeSet::new());
+                for name in free {
+                    if top_level_names.contains(&name) && getter_names.insert(name) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        getter_names
+    }
+
     fn collect_binary_global_env_fn_names(
         &self,
+        stmts: &[Stmt],
         fn_stmts: &[&Stmt],
         rule_groups: &BTreeMap<String, Vec<&Rule>>,
-    ) -> (BTreeSet<String>, BTreeMap<String, usize>) {
+    ) -> (
+        BTreeSet<String>,
+        BTreeMap<String, usize>,
+        BTreeSet<(String, String)>,
+    ) {
         if self.lib_mode || self.lib_static_names.is_empty() {
-            return (BTreeSet::new(), BTreeMap::new());
+            return (BTreeSet::new(), BTreeMap::new(), BTreeSet::new());
         }
 
         let mut fn_arities = BTreeMap::new();
         let mut fn_calls: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut fn_member_calls: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         let mut env_fns = BTreeSet::new();
+        let mut method_calls: BTreeMap<(String, String), BTreeSet<String>> = BTreeMap::new();
+        let mut method_member_calls: BTreeMap<(String, String), BTreeSet<String>> = BTreeMap::new();
+        let mut env_methods = BTreeSet::new();
 
         for stmt in fn_stmts {
             let Stmt::Defn(Defn::Fn {
@@ -26197,8 +26326,11 @@ impl RustCodegen {
             }
 
             let mut called = BTreeSet::new();
-            collect_called_vars_expr(body, &mut called);
+            let mut member_calls = BTreeSet::new();
+            collect_called_targets_expr(body, &mut called, &mut member_calls);
+            called.extend(free.iter().cloned());
             fn_calls.insert(name.clone(), called);
+            fn_member_calls.insert(name.clone(), member_calls);
         }
 
         for (name, rules) in rule_groups {
@@ -26208,13 +26340,14 @@ impl RustCodegen {
             let bound: BTreeSet<String> = params.into_iter().collect();
             let mut free = BTreeSet::new();
             let mut called = BTreeSet::new();
+            let mut member_calls = BTreeSet::new();
 
             for rule in rules {
                 let mut exprs = Vec::new();
                 Self::rule_value_and_condition_exprs(rule, &mut exprs);
                 for expr in exprs {
                     collect_true_free_vars(expr, &mut free, &bound);
-                    collect_called_vars_expr(expr, &mut called);
+                    collect_called_targets_expr(expr, &mut called, &mut member_calls);
                 }
             }
 
@@ -26224,27 +26357,147 @@ impl RustCodegen {
             {
                 env_fns.insert(name.clone());
             }
+            called.extend(free.iter().cloned());
             fn_calls.insert(name.clone(), called);
+            fn_member_calls.insert(name.clone(), member_calls);
+        }
+
+        let mut declarations = Vec::new();
+        Self::collect_rule_scope_declarations(stmts, &mut declarations);
+        for (scope_name, scope_params, body) in declarations {
+            let scope_name = scope_name.to_string();
+            let rule_groups = Self::collect_rule_groups_from_stmts(body);
+            let mut scope_method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
+            scope_method_names.extend(Self::rule_scope_defn_methods(body).into_iter().filter_map(
+                |method| match method {
+                    Defn::Fn { name, .. } => Some(name.clone()),
+                    _ => None,
+                },
+            ));
+            let scope_bound: BTreeSet<String> = scope_params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect();
+
+            for (method_name, rules) in rule_groups {
+                let key = (scope_name.clone(), method_name.clone());
+                method_calls.entry(key.clone()).or_default();
+                let mut bound = scope_bound.clone();
+                bound.extend(Self::rule_params(&rules));
+                let mut free = BTreeSet::new();
+                let mut called = BTreeSet::new();
+                let mut member_calls = BTreeSet::new();
+                for rule in rules {
+                    let mut exprs = Vec::new();
+                    Self::rule_value_and_condition_exprs(rule, &mut exprs);
+                    for expr in exprs {
+                        collect_true_free_vars(expr, &mut free, &bound);
+                        collect_called_targets_expr(expr, &mut called, &mut member_calls);
+                    }
+                }
+                if free
+                    .iter()
+                    .any(|name| self.lib_static_names.contains(name.as_str()))
+                {
+                    env_methods.insert(key.clone());
+                }
+                called.extend(free.iter().cloned());
+                for called_name in called {
+                    if scope_method_names.contains(&called_name) {
+                        member_calls.insert(called_name);
+                    } else {
+                        method_calls
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(called_name);
+                    }
+                }
+                method_member_calls.insert(key, member_calls);
+            }
+
+            for method in Self::rule_scope_defn_methods(body) {
+                let Defn::Fn {
+                    name, params, body, ..
+                } = method
+                else {
+                    continue;
+                };
+                let key = (scope_name.clone(), name.clone());
+                method_calls.entry(key.clone()).or_default();
+                let mut bound = scope_bound.clone();
+                bound.extend(params.iter().map(|param| param.name.clone()));
+                bound.insert("self".to_string());
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(body, &mut free, &bound);
+                if free
+                    .iter()
+                    .any(|free_name| self.lib_static_names.contains(free_name.as_str()))
+                {
+                    env_methods.insert(key.clone());
+                }
+                let mut called = BTreeSet::new();
+                let mut member_calls = BTreeSet::new();
+                collect_called_targets_expr(body, &mut called, &mut member_calls);
+                called.extend(free.iter().cloned());
+                for called_name in called {
+                    if scope_method_names.contains(&called_name) {
+                        member_calls.insert(called_name);
+                    } else {
+                        method_calls
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(called_name);
+                    }
+                }
+                method_member_calls.insert(key, member_calls);
+            }
         }
 
         let mut changed = true;
         while changed {
             changed = false;
+            let env_method_names: BTreeSet<String> = env_methods
+                .iter()
+                .map(|(_, method)| method.clone())
+                .collect();
             for (name, called) in &fn_calls {
                 if env_fns.contains(name) {
                     continue;
                 }
-                if called
+                let calls_env_fn = called
                     .iter()
-                    .any(|callee| env_fns.contains(callee.as_str()))
-                {
+                    .any(|callee| env_fns.contains(callee.as_str()));
+                let calls_env_method = fn_member_calls
+                    .get(name)
+                    .is_some_and(|members| !members.is_disjoint(&env_method_names));
+                if calls_env_fn || calls_env_method {
                     env_fns.insert(name.clone());
+                    changed = true;
+                }
+            }
+            for (key, called) in &method_calls {
+                if env_methods.contains(key) {
+                    continue;
+                }
+                let calls_env_fn = called
+                    .iter()
+                    .any(|callee| env_fns.contains(callee.as_str()));
+                let calls_env_method = method_member_calls
+                    .get(key)
+                    .is_some_and(|members| !members.is_disjoint(&env_method_names));
+                if calls_env_fn || calls_env_method {
+                    env_methods.insert(key.clone());
                     changed = true;
                 }
             }
         }
 
-        (env_fns, fn_arities)
+        let mut env_methods_with_aliases = env_methods.clone();
+        for (scope_name, method_name) in env_methods {
+            env_methods_with_aliases.insert((self.rust_type_name(&scope_name), method_name));
+        }
+
+        (env_fns, fn_arities, env_methods_with_aliases)
     }
 
     fn collect_top_level_binding_rust_types(
@@ -26953,6 +27206,8 @@ impl RustCodegen {
             }
         }
         let prev_methods = std::mem::replace(&mut self.current_rule_scope_methods, method_names);
+        let prev_scope_name =
+            std::mem::replace(&mut self.current_rule_scope_name, Some(name.to_string()));
 
         out.push_str(&format!("impl {} {{\n", rust_name));
         for (method, rules) in &rule_groups {
@@ -26963,6 +27218,7 @@ impl RustCodegen {
                 .cloned()
                 .unwrap_or(FirTy::Bool);
             out.push_str(&self.emit_rule_scope_method(
+                name,
                 params,
                 method,
                 rules,
@@ -26973,11 +27229,12 @@ impl RustCodegen {
             ));
         }
         for method in Self::rule_scope_defn_methods(body) {
-            out.push_str(&self.emit_rule_scope_value_method(params, method, pub_prefix));
+            out.push_str(&self.emit_rule_scope_value_method(name, params, method, pub_prefix));
         }
         out.push_str("}\n");
 
         self.current_rule_scope_methods = prev_methods;
+        self.current_rule_scope_name = prev_scope_name;
         self.types.fn_types = saved_fn_types;
         self.types.call_params = saved_call_params;
         out
@@ -26985,6 +27242,7 @@ impl RustCodegen {
 
     fn emit_rule_scope_method(
         &mut self,
+        scope_name: &str,
         scope_params: &[Param],
         method_name: &str,
         rules: &[&Rule],
@@ -26995,6 +27253,11 @@ impl RustCodegen {
     ) -> String {
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
         let mut sig_params = vec!["&self".to_string()];
+        let uses_binary_global_env = !self.lib_mode
+            && self.rule_scope_method_uses_binary_global_env(scope_name, method_name);
+        if uses_binary_global_env {
+            sig_params.push("__fut_globals: &__FutGlobals".to_string());
+        }
         sig_params.extend(params.iter().zip(param_tys.iter()).map(|(param, ty)| {
             let rust_ty =
                 Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "i64".to_string());
@@ -27025,6 +27288,12 @@ impl RustCodegen {
             }
         }
         self.in_self_method = true;
+        let prev_allow_global_getter_refs =
+            std::mem::replace(&mut self.allow_global_getter_refs, !uses_binary_global_env);
+        let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
+        let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
+        self.binary_global_env_arg_in_scope = uses_binary_global_env;
+        self.binary_global_value_refs_in_scope = uses_binary_global_env;
 
         let body = self.with_temporary_named_types(&all_names, &all_tys, |cg| {
             let mut out = format!(
@@ -27137,6 +27406,9 @@ impl RustCodegen {
         self.var_use_counts = prev_var_use_counts;
         self.var_consuming_counts = prev_var_consuming_counts;
         self.in_self_method = prev_in_self_method;
+        self.allow_global_getter_refs = prev_allow_global_getter_refs;
+        self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
+        self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
         body
     }
 
@@ -27184,6 +27456,7 @@ impl RustCodegen {
 
     fn emit_rule_scope_value_method(
         &mut self,
+        scope_name: &str,
         scope_params: &[Param],
         method: &Defn,
         pub_prefix: &str,
@@ -27200,6 +27473,11 @@ impl RustCodegen {
         };
 
         let mut sig_params = vec!["&self".to_string()];
+        let uses_binary_global_env =
+            !self.lib_mode && self.rule_scope_method_uses_binary_global_env(scope_name, name);
+        if uses_binary_global_env {
+            sig_params.push("__fut_globals: &__FutGlobals".to_string());
+        }
         let mut method_param_names = Vec::new();
         let mut method_param_tys = Vec::new();
         for param in params {
@@ -27246,6 +27524,12 @@ impl RustCodegen {
             }
         }
         self.in_self_method = true;
+        let prev_allow_global_getter_refs =
+            std::mem::replace(&mut self.allow_global_getter_refs, !uses_binary_global_env);
+        let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
+        let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
+        self.binary_global_env_arg_in_scope = uses_binary_global_env;
+        self.binary_global_value_refs_in_scope = uses_binary_global_env;
 
         let rendered = self.with_temporary_named_types(&all_names, &all_tys, |cg| {
             let mut out = format!(
@@ -27282,6 +27566,9 @@ impl RustCodegen {
         self.local_bindings = prev_local_bindings;
         self.copy_vars = prev_copy_vars;
         self.in_self_method = prev_in_self_method;
+        self.allow_global_getter_refs = prev_allow_global_getter_refs;
+        self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
+        self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
         rendered
     }
 
@@ -31580,9 +31867,11 @@ impl RustCodegen {
                 let allow_comptime_binding_emit = self.allow_comptime_binding_emit;
                 self.allow_comptime_binding_emit = false;
                 // Track local binding names (for lib mode getter scope)
-                if let Pat::Var(name) = pat {
-                    self.local_bindings.insert(name.clone());
-                }
+                let newly_inserted_local = if let Pat::Var(name) = pat {
+                    self.local_bindings.insert(name.clone())
+                } else {
+                    false
+                };
                 // Check if this binding was comptime-evaluated
                 let comptime_name = match pat {
                     Pat::Var(name) => Some(name.as_str()),
@@ -31640,7 +31929,20 @@ impl RustCodegen {
                     }
                 }
                 let pat_str = self.emit_pattern_binding(pat);
+                // A first local binding may legally share a name with the function used
+                // in its initializer. It does not shadow that function until the value
+                // has been evaluated; later rebindings still see the previous local.
+                if newly_inserted_local {
+                    if let Pat::Var(name) = pat {
+                        self.local_bindings.remove(name);
+                    }
+                }
                 let mut val_str = self.emit_expr(value);
+                if newly_inserted_local {
+                    if let Pat::Var(name) = pat {
+                        self.local_bindings.insert(name.clone());
+                    }
+                }
                 // Clone when binding from a variable that has other consuming uses
                 // (= alias = original where original is used elsewhere → clone)
                 if let ExprKind::Var(src_name) = &value.kind {
@@ -35897,6 +36199,26 @@ impl RustCodegen {
         None
     }
 
+    fn rule_scope_method_uses_binary_global_env(&self, scope_name: &str, method: &str) -> bool {
+        self.binary_global_env_rule_scope_methods
+            .contains(&(scope_name.to_string(), method.to_string()))
+            || self
+                .types
+                .type_rename
+                .get(scope_name)
+                .is_some_and(|rust_name| {
+                    self.binary_global_env_rule_scope_methods
+                        .contains(&(rust_name.clone(), method.to_string()))
+                })
+    }
+
+    fn rule_scope_member_call_uses_binary_global_env(&self, obj: &Expr, method: &str) -> bool {
+        let FirTy::Named(type_name) = self.infer_expr_fir_ty(obj) else {
+            return false;
+        };
+        self.rule_scope_method_uses_binary_global_env(&type_name, method)
+    }
+
     fn reorder_named_app_args_for_emit(&self, func: &Expr, args: &[Expr]) -> Option<Vec<Expr>> {
         if !has_named_args(args) {
             return None;
@@ -36270,7 +36592,18 @@ impl RustCodegen {
                     .collect();
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     if self.current_rule_scope_methods.contains(name.as_str()) {
-                        return format!("self.{}({})", sanitize_name(name), args_str.join(", "));
+                        let mut method_args = args_str.clone();
+                        if self.binary_global_env_arg_in_scope
+                            && self
+                                .current_rule_scope_name
+                                .as_ref()
+                                .is_some_and(|scope_name| {
+                                    self.rule_scope_method_uses_binary_global_env(scope_name, name)
+                                })
+                        {
+                            method_args.insert(0, "__fut_globals".to_string());
+                        }
+                        return format!("self.{}({})", sanitize_name(name), method_args.join(", "));
                     }
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
@@ -36579,7 +36912,10 @@ impl RustCodegen {
                         // map with user function name (not lambda): wrap to handle borrow.
                         if name == "map" {
                             if let ExprKind::Var(fn_name) = &&args[1].kind {
-                                if self.types.user_functions.contains(fn_name.as_str()) {
+                                if self.types.user_functions.contains(fn_name.as_str())
+                                    && !(self.binary_global_env_arg_in_scope
+                                        && self.binary_global_env_fns.contains(fn_name.as_str()))
+                                {
                                     let coll = self.emit_expr(&args[0]);
                                     let f = sanitize_name(fn_name);
                                     let borrows = self
@@ -37111,11 +37447,24 @@ impl RustCodegen {
                         && self.module_binding_getter_call(obj).is_none()
                         && self.module_stream_binding_getter_call(obj).is_none()
                     {
+                        let mut method_args = args_str.clone();
+                        if self.binary_global_env_arg_in_scope
+                            && self.rule_scope_member_call_uses_binary_global_env(obj, method)
+                        {
+                            method_args.insert(
+                                0,
+                                if self.binary_global_value_refs_in_scope {
+                                    "__fut_globals".to_string()
+                                } else {
+                                    "&__fut_globals".to_string()
+                                },
+                            );
+                        }
                         return format!(
                             "{}.{}({})",
                             self.emit_expr(obj),
                             sanitize_name(method),
-                            args_str.join(", ")
+                            method_args.join(", ")
                         );
                     }
                 }
@@ -48498,6 +48847,73 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    fn binary_global_env_rulescope_source() -> &'static str {
+        r#"
+# Entry(value: Int)
+
+= rule_entries = [Entry(value = 40)]
+= scoped_entries = [Entry(value = 2)]
+= callback_offset = [Entry(value = 0)]
+
+| first_entry() -> head(rule_entries)
+| forwarded_entry() -> first_entry()
+| callback_value(entry: Entry) -> entry.value + head(callback_offset).value
+| mapped_value() -> head(map([Entry(value = 0)], callback_value))
+
+# EntryCase() {
+    | direct_value() -> head(scoped_entries).value
+    | forwarded_value() -> forwarded_entry().value
+    | total() -> direct_value() + forwarded_value() + mapped_value()
+    > result() -> Int {
+        = mapped_value = mapped_value()
+        total() + mapped_value
+    }
+}
+
+| calculate_entry() -> EntryCase().result()
+
+@ print(show(calculate_entry()))
+"#
+    }
+
+    #[test]
+    fn interpreted_global_list_dependency_flows_through_rulescope_members() {
+        let output = interpret_test_source(binary_global_env_rulescope_source(), None);
+        assert_eq!(output.trim(), "42");
+    }
+
+    #[test]
+    fn legacy_emit_program_propagates_global_list_dependencies_through_rulescope_members() {
+        let (mut cg, stmts) = scan_with_codegen(binary_global_env_rulescope_source());
+        let rust = cg.emit_program(&stmts);
+        for expected in [
+            "fn first_entry(__fut_globals: &__FutGlobals) -> Entry {",
+            "fn forwarded_entry(__fut_globals: &__FutGlobals) -> Entry {",
+            "fn callback_value(__fut_globals: &__FutGlobals, entry: Entry) -> i64 {",
+            "fn mapped_value(__fut_globals: &__FutGlobals) -> i64 {",
+            "fn direct_value(&self, __fut_globals: &__FutGlobals) -> i64 {",
+            "fn forwarded_value(&self, __fut_globals: &__FutGlobals) -> i64 {",
+            "fn total(&self, __fut_globals: &__FutGlobals) -> i64 {",
+            "fn result(&self, __fut_globals: &__FutGlobals) -> i64 {",
+            "fn calculate_entry(__fut_globals: &__FutGlobals) -> i64 {",
+            "self.direct_value(__fut_globals)",
+            "EntryCase().result(__fut_globals)",
+        ] {
+            assert!(
+                rust.contains(expected),
+                "generated Rust should contain `{}`: {}",
+                expected,
+                rust
+            );
+        }
+    }
+
+    #[test]
+    fn compiled_global_list_dependency_flows_through_rulescope_members() {
+        let output = compile_and_run_test_program(binary_global_env_rulescope_source());
+        assert_eq!(output.trim(), "42");
     }
 
     #[test]
