@@ -2095,7 +2095,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9l_nettopensionsindbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input) - ll9l_modregningspligtig_udbetaling_kroner(input))
 | ll9l_fradragsgrundlag_kroner(input: Ligningslov9LInput) -> ligningslov_mindste_beløb(ll9l_nettopensionsindbetalinger_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).maksimalt_grundlag_kroner)
 | ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> 0
-| exception ll9l_gældende_skatteår ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).pensionsfradrag_basispoint) under ll9l_gælder_for_skatteår(input.skatteår)
+| exception ll9l_gældende_skatteår ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_afrundet_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).pensionsfradrag_basispoint) under ll9l_gælder_for_skatteår(input.skatteår)
 | ll9j_9k_9l_9j_input(input: Ligningslov9J9K9LInput) -> Ligningslov9JInput(
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
@@ -2136,6 +2136,15 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
     pbl18_fradragsberettiget_indbetaling_kroner = 100000,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2025_afrundet_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2025,
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 844,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 3279,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
@@ -2183,6 +2192,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 
 | ll9l_2019_reguleret_maks_og_22pct: ll9l_2019_folkepensionsnær_maks_fixture -> ll9l_2019_folkepensionsnær_maks_fixture == 15730
 | ll9l_2026_reguleret_maks_og_12pct: ll9l_2026_ordinær_maks_fixture -> ll9l_2026_ordinær_maks_fixture == 10536
+| ll9l_2025_afrundes_til_nærmeste_hele_krone: ll9l_2025_afrundet_fixture -> ll9l_2025_afrundet_fixture == 495
 | ll9l_pbl20_udbetaling_modregnes: ll9l_2026_modregnet_udbetaling_fixture -> ll9l_2026_modregnet_udbetaling_fixture == 4800
 | ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936

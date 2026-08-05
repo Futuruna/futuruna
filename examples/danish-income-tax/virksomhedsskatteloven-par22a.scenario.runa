@@ -1,0 +1,287 @@
+@ sprog da
+
+@ importer ./virksomhedsskatteloven
+
+| vsl22a_scenarie_par8_aktiv(identifikation: Tekst, kategori: Virksomhedsskattelov22AAktivkategori, anvendelse: Virksomhedsskattelov22AAnvendelse, værdi_kroner: Heltal) -> Virksomhedsskattelov22AAktiv(
+    identifikation = identifikation,
+    kategori = kategori,
+    anvendelse = anvendelse,
+    værdi = Vsl22AVærdiEfterPar8Stk2(
+        værdiansættelse = Vsl8AndenLøsøregenstand(handelsværdi_kroner = værdi_kroner)
+    )
+)
+| vsl22a_scenarie_varelager(identifikation: Tekst, værdi_kroner: Heltal) -> Virksomhedsskattelov22AAktiv(
+    identifikation = identifikation,
+    kategori = Vsl22AVarelager,
+    anvendelse = Vsl22AUdelukkendeErhvervsmæssig,
+    værdi = Vsl22AVærdiEfterPar8Stk2(
+        værdiansættelse = Vsl8Varelager(værdi_efter_varelagerloven_kroner = værdi_kroner)
+    )
+)
+| vsl22a_scenarie_igangværende_arbejde(identifikation: Tekst, nettoværdi_kroner: Heltal) -> Virksomhedsskattelov22AAktiv(
+    identifikation = identifikation,
+    kategori = Vsl22AIgangværendeArbejdeForFremmedRegning,
+    anvendelse = Vsl22AUdelukkendeErhvervsmæssig,
+    værdi = Vsl22AIgangværendeArbejdeNettoværdi(nettoværdi_kroner = nettoværdi_kroner)
+)
+| vsl22a_scenarie_nærtstående_bolig(identifikation: Tekst, værdi_kroner: Heltal) -> Virksomhedsskattelov22AAktiv(
+    identifikation = identifikation,
+    kategori = Vsl22AAlmindeligtAktiv,
+    anvendelse = Vsl22AUdelukkendeErhvervsmæssig,
+    værdi = Vsl22AVærdiEfterPar8Stk2(
+        værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
+            anskaffelsesår = 2020,
+            kontant_anskaffelsessum_kroner = værdi_kroner,
+            anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner = 0,
+            værdiansættelse = Vsl8KontantAnskaffelsessum,
+            boliganvendelse = Vsl8StilletTilRådighedSomNærtståendeBolig(
+                relation = Vsl8SkattepligtigesEllerÆgtefællesBarn
+            )
+        ))
+    )
+)
+| vsl22a_scenarie_person(person_identifikation: Tekst, anvender_virksomhedsordningen: Boolsk, aktiver: List(Virksomhedsskattelov22AAktiv), varekreditorer: List(Virksomhedsskattelov22AVarekreditor), personlig_nettoindkomst_kroner: Heltal, nettokapitalindkomst_kroner: Heltal) -> Virksomhedsskattelov22APersongrundlag(
+    person_identifikation = person_identifikation,
+    anvender_virksomhedsordningen = anvender_virksomhedsordningen,
+    opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+    aktiver = aktiver,
+    varekreditorer = varekreditorer,
+    personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = personlig_nettoindkomst_kroner,
+    nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner = nettokapitalindkomst_kroner
+)
+| vsl22a_scenarie_kildeinput(skattepligtig: Virksomhedsskattelov22APersongrundlag, ægtefælle: Virksomhedsskattelov22AÆgtefælle, virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling, vælger_kapitalafkastordning: Boolsk) -> Virksomhedsskattelov22AKildeInput(
+    indkomstår = 2026,
+    skattepligtig = skattepligtig,
+    ægtefælle = ægtefælle,
+    virksomhedsfordeling = virksomhedsfordeling,
+    vælger_kapitalafkastordning = vælger_kapitalafkastordning,
+    periode_hele_måneder = 12
+)
+
+= vsl22a_scenarie_alle_aktivgrene_person = vsl22a_scenarie_person(
+    "person-a",
+    Falskt,
+    [
+        vsl22a_scenarie_par8_aktiv("almindeligt", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 400000),
+        vsl22a_scenarie_par8_aktiv("blandet", Vsl22AAlmindeligtAktiv, Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(erhvervsandel_basispoint = 4000), 100000),
+        vsl22a_scenarie_par8_aktiv("foreningsandel", Vsl22AAndelIForeningEfterSelskabsskattelov1Stk1Nr3Eller4, Vsl22AUdelukkendeErhvervsmæssig, 50000),
+        vsl22a_scenarie_igangværende_arbejde("igangværende", 80000),
+        vsl22a_scenarie_varelager("varelager", 100000),
+        vsl22a_scenarie_par8_aktiv("varedebitor", Vsl22AVaredebitor, Vsl22AUdelukkendeErhvervsmæssig, 60000),
+        vsl22a_scenarie_par8_aktiv("kontanter", Vsl22AKontantBeløb, Vsl22AUdelukkendeErhvervsmæssig, 30000),
+        vsl22a_scenarie_par8_aktiv("anden-fordring", Vsl22AAndenFordring, Vsl22AUdelukkendeErhvervsmæssig, 40000),
+        vsl22a_scenarie_par8_aktiv("andet-finansielt", Vsl22AAndenAktieEllerFinansieltAktiv, Vsl22AUdelukkendeErhvervsmæssig, 50000),
+        vsl22a_scenarie_par8_aktiv("psl-nr9", Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr9, Vsl22AUdelukkendeErhvervsmæssig, 60000),
+        vsl22a_scenarie_par8_aktiv("psl-nr11", Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr11, Vsl22AUdelukkendeErhvervsmæssig, 70000),
+        vsl22a_scenarie_par8_aktiv("konkurs", Vsl22AKonkursindkomstEfterKonkursskattelov6, Vsl22AUdelukkendeErhvervsmæssig, 80000),
+        vsl22a_scenarie_nærtstående_bolig("barnets-bolig", 900000),
+        vsl22a_scenarie_par8_aktiv("ikke-erhvervsmæssigt", Vsl22AAlmindeligtAktiv, Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3, 100000),
+    ],
+    [Virksomhedsskattelov22AVarekreditor(identifikation = "varekreditor", værdi_kroner = 150000)],
+    100000,
+    -20000
+)
+= vsl22a_scenarie_alle_aktivgrene = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_alle_aktivgrene_person,
+    Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang,
+    Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "person-a"),
+    Sandt
+))
+
+= vsl22a_scenarie_ægtefælle_a = vsl22a_scenarie_person(
+    "ægtefælle-a",
+    Falskt,
+    [vsl22a_scenarie_par8_aktiv("a-aktiv", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 300000)],
+    [],
+    100000,
+    0
+)
+= vsl22a_scenarie_ægtefælle_b = vsl22a_scenarie_person(
+    "ægtefælle-b",
+    Falskt,
+    [vsl22a_scenarie_par8_aktiv("b-aktiv", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 100000)],
+    [],
+    100000,
+    0
+)
+= vsl22a_scenarie_hver_sin_virksomhed = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_ægtefælle_a,
+    Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag = vsl22a_scenarie_ægtefælle_b),
+    Vsl22AÆgtefællerDriverHverSinVirksomhed,
+    Sandt
+))
+= vsl22a_scenarie_én_virksomhed_hos_ægtefællen = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_ægtefælle_a,
+    Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag = vsl22a_scenarie_ægtefælle_b),
+    Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "ægtefælle-b"),
+    Sandt
+))
+= vsl22a_scenarie_ægtefælle_b_vso = vsl22a_scenarie_person(
+    "ægtefælle-b",
+    Sandt,
+    [vsl22a_scenarie_par8_aktiv("b-vso-aktiv", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 100000)],
+    [],
+    100000,
+    -100000
+)
+= vsl22a_scenarie_ægtefælle_bruger_vso = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_ægtefælle_a,
+    Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag = vsl22a_scenarie_ægtefælle_b_vso),
+    Vsl22AÆgtefællerDriverHverSinVirksomhed,
+    Sandt
+))
+
+= vsl22a_scenarie_signed_a = vsl22a_scenarie_person(
+    "signed-a",
+    Falskt,
+    [vsl22a_scenarie_par8_aktiv("signed-a-aktiv", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 500000)],
+    [],
+    10000,
+    -5000
+)
+= vsl22a_scenarie_signed_b = vsl22a_scenarie_person(
+    "signed-b",
+    Falskt,
+    [vsl22a_scenarie_par8_aktiv("signed-b-aktiv", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 500000)],
+    [],
+    -20000,
+    3000
+)
+= vsl22a_scenarie_signed_husstandsindkomst = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_signed_a,
+    Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag = vsl22a_scenarie_signed_b),
+    Vsl22AÆgtefællerDriverHverSinVirksomhed,
+    Sandt
+))
+
+= vsl22a_scenarie_uden_valg = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_ægtefælle_a,
+    Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang,
+    Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "ægtefælle-a"),
+    Falskt
+))
+= vsl22a_scenarie_dublerede_aktiver_person = vsl22a_scenarie_person(
+    "dublet-person",
+    Falskt,
+    [
+        vsl22a_scenarie_par8_aktiv("dublet", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 100000),
+        vsl22a_scenarie_par8_aktiv("dublet", Vsl22AAlmindeligtAktiv, Vsl22AUdelukkendeErhvervsmæssig, 100000),
+    ],
+    [],
+    100000,
+    0
+)
+= vsl22a_scenarie_dublerede_aktiver = virksomhedsskattelov22a_kilde_resultat(vsl22a_scenarie_kildeinput(
+    vsl22a_scenarie_dublerede_aktiver_person,
+    Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang,
+    Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "dublet-person"),
+    Sandt
+))
+
+= vsl22a_scenarie_par22c_kildeinput = Virksomhedsskattelov22CKildeInput(
+    indkomstår = 2026,
+    vælger_kapitalafkastordning = Sandt,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 1000000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    ejerperiode_hele_måneder = 12
+)
+= vsl22a_scenarie_par22c_kilderesultat = virksomhedsskattelov22c_kilde_resultat(vsl22a_scenarie_par22c_kildeinput)
+= vsl22a_scenarie_par22c_uden_valg = virksomhedsskattelov22c_kilde_resultat(Virksomhedsskattelov22CKildeInput(
+    indkomstår = 2026,
+    vælger_kapitalafkastordning = Falskt,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 1000000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    ejerperiode_hele_måneder = 12
+))
+
+= vsl22a_scenarie_par23a_fra_par22a = virksomhedsskattelov23a_bundet_resultat(Virksomhedsskattelov23ABundetInput(
+    kilde = Vsl23AKapitalafkastEfterPar22A(input = vsl22a_scenarie_kildeinput(
+        vsl22a_scenarie_alle_aktivgrene_person,
+        Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang,
+        Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "person-a"),
+        Sandt
+    )),
+    ønsket_medregnet_personlig_indkomst_kroner = 5000
+))
+= vsl22a_scenarie_par7_kildeinput = Virksomhedsskattelov7KildeInput(
+    par8_input = Virksomhedsskattelov8Input(
+        indkomstår = 2026,
+        opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+        aktiver = [Virksomhedsskattelov8Aktiv(
+            identifikation = "par7-aktiv",
+            værdiansættelse = Vsl8AndenLøsøregenstand(handelsværdi_kroner = 500000)
+        )],
+        fradragsposter = Virksomhedsskattelov8Fradragsposter(
+            gældsposter = [],
+            afsat_efter_par4_kroner = 0,
+            afsat_efter_par10_stk1_kroner = 0,
+            indestående_på_mellemregningskonto_efter_par4a_kroner = 0,
+            tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = 0,
+            overførsler_til_privatøkonomien = []
+        )
+    ),
+    skattepligtigt_overskud_kroner = 100000,
+    regnskabsperiode_hele_måneder = 12
+)
+= vsl22a_scenarie_par23a_fra_par7 = virksomhedsskattelov23a_bundet_resultat(Virksomhedsskattelov23ABundetInput(
+    kilde = Vsl23AKapitalafkastEfterPar7(input = vsl22a_scenarie_par7_kildeinput),
+    ønsket_medregnet_personlig_indkomst_kroner = 6000
+))
+= vsl22a_scenarie_par11_kilderesultat = virksomhedsskattelov11_kilde_resultat(Virksomhedsskattelov11KildeInput(
+    indkomstår = 2026,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 60000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 40000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 3000,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+))
+
+| vsl22a_scenarie_stk5_stk6_og_arbejdskapital: vsl22a_scenarie_alle_aktivgrene -> vsl22a_scenarie_alle_aktivgrene.input_gyldigt && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.direkte_afkastgrundlag_kroner == 490000 && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.arbejdskapitalaktiver_kroner == 240000 && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.varekreditorer_kroner == 150000 && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.arbejdskapital_efter_stk7_kroner == 90000 && vsl22a_scenarie_alle_aktivgrene.samlet_afkastgrundlag_kroner == 580000 && vsl22a_scenarie_alle_aktivgrene.par22a_resultat.kapitalafkastsats_basispoint == 200 && vsl22a_scenarie_alle_aktivgrene.skattepligtiges_kapitalafkast_kroner == 11600
+| vsl22a_scenarie_stk7_udelukkelser_er_typed: vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat -> vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[6].behandling == Vsl22AUdeladt(grund = Vsl22AKontantBeløbEfterStk7) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[7].behandling == Vsl22AUdeladt(grund = Vsl22AAndenFordringEfterStk7) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[8].behandling == Vsl22AUdeladt(grund = Vsl22AAndenAktieEllerFinansieltAktivEfterStk7) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[9].behandling == Vsl22AUdeladt(grund = Vsl22APersonskattelov4Stk1Nr9) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[10].behandling == Vsl22AUdeladt(grund = Vsl22APersonskattelov4Stk1Nr11) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[11].behandling == Vsl22AUdeladt(grund = Vsl22AKonkursskattelov6)
+| vsl22a_scenarie_stk8_og_ikke_erhvervsmæssig_anvendelse_udelukkes: vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat -> vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[12].behandling == Vsl22AUdeladt(grund = Vsl22ANærtståendeBoligEfterStk8) && vsl22a_scenarie_alle_aktivgrene.skattepligtig_resultat.aktivresultater[13].behandling == Vsl22AUdeladt(grund = Vsl22AIkkeErhvervsmæssigEfterStk5Eller6)
+| vsl22a_scenarie_hver_sin_virksomhed_fordeles_efter_aktiver: vsl22a_scenarie_hver_sin_virksomhed -> vsl22a_scenarie_hver_sin_virksomhed.input_gyldigt && vsl22a_scenarie_hver_sin_virksomhed.samlet_afkastgrundlag_kroner == 400000 && vsl22a_scenarie_hver_sin_virksomhed.skattepligtiges_kapitalafkast_kroner == 6000 && vsl22a_scenarie_hver_sin_virksomhed.ægtefællens_kapitalafkast_kroner == 2000
+| vsl22a_scenarie_én_virksomhed_henføres_til_driveren: vsl22a_scenarie_én_virksomhed_hos_ægtefællen -> vsl22a_scenarie_én_virksomhed_hos_ægtefællen.input_gyldigt && vsl22a_scenarie_én_virksomhed_hos_ægtefællen.skattepligtiges_kapitalafkast_kroner == 0 && vsl22a_scenarie_én_virksomhed_hos_ægtefællen.ægtefællens_kapitalafkast_kroner == 8000
+| vsl22a_scenarie_ægtefællens_vso_udelades_før_beregning: vsl22a_scenarie_ægtefælle_bruger_vso -> vsl22a_scenarie_ægtefælle_bruger_vso.input_gyldigt && vsl22a_scenarie_ægtefælle_bruger_vso.ægtefællens_virksomhedsordning_udeladt && vsl22a_scenarie_ægtefælle_bruger_vso.samlet_afkastgrundlag_kroner == 300000 && vsl22a_scenarie_ægtefælle_bruger_vso.samlet_personlig_nettoindkomst_kroner == 100000 && vsl22a_scenarie_ægtefælle_bruger_vso.samlet_nettokapitalindkomst_kroner == 0 && vsl22a_scenarie_ægtefælle_bruger_vso.skattepligtiges_kapitalafkast_kroner == 6000 && vsl22a_scenarie_ægtefælle_bruger_vso.ægtefællens_kapitalafkast_kroner == 0
+| vsl22a_scenarie_signed_indkomster_sammenlægges_før_loftet: vsl22a_scenarie_signed_husstandsindkomst -> vsl22a_scenarie_signed_husstandsindkomst.input_gyldigt && vsl22a_scenarie_signed_husstandsindkomst.samlet_personlig_nettoindkomst_kroner == -10000 && vsl22a_scenarie_signed_husstandsindkomst.samlet_nettokapitalindkomst_kroner == -2000 && vsl22a_scenarie_signed_husstandsindkomst.par22a_resultat.loft_efter_stk3_kroner == 2000 && vsl22a_scenarie_signed_husstandsindkomst.par22a_resultat.kapitalafkast_kroner == 2000
+| vsl22a_scenarie_valget_er_nødvendigt: vsl22a_scenarie_uden_valg -> vsl22a_scenarie_uden_valg.input_gyldigt && vsl22a_scenarie_uden_valg.par22a_resultat.omfattet_af_stk1 == Falskt && vsl22a_scenarie_uden_valg.skattepligtiges_kapitalafkast_kroner == 0
+| vsl22a_scenarie_dubleret_aktiv_fejler_lukket: vsl22a_scenarie_dublerede_aktiver -> vsl22a_scenarie_dublerede_aktiver.input_gyldigt == Falskt && vsl22a_scenarie_dublerede_aktiver.skattepligtig_resultat.aktividentifikationer_entydige == Falskt && vsl22a_scenarie_dublerede_aktiver.par22a_resultat.kapitalafkast_kroner == 0 && vsl22a_scenarie_dublerede_aktiver.skattepligtiges_kapitalafkast_kroner == 0
+| vsl22a_scenarie_regulerede_beløb_er_kildebundne: virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(2026) -> virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(2025) == 821400 && virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(2026) == 860900 && virksomhedsskattelov23a_reguleret_grundbeløb_kroner(2025) == 60300 && virksomhedsskattelov23a_reguleret_grundbeløb_kroner(2026) == 63200
+| vsl22a_scenarie_par22c_udleder_beløbsgrænse_sats_og_valg: vsl22a_scenarie_par22c_kilderesultat -> vsl22a_scenarie_par22c_kilderesultat.input_gyldigt && vsl22a_scenarie_par22c_kilderesultat.reguleret_beløbsgrænse_kroner == 860900 && vsl22a_scenarie_par22c_kilderesultat.par22c_resultat.kapitalafkastsats_basispoint == 200 && vsl22a_scenarie_par22c_kilderesultat.ordningen_anvendes && vsl22a_scenarie_par22c_kilderesultat.kapitalafkast_kroner == 20000 && vsl22a_scenarie_par22c_uden_valg.par22c_resultat.betingelser_opfyldt && vsl22a_scenarie_par22c_uden_valg.ordningen_anvendes == Falskt && vsl22a_scenarie_par22c_uden_valg.kapitalafkast_kroner == 0
+| vsl22a_scenarie_par23a_er_bundet_til_par22a_resultatet: vsl22a_scenarie_par23a_fra_par22a -> vsl22a_scenarie_par23a_fra_par22a.input_gyldigt && vsl22a_scenarie_par23a_fra_par22a.kapitalafkast_kroner == 11600 && vsl22a_scenarie_par23a_fra_par22a.reguleret_grundbeløb_kroner == 63200 && vsl22a_scenarie_par23a_fra_par22a.par23a_resultat.personlig_indkomst_kroner == 5000 && vsl22a_scenarie_par23a_fra_par22a.par23a_resultat.resterende_kapitalafkast_kroner == 6600
+| vsl22a_scenarie_par23a_er_bundet_til_par7_resultatet: vsl22a_scenarie_par23a_fra_par7 -> vsl22a_scenarie_par23a_fra_par7.input_gyldigt && vsl22a_scenarie_par23a_fra_par7.kapitalafkast_kroner == 10000 && vsl22a_scenarie_par23a_fra_par7.reguleret_grundbeløb_kroner == 63200 && vsl22a_scenarie_par23a_fra_par7.par23a_resultat.personlig_indkomst_kroner == 6000 && vsl22a_scenarie_par23a_fra_par7.par23a_resultat.resterende_kapitalafkast_kroner == 4000
+| vsl22a_scenarie_par11_udleder_rentekorrektionssatsen: vsl22a_scenarie_par11_kilderesultat -> vsl22a_scenarie_par11_kilderesultat.input_gyldigt && vsl22a_scenarie_par11_kilderesultat.par11_input.rentekorrektionssats_basispoint == 500 && vsl22a_scenarie_par11_kilderesultat.par11_resultat.samlet_rentekorrektion_kroner == 3000
+
+? vsl22a_scenarie_stk5_stk6_og_arbejdskapital
+? vsl22a_scenarie_stk7_udelukkelser_er_typed
+? vsl22a_scenarie_stk8_og_ikke_erhvervsmæssig_anvendelse_udelukkes
+? vsl22a_scenarie_hver_sin_virksomhed_fordeles_efter_aktiver
+? vsl22a_scenarie_én_virksomhed_henføres_til_driveren
+? vsl22a_scenarie_ægtefællens_vso_udelades_før_beregning
+? vsl22a_scenarie_signed_indkomster_sammenlægges_før_loftet
+? vsl22a_scenarie_valget_er_nødvendigt
+? vsl22a_scenarie_dubleret_aktiv_fejler_lukket
+? vsl22a_scenarie_regulerede_beløb_er_kildebundne
+? vsl22a_scenarie_par22c_udleder_beløbsgrænse_sats_og_valg
+? vsl22a_scenarie_par23a_er_bundet_til_par22a_resultatet
+? vsl22a_scenarie_par23a_er_bundet_til_par7_resultatet
+? vsl22a_scenarie_par11_udleder_rentekorrektionssatsen

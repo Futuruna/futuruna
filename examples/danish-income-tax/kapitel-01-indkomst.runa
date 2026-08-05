@@ -1322,6 +1322,13 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 | par4_stk1_nr3_kapitalpost_fra_virksomhedsskattelov7(vsl7_input: Virksomhedsskattelov7Input, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, vsl23a_input: Virksomhedsskattelov23AInput) -> par4_stk1_nr3_kapitalpost(par4_stk1_nr3_input_fra_virksomhedsskattelov7(vsl7_input, oplysningsfrist_input, vsl23a_input))
+| par4_stk1_nr3_input_fra_kilder(vsl7_resultat: Virksomhedsskattelov7KildeResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, vsl23a_resultat: Virksomhedsskattelov23ABundetResultat) -> Par4Stk1Nr3Input(
+    virksomhedsskattelov7_resultat = vsl7_resultat.par7_resultat,
+    skattekontrollov_oplysningsfrist_resultat = oplysningsfrist_resultat,
+    virksomhedsskattelov23a_resultat = vsl23a_resultat.par23a_resultat
+)
+| par4_stk1_nr3_resultat_fra_kilder(vsl7_resultat: Virksomhedsskattelov7KildeResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, vsl23a_resultat: Virksomhedsskattelov23ABundetResultat) -> par4_stk1_nr3_resultat(par4_stk1_nr3_input_fra_kilder(vsl7_resultat, oplysningsfrist_resultat, vsl23a_resultat))
+| par4_stk1_nr3_kapitalpost_fra_kilder(vsl7_resultat: Virksomhedsskattelov7KildeResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, vsl23a_resultat: Virksomhedsskattelov23ABundetResultat) -> par4_stk1_nr3_kapitalpost(par4_stk1_nr3_input_fra_kilder(vsl7_resultat, oplysningsfrist_resultat, vsl23a_resultat))
 
 # Par4Stk1Nr3aSag(input: Par4Stk1Nr3aInput) {
     | kapitalafkast_efter_virksomhedsskattelov22a_kroner() -> input.virksomhedsskattelov22a_resultat.kapitalafkast_kroner
@@ -1352,6 +1359,27 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 | par4_stk1_nr3a_kapitalpost_fra_virksomhedsskattelov22(vsl22a_input: Virksomhedsskattelov22AInput, vsl23a_input: Virksomhedsskattelov23AInput, vsl22c_input: Virksomhedsskattelov22CInput) -> par4_stk1_nr3a_kapitalpost(par4_stk1_nr3a_input_fra_virksomhedsskattelov22(vsl22a_input, vsl23a_input, vsl22c_input))
+| par4_stk1_nr3a_resultat_fra_kildebeløb(kapitalafkast_22a_kroner: Heltal, personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_22c_kroner: Heltal) -> {
+    = kapitalafkast_22a_efter_par23a_kroner = penge_positivt_beløb(kapitalafkast_22a_kroner - personlig_indkomst_efter_par23a_kroner)
+    Par4Stk1Nr3aResultat(
+        kapitalafkast_efter_virksomhedsskattelov22a_kroner = kapitalafkast_22a_kroner,
+        medregnet_personlig_indkomst_efter_par23a_kroner = personlig_indkomst_efter_par23a_kroner,
+        kapitalafkast_22a_efter_par23a_kroner = kapitalafkast_22a_efter_par23a_kroner,
+        kapitalafkast_efter_virksomhedsskattelov22c_kroner = kapitalafkast_22c_kroner,
+        kapitalindkomst_kroner = kapitalafkast_22a_efter_par23a_kroner + kapitalafkast_22c_kroner
+    )
+}
+| par4_stk1_nr3a_resultat_fra_kilder(vsl22a_resultat: Virksomhedsskattelov22AKildeResultat, vsl23a_resultat: Virksomhedsskattelov23ABundetResultat, vsl22c_resultat: Virksomhedsskattelov22CKildeResultat) -> par4_stk1_nr3a_resultat_fra_kildebeløb(
+    vsl22a_resultat.skattepligtiges_kapitalafkast_kroner,
+    vsl23a_resultat.par23a_resultat.personlig_indkomst_kroner,
+    vsl22c_resultat.kapitalafkast_kroner
+)
+| par4_stk1_nr3a_kapitalpost_fra_resultat(resultat: Par4Stk1Nr3aResultat) -> Par4Kapitalpost(
+    art = KapitalafkastVsl22,
+    beløb_kroner = resultat.kapitalindkomst_kroner,
+    personlig_reklassifikation = IngenPersonligReklassifikation,
+    personlig_indkomst_tillæg_kroner = 0
+)
 
 # Par4Stk1Nr4Sag(input: Par4Stk1Nr4Input) {
     | skattepligtigt_udbytte_kroner() -> input.ligningslov16a_resultat.udbytte_kroner
@@ -1613,6 +1641,11 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = par4_stk1_nr8_sag(input).personlig_indkomst_tillæg_kroner()
 )
 | par4_stk1_nr8_kapitalpost_fra_virksomhedsskattelov11(input: Virksomhedsskattelov11Input) -> par4_stk1_nr8_kapitalpost(par4_stk1_nr8_input_fra_virksomhedsskattelov11(input))
+| par4_stk1_nr8_input_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> Par4Stk1Nr8Input(
+    virksomhedsskattelov11_resultat = resultat.par11_resultat
+)
+| par4_stk1_nr8_resultat_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> par4_stk1_nr8_resultat(par4_stk1_nr8_input_fra_kilde(resultat))
+| par4_stk1_nr8_kapitalpost_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> par4_stk1_nr8_kapitalpost(par4_stk1_nr8_input_fra_kilde(resultat))
 
 # Par4Stk1Nr9Sag(input: Par4Stk1Nr9Input) {
     | effektivt_ejerantal() -> penge_positivt_beløb(input.samlet_ejerantal - input.ligningslov8p_ejere_der_ikke_medregnes)

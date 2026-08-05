@@ -164,15 +164,20 @@ fn main_inner() {
                 calculation_format = Some(arg["--format=".len()..].to_string());
                 i += 1;
             }
-            "--input" if mode == "call" => {
+            "--input" if matches!(mode, "template" | "call") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --input requires a JSON, TOML, or XLSX path");
+                    let formats = if mode == "template" {
+                        "JSON or TOML"
+                    } else {
+                        "JSON, TOML, or XLSX"
+                    };
+                    eprintln!("error: --input requires a {} path", formats);
                     std::process::exit(1);
                 }
                 calculation_input = Some(args[i + 1].clone());
                 i += 2;
             }
-            arg if mode == "call" && arg.starts_with("--input=") => {
+            arg if matches!(mode, "template" | "call") && arg.starts_with("--input=") => {
                 calculation_input = Some(arg["--input=".len()..].to_string());
                 i += 1;
             }
@@ -304,7 +309,9 @@ fn main_inner() {
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
                 eprintln!("  schema        Emit a typed @ calculate contract as JSON");
-                eprintln!("  template      Generate JSON, TOML, or XLSX calculation input");
+                eprintln!(
+                    "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
+                );
                 eprintln!("  call          Validate input and invoke a typed calculation");
                 eprintln!(
                     "  meta          Report typed meta references across a file or source tree"
@@ -359,6 +366,7 @@ fn main_inner() {
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
                 eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
                 eprintln!("  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx");
+                eprintln!("  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx");
                 eprintln!("  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
@@ -737,7 +745,14 @@ fn run_calculation_command(
         }
         "template" => {
             let format = calculation_format(requested_format, output_path, "json");
-            let envelope = contract.template_envelope();
+            let envelope = input_path
+                .map(|path| read_calculation_template_input(contract, path))
+                .transpose()
+                .unwrap_or_else(|error| {
+                    eprintln!("error: cannot read calculation template input: {}", error);
+                    std::process::exit(1);
+                })
+                .unwrap_or_else(|| contract.template_envelope());
             match format.as_str() {
                 "json" => {
                     let document =
@@ -1020,6 +1035,43 @@ fn read_calculation_toml(path: &str) -> Result<calculate::CalculationInputEnvelo
     let value = toml::from_str::<toml::Value>(&source).map_err(|error| error.to_string())?;
     let json = calculation_toml_to_json(&value)?;
     serde_json::from_value(json).map_err(|error| error.to_string())
+}
+
+fn read_calculation_template_input(
+    contract: &calculate::CalculationContract,
+    path: &str,
+) -> Result<calculate::CalculationInputEnvelope, String> {
+    let format = calculation_format(None, Some(path), "json");
+    let envelope =
+        match format.as_str() {
+            "json" => read_calculation_json(path)?,
+            "toml" => read_calculation_toml(path)?,
+            "xlsx" => return Err(
+                "XLSX hydration input is not supported; use a JSON or TOML calculation envelope"
+                    .to_string(),
+            ),
+            _ => calculation_unknown_format(&format),
+        };
+    if let Err(diagnostics) = calculate::validate_input_envelope(contract, &envelope) {
+        return Err(diagnostics
+            .into_iter()
+            .map(|diagnostic| {
+                let case = if diagnostic.case_id.is_empty() {
+                    String::new()
+                } else {
+                    format!("case `{}` ", diagnostic.case_id)
+                };
+                format!("{}{}: {}", case, diagnostic.path, diagnostic.message)
+            })
+            .collect::<Vec<_>>()
+            .join("; "));
+    }
+    for case in &envelope.cases {
+        contract.decode_input(&case.input).map_err(|error| {
+            format!("case `{}` {}: {}", case.case_id, error.path, error.message)
+        })?;
+    }
+    Ok(envelope)
 }
 
 fn calculation_header_format() -> rust_xlsxwriter::Format {

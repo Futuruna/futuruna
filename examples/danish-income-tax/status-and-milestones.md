@@ -1,7 +1,7 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-30
+Last updated: 2026-07-31
 TD epic: `td-56cf8d`
 Current implementation slice: `td-a89feb` (Virksomhedsskattelovens § 22 a, stk. 4-8, årsparametre og kanonisk erhvervskapital; in progress)
 Next source-backed slice: færdiggør `td-a89feb`, og fortsæt derefter den materielle beregningskø under `td-2d84ec`
@@ -111,6 +111,43 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er nu ført
+gennem både den kanoniske arbejdsbog og et fokuseret
+`personskat-2025-aarsopgoerelse.scenario.runa`. Ingen person-, adresse- eller
+ejendomsidentifikationer er bevaret i korpusset. Scenariet afstemmer den
+eksisterende lønmodtagerkerne med de oplyste indkomst- og fradragssummer og
+rammer årsopgørelsens 29.059.034 øre i beregnet skat, 3.716.680 øre i
+overskydende skat og 8.200 øre i resterende udbetaling præcist. Realitetstesten
+og den efterfølgende domænegennemgang fandt fire konkrete
+integrationsforbedringer: Frederiksberg og kommunens
+2025-sats manglede i årsparametrene, § 9 L-fradraget skulle afrundes til hele
+kroner i stedet for at blive afkortet, og den endelige lave aktieindkomstskat
+skulle både udstilles særskilt og medregnes i den samlede skat og
+årsopgørelsen. Desuden var virksomhedsordningens § 7-gren og den alternative
+kapitalafkastordning efter § 22 a fejlagtigt repræsenteret som to uafhængige
+valg i det kanoniske Personskat-input. De er nu én sumtype med præcis ét valg
+mellem ingen ordning, virksomhedsordningen og kapitalafkastordningen;
+rentekorrektion efter § 11 findes kun inde i virksomhedsordningsgrenen. Separate
+scenarier bevarer fuld grendækning uden at konstruere en retligt umulig
+kombination.
+
+Den udfyldte kanoniske arbejdsbog accepterer alle de faktiske kildedata, som
+den nuværende `PersonskatInput` kan bære uden omklassifikation: år, kommune,
+løn, renter, civilstands- og ægtefællekapitalforhold, aktieindkomst og
+foreløbige skatter. Den beregner 318.644 kr. mod årsopgørelsens 290.590,34 kr.
+Forskellen på 28.053,66 kr. er et reproducerbart dækningssignal, ikke et skjult
+afrundingsproblem. Den består af endnu ikke kanonisk forbundne indgående
+ægtefælleoverførsler, boligskatter, investeringsselskabsposter,
+ligningsfradrag, virksomhedsunderskud og mindre personlige indkomstposter. De
+skal forbindes fra deres egne kildefakta; realitetstesten indfører ikke rå
+slutbeløbsfelter for at fremtvinge et match.
+
+`runa template` kan nu tage en valideret JSON- eller TOML-konvolut som
+`--input` og hydrere den genererede XLSX-kontrakt. Det bevarer menneskelige
+etiketter, dropdowns, relationelle ark og skjult skema- og stimetadata og gør den
+AI-interviewede JSON til en kontrollerbar arbejdsbog uden en separat
+regnearksmodel.
 
 Latest integration: Virksomhedsskattelovens § 8 afleder nu det signerede
 kapitalafkastgrundlag fra typede aktiver, gældsposter, konti, hensættelser,

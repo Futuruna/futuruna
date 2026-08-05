@@ -300,12 +300,21 @@ runa schema model.calculate.runa --entry calculate_tax
 runa template model.calculate.runa --entry calculate_tax --format json --output cases.json
 runa template model.calculate.runa --entry calculate_tax --format toml --output cases.toml
 runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx
+runa template model.calculate.runa --entry calculate_tax --input cases.json --format xlsx --output cases.xlsx
 runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx
 ```
 
 `schema` writes JSON to standard output unless `--output` is supplied. `template`
-infers the format from `--format` or the output extension. `call` infers input and
-output adapters from their extensions; `--format` can select standard-output JSON.
+infers the format from `--format` or the output extension. Without `--input`, it
+creates one default case. With a JSON or TOML calculation envelope supplied as
+`--input`, it validates the schema, entry, contract hash, case identifiers, and
+typed input values before hydrating the selected output format. This is the
+canonical way to turn machine-collected cases into a populated XLSX workbook;
+the workbook keeps the same generated topology, labels, validation lists, and
+hidden contract metadata as an empty template. XLSX is not accepted as hydration
+input because `runa call` already owns workbook decoding and validation. `call`
+infers input and output adapters from their extensions; `--format` can select
+standard-output JSON.
 
 ## Evolution and compatibility
 

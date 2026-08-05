@@ -17,6 +17,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = input,
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,

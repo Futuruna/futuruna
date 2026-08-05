@@ -49,6 +49,26 @@
     identifier = "Virksomhedsskatteloven §§ 9 og 9 a",
     hentet_dato = "2026-07-30"
 )
+= virksomhedsskatteloven_lbk1836_par22a = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 22 a, stk. 1-8",
+    hentet_dato = "2026-07-31"
+)
+= virksomhedsskatteloven_lbk1836_par22c = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 22 c",
+    hentet_dato = "2026-07-31"
+)
+= virksomhedsskatteloven_lbk1836_par23a = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 23 a",
+    hentet_dato = "2026-07-31"
+)
+= virksomhedsskatteloven_lbk1836_par11 = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 11",
+    hentet_dato = "2026-07-31"
+)
 = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9 = VirksomhedsskattelovKildeInfo(
     url = "https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da",
     identifier = "DNRUUPI AL20/EFFR/1100/Z01/ALLE/ALLE januar-juni 2025 og 2026",
@@ -58,6 +78,11 @@
     url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven",
     identifier = "Skatteministeriets satser og beløbsgrænser i virksomhedsskatteloven",
     hentet_dato = "2026-07-30"
+)
+= virksomhedsskatteloven_skatteministeriet_satser_par22c_par23a = VirksomhedsskattelovKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/virksomhedsskatteloven",
+    identifier = "Skatteministeriets regulerede beløbsgrænser efter virksomhedsskattelovens §§ 22 c og 23 a",
+    hentet_dato = "2026-07-31"
 )
 
 = virksomhedsskatteloven_par8_kildebelæg = Kildebelæg(
@@ -75,6 +100,30 @@
 = virksomhedsskatteloven_skatteministeriet_par9_par9a_kildebelæg = Kildebelæg(
     kilde = virksomhedsskatteloven_skatteministeriet_satser_par9_par9a,
     mål = refof(virksomhedsskattelov9_offentliggørelsesstatus)
+)
+= virksomhedsskatteloven_par22a_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par22a,
+    mål = refof(virksomhedsskattelov22a_kilde_resultat)
+)
+= virksomhedsskatteloven_par22c_beløbsgrænse_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_skatteministeriet_satser_par22c_par23a,
+    mål = refof(virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner)
+)
+= virksomhedsskatteloven_par23a_grundbeløb_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_skatteministeriet_satser_par22c_par23a,
+    mål = refof(virksomhedsskattelov23a_reguleret_grundbeløb_kroner)
+)
+= virksomhedsskatteloven_par22c_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par22c,
+    mål = refof(virksomhedsskattelov22c_kilde_resultat)
+)
+= virksomhedsskatteloven_par23a_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par23a,
+    mål = refof(virksomhedsskattelov23a_bundet_resultat)
+)
+= virksomhedsskatteloven_par11_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par11,
+    mål = refof(virksomhedsskattelov11_kilde_resultat)
 )
 
 ----
@@ -480,30 +529,32 @@ tilgængelige og giver henholdsvis 2 pct. og 5 pct. efter §§ 9 og 9 a.
 | virksomhedsskattelov7_kilde_resultat(input: Virksomhedsskattelov7KildeInput) -> virksomhedsskattelov7_kilde_sag(input).resultat()
 --@end:virksomhedsskatteloven_par9_par9a--
 
+= virksomhedsskatteloven_par22a_metadata = Metadata(
+    attachments = Source(value = virksomhedsskatteloven_par22a_kildebelæg)
+)
+
+--@label:virksomhedsskatteloven_par22a::meta:virksomhedsskatteloven_par22a_metadata--
 ----
-§ 22 a. Skattepligtige personer, der driver selvstændig erhvervsvirksomhed, kan
-i stedet for at anvende virksomhedsordningen efter afsnit I vælge at beregne et
-kapitalafkast af de erhvervsmæssige aktiver efter reglerne i dette afsnit.
-Kapitalafkastet fragår i den personlige indkomst og lægges til
-kapitalindkomsten. § 2, stk. 2, 1.-3. pkt., og stk. 6, finder tilsvarende
-anvendelse.
+§ 22 a. Skattepligtige personer, der driver selvstændig erhvervsvirksomhed, kan i stedet for at anvende virksomhedsordningen efter afsnit I vælge at beregne et kapitalafkast af de erhvervsmæssige aktiver efter reglerne i dette afsnit. Kapitalafkastet fragår i den personlige indkomst og lægges til kapitalindkomsten. § 2, stk. 2, 1.-3. pkt., og stk. 6, finder tilsvarende anvendelse.
 
-Stk. 2. Kapitalafkastet beregnes som afkastgrundlaget efter stk. 5-8 ganget med
-afkastsatsen efter § 9. Er den periode, hvori den skattepligtige driver
-selvstændig erhvervsvirksomhed, kortere eller længere end 12 måneder, beregnes
-et forholdsmæssigt kapitalafkast svarende til det antal hele måneder, perioden
-omfatter.
+Stk. 2. Kapitalafkastet beregnes som afkastgrundlaget efter stk. 5-8 ganget med afkastsatsen efter § 9. Er den periode, hvori den skattepligtige driver selvstændig erhvervsvirksomhed, kortere eller længere end 12 måneder, beregnes et forholdsmæssigt kapitalafkast svarende til det antal hele måneder, perioden omfatter.
 
-Stk. 3. Kapitalafkastet kan ikke overstige den største talmæssige værdi af
-følgende beløb:
-1) positiv personlig nettoindkomst fra selvstændig erhvervsvirksomhed, jf.
-personskattelovens § 3, eller
-2) negativ nettokapitalindkomst, jf. personskattelovens § 4.
-Ved opgørelsen af nettokapitalindkomsten ses bort fra kapitalafkast efter denne
-bestemmelse og negativ kapitalindkomst, der er omfattet af reglerne i
-personskattelovens § 4, stk. 1, nr. 9 og 11.
+Stk. 3. Kapitalafkastet kan ikke overstige den største talmæssige værdi af følgende beløb:
+1) positiv personlig nettoindkomst fra selvstændig erhvervsvirksomhed, jf. personskattelovens § 3, eller
+2) negativ nettokapitalindkomst, jf. personskattelovens § 4. Ved opgørelsen af nettokapitalindkomsten ses bort fra kapitalafkast efter denne bestemmelse og negativ kapitalindkomst, der er omfattet af reglerne i personskattelovens § 4, stk. 1, nr. 9 og 11.
+
+Stk. 4. Er den skattepligtige gift og samlevende med ægtefællen ved indkomstårets udgang, opgøres kapitalafkastet på grundlag af ægtefællernes samlede erhvervsmæssige aktiver og den samlede indkomst som nævnt i stk. 3. Det herefter beregnede kapitalafkast fragår i den personlige indkomst og lægges til kapitalindkomsten hos den ægtefælle, der driver virksomheden, jf. kildeskattelovens § 25 A, stk. 1. Driver ægtefællerne hver sin virksomhed, fordeles det beregnede kapitalafkast forholdsmæssigt mellem ægtefællerne efter værdien af de erhvervsmæssige aktiver, der indgår i den enkelte ægtefælles virksomhed. Anvender ægtefællen virksomhedsordningen, ses der ved beregningen af kapitalafkast efter dette afsnit bort fra aktiver og indkomst vedrørende denne virksomhed, og den personlige indkomst nedsættes og kapitalindkomsten forhøjes alene hos den skattepligtige.
+
+Stk. 5. Kapitalafkastgrundlaget opgøres ved indkomstårets begyndelse som værdien af aktiver, der udelukkende benyttes erhvervsmæssigt, jf. dog stk. 6-8. Ved etablering som selvstændig erhvervsdrivende opgøres kapitalafkastgrundlaget dog på tidspunktet for virksomhedens start. § 8, stk. 2, 1.-3. pkt., finder tilsvarende anvendelse.
+
+Stk. 6. Aktiver, der benyttes både til erhvervsmæssige og private formål, og som kan indgå i virksomhedsordningen efter § 1, stk. 3, 1.-5. pkt., medregnes ved opgørelsen af kapitalafkastgrundlaget efter stk. 5 med den forholdsmæssige værdi af aktivet, der svarer til den erhvervsmæssige anvendelse.
+
+Stk. 7. I kapitalafkastgrundlaget efter stk. 5 indgår ikke aktiver fra en virksomhed, hvor indkomsten beskattes efter personskattelovens § 4, stk. 1, nr. 9 eller 11, eller hvor indkomsten er konkursindkomst efter konkursskattelovens § 6. Tilsvarende gælder kontante beløb, fordringer bortset fra fordringer erhvervet ved salg af varer og tjenesteydelser i forbindelse hermed (varedebitorer m.v.), aktier eller andre finansielle aktiver bortset fra andele i foreninger omfattet af selskabsskattelovens § 1, stk. 1, nr. 3 og 4. Igangværende arbejde for fremmed regning indgår alene med nettoværdien. Værdien af igangværende arbejde for fremmed regning, varelagre og fordringer erhvervet ved salg af varer og tjenesteydelser i forbindelse hermed (varedebitorer m.v.), indgår alene i det omfang, denne værdi overstiger værdien af gæld opstået ved køb af varer og tjenesteydelser i forbindelse hermed (varekreditorer m.v.).
+
+Stk. 8. I kapitalafkastgrundlaget efter stk. 5 indgår ikke fast ejendom, der stilles til rådighed som bolig for den skattepligtiges eller dennes ægtefælles forældre og bedsteforældre samt børn og børnebørn og disses ægtefæller.
 ----
 
+--@begin:virksomhedsskatteloven_par22a--
 # Virksomhedsskattelov22AInput(indkomstår: Heltal, driver_selvstændig_erhvervsvirksomhed: Boolsk, vælger_kapitalafkastordning: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, periode_hele_måneder: Heltal, positiv_personlig_nettoindkomst_selvstændig_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal)
 # Virksomhedsskattelov22AResultat(indkomstår: Heltal, omfattet_af_stk1: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, beregnet_kapitalafkast_før_loft_kroner: Heltal, loft_efter_stk3_kroner: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
@@ -534,6 +585,266 @@ personskattelovens § 4, stk. 1, nr. 9 og 11.
 }
 | virksomhedsskattelov22a_sag(input: Virksomhedsskattelov22AInput) -> Virksomhedsskattelov22ASag(input)
 | virksomhedsskattelov22a_resultat(input: Virksomhedsskattelov22AInput) -> virksomhedsskattelov22a_sag(input).resultat()
+
+# Virksomhedsskattelov22AAnvendelse = Vsl22AUdelukkendeErhvervsmæssig | Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(erhvervsandel_basispoint: Heltal) | Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3
+# Virksomhedsskattelov22AAktivkategori = Vsl22AAlmindeligtAktiv | Vsl22AVaredebitor | Vsl22AVarelager | Vsl22AIgangværendeArbejdeForFremmedRegning | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr9 | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr11 | Vsl22AKonkursindkomstEfterKonkursskattelov6 | Vsl22AKontantBeløb | Vsl22AAndenFordring | Vsl22AAndelIForeningEfterSelskabsskattelov1Stk1Nr3Eller4 | Vsl22AAndenAktieEllerFinansieltAktiv
+# Virksomhedsskattelov22AAktivværdi = Vsl22AVærdiEfterPar8Stk2(værdiansættelse: Virksomhedsskattelov8Værdiansættelse) | Vsl22AIgangværendeArbejdeNettoværdi(nettoværdi_kroner: Heltal)
+# Virksomhedsskattelov22AAktiv(identifikation: Tekst, kategori: Virksomhedsskattelov22AAktivkategori, anvendelse: Virksomhedsskattelov22AAnvendelse, værdi: Virksomhedsskattelov22AAktivværdi)
+# Virksomhedsskattelov22AVarekreditor(identifikation: Tekst, værdi_kroner: Heltal)
+# Virksomhedsskattelov22AUdelukkelsesgrund = Vsl22AUgyldigtAktiv | Vsl22AIkkeErhvervsmæssigEfterStk5Eller6 | Vsl22APersonskattelov4Stk1Nr9 | Vsl22APersonskattelov4Stk1Nr11 | Vsl22AKonkursskattelov6 | Vsl22AKontantBeløbEfterStk7 | Vsl22AAndenFordringEfterStk7 | Vsl22AAndenAktieEllerFinansieltAktivEfterStk7 | Vsl22ANærtståendeBoligEfterStk8
+# Virksomhedsskattelov22AAktivbehandling = Vsl22ADirekteAfkastgrundlag | Vsl22AArbejdskapitalEfterStk7 | Vsl22AUdeladt(grund: Virksomhedsskattelov22AUdelukkelsesgrund)
+# Virksomhedsskattelov22AAktivResultat(aktiv: Virksomhedsskattelov22AAktiv, input_gyldigt: Boolsk, værdi_kroner: Heltal, erhvervsmæssig_værdi_kroner: Heltal, behandling: Virksomhedsskattelov22AAktivbehandling, direkte_afkastgrundlag_kroner: Heltal, arbejdskapitalværdi_kroner: Heltal)
+# Virksomhedsskattelov22APersongrundlag(person_identifikation: Tekst, anvender_virksomhedsordningen: Boolsk, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov22AAktiv), varekreditorer: List(Virksomhedsskattelov22AVarekreditor), personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner: Heltal, nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
+# Virksomhedsskattelov22APersongrundlagResultat(grundlag: Virksomhedsskattelov22APersongrundlag, aktivresultater: List(Virksomhedsskattelov22AAktivResultat), aktividentifikationer_entydige: Boolsk, varekreditoridentifikationer_entydige: Boolsk, aktivinput_gyldige: Boolsk, varekreditorinput_gyldige: Boolsk, input_gyldigt: Boolsk, direkte_afkastgrundlag_kroner: Heltal, arbejdskapitalaktiver_kroner: Heltal, varekreditorer_kroner: Heltal, arbejdskapital_efter_stk7_kroner: Heltal, afkastgrundlag_før_validering_kroner: Heltal, afkastgrundlag_kroner: Heltal, personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner: Heltal, nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
+# Virksomhedsskattelov22AÆgtefælle = Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag: Virksomhedsskattelov22APersongrundlag)
+# Virksomhedsskattelov22AÆgtefælleResultat = Vsl22AIngenÆgtefælleResultat | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat: Virksomhedsskattelov22APersongrundlagResultat)
+# Virksomhedsskattelov22AVirksomhedsfordeling = Vsl22AÉnVirksomhed(drevet_af_person_identifikation: Tekst) | Vsl22AÆgtefællerDriverHverSinVirksomhed
+# Virksomhedsskattelov22AFordelingResultat(person_identifikation: Tekst, afkastgrundlag_kroner: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
+# Virksomhedsskattelov22AKildeInput(indkomstår: Heltal, skattepligtig: Virksomhedsskattelov22APersongrundlag, ægtefælle: Virksomhedsskattelov22AÆgtefælle, virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling, vælger_kapitalafkastordning: Boolsk, periode_hele_måneder: Heltal)
+# Virksomhedsskattelov22AKildeResultat(input: Virksomhedsskattelov22AKildeInput, skattepligtig_resultat: Virksomhedsskattelov22APersongrundlagResultat, ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par22a_input: Virksomhedsskattelov22AInput, par22a_resultat: Virksomhedsskattelov22AResultat, input_gyldigt: Boolsk, ægtefællens_virksomhedsordning_udeladt: Boolsk, samlet_afkastgrundlag_kroner: Heltal, samlet_personlig_nettoindkomst_kroner: Heltal, samlet_nettokapitalindkomst_kroner: Heltal, skattepligtiges_kapitalafkast_kroner: Heltal, ægtefællens_kapitalafkast_kroner: Heltal, fordelinger: List(Virksomhedsskattelov22AFordelingResultat))
+
+| virksomhedsskattelov22a_anvendelse_input_gyldig(anvendelse: Virksomhedsskattelov22AAnvendelse) -> match anvendelse {
+    | Vsl22AUdelukkendeErhvervsmæssig -> Sandt
+    | Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(erhvervsandel_basispoint) -> erhvervsandel_basispoint > 0 && erhvervsandel_basispoint < 10000
+    | Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3 -> Sandt
+}
+| virksomhedsskattelov22a_anvendelse_medregningsberettiget(anvendelse: Virksomhedsskattelov22AAnvendelse) -> match anvendelse {
+    | Vsl22AUdelukkendeErhvervsmæssig -> Sandt
+    | Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(_) -> Sandt
+    | Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3 -> Falskt
+}
+| virksomhedsskattelov22a_erhvervsandel_basispoint(anvendelse: Virksomhedsskattelov22AAnvendelse) -> match anvendelse {
+    | Vsl22AUdelukkendeErhvervsmæssig -> 10000
+    | Vsl22ABlandetErhvervOgPrivatOmfattetAfPar1Stk3(erhvervsandel_basispoint) -> erhvervsandel_basispoint
+    | Vsl22AIkkeErhvervsmæssigEllerIkkeOmfattetAfPar1Stk3 -> 0
+}
+| virksomhedsskattelov22a_aktivværdi_input_gyldig(aktiv: Virksomhedsskattelov22AAktiv) -> match aktiv.værdi {
+    | Vsl22AVærdiEfterPar8Stk2(værdiansættelse) -> virksomhedsskattelov8_aktiv_input_gyldigt(Virksomhedsskattelov8Aktiv(identifikation = aktiv.identifikation, værdiansættelse = værdiansættelse))
+    | Vsl22AIgangværendeArbejdeNettoværdi(_) -> Sandt
+}
+| virksomhedsskattelov22a_kategori_og_værdi_forenelige(aktiv: Virksomhedsskattelov22AAktiv) -> match aktiv.kategori {
+    | Vsl22AIgangværendeArbejdeForFremmedRegning -> match aktiv.værdi {
+        | Vsl22AIgangværendeArbejdeNettoværdi(_) -> Sandt
+        | _ -> Falskt
+    }
+    | Vsl22AVarelager -> match aktiv.værdi {
+        | Vsl22AVærdiEfterPar8Stk2(Vsl8Varelager(_)) -> Sandt
+        | _ -> Falskt
+    }
+    | _ -> match aktiv.værdi {
+        | Vsl22AVærdiEfterPar8Stk2(Vsl8Varelager(_)) -> Falskt
+        | Vsl22AVærdiEfterPar8Stk2(_) -> Sandt
+        | _ -> Falskt
+    }
+}
+| virksomhedsskattelov22a_aktiv_input_gyldigt(aktiv: Virksomhedsskattelov22AAktiv) -> aktiv.identifikation != "" && virksomhedsskattelov22a_anvendelse_input_gyldig(aktiv.anvendelse) && virksomhedsskattelov22a_aktivværdi_input_gyldig(aktiv) && virksomhedsskattelov22a_kategori_og_værdi_forenelige(aktiv)
+| virksomhedsskattelov22a_aktiv_værdi_kroner(aktiv: Virksomhedsskattelov22AAktiv) -> match aktiv.værdi {
+    | Vsl22AVærdiEfterPar8Stk2(værdiansættelse) -> virksomhedsskattelov8_aktiv_værdi_kroner(Virksomhedsskattelov8Aktiv(identifikation = aktiv.identifikation, værdiansættelse = værdiansættelse))
+    | Vsl22AIgangværendeArbejdeNettoværdi(nettoværdi_kroner) -> nettoværdi_kroner
+}
+| virksomhedsskattelov22a_aktiv_er_nærtstående_bolig(aktiv: Virksomhedsskattelov22AAktiv) -> match aktiv.værdi {
+    | Vsl22AVærdiEfterPar8Stk2(værdiansættelse) -> virksomhedsskattelov8_aktiv_er_nærtstående_bolig(Virksomhedsskattelov8Aktiv(identifikation = aktiv.identifikation, værdiansættelse = værdiansættelse))
+    | _ -> Falskt
+}
+| virksomhedsskattelov22a_behandling_efter_kategori(kategori: Virksomhedsskattelov22AAktivkategori) -> match kategori {
+    | Vsl22AAlmindeligtAktiv -> Vsl22ADirekteAfkastgrundlag
+    | Vsl22AVaredebitor -> Vsl22AArbejdskapitalEfterStk7
+    | Vsl22AVarelager -> Vsl22AArbejdskapitalEfterStk7
+    | Vsl22AIgangværendeArbejdeForFremmedRegning -> Vsl22AArbejdskapitalEfterStk7
+    | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr9 -> Vsl22AUdeladt(grund = Vsl22APersonskattelov4Stk1Nr9)
+    | Vsl22AVirksomhedBeskattetEfterPersonskattelov4Stk1Nr11 -> Vsl22AUdeladt(grund = Vsl22APersonskattelov4Stk1Nr11)
+    | Vsl22AKonkursindkomstEfterKonkursskattelov6 -> Vsl22AUdeladt(grund = Vsl22AKonkursskattelov6)
+    | Vsl22AKontantBeløb -> Vsl22AUdeladt(grund = Vsl22AKontantBeløbEfterStk7)
+    | Vsl22AAndenFordring -> Vsl22AUdeladt(grund = Vsl22AAndenFordringEfterStk7)
+    | Vsl22AAndelIForeningEfterSelskabsskattelov1Stk1Nr3Eller4 -> Vsl22ADirekteAfkastgrundlag
+    | Vsl22AAndenAktieEllerFinansieltAktiv -> Vsl22AUdeladt(grund = Vsl22AAndenAktieEllerFinansieltAktivEfterStk7)
+}
+| virksomhedsskattelov22a_aktiv_behandling(aktiv: Virksomhedsskattelov22AAktiv) -> hvis virksomhedsskattelov22a_aktiv_input_gyldigt(aktiv) == Falskt {
+    Vsl22AUdeladt(grund = Vsl22AUgyldigtAktiv)
+} ellers hvis virksomhedsskattelov22a_anvendelse_medregningsberettiget(aktiv.anvendelse) == Falskt {
+    Vsl22AUdeladt(grund = Vsl22AIkkeErhvervsmæssigEfterStk5Eller6)
+} ellers hvis virksomhedsskattelov22a_aktiv_er_nærtstående_bolig(aktiv) {
+    Vsl22AUdeladt(grund = Vsl22ANærtståendeBoligEfterStk8)
+} ellers {
+    virksomhedsskattelov22a_behandling_efter_kategori(aktiv.kategori)
+}
+| virksomhedsskattelov22a_aktiv_erhvervsmæssig_værdi_kroner(aktiv: Virksomhedsskattelov22AAktiv) -> virksomhedsskattelov22a_aktiv_værdi_kroner(aktiv) * virksomhedsskattelov22a_erhvervsandel_basispoint(aktiv.anvendelse) / 10000
+| virksomhedsskattelov22a_direkte_afkastgrundlag_kroner(aktiv: Virksomhedsskattelov22AAktiv) -> match virksomhedsskattelov22a_aktiv_behandling(aktiv) {
+    | Vsl22ADirekteAfkastgrundlag -> virksomhedsskattelov22a_aktiv_erhvervsmæssig_værdi_kroner(aktiv)
+    | _ -> 0
+}
+| virksomhedsskattelov22a_arbejdskapitalværdi_kroner(aktiv: Virksomhedsskattelov22AAktiv) -> match virksomhedsskattelov22a_aktiv_behandling(aktiv) {
+    | Vsl22AArbejdskapitalEfterStk7 -> virksomhedsskattelov22a_aktiv_erhvervsmæssig_værdi_kroner(aktiv)
+    | _ -> 0
+}
+| virksomhedsskattelov22a_aktiv_resultat(aktiv: Virksomhedsskattelov22AAktiv) -> Virksomhedsskattelov22AAktivResultat(
+    aktiv = aktiv,
+    input_gyldigt = virksomhedsskattelov22a_aktiv_input_gyldigt(aktiv),
+    værdi_kroner = virksomhedsskattelov22a_aktiv_værdi_kroner(aktiv),
+    erhvervsmæssig_værdi_kroner = virksomhedsskattelov22a_aktiv_erhvervsmæssig_værdi_kroner(aktiv),
+    behandling = virksomhedsskattelov22a_aktiv_behandling(aktiv),
+    direkte_afkastgrundlag_kroner = virksomhedsskattelov22a_direkte_afkastgrundlag_kroner(aktiv),
+    arbejdskapitalværdi_kroner = virksomhedsskattelov22a_arbejdskapitalværdi_kroner(aktiv)
+)
+| virksomhedsskattelov22a_aktiv_identifikation_unik(aktiver: List(Virksomhedsskattelov22AAktiv), aktiv: Virksomhedsskattelov22AAktiv) -> length(filter(aktiver, |anden: Virksomhedsskattelov22AAktiv| anden.identifikation == aktiv.identifikation)) == 1
+| virksomhedsskattelov22a_aktividentifikationer_entydige(aktiver: List(Virksomhedsskattelov22AAktiv)) -> all(aktiver, |aktiv: Virksomhedsskattelov22AAktiv| virksomhedsskattelov22a_aktiv_identifikation_unik(aktiver, aktiv))
+| virksomhedsskattelov22a_varekreditor_identifikation_unik(varekreditorer: List(Virksomhedsskattelov22AVarekreditor), varekreditor: Virksomhedsskattelov22AVarekreditor) -> length(filter(varekreditorer, |anden: Virksomhedsskattelov22AVarekreditor| anden.identifikation == varekreditor.identifikation)) == 1
+| virksomhedsskattelov22a_varekreditoridentifikationer_entydige(varekreditorer: List(Virksomhedsskattelov22AVarekreditor)) -> all(varekreditorer, |varekreditor: Virksomhedsskattelov22AVarekreditor| virksomhedsskattelov22a_varekreditor_identifikation_unik(varekreditorer, varekreditor))
+| virksomhedsskattelov22a_varekreditor_input_gyldig(varekreditor: Virksomhedsskattelov22AVarekreditor) -> varekreditor.identifikation != "" && varekreditor.værdi_kroner >= 0
+
+# Virksomhedsskattelov22APersongrundlagSag(grundlag: Virksomhedsskattelov22APersongrundlag) {
+    | aktivresultater() -> map(grundlag.aktiver, virksomhedsskattelov22a_aktiv_resultat)
+    | aktividentifikationer_entydige() -> virksomhedsskattelov22a_aktividentifikationer_entydige(grundlag.aktiver)
+    | varekreditoridentifikationer_entydige() -> virksomhedsskattelov22a_varekreditoridentifikationer_entydige(grundlag.varekreditorer)
+    | aktivinput_gyldige() -> all(aktivresultater(), |resultat: Virksomhedsskattelov22AAktivResultat| resultat.input_gyldigt)
+    | varekreditorinput_gyldige() -> all(grundlag.varekreditorer, virksomhedsskattelov22a_varekreditor_input_gyldig)
+    | input_gyldigt() -> grundlag.person_identifikation != "" && aktividentifikationer_entydige() && varekreditoridentifikationer_entydige() && aktivinput_gyldige() && varekreditorinput_gyldige()
+    | direkte_afkastgrundlag_kroner() -> foldl(aktivresultater(), 0, |sum: Heltal, resultat: Virksomhedsskattelov22AAktivResultat| sum + resultat.direkte_afkastgrundlag_kroner)
+    | arbejdskapitalaktiver_kroner() -> foldl(aktivresultater(), 0, |sum: Heltal, resultat: Virksomhedsskattelov22AAktivResultat| sum + resultat.arbejdskapitalværdi_kroner)
+    | varekreditorer_kroner() -> foldl(grundlag.varekreditorer, 0, |sum: Heltal, varekreditor: Virksomhedsskattelov22AVarekreditor| sum + varekreditor.værdi_kroner)
+    | arbejdskapital_efter_stk7_kroner() -> penge_positivt_beløb(arbejdskapitalaktiver_kroner() - varekreditorer_kroner())
+    | afkastgrundlag_før_validering_kroner() -> direkte_afkastgrundlag_kroner() + arbejdskapital_efter_stk7_kroner()
+    | afkastgrundlag_kroner() -> 0
+    | exception vsl22a_gyldigt_persongrundlag afkastgrundlag_kroner() -> afkastgrundlag_før_validering_kroner() under input_gyldigt()
+    | resultat() -> Virksomhedsskattelov22APersongrundlagResultat(
+        grundlag = grundlag,
+        aktivresultater = aktivresultater(),
+        aktividentifikationer_entydige = aktividentifikationer_entydige(),
+        varekreditoridentifikationer_entydige = varekreditoridentifikationer_entydige(),
+        aktivinput_gyldige = aktivinput_gyldige(),
+        varekreditorinput_gyldige = varekreditorinput_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        direkte_afkastgrundlag_kroner = direkte_afkastgrundlag_kroner(),
+        arbejdskapitalaktiver_kroner = arbejdskapitalaktiver_kroner(),
+        varekreditorer_kroner = varekreditorer_kroner(),
+        arbejdskapital_efter_stk7_kroner = arbejdskapital_efter_stk7_kroner(),
+        afkastgrundlag_før_validering_kroner = afkastgrundlag_før_validering_kroner(),
+        afkastgrundlag_kroner = afkastgrundlag_kroner(),
+        personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = grundlag.personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner,
+        nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner = grundlag.nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner
+    )
+}
+| virksomhedsskattelov22a_persongrundlag_sag(grundlag: Virksomhedsskattelov22APersongrundlag) -> Virksomhedsskattelov22APersongrundlagSag(grundlag)
+| virksomhedsskattelov22a_persongrundlag_resultat(grundlag: Virksomhedsskattelov22APersongrundlag) -> virksomhedsskattelov22a_persongrundlag_sag(grundlag).resultat()
+| virksomhedsskattelov22a_ægtefælle_resultat(ægtefælle: Virksomhedsskattelov22AÆgtefælle) -> match ægtefælle {
+    | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> Vsl22AIngenÆgtefælleResultat
+    | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag) -> Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat = virksomhedsskattelov22a_persongrundlag_resultat(grundlag))
+}
+| virksomhedsskattelov22a_ægtefælle_input_gyldigt(ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat) -> match ægtefælle_resultat {
+    | Vsl22AIngenÆgtefælleResultat -> Sandt
+    | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat) -> resultat.input_gyldigt
+}
+| virksomhedsskattelov22a_ægtefælle_anvender_virksomhedsordningen(ægtefælle: Virksomhedsskattelov22AÆgtefælle) -> match ægtefælle {
+    | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> Falskt
+    | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag) -> grundlag.anvender_virksomhedsordningen
+}
+| virksomhedsskattelov22a_ægtefælle_person_identifikation(ægtefælle: Virksomhedsskattelov22AÆgtefælle) -> match ægtefælle {
+    | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> ""
+    | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag) -> grundlag.person_identifikation
+}
+| virksomhedsskattelov22a_ægtefælle_afkastgrundlag_kroner(ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat) -> match ægtefælle_resultat {
+    | Vsl22AIngenÆgtefælleResultat -> 0
+    | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat) -> hvis resultat.grundlag.anvender_virksomhedsordningen { 0 } ellers { resultat.afkastgrundlag_kroner }
+}
+| virksomhedsskattelov22a_ægtefælle_personlig_nettoindkomst_kroner(ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat) -> match ægtefælle_resultat {
+    | Vsl22AIngenÆgtefælleResultat -> 0
+    | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat) -> hvis resultat.grundlag.anvender_virksomhedsordningen { 0 } ellers { resultat.personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner }
+}
+| virksomhedsskattelov22a_ægtefælle_nettokapitalindkomst_kroner(ægtefælle_resultat: Virksomhedsskattelov22AÆgtefælleResultat) -> match ægtefælle_resultat {
+    | Vsl22AIngenÆgtefælleResultat -> 0
+    | Vsl22AGiftOgSamlevendeÆgtefælleResultat(resultat) -> hvis resultat.grundlag.anvender_virksomhedsordningen { 0 } ellers { resultat.nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner }
+}
+| virksomhedsskattelov22a_personidentifikationer_entydige(input: Virksomhedsskattelov22AKildeInput) -> match input.ægtefælle {
+    | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> Sandt
+    | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag) -> grundlag.person_identifikation != input.skattepligtig.person_identifikation
+}
+| virksomhedsskattelov22a_virksomhedsfordeling_gyldig(input: Virksomhedsskattelov22AKildeInput) -> match input.virksomhedsfordeling {
+    | Vsl22AÉnVirksomhed(drevet_af) -> match input.ægtefælle {
+        | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> drevet_af == input.skattepligtig.person_identifikation
+        | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(ægtefælle) -> (drevet_af == input.skattepligtig.person_identifikation || drevet_af == ægtefælle.person_identifikation) && (ægtefælle.anvender_virksomhedsordningen == Falskt || drevet_af == input.skattepligtig.person_identifikation)
+    }
+    | Vsl22AÆgtefællerDriverHverSinVirksomhed -> match input.ægtefælle {
+        | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> Falskt
+        | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(_) -> Sandt
+    }
+}
+
+# Virksomhedsskattelov22AKildeSag(input: Virksomhedsskattelov22AKildeInput) {
+    | skattepligtig_resultat() -> virksomhedsskattelov22a_persongrundlag_resultat(input.skattepligtig)
+    | ægtefælle_resultat() -> virksomhedsskattelov22a_ægtefælle_resultat(input.ægtefælle)
+    | par9_og_9a_resultat() -> virksomhedsskattelov9_og_9a_resultat(input.indkomstår)
+    | personidentifikationer_entydige() -> virksomhedsskattelov22a_personidentifikationer_entydige(input)
+    | virksomhedsfordeling_gyldig() -> virksomhedsskattelov22a_virksomhedsfordeling_gyldig(input)
+    | input_gyldigt() -> input.indkomstår > 0 && input.periode_hele_måneder > 0 && input.skattepligtig.anvender_virksomhedsordningen == Falskt && skattepligtig_resultat().input_gyldigt && virksomhedsskattelov22a_ægtefælle_input_gyldigt(ægtefælle_resultat()) && personidentifikationer_entydige() && virksomhedsfordeling_gyldig() && par9_og_9a_resultat().månedsdata_komplette
+    | ægtefællens_virksomhedsordning_udeladt() -> virksomhedsskattelov22a_ægtefælle_anvender_virksomhedsordningen(input.ægtefælle)
+    | ægtefælle_afkastgrundlag_kroner() -> virksomhedsskattelov22a_ægtefælle_afkastgrundlag_kroner(ægtefælle_resultat())
+    | samlet_afkastgrundlag_kroner() -> skattepligtig_resultat().afkastgrundlag_kroner + ægtefælle_afkastgrundlag_kroner()
+    | samlet_personlig_nettoindkomst_kroner() -> skattepligtig_resultat().personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner + virksomhedsskattelov22a_ægtefælle_personlig_nettoindkomst_kroner(ægtefælle_resultat())
+    | samlet_nettokapitalindkomst_kroner() -> skattepligtig_resultat().nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner + virksomhedsskattelov22a_ægtefælle_nettokapitalindkomst_kroner(ægtefælle_resultat())
+    | par22a_input() -> Virksomhedsskattelov22AInput(
+        indkomstår = input.indkomstår,
+        driver_selvstændig_erhvervsvirksomhed = input_gyldigt(),
+        vælger_kapitalafkastordning = input_gyldigt() && input.vælger_kapitalafkastordning,
+        afkastgrundlag_kroner = samlet_afkastgrundlag_kroner(),
+        kapitalafkastsats_basispoint = par9_og_9a_resultat().afkastsats_efter_par9_basispoint,
+        periode_hele_måneder = input.periode_hele_måneder,
+        positiv_personlig_nettoindkomst_selvstændig_kroner = penge_positivt_beløb(samlet_personlig_nettoindkomst_kroner()),
+        negativ_nettokapitalindkomst_abs_kroner = penge_positivt_beløb(0 - samlet_nettokapitalindkomst_kroner())
+    )
+    | par22a_resultat() -> virksomhedsskattelov22a_resultat(par22a_input())
+    | skattepligtiges_kapitalafkast_før_validering_kroner() -> match input.ægtefælle {
+        | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> par22a_resultat().kapitalafkast_kroner
+        | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(ægtefælle) -> hvis ægtefælle.anvender_virksomhedsordningen {
+            par22a_resultat().kapitalafkast_kroner
+        } ellers {
+            match input.virksomhedsfordeling {
+                | Vsl22AÉnVirksomhed(drevet_af) -> hvis drevet_af == input.skattepligtig.person_identifikation { par22a_resultat().kapitalafkast_kroner } ellers { 0 }
+                | Vsl22AÆgtefællerDriverHverSinVirksomhed -> hvis samlet_afkastgrundlag_kroner() > 0 { par22a_resultat().kapitalafkast_kroner * skattepligtig_resultat().afkastgrundlag_kroner / samlet_afkastgrundlag_kroner() } ellers { 0 }
+            }
+        }
+    }
+    | skattepligtiges_kapitalafkast_kroner() -> hvis input_gyldigt() { skattepligtiges_kapitalafkast_før_validering_kroner() } ellers { 0 }
+    | ægtefællens_kapitalafkast_kroner() -> hvis input_gyldigt() { par22a_resultat().kapitalafkast_kroner - skattepligtiges_kapitalafkast_kroner() } ellers { 0 }
+    | skattepligtig_fordeling() -> Virksomhedsskattelov22AFordelingResultat(
+        person_identifikation = input.skattepligtig.person_identifikation,
+        afkastgrundlag_kroner = skattepligtig_resultat().afkastgrundlag_kroner,
+        kapitalafkast_kroner = skattepligtiges_kapitalafkast_kroner(),
+        personlig_indkomst_fradrag_kroner = skattepligtiges_kapitalafkast_kroner(),
+        kapitalindkomst_tillæg_kroner = skattepligtiges_kapitalafkast_kroner()
+    )
+    | fordelinger() -> match input.ægtefælle {
+        | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> [skattepligtig_fordeling()]
+        | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(ægtefælle) -> [
+            skattepligtig_fordeling(),
+            Virksomhedsskattelov22AFordelingResultat(
+                person_identifikation = ægtefælle.person_identifikation,
+                afkastgrundlag_kroner = ægtefælle_afkastgrundlag_kroner(),
+                kapitalafkast_kroner = ægtefællens_kapitalafkast_kroner(),
+                personlig_indkomst_fradrag_kroner = ægtefællens_kapitalafkast_kroner(),
+                kapitalindkomst_tillæg_kroner = ægtefællens_kapitalafkast_kroner()
+            ),
+        ]
+    }
+    | resultat() -> Virksomhedsskattelov22AKildeResultat(
+        input = input,
+        skattepligtig_resultat = skattepligtig_resultat(),
+        ægtefælle_resultat = ægtefælle_resultat(),
+        par9_og_9a_resultat = par9_og_9a_resultat(),
+        par22a_input = par22a_input(),
+        par22a_resultat = par22a_resultat(),
+        input_gyldigt = input_gyldigt(),
+        ægtefællens_virksomhedsordning_udeladt = ægtefællens_virksomhedsordning_udeladt(),
+        samlet_afkastgrundlag_kroner = samlet_afkastgrundlag_kroner(),
+        samlet_personlig_nettoindkomst_kroner = samlet_personlig_nettoindkomst_kroner(),
+        samlet_nettokapitalindkomst_kroner = samlet_nettokapitalindkomst_kroner(),
+        skattepligtiges_kapitalafkast_kroner = skattepligtiges_kapitalafkast_kroner(),
+        ægtefællens_kapitalafkast_kroner = ægtefællens_kapitalafkast_kroner(),
+        fordelinger = fordelinger()
+    )
+}
+| virksomhedsskattelov22a_kilde_sag(input: Virksomhedsskattelov22AKildeInput) -> Virksomhedsskattelov22AKildeSag(input)
+| virksomhedsskattelov22a_kilde_resultat(input: Virksomhedsskattelov22AKildeInput) -> virksomhedsskattelov22a_kilde_sag(input).resultat()
+--@end:virksomhedsskatteloven_par22a--
 
 = virksomhedsskatteloven_par22b_metadata = Metadata(
     attachments = (
@@ -1023,6 +1334,15 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 | virksomhedsskattelov22d_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22DIndkomstudligning
 --@end::virksomhedsskatteloven_par22d--
 
+= virksomhedsskatteloven_par22c_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_par22c_kildebelæg),
+        ParameterSource(value = virksomhedsskatteloven_par22c_beløbsgrænse_kildebelæg),
+        RateSource(value = virksomhedsskatteloven_par9_par9a_kildebelæg),
+    )
+)
+
+--@label:virksomhedsskatteloven_par22c::meta:virksomhedsskatteloven_par22c_metadata--
 ----
 § 22 c. Skattepligtige personer, der erhverver aktier eller anparter i et
 selskab, kan vælge at beregne et kapitalafkast af de erhvervede aktier eller
@@ -1075,6 +1395,7 @@ skattemæssige stilling, opgøres kapitalafkastgrundlaget som det kontantomregne
 vederlag, den skattepligtige betaler for aktierne eller anparterne.
 ----
 
+--@begin:virksomhedsskatteloven_par22c--
 # Virksomhedsskattelov22CInput(indkomstår: Heltal, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, reguleret_beløbsgrænse_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal)
 # Virksomhedsskattelov22CResultat(indkomstår: Heltal, vederlag_over_beløbsgrænse: Boolsk, ejer_eller_stemmebetingelse_opfyldt: Boolsk, ansatte_ejer_eller_stemmebetingelse_opfyldt: Boolsk, betingelser_opfyldt: Boolsk, kapitalafkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
 
@@ -1110,6 +1431,63 @@ vederlag, den skattepligtige betaler for aktierne eller anparterne.
 | virksomhedsskattelov22c_sag(input: Virksomhedsskattelov22CInput) -> Virksomhedsskattelov22CSag(input)
 | virksomhedsskattelov22c_resultat(input: Virksomhedsskattelov22CInput) -> virksomhedsskattelov22c_sag(input).resultat()
 
+# Virksomhedsskattelov22CKildeInput(indkomstår: Heltal, vælger_kapitalafkastordning: Boolsk, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, ejerperiode_hele_måneder: Heltal)
+# Virksomhedsskattelov22CKildeResultat(input: Virksomhedsskattelov22CKildeInput, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, reguleret_beløbsgrænse_kroner: Heltal, par22c_input: Virksomhedsskattelov22CInput, par22c_resultat: Virksomhedsskattelov22CResultat, input_gyldigt: Boolsk, ordningen_anvendes: Boolsk, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
+
+| virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 0
+| exception vsl22c_skatteministeriet_2025_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 821400 under indkomstår == 2025
+| exception vsl22c_skatteministeriet_2026_beløbsgrænse virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(indkomstår: Heltal) -> 860900 under indkomstår == 2026
+| virksomhedsskattelov22c_basispoint_input_gyldigt(basispoint: Heltal) -> basispoint >= 0 && basispoint <= 10000
+
+# Virksomhedsskattelov22CKildeSag(input: Virksomhedsskattelov22CKildeInput) {
+    | par9_og_9a_resultat() -> virksomhedsskattelov9_og_9a_resultat(input.indkomstår)
+    | reguleret_beløbsgrænse_kroner() -> virksomhedsskattelov22c_reguleret_beløbsgrænse_kroner(input.indkomstår)
+    | input_gyldigt() -> input.indkomstår > 0 && input.kontantomregnet_vederlag_kroner >= 0 && virksomhedsskattelov22c_basispoint_input_gyldigt(input.ejerandel_basispoint) && virksomhedsskattelov22c_basispoint_input_gyldigt(input.stemmeværdi_basispoint) && virksomhedsskattelov22c_basispoint_input_gyldigt(input.ansatte_samlet_ejerandel_basispoint) && virksomhedsskattelov22c_basispoint_input_gyldigt(input.ansatte_samlet_stemmeværdi_basispoint) && input.ejerperiode_hele_måneder >= 0 && input.ejerperiode_hele_måneder <= 12 && reguleret_beløbsgrænse_kroner() > 0 && par9_og_9a_resultat().månedsdata_komplette
+    | par22c_input() -> Virksomhedsskattelov22CInput(
+        indkomstår = input.indkomstår,
+        fuld_skattepligt_og_hjemmehørende = input_gyldigt() && input.fuld_skattepligt_og_hjemmehørende,
+        kontantomregnet_vederlag_kroner = input.kontantomregnet_vederlag_kroner,
+        reguleret_beløbsgrænse_kroner = reguleret_beløbsgrænse_kroner(),
+        ejerandel_basispoint = input.ejerandel_basispoint,
+        stemmeværdi_basispoint = input.stemmeværdi_basispoint,
+        ansatte_samlet_ejerandel_basispoint = input.ansatte_samlet_ejerandel_basispoint,
+        ansatte_samlet_stemmeværdi_basispoint = input.ansatte_samlet_stemmeværdi_basispoint,
+        ingen_ansat_råder_over_mere_end_50_pct_stemmer = input.ingen_ansat_råder_over_mere_end_50_pct_stemmer,
+        selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = input.selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering,
+        aktier_ikke_omfattet_af_abl19b_eller_19c = input.aktier_ikke_omfattet_af_abl19b_eller_19c,
+        ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = input.ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto,
+        ejet_i_mindre_end_11_år = input.ejet_i_mindre_end_11_år,
+        kapitalafkastsats_basispoint = par9_og_9a_resultat().afkastsats_efter_par9_basispoint,
+        ejerperiode_hele_måneder = input.ejerperiode_hele_måneder
+    )
+    | par22c_resultat() -> virksomhedsskattelov22c_resultat(par22c_input())
+    | ordningen_anvendes() -> input_gyldigt() && input.vælger_kapitalafkastordning && par22c_resultat().betingelser_opfyldt
+    | kapitalafkast_kroner() -> hvis ordningen_anvendes() { par22c_resultat().kapitalafkast_kroner } ellers { 0 }
+    | resultat() -> Virksomhedsskattelov22CKildeResultat(
+        input = input,
+        par9_og_9a_resultat = par9_og_9a_resultat(),
+        reguleret_beløbsgrænse_kroner = reguleret_beløbsgrænse_kroner(),
+        par22c_input = par22c_input(),
+        par22c_resultat = par22c_resultat(),
+        input_gyldigt = input_gyldigt(),
+        ordningen_anvendes = ordningen_anvendes(),
+        kapitalafkast_kroner = kapitalafkast_kroner(),
+        personlig_indkomst_fradrag_kroner = kapitalafkast_kroner(),
+        kapitalindkomst_tillæg_kroner = kapitalafkast_kroner()
+    )
+}
+| virksomhedsskattelov22c_kilde_sag(input: Virksomhedsskattelov22CKildeInput) -> Virksomhedsskattelov22CKildeSag(input)
+| virksomhedsskattelov22c_kilde_resultat(input: Virksomhedsskattelov22CKildeInput) -> virksomhedsskattelov22c_kilde_sag(input).resultat()
+--@end:virksomhedsskatteloven_par22c--
+
+= virksomhedsskatteloven_par23a_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_par23a_kildebelæg),
+        ParameterSource(value = virksomhedsskatteloven_par23a_grundbeløb_kildebelæg),
+    )
+)
+
+--@label:virksomhedsskatteloven_par23a::meta:virksomhedsskatteloven_par23a_metadata--
 ----
 § 23 a. Den skattepligtige kan vælge at medregne højst et grundbeløb på
 46.000 kr. (2010-niveau) af kapitalafkast, som overføres efter § 5, stk. 1,
@@ -1121,6 +1499,7 @@ kildeskattelovens § 25 A, stk. 8, kan hver af ægtefællerne anvende reglerne i
 stk. 1.
 ----
 
+--@begin:virksomhedsskatteloven_par23a--
 # Virksomhedsskattelov23AInput(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal)
 # Virksomhedsskattelov23AResultat(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, resterende_kapitalafkast_kroner: Heltal)
 
@@ -1143,6 +1522,67 @@ stk. 1.
 | virksomhedsskattelov23a_sag(input: Virksomhedsskattelov23AInput) -> Virksomhedsskattelov23ASag(input)
 | virksomhedsskattelov23a_resultat(input: Virksomhedsskattelov23AInput) -> virksomhedsskattelov23a_sag(input).resultat()
 
+# Virksomhedsskattelov23AKapitalafkastkilde = Vsl23AKapitalafkastEfterPar7(input: Virksomhedsskattelov7KildeInput) | Vsl23AKapitalafkastEfterPar22A(input: Virksomhedsskattelov22AKildeInput)
+# Virksomhedsskattelov23AKapitalafkastkildeResultat = Vsl23APar7KildeResultat(resultat: Virksomhedsskattelov7KildeResultat) | Vsl23APar22AKildeResultat(resultat: Virksomhedsskattelov22AKildeResultat)
+# Virksomhedsskattelov23ABundetInput(kilde: Virksomhedsskattelov23AKapitalafkastkilde, ønsket_medregnet_personlig_indkomst_kroner: Heltal)
+# Virksomhedsskattelov23ABundetResultat(input: Virksomhedsskattelov23ABundetInput, kilderesultat: Virksomhedsskattelov23AKapitalafkastkildeResultat, indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, par23a_input: Virksomhedsskattelov23AInput, par23a_resultat: Virksomhedsskattelov23AResultat, input_gyldigt: Boolsk)
+
+| virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
+| exception vsl23a_skatteministeriet_2025_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 60300 under indkomstår == 2025
+| exception vsl23a_skatteministeriet_2026_grundbeløb virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 63200 under indkomstår == 2026
+| virksomhedsskattelov23a_kilderesultat(kilde: Virksomhedsskattelov23AKapitalafkastkilde) -> match kilde {
+    | Vsl23AKapitalafkastEfterPar7(input) -> Vsl23APar7KildeResultat(resultat = virksomhedsskattelov7_kilde_resultat(input))
+    | Vsl23AKapitalafkastEfterPar22A(input) -> Vsl23APar22AKildeResultat(resultat = virksomhedsskattelov22a_kilde_resultat(input))
+}
+| virksomhedsskattelov23a_kilde_indkomstår(kilderesultat: Virksomhedsskattelov23AKapitalafkastkildeResultat) -> match kilderesultat {
+    | Vsl23APar7KildeResultat(resultat) -> resultat.input.par8_input.indkomstår
+    | Vsl23APar22AKildeResultat(resultat) -> resultat.input.indkomstår
+}
+| virksomhedsskattelov23a_kilde_kapitalafkast_kroner(kilderesultat: Virksomhedsskattelov23AKapitalafkastkildeResultat) -> match kilderesultat {
+    | Vsl23APar7KildeResultat(resultat) -> resultat.par7_resultat.kapitalafkast_kroner
+    | Vsl23APar22AKildeResultat(resultat) -> resultat.skattepligtiges_kapitalafkast_kroner
+}
+| virksomhedsskattelov23a_kilde_input_gyldigt(kilderesultat: Virksomhedsskattelov23AKapitalafkastkildeResultat) -> match kilderesultat {
+    | Vsl23APar7KildeResultat(resultat) -> resultat.input_gyldigt
+    | Vsl23APar22AKildeResultat(resultat) -> resultat.input_gyldigt
+}
+
+# Virksomhedsskattelov23ABundetSag(input: Virksomhedsskattelov23ABundetInput) {
+    | kilderesultat() -> virksomhedsskattelov23a_kilderesultat(input.kilde)
+    | indkomstår() -> virksomhedsskattelov23a_kilde_indkomstår(kilderesultat())
+    | kapitalafkast_kroner() -> virksomhedsskattelov23a_kilde_kapitalafkast_kroner(kilderesultat())
+    | reguleret_grundbeløb_kroner() -> virksomhedsskattelov23a_reguleret_grundbeløb_kroner(indkomstår())
+    | input_gyldigt() -> virksomhedsskattelov23a_kilde_input_gyldigt(kilderesultat()) && input.ønsket_medregnet_personlig_indkomst_kroner >= 0 && reguleret_grundbeløb_kroner() > 0
+    | par23a_input() -> Virksomhedsskattelov23AInput(
+        indkomstår = indkomstår(),
+        kapitalafkast_kroner = hvis input_gyldigt() { kapitalafkast_kroner() } ellers { 0 },
+        reguleret_grundbeløb_kroner = reguleret_grundbeløb_kroner(),
+        ønsket_medregnet_personlig_indkomst_kroner = input.ønsket_medregnet_personlig_indkomst_kroner
+    )
+    | par23a_resultat() -> virksomhedsskattelov23a_resultat(par23a_input())
+    | resultat() -> Virksomhedsskattelov23ABundetResultat(
+        input = input,
+        kilderesultat = kilderesultat(),
+        indkomstår = indkomstår(),
+        kapitalafkast_kroner = kapitalafkast_kroner(),
+        reguleret_grundbeløb_kroner = reguleret_grundbeløb_kroner(),
+        par23a_input = par23a_input(),
+        par23a_resultat = par23a_resultat(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| virksomhedsskattelov23a_bundet_sag(input: Virksomhedsskattelov23ABundetInput) -> Virksomhedsskattelov23ABundetSag(input)
+| virksomhedsskattelov23a_bundet_resultat(input: Virksomhedsskattelov23ABundetInput) -> virksomhedsskattelov23a_bundet_sag(input).resultat()
+--@end:virksomhedsskatteloven_par23a--
+
+= virksomhedsskatteloven_par11_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_par11_kildebelæg),
+        RateSource(value = virksomhedsskatteloven_par9_par9a_kildebelæg),
+    )
+)
+
+--@label:virksomhedsskatteloven_par11::meta:virksomhedsskatteloven_par11_metadata--
 ----
 § 11. Er saldoen på indskudskontoen negativ på det tidspunkt, hvor anvendelsen
 af virksomhedsordningen påbegyndes, eller for efterfølgende indkomstår ved
@@ -1172,6 +1612,7 @@ personlige indkomst og fradrages i kapitalindkomsten for det pågældende
 indkomstår.
 ----
 
+--@begin:virksomhedsskatteloven_par11--
 # Virksomhedsskattelov11Input(indkomstår: Heltal, rentekorrektionssats_basispoint: Heltal, negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal, negativ_indskudskonto_ultimo_abs_kroner: Heltal, negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal, negativt_afkastgrundlag_ultimo_abs_kroner: Heltal, nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal, overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal, indskud_efter_par3_stk1_kroner: Heltal)
 # Virksomhedsskattelov11Resultat(indkomstår: Heltal, stk1_negativ_indskudskonto: Boolsk, stk1_negativt_afkastgrundlag: Boolsk, stk1_indskudskonto_grundlag_kroner: Heltal, stk1_afkastgrundlag_loftgrundlag_kroner: Heltal, stk1_rentekorrektion_før_loft_kroner: Heltal, stk1_afkastgrundlag_loft_kroner: Heltal, stk1_nettofinansieringsloft_kroner: Heltal, stk1_rentekorrektion_kroner: Heltal, stk2_hævning_og_indskud: Boolsk, stk2_hævningsgrundlag_kroner: Heltal, stk2_indskudsloftgrundlag_kroner: Heltal, stk2_rentekorrektion_før_loft_kroner: Heltal, stk2_indskudsloft_kroner: Heltal, stk2_rentekorrektion_kroner: Heltal, samlet_rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 
@@ -1222,6 +1663,37 @@ indkomstår.
 }
 | virksomhedsskattelov11_sag(input: Virksomhedsskattelov11Input) -> Virksomhedsskattelov11Sag(input)
 | virksomhedsskattelov11_resultat(input: Virksomhedsskattelov11Input) -> virksomhedsskattelov11_sag(input).resultat()
+
+# Virksomhedsskattelov11KildeInput(indkomstår: Heltal, negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal, negativ_indskudskonto_ultimo_abs_kroner: Heltal, negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal, negativt_afkastgrundlag_ultimo_abs_kroner: Heltal, nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal, overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal, indskud_efter_par3_stk1_kroner: Heltal)
+# Virksomhedsskattelov11KildeResultat(input: Virksomhedsskattelov11KildeInput, par9_og_9a_resultat: Virksomhedsskattelov9Og9AResultat, par11_input: Virksomhedsskattelov11Input, par11_resultat: Virksomhedsskattelov11Resultat, input_gyldigt: Boolsk)
+
+# Virksomhedsskattelov11KildeSag(input: Virksomhedsskattelov11KildeInput) {
+    | par9_og_9a_resultat() -> virksomhedsskattelov9_og_9a_resultat(input.indkomstår)
+    | beløbsinput_gyldige() -> input.negativ_indskudskonto_start_eller_primo_abs_kroner >= 0 && input.negativ_indskudskonto_ultimo_abs_kroner >= 0 && input.negativt_afkastgrundlag_start_eller_primo_abs_kroner >= 0 && input.negativt_afkastgrundlag_ultimo_abs_kroner >= 0 && input.overført_efter_par5_stk1_nr5_og_stk2_kroner >= 0 && input.indskud_efter_par3_stk1_kroner >= 0
+    | input_gyldigt() -> input.indkomstår > 0 && beløbsinput_gyldige() && par9_og_9a_resultat().månedsdata_komplette
+    | par11_input() -> Virksomhedsskattelov11Input(
+        indkomstår = input.indkomstår,
+        rentekorrektionssats_basispoint = par9_og_9a_resultat().rentekorrektionssats_efter_par9a_basispoint,
+        negativ_indskudskonto_start_eller_primo_abs_kroner = hvis input_gyldigt() { input.negativ_indskudskonto_start_eller_primo_abs_kroner } ellers { 0 },
+        negativ_indskudskonto_ultimo_abs_kroner = hvis input_gyldigt() { input.negativ_indskudskonto_ultimo_abs_kroner } ellers { 0 },
+        negativt_afkastgrundlag_start_eller_primo_abs_kroner = hvis input_gyldigt() { input.negativt_afkastgrundlag_start_eller_primo_abs_kroner } ellers { 0 },
+        negativt_afkastgrundlag_ultimo_abs_kroner = hvis input_gyldigt() { input.negativt_afkastgrundlag_ultimo_abs_kroner } ellers { 0 },
+        nettofinansieringsudgifter_efter_kursgevinstlov_kroner = hvis input_gyldigt() { input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner } ellers { 0 },
+        overført_efter_par5_stk1_nr5_og_stk2_kroner = hvis input_gyldigt() { input.overført_efter_par5_stk1_nr5_og_stk2_kroner } ellers { 0 },
+        indskud_efter_par3_stk1_kroner = hvis input_gyldigt() { input.indskud_efter_par3_stk1_kroner } ellers { 0 }
+    )
+    | par11_resultat() -> virksomhedsskattelov11_resultat(par11_input())
+    | resultat() -> Virksomhedsskattelov11KildeResultat(
+        input = input,
+        par9_og_9a_resultat = par9_og_9a_resultat(),
+        par11_input = par11_input(),
+        par11_resultat = par11_resultat(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| virksomhedsskattelov11_kilde_sag(input: Virksomhedsskattelov11KildeInput) -> Virksomhedsskattelov11KildeSag(input)
+| virksomhedsskattelov11_kilde_resultat(input: Virksomhedsskattelov11KildeInput) -> virksomhedsskattelov11_kilde_sag(input).resultat()
+--@end:virksomhedsskatteloven_par11--
 
 = vsl7_overskudsloft_input = Virksomhedsskattelov7Input(
     indkomstår = 2026,

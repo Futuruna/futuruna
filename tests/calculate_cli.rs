@@ -951,6 +951,110 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
 }
 
 #[test]
+fn xlsx_template_hydrates_populated_json_cases() {
+    let fixture = fixture();
+    let json_path = temp_path("json");
+    let xlsx_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+    let mut input: Value =
+        serde_json::from_slice(&std::fs::read(&json_path).expect("JSON template"))
+            .expect("template JSON");
+    input["cases"][0]["case_id"] = Value::String("hydrated-case".to_string());
+    input["cases"][0]["input"] = serde_json::json!({
+        "monthly_income": 50_000,
+        "filing_status": { "$variant": "Married" },
+        "deduction": 12_000,
+        "children": [{ "name": "Ada", "age": 7 }]
+    });
+    std::fs::write(
+        &json_path,
+        serde_json::to_vec_pretty(&input).expect("encode populated input"),
+    )
+    .expect("write populated input");
+
+    let hydrated = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+        "--format",
+        "xlsx",
+        "--output",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    assert!(
+        hydrated.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&hydrated.stderr)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&xlsx_path).expect("hydrated workbook");
+        let cases = workbook.worksheet_range("cases").expect("cases sheet");
+        assert_eq!(
+            cases.get((2, 0)).map(ToString::to_string).as_deref(),
+            Some("hydrated-case")
+        );
+        assert_eq!(
+            cases.get((2, 1)).map(ToString::to_string).as_deref(),
+            Some("50000")
+        );
+        assert_eq!(
+            cases.get((2, 2)).map(ToString::to_string).as_deref(),
+            Some("Married")
+        );
+        assert_eq!(
+            cases.get((2, 3)).map(ToString::to_string).as_deref(),
+            Some("12000")
+        );
+        let children = workbook
+            .worksheet_range("children")
+            .expect("children sheet");
+        assert_eq!(
+            children.get((2, 0)).map(ToString::to_string).as_deref(),
+            Some("hydrated-case")
+        );
+        assert_eq!(
+            children.get((2, 3)).map(ToString::to_string).as_deref(),
+            Some("Ada")
+        );
+        assert_eq!(
+            children.get((2, 4)).map(ToString::to_string).as_deref(),
+            Some("7")
+        );
+    }
+
+    let call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    std::fs::remove_file(&json_path).ok();
+    std::fs::remove_file(&xlsx_path).ok();
+    assert!(
+        call.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&call.stderr)
+    );
+    let result = parse_stdout(&call);
+    assert_eq!(result["results"][0]["case_id"], "hydrated-case");
+    assert_eq!(result["results"][0]["result"]["annual_tax"], 117_600);
+}
+
+#[test]
 fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
     let source_path = temp_path("runa");
     let input_path = temp_path("xlsx");
@@ -2841,6 +2945,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "kapitalindkomst.renter.ligningslov6a.$variant",
                         Data::String("UdenLigningslov6AFradrag".to_string()),
+                    ),
+                    (
+                        "kapitalindkomst.virksomhedskapital.selvstændig_beskatningsordning.$variant",
+                        Data::String(
+                            "UdenVirksomhedsEllerKapitalafkastordning".to_string(),
+                        ),
+                    ),
+                    (
+                        "kapitalindkomst.virksomhedskapital.medarbejderaktier.$variant",
+                        Data::String(
+                            "UdenKapitalafkastEfterVirksomhedsskattelov22C".to_string(),
+                        ),
                     ),
                     (
                         "kapitalindkomst.ejendomsdrift.$variant",
@@ -6727,6 +6843,25 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(unsupported_contract_change_case);
+    for case in json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+    {
+        case["input"]["kapitalindkomst"]
+            .as_object_mut()
+            .expect("Personskat capital-income input")
+            .entry("virksomhedskapital".to_string())
+            .or_insert_with(|| {
+                serde_json::json!({
+                    "selvstændig_beskatningsordning": {
+                        "$variant": "UdenVirksomhedsEllerKapitalafkastordning"
+                    },
+                    "medarbejderaktier": {
+                        "$variant": "UdenKapitalafkastEfterVirksomhedsskattelov22C"
+                    }
+                })
+            });
+    }
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),

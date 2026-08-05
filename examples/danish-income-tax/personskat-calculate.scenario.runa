@@ -124,6 +124,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = MedLigningslov6Kurstab(input = personskat_calculate_ll6_input),
         ligningslov6a = MedLigningslov6AFradrag(input = personskat_calculate_ll6a_input)
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = personskat_ingen_pbl53a(),
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
@@ -141,6 +142,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = personskat_ingen_pbl53a(),
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
@@ -177,6 +179,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = MedLigningslov6Kurstab(input = personskat_calculate_ll6_forkert_år),
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = personskat_ingen_pbl53a(),
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
@@ -193,6 +196,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = personskat_ingen_pbl53a(),
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = UdenEjendomsavance,
@@ -284,6 +288,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         ligningslov6 = UdenLigningslov6Kurstab,
         ligningslov6a = UdenLigningslov6AFradrag
     ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
     pbl53a = personskat_ingen_pbl53a(),
     ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
     ejendomsavance = ejendomsavance,
@@ -581,6 +586,23 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     )
 )
 = personskat_calculate_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_med_årsopgørelse_input)
+| personskat_calculate_input_med_årsopgørelse(input: PersonskatInput, årsopgørelse: PersonskatÅrsopgørelseInput) -> PersonskatInput(
+    lønmodtager = input.lønmodtager,
+    kapitalindkomst = input.kapitalindkomst,
+    aktieavance = input.aktieavance,
+    udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag,
+    cfc = input.cfc,
+    skatteforhold = input.skatteforhold,
+    underskudsforhold = input.underskudsforhold,
+    årsopgørelse = årsopgørelse
+)
+= personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+        ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
+        særlige_aktiver = []
+    )),
+    personskat_calculate_med_årsopgørelse_input.årsopgørelse
+))
 
 | personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.personfradrag_kroner == 54100
@@ -638,7 +660,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | UgyldigtBefordringsfradrag(_, skatteår_understøttet, grundfakta_gyldige, ligningslov9d_input_gyldigt) -> skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt == Falskt
     | _ -> Falskt
 }
-| personskat_calculate_ordinær_aktieavance_afledes: personskat_calculate_ordinær_aktie_resultat -> personskat_calculate_ordinær_aktie_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ordinær_aktie_resultat.aktieavance.aktieindkomst_kroner == 5000 && personskat_calculate_ordinær_aktie_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_ordinær_aktieavance_afledes: personskat_calculate_ordinær_aktie_resultat -> personskat_calculate_ordinær_aktie_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ordinær_aktie_resultat.aktieavance.aktieindkomst_kroner == 5000 && personskat_calculate_ordinær_aktie_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_calculate_ordinær_aktie_resultat.endelig_aktieindkomstskat_kroner == 1350 && personskat_calculate_ordinær_aktie_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == personskat_calculate_ordinær_aktie_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner + 1350
 | personskat_calculate_boligret_spor_er_skattefrit(resultat: PersonskatOrdinærtAktieårResultat) -> match resultat {
     | BeregnetOrdinærtAktieår(årsresultat) -> any(årsresultat.hændelsesforløbsresultater, |forløb: AktieavanceOrdinærHændelsesforløbResultat| any(forløb.hændelsesresultater, |hændelse: AktieavanceOrdinærHændelsesresultat| hændelse.bruttogevinst_kroner == 5000 && hændelse.skattefri_efter_par15 && hændelse.skattepligtig_gevinst_efter_par12_kroner == 0 && match hændelse.par15_resultat {
             | AblPar15Vurderet(klassifikation, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
@@ -654,6 +676,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_årsopgørelse_beregnes: personskat_calculate_med_årsopgørelse_resultat -> match personskat_calculate_med_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_kroner == 208726 && årsopgørelsesresultat.slutskat_med_tillæg_kroner == 210226 && årsopgørelsesresultat.restskat_kroner == 210226 && årsopgørelsesresultat.art == Restskat
+}
+| personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse: personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat -> match personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> Falskt
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_kroner == 210076 && årsopgørelsesinput.slutskat_kroner == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner && årsopgørelsesresultat.slutskat_med_tillæg_kroner == 211576
 }
 
 ? personskat_calculate_am_bidrag
@@ -683,3 +709,4 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ugyldig_abl_kæde_afvises_samlet
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes
+? personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse

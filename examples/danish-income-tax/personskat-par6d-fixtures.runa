@@ -127,6 +127,7 @@
             ligningslov6 = UdenLigningslov6Kurstab,
             ligningslov6a = UdenLigningslov6AFradrag
         ),
+        virksomhedskapital = personskat_ingen_virksomhedskapital(),
         pbl53a = personskat_ingen_pbl53a(),
         ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
         ejendomsavance = MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(

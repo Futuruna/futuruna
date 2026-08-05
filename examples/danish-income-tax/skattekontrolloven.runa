@@ -6,6 +6,14 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/12
 -- XML: https://www.retsinformation.dk/eli/lta/2024/12/dan/xml
 
+# SkattekontrollovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= skattekontrolloven_lbk12_2024 = SkattekontrollovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/12",
+    identifier = "Skattekontrolloven §§ 10, 11 og 13",
+    hentet_dato = "2026-07-31"
+)
+
 ----
 § 10. Fysiske personer, der modtager en årsopgørelse efter regler udstedt i
 medfør af § 8, stk. 1, skal give told- og skatteforvaltningen oplysninger som
