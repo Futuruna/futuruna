@@ -4717,6 +4717,43 @@ pub struct RuleScopeFrame {
     pub memoized_zero_arg_rules: HashMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuntimeCallableKind {
+    Function,
+    Rule,
+    RuleScope,
+    RuleScopeFunction,
+    RuleScopeRule,
+    Method,
+}
+
+impl RuntimeCallableKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RuntimeCallableKind::Function => "function",
+            RuntimeCallableKind::Rule => "rule",
+            RuntimeCallableKind::RuleScope => "rule_scope",
+            RuntimeCallableKind::RuleScopeFunction => "rule_scope_function",
+            RuntimeCallableKind::RuleScopeRule => "rule_scope_rule",
+            RuntimeCallableKind::Method => "method",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeCallableDeclaration {
+    pub name: String,
+    pub qualified_name: String,
+    pub kind: RuntimeCallableKind,
+    pub owner: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CalculationCallableReachability {
+    pub declaration: RuntimeCallableDeclaration,
+    pub reachable: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum AstChild<'a> {
     Expr(&'a Expr),
@@ -9301,6 +9338,8 @@ pub struct Interpreter {
     calculation_runtime_symbols: BTreeSet<String>,
     /// Top-level bindings needed to initialize the active calculation.
     calculation_runtime_bindings: BTreeSet<String>,
+    /// Callable families registered while loading the active source/import graph.
+    runtime_callable_declarations: BTreeMap<String, RuntimeCallableDeclaration>,
 }
 
 impl Interpreter {
@@ -9355,6 +9394,7 @@ impl Interpreter {
             suppress_output: false,
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
+            runtime_callable_declarations: BTreeMap::new(),
         }
     }
 
@@ -9941,6 +9981,85 @@ impl Interpreter {
         env
     }
 
+    fn register_runtime_callable_declaration(
+        &mut self,
+        kind: RuntimeCallableKind,
+        name: &str,
+        owner: Option<&str>,
+    ) {
+        let qualified_name = owner
+            .map(|owner| format!("{}.{}", owner, name))
+            .unwrap_or_else(|| name.to_string());
+        let key = format!("{}:{}", kind.as_str(), qualified_name);
+        self.runtime_callable_declarations
+            .entry(key)
+            .or_insert_with(|| RuntimeCallableDeclaration {
+                name: name.to_string(),
+                qualified_name,
+                kind,
+                owner: owner.map(str::to_string),
+            });
+    }
+
+    fn register_rule_scope_callable_declarations(&mut self, name: &str, body: &[Stmt]) {
+        self.register_runtime_callable_declaration(RuntimeCallableKind::RuleScope, name, None);
+        for statement in body {
+            match statement {
+                Stmt::Defn(Defn::Fn {
+                    name: member_name, ..
+                }) => self.register_runtime_callable_declaration(
+                    RuntimeCallableKind::RuleScopeFunction,
+                    member_name,
+                    Some(name),
+                ),
+                Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                    let member_name = self.rule_name(rule);
+                    self.register_runtime_callable_declaration(
+                        RuntimeCallableKind::RuleScopeRule,
+                        &member_name,
+                        Some(name),
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+
+    pub fn calculation_runtime_symbols(&self) -> Vec<String> {
+        self.calculation_runtime_symbols.iter().cloned().collect()
+    }
+
+    pub fn calculation_runtime_bindings(&self) -> Vec<String> {
+        self.calculation_runtime_bindings.iter().cloned().collect()
+    }
+
+    pub fn calculation_callable_reachability(&self) -> Vec<CalculationCallableReachability> {
+        self.runtime_callable_declarations
+            .values()
+            .cloned()
+            .map(|declaration| {
+                let owner_reachable = declaration
+                    .owner
+                    .as_ref()
+                    .is_some_and(|owner| self.calculation_runtime_symbols.contains(owner));
+                let name_reachable = self.calculation_runtime_symbols.contains(&declaration.name);
+                let reachable = match declaration.kind {
+                    RuntimeCallableKind::RuleScopeFunction | RuntimeCallableKind::RuleScopeRule => {
+                        owner_reachable
+                    }
+                    RuntimeCallableKind::Method => owner_reachable || name_reachable,
+                    RuntimeCallableKind::Function
+                    | RuntimeCallableKind::Rule
+                    | RuntimeCallableKind::RuleScope => name_reachable,
+                };
+                CalculationCallableReachability {
+                    declaration,
+                    reachable,
+                }
+            })
+            .collect()
+    }
+
     pub fn register_type(&mut self, decl: &TypeDecl) {
         match decl {
             TypeDecl::ADT {
@@ -10027,6 +10146,11 @@ impl Interpreter {
                         name, params, body, ..
                     } = method
                     {
+                        self.register_runtime_callable_declaration(
+                            RuntimeCallableKind::Method,
+                            name,
+                            Some(for_type),
+                        );
                         let param_names: Vec<String> =
                             params.iter().map(|p| p.name.clone()).collect();
                         self.impl_methods.insert(
@@ -10050,6 +10174,7 @@ impl Interpreter {
                 // Handled in run_program (needs env to evaluate condition)
             }
             TypeDecl::RuleScope { name, params, body } => {
+                self.register_rule_scope_callable_declarations(name, body);
                 let positional = false;
                 self.constructors
                     .insert(name.clone(), (params.len(), positional));
@@ -10097,15 +10222,23 @@ impl Interpreter {
     fn register_runtime_type_decl(&mut self, decl: &TypeDecl, env: &mut Env) {
         self.register_type(decl);
         self.register_constructors(decl, env);
-        if let TypeDecl::ADT { methods, .. } = decl {
+        if let TypeDecl::ADT { name, methods, .. } = decl {
             for method in methods {
                 if let Defn::Fn {
-                    name, params, body, ..
+                    name: method_name,
+                    params,
+                    body,
+                    ..
                 } = method
                 {
+                    self.register_runtime_callable_declaration(
+                        RuntimeCallableKind::Method,
+                        method_name,
+                        Some(name),
+                    );
                     let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                     self.functions.insert(
-                        name.clone(),
+                        method_name.clone(),
                         FnDef {
                             params: param_names,
                             body: body.clone(),
@@ -10119,7 +10252,12 @@ impl Interpreter {
     fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
         for stmt in stmts {
             match stmt {
-                Stmt::Defn(defn @ Defn::Fn { .. }) => {
+                Stmt::Defn(defn @ Defn::Fn { name, .. }) => {
+                    self.register_runtime_callable_declaration(
+                        RuntimeCallableKind::Function,
+                        name,
+                        None,
+                    );
                     self.eval_defn(defn, env);
                 }
                 Stmt::TypeDecl(decl) if !matches!(decl, TypeDecl::WhenType { .. }) => {
@@ -10127,7 +10265,15 @@ impl Interpreter {
                 }
                 Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
                     let name = self.rule_name(rule);
+                    self.register_runtime_callable_declaration(
+                        RuntimeCallableKind::Rule,
+                        &name,
+                        None,
+                    );
                     self.rules.push((name, rule.clone()));
+                }
+                Stmt::Rule(Rule::ReactiveScope { name, body }) => {
+                    self.register_rule_scope_callable_declarations(name, body);
                 }
                 _ => {}
             }
@@ -19924,6 +20070,65 @@ mod tests {
             interpreter.eval(&call, &env).to_string(),
             "CalcOutput(total: 50)"
         );
+    }
+
+    #[test]
+    fn calculation_reachability_reports_callable_families_and_scope_ownership() {
+        let source = r#"
+# CalcInput(amount: Int)
+# CalcOutput(total: Int)
+
+= required_base = 40
+= unrelated_fixture = 999
+
+| add_base(amount: Int) -> amount + required_base
+| unused_rule(amount: Int) -> amount + unrelated_fixture
+> unused_function(amount: Int) -> Int { amount + unrelated_fixture }
+
+# UsedScope(input: CalcInput) {
+    | adjusted() -> add_base(input.amount)
+    | result() -> CalcOutput(total = adjusted())
+}
+
+# UnusedScope(input: CalcInput) {
+    | result() -> CalcOutput(total = unused_rule(input.amount))
+}
+
+@ calculate("Invoice")
+| calculate_invoice(input: CalcInput) -> UsedScope(input).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse calculation");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.initialize_calculation_program("calculate_invoice", &stmts, &mut env);
+
+        let callables = interpreter.calculation_callable_reachability();
+        let is_reachable = |qualified_name: &str| {
+            callables
+                .iter()
+                .find(|callable| callable.declaration.qualified_name == qualified_name)
+                .unwrap_or_else(|| panic!("missing callable {qualified_name}"))
+                .reachable
+        };
+        assert!(is_reachable("calculate_invoice"));
+        assert!(is_reachable("add_base"));
+        assert!(is_reachable("UsedScope"));
+        assert!(is_reachable("UsedScope.adjusted"));
+        assert!(is_reachable("UsedScope.result"));
+        assert!(!is_reachable("unused_rule"));
+        assert!(!is_reachable("unused_function"));
+        assert!(!is_reachable("UnusedScope"));
+        assert!(!is_reachable("UnusedScope.result"));
+        assert!(interpreter
+            .calculation_runtime_bindings()
+            .contains(&"required_base".to_string()));
+        assert!(!interpreter
+            .calculation_runtime_bindings()
+            .contains(&"unrelated_fixture".to_string()));
     }
 
     #[test]

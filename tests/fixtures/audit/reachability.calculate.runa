@@ -1,0 +1,19 @@
+@ import ./reachability - helper
+
+# ReachabilityInput(amount: Int)
+# ReachabilityOutput(total: Int)
+
+# UsedCalculationScope(input: ReachabilityInput) {
+    | adjusted() -> imported_helper(input.amount)
+    | result() -> ReachabilityOutput(total = adjusted())
+}
+
+# UnusedCalculationScope(input: ReachabilityInput) {
+    | result() -> ReachabilityOutput(total = imported_unused_rule(input.amount))
+}
+
+@ calculate("Reachability fixture")
+| calculate_reachability(input: ReachabilityInput) -> UsedCalculationScope(input).result()
+
+@ calculate("Alternate fixture")
+| calculate_alternate(input: ReachabilityInput) -> ReachabilityOutput(total = input.amount)

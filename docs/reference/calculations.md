@@ -194,6 +194,29 @@ and value data in its fingerprint. Definition file paths and line numbers stay
 in `runa meta --json` and do not make a portable calculation contract
 machine-dependent.
 
+## Audit Calculation Reachability
+
+```sh
+runa audit model.calculate.runa --entry calculate_tax
+runa audit model.calculate.runa --entry calculate_tax --json
+```
+
+Entry-specific audit mode reports the conservative runtime-symbol closure used
+to initialize that calculation. The versioned
+`futuruna.audit.reachability.v1` JSON contains required top-level bindings and
+the loaded source graph together with registered global rule, function, method,
+and RuleScope families carrying a `reachable` or `not_reached` status. This
+makes disconnected modules and implementation families machine-queryable
+without executing scenario proofs.
+
+The report deliberately works at rule-family granularity. When a RuleScope is
+reached, all members of that scope are marked reachable because the scope is the
+encapsulation boundary. A `not_reached` item is a review candidate, not a proof
+that dynamic or external invocation is impossible. Consumers should confirm a
+candidate against the public input contract and source model before removing or
+connecting it. Running `runa audit` without `--entry` keeps the original
+topology audit for invariant gaps, asymmetries, and tensions.
+
 ## Generate Input
 
 ```sh

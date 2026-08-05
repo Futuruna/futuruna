@@ -79,6 +79,7 @@ fn main_inner() {
     let mut meta_type_filter = None;
     let mut meta_role_filter = None;
     let mut meta_json = false;
+    let mut audit_json = false;
     let mut calculation_entry = None;
     let mut calculation_format = None;
     let mut calculation_input = None;
@@ -138,7 +139,11 @@ fn main_inner() {
                 meta_json = true;
                 i += 1;
             }
-            "--entry" if matches!(mode, "schema" | "template" | "call") => {
+            "--json" if mode == "audit" => {
+                audit_json = true;
+                i += 1;
+            }
+            "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --entry requires a calculation name");
                     std::process::exit(1);
@@ -146,7 +151,7 @@ fn main_inner() {
                 calculation_entry = Some(args[i + 1].clone());
                 i += 2;
             }
-            arg if matches!(mode, "schema" | "template" | "call")
+            arg if matches!(mode, "schema" | "template" | "call" | "audit")
                 && arg.starts_with("--entry=") =>
             {
                 calculation_entry = Some(arg["--entry=".len()..].to_string());
@@ -341,6 +346,7 @@ fn main_inner() {
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ calculate entry");
+                eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
                 eprintln!("  --input PATH       Read calculation cases");
                 eprintln!("  --output PATH      Write a contract, template, or result");
@@ -381,6 +387,7 @@ fn main_inner() {
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
+                eprintln!("  runa audit model.calculate.runa --entry calculate_tax --json");
                 std::process::exit(0);
             }
             "init" => {
@@ -680,6 +687,15 @@ fn main_inner() {
                     meta_role_filter.as_deref(),
                     meta_json,
                 ),
+                "audit" if audit_json || calculation_entry.is_some() => {
+                    audit_calculation_reachability_source(
+                        &source,
+                        path,
+                        use_prelude,
+                        calculation_entry.as_deref(),
+                        audit_json,
+                    )
+                }
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
                 _ => run_source(&source, path, use_prelude),
@@ -8499,6 +8515,131 @@ fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         }
         _ => {}
     }
+}
+
+fn audit_calculation_reachability_source(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    requested_entry: Option<&str>,
+    json: bool,
+) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let user_stmts = parser.parse_program().unwrap_or_else(|error| {
+        display_error_in(source, &error, filename);
+        std::process::exit(1);
+    });
+    let stmts = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let contracts = run_calculation_type_check(&stmts, source, filename)
+        .unwrap_or_else(|| std::process::exit(1));
+    let contract =
+        select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {
+            eprintln!("error: {}", error);
+            std::process::exit(1);
+        });
+
+    let runtime_stmts = stmts
+        .iter()
+        .filter(|statement| !matches!(statement, Stmt::Prove { .. }))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut interpreter = Interpreter::new();
+    interpreter.source_dir = source_dir_for(filename);
+    let mut env = interpreter.default_env();
+    interpreter.initialize_calculation_program(&contract.entry, &runtime_stmts, &mut env);
+
+    let callables = interpreter.calculation_callable_reachability();
+    let reachable_count = callables
+        .iter()
+        .filter(|callable| callable.reachable)
+        .count();
+    let not_reached_count = callables.len().saturating_sub(reachable_count);
+    let callable_values = callables
+        .iter()
+        .map(|callable| {
+            serde_json::json!({
+                "name": callable.declaration.name,
+                "qualified_name": callable.declaration.qualified_name,
+                "kind": callable.declaration.kind.as_str(),
+                "owner": callable.declaration.owner,
+                "status": if callable.reachable { "reachable" } else { "not_reached" },
+            })
+        })
+        .collect::<Vec<_>>();
+    let not_reached_candidates = callables
+        .iter()
+        .filter(|callable| !callable.reachable)
+        .map(|callable| callable.declaration.qualified_name.clone())
+        .collect::<Vec<_>>();
+    let mut loaded_sources = interpreter
+        .imported
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    loaded_sources.insert(
+        std::fs::canonicalize(filename)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| filename.to_string()),
+    );
+    let loaded_sources = loaded_sources.into_iter().collect::<Vec<_>>();
+
+    if json {
+        let report = serde_json::json!({
+            "schema": "futuruna.audit.reachability.v1",
+            "entry": contract.entry,
+            "label": contract.label,
+            "input_type": contract.input.display_name(),
+            "output_type": contract.output.display_name(),
+            "analysis": {
+                "mode": "conservative_static_symbol_closure",
+                "rule_scope_granularity": "When a RuleScope is reached, all of its member rule families are conservatively marked reachable.",
+                "not_reached_policy": "A not_reached callable is an implementation-review candidate, not proof that no dynamic or external path can invoke it.",
+                "name_resolution_policy": "Global callable names follow the runtime registry; scoped members are qualified by their owning RuleScope.",
+            },
+            "summary": {
+                "callable_families": callables.len(),
+                "reachable": reachable_count,
+                "not_reached": not_reached_count,
+            },
+            "reachable_symbols": interpreter.calculation_runtime_symbols(),
+            "required_bindings": interpreter.calculation_runtime_bindings(),
+            "loaded_sources": loaded_sources,
+            "callables": callable_values,
+            "not_reached_candidates": not_reached_candidates,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).expect("reachability report is JSON")
+        );
+        return;
+    }
+
+    println!("runa audit -- calculation reachability");
+    println!("Source: {}", filename);
+    println!("Entry: {}", contract.entry);
+    println!("Input: {}", contract.input.display_name());
+    println!("Output: {}", contract.output.display_name());
+    println!(
+        "Callable families: {} reachable, {} not reached ({} total)",
+        reachable_count,
+        not_reached_count,
+        callables.len()
+    );
+    if !not_reached_candidates.is_empty() {
+        println!("Not-reached review candidates:");
+        for candidate in not_reached_candidates {
+            println!("  - {}", candidate);
+        }
+    }
+    println!(
+        "Policy: not_reached is a conservative implementation-review candidate, not a proof of impossibility."
+    );
 }
 
 /// Audit: discover invariant gaps, rule asymmetries, and paradoxes automatically.

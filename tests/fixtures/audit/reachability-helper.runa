@@ -1,0 +1,5 @@
+= imported_base = 40
+= imported_unused_binding = 900
+
+| imported_helper(amount: Int) -> amount + imported_base
+| imported_unused_rule(amount: Int) -> amount + imported_unused_binding
