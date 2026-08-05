@@ -196,7 +196,13 @@ genopførelsesfakta. Når den nye ejendom senere bliver solgt, beskatter § 8,
 stk. 5 den gamle erhvervsfortjeneste særskilt fra boligejendommens egen
 skattefri fortjeneste. § 9, stk. 4 kan tilsvarende beskatte den gamle
 fortjeneste særskilt og fjerne anskaffelsessumsnedslaget, hvis en forøget
-boligandel betyder, at erhvervsdelen ikke kan bære hele fortjenesten. § 11,
+boligandel betyder, at erhvervsdelen ikke kan bære hele fortjenesten.
+Ved genopførelse på en eller flere andre ejendomme bærer hver ejendom en
+stabil identifikation og sin faktiske genopførelsesudgift. § 10, stk. 7 og 8
+fordeler både den overførte anskaffelsessum og overskydende
+genopførelsesudgifter efter ejendommens andel af de samlede udgifter. Den
+eksakte andel bevares, hele kronebeløb afstemmes uden rest, og kun den valgte
+ejendoms genanbragte fortjeneste følger med ind i en senere afståelse. § 11,
 stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
 ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver
 skattefri efter stk. 1, mens den regulerede gamle fortjeneste beskattes
@@ -225,6 +231,7 @@ giver derfor ikke længere et fail-closed nulresultat. Kilderne er
 [C.H.2.1.11.4](https://info.skat.dk/data.aspx?oid=1948713),
 [C.H.2.1.11.5](https://info.skat.dk/data.aspx?oid=1948714),
 [C.H.2.1.11.6](https://info.skat.dk/data.aspx?oid=1948715),
+[C.H.2.1.17.3](https://info.skat.dk/data.aspx?oid=1948737),
 [C.H.2.1.17.5](https://info.skat.dk/data.aspx?oid=1948739)
 og
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),

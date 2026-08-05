@@ -3,12 +3,12 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-ef2f36` (typed PBL § 53 A references for multiple beneficiaries; implementation and cross-format verification complete, pending independent review)
+Current implementation slice: `td-30d94e` (typed EBL § 10 multi-property reconstruction and allocation; implementation and focused verification complete, pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-f6c38f`
-Latest approved language slice: `td-5545ba`
+Latest approved language slice: `td-29d539`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -69,7 +69,22 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu nul
+Latest integration: Ejendomsavancebeskatningslovens § 10 bærer nu hver
+genopført ejendom som et typet objekt med stabil identifikation og faktiske
+genopførelsesudgifter. Ved genopførelse på en eller flere andre ejendomme
+afledes stk. 5-grunden og den krævede meddelelse særskilt. Stk. 7 og 8 fordeler
+den overførte anskaffelsessum og overskydende genopførelsesudgifter efter hver
+ejendoms eksakte andel af de samlede udgifter. En deterministisk
+restfordeling afstemmer hele kronebeløb til lovens totaler uden at skjule den
+eksakte tæller og nævner. Den valgte ejendoms andel af den genanbragte
+fortjeneste går gennem det fælles genanbringelsesresultat og videre til en
+senere ordinær, § 8- eller § 9-afståelse. Dubletidentifikationer, tomme lister,
+ikke-positive udgifter og en manglende valgt ejendom fejler lukket. En for sen
+meddelelse er gyldigt oplyst, men opfylder ikke betingelserne og skaber ingen
+fordeling. Elleve fokuserede invarianter og den relevante § 9-audit passerer i
+både interpreter og compiler.
+
+Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
 Pensionsbeskatningslovens § 53 A som kildefakta. Skatteåret afledes fra den
 omgivende Personskat-sag. Ordningstypen, undtagelsen efter stk. 4 og
@@ -1513,8 +1528,8 @@ Primary prompt source:
 - Retsinformation: `https://www.retsinformation.dk/eli/lta/2019/799`
 - XML endpoint checked: `https://www.retsinformation.dk/eli/lta/2019/799/dan/xml`
 - Title: `Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)`
-- XML status on 2026-07-18: `Historic`
-- XML end date observed on 2026-07-18: `2026-06-23`
+- XML status on 2026-07-30: `Historic`
+- XML end date observed on 2026-07-30: `2026-06-23`
 - Historic mark in XML: `2021-06-16`
 
 Current working source:
@@ -1522,28 +1537,28 @@ Current working source:
 - Retsinformation: `https://www.retsinformation.dk/eli/lta/2021/1284`
 - XML endpoint checked: `https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml`
 - Title: `Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)`
-- XML status on 2026-07-18: `Valid`
+- XML status on 2026-07-30: `Valid`
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
-- XML end date observed on 2026-07-18: `2026-07-01`
+- XML end date observed on 2026-07-30: `2026-07-29`
 - Tracked amendment sources now include `2022/252`, `2023/610`,
   `2023/1564`, `2024/108`, `2024/482`, `2024/1691` and `2026/615`.
 
 Current source-refresh finding:
 
-- The tracked Retsinformation XML sources were re-fetched on 2026-07-18.
+- The tracked Retsinformation XML sources were re-fetched on 2026-07-30.
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-15, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-30, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260715`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260715 --fail-on-drift`
+  does not cover `20260730`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260730 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
-  drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 42 records with 0 drift and 0 fetch/parse errors.
+  drift between Retsinformation and the encoded source model. On 2026-07-30 it
+  checked 43 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -1597,7 +1612,7 @@ Current § 3, stk. 2, nr. 2 dependency sources:
 
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
-  - XML rechecked on 2026-07-18; the current official print was last checked on
+  - XML rechecked on 2026-07-30; the current official print was last checked on
     2026-07-18. Retsinformation still marks LBK nr. 1500/2025 as current; the
     print lists amendments through LOV nr. 1775 of 29/12/2025.
   - §§ 8, stk. 1-4, 8 B, 8 K, 8 L, 8 N, 14, 14 F and 30 A now have
@@ -1611,7 +1626,7 @@ Current § 3, stk. 2, nr. 2 dependency sources:
     non-deduction outcomes.
 - Kildeskatteloven:
   `https://www.retsinformation.dk/eli/lta/2024/460`
-  - XML rechecked on 2026-07-18; the current official print was last checked on
+  - XML rechecked on 2026-07-30; the current official print was last checked on
     2026-07-18. Retsinformation still marks LBK nr. 460/2024 as current; the
     print incorporates amendments through LOV nr. 615 of 30/06/2026, and § 25
     A, stk. 3-8 is unchanged.
@@ -1702,7 +1717,7 @@ Current § 4 and § 13 amendment/dependency sources:
   `https://www.retsinformation.dk/eli/lta/2025/1098`
   - Medarbejderejeændringen og dens virkning fra 1. januar 2026:
     `https://www.retsinformation.dk/eli/lta/2025/1755`, § 2 og § 8, stk. 1.
-  - XML status on 2026-07-18: `Valid`
+  - XML status on 2026-07-30: `Valid`
   - `aktieavancebeskatningsloven-par6-7.runa` contains the exact current §§ 6-7
     text and derives one integrity-checked result from the liability ground
     supplied by Selskabsskatteloven, Fondsbeskatningsloven, Kildeskatteloven or
@@ -1912,8 +1927,8 @@ Current § 4 and § 13 amendment/dependency sources:
     `https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag`
 - Afskrivningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1222`
-  - XML status checked on 2026-07-18: `Valid`; the LBK version window ends on
-    2026-07-01, so current source posture also includes LOV 749/2025 § 2 from
+  - XML status checked on 2026-07-30: `Valid`; the LBK version window ends on
+    2026-07-25, so current source posture also includes LOV 749/2025 § 2 from
     2026 and LOV 615/2026 § 3 from 2027 under that law's § 16, stk. 5. The first
     transition is modeled through § 40 and Ligningsloven § 12 B; the second uses
     typed landbrugs-, skov- and naturejendom categories in §§ 40 C and 42.
@@ -3115,6 +3130,13 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ejendomsavancebeskatningslovens § 10, stk. 5-8 bruger nu identificerede
+  genopførelsesejendomme frem for et løst antal. Reglerne validerer grund,
+  meddelelse, entydige identifikationer og positive udgifter, fordeler
+  stk. 7- og stk. 8-beløbene efter de faktiske udgiftsandele og afstemmer
+  afrundingsresten. Et ejendomsspecifikt genanbringelsesresultat sender kun den
+  valgte ejendoms aktive anskaffelsessumsnedslag videre til et senere salg.
+  Elleve fokuserede scenarier og § 9-auditten passerer i begge backends.
 - Pensionsbeskatningslovens § 53 A har nu et kildefaktabåret omfang og et
   dateret flerårsforløb. Reglerne afleder alle ni hjemler i stk. 1,
   udelukkelsen efter § 53 B, undtagelserne i stk. 4 og
@@ -3503,9 +3525,11 @@ Review candidates to revisit deliberately, not as broad churn:
   executable and round-trip through the canonical Personskat contract, and
   § 6 D now carries seller-note installment taxation, owner-attributed annual
   EBL gain after partial succession and the separate KGL realization across
-  years. Remaining bounded work includes the still fail-closed multi-property
-  § 10 allocation edges, non-spouse beneficiaries and remaining bounded
-  dependency rules.
+  years. § 10 now allocates reconstruction across identified properties and
+  routes the selected property's deferred gain into later disposal. Remaining
+  bounded work includes the typed Afskrivningsloven § 24 coordination
+  (`td-8cb07d`), non-spouse beneficiaries and remaining bounded dependency
+  rules.
 - Expand the first Personskat field-metadata slice as new source-fact branches
   reach the canonical calculation. Preserve canonical paths as machine keys and
   add human labels, interview questions, help, units and sources at the same

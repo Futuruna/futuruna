@@ -1,0 +1,163 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ejendomsavancebeskatningsloven
+
+= ebl_par10_fordeling_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par10_anden_ejendom_vejledning_2026),
+    )
+)
+
+--@label:ebl_par10_fordeling_scenarier::meta:ebl_par10_fordeling_scenarier_metadata--
+--@begin:ebl_par10_fordeling_scenarier--
+| ebl_par10_fordeling_scenarie_fakta(genopførelsessted: EblPar10Genopførelsessted) -> EblPar10Fakta(
+    skadedato = EblDato(år = 2024, måned = 3, dag = 1),
+    erstatningssum_endeligt_fastsat_indkomstår = 2024,
+    genopførelsesindkomstår = 2025,
+    skadelidt_ejendom_omfattet_af_par8 = Falskt,
+    erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner = 500000,
+    reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = 300000,
+    genopførelsessted = genopførelsessted,
+    fristforhold = EblPar10UdenFristforlængelse,
+    erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
+    bygninger_afskrivningsberettigede = Falskt,
+    afskrivningslov_par24_anvendt = Falskt,
+    regulering = EblGenanbragtFortjenesteregulering(
+        tillæg_for_genanbragt_del_kroner = 0,
+        nedslag_for_genanbragt_del_kroner = 0
+    )
+)
+
+= ebl_par10_fordeling_scenarie_ejendom_a = EblPar10Genopførelsesejendom(
+    identifikation = "ejendom-a",
+    genopførelsesudgifter_kroner = 400000
+)
+= ebl_par10_fordeling_scenarie_ejendom_b = EblPar10Genopførelsesejendom(
+    identifikation = "ejendom-b",
+    genopførelsesudgifter_kroner = 200000
+)
+= ebl_par10_fordeling_scenarie_grundfakta = ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10SammeEjersErhvervsejendommeUdgørDriftsenhed,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = [
+            ebl_par10_fordeling_scenarie_ejendom_a,
+            ebl_par10_fordeling_scenarie_ejendom_b,
+        ]
+    )
+)
+= ebl_par10_fordeling_scenarie_resultat = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_grundfakta)
+= ebl_par10_fordeling_scenarie_fordeling_a = head(filter(ebl_par10_fordeling_scenarie_resultat.fordelinger, |fordeling: EblPar10Ejendomsfordeling| fordeling.ejendomsidentifikation == "ejendom-a"))
+= ebl_par10_fordeling_scenarie_fordeling_b = head(filter(ebl_par10_fordeling_scenarie_resultat.fordelinger, |fordeling: EblPar10Ejendomsfordeling| fordeling.ejendomsidentifikation == "ejendom-b"))
+= ebl_par10_fordeling_scenarie_valgt_a = ebl_genanbringelsesresultat(EblMedGenanbringelseEfterPar10(
+    fakta = ebl_par10_fordeling_scenarie_grundfakta,
+    genopført_ejendom_identifikation = "ejendom-a"
+))
+= ebl_par10_fordeling_scenarie_valgt_b = ebl_genanbringelsesresultat(EblMedGenanbringelseEfterPar10(
+    fakta = ebl_par10_fordeling_scenarie_grundfakta,
+    genopført_ejendom_identifikation = "ejendom-b"
+))
+
+= ebl_par10_fordeling_scenarie_dublet = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10SammeEjersErhvervsejendommeUdgørDriftsenhed,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = [
+            ebl_par10_fordeling_scenarie_ejendom_a,
+            EblPar10Genopførelsesejendom(
+                identifikation = "ejendom-a",
+                genopførelsesudgifter_kroner = 200000
+            ),
+        ]
+    )
+))
+= ebl_par10_fordeling_scenarie_manglende_ejendom = ebl_par10_resultat_for_ejendom(
+    ebl_par10_fordeling_scenarie_grundfakta,
+    "ejendom-c"
+)
+= ebl_par10_fordeling_scenarie_tom_liste = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = []
+    )
+))
+= ebl_par10_fordeling_scenarie_nuludgift = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = [EblPar10Genopførelsesejendom(
+            identifikation = "ejendom-nul",
+            genopførelsesudgifter_kroner = 0
+        )]
+    )
+))
+= ebl_par10_fordeling_scenarie_negativ_udgift = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = [EblPar10Genopførelsesejendom(
+            identifikation = "ejendom-negativ",
+            genopførelsesudgifter_kroner = -1
+        )]
+    )
+))
+= ebl_par10_fordeling_scenarie_for_sen_meddelelse = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10SammeEjersErhvervsejendommeUdgørDriftsenhed,
+        meddelelse = EblPar10MeddelelseForSen,
+        ejendomme = [
+            ebl_par10_fordeling_scenarie_ejendom_a,
+            ebl_par10_fordeling_scenarie_ejendom_b,
+        ]
+    )
+))
+= ebl_par10_fordeling_scenarie_en_ejendom = ebl_par10_fordelingsresultat(ebl_par10_fordeling_scenarie_fakta(
+    EblPar10GenopførelsePåAndreEjendomme(
+        grund = EblPar10LovEllerMyndighedHindrerGenopførelsePåSkadested,
+        meddelelse = EblPar10MeddelelseVedOplysningerEfterSkattekontrollovensPar2,
+        ejendomme = [EblPar10Genopførelsesejendom(
+            identifikation = "en-ejendom",
+            genopførelsesudgifter_kroner = 600000
+        )]
+    )
+))
+= ebl_par10_fordeling_scenarie_en_ejendoms_fordeling = head(ebl_par10_fordeling_scenarie_en_ejendom.fordelinger)
+= ebl_par10_fordeling_scenarie_samme_ejendom = ebl_genanbringelsesresultat(EblMedGenanbringelseEfterPar10(
+    fakta = ebl_par10_fordeling_scenarie_fakta(EblPar10GenopførelsePåSammeEjendom(
+        ejendom = EblPar10Genopførelsesejendom(
+            identifikation = "skadelidt-ejendom",
+            genopførelsesudgifter_kroner = 150000
+        )
+    )),
+    genopført_ejendom_identifikation = "skadelidt-ejendom"
+))
+
+| ebl_par10_fordeling_scenarie_afleder_stk7_og_stk8_totaler: ebl_par10_fordeling_scenarie_resultat -> ebl_par10_fordeling_scenarie_resultat.input_gyldigt && ebl_par10_fordeling_scenarie_resultat.regelgrundlag_understøttet && ebl_par10_fordeling_scenarie_resultat.betingelser_opfyldt && ebl_par10_fordeling_scenarie_resultat.samlede_genopførelsesudgifter_kroner == 600000 && ebl_par10_fordeling_scenarie_resultat.overført_anskaffelsessum_efter_stk8_i_alt_kroner == 300000 && ebl_par10_fordeling_scenarie_resultat.tillæg_til_anskaffelsessum_efter_stk7_i_alt_kroner == 100000 && length(ebl_par10_fordeling_scenarie_resultat.fordelinger) == 2 && ebl_par10_fordeling_scenarie_resultat.fordelinger_afstemmer
+| ebl_par10_fordeling_scenarie_fordeler_ejendom_a_efter_udgiftsandel: ebl_par10_fordeling_scenarie_fordeling_a -> ebl_par10_fordeling_scenarie_fordeling_a.fordelingsandel_tæller_kroner == 400000 && ebl_par10_fordeling_scenarie_fordeling_a.fordelingsandel_nævner_kroner == 600000 && ebl_par10_fordeling_scenarie_fordeling_a.overført_anskaffelsessum_efter_stk8_kroner == 200000 && ebl_par10_fordeling_scenarie_fordeling_a.tillæg_til_anskaffelsessum_efter_stk7_kroner == 66666 && ebl_par10_fordeling_scenarie_fordeling_a.genanbragt_fortjeneste_kroner == 133333 && ebl_par10_fordeling_scenarie_fordeling_a.aktivt_anskaffelsessumsnedslag_kroner == 133333
+| ebl_par10_fordeling_scenarie_fordeler_resten_til_ejendom_b: ebl_par10_fordeling_scenarie_fordeling_b -> ebl_par10_fordeling_scenarie_fordeling_b.fordelingsandel_tæller_kroner == 200000 && ebl_par10_fordeling_scenarie_fordeling_b.fordelingsandel_nævner_kroner == 600000 && ebl_par10_fordeling_scenarie_fordeling_b.overført_anskaffelsessum_efter_stk8_kroner == 100000 && ebl_par10_fordeling_scenarie_fordeling_b.tillæg_til_anskaffelsessum_efter_stk7_kroner == 33334 && ebl_par10_fordeling_scenarie_fordeling_b.genanbragt_fortjeneste_kroner == 66667 && ebl_par10_fordeling_scenarie_fordeling_b.aktivt_anskaffelsessumsnedslag_kroner == 66667
+| ebl_par10_fordeling_scenarie_valgte_ejendomme_afstemmer: ebl_par10_fordeling_scenarie_valgt_a -> ebl_par10_fordeling_scenarie_valgt_a.input_gyldigt && ebl_par10_fordeling_scenarie_valgt_a.betingelser_opfyldt && ebl_par10_fordeling_scenarie_valgt_a.aktivt_anskaffelsessumsnedslag_kroner == 133333 && ebl_par10_fordeling_scenarie_valgt_b.aktivt_anskaffelsessumsnedslag_kroner == 66667 && ebl_par10_fordeling_scenarie_valgt_a.aktivt_anskaffelsessumsnedslag_kroner + ebl_par10_fordeling_scenarie_valgt_b.aktivt_anskaffelsessumsnedslag_kroner == 200000 && ebl_par10_fordeling_scenarie_valgt_a.oprindelig_erhvervsfortjeneste_kroner == ebl_par10_fordeling_scenarie_valgt_a.genanbragt_fortjeneste_kroner + ebl_par10_fordeling_scenarie_valgt_a.straks_beskattet_fortjeneste_kroner && ebl_par10_fordeling_scenarie_valgt_b.oprindelig_erhvervsfortjeneste_kroner == ebl_par10_fordeling_scenarie_valgt_b.genanbragt_fortjeneste_kroner + ebl_par10_fordeling_scenarie_valgt_b.straks_beskattet_fortjeneste_kroner && ebl_par10_fordeling_scenarie_valgt_a.aktivt_anskaffelsessumsnedslag_kroner == ebl_par10_fordeling_scenarie_valgt_a.genanbragt_fortjeneste_kroner && ebl_par10_fordeling_scenarie_valgt_b.aktivt_anskaffelsessumsnedslag_kroner == ebl_par10_fordeling_scenarie_valgt_b.genanbragt_fortjeneste_kroner
+| ebl_par10_fordeling_scenarie_afviser_dubletidentifikation: ebl_par10_fordeling_scenarie_dublet -> ebl_par10_fordeling_scenarie_dublet.input_gyldigt == Falskt && ebl_par10_fordeling_scenarie_dublet.betingelser_opfyldt == Falskt && length(ebl_par10_fordeling_scenarie_dublet.fordelinger) == 0 && ebl_par10_fordeling_scenarie_dublet.fordelinger_afstemmer == Falskt
+| ebl_par10_fordeling_scenarie_afviser_manglende_valgt_ejendom: ebl_par10_fordeling_scenarie_manglende_ejendom -> ebl_par10_fordeling_scenarie_manglende_ejendom.input_gyldigt == Falskt && ebl_par10_fordeling_scenarie_manglende_ejendom.betingelser_opfyldt == Falskt && ebl_par10_fordeling_scenarie_manglende_ejendom.aktivt_anskaffelsessumsnedslag_kroner == 0
+| ebl_par10_fordeling_scenarie_afviser_tom_liste: ebl_par10_fordeling_scenarie_tom_liste -> ebl_par10_fordeling_scenarie_tom_liste.input_gyldigt == Falskt && ebl_par10_fordeling_scenarie_tom_liste.betingelser_opfyldt == Falskt && length(ebl_par10_fordeling_scenarie_tom_liste.fordelinger) == 0 && ebl_par10_fordeling_scenarie_tom_liste.fordelinger_afstemmer == Falskt
+| ebl_par10_fordeling_scenarie_afviser_ikke_positive_udgifter: ebl_par10_fordeling_scenarie_nuludgift -> ebl_par10_fordeling_scenarie_nuludgift.input_gyldigt == Falskt && ebl_par10_fordeling_scenarie_negativ_udgift.input_gyldigt == Falskt && length(ebl_par10_fordeling_scenarie_nuludgift.fordelinger) == 0 && length(ebl_par10_fordeling_scenarie_negativ_udgift.fordelinger) == 0 && ebl_par10_fordeling_scenarie_nuludgift.fordelinger_afstemmer == Falskt && ebl_par10_fordeling_scenarie_negativ_udgift.fordelinger_afstemmer == Falskt
+| ebl_par10_fordeling_scenarie_for_sen_meddelelse_anvendes_ikke: ebl_par10_fordeling_scenarie_for_sen_meddelelse -> ebl_par10_fordeling_scenarie_for_sen_meddelelse.input_gyldigt && ebl_par10_fordeling_scenarie_for_sen_meddelelse.betingelser_opfyldt == Falskt && length(ebl_par10_fordeling_scenarie_for_sen_meddelelse.fordelinger) == 0 && ebl_par10_fordeling_scenarie_for_sen_meddelelse.fordelinger_afstemmer == Falskt
+| ebl_par10_fordeling_scenarie_en_anden_ejendom_får_hele_beløbet: ebl_par10_fordeling_scenarie_en_ejendoms_fordeling -> ebl_par10_fordeling_scenarie_en_ejendom.input_gyldigt && ebl_par10_fordeling_scenarie_en_ejendom.betingelser_opfyldt && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.overført_anskaffelsessum_efter_stk8_kroner == 300000 && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.tillæg_til_anskaffelsessum_efter_stk7_kroner == 100000 && ebl_par10_fordeling_scenarie_en_ejendoms_fordeling.aktivt_anskaffelsessumsnedslag_kroner == 200000
+| ebl_par10_fordeling_scenarie_samme_ejendom_bevarer_delvis_genopførelse: ebl_par10_fordeling_scenarie_samme_ejendom -> ebl_par10_fordeling_scenarie_samme_ejendom.input_gyldigt && ebl_par10_fordeling_scenarie_samme_ejendom.betingelser_opfyldt && ebl_par10_fordeling_scenarie_samme_ejendom.oprindelig_erhvervsfortjeneste_kroner == 200000 && ebl_par10_fordeling_scenarie_samme_ejendom.genanbragt_fortjeneste_kroner == 150000 && ebl_par10_fordeling_scenarie_samme_ejendom.straks_beskattet_fortjeneste_kroner == 50000 && ebl_par10_fordeling_scenarie_samme_ejendom.aktivt_anskaffelsessumsnedslag_kroner == 150000
+
+? ebl_par10_fordeling_scenarie_afleder_stk7_og_stk8_totaler
+? ebl_par10_fordeling_scenarie_fordeler_ejendom_a_efter_udgiftsandel
+? ebl_par10_fordeling_scenarie_fordeler_resten_til_ejendom_b
+? ebl_par10_fordeling_scenarie_valgte_ejendomme_afstemmer
+? ebl_par10_fordeling_scenarie_afviser_dubletidentifikation
+? ebl_par10_fordeling_scenarie_afviser_manglende_valgt_ejendom
+? ebl_par10_fordeling_scenarie_afviser_tom_liste
+? ebl_par10_fordeling_scenarie_afviser_ikke_positive_udgifter
+? ebl_par10_fordeling_scenarie_for_sen_meddelelse_anvendes_ikke
+? ebl_par10_fordeling_scenarie_en_anden_ejendom_får_hele_beløbet
+? ebl_par10_fordeling_scenarie_samme_ejendom_bevarer_delvis_genopførelse
+
+@ print("EBL § 10 allocation scenarios passed")
+--@end:ebl_par10_fordeling_scenarier--

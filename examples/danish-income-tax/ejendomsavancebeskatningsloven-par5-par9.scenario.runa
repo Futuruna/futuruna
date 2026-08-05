@@ -114,8 +114,12 @@
     skadelidt_ejendom_omfattet_af_par8 = Falskt,
     erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner = 500000,
     reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = 300000,
-    genopførelsesudgifter_kroner = 150000,
-    genopførelsessted = EblPar10GenopførelsePåSammeEjendom,
+    genopførelsessted = EblPar10GenopførelsePåSammeEjendom(
+        ejendom = EblPar10Genopførelsesejendom(
+            identifikation = "Den skadelidte ejendom",
+            genopførelsesudgifter_kroner = 150000
+        )
+    ),
     fristforhold = EblPar10UdenFristforlængelse,
     erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
     bygninger_afskrivningsberettigede = Falskt,
