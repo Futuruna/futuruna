@@ -1017,11 +1017,13 @@ RuleScope-memoisering er nu implementeret i den kompilerede backend under
 `td-95076b`: nul-argumentsregler cachelagres kun under én offentlig
 RuleScope-rodevaluering, og parameteriserede regler samt almindelige metoder
 deler samme evalueringsramme. En instrumenteret compiler-regression beviser, at
-to søskendekald kun udfører den underliggende regel én gang. Den fulde
-`runa`-binsuite passerer 372 tests, og det sammensatte Personskat-pensionsscenario
-gik fra mere end 30 minutters fuld CPU uden afslutning til omtrent 89 sekunder
-med alle 13 invarianter bestået. Kontraktcache er fortsat selvstændigt
-performancearbejde.
+to søskendekald kun udfører den underliggende regel én gang. De private
+memo-felter, hjælpermetoder, lokale variabler og hjælpetyper får friske Rust-navne,
+så domæneregler som `depth()` og tilsvarende kildeidentifikatorer ikke kolliderer
+med compileren. Den fulde `runa`-binsuite passerer 373 tests, og det sammensatte
+Personskat-pensionsscenario gik fra mere end 30 minutters fuld CPU uden
+afslutning til omtrent 89 sekunder med alle 13 invarianter bestået.
+Kontraktcache er fortsat selvstændigt performancearbejde.
 
 Previous integration: Den kanoniske graf modtager ABL-kildefakta for både
 ordinære aktiers hændelsesforløb og de særlige aktivgrene i §§ 17-22. Grafen

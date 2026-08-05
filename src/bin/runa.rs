@@ -27265,44 +27265,81 @@ impl RustCodegen {
 
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
         let mut method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
+        let value_methods = Self::rule_scope_defn_methods(body);
+        for method in &value_methods {
+            if let Defn::Fn { name, .. } = method {
+                method_names.insert(name.clone());
+            }
+        }
         let (method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(name, &rust_name, params, &rule_groups);
-        let memoized_rule_methods: Vec<(String, String)> = rule_groups
+        let memoized_rule_methods: Vec<(String, String, String)> = rule_groups
             .keys()
             .filter(|method| {
                 method_params
                     .get(*method)
                     .is_none_or(|params| params.is_empty())
             })
-            .map(|method| {
+            .enumerate()
+            .map(|(index, method)| {
                 let return_ty = method_return_tys
                     .get(method)
                     .and_then(Self::fir_type_to_rust)
                     .unwrap_or_else(|| "bool".to_string());
-                (method.clone(), return_ty)
+                (method.clone(), return_ty, format!("value_{}", index))
             })
             .collect();
         let has_memoized_rules = !memoized_rule_methods.is_empty();
-        let memo_type = format!("__Fut{}RuleMemo", rust_name);
-        let memo_frame_type = format!("__Fut{}RuleMemoFrame", rust_name);
+        let memo_value_fields: BTreeMap<String, String> = memoized_rule_methods
+            .iter()
+            .map(|(method, _, field)| (method.clone(), field.clone()))
+            .collect();
+        let mut scope_field_names: BTreeSet<String> = params
+            .iter()
+            .map(|param| sanitize_name(&param.name))
+            .collect();
+        let memo_storage_field =
+            fresh_generated_rust_name("__fut_rule_memo", &mut scope_field_names);
+        let mut used_rust_method_names: BTreeSet<String> = method_names
+            .iter()
+            .map(|method| sanitize_name(method))
+            .collect();
+        let compute_method_names: BTreeMap<String, String> = method_names
+            .iter()
+            .map(|method| {
+                let base = format!("__fut_compute_{}", sanitize_name(method));
+                let generated = fresh_generated_rust_name(&base, &mut used_rust_method_names);
+                (method.clone(), generated)
+            })
+            .collect();
+        let mut used_rust_type_names: BTreeSet<String> = self
+            .types
+            .type_decls
+            .keys()
+            .map(|type_name| self.rust_type_name(type_name))
+            .collect();
+        let memo_type = fresh_generated_rust_name(
+            &format!("__Fut{}RuleMemo", rust_name),
+            &mut used_rust_type_names,
+        );
+        let memo_frame_type = fresh_generated_rust_name(
+            &format!("__Fut{}RuleMemoFrame", rust_name),
+            &mut used_rust_type_names,
+        );
 
         if has_memoized_rules {
             out.push_str("#[derive(Default)]\n");
             out.push_str(&format!("struct {} {{\n", memo_type));
             out.push_str("    depth: usize,\n");
-            for (method, return_ty) in &memoized_rule_methods {
-                out.push_str(&format!(
-                    "    {}: Option<Box<{}>>,\n",
-                    sanitize_name(method),
-                    return_ty
-                ));
+            for (_, return_ty, field) in &memoized_rule_methods {
+                out.push_str(&format!("    {}: Option<Box<{}>>,\n", field, return_ty));
             }
             out.push_str("}\n\n");
 
             out.push_str(&format!("impl {} {{\n", memo_type));
             out.push_str("    fn clear(&mut self) {\n");
-            for (method, _) in &memoized_rule_methods {
-                out.push_str(&format!("        self.{} = None;\n", sanitize_name(method)));
+            for (_, _, field) in &memoized_rule_methods {
+                out.push_str(&format!("        self.{} = None;\n", field));
             }
             out.push_str("    }\n");
             out.push_str("}\n\n");
@@ -27342,8 +27379,8 @@ impl RustCodegen {
         }
         if has_memoized_rules {
             out.push_str(&format!(
-                "    __fut_rule_memo: std::cell::RefCell<{}>,\n",
-                memo_type
+                "    {}: std::cell::RefCell<{}>,\n",
+                memo_storage_field, memo_type
             ));
         }
         out.push_str("}\n\n");
@@ -27357,8 +27394,8 @@ impl RustCodegen {
                 out.push_str(&format!("            {}: self.{}.clone(),\n", field, field));
             }
             out.push_str(&format!(
-                "            __fut_rule_memo: std::cell::RefCell::new({}::default()),\n",
-                memo_type
+                "            {}: std::cell::RefCell::new({}::default()),\n",
+                memo_storage_field, memo_type
             ));
             out.push_str("        }\n");
             out.push_str("    }\n");
@@ -27404,8 +27441,8 @@ impl RustCodegen {
             .collect();
         if has_memoized_rules {
             ctor_fields.push(format!(
-                "__fut_rule_memo: std::cell::RefCell::new({}::default())",
-                memo_type
+                "{}: std::cell::RefCell::new({}::default())",
+                memo_storage_field, memo_type
             ));
         }
         out.push_str("#[allow(non_snake_case)]\n");
@@ -27469,9 +27506,8 @@ impl RustCodegen {
                 .call_params
                 .insert(method.clone(), params.clone());
         }
-        for method in Self::rule_scope_defn_methods(body) {
+        for method in &value_methods {
             if let Defn::Fn { name, params, .. } = method {
-                method_names.insert(name.clone());
                 self.types.call_params.insert(
                     name.clone(),
                     params
@@ -27494,28 +27530,48 @@ impl RustCodegen {
                 .get(method)
                 .cloned()
                 .unwrap_or(FirTy::Bool);
-            out.push_str(&self.emit_rule_scope_method(
-                name,
-                params,
-                method,
-                rules,
-                &params_for_method,
-                &param_tys,
-                &ret_ty,
-                pub_prefix,
-                has_memoized_rules,
-                &memo_frame_type,
-            ));
+            out.push_str(
+                &self.emit_rule_scope_method(
+                    name,
+                    params,
+                    method,
+                    rules,
+                    &params_for_method,
+                    &param_tys,
+                    &ret_ty,
+                    pub_prefix,
+                    has_memoized_rules,
+                    &memo_frame_type,
+                    &memo_storage_field,
+                    compute_method_names
+                        .get(method)
+                        .expect("RuleScope rule should have an internal compute method"),
+                    memo_value_fields.get(method).map(String::as_str),
+                ),
+            );
         }
-        for method in Self::rule_scope_defn_methods(body) {
-            out.push_str(&self.emit_rule_scope_value_method(
-                name,
-                params,
-                method,
-                pub_prefix,
-                has_memoized_rules,
-                &memo_frame_type,
-            ));
+        for method in &value_methods {
+            let Defn::Fn {
+                name: value_method_name,
+                ..
+            } = method
+            else {
+                continue;
+            };
+            out.push_str(
+                &self.emit_rule_scope_value_method(
+                    name,
+                    params,
+                    method,
+                    pub_prefix,
+                    has_memoized_rules,
+                    &memo_frame_type,
+                    &memo_storage_field,
+                    compute_method_names
+                        .get(value_method_name)
+                        .expect("RuleScope method should have an internal compute method"),
+                ),
+            );
         }
         out.push_str("}\n");
 
@@ -27538,6 +27594,9 @@ impl RustCodegen {
         pub_prefix: &str,
         has_memoized_rules: bool,
         memo_frame_type: &str,
+        memo_storage_field: &str,
+        compute_method_name: &str,
+        memo_value_field: Option<&str>,
     ) -> String {
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
         let mut sig_params = vec!["&self".to_string()];
@@ -27590,6 +27649,15 @@ impl RustCodegen {
                 call_args.push("__fut_globals".to_string());
             }
             call_args.extend(params.iter().map(|param| sanitize_name(param)));
+            let mut wrapper_names: BTreeSet<String> =
+                params.iter().map(|param| sanitize_name(param)).collect();
+            if uses_binary_global_env {
+                wrapper_names.insert("__fut_globals".to_string());
+            }
+            let is_root_name = fresh_generated_rust_name("__fut_is_root", &mut wrapper_names);
+            let memo_borrow_name = fresh_generated_rust_name("__fut_memo", &mut wrapper_names);
+            let memo_frame_name = fresh_generated_rust_name("__fut_memo_frame", &mut wrapper_names);
+            let value_name = fresh_generated_rust_name("__fut_value", &mut wrapper_names);
 
             let mut out = String::new();
             let emitted_method_name = if has_memoized_rules {
@@ -27600,38 +27668,48 @@ impl RustCodegen {
                     sig_params.join(", "),
                     ret_type
                 ));
-                if params.is_empty() {
+                if let Some(memo_value_field) = memo_value_field {
                     out.push_str(&format!(
-                        "        if let Some(__fut_value) = self.__fut_rule_memo.borrow().{}.as_ref() {{\n",
-                        method_name
+                        "        if let Some({}) = self.{}.borrow().{}.as_ref() {{\n",
+                        value_name, memo_storage_field, memo_value_field
                     ));
-                    out.push_str("            return __fut_value.as_ref().clone();\n");
+                    out.push_str(&format!(
+                        "            return {}.as_ref().clone();\n",
+                        value_name
+                    ));
                     out.push_str("        }\n");
                 }
-                out.push_str("        let __fut_is_root = {\n");
-                out.push_str("            let mut __fut_memo = self.__fut_rule_memo.borrow_mut();\n");
-                out.push_str("            let __fut_is_root = __fut_memo.depth == 0;\n");
-                out.push_str("            __fut_memo.depth += 1;\n");
-                out.push_str("            __fut_is_root\n");
+                out.push_str(&format!("        let {} = {{\n", is_root_name));
+                out.push_str(&format!(
+                    "            let mut {} = self.{}.borrow_mut();\n",
+                    memo_borrow_name, memo_storage_field
+                ));
+                out.push_str(&format!(
+                    "            let {} = {}.depth == 0;\n",
+                    is_root_name, memo_borrow_name
+                ));
+                out.push_str(&format!("            {}.depth += 1;\n", memo_borrow_name));
+                out.push_str(&format!("            {}\n", is_root_name));
                 out.push_str("        };\n");
                 out.push_str(&format!(
-                    "        let _fut_memo_frame = {} {{ memo: &self.__fut_rule_memo, root: __fut_is_root }};\n",
-                    memo_frame_type
+                    "        let {} = {} {{ memo: &self.{}, root: {} }};\n",
+                    memo_frame_name, memo_frame_type, memo_storage_field, is_root_name
                 ));
                 out.push_str(&format!(
-                    "        let __fut_value = self.__fut_compute_{}({});\n",
-                    method_name,
+                    "        let {} = self.{}({});\n",
+                    value_name,
+                    compute_method_name,
                     call_args.join(", ")
                 ));
-                if params.is_empty() {
+                if let Some(memo_value_field) = memo_value_field {
                     out.push_str(&format!(
-                        "        self.__fut_rule_memo.borrow_mut().{} = Some(Box::new(__fut_value.clone()));\n",
-                        method_name
+                        "        self.{}.borrow_mut().{} = Some(Box::new({}.clone()));\n",
+                        memo_storage_field, memo_value_field, value_name
                     ));
                 }
-                out.push_str("        __fut_value\n");
+                out.push_str(&format!("        {}\n", value_name));
                 out.push_str("    }\n\n");
-                format!("__fut_compute_{}", method_name)
+                compute_method_name.to_string()
             } else {
                 method_name.clone()
             };
@@ -27802,6 +27880,8 @@ impl RustCodegen {
         pub_prefix: &str,
         has_memoized_rules: bool,
         memo_frame_type: &str,
+        memo_storage_field: &str,
+        compute_method_name: &str,
     ) -> String {
         let Defn::Fn {
             name,
@@ -27879,11 +27959,17 @@ impl RustCodegen {
             if uses_binary_global_env {
                 call_args.push("__fut_globals".to_string());
             }
-            call_args.extend(
-                method_param_names
-                    .iter()
-                    .map(|param| sanitize_name(param)),
-            );
+            call_args.extend(method_param_names.iter().map(|param| sanitize_name(param)));
+            let mut wrapper_names: BTreeSet<String> = method_param_names
+                .iter()
+                .map(|param| sanitize_name(param))
+                .collect();
+            if uses_binary_global_env {
+                wrapper_names.insert("__fut_globals".to_string());
+            }
+            let is_root_name = fresh_generated_rust_name("__fut_is_root", &mut wrapper_names);
+            let memo_borrow_name = fresh_generated_rust_name("__fut_memo", &mut wrapper_names);
+            let memo_frame_name = fresh_generated_rust_name("__fut_memo_frame", &mut wrapper_names);
 
             let mut out = String::new();
             let emitted_method_name = if has_memoized_rules {
@@ -27894,23 +27980,29 @@ impl RustCodegen {
                     sig_params.join(", "),
                     ret
                 ));
-                out.push_str("        let __fut_is_root = {\n");
-                out.push_str("            let mut __fut_memo = self.__fut_rule_memo.borrow_mut();\n");
-                out.push_str("            let __fut_is_root = __fut_memo.depth == 0;\n");
-                out.push_str("            __fut_memo.depth += 1;\n");
-                out.push_str("            __fut_is_root\n");
-                out.push_str("        };\n");
+                out.push_str(&format!("        let {} = {{\n", is_root_name));
                 out.push_str(&format!(
-                    "        let _fut_memo_frame = {} {{ memo: &self.__fut_rule_memo, root: __fut_is_root }};\n",
-                    memo_frame_type
+                    "            let mut {} = self.{}.borrow_mut();\n",
+                    memo_borrow_name, memo_storage_field
                 ));
                 out.push_str(&format!(
-                    "        self.__fut_compute_{}({})\n",
-                    method_name,
+                    "            let {} = {}.depth == 0;\n",
+                    is_root_name, memo_borrow_name
+                ));
+                out.push_str(&format!("            {}.depth += 1;\n", memo_borrow_name));
+                out.push_str(&format!("            {}\n", is_root_name));
+                out.push_str("        };\n");
+                out.push_str(&format!(
+                    "        let {} = {} {{ memo: &self.{}, root: {} }};\n",
+                    memo_frame_name, memo_frame_type, memo_storage_field, is_root_name
+                ));
+                out.push_str(&format!(
+                    "        self.{}({})\n",
+                    compute_method_name,
                     call_args.join(", ")
                 ));
                 out.push_str("    }\n\n");
-                format!("__fut_compute_{}", method_name)
+                compute_method_name.to_string()
             } else {
                 method_name.clone()
             };
@@ -41317,6 +41409,21 @@ fn sanitize_name(name: &str) -> String {
     }
 }
 
+fn fresh_generated_rust_name(base: &str, used: &mut BTreeSet<String>) -> String {
+    if used.insert(base.to_string()) {
+        return base.to_string();
+    }
+
+    let mut suffix = 2;
+    loop {
+        let candidate = format!("{}_{}", base, suffix);
+        if used.insert(candidate.clone()) {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
 // ============================================================================
 // TESTS
 // ============================================================================
@@ -49364,6 +49471,24 @@ for x in [1, 2] {
             String::from_utf8_lossy(&run.stderr)
         );
         assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "42");
+    }
+
+    #[test]
+    fn compiled_rulescope_memoization_uses_fresh_internal_names() {
+        let source = r#"
+# __FutCollisionCaseRuleMemo(value: Int)
+# __FutCollisionCaseRuleMemoFrame(value: Int)
+# CollisionCase(__fut_rule_memo: Int) {
+    | depth() -> __fut_rule_memo
+    | __fut_compute_depth() -> depth() + 1
+    | scaled(__fut_is_root: Int) -> __fut_compute_depth() + __fut_is_root
+}
+
+= answer = CollisionCase(2).scaled(4)
+@ print(show(answer))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "7");
     }
 
     fn binary_global_env_rulescope_source() -> &'static str {
