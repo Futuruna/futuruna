@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-699438` (typede ABL § 17-kildefakta, undtagelser og modprøver afledes nu ved den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-0b0a4b` (før ABL §§ 35 G-35 K's valg og vedvarende overdragerskat gennem den kanoniske årsberegning)
+Next source-backed slice: `td-3681f7` (før ABL §§ 37-40's fraflytterskat, henstand og tilbageflytning gennem den kanoniske årsberegning)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -20,7 +20,7 @@ Previous language support slice: `td-8a34e0` (`refof`-referencer er implementere
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
-Latest approved implementation slice: `td-8e40ea`
+Latest approved implementation slice: `td-699438`
 Latest approved language slice: `td-8a34e0`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -1324,9 +1324,16 @@ Beholdningen bruger FIFO pr. aktieparti; afståelser, årets 8 pct.-udbyttegræn
 skattefradrag, forfaldsposter, betalinger og endeligt bortfald bevares som
 adskilte typede hændelser. §§ 35 J-35 K håndterer tvangsafståelser,
 værdinedgangsdispositioner, årsoplysninger, sikkerhed og hjemstedsflytninger.
-De 17 fokusscenarier passerer i både interpreter og kompileret kode, inklusive
-virkningsgrænsen 2025/2026 og et kædet forløb fra 55.000 kr. startsaldo til
-endelig betaling og bortfald.
+Et samlet, identificeret kildeforløb genafspiller nu valget og en kronologisk
+liste af typede hændelser fra overdragelsesåret til opgørelsesåret. Hver
+hændelse har en stabil identifikation og en eksplicit rækkefølge inden for
+indkomståret. Saldo, forfald, betaling, bortfald og ultimotilstand afledes fra
+historikken; de kan ikke leveres som færdige input fra kalderen. En ugyldig
+rækkefølge eller hændelse fejler lukket uden at mutere den afledte tilstand.
+De 23 fokusscenarier passerer i både interpreter og kompileret kode, inklusive
+virkningsgrænsen 2025/2026, tvangsmodning, oplysningssvigt, hjemstedsflytning,
+straksindkomst fra negativ anskaffelsessum og et kædet forløb fra 55.000 kr.
+startsaldo til endelig betaling og bortfald.
 
 Selskabslovens § 47 tillader en kombination af kapitalandele med nominel værdi
 og stykkapitalandele. Den nuværende ABL-position bærer nu det dokumenterede,
@@ -3819,9 +3826,9 @@ Review candidates to revisit deliberately, not as broad churn:
   provisions as intentionally separate calculation/workflow boundaries. It
   identified material Personskat composition gaps for ABL § 5 A
   (`td-6766a4`) and paired § 13 A loss offsets (`td-ed02d8`), which are now
-  implemented and awaiting independent review. The remaining ranked gaps include
-  the richer § 17 source model (`td-699438`), §§ 35 G-35 K (`td-0b0a4b`) and
-  §§ 37-40 (`td-3681f7`). It also
+  implemented and awaiting independent review. Subsequent slices have also
+  closed the richer § 17 source model (`td-699438`) and §§ 35 G-35 K
+  (`td-0b0a4b`); the next ranked lifecycle gap is §§ 37-40 (`td-3681f7`). It also
   confirms public caller-derived current-law values in the residual KGL annual
   net (`td-5beddd`), untyped capital expenses (`td-151941`) and the PSL § 13
   deficit-eligibility flag (`td-292327`). Fixtures remain deliberately outside
@@ -3878,7 +3885,7 @@ Review candidates to revisit deliberately, not as broad churn:
   Alle 25 kanoniske scenarier og alle 15 fokuserede § 17-scenarier passerer
   kompileret. Den fulde XLSX-rundtur udfylder kildefakta for en § 17-gevinst på
   7.000 kr., gendanner samme kanoniske JSON og returnerer den afledte § 7-status,
-  § 17-anvendelse og KGL § 32-relation. Det aktuelle skema har hash
+  § 17-anvendelse og KGL § 32-relation. Skemaet for denne slice havde hash
   `e7a63e73e5c8943ea7d69588a3eea69423551347b8ee6a2715fe3c10aea6b09f`.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
@@ -3902,11 +3909,25 @@ Review candidates to revisit deliberately, not as broad churn:
   portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
   reduction. The multi-period state remains a separate typed module instead of
   being folded into § 39's one-time eligibility decision.
-- Aktieavancebeskatningsloven §§ 35 G-35 K now cover the 2026
-  employee-ownership election and its persistent transferor-tax ledger. The
-  domain keeps inventory lots, unpaid claims, paid reductions, reporting and
-  residence/security state together without passing loose facts down a
-  parameter chain.
+- Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
+  Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
+  etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
+  ordnede afståelser, udbytter, betalinger, omstruktureringer,
+  tvangsafståelser, værdinedgangsdispositioner, årsoplysninger og
+  hjemstedsflytninger. Personskat modtager kun det afledte ABL-resultat og
+  bevarer hele hændelsessporet. Straksgevinsten efter § 35 H føres til
+  aktieindkomst, mens virksomhedens forfaldne og betalte overdragerskat samt
+  saldobortfald rapporteres særskilt og ikke lægges til personens ordinære
+  skattetotal.
+  Den kanoniske scenariofil har nu 43 invarianter. Et konkret 2026-forløb med
+  -50.000 kr. i skattemæssig anskaffelsessum afleder 50.000 kr. i
+  straksbeskattet aktieindkomst, 13.500 kr. i personens aktieindkomstskat og
+  22.000 kr. i forfalden overdragerskat. Den genererede arbejdsbog udstiller
+  valget på aktivrækken og bruger særskilte relationsark til overdragne
+  aktiepartier og ordnede hændelser. Samme kildedata giver bit-for-bit samme
+  fulde resultat gennem XLSX og JSON, inklusive hændelses-id, rækkefølge og
+  ultimotilstand. Det aktuelle skema har hash
+  `6a5ad4a81474e78e0197ccca10bb45358400ab385ba01aaf1dc6d2480672a0e0`.
 - Close the Personskatteloven implementation gaps before deeper audits.
   § 3, stk. 2, nr. 2 is converted from a raw amount bridge to nine typed
   dependency outcomes, and nr. 3-11 now enter the canonical calculation
@@ -3938,10 +3959,11 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Compose ABL §§ 35 G-35 K's source-backed employee-ownership election and
-  persistent transferor-tax ledger into the canonical annual Personskat graph
-  under `td-0b0a4b`. Keep elections, events, due tax and year-end state typed
-  and ordered; do not replace the lifecycle with caller-supplied tax results.
+- Compose ABL §§ 37-40's source-backed exit-tax, deferral and re-entry
+  lifecycle into the canonical annual Personskat graph under `td-3681f7`.
+  Establish and continue the § 39 A ledger from typed source history, preserve
+  annual tax and credit effects plus year-end state, and do not replace the
+  lifecycle with caller-supplied tax conclusions.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

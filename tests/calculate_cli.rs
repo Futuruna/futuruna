@@ -2705,6 +2705,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.PersonskatØvrigtAktieaktiv.par17_modprøvekilde.$variant",
             "kilde.PersonskatØvrigtAktieaktiv.par17_modprøvekilde.MedPar17Modprøvekilde.fakta.næringsstatus",
             "kilde.PersonskatØvrigtAktieaktiv.input.investeringsklassifikation.$variant",
+            "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.identifikation",
+            "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.opgørelsesår",
+            "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.overdragelsesår",
+            "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.parterne_har_valgt_ordningen",
             "markedsstatus",
         ] {
             assert!(
@@ -2740,6 +2744,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Det øvrige aktivs ABL-kategori",
             "Det særlige aktivs investeringsklassifikation",
             "Årets netto efter KGL §§ 14-23",
+            "Medarbejderejeordningens identifikation",
+            "Opgørelsesår for medarbejderejeordningen",
+            "År for overdragelsen til medarbejderejevirksomheden",
+            "Parterne har valgt §§ 35 H-35 K",
             "Det særlige aktivs markedsstatus",
         ] {
             assert!(
@@ -2747,6 +2755,54 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human special-asset label {expected}"
+            );
+        }
+        let par35_events_path = "aktieavance.særlige_aktiver.kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.hændelsesposter";
+        let par35_events_sheet = workbook_collection_sheet_name(&mut workbook, par35_events_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par35_events_sheet),
+            "Dansk personskat - Hændelser i overdragerskatteforløbet"
+        );
+        let par35_event_paths = workbook_column_paths(&mut workbook, &par35_events_sheet);
+        for expected in [
+            "rækkefølge_i_indkomståret",
+            "hændelse.$variant",
+            "hændelse.AblPar35HændelseAfståelse.data.hændelsesidentifikation",
+            "hændelse.AblPar35HændelseAfståelse.data.indkomstår",
+        ] {
+            assert!(
+                par35_event_paths.iter().any(|path| path == expected),
+                "missing ordered § 35 source-event path {expected} on {par35_events_sheet}"
+            );
+        }
+        let par35_event_headers = workbook_headers(&mut workbook, &par35_events_sheet);
+        for expected in [
+            "Hændelsens rækkefølge i indkomståret",
+            "Hændelse i overdragerskatteforløbet",
+            "Afståelsens identifikation",
+            "Afståelsens indkomstår",
+        ] {
+            assert!(
+                par35_event_headers.iter().any(|header| header == expected),
+                "missing human § 35 event label {expected} on {par35_events_sheet}"
+            );
+        }
+        let par35_parties_path = "aktieavance.særlige_aktiver.kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.partier";
+        let par35_parties_sheet = workbook_collection_sheet_name(&mut workbook, par35_parties_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par35_parties_sheet),
+            "Dansk personskat - Overdragne aktiepartier"
+        );
+        let par35_party_paths = workbook_column_paths(&mut workbook, &par35_parties_sheet);
+        for expected in [
+            "identifikation",
+            "selskabsidentifikation",
+            "erhvervelsesrækkefølge",
+            "skattemæssig_anskaffelsessum_kroner",
+        ] {
+            assert!(
+                par35_party_paths.iter().any(|path| path == expected),
+                "missing § 35 transferred-lot path {expected} on {par35_parties_sheet}"
             );
         }
         let ordinary_investment_certificates_path =
@@ -3604,6 +3660,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 15, "personskat-kgl-frivillig-ordning-2026");
         fill_wage_case(sheets, 16, "personskat-udbytte-2026");
         fill_wage_case(sheets, 17, "personskat-etableringskonto-2026");
+        fill_wage_case(sheets, 18, "personskat-par35-medarbejdereje-2026");
         for (header, value) in [
             (
                 "lønmodtager.personlig_indkomst.etableringskonto.$variant",
@@ -6887,6 +6944,174 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ] {
             set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 1, header, value);
         }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-par35-medarbejdereje-2026".to_string()),
+            ),
+            ("item_id", Data::String("par35-forloeb-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "kilde.$variant",
+                Data::String("PersonskatMedarbejderejeordningEfterPar35G".to_string()),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.identifikation",
+                Data::String("personskat-par35-2026".to_string()),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.opgørelsesår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.overdragelsesår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.overdrager_er_fysisk_person",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.hjemsted",
+                Data::String("AblPar35GDanmark".to_string()),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.udenlandsk_virksomhed_forpligter_sig_til_overdragerskat",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.aktier_opfylder_par34_stk1_nr3",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.parterne_har_valgt_ordningen",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.meddelelse_rettidig",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.beholdningsoversigt_vedlagt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.saldo_vedlagt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.land_omfattet_af_inddrivelsesbistand",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.sikkerhedsform",
+                Data::String("AblPar35GIngenSikkerhed".to_string()),
+            ),
+            (
+                "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.sikkerhed_står_i_passende_forhold",
+                Data::Bool(false),
+            ),
+            (
+                "markedsstatus",
+                Data::String("AblIkkeOptagetTilHandel".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 2, header, value);
+        }
+        let par35_parties_path = "aktieavance.særlige_aktiver.kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.partier";
+        let par35_parties_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par35_parties_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-par35-medarbejdereje-2026".to_string()),
+            ),
+            ("parent_id", Data::String("par35-forloeb-1".to_string())),
+            ("item_id", Data::String("par35-parti-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("personskat-par35-negativt-parti".to_string()),
+            ),
+            (
+                "selskabsidentifikation",
+                Data::String("DK-PERSONSKAT-PAR35".to_string()),
+            ),
+            ("aktieserie", Data::String("ordinær".to_string())),
+            ("erhvervelsesrækkefølge", Data::Int(1)),
+            ("antal", Data::Int(100)),
+            ("skattemæssig_anskaffelsessum_kroner", Data::Int(-50_000)),
+            ("handelsværdi_kroner", Data::Int(100_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, &par35_parties_sheet, 1, header, value);
+        }
+        let par35_events_path = "aktieavance.særlige_aktiver.kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.hændelsesposter";
+        let par35_events_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par35_events_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-par35-medarbejdereje-2026".to_string()),
+            ),
+            ("parent_id", Data::String("par35-forloeb-1".to_string())),
+            ("item_id", Data::String("par35-haendelse-1".to_string())),
+            ("position", Data::Int(1)),
+            ("rækkefølge_i_indkomståret", Data::Int(1)),
+            (
+                "hændelse.$variant",
+                Data::String("AblPar35HændelseAfståelse".to_string()),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.hændelsesidentifikation",
+                Data::String("personskat-par35-salg-2026".to_string()),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.selskabsidentifikation",
+                Data::String("DK-PERSONSKAT-PAR35".to_string()),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.aktieserie",
+                Data::String("ordinær".to_string()),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.antal",
+                Data::Int(100),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.afståelsessum_kroner",
+                Data::Int(120_000),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.anden_betalt_skat_kroner",
+                Data::Int(0),
+            ),
+            (
+                "hændelse.AblPar35HændelseAfståelse.data.godkendt_fradrag_efter_ligningslov_par33_kroner",
+                Data::Int(0),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &par35_events_sheet, 1, header, value);
+        }
         set_workbook_cell_by_header(
             sheets,
             "cases",
@@ -8802,6 +9027,65 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(establishment_account_case);
+    let mut par35_case = json_input["cases"][0].clone();
+    par35_case["case_id"] = Value::String("personskat-par35-medarbejdereje-2026".into());
+    par35_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([{
+        "kilde": {
+            "$variant": "PersonskatMedarbejderejeordningEfterPar35G",
+            "fakta": {
+                "identifikation": "personskat-par35-2026",
+                "opgørelsesår": 2026,
+                "overdragelse": {
+                    "overdragelsesår": 2026,
+                    "overdrager_er_fysisk_person": true,
+                    "hjemsted": { "$variant": "AblPar35GDanmark" },
+                    "dansk_virksomhed_omfattet_af_sel_par1_stk1_nr2j": true,
+                    "udenlandsk_virksomhed_svarer_til_sel_par1_stk1_nr2j": false,
+                    "udenlandsk_virksomhed_opfylder_erhvervsvirksomhedslov_kap5c": false,
+                    "udenlandsk_virksomhed_forpligter_sig_til_overdragerskat": false,
+                    "udenlandsk_virksomhed_forpligter_sig_til_årsoplysninger": false,
+                    "aktier_opfylder_par34_stk1_nr3": true,
+                    "parterne_har_valgt_ordningen": true,
+                    "meddelelse_rettidig": true,
+                    "beholdningsoversigt_vedlagt": true,
+                    "saldo_vedlagt": true,
+                    "land_omfattet_af_inddrivelsesbistand": true,
+                    "sikkerhedsform": { "$variant": "AblPar35GIngenSikkerhed" },
+                    "sikkerhed_står_i_passende_forhold": false,
+                    "partier": [{
+                        "identifikation": "personskat-par35-negativt-parti",
+                        "selskabsidentifikation": "DK-PERSONSKAT-PAR35",
+                        "aktieserie": "ordinær",
+                        "erhvervelsesrækkefølge": 1,
+                        "antal": 100,
+                        "skattemæssig_anskaffelsessum_kroner": -50_000,
+                        "handelsværdi_kroner": 100_000
+                    }]
+                },
+                "hændelsesposter": [{
+                    "rækkefølge_i_indkomståret": 1,
+                    "hændelse": {
+                        "$variant": "AblPar35HændelseAfståelse",
+                        "data": {
+                            "hændelsesidentifikation": "personskat-par35-salg-2026",
+                            "selskabsidentifikation": "DK-PERSONSKAT-PAR35",
+                            "aktieserie": "ordinær",
+                            "antal": 100,
+                            "afståelsessum_kroner": 120_000,
+                            "indkomstår": 2026,
+                            "anden_betalt_skat_kroner": 0,
+                            "godkendt_fradrag_efter_ligningslov_par33_kroner": 0
+                        }
+                    }
+                }]
+            }
+        },
+        "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par35_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -8947,6 +9231,65 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         xlsx_establishment_account_result["result"]["skat"]
             ["almindelig_skattepligtig_indkomst_kroner"],
         455_600
+    );
+    let xlsx_par35_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par35-medarbejdereje-2026")
+        .expect("XLSX § 35 employee-ownership result");
+    let json_par35_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par35-medarbejdereje-2026")
+        .expect("JSON § 35 employee-ownership result");
+    assert_eq!(xlsx_par35_result["result"], json_par35_result["result"]);
+    assert_eq!(
+        xlsx_par35_result["result"]["aktieavance"]["aktieindkomst_kroner"],
+        50_000
+    );
+    assert_eq!(
+        xlsx_par35_result["result"]["endelig_aktieindkomstskat_kroner"],
+        13_500
+    );
+    let par35_special_result = &xlsx_par35_result["result"]["aktieavance"]["særlige_resultater"][0];
+    assert_eq!(par35_special_result["input_gyldigt"], true);
+    assert_eq!(
+        par35_special_result["årets_forfaldne_overdragerskat_kroner"],
+        22_000
+    );
+    assert_eq!(
+        par35_special_result["årets_betalte_overdragerskat_kroner"],
+        0
+    );
+    let par35_trace = &par35_special_result["par35_forløbsresultat"];
+    assert_eq!(par35_trace["input_gyldigt"], true);
+    assert_eq!(
+        par35_trace["umiddelbar_skattepligtig_gevinst_kroner"],
+        50_000
+    );
+    assert_eq!(par35_trace["årets_nye_forfald_kroner"], 22_000);
+    assert_eq!(
+        par35_trace["tilstand_ultimo"]["overdragerskat_saldo_kroner"],
+        22_000
+    );
+    assert_eq!(
+        par35_trace["tilstand_ultimo"]["beholdning"]
+            .as_array()
+            .expect("§ 35 closing holdings")
+            .len(),
+        0
+    );
+    let par35_event = &par35_trace["hændelsesresultater"][0]["post"];
+    assert_eq!(par35_event["rækkefølge_i_indkomståret"], 1);
+    assert_eq!(
+        par35_event["hændelse"]["$variant"],
+        "AblPar35HændelseAfståelse"
+    );
+    assert_eq!(
+        par35_event["hændelse"]["data"]["hændelsesidentifikation"],
+        "personskat-par35-salg-2026"
     );
     let xlsx_debt_result = result["results"]
         .as_array()

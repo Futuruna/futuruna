@@ -360,6 +360,179 @@ saldo og allerede forfaldne afdrag adskilt.
     )
 )
 
+= par35_scenario_krydsårshændelser = [
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseAfståelse(data = AktieavancePar35IAfståelsesdata(
+            hændelsesidentifikation = "forløb-salg-et",
+            selskabsidentifikation = "drift-a",
+            aktieserie = "ordinær",
+            antal = 100,
+            afståelsessum_kroner = 250000,
+            indkomstår = 2027,
+            anden_betalt_skat_kroner = 2000,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 1000
+        ))
+    ),
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 2,
+        hændelse = AblPar35HændelseBetaling(
+            indkomstår = 2027,
+            data = AktieavancePar35IBetaling(
+                hændelsesidentifikation = "forløb-betaling-salg-et",
+                beløb_kroner = 30000,
+                art = AblPar35IBetalingAfForfald(forfaldsidentifikation = "forløb-salg-et:forfald")
+            )
+        )
+    ),
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseÅrsudbytte(data = AktieavancePar35IÅrsudbytte(
+            hændelsesidentifikation = "forløb-udbytte-2028",
+            indkomstår = 2028,
+            samlet_udbytte_kroner = 60000,
+            anden_betalt_skat_kroner = 400,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+            fritaget_udbyttefordeling = [AktieavancePar35IUdbyttefordeling(
+                parti_identifikation = "parti-b",
+                fritaget_udbytte_kroner = 40000
+            )]
+        ))
+    ),
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 2,
+        hændelse = AblPar35HændelseBetaling(
+            indkomstår = 2028,
+            data = AktieavancePar35IBetaling(
+                hændelsesidentifikation = "forløb-betaling-udbytte",
+                beløb_kroner = 4000,
+                art = AblPar35IBetalingAfForfald(forfaldsidentifikation = "forløb-udbytte-2028:forfald")
+            )
+        )
+    ),
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseAfståelse(data = AktieavancePar35IAfståelsesdata(
+            hændelsesidentifikation = "forløb-salg-to",
+            selskabsidentifikation = "drift-a",
+            aktieserie = "ordinær",
+            antal = 100,
+            afståelsessum_kroner = 150000,
+            indkomstår = 2029,
+            anden_betalt_skat_kroner = 0,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+        ))
+    ),
+    AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 2,
+        hændelse = AblPar35HændelseBetaling(
+            indkomstår = 2029,
+            data = AktieavancePar35IBetaling(
+                hændelsesidentifikation = "forløb-betaling-salg-to",
+                beløb_kroner = 8800,
+                art = AblPar35IBetalingAfForfald(forfaldsidentifikation = "forløb-salg-to:forfald")
+            )
+        )
+    )
+]
+= par35_scenario_krydsårsforløb = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "krydsårsforløb",
+    opgørelsesår = 2029,
+    overdragelse = par35_scenario_dansk_valg,
+    hændelsesposter = par35_scenario_krydsårshændelser
+))
+= par35_scenario_negativt_forløb = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "negativ-anskaffelsessum",
+    opgørelsesår = 2026,
+    overdragelse = par35_scenario_negativt_valg,
+    hændelsesposter = []
+))
+= par35_scenario_forløb_årsoplysninger_for_sent = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "årsoplysninger-for-sent",
+    opgørelsesår = 2027,
+    overdragelse = par35_scenario_dansk_valg,
+    hændelsesposter = [AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseÅrsoplysninger(data = AktieavancePar35KÅrsoplysninger(
+            hændelsesidentifikation = "forløb-årsoplysninger-for-sent",
+            indkomstår = 2027,
+            indgivet_rettidigt = Falskt,
+            fristoverskridelse_tilsidesat_af_skatteforvaltningen = Falskt,
+            ajourført_beholdningsoversigt_indgivet = Sandt,
+            ajourført_saldo_indgivet = Sandt,
+            forfaldsforhold_efter_par35i_og_par35j_indgivet = Sandt,
+            udenlandsk_adresse_indgivet = Falskt
+        ))
+    )]
+))
+= par35_scenario_forløb_hjemstedsflytning = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "hjemstedsflytning",
+    opgørelsesår = 2027,
+    overdragelse = par35_scenario_dansk_valg,
+    hændelsesposter = [AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseHjemstedsflytning(data = AktieavancePar35KHjemstedsflytning(
+            hændelsesidentifikation = "forløb-danmark-til-færøerne",
+            indkomstår = 2027,
+            nyt_hjemsted = AblPar35GFærøerne,
+            nyt_land_omfattet_af_inddrivelsesbistand = Falskt,
+            ny_sikkerhedsform = AblPar35GBankgaranti,
+            ny_sikkerhed_står_i_passende_forhold = Sandt,
+            betingelserne_i_par35g_fortsat_opfyldt = Sandt,
+            frigivelse_af_sikkerhed_anmodet = Falskt
+        ))
+    )]
+))
+= par35_scenario_forløb_opløsning = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "opløsning",
+    opgørelsesår = 2027,
+    overdragelse = par35_scenario_dansk_valg,
+    hændelsesposter = [AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar35HændelseTvangsafståelse(data = AktieavancePar35JTvangshændelse(
+            hændelsesidentifikation = "forløb-opløsning",
+            indkomstår = 2027,
+            data = AktieavancePar35JTvangsafståelsesdata(
+                udløsning = AblPar35IOpløsning(indkomstår = 2027),
+                afståelser_til_handelsværdi = [AktieavancePar35IAfståelsesdata(
+                    hændelsesidentifikation = "forløb-opløsning-afståelse",
+                    selskabsidentifikation = "drift-a",
+                    aktieserie = "ordinær",
+                    antal = 200,
+                    afståelsessum_kroner = 530000,
+                    indkomstår = 2027,
+                    anden_betalt_skat_kroner = 0,
+                    godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+                )]
+            )
+        ))
+    )]
+))
+= par35_scenario_forløb_forkert_rækkefølge = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "forkert-rækkefølge",
+    opgørelsesår = 2029,
+    overdragelse = par35_scenario_dansk_valg,
+    hændelsesposter = [par35_scenario_krydsårshændelser[1], par35_scenario_krydsårshændelser[0]]
+))
+= par35_scenario_negativt_forløb_forkert_rækkefølge = aktieavance_par35_forløbsresultat(AktieavancePar35Forløbsinput(
+    identifikation = "negativt-forløb-forkert-rækkefølge",
+    opgørelsesår = 2026,
+    overdragelse = par35_scenario_negativt_valg,
+    hændelsesposter = [AktieavancePar35Hændelsespost(
+        rækkefølge_i_indkomståret = 0,
+        hændelse = AblPar35HændelseAfståelse(data = AktieavancePar35IAfståelsesdata(
+            hændelsesidentifikation = "negativt-forløb-salg",
+            selskabsidentifikation = "drift-negativ",
+            aktieserie = "ordinær",
+            antal = 100,
+            afståelsessum_kroner = 120000,
+            indkomstår = 2026,
+            anden_betalt_skat_kroner = 0,
+            godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+        ))
+    )]
+))
+
 | par35_ikrafttræden: par35_scenario_virkning_2026 -> par35_scenario_virkning_2025 == Falskt && par35_scenario_virkning_2026
 | par35_startsaldo: par35_scenario_start -> par35_scenario_start.valg.kan_anvende_par35h_til_par35k && par35_scenario_start.oprindelig_overdragerskat_kroner == 55000 && length(par35_scenario_start.tilstand.beholdning) == 2
 | par35_negativ_anskaffelsessum: par35_scenario_negativt_resultat -> par35_scenario_negativt_resultat.umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner == 50000 && par35_scenario_negativt_resultat.oprindelig_overdragerskat_kroner == 22000 && par35_scenario_negativt_psl.skattepligtig_gevinst_kroner == 50000 && par35_scenario_negativt_psl.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
@@ -377,6 +550,12 @@ saldo og allerede forfaldne afdrag adskilt.
 | par35_værdinedgang: par35_scenario_værdinedgang -> par35_scenario_værdinedgang.omfattet && par35_scenario_værdinedgang.beregnet_skat_kroner == 22000 && par35_scenario_værdinedgang.skattefradrag_kroner == 2000 && par35_scenario_værdinedgang.nyt_forfald_kroner == 20000
 | par35_årsoplysninger: par35_scenario_årsoplysninger_for_sent -> par35_scenario_årsoplysninger_for_sent.nyt_forfald_kroner == 55000 && par35_scenario_årsoplysninger_for_sent.tilstand_efter.ordning_aktiv == Falskt && par35_scenario_årsoplysninger_tilsidesat.nyt_forfald_kroner == 0 && par35_scenario_årsoplysninger_tilsidesat.tilstand_efter.ordning_aktiv
 | par35_hjemstedsflytning: par35_scenario_eu_flytter_til_danmark -> par35_scenario_eu_flytter_til_danmark.sikkerhed_frigives && par35_scenario_eu_flytter_til_danmark.saldo_forfalder == Falskt && par35_scenario_eu_flytter_til_danmark.tilstand_efter.sikkerhedsform == AblPar35GIngenSikkerhed && par35_scenario_flytter_til_eøs_uden_bistand.saldo_forfalder == Falskt && par35_scenario_flytter_til_færøerne_uden_bistand.saldo_forfalder && par35_scenario_flytter_til_færøerne_uden_bistand.nyt_forfald_kroner == 55000
+| par35_forløb_genafspiller_krydsårskæden: par35_scenario_krydsårsforløb -> par35_scenario_krydsårsforløb.input_gyldigt && length(par35_scenario_krydsårsforløb.hændelsesresultater) == 6 && par35_scenario_krydsårsforløb.årets_nye_forfald_kroner == 8800 && par35_scenario_krydsårsforløb.årets_betalte_overdragerskat_kroner == 8800 && par35_scenario_krydsårsforløb.årets_saldobortfald_kroner == 12200 && par35_scenario_krydsårsforløb.tilstand_ultimo.overdragerskat_saldo_kroner == 0 && par35_scenario_krydsårsforløb.aktieavancebeskatningslov_resultat.medregnes_i_skattepligtig_indkomst == Falskt && par35_scenario_krydsårsforløb.hændelsesresultater[4].post.rækkefølge_i_indkomståret == 1 && aktieavance_par35_hændelsesidentifikation(par35_scenario_krydsårsforløb.hændelsesresultater[4].post.hændelse) == "forløb-salg-to"
+| par35_forløb_afleder_straksindkomst_fra_kildefakta: par35_scenario_negativt_forløb -> par35_scenario_negativt_forløb.input_gyldigt && par35_scenario_negativt_forløb.umiddelbar_skattepligtig_gevinst_kroner == 50000 && par35_scenario_negativt_forløb.aktieavancebeskatningslov_resultat.skattepligtig_gevinst_kroner == 50000 && par35_scenario_negativt_forløb.tilstand_ultimo.overdragerskat_saldo_kroner == 22000
+| par35_forløb_årsoplysningssvigt_forfalder_saldo: par35_scenario_forløb_årsoplysninger_for_sent -> par35_scenario_forløb_årsoplysninger_for_sent.input_gyldigt && par35_scenario_forløb_årsoplysninger_for_sent.årets_nye_forfald_kroner == 55000 && par35_scenario_forløb_årsoplysninger_for_sent.tilstand_ultimo.ordning_aktiv == Falskt
+| par35_forløb_hjemstedsflytning_forfalder_saldo: par35_scenario_forløb_hjemstedsflytning -> par35_scenario_forløb_hjemstedsflytning.input_gyldigt && par35_scenario_forløb_hjemstedsflytning.årets_nye_forfald_kroner == 55000 && par35_scenario_forløb_hjemstedsflytning.tilstand_ultimo.hjemsted == AblPar35GFærøerne && par35_scenario_forløb_hjemstedsflytning.tilstand_ultimo.ordning_aktiv == Falskt
+| par35_forløb_tvangsmodner_beholdningen: par35_scenario_forløb_opløsning -> par35_scenario_forløb_opløsning.input_gyldigt && par35_scenario_forløb_opløsning.årets_nye_forfald_kroner == 55000 && length(par35_scenario_forløb_opløsning.tilstand_ultimo.beholdning) == 0
+| par35_forløb_afviser_forkert_rækkefølge_før_tilstandsændring: par35_scenario_forløb_forkert_rækkefølge -> par35_scenario_forløb_forkert_rækkefølge.input_gyldigt == Falskt && par35_scenario_forløb_forkert_rækkefølge.årets_nye_forfald_kroner == 0 && par35_scenario_forløb_forkert_rækkefølge.tilstand_ultimo.overdragerskat_saldo_kroner == 55000 && length(par35_scenario_forløb_forkert_rækkefølge.tilstand_ultimo.beholdning) == 2 && par35_scenario_negativt_forløb_forkert_rækkefølge.input_gyldigt == Falskt && par35_scenario_negativt_forløb_forkert_rækkefølge.umiddelbar_skattepligtig_gevinst_kroner == 0 && par35_scenario_negativt_forløb_forkert_rækkefølge.aktieavancebeskatningslov_resultat.skattepligtig_gevinst_kroner == 0 && par35_scenario_negativt_forløb_forkert_rækkefølge.tilstand_ultimo.overdragerskat_saldo_kroner == 22000
 
 ? par35_ikrafttræden
 ? par35_startsaldo
@@ -395,3 +574,9 @@ saldo og allerede forfaldne afdrag adskilt.
 ? par35_værdinedgang
 ? par35_årsoplysninger
 ? par35_hjemstedsflytning
+? par35_forløb_genafspiller_krydsårskæden
+? par35_forløb_afleder_straksindkomst_fra_kildefakta
+? par35_forløb_årsoplysningssvigt_forfalder_saldo
+? par35_forløb_hjemstedsflytning_forfalder_saldo
+? par35_forløb_tvangsmodner_beholdningen
+? par35_forløb_afviser_forkert_rækkefølge_før_tilstandsændring

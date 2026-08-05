@@ -593,4 +593,162 @@ medarbejderejevirksomhedens hjemsted indebærer, at betingelserne i § 35 G, stk
 }
 
 | aktieavance_par35k_hjemstedsresultat(tilstand: AktieavancePar35ITilstand, data: AktieavancePar35KHjemstedsflytning) -> AktieavancePar35KHjemstedsSag(tilstand, data).resultat()
+
+# AktieavancePar35IOmstruktureringsdata(hændelsesidentifikation: Tekst, indkomstår: Heltal, skattefri_med_succession: Boolsk, ny_beholdning: List(AktieavancePar35IBeholdningsparti))
+# AktieavancePar35JTvangshændelse(hændelsesidentifikation: Tekst, indkomstår: Heltal, data: AktieavancePar35JTvangsafståelsesdata)
+# AktieavancePar35Hændelse = AblPar35HændelseAfståelse(data: AktieavancePar35IAfståelsesdata) | AblPar35HændelseÅrsudbytte(data: AktieavancePar35IÅrsudbytte) | AblPar35HændelseBetaling(indkomstår: Heltal, data: AktieavancePar35IBetaling) | AblPar35HændelseOmstrukturering(data: AktieavancePar35IOmstruktureringsdata) | AblPar35HændelseTvangsafståelse(data: AktieavancePar35JTvangshændelse) | AblPar35HændelseVærdinedgang(data: AktieavancePar35JVærdinedgangsdisposition) | AblPar35HændelseÅrsoplysninger(data: AktieavancePar35KÅrsoplysninger) | AblPar35HændelseHjemstedsflytning(data: AktieavancePar35KHjemstedsflytning)
+# AktieavancePar35Hændelsespost(rækkefølge_i_indkomståret: Heltal, hændelse: AktieavancePar35Hændelse)
+# AktieavancePar35Hændelsesresultat = AblPar35ResultatAfståelse(resultat: AktieavancePar35IAfståelsesresultat) | AblPar35ResultatÅrsudbytte(resultat: AktieavancePar35IÅrsudbytteresultat) | AblPar35ResultatBetaling(resultat: AktieavancePar35IBetalingsresultat) | AblPar35ResultatOmstrukturering(resultat: AktieavancePar35IOmstruktureringsresultat) | AblPar35ResultatTvangsafståelse(resultat: AktieavancePar35JTvangsafståelsesresultat) | AblPar35ResultatVærdinedgang(resultat: AktieavancePar35JVærdinedgangsresultat) | AblPar35ResultatÅrsoplysninger(resultat: AktieavancePar35KÅrsoplysningsresultat) | AblPar35ResultatHjemstedsflytning(resultat: AktieavancePar35KHjemstedsresultat)
+# AktieavancePar35Hændelsespostresultat(post: AktieavancePar35Hændelsespost, post_strukturelt_gyldig: Boolsk, resultat: AktieavancePar35Hændelsesresultat, hændelse_gyldig: Boolsk, nyt_forfald_kroner: Heltal, betalt_overdragerskat_kroner: Heltal, saldobortfald_kroner: Heltal, tilstand_før: AktieavancePar35ITilstand, tilstand_efter: AktieavancePar35ITilstand)
+# AktieavancePar35Forløbsinput(identifikation: Tekst, opgørelsesår: Heltal, overdragelse: AktieavancePar35GValg, hændelsesposter: List(AktieavancePar35Hændelsespost))
+# AktieavancePar35Forløbstilstand(tilstand: AktieavancePar35ITilstand, resultater: List(AktieavancePar35Hændelsespostresultat), alle_hændelser_gyldige: Boolsk)
+# AktieavancePar35Forløbsresultat(input: AktieavancePar35Forløbsinput, overdragelsesresultat: AktieavancePar35GOverdragelsesresultat, hændelsesresultater: List(AktieavancePar35Hændelsespostresultat), input_gyldigt: Boolsk, umiddelbar_skattepligtig_gevinst_kroner: Heltal, årets_nye_forfald_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, tilstand_ultimo: AktieavancePar35ITilstand, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
+
+| aktieavance_par35_hændelsesidentifikation(hændelse: AktieavancePar35Hændelse) -> match hændelse {
+    | AblPar35HændelseAfståelse(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseÅrsudbytte(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseBetaling(_, data) -> data.hændelsesidentifikation
+    | AblPar35HændelseOmstrukturering(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseTvangsafståelse(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseVærdinedgang(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseÅrsoplysninger(data) -> data.hændelsesidentifikation
+    | AblPar35HændelseHjemstedsflytning(data) -> data.hændelsesidentifikation
+}
+| aktieavance_par35_hændelsesindkomstår(hændelse: AktieavancePar35Hændelse) -> match hændelse {
+    | AblPar35HændelseAfståelse(data) -> data.indkomstår
+    | AblPar35HændelseÅrsudbytte(data) -> data.indkomstår
+    | AblPar35HændelseBetaling(indkomstår, _) -> indkomstår
+    | AblPar35HændelseOmstrukturering(data) -> data.indkomstår
+    | AblPar35HændelseTvangsafståelse(data) -> data.indkomstår
+    | AblPar35HændelseVærdinedgang(data) -> data.indkomstår
+    | AblPar35HændelseÅrsoplysninger(data) -> data.indkomstår
+    | AblPar35HændelseHjemstedsflytning(data) -> data.indkomstår
+}
+| aktieavance_par35_tvangshændelse_matcher_kildefakta(data: AktieavancePar35JTvangshændelse) -> data.indkomstår == aktieavance_par35j_tvangsresultat(data.data.udløsning).afståelsesår && all(data.data.afståelser_til_handelsværdi, |afståelse: AktieavancePar35IAfståelsesdata| afståelse.indkomstår == data.indkomstår)
+| aktieavance_par35_hændelse_matcher_kildefakta(hændelse: AktieavancePar35Hændelse) -> match hændelse {
+    | AblPar35HændelseTvangsafståelse(data) -> aktieavance_par35_tvangshændelse_matcher_kildefakta(data)
+    | _ -> Sandt
+}
+| aktieavance_par35_hændelsesidentifikation_unik(hændelser: List(AktieavancePar35Hændelsespost), post: AktieavancePar35Hændelsespost) -> foldl(hændelser, 0, |antal: Heltal, anden: AktieavancePar35Hændelsespost| antal + hvis aktieavance_par35_hændelsesidentifikation(anden.hændelse) == aktieavance_par35_hændelsesidentifikation(post.hændelse) { 1 } ellers { 0 }) == 1
+| aktieavance_par35_hændelsespost_efter(post: AktieavancePar35Hændelsespost, forrige_indkomstår: Heltal, forrige_rækkefølge: Heltal) -> aktieavance_par35_hændelsesindkomstår(post.hændelse) > forrige_indkomstår || (aktieavance_par35_hændelsesindkomstår(post.hændelse) == forrige_indkomstår && post.rækkefølge_i_indkomståret > forrige_rækkefølge)
+| aktieavance_par35_hændelsesposter_sorteret_fra(hændelser: List(AktieavancePar35Hændelsespost), forrige_indkomstår: Heltal, forrige_rækkefølge: Heltal) -> hvis length(hændelser) == 0 { Sandt } ellers { aktieavance_par35_hændelsespost_efter(head(hændelser), forrige_indkomstår, forrige_rækkefølge) && aktieavance_par35_hændelsesposter_sorteret_fra(tail(hændelser), aktieavance_par35_hændelsesindkomstår(head(hændelser).hændelse), head(hændelser).rækkefølge_i_indkomståret) }
+| aktieavance_par35_hændelsespost_intrinsisk_gyldig(post: AktieavancePar35Hændelsespost, overdragelsesår: Heltal, opgørelsesår: Heltal) -> post.rækkefølge_i_indkomståret > 0 && post.rækkefølge_i_indkomståret < 1000000 && aktieavance_par35_hændelsesidentifikation(post.hændelse) != "" && aktieavance_par35_hændelsesindkomstår(post.hændelse) >= overdragelsesår && aktieavance_par35_hændelsesindkomstår(post.hændelse) <= opgørelsesår && aktieavance_par35_hændelse_matcher_kildefakta(post.hændelse)
+| aktieavance_par35_hændelsesposter_strukturelt_gyldige(hændelser: List(AktieavancePar35Hændelsespost), overdragelsesår: Heltal, opgørelsesår: Heltal) -> aktieavance_par35_hændelsesposter_sorteret_fra(hændelser, overdragelsesår - 1, 0) && all(hændelser, |post: AktieavancePar35Hændelsespost| aktieavance_par35_hændelsespost_intrinsisk_gyldig(post, overdragelsesår, opgørelsesår) && aktieavance_par35_hændelsesidentifikation_unik(hændelser, post))
+
+| aktieavance_par35_hændelsesresultat(tilstand: AktieavancePar35ITilstand, hændelse: AktieavancePar35Hændelse) -> match hændelse {
+    | AblPar35HændelseAfståelse(data) -> AblPar35ResultatAfståelse(resultat = aktieavance_par35i_ordinært_afståelsesresultat(tilstand, data))
+    | AblPar35HændelseÅrsudbytte(data) -> AblPar35ResultatÅrsudbytte(resultat = aktieavance_par35i_årsudbytteresultat(tilstand, data))
+    | AblPar35HændelseBetaling(_, data) -> AblPar35ResultatBetaling(resultat = aktieavance_par35i_betalingsresultat(tilstand, data))
+    | AblPar35HændelseOmstrukturering(data) -> AblPar35ResultatOmstrukturering(resultat = aktieavance_par35i_omstruktureringsresultat(tilstand, data.skattefri_med_succession, data.ny_beholdning))
+    | AblPar35HændelseTvangsafståelse(data) -> AblPar35ResultatTvangsafståelse(resultat = aktieavance_par35j_tvangsafståelsesresultat(tilstand, data.data))
+    | AblPar35HændelseVærdinedgang(data) -> AblPar35ResultatVærdinedgang(resultat = aktieavance_par35j_værdinedgangsresultat(tilstand, data))
+    | AblPar35HændelseÅrsoplysninger(data) -> AblPar35ResultatÅrsoplysninger(resultat = aktieavance_par35k_årsoplysningsresultat(tilstand, data))
+    | AblPar35HændelseHjemstedsflytning(data) -> AblPar35ResultatHjemstedsflytning(resultat = aktieavance_par35k_hjemstedsresultat(tilstand, data))
+}
+| aktieavance_par35_hændelsesresultat_gyldigt(resultat: AktieavancePar35Hændelsesresultat) -> match resultat {
+    | AblPar35ResultatAfståelse(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatÅrsudbytte(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatBetaling(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatOmstrukturering(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatTvangsafståelse(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatVærdinedgang(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatÅrsoplysninger(værdi) -> værdi.hændelse_gyldig
+    | AblPar35ResultatHjemstedsflytning(værdi) -> værdi.hændelse_gyldig
+}
+| aktieavance_par35_hændelsesresultat_tilstand_efter(resultat: AktieavancePar35Hændelsesresultat) -> match resultat {
+    | AblPar35ResultatAfståelse(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatÅrsudbytte(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatBetaling(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatOmstrukturering(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatTvangsafståelse(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatVærdinedgang(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatÅrsoplysninger(værdi) -> værdi.tilstand_efter
+    | AblPar35ResultatHjemstedsflytning(værdi) -> værdi.tilstand_efter
+}
+| aktieavance_par35_hændelsesresultat_nyt_forfald_kroner(resultat: AktieavancePar35Hændelsesresultat) -> match resultat {
+    | AblPar35ResultatAfståelse(værdi) -> værdi.nyt_forfald_kroner
+    | AblPar35ResultatÅrsudbytte(værdi) -> værdi.nyt_forfald_kroner
+    | AblPar35ResultatTvangsafståelse(værdi) -> værdi.samlet_nyt_forfald_kroner
+    | AblPar35ResultatVærdinedgang(værdi) -> værdi.nyt_forfald_kroner
+    | AblPar35ResultatÅrsoplysninger(værdi) -> værdi.nyt_forfald_kroner
+    | AblPar35ResultatHjemstedsflytning(værdi) -> værdi.nyt_forfald_kroner
+    | _ -> 0
+}
+| aktieavance_par35_hændelsesresultat_betalt_kroner(resultat: AktieavancePar35Hændelsesresultat) -> match resultat {
+    | AblPar35ResultatBetaling(værdi) -> værdi.saldo_nedskrevet_kroner
+    | _ -> 0
+}
+| aktieavance_par35_hændelsesresultat_saldobortfald_kroner(resultat: AktieavancePar35Hændelsesresultat) -> match resultat {
+    | AblPar35ResultatAfståelse(værdi) -> værdi.saldobortfald_kroner
+    | AblPar35ResultatTvangsafståelse(værdi) -> værdi.samlet_saldobortfald_kroner
+    | _ -> 0
+}
+
+| aktieavance_par35_hændelsespostresultat(tilstand: AktieavancePar35ITilstand, post: AktieavancePar35Hændelsespost, forløb_strukturelt_gyldigt: Boolsk, overdragelsesår: Heltal, opgørelsesår: Heltal) -> {
+    = post_strukturelt_gyldig = forløb_strukturelt_gyldigt && aktieavance_par35_hændelsespost_intrinsisk_gyldig(post, overdragelsesår, opgørelsesår)
+    = resultat = aktieavance_par35_hændelsesresultat(tilstand, post.hændelse)
+    = hændelse_gyldig = post_strukturelt_gyldig && aktieavance_par35_hændelsesresultat_gyldigt(resultat)
+    AktieavancePar35Hændelsespostresultat(
+        post = post,
+        post_strukturelt_gyldig = post_strukturelt_gyldig,
+        resultat = resultat,
+        hændelse_gyldig = hændelse_gyldig,
+        nyt_forfald_kroner = hvis hændelse_gyldig { aktieavance_par35_hændelsesresultat_nyt_forfald_kroner(resultat) } ellers { 0 },
+        betalt_overdragerskat_kroner = hvis hændelse_gyldig { aktieavance_par35_hændelsesresultat_betalt_kroner(resultat) } ellers { 0 },
+        saldobortfald_kroner = hvis hændelse_gyldig { aktieavance_par35_hændelsesresultat_saldobortfald_kroner(resultat) } ellers { 0 },
+        tilstand_før = tilstand,
+        tilstand_efter = hvis hændelse_gyldig { aktieavance_par35_hændelsesresultat_tilstand_efter(resultat) } ellers { tilstand }
+    )
+}
+| aktieavance_par35_forløbstrin(forløb: AktieavancePar35Forløbstilstand, post: AktieavancePar35Hændelsespost, forløb_strukturelt_gyldigt: Boolsk, overdragelsesår: Heltal, opgørelsesår: Heltal) -> {
+    = resultat = aktieavance_par35_hændelsespostresultat(forløb.tilstand, post, forløb_strukturelt_gyldigt, overdragelsesår, opgørelsesår)
+    AktieavancePar35Forløbstilstand(
+        tilstand = resultat.tilstand_efter,
+        resultater = concat(forløb.resultater, [resultat]),
+        alle_hændelser_gyldige = forløb.alle_hændelser_gyldige && resultat.hændelse_gyldig
+    )
+}
+| aktieavance_par35_tomt_personskattelov_resultat(indkomstår: Heltal) -> AktieavancebeskatningslovResultat(
+    indkomstår = indkomstår,
+    effektiv_aktiv = AblUdenforDenneSlice,
+    bruttogevinst_kroner = 0,
+    bruttotab_kroner = 0,
+    tab_afskåret_kroner = 0,
+    skattepligtig_gevinst_kroner = 0,
+    fradragsberettiget_tab_kroner = 0,
+    netto_efter_aktieavancebeskatningsloven_kroner = 0,
+    medregnes_i_skattepligtig_indkomst = Falskt,
+    personskattelov_kategori = AblIkkeMedregnetISlice
+)
+
+# AktieavancePar35ForløbsSag(input: AktieavancePar35Forløbsinput) {
+    | overdragelsesresultat() -> aktieavance_par35g_overdragelsesresultat(input.overdragelse)
+    | hændelsesforløb_strukturelt_gyldigt() -> aktieavance_par35_hændelsesposter_strukturelt_gyldige(input.hændelsesposter, input.overdragelse.overdragelsesår, input.opgørelsesår)
+    | initialt_forløb() -> AktieavancePar35Forløbstilstand(
+        tilstand = overdragelsesresultat().tilstand,
+        resultater = [],
+        alle_hændelser_gyldige = hændelsesforløb_strukturelt_gyldigt()
+    )
+    | slutforløb() -> foldl(input.hændelsesposter, initialt_forløb(), |forløb: AktieavancePar35Forløbstilstand, post: AktieavancePar35Hændelsespost| aktieavance_par35_forløbstrin(forløb, post, hændelsesforløb_strukturelt_gyldigt(), input.overdragelse.overdragelsesår, input.opgørelsesår))
+    | input_gyldigt() -> input.identifikation != "" && input.opgørelsesår >= input.overdragelse.overdragelsesår && overdragelsesresultat().partier_gyldige && overdragelsesresultat().valg.kan_anvende_par35h_til_par35k && slutforløb().alle_hændelser_gyldige
+    | umiddelbar_skattepligtig_gevinst_kroner() -> hvis input_gyldigt() && input.opgørelsesår == input.overdragelse.overdragelsesår { overdragelsesresultat().umiddelbar_skattepligtig_gevinst_fra_negativ_anskaffelsessum_kroner } ellers { 0 }
+    | årets_nye_forfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar35Hændelsespostresultat| sum + hvis aktieavance_par35_hændelsesindkomstår(resultat.post.hændelse) == input.opgørelsesår { resultat.nyt_forfald_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_betalte_overdragerskat_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar35Hændelsespostresultat| sum + hvis aktieavance_par35_hændelsesindkomstår(resultat.post.hændelse) == input.opgørelsesår { resultat.betalt_overdragerskat_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_saldobortfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar35Hændelsespostresultat| sum + hvis aktieavance_par35_hændelsesindkomstår(resultat.post.hændelse) == input.opgørelsesår { resultat.saldobortfald_kroner } ellers { 0 }) } ellers { 0 }
+    | aktieavancebeskatningslov_resultat() -> hvis input_gyldigt() && input.opgørelsesår == input.overdragelse.overdragelsesår { aktieavance_par35h_personskattelov_resultat(overdragelsesresultat()) } ellers { aktieavance_par35_tomt_personskattelov_resultat(input.opgørelsesår) }
+    | resultat() -> AktieavancePar35Forløbsresultat(
+        input = input,
+        overdragelsesresultat = overdragelsesresultat(),
+        hændelsesresultater = slutforløb().resultater,
+        input_gyldigt = input_gyldigt(),
+        umiddelbar_skattepligtig_gevinst_kroner = umiddelbar_skattepligtig_gevinst_kroner(),
+        årets_nye_forfald_kroner = årets_nye_forfald_kroner(),
+        årets_betalte_overdragerskat_kroner = årets_betalte_overdragerskat_kroner(),
+        årets_saldobortfald_kroner = årets_saldobortfald_kroner(),
+        tilstand_ultimo = slutforløb().tilstand,
+        aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat()
+    )
+}
+
+| aktieavance_par35_forløbsresultat(input: AktieavancePar35Forløbsinput) -> AktieavancePar35ForløbsSag(input).resultat()
 --@end:aktieavancebeskatningsloven_par35k--
