@@ -1,0 +1,27 @@
+@ sprog da
+
+@ importer ./kommunale - parametre
+
+= kommunale_parameterår = [2024, 2025, 2026]
+
+| kommunal_parameterpost_har_gyldige_enheder(skatteår: Heltal, parametre: KommunaleParametre) -> parametre.skatteår == skatteår && parametre.kommunekode > 0 && parametre.kommuneskat_basispoint >= 0 && parametre.kommuneskat_basispoint <= 10000 && parametre.kirkeskat_basispoint >= 0 && parametre.kirkeskat_basispoint <= 10000 && parametre.sundhedsbidrag_basispoint == 0 && parametre.bundskat_basispoint == 1201 && parametre.skatteloftsnedslag_basispoint >= 0 && parametre.skatteloftsnedslag_basispoint <= 10000 && parametre.grundskyld_promille_tiendedele > 0
+| kommunale_parameterår_har_98_poster(skatteår: Heltal) -> length(kommunale_parametre_for_år(skatteår)) == 98
+| kommunale_parameterår_har_98_forskellige_kommuner(skatteår: Heltal) -> length(distinct(map(kommunale_parametre_for_år(skatteår), |parametre: KommunaleParametre| parametre.kommune))) == 98
+| kommunale_parameterår_har_98_forskellige_kommunekoder(skatteår: Heltal) -> length(distinct(map(kommunale_parametre_for_år(skatteår), |parametre: KommunaleParametre| parametre.kommunekode))) == 98
+| kommunale_parameterår_har_præcis_en_post_pr_kommune(skatteår: Heltal) -> all(alle_kommuner, |kommune: Kommune| length(kommunale_parametre_kandidater(skatteår, kommune)) == 1)
+| kommunale_parameterår_har_gyldige_enheder(skatteår: Heltal) -> all(kommunale_parametre_for_år(skatteår), |parametre: KommunaleParametre| kommunal_parameterpost_har_gyldige_enheder(skatteår, parametre))
+| kommunale_parameterår_har_sporbart_kildegrundlag(skatteår: Heltal) -> kommunale_parametre_kildeinfo(kommunale_parametre_kilde_for_år(skatteår)).år == skatteår && string_length(kommunale_parametre_kildeinfo(kommunale_parametre_kilde_for_år(skatteår)).sha256) == 64
+| kommunale_parameterår_er_komplet_og_entydigt(skatteår: Heltal) -> kommunale_parameterår_har_98_poster(skatteår) && kommunale_parameterår_har_98_forskellige_kommuner(skatteår) && kommunale_parameterår_har_98_forskellige_kommunekoder(skatteår) && kommunale_parameterår_har_præcis_en_post_pr_kommune(skatteår) && kommunale_parameterår_har_gyldige_enheder(skatteår) && kommunale_parameterår_har_sporbart_kildegrundlag(skatteår)
+| kommunekoder_er_stabile_på_tværs_af_år(kommune: Kommune) -> kommunale_parametre_for(2024, kommune).kommunekode == kommunale_parametre_for(2025, kommune).kommunekode && kommunale_parametre_for(2025, kommune).kommunekode == kommunale_parametre_for(2026, kommune).kommunekode
+
+= kommunale_parametre_kommuneliste_komplet = length(alle_kommuner) == 98 && length(distinct(alle_kommuner)) == 98
+= kommunale_parametre_alle_år_komplette = all(kommunale_parameterår, |skatteår: Heltal| kommunale_parameterår_er_komplet_og_entydigt(skatteår))
+= kommunale_parametre_kommunekoder_stabile = all(alle_kommuner, |kommune: Kommune| kommunekoder_er_stabile_på_tværs_af_år(kommune))
+
+| kommunale_parametre_audit_kommuneliste: kommunale_parametre_kommuneliste_komplet -> kommunale_parametre_kommuneliste_komplet
+| kommunale_parametre_audit_alle_år: kommunale_parametre_alle_år_komplette -> kommunale_parametre_alle_år_komplette
+| kommunale_parametre_audit_stabile_koder: kommunale_parametre_kommunekoder_stabile -> kommunale_parametre_kommunekoder_stabile
+
+? kommunale_parametre_audit_kommuneliste
+? kommunale_parametre_audit_alle_år
+? kommunale_parametre_audit_stabile_koder

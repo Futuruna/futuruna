@@ -40,6 +40,12 @@ kommunal skat, kirkeskat, aktieindkomst, kapitalindkomst, personfradrag,
 underskud, delår, skatteloft, indeholdelse, slutopgørelse, årlige
 pensionsindbetalinger og dele af Ligningslovens fradragsregler.
 
+Kommuneskat, kirkeskat, skatteloftsnedslag og ordinær grundskyld er nu
+kildebundet for alle 98 kommuner i 2024, 2025 og 2026. Bopælskommunen og hver
+ejendoms kommune er særskilte input, fordi indkomstskatten og grundskylden ikke
+nødvendigvis bruger samme kommune. Den genererede arbejdsbog giver begge felter
+den samme komplette dropdown, mens Futuruna vælger årets officielle sats.
+
 Den almindelige lønmodtagervej er også udstillet som en samlet, typet
 beregningsgrænse. Futuruna kan generere JSON-, TOML- eller XLSX-input direkte fra
 `PersonskatInput`, validere det mod samme kontrakt og returnere både det fulde

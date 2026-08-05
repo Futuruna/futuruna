@@ -1,5 +1,7 @@
 @ sprog da
 
+@ importer ./kommunale - parametre
+
 -- Personskatteloven — skatteårsspecifikke parameterpakker.
 --
 -- Kilder:
@@ -33,6 +35,8 @@ Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 588.90
 # NationalParametre(skatteår: Heltal, bundskat_basispoint: Heltal, topskat_basispoint: Heltal, topskattegrænse_efter_am_kroner: Heltal, mellemskat_basispoint: Heltal, mellemskattegrænse_efter_am_kroner: Heltal, toptopskat_basispoint: Heltal, toptopskattegrænse_efter_am_kroner: Heltal, am_bidrag_basispoint: Heltal, personfradrag_voksen_kroner: Heltal, personfradrag_under18_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_basispoint: Heltal, aktieindkomst_høj_basispoint: Heltal, positiv_nettokapital_progressiv_bundfradrag_kroner: Heltal, skatteloft_personlig_basispoint: Heltal, skatteloft_positiv_nettokapital_basispoint: Heltal)
 # NationalParametreKilde = SkattestyrelsenSatserSkat2024 | SkattestyrelsenSatserSkat2025 | SkattestyrelsenSatserSkat2026
 # NationalParametreResultat(skatteår: Heltal, kilde: NationalParametreKilde, parametre: NationalParametre)
+# SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
+# SkatteårParameterpakkeResultat(skatteår: Heltal, kommune: Kommune, national_kilde: NationalParametreKilde, kommunal_kilde: KommunaleParametreKilde, pakke: SkatteårParameterpakke)
 
 | nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
     skatteår = 2024,
@@ -141,163 +145,10 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 ) under skatteår_understøttet(skatteår)
 | nationalparametre_for(skatteår: Heltal) -> nationalparametre_resultat(skatteår).parametre
 
-----
-Skatteministeriet, "Oversigt over kommuneskatter"
-Tabel: Kommuneskatter
-År: 2024
-
-Kommunenavn | År | Kommuneskat | Kirkeskat | Sundhedsbidrag | Bundskat | I alt | Skatteloftsnedslag* | Grundskyldspromille (Kommune)
-København | 2024 | 23,60 | 0,80 | 0,00 | 12,01 | 36,41 | 0,00 | 5,10
-Gentofte | 2024 | 24,34 | 0,40 | 0,00 | 12,01 | 36,75 | 0,00 | 5,10
-----
-
-# Kommune = København | Frederiksberg | Gentofte | Langeland
-# KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
-# KommunaleParametreKilde = SkatteministerietKommuneskatter2024 | SkatteministerietKommuneskatter2025 | SkatteministerietKommuneskattesatser2026Xlsx
-# KommunaleParametreResultat(skatteår: Heltal, kommune: Kommune, kilde: KommunaleParametreKilde, parametre: KommunaleParametre)
-# SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
-# SkatteårParameterpakkeResultat(skatteår: Heltal, kommune: Kommune, national_kilde: NationalParametreKilde, kommunal_kilde: KommunaleParametreKilde, pakke: SkatteårParameterpakke)
-
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2024,
-    kommune = København,
-    kommunekode = 101,
-    kommuneskat_basispoint = 2360,
-    kirkeskat_basispoint = 80,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2024 && kommune == København
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2024,
-    kommune = Gentofte,
-    kommunekode = 157,
-    kommuneskat_basispoint = 2434,
-    kirkeskat_basispoint = 40,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2024 && kommune == Gentofte
-
-----
-Skatteministeriet, "Oversigt over kommuneskatter"
-Tabel: Kommuneskatter
-År: 2025
-
-Kommunenavn | År | Kommuneskat | Kirkeskat | Sundhedsbidrag | Bundskat | I alt | Skatteloftsnedslag* | Grundskyldspromille (Kommune)
-København | 2025 | 23,50 | 0,80 | 0,00 | 12,01 | 36,31 | 0,00 | 5,10
-Frederiksberg | 2025 | 24,57 | 0,50 | 0,00 | 12,01 | 37,08 | 0,00 | 3,10
-Gentofte | 2025 | 24,24 | 0,39 | 0,00 | 12,01 | 36,64 | 0,00 | 5,10
-----
-
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2025,
-    kommune = København,
-    kommunekode = 101,
-    kommuneskat_basispoint = 2350,
-    kirkeskat_basispoint = 80,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2025 && kommune == København
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2025,
-    kommune = Frederiksberg,
-    kommunekode = 147,
-    kommuneskat_basispoint = 2457,
-    kirkeskat_basispoint = 50,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 31
-) under skatteår == 2025 && kommune == Frederiksberg
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2025,
-    kommune = Gentofte,
-    kommunekode = 157,
-    kommuneskat_basispoint = 2424,
-    kirkeskat_basispoint = 39,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2025 && kommune == Gentofte
-
-----
-Skatteministeriet, "Kommuneskattesatser 2026"
-Projektmappe: kommuneskattesatser_2026.xlsx
-Ark: 2026
-
-Kommune | Region | Kommune nr. | Region nr. | Alfabet nr. | Skatte pct. | Kirke pct. | Nedslag pct. | Grundskyldspromille
-København | Hovedstaden | 101 | 1084 | 50 | 23,39 | 0,80 | 0,00 | 5,10
-Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,10
-Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
-----
-
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2026,
-    kommune = København,
-    kommunekode = 101,
-    kommuneskat_basispoint = 2339,
-    kirkeskat_basispoint = 80,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2026 && kommune == København
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2026,
-    kommune = Gentofte,
-    kommunekode = 157,
-    kommuneskat_basispoint = 2414,
-    kirkeskat_basispoint = 38,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 0,
-    grundskyld_promille_tiendedele = 51
-) under skatteår == 2026 && kommune == Gentofte
-| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
-    skatteår = 2026,
-    kommune = Langeland,
-    kommunekode = 482,
-    kommuneskat_basispoint = 2630,
-    kirkeskat_basispoint = 114,
-    sundhedsbidrag_basispoint = 0,
-    bundskat_basispoint = 1201,
-    skatteloftsnedslag_basispoint = 124,
-    grundskyld_promille_tiendedele = 122
-) under skatteår == 2026 && kommune == Langeland
-
-| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> SkatteministerietKommuneskatter2024 under skatteår == 2024 && (kommune == København || kommune == Gentofte)
-| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> SkatteministerietKommuneskatter2025 under skatteår == 2025 && (kommune == København || kommune == Frederiksberg || kommune == Gentofte)
-| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> SkatteministerietKommuneskattesatser2026Xlsx under skatteår == 2026 && (kommune == København || kommune == Gentofte || kommune == Langeland)
-| kommunale_parametre_resultat(skatteår: Heltal, kommune: Kommune) -> KommunaleParametreResultat(
-    skatteår = skatteår,
-    kommune = kommune,
-    kilde = kommunale_parametre_kilde(skatteår, kommune),
-    parametre = kommunale_parametre_værdi_for(skatteår, kommune)
-) under kommune_understøttet_i_år(skatteår, kommune)
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_resultat(skatteår, kommune).parametre
-
 | skatteår_understøttet(skatteår: Heltal) -> Falskt
 | exception skatteår_2024 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2024
 | exception skatteår_2025 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2025
 | exception skatteår_2026 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2026
-
-| kommune_understøttet(kommune: Kommune) -> Falskt
-| exception kommune_københavn kommune_understøttet(kommune: Kommune) -> Sandt under kommune == København
-| exception kommune_frederiksberg kommune_understøttet(kommune: Kommune) -> Sandt under kommune == Frederiksberg
-| exception kommune_gentofte kommune_understøttet(kommune: Kommune) -> Sandt under kommune == Gentofte
-| exception kommune_langeland kommune_understøttet(kommune: Kommune) -> Sandt under kommune == Langeland
-
-| kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Falskt
-| exception kommune_københavn_2024_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == København && skatteår >= 2024 && skatteår <= 2026
-| exception kommune_frederiksberg_2025 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Frederiksberg && skatteår == 2025
-| exception kommune_gentofte_2024_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Gentofte && skatteår >= 2024 && skatteår <= 2026
-| exception kommune_langeland_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Langeland && skatteår == 2026
 
 | skatteår_parameterpakke_resultat(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakkeResultat(
     skatteår = skatteår,
@@ -337,7 +188,7 @@ Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
 = m3_2026_langeland_pakke_resultat = skatteår_parameterpakke_resultat(2026, Langeland)
 = m3_2026_understøttet = skatteår_understøttet(2026)
 = m3_2026_langeland_pakke_komplet = parameterpakke_komplet(2026, Langeland)
-= m3_2025_langeland_pakke_ikke_komplet = parameterpakke_komplet(2025, Langeland)
+= m3_2023_langeland_pakke_ikke_komplet = parameterpakke_komplet(2023, Langeland)
 
 | m3_2024_national_kilde_fra_skat: m3_2024_national_resultat -> m3_2024_national_resultat.kilde == SkattestyrelsenSatserSkat2024 && m3_2024_national_resultat.parametre.topskattegrænse_efter_am_kroner == 588900
 | m3_2026_national_kilde_fra_skat: m3_2026_national_resultat -> m3_2026_national_resultat.kilde == SkattestyrelsenSatserSkat2026 && m3_2026_national_resultat.parametre.mellemskat_basispoint == 750 && m3_2026_national_resultat.parametre.toptopskattegrænse_efter_am_kroner == 2592700
@@ -368,4 +219,4 @@ Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
 | m3_2026_langeland_pakke_bærer_kilder: m3_2026_langeland_pakke_resultat -> m3_2026_langeland_pakke_resultat.national_kilde == SkattestyrelsenSatserSkat2026 && m3_2026_langeland_pakke_resultat.kommunal_kilde == SkatteministerietKommuneskattesatser2026Xlsx && m3_2026_langeland_pakke_resultat.pakke.kommunale.kommunekode == 482
 | m3_2026_er_i_pakken: m3_2026_understøttet -> m3_2026_understøttet == Sandt
 | m3_2026_langeland_er_komplet: m3_2026_langeland_pakke_komplet -> m3_2026_langeland_pakke_komplet == Sandt
-| m3_2025_langeland_er_ikke_komplet: m3_2025_langeland_pakke_ikke_komplet -> m3_2025_langeland_pakke_ikke_komplet == Falskt
+| m3_2023_langeland_er_ikke_komplet: m3_2023_langeland_pakke_ikke_komplet -> m3_2023_langeland_pakke_ikke_komplet == Falskt

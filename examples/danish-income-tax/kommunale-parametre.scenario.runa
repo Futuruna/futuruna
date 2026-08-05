@@ -1,0 +1,32 @@
+@ sprog da
+
+@ importer ./kommunale - parametre
+
+# KommunaltBopælsOgEjendomsvalg(bopælskommune: Kommune, ejendomskommune: Kommune)
+
+= kommunale_parametre_københavn_2024 = kommunale_parametre_for(2024, København)
+= kommunale_parametre_frederiksberg_2025 = kommunale_parametre_for(2025, Frederiksberg)
+= kommunale_parametre_esbjerg_2025 = kommunale_parametre_for(2025, Esbjerg)
+= kommunale_parametre_rudersdal_2026 = kommunale_parametre_for(2026, Rudersdal)
+= kommunale_parametre_silkeborg_2026 = kommunale_parametre_for(2026, Silkeborg)
+= kommunale_parametre_læsø_2026 = kommunale_parametre_for(2026, Læsø)
+= kommunalt_bopæls_og_ejendomsvalg = KommunaltBopælsOgEjendomsvalg(
+    bopælskommune = København,
+    ejendomskommune = Aarhus
+)
+
+| kommunale_parametre_københavn_2024_matcher_officiel_tabel: kommunale_parametre_københavn_2024 -> kommunale_parametre_københavn_2024.kommunekode == 101 && kommunale_parametre_københavn_2024.kommuneskat_basispoint == 2360 && kommunale_parametre_københavn_2024.kirkeskat_basispoint == 80 && kommunale_parametre_københavn_2024.skatteloftsnedslag_basispoint == 0 && kommunale_parametre_københavn_2024.grundskyld_promille_tiendedele == 51
+| kommunale_parametre_frederiksberg_2025_matcher_officiel_tabel: kommunale_parametre_frederiksberg_2025 -> kommunale_parametre_frederiksberg_2025.kommunekode == 147 && kommunale_parametre_frederiksberg_2025.kommuneskat_basispoint == 2457 && kommunale_parametre_frederiksberg_2025.kirkeskat_basispoint == 50 && kommunale_parametre_frederiksberg_2025.grundskyld_promille_tiendedele == 31
+| kommunale_parametre_esbjerg_2025_matcher_officiel_tabel: kommunale_parametre_esbjerg_2025 -> kommunale_parametre_esbjerg_2025.kommunekode == 561 && kommunale_parametre_esbjerg_2025.kommuneskat_basispoint == 2610 && kommunale_parametre_esbjerg_2025.kirkeskat_basispoint == 81 && kommunale_parametre_esbjerg_2025.skatteloftsnedslag_basispoint == 104 && kommunale_parametre_esbjerg_2025.grundskyld_promille_tiendedele == 99
+| kommunale_parametre_rudersdal_2026_matcher_officiel_tabel: kommunale_parametre_rudersdal_2026 -> kommunale_parametre_rudersdal_2026.kommunekode == 230 && kommunale_parametre_rudersdal_2026.kommuneskat_basispoint == 2347 && kommunale_parametre_rudersdal_2026.kirkeskat_basispoint == 57 && kommunale_parametre_rudersdal_2026.grundskyld_promille_tiendedele == 94
+| kommunale_parametre_silkeborg_2026_matcher_officiel_tabel: kommunale_parametre_silkeborg_2026 -> kommunale_parametre_silkeborg_2026.kommunekode == 740 && kommunale_parametre_silkeborg_2026.kommuneskat_basispoint == 2550 && kommunale_parametre_silkeborg_2026.kirkeskat_basispoint == 94 && kommunale_parametre_silkeborg_2026.skatteloftsnedslag_basispoint == 44 && kommunale_parametre_silkeborg_2026.grundskyld_promille_tiendedele == 110
+| kommunale_parametre_læsø_2026_matcher_officiel_tabel: kommunale_parametre_læsø_2026 -> kommunale_parametre_læsø_2026.kommunekode == 825 && kommunale_parametre_læsø_2026.kommuneskat_basispoint == 2630 && kommunale_parametre_læsø_2026.kirkeskat_basispoint == 130 && kommunale_parametre_læsø_2026.skatteloftsnedslag_basispoint == 124 && kommunale_parametre_læsø_2026.grundskyld_promille_tiendedele == 127
+| bopæl_og_ejendom_vælger_hver_sin_kommunale_parameter: kommunalt_bopæls_og_ejendomsvalg -> kommunale_parametre_for(2026, kommunalt_bopæls_og_ejendomsvalg.bopælskommune).kommuneskat_basispoint == 2339 && kommunale_parametre_for(2026, kommunalt_bopæls_og_ejendomsvalg.ejendomskommune).grundskyld_promille_tiendedele == 60
+
+? kommunale_parametre_københavn_2024_matcher_officiel_tabel
+? kommunale_parametre_frederiksberg_2025_matcher_officiel_tabel
+? kommunale_parametre_esbjerg_2025_matcher_officiel_tabel
+? kommunale_parametre_rudersdal_2026_matcher_officiel_tabel
+? kommunale_parametre_silkeborg_2026_matcher_officiel_tabel
+? kommunale_parametre_læsø_2026_matcher_officiel_tabel
+? bopæl_og_ejendom_vælger_hver_sin_kommunale_parameter

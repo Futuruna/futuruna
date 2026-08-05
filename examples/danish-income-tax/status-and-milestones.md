@@ -3,9 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-31
 TD epic: `td-56cf8d`
-Current implementation slice: `td-4a61a9` (Ejendomsskattelovens §§ 23-27 og §§ 35-45 fra kildefakta til kanonisk Personskat; pending independent review)
+Current implementation slice: `td-8746cb` (alle 98 kommuners 2024-2026-årsparametre fra officielle tabeller til kanonisk Personskat og arbejdsbog; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-8746cb` (alle kommuners årsparametre)
+Next source-backed slice: `td-2d84ec` (rangér næste materielle posture-/afhængighedshul efter uafhængig gennemgang)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -160,6 +160,19 @@ realisationsdatoer med entydige hændelses-id'er, og en længstlevendes successi
 bærer den tidligere ægtefælles aldersgrundlag i selve hændelsen i stedet for at
 genbruge feltet for en nuværende samlevende ægtefælle.
 
+Latest municipal-parameter integration: `Kommune` dækker nu alle 98 danske
+kommuner med stabile Futuruna-varianter. De officielle Skatteministeriet-filer
+for 2024, 2025 og 2026 er bevaret som fulde tabeller umiddelbart over de
+tilsvarende typede parameterlister. Hver af de 294 kommune-årsposter bærer
+kommunekode, kommuneskat, kirkeskat, skatteloftsnedslag og ordinær
+grundskyldspromille i eksakte heltalsenheder. Kildemetadataen bevarer fil-URL,
+format, hentet dato og SHA-256 for hvert års regneark. En særskilt audit beviser
+98 forskellige kommuner, 98 forskellige kommunekoder og præcis én post pr.
+kommune for hvert understøttet år samt stabile kommunekoder på tværs af årene.
+Bopælskommunen og hver ejendoms kommune forbliver forskellige input. Den fulde
+XLSX-rundtur beviser, at begge felter udstiller den samme komplette dropdown med
+98 valg uden at ændre det kanoniske skatteresultat.
+
 Den genererede arbejdsbog udstiller overgangsreglernes kildefakta med danske
 etiketter, spørgsmål, hjælp og kilder. Der findes ikke et automatisk PDF- eller
 dokumentimporttrin. En AI eller et menneske læser dokumenterne eller gennemfører
@@ -201,7 +214,7 @@ samme kildefakta med danske spørgsmål og med både LBK 1284/2021 og LOV
 1564/2023 i kildesporet. Den ordinære boligskat indgår nu én gang i det
 kanoniske skattetotal og i årsopgørelsen. Den generelle boligskattegrænse har
 nu også kildefaktabåret dækning af nedslag, rabat og overgangsregler; alle
-kommuners årsparametre mangler fortsat. De resterende investerings-,
+kommuners årsparametre for 2024-2026 er nu dækket. De resterende investerings-,
 ligningsfradrags-, virksomhedsunderskuds- og personlige indkomstposter er heller
 ikke fuldt dækket. Den generelle opfølgning
 `td-ba70c7` skal derfor kontrollere alle offentlige beregningsgrænser for
@@ -2728,7 +2741,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-07-30, the corpus should be treated as a source-backed first-slice
+As of 2026-07-31, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -2747,8 +2760,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 85-90% complete as an executable research corpus,
-  and roughly 72-80% complete as a production-grade calculator for
+- Working estimate: roughly 86-91% complete as an executable research corpus,
+  and roughly 74-82% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

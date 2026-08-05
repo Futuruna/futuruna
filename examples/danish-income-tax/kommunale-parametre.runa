@@ -1,0 +1,698 @@
+@ sprog da
+
+@ importer ./metadata
+
+-- Årlige kommunale parameterpakker til Personskat og Ejendomsskatteloven.
+
+# Kommune = København | Frederiksberg | Ballerup | Brøndby | Dragør | Gentofte | Gladsaxe | Glostrup | Herlev | Albertslund | Hvidovre | HøjeTaastrup | LyngbyTaarbæk | Rødovre | Ishøj | Tårnby | Vallensbæk | Furesø | Allerød | Fredensborg | Helsingør | Hillerød | Hørsholm | Rudersdal | Egedal | Frederikssund | Greve | Køge | Halsnæs | Roskilde | Solrød | Gribskov | Odsherred | Holbæk | Faxe | Kalundborg | Ringsted | Slagelse | Stevns | Sorø | Lejre | Lolland | Næstved | Guldborgsund | Vordingborg | Bornholm | Middelfart | Assens | FaaborgMidtfyn | Kerteminde | Nyborg | Odense | Svendborg | Nordfyns | Langeland | Ærø | Haderslev | Billund | Sønderborg | Tønder | Esbjerg | Fanø | Varde | Vejen | Aabenraa | Fredericia | Horsens | Kolding | Vejle | Herning | Holstebro | Lemvig | Struer | Syddjurs | Norddjurs | Favrskov | Odder | Randers | Silkeborg | Samsø | Skanderborg | Aarhus | IkastBrande | RingkøbingSkjern | Hedensted | Morsø | Skive | Thisted | Viborg | Brønderslev | Frederikshavn | Vesthimmerland | Læsø | Rebild | Mariagerfjord | Jammerbugt | Aalborg | Hjørring
+# KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
+# KommunaleParametreKilde = SkatteministerietKommuneskatter2024 | SkatteministerietKommuneskatter2025 | SkatteministerietKommuneskattesatser2026Xlsx
+# KommunaleParametreKildeInfo(år: Heltal, titel: Tekst, url: Tekst, filformat: Tekst, sha256: Tekst, hentet_dato: Tekst)
+# KommunaleParametreResultat(skatteår: Heltal, kommune: Kommune, kilde: KommunaleParametreKilde, parametre: KommunaleParametre)
+
+= alle_kommuner = [København, Frederiksberg, Ballerup, Brøndby, Dragør, Gentofte, Gladsaxe, Glostrup, Herlev, Albertslund, Hvidovre, HøjeTaastrup, LyngbyTaarbæk, Rødovre, Ishøj, Tårnby, Vallensbæk, Furesø, Allerød, Fredensborg, Helsingør, Hillerød, Hørsholm, Rudersdal, Egedal, Frederikssund, Greve, Køge, Halsnæs, Roskilde, Solrød, Gribskov, Odsherred, Holbæk, Faxe, Kalundborg, Ringsted, Slagelse, Stevns, Sorø, Lejre, Lolland, Næstved, Guldborgsund, Vordingborg, Bornholm, Middelfart, Assens, FaaborgMidtfyn, Kerteminde, Nyborg, Odense, Svendborg, Nordfyns, Langeland, Ærø, Haderslev, Billund, Sønderborg, Tønder, Esbjerg, Fanø, Varde, Vejen, Aabenraa, Fredericia, Horsens, Kolding, Vejle, Herning, Holstebro, Lemvig, Struer, Syddjurs, Norddjurs, Favrskov, Odder, Randers, Silkeborg, Samsø, Skanderborg, Aarhus, IkastBrande, RingkøbingSkjern, Hedensted, Morsø, Skive, Thisted, Viborg, Brønderslev, Frederikshavn, Vesthimmerland, Læsø, Rebild, Mariagerfjord, Jammerbugt, Aalborg, Hjørring]
+
+= skatteministeriet_kommunale_parametre_2024 = KommunaleParametreKildeInfo(
+    år = 2024,
+    titel = "Kommuneskattesatser 2024",
+    url = "https://skm.dk/media/t2olqyet/kommuneskattesatser_2024.xls",
+    filformat = "XLS",
+    sha256 = "0105f0e9c94248ac66bba946d7dd9e398cf11c038e1f75c3a190bf1eaf8a432f",
+    hentet_dato = "2026-07-31"
+)
+= kommunale_parametre_2024_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2024),))
+
+--@label:kommunale_parametre_2024::meta:kommunale_parametre_2024_metadata--
+----
+Skatteministeriet, "Kommuneskattesatser 2024"
+Officiel fil: https://skm.dk/media/t2olqyet/kommuneskattesatser_2024.xls
+
+Kommune | Region | Kommune nr. | Region nr. | Alfabet nr. | Skatte pct. | Kirke pct. | Nedslag pct. | Grundskyldspromille
+København | Hovedstaden | 101 | 1084 | 50 | 23,60 | 0,80 | 0,00 | 5,1
+Frederiksberg | Hovedstaden | 147 | 1084 | 18 | 24,57 | 0,50 | 0,00 | 3,1
+Ballerup | Hovedstaden | 151 | 1084 | 4 | 25,50 | 0,72 | 0,44 | 8,3
+Brøndby | Hovedstaden | 153 | 1084 | 7 | 24,30 | 0,80 | 0,00 | 4,9
+Dragør | Hovedstaden | 155 | 1084 | 9 | 24,80 | 0,61 | 0,00 | 8,1
+Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,34 | 0,40 | 0,00 | 5,1
+Gladsaxe | Hovedstaden | 159 | 1084 | 25 | 23,60 | 0,75 | 0,00 | 5,9
+Glostrup | Hovedstaden | 161 | 1084 | 26 | 24,60 | 0,80 | 0,00 | 6,5
+Herlev | Hovedstaden | 163 | 1084 | 33 | 23,70 | 0,75 | 0,00 | 5,4
+Albertslund | Hovedstaden | 165 | 1084 | 1 | 25,60 | 0,80 | 0,54 | 9,1
+Hvidovre | Hovedstaden | 167 | 1084 | 41 | 25,40 | 0,72 | 0,34 | 6,5
+Høje-Taastrup | Hovedstaden | 169 | 1084 | 42 | 24,60 | 0,80 | 0,00 | 6,3
+Lyngby-Taarbæk | Hovedstaden | 173 | 1084 | 56 | 24,38 | 0,60 | 0,00 | 6,7
+Rødovre | Hovedstaden | 175 | 1084 | 74 | 25,70 | 0,72 | 0,64 | 7,8
+Ishøj | Hovedstaden | 183 | 1084 | 45 | 25,00 | 0,90 | 0,00 | 6,5
+Tårnby | Hovedstaden | 185 | 1084 | 89 | 24,10 | 0,61 | 0,00 | 6,0
+Vallensbæk | Hovedstaden | 187 | 1084 | 90 | 25,60 | 0,80 | 0,54 | 8,6
+Furesø | Hovedstaden | 190 | 1084 | 22 | 24,88 | 0,65 | 0,00 | 7,0
+Allerød | Hovedstaden | 201 | 1084 | 2 | 25,30 | 0,58 | 0,24 | 8,0
+Fredensborg | Hovedstaden | 210 | 1084 | 16 | 25,30 | 0,62 | 0,24 | 8,3
+Helsingør | Hovedstaden | 217 | 1084 | 32 | 25,52 | 0,63 | 0,46 | 9,5
+Hillerød | Hovedstaden | 219 | 1084 | 35 | 25,60 | 0,69 | 0,54 | 6,6
+Hørsholm | Hovedstaden | 223 | 1084 | 43 | 23,70 | 0,62 | 0,00 | 8,5
+Rudersdal | Hovedstaden | 230 | 1084 | 73 | 23,36 | 0,57 | 0,00 | 9,6
+Egedal | Hovedstaden | 240 | 1084 | 10 | 25,70 | 0,76 | 0,64 | 8,8
+Frederikssund | Hovedstaden | 250 | 1084 | 20 | 25,80 | 0,96 | 0,74 | 12,0
+Greve | Sjælland | 253 | 1085 | 27 | 24,52 | 0,73 | 0,00 | 5,5
+Køge | Sjælland | 259 | 1085 | 51 | 25,26 | 0,87 | 0,20 | 5,3
+Halsnæs | Hovedstaden | 260 | 1084 | 21 | 25,70 | 0,85 | 0,64 | 10,9
+Roskilde | Sjælland | 265 | 1085 | 72 | 25,20 | 0,84 | 0,14 | 7,4
+Solrød | Sjælland | 269 | 1085 | 80 | 24,99 | 0,89 | 0,00 | 7,9
+Gribskov | Hovedstaden | 270 | 1084 | 28 | 25,40 | 0,85 | 0,34 | 11,1
+Odsherred | Sjælland | 306 | 1085 | 67 | 26,30 | 0,98 | 1,24 | 12,3
+Holbæk | Sjælland | 316 | 1085 | 37 | 25,30 | 0,96 | 0,24 | 8,1
+Faxe | Sjælland | 320 | 1085 | 15 | 25,80 | 1,08 | 0,74 | 8,0
+Kalundborg | Sjælland | 326 | 1085 | 47 | 24,20 | 1,01 | 0,00 | 16,6
+Ringsted | Sjælland | 329 | 1085 | 71 | 26,10 | 0,95 | 1,04 | 7,0
+Slagelse | Sjælland | 330 | 1085 | 79 | 26,10 | 0,96 | 1,04 | 11,1
+Stevns | Sjælland | 336 | 1085 | 82 | 26,00 | 1,10 | 0,94 | 8,3
+Sorø | Sjælland | 340 | 1085 | 81 | 26,30 | 0,95 | 1,24 | 9,8
+Lejre | Sjælland | 350 | 1085 | 53 | 25,31 | 1,05 | 0,25 | 9,6
+Lolland | Sjælland | 360 | 1085 | 55 | 26,30 | 1,23 | 1,24 | 17,4
+Næstved | Sjælland | 370 | 1085 | 64 | 25,00 | 0,98 | 0,00 | 9,8
+Guldborgsund | Sjælland | 376 | 1085 | 29 | 25,80 | 1,16 | 0,74 | 15,9
+Vordingborg | Sjælland | 390 | 1085 | 96 | 26,30 | 1,02 | 1,24 | 13,5
+Bornholm | Hovedstaden | 400 | 1084 | 6 | 26,20 | 0,93 | 1,14 | 10,7
+Middelfart | Syddanmark | 410 | 1083 | 59 | 25,80 | 0,90 | 0,74 | 6,8
+Assens | Syddanmark | 420 | 1083 | 3 | 26,10 | 0,98 | 1,04 | 11,2
+Faaborg-Midtfyn | Syddanmark | 430 | 1083 | 23 | 26,10 | 1,05 | 1,04 | 8,5
+Kerteminde | Syddanmark | 440 | 1083 | 48 | 26,10 | 0,98 | 1,04 | 12,4
+Nyborg | Syddanmark | 450 | 1083 | 63 | 26,30 | 1,00 | 1,24 | 12,8
+Odense | Syddanmark | 461 | 1083 | 66 | 25,50 | 0,68 | 0,44 | 5,7
+Svendborg | Syddanmark | 479 | 1083 | 84 | 26,30 | 1,02 | 1,24 | 8,8
+Nordfyns | Syddanmark | 480 | 1083 | 62 | 26,00 | 1,04 | 0,94 | 15,1
+Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,2
+Ærø | Syddanmark | 492 | 1083 | 97 | 26,10 | 1,07 | 1,04 | 11,1
+Haderslev | Syddanmark | 510 | 1083 | 30 | 26,30 | 0,95 | 1,24 | 12,7
+Billund | Syddanmark | 530 | 1083 | 5 | 24,00 | 0,89 | 0,00 | 7,2
+Sønderborg | Syddanmark | 540 | 1083 | 86 | 25,70 | 0,91 | 0,64 | 13,5
+Tønder | Syddanmark | 550 | 1083 | 88 | 25,30 | 1,16 | 0,24 | 10,8
+Esbjerg | Syddanmark | 561 | 1083 | 11 | 25,80 | 0,81 | 0,74 | 9,9
+Fanø | Syddanmark | 563 | 1083 | 12 | 25,77 | 1,14 | 0,71 | 12,5
+Varde | Syddanmark | 573 | 1083 | 91 | 25,10 | 0,95 | 0,04 | 17,7
+Vejen | Syddanmark | 575 | 1083 | 92 | 25,33 | 1,06 | 0,27 | 9,0
+Aabenraa | Syddanmark | 580 | 1083 | 98 | 25,60 | 0,95 | 0,54 | 7,8
+Fredericia | Syddanmark | 607 | 1083 | 17 | 25,50 | 0,88 | 0,44 | 13,0
+Horsens | Midtjylland | 615 | 1082 | 40 | 25,69 | 0,79 | 0,63 | 8,7
+Kolding | Syddanmark | 621 | 1083 | 49 | 25,50 | 0,92 | 0,44 | 11,1
+Vejle | Syddanmark | 630 | 1083 | 93 | 23,40 | 0,89 | 0,00 | 10,5
+Herning | Midtjylland | 657 | 1082 | 34 | 25,40 | 0,99 | 0,34 | 9,9
+Holstebro | Midtjylland | 661 | 1082 | 39 | 25,50 | 1,08 | 0,44 | 11,5
+Lemvig | Midtjylland | 665 | 1082 | 54 | 25,46 | 1,27 | 0,40 | 15,4
+Struer | Midtjylland | 671 | 1082 | 83 | 25,30 | 1,20 | 0,24 | 15,5
+Syddjurs | Midtjylland | 706 | 1082 | 85 | 25,90 | 0,94 | 0,84 | 14,2
+Norddjurs | Midtjylland | 707 | 1082 | 61 | 26,00 | 1,00 | 0,94 | 16,8
+Favrskov | Midtjylland | 710 | 1082 | 14 | 25,70 | 0,96 | 0,64 | 10,6
+Odder | Midtjylland | 727 | 1082 | 65 | 25,10 | 0,95 | 0,04 | 14,4
+Randers | Midtjylland | 730 | 1082 | 68 | 25,80 | 0,89 | 0,74 | 13,9
+Silkeborg | Midtjylland | 740 | 1082 | 76 | 25,50 | 0,95 | 0,44 | 11,0
+Samsø | Midtjylland | 741 | 1082 | 75 | 25,90 | 1,22 | 0,84 | 10,5
+Skanderborg | Midtjylland | 746 | 1082 | 77 | 26,00 | 0,86 | 0,94 | 8,6
+Aarhus | Midtjylland | 751 | 1082 | 100 | 24,52 | 0,74 | 0,00 | 6,0
+Ikast-Brande | Midtjylland | 756 | 1082 | 44 | 25,10 | 0,97 | 0,04 | 9,1
+Ringkøbing-Skjern | Midtjylland | 760 | 1082 | 70 | 25,00 | 1,05 | 0,00 | 16,4
+Hedensted | Midtjylland | 766 | 1082 | 31 | 25,52 | 0,98 | 0,46 | 7,9
+Morsø | Nordjylland | 773 | 1081 | 60 | 25,80 | 1,20 | 0,74 | 15,3
+Skive | Midtjylland | 779 | 1082 | 78 | 25,50 | 1,09 | 0,44 | 11,6
+Thisted | Nordjylland | 787 | 1081 | 87 | 25,50 | 1,27 | 0,44 | 11,2
+Viborg | Midtjylland | 791 | 1082 | 95 | 25,50 | 0,93 | 0,44 | 11,5
+Brønderslev | Nordjylland | 810 | 1081 | 8 | 26,30 | 1,08 | 1,24 | 17,1
+Frederikshavn | Nordjylland | 813 | 1081 | 19 | 26,20 | 1,03 | 1,14 | 13,4
+Vesthimmerland | Nordjylland | 820 | 1081 | 94 | 26,30 | 1,18 | 1,24 | 9,3
+Læsø | Nordjylland | 825 | 1081 | 57 | 26,30 | 1,30 | 1,24 | 12,7
+Rebild | Nordjylland | 840 | 1081 | 69 | 25,83 | 1,20 | 0,77 | 8,9
+Mariagerfjord | Nordjylland | 846 | 1081 | 58 | 25,90 | 1,15 | 0,84 | 15,7
+Jammerbugt | Nordjylland | 849 | 1081 | 46 | 25,70 | 1,20 | 0,64 | 13,2
+Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
+Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
+----
+
+--@begin::kommunale_parametre_2024--
+= kommunale_parametre_2024 = [
+    KommunaleParametre(skatteår = 2024, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2024, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2457, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
+    KommunaleParametre(skatteår = 2024, kommune = Ballerup, kommunekode = 151, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2024, kommune = Brøndby, kommunekode = 153, kommuneskat_basispoint = 2430, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 49),
+    KommunaleParametre(skatteår = 2024, kommune = Dragør, kommunekode = 155, kommuneskat_basispoint = 2480, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2024, kommune = Gentofte, kommunekode = 157, kommuneskat_basispoint = 2434, kirkeskat_basispoint = 40, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2024, kommune = Gladsaxe, kommunekode = 159, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 59),
+    KommunaleParametre(skatteår = 2024, kommune = Glostrup, kommunekode = 161, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2024, kommune = Herlev, kommunekode = 163, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 54),
+    KommunaleParametre(skatteår = 2024, kommune = Albertslund, kommunekode = 165, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2024, kommune = Hvidovre, kommunekode = 167, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2024, kommune = HøjeTaastrup, kommunekode = 169, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 63),
+    KommunaleParametre(skatteår = 2024, kommune = LyngbyTaarbæk, kommunekode = 173, kommuneskat_basispoint = 2438, kirkeskat_basispoint = 60, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 67),
+    KommunaleParametre(skatteår = 2024, kommune = Rødovre, kommunekode = 175, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2024, kommune = Ishøj, kommunekode = 183, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2024, kommune = Tårnby, kommunekode = 185, kommuneskat_basispoint = 2410, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2024, kommune = Vallensbæk, kommunekode = 187, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2024, kommune = Furesø, kommunekode = 190, kommuneskat_basispoint = 2488, kirkeskat_basispoint = 65, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2024, kommune = Allerød, kommunekode = 201, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 58, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2024, kommune = Fredensborg, kommunekode = 210, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2024, kommune = Helsingør, kommunekode = 217, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 63, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 46, grundskyld_promille_tiendedele = 95),
+    KommunaleParametre(skatteår = 2024, kommune = Hillerød, kommunekode = 219, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 69, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 66),
+    KommunaleParametre(skatteår = 2024, kommune = Hørsholm, kommunekode = 223, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2024, kommune = Rudersdal, kommunekode = 230, kommuneskat_basispoint = 2336, kirkeskat_basispoint = 57, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 96),
+    KommunaleParametre(skatteår = 2024, kommune = Egedal, kommunekode = 240, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 76, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2024, kommune = Frederikssund, kommunekode = 250, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 120),
+    KommunaleParametre(skatteår = 2024, kommune = Greve, kommunekode = 253, kommuneskat_basispoint = 2452, kirkeskat_basispoint = 73, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 55),
+    KommunaleParametre(skatteår = 2024, kommune = Køge, kommunekode = 259, kommuneskat_basispoint = 2526, kirkeskat_basispoint = 87, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 20, grundskyld_promille_tiendedele = 53),
+    KommunaleParametre(skatteår = 2024, kommune = Halsnæs, kommunekode = 260, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 109),
+    KommunaleParametre(skatteår = 2024, kommune = Roskilde, kommunekode = 265, kommuneskat_basispoint = 2520, kirkeskat_basispoint = 84, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 14, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2024, kommune = Solrød, kommunekode = 269, kommuneskat_basispoint = 2499, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2024, kommune = Gribskov, kommunekode = 270, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2024, kommune = Odsherred, kommunekode = 306, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 123),
+    KommunaleParametre(skatteår = 2024, kommune = Holbæk, kommunekode = 316, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2024, kommune = Faxe, kommunekode = 320, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2024, kommune = Kalundborg, kommunekode = 326, kommuneskat_basispoint = 2420, kirkeskat_basispoint = 101, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 166),
+    KommunaleParametre(skatteår = 2024, kommune = Ringsted, kommunekode = 329, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2024, kommune = Slagelse, kommunekode = 330, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2024, kommune = Stevns, kommunekode = 336, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 110, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2024, kommune = Sorø, kommunekode = 340, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2024, kommune = Lejre, kommunekode = 350, kommuneskat_basispoint = 2531, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 25, grundskyld_promille_tiendedele = 96),
+    KommunaleParametre(skatteår = 2024, kommune = Lolland, kommunekode = 360, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 123, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 174),
+    KommunaleParametre(skatteår = 2024, kommune = Næstved, kommunekode = 370, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2024, kommune = Guldborgsund, kommunekode = 376, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 159),
+    KommunaleParametre(skatteår = 2024, kommune = Vordingborg, kommunekode = 390, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2024, kommune = Bornholm, kommunekode = 400, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 107),
+    KommunaleParametre(skatteår = 2024, kommune = Middelfart, kommunekode = 410, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 68),
+    KommunaleParametre(skatteår = 2024, kommune = Assens, kommunekode = 420, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2024, kommune = FaaborgMidtfyn, kommunekode = 430, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2024, kommune = Kerteminde, kommunekode = 440, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 124),
+    KommunaleParametre(skatteår = 2024, kommune = Nyborg, kommunekode = 450, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 128),
+    KommunaleParametre(skatteår = 2024, kommune = Odense, kommunekode = 461, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 68, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 57),
+    KommunaleParametre(skatteår = 2024, kommune = Svendborg, kommunekode = 479, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2024, kommune = Nordfyns, kommunekode = 480, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 104, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 151),
+    KommunaleParametre(skatteår = 2024, kommune = Langeland, kommunekode = 482, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 122),
+    KommunaleParametre(skatteår = 2024, kommune = Ærø, kommunekode = 492, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 107, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2024, kommune = Haderslev, kommunekode = 510, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2024, kommune = Billund, kommunekode = 530, kommuneskat_basispoint = 2400, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 72),
+    KommunaleParametre(skatteår = 2024, kommune = Sønderborg, kommunekode = 540, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 91, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2024, kommune = Tønder, kommunekode = 550, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 108),
+    KommunaleParametre(skatteår = 2024, kommune = Esbjerg, kommunekode = 561, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2024, kommune = Fanø, kommunekode = 563, kommuneskat_basispoint = 2577, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 71, grundskyld_promille_tiendedele = 125),
+    KommunaleParametre(skatteår = 2024, kommune = Varde, kommunekode = 573, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 177),
+    KommunaleParametre(skatteår = 2024, kommune = Vejen, kommunekode = 575, kommuneskat_basispoint = 2533, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 27, grundskyld_promille_tiendedele = 90),
+    KommunaleParametre(skatteår = 2024, kommune = Aabenraa, kommunekode = 580, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2024, kommune = Fredericia, kommunekode = 607, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 88, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 130),
+    KommunaleParametre(skatteår = 2024, kommune = Horsens, kommunekode = 615, kommuneskat_basispoint = 2569, kirkeskat_basispoint = 79, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 63, grundskyld_promille_tiendedele = 87),
+    KommunaleParametre(skatteår = 2024, kommune = Kolding, kommunekode = 621, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 92, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2024, kommune = Vejle, kommunekode = 630, kommuneskat_basispoint = 2340, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2024, kommune = Herning, kommunekode = 657, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 99, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2024, kommune = Holstebro, kommunekode = 661, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2024, kommune = Lemvig, kommunekode = 665, kommuneskat_basispoint = 2546, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 40, grundskyld_promille_tiendedele = 154),
+    KommunaleParametre(skatteår = 2024, kommune = Struer, kommunekode = 671, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 155),
+    KommunaleParametre(skatteår = 2024, kommune = Syddjurs, kommunekode = 706, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 94, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 142),
+    KommunaleParametre(skatteår = 2024, kommune = Norddjurs, kommunekode = 707, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 168),
+    KommunaleParametre(skatteår = 2024, kommune = Favrskov, kommunekode = 710, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 106),
+    KommunaleParametre(skatteår = 2024, kommune = Odder, kommunekode = 727, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 144),
+    KommunaleParametre(skatteår = 2024, kommune = Randers, kommunekode = 730, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 139),
+    KommunaleParametre(skatteår = 2024, kommune = Silkeborg, kommunekode = 740, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 110),
+    KommunaleParametre(skatteår = 2024, kommune = Samsø, kommunekode = 741, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 122, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2024, kommune = Skanderborg, kommunekode = 746, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 86, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2024, kommune = Aarhus, kommunekode = 751, kommuneskat_basispoint = 2452, kirkeskat_basispoint = 74, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2024, kommune = IkastBrande, kommunekode = 756, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 97, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2024, kommune = RingkøbingSkjern, kommunekode = 760, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 164),
+    KommunaleParametre(skatteår = 2024, kommune = Hedensted, kommunekode = 766, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 46, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2024, kommune = Morsø, kommunekode = 773, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 153),
+    KommunaleParametre(skatteår = 2024, kommune = Skive, kommunekode = 779, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 109, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 116),
+    KommunaleParametre(skatteår = 2024, kommune = Thisted, kommunekode = 787, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2024, kommune = Viborg, kommunekode = 791, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2024, kommune = Brønderslev, kommunekode = 810, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 171),
+    KommunaleParametre(skatteår = 2024, kommune = Frederikshavn, kommunekode = 813, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 103, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 134),
+    KommunaleParametre(skatteår = 2024, kommune = Vesthimmerland, kommunekode = 820, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 118, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 93),
+    KommunaleParametre(skatteår = 2024, kommune = Læsø, kommunekode = 825, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 130, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2024, kommune = Rebild, kommunekode = 840, kommuneskat_basispoint = 2583, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 77, grundskyld_promille_tiendedele = 89),
+    KommunaleParametre(skatteår = 2024, kommune = Mariagerfjord, kommunekode = 846, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 115, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 157),
+    KommunaleParametre(skatteår = 2024, kommune = Jammerbugt, kommunekode = 849, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 132),
+    KommunaleParametre(skatteår = 2024, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2024, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
+]
+--@end::kommunale_parametre_2024--
+
+| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2024 under skatteår == 2024
+
+= skatteministeriet_kommunale_parametre_2025 = KommunaleParametreKildeInfo(
+    år = 2025,
+    titel = "Kommuneskattesatser 2025",
+    url = "https://skm.dk/media/sead4y04/kommuneskattesatser_2025.xlsx",
+    filformat = "XLSX",
+    sha256 = "3142291a1dc48d58d1d1de99d475f776a236c2eb8a3ebbacbdab188cd884f7b3",
+    hentet_dato = "2026-07-31"
+)
+= kommunale_parametre_2025_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2025),))
+
+--@label:kommunale_parametre_2025::meta:kommunale_parametre_2025_metadata--
+----
+Skatteministeriet, "Kommuneskattesatser 2025"
+Officiel fil: https://skm.dk/media/sead4y04/kommuneskattesatser_2025.xlsx
+
+Kommune | Region | Kommune nr. | Region nr. | Alfabet nr. | Skatte pct. | Kirke pct. | Nedslag pct. | Grundskyldspromille
+København | Hovedstaden | 101 | 1084 | 50 | 23,50 | 0,80 | 0,00 | 5,1
+Frederiksberg | Hovedstaden | 147 | 1084 | 18 | 24,57 | 0,50 | 0,00 | 3,1
+Ballerup | Hovedstaden | 151 | 1084 | 4 | 25,50 | 0,75 | 0,44 | 8,3
+Brøndby | Hovedstaden | 153 | 1084 | 7 | 24,30 | 0,80 | 0,00 | 4,9
+Dragør | Hovedstaden | 155 | 1084 | 9 | 24,80 | 0,61 | 0,00 | 8,1
+Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,24 | 0,39 | 0,00 | 5,1
+Gladsaxe | Hovedstaden | 159 | 1084 | 25 | 23,60 | 0,75 | 0,00 | 5,9
+Glostrup | Hovedstaden | 161 | 1084 | 26 | 24,60 | 0,80 | 0,00 | 6,5
+Herlev | Hovedstaden | 163 | 1084 | 33 | 23,70 | 0,75 | 0,00 | 5,4
+Albertslund | Hovedstaden | 165 | 1084 | 1 | 25,60 | 0,80 | 0,54 | 9,1
+Hvidovre | Hovedstaden | 167 | 1084 | 41 | 25,40 | 0,72 | 0,34 | 6,5
+Høje-Taastrup | Hovedstaden | 169 | 1084 | 42 | 24,60 | 0,80 | 0,00 | 6,3
+Lyngby-Taarbæk | Hovedstaden | 173 | 1084 | 56 | 24,38 | 0,60 | 0,00 | 6,7
+Rødovre | Hovedstaden | 175 | 1084 | 74 | 25,70 | 0,72 | 0,64 | 7,8
+Ishøj | Hovedstaden | 183 | 1084 | 45 | 25,00 | 0,90 | 0,00 | 6,5
+Tårnby | Hovedstaden | 185 | 1084 | 89 | 24,10 | 0,61 | 0,00 | 6,0
+Vallensbæk | Hovedstaden | 187 | 1084 | 90 | 25,60 | 0,80 | 0,54 | 8,6
+Furesø | Hovedstaden | 190 | 1084 | 22 | 24,88 | 0,65 | 0,00 | 7,0
+Allerød | Hovedstaden | 201 | 1084 | 2 | 25,30 | 0,58 | 0,24 | 8,0
+Fredensborg | Hovedstaden | 210 | 1084 | 16 | 25,30 | 0,62 | 0,24 | 8,3
+Helsingør | Hovedstaden | 217 | 1084 | 32 | 25,82 | 0,63 | 0,76 | 9,5
+Hillerød | Hovedstaden | 219 | 1084 | 35 | 25,60 | 0,69 | 0,54 | 6,6
+Hørsholm | Hovedstaden | 223 | 1084 | 43 | 23,70 | 0,62 | 0,00 | 8,5
+Rudersdal | Hovedstaden | 230 | 1084 | 73 | 23,52 | 0,57 | 0,00 | 9,5
+Egedal | Hovedstaden | 240 | 1084 | 10 | 25,70 | 0,76 | 0,64 | 8,8
+Frederikssund | Hovedstaden | 250 | 1084 | 20 | 25,70 | 0,96 | 0,64 | 12,0
+Greve | Sjælland | 253 | 1085 | 27 | 24,59 | 0,81 | 0,00 | 5,5
+Køge | Sjælland | 259 | 1085 | 51 | 25,26 | 0,87 | 0,20 | 5,3
+Halsnæs | Hovedstaden | 260 | 1084 | 21 | 25,70 | 0,85 | 0,64 | 10,9
+Roskilde | Sjælland | 265 | 1085 | 72 | 25,20 | 0,84 | 0,14 | 7,4
+Solrød | Sjælland | 269 | 1085 | 80 | 24,99 | 0,89 | 0,00 | 7,9
+Gribskov | Hovedstaden | 270 | 1084 | 28 | 25,40 | 0,85 | 0,34 | 11,1
+Odsherred | Sjælland | 306 | 1085 | 67 | 26,30 | 0,98 | 1,24 | 12,3
+Holbæk | Sjælland | 316 | 1085 | 37 | 25,30 | 0,96 | 0,24 | 8,1
+Faxe | Sjælland | 320 | 1085 | 15 | 25,80 | 1,08 | 0,74 | 8,0
+Kalundborg | Sjælland | 326 | 1085 | 47 | 24,20 | 1,01 | 0,00 | 16,6
+Ringsted | Sjælland | 329 | 1085 | 71 | 26,10 | 0,95 | 1,04 | 7,0
+Slagelse | Sjælland | 330 | 1085 | 79 | 26,10 | 0,96 | 1,04 | 11,1
+Stevns | Sjælland | 336 | 1085 | 82 | 26,00 | 1,10 | 0,94 | 8,3
+Sorø | Sjælland | 340 | 1085 | 81 | 26,30 | 0,95 | 1,24 | 9,8
+Lejre | Sjælland | 350 | 1085 | 53 | 25,31 | 1,05 | 0,25 | 9,6
+Lolland | Sjælland | 360 | 1085 | 55 | 26,30 | 1,23 | 1,24 | 17,4
+Næstved | Sjælland | 370 | 1085 | 64 | 25,00 | 0,98 | 0,00 | 9,8
+Guldborgsund | Sjælland | 376 | 1085 | 29 | 25,80 | 1,16 | 0,74 | 15,9
+Vordingborg | Sjælland | 390 | 1085 | 96 | 26,30 | 1,02 | 1,24 | 13,5
+Bornholm | Hovedstaden | 400 | 1084 | 6 | 26,20 | 0,93 | 1,14 | 10,7
+Middelfart | Syddanmark | 410 | 1083 | 59 | 25,80 | 0,90 | 0,74 | 6,8
+Assens | Syddanmark | 420 | 1083 | 3 | 26,10 | 0,98 | 1,04 | 11,2
+Faaborg-Midtfyn | Syddanmark | 430 | 1083 | 23 | 26,10 | 1,05 | 1,04 | 8,5
+Kerteminde | Syddanmark | 440 | 1083 | 48 | 26,10 | 0,98 | 1,04 | 12,4
+Nyborg | Syddanmark | 450 | 1083 | 63 | 26,30 | 1,00 | 1,24 | 12,8
+Odense | Syddanmark | 461 | 1083 | 66 | 25,50 | 0,68 | 0,44 | 5,7
+Svendborg | Syddanmark | 479 | 1083 | 84 | 26,30 | 1,02 | 1,24 | 8,8
+Nordfyns | Syddanmark | 480 | 1083 | 62 | 26,00 | 1,04 | 0,94 | 15,1
+Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,2
+Ærø | Syddanmark | 492 | 1083 | 97 | 26,10 | 1,05 | 1,04 | 11,1
+Haderslev | Syddanmark | 510 | 1083 | 30 | 26,30 | 0,95 | 1,24 | 12,7
+Billund | Syddanmark | 530 | 1083 | 5 | 24,00 | 0,89 | 0,00 | 7,2
+Sønderborg | Syddanmark | 540 | 1083 | 86 | 25,70 | 0,91 | 0,64 | 13,5
+Tønder | Syddanmark | 550 | 1083 | 88 | 25,30 | 1,16 | 0,24 | 10,8
+Esbjerg | Syddanmark | 561 | 1083 | 11 | 26,10 | 0,81 | 1,04 | 9,9
+Fanø | Syddanmark | 563 | 1083 | 12 | 26,10 | 1,14 | 1,04 | 12,5
+Varde | Syddanmark | 573 | 1083 | 91 | 25,10 | 0,95 | 0,04 | 17,7
+Vejen | Syddanmark | 575 | 1083 | 92 | 25,80 | 1,06 | 0,74 | 9,0
+Aabenraa | Syddanmark | 580 | 1083 | 98 | 25,60 | 0,95 | 0,54 | 7,8
+Fredericia | Syddanmark | 607 | 1083 | 17 | 25,50 | 0,88 | 0,44 | 13,0
+Horsens | Midtjylland | 615 | 1082 | 40 | 25,69 | 0,79 | 0,63 | 8,7
+Kolding | Syddanmark | 621 | 1083 | 49 | 25,50 | 0,92 | 0,44 | 11,1
+Vejle | Syddanmark | 630 | 1083 | 93 | 23,40 | 0,89 | 0,00 | 10,5
+Herning | Midtjylland | 657 | 1082 | 34 | 25,40 | 0,99 | 0,34 | 9,9
+Holstebro | Midtjylland | 661 | 1082 | 39 | 25,50 | 1,08 | 0,44 | 11,5
+Lemvig | Midtjylland | 665 | 1082 | 54 | 25,70 | 1,27 | 0,64 | 15,4
+Struer | Midtjylland | 671 | 1082 | 83 | 25,30 | 1,20 | 0,24 | 15,5
+Syddjurs | Midtjylland | 706 | 1082 | 85 | 25,90 | 0,98 | 0,84 | 14,2
+Norddjurs | Midtjylland | 707 | 1082 | 61 | 26,00 | 1,00 | 0,94 | 16,8
+Favrskov | Midtjylland | 710 | 1082 | 14 | 25,70 | 0,96 | 0,64 | 10,6
+Odder | Midtjylland | 727 | 1082 | 65 | 25,10 | 0,95 | 0,04 | 14,4
+Randers | Midtjylland | 730 | 1082 | 68 | 26,00 | 0,89 | 0,94 | 13,9
+Silkeborg | Midtjylland | 740 | 1082 | 76 | 25,50 | 0,95 | 0,44 | 11,0
+Samsø | Midtjylland | 741 | 1082 | 75 | 25,90 | 1,20 | 0,84 | 10,5
+Skanderborg | Midtjylland | 746 | 1082 | 77 | 26,00 | 0,86 | 0,94 | 8,6
+Aarhus | Midtjylland | 751 | 1082 | 100 | 24,52 | 0,74 | 0,00 | 6,0
+Ikast-Brande | Midtjylland | 756 | 1082 | 44 | 25,10 | 0,97 | 0,04 | 9,1
+Ringkøbing-Skjern | Midtjylland | 760 | 1082 | 70 | 25,00 | 1,05 | 0,00 | 16,4
+Hedensted | Midtjylland | 766 | 1082 | 31 | 25,52 | 0,98 | 0,46 | 7,9
+Morsø | Nordjylland | 773 | 1081 | 60 | 25,80 | 1,20 | 0,74 | 15,3
+Skive | Midtjylland | 779 | 1082 | 78 | 25,50 | 1,09 | 0,44 | 11,6
+Thisted | Nordjylland | 787 | 1081 | 87 | 25,50 | 1,27 | 0,44 | 11,2
+Viborg | Midtjylland | 791 | 1082 | 95 | 25,50 | 0,93 | 0,44 | 11,5
+Brønderslev | Nordjylland | 810 | 1081 | 8 | 26,30 | 1,06 | 1,24 | 17,1
+Frederikshavn | Nordjylland | 813 | 1081 | 19 | 26,20 | 1,03 | 1,14 | 13,4
+Vesthimmerland | Nordjylland | 820 | 1081 | 94 | 26,30 | 1,18 | 1,24 | 9,3
+Læsø | Nordjylland | 825 | 1081 | 57 | 26,30 | 1,30 | 1,24 | 12,7
+Rebild | Nordjylland | 840 | 1081 | 69 | 25,83 | 1,20 | 0,77 | 8,9
+Mariagerfjord | Nordjylland | 846 | 1081 | 58 | 25,90 | 1,15 | 0,84 | 15,7
+Jammerbugt | Nordjylland | 849 | 1081 | 46 | 25,70 | 1,20 | 0,64 | 13,2
+Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
+Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
+----
+
+--@begin::kommunale_parametre_2025--
+= kommunale_parametre_2025 = [
+    KommunaleParametre(skatteår = 2025, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2350, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2025, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2457, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
+    KommunaleParametre(skatteår = 2025, kommune = Ballerup, kommunekode = 151, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2025, kommune = Brøndby, kommunekode = 153, kommuneskat_basispoint = 2430, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 49),
+    KommunaleParametre(skatteår = 2025, kommune = Dragør, kommunekode = 155, kommuneskat_basispoint = 2480, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2025, kommune = Gentofte, kommunekode = 157, kommuneskat_basispoint = 2424, kirkeskat_basispoint = 39, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2025, kommune = Gladsaxe, kommunekode = 159, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 59),
+    KommunaleParametre(skatteår = 2025, kommune = Glostrup, kommunekode = 161, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2025, kommune = Herlev, kommunekode = 163, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 54),
+    KommunaleParametre(skatteår = 2025, kommune = Albertslund, kommunekode = 165, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2025, kommune = Hvidovre, kommunekode = 167, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2025, kommune = HøjeTaastrup, kommunekode = 169, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 63),
+    KommunaleParametre(skatteår = 2025, kommune = LyngbyTaarbæk, kommunekode = 173, kommuneskat_basispoint = 2438, kirkeskat_basispoint = 60, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 67),
+    KommunaleParametre(skatteår = 2025, kommune = Rødovre, kommunekode = 175, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2025, kommune = Ishøj, kommunekode = 183, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2025, kommune = Tårnby, kommunekode = 185, kommuneskat_basispoint = 2410, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2025, kommune = Vallensbæk, kommunekode = 187, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2025, kommune = Furesø, kommunekode = 190, kommuneskat_basispoint = 2488, kirkeskat_basispoint = 65, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2025, kommune = Allerød, kommunekode = 201, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 58, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2025, kommune = Fredensborg, kommunekode = 210, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2025, kommune = Helsingør, kommunekode = 217, kommuneskat_basispoint = 2582, kirkeskat_basispoint = 63, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 76, grundskyld_promille_tiendedele = 95),
+    KommunaleParametre(skatteår = 2025, kommune = Hillerød, kommunekode = 219, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 69, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 66),
+    KommunaleParametre(skatteår = 2025, kommune = Hørsholm, kommunekode = 223, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2025, kommune = Rudersdal, kommunekode = 230, kommuneskat_basispoint = 2352, kirkeskat_basispoint = 57, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 95),
+    KommunaleParametre(skatteår = 2025, kommune = Egedal, kommunekode = 240, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 76, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2025, kommune = Frederikssund, kommunekode = 250, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 120),
+    KommunaleParametre(skatteår = 2025, kommune = Greve, kommunekode = 253, kommuneskat_basispoint = 2459, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 55),
+    KommunaleParametre(skatteår = 2025, kommune = Køge, kommunekode = 259, kommuneskat_basispoint = 2526, kirkeskat_basispoint = 87, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 20, grundskyld_promille_tiendedele = 53),
+    KommunaleParametre(skatteår = 2025, kommune = Halsnæs, kommunekode = 260, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 109),
+    KommunaleParametre(skatteår = 2025, kommune = Roskilde, kommunekode = 265, kommuneskat_basispoint = 2520, kirkeskat_basispoint = 84, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 14, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2025, kommune = Solrød, kommunekode = 269, kommuneskat_basispoint = 2499, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2025, kommune = Gribskov, kommunekode = 270, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2025, kommune = Odsherred, kommunekode = 306, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 123),
+    KommunaleParametre(skatteår = 2025, kommune = Holbæk, kommunekode = 316, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2025, kommune = Faxe, kommunekode = 320, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2025, kommune = Kalundborg, kommunekode = 326, kommuneskat_basispoint = 2420, kirkeskat_basispoint = 101, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 166),
+    KommunaleParametre(skatteår = 2025, kommune = Ringsted, kommunekode = 329, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2025, kommune = Slagelse, kommunekode = 330, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2025, kommune = Stevns, kommunekode = 336, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 110, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2025, kommune = Sorø, kommunekode = 340, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2025, kommune = Lejre, kommunekode = 350, kommuneskat_basispoint = 2531, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 25, grundskyld_promille_tiendedele = 96),
+    KommunaleParametre(skatteår = 2025, kommune = Lolland, kommunekode = 360, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 123, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 174),
+    KommunaleParametre(skatteår = 2025, kommune = Næstved, kommunekode = 370, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2025, kommune = Guldborgsund, kommunekode = 376, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 159),
+    KommunaleParametre(skatteår = 2025, kommune = Vordingborg, kommunekode = 390, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2025, kommune = Bornholm, kommunekode = 400, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 107),
+    KommunaleParametre(skatteår = 2025, kommune = Middelfart, kommunekode = 410, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 68),
+    KommunaleParametre(skatteår = 2025, kommune = Assens, kommunekode = 420, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2025, kommune = FaaborgMidtfyn, kommunekode = 430, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2025, kommune = Kerteminde, kommunekode = 440, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 124),
+    KommunaleParametre(skatteår = 2025, kommune = Nyborg, kommunekode = 450, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 128),
+    KommunaleParametre(skatteår = 2025, kommune = Odense, kommunekode = 461, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 68, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 57),
+    KommunaleParametre(skatteår = 2025, kommune = Svendborg, kommunekode = 479, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2025, kommune = Nordfyns, kommunekode = 480, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 104, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 151),
+    KommunaleParametre(skatteår = 2025, kommune = Langeland, kommunekode = 482, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 122),
+    KommunaleParametre(skatteår = 2025, kommune = Ærø, kommunekode = 492, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2025, kommune = Haderslev, kommunekode = 510, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2025, kommune = Billund, kommunekode = 530, kommuneskat_basispoint = 2400, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 72),
+    KommunaleParametre(skatteår = 2025, kommune = Sønderborg, kommunekode = 540, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 91, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2025, kommune = Tønder, kommunekode = 550, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 108),
+    KommunaleParametre(skatteår = 2025, kommune = Esbjerg, kommunekode = 561, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2025, kommune = Fanø, kommunekode = 563, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 125),
+    KommunaleParametre(skatteår = 2025, kommune = Varde, kommunekode = 573, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 177),
+    KommunaleParametre(skatteår = 2025, kommune = Vejen, kommunekode = 575, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 90),
+    KommunaleParametre(skatteår = 2025, kommune = Aabenraa, kommunekode = 580, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2025, kommune = Fredericia, kommunekode = 607, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 88, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 130),
+    KommunaleParametre(skatteår = 2025, kommune = Horsens, kommunekode = 615, kommuneskat_basispoint = 2569, kirkeskat_basispoint = 79, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 63, grundskyld_promille_tiendedele = 87),
+    KommunaleParametre(skatteår = 2025, kommune = Kolding, kommunekode = 621, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 92, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2025, kommune = Vejle, kommunekode = 630, kommuneskat_basispoint = 2340, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2025, kommune = Herning, kommunekode = 657, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 99, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2025, kommune = Holstebro, kommunekode = 661, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2025, kommune = Lemvig, kommunekode = 665, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 154),
+    KommunaleParametre(skatteår = 2025, kommune = Struer, kommunekode = 671, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 155),
+    KommunaleParametre(skatteår = 2025, kommune = Syddjurs, kommunekode = 706, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 142),
+    KommunaleParametre(skatteår = 2025, kommune = Norddjurs, kommunekode = 707, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 168),
+    KommunaleParametre(skatteår = 2025, kommune = Favrskov, kommunekode = 710, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 106),
+    KommunaleParametre(skatteår = 2025, kommune = Odder, kommunekode = 727, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 144),
+    KommunaleParametre(skatteår = 2025, kommune = Randers, kommunekode = 730, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 139),
+    KommunaleParametre(skatteår = 2025, kommune = Silkeborg, kommunekode = 740, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 110),
+    KommunaleParametre(skatteår = 2025, kommune = Samsø, kommunekode = 741, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2025, kommune = Skanderborg, kommunekode = 746, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 86, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2025, kommune = Aarhus, kommunekode = 751, kommuneskat_basispoint = 2452, kirkeskat_basispoint = 74, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2025, kommune = IkastBrande, kommunekode = 756, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 97, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2025, kommune = RingkøbingSkjern, kommunekode = 760, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 164),
+    KommunaleParametre(skatteår = 2025, kommune = Hedensted, kommunekode = 766, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 46, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2025, kommune = Morsø, kommunekode = 773, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 153),
+    KommunaleParametre(skatteår = 2025, kommune = Skive, kommunekode = 779, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 109, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 116),
+    KommunaleParametre(skatteår = 2025, kommune = Thisted, kommunekode = 787, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2025, kommune = Viborg, kommunekode = 791, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2025, kommune = Brønderslev, kommunekode = 810, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 171),
+    KommunaleParametre(skatteår = 2025, kommune = Frederikshavn, kommunekode = 813, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 103, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 134),
+    KommunaleParametre(skatteår = 2025, kommune = Vesthimmerland, kommunekode = 820, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 118, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 93),
+    KommunaleParametre(skatteår = 2025, kommune = Læsø, kommunekode = 825, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 130, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2025, kommune = Rebild, kommunekode = 840, kommuneskat_basispoint = 2583, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 77, grundskyld_promille_tiendedele = 89),
+    KommunaleParametre(skatteår = 2025, kommune = Mariagerfjord, kommunekode = 846, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 115, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 157),
+    KommunaleParametre(skatteår = 2025, kommune = Jammerbugt, kommunekode = 849, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 132),
+    KommunaleParametre(skatteår = 2025, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2025, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
+]
+--@end::kommunale_parametre_2025--
+
+| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2025 under skatteår == 2025
+
+= skatteministeriet_kommunale_parametre_2026 = KommunaleParametreKildeInfo(
+    år = 2026,
+    titel = "Kommuneskattesatser 2026",
+    url = "https://skm.dk/media/0oia30i5/kommuneskattesatser_2026.xlsx",
+    filformat = "XLSX",
+    sha256 = "48eeeaaeee38cbce622511fbf2ece60052702065d2280a88ca69b0f4c07ebe8c",
+    hentet_dato = "2026-07-31"
+)
+= kommunale_parametre_2026_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_parametre_2026),))
+
+--@label:kommunale_parametre_2026::meta:kommunale_parametre_2026_metadata--
+----
+Skatteministeriet, "Kommuneskattesatser 2026"
+Officiel fil: https://skm.dk/media/0oia30i5/kommuneskattesatser_2026.xlsx
+
+Kommune | Region | Kommune nr. | Region nr. | Alfabet nr. | Skatte pct. | Kirke pct. | Nedslag pct. | Grundskyldspromille
+København | Hovedstaden | 101 | 1084 | 50 | 23,39 | 0,80 | 0,00 | 5,1
+Frederiksberg | Hovedstaden | 147 | 1084 | 18 | 24,50 | 0,50 | 0,00 | 3,1
+Ballerup | Hovedstaden | 151 | 1084 | 4 | 25,50 | 0,75 | 0,44 | 8,3
+Brøndby | Hovedstaden | 153 | 1084 | 7 | 24,30 | 0,80 | 0,00 | 4,9
+Dragør | Hovedstaden | 155 | 1084 | 9 | 24,80 | 0,61 | 0,00 | 8,1
+Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,1
+Gladsaxe | Hovedstaden | 159 | 1084 | 25 | 23,60 | 0,75 | 0,00 | 5,9
+Glostrup | Hovedstaden | 161 | 1084 | 26 | 24,60 | 0,80 | 0,00 | 6,5
+Herlev | Hovedstaden | 163 | 1084 | 33 | 23,70 | 0,80 | 0,00 | 5,4
+Albertslund | Hovedstaden | 165 | 1084 | 1 | 25,60 | 0,80 | 0,54 | 9,1
+Hvidovre | Hovedstaden | 167 | 1084 | 41 | 25,40 | 0,72 | 0,34 | 6,5
+Høje-Taastrup | Hovedstaden | 169 | 1084 | 42 | 24,60 | 0,80 | 0,00 | 6,3
+Lyngby-Taarbæk | Hovedstaden | 173 | 1084 | 56 | 24,38 | 0,60 | 0,00 | 6,7
+Rødovre | Hovedstaden | 175 | 1084 | 74 | 25,70 | 0,72 | 0,64 | 7,8
+Ishøj | Hovedstaden | 183 | 1084 | 45 | 25,00 | 0,90 | 0,00 | 6,5
+Tårnby | Hovedstaden | 185 | 1084 | 89 | 24,10 | 0,61 | 0,00 | 6,0
+Vallensbæk | Hovedstaden | 187 | 1084 | 90 | 25,60 | 0,80 | 0,54 | 8,6
+Furesø | Hovedstaden | 190 | 1084 | 22 | 24,88 | 0,70 | 0,00 | 7,0
+Allerød | Hovedstaden | 201 | 1084 | 2 | 25,30 | 0,58 | 0,24 | 8,0
+Fredensborg | Hovedstaden | 210 | 1084 | 16 | 25,30 | 0,64 | 0,24 | 8,3
+Helsingør | Hovedstaden | 217 | 1084 | 32 | 25,82 | 0,63 | 0,76 | 9,5
+Hillerød | Hovedstaden | 219 | 1084 | 35 | 25,60 | 0,69 | 0,54 | 6,6
+Hørsholm | Hovedstaden | 223 | 1084 | 43 | 23,70 | 0,62 | 0,00 | 8,5
+Rudersdal | Hovedstaden | 230 | 1084 | 73 | 23,47 | 0,57 | 0,00 | 9,4
+Egedal | Hovedstaden | 240 | 1084 | 10 | 25,70 | 0,76 | 0,64 | 8,8
+Frederikssund | Hovedstaden | 250 | 1084 | 20 | 25,60 | 0,96 | 0,54 | 12,0
+Greve | Sjælland | 253 | 1085 | 27 | 24,59 | 0,81 | 0,00 | 5,5
+Køge | Sjælland | 259 | 1085 | 51 | 25,26 | 0,87 | 0,20 | 5,3
+Halsnæs | Hovedstaden | 260 | 1084 | 21 | 25,70 | 0,85 | 0,64 | 10,9
+Roskilde | Sjælland | 265 | 1085 | 72 | 25,20 | 0,84 | 0,14 | 7,4
+Solrød | Sjælland | 269 | 1085 | 80 | 24,99 | 0,84 | 0,00 | 7,9
+Gribskov | Hovedstaden | 270 | 1084 | 28 | 25,40 | 0,85 | 0,34 | 11,1
+Odsherred | Sjælland | 306 | 1085 | 67 | 26,30 | 0,98 | 1,24 | 12,3
+Holbæk | Sjælland | 316 | 1085 | 37 | 25,30 | 0,96 | 0,24 | 8,1
+Faxe | Sjælland | 320 | 1085 | 15 | 25,80 | 1,08 | 0,74 | 8,0
+Kalundborg | Sjælland | 326 | 1085 | 47 | 24,20 | 1,01 | 0,00 | 16,6
+Ringsted | Sjælland | 329 | 1085 | 71 | 26,10 | 0,95 | 1,04 | 7,0
+Slagelse | Sjælland | 330 | 1085 | 79 | 26,10 | 0,96 | 1,04 | 11,1
+Stevns | Sjælland | 336 | 1085 | 82 | 26,00 | 1,10 | 0,94 | 8,3
+Sorø | Sjælland | 340 | 1085 | 81 | 26,30 | 0,95 | 1,24 | 9,8
+Lejre | Sjælland | 350 | 1085 | 53 | 25,31 | 1,05 | 0,25 | 9,6
+Lolland | Sjælland | 360 | 1085 | 55 | 26,30 | 1,23 | 1,24 | 17,4
+Næstved | Sjælland | 370 | 1085 | 64 | 25,00 | 0,98 | 0,00 | 9,8
+Guldborgsund | Sjælland | 376 | 1085 | 29 | 25,80 | 1,16 | 0,74 | 15,9
+Vordingborg | Sjælland | 390 | 1085 | 96 | 26,30 | 1,02 | 1,24 | 13,5
+Bornholm | Hovedstaden | 400 | 1084 | 6 | 26,20 | 0,93 | 1,14 | 10,7
+Middelfart | Syddanmark | 410 | 1083 | 59 | 25,80 | 0,90 | 0,74 | 6,8
+Assens | Syddanmark | 420 | 1083 | 3 | 26,10 | 0,98 | 1,04 | 11,2
+Faaborg-Midtfyn | Syddanmark | 430 | 1083 | 23 | 26,10 | 1,05 | 1,04 | 8,5
+Kerteminde | Syddanmark | 440 | 1083 | 48 | 26,10 | 0,98 | 1,04 | 12,4
+Nyborg | Syddanmark | 450 | 1083 | 63 | 26,30 | 1,00 | 1,24 | 12,8
+Odense | Syddanmark | 461 | 1083 | 66 | 25,50 | 0,68 | 0,44 | 5,7
+Svendborg | Syddanmark | 479 | 1083 | 84 | 26,30 | 1,02 | 1,24 | 8,8
+Nordfyns | Syddanmark | 480 | 1083 | 62 | 26,00 | 1,04 | 0,94 | 15,1
+Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,2
+Ærø | Syddanmark | 492 | 1083 | 97 | 26,10 | 1,07 | 1,04 | 11,1
+Haderslev | Syddanmark | 510 | 1083 | 30 | 26,30 | 0,95 | 1,24 | 12,7
+Billund | Syddanmark | 530 | 1083 | 5 | 24,00 | 0,89 | 0,00 | 7,2
+Sønderborg | Syddanmark | 540 | 1083 | 86 | 25,70 | 0,91 | 0,64 | 13,5
+Tønder | Syddanmark | 550 | 1083 | 88 | 25,30 | 1,16 | 0,24 | 10,8
+Esbjerg | Syddanmark | 561 | 1083 | 11 | 26,10 | 0,81 | 1,04 | 9,9
+Fanø | Syddanmark | 563 | 1083 | 12 | 26,10 | 1,14 | 1,04 | 12,5
+Varde | Syddanmark | 573 | 1083 | 91 | 25,10 | 0,95 | 0,04 | 17,7
+Vejen | Syddanmark | 575 | 1083 | 92 | 25,80 | 1,06 | 0,74 | 9,0
+Aabenraa | Syddanmark | 580 | 1083 | 98 | 25,60 | 0,95 | 0,54 | 7,8
+Fredericia | Syddanmark | 607 | 1083 | 17 | 25,50 | 0,88 | 0,44 | 13,0
+Horsens | Midtjylland | 615 | 1082 | 40 | 25,69 | 0,79 | 0,63 | 8,7
+Kolding | Syddanmark | 621 | 1083 | 49 | 25,50 | 0,92 | 0,44 | 11,1
+Vejle | Syddanmark | 630 | 1083 | 93 | 23,40 | 0,89 | 0,00 | 10,5
+Herning | Midtjylland | 657 | 1082 | 34 | 25,40 | 0,99 | 0,34 | 9,9
+Holstebro | Midtjylland | 661 | 1082 | 39 | 25,50 | 1,08 | 0,44 | 11,5
+Lemvig | Midtjylland | 665 | 1082 | 54 | 25,70 | 1,27 | 0,64 | 15,4
+Struer | Midtjylland | 671 | 1082 | 83 | 25,30 | 1,20 | 0,24 | 15,5
+Syddjurs | Midtjylland | 706 | 1082 | 85 | 25,90 | 0,98 | 0,84 | 14,2
+Norddjurs | Midtjylland | 707 | 1082 | 61 | 26,00 | 1,00 | 0,94 | 16,8
+Favrskov | Midtjylland | 710 | 1082 | 14 | 25,70 | 0,96 | 0,64 | 10,6
+Odder | Midtjylland | 727 | 1082 | 65 | 25,10 | 0,95 | 0,04 | 14,4
+Randers | Midtjylland | 730 | 1082 | 68 | 26,00 | 0,89 | 0,94 | 13,9
+Silkeborg | Midtjylland | 740 | 1082 | 76 | 25,50 | 0,94 | 0,44 | 11,0
+Samsø | Midtjylland | 741 | 1082 | 75 | 25,90 | 1,20 | 0,84 | 10,5
+Skanderborg | Midtjylland | 746 | 1082 | 77 | 26,00 | 0,86 | 0,94 | 8,6
+Aarhus | Midtjylland | 751 | 1082 | 100 | 24,52 | 0,74 | 0,00 | 6,0
+Ikast-Brande | Midtjylland | 756 | 1082 | 44 | 25,10 | 0,97 | 0,04 | 9,1
+Ringkøbing-Skjern | Midtjylland | 760 | 1082 | 70 | 25,00 | 1,05 | 0,00 | 16,4
+Hedensted | Midtjylland | 766 | 1082 | 31 | 25,52 | 0,98 | 0,46 | 7,9
+Morsø | Nordjylland | 773 | 1081 | 60 | 25,80 | 1,20 | 0,74 | 15,3
+Skive | Midtjylland | 779 | 1082 | 78 | 25,50 | 1,09 | 0,44 | 11,6
+Thisted | Nordjylland | 787 | 1081 | 87 | 25,50 | 1,27 | 0,44 | 11,2
+Viborg | Midtjylland | 791 | 1082 | 95 | 25,50 | 0,93 | 0,44 | 11,5
+Brønderslev | Nordjylland | 810 | 1081 | 8 | 26,30 | 1,06 | 1,24 | 17,1
+Frederikshavn | Nordjylland | 813 | 1081 | 19 | 26,20 | 1,03 | 1,14 | 13,4
+Vesthimmerland | Nordjylland | 820 | 1081 | 94 | 26,30 | 1,18 | 1,24 | 9,3
+Læsø | Nordjylland | 825 | 1081 | 57 | 26,30 | 1,30 | 1,24 | 12,7
+Rebild | Nordjylland | 840 | 1081 | 69 | 25,83 | 1,20 | 0,77 | 8,9
+Mariagerfjord | Nordjylland | 846 | 1081 | 58 | 25,90 | 1,15 | 0,84 | 15,7
+Jammerbugt | Nordjylland | 849 | 1081 | 46 | 25,70 | 1,20 | 0,64 | 13,2
+Aalborg | Nordjylland | 851 | 1081 | 99 | 25,60 | 0,98 | 0,54 | 7,4
+Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
+----
+
+--@begin::kommunale_parametre_2026--
+= kommunale_parametre_2026 = [
+    KommunaleParametre(skatteår = 2026, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2339, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2026, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2450, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 31),
+    KommunaleParametre(skatteår = 2026, kommune = Ballerup, kommunekode = 151, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2026, kommune = Brøndby, kommunekode = 153, kommuneskat_basispoint = 2430, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 49),
+    KommunaleParametre(skatteår = 2026, kommune = Dragør, kommunekode = 155, kommuneskat_basispoint = 2480, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2026, kommune = Gentofte, kommunekode = 157, kommuneskat_basispoint = 2414, kirkeskat_basispoint = 38, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 51),
+    KommunaleParametre(skatteår = 2026, kommune = Gladsaxe, kommunekode = 159, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 59),
+    KommunaleParametre(skatteår = 2026, kommune = Glostrup, kommunekode = 161, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2026, kommune = Herlev, kommunekode = 163, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 54),
+    KommunaleParametre(skatteår = 2026, kommune = Albertslund, kommunekode = 165, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2026, kommune = Hvidovre, kommunekode = 167, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2026, kommune = HøjeTaastrup, kommunekode = 169, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 63),
+    KommunaleParametre(skatteår = 2026, kommune = LyngbyTaarbæk, kommunekode = 173, kommuneskat_basispoint = 2438, kirkeskat_basispoint = 60, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 67),
+    KommunaleParametre(skatteår = 2026, kommune = Rødovre, kommunekode = 175, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2026, kommune = Ishøj, kommunekode = 183, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 65),
+    KommunaleParametre(skatteår = 2026, kommune = Tårnby, kommunekode = 185, kommuneskat_basispoint = 2410, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2026, kommune = Vallensbæk, kommunekode = 187, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2026, kommune = Furesø, kommunekode = 190, kommuneskat_basispoint = 2488, kirkeskat_basispoint = 70, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2026, kommune = Allerød, kommunekode = 201, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 58, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2026, kommune = Fredensborg, kommunekode = 210, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 64, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2026, kommune = Helsingør, kommunekode = 217, kommuneskat_basispoint = 2582, kirkeskat_basispoint = 63, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 76, grundskyld_promille_tiendedele = 95),
+    KommunaleParametre(skatteår = 2026, kommune = Hillerød, kommunekode = 219, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 69, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 66),
+    KommunaleParametre(skatteår = 2026, kommune = Hørsholm, kommunekode = 223, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2026, kommune = Rudersdal, kommunekode = 230, kommuneskat_basispoint = 2347, kirkeskat_basispoint = 57, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 94),
+    KommunaleParametre(skatteår = 2026, kommune = Egedal, kommunekode = 240, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 76, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2026, kommune = Frederikssund, kommunekode = 250, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 120),
+    KommunaleParametre(skatteår = 2026, kommune = Greve, kommunekode = 253, kommuneskat_basispoint = 2459, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 55),
+    KommunaleParametre(skatteår = 2026, kommune = Køge, kommunekode = 259, kommuneskat_basispoint = 2526, kirkeskat_basispoint = 87, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 20, grundskyld_promille_tiendedele = 53),
+    KommunaleParametre(skatteår = 2026, kommune = Halsnæs, kommunekode = 260, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 109),
+    KommunaleParametre(skatteår = 2026, kommune = Roskilde, kommunekode = 265, kommuneskat_basispoint = 2520, kirkeskat_basispoint = 84, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 14, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2026, kommune = Solrød, kommunekode = 269, kommuneskat_basispoint = 2499, kirkeskat_basispoint = 84, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2026, kommune = Gribskov, kommunekode = 270, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2026, kommune = Odsherred, kommunekode = 306, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 123),
+    KommunaleParametre(skatteår = 2026, kommune = Holbæk, kommunekode = 316, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 81),
+    KommunaleParametre(skatteår = 2026, kommune = Faxe, kommunekode = 320, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 80),
+    KommunaleParametre(skatteår = 2026, kommune = Kalundborg, kommunekode = 326, kommuneskat_basispoint = 2420, kirkeskat_basispoint = 101, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 166),
+    KommunaleParametre(skatteår = 2026, kommune = Ringsted, kommunekode = 329, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 70),
+    KommunaleParametre(skatteår = 2026, kommune = Slagelse, kommunekode = 330, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2026, kommune = Stevns, kommunekode = 336, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 110, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 83),
+    KommunaleParametre(skatteår = 2026, kommune = Sorø, kommunekode = 340, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2026, kommune = Lejre, kommunekode = 350, kommuneskat_basispoint = 2531, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 25, grundskyld_promille_tiendedele = 96),
+    KommunaleParametre(skatteår = 2026, kommune = Lolland, kommunekode = 360, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 123, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 174),
+    KommunaleParametre(skatteår = 2026, kommune = Næstved, kommunekode = 370, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 98),
+    KommunaleParametre(skatteår = 2026, kommune = Guldborgsund, kommunekode = 376, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 159),
+    KommunaleParametre(skatteår = 2026, kommune = Vordingborg, kommunekode = 390, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2026, kommune = Bornholm, kommunekode = 400, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 107),
+    KommunaleParametre(skatteår = 2026, kommune = Middelfart, kommunekode = 410, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 68),
+    KommunaleParametre(skatteår = 2026, kommune = Assens, kommunekode = 420, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2026, kommune = FaaborgMidtfyn, kommunekode = 430, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 85),
+    KommunaleParametre(skatteår = 2026, kommune = Kerteminde, kommunekode = 440, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 124),
+    KommunaleParametre(skatteår = 2026, kommune = Nyborg, kommunekode = 450, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 128),
+    KommunaleParametre(skatteår = 2026, kommune = Odense, kommunekode = 461, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 68, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 57),
+    KommunaleParametre(skatteår = 2026, kommune = Svendborg, kommunekode = 479, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 88),
+    KommunaleParametre(skatteår = 2026, kommune = Nordfyns, kommunekode = 480, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 104, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 151),
+    KommunaleParametre(skatteår = 2026, kommune = Langeland, kommunekode = 482, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 122),
+    KommunaleParametre(skatteår = 2026, kommune = Ærø, kommunekode = 492, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 107, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2026, kommune = Haderslev, kommunekode = 510, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2026, kommune = Billund, kommunekode = 530, kommuneskat_basispoint = 2400, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 72),
+    KommunaleParametre(skatteår = 2026, kommune = Sønderborg, kommunekode = 540, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 91, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 135),
+    KommunaleParametre(skatteår = 2026, kommune = Tønder, kommunekode = 550, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 108),
+    KommunaleParametre(skatteår = 2026, kommune = Esbjerg, kommunekode = 561, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2026, kommune = Fanø, kommunekode = 563, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 104, grundskyld_promille_tiendedele = 125),
+    KommunaleParametre(skatteår = 2026, kommune = Varde, kommunekode = 573, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 177),
+    KommunaleParametre(skatteår = 2026, kommune = Vejen, kommunekode = 575, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 90),
+    KommunaleParametre(skatteår = 2026, kommune = Aabenraa, kommunekode = 580, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 78),
+    KommunaleParametre(skatteår = 2026, kommune = Fredericia, kommunekode = 607, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 88, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 130),
+    KommunaleParametre(skatteår = 2026, kommune = Horsens, kommunekode = 615, kommuneskat_basispoint = 2569, kirkeskat_basispoint = 79, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 63, grundskyld_promille_tiendedele = 87),
+    KommunaleParametre(skatteår = 2026, kommune = Kolding, kommunekode = 621, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 92, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 111),
+    KommunaleParametre(skatteår = 2026, kommune = Vejle, kommunekode = 630, kommuneskat_basispoint = 2340, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2026, kommune = Herning, kommunekode = 657, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 99, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 34, grundskyld_promille_tiendedele = 99),
+    KommunaleParametre(skatteår = 2026, kommune = Holstebro, kommunekode = 661, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2026, kommune = Lemvig, kommunekode = 665, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 154),
+    KommunaleParametre(skatteår = 2026, kommune = Struer, kommunekode = 671, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 24, grundskyld_promille_tiendedele = 155),
+    KommunaleParametre(skatteår = 2026, kommune = Syddjurs, kommunekode = 706, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 142),
+    KommunaleParametre(skatteår = 2026, kommune = Norddjurs, kommunekode = 707, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 168),
+    KommunaleParametre(skatteår = 2026, kommune = Favrskov, kommunekode = 710, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 106),
+    KommunaleParametre(skatteår = 2026, kommune = Odder, kommunekode = 727, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 144),
+    KommunaleParametre(skatteår = 2026, kommune = Randers, kommunekode = 730, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 139),
+    KommunaleParametre(skatteår = 2026, kommune = Silkeborg, kommunekode = 740, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 94, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 110),
+    KommunaleParametre(skatteår = 2026, kommune = Samsø, kommunekode = 741, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 105),
+    KommunaleParametre(skatteår = 2026, kommune = Skanderborg, kommunekode = 746, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 86, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 94, grundskyld_promille_tiendedele = 86),
+    KommunaleParametre(skatteår = 2026, kommune = Aarhus, kommunekode = 751, kommuneskat_basispoint = 2452, kirkeskat_basispoint = 74, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 60),
+    KommunaleParametre(skatteår = 2026, kommune = IkastBrande, kommunekode = 756, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 97, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 4, grundskyld_promille_tiendedele = 91),
+    KommunaleParametre(skatteår = 2026, kommune = RingkøbingSkjern, kommunekode = 760, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 0, grundskyld_promille_tiendedele = 164),
+    KommunaleParametre(skatteår = 2026, kommune = Hedensted, kommunekode = 766, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 46, grundskyld_promille_tiendedele = 79),
+    KommunaleParametre(skatteår = 2026, kommune = Morsø, kommunekode = 773, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 74, grundskyld_promille_tiendedele = 153),
+    KommunaleParametre(skatteår = 2026, kommune = Skive, kommunekode = 779, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 109, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 116),
+    KommunaleParametre(skatteår = 2026, kommune = Thisted, kommunekode = 787, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 112),
+    KommunaleParametre(skatteår = 2026, kommune = Viborg, kommunekode = 791, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 44, grundskyld_promille_tiendedele = 115),
+    KommunaleParametre(skatteår = 2026, kommune = Brønderslev, kommunekode = 810, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 171),
+    KommunaleParametre(skatteår = 2026, kommune = Frederikshavn, kommunekode = 813, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 103, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 114, grundskyld_promille_tiendedele = 134),
+    KommunaleParametre(skatteår = 2026, kommune = Vesthimmerland, kommunekode = 820, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 118, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 93),
+    KommunaleParametre(skatteår = 2026, kommune = Læsø, kommunekode = 825, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 130, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 124, grundskyld_promille_tiendedele = 127),
+    KommunaleParametre(skatteår = 2026, kommune = Rebild, kommunekode = 840, kommuneskat_basispoint = 2583, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 77, grundskyld_promille_tiendedele = 89),
+    KommunaleParametre(skatteår = 2026, kommune = Mariagerfjord, kommunekode = 846, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 115, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 84, grundskyld_promille_tiendedele = 157),
+    KommunaleParametre(skatteår = 2026, kommune = Jammerbugt, kommunekode = 849, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 64, grundskyld_promille_tiendedele = 132),
+    KommunaleParametre(skatteår = 2026, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 54, grundskyld_promille_tiendedele = 74),
+    KommunaleParametre(skatteår = 2026, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1201, skatteloftsnedslag_basispoint = 115, grundskyld_promille_tiendedele = 165)
+]
+--@end::kommunale_parametre_2026--
+
+| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskattesatser2026Xlsx under skatteår == 2026
+
+| kommunalt_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2024 || skatteår == 2025 || skatteår == 2026
+| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2024 under skatteår == 2024
+| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2025 under skatteår == 2025
+| kommunale_parametre_for_år(skatteår: Heltal) -> kommunale_parametre_2026 under skatteår == 2026
+| kommunale_parametre_kandidater(skatteår: Heltal, kommune: Kommune) -> filter(kommunale_parametre_for_år(skatteår), |parametre: KommunaleParametre| parametre.kommune == kommune)
+| kommune_understøttet(kommune: Kommune) -> any(alle_kommuner, |kandidat: Kommune| kandidat == kommune)
+| kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> kommunalt_skatteår_understøttet(skatteår) && length(kommunale_parametre_kandidater(skatteår, kommune)) == 1
+| kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(kommunale_parametre_kandidater(skatteår, kommune)) under kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_kilde_for_år(skatteår) under kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_parametre_kildeinfo(kilde: KommunaleParametreKilde) -> match kilde {
+    | SkatteministerietKommuneskatter2024 -> skatteministeriet_kommunale_parametre_2024
+    | SkatteministerietKommuneskatter2025 -> skatteministeriet_kommunale_parametre_2025
+    | SkatteministerietKommuneskattesatser2026Xlsx -> skatteministeriet_kommunale_parametre_2026
+}
+| kommunale_parametre_resultat(skatteår: Heltal, kommune: Kommune) -> KommunaleParametreResultat(
+    skatteår = skatteår,
+    kommune = kommune,
+    kilde = kommunale_parametre_kilde(skatteår, kommune),
+    parametre = kommunale_parametre_værdi_for(skatteår, kommune)
+) under kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_resultat(skatteår, kommune).parametre

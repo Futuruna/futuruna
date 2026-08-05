@@ -1298,6 +1298,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing canonical property-tax source-fact path {expected} on {property_tax_sheet}"
             );
         }
+        let residence_municipality_choices =
+            workbook_column_choices(&mut workbook, "cases", "lønmodtager.kommune");
+        let property_municipality_choices = workbook_column_choices(
+            &mut workbook,
+            &property_tax_sheet,
+            "ordinært_grundlag.kommune",
+        );
+        assert_eq!(residence_municipality_choices.len(), 98);
+        assert_eq!(
+            property_municipality_choices,
+            residence_municipality_choices
+        );
+        for expected in [
+            "København",
+            "Frederiksberg",
+            "HøjeTaastrup",
+            "FaaborgMidtfyn",
+            "Aarhus",
+            "RingkøbingSkjern",
+            "Læsø",
+            "Ærø",
+        ] {
+            assert!(
+                residence_municipality_choices
+                    .iter()
+                    .any(|choice| choice == expected),
+                "missing municipality choice {expected}"
+            );
+        }
         let property_tax_headers = workbook_headers(&mut workbook, &property_tax_sheet);
         for expected in [
             "Ejendommens identifikation",
@@ -9460,6 +9489,46 @@ fn workbook_column_paths(
                 .is_some_and(|cell| cell.to_string() == sheet)
         })
         .filter_map(|row| row.get(path_column))
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn workbook_column_choices(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    sheet: &str,
+    path: &str,
+) -> Vec<String> {
+    let metadata = workbook
+        .worksheet_range("_columns")
+        .expect("column metadata");
+    let headers = metadata.rows().next().expect("column metadata headers");
+    let sheet_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "sheet")
+        .expect("sheet metadata column");
+    let path_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "path")
+        .expect("path metadata column");
+    let choices_column = headers
+        .iter()
+        .position(|cell| cell.to_string() == "choices")
+        .expect("choices metadata column");
+    metadata
+        .rows()
+        .skip(1)
+        .find(|row| {
+            row.get(sheet_column)
+                .is_some_and(|cell| cell.to_string() == sheet)
+                && row
+                    .get(path_column)
+                    .is_some_and(|cell| cell.to_string() == path)
+        })
+        .and_then(|row| row.get(choices_column))
+        .map(ToString::to_string)
+        .unwrap_or_default()
+        .split(" | ")
+        .filter(|choice| !choice.is_empty())
         .map(ToString::to_string)
         .collect()
 }
