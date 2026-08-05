@@ -1,0 +1,207 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+----
+Scenariet validerer, at en skatteyders adskilte rettighedsperioder vælges efter
+det indkomstår, de skærer. Perioderne afledes alene af den daterede ejerkæde.
+----
+
+| pbl53a_generhvervelse_hændelse(identifikation: Tekst, år: Heltal, måned: Heltal, overdrager: Tekst, erhverver: Tekst, kapitalværdi_kroner: Heltal) -> Pbl53AErhvervelseshændelse(
+    identifikation = identifikation,
+    tidspunkt = Pbl15ATidspunkt(
+        dato = Pbl15ADato(år = år, måned = måned, dag = 1),
+        rækkefølge_på_dagen = 2
+    ),
+    overdrager_identifikation = overdrager,
+    erhverver_identifikation = erhverver,
+    kapitalværdi_på_erhvervelsestidspunktet_kroner = kapitalværdi_kroner,
+    måde = Pbl53AErhvervetPåAndenMåde
+)
+
+| pbl53a_generhvervelse_omfangsfakta(erhvervelser: List(Pbl53AErhvervelseshændelse)) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 2020, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
+    repræsenteret_kontraktdel = Pbl53AHeleKontrakten,
+    kontraktændringer = [],
+    erhvervelser = erhvervelser,
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_generhvervelse_afkastår(indkomstår: Heltal, primo_kroner: Heltal, ultimo_kroner: Heltal) -> Pbl53AAfkastårFakta(
+    indkomstår = indkomstår,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = primo_kroner,
+        kalenderårets_ultimo_depotværdi_kroner = ultimo_kroner
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    afkastfordeling = Pbl53AAfledtEnkeltRettighedshaver
+)
+
+| pbl53a_generhvervelse_indbetaling(identifikation: Tekst, år: Heltal, måned: Heltal, beløb_kroner: Heltal) -> Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = identifikation,
+    tidspunkt = Pbl53ATidspunkt(
+        dato = Pbl15ADato(år = år, måned = måned, dag = 1),
+        rækkefølge_på_dagen = 1
+    ),
+    beløb_kroner = beløb_kroner,
+    periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+    par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
+))
+
+| pbl53a_generhvervelse_periode(omfangsfakta: Pbl53AOmfangsfakta, afkastår: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> {
+    = omfangsresultat = pbl53a_omfangsresultat(
+        indkomstår = afkastår.indkomstår,
+        fakta = omfangsfakta,
+        hændelser = hændelser
+    )
+    pbl53a_afkastperiode_resultat(
+        ordning = Pbl53ALivsforsikringUdenKapitel1,
+        skatteyder_identifikation = "person-1",
+        omfangsresultat = omfangsresultat,
+        fakta = afkastår,
+        hændelser = hændelser
+    )
+}
+
+| pbl53a_generhvervelse_afkastforløb(omfangsfakta: Pbl53AOmfangsfakta, afkastår: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> {
+    = omfangsresultat = pbl53a_omfangsresultat(
+        indkomstår = afkastår.indkomstår,
+        fakta = omfangsfakta,
+        hændelser = hændelser
+    )
+    = ordning = pbl53a_omfang_ordning(omfangsresultat)
+    = hændelsesforløbsresultat = pbl53a_forløbsresultat(Pbl53AForløbsinput(
+        indkomstår = afkastår.indkomstår,
+        ordning = ordning,
+        omfangsresultat = omfangsresultat,
+        hændelser = hændelser
+    ))
+    pbl53a_afkastforløbsresultat(Pbl53AAfkastforløbsinput(
+        ordningsidentifikation = "generhvervet-livsforsikring",
+        skatteyder_identifikation = "person-1",
+        ordning = ordning,
+        omfangsresultat = omfangsresultat,
+        åbning = Pbl53AIngenTidligereAfkasthistorik,
+        afkastår = [afkastår],
+        hændelsesforløbsresultat = hændelsesforløbsresultat
+    ))
+}
+
+| pbl53a_generhvervelse_personskat(omfangsfakta: Pbl53AOmfangsfakta, afkastår: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> personskat_pbl53a_resultat(
+    input = PersonskatPbl53AInput(ordninger = [PersonskatPbl53AOrdningFakta(
+        identifikation = "generhvervet-livsforsikring",
+        skatteyder_identifikation = "person-1",
+        omfangsfakta = omfangsfakta,
+        afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
+        afkastår = [afkastår],
+        hændelser = hændelser
+    )]),
+    skatteår = afkastår.indkomstår
+)
+
+= pbl53a_generhvervelse_kæde = [
+    pbl53a_generhvervelse_hændelse(
+        identifikation = "salg-2024",
+        år = 2024,
+        måned = 6,
+        overdrager = "person-1",
+        erhverver = "mellem-ejer",
+        kapitalværdi_kroner = 130000
+    ),
+    pbl53a_generhvervelse_hændelse(
+        identifikation = "genkøb-2026",
+        år = 2026,
+        måned = 6,
+        overdrager = "mellem-ejer",
+        erhverver = "person-1",
+        kapitalværdi_kroner = 150000
+    )
+]
+= pbl53a_generhvervelse_fakta = pbl53a_generhvervelse_omfangsfakta(pbl53a_generhvervelse_kæde)
+= pbl53a_generhvervelse_overgang = pbl53a_overgangsresultat(pbl53a_generhvervelse_fakta, [])
+
+= pbl53a_generhvervelse_2023_afkastår = pbl53a_generhvervelse_afkastår(2023, 100000, 120000)
+= pbl53a_generhvervelse_2023_hændelser = [pbl53a_generhvervelse_indbetaling("indbetaling-2023", 2023, 4, 5000)]
+= pbl53a_generhvervelse_2023_periode = pbl53a_generhvervelse_periode(pbl53a_generhvervelse_fakta, pbl53a_generhvervelse_2023_afkastår, pbl53a_generhvervelse_2023_hændelser)
+= pbl53a_generhvervelse_2023_afkastforløb = pbl53a_generhvervelse_afkastforløb(pbl53a_generhvervelse_fakta, pbl53a_generhvervelse_2023_afkastår, pbl53a_generhvervelse_2023_hændelser)
+
+= pbl53a_generhvervelse_2025_afkastår = pbl53a_generhvervelse_afkastår(2025, 130000, 140000)
+= pbl53a_generhvervelse_2025_periode = pbl53a_generhvervelse_periode(pbl53a_generhvervelse_fakta, pbl53a_generhvervelse_2025_afkastår, [])
+
+= pbl53a_generhvervelse_2026_afkastår = pbl53a_generhvervelse_afkastår(2026, 140000, 180000)
+= pbl53a_generhvervelse_2026_hændelser = [
+    pbl53a_generhvervelse_indbetaling("indbetaling-før-genkøb", 2026, 3, 10000),
+    pbl53a_generhvervelse_indbetaling("indbetaling-efter-genkøb", 2026, 7, 5000)
+]
+= pbl53a_generhvervelse_2026_periode = pbl53a_generhvervelse_periode(pbl53a_generhvervelse_fakta, pbl53a_generhvervelse_2026_afkastår, pbl53a_generhvervelse_2026_hændelser)
+= pbl53a_generhvervelse_2026_personskat = pbl53a_generhvervelse_personskat(pbl53a_generhvervelse_fakta, pbl53a_generhvervelse_2026_afkastår, pbl53a_generhvervelse_2026_hændelser)
+
+= pbl53a_generhvervelse_samme_år_fakta = pbl53a_generhvervelse_omfangsfakta([
+    pbl53a_generhvervelse_hændelse(
+        identifikation = "salg-samme-år",
+        år = 2026,
+        måned = 3,
+        overdrager = "person-1",
+        erhverver = "mellem-ejer",
+        kapitalværdi_kroner = 120000
+    ),
+    pbl53a_generhvervelse_hændelse(
+        identifikation = "genkøb-samme-år",
+        år = 2026,
+        måned = 9,
+        overdrager = "mellem-ejer",
+        erhverver = "person-1",
+        kapitalværdi_kroner = 150000
+    )
+])
+= pbl53a_generhvervelse_samme_år_periode = pbl53a_generhvervelse_periode(
+    omfangsfakta = pbl53a_generhvervelse_samme_år_fakta,
+    afkastår = pbl53a_generhvervelse_2026_afkastår,
+    hændelser = []
+)
+= pbl53a_generhvervelse_samme_år_personskat = pbl53a_generhvervelse_personskat(
+    omfangsfakta = pbl53a_generhvervelse_samme_år_fakta,
+    afkastår = pbl53a_generhvervelse_2026_afkastår,
+    hændelser = []
+)
+
+| pbl53a_generhvervelse_afleder_tre_halvåbne_perioder: pbl53a_generhvervelse_overgang -> pbl53a_generhvervelse_overgang.fakta_gyldige && length(pbl53a_generhvervelse_overgang.rettighedsperioder) == 3
+
+| pbl53a_generhvervelse_vælger_første_periode_i_2023: pbl53a_generhvervelse_2023_periode -> pbl53a_generhvervelse_2023_periode.rettighedsperiodevalg == Pbl53AEntydigRettighedsperiodeIIndkomståret(identifikation = "oprettelse") && pbl53a_generhvervelse_2023_periode.periode_understøttet && pbl53a_generhvervelse_2023_periode.kapitalværdi_primo_kroner == 100000 && pbl53a_generhvervelse_2023_periode.kapitalværdi_ultimo_kroner == 120000 && pbl53a_generhvervelse_2023_periode.indbetalinger_i_perioden_kroner == 5000
+
+| pbl53a_generhvervelse_beregner_første_ejerperiode: pbl53a_generhvervelse_2023_afkastforløb -> pbl53a_generhvervelse_2023_afkastforløb.input_gyldigt && length(pbl53a_generhvervelse_2023_afkastforløb.årsresultater) == 1 && pbl53a_generhvervelse_2023_afkastforløb.årsresultater[0].input_gyldigt && pbl53a_generhvervelse_2023_afkastforløb.årsresultater[0].pensionsbeskatningslov_resultat.kapitalindkomst_kroner == 15000
+
+| pbl53a_generhvervelse_ignorerer_perioder_uden_for_2025: pbl53a_generhvervelse_2025_periode -> pbl53a_generhvervelse_2025_periode.rettighedsperiodevalg == Pbl53AIngenRettighedsperiodeIIndkomståret && pbl53a_generhvervelse_2025_periode.rettighedsperiode_findes_entydigt == Falskt && pbl53a_generhvervelse_2025_periode.periode_understøttet == Falskt
+
+| pbl53a_generhvervelse_vælger_senere_periode_i_2026: pbl53a_generhvervelse_2026_periode -> pbl53a_generhvervelse_2026_periode.rettighedsperiodevalg == Pbl53AEntydigRettighedsperiodeIIndkomståret(identifikation = "genkøb-2026") && pbl53a_generhvervelse_2026_periode.periode_understøttet && pbl53a_generhvervelse_2026_periode.kapitalværdi_primo_kroner == 150000 && pbl53a_generhvervelse_2026_periode.kapitalværdi_ultimo_kroner == 180000 && pbl53a_generhvervelse_2026_periode.indbetalinger_i_perioden_kroner == 5000 && match pbl53a_generhvervelse_2026_periode.afkastperiode {
+    | Pbl53ASammenhængendeAfkastperiode(starttidspunkt, _) -> starttidspunkt == Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 2)
+    | _ -> Falskt
+}
+
+| pbl53a_generhvervelse_beregner_senere_ejerperiode: pbl53a_generhvervelse_2026_personskat -> pbl53a_generhvervelse_2026_personskat.alle_input_gyldige && length(pbl53a_generhvervelse_2026_personskat.kapitalposter) == 1 && pbl53a_generhvervelse_2026_personskat.kapitalposter[0].beløb_kroner == 25000
+
+| pbl53a_generhvervelse_to_perioder_i_samme_år_fejler_præcist: pbl53a_generhvervelse_samme_år_periode -> pbl53a_generhvervelse_samme_år_periode.rettighedsperiodevalg == Pbl53AFlereRettighedsperioderIIndkomståret(identifikationer = ["oprettelse", "genkøb-samme-år"]) && pbl53a_generhvervelse_samme_år_periode.rettighedsperiode_findes_entydigt == Falskt && pbl53a_generhvervelse_samme_år_periode.periode_understøttet == Falskt && pbl53a_generhvervelse_samme_år_periode.afkastperiode == Pbl53AIngenAfkastperiode
+
+| pbl53a_generhvervelse_to_perioder_i_samme_år_giver_ingen_kapitalpost: pbl53a_generhvervelse_samme_år_personskat -> pbl53a_generhvervelse_samme_år_personskat.alle_input_gyldige == Falskt && length(pbl53a_generhvervelse_samme_år_personskat.kapitalposter) == 0
+
+? pbl53a_generhvervelse_afleder_tre_halvåbne_perioder
+? pbl53a_generhvervelse_vælger_første_periode_i_2023
+? pbl53a_generhvervelse_beregner_første_ejerperiode
+? pbl53a_generhvervelse_ignorerer_perioder_uden_for_2025
+? pbl53a_generhvervelse_vælger_senere_periode_i_2026
+? pbl53a_generhvervelse_beregner_senere_ejerperiode
+? pbl53a_generhvervelse_to_perioder_i_samme_år_fejler_præcist
+? pbl53a_generhvervelse_to_perioder_i_samme_år_giver_ingen_kapitalpost

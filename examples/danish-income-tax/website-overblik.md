@@ -91,7 +91,11 @@ Den tidligere ejer og erhververen kan derfor beregnes hver for sig frem til og
 fra det præcise overdragelsestidspunkt, uden at borgeren selv angiver periodens
 skattemæssige grænser. Ved én rettighedshaver afledes identiteten af kæden. Kun
 flere samtidige berettigede kræver særskilte, validerede indeståender ved den
-relevante afkastperiodes udgang.
+relevante afkastperiodes udgang. Hvis en person afstår ordningen og senere
+generhverver den, vælger Futuruna kun den ejerperiode, der skærer det aktuelle
+indkomstår. År helt uden ejerskab ignoreres. Flere adskilte ejerperioder i samme
+år bliver derimod vist som et typet, flertydigt resultat og fejler lukket, fordi
+den nuværende beregning kræver én sammenhængende afkastperiode.
 
 En materiel ændring af en historisk kontrakt får tilsvarende en eksakt
 afkastgrænse. Kildedata angiver, om kapitalværdien på virkningstidspunktet

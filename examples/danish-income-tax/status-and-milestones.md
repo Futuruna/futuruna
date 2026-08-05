@@ -3,8 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: none (`td-b3b1b9`, the exact PBL § 53 A contract-change return boundary, is complete and independently approved)
-Next source-backed slice: `td-f6c38f` (repeated PBL § 53 A ownership periods across tax years)
+Current implementation slice: `td-f6c38f` (repeated PBL § 53 A ownership periods across tax years; implementation and focused verification complete, pending independent review)
+Next source-backed slice: `td-ef2f36` (typed PBL § 53 A references for multiple beneficiaries)
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
 Latest approved implementation slice: `td-b3b1b9`
@@ -129,10 +129,15 @@ afleder rettighedsgrænserne fra kæden uden at forveksle dem med ind- eller
 udtræden af dansk skattepligt. De afledte rettighedsgrænser findes kun i det
 interne beregningsspor og kan ikke vælges som input i regnearket. Kapitalværdien
 ved erhvervelse erstatter årets primoværdi, og betalinger før erhvervelsen
-medregnes ikke i den nye
-rettighedshavers afkast. Bindende tilvalg af de moderne regler og materielle
-kontraktændringer, der kan udgøre en ny ordning, er registreret særskilt som
-`td-8ddbca` og `td-f2ca68`.
+medregnes ikke i den nye rettighedshavers afkast. Ved afståelse og senere
+generhvervelse vælger reglerne nu kun de rettighedsperioder, der skærer det
+aktuelle indkomstår. En tidligere og en senere ejerperiode kan derfor beregnes
+hver for sig, mens et helt mellemliggende år uden rettighed giver et
+udtrykkeligt tomt periodevalg. Flere adskilte perioder for samme skatteyder i
+samme indkomstår giver et typet flertydigt valg og fejler lukket, indtil en
+flerperiodeberegning er modelleret. Bindende tilvalg af de moderne regler og
+materielle kontraktændringer, der kan udgøre en ny ordning, er registreret
+særskilt som `td-8ddbca` og `td-f2ca68`.
 
 Erhvervelsesårets feltprojektion afdækkede samtidig en generel
 kodegeneratorfejl: Når en topniveau-binding blev dannet af en værdiregel, kunne
@@ -219,12 +224,17 @@ overdragelsesåret. Det fokuserede 2026-scenarie beregner 20.000 kr. for den
 tidligere ejer frem til overdragelsen og 29.000 kr. for erhververen efter
 overdragelsen; betalinger på den anden side af grænsen medregnes ikke. Brudte
 eller dublerede rettighedskæder, en ukendt fordelingsperiode og ufuldstændige
-andelsfakta fejler lukket.
+andelsfakta fejler lukket. Ved afståelse i 2024 og generhvervelse i 2026 vælger
+reglerne den første periode i 2023, ingen periode i 2025 og den nye periode i
+2026. De normale afkastregler beregner henholdsvis 15.000 kr. og 25.000 kr. i
+kapitalindkomst. Flere adskilte ejerperioder i samme år bevares som
+`Pbl53AFlereRettighedsperioderIIndkomståret` med periodernes identifikationer og
+giver ingen kapitalpost. Otte fokuserede invarianter passerer i både interpreter
+og compiler.
 
-To afgrænsede opfølgninger er bevaret uden at blokere dette resultat:
-`td-f6c38f` skal vælge den relevante rettighedsperiode pr. indkomstår ved en
-senere generhvervelse, og `td-ef2f36` skal erstatte den første periodes interne
-tekstnøgle med en typet eller skemabegrænset kildereference.
+En afgrænset opfølgning er bevaret uden at blokere dette resultat:
+`td-ef2f36` skal erstatte den første periodes interne tekstnøgle med en typet
+eller skemabegrænset kildereference.
 
 Beregningskontrakten har 260 danske § 53 A-feltbeskrivelser med Aftalelovens
 § 6, PBL §§ 20, 53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder.
@@ -3453,10 +3463,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Det næste kildeunderbyggede PBL-hul er genkøb efter en tidligere afståelse på
-  tværs af indkomstår, særskilt sporet i `td-f6c38f`. Den daterede
-  rettighedskæde og kontraktændringsgrænse er nu fælles grundlag, mens
-  `td-ef2f36` sporer en typet reference til den første oplyste afkastperiode.
+- Det næste kildeunderbyggede PBL-hul er en typet eller skemabegrænset reference
+  til den første afledte afkastperiode ved flere berettigede, særskilt sporet i
+  `td-ef2f36`. Årsafgrænset genkøb, den daterede rettighedskæde og
+  kontraktændringsgrænsen er nu fælles grundlag.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation
