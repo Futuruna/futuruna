@@ -31,6 +31,18 @@
     fordringens_værdi_for_kreditor_kroner = kreditorværdi_kroner
 )
 
+| kgl_gæld_scenarie_fuld_frivillig_ordning(gældsidentifikation: Tekst, samlet_krav_kroner: Heltal, aftalt_restkrav_kroner: Heltal) -> KglFrivilligKreditorordning(fakta = KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = "frivillig-ordning",
+    alle_usikrede_krav_oplyst = Sandt,
+    krav = [KursgevinstlovFrivilligKreditorkrav(
+        krav_identifikation = gældsidentifikation,
+        kreditor_identifikation = "eneste-usikrede-kreditor",
+        samlet_krav_kroner = samlet_krav_kroner,
+        værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+        deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = aftalt_restkrav_kroner)
+    )]
+))
+
 = kgl_gæld_scenarie_ingen_selskabsforbindelse = kgl_gæld_tom_par21_stk2_selskabsfakta()
 = kgl_gæld_scenarie_ejet_selskab = KglAktuelGældTilSelskab(
     personen_eller_nærtstående_har_ejet_aktier_siden_gældspåtagelsen = Sandt,
@@ -74,7 +86,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -90,7 +102,7 @@
         erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -106,7 +118,7 @@
         erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -122,7 +134,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -138,7 +150,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -154,7 +166,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -170,7 +182,7 @@
         erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -186,7 +198,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglFrivilligSamletKreditorordning,
+        gældsordning = kgl_gæld_scenarie_fuld_frivillig_ordning("frivillig-akkord", 100000, 20000),
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -202,7 +214,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglFrivilligSamletKreditorordning,
+        gældsordning = kgl_gæld_scenarie_fuld_frivillig_ordning("frivillig-akkord-valuta", 100000, 20000),
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -218,7 +230,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ejet_selskab,
-        gældsordning = KglFrivilligSamletKreditorordning,
+        gældsordning = kgl_gæld_scenarie_fuld_frivillig_ordning("ejet-selskab-akkord", 100000, 20000),
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -234,12 +246,173 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ejet_pengeinstitut_fem_procent,
-        gældsordning = KglFrivilligSamletKreditorordning,
+        gældsordning = kgl_gæld_scenarie_fuld_frivillig_ordning("pengeinstitut-fem-procent", 100000, 20000),
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
     0
 )
+
+| kgl_gæld_scenarie_deltagende_kreditorkrav(identifikation: Tekst, krav_kroner: Heltal, restkrav_kroner: Heltal) -> KursgevinstlovFrivilligKreditorkrav(
+    krav_identifikation = identifikation,
+    kreditor_identifikation = identifikation,
+    samlet_krav_kroner = krav_kroner,
+    værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+    deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = restkrav_kroner)
+)
+| kgl_gæld_scenarie_udeladt_kreditorkrav(identifikation: Tekst, krav_kroner: Heltal, småkravsgrundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag) -> KursgevinstlovFrivilligKreditorkrav(
+    krav_identifikation = identifikation,
+    kreditor_identifikation = identifikation,
+    samlet_krav_kroner = krav_kroner,
+    værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+    deltagelse = KglKreditorUdenforFrivilligOrdning(småkravsgrundlag = småkravsgrundlag)
+)
+| kgl_gæld_scenarie_fuldt_sikret_udeladt_kreditorkrav(identifikation: Tekst, krav_kroner: Heltal) -> KursgevinstlovFrivilligKreditorkrav(
+    krav_identifikation = identifikation,
+    kreditor_identifikation = identifikation,
+    samlet_krav_kroner = krav_kroner,
+    værdi_af_tilstrækkelig_sikkerhed_kroner = krav_kroner,
+    deltagelse = KglKreditorUdenforFrivilligOrdning(småkravsgrundlag = KglUdeladtKravUdenSmåkravsdokumentation)
+)
+| kgl_gæld_scenarie_frivillig_ordningsfakta(ordningsidentifikation: Tekst, alle_usikrede_krav_oplyst: Boolsk, krav: List(KursgevinstlovFrivilligKreditorkrav)) -> KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = ordningsidentifikation,
+    alle_usikrede_krav_oplyst = alle_usikrede_krav_oplyst,
+    krav = krav
+)
+| kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(identifikation: Tekst, påtagelse_kroner: Heltal, frigørelse_kroner: Heltal, kreditorværdi_kroner: Heltal, fakta: KursgevinstlovFrivilligKreditorordningFakta) -> kursgevinstlov_gæld_resultat(
+    kgl_gæld_scenarie_input(
+        identifikation = identifikation,
+        indkomstår = 2026,
+        beløb = kgl_gæld_scenarie_beløb(påtagelse_kroner = påtagelse_kroner, frigørelse_kroner = frigørelse_kroner, kreditorværdi_kroner = kreditorværdi_kroner),
+        frigørelsesart = KglGældEftergivelse,
+        erhvervsforhold = KglGældUdenFinansieringsnæring,
+        valuta = KglGældDanskeKroner,
+        selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
+        gældsordning = KglFrivilligKreditorordning(fakta = fakta),
+        vedrører_ikke_indbetalt_selskabskapital = Falskt,
+        par22_hændelse = KglIngenPar22Hændelse
+    ),
+    0
+)
+
+= kgl_gæld_scenarie_82_pct_med_dokumenterede_småkrav = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "hovedkrav-82",
+    påtagelse_kroner = 820800,
+    frigørelse_kroner = 150000,
+    kreditorværdi_kroner = 200000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "skm2017-10-mønster",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("hovedkrav-82", 820800, 150000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("småkrav-347", 34700, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "SKM2017.10.SR")),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("småkrav-717", 71700, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "SKM2017.10.SR")),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("småkrav-636", 63600, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "SKM2017.10.SR")),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("småkrav-92", 9200, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "SKM2017.10.SR")),
+        ]
+    )
+)
+= kgl_gæld_scenarie_677_pct_med_ikke_småkrav = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "hovedkrav-677",
+    påtagelse_kroner = 677000,
+    frigørelse_kroner = 150000,
+    kreditorværdi_kroner = 200000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "udeladt-væsentligt-krav",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("hovedkrav-677", 677000, 150000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("væsentligt-udeladt-krav", 288000, KglUdeladtKravDokumenteretSomIkkeSmåkrav(afgørelsesreference = "SKM2007.677.SR")),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("dokumenteret-småkrav", 35000, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "SKM2007.677.SR")),
+        ]
+    )
+)
+= kgl_gæld_scenarie_677_pct_uafklaret_småkrav = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "hovedkrav-uafklaret",
+    påtagelse_kroner = 677000,
+    frigørelse_kroner = 150000,
+    kreditorværdi_kroner = 200000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "uafklaret-småkrav",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("hovedkrav-uafklaret", 677000, 150000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("udeladt-uafklaret", 323000, KglUdeladtKravUdenSmåkravsdokumentation),
+        ]
+    )
+)
+= kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "ufuldstændigt-hovedkrav",
+    påtagelse_kroner = 100000,
+    frigørelse_kroner = 20000,
+    kreditorværdi_kroner = 30000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "ufuldstændig-opgørelse",
+        alle_usikrede_krav_oplyst = Falskt,
+        krav = [kgl_gæld_scenarie_deltagende_kreditorkrav("ufuldstændigt-hovedkrav", 100000, 20000)]
+    )
+)
+= kgl_gæld_scenarie_modstridende_dubletkrav = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "dubleret-hovedkrav",
+    påtagelse_kroner = 100000,
+    frigørelse_kroner = 20000,
+    kreditorværdi_kroner = 30000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "modstridende-dubletkrav",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("dubleret-hovedkrav", 100000, 20000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("dubleret-hovedkrav", 10000, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "modstridende-oplysning")),
+        ]
+    )
+)
+= kgl_gæld_scenarie_præcis_halvdelen = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "halvdelen-deltager",
+    påtagelse_kroner = 500000,
+    frigørelse_kroner = 100000,
+    kreditorværdi_kroner = 150000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "præcis-halvdelen",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("halvdelen-deltager", 500000, 100000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("halvdelen-udeladt", 500000, KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference = "hypotetisk-afgørelse")),
+        ]
+    )
+)
+= kgl_gæld_scenarie_under_halvdelen = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "mindretal-deltager",
+    påtagelse_kroner = 490000,
+    frigørelse_kroner = 100000,
+    kreditorværdi_kroner = 150000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "under-halvdelen",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("mindretal-deltager", 490000, 100000),
+            kgl_gæld_scenarie_udeladt_kreditorkrav("flertal-udeladt", 510000, KglUdeladtKravUdenSmåkravsdokumentation),
+        ]
+    )
+)
+= kgl_gæld_scenarie_fuldt_sikret_krav_holdes_udenfor = kgl_gæld_scenarie_eftergivelse_med_frivillig_ordning(
+    identifikation = "eneste-usikrede-krav",
+    påtagelse_kroner = 100000,
+    frigørelse_kroner = 20000,
+    kreditorværdi_kroner = 30000,
+    fakta = kgl_gæld_scenarie_frivillig_ordningsfakta(
+        ordningsidentifikation = "sikret-krav-udenfor",
+        alle_usikrede_krav_oplyst = Sandt,
+        krav = [
+            kgl_gæld_scenarie_deltagende_kreditorkrav("eneste-usikrede-krav", 100000, 20000),
+            kgl_gæld_scenarie_fuldt_sikret_udeladt_kreditorkrav("fuldt-sikret-krav", 900000),
+        ]
+    )
+)
+
+| kgl_gæld_scenarie_frivillig_ordning_har_vurdering(resultat: KursgevinstlovGældResultat, forventet: KursgevinstlovFrivilligKreditorordningVurdering) -> match resultat.frivillig_ordning_resultat {
+    | Some(ordningsresultat) -> ordningsresultat.vurdering == forventet
+    | None -> Falskt
+}
 
 | kgl_gæld_scenarie_selskabseftergivelse(identifikation: Tekst, selskabsfakta: KursgevinstlovPar21Stk2Selskabsfakta) -> kursgevinstlov_gæld_resultat(
     kgl_gæld_scenarie_input(
@@ -250,7 +423,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = selskabsfakta,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -269,7 +442,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -285,7 +458,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -301,7 +474,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKronerValutareguleret,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -317,7 +490,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValutaKronereguleret,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -333,7 +506,7 @@
         erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_scenarie_ejet_selskab,
-        gældsordning = KglFrivilligSamletKreditorordning,
+        gældsordning = kgl_gæld_scenarie_fuld_frivillig_ordning("ikke-indbetalt-selskabskapital", 100000, 20000),
         vedrører_ikke_indbetalt_selskabskapital = Sandt,
         par22_hændelse = KglIngenPar22Hændelse
     ),
@@ -422,7 +595,7 @@
     erhvervsforhold = KglGældUdenFinansieringsnæring,
     valuta = KglGældDanskeKroner,
     selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-    gældsordning = KglIngenSamletGældsordning,
+    gældsordning = KglIngenDokumenteretGældsordning,
     vedrører_ikke_indbetalt_selskabskapital = Falskt,
     par22_hændelse = hændelse
 ))
@@ -444,7 +617,7 @@
         erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_scenarie_ingen_selskabsforbindelse,
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglPar22Stk1Stiftelse(fakta = kgl_gæld_scenarie_par22_stiftelse)
     ),
@@ -681,6 +854,14 @@
 | kgl_gæld_scenarie_akkord_fortrænger_par23_ved_valutagæld: kgl_gæld_scenarie_frivillig_akkord_valuta -> kgl_gæld_scenarie_frivillig_akkord_valuta.behandling == KglGældBehandlesEfterPar24 && kgl_gæld_scenarie_frivillig_akkord_valuta.bagatelgrænse_afskærer == Falskt && kgl_gæld_scenarie_frivillig_akkord_valuta.skattepligtig_gevinst_kroner == 10000 && kgl_gæld_rå_netto_til_par14_23_kroner(kgl_gæld_scenarie_frivillig_akkord_valuta.input.fakta) == 0
 | kgl_gæld_scenarie_ejet_selskab_fortrænger_akkordfritagelse: kgl_gæld_scenarie_ejet_selskab_akkord -> kgl_gæld_scenarie_ejet_selskab_akkord.par21_stk2_anvendes && kgl_gæld_scenarie_ejet_selskab_akkord.par24_anvendes == Falskt && kgl_gæld_scenarie_ejet_selskab_akkord.skattepligtig_gevinst_kroner == 80000 && contains(kgl_gæld_scenarie_ejet_selskab_akkord.hjemler, KglGældPar24Stk3)
 | kgl_gæld_scenarie_pengeinstitut_fem_procent_undtages_fra_stk2: kgl_gæld_scenarie_pengeinstitut_fem_procent -> kgl_gæld_scenarie_pengeinstitut_fem_procent.par21_stk2_anvendes == Falskt && kgl_gæld_scenarie_pengeinstitut_fem_procent.par24_anvendes && kgl_gæld_scenarie_pengeinstitut_fem_procent.skattepligtig_gevinst_kroner == 10000
+| kgl_gæld_scenarie_82_pct_og_dokumenterede_småkrav_er_samlet: kgl_gæld_scenarie_82_pct_med_dokumenterede_småkrav -> kgl_gæld_scenarie_82_pct_med_dokumenterede_småkrav.input_gyldigt && kgl_gæld_scenarie_82_pct_med_dokumenterede_småkrav.par24_anvendes && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_82_pct_med_dokumenterede_småkrav, KglFrivilligOrdningSamlet)
+| kgl_gæld_scenarie_væsentligt_udeladt_krav_er_ikke_samlet: kgl_gæld_scenarie_677_pct_med_ikke_småkrav -> kgl_gæld_scenarie_677_pct_med_ikke_småkrav.input_gyldigt && kgl_gæld_scenarie_677_pct_med_ikke_småkrav.par24_anvendes == Falskt && kgl_gæld_scenarie_677_pct_med_ikke_småkrav.behandling == KglGældBehandlesEfterPar21Stk1 && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_677_pct_med_ikke_småkrav, KglFrivilligOrdningIkkeSamlet)
+| kgl_gæld_scenarie_udokumenteret_småkrav_fejler_lukket: kgl_gæld_scenarie_677_pct_uafklaret_småkrav -> kgl_gæld_scenarie_677_pct_uafklaret_småkrav.input_gyldigt == Falskt && kgl_gæld_scenarie_677_pct_uafklaret_småkrav.behandling == KglGældUgyldigtGrundlag && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_677_pct_uafklaret_småkrav, KglFrivilligOrdningUafklaret)
+| kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse_fejler_lukket: kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse -> kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse.input_gyldigt == Falskt && kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse.par24_anvendes == Falskt && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse, KglFrivilligOrdningUafklaret)
+| kgl_gæld_scenarie_modstridende_dubletkrav_fejler_lukket: kgl_gæld_scenarie_modstridende_dubletkrav -> kgl_gæld_scenarie_modstridende_dubletkrav.input_gyldigt == Falskt && kgl_gæld_scenarie_modstridende_dubletkrav.behandling == KglGældUgyldigtGrundlag && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_modstridende_dubletkrav, KglFrivilligOrdningUafklaret)
+| kgl_gæld_scenarie_præcis_halvdelen_fejler_lukket: kgl_gæld_scenarie_præcis_halvdelen -> kgl_gæld_scenarie_præcis_halvdelen.input_gyldigt == Falskt && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_præcis_halvdelen, KglFrivilligOrdningUafklaret)
+| kgl_gæld_scenarie_under_halvdelen_er_singulær: kgl_gæld_scenarie_under_halvdelen -> kgl_gæld_scenarie_under_halvdelen.input_gyldigt && kgl_gæld_scenarie_under_halvdelen.behandling == KglGældBehandlesEfterPar21Stk1 && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_under_halvdelen, KglFrivilligOrdningIkkeSamlet)
+| kgl_gæld_scenarie_fuldt_sikret_krav_indgår_ikke_i_massen: kgl_gæld_scenarie_fuldt_sikret_krav_holdes_udenfor -> kgl_gæld_scenarie_fuldt_sikret_krav_holdes_udenfor.input_gyldigt && kgl_gæld_scenarie_fuldt_sikret_krav_holdes_udenfor.par24_anvendes && kgl_gæld_scenarie_frivillig_ordning_har_vurdering(kgl_gæld_scenarie_fuldt_sikret_krav_holdes_udenfor, KglFrivilligOrdningSamlet)
 | kgl_gæld_scenarie_overdraget_selskabsgæld_kræver_insolvens: kgl_gæld_scenarie_overdraget_insolvent -> kgl_gæld_scenarie_overdraget_insolvent.par21_stk2_anvendes && kgl_gæld_scenarie_overdraget_insolvent.skattepligtig_gevinst_kroner == 80000 && contains(kgl_gæld_scenarie_overdraget_insolvent.hjemler, KglGældPar21Stk2) && contains(kgl_gæld_scenarie_overdraget_insolvent.hjemler, KglGældPar24Stk3) == Falskt
 | kgl_gæld_scenarie_overdraget_selskabsgæld_uden_insolvens_falder_til_stk1: kgl_gæld_scenarie_overdraget_solid -> kgl_gæld_scenarie_overdraget_solid.par21_stk2_anvendes == Falskt && kgl_gæld_scenarie_overdraget_solid.skattepligtig_gevinst_kroner == 10000 && contains(kgl_gæld_scenarie_overdraget_solid.hjemler, KglGældPar21Stk1)
 | kgl_gæld_scenarie_ligningslov16e_fortrænger_stk2: kgl_gæld_scenarie_ligningslov16e -> kgl_gæld_scenarie_ligningslov16e.par21_stk2_anvendes == Falskt && kgl_gæld_scenarie_ligningslov16e.skattepligtig_gevinst_kroner == 10000
@@ -719,6 +900,14 @@
 ? kgl_gæld_scenarie_akkord_fortrænger_par23_ved_valutagæld
 ? kgl_gæld_scenarie_ejet_selskab_fortrænger_akkordfritagelse
 ? kgl_gæld_scenarie_pengeinstitut_fem_procent_undtages_fra_stk2
+? kgl_gæld_scenarie_82_pct_og_dokumenterede_småkrav_er_samlet
+? kgl_gæld_scenarie_væsentligt_udeladt_krav_er_ikke_samlet
+? kgl_gæld_scenarie_udokumenteret_småkrav_fejler_lukket
+? kgl_gæld_scenarie_ufuldstændig_kreditoropgørelse_fejler_lukket
+? kgl_gæld_scenarie_modstridende_dubletkrav_fejler_lukket
+? kgl_gæld_scenarie_præcis_halvdelen_fejler_lukket
+? kgl_gæld_scenarie_under_halvdelen_er_singulær
+? kgl_gæld_scenarie_fuldt_sikret_krav_indgår_ikke_i_massen
 ? kgl_gæld_scenarie_overdraget_selskabsgæld_kræver_insolvens
 ? kgl_gæld_scenarie_overdraget_selskabsgæld_uden_insolvens_falder_til_stk1
 ? kgl_gæld_scenarie_ligningslov16e_fortrænger_stk2
@@ -746,4 +935,4 @@
 ? kgl_gæld_scenarie_par22_stk4_kreditorkrav_undtages
 ? kgl_gæld_scenarie_par22_stk4_længstlevende_undtages
 
-@ print("Kursgevinstloven §§ 19-24 A gældsscenarier: 37")
+@ print("Kursgevinstloven §§ 19-24 A gældsscenarier: 45")

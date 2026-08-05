@@ -38,7 +38,7 @@ indkomstklassifikation og skatteberegning deterministisk.
     erhvervsforhold = erhvervsforhold,
     valuta = valuta,
     selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
-    gældsordning = KglIngenSamletGældsordning,
+    gældsordning = KglIngenDokumenteretGældsordning,
     vedrører_ikke_indbetalt_selskabskapital = Falskt,
     par22_hændelse = KglIngenPar22Hændelse
 )
@@ -107,6 +107,17 @@ indkomstklassifikation og skatteberegning deterministisk.
     erhvervsforhold = KglGældFinansieringsnæringMedVirksomhedstilknytning,
     valuta = KglGældDanskeKroner
 )
+| personskat_kursgevinst_gæld_frivillig_ordning(gældsidentifikation: Tekst) -> KglFrivilligKreditorordning(fakta = KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = "samlet-frivillig-ordning",
+    alle_usikrede_krav_oplyst = Sandt,
+    krav = [KursgevinstlovFrivilligKreditorkrav(
+        krav_identifikation = gældsidentifikation,
+        kreditor_identifikation = "eneste-usikrede-kreditor",
+        samlet_krav_kroner = 100000,
+        værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+        deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = 20000)
+    )]
+))
 | personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(identifikation: Tekst, gældsordning: KursgevinstlovGældsordning) -> KursgevinstlovGældFakta(
     identifikation = identifikation,
     beløb = KursgevinstlovGældBeløb(
@@ -124,11 +135,11 @@ indkomstklassifikation og skatteberegning deterministisk.
 )
 = personskat_kursgevinst_gæld_singulær_valutaeftergivelse = personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(
     identifikation = "Singulær USD-eftergivelse",
-    gældsordning = KglIngenSamletGældsordning
+    gældsordning = KglIngenDokumenteretGældsordning
 )
 = personskat_kursgevinst_gæld_samlet_valutaakkord = personskat_kursgevinst_gæld_scenarie_eftergivelsesfakta(
     identifikation = "Samlet USD-akkord",
-    gældsordning = KglFrivilligSamletKreditorordning
+    gældsordning = personskat_kursgevinst_gæld_frivillig_ordning("Samlet USD-akkord")
 )
 
 = personskat_kursgevinst_gæld_valutagevinst_resultat = beregn_personskat(personskat_kursgevinst_gæld_scenarie_input([

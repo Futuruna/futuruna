@@ -2504,7 +2504,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "erhvervsforhold",
             "valuta",
             "selskabsfakta.$variant",
-            "gældsordning",
+            "gældsordning.$variant",
+            "gældsordning.KglFrivilligKreditorordning.fakta.ordningsidentifikation",
+            "gældsordning.KglFrivilligKreditorordning.fakta.alle_usikrede_krav_oplyst",
             "vedrører_ikke_indbetalt_selskabskapital",
             "par22_hændelse.$variant",
         ] {
@@ -2529,13 +2531,67 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Gældens forbindelse til finansieringsnæring",
             "Gældens valuta og regulering",
             "Nuværende eller tidligere selskabsgæld",
-            "Samlet gældsordning",
+            "Gældsordningens dokumenterede form",
+            "Den frivillige kreditorordnings identifikation",
+            "Alle usikrede krav er oplyst",
             "Ikke indbetalt selskabskapital",
             "Særlig lånehændelse efter KGL § 22",
         ] {
             assert!(
                 kgl_debt_headers.iter().any(|header| header == expected),
                 "missing human KGL debt label {expected} on {kgl_debt_sheet}"
+            );
+        }
+        let kgl_voluntary_claim_path =
+            format!("{kgl_debt_path}.gældsordning.KglFrivilligKreditorordning.fakta.krav");
+        let kgl_voluntary_claim_sheet =
+            workbook_collection_sheet_name(&mut workbook, &kgl_voluntary_claim_path);
+        let kgl_voluntary_claim_paths =
+            workbook_column_paths(&mut workbook, &kgl_voluntary_claim_sheet);
+        for expected in [
+            "krav_identifikation",
+            "kreditor_identifikation",
+            "samlet_krav_kroner",
+            "værdi_af_tilstrækkelig_sikkerhed_kroner",
+            "deltagelse.$variant",
+            "deltagelse.KglKreditorTiltrådtFrivilligOrdning.aftalt_restkrav_kroner",
+            "deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.$variant",
+            "deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.KglUdeladtKravDokumenteretSomSmåkrav.afgørelsesreference",
+            "deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.KglUdeladtKravDokumenteretSomIkkeSmåkrav.afgørelsesreference",
+        ] {
+            assert!(
+                kgl_voluntary_claim_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing KGL voluntary-arrangement source path {expected} on {kgl_voluntary_claim_sheet}"
+            );
+        }
+        for forbidden in ["vurdering", "deltagende_andel_basispoint"] {
+            assert!(
+                !kgl_voluntary_claim_paths
+                    .iter()
+                    .any(|path| path == forbidden),
+                "derived KGL §24 field {forbidden} leaked into {kgl_voluntary_claim_sheet}"
+            );
+        }
+        let kgl_voluntary_claim_headers =
+            workbook_headers(&mut workbook, &kgl_voluntary_claim_sheet);
+        for expected in [
+            "Kreditorkravets identifikation",
+            "Kreditorens identifikation",
+            "Kreditors samlede krav før ordningen",
+            "Værdi af tilstrækkelig sikkerhed",
+            "Kreditors faktiske deltagelse",
+            "Aftalt restkrav efter ordningen",
+            "Dokumentation for et udeladt krav",
+            "Reference, som dokumenterer småkravet",
+            "Reference, som dokumenterer et væsentligt krav",
+        ] {
+            assert!(
+                kgl_voluntary_claim_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human KGL §24 label {expected} on {kgl_voluntary_claim_sheet}"
             );
         }
         let kgl_disposition_path =
@@ -3244,21 +3300,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 12, "personskat-aegtefaelleoverfoersler-2025");
         fill_wage_case(sheets, 13, "personskat-ejendomsskatter-2025");
         fill_wage_case(sheets, 14, "personskat-kgl-gaeld-2026");
-        for (header, value) in [
-            (
-                "kapitalindkomst.kursgevinst.$variant",
-                Data::String("MedKursgevinst".to_string()),
-            ),
-            (
-                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
-                Data::String("Borger".to_string()),
-            ),
-            (
-                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
-                Data::Int(0),
-            ),
-        ] {
-            set_workbook_cell_by_header(sheets, "cases", 14, header, value);
+        fill_wage_case(sheets, 15, "personskat-kgl-frivillig-ordning-2026");
+        for row in [14, 15] {
+            for (header, value) in [
+                (
+                    "kapitalindkomst.kursgevinst.$variant",
+                    Data::String("MedKursgevinst".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
+                    Data::String("Borger".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
+                    Data::Int(0),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, "cases", row, header, value);
+            }
         }
         for (header, value) in [
             ("lønmodtager.skatteår", Data::String("2025".to_string())),
@@ -5596,8 +5655,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("KglIngenPar21Stk2Selskabsgæld".to_string()),
             ),
             (
-                "gældsordning",
-                Data::String("KglIngenSamletGældsordning".to_string()),
+                "gældsordning.$variant",
+                Data::String("KglIngenDokumenteretGældsordning".to_string()),
             ),
             ("vedrører_ikke_indbetalt_selskabskapital", Data::Bool(false)),
             (
@@ -5606,6 +5665,163 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, &kgl_debt_sheet, 1, header, value);
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-frivillig-ordning-2026".to_string()),
+            ),
+            ("item_id", Data::String("frivillig-gaeld-1".to_string())),
+            ("position", Data::Int(1)),
+            ("identifikation", Data::String("hovedkrav-82".to_string())),
+            (
+                "beløb.gældens_værdi_ved_påtagelse_kroner",
+                Data::Int(820_800),
+            ),
+            (
+                "beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+                Data::Int(150_000),
+            ),
+            (
+                "beløb.fordringens_værdi_for_kreditor_kroner",
+                Data::Int(200_000),
+            ),
+            (
+                "frigørelsesart",
+                Data::String("KglGældEftergivelse".to_string()),
+            ),
+            (
+                "erhvervsforhold",
+                Data::String("KglGældUdenFinansieringsnæring".to_string()),
+            ),
+            ("valuta", Data::String("KglGældDanskeKroner".to_string())),
+            (
+                "selskabsfakta.$variant",
+                Data::String("KglIngenPar21Stk2Selskabsgæld".to_string()),
+            ),
+            (
+                "gældsordning.$variant",
+                Data::String("KglFrivilligKreditorordning".to_string()),
+            ),
+            (
+                "gældsordning.KglFrivilligKreditorordning.fakta.ordningsidentifikation",
+                Data::String("skm2017-10-moenster".to_string()),
+            ),
+            (
+                "gældsordning.KglFrivilligKreditorordning.fakta.alle_usikrede_krav_oplyst",
+                Data::Bool(true),
+            ),
+            ("vedrører_ikke_indbetalt_selskabskapital", Data::Bool(false)),
+            (
+                "par22_hændelse.$variant",
+                Data::String("KglIngenPar22Hændelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &kgl_debt_sheet, 2, header, value);
+        }
+        let kgl_voluntary_claim_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav",
+        );
+        for (row, item_id, claim_id, creditor_id, amount, participation, remainder) in [
+            (
+                1,
+                "frivillig-gaeld-1-krav-1",
+                "hovedkrav-82",
+                "hovedkreditor",
+                820_800,
+                "KglKreditorTiltrådtFrivilligOrdning",
+                Some(150_000),
+            ),
+            (
+                2,
+                "frivillig-gaeld-1-krav-2",
+                "småkrav-347",
+                "kreditor-347",
+                34_700,
+                "KglKreditorUdenforFrivilligOrdning",
+                None,
+            ),
+            (
+                3,
+                "frivillig-gaeld-1-krav-3",
+                "småkrav-717",
+                "kreditor-717",
+                71_700,
+                "KglKreditorUdenforFrivilligOrdning",
+                None,
+            ),
+            (
+                4,
+                "frivillig-gaeld-1-krav-4",
+                "småkrav-636",
+                "kreditor-636",
+                63_600,
+                "KglKreditorUdenforFrivilligOrdning",
+                None,
+            ),
+            (
+                5,
+                "frivillig-gaeld-1-krav-5",
+                "småkrav-92",
+                "kreditor-92",
+                9_200,
+                "KglKreditorUdenforFrivilligOrdning",
+                None,
+            ),
+        ] {
+            for (header, value) in [
+                (
+                    "case_id",
+                    Data::String("personskat-kgl-frivillig-ordning-2026".to_string()),
+                ),
+                ("parent_id", Data::String("frivillig-gaeld-1".to_string())),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("krav_identifikation", Data::String(claim_id.to_string())),
+                (
+                    "kreditor_identifikation",
+                    Data::String(creditor_id.to_string()),
+                ),
+                ("samlet_krav_kroner", Data::Int(amount)),
+                ("værdi_af_tilstrækkelig_sikkerhed_kroner", Data::Int(0)),
+                (
+                    "deltagelse.$variant",
+                    Data::String(participation.to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, &kgl_voluntary_claim_sheet, row, header, value);
+            }
+            if let Some(remainder) = remainder {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &kgl_voluntary_claim_sheet,
+                    row,
+                    "deltagelse.KglKreditorTiltrådtFrivilligOrdning.aftalt_restkrav_kroner",
+                    Data::Int(remainder),
+                );
+            } else {
+                for (header, value) in [
+                    (
+                        "deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.$variant",
+                        Data::String(
+                            "KglUdeladtKravDokumenteretSomSmåkrav".to_string(),
+                        ),
+                    ),
+                    (
+                        "deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.KglUdeladtKravDokumenteretSomSmåkrav.afgørelsesreference",
+                        Data::String("SKM2017.10.SR".to_string()),
+                    ),
+                ] {
+                    set_workbook_cell_by_header(
+                        sheets,
+                        &kgl_voluntary_claim_sheet,
+                        row,
+                        header,
+                        value,
+                    );
+                }
+            }
         }
         let own_milk_quota_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -7605,7 +7821,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "erhvervsforhold": { "$variant": "KglGældUdenFinansieringsnæring" },
                 "valuta": { "$variant": "KglGældFremmedValuta" },
                 "selskabsfakta": { "$variant": "KglIngenPar21Stk2Selskabsgæld" },
-                "gældsordning": { "$variant": "KglIngenSamletGældsordning" },
+                "gældsordning": { "$variant": "KglIngenDokumenteretGældsordning" },
                 "vedrører_ikke_indbetalt_selskabskapital": false,
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
@@ -7620,6 +7836,111 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(debt_case);
+    let mut voluntary_arrangement_case = json_input["cases"][0].clone();
+    voluntary_arrangement_case["case_id"] =
+        Value::String("personskat-kgl-frivillig-ordning-2026".into());
+    voluntary_arrangement_case["input"]["kapitalindkomst"]["kursgevinst"] = serde_json::json!({
+        "$variant": "MedKursgevinst",
+        "fakta": {
+            "skatteyder_identifikation": "Borger",
+            "ægtefælles_skatteyder_identifikation": null,
+            "sælgerpantebreve": [],
+            "gældsposter": [{
+                "identifikation": "hovedkrav-82",
+                "beløb": {
+                    "gældens_værdi_ved_påtagelse_kroner": 820_800,
+                    "gældens_værdi_ved_frigørelse_eller_indfrielse_kroner": 150_000,
+                    "fordringens_værdi_for_kreditor_kroner": 200_000
+                },
+                "frigørelsesart": { "$variant": "KglGældEftergivelse" },
+                "erhvervsforhold": { "$variant": "KglGældUdenFinansieringsnæring" },
+                "valuta": { "$variant": "KglGældDanskeKroner" },
+                "selskabsfakta": { "$variant": "KglIngenPar21Stk2Selskabsgæld" },
+                "gældsordning": {
+                    "$variant": "KglFrivilligKreditorordning",
+                    "fakta": {
+                        "ordningsidentifikation": "skm2017-10-moenster",
+                        "alle_usikrede_krav_oplyst": true,
+                        "krav": [
+                            {
+                                "krav_identifikation": "hovedkrav-82",
+                                "kreditor_identifikation": "hovedkreditor",
+                                "samlet_krav_kroner": 820_800,
+                                "værdi_af_tilstrækkelig_sikkerhed_kroner": 0,
+                                "deltagelse": {
+                                    "$variant": "KglKreditorTiltrådtFrivilligOrdning",
+                                    "aftalt_restkrav_kroner": 150_000
+                                }
+                            },
+                            {
+                                "krav_identifikation": "småkrav-347",
+                                "kreditor_identifikation": "kreditor-347",
+                                "samlet_krav_kroner": 34_700,
+                                "værdi_af_tilstrækkelig_sikkerhed_kroner": 0,
+                                "deltagelse": {
+                                    "$variant": "KglKreditorUdenforFrivilligOrdning",
+                                    "småkravsgrundlag": {
+                                        "$variant": "KglUdeladtKravDokumenteretSomSmåkrav",
+                                        "afgørelsesreference": "SKM2017.10.SR"
+                                    }
+                                }
+                            },
+                            {
+                                "krav_identifikation": "småkrav-717",
+                                "kreditor_identifikation": "kreditor-717",
+                                "samlet_krav_kroner": 71_700,
+                                "værdi_af_tilstrækkelig_sikkerhed_kroner": 0,
+                                "deltagelse": {
+                                    "$variant": "KglKreditorUdenforFrivilligOrdning",
+                                    "småkravsgrundlag": {
+                                        "$variant": "KglUdeladtKravDokumenteretSomSmåkrav",
+                                        "afgørelsesreference": "SKM2017.10.SR"
+                                    }
+                                }
+                            },
+                            {
+                                "krav_identifikation": "småkrav-636",
+                                "kreditor_identifikation": "kreditor-636",
+                                "samlet_krav_kroner": 63_600,
+                                "værdi_af_tilstrækkelig_sikkerhed_kroner": 0,
+                                "deltagelse": {
+                                    "$variant": "KglKreditorUdenforFrivilligOrdning",
+                                    "småkravsgrundlag": {
+                                        "$variant": "KglUdeladtKravDokumenteretSomSmåkrav",
+                                        "afgørelsesreference": "SKM2017.10.SR"
+                                    }
+                                }
+                            },
+                            {
+                                "krav_identifikation": "småkrav-92",
+                                "kreditor_identifikation": "kreditor-92",
+                                "samlet_krav_kroner": 9_200,
+                                "værdi_af_tilstrækkelig_sikkerhed_kroner": 0,
+                                "deltagelse": {
+                                    "$variant": "KglKreditorUdenforFrivilligOrdning",
+                                    "småkravsgrundlag": {
+                                        "$variant": "KglUdeladtKravDokumenteretSomSmåkrav",
+                                        "afgørelsesreference": "SKM2017.10.SR"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                "vedrører_ikke_indbetalt_selskabskapital": false,
+                "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
+            }],
+            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
+        }
+    });
+    voluntary_arrangement_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(voluntary_arrangement_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -7709,6 +8030,47 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         xlsx_debt_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         3_000
+    );
+    let xlsx_voluntary_arrangement_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-frivillig-ordning-2026")
+        .expect("XLSX KGL voluntary-arrangement result");
+    let json_voluntary_arrangement_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-frivillig-ordning-2026")
+        .expect("JSON KGL voluntary-arrangement result");
+    assert_eq!(
+        xlsx_voluntary_arrangement_result["result"],
+        json_voluntary_arrangement_result["result"]
+    );
+    let voluntary_debt_result = &xlsx_voluntary_arrangement_result["result"]["kapitalindkomst"]
+        ["kursgevinst_resultat"]["gældsresultater"][0]["gældsresultat"];
+    assert_eq!(voluntary_debt_result["input_gyldigt"], true);
+    assert_eq!(
+        voluntary_debt_result["behandling"]["$variant"],
+        "KglGældBehandlesEfterPar24"
+    );
+    assert_eq!(voluntary_debt_result["par24_anvendes"], true);
+    assert_eq!(
+        voluntary_debt_result["frivillig_ordning_resultat"]["vurdering"]["$variant"],
+        "KglFrivilligOrdningSamlet"
+    );
+    assert_eq!(
+        voluntary_debt_result["frivillig_ordning_resultat"]["deltagende_andel_basispoint"],
+        8_208
+    );
+    assert_eq!(
+        voluntary_debt_result["skattepligtig_gevinst_kroner"],
+        50_000
+    );
+    assert_eq!(
+        xlsx_voluntary_arrangement_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        50_000
     );
     assert_eq!(
         xlsx_property_tax_result["result"]["ejendomsskatter"]["samlet_ejendomsværdiskat_øre"],

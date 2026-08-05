@@ -89,7 +89,6 @@ ligningslovens § 16 E.
 # KursgevinstlovGældValuta = KglGældDanskeKroner | KglGældFremmedValuta | KglGældDanskeKronerValutareguleret | KglGældFremmedValutaKronereguleret
 # KursgevinstlovGældErhvervsforhold = KglGældUdenFinansieringsnæring | KglGældFinansieringsnæringUdenVirksomhedstilknytning | KglGældFinansieringsnæringMedVirksomhedstilknytning
 # KursgevinstlovGældFrigørelsesart = KglGældOrdinærIndfrielse | KglGældEftergivelse | KglGældForældelse | KglGældKonfusion | KglGældPræklusion
-# KursgevinstlovGældsordning = KglIngenSamletGældsordning | KglTvangsakkordIRekonstruktion | KglFrivilligSamletKreditorordning | KglGældssanering
 # KursgevinstlovPar21Stk2Selskabsfakta = KglIngenPar21Stk2Selskabsgæld | KglAktuelGældTilSelskab(personen_eller_nærtstående_har_ejet_aktier_siden_gældspåtagelsen: Boolsk, långiver_er_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk) | KglOverdragetGældFraSelskab(personen_eller_nærtstående_har_ejet_aktier_i_det_tidligere_selskab_siden_gældspåtagelsen: Boolsk, debitor_insolvent_ved_overdragelsen: Boolsk, tidligere_långiver_var_pengeinstitut: Boolsk, personens_største_direkte_og_indirekte_ejerandel_i_det_tidligere_selskab_basispoint: Heltal, forpligtelse_omfattet_af_ligningslov16e: Boolsk)
 # KursgevinstlovGældBeløb(gældens_værdi_ved_påtagelse_kroner: Heltal, gældens_værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
 
@@ -349,15 +348,102 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
 ----
 
 --@begin:kursgevinstloven_gæld_par23_par24a--
+# KursgevinstlovUdeladtKravsSmåkravsgrundlag = KglUdeladtKravUdenSmåkravsdokumentation | KglUdeladtKravDokumenteretSomSmåkrav(afgørelsesreference: Tekst) | KglUdeladtKravDokumenteretSomIkkeSmåkrav(afgørelsesreference: Tekst)
+# KursgevinstlovFrivilligKreditorordningsdeltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner: Heltal) | KglKreditorUdenforFrivilligOrdning(småkravsgrundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag)
+# KursgevinstlovFrivilligKreditorkrav(krav_identifikation: Tekst, kreditor_identifikation: Tekst, samlet_krav_kroner: Heltal, værdi_af_tilstrækkelig_sikkerhed_kroner: Heltal, deltagelse: KursgevinstlovFrivilligKreditorordningsdeltagelse)
+# KursgevinstlovFrivilligKreditorordningFakta(ordningsidentifikation: Tekst, alle_usikrede_krav_oplyst: Boolsk, krav: List(KursgevinstlovFrivilligKreditorkrav))
+# KursgevinstlovFrivilligKreditorordningVurdering = KglFrivilligOrdningUafklaret | KglFrivilligOrdningIkkeSamlet | KglFrivilligOrdningSamlet
+# KursgevinstlovFrivilligKreditorordningResultat(fakta_gyldige: Boolsk, aktuel_gæld_deltager: Boolsk, samlet_usikret_gæld_kroner: Heltal, deltagende_usikret_gæld_kroner: Heltal, deltagende_andel_basispoint: Heltal, udeladte_usikrede_krav_antal: Heltal, alle_udeladte_krav_dokumenteret_som_småkrav: Boolsk, mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav: Boolsk, vurdering: KursgevinstlovFrivilligKreditorordningVurdering)
+# KursgevinstlovGældsordning = KglIngenDokumenteretGældsordning | KglTvangsakkordIRekonstruktion | KglFrivilligKreditorordning(fakta: KursgevinstlovFrivilligKreditorordningFakta) | KglGældssanering
 # KursgevinstlovPar22Hændelse = KglIngenPar22Hændelse | KglPar22Stk1Stiftelse(fakta: KursgevinstlovPar22Stk1Fakta) | KglPar22Stk2Frigørelse(fakta: KursgevinstlovPar22Stk2Fakta) | KglPar22Stk3Indfrielse(fakta: KursgevinstlovPar22Stk3Fakta) | KglPar22AÅrsbeskatning(fakta: KursgevinstlovPar22AFakta)
 # KursgevinstlovGældHjemmel = KglGældPar19 | KglGældPar20 | KglGældPar21Stk1 | KglGældPar21Stk2 | KglGældPar22Stk1 | KglGældPar22Stk2 | KglGældPar22Stk3 | KglGældPar22Stk3Undtagelse | KglGældPar22Stk4Undtagelse | KglGældPar22A | KglGældPar23 | KglGældPar24Stk1 | KglGældPar24Stk2 | KglGældPar24Stk3 | KglGældPar24A
 # KursgevinstlovGældBehandling = KglGældUgyldigtGrundlag | KglGældBehandlesEfterPar19 | KglGældBehandlesEfterPar20 | KglGældBehandlesEfterPar21Stk1 | KglGældBehandlesEfterPar21Stk2 | KglGældBehandlesEfterPar22 | KglGældBehandlesEfterPar23 | KglGældBehandlesEfterPar24 | KglGældBehandlesEfterPar24A
 # KursgevinstlovGældFakta(identifikation: Tekst, beløb: KursgevinstlovGældBeløb, frigørelsesart: KursgevinstlovGældFrigørelsesart, erhvervsforhold: KursgevinstlovGældErhvervsforhold, valuta: KursgevinstlovGældValuta, selskabsfakta: KursgevinstlovPar21Stk2Selskabsfakta, gældsordning: KursgevinstlovGældsordning, vedrører_ikke_indbetalt_selskabskapital: Boolsk, par22_hændelse: KursgevinstlovPar22Hændelse)
 # KursgevinstlovGældInput(indkomstår: Heltal, fakta: KursgevinstlovGældFakta)
-# KursgevinstlovGældResultat(input: KursgevinstlovGældInput, input_gyldigt: Boolsk, behandling: KursgevinstlovGældBehandling, hjemler: List(KursgevinstlovGældHjemmel), behandles_som_fremmed_valuta: Boolsk, par21_stk2_anvendes: Boolsk, par22_anvendes: Boolsk, par24_anvendes: Boolsk, par24a_anvendes: Boolsk, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, ikke_medregnet_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_indkomst_efter_par19: Boolsk)
+# KursgevinstlovGældResultat(input: KursgevinstlovGældInput, input_gyldigt: Boolsk, behandling: KursgevinstlovGældBehandling, hjemler: List(KursgevinstlovGældHjemmel), behandles_som_fremmed_valuta: Boolsk, par21_stk2_anvendes: Boolsk, par22_anvendes: Boolsk, par24_anvendes: Boolsk, par24a_anvendes: Boolsk, frivillig_ordning_resultat: Option(KursgevinstlovFrivilligKreditorordningResultat), bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, ikke_medregnet_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_indkomst_efter_par19: Boolsk)
 
 | kgl_gæld_behandles_som_fremmed_valuta(valuta: KursgevinstlovGældValuta) -> valuta == KglGældFremmedValuta || valuta == KglGældDanskeKronerValutareguleret
-| kgl_gæld_par24_anvendes(ordning: KursgevinstlovGældsordning) -> ordning == KglTvangsakkordIRekonstruktion || ordning == KglFrivilligSamletKreditorordning || ordning == KglGældssanering
+| kgl_frivillig_kreditorkrav_usikret_kroner(krav: KursgevinstlovFrivilligKreditorkrav) -> penge_positivt_beløb(krav.samlet_krav_kroner - krav.værdi_af_tilstrækkelig_sikkerhed_kroner)
+| kgl_frivillig_kreditorkrav_deltager(krav: KursgevinstlovFrivilligKreditorkrav) -> match krav.deltagelse {
+    | KglKreditorTiltrådtFrivilligOrdning(_) -> Sandt
+    | KglKreditorUdenforFrivilligOrdning(_) -> Falskt
+}
+| kgl_frivillig_småkravsgrundlag_gyldigt(grundlag: KursgevinstlovUdeladtKravsSmåkravsgrundlag) -> match grundlag {
+    | KglUdeladtKravUdenSmåkravsdokumentation -> Sandt
+    | KglUdeladtKravDokumenteretSomSmåkrav(reference) -> reference != ""
+    | KglUdeladtKravDokumenteretSomIkkeSmåkrav(reference) -> reference != ""
+}
+| kgl_frivillig_kreditorkrav_gyldigt(krav: KursgevinstlovFrivilligKreditorkrav) -> krav.krav_identifikation != "" && krav.kreditor_identifikation != "" && krav.samlet_krav_kroner > 0 && krav.værdi_af_tilstrækkelig_sikkerhed_kroner >= 0 && krav.værdi_af_tilstrækkelig_sikkerhed_kroner <= krav.samlet_krav_kroner && match krav.deltagelse {
+    | KglKreditorTiltrådtFrivilligOrdning(restkrav_kroner) -> restkrav_kroner >= 0 && restkrav_kroner < krav.samlet_krav_kroner
+    | KglKreditorUdenforFrivilligOrdning(grundlag) -> kgl_frivillig_småkravsgrundlag_gyldigt(grundlag)
+}
+| kgl_frivillig_kreditorkrav_identifikation_unik(alle_krav: List(KursgevinstlovFrivilligKreditorkrav), krav: KursgevinstlovFrivilligKreditorkrav) -> length(filter(alle_krav, |andet_krav: KursgevinstlovFrivilligKreditorkrav| andet_krav.krav_identifikation == krav.krav_identifikation)) == 1
+| kgl_frivillig_kreditorkrav_dokumenteret_som_småkrav(krav: KursgevinstlovFrivilligKreditorkrav) -> match krav.deltagelse {
+    | KglKreditorUdenforFrivilligOrdning(KglUdeladtKravDokumenteretSomSmåkrav(_)) -> Sandt
+    | _ -> Falskt
+}
+| kgl_frivillig_kreditorkrav_dokumenteret_som_ikke_småkrav(krav: KursgevinstlovFrivilligKreditorkrav) -> match krav.deltagelse {
+    | KglKreditorUdenforFrivilligOrdning(KglUdeladtKravDokumenteretSomIkkeSmåkrav(_)) -> Sandt
+    | _ -> Falskt
+}
+
+# KursgevinstlovFrivilligKreditorordningSag(fakta: KursgevinstlovFrivilligKreditorordningFakta, aktuel_gæld_identifikation: Tekst) {
+    | samlet_usikret_gæld_kroner() -> foldl(fakta.krav, 0, |sum: Heltal, krav: KursgevinstlovFrivilligKreditorkrav| sum + kgl_frivillig_kreditorkrav_usikret_kroner(krav))
+    | deltagende_usikret_gæld_kroner() -> foldl(fakta.krav, 0, |sum: Heltal, krav: KursgevinstlovFrivilligKreditorkrav| sum + hvis kgl_frivillig_kreditorkrav_deltager(krav) { kgl_frivillig_kreditorkrav_usikret_kroner(krav) } ellers { 0 })
+    | deltagende_andel_basispoint() -> hvis samlet_usikret_gæld_kroner() > 0 { deltagende_usikret_gæld_kroner() * 10000 / samlet_usikret_gæld_kroner() } ellers { 0 }
+    | aktuelle_krav_antal() -> length(filter(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| krav.krav_identifikation == aktuel_gæld_identifikation))
+    | aktuelle_deltagende_krav_antal() -> length(filter(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| krav.krav_identifikation == aktuel_gæld_identifikation && kgl_frivillig_kreditorkrav_deltager(krav)))
+    | aktuel_gæld_deltager() -> aktuelle_krav_antal() == 1 && aktuelle_deltagende_krav_antal() == 1
+    | udeladt_usikret_krav(krav: KursgevinstlovFrivilligKreditorkrav) -> kgl_frivillig_kreditorkrav_usikret_kroner(krav) > 0 && kgl_frivillig_kreditorkrav_deltager(krav) == Falskt
+    | udeladte_usikrede_krav_antal() -> length(filter(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| udeladt_usikret_krav(krav)))
+    | alle_udeladte_krav_dokumenteret_som_småkrav() -> all(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| hvis udeladt_usikret_krav(krav) { kgl_frivillig_kreditorkrav_dokumenteret_som_småkrav(krav) } ellers { Sandt })
+    | mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav() -> any(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| udeladt_usikret_krav(krav) && kgl_frivillig_kreditorkrav_dokumenteret_som_ikke_småkrav(krav))
+    | fakta_gyldige() -> fakta.ordningsidentifikation != "" && fakta.alle_usikrede_krav_oplyst && aktuel_gæld_identifikation != "" && length(fakta.krav) > 0 && all(fakta.krav, |krav: KursgevinstlovFrivilligKreditorkrav| kgl_frivillig_kreditorkrav_gyldigt(krav) && kgl_frivillig_kreditorkrav_identifikation_unik(fakta.krav, krav)) && samlet_usikret_gæld_kroner() > 0 && aktuelle_krav_antal() == 1
+    | vurdering() -> hvis fakta_gyldige() == Falskt || aktuel_gæld_deltager() == Falskt {
+        KglFrivilligOrdningUafklaret
+    } ellers {
+        hvis deltagende_usikret_gæld_kroner() * 2 < samlet_usikret_gæld_kroner() {
+            KglFrivilligOrdningIkkeSamlet
+        } ellers {
+            hvis deltagende_usikret_gæld_kroner() * 2 == samlet_usikret_gæld_kroner() {
+                KglFrivilligOrdningUafklaret
+            } ellers {
+                hvis mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav() {
+                    KglFrivilligOrdningIkkeSamlet
+                } ellers {
+                    hvis alle_udeladte_krav_dokumenteret_som_småkrav() { KglFrivilligOrdningSamlet } ellers { KglFrivilligOrdningUafklaret }
+                }
+            }
+        }
+    }
+    | resultat() -> KursgevinstlovFrivilligKreditorordningResultat(
+        fakta_gyldige = fakta_gyldige(),
+        aktuel_gæld_deltager = aktuel_gæld_deltager(),
+        samlet_usikret_gæld_kroner = samlet_usikret_gæld_kroner(),
+        deltagende_usikret_gæld_kroner = deltagende_usikret_gæld_kroner(),
+        deltagende_andel_basispoint = deltagende_andel_basispoint(),
+        udeladte_usikrede_krav_antal = udeladte_usikrede_krav_antal(),
+        alle_udeladte_krav_dokumenteret_som_småkrav = alle_udeladte_krav_dokumenteret_som_småkrav(),
+        mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav = mindst_et_udeladt_krav_dokumenteret_som_ikke_småkrav(),
+        vurdering = vurdering()
+    )
+}
+
+| kgl_frivillig_kreditorordning_resultat(fakta: KursgevinstlovFrivilligKreditorordningFakta, aktuel_gæld_identifikation: Tekst) -> KursgevinstlovFrivilligKreditorordningSag(fakta, aktuel_gæld_identifikation).resultat()
+| kgl_gæld_frivillig_ordning_resultat(ordning: KursgevinstlovGældsordning, aktuel_gæld_identifikation: Tekst) -> match ordning {
+    | KglFrivilligKreditorordning(fakta) -> Some(kgl_frivillig_kreditorordning_resultat(fakta, aktuel_gæld_identifikation))
+    | _ -> None
+}
+| kgl_gældsordning_input_afklaret(ordning: KursgevinstlovGældsordning, aktuel_gæld_identifikation: Tekst) -> match ordning {
+    | KglFrivilligKreditorordning(fakta) -> kgl_frivillig_kreditorordning_resultat(fakta, aktuel_gæld_identifikation).vurdering != KglFrivilligOrdningUafklaret
+    | _ -> Sandt
+}
+| kgl_gæld_par24_anvendes(ordning: KursgevinstlovGældsordning, aktuel_gæld_identifikation: Tekst) -> match ordning {
+    | KglIngenDokumenteretGældsordning -> Falskt
+    | KglTvangsakkordIRekonstruktion -> Sandt
+    | KglFrivilligKreditorordning(fakta) -> kgl_frivillig_kreditorordning_resultat(fakta, aktuel_gæld_identifikation).vurdering == KglFrivilligOrdningSamlet
+    | KglGældssanering -> Sandt
+}
 | kgl_gæld_par24_skattefri_gevinst_kroner(beløb: KursgevinstlovGældBeløb) -> penge_mindste_beløb(kgl_gæld_bruttogevinst_kroner(beløb), penge_positivt_beløb(beløb.gældens_værdi_ved_påtagelse_kroner - beløb.fordringens_værdi_for_kreditor_kroner))
 | kgl_gæld_par22_hændelse_input_gyldigt(hændelse: KursgevinstlovPar22Hændelse) -> match hændelse {
     | KglIngenPar22Hændelse -> Sandt
@@ -388,7 +474,7 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
     | KglPar22Stk3Indfrielse(fakta) -> concat(concat([KglGældPar22Stk3], hvis kgl_gæld_par22_stk3_undtagelse(fakta) { [KglGældPar22Stk3Undtagelse] } ellers { [] }), hvis kgl_gæld_par22_stk4_undtagelse(fakta) { [KglGældPar22Stk4Undtagelse] } ellers { [] })
     | KglPar22AÅrsbeskatning(fakta) -> hvis fakta.beskatningsvalg == KglPar22Stk1BeskatningValgtEfterManglendeIndberetning { [KglGældPar22A, KglGældPar22Stk1] } ellers { [KglGældPar22A] }
 }
-| kgl_gæld_par23_nettoomfattet(fakta: KursgevinstlovGældFakta) -> kgl_gæld_behandles_som_fremmed_valuta(fakta.valuta) && kgl_gæld_er_finansieringsnæring(fakta.erhvervsforhold) == Falskt && fakta.vedrører_ikke_indbetalt_selskabskapital == Falskt && match fakta.par22_hændelse { | KglIngenPar22Hændelse -> Sandt | _ -> Falskt } && (kgl_gæld_er_eftergivelse_mv(fakta.frigørelsesart) == Falskt || (kgl_gæld_par21_stk2_anvendes(fakta.selskabsfakta) == Falskt && kgl_gæld_par24_anvendes(fakta.gældsordning) == Falskt))
+| kgl_gæld_par23_nettoomfattet(fakta: KursgevinstlovGældFakta) -> kgl_gæld_behandles_som_fremmed_valuta(fakta.valuta) && kgl_gæld_er_finansieringsnæring(fakta.erhvervsforhold) == Falskt && fakta.vedrører_ikke_indbetalt_selskabskapital == Falskt && match fakta.par22_hændelse { | KglIngenPar22Hændelse -> Sandt | _ -> Falskt } && (kgl_gæld_er_eftergivelse_mv(fakta.frigørelsesart) == Falskt || (kgl_gæld_par21_stk2_anvendes(fakta.selskabsfakta) == Falskt && kgl_gæld_par24_anvendes(fakta.gældsordning, fakta.identifikation) == Falskt))
 | kgl_gæld_rå_netto_til_par14_23_kroner(fakta: KursgevinstlovGældFakta) -> hvis kgl_gæld_par23_nettoomfattet(fakta) { kgl_gæld_bruttogevinst_kroner(fakta.beløb) - kgl_gæld_bruttotab_kroner(fakta.beløb) } ellers { 0 }
 
 # KursgevinstlovGældSag(input: KursgevinstlovGældInput, årets_netto_fordringer_valutagæld_og_obligationsbaserede_investeringsbeviser_kroner: Heltal) {
@@ -396,15 +482,18 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
     | eftergivelse_mv() -> kgl_gæld_er_eftergivelse_mv(input.fakta.frigørelsesart)
     | par24a_anvendes() -> input.fakta.vedrører_ikke_indbetalt_selskabskapital
     | par21_stk2_betingelser_opfyldt() -> eftergivelse_mv() && kgl_gæld_par21_stk2_anvendes(input.fakta.selskabsfakta)
-    | par24_anvendes() -> par24a_anvendes() == Falskt && eftergivelse_mv() && kgl_gæld_par24_anvendes(input.fakta.gældsordning) && par21_stk2_betingelser_opfyldt() == Falskt
+    | par24_anvendes() -> par24a_anvendes() == Falskt && eftergivelse_mv() && kgl_gæld_par24_anvendes(input.fakta.gældsordning, input.fakta.identifikation) && par21_stk2_betingelser_opfyldt() == Falskt
     | par19_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && kgl_gæld_er_finansieringsnæring(input.fakta.erhvervsforhold)
     | par21_stk2_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && par19_anvendes() == Falskt && par21_stk2_betingelser_opfyldt()
     | par22_anvendes() -> par24a_anvendes() == Falskt && par24_anvendes() == Falskt && par19_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && eftergivelse_mv() == Falskt && match input.fakta.par22_hændelse { | KglIngenPar22Hændelse -> Falskt | _ -> Sandt }
     | par23_anvendes() -> par24a_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && par24_anvendes() == Falskt && par22_anvendes() == Falskt && par19_anvendes() == Falskt && kgl_gæld_par23_nettoomfattet(input.fakta)
     | par21_stk1_anvendes() -> par24a_anvendes() == Falskt && par21_stk2_anvendes() == Falskt && par24_anvendes() == Falskt && par22_anvendes() == Falskt && par19_anvendes() == Falskt && par23_anvendes() == Falskt && eftergivelse_mv()
     | fremmed_valuta() -> kgl_gæld_behandles_som_fremmed_valuta(input.fakta.valuta)
-    | input_gyldigt() -> input.fakta.identifikation != "" && input.indkomstår > 0 && beløb_gyldige() && kgl_gæld_par21_stk2_selskabsfakta_gyldige(input.fakta.selskabsfakta) && kgl_gæld_par22_hændelse_input_gyldigt(input.fakta.par22_hændelse) && kgl_gæld_par22_beløb_konsistente(input.fakta.beløb, input.fakta.par22_hændelse) && eftergivelsesordning_konsistent() && frigørelsesart_og_par22_konsistente() && par22_hændelsesår_konsistent()
-    | eftergivelsesordning_konsistent() -> hvis input.fakta.gældsordning == KglIngenSamletGældsordning { Sandt } ellers { eftergivelse_mv() }
+    | input_gyldigt() -> input.fakta.identifikation != "" && input.indkomstår > 0 && beløb_gyldige() && kgl_gæld_par21_stk2_selskabsfakta_gyldige(input.fakta.selskabsfakta) && kgl_gæld_par22_hændelse_input_gyldigt(input.fakta.par22_hændelse) && kgl_gæld_par22_beløb_konsistente(input.fakta.beløb, input.fakta.par22_hændelse) && eftergivelsesordning_konsistent() && kgl_gældsordning_input_afklaret(input.fakta.gældsordning, input.fakta.identifikation) && frigørelsesart_og_par22_konsistente() && par22_hændelsesår_konsistent()
+    | eftergivelsesordning_konsistent() -> match input.fakta.gældsordning {
+        | KglIngenDokumenteretGældsordning -> Sandt
+        | _ -> eftergivelse_mv()
+    }
     | frigørelsesart_og_par22_konsistente() -> eftergivelse_mv() == Falskt || match input.fakta.par22_hændelse { | KglIngenPar22Hændelse -> Sandt | _ -> Falskt }
     | par22_hændelsesår_konsistent() -> match input.fakta.par22_hændelse {
         | KglIngenPar22Hændelse -> Sandt
@@ -450,7 +539,7 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
         | KglGældBehandlesEfterPar19 -> [KglGældPar19]
         | KglGældBehandlesEfterPar20 -> [KglGældPar20]
         | KglGældBehandlesEfterPar21Stk1 -> [KglGældPar21Stk1]
-        | KglGældBehandlesEfterPar21Stk2 -> hvis kgl_gæld_par24_anvendes(input.fakta.gældsordning) { [KglGældPar21Stk2, KglGældPar24Stk3] } ellers { [KglGældPar21Stk2] }
+        | KglGældBehandlesEfterPar21Stk2 -> hvis kgl_gæld_par24_anvendes(input.fakta.gældsordning, input.fakta.identifikation) { [KglGældPar21Stk2, KglGældPar24Stk3] } ellers { [KglGældPar21Stk2] }
         | KglGældBehandlesEfterPar22 -> kgl_gæld_par22_hjemler(input.fakta.par22_hændelse)
         | KglGældBehandlesEfterPar23 -> [KglGældPar23]
         | KglGældBehandlesEfterPar24 -> hvis input.fakta.gældsordning == KglGældssanering { [KglGældPar24Stk2, KglGældPar21Stk1] } ellers { [KglGældPar24Stk1, KglGældPar21Stk1] }
@@ -466,6 +555,7 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
         par22_anvendes = par22_anvendes(),
         par24_anvendes = par24_anvendes(),
         par24a_anvendes = par24a_anvendes(),
+        frivillig_ordning_resultat = kgl_gæld_frivillig_ordning_resultat(input.fakta.gældsordning, input.fakta.identifikation),
         bagatelgrænse_afskærer = bagatelgrænse_afskærer(),
         bruttogevinst_kroner = bruttogevinst_kroner(),
         bruttotab_kroner = bruttotab_kroner(),
@@ -493,7 +583,7 @@ selskabskapital medregnes ikke ved opgørelsen af den skattepligtige indkomst.
     erhvervsforhold = KglGældUdenFinansieringsnæring,
     valuta = KglGældDanskeKroner,
     selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
-    gældsordning = KglIngenSamletGældsordning,
+    gældsordning = KglIngenDokumenteretGældsordning,
     vedrører_ikke_indbetalt_selskabskapital = Falskt,
     par22_hændelse = KglIngenPar22Hændelse
 ))

@@ -151,7 +151,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældFremmedValuta,
         selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     )),
@@ -169,7 +169,7 @@
         erhvervsforhold = KglGældUdenFinansieringsnæring,
         valuta = KglGældDanskeKroner,
         selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
-        gældsordning = KglIngenSamletGældsordning,
+        gældsordning = KglIngenDokumenteretGældsordning,
         vedrører_ikke_indbetalt_selskabskapital = Falskt,
         par22_hændelse = KglIngenPar22Hændelse
     )),

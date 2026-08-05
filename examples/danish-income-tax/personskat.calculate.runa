@@ -3860,11 +3860,82 @@
     unit = None
 )
 = personskat_felt_kgl_gældsordning = Beregningsfelt(
-    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning",
-    label = "Samlet gældsordning",
-    question = Some("Indgår nedsættelsen i en tvangsakkord, en samlet frivillig kreditorordning eller en gældssanering?"),
-    help = None,
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.$variant",
+    label = "Gældsordningens dokumenterede form",
+    question = Some("Foreligger der ingen dokumenteret gældsordning, en retslig tvangsakkord, en frivillig aftale med kreditorer eller en gældssanering?"),
+    help = Some("Vælg den dokumenterede procedure eller aftale. Ved en frivillig aftale udleder Futuruna selv, om kreditorordningen er samlet efter KGL § 24."),
     unit = None
+)
+= personskat_felt_kgl_frivillig_ordningsidentifikation = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.ordningsidentifikation",
+    label = "Den frivillige kreditorordnings identifikation",
+    question = "Hvilken entydig identifikation har aftalen med kreditorerne?"
+)
+= personskat_felt_kgl_frivillig_alle_usikrede_krav_oplyst = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.alle_usikrede_krav_oplyst",
+    label = "Alle usikrede krav er oplyst",
+    question = Some("Omfatter kreditoropgørelsen alle krav eller dele af krav, som var usikrede på aftaletidspunktet?"),
+    help = Some("Futuruna fejler lukket, hvis kreditormassen ikke er komplet. Kun den del af et krav, som ikke var dækket af tilstrækkelig sikkerhed, indgår i § 24-vurderingen."),
+    unit = None
+)
+= personskat_felt_kgl_frivillig_kreditorkrav = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav",
+    label = "Kreditorkrav ved den frivillige ordning",
+    question = Some("Hvilke kreditorers krav fandtes på aftaletidspunktet, hvilken sikkerhed dækkede hvert krav, og hvem tiltrådte aftalen?"),
+    help = Some("Tilføj ét krav pr. række. Kravets identifikation skal svare til gældspostens identifikation for den gæld, der eftergives."),
+    unit = None
+)
+= personskat_felt_kgl_frivillig_krav_identifikation = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.krav_identifikation",
+    label = "Kreditorkravets identifikation",
+    question = "Hvilken entydig gældsidentifikation vedrører kreditorkravet?"
+)
+= personskat_felt_kgl_frivillig_kreditor_identifikation = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.kreditor_identifikation",
+    label = "Kreditorens identifikation",
+    question = "Hvilken entydig identifikation bruges for kreditoren?"
+)
+= personskat_felt_kgl_frivillig_samlet_krav = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.samlet_krav_kroner",
+    label = "Kreditors samlede krav før ordningen",
+    question = "Hvor stort var kreditors krav umiddelbart før den frivillige ordning?",
+    unit = "kr."
+)
+= personskat_felt_kgl_frivillig_sikkerhedsværdi = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.værdi_af_tilstrækkelig_sikkerhed_kroner",
+    label = "Værdi af tilstrækkelig sikkerhed",
+    question = "Hvor stor en del af kravet var dækket af pant, kaution eller anden tilstrækkelig sikkerhed på aftaletidspunktet?",
+    unit = "kr."
+)
+= personskat_felt_kgl_frivillig_deltagelse = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.deltagelse.$variant",
+    label = "Kreditors faktiske deltagelse",
+    question = Some("Tiltrådte kreditoren ordningen med et nedsat restkrav, eller stod kravet udenfor?"),
+    help = Some("Futuruna beregner den deltagende andel af den usikrede gæld. Angiv ikke selv, om kreditoren er en hovedkreditor."),
+    unit = None
+)
+= personskat_felt_kgl_frivillig_restkrav = Beregningsbeløbsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.deltagelse.KglKreditorTiltrådtFrivilligOrdning.aftalt_restkrav_kroner",
+    label = "Aftalt restkrav efter ordningen",
+    question = "Hvilket restkrav accepterede den deltagende kreditor efter aftalen?",
+    unit = "kr."
+)
+= personskat_felt_kgl_frivillig_småkravsgrundlag = Beregningsfelt(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.$variant",
+    label = "Dokumentation for et udeladt krav",
+    question = Some("Er det ved en skatteafgørelse eller et bindende svar dokumenteret, om det udeladte usikrede krav er et småkrav?"),
+    help = Some("Der findes ingen generel beløbsgrænse. Uden dokumentation fejler Futuruna lukket, når ordningen ellers afhænger af, at udeladte krav er små."),
+    unit = None
+)
+= personskat_felt_kgl_frivillig_småkravsreference = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.KglUdeladtKravDokumenteretSomSmåkrav.afgørelsesreference",
+    label = "Reference, som dokumenterer småkravet",
+    question = "Hvilken afgørelse eller hvilket bindende svar dokumenterer, at kravet kan holdes udenfor som småkrav?"
+)
+= personskat_felt_kgl_frivillig_ikke_småkravsreference = Beregningsspørgsmål(
+    path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.gældsordning.KglFrivilligKreditorordning.fakta.krav.deltagelse.KglKreditorUdenforFrivilligOrdning.småkravsgrundlag.KglUdeladtKravDokumenteretSomIkkeSmåkrav.afgørelsesreference",
+    label = "Reference, som dokumenterer et væsentligt krav",
+    question = "Hvilken afgørelse eller hvilket bindende svar dokumenterer, at kravet ikke er et småkrav?"
 )
 = personskat_felt_kgl_gæld_ikke_indbetalt_selskabskapital = Beregningsfelt(
     path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.gældsposter.vedrører_ikke_indbetalt_selskabskapital",
@@ -7162,6 +7233,10 @@
         personskat_felt_kgl_gæld_valuta,
         personskat_felt_kgl_gæld_selskabsfakta,
         personskat_felt_kgl_gældsordning,
+        personskat_felt_kgl_frivillig_alle_usikrede_krav_oplyst,
+        personskat_felt_kgl_frivillig_kreditorkrav,
+        personskat_felt_kgl_frivillig_deltagelse,
+        personskat_felt_kgl_frivillig_småkravsgrundlag,
         personskat_felt_kgl_gæld_ikke_indbetalt_selskabskapital,
         personskat_felt_kgl_gæld_par22_hændelse,
         personskat_felt_kgl_fordringsnæring,
@@ -7178,6 +7253,11 @@
     spørgsmål = [
         personskat_felt_kgl_skatteyder_identifikation,
         personskat_felt_kgl_gæld_identifikation,
+        personskat_felt_kgl_frivillig_ordningsidentifikation,
+        personskat_felt_kgl_frivillig_krav_identifikation,
+        personskat_felt_kgl_frivillig_kreditor_identifikation,
+        personskat_felt_kgl_frivillig_småkravsreference,
+        personskat_felt_kgl_frivillig_ikke_småkravsreference,
         personskat_felt_kgl_pantebrev,
         personskat_felt_kgl_oprindelig_skatteyder
     ],
@@ -7186,6 +7266,9 @@
         personskat_felt_kgl_gæld_påtagelsesværdi,
         personskat_felt_kgl_gæld_frigørelsesværdi,
         personskat_felt_kgl_gæld_kreditorværdi,
+        personskat_felt_kgl_frivillig_samlet_krav,
+        personskat_felt_kgl_frivillig_sikkerhedsværdi,
+        personskat_felt_kgl_frivillig_restkrav,
         personskat_felt_kgl_dispositionsår,
         personskat_felt_kgl_berørt_hovedstol,
         personskat_felt_kgl_provenu
@@ -7196,6 +7279,7 @@
         DependencySource(value = kgl_sælgerpantebrev_kildeskattelov_lbk460),
         DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
         Guidance(value = kgl_ebl_par6d_vejledning_2026),
+        Guidance(value = kursgevinstloven_vejledning_par24),
     )
 )
 = personskat_metadata_ordinært_aktieår = PersonskatMetadata(
