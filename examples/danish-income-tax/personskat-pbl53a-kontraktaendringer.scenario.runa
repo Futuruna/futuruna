@@ -18,14 +18,14 @@
     par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
 )
 
-| pbl53a_kontraktændringsscenarie_ændring(identifikation: Tekst, år: Heltal, rækkefølge_på_dagen: Heltal, forhåndsaftale: Pbl53AForhåndsaftalefakta, art: Pbl53AKontraktændringsart) -> Pbl53AKontraktændring(
+| pbl53a_kontraktændringsscenarie_ændring(identifikation: Tekst, år: Heltal, rækkefølge_på_dagen: Heltal, kapitalværdi: Pbl53AKapitalværdiVedKontraktændring, forhåndsaftale: Pbl53AForhåndsaftalefakta, art: Pbl53AKontraktændringsart) -> Pbl53AKontraktændring(
     identifikation = identifikation,
     ændringsdato = Pbl15ADato(år = år, måned = 6, dag = 1),
     virkningstidspunkt = Pbl15ATidspunkt(
         dato = Pbl15ADato(år = år, måned = 6, dag = 1),
         rækkefølge_på_dagen = rækkefølge_på_dagen
     ),
-    kapitalværdi_på_virkningstidspunktet_kroner = 125000,
+    kapitalværdi_på_virkningstidspunktet = kapitalværdi,
     forhåndsaftale = forhåndsaftale,
     art = art
 )
@@ -40,6 +40,7 @@
     identifikation = "markedsrente-2013",
     år = 2013,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
     forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
     art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
 )
@@ -52,6 +53,7 @@
     identifikation = "valuta-2014",
     år = 2014,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
     forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
     art = Pbl53AValutaÆndret
 )
@@ -64,6 +66,7 @@
     identifikation = "forhåndsaftalt-markedsrente-2013",
     år = 2013,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
     forhåndsaftale = Pbl53ADokumenteretForhåndsaftale(
         bindende_fra_dato = Pbl15ADato(år = 1991, måned = 12, dag = 1),
         vilkår_fuldt_fastlagt = Sandt,
@@ -80,6 +83,7 @@
     identifikation = "præmieforhøjelse-2015",
     år = 2015,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53ANyeDelsKapitalværdi(kroner = 0),
     forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
     art = Pbl53AÅrligOpsparingspræmieForhøjet(
         forhøjelse_kroner = 12000,
@@ -107,6 +111,7 @@
     identifikation = "anden-ændring-2016",
     år = 2016,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AKapitalværdiUoplyst,
     forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
     art = Pbl53AAndenKontraktændring(beskrivelse = "Ukendt kombination af vilkårsændringer")
 )
@@ -119,6 +124,7 @@
     identifikation = "uoplyst-forhåndsaftale-2017",
     år = 2017,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
     forhåndsaftale = Pbl53AForhåndsaftaleUoplyst,
     art = Pbl53AValutaÆndret
 )
@@ -131,6 +137,7 @@
     identifikation = "modstridende-forhåndsaftale-2017",
     år = 2017,
     rækkefølge_på_dagen = 1,
+    kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
     forhåndsaftale = Pbl53ADokumenteretForhåndsaftale(
         bindende_fra_dato = Pbl15ADato(år = 2018, måned = 1, dag = 1),
         vilkår_fuldt_fastlagt = Sandt,
@@ -150,6 +157,7 @@
             identifikation = "valuta-2020",
             år = 2020,
             rækkefølge_på_dagen = 1,
+            kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
             forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
             art = Pbl53AValutaÆndret
         ),
@@ -157,6 +165,7 @@
             identifikation = "depot-2019",
             år = 2019,
             rækkefølge_på_dagen = 1,
+            kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
             forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
             art = Pbl53ADepotbankUdskiftet
         )
@@ -169,6 +178,7 @@
         identifikation = "valuta-2014",
         år = 2015,
         rækkefølge_på_dagen = 1,
+        kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
         forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
         art = Pbl53ADepotbankUdskiftet
     )]
@@ -180,6 +190,7 @@
         identifikation = "overflytning-2023",
         år = 2023,
         rækkefølge_på_dagen = 1,
+        kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
         forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
         art = Pbl53ASelvvalgtOverflytningTilNyUdbyder(
             modtagende_ordnings_oprettelsesdato = Pbl15ADato(år = 2023, måned = 6, dag = 1),
@@ -194,6 +205,7 @@
         identifikation = "bestand-2021",
         år = 2021,
         rækkefølge_på_dagen = 1,
+        kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
         forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
         art = Pbl53AHelBestandOverførtVedFusionOpkøbEllerOphør(vilkår = Pbl53ABestandOverførtPåUændredeVilkår)
     )]
@@ -205,6 +217,7 @@
         identifikation = "genoptagelse-2018",
         år = 2018,
         rækkefølge_på_dagen = 1,
+        kapitalværdi = Pbl53AKapitalværdiIkkeRelevant,
         forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
         art = Pbl53AForsikringGenoptagetEfterMisligholdelse(
             følge = Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse,
@@ -219,6 +232,7 @@
         identifikation = "genoptagelse-2018",
         år = 2018,
         rækkefølge_på_dagen = 1,
+        kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
         forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
         art = Pbl53AForsikringGenoptagetEfterMisligholdelse(
             følge = Pbl53AForsikringsdækningOpretholdtUnderMisligholdelse,

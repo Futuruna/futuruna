@@ -966,7 +966,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ændringsdato.år",
             "virkningstidspunkt.dato.år",
             "virkningstidspunkt.rækkefølge_på_dagen",
-            "kapitalværdi_på_virkningstidspunktet_kroner",
+            "kapitalværdi_på_virkningstidspunktet.$variant",
+            "kapitalværdi_på_virkningstidspunktet.Pbl53AHeleOrdningensKapitalværdi.kroner",
+            "kapitalværdi_på_virkningstidspunktet.Pbl53ANyeDelsKapitalværdi.kroner",
             "forhåndsaftale.$variant",
             "forhåndsaftale.Pbl53ADokumenteretForhåndsaftale.bindende_fra_dato.år",
             "forhåndsaftale.Pbl53ADokumenteretForhåndsaftale.vilkår_fuldt_fastlagt",
@@ -992,7 +994,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Dato hvor kontraktændringen blev aftalt - år",
             "Dato hvor kontraktændringen fik virkning - år",
             "Kontraktændringens rækkefølge på dagen",
-            "Kapitalværdi da kontraktændringen fik virkning",
+            "Kapitalværdiens rækkevidde ved kontraktændringen",
+            "Hele ordningens kapitalværdi ved kontraktændringen",
+            "Den nye kontraktdels kapitalværdi ved ændringen",
             "Forhåndsaftale om kontraktændringen",
             "Dato for bindende forhåndsaftale - år",
             "Kontraktændringens art",
@@ -3021,8 +3025,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("virkningstidspunkt.dato.dag", Data::Int(1)),
             ("virkningstidspunkt.rækkefølge_på_dagen", Data::Int(1)),
             (
-                "kapitalværdi_på_virkningstidspunktet_kroner",
-                Data::Int(150_000),
+                "kapitalværdi_på_virkningstidspunktet.$variant",
+                Data::String("Pbl53AKapitalværdiIkkeRelevant".to_string()),
             ),
             (
                 "forhåndsaftale.$variant",
@@ -6002,7 +6006,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                                 "dato": { "år": 2014, "måned": 6, "dag": 1 },
                                 "rækkefølge_på_dagen": 1
                             },
-                            "kapitalværdi_på_virkningstidspunktet_kroner": 150_000,
+                            "kapitalværdi_på_virkningstidspunktet": {
+                                "$variant": "Pbl53AKapitalværdiIkkeRelevant"
+                            },
                             "forhåndsaftale": {
                                 "$variant": "Pbl53AIngenDokumenteretForhåndsaftale"
                             },
@@ -6372,7 +6378,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "dato": { "år": 2013, "måned": 6, "dag": 1 },
                 "rækkefølge_på_dagen": 1
             },
-            "kapitalværdi_på_virkningstidspunktet_kroner": 140_000,
+            "kapitalværdi_på_virkningstidspunktet": {
+                "$variant": "Pbl53AHeleOrdningensKapitalværdi",
+                "kroner": 140_000
+            },
             "forhåndsaftale": {
                 "$variant": "Pbl53AIngenDokumenteretForhåndsaftale"
             },
@@ -6873,6 +6882,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ["overgangsresultat"]["moderne_virkningsstart"]["dato"],
         serde_json::json!({ "år": 2013, "måned": 6, "dag": 1 })
     );
+    assert_eq!(
+        material_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["moderne_afkastvirkningsgrænse"],
+        serde_json::json!({
+            "$variant": "Pbl53AKendtModerneAfkastvirkningsgrænse",
+            "kilde": {
+                "$variant": "Pbl53AVirkningFraKontraktændring",
+                "ændringsidentifikation": "markedsrente-2013"
+            },
+            "tidspunkt": {
+                "dato": { "år": 2013, "måned": 6, "dag": 1 },
+                "rækkefølge_på_dagen": 1
+            },
+            "kapitalværdi_kroner": 140_000
+        })
+    );
     let unsupported_contract_change_result =
         &json_result["results"][12]["result"]["kapitalindkomst"]["pbl53a_resultat"];
     assert_eq!(
@@ -6886,6 +6911,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         unsupported_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
             ["overgangsresultat"]["kontraktændringsresultat"]["alle_ændringsarter_understøttede"],
+        false
+    );
+    assert_eq!(
+        unsupported_contract_change_result["ordningsresultater"][0]["omfangsresultat"]
+            ["overgangsresultat"]["kontraktændringsresultat"]["alle_kapitalværdier_entydige"],
         false
     );
     assert_eq!(

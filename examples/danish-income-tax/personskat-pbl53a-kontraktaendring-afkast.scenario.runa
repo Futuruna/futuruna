@@ -1,0 +1,180 @@
+@ sprog da
+
+@ importer ./personskat - pbl53a - kildefakta
+
+| pbl53a_kontraktgrænse_ændring(identifikation: Tekst, kapitalværdi: Pbl53AKapitalværdiVedKontraktændring, art: Pbl53AKontraktændringsart) -> Pbl53AKontraktændring(
+    identifikation = identifikation,
+    ændringsdato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+    virkningstidspunkt = Pbl15ATidspunkt(
+        dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+        rækkefølge_på_dagen = 2
+    ),
+    kapitalværdi_på_virkningstidspunktet = kapitalværdi,
+    forhåndsaftale = Pbl53AIngenDokumenteretForhåndsaftale,
+    art = art
+)
+
+| pbl53a_kontraktgrænse_omfangsfakta(repræsentation: Pbl53AKontraktdelsrepræsentation, ændring: Pbl53AKontraktændring) -> Pbl53AOmfangsfakta(
+    oprettelsesdato = Pbl15ADato(år = 1990, måned = 1, dag = 1),
+    oprindelig_rettighedshaver_identifikation = "person-1",
+    kapitalværdi_ved_oprettelsen_kroner = 100000,
+    repræsenteret_kontraktdel = repræsentation,
+    kontraktændringer = [ændring],
+    erhvervelser = [],
+    overgangsvalgfristfakta = Pbl53AIntetOvergangsvalgfristgrundlag,
+    overgangsvalg = [],
+    historiske_blanket49020_indsendelser = [],
+    produkt = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.produkt,
+    afsnit_i_valg = Pbl53AIntetAfkaldPåAfsnitI,
+    institutionsfinansiering = pbl53a_privat_finansiering_fixture,
+    par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
+)
+
+| pbl53a_kontraktgrænse_afkastår(ultimo_kroner: Heltal) -> Pbl53AAfkastårFakta(
+    indkomstår = 2026,
+    afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
+        kalenderårets_primo_depotværdi_kroner = 100000,
+        kalenderårets_ultimo_depotværdi_kroner = ultimo_kroner
+    ),
+    pensionsudbyder_opgjorde_afkast_efter_pal = Falskt,
+    skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
+    sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
+    grænsehændelser = [],
+    afkastfordeling = Pbl53AAfledtEnkeltRettighedshaver
+)
+
+| pbl53a_kontraktgrænse_indbetaling(identifikation: Tekst, rækkefølge_på_dagen: Heltal, beløb_kroner: Heltal) -> Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
+    identifikation = identifikation,
+    tidspunkt = Pbl53ATidspunkt(
+        dato = Pbl15ADato(år = 2026, måned = 6, dag = 1),
+        rækkefølge_på_dagen = rækkefølge_på_dagen
+    ),
+    beløb_kroner = beløb_kroner,
+    periode = Pbl53AIndbetaltMensOrdningenErOmfattet,
+    indbetaler = Pbl53AEjeren,
+    ejerens_fradragsstatus = Pbl53AUdenFradragsEllerBortseelsesret,
+    par53b_udenlandsk_skattebehandling = Pbl53BIkkeForetagetIUdenlandsperioden
+))
+
+| pbl53a_kontraktgrænse_udbetaling(identifikation: Tekst, beløb_kroner: Heltal) -> Pbl53AUdbetaling(fakta = Pbl53AUdbetalingsfakta(
+    identifikation = identifikation,
+    tidspunkt = Pbl53ATidspunkt(
+        dato = Pbl15ADato(år = 2026, måned = 12, dag = 1),
+        rækkefølge_på_dagen = 1
+    ),
+    modtager = Pbl53AEjer,
+    bruttoudbetaling_kroner = beløb_kroner,
+    art = Pbl53AUdbetalingFraOrdningen(
+        kapitalværdi_umiddelbart_før_udbetalingen_kroner = 160000,
+        produktart = Pbl53AAndenProduktart,
+        udbetalingsform = Pbl53AIkkeSamletKapitaludbetaling,
+        pbl20_stk6_kildefakta = pbl20_stk6_ingen_kildefakta()
+    )
+))
+
+| pbl53a_kontraktgrænse_periode(omfangsfakta: Pbl53AOmfangsfakta, afkastår: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> {
+    = omfangsresultat = pbl53a_omfangsresultat(indkomstår = 2026, fakta = omfangsfakta, hændelser = hændelser)
+    pbl53a_afkastperiode_resultat(
+        ordning = Pbl53ALivsforsikringUdenKapitel1,
+        skatteyder_identifikation = "person-1",
+        omfangsresultat = omfangsresultat,
+        fakta = afkastår,
+        hændelser = hændelser
+    )
+}
+
+| pbl53a_kontraktgrænse_personskat(omfangsfakta: Pbl53AOmfangsfakta, afkastår: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [PersonskatPbl53AOrdningFakta(
+    identifikation = "kontraktændret-livsforsikring",
+    skatteyder_identifikation = "person-1",
+    omfangsfakta = omfangsfakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [afkastår],
+    hændelser = hændelser
+    )]), 2026)
+
+= pbl53a_kontraktgrænse_hel_ændring = pbl53a_kontraktgrænse_ændring(
+    identifikation = "markedsrente-2026",
+    kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
+    art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
+)
+= pbl53a_kontraktgrænse_hel_fakta = pbl53a_kontraktgrænse_omfangsfakta(
+    repræsentation = Pbl53AHeleKontrakten,
+    ændring = pbl53a_kontraktgrænse_hel_ændring
+)
+= pbl53a_kontraktgrænse_hel_hændelser = [
+    pbl53a_kontraktgrænse_indbetaling("hel-før", 1, 10000),
+    pbl53a_kontraktgrænse_indbetaling("hel-efter", 3, 5000),
+    pbl53a_kontraktgrænse_udbetaling("hel-udbetaling", 4000)
+]
+= pbl53a_kontraktgrænse_hel_afkastår = pbl53a_kontraktgrænse_afkastår(ultimo_kroner = 160000)
+= pbl53a_kontraktgrænse_hel_periode = pbl53a_kontraktgrænse_periode(pbl53a_kontraktgrænse_hel_fakta, pbl53a_kontraktgrænse_hel_afkastår, pbl53a_kontraktgrænse_hel_hændelser)
+= pbl53a_kontraktgrænse_hel_personskat = pbl53a_kontraktgrænse_personskat(pbl53a_kontraktgrænse_hel_fakta, pbl53a_kontraktgrænse_hel_afkastår, pbl53a_kontraktgrænse_hel_hændelser)
+
+= pbl53a_kontraktgrænse_del_ændring = pbl53a_kontraktgrænse_ændring(
+    identifikation = "præmieforhøjelse-2026",
+    kapitalværdi = Pbl53ANyeDelsKapitalværdi(kroner = 0),
+    art = Pbl53AÅrligOpsparingspræmieForhøjet(
+        forhøjelse_kroner = 12000,
+        grundlag = Pbl53ANyPræmieforhøjelse
+    )
+)
+= pbl53a_kontraktgrænse_del_fakta = pbl53a_kontraktgrænse_omfangsfakta(
+    repræsentation = Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation = "præmieforhøjelse-2026"),
+    ændring = pbl53a_kontraktgrænse_del_ændring
+)
+= pbl53a_kontraktgrænse_del_hændelser = [
+    pbl53a_kontraktgrænse_indbetaling("del-før", 1, 7000),
+    pbl53a_kontraktgrænse_indbetaling("del-efter", 3, 12000)
+]
+= pbl53a_kontraktgrænse_del_afkastår = pbl53a_kontraktgrænse_afkastår(ultimo_kroner = 30000)
+= pbl53a_kontraktgrænse_del_periode = pbl53a_kontraktgrænse_periode(pbl53a_kontraktgrænse_del_fakta, pbl53a_kontraktgrænse_del_afkastår, pbl53a_kontraktgrænse_del_hændelser)
+= pbl53a_kontraktgrænse_del_personskat = pbl53a_kontraktgrænse_personskat(pbl53a_kontraktgrænse_del_fakta, pbl53a_kontraktgrænse_del_afkastår, pbl53a_kontraktgrænse_del_hændelser)
+
+= pbl53a_kontraktgrænse_historisk_rest_fakta = pbl53a_kontraktgrænse_omfangsfakta(
+    repræsentation = Pbl53AHistoriskRestEfterDelviseKontraktændringer,
+    ændring = pbl53a_kontraktgrænse_del_ændring
+)
+= pbl53a_kontraktgrænse_historisk_rest_omfang = pbl53a_omfangsresultat(2026, pbl53a_kontraktgrænse_historisk_rest_fakta, pbl53a_kontraktgrænse_del_hændelser)
+= pbl53a_kontraktgrænse_historisk_rest_periode = pbl53a_kontraktgrænse_periode(pbl53a_kontraktgrænse_historisk_rest_fakta, pbl53a_kontraktgrænse_del_afkastår, pbl53a_kontraktgrænse_del_hændelser)
+
+= pbl53a_kontraktgrænse_forkert_delværdi_ændring = pbl53a_kontraktgrænse_ændring(
+    identifikation = "forkert-delværdi-2026",
+    kapitalværdi = Pbl53AHeleOrdningensKapitalværdi(kroner = 125000),
+    art = Pbl53AÅrligOpsparingspræmieForhøjet(
+        forhøjelse_kroner = 12000,
+        grundlag = Pbl53ANyPræmieforhøjelse
+    )
+)
+= pbl53a_kontraktgrænse_forkert_delværdi_resultat = pbl53a_omfangsresultat(2026, pbl53a_kontraktgrænse_omfangsfakta(Pbl53ADelSkabtVedKontraktændring(ændringsidentifikation = "forkert-delværdi-2026"), pbl53a_kontraktgrænse_forkert_delværdi_ændring), [])
+
+= pbl53a_kontraktgrænse_uoplyst_helværdi_ændring = pbl53a_kontraktgrænse_ændring(
+    identifikation = "uoplyst-helværdi-2026",
+    kapitalværdi = Pbl53AKapitalværdiUoplyst,
+    art = Pbl53AGennemsnitsrenteSkiftetTilMarkedsrente
+)
+= pbl53a_kontraktgrænse_uoplyst_helværdi_resultat = pbl53a_omfangsresultat(2026, pbl53a_kontraktgrænse_omfangsfakta(Pbl53AHeleKontrakten, pbl53a_kontraktgrænse_uoplyst_helværdi_ændring), [])
+
+| pbl53a_hel_kontraktændring_starter_ved_eksakt_grænse: pbl53a_kontraktgrænse_hel_periode -> pbl53a_kontraktgrænse_hel_periode.periode_understøttet && pbl53a_kontraktgrænse_hel_periode.kapitalværdi_primo_kroner == 125000 && pbl53a_kontraktgrænse_hel_periode.kapitalværdi_ultimo_kroner == 160000 && pbl53a_kontraktgrænse_hel_periode.indbetalinger_i_perioden_kroner == 5000 && pbl53a_kontraktgrænse_hel_periode.udbetalinger_i_perioden_kroner == 4000 && match pbl53a_kontraktgrænse_hel_periode.afkastperiode {
+    | Pbl53ASammenhængendeAfkastperiode(starttidspunkt, _) -> starttidspunkt == Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 2)
+    | _ -> Falskt
+}
+
+| pbl53a_hel_kontraktændring_beregner_afkast_efter_grænsen: pbl53a_kontraktgrænse_hel_personskat -> pbl53a_kontraktgrænse_hel_personskat.alle_input_gyldige && length(pbl53a_kontraktgrænse_hel_personskat.kapitalposter) == 1 && pbl53a_kontraktgrænse_hel_personskat.kapitalposter[0].beløb_kroner == 34000
+
+| pbl53a_ny_kontraktdel_starter_med_egen_kapitalværdi: pbl53a_kontraktgrænse_del_periode -> pbl53a_kontraktgrænse_del_periode.periode_understøttet && pbl53a_kontraktgrænse_del_periode.kapitalværdi_primo_kroner == 0 && pbl53a_kontraktgrænse_del_periode.kapitalværdi_ultimo_kroner == 30000 && pbl53a_kontraktgrænse_del_periode.indbetalinger_i_perioden_kroner == 12000 && pbl53a_kontraktgrænse_del_periode.udbetalinger_i_perioden_kroner == 0
+
+| pbl53a_ny_kontraktdel_beregner_kun_eget_afkast: pbl53a_kontraktgrænse_del_personskat -> pbl53a_kontraktgrænse_del_personskat.alle_input_gyldige && length(pbl53a_kontraktgrænse_del_personskat.kapitalposter) == 1 && pbl53a_kontraktgrænse_del_personskat.kapitalposter[0].beløb_kroner == 18000
+
+| pbl53a_historisk_rest_forbliver_uden_for_par53a: pbl53a_kontraktgrænse_historisk_rest_omfang -> pbl53a_kontraktgrænse_historisk_rest_omfang.grundfakta_gyldige && pbl53a_kontraktgrænse_historisk_rest_omfang.omfattes_af_par53a == Falskt && pbl53a_kontraktgrænse_historisk_rest_omfang.overgangsresultat.moderne_afkastvirkningsgrænse == Pbl53AIngenModerneAfkastvirkningsgrænse && pbl53a_kontraktgrænse_historisk_rest_periode.afkastperiode == Pbl53AIngenAfkastperiode && pbl53a_kontraktgrænse_historisk_rest_periode.indbetalinger_i_perioden_kroner == 0
+
+| pbl53a_delværdi_for_hele_ordningen_fejler_lukket: pbl53a_kontraktgrænse_forkert_delværdi_resultat -> pbl53a_kontraktgrænse_forkert_delværdi_resultat.overgangsresultat.kontraktændringsresultat.alle_kapitalværdier_entydige == Falskt && pbl53a_kontraktgrænse_forkert_delværdi_resultat.grundfakta_gyldige == Falskt
+
+| pbl53a_uoplyst_helværdi_fejler_lukket: pbl53a_kontraktgrænse_uoplyst_helværdi_resultat -> pbl53a_kontraktgrænse_uoplyst_helværdi_resultat.overgangsresultat.kontraktændringsresultat.alle_kapitalværdier_entydige == Falskt && pbl53a_kontraktgrænse_uoplyst_helværdi_resultat.grundfakta_gyldige == Falskt
+
+? pbl53a_hel_kontraktændring_starter_ved_eksakt_grænse
+? pbl53a_hel_kontraktændring_beregner_afkast_efter_grænsen
+? pbl53a_ny_kontraktdel_starter_med_egen_kapitalværdi
+? pbl53a_ny_kontraktdel_beregner_kun_eget_afkast
+? pbl53a_historisk_rest_forbliver_uden_for_par53a
+? pbl53a_delværdi_for_hele_ordningen_fejler_lukket
+? pbl53a_uoplyst_helværdi_fejler_lukket

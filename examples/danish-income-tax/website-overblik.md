@@ -93,6 +93,17 @@ skattemæssige grænser. Ved én rettighedshaver afledes identiteten af kæden. 
 flere samtidige berettigede kræver særskilte, validerede indeståender ved den
 relevante afkastperiodes udgang.
 
+En materiel ændring af en historisk kontrakt får tilsvarende en eksakt
+afkastgrænse. Kildedata angiver, om kapitalværdien på virkningstidspunktet
+tilhører hele ordningen eller kun den nye kontraktdel. Futuruna medregner kun
+betalinger fra og med grænsen, holder den historiske rest uden for § 53 A og
+afviser en uoplyst eller forkert afgrænset kapitalværdi. Dermed kan en forhøjet
+opsparingspræmie repræsenteres som sin egen nye del uden at omskrive resten af
+den gamle police. Kilderne er
+[Den juridiske vejledning C.A.10.4.2.3.6](https://info.skat.dk/data.aspx?oid=2048471)
+og
+[Den juridiske vejledning C.A.10.4.2.3.5](https://info.skat.dk/data.aspx?oid=2048470).
+
 For en historisk ordning oplyses et eventuelt overgangsvalg som daterede
 kildedata: beslutning, modtagelse, modtager og valgt § 53 A- eller § 53 B-regime.
 Futuruna afleder selv den ordinære frist før 2006, særvirkningen fra 1. januar
@@ -252,8 +263,8 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 942 eksplicitte feltmetadata-poster,
-heraf 258 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
+interviewoplysninger. Kontrakten har nu 944 eksplicitte feltmetadata-poster,
+heraf 260 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
 Alle 98 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og

@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-9c9d16` (transfer-year PBL § 53 A calculation; implementation and verification complete, pending independent review)
-Next source-backed slice: `td-b3b1b9`
+Current implementation slice: none (`td-b3b1b9`, the exact PBL § 53 A contract-change return boundary, is complete and independently approved)
+Next source-backed slice: `td-f6c38f` (repeated PBL § 53 A ownership periods across tax years)
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-f2ca68`
+Latest approved implementation slice: `td-b3b1b9`
 Latest approved language slice: `td-5545ba`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -226,7 +226,7 @@ To afgrænsede opfølgninger er bevaret uden at blokere dette resultat:
 senere generhvervelse, og `td-ef2f36` skal erstatte den første periodes interne
 tekstnøgle med en typet eller skemabegrænset kildereference.
 
-Beregningskontrakten har 258 danske § 53 A-feltbeskrivelser med Aftalelovens
+Beregningskontrakten har 260 danske § 53 A-feltbeskrivelser med Aftalelovens
 § 6, PBL §§ 20, 53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder.
 Regnearket har fjorten
 relationelle § 53 A-ark for ordninger, årlige fakta, daterede
@@ -590,7 +590,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 942 eksplicitte feltmetadata-poster. Alle 98 nåbare
+Kontrakten har aktuelt 944 eksplicitte feltmetadata-poster. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende
 selskabsindtægter og -aktiver. Seks af posterne
@@ -640,7 +640,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`cbf504913f84044d4a85248b1d6ea2bc81dea153829a5d2bc0e552038de9bebb`.
+`82d828db11dbbfa4fde7c038cfc1de50ae8baf5d66a3c15c97892aa18add32aa`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -652,7 +652,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 942 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 944 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -3132,7 +3132,7 @@ Review candidates to revisit deliberately, not as broad churn:
   overdragelsestidspunkt. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 942 felter i alt, heraf 258 § 53 A-feltmetadata-poster, og fjorten
+  har 944 felter i alt, heraf 260 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3146,7 +3146,15 @@ Review candidates to revisit deliberately, not as broad churn:
   dubletter og kronologi i både interpreter og compiler. Den kanoniske
   projektmappe bærer en uvæsentlig dateret kontraktændring som relationelle
   kildefakta. JSON-grænsen accepterer en materiel overgang til
-  markedsrentevilkår og afviser en ikke-understøttet anden ændringsart.
+  markedsrentevilkår og afviser en ikke-understøttet anden ændringsart. Syv
+  yderligere invarianter beregner nu en hel ordning og en særskilt ny
+  kontraktdel fra kontraktændringens eksakte virkningstidspunkt. DKK 125.000 i
+  kapitalværdi for hele ordningen giver DKK 34.000 i afkast efter grænsen,
+  mens en ny kontraktdel med nul i begyndelsesværdi giver DKK 18.000. Betalinger
+  før grænsen, også tidligere samme dag, medregnes ikke; den historiske rest
+  forbliver uden for § 53 A. Kapitalværdien er et typet kildefaktum for enten
+  hele ordningen eller den nye del. En forkert rækkevidde eller en uoplyst værdi
+  fejler lukket i både interpreter og compiler.
 - `pensionsbeskatningsloven-aarsparametre.runa` adskiller nu regulerede
   årsbeløb fra den juridiske struktur i §§ 16 og 18. Fire typede kildeankre
   dækker den ufuldstændige 2002-2009-tidsserie og de fulde tidsserier for
@@ -3284,7 +3292,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 942 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 944 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
@@ -3445,13 +3453,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Efter uafhængig review af `td-f2ca68` skal `td-9c9d16` kildeafklare den
-  tidligere ejers afkast i
-  overdragelsesåret og erstatte den nuværende ultimo-antagelse med daterede
-  rettighedsandele, herunder samtidige berettigede, hvor loven kræver det.
-  `td-b3b1b9` skal derefter bruge en materiel kontraktændrings præcise
-  virkningstidspunkt og kapitalværdi som delårsgrænse i årets
-  afkastberegning.
+- Det næste kildeunderbyggede PBL-hul er genkøb efter en tidligere afståelse på
+  tværs af indkomstår, særskilt sporet i `td-f6c38f`. Den daterede
+  rettighedskæde og kontraktændringsgrænse er nu fælles grundlag, mens
+  `td-ef2f36` sporer en typet reference til den første oplyste afkastperiode.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

@@ -70,11 +70,11 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
 ))
 
 | pbl53a_erhvervelsesår_periode_resultat(skatteyder_identifikation: Tekst, omfangsfakta: Pbl53AOmfangsfakta, hændelser: List(Pbl53AHændelse)) -> {
-    = overgang = pbl53a_overgangsresultat(omfangsfakta, hændelser)
+    = omfangsresultat = pbl53a_omfangsresultat(indkomstår = 2026, fakta = omfangsfakta, hændelser = hændelser)
     pbl53a_afkastperiode_resultat(
         ordning = Pbl53ALivsforsikringUdenKapitel1,
         skatteyder_identifikation = skatteyder_identifikation,
-        overgang = overgang,
+        omfangsresultat = omfangsresultat,
         fakta = pbl53a_erhvervelsesår_afkastfakta(),
         hændelser = hændelser
     )
@@ -207,7 +207,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
 = pbl53a_erhvervelsesår_omvendte_grænser_resultat = pbl53a_afkastperiode_resultat(
     ordning = Pbl53ALivsforsikringUdenKapitel1,
     skatteyder_identifikation = "person-1",
-    overgang = pbl53a_erhvervelsesår_omvendte_grænser_overgang,
+    omfangsresultat = pbl53a_omfangsresultat(indkomstår = 2026, fakta = pbl53a_erhvervelsesår_omvendte_grænser_omfangsfakta, hændelser = []),
     fakta = pbl53a_erhvervelsesår_omvendte_grænser_fakta,
     hændelser = []
 )
