@@ -86,6 +86,13 @@ statsstøttebegrænsningen i stk. 6. Det afleder også, om en ordning fra før d
 livsforsikring bevarer den historiske retsstilling. Resultatet viser hver
 delkonklusion, mens ufuldstændige eller modstridende oplysninger fejler lukket.
 
+Den daterede rettighedskæde afleder også afkastperioden ved en overdragelse.
+Den tidligere ejer og erhververen kan derfor beregnes hver for sig frem til og
+fra det præcise overdragelsestidspunkt, uden at borgeren selv angiver periodens
+skattemæssige grænser. Ved én rettighedshaver afledes identiteten af kæden. Kun
+flere samtidige berettigede kræver særskilte, validerede indeståender ved den
+relevante afkastperiodes udgang.
+
 For en historisk ordning oplyses et eventuelt overgangsvalg som daterede
 kildedata: beslutning, modtagelse, modtager og valgt § 53 A- eller § 53 B-regime.
 Futuruna afleder selv den ordinære frist før 2006, særvirkningen fra 1. januar
@@ -245,10 +252,10 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 889 eksplicitte feltmetadata-poster,
-heraf 205 for § 53 A-ordninger. De historiske overgangsvalg ligger i det
-tolvte relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
-Alle 64 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
+interviewoplysninger. Kontrakten har nu 942 eksplicitte feltmetadata-poster,
+heraf 258 for § 53 A-ordninger. De historiske overgangsvalg ligger i de
+fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.
+Alle 98 nåbare § 15 A-stier for en virksomhedsafståelse har en dansk etiket og
 et interviewspørgsmål, herunder de tre regnskabsperioders datoer, direkte og
 indirekte ejerandele samt selskabernes underliggende indtægter og aktiver.
 Otteogtyve beskriver den nøglebundne liste over erhvervsmæssig kørsel efter

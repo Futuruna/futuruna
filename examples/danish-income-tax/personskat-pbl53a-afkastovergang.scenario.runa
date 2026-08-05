@@ -34,7 +34,7 @@
     par53b_oprettelsesposition = pbl53a_liv_uden_kapitel1_omfang_fixture.fakta.par53b_oprettelsesposition
 )
 
-= pbl53a_overgang_berettiget = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+= pbl53a_overgang_berettiget = Pbl53AAfledtEnkeltRettighedshaver
 
 | pbl53a_overgang_kapitalværdiår(indkomstår: Heltal, primo_kroner: Heltal, ultimo_kroner: Heltal) -> Pbl53AAfkastårFakta(
     indkomstår = indkomstår,
@@ -46,7 +46,7 @@
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_overgang_berettiget
+    afkastfordeling = pbl53a_overgang_berettiget
 )
 
 | pbl53a_overgang_palår(indkomstår: Heltal, afkast_kroner: Heltal) -> Pbl53AAfkastårFakta(
@@ -56,7 +56,7 @@
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_overgang_berettiget
+    afkastfordeling = pbl53a_overgang_berettiget
 )
 
 | pbl53a_overgang_afkastforløb(omfangsfakta: Pbl53AOmfangsfakta, åbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta)) -> {

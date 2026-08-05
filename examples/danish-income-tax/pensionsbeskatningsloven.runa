@@ -133,6 +133,13 @@
     ændringsstatus = "Kontrolleret mod 2026-1: delår, flere berettigede, bindende metodevalg og negativt afkast"
 )
 
+= skattekontrolloven_lbk12_par18_stk1_nr2_litra_e = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/12",
+    identifier = "Skattekontrolloven § 18, stk. 1, nr. 2, litra e",
+    hentet_dato = "2026-07-29",
+    ændringsstatus = "Gældende oplysningspligt om en udenlandsk ordnings ophør eller overdragelse og det præcise tidspunkt"
+)
+
 = skat_juridisk_vejledning_pbl53a_overgang = PensionsbeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2048471",
     identifier = "Den juridiske vejledning 2026-1, C.A.10.4.2.3.6",
@@ -2325,6 +2332,8 @@ forsikringsordning, som omfattes af pensionsbeskatningslovens § 53 A.
         AmendmentSource(value = pensionsbeskatningsloven_lov313_par9_nr3_og_par19_stk3),
         TransitionSource(value = pensionsbeskatningsloven_lov1534_par1_nr37_og_par11_stk7),
         Guidance(value = skat_juridisk_vejledning_pbl53a_overgang),
+        Guidance(value = skat_juridisk_vejledning_pbl53a_afkast),
+        DependencySource(value = skattekontrolloven_lbk12_par18_stk1_nr2_litra_e),
     )
 )
 
@@ -2387,6 +2396,16 @@ Stk. 7. § 1, nr. 36-38, og § 9, nr. 2, har for pensionsordninger, der er
 oprettet eller erhvervet den 18. februar 1992 eller senere, virkning fra og med
 den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. januar
 2010, af en forsikring oprettet før den 18. februar 1992.
+
+Skattekontrolloven § 18, stk. 1, nr. 2:
+
+En erklæring fra det udenlandske selskab, jf. dog § 19, hvori selskabet angiver
+at ville påtage sig hvert år af egen drift senest den 31. januar at sende
+følgende oplysninger vedrørende ordningen for det foregående kalenderår til
+told- og skatteforvaltningen:
+
+e) Oplysning om ordningens ophør eller overdragelse med angivelse af tidspunktet
+for dette.
 ----
 
 --@begin::pensionsbeskatningsloven_par53a_afkastovergang--
@@ -2401,11 +2420,11 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 # Pbl53AAfkastgrænserækkefølgetilstand(seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, kronologiske: Boolsk)
 # Pbl53AAfkastgrænse = Pbl53AIngenAfkastgrænse | Pbl53ARegistreretAfkastgrænse(tidspunkt: Pbl15ATidspunkt, depotværdi_kroner: Heltal)
 # Pbl53AAfkastperiode = Pbl53AIngenAfkastperiode | Pbl53ASammenhængendeAfkastperiode(starttidspunkt: Pbl15ATidspunkt, sluttidspunkt_eksklusiv: Pbl15ATidspunkt)
-# Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ultimo_kroner: Heltal)
-# Pbl53ABerettigelsesfakta = Pbl53AEnkeltBerettiget(identifikation: Tekst) | Pbl53AFlereBerettigede(samlet_indestående_ultimo_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
-# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse), berettigelse_ultimo: Pbl53ABerettigelsesfakta)
+# Pbl53ABerettigetAndel(identifikation: Tekst, indestående_ved_afkastperiodens_udgang_kroner: Heltal)
+# Pbl53AAfkastfordelingsfakta = Pbl53AAfledtEnkeltRettighedshaver | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation: Tekst, samlet_indestående_ved_afkastperiodens_udgang_kroner: Heltal, andele: List(Pbl53ABerettigetAndel))
+# Pbl53AAfkastårFakta(indkomstår: Heltal, afkastgrundlag: Pbl53AAfkastgrundlag, pensionsudbyder_opgjorde_afkast_efter_pal: Boolsk, skattepligtsstatus_ved_årets_begyndelse: Pbl53ASkattepligtsstatusVedÅretsBegyndelse, sikkerhedsstatus_ved_årets_begyndelse: Pbl53ASikkerhedsstatusVedÅretsBegyndelse, grænsehændelser: List(Pbl53AOplystAfkastgrænsehændelse), afkastfordeling: Pbl53AAfkastfordelingsfakta)
 # Pbl53AAfkastperiodetilstand(skattepligtig: Boolsk, rettighedshaver: Boolsk, sikkerhedsstillelse_består: Boolsk, afkastbeskatning_aktiv: Boolsk, seneste_tidspunkt: Pbl53ASenesteAfkastgrænsetidspunkt, åbningsgrænse: Pbl53AAfkastgrænse, lukningsgrænse: Pbl53AAfkastgrænse, antal_sammenhængende_perioder: Heltal, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk)
-# Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, afledte_rettighedsgrænsehændelser: List(Pbl53AAfkastgrænsehændelse), samlede_grænsehændelser: List(Pbl53AAfkastgrænsehændelse), overgangsfakta_gyldige: Boolsk, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, oplyste_grænsehændelser_kronologiske: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
+# Pbl53AAfkastperiodeResultat(fakta: Pbl53AAfkastårFakta, afledte_rettighedsgrænsehændelser: List(Pbl53AAfkastgrænsehændelse), samlede_grænsehændelser: List(Pbl53AAfkastgrænsehændelse), overgangsfakta_gyldige: Boolsk, rettighedsperiode_findes_entydigt: Boolsk, afkastperiode: Pbl53AAfkastperiode, grænsehændelsesidentifikationer_entydige: Boolsk, oplyste_grænsehændelser_kronologiske: Boolsk, hændelser_kronologiske: Boolsk, overgange_gyldige: Boolsk, periode_understøttet: Boolsk, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, indbetalinger_i_perioden_kroner: Heltal, udbetalinger_i_perioden_kroner: Heltal)
 
 | pbl53a_direktørordning_kræver_sikkerhed(ordning: Pensionsbeskatningslov53AOrdning) -> ordning == Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse
 | pbl53a_skattepligtig_ved_årets_begyndelse(status: Pbl53ASkattepligtsstatusVedÅretsBegyndelse) -> status == Pbl53ASkattepligtigVedÅretsBegyndelse
@@ -2467,11 +2486,17 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     | Pbl53AÅbenRettighedsperiode -> Sandt
     | Pbl53ARettighedsperiodeSlutter(_, sluttidspunkt, _) -> pbl15a_tidspunkt_før(tidspunkt, sluttidspunkt)
 }
-| pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat) -> {
-    = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
-    overgang.fakta_gyldige && any(overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| periode.rettighedshaver_identifikation == skatteyder_identifikation && pbl53a_rettighedsperiode_omfatter_tidspunkt(periode, årsbegyndelse))
+| pbl53a_rettighedsperiode_matcher_afkastfordeling(skatteyder_identifikation: Tekst, afkastfordeling: Pbl53AAfkastfordelingsfakta, periode: Pbl53ARettighedsperiode) -> match afkastfordeling {
+    | Pbl53AAfledtEnkeltRettighedshaver -> periode.rettighedshaver_identifikation == skatteyder_identifikation
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation, _, _) -> periode.identifikation == rettighedsperiode_identifikation
 }
-| pbl53a_rettighedsperiode_startgrænse_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> hvis periode.rettighedshaver_identifikation == skatteyder_identifikation && periode.starttidspunkt.dato.år == indkomstår && periode.starttidspunkt != Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0) {
+| pbl53a_rettighedsperioder_for_afkastfordeling(skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, afkastfordeling: Pbl53AAfkastfordelingsfakta) -> filter(overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| pbl53a_rettighedsperiode_matcher_afkastfordeling(skatteyder_identifikation, afkastfordeling, periode))
+| pbl53a_rettighedsperiode_findes_entydigt(skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, afkastfordeling: Pbl53AAfkastfordelingsfakta) -> length(pbl53a_rettighedsperioder_for_afkastfordeling(skatteyder_identifikation, overgang, afkastfordeling)) == 1
+| pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat, afkastfordeling: Pbl53AAfkastfordelingsfakta) -> {
+    = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
+    overgang.fakta_gyldige && any(pbl53a_rettighedsperioder_for_afkastfordeling(skatteyder_identifikation, overgang, afkastfordeling), |periode: Pbl53ARettighedsperiode| pbl53a_rettighedsperiode_omfatter_tidspunkt(periode, årsbegyndelse))
+}
+| pbl53a_rettighedsperiode_startgrænse_i_år(indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> hvis periode.starttidspunkt.dato.år == indkomstår && periode.starttidspunkt != Pbl15ATidspunkt(dato = Pbl15ADato(år = indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0) {
     [Pbl53AAfkastgrænsehændelse(
         identifikation = "rettighed-erhverves:" + periode.identifikation,
         tidspunkt = periode.starttidspunkt,
@@ -2481,28 +2506,24 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 } ellers {
     []
 }
-| pbl53a_rettighedsperiode_slutgrænse_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> hvis periode.rettighedshaver_identifikation != skatteyder_identifikation {
-    []
-} ellers {
-    match periode.slutning {
-        | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation, tidspunkt, kapitalværdi_kroner) -> hvis tidspunkt.dato.år == indkomstår {
-            [Pbl53AAfkastgrænsehændelse(
-                identifikation = "rettighed-afstås:" + erhvervelse_identifikation,
-                tidspunkt = tidspunkt,
-                depotværdi_kroner = kapitalværdi_kroner,
-                art = Pbl53ARettighedAfstås
-            )]
-        } ellers {
-            []
-        }
-        | Pbl53AÅbenRettighedsperiode -> []
+| pbl53a_rettighedsperiode_slutgrænse_i_år(indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> match periode.slutning {
+    | Pbl53ARettighedsperiodeSlutter(erhvervelse_identifikation, tidspunkt, kapitalværdi_kroner) -> hvis tidspunkt.dato.år == indkomstår {
+        [Pbl53AAfkastgrænsehændelse(
+            identifikation = "rettighed-afstås:" + erhvervelse_identifikation,
+            tidspunkt = tidspunkt,
+            depotværdi_kroner = kapitalværdi_kroner,
+            art = Pbl53ARettighedAfstås
+        )]
+    } ellers {
+        []
     }
+    | Pbl53AÅbenRettighedsperiode -> []
 }
-| pbl53a_rettighedsperiode_grænser_i_år(skatteyder_identifikation: Tekst, indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> concat(
-    pbl53a_rettighedsperiode_startgrænse_i_år(skatteyder_identifikation, indkomstår, periode),
-    pbl53a_rettighedsperiode_slutgrænse_i_år(skatteyder_identifikation, indkomstår, periode)
+| pbl53a_rettighedsperiode_grænser_i_år(indkomstår: Heltal, periode: Pbl53ARettighedsperiode) -> concat(
+    pbl53a_rettighedsperiode_startgrænse_i_år(indkomstår, periode),
+    pbl53a_rettighedsperiode_slutgrænse_i_år(indkomstår, periode)
 )
-| pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat) -> flat_map(overgang.rettighedsperioder, |periode: Pbl53ARettighedsperiode| pbl53a_rettighedsperiode_grænser_i_år(skatteyder_identifikation, indkomstår, periode))
+| pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation: Tekst, indkomstår: Heltal, overgang: Pbl53AOvergangsresultat, afkastfordeling: Pbl53AAfkastfordelingsfakta) -> flat_map(pbl53a_rettighedsperioder_for_afkastfordeling(skatteyder_identifikation, overgang, afkastfordeling), |periode: Pbl53ARettighedsperiode| pbl53a_rettighedsperiode_grænser_i_år(indkomstår, periode))
 | pbl53a_oplyst_afkastgrænsehændelse_som_intern(hændelse: Pbl53AOplystAfkastgrænsehændelse) -> Pbl53AAfkastgrænsehændelse(
     identifikation = hændelse.identifikation,
     tidspunkt = hændelse.tidspunkt,
@@ -2541,7 +2562,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 | pbl53a_afkastgrænsetrin(ordning: Pensionsbeskatningslov53AOrdning, indkomstår: Heltal, tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse) -> Pbl53AAfkastgrænsetrinSag(ordning, indkomstår, tilstand, hændelse).resultat()
 | pbl53a_tom_afkastperiodetilstand(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta) -> {
     = skattepligtig = pbl53a_skattepligtig_ved_årets_begyndelse(fakta.skattepligtsstatus_ved_årets_begyndelse)
-    = rettighedshaver = pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation, fakta.indkomstår, overgang)
+    = rettighedshaver = pbl53a_rettighedshaver_ved_årets_begyndelse(skatteyder_identifikation, fakta.indkomstår, overgang, fakta.afkastfordeling)
     = sikkerhed = pbl53a_sikkerhed_består_ved_årets_begyndelse(fakta.sikkerhedsstatus_ved_årets_begyndelse)
     = aktiv = pbl53a_afkastbeskatning_aktiv(ordning, skattepligtig, rettighedshaver, sikkerhed)
     = årsbegyndelse = Pbl15ATidspunkt(dato = Pbl15ADato(år = fakta.indkomstår, måned = 1, dag = 1), rækkefølge_på_dagen = 0)
@@ -2598,7 +2619,8 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 | pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser: List(Pbl53AHændelse), periode: Pbl53AAfkastperiode, beløb: (Pbl53AHændelse) -> Heltal) -> foldl(hændelser, 0, |sum: Heltal, hændelse: Pbl53AHændelse| sum + hvis pbl53a_tidspunkt_i_afkastperiode(pbl53a_hændelsestidspunkt_som_pbl15a(pbl53a_hændelse_tidspunkt(hændelse)), periode) { beløb(hændelse) } ellers { 0 })
 
 # Pbl53AAfkastperiodeSag(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) {
-    | afledte_rettighedsgrænsehændelser() -> pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation, fakta.indkomstår, overgang)
+    | rettighedsperiode_findes_entydigt() -> pbl53a_rettighedsperiode_findes_entydigt(skatteyder_identifikation, overgang, fakta.afkastfordeling)
+    | afledte_rettighedsgrænsehændelser() -> pbl53a_afledte_rettighedsgrænsehændelser(skatteyder_identifikation, fakta.indkomstår, overgang, fakta.afkastfordeling)
     | samlede_grænsehændelser() -> pbl53a_samlede_grænsehændelser(fakta.grænsehændelser, afledte_rettighedsgrænsehændelser())
     | foldet_tilstand() -> foldl(samlede_grænsehændelser(), pbl53a_tom_afkastperiodetilstand(ordning, skatteyder_identifikation, overgang, fakta), |tilstand: Pbl53AAfkastperiodetilstand, hændelse: Pbl53AAfkastgrænsehændelse| pbl53a_afkastgrænsetrin(ordning, fakta.indkomstår, tilstand, hændelse))
     | lukningsgrænse() -> hvis foldet_tilstand().afkastbeskatning_aktiv { Pbl53ARegistreretAfkastgrænse(tidspunkt = Pbl15ATidspunkt(dato = Pbl15ADato(år = fakta.indkomstår + 1, måned = 1, dag = 1), rækkefølge_på_dagen = 0), depotværdi_kroner = pbl53a_kalenderårets_ultimo_depotværdi_kroner(fakta.afkastgrundlag)) } ellers { foldet_tilstand().lukningsgrænse }
@@ -2606,7 +2628,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     | grænsehændelsesidentifikationer_entydige() -> pbl53a_grænsehændelsesidentifikationer_entydige(samlede_grænsehændelser())
     | oplyste_grænsehændelser_kronologiske() -> pbl53a_oplyste_grænsehændelser_kronologiske(fakta.grænsehændelser)
     | hændelser_kronologiske() -> oplyste_grænsehændelser_kronologiske() && foldet_tilstand().hændelser_kronologiske
-    | periode_understøttet() -> skatteyder_identifikation != "" && overgang.fakta_gyldige && fakta.indkomstår > 0 && pbl53a_afkastgrundlag_grundfakta_gyldige(fakta.afkastgrundlag) && grænsehændelsesidentifikationer_entydige() && hændelser_kronologiske() && foldet_tilstand().overgange_gyldige && foldet_tilstand().antal_sammenhængende_perioder <= 1
+    | periode_understøttet() -> skatteyder_identifikation != "" && overgang.fakta_gyldige && rettighedsperiode_findes_entydigt() && fakta.indkomstår > 0 && pbl53a_afkastgrundlag_grundfakta_gyldige(fakta.afkastgrundlag) && grænsehændelsesidentifikationer_entydige() && hændelser_kronologiske() && foldet_tilstand().overgange_gyldige && foldet_tilstand().antal_sammenhængende_perioder <= 1
     | kapitalværdi_primo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(foldet_tilstand().åbningsgrænse) } ellers { 0 }
     | kapitalværdi_ultimo_kroner() -> hvis periode_understøttet() { pbl53a_afkastgrænse_depotværdi_kroner(lukningsgrænse()) } ellers { 0 }
     | indbetalinger_i_perioden_kroner() -> hvis periode_understøttet() { pbl53a_hændelsesbeløb_i_afkastperiode_kroner(hændelser, afkastperiode(), pbl53a_afkastindbetaling_for_hændelse_kroner) } ellers { 0 }
@@ -2616,6 +2638,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
         afledte_rettighedsgrænsehændelser = afledte_rettighedsgrænsehændelser(),
         samlede_grænsehændelser = samlede_grænsehændelser(),
         overgangsfakta_gyldige = overgang.fakta_gyldige,
+        rettighedsperiode_findes_entydigt = rettighedsperiode_findes_entydigt(),
         afkastperiode = afkastperiode(),
         grænsehændelsesidentifikationer_entydige = grænsehændelsesidentifikationer_entydige(),
         oplyste_grænsehændelser_kronologiske = oplyste_grænsehændelser_kronologiske(),
@@ -2631,18 +2654,18 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 | pbl53a_afkastperiode_resultat(ordning: Pensionsbeskatningslov53AOrdning, skatteyder_identifikation: Tekst, overgang: Pbl53AOvergangsresultat, fakta: Pbl53AAfkastårFakta, hændelser: List(Pbl53AHændelse)) -> Pbl53AAfkastperiodeSag(ordning, skatteyder_identifikation, overgang, fakta, hændelser).resultat()
 
 | pbl53a_berettiget_identifikation_unik(andele: List(Pbl53ABerettigetAndel), andel: Pbl53ABerettigetAndel) -> length(filter(andele, |anden: Pbl53ABerettigetAndel| anden.identifikation == andel.identifikation)) == 1
-| pbl53a_berettigede_indestående_sum_kroner(andele: List(Pbl53ABerettigetAndel)) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + andel.indestående_ultimo_kroner)
-| pbl53a_berettigelsesfakta_gyldige(skatteyder_identifikation: Tekst, fakta: Pbl53ABerettigelsesfakta) -> match fakta {
-    | Pbl53AEnkeltBerettiget(identifikation) -> skatteyder_identifikation != "" && identifikation == skatteyder_identifikation
-    | Pbl53AFlereBerettigede(samlet_indestående_kroner, andele) -> skatteyder_identifikation != "" && samlet_indestående_kroner > 0 && length(andele) >= 2 && all(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation != "" && andel.indestående_ultimo_kroner > 0 && pbl53a_berettiget_identifikation_unik(andele, andel)) && pbl53a_berettigede_indestående_sum_kroner(andele) == samlet_indestående_kroner && length(filter(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation == skatteyder_identifikation)) == 1
+| pbl53a_berettigede_indestående_sum_kroner(andele: List(Pbl53ABerettigetAndel)) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + andel.indestående_ved_afkastperiodens_udgang_kroner)
+| pbl53a_afkastfordelingsfakta_gyldige(skatteyder_identifikation: Tekst, periode_resultat: Pbl53AAfkastperiodeResultat, fakta: Pbl53AAfkastfordelingsfakta) -> match fakta {
+    | Pbl53AAfledtEnkeltRettighedshaver -> skatteyder_identifikation != "" && periode_resultat.rettighedsperiode_findes_entydigt
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(rettighedsperiode_identifikation, samlet_indestående_kroner, andele) -> skatteyder_identifikation != "" && rettighedsperiode_identifikation != "" && periode_resultat.rettighedsperiode_findes_entydigt && samlet_indestående_kroner > 0 && length(andele) >= 2 && all(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation != "" && andel.indestående_ved_afkastperiodens_udgang_kroner > 0 && pbl53a_berettiget_identifikation_unik(andele, andel)) && pbl53a_berettigede_indestående_sum_kroner(andele) == samlet_indestående_kroner && length(filter(andele, |andel: Pbl53ABerettigetAndel| andel.identifikation == skatteyder_identifikation)) == 1
 }
-| pbl53a_berettiget_andel_tæller(skatteyder_identifikation: Tekst, fakta: Pbl53ABerettigelsesfakta) -> match fakta {
-    | Pbl53AEnkeltBerettiget(_) -> 1
-    | Pbl53AFlereBerettigede(_, andele) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + hvis andel.identifikation == skatteyder_identifikation { andel.indestående_ultimo_kroner } ellers { 0 })
+| pbl53a_berettiget_andel_tæller(skatteyder_identifikation: Tekst, fakta: Pbl53AAfkastfordelingsfakta) -> match fakta {
+    | Pbl53AAfledtEnkeltRettighedshaver -> 1
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(_, _, andele) -> foldl(andele, 0, |sum: Heltal, andel: Pbl53ABerettigetAndel| sum + hvis andel.identifikation == skatteyder_identifikation { andel.indestående_ved_afkastperiodens_udgang_kroner } ellers { 0 })
 }
-| pbl53a_berettiget_andel_nævner(fakta: Pbl53ABerettigelsesfakta) -> match fakta {
-    | Pbl53AEnkeltBerettiget(_) -> 1
-    | Pbl53AFlereBerettigede(samlet_indestående_kroner, _) -> samlet_indestående_kroner
+| pbl53a_berettiget_andel_nævner(fakta: Pbl53AAfkastfordelingsfakta) -> match fakta {
+    | Pbl53AAfledtEnkeltRettighedshaver -> 1
+    | Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(_, samlet_indestående_kroner, _) -> samlet_indestående_kroner
 }
 
 # Pbl53AMetodetilstand = Pbl53AIngenMetodeValgt | Pbl53APalMetodeValgt | Pbl53AAlternativKapitalværdiMetodeValgt
@@ -2651,7 +2674,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
 # Pbl53ANegativtAfkastRækkefølgetilstand(seneste_opstået_indkomstår: Heltal, kronologiske: Boolsk)
 # Pbl53ANegativtAfkastAnvendelsestilstand(resterende_anvendelse_kroner: Heltal, anvendt_kroner: Heltal, saldi_efter_anvendelse: List(Pbl53ANegativtAfkastSaldo))
 # Pbl53ANegativtAfkastAnvendelsesresultat(anvendelige_saldi_primo: List(Pbl53ANegativtAfkastSaldo), udløbne_saldi: List(Pbl53ANegativtAfkastSaldo), anvendt_kroner: Heltal, saldi_efter_anvendelse: List(Pbl53ANegativtAfkastSaldo))
-# Pbl53AAfkastårsresultat(fakta: Pbl53AAfkastårFakta, periode_resultat: Pbl53AAfkastperiodeResultat, afkastregelregime: Pbl53AAfkastregelregime, regelregime_understøttet: Boolsk, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, berettigelsesfakta_gyldige: Boolsk, år_kronologisk: Boolsk, år_sammenhængende: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, fremførte_negative_afkast_primo: List(Pbl53ANegativtAfkastSaldo), udløbne_negative_afkast_i_året: List(Pbl53ANegativtAfkastSaldo), fremførte_negative_afkast_ultimo: List(Pbl53ANegativtAfkastSaldo), input_gyldigt: Boolsk, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat)
+# Pbl53AAfkastårsresultat(fakta: Pbl53AAfkastårFakta, periode_resultat: Pbl53AAfkastperiodeResultat, afkastregelregime: Pbl53AAfkastregelregime, regelregime_understøttet: Boolsk, metodehistorik: Pensionsbeskatningslov53AMetodehistorik, afkastfordelingsfakta_gyldige: Boolsk, år_kronologisk: Boolsk, år_sammenhængende: Boolsk, afkastmetode_tilladt_efter_udbyderopgørelse: Boolsk, metodevalg_bindende_opfyldt: Boolsk, fremførte_negative_afkast_primo: List(Pbl53ANegativtAfkastSaldo), udløbne_negative_afkast_i_året: List(Pbl53ANegativtAfkastSaldo), fremførte_negative_afkast_ultimo: List(Pbl53ANegativtAfkastSaldo), input_gyldigt: Boolsk, pensionsbeskatningslov_input: Pensionsbeskatningslov53AInput, pensionsbeskatningslov_resultat: Pensionsbeskatningslov53AResultat)
 # Pbl53AAfkastforløbsinput(ordningsidentifikation: Tekst, skatteyder_identifikation: Tekst, ordning: Pensionsbeskatningslov53AOrdning, omfangsresultat: Pbl53AOmfangsresultat, åbning: Pbl53AAfkastforløbsåbning, afkastår: List(Pbl53AAfkastårFakta), hændelsesforløbsresultat: Pbl53AForløbsresultat)
 # Pbl53AAfkastforløbstilstand(ordningsidentifikation: Tekst, seneste_indkomstår: Heltal, metodetilstand: Pbl53AMetodetilstand, fremførte_negative_afkast: List(Pbl53ANegativtAfkastSaldo), fremført_negativt_afkast_kroner: Heltal, årsresultater: List(Pbl53AAfkastårsresultat), år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk)
 # Pbl53AAfkastforløbsresultat(input: Pbl53AAfkastforløbsinput, ordningsidentifikation_stabil: Boolsk, afkastår_entydige: Boolsk, åbningshistorik_gyldig: Boolsk, år_kronologiske: Boolsk, år_sammenhængende: Boolsk, alle_år_gyldige: Boolsk, input_gyldigt: Boolsk, årsresultater: List(Pbl53AAfkastårsresultat), metodetilstand_ultimo: Pbl53AMetodetilstand, fremførte_negative_afkast_ultimo: List(Pbl53ANegativtAfkastSaldo), fremført_negativt_afkast_ultimo_kroner: Heltal)
@@ -2783,7 +2806,7 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
     | metodehistorik() -> hvis afkastregelregime() == Pbl53AHistoriskKapitalværdiTilOgMed2009 { Pbl53AFørsteAfkastopgørelse } ellers { pbl53a_metodehistorik_fra_tilstand(tilstand.metodetilstand) }
     | år_kronologisk() -> fakta.indkomstår > tilstand.seneste_indkomstår
     | år_sammenhængende() -> tilstand.seneste_indkomstår == 0 || fakta.indkomstår == tilstand.seneste_indkomstår + 1
-    | berettigelsesfakta_gyldige() -> pbl53a_berettigelsesfakta_gyldige(input.skatteyder_identifikation, fakta.berettigelse_ultimo)
+    | afkastfordelingsfakta_gyldige() -> pbl53a_afkastfordelingsfakta_gyldige(input.skatteyder_identifikation, periode_resultat(), fakta.afkastfordeling)
     | afkastmetode_tilladt_efter_udbyderopgørelse() -> hvis skatteperiode_findes() { pbl53a_afkastmetode_tilladt_i_regime(afkastregelregime(), afkastmetode(), fakta.pensionsudbyder_opgjorde_afkast_efter_pal) } ellers { regelregime_understøttet() && (afkastregelregime() != Pbl53AHistoriskKapitalværdiTilOgMed2009 || afkastmetode() == Pbl53AAlternativKapitalværdi) }
     | metodevalg_bindende_opfyldt() -> skatteperiode_findes() == Falskt && regelregime_understøttet() || pbl53a_metodevalg_bindende_i_regime(afkastregelregime(), afkastmetode(), metodehistorik())
     | fremførte_negative_afkast_primo() -> pbl53a_anvendelige_negative_afkast_saldi(tilstand.fremførte_negative_afkast, fakta.indkomstår)
@@ -2801,8 +2824,8 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
         udbetalinger_i_året_kroner = periode_resultat().udbetalinger_i_perioden_kroner,
         indbetalinger_i_året_kroner = periode_resultat().indbetalinger_i_perioden_kroner,
         fremført_negativt_afkast_primo_kroner = pbl53a_negative_afkast_saldi_sum_kroner(fremførte_negative_afkast_primo()),
-        andel_tæller = pbl53a_berettiget_andel_tæller(input.skatteyder_identifikation, fakta.berettigelse_ultimo),
-        andel_nævner = pbl53a_berettiget_andel_nævner(fakta.berettigelse_ultimo),
+        andel_tæller = pbl53a_berettiget_andel_tæller(input.skatteyder_identifikation, fakta.afkastfordeling),
+        andel_nævner = pbl53a_berettiget_andel_nævner(fakta.afkastfordeling),
         udbetaling_til_afkastskat_kroner = pbl53a_afkastskatteudbetaling_for_sen_i_år_kroner(input.hændelsesforløbsresultat.hændelsesresultater, fakta.indkomstår)
     )
     | pensionsbeskatningslov_resultat() -> pensionsbeskatningslov53a_resultat(pensionsbeskatningslov_input())
@@ -2812,14 +2835,14 @@ den 1. januar 2010. Det gælder dog ikke arv, der falder fra og med den 1. janua
         negativt_afkast_anvendelsesresultat().saldi_efter_anvendelse,
         hvis nyt_negativt_afkast_kroner() > 0 { [Pbl53ANegativtAfkastSaldo(opstået_indkomstår = fakta.indkomstår, resterende_kroner = nyt_negativt_afkast_kroner())] } ellers { [] }
     )
-    | input_gyldigt() -> input.ordningsidentifikation != "" && input.skatteyder_identifikation != "" && input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning) && input.hændelsesforløbsresultat.input_gyldigt && fakta.indkomstår >= input.omfangsresultat.fakta.oprettelsesdato.år && regelregime_understøttet() && år_kronologisk() && år_sammenhængende() && periode_resultat().periode_understøttet && berettigelsesfakta_gyldige() && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
+    | input_gyldigt() -> input.ordningsidentifikation != "" && input.skatteyder_identifikation != "" && input.omfangsresultat.omfattes_af_par53a && pbl53a_omfang_klassifikation_matcher_ordning(input.omfangsresultat, input.ordning) && input.hændelsesforløbsresultat.input_gyldigt && fakta.indkomstår >= input.omfangsresultat.fakta.oprettelsesdato.år && regelregime_understøttet() && år_kronologisk() && år_sammenhængende() && periode_resultat().periode_understøttet && afkastfordelingsfakta_gyldige() && afkastmetode_tilladt_efter_udbyderopgørelse() && metodevalg_bindende_opfyldt()
     | årsresultat() -> Pbl53AAfkastårsresultat(
         fakta = fakta,
         periode_resultat = periode_resultat(),
         afkastregelregime = afkastregelregime(),
         regelregime_understøttet = regelregime_understøttet(),
         metodehistorik = metodehistorik(),
-        berettigelsesfakta_gyldige = berettigelsesfakta_gyldige(),
+        afkastfordelingsfakta_gyldige = afkastfordelingsfakta_gyldige(),
         år_kronologisk = år_kronologisk(),
         år_sammenhængende = år_sammenhængende(),
         afkastmetode_tilladt_efter_udbyderopgørelse = afkastmetode_tilladt_efter_udbyderopgørelse(),

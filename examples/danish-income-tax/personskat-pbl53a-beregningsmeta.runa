@@ -337,44 +337,44 @@
     unit = None
 )
 = personskat_pbl53a_felt_berettigelse = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.$variant",
-    label = "Berettigede ved årets udgang",
-    question = Some("Var der én eller flere berettigede til ordningen ved årets udgang?"),
-    help = Some("Ved flere berettigede fordeler Futuruna afkastet efter de faktiske indeståender ved årets udgang."),
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.$variant",
+    label = "Fordeling af afkastet",
+    question = Some("Skal afkastet henføres til den afledte enkelte rettighedshaver eller fordeles mellem flere berettigede?"),
+    help = Some("Den enkelte rettighedshaver afledes af det daterede ejerforløb. Kun flere samtidige berettigede kræver særskilte andelsfakta."),
     unit = None
 )
-= personskat_pbl53a_felt_enkelt_berettiget = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AEnkeltBerettiget.identifikation",
-    label = "Den eneste berettigede",
-    question = Some("Hvem var den eneste berettigede ved årets udgang?"),
-    help = None,
+= personskat_pbl53a_felt_berettigedes_rettighedsperiode = Beregningsfelt(
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+    label = "Rettighedsperiode for de berettigede",
+    question = Some("Hvilken afledt rettighedsperiode tilhører de samtidige berettigede?"),
+    help = Some("Brug identifikationen fra oprettelsen eller den erhvervelse, som begyndte den fælles rettighedsperiode."),
     unit = None
 )
 = personskat_pbl53a_felt_samlet_indestående = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.samlet_indestående_ultimo_kroner",
-    label = "Samlet indestående ved årets udgang",
-    question = Some("Hvad var de berettigedes samlede indestående ved årets udgang?"),
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.samlet_indestående_ved_afkastperiodens_udgang_kroner",
+    label = "Samlet indestående ved afkastperiodens udgang",
+    question = Some("Hvad var de berettigedes samlede indestående ved afkastperiodens udgang?"),
     help = Some("Beløbet skal være lig summen af alle de angivne berettigedes indeståender."),
     unit = Some("kr.")
 )
 = personskat_pbl53a_felt_berettigede_andele = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele",
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele",
     label = "Indeståender for flere berettigede",
-    question = Some("Hvilke personer var berettigede, og hvad var hver persons indestående ved årets udgang?"),
+    question = Some("Hvilke personer var berettigede, og hvad var hver persons indestående ved afkastperiodens udgang?"),
     help = Some("Angiv alle berettigede. Futuruna validerer totalsummen og udleder skatteyderens nøjagtige andel."),
     unit = None
 )
 = personskat_pbl53a_felt_berettiget_identifikation = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele.identifikation",
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele.identifikation",
     label = "Berettiget person",
     question = Some("Hvilken person vedrører dette indestående?"),
     help = None,
     unit = None
 )
 = personskat_pbl53a_felt_berettiget_indestående = Beregningsfelt(
-    path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele.indestående_ultimo_kroner",
-    label = "Personens indestående ved årets udgang",
-    question = Some("Hvor stort var denne persons indestående ved årets udgang?"),
+    path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele.indestående_ved_afkastperiodens_udgang_kroner",
+    label = "Personens indestående ved afkastperiodens udgang",
+    question = Some("Hvor stort var denne persons indestående ved afkastperiodens udgang?"),
     help = None,
     unit = Some("kr.")
 )
@@ -737,7 +737,7 @@
         personskat_pbl53a_felt_grænsehændelse_depotværdi,
         personskat_pbl53a_felt_grænsehændelse_art,
         personskat_pbl53a_felt_berettigelse,
-        personskat_pbl53a_felt_enkelt_berettiget,
+        personskat_pbl53a_felt_berettigedes_rettighedsperiode,
         personskat_pbl53a_felt_samlet_indestående,
         personskat_pbl53a_felt_berettigede_andele,
         personskat_pbl53a_felt_berettiget_identifikation,

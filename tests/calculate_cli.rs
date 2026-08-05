@@ -1183,9 +1183,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "pensionsudbyder_opgjorde_afkast_efter_pal",
             "skattepligtsstatus_ved_årets_begyndelse",
             "sikkerhedsstatus_ved_årets_begyndelse",
-            "berettigelse_ultimo.$variant",
-            "berettigelse_ultimo.Pbl53AEnkeltBerettiget.identifikation",
-            "berettigelse_ultimo.Pbl53AFlereBerettigede.samlet_indestående_ultimo_kroner",
+            "afkastfordeling.$variant",
+            "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+            "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.samlet_indestående_ved_afkastperiodens_udgang_kroner",
         ] {
             assert!(
                 pbl53a_year_paths.iter().any(|path| path == expected),
@@ -1202,9 +1202,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Pensionsudbyderen har opgjort årets PAL-afkast",
             "Skattepligt ved årets begyndelse",
             "Sikkerhedsstillelse ved årets begyndelse",
-            "Berettigede ved årets udgang",
-            "Den eneste berettigede",
-            "Samlet indestående ved årets udgang",
+            "Fordeling af afkastet",
+            "Rettighedsperiode for de berettigede",
+            "Samlet indestående ved afkastperiodens udgang",
         ] {
             assert!(
                 pbl53a_year_headers.iter().any(|header| header == expected),
@@ -1258,7 +1258,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "derived PBL § 53 A ownership boundary {derived} must not be caller-facing"
             );
         }
-        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele";
+        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele";
         let pbl53a_shares_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_shares_path);
         assert_eq!(
             workbook_title(&mut workbook, &pbl53a_shares_sheet),
@@ -1266,7 +1266,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         assert_eq!(
             workbook_column_paths(&mut workbook, &pbl53a_shares_sheet),
-            ["identifikation", "indestående_ultimo_kroner"]
+            [
+                "identifikation",
+                "indestående_ved_afkastperiodens_udgang_kroner"
+            ]
         );
         let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
         let pbl53a_events_sheet = workbook_collection_sheet_name(&mut workbook, pbl53a_events_path);
@@ -1556,8 +1559,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.pbl53a.ordninger.afkastår.skattepligtsstatus_ved_årets_begyndelse",
             "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.tidspunkt.dato.år",
             "kapitalindkomst.pbl53a.ordninger.afkastår.grænsehændelser.depotværdi_kroner",
-            "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.$variant",
-            "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele.indestående_ultimo_kroner",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.$variant",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
+            "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele.indestående_ved_afkastperiodens_udgang_kroner",
             "kapitalindkomst.pbl53a.ordninger.hændelser.$variant",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.identifikation",
             "kapitalindkomst.pbl53a.ordninger.hændelser.Pbl53AIndbetaling.fakta.tidspunkt.dato.år",
@@ -2586,6 +2590,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 8, "personskat-ejendomsdrift-2026");
         fill_wage_case(sheets, 9, "personskat-erhvervsbefordring-2026");
         fill_wage_case(sheets, 10, "personskat-pbl53a-2026");
+        fill_wage_case(sheets, 11, "personskat-pbl53a-overdrager-2026");
         let business_travel_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
             "lønmodtager.erhvervsbefordring.sager",
@@ -2707,26 +2712,63 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         let pbl53a_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
-        for (row, identifikation, produkt) in [
-            (1, "livsforsikring-pal", "Pbl53ALivsforsikringsprodukt"),
-            (2, "pensionskasse-negativ", "Pbl53APensionskasseprodukt"),
+        for (
+            row,
+            case_id,
+            identifikation,
+            skatteyder_identifikation,
+            oprindelig_rettighedshaver_identifikation,
+            kapitalværdi_ved_oprettelsen_kroner,
+            produkt,
+        ) in [
+            (
+                1,
+                "personskat-pbl53a-2026",
+                "livsforsikring-pal",
+                "person-1",
+                "tidligere-ejer",
+                100_000,
+                "Pbl53ALivsforsikringsprodukt",
+            ),
+            (
+                2,
+                "personskat-pbl53a-2026",
+                "pensionskasse-negativ",
+                "person-1",
+                "person-1",
+                100_000,
+                "Pbl53APensionskasseprodukt",
+            ),
             (
                 3,
+                "personskat-pbl53a-2026",
                 "pengeinstitut-halv-andel",
+                "person-1",
+                "person-1",
+                190_000,
+                "Pbl53APengeEllerKreditinstitutprodukt",
+            ),
+            (
+                4,
+                "personskat-pbl53a-overdrager-2026",
+                "afstået-pengeinstitut",
+                "tidligere-ejer",
+                "tidligere-ejer",
+                100_000,
                 "Pbl53APengeEllerKreditinstitutprodukt",
             ),
         ] {
             for (header, value) in [
-                (
-                    "case_id",
-                    Data::String("personskat-pbl53a-2026".to_string()),
-                ),
+                ("case_id", Data::String(case_id.to_string())),
                 ("item_id", Data::String(identifikation.to_string())),
-                ("position", Data::Int(row as i64)),
+                (
+                    "position",
+                    Data::Int(if row == 4 { 1 } else { row as i64 }),
+                ),
                 ("identifikation", Data::String(identifikation.to_string())),
                 (
                     "skatteyder_identifikation",
-                    Data::String("person-1".to_string()),
+                    Data::String(skatteyder_identifikation.to_string()),
                 ),
                 (
                     "omfangsfakta.oprettelsesdato.år",
@@ -2739,18 +2781,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ("omfangsfakta.oprettelsesdato.dag", Data::Int(1)),
                 (
                     "omfangsfakta.oprindelig_rettighedshaver_identifikation",
-                    Data::String(
-                        if row == 1 {
-                            "tidligere-ejer"
-                        } else {
-                            "person-1"
-                        }
-                        .to_string(),
-                    ),
+                    Data::String(oprindelig_rettighedshaver_identifikation.to_string()),
                 ),
                 (
                     "omfangsfakta.kapitalværdi_ved_oprettelsen_kroner",
-                    Data::Int(if row == 3 { 190_000 } else { 100_000 }),
+                    Data::Int(kapitalværdi_ved_oprettelsen_kroner),
                 ),
                 (
                     "omfangsfakta.repræsenteret_kontraktdel.$variant",
@@ -2923,7 +2958,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         );
                     }
                 }
-                3 => {
+                3 | 4 => {
                     for (header, value) in [
                         (
                             "omfangsfakta.produkt.Pbl53APengeEllerKreditinstitutprodukt.kontohaver_identifikation",
@@ -3004,37 +3039,81 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             sheets,
             "kapitalindkomst.pbl53a.ordninger.omfangsfakta.erhvervelser",
         );
-        for (header, value) in [
+        for (
+            row,
+            case_id,
+            parent_id,
+            item_id,
+            identifikation,
+            år,
+            måned,
+            dag,
+            rækkefølge_på_dagen,
+            overdrager,
+            erhverver,
+            kapitalværdi,
+            måde,
+        ) in [
             (
-                "case_id",
-                Data::String("personskat-pbl53a-2026".to_string()),
-            ),
-            ("parent_id", Data::String("livsforsikring-pal".to_string())),
-            (
-                "item_id",
-                Data::String("livsforsikring-pal-erhvervelse-1".to_string()),
-            ),
-            ("position", Data::Int(1)),
-            ("identifikation", Data::String("arv-2024".to_string())),
-            ("tidspunkt.dato.år", Data::Int(2024)),
-            ("tidspunkt.dato.måned", Data::Int(3)),
-            ("tidspunkt.dato.dag", Data::Int(15)),
-            ("tidspunkt.rækkefølge_på_dagen", Data::Int(1)),
-            (
-                "overdrager_identifikation",
-                Data::String("tidligere-ejer".to_string()),
+                1,
+                "personskat-pbl53a-2026",
+                "livsforsikring-pal",
+                "livsforsikring-pal-erhvervelse-1",
+                "arv-2024",
+                2024,
+                3,
+                15,
+                1,
+                "tidligere-ejer",
+                "person-1",
+                200_000,
+                "Pbl53AErhvervetVedArv",
             ),
             (
-                "erhverver_identifikation",
-                Data::String("person-1".to_string()),
+                2,
+                "personskat-pbl53a-overdrager-2026",
+                "afstået-pengeinstitut",
+                "afstået-pengeinstitut-erhvervelse-1",
+                "køb-1-juni",
+                2026,
+                6,
+                1,
+                2,
+                "tidligere-ejer",
+                "person-1",
+                130_000,
+                "Pbl53AErhvervetPåAndenMåde",
             ),
-            (
-                "kapitalværdi_på_erhvervelsestidspunktet_kroner",
-                Data::Int(200_000),
-            ),
-            ("måde", Data::String("Pbl53AErhvervetVedArv".to_string())),
         ] {
-            set_workbook_cell_by_header(sheets, &pbl53a_acquisitions_sheet, 1, header, value);
+            for (header, value) in [
+                ("case_id", Data::String(case_id.to_string())),
+                ("parent_id", Data::String(parent_id.to_string())),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(1)),
+                ("identifikation", Data::String(identifikation.to_string())),
+                ("tidspunkt.dato.år", Data::Int(år)),
+                ("tidspunkt.dato.måned", Data::Int(måned)),
+                ("tidspunkt.dato.dag", Data::Int(dag)),
+                (
+                    "tidspunkt.rækkefølge_på_dagen",
+                    Data::Int(rækkefølge_på_dagen),
+                ),
+                (
+                    "overdrager_identifikation",
+                    Data::String(overdrager.to_string()),
+                ),
+                (
+                    "erhverver_identifikation",
+                    Data::String(erhverver.to_string()),
+                ),
+                (
+                    "kapitalværdi_på_erhvervelsestidspunktet_kroner",
+                    Data::Int(kapitalværdi),
+                ),
+                ("måde", Data::String(måde.to_string())),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl53a_acquisitions_sheet, row, header, value);
+            }
         }
         let pbl53a_elections_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
@@ -3136,6 +3215,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             workbook_collection_sheet_name_from_rows(sheets, pbl53a_years_path);
         for (
             row,
+            case_id,
             parent_id,
             item_id,
             position,
@@ -3146,12 +3226,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             calendar_closing,
             provider_used_pal,
             tax_status,
-            beneficiary_variant,
-            sole_beneficiary,
+            allocation_variant,
+            rights_period_id,
             total_balance,
         ) in [
             (
                 1,
+                "personskat-pbl53a-2026",
                 "livsforsikring-pal",
                 "livsforsikring-pal-2025",
                 1,
@@ -3162,12 +3243,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 None,
                 true,
                 "Pbl53ASkattepligtigVedÅretsBegyndelse",
-                "Pbl53AEnkeltBerettiget",
-                Some("person-1"),
+                "Pbl53AAfledtEnkeltRettighedshaver",
+                None,
                 None,
             ),
             (
                 2,
+                "personskat-pbl53a-2026",
                 "livsforsikring-pal",
                 "livsforsikring-pal-2026",
                 2,
@@ -3178,12 +3260,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 None,
                 true,
                 "Pbl53ASkattepligtigVedÅretsBegyndelse",
-                "Pbl53AEnkeltBerettiget",
-                Some("person-1"),
+                "Pbl53AAfledtEnkeltRettighedshaver",
+                None,
                 None,
             ),
             (
                 3,
+                "personskat-pbl53a-2026",
                 "pensionskasse-negativ",
                 "pensionskasse-negativ-2025",
                 1,
@@ -3194,12 +3277,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Some(95_000),
                 false,
                 "Pbl53ASkattepligtigVedÅretsBegyndelse",
-                "Pbl53AEnkeltBerettiget",
-                Some("person-1"),
+                "Pbl53AAfledtEnkeltRettighedshaver",
+                None,
                 None,
             ),
             (
                 4,
+                "personskat-pbl53a-2026",
                 "pensionskasse-negativ",
                 "pensionskasse-negativ-2026",
                 2,
@@ -3210,12 +3294,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Some(132_000),
                 false,
                 "Pbl53ASkattepligtigVedÅretsBegyndelse",
-                "Pbl53AEnkeltBerettiget",
-                Some("person-1"),
+                "Pbl53AAfledtEnkeltRettighedshaver",
+                None,
                 None,
             ),
             (
                 5,
+                "personskat-pbl53a-2026",
                 "pengeinstitut-halv-andel",
                 "pengeinstitut-halv-andel-2026",
                 1,
@@ -3226,16 +3311,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Some(227_000),
                 false,
                 "Pbl53AIkkeSkattepligtigVedÅretsBegyndelse",
-                "Pbl53AFlereBerettigede",
-                None,
+                "Pbl53AFlereBerettigedeVedAfkastperiodensUdgang",
+                Some("oprettelse"),
                 Some(400_000),
+            ),
+            (
+                6,
+                "personskat-pbl53a-overdrager-2026",
+                "afstået-pengeinstitut",
+                "afstået-pengeinstitut-2026",
+                1,
+                2026,
+                "Pbl53AAlternativtKapitalværdiAfkast",
+                None,
+                Some(100_000),
+                Some(160_000),
+                false,
+                "Pbl53ASkattepligtigVedÅretsBegyndelse",
+                "Pbl53AAfledtEnkeltRettighedshaver",
+                None,
+                None,
             ),
         ] {
             for (header, value) in [
-                (
-                    "case_id",
-                    Data::String("personskat-pbl53a-2026".to_string()),
-                ),
+                ("case_id", Data::String(case_id.to_string())),
                 ("parent_id", Data::String(parent_id.to_string())),
                 ("item_id", Data::String(item_id.to_string())),
                 ("position", Data::Int(position)),
@@ -3254,8 +3353,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     Data::String("Pbl53ASikkerhedIkkeRelevant".to_string()),
                 ),
                 (
-                    "berettigelse_ultimo.$variant",
-                    Data::String(beneficiary_variant.to_string()),
+                    "afkastfordeling.$variant",
+                    Data::String(allocation_variant.to_string()),
                 ),
             ] {
                 set_workbook_cell_by_header(sheets, &pbl53a_years_sheet, row, header, value);
@@ -3287,12 +3386,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     Data::Int(value),
                 );
             }
-            if let Some(value) = sole_beneficiary {
+            if let Some(value) = rights_period_id {
                 set_workbook_cell_by_header(
                     sheets,
                     &pbl53a_years_sheet,
                     row,
-                    "berettigelse_ultimo.Pbl53AEnkeltBerettiget.identifikation",
+                    "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.rettighedsperiode_identifikation",
                     Data::String(value.to_string()),
                 );
             }
@@ -3301,7 +3400,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     sheets,
                     &pbl53a_years_sheet,
                     row,
-                    "berettigelse_ultimo.Pbl53AFlereBerettigede.samlet_indestående_ultimo_kroner",
+                    "afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.samlet_indestående_ved_afkastperiodens_udgang_kroner",
                     Data::Int(value),
                 );
             }
@@ -3339,7 +3438,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ] {
             set_workbook_cell_by_header(sheets, &pbl53a_boundaries_sheet, 1, header, value);
         }
-        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.berettigelse_ultimo.Pbl53AFlereBerettigede.andele";
+        let pbl53a_shares_path = "kapitalindkomst.pbl53a.ordninger.afkastår.afkastfordeling.Pbl53AFlereBerettigedeVedAfkastperiodensUdgang.andele";
         let pbl53a_shares_sheet =
             workbook_collection_sheet_name_from_rows(sheets, pbl53a_shares_path);
         for (row, person, balance) in [(1, "person-1", 200_000), (2, "person-2", 200_000)] {
@@ -3355,7 +3454,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ("item_id", Data::String(person.to_string())),
                 ("position", Data::Int(row as i64)),
                 ("identifikation", Data::String(person.to_string())),
-                ("indestående_ultimo_kroner", Data::Int(balance)),
+                (
+                    "indestående_ved_afkastperiodens_udgang_kroner",
+                    Data::Int(balance),
+                ),
             ] {
                 set_workbook_cell_by_header(sheets, &pbl53a_shares_sheet, row, header, value);
             }
@@ -3363,68 +3465,89 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let pbl53a_events_path = "kapitalindkomst.pbl53a.ordninger.hændelser";
         let pbl53a_events_sheet =
             workbook_collection_sheet_name_from_rows(sheets, pbl53a_events_path);
-        for (header, value) in [
+        for (row, case_id, parent_id, item_id, måned, beløb, indbetaler) in [
             (
-                "case_id".to_string(),
-                Data::String("personskat-pbl53a-2026".to_string()),
+                1,
+                "personskat-pbl53a-2026",
+                "livsforsikring-pal",
+                "arbejdsgiver-indbetaling-2026",
+                3,
+                60_000,
+                "Pbl53ANuværendeArbejdsgiver",
             ),
             (
-                "parent_id".to_string(),
-                Data::String("livsforsikring-pal".to_string()),
-            ),
-            (
-                "item_id".to_string(),
-                Data::String("arbejdsgiver-indbetaling-2026".to_string()),
-            ),
-            ("position".to_string(), Data::Int(1)),
-            (
-                format!("{pbl53a_events_path}.$variant"),
-                Data::String("Pbl53AIndbetaling".to_string()),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.identifikation"),
-                Data::String("arbejdsgiver-indbetaling-2026".to_string()),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.år"),
-                Data::Int(2026),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.måned"),
-                Data::Int(3),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.dag"),
-                Data::Int(1),
-            ),
-            (
-                format!(
-                    "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_på_dagen"
-                ),
-                Data::Int(1),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.beløb_kroner"),
-                Data::Int(60_000),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.periode"),
-                Data::String("Pbl53AIndbetaltMensOrdningenErOmfattet".to_string()),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.indbetaler.$variant"),
-                Data::String("Pbl53ANuværendeArbejdsgiver".to_string()),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"),
-                Data::String("Pbl53AUdenFradragsEllerBortseelsesret".to_string()),
-            ),
-            (
-                format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.$variant"),
-                Data::String("Pbl53BIkkeForetagetIUdenlandsperioden".to_string()),
+                2,
+                "personskat-pbl53a-overdrager-2026",
+                "afstået-pengeinstitut",
+                "indbetaling-før-overdragelse",
+                3,
+                10_000,
+                "Pbl53AEjeren",
             ),
         ] {
-            set_workbook_cell_by_header(sheets, &pbl53a_events_sheet, 1, &header, value);
+            for (header, value) in [
+                ("case_id".to_string(), Data::String(case_id.to_string())),
+                (
+                    "parent_id".to_string(),
+                    Data::String(parent_id.to_string()),
+                ),
+                ("item_id".to_string(), Data::String(item_id.to_string())),
+                ("position".to_string(), Data::Int(1)),
+                (
+                    format!("{pbl53a_events_path}.$variant"),
+                    Data::String("Pbl53AIndbetaling".to_string()),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.identifikation"),
+                    Data::String(item_id.to_string()),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.år"),
+                    Data::Int(2026),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.måned"),
+                    Data::Int(måned),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.dato.dag"),
+                    Data::Int(1),
+                ),
+                (
+                    format!(
+                        "{pbl53a_events_path}.Pbl53AIndbetaling.fakta.tidspunkt.rækkefølge_på_dagen"
+                    ),
+                    Data::Int(1),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.beløb_kroner"),
+                    Data::Int(beløb),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.periode"),
+                    Data::String("Pbl53AIndbetaltMensOrdningenErOmfattet".to_string()),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.indbetaler.$variant"),
+                    Data::String(indbetaler.to_string()),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.ejerens_fradragsstatus"),
+                    Data::String("Pbl53AUdenFradragsEllerBortseelsesret".to_string()),
+                ),
+                (
+                    format!("{pbl53a_events_path}.Pbl53AIndbetaling.fakta.par53b_udenlandsk_skattebehandling.$variant"),
+                    Data::String("Pbl53BIkkeForetagetIUdenlandsperioden".to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl53a_events_sheet,
+                    row,
+                    &header,
+                    value,
+                );
+            }
         }
         for (header, value) in [
             (
@@ -5967,9 +6090,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "$variant": "Pbl53ASikkerhedIkkeRelevant"
                         },
                         "grænsehændelser": [],
-                        "berettigelse_ultimo": {
-                            "$variant": "Pbl53AEnkeltBerettiget",
-                            "identifikation": "person-1"
+                        "afkastfordeling": {
+                            "$variant": "Pbl53AAfledtEnkeltRettighedshaver"
                         }
                     },
                     {
@@ -5986,9 +6108,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "$variant": "Pbl53ASikkerhedIkkeRelevant"
                         },
                         "grænsehændelser": [],
-                        "berettigelse_ultimo": {
-                            "$variant": "Pbl53AEnkeltBerettiget",
-                            "identifikation": "person-1"
+                        "afkastfordeling": {
+                            "$variant": "Pbl53AAfledtEnkeltRettighedshaver"
                         }
                     }
                 ],
@@ -6073,9 +6194,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "$variant": "Pbl53ASikkerhedIkkeRelevant"
                         },
                         "grænsehændelser": [],
-                        "berettigelse_ultimo": {
-                            "$variant": "Pbl53AEnkeltBerettiget",
-                            "identifikation": "person-1"
+                        "afkastfordeling": {
+                            "$variant": "Pbl53AAfledtEnkeltRettighedshaver"
                         }
                     },
                     {
@@ -6093,9 +6213,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "$variant": "Pbl53ASikkerhedIkkeRelevant"
                         },
                         "grænsehændelser": [],
-                        "berettigelse_ultimo": {
-                            "$variant": "Pbl53AEnkeltBerettiget",
-                            "identifikation": "person-1"
+                        "afkastfordeling": {
+                            "$variant": "Pbl53AAfledtEnkeltRettighedshaver"
                         }
                     }
                 ],
@@ -6165,12 +6284,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                                 "art": { "$variant": "Pbl53ASkattepligtIndtræder" }
                             }
                         ],
-                        "berettigelse_ultimo": {
-                            "$variant": "Pbl53AFlereBerettigede",
-                            "samlet_indestående_ultimo_kroner": 400_000,
+                        "afkastfordeling": {
+                            "$variant": "Pbl53AFlereBerettigedeVedAfkastperiodensUdgang",
+                            "rettighedsperiode_identifikation": "oprettelse",
+                            "samlet_indestående_ved_afkastperiodens_udgang_kroner": 400_000,
                             "andele": [
-                                { "identifikation": "person-1", "indestående_ultimo_kroner": 200_000 },
-                                { "identifikation": "person-2", "indestående_ultimo_kroner": 200_000 }
+                                { "identifikation": "person-1", "indestående_ved_afkastperiodens_udgang_kroner": 200_000 },
+                                { "identifikation": "person-2", "indestående_ved_afkastperiodens_udgang_kroner": 200_000 }
                             ]
                         }
                     }
@@ -6640,6 +6760,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][9]["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
         52_800
+    );
+    assert_eq!(
+        result["results"][10]["case_id"],
+        "personskat-pbl53a-overdrager-2026"
+    );
+    let pbl53a_transfer_result =
+        &result["results"][10]["result"]["kapitalindkomst"]["pbl53a_resultat"];
+    assert_eq!(pbl53a_transfer_result["alle_input_gyldige"], true);
+    assert_eq!(
+        pbl53a_transfer_result["kapitalposter"]
+            .as_array()
+            .expect("former-owner PBL § 53 A capital posts")
+            .len(),
+        1
+    );
+    assert_eq!(
+        pbl53a_transfer_result["kapitalposter"][0]["beløb_kroner"],
+        20_000
+    );
+    let pbl53a_transfer_order = &pbl53a_transfer_result["ordningsresultater"][0];
+    assert_eq!(pbl53a_transfer_order["$variant"], "BeregnetPbl53AOrdning");
+    assert_eq!(
+        pbl53a_transfer_order["pensionsbeskatningslov_input"]["kapitalværdi_primo_kroner"],
+        100_000
+    );
+    assert_eq!(
+        pbl53a_transfer_order["pensionsbeskatningslov_input"]["kapitalværdi_ultimo_kroner"],
+        130_000
+    );
+    assert_eq!(
+        pbl53a_transfer_order["pensionsbeskatningslov_input"]["indbetalinger_i_året_kroner"],
+        10_000
+    );
+    assert_eq!(
+        pbl53a_transfer_order["afkastforløbsresultat"]["årsresultater"][0]["periode_resultat"]
+            ["rettighedsperiode_findes_entydigt"],
+        true
+    );
+    assert_eq!(
+        pbl53a_transfer_order["afkastforløbsresultat"]["årsresultater"][0]["periode_resultat"]
+            ["afkastperiode"]["sluttidspunkt_eksklusiv"],
+        serde_json::json!({
+            "dato": { "år": 2026, "måned": 6, "dag": 1 },
+            "rækkefølge_på_dagen": 2
+        })
     );
     let accepted_historical_form_result =
         &json_result["results"][9]["result"]["kapitalindkomst"]["pbl53a_resultat"];

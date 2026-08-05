@@ -18,7 +18,7 @@ identifikation.
     hændelser = hændelser
 )
 
-= pbl53a_stk3_enkelt_berettiget = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+= pbl53a_stk3_enkelt_berettiget = Pbl53AAfledtEnkeltRettighedshaver
 
 | pbl53a_stk3_helårs_pal_år(indkomstår: Heltal, afkast_kroner: Heltal) -> Pbl53AAfkastårFakta(
     indkomstår = indkomstår,
@@ -27,7 +27,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_tilflytningsår = Pbl53AAfkastårFakta(
@@ -48,7 +48,7 @@ identifikation.
         depotværdi_kroner = 130000,
         art = Pbl53ASkattepligtIndtræder
     )],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 = pbl53a_stk3_tilflytningshændelser = [
     Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
@@ -110,7 +110,7 @@ identifikation.
         depotværdi_kroner = 145000,
         art = Pbl53ASkattepligtOphører
     )],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 = pbl53a_stk3_fraflytningshændelser = [
     Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
@@ -183,7 +183,7 @@ identifikation.
             art = Pbl53ASikkerhedsstillelseOphører
         )
     ],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_flere_berettigede_år = Pbl53AAfkastårFakta(
@@ -193,11 +193,12 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = Pbl53AFlereBerettigede(
-        samlet_indestående_ultimo_kroner = 400000,
+    afkastfordeling = Pbl53AFlereBerettigedeVedAfkastperiodensUdgang(
+        rettighedsperiode_identifikation = "oprettelse",
+        samlet_indestående_ved_afkastperiodens_udgang_kroner = 400000,
         andele = [
-            Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ultimo_kroner = 100000),
-            Pbl53ABerettigetAndel(identifikation = "person-2", indestående_ultimo_kroner = 300000)
+            Pbl53ABerettigetAndel(identifikation = "person-1", indestående_ved_afkastperiodens_udgang_kroner = 100000),
+            Pbl53ABerettigetAndel(identifikation = "person-2", indestående_ved_afkastperiodens_udgang_kroner = 300000)
         ]
     )
 )
@@ -209,7 +210,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 = pbl53a_stk3_positivt_2026 = Pbl53AAfkastårFakta(
     indkomstår = 2026,
@@ -218,7 +219,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_afkastskattehændelser = [
@@ -297,7 +298,7 @@ identifikation.
             art = Pbl53ASkattepligtIndtræder
         )
     ],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_år_uden_skattepligt = Pbl53AAfkastårFakta(
@@ -307,7 +308,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_mellemår_uden_skattepligt = Pbl53AAfkastårFakta(
@@ -320,7 +321,7 @@ identifikation.
     skattepligtsstatus_ved_årets_begyndelse = Pbl53AIkkeSkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = pbl53a_stk3_enkelt_berettiget
+    afkastfordeling = pbl53a_stk3_enkelt_berettiget
 )
 
 = pbl53a_stk3_gyldigt_input = PersonskatPbl53AInput(ordninger = [
@@ -371,7 +372,7 @@ identifikation.
     | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 120000 && pensionsbeskatningslov_input.kapitalværdi_ultimo_kroner == 160000 && pensionsbeskatningslov_resultat.afkast_efter_valgt_metode_kroner == 40000
     | _ -> Falskt
 }
-| pbl53a_stk3_flere_berettigede_fordeles_efter_ultimoandel: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[3] {
+| pbl53a_stk3_flere_berettigede_fordeles_ved_afkastperiodens_udgang: pbl53a_stk3_gyldigt_resultat -> match pbl53a_stk3_gyldigt_resultat.ordningsresultater[3] {
     | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.andel_tæller == 100000 && pensionsbeskatningslov_input.andel_nævner == 400000 && pensionsbeskatningslov_resultat.afkastandel_før_negativ_fremførsel_kroner == 10000
     | _ -> Falskt
 }
@@ -410,7 +411,7 @@ identifikation.
 ? pbl53a_stk3_tilflytning_bruger_depot_ved_indtræden
 ? pbl53a_stk3_fraflytning_bruger_depot_ved_ophør
 ? pbl53a_stk3_sikkerhed_afgrænser_direktørens_afkast
-? pbl53a_stk3_flere_berettigede_fordeles_efter_ultimoandel
+? pbl53a_stk3_flere_berettigede_fordeles_ved_afkastperiodens_udgang
 ? pbl53a_stk3_negativt_afkast_følger_stabil_ordning
 ? pbl53a_stk3_afkastskattefrist_afledes_pr_udbetaling
 ? pbl53a_stk3_gyldige_forløb_samles

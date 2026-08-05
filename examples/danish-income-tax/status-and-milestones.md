@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-29
 TD epic: `td-56cf8d`
-Current implementation slice: `td-f2ca68` (in review; implementation and verification complete)
-Next source-backed slices: `td-9c9d16` and `td-b3b1b9`
+Current implementation slice: `td-9c9d16` (transfer-year PBL § 53 A calculation; implementation and verification complete, pending independent review)
+Next source-backed slice: `td-b3b1b9`
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-606798`
+Latest approved implementation slice: `td-f2ca68`
 Latest approved language slice: `td-5545ba`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -88,7 +88,7 @@ en sammenhængende, kronologisk liste af årlige afkastfakta. Et år oplyser ent
 pensionsudbyderens PAL-afkast eller kalenderårets faktiske primo- og
 ultimodepotværdi, begyndelsesstatus for skattepligt og eventuel
 direktørsikkerhed, daterede ændringer med depotværdi og de faktiske berettigede
-ved årets udgang. Kalderen leverer ikke længere metodehistorik, negativ
+ved den relevante afkastperiodes udgang. Kalderen leverer ikke længere metodehistorik, negativ
 fremførsel, en beregnet afkastandel, summerede indbetalinger eller udbetalinger
 eller den skattepligtige periodes grænser.
 
@@ -100,7 +100,7 @@ skatteperioder i samme år forbliver synlige og fejler lukket. Ved ind- eller
 udtræden bruger kapitalværdimetoden depotet på ændringsdatoen. For en
 direktørordning gælder det tilsvarende, når sikkerhedsstillelsen etableres eller
 ophører. Flere berettigedes afkastandel beregnes af deres eksakte, validerede
-indeståender ved årets udgang. Hver ordning bevarer årets afledte PBL-input,
+indeståender ved afkastperiodens udgang. Hver ordning bevarer årets afledte PBL-input,
 PBL-resultat og resultatet efter Personskattelovens § 4, stk. 1, nr. 13.
 Positivt afkast efter egen negativ fremførsel bliver kapitalindkomst, mens et
 negativt afkast forbliver knyttet til den samme identificerede ordning.
@@ -208,6 +208,24 @@ historiske rest eller den del, som den identificerede ændring skabte. Ukendte
 omvendt kronologi fejler lukket. Seksten fokuserede invarianter passerer i både
 interpreter og compiler.
 
+Afkastfordelingen efter Pensionsbeskatningslovens § 53 A bruger nu den samme
+daterede rettighedskæde som overgangsreglerne. Ved én rettighedshaver oplyser
+kalderen ikke længere personens identitet endnu en gang; reglerne finder den
+eneste relevante rettighedsperiode ud fra skatteyderens identifikation. Ved
+flere samtidige berettigede knyttes de faktiske indeståender ved
+afkastperiodens udgang til én identificeret, afledt rettighedsperiode. En
+overdrager og en erhverver kan derfor få hver sin halvåbne afkastperiode i
+overdragelsesåret. Det fokuserede 2026-scenarie beregner 20.000 kr. for den
+tidligere ejer frem til overdragelsen og 29.000 kr. for erhververen efter
+overdragelsen; betalinger på den anden side af grænsen medregnes ikke. Brudte
+eller dublerede rettighedskæder, en ukendt fordelingsperiode og ufuldstændige
+andelsfakta fejler lukket.
+
+To afgrænsede opfølgninger er bevaret uden at blokere dette resultat:
+`td-f6c38f` skal vælge den relevante rettighedsperiode pr. indkomstår ved en
+senere generhvervelse, og `td-ef2f36` skal erstatte den første periodes interne
+tekstnøgle med en typet eller skemabegrænset kildereference.
+
 Beregningskontrakten har 258 danske § 53 A-feltbeskrivelser med Aftalelovens
 § 6, PBL §§ 20, 53 A og 53 B, PSL §§ 3 og 4 samt AMBL § 2 som typede kilder.
 Regnearket har fjorten
@@ -218,11 +236,13 @@ blanketindsendelser,
 daterede kontraktændringer,
 livsforsikringsdækninger, daterede
 negative afkast ved forløbets åbning og tre slags berettigede efter
-direktørpensionstilsagn. Den eksakte XLSX/JSON-afstemning dækker tre ordninger,
+direktørpensionstilsagn. Den fælles XLSX/JSON-afstemning dækker tre ordninger,
 en senere erhvervelse, fem årsoptegnelser, en delårsgrænse, to berettigede, en
 arbejdsgiverindbetaling på 60.000 kr., 35.500 kr. samlet kapitalindkomst og
 13.000 kr. negativt afkast til særskilt fremførsel på den ordning, hvor tabet
-opstod.
+opstod. XLSX-rundturen har desuden en selvstændig overdragersag med en præcis
+overdragelsesgrænse, seks samlede årsoptegnelser og en afledt positiv
+kapitalpost på 20.000 kr. for perioden før overdragelsen.
 
 De sammensatte § 53 A-feltbeskrivelser afdækkede en sprogfejl i metadataindekset:
 typede metadata, der var bygget med rene regelkald samt `concat`, `map` og
@@ -620,7 +640,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`e4de788f0933fa4d70bf1cb7447e0d72851c49a84dd31d7829c82e0ad50710d0`.
+`cbf504913f84044d4a85248b1d6ea2bc81dea153829a5d2bc0e552038de9bebb`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -3103,11 +3123,13 @@ Review candidates to revisit deliberately, not as broad churn:
   invarianter dækker den tidligere blanket 49.020 uden målinput, afleder både
   § 53 A og § 53 B fra ordningens øvrige fakta, respekterer en påberåbelse af
   intet valg og afviser både manglende påberåbelse og den nye blanket i det
-  historiske spor. Otte nye invarianter
+  historiske spor. Ni nye invarianter
   dækker erhvervelse 1. januar og midt i året, tre på hinanden følgende
   rettighedshavere, halvåbne perioder, dubletter, brudte kæder og en fuld
   beregning, hvor DKK 130.000 i erhvervelsesværdi og betalinger efter
-  erhvervelsen giver DKK 29.000 i skattepligtigt afkast. En omvendt oplyst
+  erhvervelsen giver DKK 29.000 i skattepligtigt afkast. Den tidligere ejer
+  får samtidig en separat fuld beregning på DKK 20.000 frem til det eksakte
+  overdragelsestidspunkt. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
   har 942 felter i alt, heraf 258 § 53 A-feltmetadata-poster, og fjorten
@@ -3115,7 +3137,9 @@ Review candidates to revisit deliberately, not as broad churn:
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
   JSON-grænse dækker desuden en accepteret tidligere blanket, hvor § 53 A
-  afledes uden et målinput.
+  afledes uden et målinput. XLSX-grænsen dækker derudover en særskilt
+  overdragersag, der afleder perioden og kapitalposten fra de relationelle
+  erhvervelses-, års- og betalingsfakta.
 - Seksten fokuserede kontraktændringsinvarianter dækker hele og delvise nye
   ordninger, den historiske rest, uændrede kontrakter, bindende
   forhåndsaftaler, overførsler, genoptagelser, ukendte ændringsarter,

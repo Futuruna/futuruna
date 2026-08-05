@@ -33,7 +33,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
     par53b_oprettelsesposition = Pbl53BOprettetUnderDanskSkattepligtOgHjemsted
 )
 
-| pbl53a_erhvervelsesår_afkastfakta(skatteyder_identifikation: Tekst) -> Pbl53AAfkastårFakta(
+| pbl53a_erhvervelsesår_afkastfakta() -> Pbl53AAfkastårFakta(
     indkomstår = 2026,
     afkastgrundlag = Pbl53AAlternativtKapitalværdiAfkast(
         kalenderårets_primo_depotværdi_kroner = 100000,
@@ -43,7 +43,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
     skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
     sikkerhedsstatus_ved_årets_begyndelse = Pbl53ASikkerhedIkkeRelevant,
     grænsehændelser = [],
-    berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = skatteyder_identifikation)
+    afkastfordeling = Pbl53AAfledtEnkeltRettighedshaver
 )
 
 | pbl53a_erhvervelsesår_indbetaling(identifikation: Tekst, dato: Pbl15ADato, beløb_kroner: Heltal) -> Pbl53AIndbetaling(fakta = Pbl53AIndbetalingsfakta(
@@ -75,7 +75,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
         ordning = Pbl53ALivsforsikringUdenKapitel1,
         skatteyder_identifikation = skatteyder_identifikation,
         overgang = overgang,
-        fakta = pbl53a_erhvervelsesår_afkastfakta(skatteyder_identifikation),
+        fakta = pbl53a_erhvervelsesår_afkastfakta(),
         hændelser = hændelser
     )
 }
@@ -116,7 +116,16 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
     skatteyder_identifikation = "person-1",
     omfangsfakta = pbl53a_erhvervelsesår_midte_fakta,
     afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
-    afkastår = [pbl53a_erhvervelsesår_afkastfakta("person-1")],
+    afkastår = [pbl53a_erhvervelsesår_afkastfakta()],
+    hændelser = pbl53a_erhvervelsesår_midte_hændelser
+    )]), 2026)
+
+= pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat = personskat_pbl53a_resultat(PersonskatPbl53AInput(ordninger = [PersonskatPbl53AOrdningFakta(
+    identifikation = "afstået-livsforsikring",
+    skatteyder_identifikation = "tidligere-ejer",
+    omfangsfakta = pbl53a_erhvervelsesår_midte_fakta,
+    afkastforløbsåbning = Pbl53AIngenTidligereAfkasthistorik,
+    afkastår = [pbl53a_erhvervelsesår_afkastfakta()],
     hændelser = pbl53a_erhvervelsesår_midte_hændelser
     )]), 2026)
 
@@ -193,7 +202,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
             art = Pbl53ASkattepligtIndtræder
         )
     ],
-    berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+    afkastfordeling = Pbl53AAfledtEnkeltRettighedshaver
 )
 = pbl53a_erhvervelsesår_omvendte_grænser_resultat = pbl53a_afkastperiode_resultat(
     ordning = Pbl53ALivsforsikringUdenKapitel1,
@@ -212,6 +221,14 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
 
 | pbl53a_erhvervelsesår_midte_beregner_personskat: pbl53a_erhvervelsesår_midte_personskat -> pbl53a_erhvervelsesår_midte_personskat.alle_input_gyldige && length(pbl53a_erhvervelsesår_midte_personskat.kapitalposter) == 1 && pbl53a_erhvervelsesår_midte_personskat.kapitalposter[0].beløb_kroner == 29000 && match pbl53a_erhvervelsesår_midte_personskat.ordningsresultater[0] {
     | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, _) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 130000 && pensionsbeskatningslov_input.indbetalinger_i_året_kroner == 5000 && pensionsbeskatningslov_input.udbetalinger_i_året_kroner == 4000 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 29000
+    | _ -> Falskt
+}
+
+| pbl53a_erhvervelsesår_tidligere_ejer_beregner_frem_til_overdragelsen: pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat -> pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat.alle_input_gyldige && length(pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat.kapitalposter) == 1 && pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat.kapitalposter[0].beløb_kroner == 20000 && match pbl53a_erhvervelsesår_midte_tidligere_ejer_personskat.ordningsresultater[0] {
+    | BeregnetPbl53AOrdning(_, _, pensionsbeskatningslov_input, pensionsbeskatningslov_resultat, _, _, _, _, _, _, _, afkastforløbsresultat) -> pensionsbeskatningslov_input.kapitalværdi_primo_kroner == 100000 && pensionsbeskatningslov_input.kapitalværdi_ultimo_kroner == 130000 && pensionsbeskatningslov_input.indbetalinger_i_året_kroner == 10000 && pensionsbeskatningslov_input.udbetalinger_i_året_kroner == 0 && pensionsbeskatningslov_input.andel_tæller == 1 && pensionsbeskatningslov_input.andel_nævner == 1 && pensionsbeskatningslov_resultat.skattepligtigt_afkast_kroner == 20000 && match pbl53a_afkastårsresultat_for_indkomstår(afkastforløbsresultat, 2026).periode_resultat.afkastperiode {
+        | Pbl53ASammenhængendeAfkastperiode(_, sluttidspunkt_eksklusiv) -> sluttidspunkt_eksklusiv == Pbl15ATidspunkt(dato = Pbl15ADato(år = 2026, måned = 6, dag = 1), rækkefølge_på_dagen = 2)
+        | _ -> Falskt
+    }
     | _ -> Falskt
 }
 
@@ -243,6 +260,7 @@ afledes af kæden; kalderen oplyser ikke selv erhvervelsens skattemæssige følg
 ? pbl53a_erhvervelsesår_januar_bruger_erhvervelsesværdi
 ? pbl53a_erhvervelsesår_midte_filtrerer_tidligere_hændelser
 ? pbl53a_erhvervelsesår_midte_beregner_personskat
+? pbl53a_erhvervelsesår_tidligere_ejer_beregner_frem_til_overdragelsen
 ? pbl53a_erhvervelsesår_rettighedsperioder_er_halvåbne
 ? pbl53a_erhvervelsesår_tre_ejere_får_adskilte_afkastperioder
 ? pbl53a_erhvervelsesår_dublet_fejler_lukket

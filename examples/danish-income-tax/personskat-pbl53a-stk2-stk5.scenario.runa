@@ -14,7 +14,7 @@
         skattepligtsstatus_ved_årets_begyndelse = Pbl53ASkattepligtigVedÅretsBegyndelse,
         sikkerhedsstatus_ved_årets_begyndelse = hvis pbl53a_direktørsikkerhedsprodukt(omfangsfakta.produkt) { Pbl53ASikkerhedBestårVedÅretsBegyndelse } ellers { Pbl53ASikkerhedIkkeRelevant },
         grænsehændelser = [],
-        berettigelse_ultimo = Pbl53AEnkeltBerettiget(identifikation = "person-1")
+        afkastfordeling = Pbl53AAfledtEnkeltRettighedshaver
     )],
     hændelser = hændelser
 )
