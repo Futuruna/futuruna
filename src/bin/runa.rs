@@ -25595,9 +25595,11 @@ impl RustCodegen {
                     out.push_str("#[tokio::main]\nasync fn main() {\n");
                 }
             } else if uses_try {
-                out.push_str("fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
+                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
+                out.push_str("fn __fut_runtime_main_inner() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n");
             } else {
-                out.push_str("fn main() {\n");
+                out.push_str("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;\n\n");
+                out.push_str("fn __fut_runtime_main_inner() {\n");
             }
             self.indent = 1;
             let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
@@ -25838,6 +25840,34 @@ impl RustCodegen {
             self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
             self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
+            if !self.has_async {
+                out.push('\n');
+                if uses_try {
+                    out.push_str(
+                        "fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {\n",
+                    );
+                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
+                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
+                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
+                    out.push_str("        .spawn(__fut_runtime_main_inner)?;\n");
+                    out.push_str("    match __fut_runtime_main.join() {\n");
+                    out.push_str("        Ok(result) => result,\n");
+                    out.push_str("        Err(payload) => std::panic::resume_unwind(payload),\n");
+                    out.push_str("    }\n");
+                    out.push_str("}\n");
+                } else {
+                    out.push_str("fn main() {\n");
+                    out.push_str("    let __fut_runtime_main = std::thread::Builder::new()\n");
+                    out.push_str("        .name(\"futuruna-main\".to_string())\n");
+                    out.push_str("        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)\n");
+                    out.push_str("        .spawn(__fut_runtime_main_inner)\n");
+                    out.push_str("        .unwrap_or_else(|error| panic!(\"failed to start Futuruna program: {}\", error));\n");
+                    out.push_str("    if let Err(payload) = __fut_runtime_main.join() {\n");
+                    out.push_str("        std::panic::resume_unwind(payload);\n");
+                    out.push_str("    }\n");
+                    out.push_str("}\n");
+                }
+            }
         }
 
         out
@@ -46815,6 +46845,76 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn generated_sync_entrypoint_runs_program_on_bounded_worker_stack() {
+        let (mut cg, stmts) = scan_with_codegen("@ print(\"ok\")");
+        let output = cg.emit_program(&stmts);
+
+        assert!(output.contains("const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;"));
+        assert!(output.contains("fn __fut_runtime_main_inner() {"));
+        assert!(output.contains(".name(\"futuruna-main\".to_string())"));
+        assert!(output.contains(".stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)"));
+        assert!(output.contains(".spawn(__fut_runtime_main_inner)"));
+        assert!(output.contains("std::panic::resume_unwind(payload)"));
+    }
+
+    #[test]
+    fn generated_sync_entrypoint_supports_stack_heavy_programs() {
+        let source = r#"
+@ rust {
+    #[inline(never)]
+    fn futuruna_stack_probe() -> i64 {
+        let mut bytes = [0u8; 12 * 1024 * 1024];
+        bytes[0] = 19;
+        let last = bytes.len() - 1;
+        bytes[last] = 23;
+        std::hint::black_box(&mut bytes);
+        i64::from(bytes[0]) + i64::from(bytes[last])
+    }
+}
+= result = futuruna_stack_probe()
+@ print(show(result))
+"#;
+
+        assert_eq!(compile_and_run_test_program(source).trim(), "42");
+    }
+
+    #[test]
+    fn generated_sync_entrypoint_preserves_fallible_and_panic_outcomes() {
+        let fallible_source = r#"
+@ rust {
+    fn futuruna_fallible_probe() -> Result<i64, std::io::Error> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "intentional fallible worker error",
+        ))
+    }
+}
+= value <- futuruna_fallible_probe()
+@ print(show(value))
+"#;
+        let fallible = compile_and_capture_test_source(fallible_source, None);
+        assert!(!fallible.status.success());
+        assert!(
+            String::from_utf8_lossy(&fallible.stderr).contains("intentional fallible worker error")
+        );
+
+        let panic_source = r#"
+@ rust {
+    fn futuruna_panic_probe() -> i64 {
+        panic!("intentional worker panic")
+    }
+}
+= value = futuruna_panic_probe()
+@ print(show(value))
+"#;
+        let panic = compile_and_capture_test_source(panic_source, None);
+        let panic_stderr = String::from_utf8_lossy(&panic.stderr);
+        assert!(!panic.status.success());
+        assert!(panic_stderr.contains("intentional worker panic"));
+        assert!(panic_stderr.contains("futuruna-main"));
+    }
+
+    #[test]
     fn builtin_rust_templates_bind_each_argument_once() {
         let registry = rust_builtin_registry();
         let mut repeated = Vec::new();
@@ -47158,7 +47258,10 @@ for x in [1, 2] {
         (cg, stmts)
     }
 
-    fn compile_and_run_test_source(source: &str, filename: Option<&str>) -> String {
+    fn compile_and_capture_test_source(
+        source: &str,
+        filename: Option<&str>,
+    ) -> std::process::Output {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
@@ -47213,18 +47316,21 @@ for x in [1, 2] {
         );
 
         let run = std::process::Command::new(&bin_path).output().unwrap();
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        run
+    }
+
+    fn compile_and_run_test_source(source: &str, filename: Option<&str>) -> String {
+        let run = compile_and_capture_test_source(source, filename);
         assert!(
             run.status.success(),
             "compiled regression program failed:\nstdout:\n{}\nstderr:\n{}",
             String::from_utf8_lossy(&run.stdout),
             String::from_utf8_lossy(&run.stderr)
         );
-
-        let output = String::from_utf8_lossy(&run.stdout).replace("\r\n", "\n");
-        let _ = std::fs::remove_file(&rs_path);
-        let _ = std::fs::remove_file(&bin_path);
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        output
+        String::from_utf8_lossy(&run.stdout).replace("\r\n", "\n")
     }
 
     fn compile_and_run_test_program(source: &str) -> String {

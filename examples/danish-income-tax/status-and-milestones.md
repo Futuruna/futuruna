@@ -1,9 +1,9 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-07-31
+Last updated: 2026-08-01
 TD epic: `td-56cf8d`
-Current implementation slice: `td-7ddea6` (Kursgevinstlovens §§ 19-24 A for gæld afledes fra kildefakta og føres gennem kanonisk Personskat; afventer uafhængig gennemgang)
+Current implementation slice: `td-3f59b1` (ordinære udbytter afledes fra identificerede kildefakta efter LL § 16 A og føres gennem PSL §§ 4 og 4 a; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Next source-backed slice: `td-2d84ec` (rangér næste materielle posture-/afhængighedshul efter uafhængig gennemgang)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
@@ -12,8 +12,9 @@ Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sa
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
+Current compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
-Deferred performance issues: `td-6659f1`, `td-6b2cba`
+Deferred performance issues: `td-6659f1`, `td-6b2cba`, `td-95076b`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
 Latest approved implementation slice: `td-8e40ea`
@@ -118,6 +119,28 @@ Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
+
+Latest dividend integration: det rå beregningsfelt
+`øvrig_aktieindkomst_kroner` er fjernet fra den kanoniske Personskat-kontrakt.
+Ordinære udlodninger oplyses nu med entydig identifikation, udlodderens retlige
+type, modtagerstatus, aktivtype og kildebeløb. Ligningsloven § 16 A, stk. 2, nr.
+1, afleder derefter hjemlen, herunder 2. pkt. om medarbejderejevirksomheder fra
+1. januar 2026 efter LOV nr. 1755 af 29/12/2025. Resultatet føres gennem
+personskattelovens §§ 4 og 4 a præcis én gang for hver ægtefælle. Forkert år,
+forkert modtager, uforenelige aktivforhold, negative beløb og dobbelte
+identifikationer afvises før skatteposter dannes. Den genererede arbejdsbog har
+et særskilt udbytteark med danske feltetiketter og kildespor. En udfyldt
+XLSX-post på 12.000 kr. og den tilsvarende JSON-post giver samme fulde resultat:
+12.000 kr. i aktieindkomst og 3.240 kr. i aktieindkomstskat. Der er ingen
+automatisk PDF-import i dette forløb; en AI eller person læser dokumentationen og
+udfylder arbejdsbogen, hvorefter Futuruna indlæser, typevaliderer og beregner.
+Det fokuserede § 16 A-scenarie og alle 35 kanoniske Personskat-invarianter
+passerer både fortolket og kompileret. Den fulde kompilerede kørsel afdækkede
+først en sprogfejl, hvor gyldige store korpusprogrammer brugte platformens lille
+standardstack. `td-75f6ca` retter kodegeneratoren, så synkrone programmer kører
+på en navngivet, afgrænset 64 MiB-workerstack og bevarer både fejl- og
+paniksemantik. Den tidligere stack overflow er dermed en permanent
+sprogregressionstest, ikke et workaround i skatteloven.
 
 Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
@@ -881,7 +904,7 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 1.357 eksplicitte feltmetadata-poster. Heraf beskriver
+Kontrakten har aktuelt 1.364 eksplicitte feltmetadata-poster. Heraf beskriver
 66 egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
 ejerboligfordeling, frister, regulering og afskrivningsforhold. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
@@ -945,7 +968,7 @@ Felter uden en udtrykkelig etiket får nu en læsbar, deterministisk
 sti-afledning i stedet for rå snake-case i regnearket; den kanoniske sti står
 fortsat i kolonnens note. Den afledte tekst er kun et fallback, indtil feltet har
 sin præcise juridiske etiket og sit interviewspørgsmål. Den aktuelle genererede
-projektmappe materialiserer 1.357 eksplicitte etiketter, mens de øvrige
+projektmappe materialiserer 1.364 eksplicitte etiketter, mens de øvrige
 domænekolonner fortsat bruger dette fallback. Metadataudbygningen er derfor en
 synlig korpusopgave og ikke skjult som færdig brugeroplevelse.
 Beregningskald initialiserer nu den rene Futuruna-graf én gang pr. batch og
@@ -3456,7 +3479,7 @@ Review candidates to revisit deliberately, not as broad churn:
   7.250 til den valgte skatteyder. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 1.357 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
+  har 1.364 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3616,7 +3639,7 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 1.357 eksplicitte menneskelige feltmetadata-poster og
+  Kontrakten har 1.364 eksplicitte menneskelige feltmetadata-poster og
   interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte

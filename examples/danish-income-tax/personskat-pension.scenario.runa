@@ -426,7 +426,8 @@
 )
 = personskat_par15a_aktieavance = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par15a_aktieår),
-    særlige_aktiver = []
+    særlige_aktiver = [],
+    udbytter = []
 )
 
 = personskat_uden_pension_resultat = beregn_personskat(personskat_pension_input(personskat_ingen_pension()))

@@ -78,6 +78,44 @@ impl<A: fmt::Display, B: fmt::Display> fmt::Display for Pair<A, B> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ProgramReference {
+    ProgramSymbolReference {
+        name: String,
+    },
+    ProgramTypeReference {
+        name: String,
+    },
+    ProgramMemberReference {
+        root_type: String,
+        path: String,
+    },
+}
+
+impl fmt::Display for ProgramReference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProgramReference::ProgramSymbolReference { name } => {
+                write!(f, "ProgramSymbolReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramTypeReference { name } => {
+                write!(f, "ProgramTypeReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramMemberReference { root_type, path } => {
+                write!(f, "ProgramMemberReference(")?;
+                write!(f, "root_type: {}", root_type)?;
+                write!(f, ", ")?;
+                write!(f, "path: {}", path)?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 trait Meta {
 }
 
@@ -150,11 +188,24 @@ fn json_passthrough(s: String) -> String {
     s
 }
 
-fn main() {
+const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+fn __fut_runtime_main_inner() {
     let words = vec![Word { form: "beta".to_string(), score: 2i64 }, Word { form: "alpha".to_string(), score: 1i64 }, Word { form: "gamma".to_string(), score: 3i64 }];
     let sorted = { let mut __v = words.clone(); __v.sort_by_cached_key(|__item| (word_key)(__item)); __v };
     let labels = sorted.clone().into_iter().map(|__x| word_key(&__x)).collect::<Vec<_>>();
     let keepers = { let (__yes, __no): (Vec<_>, Vec<_>) = words.clone().into_iter().partition(|w| {  let w = w.clone(); (w.score > 1i64) }); (__yes, __no) };
     let decoded = { let __s = json_passthrough("\"mint\"".to_string()); let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('"').to_string() } };
     println!("{}:{}:{}", labels.clone().join(&*",".to_string()), decoded, __futuruna_show_any(&__futuruna_len(&keepers.0)));
+}
+
+fn main() {
+    let __fut_runtime_main = std::thread::Builder::new()
+        .name("futuruna-main".to_string())
+        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)
+        .spawn(__fut_runtime_main_inner)
+        .unwrap_or_else(|error| panic!("failed to start Futuruna program: {}", error));
+    if let Err(payload) = __fut_runtime_main.join() {
+        std::panic::resume_unwind(payload);
+    }
 }

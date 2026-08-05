@@ -78,6 +78,44 @@ impl<A: fmt::Display, B: fmt::Display> fmt::Display for Pair<A, B> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ProgramReference {
+    ProgramSymbolReference {
+        name: String,
+    },
+    ProgramTypeReference {
+        name: String,
+    },
+    ProgramMemberReference {
+        root_type: String,
+        path: String,
+    },
+}
+
+impl fmt::Display for ProgramReference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProgramReference::ProgramSymbolReference { name } => {
+                write!(f, "ProgramSymbolReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramTypeReference { name } => {
+                write!(f, "ProgramTypeReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramMemberReference { root_type, path } => {
+                write!(f, "ProgramMemberReference(")?;
+                write!(f, "root_type: {}", root_type)?;
+                write!(f, ", ")?;
+                write!(f, "path: {}", path)?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 trait Meta {
 }
 
@@ -126,11 +164,24 @@ fn identity<A: fmt::Display + Clone>(x: A) -> A {
     x
 }
 
-fn main() {
+const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+fn __fut_runtime_main_inner() {
     let predicted = "dense".to_string();
     let regret = 1.0;
     let before_phase = if ((predicted.clone().chars().count() as i64) > 0i64) { "Solid".to_string() } else { "Gas".to_string() };
     let after_phase = if (regret > 0.0) { "Liquid".to_string() } else { before_phase.clone() };
     let passed = if ((before_phase == "Solid") && (after_phase == "Liquid")) { 1i64 } else { 0i64 };
     println!("{}", __futuruna_show_any(&passed));
+}
+
+fn main() {
+    let __fut_runtime_main = std::thread::Builder::new()
+        .name("futuruna-main".to_string())
+        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)
+        .spawn(__fut_runtime_main_inner)
+        .unwrap_or_else(|error| panic!("failed to start Futuruna program: {}", error));
+    if let Err(payload) = __fut_runtime_main.join() {
+        std::panic::resume_unwind(payload);
+    }
 }

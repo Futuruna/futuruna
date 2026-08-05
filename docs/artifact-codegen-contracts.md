@@ -65,7 +65,7 @@ When changing codegen:
 
 | Fixture | Contract |
 |---------|----------|
-| `tests/expect/artifact/emit_pure_core_contract.runa` | A small pure/core program has a reviewed full emitted-Rust snapshot, including top-level global lowering and the binary `main` shape. |
+| `tests/expect/artifact/emit_pure_core_contract.runa` | A small pure/core program has a reviewed full emitted-Rust snapshot, including top-level global lowering and the synchronous binary entry point. The generated program body runs on a named worker with a bounded 64 MiB stack; the outer `main` joins it and resumes panic payloads. |
 | `tests/expect/artifact/collection_helper_eval_contract.runa` | Collection helpers and expression-valued builtin arguments bind callback/input expressions once before repeated runtime use. |
 | `tests/expect/artifact/ownership_branch_string_contract.runa` | Ownership-sensitive `String` branch lowering clones a reused local when the same binding is needed after an `if` arm; the same class is backed by source-derived translation-check tests for branch and list reuse. |
 | `tests/expect/artifact/stateful_async_runtime_contract.runa` | Async/stateful lowering emits an async main, stream event/runtime scaffolding, scope-owned stream task registration, subscription receivers, and settled snapshot reads. |

@@ -67,6 +67,17 @@ læser kildedokumenterne og udfylder arbejdsbogen; Futuruna tager først over ve
 den typede validering og beregning. `@ importer` i en Futuruna-fil betyder alene,
 at filen bruger definitioner fra et andet Futuruna-modul.
 
+Ordinære udbytter er nu et konkret eksempel på denne arbejdsdeling. AI'en
+oplyser en entydig kildepost med udlodder, modtagerstatus, aktivtype og beløb;
+den vælger ikke selv "aktieindkomst" som skattekategori. Futuruna afleder
+hjemlen efter [Ligningsloven § 16 A i LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500),
+anvender fra 2026 ændringen for medarbejderejevirksomheder i
+[LOV nr. 1755/2025](https://www.retsinformation.dk/eli/lta/2025/1755) og fører
+beløbet gennem Personskattelovens §§ 4 og 4 a. Forkert år eller modtager,
+negative beløb og dobbelte identifikationer fejler lukket. En udfyldt
+XLSX-udbytterække på 12.000 kr. giver samme fulde resultat som de tilsvarende
+JSON-fakta: 12.000 kr. i aktieindkomst og 3.240 kr. i aktieindkomstskat.
+
 Kursgevinstlovens §§ 19-24 A viser denne arbejdsdeling konkret. For hver
 gældspost spørger kontrakten efter observerbare kildefakta som værdier,
 frigørelsesart, valuta, finansieringsnæring, selskabsforbindelse og særlige
@@ -345,7 +356,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 1.357 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten har nu 1.364 eksplicitte feltmetadata-poster,
 heraf 261 for § 53 A-ordninger og 66 for egne og ægtefællens skadegenopførelser
 efter Ejendomsavancebeskatningslovens § 10. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.

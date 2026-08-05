@@ -1272,6 +1272,43 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
             );
         }
+        let dividend_path = "aktieavance.udbytter";
+        let dividend_sheet = workbook_collection_sheet_name(&mut workbook, dividend_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &dividend_sheet),
+            "Dansk personskat - Udbytter og udlodninger"
+        );
+        let dividend_paths = workbook_column_paths(&mut workbook, &dividend_sheet);
+        for expected in [
+            "identifikation",
+            "udlodder",
+            "modtager",
+            "aktiv.$variant",
+            "aktiv.PersonskatAndelsbevis.forrentning",
+            "beløb_kroner",
+        ] {
+            assert!(
+                dividend_paths.iter().any(|path| path == expected),
+                "missing canonical dividend source-fact path {expected} on {dividend_sheet}"
+            );
+        }
+        let dividend_headers = workbook_headers(&mut workbook, &dividend_sheet);
+        for expected in [
+            "case_id",
+            "item_id",
+            "position",
+            "Udlodningens identifikation",
+            "Udlodderens retlige type",
+            "Din retlige modtagerstatus",
+            "Aktiv bag udlodningen",
+            "Andelsbevisets forrentning",
+            "Modtaget udlodning",
+        ] {
+            assert!(
+                dividend_headers.iter().any(|header| header == expected),
+                "missing human dividend input label {expected} on {dividend_sheet}"
+            );
+        }
         let property_tax_path = "ejendomsskatter.ejendomme";
         let property_tax_sheet = workbook_collection_sheet_name(&mut workbook, property_tax_path);
         assert_eq!(
@@ -1965,6 +2002,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .map(ToString::to_string)
             .collect::<Vec<_>>();
         for expected in [
+            "aktieavance.udbytter.identifikation",
+            "aktieavance.udbytter.udlodder",
+            "aktieavance.udbytter.modtager",
+            "aktieavance.udbytter.aktiv.$variant",
+            "aktieavance.udbytter.aktiv.PersonskatAndelsbevis.forrentning",
+            "aktieavance.udbytter.beløb_kroner",
             "aktieavance.ordinært_aktieår.$variant",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
             "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant",
@@ -2094,7 +2137,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.selskabets_afkast_via_fond_kroner",
             "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.fremført_negativt_merafkast_kroner",
             "skatteforhold.$variant",
-            "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
             "underskudsforhold.MedUnderskudshistorik.egne_tidligere_underskud_kroner",
             "underskudsforhold.MedUnderskudshistorik.aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat",
@@ -2128,6 +2170,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path == "skatteforhold.SærligeSkatteforhold.forhold.cfc_indkomst_kroner"));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("øvrig_aktieindkomst_kroner")));
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("fradragsforhold.personrolle")));
@@ -3096,6 +3141,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing PBL § 53 A source {expected}"
             );
         }
+        let dividend_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("aktieavance.udbytter.beløb_kroner")
+            })
+            .expect("dividend source metadata");
+        let dividend_sources = dividend_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("dividend sources");
+        for expected in [
+            "ligningsloven_par16a_lbk1500",
+            "ligningsloven_par16a_lov1755",
+        ] {
+            assert!(
+                dividend_sources.contains(expected),
+                "missing dividend source {expected}"
+            );
+        }
         let property_income_row = metadata
             .rows()
             .skip(1)
@@ -3301,6 +3369,34 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 13, "personskat-ejendomsskatter-2025");
         fill_wage_case(sheets, 14, "personskat-kgl-gaeld-2026");
         fill_wage_case(sheets, 15, "personskat-kgl-frivillig-ordning-2026");
+        fill_wage_case(sheets, 16, "personskat-udbytte-2026");
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-udbytte-2026".to_string()),
+            ),
+            ("item_id", Data::String("udbytte-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "Udlodningens identifikation",
+                Data::String("udbytte-1".to_string()),
+            ),
+            (
+                "Udlodderens retlige type",
+                Data::String("Ll16AAlmindeligtSelskab".to_string()),
+            ),
+            (
+                "Din retlige modtagerstatus",
+                Data::String("Ll16AAktuelAktionær".to_string()),
+            ),
+            (
+                "Aktiv bag udlodningen",
+                Data::String("PersonskatAlmindeligAktie".to_string()),
+            ),
+            ("Modtaget udlodning", Data::Int(12_000)),
+        ] {
+            set_workbook_cell_by_header(sheets, "aktieavance_udbytter", 1, header, value);
+        }
         for row in [14, 15] {
             for (header, value) in [
                 (
@@ -6390,7 +6486,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "AblIngenInvesteringsklassifikation"
                 },
                 "årets_netto_med_kgl_par14_23_kroner": 7_000
-            }]
+            }],
+            "udbytter": []
         },
         "udenlandske_sociale_bidrag": {
             "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
@@ -6690,7 +6787,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "gift_og_samlevende_ved_årets_udgang": false
             }
         },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     interest_case["input"]["lønmodtager"]["ligningsfradrag"] = serde_json::json!({
         "befordring": {
@@ -6839,7 +6937,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     ebl5_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7000,7 +7099,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     ebl6d_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7100,7 +7200,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     ebl11_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7142,7 +7243,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     fremleje_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7162,7 +7264,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     property_income_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7225,7 +7328,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     business_travel_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7554,7 +7658,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     pbl53a_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7730,7 +7835,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "aktieavance": {
                 "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-                "særlige_aktiver": []
+                "særlige_aktiver": [],
+                "udbytter": []
             },
             "udenlandske_sociale_bidrag": {
                 "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
@@ -7830,7 +7936,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     debt_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
@@ -7935,12 +8042,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     });
     voluntary_arrangement_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
-        "særlige_aktiver": []
+        "særlige_aktiver": [],
+        "udbytter": []
     });
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(voluntary_arrangement_case);
+    let mut dividend_case = json_input["cases"][0].clone();
+    dividend_case["case_id"] = Value::String("personskat-udbytte-2026".into());
+    dividend_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": [{
+            "identifikation": "udbytte-1",
+            "udlodder": { "$variant": "Ll16AAlmindeligtSelskab" },
+            "modtager": { "$variant": "Ll16AAktuelAktionær" },
+            "aktiv": { "$variant": "PersonskatAlmindeligAktie" },
+            "beløb_kroner": 12_000
+        }]
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(dividend_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -8007,6 +8132,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         xlsx_property_tax_result["result"],
         json_property_tax_result["result"]
+    );
+    let xlsx_dividend_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-udbytte-2026")
+        .expect("XLSX dividend result");
+    let json_dividend_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-udbytte-2026")
+        .expect("JSON dividend result");
+    assert_eq!(
+        xlsx_dividend_result["result"],
+        json_dividend_result["result"]
+    );
+    assert_eq!(
+        xlsx_dividend_result["result"]["aktieavance"]["udbytter"][0]["ligningslov16a_resultat"]
+            ["hjemmel"]["$variant"],
+        "Ll16AStk2Nr1FørstePunktum"
+    );
+    assert_eq!(
+        xlsx_dividend_result["result"]["aktieavance"]["aktieindkomst_kroner"],
+        12_000
+    );
+    assert_eq!(
+        xlsx_dividend_result["result"]["endelig_aktieindkomstskat_kroner"],
+        3_240
     );
     let xlsx_debt_result = result["results"]
         .as_array()

@@ -40,14 +40,12 @@ kanoniske beregning af personlig indkomst.
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_socialbidrag_begrænset_skatteforhold() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
-    øvrig_aktieindkomst_kroner = 0,
     par8c_status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
     personfradrag_skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
     personfradrag_valg_dato_yyyymmdd = 0,
     personfradrag_omvalg_dato_yyyymmdd = 0
 ))
 | personskat_socialbidrag_anden_personfradragsstatus() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
-    øvrig_aktieindkomst_kroner = 0,
     par8c_status = IkkePar8cOmfattet,
     personfradrag_skattepligt = Kildeskattelov48Eller48FIndkomst,
     personfradrag_valg_dato_yyyymmdd = 0,

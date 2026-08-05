@@ -1075,7 +1075,7 @@ fra og med den 1. januar 2027.
 --@begin:personskatteloven_par4--
 # Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | MedarbejderinvesteringsselskabBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
-# AndelsforeningUdlodning = NormalForrentning | IkkeNormalForrentning
+# AndelsforeningUdlodning = IkkeAndelsforeningsudlodning | NormalForrentning | IkkeNormalForrentning
 # KapitalTilPersonligUndtagelse = Aktieavance17 | Aktieavance19CHvis17 | Investeringsformidler19CHvis17 | Medarbejderinvesteringsselskab
 # Anskaffelsesstatus = Før19Maj1993 | PåEllerEfter19Maj1993
 # SkatterådsTilladelse = TilladelseGivet | TilladelseIkkeGivet
@@ -1147,8 +1147,8 @@ fra og med den 1. januar 2027.
 | exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FordringsEllerKontraktNæring
 | exception finansieringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FinansieringsNæring
 
-| andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Sandt
-| exception normal_forrentning andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Falskt under udlodning == NormalForrentning
+| andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Falskt
+| exception ikke_normal_forrentning andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Sandt under udlodning == IkkeNormalForrentning
 
 | kapitalundtagelse_medregnes_personligt(undtagelse: KapitalTilPersonligUndtagelse) -> Sandt
 
@@ -1407,11 +1407,13 @@ fra og med den 1. januar 2027.
 }
 | par4_stk1_nr4_sag(input: Par4Stk1Nr4Input) -> Par4Stk1Nr4Sag(input)
 | par4_stk1_nr4_resultat(input: Par4Stk1Nr4Input) -> par4_stk1_nr4_sag(input).resultat()
-| par4_stk1_nr4_input_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> Par4Stk1Nr4Input(
-    ligningslov16a_resultat = ligningslov16a_resultat(input),
-    par4a_aktiepost_resultat = par4a_ligningslov16a_aktiepost_resultat(input, par4a_afgrænsning),
+| par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> Par4Stk1Nr4Input(
+    ligningslov16a_resultat = ligningslov16a_resultat,
+    par4a_aktiepost_resultat = par4a_ligningslov16a_aktiepost_resultat_fra_resultat(ligningslov16a_resultat, par4a_afgrænsning),
     andelsforening_udlodning = andelsforening_udlodning
 )
+| par4_stk1_nr4_input_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat(input), par4a_afgrænsning, andelsforening_udlodning)
+| par4_stk1_nr4_resultat_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_resultat(par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat, par4a_afgrænsning, andelsforening_udlodning))
 | par4_stk1_nr4_resultat_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_resultat(par4_stk1_nr4_input_fra_ligningslov16a(input, par4a_afgrænsning, andelsforening_udlodning))
 | par4_stk1_nr4_kapitalpost(input: Par4Stk1Nr4Input) -> Par4Kapitalpost(
     art = AktieudbytteIkkeAktieindkomst,
@@ -1420,6 +1422,7 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 | par4_stk1_nr4_kapitalpost_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a(input, par4a_afgrænsning, andelsforening_udlodning))
+| par4_stk1_nr4_kapitalpost_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat, par4a_afgrænsning, andelsforening_udlodning))
 
 | par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenPersonligReklassifikation
 | exception par4_stk1_nr5_par17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblNæringsaktiePar17
@@ -2710,12 +2713,13 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     personlig_indkomst_kroner = par4a_aktiepost_i_personlig_indkomst_kroner(post),
     udenfor_aktieindkomst_kroner = post.beløb_kroner - par4a_aktiepost_i_aktieindkomst_kroner(post) - par4a_aktiepost_i_personlig_indkomst_kroner(post)
 )
-| par4a_ligningslov16a_aktiepost_resultat(input: Ligningslov16AInput, afgrænsning: AktiepostStk1Og2Afgrænsning) -> par4a_aktiepost_resultat(Par4aAktiepost(
+| par4a_ligningslov16a_aktiepost_resultat_fra_resultat(resultat: Ligningslov16AResultat, afgrænsning: AktiepostStk1Og2Afgrænsning) -> par4a_aktiepost_resultat(Par4aAktiepost(
     art = Ligningslov16AUdbytte,
-    beløb_kroner = ligningslov16a_resultat(input).udbytte_kroner,
+    beløb_kroner = resultat.udbytte_kroner,
     afgrænsning = afgrænsning,
     personlig_reklassifikation = IngenAktieTilPersonligUndtagelse
 ))
+| par4a_ligningslov16a_aktiepost_resultat(input: Ligningslov16AInput, afgrænsning: AktiepostStk1Og2Afgrænsning) -> par4a_ligningslov16a_aktiepost_resultat_fra_resultat(ligningslov16a_resultat(input), afgrænsning)
 | par4a_aktieindkomst_efter_stk1_og_2_kroner(input: Par4aAktieindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4a_aktiepost_i_aktieindkomst_kroner(post))
 | par4a_omklassificeret_personlig_indkomst_kroner(input: Par4aAktieindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4a_aktiepost_i_personlig_indkomst_kroner(post))
 | par4a_pensionsfradrag_input_fra_aktieindkomst(input: Par4aAktieindkomstInput) -> AktiePensionsFradragInput(

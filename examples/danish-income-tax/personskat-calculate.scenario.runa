@@ -486,7 +486,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
-    særlige_aktiver = []
+    særlige_aktiver = [],
+    udbytter = []
 )))
 = personskat_calculate_boligret_afståelse = AblOrdinærAfståelse(
     kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
@@ -536,15 +537,18 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_boligret_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_boligret_aktieår),
-    særlige_aktiver = []
+    særlige_aktiver = [],
+    udbytter = []
 )))
 = personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [abl19c_kapital_input]
+    særlige_aktiver = [abl19c_kapital_input],
+    udbytter = []
 )))
 = personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [abl19c_hvis17_input]
+    særlige_aktiver = [abl19c_hvis17_input],
+    udbytter = []
 )))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
@@ -563,8 +567,81 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [personskat_calculate_ugyldig_22_input]
+    særlige_aktiver = [personskat_calculate_ugyldig_22_input],
+    udbytter = []
 )))
+
+| personskat_calculate_almindeligt_udbytte(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatAlmindeligAktie,
+    beløb_kroner = beløb_kroner
+)
+| personskat_calculate_medarbejderejeudlodning(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AMedarbejderejevirksomhedEfterSelskabsskattelov1Stk1Nr2J,
+    modtager = Ll16AMedarbejderdeltager,
+    aktiv = PersonskatMedarbejderejeandel,
+    beløb_kroner = beløb_kroner
+)
+| personskat_calculate_aktieinput_med_udbytter(udbytter: List(PersonskatUdbytteFakta)) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [],
+    udbytter = udbytter
+)
+
+= personskat_calculate_udbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
+    personskat_calculate_almindeligt_udbytte("udbytte-1", 12000)
+])))
+= personskat_calculate_medarbejderejeudbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
+    personskat_calculate_medarbejderejeudlodning("medarbejdereje-1", 18000)
+])))
+= personskat_calculate_dobbelt_udbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
+    personskat_calculate_almindeligt_udbytte("samme-udbytte", 12000),
+    personskat_calculate_almindeligt_udbytte("samme-udbytte", 12000)
+])))
+= personskat_calculate_negativt_udbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
+    personskat_calculate_almindeligt_udbytte("negativt-udbytte", -1)
+])))
+= personskat_calculate_forkert_udbyttemodtager_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
+    PersonskatUdbytteFakta(
+        identifikation = "forkert-modtager",
+        udlodder = Ll16AAlmindeligtSelskab,
+        modtager = Ll16AMedarbejderdeltager,
+        aktiv = PersonskatAlmindeligAktie,
+        beløb_kroner = 12000
+    )
+])))
+= personskat_calculate_udbytte_ægtefællefakta = PersonskatPersonFakta(
+    lønmodtager = personskat_calculate_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_calculate_aktieinput_med_udbytter([
+        personskat_calculate_medarbejderejeudlodning("ægtefælle-medarbejdereje", 18000)
+    ]),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold
+)
+= personskat_calculate_udbytte_ægtefælle_input = PersonskatInput(
+    lønmodtager = personskat_calculate_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_calculate_aktieinput_med_udbytter([
+        personskat_calculate_almindeligt_udbytte("hovedperson-udbytte", 100000)
+    ]),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = personskat_calculate_udbytte_ægtefællefakta,
+        samlevende_ved_indkomstårets_udløb = Sandt
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+= personskat_calculate_udbytte_ægtefælle_resultat = beregn_personskat(personskat_calculate_udbytte_ægtefælle_input)
 
 = personskat_calculate_med_årsopgørelse_input = PersonskatInput(
     lønmodtager = personskat_calculate_lønmodtager,
@@ -611,7 +688,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
     personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
-        særlige_aktiver = []
+        særlige_aktiver = [],
+        udbytter = []
     )),
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
@@ -760,6 +838,15 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_19c_kapital_afledes: personskat_calculate_19c_kapital_resultat -> personskat_calculate_19c_kapital_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_kapital_resultat.aktieavance.kapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.nettokapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_19c_personlig_afledes_uden_am: personskat_calculate_19c_personlig_resultat -> personskat_calculate_19c_personlig_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_personlig_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.personlig_indkomst_efter_am_kroner == 559000 && personskat_calculate_19c_personlig_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_ugyldig_abl_kæde_afvises_samlet: personskat_calculate_ugyldig_resultat -> personskat_calculate_ugyldig_resultat.aktieavance.alle_input_gyldige == Falskt && personskat_calculate_ugyldig_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
+| personskat_calculate_udbytte_afledes_fra_kildefakta: personskat_calculate_udbytte_resultat -> personskat_calculate_udbytte_resultat.aktieavance.alle_input_gyldige && length(personskat_calculate_udbytte_resultat.aktieavance.udbytter) == 1 && length(personskat_calculate_udbytte_resultat.aktieavance.aktieposter) == 1 && head(personskat_calculate_udbytte_resultat.aktieavance.udbytter).ligningslov16a_resultat.hjemmel == Ll16AStk2Nr1FørstePunktum && head(personskat_calculate_udbytte_resultat.aktieavance.udbytter).par4_resultat.omfattet_af_kapitalindkomst == Falskt && head(personskat_calculate_udbytte_resultat.aktieavance.udbytter).par4a_resultat.medregnes_i_aktieindkomst && personskat_calculate_udbytte_resultat.aktieavance.aktieindkomst_kroner == 12000 && personskat_calculate_udbytte_resultat.endelig_aktieindkomstskat_kroner == 3240
+| personskat_calculate_medarbejderejeudbytte_afledes_fra_2026_hjemmel: personskat_calculate_medarbejderejeudbytte_resultat -> personskat_calculate_medarbejderejeudbytte_resultat.aktieavance.alle_input_gyldige && length(personskat_calculate_medarbejderejeudbytte_resultat.aktieavance.udbytter) == 1 && head(personskat_calculate_medarbejderejeudbytte_resultat.aktieavance.udbytter).ligningslov16a_resultat.hjemmel == Ll16AStk2Nr1AndetPunktumFra2026 && personskat_calculate_medarbejderejeudbytte_resultat.aktieavance.aktieindkomst_kroner == 18000 && personskat_calculate_medarbejderejeudbytte_resultat.endelig_aktieindkomstskat_kroner == 4860
+| personskat_calculate_dobbelt_udbytte_afvises_før_skat: personskat_calculate_dobbelt_udbytte_resultat -> personskat_calculate_dobbelt_udbytte_resultat.aktieavance.alle_input_gyldige == Falskt && all(personskat_calculate_dobbelt_udbytte_resultat.aktieavance.udbytter, |resultat: PersonskatUdbytteResultat| resultat.identifikation_unik == Falskt && resultat.input_gyldigt == Falskt) && length(personskat_calculate_dobbelt_udbytte_resultat.aktieavance.aktieposter) == 0 && personskat_calculate_dobbelt_udbytte_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_dobbelt_udbytte_resultat.endelig_aktieindkomstskat_kroner == 0
+| personskat_calculate_negativt_udbytte_afvises_før_skat: personskat_calculate_negativt_udbytte_resultat -> personskat_calculate_negativt_udbytte_resultat.aktieavance.alle_input_gyldige == Falskt && head(personskat_calculate_negativt_udbytte_resultat.aktieavance.udbytter).ligningslov16a_resultat.grundfakta_gyldige == Falskt && length(personskat_calculate_negativt_udbytte_resultat.aktieavance.aktieposter) == 0 && personskat_calculate_negativt_udbytte_resultat.endelig_aktieindkomstskat_kroner == 0
+| personskat_calculate_forkert_udbyttemodtager_afvises_før_skat: personskat_calculate_forkert_udbyttemodtager_resultat -> personskat_calculate_forkert_udbyttemodtager_resultat.aktieavance.alle_input_gyldige == Falskt && head(personskat_calculate_forkert_udbyttemodtager_resultat.aktieavance.udbytter).aktiv_og_retsforhold_forenelige == Falskt && head(personskat_calculate_forkert_udbyttemodtager_resultat.aktieavance.udbytter).ligningslov16a_resultat.input_gyldigt == Falskt && length(personskat_calculate_forkert_udbyttemodtager_resultat.aktieavance.aktieposter) == 0
+| personskat_calculate_udbytte_for_begge_ægtefæller_medregnes_en_gang: personskat_calculate_udbytte_ægtefælle_resultat -> personskat_calculate_udbytte_ægtefælle_resultat.aktieavance.aktieindkomst_kroner == 100000 && length(personskat_calculate_udbytte_ægtefælle_resultat.aktieavance.aktieposter) == 1 && personskat_calculate_udbytte_ægtefælle_resultat.positiv_aktieindkomstskat.lavt_grundlag_kroner == 100000 && personskat_calculate_udbytte_ægtefælle_resultat.positiv_aktieindkomstskat.højt_grundlag_kroner == 0 && match personskat_calculate_udbytte_ægtefælle_resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, samlevende) -> samlevende && grundlag.aktieavance.alle_input_gyldige && grundlag.aktieavance.aktieindkomst_kroner == 18000 && length(grundlag.aktieavance.udbytter) == 1 && length(grundlag.aktieavance.aktieposter) == 1
+    | _ -> Falskt
+}
 | personskat_calculate_årsopgørelse_valgfri: personskat_calculate_resultat -> personskat_calculate_resultat.årsopgørelse == IngenÅrsopgørelse
 | personskat_calculate_årsopgørelse_beregnes: personskat_calculate_med_årsopgørelse_resultat -> match personskat_calculate_med_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
@@ -799,6 +886,12 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_19c_kapital_afledes
 ? personskat_calculate_19c_personlig_afledes_uden_am
 ? personskat_calculate_ugyldig_abl_kæde_afvises_samlet
+? personskat_calculate_udbytte_afledes_fra_kildefakta
+? personskat_calculate_medarbejderejeudbytte_afledes_fra_2026_hjemmel
+? personskat_calculate_dobbelt_udbytte_afvises_før_skat
+? personskat_calculate_negativt_udbytte_afvises_før_skat
+? personskat_calculate_forkert_udbyttemodtager_afvises_før_skat
+? personskat_calculate_udbytte_for_begge_ægtefæller_medregnes_en_gang
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes
 ? personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse

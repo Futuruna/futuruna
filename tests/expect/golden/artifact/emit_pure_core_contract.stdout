@@ -78,6 +78,44 @@ impl<A: fmt::Display, B: fmt::Display> fmt::Display for Pair<A, B> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ProgramReference {
+    ProgramSymbolReference {
+        name: String,
+    },
+    ProgramTypeReference {
+        name: String,
+    },
+    ProgramMemberReference {
+        root_type: String,
+        path: String,
+    },
+}
+
+impl fmt::Display for ProgramReference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProgramReference::ProgramSymbolReference { name } => {
+                write!(f, "ProgramSymbolReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramTypeReference { name } => {
+                write!(f, "ProgramTypeReference(")?;
+                write!(f, "name: {}", name)?;
+                write!(f, ")")
+            }
+            ProgramReference::ProgramMemberReference { root_type, path } => {
+                write!(f, "ProgramMemberReference(")?;
+                write!(f, "root_type: {}", root_type)?;
+                write!(f, ", ")?;
+                write!(f, "path: {}", path)?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 trait Meta {
 }
 
@@ -136,11 +174,24 @@ fn add_bias(__fut_globals: &__FutGlobals, x: i64) -> i64 {
     (x + __fut_globals.doubled.clone().expect("top-level binding `doubled` not initialized"))
 }
 
-fn main() {
+const __FUT_RUNTIME_MAIN_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+fn __fut_runtime_main_inner() {
     let mut __fut_globals = __FutGlobals::default();
     let base = 7i64;
     __fut_globals.base = Some(base.clone());
     let doubled = (base * 2i64);
     __fut_globals.doubled = Some(doubled.clone());
     println!("{}", __futuruna_show_any(&add_bias(&__fut_globals, base)));
+}
+
+fn main() {
+    let __fut_runtime_main = std::thread::Builder::new()
+        .name("futuruna-main".to_string())
+        .stack_size(__FUT_RUNTIME_MAIN_STACK_BYTES)
+        .spawn(__fut_runtime_main_inner)
+        .unwrap_or_else(|error| panic!("failed to start Futuruna program: {}", error));
+    if let Err(payload) = __fut_runtime_main.join() {
+        std::panic::resume_unwind(payload);
+    }
 }

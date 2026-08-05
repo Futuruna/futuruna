@@ -1,0 +1,60 @@
+@ sprog da
+
+@ importer ./ligningsloven_kapitalindkomst
+
+= ll16a_almindeligt_udbytte_fixture = ligningslov16a_resultat(Ligningslov16AInput(
+    indkomstår = 2026,
+    art = Ll16AStk2Nr1Udlodning,
+    beløb_kroner = 10000
+))
+= ll16a_skattefri_fixture = ligningslov16a_resultat(Ligningslov16AInput(
+    indkomstår = 2026,
+    art = Ll16AStk4Skattefri,
+    beløb_kroner = 10000
+))
+= ll16a_ordinær_aktionær_2025 = ligningslov16a_ordinær_udlodning_resultat(Ligningslov16AOrdinærUdlodningsfakta(
+    indkomstår = 2025,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    beløb_kroner = 12000
+))
+= ll16a_medarbejdereje_2026 = ligningslov16a_ordinær_udlodning_resultat(Ligningslov16AOrdinærUdlodningsfakta(
+    indkomstår = 2026,
+    udlodder = Ll16AMedarbejderejevirksomhedEfterSelskabsskattelov1Stk1Nr2J,
+    modtager = Ll16AMedarbejderdeltager,
+    beløb_kroner = 18000
+))
+= ll16a_medarbejdereje_2025 = ligningslov16a_ordinær_udlodning_resultat(Ligningslov16AOrdinærUdlodningsfakta(
+    indkomstår = 2025,
+    udlodder = Ll16AMedarbejderejevirksomhedEfterSelskabsskattelov1Stk1Nr2J,
+    modtager = Ll16AMedarbejderdeltager,
+    beløb_kroner = 18000
+))
+= ll16a_forkert_modtager = ligningslov16a_ordinær_udlodning_resultat(Ligningslov16AOrdinærUdlodningsfakta(
+    indkomstår = 2026,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AMedarbejderdeltager,
+    beløb_kroner = 9000
+))
+= ll16a_negativt_beløb = ligningslov16a_ordinær_udlodning_resultat(Ligningslov16AOrdinærUdlodningsfakta(
+    indkomstår = 2026,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    beløb_kroner = -1
+))
+
+| ll16a_udbytte_medregnes: ll16a_almindeligt_udbytte_fixture -> ll16a_almindeligt_udbytte_fixture.omfattet_af_par16a_udbytte == Sandt && ll16a_almindeligt_udbytte_fixture.udbytte_kroner == 10000
+| ll16a_stk4_skattefri_medregnes_ikke: ll16a_skattefri_fixture -> ll16a_skattefri_fixture.skattefri_efter_stk4 == Sandt && ll16a_skattefri_fixture.udbytte_kroner == 0
+| ll16a_stk2_nr1_første_punktum_omfatter_ordinær_aktionær: ll16a_ordinær_aktionær_2025 -> ll16a_ordinær_aktionær_2025.input_gyldigt && ll16a_ordinær_aktionær_2025.hjemmel == Ll16AStk2Nr1FørstePunktum && ll16a_ordinær_aktionær_2025.ligningslov16a_resultat.udbytte_kroner == 12000
+| ll16a_lov1755_omfatter_medarbejdereje_fra_2026: ll16a_medarbejdereje_2026 -> ll16a_medarbejdereje_2026.input_gyldigt && ll16a_medarbejdereje_2026.hjemmel == Ll16AStk2Nr1AndetPunktumFra2026 && ll16a_medarbejdereje_2026.ligningslov16a_resultat.udbytte_kroner == 18000
+| ll16a_lov1755_gælder_ikke_i_2025: ll16a_medarbejdereje_2025 -> ll16a_medarbejdereje_2025.input_gyldigt == Falskt && ll16a_medarbejdereje_2025.hjemmel == Ll16AIngenOrdinærUdlodningshjemmel && ll16a_medarbejdereje_2025.ligningslov16a_resultat.udbytte_kroner == 0
+| ll16a_forkert_modtager_afvises: ll16a_forkert_modtager -> ll16a_forkert_modtager.input_gyldigt == Falskt && ll16a_forkert_modtager.ligningslov16a_resultat.udbytte_kroner == 0
+| ll16a_negativt_beløb_afvises: ll16a_negativt_beløb -> ll16a_negativt_beløb.grundfakta_gyldige == Falskt && ll16a_negativt_beløb.input_gyldigt == Falskt && ll16a_negativt_beløb.ligningslov16a_resultat.udbytte_kroner == 0
+
+? ll16a_udbytte_medregnes
+? ll16a_stk4_skattefri_medregnes_ikke
+? ll16a_stk2_nr1_første_punktum_omfatter_ordinær_aktionær
+? ll16a_lov1755_omfatter_medarbejdereje_fra_2026
+? ll16a_lov1755_gælder_ikke_i_2025
+? ll16a_forkert_modtager_afvises
+? ll16a_negativt_beløb_afvises
