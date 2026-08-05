@@ -193,6 +193,207 @@ fn schema_lowers_structural_pathof_field_metadata_to_canonical_paths() {
 }
 
 #[test]
+fn schema_projects_typed_relative_field_metadata_and_prefers_exact_overrides() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Child(age: Int)\n\
+# Household(primary: Child, dependents: List(Child))\n\
+# FilingStatus = Active(child: Child) | Inactive\n\
+# Input(first: Household, second: Household, filing_status: FilingStatus, children_by_name: Map(String, Child), unique_children: Set(Child))\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for RelativeMeta {}\n\
+# impl Meta for ExactMeta {}\n\
+= child_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(Child::age), label = \"Child age\")\n\
+])\n\
+--@label:Child::meta:child_meta--\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = pathof(Input::first::primary::age), label = \"Primary child age\")\n\
+])\n\
+--@label:calculate::meta:exact_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write relative calculation metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    let expected_paths = [
+        "children_by_name.age",
+        "filing_status.Active.child.age",
+        "first.dependents.age",
+        "first.primary.age",
+        "second.dependents.age",
+        "second.primary.age",
+        "unique_children.age",
+    ];
+    assert_eq!(fields.len(), expected_paths.len());
+    for expected in expected_paths {
+        assert!(
+            fields.iter().any(|field| field["path"] == expected),
+            "missing projected metadata for {expected}: {fields:?}"
+        );
+    }
+    let exact = fields
+        .iter()
+        .find(|field| field["path"] == "first.primary.age")
+        .expect("exact metadata");
+    assert_eq!(exact["label"], "Primary child age");
+    assert_eq!(exact["anchor"], "calculate");
+    let projected = fields
+        .iter()
+        .find(|field| field["path"] == "second.primary.age")
+        .expect("projected metadata");
+    assert_eq!(projected["label"], "Child age");
+    assert_eq!(projected["anchor"], "Child");
+}
+
+#[test]
+fn schema_exact_field_metadata_supersedes_multiple_relative_candidates() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Child(age: Int)\n\
+# Input(child: Child)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for RelativeMeta {}\n\
+# impl Meta for ExactMeta {}\n\
+= relative_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(Child::age), label = \"Relative age one\"),\n\
+    RelativeField(path = refof(Child::age), label = \"Relative age two\")\n\
+])\n\
+--@label:Child::meta:relative_meta--\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = pathof(Input::child::age), label = \"Exact age\")\n\
+])\n\
+--@label:calculate::meta:exact_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.child.age)\n",
+    )
+    .expect("write exact metadata precedence source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[0]["path"], "child.age");
+    assert_eq!(fields[0]["label"], "Exact age");
+}
+
+#[test]
+fn schema_rejects_ambiguous_or_non_structural_typed_field_metadata() {
+    let duplicate_path = temp_path("runa");
+    std::fs::write(
+        &duplicate_path,
+        "# Child(age: Int)\n\
+# Input(child: Child)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# impl Meta for RelativeMeta {}\n\
+= child_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(Child::age), label = \"Age one\"),\n\
+    RelativeField(path = refof(Child::age), label = \"Age two\")\n\
+])\n\
+--@label:Child::meta:child_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write ambiguous relative metadata source");
+    let duplicate = run(&[
+        "schema",
+        duplicate_path.to_str().expect("duplicate source path"),
+    ]);
+    std::fs::remove_file(&duplicate_path).ok();
+    assert!(!duplicate.status.success());
+    let duplicate_stderr = String::from_utf8_lossy(&duplicate.stderr);
+    assert!(
+        duplicate_stderr.contains("duplicate field metadata for `child.age`"),
+        "stderr:\n{duplicate_stderr}"
+    );
+
+    let symbol_path = temp_path("runa");
+    std::fs::write(
+        &symbol_path,
+        "# Input(value: Int)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# impl Meta for RelativeMeta {}\n\
+= invalid_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(calculate), label = \"Invalid\")\n\
+])\n\
+--@label:calculate::meta:invalid_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = input.value)\n",
+    )
+    .expect("write non-structural typed metadata source");
+    let symbol = run(&["schema", symbol_path.to_str().expect("symbol source path")]);
+    std::fs::remove_file(&symbol_path).ok();
+    assert!(!symbol.status.success());
+    let symbol_stderr = String::from_utf8_lossy(&symbol.stderr);
+    assert!(
+        symbol_stderr.contains(
+            "field `path` must be a string or a structural `refof(Type::member)` reference"
+        ),
+        "stderr:\n{symbol_stderr}"
+    );
+
+    let optional_composite_path = temp_path("runa");
+    std::fs::write(
+        &optional_composite_path,
+        "# Child(age: Int)\n\
+# Input(child: Child?)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# impl Meta for RelativeMeta {}\n\
+= child_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(Child::age), label = \"Child age\")\n\
+])\n\
+--@label:Child::meta:child_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write optional composite metadata source");
+    let optional_composite = run(&[
+        "schema",
+        optional_composite_path
+            .to_str()
+            .expect("optional composite source path"),
+    ]);
+    std::fs::remove_file(&optional_composite_path).ok();
+    assert!(!optional_composite.status.success());
+    let optional_stderr = String::from_utf8_lossy(&optional_composite.stderr);
+    assert!(
+        optional_stderr.contains("targets unknown input path `Child::age`"),
+        "stderr:\n{optional_stderr}"
+    );
+}
+
+#[test]
 fn schema_checks_pathof_against_plain_imported_types() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/calculation/pathof-import.calculate.runa");
@@ -208,6 +409,27 @@ fn schema_checks_pathof_against_plain_imported_types() {
     assert_eq!(fields.len(), 2);
     assert_eq!(fields[0]["path"], "children.age");
     assert_eq!(fields[1]["path"], "income.ImportedWage.amount");
+}
+
+#[test]
+fn schema_projects_type_anchored_field_metadata_from_plain_imports() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/calculation-relative-meta/model.calculate.runa");
+    let output = run(&["schema", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0]["path"], "children.age");
+    assert_eq!(fields[1]["path"], "primary.age");
+    assert!(fields
+        .iter()
+        .all(|field| field["binding"] == "imported_child_meta.fields[0]"));
 }
 
 #[test]

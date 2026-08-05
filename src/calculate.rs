@@ -687,8 +687,12 @@ pub fn extract_calculation_contracts(
         .iter()
         .map(|candidate| candidate.name.clone())
         .collect::<BTreeSet<_>>();
+    let mut metadata_labels = calculation_labels.clone();
+    for candidate in &candidates {
+        collect_reachable_type_names(&candidate.input, &catalog, &mut metadata_labels);
+    }
     let meta_index =
-        scan_meta_comments_with_imported_labels(source, source_dir.clone(), &calculation_labels);
+        scan_meta_comments_with_imported_labels(source, source_dir.clone(), &metadata_labels);
     let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {
@@ -1451,22 +1455,32 @@ fn contract_field_metadata(
         valid_paths.extend(table.columns.iter().map(|column| column.input_path.clone()));
     }
 
+    let type_occurrence_paths = calculation_type_occurrence_paths(contract);
+    let input_type_names = type_occurrence_paths
+        .keys()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut relevant_symbols = input_type_names.clone();
+    relevant_symbols.insert(contract.entry.clone());
     let span_labels: BTreeSet<String> = index
         .spans
         .iter()
         .filter(|span| {
             span.symbols
                 .iter()
-                .any(|symbol| symbol.name == contract.entry)
+                .any(|symbol| relevant_symbols.contains(&symbol.name))
         })
         .map(|span| span.label.clone())
         .collect();
-    let mut result = Vec::new();
-    let mut bindings_by_path = BTreeMap::new();
+    let mut candidates_by_path: BTreeMap<String, Vec<CalculationFieldMetadataCandidate>> =
+        BTreeMap::new();
     let mut diagnostics = Vec::new();
 
     for anchor in &index.anchors {
-        if anchor.label != contract.entry && !span_labels.contains(&anchor.label) {
+        if anchor.label != contract.entry
+            && !input_type_names.contains(&anchor.label)
+            && !span_labels.contains(&anchor.label)
+        {
             continue;
         }
         let field_references = anchor
@@ -1520,18 +1534,16 @@ fn contract_field_metadata(
                     value,
                     anchor,
                     &valid_paths,
+                    &input_type_names,
+                    &type_occurrence_paths,
                     &field_sources,
                 ) {
-                    Ok(metadata) => {
-                        if let Some(previous) =
-                            bindings_by_path.insert(metadata.path.clone(), metadata.binding.clone())
-                        {
-                            diagnostics.push(Diagnostic::error(format!(
-                                "calculation `{}` has duplicate field metadata for `{}` in bindings `{}` and `{}`",
-                                contract.entry, metadata.path, previous, metadata.binding
-                            )));
-                        } else {
-                            result.push(metadata);
+                    Ok(candidates) => {
+                        for candidate in candidates {
+                            candidates_by_path
+                                .entry(candidate.metadata.path.clone())
+                                .or_default()
+                                .push(candidate);
                         }
                     }
                     Err(diagnostic) => diagnostics.push(diagnostic),
@@ -1540,12 +1552,40 @@ fn contract_field_metadata(
         }
     }
 
+    let mut result = Vec::new();
+    for (path, candidates) in candidates_by_path {
+        let highest_specificity = candidates
+            .iter()
+            .map(|candidate| candidate.specificity)
+            .max()
+            .expect("metadata path has at least one candidate");
+        let mut selected = candidates
+            .into_iter()
+            .filter(|candidate| candidate.specificity == highest_specificity);
+        let first = selected
+            .next()
+            .expect("highest metadata specificity has a candidate");
+        if let Some(second) = selected.next() {
+            diagnostics.push(Diagnostic::error(format!(
+                "calculation `{}` has duplicate field metadata for `{}` in bindings `{}` and `{}`",
+                contract.entry, path, first.metadata.binding, second.metadata.binding
+            )));
+        } else {
+            result.push(first.metadata);
+        }
+    }
+
     if diagnostics.is_empty() {
-        result.sort_by(|left, right| left.path.cmp(&right.path));
         Ok(result)
     } else {
         Err(diagnostics)
     }
+}
+
+#[derive(Debug, Clone)]
+struct CalculationFieldMetadataCandidate {
+    metadata: CalculationFieldMetadata,
+    specificity: u8,
 }
 
 fn calculation_field_values(reference: &MetaReference) -> Vec<(String, String, &MetaValue)> {
@@ -1639,8 +1679,10 @@ fn calculation_field_metadata_from_value(
     value: &MetaValue,
     anchor: &MetaAnchor,
     valid_paths: &BTreeSet<String>,
+    input_type_names: &BTreeSet<String>,
+    type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
     sources: &[CalculationMetadataReference],
-) -> Result<CalculationFieldMetadata, Diagnostic> {
+) -> Result<Vec<CalculationFieldMetadataCandidate>, Diagnostic> {
     let MetaValue::Constructor { arguments, .. } = value else {
         return Err(Diagnostic::error(format!(
             "calculation field metadata binding `{}` must be a pure ground named record",
@@ -1674,20 +1716,6 @@ fn calculation_field_metadata_from_value(
         )));
     }
 
-    let declared_path = required_meta_string(&fields, "path", binding)?;
-    let path = normalize_calculation_field_path(contract, &declared_path, valid_paths).ok_or_else(
-        || {
-            let examples = valid_paths.iter().take(8).cloned().collect::<Vec<_>>();
-            Diagnostic::error(format!(
-                "calculation field metadata binding `{}` targets unknown input path `{}` for `{}`",
-                binding, declared_path, contract.entry
-            ))
-            .with_note(format!(
-                "use an exact canonical path such as {}",
-                examples.join(", ")
-            ))
-        },
-    )?;
     let label = required_meta_string(&fields, "label", binding)?;
     if label.trim().is_empty() {
         return Err(Diagnostic::error(format!(
@@ -1696,16 +1724,144 @@ fn calculation_field_metadata_from_value(
         )));
     }
 
-    Ok(CalculationFieldMetadata {
-        path,
-        label: label.trim().to_string(),
-        question: optional_meta_string(&fields, "question", binding)?,
-        help: optional_meta_string(&fields, "help", binding)?,
-        unit: optional_meta_string(&fields, "unit", binding)?,
-        anchor: anchor.label.clone(),
-        binding: binding.to_string(),
-        sources: sources.to_vec(),
+    let (specificity, paths) = calculation_field_paths_from_value(
+        contract,
+        binding,
+        fields.get("path").ok_or_else(|| {
+            Diagnostic::error(format!(
+                "calculation field metadata binding `{}` is missing `path`",
+                binding
+            ))
+        })?,
+        anchor,
+        valid_paths,
+        input_type_names,
+        type_occurrence_paths,
+    )?;
+    let question = optional_meta_string(&fields, "question", binding)?;
+    let help = optional_meta_string(&fields, "help", binding)?;
+    let unit = optional_meta_string(&fields, "unit", binding)?;
+    Ok(paths
+        .into_iter()
+        .map(|path| CalculationFieldMetadataCandidate {
+            metadata: CalculationFieldMetadata {
+                path,
+                label: label.trim().to_string(),
+                question: question.clone(),
+                help: help.clone(),
+                unit: unit.clone(),
+                anchor: anchor.label.clone(),
+                binding: binding.to_string(),
+                sources: sources.to_vec(),
+            },
+            specificity,
+        })
+        .collect())
+}
+
+fn calculation_field_paths_from_value(
+    contract: &CalculationContract,
+    binding: &str,
+    value: &MetaValue,
+    anchor: &MetaAnchor,
+    valid_paths: &BTreeSet<String>,
+    input_type_names: &BTreeSet<String>,
+    type_occurrence_paths: &BTreeMap<String, BTreeSet<String>>,
+) -> Result<(u8, Vec<String>), Diagnostic> {
+    if let MetaValue::String(declared_path) = value {
+        let path = normalize_calculation_field_path(contract, declared_path, valid_paths)
+            .ok_or_else(|| {
+                unknown_calculation_field_path(contract, binding, declared_path, valid_paths)
+            })?;
+        return Ok((2, vec![path]));
+    }
+
+    let (root_type, relative_path) = calculation_program_member_path(value).ok_or_else(|| {
+        Diagnostic::error(format!(
+            "calculation field metadata binding `{}` field `path` must be a string or a structural `refof(Type::member)` reference",
+            binding
+        ))
+    })?;
+    if input_type_names.contains(&anchor.label)
+        && anchor.label != contract.entry
+        && anchor.label != root_type
+    {
+        return Err(Diagnostic::error(format!(
+            "calculation field metadata binding `{}` is anchored to type `{}` but references `{}`",
+            binding, anchor.label, root_type
+        )));
+    }
+
+    let root_input_type = match &contract.input {
+        CalculationTypeRef::Named { name, .. } => Some(name.as_str()),
+        _ => None,
+    };
+    let specificity = if root_input_type == Some(root_type.as_str()) {
+        2
+    } else {
+        1
+    };
+    let paths = type_occurrence_paths
+        .get(&root_type)
+        .into_iter()
+        .flat_map(|paths| paths.iter())
+        .map(|prefix| joined_column_path(&prefix, &relative_path))
+        .filter(|path| valid_paths.contains(path))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    if paths.is_empty() {
+        return Err(unknown_calculation_field_path(
+            contract,
+            binding,
+            &format!("{}::{}", root_type, relative_path.replace('.', "::")),
+            valid_paths,
+        ));
+    }
+    Ok((specificity, paths))
+}
+
+fn calculation_program_member_path(value: &MetaValue) -> Option<(String, String)> {
+    let MetaValue::Constructor {
+        name, arguments, ..
+    } = value
+    else {
+        return None;
+    };
+    if name != "ProgramMemberReference" {
+        return None;
+    }
+    let root_type = meta_named_string_argument(arguments, "root_type")?;
+    let path = meta_named_string_argument(arguments, "path")?;
+    Some((root_type, path))
+}
+
+fn meta_named_string_argument(arguments: &[MetaValueArgument], field: &str) -> Option<String> {
+    arguments.iter().find_map(|argument| {
+        (argument.field.as_deref() == Some(field))
+            .then_some(&argument.value)
+            .and_then(|value| match value {
+                MetaValue::String(value) => Some(value.clone()),
+                _ => None,
+            })
     })
+}
+
+fn unknown_calculation_field_path(
+    contract: &CalculationContract,
+    binding: &str,
+    declared_path: &str,
+    valid_paths: &BTreeSet<String>,
+) -> Diagnostic {
+    let examples = valid_paths.iter().take(8).cloned().collect::<Vec<_>>();
+    Diagnostic::error(format!(
+        "calculation field metadata binding `{}` targets unknown input path `{}` for `{}`",
+        binding, declared_path, contract.entry
+    ))
+    .with_note(format!(
+        "use an exact canonical path such as {}",
+        examples.join(", ")
+    ))
 }
 
 fn normalize_calculation_field_path(
@@ -1730,6 +1886,96 @@ fn normalize_calculation_field_path(
         .into_iter()
         .find(|path| valid_paths.contains(*path))
         .map(str::to_string)
+}
+
+fn calculation_type_occurrence_paths(
+    contract: &CalculationContract,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut paths = BTreeMap::new();
+    collect_calculation_type_occurrence_paths(
+        &contract.input,
+        contract,
+        &BTreeMap::new(),
+        "",
+        &mut BTreeSet::new(),
+        &mut paths,
+    );
+    paths
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_calculation_type_occurrence_paths(
+    ty: &CalculationTypeRef,
+    contract: &CalculationContract,
+    substitutions: &BTreeMap<String, CalculationTypeRef>,
+    path: &str,
+    active: &mut BTreeSet<String>,
+    paths: &mut BTreeMap<String, BTreeSet<String>>,
+) {
+    let ty = substitute_contract_type(ty, substitutions);
+    match ty {
+        CalculationTypeRef::Optional { item }
+        | CalculationTypeRef::List { item }
+        | CalculationTypeRef::Set { item } => collect_calculation_type_occurrence_paths(
+            &item,
+            contract,
+            substitutions,
+            path,
+            active,
+            paths,
+        ),
+        CalculationTypeRef::Map { value, .. } => collect_calculation_type_occurrence_paths(
+            &value,
+            contract,
+            substitutions,
+            path,
+            active,
+            paths,
+        ),
+        CalculationTypeRef::Named { name, arguments } => {
+            let Some(definition) = contract.definition(&name) else {
+                return;
+            };
+            paths
+                .entry(name.clone())
+                .or_default()
+                .insert(path.to_string());
+            if !active.insert(name.clone()) {
+                return;
+            }
+            let local = definition_substitutions(definition, &arguments);
+            if let Some(variant) = product_variant(definition) {
+                for field in &variant.fields {
+                    collect_calculation_type_occurrence_paths(
+                        &field.ty,
+                        contract,
+                        &local,
+                        &joined_column_path(path, &field.name),
+                        active,
+                        paths,
+                    );
+                }
+            } else {
+                for variant in &definition.variants {
+                    let variant_path = joined_column_path(path, &variant.name);
+                    for field in &variant.fields {
+                        collect_calculation_type_occurrence_paths(
+                            &field.ty,
+                            contract,
+                            &local,
+                            &joined_column_path(&variant_path, &field.name),
+                            active,
+                            paths,
+                        );
+                    }
+                }
+            }
+            active.remove(&name);
+        }
+        CalculationTypeRef::Primitive { .. }
+        | CalculationTypeRef::TypeParameter { .. }
+        | CalculationTypeRef::Unit => {}
+    }
 }
 
 fn required_meta_string(

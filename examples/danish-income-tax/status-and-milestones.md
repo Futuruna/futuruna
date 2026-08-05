@@ -3,13 +3,14 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8e40ea` (Virksomhedsskatteloven §§ 8-9 a implemented and verified; pending independent review)
-Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
-Current language support slice: `td-8a34e0` (`refof`-referencer er implementeret og verificeret; pending independent review)
-Previous language support slice: `td-2e3b7e` (`pathof`-referencer er implementeret og verificeret; pending independent review)
+Current implementation slice: `td-a89feb` (Virksomhedsskattelovens § 22 a, stk. 4-8, årsparametre og kanonisk erhvervskapital; in progress)
+Next source-backed slice: færdiggør `td-a89feb`, og fortsæt derefter den materielle beregningskø under `td-2d84ec`
+Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
+Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
-Latest approved implementation slice: `td-80abd7`
-Latest approved language slice: `td-29d539`
+Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
+Latest approved implementation slice: `td-8e40ea`
+Latest approved language slice: `td-8a34e0`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -75,6 +76,22 @@ Virksomhedsskattelovens §§ 8-9 a bruger den generiske `Kildebelæg`-type til a
 knytte lovtekst, Nationalbank-data og ministerielle satser til de konkrete
 regler, som kilderne underbygger, uden at de underliggende kildetyper bliver
 usøgbare i metadataindekset.
+
+Beregningsmetadata kan desuden bevare rodtypen i et strukturelt
+`refof(Domænetype::felt)`-mål. Kontraktudtrækket finder hver forekomst af
+domænetypen i beregningsinputtet og projicerer den relative feltsti gennem
+records, sumtypevarianter og normaliserede samlinger. Valgfrie sammensatte
+værdier er fortsat ét kanonisk JSON-felt i kontraktversion 1 og har derfor ikke
+selvstændige indre projektionsmål. Metadata kan
+derfor forankres ved domænetypens eget label og følge typen gennem forskellige
+ydre beregninger. En absolut tekst-/`pathof`-sti eller en `refof`-reference med
+selve beregningsinputtet som rod vinder over projiceret metadata; konkurrerende
+mål med samme præcedens afvises. Alle 28 CFC-felter er flyttet fra hårdkodede
+`cfc...`-stier til referencer mod `PersonskatCfcInput`. Den fulde
+Personskat-kontrakt gendanner 28 entydige kanoniske `cfc...`-stier med de samme
+spørgsmål, hjælpetekster og kildespor; et enkelt typeforekomstindeks holder det
+fulde skemaudtræk på 120,49 sekunder i stedet for at gennemløbe typetræet én
+gang pr. felt.
 
 Selskabsskattelovens historiske og gældende § 17-kilder var den første
 korpusblok med gentagne `source`-referencer;

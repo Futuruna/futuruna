@@ -6,11 +6,14 @@
 # Metadata(a) = Metadata(attachments: a)
 # Kildebelæg(a) = Kildebelæg(kilde: a, mål: ProgramReference)
 # Beregningsfelt(path: Tekst, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
+# TypetBeregningsfelt(path: ProgramReference, label: Tekst, question: Tekst?, help: Tekst?, unit: Tekst?)
 # Beregningsspørgsmål(path: Tekst, label: Tekst, question: Tekst)
 # Beregningsbeløbsfelt(path: Tekst, label: Tekst, question: Tekst, unit: Tekst)
 # Beregningsmeta(a) = Beregningsmeta(felter: List(Beregningsfelt), spørgsmål: List(Beregningsspørgsmål), beløbsfelter: List(Beregningsbeløbsfelt), attachments: a)
+# TypetBeregningsmeta(a) = TypetBeregningsmeta(felter: List(TypetBeregningsfelt), spørgsmål: List(Beregningsspørgsmål), beløbsfelter: List(Beregningsbeløbsfelt), attachments: a)
 
 # impl MetaRole for DanskSkatMeta {}
 # impl Meta for DanskSkatMeta {}
 # impl Meta for Metadata {}
 # impl Meta for Beregningsmeta {}
+# impl Meta for TypetBeregningsmeta {}

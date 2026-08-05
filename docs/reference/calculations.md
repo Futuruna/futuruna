@@ -83,9 +83,37 @@ terminal form `pathof(Input::income::$variant)`. A misspelled segment is
 reported at that segment. Literal paths remain supported for generated data and
 backward compatibility.
 
+When metadata belongs to a nested domain type and should be reusable wherever
+that type occurs, declare its `path` field as `ProgramReference` and use
+`refof(Type::member)`:
+
+```runa
+# ChildField(path: ProgramReference, label: String)
+# ChildMeta(fields: List(ChildField))
+# impl Meta for ChildMeta {}
+
+= child_meta = ChildMeta(fields = [
+    ChildField(path = refof(Child::age), label = "Child age")
+])
+
+--@label:Child::meta:child_meta--
+```
+
+For an input containing `primary: Child` and `children: List(Child)`, this one
+declaration produces `primary.age` and `children.age`. Projection crosses
+records, alternatives, lists, sets, and string-keyed map values.
+Exact `String`/`pathof(...)` metadata and `refof(...)` rooted at the calculation
+input override projected metadata. Duplicate declarations at the winning
+specificity are errors.
+
+Optional composites remain one canonical JSON field in calculation contract
+v1, so their internal members are not independent projected metadata targets.
+Target the optional JSON field exactly when it needs a label or question.
+
 The record must use named fields `path`, `label`, `question`, `help`, and `unit`.
-`path` and `label` are required strings. The other fields may be strings,
-optional strings, or omitted by a record type that does not declare them.
+`path` is a `String` for exact metadata or a structural `ProgramReference` for
+reusable metadata, and `label` is a required string. The other fields may be
+strings, optional strings, or omitted by a record type that does not declare them.
 Role-bearing values such as `Source` attachments remain typed metadata and are
 copied into that field's source trace.
 

@@ -211,6 +211,13 @@ resolved through the same declaration graph. This gives metadata consumers a
 stable serialized string without sacrificing source navigation or rename-time
 checking. Existing string values remain valid.
 
+Use `refof(NestedType::field)` instead when one metadata declaration should
+follow a nested domain type through different calculation inputs. Calculation
+contracts retain the reference's root type and project its checked member path
+onto every reachable occurrence. Attach that metadata to the nested type label.
+An exact root-input reference or absolute `pathof(...)` declaration overrides a
+projected declaration; equal-specificity collisions fail closed.
+
 When metadata points to a Futuruna declaration or member rather than an external
 data field, use `refof` and declare the metadata field as `ProgramReference`:
 

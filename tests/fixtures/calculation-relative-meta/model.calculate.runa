@@ -1,0 +1,7 @@
+@ import ./domain
+
+# ImportedInput(primary: ImportedChild, children: List(ImportedChild))
+# ImportedResult(value: Int)
+
+@ calculate
+| calculate_imported_relative_metadata(input: ImportedInput) -> ImportedResult(value = 0)

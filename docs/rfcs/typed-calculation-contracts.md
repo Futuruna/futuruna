@@ -218,10 +218,11 @@ Roles such as `source`, `warning`, `label`, `unit`, and `help` remain general
 conventions.
 
 The calculation adapter additionally recognizes a `field` reference when its
-meta-anchor label is the calculation entry or its code span contains that entry.
-The referenced pure ground record uses named fields:
+meta-anchor label is the calculation entry or a reachable input type, or when
+its code span contains either kind of symbol. The referenced pure ground record
+uses named fields:
 
-- `path: String` and `label: String` are required;
+- `path: String | ProgramReference` and `label: String` are required;
 - `question`, `help`, and `unit` are optional string values;
 - other fields are rejected so misspelled presentation data does not disappear.
 
@@ -239,6 +240,43 @@ collections to their element or value type, and requires explicit sum-type
 constructor selectors. A terminal `$variant` segment names the discriminator.
 It lowers to the same canonical path string before metadata serialization, so
 it neither changes the contract schema nor invalidates legacy literal paths.
+
+Reusable metadata for a nested domain type may instead declare `path` as a
+`ProgramReference` and use `refof(DomainType::field::nested_field)`. The
+reference retains its checked root type. Contract extraction projects the
+relative member path onto every layout-reachable occurrence of that root type
+in the calculation input, including occurrences under records, alternatives,
+and normalized collections. Metadata attached to the domain type's
+label is imported whenever that type is reachable, so the domain module does
+not need to know the outer calculation entry:
+
+```runa
+# Child(age: Int)
+# Household(primary: Child, dependents: List(Child))
+# TaxInput(household: Household)
+# RelativeField(path: ProgramReference, label: String)
+# RelativeMeta(fields: List(RelativeField))
+# impl Meta for RelativeMeta {}
+
+= child_meta = RelativeMeta(fields = [
+    RelativeField(path = refof(Child::age), label = "Child age")
+])
+
+--@label:Child::meta:child_meta--
+```
+
+The example produces metadata for both `household.primary.age` and
+`household.dependents.age`. A string or `pathof(...)` target is exact, as is a
+`refof(...)` rooted at the calculation's input type. Exact metadata overrides
+projected metadata for the same canonical path. Two applicable declarations at
+the same specificity are ambiguous and fail contract extraction. A typed path
+must be a structural `ProgramMemberReference`; references to rules, functions,
+bindings, or unrelated types are rejected.
+
+An optional composite remains one canonical JSON layout field in contract v1,
+so its internal members are not separate projection targets. Metadata may
+describe that JSON field exactly; flattening optional composites would require
+an adapter encoding for presence and is outside this contract version.
 
 Field metadata cannot add requiredness, alternatives, defaults, or constraints
 that contradict the Futuruna type. It is nevertheless part of the contract hash,
