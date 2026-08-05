@@ -3,15 +3,16 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-ed02d8` (ABL § 13 A's egen- og ægtefællemodregning afledes nu ved den kanoniske Personskat-pargrænse; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-699438` (typede ABL § 17-kildefakta, undtagelser og modprøver afledes nu ved den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-699438` (før den typede ABL § 17-klassifikation gennem den kanoniske Personskat-beregning)
+Next source-backed slice: `td-0b0a4b` (før ABL §§ 35 G-35 K's valg og vedvarende overdragerskat gennem den kanoniske årsberegning)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
+Planned canonical KGL § 32 composition: `td-86bd9a` (typede kontrakt- og historikfakta med ABL-afledt relation gennem Personskat)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
@@ -3538,7 +3539,7 @@ Review candidates to revisit deliberately, not as broad churn:
   7.250 til den valgte skatteyder. En omvendt oplyst
   grænsehændelsesliste fejler desuden lukket, selv om de afledte
   rettighedsgrænser sorteres ved sammenfletningen. Den kanoniske kontrakt
-  har 1.364 felter i alt, heraf 261 § 53 A-feltmetadata-poster, og fjorten
+  har 1.605 feltmetadata-poster i alt, heraf 261 § 53 A-poster, og fjorten
   relationelle § 53 A-ark; XLSX og JSON afstemmer samme tre ordninger, en senere
   erhvervelse med en fuld rettighedsovergang, et dateret overgangsvalg, en
   afvist ny blanket i det historiske spor og fem årsoptegnelser. Den kanoniske
@@ -3665,8 +3666,8 @@ Review candidates to revisit deliberately, not as broad churn:
   beregnede startkilometer. Hvis blot én sag er ugyldig, rækkefølgen har huller,
   eller identifikationerne ikke er entydige, er alle samlede § 9 B-beløb nul,
   mens delresultaterne forbliver synlige.
-- Det genererede Personskat-regneark har nu 631 nåbare definitioner, 167
-  synlige overskriftsceller inklusive `case_id` og 92 relationelle kildeark.
+- Det genererede Personskat-regneark afledes nu fra en kontrakt med 971 nåbare
+  definitioner og 1.605 eksplicitte menneskelige feltmetadata-poster.
   XLSX/JSON-
   roundtrip fastholder den almindelige København-beregning, årsopgørelsen, en
   kildebaseret § 17-gevinst, rente-/fradragssagen med en relateret
@@ -3698,8 +3699,8 @@ Review candidates to revisit deliberately, not as broad churn:
   0/0/19.500, holder arbejdsgivernes grænser adskilt, summerer 83.880 kr.
   skattefrit og 400 kr. som AM-bidragspligtig løn og giver samme fulde
   beregningsspor fra XLSX og kanonisk JSON.
-  Kontrakten har 1.364 eksplicitte menneskelige feltmetadata-poster og
-  interviewspørgsmål. De dækker nu også genanbringelsesvalg, centrale
+  Feltmetadataen og interviewspørgsmålene dækker nu også genanbringelsesvalg,
+  centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
   anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
@@ -3856,6 +3857,29 @@ Review candidates to revisit deliberately, not as broad churn:
   `td-85ed17` separately tracks § 44, stk. 3's deemed acquisition basis after a
   status change and the typed lineage for bonus shares under stk. 2; this slice
   does not claim those gain/loss mechanics are complete.
+- Den typede ABL § 17-model er nu ført gennem den kanoniske Personskat-grænse
+  under `td-699438`. Den direkte gren modtager år, et kildegrundlag efter ABL
+  §§ 6-7, næringsstatus, instrument, erhvervelsesstatus og beløb. Reglerne
+  afleder selv § 6/§ 7-resultatet og hele § 17-resultatet, herunder stk. 1,
+  tabsafskæringen i stk. 2, minimumsbeviser i stk. 3, undtagelserne i stk. 4,
+  § 23-broen og relationen til KGL § 32. Personskat accepterer kun den afledte
+  § 7-persongren og afviser et ellers gyldigt § 6-selskabsresultat ved
+  borgergrænsen.
+  Den øvrige ABL-gren kræver en separat typet § 17-modprøvekilde for de
+  effektive §§ 19 B, 19 C, 21 og 22. År, beløb, instrument og effektiv
+  aktivklasse skal stemme, og en post, som faktisk omfattes af § 17, skal bruge
+  den direkte gren. `AblNæringsaktiePar17` og de tidligere løse
+  `par17_modprøve`-felter kan derfor ikke vælges i den kanoniske arbejdsbog.
+  Resultatet bevarer både det fulde `AktieavancePar17Resultat` og den afledte
+  `KursgevinstPar32Kontraktrelation`, så klassifikationen kan auditeres og
+  anvendes af en særskilt kontraktkilde uden at gøre aktieposten til en
+  KGL-kontrakt. `td-86bd9a` følger op med den manglende kanoniske
+  KGL § 32-kontraktgrænse og dens års- og ægtefælleforløb.
+  Alle 25 kanoniske scenarier og alle 15 fokuserede § 17-scenarier passerer
+  kompileret. Den fulde XLSX-rundtur udfylder kildefakta for en § 17-gevinst på
+  7.000 kr., gendanner samme kanoniske JSON og returnerer den afledte § 7-status,
+  § 17-anvendelse og KGL § 32-relation. Det aktuelle skema har hash
+  `e7a63e73e5c8943ea7d69588a3eea69423551347b8ee6a2715fe3c10aea6b09f`.
 - `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
   completion boundary is one typed `@ calculate` input graph that reaches every
   required and optional fact in the supported full-law calculation. The XLSX
@@ -3914,10 +3938,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Route the typed ABL § 17 source classification through the canonical
-  Personskat boundary under `td-699438`. Keep the ordinary § 17 counter-test and
-  its legal source facts inside the ABL result rather than reintroducing a raw
-  caller-selected income category.
+- Compose ABL §§ 35 G-35 K's source-backed employee-ownership election and
+  persistent transferor-tax ledger into the canonical annual Personskat graph
+  under `td-0b0a4b`. Keep elections, events, due tax and year-end state typed
+  and ordered; do not replace the lifecycle with caller-supplied tax results.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

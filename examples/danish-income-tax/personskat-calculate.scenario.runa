@@ -576,14 +576,42 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     særlige_aktiver = [],
     udbytter = []
 )))
+| personskat_calculate_par17_kildefakta_fra_abl_input(input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatPar17Kildefakta(
+    indkomstår = input.indkomstår,
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    næringsstatus = input.par17_modprøve.næringsstatus,
+    instrument = instrument,
+    erhvervelsesstatus = input.par17_modprøve.erhvervelsesstatus,
+    afståelsessum_kroner = input.afståelsessum_kroner,
+    anskaffelsessum_kroner = input.anskaffelsessum_kroner
+)
+| personskat_calculate_øvrigt_særligt_aktiv_input_fra_abl(input: AktieavancebeskatningslovInput) -> PersonskatØvrigtSærligtAktieaktivInput(
+    indkomstår = input.indkomstår,
+    aktiv = input.aktiv,
+    afståelsessum_kroner = input.afståelsessum_kroner,
+    anskaffelsessum_kroner = input.anskaffelsessum_kroner,
+    koncernintern_konvertibel_eller_tegningsret = input.koncernintern_konvertibel_eller_tegningsret,
+    andelsforening_stiftet_før_22_maj_1987 = input.andelsforening_stiftet_før_22_maj_1987,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = input.afståelse_sker_for_at_undgå_likvidationsbeskatning,
+    investeringsklassifikation = input.investeringsklassifikation,
+    årets_netto_med_kgl_par14_23_kroner = input.årets_netto_med_kgl_par14_23_kroner
+)
+| personskat_calculate_øvrigt_særligt_aktiv_fra_abl(input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatSærligtAktieaktivFakta(
+    kilde = PersonskatØvrigtAktieaktiv(
+        input = personskat_calculate_øvrigt_særligt_aktiv_input_fra_abl(input),
+        par17_modprøvekilde = MedPar17Modprøvekilde(fakta = personskat_calculate_par17_kildefakta_fra_abl_input(input, instrument))
+    ),
+    markedsstatus = AblIkkeOptagetTilHandel
+)
+
 = personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [PersonskatSærligtAktieaktivFakta(input = abl19c_kapital_input, markedsstatus = AblIkkeOptagetTilHandel)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(abl19c_kapital_input, AblPar17UndtagetEfterPar19C)],
     udbytter = []
 )))
 = personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [PersonskatSærligtAktieaktivFakta(input = abl19c_hvis17_input, markedsstatus = AblIkkeOptagetTilHandel)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(abl19c_hvis17_input, AblPar17UndtagetEfterPar19C)],
     udbytter = []
 )))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
@@ -603,9 +631,54 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [PersonskatSærligtAktieaktivFakta(input = personskat_calculate_ugyldig_22_input, markedsstatus = AblIkkeOptagetTilHandel)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(personskat_calculate_ugyldig_22_input, AblPar17InvesteringsbevisIMinimumsinstitut)],
     udbytter = []
 )))
+| personskat_calculate_par17_kildefakta(skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> PersonskatPar17Kildefakta(
+    indkomstår = 2026,
+    skattepligtsgrundlag = skattepligtsgrundlag,
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+    instrument = instrument,
+    erhvervelsesstatus = erhvervelsesstatus,
+    afståelsessum_kroner = afståelsessum_kroner,
+    anskaffelsessum_kroner = anskaffelsessum_kroner
+)
+| personskat_calculate_resultat_med_par17_kildefakta(fakta: PersonskatPar17Kildefakta) -> beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+        kilde = PersonskatAktieaktivEfterPar17(fakta = fakta),
+        markedsstatus = AblIkkeOptagetTilHandel
+    )],
+    udbytter = []
+)))
+= personskat_calculate_par17_stk1_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 37000,
+    anskaffelsessum_kroner = 30000
+))
+= personskat_calculate_par17_stk2_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    instrument = AblPar17KoncerninternKonvertibelObligation,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 10000,
+    anskaffelsessum_kroner = 30000
+))
+= personskat_calculate_par17_stk3_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    instrument = AblPar17InvesteringsbevisIMinimumsinstitut,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 45000,
+    anskaffelsessum_kroner = 30000
+))
+= personskat_calculate_par17_par6_afvist_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
+    skattepligtsgrundlag = AblPar6EfterSelskabsskatteloven,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 40000,
+    anskaffelsessum_kroner = 30000
+))
 
 | personskat_calculate_almindeligt_udbytte(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
     identifikation = identifikation,
@@ -968,8 +1041,36 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | _ -> Falskt
 }
 | personskat_calculate_abl_par15_boligret_afledes: personskat_calculate_boligret_resultat -> personskat_calculate_boligret_resultat.aktieavance.alle_input_gyldige && personskat_calculate_boligret_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_boligret_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_boligret_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_boligret_spor_er_skattefrit(personskat_calculate_boligret_resultat.aktieavance.ordinært_aktieår)
-| personskat_calculate_19c_kapital_afledes: personskat_calculate_19c_kapital_resultat -> personskat_calculate_19c_kapital_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_kapital_resultat.aktieavance.kapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.nettokapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
-| personskat_calculate_19c_personlig_afledes_uden_am: personskat_calculate_19c_personlig_resultat -> personskat_calculate_19c_personlig_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_personlig_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.personlig_indkomst_efter_am_kroner == 559000 && personskat_calculate_19c_personlig_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_calculate_19c_kapital_afledes: personskat_calculate_19c_kapital_resultat -> personskat_calculate_19c_kapital_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_kapital_resultat.aktieavance.kapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.nettokapitalindkomst_kroner == 12000 && personskat_calculate_19c_kapital_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && head(personskat_calculate_19c_kapital_resultat.aktieavance.særlige_resultater).kgl_par32_kontraktrelation == KglPar32AlmindeligKontrakt && match head(personskat_calculate_19c_kapital_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.undtaget_efter_stk4 && par17_resultat.ville_være_omfattet_uden_investeringsstatus == Falskt && par17_resultat.reglen_finder_anvendelse == Falskt
+    | None -> Falskt
+}
+| personskat_calculate_19c_personlig_afledes_uden_am: personskat_calculate_19c_personlig_resultat -> personskat_calculate_19c_personlig_resultat.aktieavance.alle_input_gyldige && personskat_calculate_19c_personlig_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_19c_personlig_resultat.skat.personlig_indkomst_efter_am_kroner == 559000 && personskat_calculate_19c_personlig_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && head(personskat_calculate_19c_personlig_resultat.aktieavance.særlige_resultater).kgl_par32_kontraktrelation == KglPar32AktiekontraktEfterAbl17 && match head(personskat_calculate_19c_personlig_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.undtaget_efter_stk4 && par17_resultat.ville_være_omfattet_uden_investeringsstatus && par17_resultat.reglen_finder_anvendelse == Falskt
+    | None -> Falskt
+}
+| personskat_calculate_par17_stk1_afledes_til_personlig_indkomst: personskat_calculate_par17_stk1_resultat -> personskat_calculate_par17_stk1_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par17_stk1_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_par17_stk1_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_par17_stk1_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && head(personskat_calculate_par17_stk1_resultat.aktieavance.særlige_resultater).kgl_par32_kontraktrelation == KglPar32AktiekontraktEfterAbl17 && match head(personskat_calculate_par17_stk1_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.omfattet_af_stk1 && par17_resultat.skattepligtig_gevinst_kroner == 7000 && match par17_resultat.par23_bro {
+        | AblPar17Par23Bro(skattepligtsresultat, aktiv) -> skattepligtsresultat.omfattet_af_par7 && aktiv == AblPar17Næringsaktiv
+        | AblPar17IngenPar23Bro -> Falskt
+    }
+    | None -> Falskt
+}
+| personskat_calculate_par17_stk2_afskærer_koncerninternt_tab: personskat_calculate_par17_stk2_resultat -> personskat_calculate_par17_stk2_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par17_stk2_resultat.aktieavance.personlig_indkomst_kroner == 0 && match head(personskat_calculate_par17_stk2_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.omfattet_af_stk1 && par17_resultat.tab_afskåret_efter_stk2 && par17_resultat.bruttotab_kroner == 20000 && par17_resultat.fradragsberettiget_tab_kroner == 0 && par17_resultat.tab_afskåret_kroner == 20000
+    | None -> Falskt
+}
+| personskat_calculate_par17_stk3_minimumsbevis_afledes: personskat_calculate_par17_stk3_resultat -> personskat_calculate_par17_stk3_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par17_stk3_resultat.aktieavance.personlig_indkomst_kroner == 15000 && match head(personskat_calculate_par17_stk3_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.omfattet_af_stk1 == Falskt && par17_resultat.omfattet_af_stk3 && match par17_resultat.par23_bro {
+        | AblPar17Par23Bro(skattepligtsresultat, aktiv) -> skattepligtsresultat.omfattet_af_par7 && aktiv == AblPar17Stk3Investeringsbevis
+        | AblPar17IngenPar23Bro -> Falskt
+    }
+    | None -> Falskt
+}
+| personskat_calculate_par17_par6_afvises_ved_personskatgrænsen: personskat_calculate_par17_par6_afvist_resultat -> personskat_calculate_par17_par6_afvist_resultat.aktieavance.alle_input_gyldige == Falskt && personskat_calculate_par17_par6_afvist_resultat.aktieavance.personlig_indkomst_kroner == 0 && match head(personskat_calculate_par17_par6_afvist_resultat.aktieavance.særlige_resultater).par17_resultat {
+    | Some(par17_resultat) -> par17_resultat.input_gyldigt && par17_resultat.omfattet_af_stk1 && par17_resultat.input.skatteyder.skattepligtsresultat.omfattet_af_par6
+    | None -> Falskt
+}
 | personskat_calculate_ugyldig_abl_kæde_afvises_samlet: personskat_calculate_ugyldig_resultat -> personskat_calculate_ugyldig_resultat.aktieavance.alle_input_gyldige == Falskt && personskat_calculate_ugyldig_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
 | personskat_calculate_par13a_ægtefælleoverførsel_afledes_fra_begge_personer: personskat_calculate_par13a_ægtefælleoverførsel_resultat -> personskat_calculate_par13a_hovedresultat(personskat_calculate_par13a_ægtefælleoverførsel_resultat, 12000, 38000) && personskat_calculate_par13a_ægtefælleresultat(personskat_calculate_par13a_ægtefælleoverførsel_resultat, 12000, 0)
 | personskat_calculate_par13a_uden_samliv_fremfører_tabet: personskat_calculate_par13a_uden_samliv_resultat -> personskat_calculate_par13a_hovedresultat(personskat_calculate_par13a_uden_samliv_resultat, 0, 50000) && personskat_calculate_par13a_ægtefælleresultat(personskat_calculate_par13a_uden_samliv_resultat, 0, 12000)
@@ -1021,6 +1122,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_abl_par15_boligret_afledes
 ? personskat_calculate_19c_kapital_afledes
 ? personskat_calculate_19c_personlig_afledes_uden_am
+? personskat_calculate_par17_stk1_afledes_til_personlig_indkomst
+? personskat_calculate_par17_stk2_afskærer_koncerninternt_tab
+? personskat_calculate_par17_stk3_minimumsbevis_afledes
+? personskat_calculate_par17_par6_afvises_ved_personskatgrænsen
 ? personskat_calculate_ugyldig_abl_kæde_afvises_samlet
 ? personskat_calculate_par13a_ægtefælleoverførsel_afledes_fra_begge_personer
 ? personskat_calculate_par13a_uden_samliv_fremfører_tabet

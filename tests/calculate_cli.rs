@@ -2698,15 +2698,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
-            "input.aktiv",
-            "input.par17_modprøve.næringsstatus",
-            "input.par17_modprøve.erhvervelsesstatus",
-            "input.investeringsklassifikation.$variant",
+            "kilde.$variant",
+            "kilde.PersonskatAktieaktivEfterPar17.fakta.skattepligtsgrundlag",
+            "kilde.PersonskatAktieaktivEfterPar17.fakta.instrument",
+            "kilde.PersonskatØvrigtAktieaktiv.input.aktiv",
+            "kilde.PersonskatØvrigtAktieaktiv.par17_modprøvekilde.$variant",
+            "kilde.PersonskatØvrigtAktieaktiv.par17_modprøvekilde.MedPar17Modprøvekilde.fakta.næringsstatus",
+            "kilde.PersonskatØvrigtAktieaktiv.input.investeringsklassifikation.$variant",
             "markedsstatus",
         ] {
             assert!(
                 special_asset_paths.iter().any(|path| path == expected),
                 "missing canonical source-level ABL input path {expected}"
+            );
+        }
+        for forbidden in [
+            "input.aktiv",
+            "input.par17_modprøve.næringsstatus",
+            "input.par17_modprøve.erhvervelsesstatus",
+        ] {
+            assert!(
+                !special_asset_paths.iter().any(|path| path == forbidden),
+                "legacy caller-selected ABL § 17 path {forbidden} leaked into the canonical workbook"
             );
         }
         assert_eq!(
@@ -2715,12 +2728,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
-            "Det særlige aktivs indkomstår",
-            "Det særlige aktivs ABL-kategori",
-            "Det særlige aktivs afståelsessum",
-            "Det særlige aktivs anskaffelsessum",
-            "Næring med køb og salg af det særlige aktiv",
-            "Det særlige aktiv erhvervet som led i næring",
+            "Det særlige aktivs retsgrundlag",
+            "§ 17-kildens indkomstår",
+            "Skattepligtsgrundlag efter ABL §§ 6-7",
+            "Næring ved køb og salg af aktier",
+            "Instrument prøvet efter ABL § 17",
+            "Aktivet erhvervet som led i næring",
+            "§ 17-aktivets afståelsessum",
+            "§ 17-aktivets anskaffelsessum",
+            "§ 17-modprøve for investeringsaktiv",
+            "Det øvrige aktivs ABL-kategori",
             "Det særlige aktivs investeringsklassifikation",
             "Årets netto efter KGL §§ 14-23",
             "Det særlige aktivs markedsstatus",
@@ -6831,40 +6848,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("abl-par17-1".to_string())),
             ("position", Data::Int(1)),
-            ("input.indkomstår", Data::Int(2026)),
             (
-                "input.aktiv",
-                Data::String("AblNæringsaktiePar17".to_string()),
+                "kilde.$variant",
+                Data::String("PersonskatAktieaktivEfterPar17".to_string()),
             ),
-            ("input.afståelsessum_kroner", Data::Int(37_000)),
-            ("input.anskaffelsessum_kroner", Data::Int(30_000)),
             (
-                "input.par17_modprøve.næringsstatus",
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.skattepligtsgrundlag",
+                Data::String("AblPar7PersonEfterKildeskatteloven".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.næringsstatus",
                 Data::String("AblPar17UdøverNæringVedKøbOgSalgAfAktier".to_string()),
             ),
             (
-                "input.par17_modprøve.erhvervelsesstatus",
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.instrument",
+                Data::String("AblPar17AlmindeligAktie".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.erhvervelsesstatus",
                 Data::String("AblPar17ErhvervetSomLedINæringsvej".to_string()),
             ),
             (
-                "input.koncernintern_konvertibel_eller_tegningsret",
-                Data::Bool(false),
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.afståelsessum_kroner",
+                Data::Int(37_000),
             ),
             (
-                "input.andelsforening_stiftet_før_22_maj_1987",
-                Data::Bool(false),
-            ),
-            (
-                "input.afståelse_sker_for_at_undgå_likvidationsbeskatning",
-                Data::Bool(false),
-            ),
-            (
-                "input.investeringsklassifikation.$variant",
-                Data::String("AblIngenInvesteringsklassifikation".to_string()),
-            ),
-            (
-                "input.årets_netto_med_kgl_par14_23_kroner",
-                Data::Int(7_000),
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.anskaffelsessum_kroner",
+                Data::Int(30_000),
             ),
             (
                 "markedsstatus",
@@ -7055,26 +7069,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "aktieavance": {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
             "særlige_aktiver": [{
-                "input": {
-                    "indkomstår": 2026,
-                    "aktiv": { "$variant": "AblNæringsaktiePar17" },
-                    "afståelsessum_kroner": 37_000,
-                    "anskaffelsessum_kroner": 30_000,
-                    "par17_modprøve": {
+                "kilde": {
+                    "$variant": "PersonskatAktieaktivEfterPar17",
+                    "fakta": {
+                        "indkomstår": 2026,
+                        "skattepligtsgrundlag": {
+                            "$variant": "AblPar7PersonEfterKildeskatteloven"
+                        },
                         "næringsstatus": {
                             "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
                         },
+                        "instrument": { "$variant": "AblPar17AlmindeligAktie" },
                         "erhvervelsesstatus": {
                             "$variant": "AblPar17ErhvervetSomLedINæringsvej"
-                        }
-                    },
-                    "koncernintern_konvertibel_eller_tegningsret": false,
-                    "andelsforening_stiftet_før_22_maj_1987": false,
-                    "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
-                    "investeringsklassifikation": {
-                        "$variant": "AblIngenInvesteringsklassifikation"
-                    },
-                    "årets_netto_med_kgl_par14_23_kroner": 7_000
+                        },
+                        "afståelsessum_kroner": 37_000,
+                        "anskaffelsessum_kroner": 30_000
+                    }
                 },
                 "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" }
             }],
@@ -9126,6 +9137,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][1]["result"]["aktieavance"]["personlig_indkomst_kroner"],
         7_000
+    );
+    assert_eq!(
+        result["results"][1]["result"]["aktieavance"]["særlige_resultater"][0]["par17_resultat"]
+            ["omfattet_af_stk1"],
+        true
+    );
+    assert_eq!(
+        result["results"][1]["result"]["aktieavance"]["særlige_resultater"][0]["par17_resultat"]
+            ["input"]["skatteyder"]["skattepligtsresultat"]["grundlag"]["$variant"],
+        "AblPar7PersonEfterKildeskatteloven"
+    );
+    assert_eq!(
+        result["results"][1]["result"]["aktieavance"]["særlige_resultater"][0]
+            ["kgl_par32_kontraktrelation"]["$variant"],
+        "KglPar32AktiekontraktEfterAbl17"
     );
     assert_eq!(
         result["results"][1]["result"]["skat"]["øvrig_personlig_indkomst_kroner"],

@@ -16,6 +16,7 @@
 @ importer ./personskat - virksomhedskapital - kildefakta
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
+@ importer ./aktieavancebeskatningsloven - par17
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
 # PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, årsopgørelse: årsopgørelse)
@@ -129,8 +130,12 @@
 # PersonskatUdbytteAktiv = PersonskatAlmindeligAktie | PersonskatAndelsbevis(forrentning: AndelsforeningUdlodning) | PersonskatMedarbejderejeandel
 # PersonskatUdbytteFakta(identifikation: Tekst, udlodder: Ligningslov16AOrdinærUdlodder, modtager: Ligningslov16AOrdinærModtager, aktiv: PersonskatUdbytteAktiv, beløb_kroner: Heltal, par13a_kildefakta: AktieavancePar13AUdbytteKildefakta)
 # PersonskatUdbytteResultat(fakta: PersonskatUdbytteFakta, identifikation_unik: Boolsk, aktiv_og_retsforhold_forenelige: Boolsk, par13a_kilderesultat: AktieavancePar13AUdbytteKilderesultat, par13a_kildefakta_og_aktiv_forenelige: Boolsk, ligningslov16a_resultat: Ligningslov16AOrdinærUdlodningsresultat, input_gyldigt: Boolsk, par4_input: Par4Stk1Nr4Input, par4_resultat: Par4Stk1Nr4Resultat, par4a_resultat: Par4aAktiepostResultat)
-# PersonskatSærligtAktieaktivFakta(input: AktieavancebeskatningslovInput, markedsstatus: AktieavanceOrdinærMarkedsstatus)
-# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk)
+# PersonskatPar17Kildefakta(indkomstår: Heltal, skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, næringsstatus: AktieavancePar17Næringsstatus, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
+# PersonskatPar17Modprøvekilde = UdenPar17Modprøvekilde | MedPar17Modprøvekilde(fakta: PersonskatPar17Kildefakta)
+# PersonskatØvrigtSærligtAktieaktivInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
+# PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde)
+# PersonskatSærligtAktieaktivFakta(kilde: PersonskatSærligtAktieaktivKilde, markedsstatus: AktieavanceOrdinærMarkedsstatus)
+# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, par17_resultat: Option(AktieavancePar17Resultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, input_gyldigt: Boolsk)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
 # PersonskatAktieavanceForberedelse(input: PersonskatAktieavanceInput, skatteår: Heltal, særlige_resultater: List(PersonskatSærligtAktieaktivResultat), udbytter: List(PersonskatUdbytteResultat), særlige_aktiver_gyldige: Boolsk, udbytter_gyldige: Boolsk, modregningsgrundlag_efter_par13a: AktieavanceOrdinærPar13AModregningsgrundlag)
@@ -4122,7 +4127,14 @@
     path = refof(PersonskatAktieavanceInput::særlige_aktiver),
     label = "Andre aktiver efter aktieavancebeskatningsloven",
     question = Some("Har du gevinster eller tab på investeringsselskaber, investeringsbeviser eller andre særlige ABL-aktiver?"),
-    help = Some("Tilføj hvert aktiv som en særskilt kildepost. Markedsstatus bruges sammen med den afledte ABL-klassifikation til modregning efter § 13 A."),
+    help = Some("Tilføj hvert aktiv som en særskilt kildepost. Vælg § 17-grenen for et næringsaktiv og den øvrige gren for investeringsaktiver, hvor en eventuel § 17-modprøve afledes særskilt."),
+    unit = None
+)
+= personskat_felt_særligt_aktieaktiv_kilde = TypetBeregningsfelt(
+    path = refof(PersonskatSærligtAktieaktivFakta::kilde::$variant),
+    label = "Det særlige aktivs retsgrundlag",
+    question = Some("Skal aktivet behandles direkte efter ABL § 17, eller efter en anden ABL-bestemmelse med en særskilt § 17-modprøve?"),
+    help = Some("Futuruna afleder § 17-resultatet fra kildefakta. Vælg ikke en indkomstkategori eller et færdigt § 17-resultat."),
     unit = None
 )
 = personskat_felt_særligt_aktieaktiv_markedsstatus = TypetBeregningsfelt(
@@ -4132,57 +4144,99 @@
     help = Some("Kun en af lovens to markedsgrene kan give en § 19 B-nettogevinst plads i modregningsgrundlaget efter ABL § 13 A."),
     unit = None
 )
-= personskat_felt_særligt_aktieaktiv_indkomstår = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::indkomstår),
-    label = "Det særlige aktivs indkomstår",
-    question = Some("Hvilket indkomstår vedrører afståelsen af det særlige aktiv?"),
+= personskat_felt_par17_kildefakta_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::indkomstår),
+    label = "§ 17-kildens indkomstår",
+    question = Some("Hvilket indkomstår vedrører § 17-vurderingen?"),
     help = Some("Året skal være det samme som personskatteberegningens skatteår."),
     unit = Some("år")
 )
-= personskat_felt_særligt_aktieaktiv_aktiv = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::aktiv),
-    label = "Det særlige aktivs ABL-kategori",
-    question = Some("Hvilken kildekategori efter aktieavancebeskatningsloven beskriver aktivet?"),
-    help = Some("Vælg den dokumenterede grundkategori; Futuruna udleder den effektive skattemæssige behandling."),
+= personskat_felt_par17_kildefakta_skattepligtsgrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::skattepligtsgrundlag),
+    label = "Skattepligtsgrundlag efter ABL §§ 6-7",
+    question = Some("Er skatteyderen en person efter kildeskatteloven, et dødsbo eller omfattet af selskabs- eller fondsbeskatningsloven?"),
+    help = Some("Den kanoniske Personskat-beregning accepterer kun en person efter kildeskatteloven, men bevarer den typede § 6/§ 7-afgrænsning i sporet."),
     unit = None
 )
-= personskat_felt_særligt_aktieaktiv_afståelsessum = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::afståelsessum_kroner),
-    label = "Det særlige aktivs afståelsessum",
-    question = Some("Hvad var den dokumenterede afståelsessum for det særlige aktiv?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_felt_særligt_aktieaktiv_anskaffelsessum = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::anskaffelsessum_kroner),
-    label = "Det særlige aktivs anskaffelsessum",
-    question = Some("Hvad var den dokumenterede anskaffelsessum for det særlige aktiv?"),
-    help = None,
-    unit = Some("kr.")
-)
-= personskat_felt_særligt_aktieaktiv_næringsstatus = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::par17_modprøve::næringsstatus),
-    label = "Næring med køb og salg af det særlige aktiv",
+= personskat_felt_par17_kildefakta_næringsstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::næringsstatus),
+    label = "Næring ved køb og salg af aktier",
     question = Some("Udøver personen næring ved køb og salg af aktier?"),
-    help = Some("Næringsstatus indgår i modprøven efter ABL § 17."),
+    help = Some("Dette er et faktisk skatteyderforhold. Futuruna afleder selv, om § 17 finder anvendelse på det konkrete aktiv."),
     unit = None
 )
-= personskat_felt_særligt_aktieaktiv_erhvervelsesstatus = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::par17_modprøve::erhvervelsesstatus),
-    label = "Det særlige aktiv erhvervet som led i næring",
-    question = Some("Blev det særlige aktiv erhvervet som led i personens næringsvej?"),
-    help = Some("Det konkrete erhvervelsesforhold indgår i modprøven efter ABL § 17."),
+= personskat_felt_par17_kildefakta_instrument = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::instrument),
+    label = "Instrument prøvet efter ABL § 17",
+    question = Some("Hvilken konkret instrumenttype skal prøves efter ABL § 17?"),
+    help = Some("Instrumenttypen gør stk. 2, stk. 3 og undtagelserne i stk. 4 maskinelt efterprøvelige."),
     unit = None
 )
-= personskat_felt_særligt_aktieaktiv_investeringsklassifikation = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::investeringsklassifikation::$variant),
+= personskat_felt_par17_kildefakta_erhvervelsesstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::erhvervelsesstatus),
+    label = "Aktivet erhvervet som led i næring",
+    question = Some("Blev det konkrete aktiv erhvervet som led i skatteyderens næringsvej?"),
+    help = Some("Stk. 1 kræver både aktienæring og en konkret næringsanskaffelse; stk. 3 prøves særskilt."),
+    unit = None
+)
+= personskat_felt_par17_kildefakta_afståelsessum = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::afståelsessum_kroner),
+    label = "§ 17-aktivets afståelsessum",
+    question = Some("Hvad var den dokumenterede afståelsessum for aktivet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par17_kildefakta_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Kildefakta::anskaffelsessum_kroner),
+    label = "§ 17-aktivets anskaffelsessum",
+    question = Some("Hvad var den dokumenterede anskaffelsessum for aktivet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par17_modprøvekilde = TypetBeregningsfelt(
+    path = refof(PersonskatPar17Modprøvekilde::$variant),
+    label = "§ 17-modprøve for investeringsaktiv",
+    question = Some("Kræver investeringsaktivets personskattebehandling en modprøve af, om det ville være omfattet af ABL § 17?"),
+    help = Some("§ 19 B, § 19 C, § 21 og § 22 kræver den typede kilde. Futuruna afviser et manuelt valgt modprøveresultat."),
+    unit = None
+)
+= personskat_felt_øvrigt_særligt_aktieaktiv_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::indkomstår),
+    label = "Det øvrige ABL-aktivs indkomstår",
+    question = Some("Hvilket indkomstår vedrører afståelsen af aktivet?"),
+    help = Some("Året skal være det samme som personskatteberegningens skatteår."),
+    unit = Some("år")
+)
+= personskat_felt_øvrigt_særligt_aktieaktiv_aktiv = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::aktiv),
+    label = "Det øvrige aktivs ABL-kategori",
+    question = Some("Hvilken dokumenteret grundkategori efter aktieavancebeskatningsloven beskriver aktivet?"),
+    help = Some("AblNæringsaktiePar17 afvises her; brug den direkte § 17-kildegren i stedet."),
+    unit = None
+)
+= personskat_felt_øvrigt_særligt_aktieaktiv_afståelsessum = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::afståelsessum_kroner),
+    label = "Det øvrige aktivs afståelsessum",
+    question = Some("Hvad var den dokumenterede afståelsessum for aktivet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_øvrigt_særligt_aktieaktiv_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::anskaffelsessum_kroner),
+    label = "Det øvrige aktivs anskaffelsessum",
+    question = Some("Hvad var den dokumenterede anskaffelsessum for aktivet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_øvrigt_særligt_aktieaktiv_investeringsklassifikation = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::investeringsklassifikation::$variant),
     label = "Det særlige aktivs investeringsklassifikation",
     question = Some("Skal aktivet klassificeres efter ABL §§ 19 B-19 C eller §§ 21-22, eller foreligger der ingen investeringsklassifikation?"),
     help = Some("Ved § 19 B skal meddelelse, aktivmasse og oplysninger dokumenteres, så Futuruna kan aflede den effektive status."),
     unit = None
 )
-= personskat_felt_særligt_aktieaktiv_kgl_netto = TypetBeregningsfelt(
-    path = refof(PersonskatSærligtAktieaktivFakta::input::årets_netto_med_kgl_par14_23_kroner),
+= personskat_felt_øvrigt_særligt_aktieaktiv_kgl_netto = TypetBeregningsfelt(
+    path = refof(PersonskatØvrigtSærligtAktieaktivInput::årets_netto_med_kgl_par14_23_kroner),
     label = "Årets netto efter KGL §§ 14-23",
     question = Some("Hvilket nettobeløb skal samordnes med aktivet efter kursgevinstlovens §§ 14-23?"),
     help = Some("Angiv 0, når aktivets behandling ikke kræver en sådan samordning."),
@@ -7762,15 +7816,22 @@
 = personskat_metadata_aktie_par13a_kildefakta = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_særlige_aktieaktiver),
+        Field(value = personskat_felt_særligt_aktieaktiv_kilde),
         Field(value = personskat_felt_særligt_aktieaktiv_markedsstatus),
-        Field(value = personskat_felt_særligt_aktieaktiv_indkomstår),
-        Field(value = personskat_felt_særligt_aktieaktiv_aktiv),
-        Field(value = personskat_felt_særligt_aktieaktiv_afståelsessum),
-        Field(value = personskat_felt_særligt_aktieaktiv_anskaffelsessum),
-        Field(value = personskat_felt_særligt_aktieaktiv_næringsstatus),
-        Field(value = personskat_felt_særligt_aktieaktiv_erhvervelsesstatus),
-        Field(value = personskat_felt_særligt_aktieaktiv_investeringsklassifikation),
-        Field(value = personskat_felt_særligt_aktieaktiv_kgl_netto),
+        Field(value = personskat_felt_par17_kildefakta_indkomstår),
+        Field(value = personskat_felt_par17_kildefakta_skattepligtsgrundlag),
+        Field(value = personskat_felt_par17_kildefakta_næringsstatus),
+        Field(value = personskat_felt_par17_kildefakta_instrument),
+        Field(value = personskat_felt_par17_kildefakta_erhvervelsesstatus),
+        Field(value = personskat_felt_par17_kildefakta_afståelsessum),
+        Field(value = personskat_felt_par17_kildefakta_anskaffelsessum),
+        Field(value = personskat_felt_par17_modprøvekilde),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_indkomstår),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_aktiv),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_afståelsessum),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_anskaffelsessum),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_investeringsklassifikation),
+        Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_kgl_netto),
         Field(value = personskat_felt_abl_aktivklassifikation_indkomstår),
         Field(value = personskat_felt_abl_aktivklassifikation_aktiv),
         Field(value = personskat_felt_abl_aktivklassifikation_næringsstatus),
@@ -7791,6 +7852,7 @@
         Field(value = personskat_felt_par44_historisk_undtagelse),
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
         Source(value = aktieavancebeskatningsloven_lbk1098_par44),
         DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
@@ -8602,13 +8664,92 @@
         aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat_fra_ordinaere_aktier(årsresultat.årsresultat)
     ))]
 }
-| personskat_særligt_aktieaktiv_resultat(fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal) -> {
-    = resultat = aktieavancebeskatningslov_resultat(fakta.input)
+| personskat_par17_input_fra_kildefakta(fakta: PersonskatPar17Kildefakta) -> AktieavancePar17Input(
+    indkomstår = fakta.indkomstår,
+    skatteyder = AktieavancePar17Skatteyder(
+        skattepligtsresultat = aktieavance_par6_par7_resultat(fakta.skattepligtsgrundlag),
+        næringsstatus = fakta.næringsstatus
+    ),
+    instrument = fakta.instrument,
+    erhvervelsesstatus = fakta.erhvervelsesstatus,
+    afståelsessum_kroner = fakta.afståelsessum_kroner,
+    anskaffelsessum_kroner = fakta.anskaffelsessum_kroner
+)
+| personskat_par17_resultat_fra_kildefakta(fakta: PersonskatPar17Kildefakta) -> aktieavance_par17_resultat(personskat_par17_input_fra_kildefakta(fakta))
+| personskat_par17_kildefakta_er_person(fakta: PersonskatPar17Kildefakta) -> fakta.skattepligtsgrundlag == AblPar7PersonEfterKildeskatteloven
+| personskat_par17_modprøve_fra_kildefakta(fakta: PersonskatPar17Kildefakta) -> AktieavancePar17Modprøve(
+    næringsstatus = fakta.næringsstatus,
+    erhvervelsesstatus = fakta.erhvervelsesstatus
+)
+| personskat_ingen_par17_modprøve() -> AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+| personskat_par17_modprøve_fra_kilde(kilde: PersonskatPar17Modprøvekilde) -> match kilde {
+    | UdenPar17Modprøvekilde -> personskat_ingen_par17_modprøve()
+    | MedPar17Modprøvekilde(fakta) -> personskat_par17_modprøve_fra_kildefakta(fakta)
+}
+| personskat_par17_resultat_fra_kilde(kilde: PersonskatPar17Modprøvekilde) -> match kilde {
+    | UdenPar17Modprøvekilde -> None
+    | MedPar17Modprøvekilde(fakta) -> Some(personskat_par17_resultat_fra_kildefakta(fakta))
+}
+| personskat_par17_kgl_relation_fra_kilde(kilde: PersonskatPar17Modprøvekilde) -> match kilde {
+    | UdenPar17Modprøvekilde -> KglPar32AlmindeligKontrakt
+    | MedPar17Modprøvekilde(fakta) -> personskat_par17_resultat_fra_kildefakta(fakta).kgl_par32_kontraktrelation
+}
+| personskat_øvrigt_særligt_aktieaktiv_abl_input(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøve: AktieavancePar17Modprøve) -> AktieavancebeskatningslovInput(
+    indkomstår = input.indkomstår,
+    aktiv = input.aktiv,
+    afståelsessum_kroner = input.afståelsessum_kroner,
+    anskaffelsessum_kroner = input.anskaffelsessum_kroner,
+    par17_modprøve = par17_modprøve,
+    koncernintern_konvertibel_eller_tegningsret = input.koncernintern_konvertibel_eller_tegningsret,
+    andelsforening_stiftet_før_22_maj_1987 = input.andelsforening_stiftet_før_22_maj_1987,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = input.afståelse_sker_for_at_undgå_likvidationsbeskatning,
+    investeringsklassifikation = input.investeringsklassifikation,
+    årets_netto_med_kgl_par14_23_kroner = input.årets_netto_med_kgl_par14_23_kroner
+)
+| personskat_øvrigt_aktiv_kræver_par17_modprøvekilde(effektiv_aktiv: AktieavancebeskatningslovAktiv) -> effektiv_aktiv == AblInvesteringsselskab19B || effektiv_aktiv == AblInvesteringsselskab19C || effektiv_aktiv == AblMinimumsbevis21 || effektiv_aktiv == AblMinimumsbevis22
+| personskat_par17_instrument_matcher_effektiv_aktiv(instrument: AktieavancePar17Instrument, effektiv_aktiv: AktieavancebeskatningslovAktiv) -> match effektiv_aktiv {
+    | AblInvesteringsselskab19A -> instrument == AblPar17UndtagetEfterPar19A
+    | AblInvesteringsselskab19B -> instrument == AblPar17UndtagetEfterPar19B
+    | AblInvesteringsselskab19C -> instrument == AblPar17UndtagetEfterPar19C
+    | AblMinimumsbevis21 -> instrument == AblPar17InvesteringsbevisIMinimumsinstitut
+    | AblMinimumsbevis22 -> instrument == AblPar17InvesteringsbevisIMinimumsinstitut
+    | _ -> Falskt
+}
+| personskat_par17_kildefakta_matcher_øvrigt_aktiv(fakta: PersonskatPar17Kildefakta, input: PersonskatØvrigtSærligtAktieaktivInput, resultat: AktieavancebeskatningslovResultat, par17_resultat: AktieavancePar17Resultat) -> personskat_par17_kildefakta_er_person(fakta) && fakta.indkomstår == input.indkomstår && fakta.afståelsessum_kroner == input.afståelsessum_kroner && fakta.anskaffelsessum_kroner == input.anskaffelsessum_kroner && par17_resultat.input_gyldigt && par17_resultat.reglen_finder_anvendelse == Falskt && personskat_par17_instrument_matcher_effektiv_aktiv(fakta.instrument, resultat.effektiv_aktiv)
+| personskat_øvrigt_aktiv_par17_kilde_gyldig(kilde: PersonskatPar17Modprøvekilde, input: PersonskatØvrigtSærligtAktieaktivInput, resultat: AktieavancebeskatningslovResultat, par17_resultat: Option(AktieavancePar17Resultat)) -> match kilde {
+    | UdenPar17Modprøvekilde -> personskat_øvrigt_aktiv_kræver_par17_modprøvekilde(resultat.effektiv_aktiv) == Falskt
+    | MedPar17Modprøvekilde(fakta) -> match par17_resultat {
+        | Some(afledt_par17_resultat) -> personskat_par17_kildefakta_matcher_øvrigt_aktiv(fakta, input, resultat, afledt_par17_resultat)
+        | None -> Falskt
+    }
+}
+| personskat_øvrigt_særligt_aktieaktiv_resultat(fakta: PersonskatSærligtAktieaktivFakta, input: PersonskatØvrigtSærligtAktieaktivInput, par17_kilde: PersonskatPar17Modprøvekilde, skatteår: Heltal) -> {
+    = par17_resultat = personskat_par17_resultat_fra_kilde(par17_kilde)
+    = abl_input = personskat_øvrigt_særligt_aktieaktiv_abl_input(input, personskat_par17_modprøve_fra_kilde(par17_kilde))
+    = resultat = aktieavancebeskatningslov_resultat(abl_input)
     PersonskatSærligtAktieaktivResultat(
         fakta = fakta,
         resultat = resultat,
-        input_gyldigt = fakta.input.indkomstår == skatteår && aktieavancebeskatningslov_input_gyldigt(fakta.input)
+        par17_resultat = par17_resultat,
+        kgl_par32_kontraktrelation = personskat_par17_kgl_relation_fra_kilde(par17_kilde),
+        input_gyldigt = input.indkomstår == skatteår && input.aktiv != AblNæringsaktiePar17 && aktieavancebeskatningslov_input_gyldigt(abl_input) && personskat_øvrigt_aktiv_par17_kilde_gyldig(par17_kilde, input, resultat, par17_resultat)
     )
+}
+| personskat_særligt_aktieaktiv_resultat(fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal) -> match fakta.kilde {
+    | PersonskatAktieaktivEfterPar17(par17_fakta) -> {
+        = par17_resultat = personskat_par17_resultat_fra_kildefakta(par17_fakta)
+        PersonskatSærligtAktieaktivResultat(
+            fakta = fakta,
+            resultat = par17_resultat.aktieavancebeskatningslov_resultat,
+            par17_resultat = Some(par17_resultat),
+            kgl_par32_kontraktrelation = par17_resultat.kgl_par32_kontraktrelation,
+            input_gyldigt = par17_fakta.indkomstår == skatteår && personskat_par17_kildefakta_er_person(par17_fakta) && par17_resultat.input_gyldigt && par17_resultat.reglen_finder_anvendelse
+        )
+    }
+    | PersonskatØvrigtAktieaktiv(input, par17_kilde) -> personskat_øvrigt_særligt_aktieaktiv_resultat(fakta, input, par17_kilde, skatteår)
 }
 | personskat_særlig_par4_kapitalpost(resultat: PersonskatSærligtAktieaktivResultat) -> par4_stk1_nr5_kapitalpost(Par4Stk1Nr5Input(aktieavancebeskatningslov_resultat = resultat.resultat))
 | personskat_særlig_par4a_aktiepost(resultat: PersonskatSærligtAktieaktivResultat) -> par4a_aktiepost(Par4aAktieavancebeskatningslovInput(aktieavancebeskatningslov_resultat = resultat.resultat))
