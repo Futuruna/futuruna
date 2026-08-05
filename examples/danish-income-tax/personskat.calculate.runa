@@ -6,6 +6,8 @@
 @ importer ./ejendomsskatteloven
 @ importer ./personskat - cfc - beregningsmeta
 @ importer ./personskat - cfc - kildefakta
+@ importer ./personskat - etableringskonto - beregningsmeta
+@ importer ./personskat - etableringskonto - kildefakta
 @ importer ./personskat - pbl53a - beregningsmeta
 @ importer ./personskat - pbl53a - kildefakta
 @ importer ./personskat - udenlandske - sociale - bidrag - beregningsmeta
@@ -27,6 +29,7 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
         DependencySource(value = ligningsloven_2025_1500),
         DependencySource(value = ligningsloven_par16a_lbk1500),
+        DependencySource(value = etableringskontoloven_lbk1307_par1_par4),
         AmendmentSource(value = ligningsloven_par16a_lov1755),
         DependencySource(value = ligningsloven_lbk1500_par9l),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par18),
@@ -93,7 +96,7 @@
 # PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
 # PersonskatPensionsResultat(pbl18_årsinput: Pbl18Årsinput, pbl18_årsresultat: Pbl18Årsresultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat, par3_stk2_nr3_resultat: Par3Stk2Nr3Resultat, lønmodtager_pensionsfradrag: LønmodtagerPensionsfradrag)
-# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | MedUnderskudshistorik(egne_tidligere_underskud_kroner: Heltal, aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
@@ -131,12 +134,12 @@
 # PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(AktieavancebeskatningslovResultat), udbytter: List(PersonskatUdbytteResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
 # PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput)
 # PersonskatÆgtefælleInput = UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk)
-# PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
+# PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -8453,14 +8456,14 @@
     )
 }
 
-# PersonskatPensionsSag(input: PersonskatPersonFakta, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
+# PersonskatPensionsSag(input: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, udbetalingsresultat: PersonskatPensionsudbetalingsresultat) {
     | lønmodtager_før_pensionsfradrag() -> LønmodtagerInput(
         skatteår = input.lønmodtager.skatteår,
         kommune = input.lønmodtager.kommune,
         bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner,
-        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag),
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
-        ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
+        ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
         personfradrag_alder_status = input.lønmodtager.personfradrag_alder_status,
         betaler_kirkeskat = input.lønmodtager.betaler_kirkeskat
@@ -8518,8 +8521,9 @@
     )
 }
 
-| personskat_pensions_resultat(input: PersonskatPersonFakta, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> PersonskatPensionsSag(
+| personskat_pensions_resultat(input: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> PersonskatPensionsSag(
     input,
+    personlig_indkomst,
     erhvervsbefordring,
     ligningsfradrag,
     kapitalindkomst,
@@ -8557,13 +8561,13 @@
     lønvederlag_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner,
     naturalieværdi_kroner = ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
 ))
-| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> LønmodtagerInput(
+| personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
     bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner,
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag),
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
-    ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner,
+    ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,
     personfradrag_alder_status = input.personfradrag_alder_status,
     betaler_kirkeskat = input.betaler_kirkeskat
@@ -8602,6 +8606,7 @@
 )
 
 # PersonskatPersonGrundlagSag(fakta: PersonskatPersonFakta) {
+    | personlig_indkomst() -> personskat_personlig_indkomst_resultat(fakta.lønmodtager.personlig_indkomst, fakta.lønmodtager.skatteår)
     | aktieavance_før_pensionsfradrag() -> personskat_aktieavance_resultat(fakta.aktieavance, fakta.lønmodtager.skatteår)
     | kapitalindkomst() -> personskat_kapitalindkomst_resultat(fakta.kapitalindkomst, fakta.lønmodtager.skatteår, aktieavance_før_pensionsfradrag())
     | erhvervsbefordring() -> personskat_erhvervsbefordring_resultat(fakta.lønmodtager.erhvervsbefordring, fakta.lønmodtager.skatteår)
@@ -8614,6 +8619,7 @@
     )
     | pension() -> personskat_pensions_resultat(
         fakta,
+        personlig_indkomst(),
         erhvervsbefordring(),
         ligningsfradrag(),
         kapitalindkomst(),
@@ -8624,6 +8630,7 @@
     | cfc() -> personskat_cfc_resultat(fakta.cfc, fakta.lønmodtager.skatteår)
     | lønmodtager_input() -> personskat_lønmodtager_input(
         fakta.lønmodtager,
+        personlig_indkomst(),
         erhvervsbefordring(),
         ligningsfradrag(),
         kapitalindkomst(),
@@ -8634,6 +8641,7 @@
     | individuelle_skatteforhold() -> personskat_skatteforhold(fakta.skatteforhold, aktieavance(), cfc())
     | resultat() -> PersonskatPersonGrundlagResultat(
         fakta = fakta,
+        personlig_indkomst = personlig_indkomst(),
         erhvervsbefordring = erhvervsbefordring(),
         ligningsfradrag = ligningsfradrag(),
         kapitalindkomst = kapitalindkomst(),
@@ -8851,6 +8859,7 @@
         samlet_skat_inkl_endelig_aktieindkomstskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
         ejendomsskatter = ejendomsskatter,
         samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_ejendomsskatter_kroner,
+        personlig_indkomst = hovedgrundlag.personlig_indkomst,
         pension = hovedgrundlag.pension,
         erhvervsbefordring = hovedgrundlag.erhvervsbefordring,
         ligningsfradrag = hovedgrundlag.ligningsfradrag,

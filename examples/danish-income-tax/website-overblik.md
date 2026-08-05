@@ -812,11 +812,21 @@ Skattestyrelsens salgseksempel: 47.000 erhvervskilometer ud af 110.000 fordeler
 i tab til 15.809 kr. fradragsberettiget tab. Ved køb og salg i samme indkomstår
 bruger reglerne i stedet årets erhvervsandel for både fortjeneste og tab.
 
-Nr. 11 modtager et samlet resultat fra Etableringskontoloven §§ 1-4. Det holder
-etableringskontoens ligningsmæssige fradrag adskilt fra iværksætterkontoens
-fradrag i personlig indkomst og håndterer 5.000 kr.-minimum, 60 pct.-grænsen,
-muligheden for altid at indskyde op til 250.000 kr., fælles kontoloft,
-forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
+Den kanoniske Personskat-beregning modtager ét typet kilderesultat fra
+Etableringskontolovens §§ 1-4 for hver person. Den fører iværksætterkontoens
+fradrag gennem § 3, stk. 2, nr. 11 som personlig indkomst og
+etableringskontoens fradrag ad den særskilte ligningsmæssige vej, præcis én gang
+hver. Forkert skatteår og negative beløb fejler lukket, mens et retligt afslag
+bevares som et gyldigt beregnet nulresultat. Reglerne håndterer desuden 5.000
+kr.-minimum, 60 pct.-grænsen, muligheden for altid at indskyde op til 250.000
+kr., fælles kontoloft, forskudsafskrivning og de kontoformer, loven kræver.
+
+Arbejdsbogen udstiller de 29 kildefelter for både personen og ægtefællen med
+danske etiketter, spørgsmål, hjælp og kilder. Et indskud på 30.000 kr. på
+iværksætterkonto giver samme fulde resultat fra XLSX og JSON: 522.000 kr. i
+personlig indkomst efter AM-bidrag og 455.600 kr. i almindelig skattepligtig
+indkomst. Ni kanoniske scenarier validerer begge kontotyper, blandede indskud,
+ægtefæller og ugyldige fakta. Kilderne er
 [Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222),
 [ændringslov nr. 749/2025](https://www.retsinformation.dk/eli/lta/2025/749),
 [ændringslov nr. 615/2026](https://www.retsinformation.dk/eli/lta/2026/615),

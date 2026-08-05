@@ -10,6 +10,7 @@
     skatteår = 2025,
     kommune = Frederiksberg,
     bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
     erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
     ligningsfradrag = personskat_ingen_ligningsfradrag(),
     pension = personskat_ingen_pension(),

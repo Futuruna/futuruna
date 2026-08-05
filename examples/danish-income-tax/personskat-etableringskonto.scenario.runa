@@ -1,0 +1,198 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenarier for den kanoniske bro fra Etableringskontolovens §§ 1-4 gennem
+Personskattelovens § 3, stk. 2, nr. 11 til beregn_personskat.
+
+Scenariet er ikke lovtekst. Den ordrette lovtekst og de typede kilder ligger i
+etableringskontoloven.runa og kapitel-01-indkomst.runa.
+----
+
+= personskat_etbl_gyldig_placering = EtableringskontoPar4Placering(
+    placering = EtblSærligIndlånskonto,
+    pengeinstitut_omfattet_af_par4_stk1 = Sandt,
+    etableringskonto_og_iværksætterkonto_ført_særskilt = Sandt,
+    konto_korrekt_betegnet = Sandt,
+    navn_adresse_og_personnummer_påført = Sandt,
+    kontantkonto_og_depot_i_samme_pengeinstitut = Sandt
+)
+= personskat_etbl_ugyldig_placering = EtableringskontoPar4Placering(
+    placering = EtblIkkeGodkendtPlacering,
+    pengeinstitut_omfattet_af_par4_stk1 = Falskt,
+    etableringskonto_og_iværksætterkonto_ført_særskilt = Sandt,
+    konto_korrekt_betegnet = Sandt,
+    navn_adresse_og_personnummer_påført = Sandt,
+    kontantkonto_og_depot_i_samme_pengeinstitut = Sandt
+)
+
+| personskat_etbl_indskud_med_fase(
+    indkomstår: Heltal,
+    fase: EtableringskontoIndskudsfase,
+    kontant_løn_kroner: Heltal,
+    placering: EtableringskontoPar4Placering,
+    etableringskontoindskud_kroner: Heltal,
+    iværksætterkontoindskud_kroner: Heltal
+) -> EtableringskontoIndskudInput(
+    indkomstår = indkomstår,
+    fase = fase,
+    fuldt_skattepligtig = Sandt,
+    skattemæssigt_hjemmehørende_i_andet_land_efter_dbo = Falskt,
+    senest_indkomståret_efter_folkepensionsalderen = Sandt,
+    tidligere_indskud_fuldt_hævet = Sandt,
+    indskud_foretaget_i_indskudsåret = Sandt,
+    betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt = Falskt,
+    faktisk_indskudsplacering = placering,
+    kontant_løn_kroner = kontant_løn_kroner,
+    skatteværdi_af_frit_ophold_og_andre_goder_kroner = 0,
+    skattepligtige_arbejdsgivergodtgørelser_kroner = 0,
+    ligningslov9_til_9d_fradrag_kroner = 0,
+    skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner = 0,
+    vsl22b_henlæggelse_kroner = 0,
+    renteudgifter_og_kurstab_kroner = 0,
+    rente_udbytte_og_kursgevinst_kroner = 0,
+    forskudsafskrivning_efter_al29_kroner = 0,
+    faktisk_etableringskontoindskud_kroner = etableringskontoindskud_kroner,
+    faktisk_iværksætterkontoindskud_kroner = iværksætterkontoindskud_kroner,
+    undladt_etableringskontoindskud_efter_par4_stk2_kroner = 0,
+    undladt_iværksætterkontoindskud_efter_par4_stk2_kroner = 0
+)
+| personskat_etbl_indskud(
+    indkomstår: Heltal,
+    kontant_løn_kroner: Heltal,
+    placering: EtableringskontoPar4Placering,
+    etableringskontoindskud_kroner: Heltal,
+    iværksætterkontoindskud_kroner: Heltal
+) -> personskat_etbl_indskud_med_fase(
+    indkomstår,
+    EtblFørEtablering,
+    kontant_løn_kroner,
+    placering,
+    etableringskontoindskud_kroner,
+    iværksætterkontoindskud_kroner
+)
+| personskat_etbl_personlig_indkomst(input: EtableringskontoIndskudInput) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = MedEtableringskontoindskud(input = input)
+)
+| personskat_etbl_lønmodtager(bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personlig_indkomst,
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_etbl_personfakta(bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatPersonFakta(
+    lønmodtager = personskat_etbl_lønmodtager(bruttoløn_kroner, personlig_indkomst),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold
+)
+| personskat_etbl_input(personlig_indkomst: PersonskatPersonligIndkomstInput, ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
+    lønmodtager = personskat_etbl_lønmodtager(600000, personlig_indkomst),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = ægtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_etbl_uden_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_ingen_personlig_indkomst(),
+    UdenÆgtefælle
+))
+= personskat_etbl_etableringskonto_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 600000, personskat_etbl_gyldig_placering, 30000, 0)),
+    UdenÆgtefælle
+))
+= personskat_etbl_iværksætterkonto_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 600000, personskat_etbl_gyldig_placering, 0, 30000)),
+    UdenÆgtefælle
+))
+= personskat_etbl_blandet_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 600000, personskat_etbl_gyldig_placering, 15000, 15000)),
+    UdenÆgtefælle
+))
+= personskat_etbl_ugyldig_placering_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 600000, personskat_etbl_ugyldig_placering, 0, 30000)),
+    UdenÆgtefælle
+))
+= personskat_etbl_forkert_år_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2025, 600000, personskat_etbl_gyldig_placering, 0, 30000)),
+    UdenÆgtefælle
+))
+= personskat_etbl_negativt_beløb_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 600000, personskat_etbl_gyldig_placering, 0, -1)),
+    UdenÆgtefælle
+))
+= personskat_etbl_ugyldigt_fasegrundlag_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_etbl_personlig_indkomst(personskat_etbl_indskud_med_fase(2026, EtblEfterEtablering(antal_år_efter_etableringsåret = 0), 600000, personskat_etbl_gyldig_placering, 0, 30000)),
+    UdenÆgtefælle
+))
+
+= personskat_etbl_ægtefælle_resultat = beregn_personskat(personskat_etbl_input(
+    personskat_ingen_personlig_indkomst(),
+    MedÆgtefælle(
+        fakta = personskat_etbl_personfakta(
+            240000,
+            personskat_etbl_personlig_indkomst(personskat_etbl_indskud(2026, 240000, personskat_etbl_gyldig_placering, 0, 30000))
+        ),
+        samlevende_ved_indkomstårets_udløb = Sandt
+    )
+))
+
+| personskat_etbl_beregnet_spor(
+    resultat: PersonskatBeregningResultat,
+    forventet_etableringsfradrag_kroner: Heltal,
+    forventet_iværksætterfradrag_kroner: Heltal
+) -> match resultat.personlig_indkomst.etableringskonto {
+    | BeregnetEtableringskontoindskud(_, lovresultat, par3_resultat) -> lovresultat.etableringskonto_ligningsmæssigt_fradrag_kroner == forventet_etableringsfradrag_kroner && lovresultat.iværksætterkonto_personlig_indkomst_fradrag_kroner == forventet_iværksætterfradrag_kroner && par3_resultat.etableringskonto_fradrag_uden_for_personlig_indkomst_kroner == forventet_etableringsfradrag_kroner && par3_resultat.fradrag_i_personlig_indkomst_kroner == forventet_iværksætterfradrag_kroner
+    | _ -> Falskt
+}
+| personskat_etbl_ugyldig_placering_spor(resultat: PersonskatBeregningResultat) -> match resultat.personlig_indkomst.etableringskonto {
+    | BeregnetEtableringskontoindskud(_, lovresultat, par3_resultat) -> lovresultat.faktiske_indskud_opfylder_par4_stk1 == Falskt && lovresultat.behandlede_indskud_i_alt_kroner == 0 && par3_resultat.fradrag_i_personlig_indkomst_kroner == 0
+    | _ -> Falskt
+}
+| personskat_etbl_forkert_år_spor(resultat: PersonskatBeregningResultat) -> match resultat.personlig_indkomst.etableringskonto {
+    | UgyldigtEtableringskontoindskud(_, lovresultat, skatteår_matcher, grundfakta_gyldige) -> skatteår_matcher == Falskt && grundfakta_gyldige && lovresultat.iværksætterkonto_personlig_indkomst_fradrag_kroner == 30000
+    | _ -> Falskt
+}
+| personskat_etbl_negativt_beløb_spor(resultat: PersonskatBeregningResultat) -> match resultat.personlig_indkomst.etableringskonto {
+    | UgyldigtEtableringskontoindskud(_, _, skatteår_matcher, grundfakta_gyldige) -> skatteår_matcher && grundfakta_gyldige == Falskt
+    | _ -> Falskt
+}
+| personskat_etbl_ægtefællesporet(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 30000 && grundlag.personlig_indkomst.ligningsmæssigt_fradrag_kroner == 0 && grundlag.lønmodtager_input.øvrig_personlig_indkomst_kroner == -30000 && personlig_indkomst_efter_am(grundlag.lønmodtager_input) == 190800
+    | _ -> Falskt
+}
+
+| scenarie_personskat_etbl_uden_indskud_er_neutral: personskat_etbl_uden_resultat -> personskat_etbl_uden_resultat.personlig_indkomst.alle_input_gyldige && personskat_etbl_uden_resultat.personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 0 && personskat_etbl_uden_resultat.personlig_indkomst.ligningsmæssigt_fradrag_kroner == 0
+| scenarie_personskat_etbl_etableringskonto_er_ligningsfradrag: personskat_etbl_etableringskonto_resultat -> personskat_etbl_beregnet_spor(personskat_etbl_etableringskonto_resultat, 30000, 0) && personskat_etbl_etableringskonto_resultat.skat.personlig_indkomst_efter_am_kroner == personskat_etbl_uden_resultat.skat.personlig_indkomst_efter_am_kroner && personskat_etbl_etableringskonto_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == personskat_etbl_uden_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner + 30000 && personskat_etbl_etableringskonto_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner - 30000
+| scenarie_personskat_etbl_iværksætterkonto_er_personligt_fradrag: personskat_etbl_iværksætterkonto_resultat -> personskat_etbl_beregnet_spor(personskat_etbl_iværksætterkonto_resultat, 0, 30000) && personskat_etbl_iværksætterkonto_resultat.skat.personlig_indkomst_efter_am_kroner == personskat_etbl_uden_resultat.skat.personlig_indkomst_efter_am_kroner - 30000 && personskat_etbl_iværksætterkonto_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == personskat_etbl_uden_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner && personskat_etbl_iværksætterkonto_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner - 30000
+| scenarie_personskat_etbl_blandet_indskud_føres_præcis_en_gang: personskat_etbl_blandet_resultat -> personskat_etbl_beregnet_spor(personskat_etbl_blandet_resultat, 15000, 15000) && personskat_etbl_blandet_resultat.skat.personlig_indkomst_efter_am_kroner == personskat_etbl_uden_resultat.skat.personlig_indkomst_efter_am_kroner - 15000 && personskat_etbl_blandet_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == personskat_etbl_uden_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner + 15000 && personskat_etbl_blandet_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner - 30000
+| scenarie_personskat_etbl_lovlig_afskæring_bevares_som_resultat: personskat_etbl_ugyldig_placering_resultat -> personskat_etbl_ugyldig_placering_resultat.personlig_indkomst.alle_input_gyldige && personskat_etbl_ugyldig_placering_spor(personskat_etbl_ugyldig_placering_resultat) && personskat_etbl_ugyldig_placering_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner
+| scenarie_personskat_etbl_forkert_år_fejler_lukket: personskat_etbl_forkert_år_resultat -> personskat_etbl_forkert_år_resultat.personlig_indkomst.alle_input_gyldige == Falskt && personskat_etbl_forkert_år_spor(personskat_etbl_forkert_år_resultat) && personskat_etbl_forkert_år_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner
+| scenarie_personskat_etbl_negativt_beløb_fejler_lukket: personskat_etbl_negativt_beløb_resultat -> personskat_etbl_negativt_beløb_resultat.personlig_indkomst.alle_input_gyldige == Falskt && personskat_etbl_negativt_beløb_spor(personskat_etbl_negativt_beløb_resultat) && personskat_etbl_negativt_beløb_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner
+| scenarie_personskat_etbl_ugyldigt_fasegrundlag_fejler_lukket: personskat_etbl_ugyldigt_fasegrundlag_resultat -> personskat_etbl_ugyldigt_fasegrundlag_resultat.personlig_indkomst.alle_input_gyldige == Falskt && personskat_etbl_negativt_beløb_spor(personskat_etbl_ugyldigt_fasegrundlag_resultat) && personskat_etbl_ugyldigt_fasegrundlag_resultat.skat.almindelig_skattepligtig_indkomst_kroner == personskat_etbl_uden_resultat.skat.almindelig_skattepligtig_indkomst_kroner
+| scenarie_personskat_etbl_ægtefælle_beregnes_i_eget_grundlag: personskat_etbl_ægtefælle_resultat -> personskat_etbl_ægtefælle_resultat.personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 0 && personskat_etbl_ægtefællesporet(personskat_etbl_ægtefælle_resultat)
+
+? scenarie_personskat_etbl_uden_indskud_er_neutral
+? scenarie_personskat_etbl_etableringskonto_er_ligningsfradrag
+? scenarie_personskat_etbl_iværksætterkonto_er_personligt_fradrag
+? scenarie_personskat_etbl_blandet_indskud_føres_præcis_en_gang
+? scenarie_personskat_etbl_lovlig_afskæring_bevares_som_resultat
+? scenarie_personskat_etbl_forkert_år_fejler_lukket
+? scenarie_personskat_etbl_negativt_beløb_fejler_lukket
+? scenarie_personskat_etbl_ugyldigt_fasegrundlag_fejler_lukket
+? scenarie_personskat_etbl_ægtefælle_beregnes_i_eget_grundlag

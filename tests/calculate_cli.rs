@@ -1167,6 +1167,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skatteår",
             "Bopælskommune",
             "Årlig bruttoløn",
+            "Etablerings- eller iværksætterkonto",
+            "Faktisk indskud på etableringskonto",
+            "Faktisk indskud på iværksætterkonto",
             "Ægtefælle",
             "Samlevende med ægtefællen ved årets udløb",
             "Ægtefællens årlige bruttoløn",
@@ -3046,6 +3049,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing business-travel source {expected}"
             );
         }
+        let establishment_account_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_iværksætterkontoindskud_kroner")
+            })
+            .expect("entrepreneur-account metadata");
+        assert_eq!(
+            establishment_account_row
+                .get(label_column)
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("Faktisk indskud på iværksætterkonto")
+        );
+        let establishment_account_sources = establishment_account_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("entrepreneur-account sources");
+        for expected in [
+            "etableringskontoloven_lbk1307_par1_par4",
+            "personskatteloven_lbk1284_par3",
+        ] {
+            assert!(
+                establishment_account_sources.contains(expected),
+                "missing entrepreneur-account source {expected}"
+            );
+        }
         let pension_history_row = metadata
             .rows()
             .skip(1)
@@ -3203,6 +3236,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "lønmodtager.bruttoløn_kroner",
                         Data::String("600000".to_string()),
+                    ),
+                    (
+                        "lønmodtager.personlig_indkomst.etableringskonto.$variant",
+                        Data::String("UdenEtableringskontoindskud".to_string()),
                     ),
                     (
                         "lønmodtager.ligningsfradrag.befordring.$variant",
@@ -3370,6 +3407,123 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 14, "personskat-kgl-gaeld-2026");
         fill_wage_case(sheets, 15, "personskat-kgl-frivillig-ordning-2026");
         fill_wage_case(sheets, 16, "personskat-udbytte-2026");
+        fill_wage_case(sheets, 17, "personskat-etableringskonto-2026");
+        for (header, value) in [
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.$variant",
+                Data::String("MedEtableringskontoindskud".to_string()),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.fase.$variant",
+                Data::String("EtblFørEtablering".to_string()),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.fuldt_skattepligtig",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.skattemæssigt_hjemmehørende_i_andet_land_efter_dbo",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.senest_indkomståret_efter_folkepensionsalderen",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.tidligere_indskud_fuldt_hævet",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.indskud_foretaget_i_indskudsåret",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt",
+                Data::Bool(false),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.placering",
+                Data::String("EtblSærligIndlånskonto".to_string()),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.pengeinstitut_omfattet_af_par4_stk1",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.etableringskonto_og_iværksætterkonto_ført_særskilt",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.konto_korrekt_betegnet",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.navn_adresse_og_personnummer_påført",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_indskudsplacering.kontantkonto_og_depot_i_samme_pengeinstitut",
+                Data::Bool(true),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.kontant_løn_kroner",
+                Data::Int(600_000),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.skatteværdi_af_frit_ophold_og_andre_goder_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.skattepligtige_arbejdsgivergodtgørelser_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.ligningslov9_til_9d_fradrag_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.vsl22b_henlæggelse_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.renteudgifter_og_kurstab_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.rente_udbytte_og_kursgevinst_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.forskudsafskrivning_efter_al29_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_etableringskontoindskud_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.faktisk_iværksætterkontoindskud_kroner",
+                Data::Int(30_000),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.undladt_etableringskontoindskud_efter_par4_stk2_kroner",
+                Data::Int(0),
+            ),
+            (
+                "lønmodtager.personlig_indkomst.etableringskonto.MedEtableringskontoindskud.input.undladt_iværksætterkontoindskud_efter_par4_stk2_kroner",
+                Data::Int(0),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 17, header, value);
+        }
         for (header, value) in [
             (
                 "case_id",
@@ -3440,6 +3594,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
                 Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.etableringskonto.$variant",
+                Data::String("UdenEtableringskontoindskud".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
@@ -6406,6 +6564,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skatteår": 2026,
             "kommune": { "$variant": "København" },
             "bruttoløn_kroner": 600_000,
+            "personlig_indkomst": {
+                "etableringskonto": { "$variant": "UdenEtableringskontoindskud" }
+            },
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
                 "befordring": { "$variant": "UdenBefordringsfradrag" }
@@ -7771,6 +7932,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "skatteår": 2025,
                 "kommune": { "$variant": "Frederiksberg" },
                 "bruttoløn_kroner": 0,
+                "personlig_indkomst": {
+                    "etableringskonto": { "$variant": "UdenEtableringskontoindskud" }
+                },
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
                     "befordring": { "$variant": "UdenBefordringsfradrag" }
@@ -8066,6 +8230,50 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(dividend_case);
+    let mut establishment_account_case = json_input["cases"][0].clone();
+    establishment_account_case["case_id"] =
+        Value::String("personskat-etableringskonto-2026".into());
+    establishment_account_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    establishment_account_case["input"]["lønmodtager"]["personlig_indkomst"] = serde_json::json!({
+        "etableringskonto": {
+            "$variant": "MedEtableringskontoindskud",
+            "input": {
+                "indkomstår": 2026,
+                "fase": { "$variant": "EtblFørEtablering" },
+                "fuldt_skattepligtig": true,
+                "skattemæssigt_hjemmehørende_i_andet_land_efter_dbo": false,
+                "senest_indkomståret_efter_folkepensionsalderen": true,
+                "tidligere_indskud_fuldt_hævet": true,
+                "indskud_foretaget_i_indskudsåret": true,
+                "betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt": false,
+                "faktisk_indskudsplacering": {
+                    "placering": { "$variant": "EtblSærligIndlånskonto" },
+                    "pengeinstitut_omfattet_af_par4_stk1": true,
+                    "etableringskonto_og_iværksætterkonto_ført_særskilt": true,
+                    "konto_korrekt_betegnet": true,
+                    "navn_adresse_og_personnummer_påført": true,
+                    "kontantkonto_og_depot_i_samme_pengeinstitut": true
+                },
+                "kontant_løn_kroner": 600_000,
+                "skatteværdi_af_frit_ophold_og_andre_goder_kroner": 0,
+                "skattepligtige_arbejdsgivergodtgørelser_kroner": 0,
+                "ligningslov9_til_9d_fradrag_kroner": 0,
+                "skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner": 0,
+                "vsl22b_henlæggelse_kroner": 0,
+                "renteudgifter_og_kurstab_kroner": 0,
+                "rente_udbytte_og_kursgevinst_kroner": 0,
+                "forskudsafskrivning_efter_al29_kroner": 0,
+                "faktisk_etableringskontoindskud_kroner": 0,
+                "faktisk_iværksætterkontoindskud_kroner": 30_000,
+                "undladt_etableringskontoindskud_efter_par4_stk2_kroner": 0,
+                "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
+            }
+        }
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(establishment_account_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -8161,6 +8369,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         xlsx_dividend_result["result"]["endelig_aktieindkomstskat_kroner"],
         3_240
+    );
+    let xlsx_establishment_account_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-etableringskonto-2026")
+        .expect("XLSX entrepreneur-account result");
+    let json_establishment_account_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-etableringskonto-2026")
+        .expect("JSON entrepreneur-account result");
+    assert_eq!(
+        xlsx_establishment_account_result["result"],
+        json_establishment_account_result["result"]
+    );
+    let establishment_account_result =
+        &xlsx_establishment_account_result["result"]["personlig_indkomst"];
+    assert_eq!(establishment_account_result["alle_input_gyldige"], true);
+    assert_eq!(
+        establishment_account_result["fradrag_i_personlig_indkomst_kroner"],
+        30_000
+    );
+    assert_eq!(
+        establishment_account_result["ligningsmæssigt_fradrag_kroner"],
+        0
+    );
+    assert_eq!(
+        establishment_account_result["etableringskonto"]["$variant"],
+        "BeregnetEtableringskontoindskud"
+    );
+    assert_eq!(
+        establishment_account_result["etableringskonto"]["etableringskontolov_resultat"]
+            ["iværksætterkonto_personlig_indkomst_fradrag_kroner"],
+        30_000
+    );
+    assert_eq!(
+        establishment_account_result["etableringskonto"]["par3_stk2_nr11_resultat"]
+            ["fradrag_i_personlig_indkomst_kroner"],
+        30_000
+    );
+    assert_eq!(
+        xlsx_establishment_account_result["result"]["skat"]["personlig_indkomst_efter_am_kroner"],
+        522_000
+    );
+    assert_eq!(
+        xlsx_establishment_account_result["result"]["skat"]
+            ["almindelig_skattepligtig_indkomst_kroner"],
+        455_600
     );
     let xlsx_debt_result = result["results"]
         .as_array()

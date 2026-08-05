@@ -1,0 +1,250 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - etableringskonto - kildefakta
+
+= personskat_etableringskonto_felt_art = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::$variant),
+    label = "Etablerings- eller iværksætterkonto",
+    question = Some("Har du indskud på en etableringskonto eller iværksætterkonto, som skal vurderes i indkomståret?"),
+    help = Some("Futuruna afleder selv fradraget og placerer de to kontotyper i hver sin indkomstopgørelse."),
+    unit = None
+)
+= personskat_etableringskonto_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::indkomstår),
+    label = "Indkomstår for indskuddet",
+    question = Some("Hvilket indkomstår vedrører indskuddet?"),
+    help = Some("Året skal være det samme som Personskat-beregningens skatteår."),
+    unit = Some("år")
+)
+= personskat_etableringskonto_felt_fase = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::fase::$variant),
+    label = "Fase i forhold til etableringen",
+    question = Some("Vedrører indskuddet tiden før etablering, etableringsåret eller et af de fire efterfølgende år?"),
+    help = Some("Efter etableringen kan fradrag kun opnås i etableringsåret og de fire nærmest følgende indkomstår."),
+    unit = None
+)
+= personskat_etableringskonto_felt_år_efter_etablering = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::fase::EtblEfterEtablering::antal_år_efter_etableringsåret),
+    label = "Antal år efter etableringsåret",
+    question = Some("Hvor mange indkomstår er der gået siden etableringsåret?"),
+    help = Some("Kun år 1 til 4 ligger i den ordinære fradragsperiode efter etableringen."),
+    unit = Some("år")
+)
+= personskat_etableringskonto_felt_fuld_skattepligt = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::fuldt_skattepligtig),
+    label = "Fuld dansk skattepligt",
+    question = Some("Er du fuldt skattepligtig til Danmark i indkomståret?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_dbo_hjemsted = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::skattemæssigt_hjemmehørende_i_andet_land_efter_dbo),
+    label = "Skattemæssigt hjemmehørende i andet land",
+    question = Some("Er du skattemæssigt hjemmehørende i et andet land efter en dobbeltbeskatningsoverenskomst?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_folkepensionsalder = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::senest_indkomståret_efter_folkepensionsalderen),
+    label = "Inden aldersgrænsen",
+    question = Some("Er indkomståret senest året efter det år, hvor du når folkepensionsalderen?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_tidligere_indskud_hævet = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::tidligere_indskud_fuldt_hævet),
+    label = "Tidligere indskud fuldt hævet",
+    question = Some("Er alle tidligere indskud fuldt hævet, hvis indskuddet vedrører et år efter etableringen?"),
+    help = Some("Et nyt fradrag efter etableringen kræver, at ældre indskud er hævet fuldt ud."),
+    unit = None
+)
+= personskat_etableringskonto_felt_rettidigt_indskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::indskud_foretaget_i_indskudsåret),
+    label = "Indskud foretaget i indskudsåret",
+    question = Some("Blev det faktiske indskud foretaget fra 16. maj i indkomståret til og med 15. maj året efter?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_undladt_indskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::betingelser_for_undladt_indskud_efter_par4_stk2_opfyldt),
+    label = "Betingelser for undladt indskud opfyldt",
+    question = Some("Er betingelserne i § 4, stk. 2 opfyldt for et indskud, der helt eller delvis er undladt?"),
+    help = Some("Dette kræver, at betingelserne for at hæve et tilsvarende beløb efter § 5 var opfyldt inden indskudsårets udløb."),
+    unit = None
+)
+= personskat_etableringskonto_felt_placering = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::placering),
+    label = "Placering af det faktiske indskud",
+    question = Some("Er indskuddet placeret på en særlig indlånskonto, i et særskilt obligationsdepot eller i begge dele?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_pengeinstitut = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::pengeinstitut_omfattet_af_par4_stk1),
+    label = "Godkendt pengeinstitut",
+    question = Some("Er kontoen eller depotet oprettet i et pengeinstitut omfattet af § 4, stk. 1?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_særskilte_konti = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::etableringskonto_og_iværksætterkonto_ført_særskilt),
+    label = "Kontotyper ført særskilt",
+    question = Some("Føres etableringskonto og iværksætterkonto på særskilte konti?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_betegnelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::konto_korrekt_betegnet),
+    label = "Kontoen er korrekt betegnet",
+    question = Some("Er kontoen betegnet etableringskonto eller iværksætterkonto?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_personoplysninger = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::navn_adresse_og_personnummer_påført),
+    label = "Personoplysninger påført",
+    question = Some("Er navn, adresse og personnummer påført kontoen?"),
+    help = None,
+    unit = None
+)
+= personskat_etableringskonto_felt_samme_pengeinstitut = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_indskudsplacering::kontantkonto_og_depot_i_samme_pengeinstitut),
+    label = "Kontantkonto og depot i samme pengeinstitut",
+    question = Some("Er kontantkonto og obligationsdepot oprettet i samme pengeinstitut?"),
+    help = Some("Oplysningen er relevant, når indskuddet er fordelt mellem konto og depot."),
+    unit = None
+)
+= personskat_etableringskonto_felt_kontant_løn = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::kontant_løn_kroner),
+    label = "Kontant løn efter etableringskontoloven",
+    question = Some("Hvor stor kontant løn indgår i indskudsgrundlaget?"),
+    help = Some("Angiv lønnen efter etableringskontolovens § 3, stk. 2; dette grundlag kan afvige fra den almindelige bruttoløn."),
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_goder = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::skatteværdi_af_frit_ophold_og_andre_goder_kroner),
+    label = "Skatteværdi af frit ophold og andre goder",
+    question = Some("Hvilken skatteværdi har frit ophold og andre goder modtaget gennem arbejdsforholdet?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_godtgørelser = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::skattepligtige_arbejdsgivergodtgørelser_kroner),
+    label = "Skattepligtige arbejdsgivergodtgørelser",
+    question = Some("Hvor store skattepligtige arbejdsgivergodtgørelser indgår i lønindtægten efter § 3, stk. 2?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_ll9_fradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::ligningslov9_til_9d_fradrag_kroner),
+    label = "Fradrag efter ligningslovens §§ 9-9 D",
+    question = Some("Hvor stort samlet fradrag efter ligningslovens §§ 9-9 D skal trækkes fra ved opgørelsen af nettolønnen?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_virksomhedsoverskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::skattepligtigt_virksomhedsoverskud_efter_vsl22b_fradrag_kroner),
+    label = "Skattepligtigt virksomhedsoverskud",
+    question = Some("Hvor stort er virksomhedens skattepligtige overskud efter et eventuelt § 22 b-fradrag?"),
+    help = Some("Futuruna regulerer beløbet med henlæggelse, renter, udbytte og kursresultater efter etableringskontolovens § 3, stk. 3."),
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_vsl22b = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::vsl22b_henlæggelse_kroner),
+    label = "Henlæggelse efter virksomhedsskattelovens § 22 b",
+    question = Some("Hvor stor henlæggelse efter virksomhedsskattelovens § 22 b er allerede fratrukket overskuddet?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_renteudgifter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::renteudgifter_og_kurstab_kroner),
+    label = "Renteudgifter og kurstab i virksomhedsoverskuddet",
+    question = Some("Hvor store renteudgifter og kurstab indgår i virksomhedsoverskuddet?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_renteindtægter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::rente_udbytte_og_kursgevinst_kroner),
+    label = "Rente-, udbytte- og kursgevinster i virksomhedsoverskuddet",
+    question = Some("Hvor store renteindtægter, udbytter og kursgevinster indgår i virksomhedsoverskuddet?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_forskudsafskrivning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::forskudsafskrivning_efter_al29_kroner),
+    label = "Forskudsafskrivning efter afskrivningslovens § 29",
+    question = Some("Hvor stor forskudsafskrivning efter afskrivningslovens § 29 skal reducere årets højeste indskud?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_faktisk_etableringsindskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_etableringskontoindskud_kroner),
+    label = "Faktisk indskud på etableringskonto",
+    question = Some("Hvor meget blev faktisk indsat på etableringskontoen for indkomståret?"),
+    help = Some("Et gyldigt beløb bliver et ligningsmæssigt fradrag og fradrages ikke i personlig indkomst."),
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_faktisk_iværksætterindskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::faktisk_iværksætterkontoindskud_kroner),
+    label = "Faktisk indskud på iværksætterkonto",
+    question = Some("Hvor meget blev faktisk indsat på iværksætterkontoen for indkomståret?"),
+    help = Some("Et gyldigt beløb fradrages i personlig indkomst efter Personskattelovens § 3, stk. 2, nr. 11."),
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_undladt_etableringsindskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::undladt_etableringskontoindskud_efter_par4_stk2_kroner),
+    label = "Undladt etableringskontoindskud efter § 4, stk. 2",
+    question = Some("Hvor stort etableringskontoindskud er undladt efter § 4, stk. 2?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_etableringskonto_felt_undladt_iværksætterindskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::etableringskonto::MedEtableringskontoindskud::input::undladt_iværksætterkontoindskud_efter_par4_stk2_kroner),
+    label = "Undladt iværksætterkontoindskud efter § 4, stk. 2",
+    question = Some("Hvor stort iværksætterkontoindskud er undladt efter § 4, stk. 2?"),
+    help = None,
+    unit = Some("kr./år")
+)
+
+= personskat_etableringskonto_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_etableringskonto_felt_art,
+        personskat_etableringskonto_felt_indkomstår,
+        personskat_etableringskonto_felt_fase,
+        personskat_etableringskonto_felt_år_efter_etablering,
+        personskat_etableringskonto_felt_fuld_skattepligt,
+        personskat_etableringskonto_felt_dbo_hjemsted,
+        personskat_etableringskonto_felt_folkepensionsalder,
+        personskat_etableringskonto_felt_tidligere_indskud_hævet,
+        personskat_etableringskonto_felt_rettidigt_indskud,
+        personskat_etableringskonto_felt_undladt_indskud,
+        personskat_etableringskonto_felt_placering,
+        personskat_etableringskonto_felt_pengeinstitut,
+        personskat_etableringskonto_felt_særskilte_konti,
+        personskat_etableringskonto_felt_betegnelse,
+        personskat_etableringskonto_felt_personoplysninger,
+        personskat_etableringskonto_felt_samme_pengeinstitut,
+        personskat_etableringskonto_felt_kontant_løn,
+        personskat_etableringskonto_felt_goder,
+        personskat_etableringskonto_felt_godtgørelser,
+        personskat_etableringskonto_felt_ll9_fradrag,
+        personskat_etableringskonto_felt_virksomhedsoverskud,
+        personskat_etableringskonto_felt_vsl22b,
+        personskat_etableringskonto_felt_renteudgifter,
+        personskat_etableringskonto_felt_renteindtægter,
+        personskat_etableringskonto_felt_forskudsafskrivning,
+        personskat_etableringskonto_felt_faktisk_etableringsindskud,
+        personskat_etableringskonto_felt_faktisk_iværksætterindskud,
+        personskat_etableringskonto_felt_undladt_etableringsindskud,
+        personskat_etableringskonto_felt_undladt_iværksætterindskud
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = etableringskontoloven_lbk1307_par1_par4),
+        DependencySource(value = personskatteloven_lbk1284_par3),
+    )
+)
+
+--@label:PersonskatPersonligIndkomstInput::meta:personskat_etableringskonto_beregningsmeta--

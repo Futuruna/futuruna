@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-01
 TD epic: `td-56cf8d`
-Current implementation slice: `td-3f59b1` (ordinære udbytter afledes fra identificerede kildefakta efter LL § 16 A og føres gennem PSL §§ 4 og 4 a; afventer uafhængig gennemgang)
+Current implementation slice: `td-af1e87` (Etableringskontolovens §§ 1-4 er forbundet med den kanoniske Personskat-beregning gennem PSL § 3, stk. 2, nr. 11 og et særskilt ligningsfradrag; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Next source-backed slice: `td-2d84ec` (rangér næste materielle posture-/afhængighedshul efter uafhængig gennemgang)
 Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
@@ -141,6 +141,26 @@ standardstack. `td-75f6ca` retter kodegeneratoren, så synkrone programmer køre
 på en navngivet, afgrænset 64 MiB-workerstack og bevarer både fejl- og
 paniksemantik. Den tidligere stack overflow er dermed en permanent
 sprogregressionstest, ikke et workaround i skatteloven.
+
+Latest establishment-account integration: den kanoniske Personskat-kontrakt
+modtager nu observerbare kildefakta efter Etableringskontolovens §§ 1-4 i et
+typet `PersonskatPersonligIndkomstInput` for hver person. Det samme beregnede
+kilderesultat føres ad to adskilte lovveje: iværksætterkontoens fradrag gennem
+Personskattelovens § 3, stk. 2, nr. 11 som fradrag i personlig indkomst og
+etableringskontoens fradrag som ligningsmæssigt fradrag. Begge virkninger føres
+præcis én gang, mens topresultatet bevarer både kilderesultatet og § 3-broen.
+Forkert skatteår og negative pengebeløb giver et synligt ugyldigt resultat og
+ingen skattevirkning. En retligt afskåret kontoform er derimod et gyldigt
+beregnet nulresultat, så forskellen mellem mangelfulde fakta og lovens afslag
+kan auditeres.
+
+De 29 typede beregningsfelter projiceres til både personen og ægtefællen med
+danske etiketter, interviewspørgsmål, hjælp, enheder og kildehenvisninger. Ni
+fulde Personskat-scenarier dækker neutraltilstanden, begge kontotyper, blandede
+indskud, ægtefælleisolering og ugyldige fakta. Den genererede XLSX-arbejdsbog og
+den tilsvarende JSON-kontrakt giver samme fulde resultat for et indskud på
+30.000 kr. på iværksætterkonto: 522.000 kr. i personlig indkomst efter
+AM-bidrag og 455.600 kr. i almindelig skattepligtig indkomst.
 
 Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
@@ -956,7 +976,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`3c0da053523f6bd30d60b5a9b256133973e65511e695d74b06a8c47061f06f5d`.
+`a32f5f49c1599caaa0fa48b6f882d5c6c315d4dc79e4defa9eac7bb227dc525b`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -1462,9 +1482,10 @@ adskilte yder-/modtagerposter og 2026-overgangen. De eksisterende
 2026-parametre omfatter også 36.000 kr.-grænserne og forskningsfradragets
 114/110 pct.-deling omkring loftet på 1.088,8 mio. kr. § 5 A-modellen begrænser
 et valgt tab forholdsmæssigt, når hele den uafskrevne anskaffelsessum ellers
-ville gøre saldoen negativ. Nr. 11 fører kun
-iværksætterkontoens fradrag til personlig indkomst; etableringskontoens
-ligningsmæssige fradrag forbliver synligt uden at blive dobbeltklassificeret.
+ville gøre saldoen negativ. Nr. 11 fører kun iværksætterkontoens fradrag til
+personlig indkomst. Den kanoniske Personskat-sag fører etableringskontoens
+fradrag ad den særskilte ligningsmæssige vej, så begge virkninger er
+beregnelige uden at blive dobbeltklassificeret.
 Etableringskontomodellen dækker også 60 pct./250.000 kr.-loftet, 5.000
 kr.-minimum, § 29-forskudsafskrivning, kontoformen og beløb, der efter § 4,
 stk. 2 behandles som indskud. Samme scenario-fil validerer de offentliggjorte
@@ -2789,7 +2810,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-07-31, the corpus should be treated as a source-backed first-slice
+As of 2026-08-01, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -2808,8 +2829,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 86-91% complete as an executable research corpus,
-  and roughly 74-82% complete as a production-grade calculator for
+- Working estimate: roughly 87-92% complete as an executable research corpus,
+  and roughly 75-83% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

@@ -71,6 +71,7 @@ tidligere kilometer udledes af forløbet og er ikke kildefakta.
         skatteår = skatteår,
         kommune = København,
         bruttoløn_kroner = 600000,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
         erhvervsbefordring = PersonskatErhvervsbefordringInput(sager = sager),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
