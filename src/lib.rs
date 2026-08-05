@@ -9297,6 +9297,10 @@ pub struct Interpreter {
     pub(crate) rng_state: u64,
     /// Suppress stdout output (for comptime evaluation during codegen)
     pub suppress_output: bool,
+    /// Runtime symbols reachable from the active calculation boundary.
+    calculation_runtime_symbols: BTreeSet<String>,
+    /// Top-level bindings needed to initialize the active calculation.
+    calculation_runtime_bindings: BTreeSet<String>,
 }
 
 impl Interpreter {
@@ -9349,6 +9353,8 @@ impl Interpreter {
             budget_exceeded: false,
             rng_state: 0x12345678_9abcdef0,
             suppress_output: false,
+            calculation_runtime_symbols: BTreeSet::new(),
+            calculation_runtime_bindings: BTreeSet::new(),
         }
     }
 
@@ -10128,7 +10134,222 @@ impl Interpreter {
         }
     }
 
+    fn collect_pattern_binding_names(pattern: &Pat, names: &mut Vec<String>) {
+        match pattern {
+            Pat::Var(name) => names.push(name.clone()),
+            Pat::Con(_, patterns) => {
+                for pattern in patterns {
+                    Self::collect_pattern_binding_names(pattern, names);
+                }
+            }
+            Pat::NamedCon(_, fields) => {
+                for (_, pattern) in fields {
+                    Self::collect_pattern_binding_names(pattern, names);
+                }
+            }
+            Pat::As(pattern, name) => {
+                Self::collect_pattern_binding_names(pattern, names);
+                names.push(name.clone());
+            }
+            Pat::Wild | Pat::Lit(_) => {}
+        }
+    }
+
+    fn collect_runtime_references_from_stmt(
+        stmt: &Stmt,
+        qualified_modules: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        let mut references = BTreeSet::new();
+        walk_ast_stmt(stmt, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                if let ExprKind::Var(name) = &expr.kind {
+                    references.insert(name.clone());
+                }
+                if let ExprKind::Field(base, member) = &expr.kind {
+                    if matches!(&base.kind, ExprKind::Var(module) if qualified_modules.contains(module))
+                    {
+                        references.insert(member.clone());
+                    }
+                }
+            }
+        });
+        references
+    }
+
+    fn collect_runtime_references_from_expr(
+        expr: &Expr,
+        qualified_modules: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        let mut references = BTreeSet::new();
+        walk_ast_expr(expr, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                if let ExprKind::Var(name) = &expr.kind {
+                    references.insert(name.clone());
+                }
+                if let ExprKind::Field(base, member) = &expr.kind {
+                    if matches!(&base.kind, ExprKind::Var(module) if qualified_modules.contains(module))
+                    {
+                        references.insert(member.clone());
+                    }
+                }
+            }
+        });
+        references
+    }
+
+    fn calculation_runtime_symbol_names(&self, stmt: &Stmt) -> Vec<String> {
+        match stmt {
+            Stmt::Defn(Defn::Fn { name, .. })
+            | Stmt::Defn(Defn::Actor { name, .. })
+            | Stmt::Defn(Defn::Module { name, .. }) => vec![name.clone()],
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                let mut names = vec![name.clone()];
+                names.extend(variants.iter().map(|variant| variant.name.clone()));
+                names
+            }
+            Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
+                let mut names = vec![name.clone()];
+                names.extend(variants.iter().map(|variant| variant.name.clone()));
+                names
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+            | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. })
+            | Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => vec![name.clone()],
+            Stmt::TypeDecl(TypeDecl::ImplBlock {
+                trait_name,
+                for_type,
+                methods,
+            }) => {
+                let mut names = vec![trait_name.clone(), for_type.clone()];
+                names.extend(methods.iter().map(|method| match method {
+                    Defn::Fn { name, .. }
+                    | Defn::Actor { name, .. }
+                    | Defn::Module { name, .. } => name.clone(),
+                }));
+                names
+            }
+            Stmt::Rule(rule) => vec![self.rule_name(rule)],
+            _ => Vec::new(),
+        }
+    }
+
+    fn extend_calculation_runtime_demand(&mut self, stmts: &[Stmt]) {
+        let mut symbols: BTreeMap<String, Vec<&Stmt>> = BTreeMap::new();
+        let mut bindings: BTreeMap<String, (&Expr, Vec<String>)> = BTreeMap::new();
+        let mut forced_bindings = BTreeSet::new();
+        let mut pending_annotation: Option<String> = None;
+        let qualified_modules = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::QualifiedImport(name, _) => Some(name.clone()),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+
+        for stmt in stmts {
+            if let Stmt::Annot(name, args) = stmt {
+                if name == "export" {
+                    for argument in args {
+                        self.calculation_runtime_symbols.extend(
+                            Self::collect_runtime_references_from_expr(
+                                argument,
+                                &qualified_modules,
+                            ),
+                        );
+                    }
+                }
+                pending_annotation = Some(name.clone());
+                continue;
+            }
+
+            if let Stmt::Bind(pattern, _, value) = stmt {
+                let mut names = Vec::new();
+                Self::collect_pattern_binding_names(pattern, &mut names);
+                if matches!(pending_annotation.as_deref(), Some("comptime" | "export")) {
+                    forced_bindings.extend(names.iter().cloned());
+                }
+                for name in &names {
+                    bindings.insert(name.clone(), (value, names.clone()));
+                }
+            } else {
+                for name in self.calculation_runtime_symbol_names(stmt) {
+                    symbols.entry(name).or_default().push(stmt);
+                }
+            }
+            pending_annotation = None;
+        }
+
+        self.calculation_runtime_symbols
+            .extend(forced_bindings.iter().cloned());
+        let mut queue = self
+            .calculation_runtime_symbols
+            .iter()
+            .filter(|name| symbols.contains_key(*name) || bindings.contains_key(*name))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut visited = BTreeSet::new();
+        let mut required_bindings = forced_bindings;
+
+        while let Some(name) = queue.pop() {
+            if !visited.insert(name.clone()) {
+                continue;
+            }
+
+            let mut references = BTreeSet::new();
+            if let Some(statements) = symbols.get(&name) {
+                for statement in statements {
+                    references.extend(Self::collect_runtime_references_from_stmt(
+                        statement,
+                        &qualified_modules,
+                    ));
+                }
+            }
+            if let Some((value, group_names)) = bindings.get(&name) {
+                required_bindings.extend(group_names.iter().cloned());
+                references.extend(Self::collect_runtime_references_from_expr(
+                    value,
+                    &qualified_modules,
+                ));
+            }
+
+            for reference in references {
+                self.calculation_runtime_symbols.insert(reference.clone());
+                if (symbols.contains_key(&reference) || bindings.contains_key(&reference))
+                    && !visited.contains(&reference)
+                {
+                    queue.push(reference);
+                }
+            }
+        }
+
+        self.calculation_runtime_bindings.extend(required_bindings);
+    }
+
+    pub fn initialize_calculation_program(
+        &mut self,
+        entry: &str,
+        stmts: &[Stmt],
+        env: &mut Env,
+    ) -> Value {
+        self.calculation_runtime_symbols.clear();
+        self.calculation_runtime_symbols.insert(entry.to_string());
+        self.calculation_runtime_bindings.clear();
+        self.run_program_internal(stmts, env, true)
+    }
+
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
+        self.run_program_internal(stmts, env, false)
+    }
+
+    fn run_program_internal(
+        &mut self,
+        stmts: &[Stmt],
+        env: &mut Env,
+        prune_top_level_bindings: bool,
+    ) -> Value {
+        if prune_top_level_bindings {
+            self.extend_calculation_runtime_demand(stmts);
+        }
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
         let mut static_declarations_registered = false;
@@ -10219,6 +10440,18 @@ impl Interpreter {
                     }
                 }
                 Stmt::Bind(pat, _ty, value) => {
+                    if prune_top_level_bindings {
+                        let mut names = Vec::new();
+                        Self::collect_pattern_binding_names(pat, &mut names);
+                        if !names.is_empty()
+                            && names
+                                .iter()
+                                .all(|name| !self.calculation_runtime_bindings.contains(name))
+                        {
+                            last = Value::Unit;
+                            continue;
+                        }
+                    }
                     let val = self.eval(value, env);
                     if current_annot.as_deref() == Some("comptime") {
                         let bind_name = match pat {
@@ -10277,7 +10510,11 @@ impl Interpreter {
                                                 let previous_source_dir = self.source_dir.clone();
                                                 self.source_dir =
                                                     Some(Self::imported_source_dir(&file_path));
-                                                last = self.run_program(&defs, env);
+                                                last = self.run_program_internal(
+                                                    &defs,
+                                                    env,
+                                                    prune_top_level_bindings,
+                                                );
                                                 self.source_dir = previous_source_dir;
                                             }
                                             Err(e) => eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e),
@@ -10350,13 +10587,24 @@ impl Interpreter {
                                             let previous_source_dir = self.source_dir.clone();
                                             self.source_dir =
                                                 Some(Self::imported_source_dir(&file_path));
-                                            self.run_program(&defs, &mut mod_env);
+                                            self.run_program_internal(
+                                                &defs,
+                                                &mut mod_env,
+                                                prune_top_level_bindings,
+                                            );
                                             self.source_dir = previous_source_dir;
                                             // Filter to only exported bindings
                                             let mut bindings = HashMap::new();
+                                            let module_closure_env = mod_env.child();
                                             for (k, v) in &mod_env.bindings {
                                                 if exported_names.contains(k) {
-                                                    bindings.insert(k.clone(), v.clone());
+                                                    bindings.insert(
+                                                        k.clone(),
+                                                        Self::capture_module_closure(
+                                                            v,
+                                                            &module_closure_env,
+                                                        ),
+                                                    );
                                                 }
                                             }
                                             // Also include constructors of exported ADTs
@@ -10848,7 +11096,17 @@ impl Interpreter {
                 self.run_program(body, &mut mod_env);
                 // M3b: Store module as Value::Scope for qualified access (Name.func())
                 // No unqualified leaking — use Name.binding to access
-                let bindings = mod_env.bindings.clone();
+                let module_closure_env = mod_env.child();
+                let bindings = mod_env
+                    .bindings
+                    .iter()
+                    .map(|(binding_name, value)| {
+                        (
+                            binding_name.clone(),
+                            Self::capture_module_closure(value, &module_closure_env),
+                        )
+                    })
+                    .collect();
                 let val = Value::Scope {
                     name: name.clone(),
                     bindings,
@@ -10856,6 +11114,23 @@ impl Interpreter {
                 env.set(name.clone(), val.clone());
                 val
             }
+        }
+    }
+
+    fn capture_module_closure(value: &Value, module_env: &Env) -> Value {
+        match value {
+            Value::Closure {
+                name: Some(name),
+                params,
+                body,
+                ..
+            } => Value::Closure {
+                name: Some(name.clone()),
+                params: params.clone(),
+                body: body.clone(),
+                env: module_env.clone(),
+            },
+            _ => value.clone(),
         }
     }
 
@@ -11260,7 +11535,13 @@ impl Interpreter {
                             } = value
                             {
                                 if name.is_some() {
-                                    let mut scope_env = env.child();
+                                    let mut scope_env = if closure_env.bindings.is_empty()
+                                        && closure_env.parent.is_none()
+                                    {
+                                        env.child()
+                                    } else {
+                                        closure_env.child()
+                                    };
                                     for (binding_name, binding_value) in bindings {
                                         scope_env.set(binding_name.clone(), binding_value.clone());
                                     }
@@ -15694,6 +15975,11 @@ pub struct TypeChecker {
     pub error_context: Vec<String>,
 }
 
+pub struct TypeCheckArtifacts {
+    pub diagnostics: Vec<Diagnostic>,
+    pub calculation_contracts: Vec<calculate::CalculationContract>,
+}
+
 impl TypeChecker {
     /// Whether a concrete named type explicitly opts into a marker or ordinary
     /// trait. Empty marker implementations are recorded like method-bearing
@@ -19410,6 +19696,16 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> Vec<Diagnostic> {
+        Self::check_with_artifacts(stmts, source_dir, source).diagnostics
+    }
+
+    /// Run type checking and retain validated calculation contracts for callers
+    /// that need them after validation.
+    pub fn check_with_artifacts(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+    ) -> TypeCheckArtifacts {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
@@ -19417,14 +19713,22 @@ impl TypeChecker {
         tc.infer_rule_return_types(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
+        let mut calculation_contracts = Vec::new();
         if tc.diagnostics.is_empty() {
-            if let Err(mut diagnostics) =
-                calculate::extract_calculation_contracts(stmts, source, tc.source_dir.clone())
-            {
-                tc.diagnostics.append(&mut diagnostics);
+            match calculate::extract_calculation_contracts_with_checker(
+                stmts,
+                source,
+                tc.source_dir.clone(),
+                &tc,
+            ) {
+                Ok(contracts) => calculation_contracts = contracts,
+                Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
-        tc.diagnostics
+        TypeCheckArtifacts {
+            diagnostics: tc.diagnostics,
+            calculation_contracts,
+        }
     }
 
     /// Legacy wrapper — returns string-formatted errors for backward compatibility.
@@ -19540,6 +19844,172 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn type_check_artifacts_extract_calculation_contract_once() {
+        let source = r#"
+# CalcInput(amount: Int)
+# CalcOutput(total: Int)
+
+@ calculate("Invoice")
+| calculate_invoice(input: CalcInput) -> CalcOutput(total = input.amount)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse calculation");
+
+        calculate::reset_contract_extraction_count();
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.calculation_contracts.len(), 1);
+        assert_eq!(
+            artifacts.calculation_contracts[0].entry,
+            "calculate_invoice"
+        );
+        assert_eq!(calculate::contract_extraction_count(), 1);
+    }
+
+    #[test]
+    fn calculation_initialization_skips_unreachable_fixtures() {
+        let source = r#"
+# CalcInput(amount: Int)
+# CalcOutput(total: Int)
+
+= required_base = 40
+= required_total = required_base + 2
+= unrelated_fixture = 999
+| unrelated_fixture_is_valid: unrelated_fixture -> unrelated_fixture == 999
+
+@ calculate("Invoice")
+| calculate_invoice(input: CalcInput) -> CalcOutput(total = input.amount + required_total)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse calculation");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.initialize_calculation_program("calculate_invoice", &stmts, &mut env);
+
+        assert_eq!(
+            env.get("required_base").map(ToString::to_string),
+            Some("40".into())
+        );
+        assert_eq!(
+            env.get("required_total").map(ToString::to_string),
+            Some("42".into())
+        );
+        assert!(env.get("unrelated_fixture").is_none());
+
+        env.set(
+            "input".to_string(),
+            Value::NamedConstructor(
+                "CalcInput".to_string(),
+                vec![("amount".to_string(), Value::Int(8))],
+            ),
+        );
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var("calculate_invoice".to_string()).into()),
+            vec![ExprKind::Var("input".to_string()).into()],
+        )
+        .into();
+        assert_eq!(
+            interpreter.eval(&call, &env).to_string(),
+            "CalcOutput(total: 50)"
+        );
+    }
+
+    #[test]
+    fn calculation_initialization_reaches_qualified_import_members() {
+        let temp_name = format!(
+            "futuruna_calculation_qualified_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create calculation import directory");
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            "= base = 40\n= unrelated_fixture = 999\n@ export\n> add_base(amount: Int) -> Int { amount + base }\n",
+        )
+        .expect("write calculation dependency");
+        let source = r#"
+@ import Dep from ./dep
+# CalcInput(amount: Int)
+# CalcOutput(total: Int)
+
+@ calculate("Invoice")
+| calculate_invoice(input: CalcInput) -> CalcOutput(total = Dep.add_base(input.amount))
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse calculation");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+
+        interpreter.initialize_calculation_program("calculate_invoice", &stmts, &mut env);
+        assert!(interpreter.calculation_runtime_symbols.contains("add_base"));
+        assert!(interpreter.calculation_runtime_symbols.contains("base"));
+        assert!(interpreter.calculation_runtime_bindings.contains("base"));
+        assert!(matches!(
+            env.get("Dep"),
+            Some(Value::Scope { bindings, .. }) if bindings.contains_key("add_base")
+        ));
+        env.set(
+            "input".to_string(),
+            Value::NamedConstructor(
+                "CalcInput".to_string(),
+                vec![("amount".to_string(), Value::Int(2))],
+            ),
+        );
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var("calculate_invoice".to_string()).into()),
+            vec![ExprKind::Var("input".to_string()).into()],
+        )
+        .into();
+        assert_eq!(
+            interpreter.eval(&call, &env).to_string(),
+            "CalcOutput(total: 42)"
+        );
+
+        std::fs::remove_dir_all(temp_dir).ok();
+    }
+
+    #[test]
+    fn reactive_scope_functions_keep_call_site_outer_bindings() {
+        let source = r#"
+= offset = 40
+| scope Calculator {
+    > add_offset(amount: Int) -> Int { amount + offset }
+}
+= result = Calculator.add_offset(2)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse reactive scope");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string).as_deref(),
+            Some("42")
+        );
+    }
 
     #[test]
     fn generic_rule_annotation_round_trips_for_runtime_matching() {

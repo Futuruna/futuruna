@@ -244,5 +244,10 @@ non-exact integers, invalid enum choices, missing required fields, and malformed
 canonical JSON are rejected before their case runs. A bad related row invalidates
 that case while other valid cases still run.
 
+An XLSX result contains a compact `results` summary, a lossless
+`result_values` table, and case-scoped `diagnostics`. `result_values` uses RFC
+6901 JSON Pointer paths and canonical JSON scalar text; long values occupy
+ordered chunks rather than being truncated at Excel's cell-size limit.
+
 The full format and evolution contract is in
 [Typed calculation contracts](../rfcs/typed-calculation-contracts.md).

@@ -11,6 +11,11 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+#[cfg(test)]
+thread_local! {
+    static CONTRACT_EXTRACTION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub const CONTRACT_SCHEMA: &str = "futuruna.calculate.v1";
 pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
 pub const OUTPUT_SCHEMA: &str = "futuruna.calculate.output.v1";
@@ -614,6 +619,24 @@ pub fn extract_calculation_contracts(
     checker.infer_rule_return_types(stmts);
     checker.infer_top_level_binding_types(stmts);
 
+    extract_calculation_contracts_with_checker(stmts, source, source_dir, &checker)
+}
+
+pub(crate) fn extract_calculation_contracts_with_checker(
+    stmts: &[Stmt],
+    source: &str,
+    source_dir: Option<String>,
+    checker: &TypeChecker,
+) -> Result<Vec<CalculationContract>, Vec<Diagnostic>> {
+    if !stmts
+        .iter()
+        .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "calculate"))
+    {
+        return Ok(Vec::new());
+    }
+    #[cfg(test)]
+    CONTRACT_EXTRACTION_COUNT.with(|count| count.set(count.get() + 1));
+
     let mut catalog = TypeCatalog::default();
     catalog.collect(stmts, source_dir.as_deref());
 
@@ -646,7 +669,7 @@ pub fn extract_calculation_contracts(
         let label = pending_markers.first().cloned().flatten();
         pending_markers.clear();
 
-        match endpoint_from_stmt(stmt, stmts, &checker) {
+        match endpoint_from_stmt(stmt, stmts, checker) {
             Ok(mut candidate) => {
                 candidate.label = label;
                 candidates.push(candidate);
@@ -736,6 +759,16 @@ pub fn extract_calculation_contracts(
     }
     contracts.sort_by(|left, right| left.entry.cmp(&right.entry));
     Ok(contracts)
+}
+
+#[cfg(test)]
+pub(crate) fn reset_contract_extraction_count() {
+    CONTRACT_EXTRACTION_COUNT.with(|count| count.set(0));
+}
+
+#[cfg(test)]
+pub(crate) fn contract_extraction_count() -> usize {
+    CONTRACT_EXTRACTION_COUNT.with(std::cell::Cell::get)
 }
 
 fn endpoint_from_stmt(
@@ -3437,7 +3470,7 @@ pub fn invoke_calculation_cases(
     interpreter.suppress_output = true;
     interpreter.source_dir = source_dir;
     let mut base_env = interpreter.default_env();
-    interpreter.run_program(stmts, &mut base_env);
+    interpreter.initialize_calculation_program(&contract.entry, stmts, &mut base_env);
     let base_actor_instances = interpreter.actor_instances.clone();
     let base_rng_state = interpreter.rng_state;
 

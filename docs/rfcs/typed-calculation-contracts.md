@@ -159,7 +159,8 @@ Generated workbooks contain:
   type, encoding, requiredness, choices, and variant guards for each generated
   input column;
 - one worksheet for every relational collection path;
-- generated output workbooks additionally contain `results` and `diagnostics`.
+- generated output workbooks additionally contain `results`, `result_values`,
+  and `diagnostics`.
 
 The first visible worksheet is `cases` for input templates and `results` for
 generated outputs. Input worksheets render a title row before their column
@@ -209,6 +210,15 @@ calculation title row on every input worksheet. Version 5 humanized visible
 fallback headers and placed the canonical path in every input header note.
 Earlier workbooks are rejected rather than silently interpreting their older
 topology or payload encoding.
+
+The output workbook schema is `futuruna.calculate.xlsx.output.v2`. `results`
+keeps compact JSON when it fits in one Excel cell. `result_values` represents
+every result node with its case identifier, RFC 6901 JSON Pointer path, JSON
+kind, one-based chunk number, and canonical JSON text. Objects and arrays have
+their own rows, so empty containers and collection topology remain explicit.
+Long scalar JSON is split without breaking a Unicode scalar value and can be
+reassembled in chunk order. This table is the lossless machine boundary for
+large results; no result is truncated to fit Excel's cell limit.
 
 ## Metadata
 
@@ -292,6 +302,10 @@ This supports an AI interview without making the AI a second tax or policy
 engine: the client reads `field_metadata`, asks the questions, writes answers to
 canonical paths, invokes Futuruna, and explains the deterministic result and its
 source references.
+
+Document ingestion is outside this contract. A human or AI obtains the source
+facts and fills the generated workbook; Futuruna loads and validates that
+workbook, but does not import PDFs or infer facts from source documents.
 
 ## Commands
 

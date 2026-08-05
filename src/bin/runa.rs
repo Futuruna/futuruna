@@ -696,7 +696,8 @@ fn main_inner() {
 }
 
 const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
-const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v1";
+const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
+const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 
 fn run_calculation_command(
     mode: &str,
@@ -723,15 +724,9 @@ fn run_calculation_command(
     } else {
         user_stmts
     };
-    if run_type_check(&stmts, &source, filename) {
-        std::process::exit(1);
-    }
+    let contracts = run_calculation_type_check(&stmts, &source, filename)
+        .unwrap_or_else(|| std::process::exit(1));
     let source_dir = source_dir_for(filename);
-    let contracts = calculate::extract_calculation_contracts(&stmts, &source, source_dir.clone())
-        .unwrap_or_else(|diagnostics| {
-            print_calculation_diagnostics(&diagnostics, &source, filename);
-            std::process::exit(1);
-        });
     let contract =
         select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {
             eprintln!("error: {}", error);
@@ -845,19 +840,6 @@ fn run_calculation_command(
             }
         }
         _ => unreachable!("calculation command dispatch"),
-    }
-}
-
-fn print_calculation_diagnostics(diagnostics: &[Diagnostic], source: &str, filename: &str) {
-    let use_color = should_use_color();
-    eprintln!(
-        "error: {} calculation contract error{} in {}:",
-        diagnostics.len(),
-        if diagnostics.len() == 1 { "" } else { "s" },
-        filename
-    );
-    for diagnostic in diagnostics {
-        eprint!("{}", diagnostic.display(source, filename, use_color));
     }
 }
 
@@ -3015,8 +2997,16 @@ fn write_calculation_xlsx_output(
     results
         .write_string_with_format(0, 1, "result", &header)
         .map_err(|error| error.to_string())?;
+    let mut result_value_rows = Vec::new();
     for (index, result) in output.results.iter().enumerate() {
         let row = index as u32 + 1;
+        let result_json = serde_json::to_string(&result.result).expect("result JSON");
+        append_calculation_xlsx_result_value_rows(
+            &result.case_id,
+            "",
+            &result.result,
+            &mut result_value_rows,
+        );
         results
             .write_string_with_format(row, 0, &result.case_id, &text_format)
             .map_err(|error| error.to_string())?;
@@ -3024,7 +3014,11 @@ fn write_calculation_xlsx_output(
             .write_string_with_format(
                 row,
                 1,
-                serde_json::to_string(&result.result).expect("result JSON"),
+                if calculation_xlsx_text_fits(&result_json) {
+                    &result_json
+                } else {
+                    "See result_values sheet"
+                },
                 &text_format,
             )
             .map_err(|error| error.to_string())?;
@@ -3036,6 +3030,47 @@ fn write_calculation_xlsx_output(
         .set_column_width(1, 72)
         .map_err(|error| error.to_string())?;
     results
+        .set_freeze_panes(1, 0)
+        .map_err(|error| error.to_string())?;
+
+    let result_values = workbook
+        .add_worksheet()
+        .set_name("result_values")
+        .map_err(|error| error.to_string())?;
+    for (column, name) in ["case_id", "path", "kind", "chunk", "value_json"]
+        .into_iter()
+        .enumerate()
+    {
+        result_values
+            .write_string_with_format(0, column as u16, name, &header)
+            .map_err(|error| error.to_string())?;
+    }
+    for (index, row_value) in result_value_rows.iter().enumerate() {
+        let row = index as u32 + 1;
+        result_values
+            .write_string_with_format(row, 0, &row_value.case_id, &text_format)
+            .map_err(|error| error.to_string())?;
+        result_values
+            .write_string_with_format(row, 1, &row_value.path, &text_format)
+            .map_err(|error| error.to_string())?;
+        result_values
+            .write_string_with_format(row, 2, row_value.kind, &text_format)
+            .map_err(|error| error.to_string())?;
+        if let Some(chunk) = row_value.chunk {
+            result_values
+                .write_number(row, 3, chunk as f64)
+                .map_err(|error| error.to_string())?;
+        }
+        result_values
+            .write_string_with_format(row, 4, &row_value.value_json, &text_format)
+            .map_err(|error| error.to_string())?;
+    }
+    for (column, width) in [18.0, 48.0, 12.0, 10.0, 72.0].into_iter().enumerate() {
+        result_values
+            .set_column_width(column as u16, width)
+            .map_err(|error| error.to_string())?;
+    }
+    result_values
         .set_freeze_panes(1, 0)
         .map_err(|error| error.to_string())?;
 
@@ -3074,6 +3109,106 @@ fn write_calculation_xlsx_output(
         .map_err(|error| error.to_string())?;
 
     workbook.save(path).map_err(|error| error.to_string())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CalculationXlsxResultValueRow {
+    case_id: String,
+    path: String,
+    kind: &'static str,
+    chunk: Option<u32>,
+    value_json: String,
+}
+
+fn append_calculation_xlsx_result_value_rows(
+    case_id: &str,
+    path: &str,
+    value: &serde_json::Value,
+    rows: &mut Vec<CalculationXlsxResultValueRow>,
+) {
+    match value {
+        serde_json::Value::Object(fields) => {
+            rows.push(CalculationXlsxResultValueRow {
+                case_id: case_id.to_string(),
+                path: path.to_string(),
+                kind: "object",
+                chunk: None,
+                value_json: String::new(),
+            });
+            for (name, value) in fields {
+                let child_path = calculation_json_pointer_child(path, name);
+                append_calculation_xlsx_result_value_rows(case_id, &child_path, value, rows);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            rows.push(CalculationXlsxResultValueRow {
+                case_id: case_id.to_string(),
+                path: path.to_string(),
+                kind: "array",
+                chunk: None,
+                value_json: String::new(),
+            });
+            for (index, value) in items.iter().enumerate() {
+                let child_path = calculation_json_pointer_child(path, &index.to_string());
+                append_calculation_xlsx_result_value_rows(case_id, &child_path, value, rows);
+            }
+        }
+        scalar => {
+            let kind = match scalar {
+                serde_json::Value::Null => "null",
+                serde_json::Value::Bool(_) => "boolean",
+                serde_json::Value::Number(_) => "number",
+                serde_json::Value::String(_) => "string",
+                serde_json::Value::Array(_) | serde_json::Value::Object(_) => unreachable!(),
+            };
+            let value_json = serde_json::to_string(scalar).expect("scalar result JSON");
+            for (index, chunk) in calculation_xlsx_text_chunks(&value_json)
+                .into_iter()
+                .enumerate()
+            {
+                rows.push(CalculationXlsxResultValueRow {
+                    case_id: case_id.to_string(),
+                    path: path.to_string(),
+                    kind,
+                    chunk: Some(index as u32 + 1),
+                    value_json: chunk,
+                });
+            }
+        }
+    }
+}
+
+fn calculation_json_pointer_child(path: &str, segment: &str) -> String {
+    let escaped = segment.replace('~', "~0").replace('/', "~1");
+    format!("{}/{}", path, escaped)
+}
+
+fn calculation_xlsx_text_fits(value: &str) -> bool {
+    value.encode_utf16().count() <= CALCULATION_XLSX_TEXT_CHUNK_LIMIT
+}
+
+fn calculation_xlsx_text_chunks(value: &str) -> Vec<String> {
+    if value.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut chunks = Vec::new();
+    let mut chunk = String::new();
+    let mut utf16_units = 0;
+    for character in value.chars() {
+        let character_units = character.len_utf16();
+        if utf16_units + character_units > CALCULATION_XLSX_TEXT_CHUNK_LIMIT {
+            chunks.push(chunk);
+            chunk = String::new();
+            utf16_units = 0;
+        }
+        chunk.push(character);
+        utf16_units += character_units;
+    }
+    if !chunk.is_empty() {
+        chunks.push(chunk);
+    }
+    chunks
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -3695,19 +3830,43 @@ fn compiler_validation_diagnostics(
 /// Run type checking and display any errors as structured diagnostics.
 /// Returns true if there were errors (and already printed them).
 fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
+    let artifacts = type_check_artifacts(stmts, source, filename);
+    print_type_check_diagnostics(&artifacts.diagnostics, source, filename)
+}
+
+fn run_calculation_type_check(
+    stmts: &[Stmt],
+    source: &str,
+    filename: &str,
+) -> Option<Vec<calculate::CalculationContract>> {
+    let artifacts = type_check_artifacts(stmts, source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        None
+    } else {
+        Some(artifacts.calculation_contracts)
+    }
+}
+
+fn type_check_artifacts(stmts: &[Stmt], source: &str, filename: &str) -> TypeCheckArtifacts {
     let source_dir = source_dir_for(filename);
     let source_name = std::path::Path::new(filename)
         .file_stem()
         .map(|s| s.to_string_lossy().to_string());
-    let mut diags = TypeChecker::check_with_diagnostics(stmts, source_dir.clone(), source);
-    if diags.is_empty() {
-        diags.extend(compiler_validation_diagnostics(
-            stmts,
-            source_dir,
-            source_name,
-        ));
+    let mut artifacts = TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source);
+    if artifacts.diagnostics.is_empty() {
+        artifacts
+            .diagnostics
+            .extend(compiler_validation_diagnostics(
+                stmts,
+                source_dir,
+                source_name,
+            ));
     }
-    if diags.is_empty() {
+    artifacts
+}
+
+fn print_type_check_diagnostics(diagnostics: &[Diagnostic], source: &str, filename: &str) -> bool {
+    if diagnostics.is_empty() {
         return false;
     }
     let use_color = should_use_color();
@@ -3716,7 +3875,7 @@ fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
     } else {
         ("", "")
     };
-    let count = diags.len();
+    let count = diagnostics.len();
     eprintln!(
         "{}error{}: {} type error{} in {}:",
         red,
@@ -3725,7 +3884,7 @@ fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
         if count == 1 { "" } else { "s" },
         filename
     );
-    for diag in &diags {
+    for diag in diagnostics {
         eprint!("{}", diag.display(source, filename, use_color));
     }
     true
@@ -40420,6 +40579,96 @@ fn sanitize_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn calculation_xlsx_output_chunks_large_results_without_loss() {
+        use calamine::{open_workbook_auto, Reader};
+
+        let path =
+            unique_temp_workspace("futuruna-large-calculation-result").with_extension("xlsx");
+        let contract = calculate::CalculationContract {
+            schema: calculate::CONTRACT_SCHEMA.to_string(),
+            schema_version: 1,
+            entry: "calculate".to_string(),
+            label: Some("Large result".to_string()),
+            parameter: "input".to_string(),
+            input: calculate::CalculationTypeRef::Unit,
+            output: calculate::CalculationTypeRef::Primitive {
+                name: "String".to_string(),
+            },
+            definitions: Vec::new(),
+            metadata: Vec::new(),
+            field_metadata: Vec::new(),
+            schema_hash: "test-schema-hash".to_string(),
+        };
+        let long_value = "A😀".repeat(20_000);
+        let output = calculate::CalculationOutputEnvelope {
+            futuruna: calculate::CalculationEnvelopeMetadata {
+                schema: calculate::OUTPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            results: vec![calculate::CalculationResultCase {
+                case_id: "case-1".to_string(),
+                result: serde_json::Value::String(long_value.clone()),
+            }],
+            diagnostics: Vec::new(),
+        };
+
+        write_calculation_xlsx_output(
+            &contract,
+            &output,
+            path.to_str().expect("result workbook path"),
+        )
+        .expect("write large result workbook");
+
+        let mut workbook = open_workbook_auto(&path).expect("open large result workbook");
+        let results = workbook.worksheet_range("results").expect("results sheet");
+        assert_eq!(
+            results.get((1, 1)).map(ToString::to_string).as_deref(),
+            Some("See result_values sheet")
+        );
+        let result_values = workbook
+            .worksheet_range("result_values")
+            .expect("result values sheet");
+        let chunks = result_values
+            .rows()
+            .skip(1)
+            .map(|row| {
+                row.get(4)
+                    .map(ToString::to_string)
+                    .expect("result value chunk")
+            })
+            .collect::<Vec<_>>();
+        assert!(chunks.len() > 1);
+        assert!(chunks
+            .iter()
+            .all(|chunk| chunk.encode_utf16().count() <= CALCULATION_XLSX_TEXT_CHUNK_LIMIT));
+        let reassembled = chunks.concat();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&reassembled).expect("reassembled JSON"),
+            serde_json::Value::String(long_value)
+        );
+
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn calculation_result_values_use_json_pointer_paths() {
+        let value = serde_json::json!({"a/b~c": [true, {}]});
+        let mut rows = Vec::new();
+        append_calculation_xlsx_result_value_rows("case-1", "", &value, &mut rows);
+
+        assert!(rows
+            .iter()
+            .any(|row| row.path == "/a~1b~0c" && row.kind == "array"));
+        assert!(rows
+            .iter()
+            .any(|row| row.path == "/a~1b~0c/0" && row.value_json == "true"));
+        assert!(rows
+            .iter()
+            .any(|row| row.path == "/a~1b~0c/1" && row.kind == "object"));
+    }
 
     #[test]
     fn calculation_input_paths_have_readable_fallback_labels() {

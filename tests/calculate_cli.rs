@@ -934,6 +934,10 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
     assert!(workbook
         .sheet_names()
         .iter()
+        .any(|name| name == "result_values"));
+    assert!(workbook
+        .sheet_names()
+        .iter()
         .any(|name| name == "diagnostics"));
     let results = workbook.worksheet_range("results").expect("results sheet");
     assert_eq!(
@@ -945,6 +949,22 @@ fn xlsx_template_round_trips_and_output_has_result_sheets() {
         .map(ToString::to_string)
         .expect("result JSON")
         .contains("\"annual_tax\":117600"));
+    let result_values = workbook
+        .worksheet_range("result_values")
+        .expect("result values sheet");
+    let annual_tax = result_values
+        .rows()
+        .skip(1)
+        .find(|row| row.get(1).map(ToString::to_string).as_deref() == Some("/annual_tax"))
+        .expect("annual tax result value");
+    assert_eq!(
+        annual_tax.get(2).map(ToString::to_string).as_deref(),
+        Some("number")
+    );
+    assert_eq!(
+        annual_tax.get(4).map(ToString::to_string).as_deref(),
+        Some("117600")
+    );
 
     std::fs::remove_file(&input_path).ok();
     std::fs::remove_file(&output_path).ok();
