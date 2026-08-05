@@ -220,13 +220,22 @@ Hvis en del af erhvervserstatningen bruges til at genopføre en ejerbolig,
 holder § 10, stk. 9 nu den anvendte bruttosum adskilt fra den ordinære
 ejendomsavance. Hver genopførelsesejendom oplyser de faktiske
 ejerboligudgifter, den anvendte erstatning, den historiske anskaffelsessum for
-den skaderamte del og året, hvor boligen tages i brug. Futuruna trækker
-ejerboligdelen ud af den ordinære avance og medregner samtidig hele
-erstatningssummen uden anskaffelsessumsfradrag. Et fremført ejendomstab kan
-derfor modregnes i en ordinær § 10-fortjeneste, men ikke i stk. 9-beløbet.
-Resultatet føres særskilt gennem Personskattelovens § 4 og bevarer både
-fordelingen, tabsforløbet og en eventuel Afskrivningslov § 24-samordning i
-forklaringssporet.
+den skaderamte del og om ejerboliganvendelsen gælder ved selve genopførelsen.
+Futuruna afleder medregningsåret fra genopførelsesåret, trækker ejerboligdelen
+ud af den ordinære avance og medregner samtidig hele erstatningssummen uden
+anskaffelsessumsfradrag. Et fremført ejendomstab kan derfor modregnes i en
+ordinær § 10-fortjeneste, men ikke i stk. 9-beløbet. Resultatet føres særskilt
+gennem Personskattelovens § 4 og bevarer både fordelingen, tabsforløbet og en
+eventuel Afskrivningslov § 24-samordning i forklaringssporet.
+
+Hvis ejendommen først senere ændrer anvendelse til en § 8-boligejendom, hører
+det ikke under § 10, stk. 9. Beregningsinputtet bærer i stedet den faktiske
+ændringsdato. For en blandet ejendom efter § 9 oplyses også boligandelen før og
+efter ændringen i promille. Futuruna afleder selv kronologien,
+boligandelsforøgelsen og overgangsundtagelsen for ændringer før den 15.
+december 2005. Den gamle genanbragte erhvervsfortjeneste kan derefter beskattes
+ved afståelsen efter § 8, stk. 5, eller § 9, stk. 4, uden at borgeren eller
+AI-interviewet skal vælge den juridiske konklusion.
 
 § 11, stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
 ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver

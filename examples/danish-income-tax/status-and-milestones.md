@@ -3,10 +3,10 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-a2ebb4` (Ejendomsavancebeskatningsloven § 10, stk. 9 om erhvervserstatning anvendt til ejerbolig; implementation and verification complete, pending independent review)
+Current implementation slice: `td-80abd7` (afled senere boligklassifikation efter EBL §§ 8, stk. 5, og 9, stk. 4 fra daterede kildefakta; implementation and verification complete, pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
-Deferred performance issue: `td-6659f1`
+Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Latest approved implementation slice: `td-2c1961`
 Latest approved language slice: `td-29d539`
 
@@ -115,14 +115,24 @@ passerer i både interpreter og compiler.
 Ejendomsavancebeskatningslovens § 10, stk. 9 er nu også et beregnet
 beløbsspor frem for en ikke-understøttet stilling. Hver identificeret
 genopførelsesejendom bærer erhvervsmæssige udgifter og et typet valg mellem
-ingen ejerboliganvendelse og erhvervserstatning anvendt til ejerbolig. I det
-sidste tilfælde oplyses ejerboligens genopførelsesudgifter, den anvendte
-erstatning, den historiske anskaffelsessum for den skaderamte del og året for
-boligbrug. Reglerne validerer både hver ejendom og de samlede fordelinger,
-trækker ejerboligdelen ud af den ordinære avanceopgørelse og medregner samtidig
-hele den anvendte erstatningssum efter stk. 9 uden fradrag for den historiske
-anskaffelsessum. Det ordinære § 10-resultat og samordningen med
+ingen ejerboliganvendelse ved genopførelsen og erhvervserstatning anvendt til
+ejerbolig ved genopførelsen. I det sidste tilfælde oplyses ejerboligens
+genopførelsesudgifter, den anvendte erstatning og den historiske
+anskaffelsessum for den skaderamte del. Reglerne validerer både hver ejendom og
+de samlede fordelinger, trækker ejerboligdelen ud af den ordinære
+avanceopgørelse og medregner samtidig hele den anvendte erstatningssum efter
+stk. 9 uden fradrag for den historiske anskaffelsessum. Medregningsåret afledes
+af genopførelsesåret. Det ordinære § 10-resultat og samordningen med
 Afskrivningslovens § 24 bevares som særskilte forklaringsspor.
+
+En senere ændring til § 8-boligejendom er derimod et særskilt dateret faktum
+ved den senere afståelse. For § 9 bærer ændringen både datoen og boligandelen i
+promille før og efter ændringen. Reglerne validerer kronologien mod
+genanbringelsesåret og afståelsesdatoen, afleder selv om boligandelen er
+forøget og anvender overgangsreglen for ændringer før den 15. december 2005.
+Dermed beskattes den gamle genanbragte erhvervsfortjeneste efter § 8, stk. 5,
+eller § 9, stk. 4, uden at en senere boligbrug fejlagtigt behandles som
+§ 10, stk. 9 ved genopførelsen.
 
 Den kanoniske `beregn_personskat`-graf modtager egne og en samlevende
 ægtefælles identificerede skadegenopførelser. Kun den ordinære
@@ -132,11 +142,11 @@ kapitalindkomsten efter Personskattelovens § 4, stk. 1, nr. 14. Et blandet
 scenarie med 50.000 kr. i ordinær straksbeskatning, 100.000 kr. i fremført tab
 og 200.000 kr. i ejerboligerstatning modregner kun de 50.000 kr. og ender med
 200.000 kr. i kapitalindkomst samt 50.000 kr. i fortsat fremført tab.
-Nul-, delvis- og fuld ejerboliganvendelse, ugyldige fordelinger, senere
-klassifikationsskifte, AL-samordning og den kanoniske kapitalindkomst passerer
-i de fokuserede interpreter- og compiler-scenarier. Senere boligbrug end
-genopførelsesåret fejler foreløbig udtrykkeligt lukket, fordi det følger et
-andet klassifikationsskifteregelsæt.
+Nul-, delvis- og fuld ejerboliganvendelse ved genopførelsen, ugyldige
+fordelinger, senere klassifikationsskifte, AL-samordning og den kanoniske
+kapitalindkomst passerer i de fokuserede interpreter- og compiler-scenarier.
+Senere boligbrug følger nu det særskilte klassifikationsskifteregelsæt i
+§§ 8, stk. 5, og 9, stk. 4 i stedet for at fejle lukket i § 10.
 
 Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
@@ -3194,9 +3204,15 @@ Review candidates to revisit deliberately, not as broad churn:
   valgte ejendoms aktive anskaffelsessumsnedslag videre til et senere salg.
   Stk. 9 holder ejerboligens anvendte bruttosum uden for både den ordinære
   avance og § 6-tabsmodregningen, men fører den særskilt til § 4-kapitalindkomst
-  uden anskaffelsessumsfradrag. AL §§ 21/24-sporet og den kanoniske Personskat-
-  integration bevarer begge beløb. De fokuserede fordelings-, stk. 9-,
-  afskrivnings-, audit- og kanoniske scenarier passerer i begge backends.
+  uden anskaffelsessumsfradrag. Ejerboligstatussen gælder udtrykkeligt ved
+  genopførelsen, og medregningsåret afledes af genopførelsesåret. Et senere
+  klassifikationsskifte bærer i stedet ændringsdatoen og, for § 9, boligandelen
+  før og efter ændringen. §§ 8, stk. 5, og 9, stk. 4 afleder virkningen,
+  boligandelsforøgelsen og overgangsgrænsen den 15. december 2005 fra disse
+  fakta. AL §§ 21/24-sporet og den kanoniske Personskat-integration bevarer
+  begge beløb. De fokuserede fordelings-, stk. 9-, klassifikationsskifte-,
+  afskrivnings-, audit- og kanoniske scenarier passerer; den relationelle
+  XLSX/JSON-grænse afstemmer de nye dato- og promillefelter.
 - Pensionsbeskatningslovens § 53 A har nu et kildefaktabåret omfang og et
   dateret flerårsforløb. Reglerne afleder alle ni hjemler i stk. 1,
   udelukkelsen efter § 53 B, undtagelserne i stk. 4 og

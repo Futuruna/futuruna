@@ -1,0 +1,160 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ejendomsavancebeskatningsloven
+
+= ebl_klassifikationsskifte_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = ebl_genanbringelse_lbk132),
+        Source(value = ebl_par8_par9_lbk132),
+        AmendmentSource(value = ebl_genanbringelse_lov308),
+        Guidance(value = ebl_par10_klassifikationsskifte_vejledning_2026),
+    )
+)
+
+--@label:ebl_klassifikationsskifte_scenarier::meta:ebl_klassifikationsskifte_scenarier_metadata--
+--@begin:ebl_klassifikationsskifte_scenarier--
+= ebl_klassifikationsskifte_par10_fakta = EblPar10Fakta(
+    skadedato = EblDato(år = 2024, måned = 3, dag = 1),
+    erstatningssum_endeligt_fastsat_indkomstår = 2024,
+    genopførelsesindkomstår = 2025,
+    skadelidt_ejendom_omfattet_af_par8 = Falskt,
+    erstatnings_eller_forsikringssum_ikke_skattefri_efter_par9_kroner = 500000,
+    reguleret_anskaffelsessum_for_skaderamt_erhvervsdel_kroner = 300000,
+    genopførelsessted = EblPar10GenopførelsePåSammeEjendom(
+        ejendom = EblPar10Genopførelsesejendom(
+            identifikation = "senere-boligklassifikation",
+            erhvervsmæssige_genopførelsesudgifter_kroner = 500000,
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
+        )
+    ),
+    fristforhold = EblPar10UdenFristforlængelse,
+    afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
+    regulering = EblGenanbragtFortjenesteregulering(
+        tillæg_for_genanbragt_del_kroner = 0,
+        nedslag_for_genanbragt_del_kroner = 0
+    )
+)
+
+= ebl_klassifikationsskifte_par10_resultat = ebl_par10_resultat(ebl_klassifikationsskifte_par10_fakta)
+= ebl_klassifikationsskifte_par10_genanbringelse = EblMedGenanbringelseEfterPar10(
+    fakta = ebl_klassifikationsskifte_par10_fakta,
+    genopført_ejendom_identifikation = "senere-boligklassifikation"
+)
+
+| ebl_klassifikationsskifte_par8_resultat(genanbringelse: EblGenanbringelse, ændringsdato: EblDato, afståelsesdato: EblDato) -> ebl_par8_resultat(
+    EblPar8Fakta(
+        ejendomsart = EblPar8EnEllerTofamilieshus(
+            grundbetingelse = EblPar8GrundarealUnder1400M2
+        ),
+        tjent_til_bolig_eller_privat_formål = Sandt,
+        betingelser_opfyldt_i_ejerperioden = Sandt,
+        afståelsesforhold = EblPar8AlmindeligAfståelse,
+        genanbringelsesforhold = EblPar8GenanbringelseEfterStk5(
+            genanbringelse = genanbringelse,
+            anvendelsesændring = EblPar8Anvendelsesændring(
+                ændringsdato = ændringsdato
+            )
+        )
+    ),
+    afståelsesdato,
+    300000
+)
+
+| ebl_klassifikationsskifte_par9_resultat(boligandel_efter_ændringen_promille: Heltal, ændringsdato: EblDato) -> ebl_par9_resultat(
+    EblPar9Fakta(
+        kategori = EblPar9Landbrugsejendom,
+        bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Sandt,
+        boligbetingelser_opfyldt_i_ejerperioden = Sandt,
+        grundbetingelse = EblPar8GrundarealUnder1400M2,
+        bolig_anskaffelsessum_kroner = 200000,
+        bolig_afståelsessum_kroner = 250000,
+        skadeforhold = EblPar9IngenVæsentligSkade,
+        genanbringelsesforhold = EblPar9GenanbringelseEfterStk4(
+            genanbringelse = ebl_klassifikationsskifte_par10_genanbringelse,
+            boligandelsændring = EblPar9Boligandelsændring(
+                ændringsdato = ændringsdato,
+                boligandel_ved_genanbringelsen_promille = 0,
+                boligandel_efter_ændringen_promille = boligandel_efter_ændringen_promille
+            )
+        )
+    ),
+    EblDato(år = 2027, måned = 6, dag = 30),
+    EblPar9Beløbsgrundlag(
+        erhvervsdel_reguleret_anskaffelsessum_kroner = 300000,
+        erhvervsdel_afståelsessum_kroner = 250000,
+        samlet_reguleret_anskaffelsessum_kroner = 500000,
+        samlet_afståelsessum_kroner = 500000
+    )
+)
+
+= ebl_klassifikationsskifte_par8_senere_ejerbolig = ebl_klassifikationsskifte_par8_resultat(
+    ebl_klassifikationsskifte_par10_genanbringelse,
+    EblDato(år = 2026, måned = 1, dag = 1),
+    EblDato(år = 2027, måned = 6, dag = 30)
+)
+= ebl_klassifikationsskifte_par8_ændring_efter_afståelse = ebl_klassifikationsskifte_par8_resultat(
+    ebl_klassifikationsskifte_par10_genanbringelse,
+    EblDato(år = 2028, måned = 1, dag = 1),
+    EblDato(år = 2027, måned = 6, dag = 30)
+)
+= ebl_klassifikationsskifte_par9_forøget_boligandel = ebl_klassifikationsskifte_par9_resultat(
+    400,
+    EblDato(år = 2026, måned = 1, dag = 1)
+)
+= ebl_klassifikationsskifte_par9_uændret_boligandel = ebl_klassifikationsskifte_par9_resultat(
+    0,
+    EblDato(år = 2026, måned = 1, dag = 1)
+)
+
+= ebl_klassifikationsskifte_legacy_genanbringelse = EblMedGenanbringelseEfterPar6A(
+    fakta = EblPar6AFakta(
+        oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
+            afståelsesindkomstår = 2003,
+            erhvervsfortjeneste_før_par6_stk2_kroner = 100000,
+            regulering = EblGenanbragtFortjenesteregulering(
+                tillæg_for_genanbragt_del_kroner = 0,
+                nedslag_for_genanbragt_del_kroner = 0
+            )
+        ),
+        afstået_ejendoms_erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+        investering = EblPar6AInvestering(
+            indkomstår = 2004,
+            erhvervsmæssigt_anskaffelsesgrundlag_kroner = 200000,
+            ejendomsstatus = EblPar6AEjendomOmfattetAfLovenIkkePar8,
+            erhvervsanvendelse = EblPar6AEgenEllerSamlevendeÆgtefællesErhvervsvirksomhed,
+            placering = EblPar6AEjendomIDanmark
+        ),
+        begæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2,
+        ejerskab = EblPar6ASammeSkattepligtige
+    )
+)
+= ebl_klassifikationsskifte_før_overgangsskæringen = ebl_klassifikationsskifte_par8_resultat(
+    ebl_klassifikationsskifte_legacy_genanbringelse,
+    EblDato(år = 2005, måned = 12, dag = 14),
+    EblDato(år = 2006, måned = 1, dag = 1)
+)
+= ebl_klassifikationsskifte_på_overgangsskæringen = ebl_klassifikationsskifte_par8_resultat(
+    ebl_klassifikationsskifte_legacy_genanbringelse,
+    EblDato(år = 2005, måned = 12, dag = 15),
+    EblDato(år = 2006, måned = 1, dag = 1)
+)
+
+| ebl_klassifikationsskifte_senere_boligbrug_er_ordinær_par10: ebl_klassifikationsskifte_par10_resultat -> ebl_klassifikationsskifte_par10_resultat.input_gyldigt && ebl_klassifikationsskifte_par10_resultat.regelgrundlag_understøttet && ebl_klassifikationsskifte_par10_resultat.skattepligtig_erstatningssum_efter_stk9_kroner == 0 && ebl_klassifikationsskifte_par10_resultat.genanbringelsesresultat.genanbragt_fortjeneste_kroner == 200000
+| ebl_klassifikationsskifte_hele_ejendommen_beskattes_ved_afståelsen: ebl_klassifikationsskifte_par8_senere_ejerbolig -> ebl_klassifikationsskifte_par8_senere_ejerbolig.input_gyldigt && ebl_klassifikationsskifte_par8_senere_ejerbolig.stk5_anvendt && ebl_klassifikationsskifte_par8_senere_ejerbolig.genanbragt_fortjeneste_til_beskatning_kroner == 200000 && ebl_klassifikationsskifte_par8_senere_ejerbolig.skattepligtig_fortjeneste_kroner == 200000
+| ebl_klassifikationsskifte_ændring_efter_afståelse_afvises: ebl_klassifikationsskifte_par8_ændring_efter_afståelse -> ebl_klassifikationsskifte_par8_ændring_efter_afståelse.input_gyldigt == Falskt && ebl_klassifikationsskifte_par8_ændring_efter_afståelse.skattepligtig_fortjeneste_kroner == 0
+| ebl_klassifikationsskifte_forøget_boligandel_udledes_fra_andelene: ebl_klassifikationsskifte_par9_forøget_boligandel -> ebl_klassifikationsskifte_par9_forøget_boligandel.input_gyldigt && ebl_par9_boligandel_forøget(ebl_klassifikationsskifte_par9_forøget_boligandel.fakta.genanbringelsesforhold) && ebl_klassifikationsskifte_par9_forøget_boligandel.hele_genanbragte_fortjeneste_kan_beskattes_i_erhvervsdel == Falskt && ebl_klassifikationsskifte_par9_forøget_boligandel.stk4_anvendt && ebl_klassifikationsskifte_par9_forøget_boligandel.bortfaldet_anskaffelsessumsnedslag_kroner == 200000 && ebl_klassifikationsskifte_par9_forøget_boligandel.særskilt_skattepligtig_genanbragt_fortjeneste_kroner == 200000 && ebl_klassifikationsskifte_par9_forøget_boligandel.skattepligtig_fortjeneste_kroner == 200000
+| ebl_klassifikationsskifte_uændret_boligandel_udløser_ikke_stk4: ebl_klassifikationsskifte_par9_uændret_boligandel -> ebl_klassifikationsskifte_par9_uændret_boligandel.input_gyldigt && ebl_par9_boligandel_forøget(ebl_klassifikationsskifte_par9_uændret_boligandel.fakta.genanbringelsesforhold) == Falskt && ebl_klassifikationsskifte_par9_uændret_boligandel.stk4_anvendt == Falskt && ebl_klassifikationsskifte_par9_uændret_boligandel.skattepligtig_fortjeneste_kroner == 150000
+| ebl_klassifikationsskifte_før_15_december_2005_er_undtaget: ebl_klassifikationsskifte_før_overgangsskæringen -> ebl_klassifikationsskifte_før_overgangsskæringen.input_gyldigt && ebl_klassifikationsskifte_før_overgangsskæringen.stk5_anvendt == Falskt && ebl_klassifikationsskifte_før_overgangsskæringen.skattepligtig_fortjeneste_kroner == 0
+| ebl_klassifikationsskifte_fra_15_december_2005_er_omfattet: ebl_klassifikationsskifte_på_overgangsskæringen -> ebl_klassifikationsskifte_på_overgangsskæringen.input_gyldigt && ebl_klassifikationsskifte_på_overgangsskæringen.stk5_anvendt && ebl_klassifikationsskifte_på_overgangsskæringen.skattepligtig_fortjeneste_kroner == 100000
+
+? ebl_klassifikationsskifte_senere_boligbrug_er_ordinær_par10
+? ebl_klassifikationsskifte_hele_ejendommen_beskattes_ved_afståelsen
+? ebl_klassifikationsskifte_ændring_efter_afståelse_afvises
+? ebl_klassifikationsskifte_forøget_boligandel_udledes_fra_andelene
+? ebl_klassifikationsskifte_uændret_boligandel_udløser_ikke_stk4
+? ebl_klassifikationsskifte_før_15_december_2005_er_undtaget
+? ebl_klassifikationsskifte_fra_15_december_2005_er_omfattet
+
+@ print("EBL senere boligklassifikation efter genanbringelse: scenarier bestået")
+--@end:ebl_klassifikationsskifte_scenarier--

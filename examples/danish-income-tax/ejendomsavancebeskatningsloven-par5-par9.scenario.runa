@@ -118,7 +118,7 @@
         ejendom = EblPar10Genopførelsesejendom(
             identifikation = "Den skadelidte ejendom",
             erhvervsmæssige_genopførelsesudgifter_kroner = 150000,
-            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
         )
     ),
     fristforhold = EblPar10UdenFristforlængelse,
@@ -237,7 +237,9 @@
         afståelsesforhold = EblPar8AlmindeligAfståelse,
         genanbringelsesforhold = EblPar8GenanbringelseEfterStk5(
             genanbringelse = ebl_scenarie_genanbringelse_40000,
-            ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005 = Falskt
+            anvendelsesændring = EblPar8Anvendelsesændring(
+                ændringsdato = EblDato(år = 2025, måned = 6, dag = 1)
+            )
         )
     ),
     ebl_scenarie_afståelsesdato_2026,
@@ -323,8 +325,11 @@
         skadeforhold = EblPar9IngenVæsentligSkade,
         genanbringelsesforhold = EblPar9GenanbringelseEfterStk4(
             genanbringelse = ebl_scenarie_genanbringelse_40000,
-            boligandel_forøget = Sandt,
-            boligandel_forøget_før_15_december_2005 = Falskt
+            boligandelsændring = EblPar9Boligandelsændring(
+                ændringsdato = EblDato(år = 2025, måned = 6, dag = 1),
+                boligandel_ved_genanbringelsen_promille = 200,
+                boligandel_efter_ændringen_promille = 400
+            )
         )
     ),
     ebl_scenarie_afståelsesdato_2026,
@@ -347,8 +352,11 @@
         skadeforhold = EblPar9IngenVæsentligSkade,
         genanbringelsesforhold = EblPar9GenanbringelseEfterStk4(
             genanbringelse = ebl_scenarie_genanbringelse_40000,
-            boligandel_forøget = Sandt,
-            boligandel_forøget_før_15_december_2005 = Falskt
+            boligandelsændring = EblPar9Boligandelsændring(
+                ændringsdato = EblDato(år = 2025, måned = 6, dag = 1),
+                boligandel_ved_genanbringelsen_promille = 200,
+                boligandel_efter_ændringen_promille = 400
+            )
         )
     ),
     ebl_scenarie_afståelsesdato_2026,

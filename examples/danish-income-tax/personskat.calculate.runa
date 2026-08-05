@@ -628,72 +628,58 @@
 = personskat_felt_egen_genopførelsesejendom_ejerbolig = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.$variant",
     label = "Erhvervserstatning anvendt til ejerbolig",
-    question = Some("Blev en del af erhvervserstatningen anvendt til at genopføre en ejerbolig?"),
-    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    question = Some("Blev en del af erhvervserstatningen ved genopførelsen anvendt til en ejerbolig?"),
+    help = Some("Kun boligbrug ved selve genopførelsen hører til § 10, stk. 9. En senere anvendelsesændring behandles ved afståelsen efter § 8, stk. 5, eller § 9, stk. 4."),
     unit = None
 )
 = personskat_felt_ægtefælles_genopførelsesejendom_ejerbolig = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.$variant",
     label = "Erhvervserstatning anvendt til ejerbolig",
-    question = Some("Blev en del af din ægtefælles erhvervserstatning anvendt til at genopføre en ejerbolig?"),
-    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    question = Some("Blev en del af din ægtefælles erhvervserstatning ved genopførelsen anvendt til en ejerbolig?"),
+    help = Some("Kun boligbrug ved selve genopførelsen hører til § 10, stk. 9. En senere anvendelsesændring behandles ved afståelsen efter § 8, stk. 5, eller § 9, stk. 4."),
     unit = None
 )
 = personskat_felt_egen_ejerbolig_genopførelsesudgift = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.ejerbolig_genopførelsesudgifter_kroner",
     label = "Genopførelsesudgifter til ejerboligen",
     question = Some("Hvor store var genopførelsesudgifterne til ejerboligdelen?"),
     help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_ejerbolig_genopførelsesudgift = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.ejerbolig_genopførelsesudgifter_kroner",
     label = "Genopførelsesudgifter til ejerboligen",
     question = Some("Hvor store var din ægtefælles genopførelsesudgifter til ejerboligdelen?"),
     help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
     unit = Some("kr.")
 )
 = personskat_felt_egen_erhvervserstatning_til_ejerbolig = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.erhvervserstatning_anvendt_kroner",
     label = "Erhvervserstatning anvendt til ejerboligen",
     question = Some("Hvor stor en del af erhvervserstatningen blev anvendt til ejerboligen?"),
     help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_erhvervserstatning_til_ejerbolig = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.erhvervserstatning_anvendt_kroner",
     label = "Erhvervserstatning anvendt til ejerboligen",
     question = Some("Hvor stor en del af din ægtefælles erhvervserstatning blev anvendt til ejerboligen?"),
     help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_egen_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
     label = "Anskaffelsessum henført til ejerboligdelen",
     question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til den skaderamte del, der blev ejerbolig?"),
     help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
     label = "Anskaffelsessum henført til ejerboligdelen",
     question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til din ægtefælles skaderamte del, der blev ejerbolig?"),
     help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
     unit = Some("kr.")
-)
-= personskat_felt_egen_ejerbolig_fra_år = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
-    label = "Ejerbolig fra indkomstår",
-    question = Some("Fra hvilket indkomstår tjente den genopførte del til bolig for ejeren eller husstanden?"),
-    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
-    unit = Some("år")
-)
-= personskat_felt_ægtefælles_ejerbolig_fra_år = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåSammeEjendom.ejendom.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
-    label = "Ejerbolig fra indkomstår",
-    question = Some("Fra hvilket indkomstår tjente din ægtefælles genopførte del til bolig for ejeren eller husstanden?"),
-    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
-    unit = Some("år")
 )
 = personskat_felt_egen_anden_ejendomsgrund = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.grund",
@@ -768,72 +754,58 @@
 = personskat_felt_egen_anden_genopførelsesejendom_ejerbolig = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.$variant",
     label = "Erhvervserstatning anvendt til ejerbolig",
-    question = Some("Blev en del af erhvervserstatningen anvendt til at genopføre en ejerbolig på denne ejendom?"),
-    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    question = Some("Blev en del af erhvervserstatningen ved genopførelsen anvendt til en ejerbolig på denne ejendom?"),
+    help = Some("Kun boligbrug ved selve genopførelsen hører til § 10, stk. 9. En senere anvendelsesændring behandles ved afståelsen efter § 8, stk. 5, eller § 9, stk. 4."),
     unit = None
 )
 = personskat_felt_ægtefælles_anden_genopførelsesejendom_ejerbolig = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.$variant",
     label = "Erhvervserstatning anvendt til ejerbolig",
-    question = Some("Blev en del af din ægtefælles erhvervserstatning anvendt til at genopføre en ejerbolig på denne ejendom?"),
-    help = Some("Den anvendte bruttosum beskattes efter § 10, stk. 9, uden fradrag for den historiske anskaffelsessum."),
+    question = Some("Blev en del af din ægtefælles erhvervserstatning ved genopførelsen anvendt til en ejerbolig på denne ejendom?"),
+    help = Some("Kun boligbrug ved selve genopførelsen hører til § 10, stk. 9. En senere anvendelsesændring behandles ved afståelsen efter § 8, stk. 5, eller § 9, stk. 4."),
     unit = None
 )
 = personskat_felt_egen_anden_ejerbolig_genopførelsesudgift = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.ejerbolig_genopførelsesudgifter_kroner",
     label = "Genopførelsesudgifter til ejerboligen",
     question = Some("Hvor store var genopførelsesudgifterne til ejerboligdelen på denne ejendom?"),
     help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_anden_ejerbolig_genopførelsesudgift = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_genopførelsesudgifter_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.ejerbolig_genopførelsesudgifter_kroner",
     label = "Genopførelsesudgifter til ejerboligen",
     question = Some("Hvor store var din ægtefælles genopførelsesudgifter til ejerboligdelen på denne ejendom?"),
     help = Some("Erhvervserstatningen anvendt til ejerboligen kan ikke overstige disse udgifter."),
     unit = Some("kr.")
 )
 = personskat_felt_egen_anden_erhvervserstatning_til_ejerbolig = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.erhvervserstatning_anvendt_kroner",
     label = "Erhvervserstatning anvendt til ejerboligen",
     question = Some("Hvor stor en del af erhvervserstatningen blev anvendt til ejerboligen på denne ejendom?"),
     help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_anden_erhvervserstatning_til_ejerbolig = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.erhvervserstatning_anvendt_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.erhvervserstatning_anvendt_kroner",
     label = "Erhvervserstatning anvendt til ejerboligen",
     question = Some("Hvor stor en del af din ægtefælles erhvervserstatning blev anvendt til ejerboligen på denne ejendom?"),
     help = Some("Hele dette bruttobeløb medregnes efter § 10, stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_egen_anden_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
     label = "Anskaffelsessum henført til ejerboligdelen",
     question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til den skaderamte del, der blev ejerbolig på denne ejendom?"),
     help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
     unit = Some("kr.")
 )
 = personskat_felt_ægtefælles_anden_ejerbolig_historisk_anskaffelsessum = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen.reguleret_anskaffelsessum_for_skaderamt_del_kroner",
     label = "Anskaffelsessum henført til ejerboligdelen",
     question = Some("Hvor stor en reguleret anskaffelsessum kan henføres til din ægtefælles skaderamte del, der blev ejerbolig på denne ejendom?"),
     help = Some("Beløbet trækkes ud af den ordinære erhvervsavance, men reducerer ikke bruttobeskatningen efter stk. 9."),
     unit = Some("kr.")
-)
-= personskat_felt_egen_anden_ejerbolig_fra_år = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
-    label = "Ejerbolig fra indkomstår",
-    question = Some("Fra hvilket indkomstår tjente den genopførte del på denne ejendom til bolig for ejeren eller husstanden?"),
-    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
-    unit = Some("år")
-)
-= personskat_felt_ægtefælles_anden_ejerbolig_fra_år = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_skadegenopførelser.par10_fakta.genopførelsessted.EblPar10GenopførelsePåAndreEjendomme.ejendomme.ejerboliganvendelse.EblPar10ErhvervserstatningAnvendtTilEjerbolig.ejerbolig_tjener_til_bolig_fra_indkomstår",
-    label = "Ejerbolig fra indkomstår",
-    question = Some("Fra hvilket indkomstår tjente din ægtefælles genopførte del på denne ejendom til bolig for ejeren eller husstanden?"),
-    help = Some("Den aktuelle beregning understøtter umiddelbar boligbrug fra genopførelsesåret; senere klassifikationsskifte afvises tydeligt."),
-    unit = Some("år")
 )
 = personskat_felt_egen_genopførelsesfrist = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_skadegenopførelser.par10_fakta.fristforhold.$variant",
@@ -2081,18 +2053,46 @@
     help = Some("Ved genanbringelse mellem ægtefæller prøves samlivet ved både afståelsesårets og investeringsårets udgang."),
     unit = None
 )
-= personskat_felt_egen_par8_anvendelse_før_2005 = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
-    label = "Boliganvendelse før 15. december 2005",
-    question = Some("Ændrede ejendommen anvendelse til en § 8-boligejendom før den 15. december 2005?"),
-    help = Some("Overgangsreglen afgør, om § 8, stk. 5, kan beskatte den genanbragte fortjeneste ved afståelsen."),
+= personskat_felt_egen_par8_anvendelsesændringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.år",
+    label = "§ 8-anvendelsesændring: år",
+    question = Some("Hvilket år ændrede ejendommen anvendelse til en § 8-boligejendom?"),
+    help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
+    unit = Some("år")
+)
+= personskat_felt_egen_par8_anvendelsesændringsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.måned",
+    label = "§ 8-anvendelsesændring: måned",
+    question = Some("Hvilken måned ændrede ejendommen anvendelse til en § 8-boligejendom?"),
+    help = Some("Angiv måneden for den faktiske anvendelsesændring."),
     unit = None
 )
-= personskat_felt_ægtefælles_par8_anvendelse_før_2005 = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
-    label = "Boliganvendelse før 15. december 2005",
-    question = Some("Ændrede din ægtefælles ejendom anvendelse til en § 8-boligejendom før den 15. december 2005?"),
-    help = Some("Overgangsreglen afgør, om § 8, stk. 5, kan beskatte den genanbragte fortjeneste ved afståelsen."),
+= personskat_felt_egen_par8_anvendelsesændringsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.dag",
+    label = "§ 8-anvendelsesændring: dag",
+    question = Some("Hvilken dag ændrede ejendommen anvendelse til en § 8-boligejendom?"),
+    help = Some("Angiv dagen for den faktiske anvendelsesændring."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par8_anvendelsesændringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.år",
+    label = "§ 8-anvendelsesændring: år",
+    question = Some("Hvilket år ændrede din ægtefælles ejendom anvendelse til en § 8-boligejendom?"),
+    help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_par8_anvendelsesændringsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.måned",
+    label = "§ 8-anvendelsesændring: måned",
+    question = Some("Hvilken måned ændrede din ægtefælles ejendom anvendelse til en § 8-boligejendom?"),
+    help = Some("Angiv måneden for den faktiske anvendelsesændring."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par8_anvendelsesændringsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.dag",
+    label = "§ 8-anvendelsesændring: dag",
+    question = Some("Hvilken dag ændrede din ægtefælles ejendom anvendelse til en § 8-boligejendom?"),
+    help = Some("Angiv dagen for den faktiske anvendelsesændring."),
     unit = None
 )
 = personskat_felt_egen_par9_genanbringelsesforhold = Beregningsfelt(
@@ -2123,33 +2123,75 @@
     help = Some("Vælg § 6 A, § 6 C eller § 10, så Futuruna kan udlede den aktive genanbragte fortjeneste."),
     unit = None
 )
-= personskat_felt_egen_par9_boligandel_forøget = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget",
-    label = "Boligandel forøget efter genanbringelsen",
-    question = Some("Blev ejendommens boligandel forøget efter genanbringelsen?"),
-    help = Some("§ 9, stk. 4, kan kun anvendes, når boligandelen er forøget, og erhvervsdelen ikke kan bære hele den genanbragte fortjeneste."),
+= personskat_felt_egen_par9_boligandelsændringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.år",
+    label = "§ 9-boligandelsændring: år",
+    question = Some("Hvilket år blev boligandelen i ejendommen ændret?"),
+    help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
+    unit = Some("år")
+)
+= personskat_felt_egen_par9_boligandelsændringsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.måned",
+    label = "§ 9-boligandelsændring: måned",
+    question = Some("Hvilken måned blev boligandelen i ejendommen ændret?"),
+    help = Some("Angiv måneden for den faktiske boligandelsændring."),
     unit = None
 )
-= personskat_felt_ægtefælles_par9_boligandel_forøget = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget",
-    label = "Boligandel forøget efter genanbringelsen",
-    question = Some("Blev boligandelen i din ægtefælles ejendom forøget efter genanbringelsen?"),
-    help = Some("§ 9, stk. 4, kan kun anvendes, når boligandelen er forøget, og erhvervsdelen ikke kan bære hele den genanbragte fortjeneste."),
+= personskat_felt_egen_par9_boligandelsændringsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.dag",
+    label = "§ 9-boligandelsændring: dag",
+    question = Some("Hvilken dag blev boligandelen i ejendommen ændret?"),
+    help = Some("Angiv dagen for den faktiske boligandelsændring."),
     unit = None
 )
-= personskat_felt_egen_par9_boligandel_før_2005 = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget_før_15_december_2005",
-    label = "Boligandel forøget før 15. december 2005",
-    question = Some("Var boligandelen allerede forøget før den 15. december 2005?"),
-    help = Some("Overgangsreglen kan afskære anvendelsen af § 9, stk. 4, for den tidligere forøgelse."),
+= personskat_felt_ægtefælles_par9_boligandelsændringsår = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.år",
+    label = "§ 9-boligandelsændring: år",
+    question = Some("Hvilket år blev boligandelen i din ægtefælles ejendom ændret?"),
+    help = Some("Datoen afgør både kronologien og overgangsreglen ved 15. december 2005."),
+    unit = Some("år")
+)
+= personskat_felt_ægtefælles_par9_boligandelsændringsmåned = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.måned",
+    label = "§ 9-boligandelsændring: måned",
+    question = Some("Hvilken måned blev boligandelen i din ægtefælles ejendom ændret?"),
+    help = Some("Angiv måneden for den faktiske boligandelsændring."),
     unit = None
 )
-= personskat_felt_ægtefælles_par9_boligandel_før_2005 = Beregningsfelt(
-    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget_før_15_december_2005",
-    label = "Boligandel forøget før 15. december 2005",
-    question = Some("Var boligandelen i din ægtefælles ejendom allerede forøget før den 15. december 2005?"),
-    help = Some("Overgangsreglen kan afskære anvendelsen af § 9, stk. 4, for den tidligere forøgelse."),
+= personskat_felt_ægtefælles_par9_boligandelsændringsdag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.dag",
+    label = "§ 9-boligandelsændring: dag",
+    question = Some("Hvilken dag blev boligandelen i din ægtefælles ejendom ændret?"),
+    help = Some("Angiv dagen for den faktiske boligandelsændring."),
     unit = None
+)
+= personskat_felt_egen_par9_boligandel_ved_genanbringelsen = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_ved_genanbringelsen_promille",
+    label = "Boligandel ved genanbringelsen",
+    question = Some("Hvor stor var ejendommens boligandel ved genanbringelsen?"),
+    help = Some("Angiv boligandelen i promille. Futuruna sammenligner den med andelen efter ændringen."),
+    unit = Some("promille")
+)
+= personskat_felt_ægtefælles_par9_boligandel_ved_genanbringelsen = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_ved_genanbringelsen_promille",
+    label = "Boligandel ved genanbringelsen",
+    question = Some("Hvor stor var boligandelen i din ægtefælles ejendom ved genanbringelsen?"),
+    help = Some("Angiv boligandelen i promille. Futuruna sammenligner den med andelen efter ændringen."),
+    unit = Some("promille")
+)
+= personskat_felt_egen_par9_boligandel_efter_ændringen = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_efter_ændringen_promille",
+    label = "Boligandel efter ændringen",
+    question = Some("Hvor stor var ejendommens boligandel efter ændringen?"),
+    help = Some("§ 9, stk. 4, kan kun anvendes, når denne andel er større end andelen ved genanbringelsen."),
+    unit = Some("promille")
+)
+= personskat_felt_ægtefælles_par9_boligandel_efter_ændringen = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_efter_ændringen_promille",
+    label = "Boligandel efter ændringen",
+    question = Some("Hvor stor var boligandelen i din ægtefælles ejendom efter ændringen?"),
+    help = Some("§ 9, stk. 4, kan kun anvendes, når denne andel er større end andelen ved genanbringelsen."),
+    unit = Some("promille")
 )
 = personskat_felt_egen_par11_ny_genanbringelse = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par11_stk2_valg.$variant",
@@ -5602,8 +5644,6 @@
         Field(value = personskat_felt_ægtefælles_erhvervserstatning_til_ejerbolig),
         Field(value = personskat_felt_egen_ejerbolig_historisk_anskaffelsessum),
         Field(value = personskat_felt_ægtefælles_ejerbolig_historisk_anskaffelsessum),
-        Field(value = personskat_felt_egen_ejerbolig_fra_år),
-        Field(value = personskat_felt_ægtefælles_ejerbolig_fra_år),
         Field(value = personskat_felt_egen_anden_ejendomsgrund),
         Field(value = personskat_felt_ægtefælles_anden_ejendomsgrund),
         Field(value = personskat_felt_egen_anden_ejendomsmeddelelse),
@@ -5622,8 +5662,6 @@
         Field(value = personskat_felt_ægtefælles_anden_erhvervserstatning_til_ejerbolig),
         Field(value = personskat_felt_egen_anden_ejerbolig_historisk_anskaffelsessum),
         Field(value = personskat_felt_ægtefælles_anden_ejerbolig_historisk_anskaffelsessum),
-        Field(value = personskat_felt_egen_anden_ejerbolig_fra_år),
-        Field(value = personskat_felt_ægtefælles_anden_ejerbolig_fra_år),
         Field(value = personskat_felt_egen_genopførelsesfrist),
         Field(value = personskat_felt_ægtefælles_genopførelsesfrist),
         Field(value = personskat_felt_egen_genopførelsesfrist_til_år),
@@ -5939,12 +5977,17 @@
         DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
-= personskat_metadata_egen_par8_anvendelse_før_2005 = PersonskatMetadata(
+= personskat_metadata_egen_par8_anvendelsesændring = PersonskatMetadata(
     attachments = (
-        Field(value = personskat_felt_egen_par8_anvendelse_før_2005),
-        Field(value = personskat_felt_ægtefælles_par8_anvendelse_før_2005),
+        Field(value = personskat_felt_egen_par8_anvendelsesændringsår),
+        Field(value = personskat_felt_egen_par8_anvendelsesændringsmåned),
+        Field(value = personskat_felt_egen_par8_anvendelsesændringsdag),
+        Field(value = personskat_felt_ægtefælles_par8_anvendelsesændringsår),
+        Field(value = personskat_felt_ægtefælles_par8_anvendelsesændringsmåned),
+        Field(value = personskat_felt_ægtefælles_par8_anvendelsesændringsdag),
         Source(value = ebl_par8_par9_lbk132),
         AmendmentSource(value = ebl_genanbringelse_lov308),
+        Guidance(value = ebl_par10_klassifikationsskifte_vejledning_2026),
     )
 )
 = personskat_metadata_egen_par9_genanbringelsesforhold = PersonskatMetadata(
@@ -5965,14 +6008,21 @@
         DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
-= personskat_metadata_egen_par9_boligandel_forøget = PersonskatMetadata(
+= personskat_metadata_egen_par9_boligandelsændring = PersonskatMetadata(
     attachments = (
-        Field(value = personskat_felt_egen_par9_boligandel_forøget),
-        Field(value = personskat_felt_ægtefælles_par9_boligandel_forøget),
-        Field(value = personskat_felt_egen_par9_boligandel_før_2005),
-        Field(value = personskat_felt_ægtefælles_par9_boligandel_før_2005),
+        Field(value = personskat_felt_egen_par9_boligandelsændringsår),
+        Field(value = personskat_felt_egen_par9_boligandelsændringsmåned),
+        Field(value = personskat_felt_egen_par9_boligandelsændringsdag),
+        Field(value = personskat_felt_ægtefælles_par9_boligandelsændringsår),
+        Field(value = personskat_felt_ægtefælles_par9_boligandelsændringsmåned),
+        Field(value = personskat_felt_ægtefælles_par9_boligandelsændringsdag),
+        Field(value = personskat_felt_egen_par9_boligandel_ved_genanbringelsen),
+        Field(value = personskat_felt_ægtefælles_par9_boligandel_ved_genanbringelsen),
+        Field(value = personskat_felt_egen_par9_boligandel_efter_ændringen),
+        Field(value = personskat_felt_ægtefælles_par9_boligandel_efter_ændringen),
         Source(value = ebl_par8_par9_lbk132),
         AmendmentSource(value = ebl_genanbringelse_lov308),
+        Guidance(value = ebl_par10_klassifikationsskifte_vejledning_2026),
     )
 )
 = personskat_meta_egen_par11_ny_genanbringelse = Beregningsmeta(
@@ -6421,10 +6471,10 @@
         personskat_metadata_egen_par8_geninvestering_placering,
         personskat_metadata_egen_par8_udland_område,
         personskat_metadata_egen_par8_genanbringelsesbegæring,
-        personskat_metadata_egen_par8_anvendelse_før_2005,
+        personskat_metadata_egen_par8_anvendelsesændring,
         personskat_metadata_egen_par9_genanbringelsesforhold,
         personskat_metadata_egen_par9_genanbringelseshjemmel,
-        personskat_metadata_egen_par9_boligandel_forøget,
+        personskat_metadata_egen_par9_boligandelsændring,
         personskat_meta_egen_par11_ny_genanbringelse,
         personskat_meta_egen_par11_investeringsår,
         personskat_meta_egen_par11_placering,

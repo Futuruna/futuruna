@@ -1709,13 +1709,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.placering.EblPar6AEjendomIUdlandet.begæringsforhold.$variant",
-                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.år",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.måned",
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.dag",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.kategori.$variant",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.bolig_anskaffelsessum_kroner",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.$variant",
                 "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.genanbringelse.$variant",
-                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget",
-                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandel_forøget_før_15_december_2005",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.år",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.måned",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.ændringsdato.dag",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_ved_genanbringelsen_promille",
+                "ejendomstype.EblLandbrugSkovNaturEllerBlandetEjendom.fakta.genanbringelsesforhold.EblPar9GenanbringelseEfterStk4.boligandelsændring.boligandel_efter_ændringen_promille",
                 "par6d_valg.$variant",
                 "par6d_valg.EblMedPar6DValg.fakta.valgt_udskudt_fortjeneste_kroner",
                 "par6d_valg.EblMedPar6DValg.fakta.årligt_beløb_kroner",
@@ -1773,12 +1778,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "Lovgrundlag for genanbringelse (§ 8)",
                 "Oprindelig erhvervsfortjeneste",
                 "Geninvesteringsår",
+                "§ 8-anvendelsesændring: år",
+                "§ 8-anvendelsesændring: måned",
+                "§ 8-anvendelsesændring: dag",
                 "Udenlandsk geninvestering i tilladt område",
                 "Begæringsforløb for udenlandsk geninvestering",
                 "Oplysninger og driftsbudget ved fraflytning",
                 "Genanbringelse ved blandet ejendom",
                 "Lovgrundlag for genanbringelse (§ 9)",
-                "Boligandel forøget efter genanbringelsen",
+                "§ 9-boligandelsændring: år",
+                "§ 9-boligandelsændring: måned",
+                "§ 9-boligandelsændring: dag",
+                "Boligandel ved genanbringelsen",
+                "Boligandel efter ændringen",
                 "Fordeling af ejendomsfortjeneste",
                 "Fortjeneste fordelt til senere år",
                 "Årligt beskattet fortjeneste",
@@ -4762,8 +4774,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("EblPar6ASammeSkattepligtige".to_string()),
             ),
             (
-                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005",
-                Data::Bool(false),
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.år",
+                Data::Int(2026),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.måned",
+                Data::Int(6),
+            ),
+            (
+                "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.anvendelsesændring.ændringsdato.dag",
+                Data::Int(1),
             ),
         ] {
             set_workbook_cell_by_header(sheets, &own_property_sheet, 1, header, value);
@@ -5243,7 +5263,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         }
                     }
                 },
-                "ejendommen_ændrede_anvendelse_til_par8_før_15_december_2005": false
+                "anvendelsesændring": {
+                    "ændringsdato": { "år": 2026, "måned": 6, "dag": 1 }
+                }
             }
         }
     });

@@ -183,12 +183,12 @@
                             EblPar10Genopførelsesejendom(
                                 identifikation = "Genopført erhvervsejendom A",
                                 erhvervsmæssige_genopførelsesudgifter_kroner = 400000,
-                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
                             ),
                             EblPar10Genopførelsesejendom(
                                 identifikation = "Genopført erhvervsejendom B",
                                 erhvervsmæssige_genopførelsesudgifter_kroner = 200000,
-                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+                                ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
                             ),
                         ]
                     ),
@@ -201,8 +201,11 @@
                 ),
                 genopført_ejendom_identifikation = "Genopført erhvervsejendom A"
             ),
-            boligandel_forøget = Sandt,
-            boligandel_forøget_før_15_december_2005 = Falskt
+            boligandelsændring = EblPar9Boligandelsændring(
+                ændringsdato = EblDato(år = 2025, måned = 6, dag = 1),
+                boligandel_ved_genanbringelsen_promille = 200,
+                boligandel_efter_ændringen_promille = 400
+            )
         )
     ),
     EblDato(år = 2026, måned = 12, dag = 31),
@@ -227,8 +230,11 @@
             genanbringelse = EblMedGenanbringelseEfterPar6A(
                 fakta = ebl_audit_par6a_fakta(40000)
             ),
-            boligandel_forøget = Sandt,
-            boligandel_forøget_før_15_december_2005 = Falskt
+            boligandelsændring = EblPar9Boligandelsændring(
+                ændringsdato = EblDato(år = 2025, måned = 6, dag = 1),
+                boligandel_ved_genanbringelsen_promille = 200,
+                boligandel_efter_ændringen_promille = 400
+            )
         )
     ),
     EblDato(år = 2026, måned = 12, dag = 31),

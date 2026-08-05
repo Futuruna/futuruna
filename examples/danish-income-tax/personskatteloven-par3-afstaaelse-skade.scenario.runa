@@ -165,7 +165,7 @@
     genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = EblPar10Genopførelsesejendom(
         identifikation = "ejendom-a",
         erhvervsmæssige_genopførelsesudgifter_kroner = 500000,
-        ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+        ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
     )),
     fristforhold = EblPar10UdenFristforlængelse,
     afskrivningsforhold = EblPar10AfskrivningsberettigedeBygninger(

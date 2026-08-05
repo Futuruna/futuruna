@@ -31,12 +31,12 @@
 = ebl_par10_fordeling_scenarie_ejendom_a = EblPar10Genopførelsesejendom(
     identifikation = "ejendom-a",
     erhvervsmæssige_genopførelsesudgifter_kroner = 400000,
-    ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+    ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
 )
 = ebl_par10_fordeling_scenarie_ejendom_b = EblPar10Genopførelsesejendom(
     identifikation = "ejendom-b",
     erhvervsmæssige_genopførelsesudgifter_kroner = 200000,
-    ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+    ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
 )
 = ebl_par10_fordeling_scenarie_grundfakta = ebl_par10_fordeling_scenarie_fakta(
     EblPar10GenopførelsePåAndreEjendomme(
@@ -69,7 +69,7 @@
             EblPar10Genopførelsesejendom(
                 identifikation = "ejendom-a",
                 erhvervsmæssige_genopførelsesudgifter_kroner = 200000,
-                ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+                ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
             ),
         ]
     )
@@ -92,7 +92,7 @@
         ejendomme = [EblPar10Genopførelsesejendom(
             identifikation = "ejendom-nul",
             erhvervsmæssige_genopførelsesudgifter_kroner = 0,
-            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
         )]
     )
 ))
@@ -103,7 +103,7 @@
         ejendomme = [EblPar10Genopførelsesejendom(
             identifikation = "ejendom-negativ",
             erhvervsmæssige_genopførelsesudgifter_kroner = -1,
-            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
         )]
     )
 ))
@@ -124,7 +124,7 @@
         ejendomme = [EblPar10Genopførelsesejendom(
             identifikation = "en-ejendom",
             erhvervsmæssige_genopførelsesudgifter_kroner = 600000,
-            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
         )]
     )
 ))
@@ -134,7 +134,7 @@
         ejendom = EblPar10Genopførelsesejendom(
             identifikation = "skadelidt-ejendom",
             erhvervsmæssige_genopførelsesudgifter_kroner = 150000,
-            ejerboliganvendelse = EblPar10IngenEjerboliganvendelse
+            ejerboliganvendelse = EblPar10IngenEjerboliganvendelseVedGenopførelsen
         )
     )),
     genopført_ejendom_identifikation = "skadelidt-ejendom"
@@ -287,11 +287,10 @@
     genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = EblPar10Genopførelsesejendom(
         identifikation = "blandet-ejendom",
         erhvervsmæssige_genopførelsesudgifter_kroner = 300000,
-        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+        ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen(
             ejerbolig_genopførelsesudgifter_kroner = 200000,
             erhvervserstatning_anvendt_kroner = 200000,
-            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
-            ejerbolig_tjener_til_bolig_fra_indkomstår = 2025
+            reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000
         )
     )),
     fristforhold = EblPar10UdenFristforlængelse,

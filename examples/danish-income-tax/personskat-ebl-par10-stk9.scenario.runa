@@ -25,11 +25,10 @@
         genopførelsessted = EblPar10GenopførelsePåSammeEjendom(ejendom = EblPar10Genopførelsesejendom(
             identifikation = "blandet-ejendom",
             erhvervsmæssige_genopførelsesudgifter_kroner = 50000,
-            ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerbolig(
+            ejerboliganvendelse = EblPar10ErhvervserstatningAnvendtTilEjerboligVedGenopførelsen(
                 ejerbolig_genopførelsesudgifter_kroner = 200000,
                 erhvervserstatning_anvendt_kroner = 200000,
-                reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000,
-                ejerbolig_tjener_til_bolig_fra_indkomstår = 2026
+                reguleret_anskaffelsessum_for_skaderamt_del_kroner = 100000
             )
         )),
         fristforhold = EblPar10UdenFristforlængelse,
