@@ -15538,6 +15538,15 @@ impl TypeRegistry {
         index: usize,
         expected_ty: &FirTy,
     ) -> FirTy {
+        match (constructor, index, expected_ty) {
+            ("Some", 0, FirTy::Option(inner)) => return (**inner).clone(),
+            ("Ok", 0, FirTy::Result(ok, _)) => return (**ok).clone(),
+            ("Err", 0, FirTy::Result(_, err)) => return (**err).clone(),
+            ("Cons", 0, FirTy::List(inner)) => return (**inner).clone(),
+            ("Cons", 1, FirTy::List(_)) => return expected_ty.clone(),
+            _ => {}
+        }
+
         let key = self.variant_key_for_expected(constructor, expected_ty);
         let positional = key
             .as_ref()
@@ -40301,7 +40310,9 @@ impl RustCodegen {
                 let is_struct_type = self.types.struct_types.contains(&parent);
                 let is_pos = self.types.variant_positional_for_parent(&parent, name);
                 let boxed_indices = self.types.variant_boxed_args_for_parent(&parent, name);
-                let constructor_ty = FirTy::Named(parent.clone());
+                let constructor_ty = expected_ty
+                    .cloned()
+                    .unwrap_or_else(|| FirTy::Named(parent.clone()));
                 let ps: Vec<String> = args
                     .iter()
                     .enumerate()
@@ -40379,7 +40390,9 @@ impl RustCodegen {
                     return format!("({}, {})", fst_pat, snd_pat);
                 }
                 let is_struct_type = self.types.struct_types.contains(&parent);
-                let constructor_ty = FirTy::Named(parent.clone());
+                let constructor_ty = expected_ty
+                    .cloned()
+                    .unwrap_or_else(|| FirTy::Named(parent.clone()));
                 let ps: Vec<String> = named_args
                     .iter()
                     .map(|(fname, p)| {
@@ -48684,6 +48697,29 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "true");
+    }
+
+    #[test]
+    fn compiled_option_payload_projection_keeps_nominal_type_amid_field_collisions() {
+        let source = r#"
+# Date(year: Int, month: Int, day: Int)
+# OtherRecord(year: String)
+# OtherChoice = OtherYear(year: List(Int)) | NoOtherYear
+# Event = NewMarriage(date: Option(Date)) | NoNewMarriage
+
+| marriage_year(event: Event) -> match event {
+    | NewMarriage(Some(date)) -> date.year
+    | NewMarriage(None) -> 0
+    | NoNewMarriage -> 0
+}
+
+= ignored_record = OtherRecord(year = "not a date")
+= ignored_choice = OtherYear(year = [1900])
+= result = marriage_year(NewMarriage(date = Some(Date(year = 2025, month = 7, day = 1))))
+@ print(show(result))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "2025");
     }
 
     #[test]
