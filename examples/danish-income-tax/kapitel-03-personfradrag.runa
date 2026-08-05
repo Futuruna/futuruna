@@ -102,6 +102,10 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 # PersonfradragPar10Resultat(personfradrag_anvendes: Boolsk, personfradrag_kroner: Heltal, valgfrist_yyyymmdd: Heltal, omvalgsfrist_yyyymmdd: Heltal, delårsvalg_rettidigt: Boolsk, omvalg_rettidigt: Boolsk, afskåret_af_sømandsbeskatning: Boolsk, afskåret_af_opholdstilladelse: Boolsk, afskåret_af_forskerordning: Boolsk)
 # Par10Stk3ÆgtefælleStatsskatInput(ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ægtefælle_par6_skat_kroner: Heltal, ægtefælle_par7_skat_kroner: Heltal, ægtefælle_par7a_skat_kroner: Heltal, ægtefælle_par8_skat_kroner: Heltal, ægtefælle_par8a_stk2_skat_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par10Stk3ÆgtefælleStatsskatResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, overført_par8_skatteværdi_kroner: Heltal, overført_par6_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
+# Par10ÆgtefællePersonfradragKilde(statslig_nedsættelse: Par9StatsskatPersonfradragResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat)
+# Par10ÆgtefællePersonfradragSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
+# Par10ÆgtefællePersonfradragInput(kilde: Par10ÆgtefællePersonfradragKilde, modtagers_skatter: Par10ÆgtefællePersonfradragSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par10ÆgtefællePersonfradragResultat(statslig_nedsættelse: Par10Stk3ÆgtefælleStatsskatResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat, overført_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
 
 | personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
 | exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
@@ -187,6 +191,49 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 }
 | par10_stk3_ægtefælle_statsskat_sag(input: Par10Stk3ÆgtefælleStatsskatInput) -> Par10Stk3ÆgtefælleStatsskatSag(input)
 | par10_stk3_ægtefælle_statsskat_resultat(input: Par10Stk3ÆgtefælleStatsskatInput) -> par10_stk3_ægtefælle_statsskat_sag(input).resultat()
+
+# Par10ÆgtefællePersonfradragSag(input: Par10ÆgtefællePersonfradragInput) {
+    | overført_par8c_skatteværdi_kroner() -> 0
+    | exception par10_ægtefælle_par8c_skatteværdi overført_par8c_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_par8c_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
+    | overført_kommunal_skatteværdi_kroner() -> 0
+    | exception par10_ægtefælle_kommunal_skatteværdi overført_kommunal_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
+    | overført_kirkelig_skatteværdi_kroner() -> 0
+    | exception par10_ægtefælle_kirkelig_skatteværdi overført_kirkelig_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
+    | statslig_nedsættelse() -> par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+        ubrugt_par8_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par8_skatteværdi_kroner,
+        ubrugt_par6_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par6_skatteværdi_kroner,
+        ægtefælle_par6_skat_kroner = input.modtagers_skatter.par6_skat_kroner,
+        ægtefælle_par7_skat_kroner = input.modtagers_skatter.par7_skat_kroner,
+        ægtefælle_par7a_skat_kroner = input.modtagers_skatter.par7a_skat_kroner,
+        ægtefælle_par8_skat_kroner = input.modtagers_skatter.par8_skat_kroner,
+        ægtefælle_par8a_stk2_skat_kroner = input.modtagers_skatter.par8a_stk2_skat_kroner,
+        gift_samlevende_ved_årets_udløb = input.gift_samlevende_ved_årets_udløb
+    ))
+    | ikke_statslig_nedsættelse() -> par9_ikke_stat_personfradrag_resultat(Par9IkkeStatPersonfradragInput(
+        par8c_skat_kroner = input.modtagers_skatter.par8c_skat_kroner,
+        kommuneskat_kroner = input.modtagers_skatter.kommuneskat_kroner,
+        kirkeskat_kroner = input.modtagers_skatter.kirkeskat_kroner,
+        par8c_skatteværdi_kroner = overført_par8c_skatteværdi_kroner(),
+        kommunal_skatteværdi_kroner = overført_kommunal_skatteværdi_kroner(),
+        kirkelig_skatteværdi_kroner = overført_kirkelig_skatteværdi_kroner()
+    ))
+    | overført_ikke_statslig_skatteværdi_kroner() -> overført_par8c_skatteværdi_kroner() + overført_kommunal_skatteværdi_kroner() + overført_kirkelig_skatteværdi_kroner()
+    | ubrugt_ikke_statslig_skatteværdi_kroner() -> ikke_statslig_nedsættelse().ubrugt_par8c_skatteværdi_kroner + ikke_statslig_nedsættelse().ubrugt_kommunal_skatteværdi_kroner + ikke_statslig_nedsættelse().ubrugt_kirkelig_skatteværdi_kroner
+    | overført_skatteværdi_kroner() -> statslig_nedsættelse().overført_par8_skatteværdi_kroner + statslig_nedsættelse().overført_par6_skatteværdi_kroner + overført_ikke_statslig_skatteværdi_kroner()
+    | ubrugt_efter_ægtefælle_kroner() -> statslig_nedsættelse().ubrugt_efter_ægtefælle_kroner + ubrugt_ikke_statslig_skatteværdi_kroner()
+    | anvendt_skatteværdi_kroner() -> overført_skatteværdi_kroner() - ubrugt_efter_ægtefælle_kroner()
+    | afskåret_uden_samliv_kroner() -> statslig_nedsættelse().afskåret_uden_samliv_kroner
+    | exception par10_ægtefælle_ikke_statslig_skatteværdi_kræver_samliv afskåret_uden_samliv_kroner() -> statslig_nedsættelse().afskåret_uden_samliv_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_par8c_skatteværdi_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner + input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
+    | resultat() -> Par10ÆgtefællePersonfradragResultat(
+        statslig_nedsættelse = statslig_nedsættelse(),
+        ikke_statslig_nedsættelse = ikke_statslig_nedsættelse(),
+        overført_skatteværdi_kroner = overført_skatteværdi_kroner(),
+        anvendt_skatteværdi_kroner = anvendt_skatteværdi_kroner(),
+        ubrugt_efter_ægtefælle_kroner = ubrugt_efter_ægtefælle_kroner(),
+        afskåret_uden_samliv_kroner = afskåret_uden_samliv_kroner()
+    )
+}
+| par10_ægtefælle_personfradrag_resultat(input: Par10ÆgtefællePersonfradragInput) -> Par10ÆgtefællePersonfradragSag(input).resultat()
 
 = par10_voksen_2025_2010niveau = personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2025)
 = par10_under18_2022_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2022)
@@ -312,6 +359,8 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par11NedslagSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
 # Par11NedslagModregningInput(nedslag_kroner: Heltal, skatter: Par11NedslagSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par11NedslagModregningResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_efter_egne_skatter_kroner: Heltal, overført_til_ægtefælle_kroner: Heltal)
+# Par11IndgåendeÆgtefælleNedslagInput(afsenders_modregning: Par11NedslagModregningResultat, modtagers_skatter: Par11NedslagSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par11IndgåendeÆgtefælleNedslagResultat(modregning: Par11NedslagModregningResultat, overført_nedslag_kroner: Heltal, anvendt_nedslag_kroner: Heltal, ubrugt_efter_modtager_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
 
 | par11_negativ_kapital_nedslag_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par11Stk2 under skatteår >= 2012
 | par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 1 under skatteår == 2012
@@ -398,6 +447,28 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     )
 }
 | par11_nedslag_modregning_resultat(input: Par11NedslagModregningInput) -> Par11NedslagModregningSag(input).resultat()
+
+# Par11IndgåendeÆgtefælleNedslagSag(input: Par11IndgåendeÆgtefælleNedslagInput) {
+    | overført_nedslag_kroner() -> 0
+    | exception par11_stk4_indgående_nedslag_fra_samlevende_ægtefælle overført_nedslag_kroner() -> input.afsenders_modregning.overført_til_ægtefælle_kroner under input.gift_samlevende_ved_årets_udløb
+    | modregning() -> par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
+        nedslag_kroner = overført_nedslag_kroner(),
+        skatter = input.modtagers_skatter,
+        gift_samlevende_ved_årets_udløb = Falskt
+    ))
+    | ubrugt_efter_modtager_kroner() -> modregning().ubrugt_efter_egne_skatter_kroner
+    | anvendt_nedslag_kroner() -> overført_nedslag_kroner() - ubrugt_efter_modtager_kroner()
+    | afskåret_uden_samliv_kroner() -> 0
+    | exception par11_stk4_indgående_nedslag_kræver_samliv afskåret_uden_samliv_kroner() -> input.afsenders_modregning.overført_til_ægtefælle_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
+    | resultat() -> Par11IndgåendeÆgtefælleNedslagResultat(
+        modregning = modregning(),
+        overført_nedslag_kroner = overført_nedslag_kroner(),
+        anvendt_nedslag_kroner = anvendt_nedslag_kroner(),
+        ubrugt_efter_modtager_kroner = ubrugt_efter_modtager_kroner(),
+        afskåret_uden_samliv_kroner = afskåret_uden_samliv_kroner()
+    )
+}
+| par11_indgående_ægtefælle_nedslag_resultat(input: Par11IndgåendeÆgtefælleNedslagInput) -> Par11IndgåendeÆgtefælleNedslagSag(input).resultat()
 
 | negativ_kapital_nedslag_grundlag(input: NegativKapitalNedslagInput) -> par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
     skatteår = input.skatteår,

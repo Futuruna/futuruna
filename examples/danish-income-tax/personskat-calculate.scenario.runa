@@ -29,6 +29,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
@@ -41,6 +42,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
@@ -51,6 +53,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_lønmodtager(lønmodtager: PersonskatLønmodtagerInput) -> PersonskatInput(
@@ -61,6 +64,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
@@ -566,6 +570,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
         øvrig_pensionsbeskatningsafgift_kroner = 500,
@@ -594,6 +599,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = input.cfc,
     skatteforhold = input.skatteforhold,
     underskudsforhold = input.underskudsforhold,
+    ægtefælle = input.ægtefælle,
     årsopgørelse = årsopgørelse
 )
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(

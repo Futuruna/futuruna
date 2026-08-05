@@ -32,7 +32,7 @@ Aktieindkomst: 14.967
 # Årsopgørelse2025PersonligFakta(løn_før_am_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, gruppeliv_og_ydelser_kroner: Heltal, arbejdsgiverpension_efter_am_kroner: Heltal, privat_livrente_kroner: Heltal, virksomhedsunderskud_kroner: Heltal)
 # Årsopgørelse2025KapitalFakta(renteindtægt_kroner: Heltal, investeringsudlodning_kroner: Heltal, investeringsgevinst_kroner: Heltal, realkreditrenter_kroner: Heltal, bankrenter_kroner: Heltal)
 # Årsopgørelse2025Fradragsfakta(fagforening_kroner: Heltal, a_kasse_mv_kroner: Heltal, gaver_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, pensionsgrundlag_kroner: Heltal, ekstra_pensionsfradrag_basispoint: Heltal)
-# Årsopgørelse2025Ægtefællefakta(overført_skattepligtigt_underskud_kroner: Heltal, negativ_nettokapitalindkomst_kroner: Heltal, ubrugt_personfradrag_kroner: Heltal)
+# Årsopgørelse2025ÆgtefælleKildeFakta(renteudgifter_kroner: Heltal, samlevende_ved_indkomstårets_udløb: Boolsk)
 # Årsopgørelse2025Ejendomsfakta(ejendomsværdiskattegrundlag_kroner: Heltal, grundskyldgrundlag_kroner: Heltal, sats_promille_tiendedele: Heltal, ejerdage: Heltal, årsdage: Heltal, ejerandel_procent: Heltal)
 # Årsopgørelse2025Forudbetaling(a_skat_kroner: Heltal, indeholdt_am_kroner: Heltal, udbytteskat_øre: Heltal, tidligere_udbetalt_overskydende_skat_øre: Heltal, afrunding_øre: Heltal)
 
@@ -63,10 +63,16 @@ Aktieindkomst: 14.967
     ekstra_pensionsfradrag_basispoint = 1200
 )
 
-= årsopgørelse2025_ægtefælle = Årsopgørelse2025Ægtefællefakta(
-    overført_skattepligtigt_underskud_kroner = 39617,
-    negativ_nettokapitalindkomst_kroner = 39617,
-    ubrugt_personfradrag_kroner = 51600
+----
+Årsopgørelsen viser de modtagne ægtefælleoverførsler, men ikke ægtefællens
+underliggende indkomstposter. Den minimale kilderekonstruktion nedenfor har
+ingen løn eller anden indkomst og 39.617 kr. i renteudgifter. Reglerne skal
+selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
+----
+
+= årsopgørelse2025_ægtefælle = Årsopgørelse2025ÆgtefælleKildeFakta(
+    renteudgifter_kroner = 39617,
+    samlevende_ved_indkomstårets_udløb = Sandt
 )
 
 = årsopgørelse2025_ejendom = Årsopgørelse2025Ejendomsfakta(
@@ -94,21 +100,23 @@ Aktieindkomst: 14.967
 | årsopgørelse2025_ekstra_pensionsfradrag_kroner(fakta: Årsopgørelse2025Fradragsfakta) -> penge_beløb_gange_basispoint_afrundet_kroner(fakta.pensionsgrundlag_kroner, fakta.ekstra_pensionsfradrag_basispoint)
 | årsopgørelse2025_øvrige_ligningsfradrag_kroner(fakta: Årsopgørelse2025Fradragsfakta) -> fakta.fagforening_kroner + fakta.a_kasse_mv_kroner + fakta.gaver_kroner
 | årsopgørelse2025_samlede_ligningsfradrag_kroner(fakta: Årsopgørelse2025Fradragsfakta) -> årsopgørelse2025_øvrige_ligningsfradrag_kroner(fakta) + fakta.beskæftigelsesfradrag_kroner + fakta.jobfradrag_kroner + årsopgørelse2025_ekstra_pensionsfradrag_kroner(fakta)
-| årsopgørelse2025_skattepligtig_indkomst_kroner(personlig: Årsopgørelse2025PersonligFakta, kapital: Årsopgørelse2025KapitalFakta, fradrag: Årsopgørelse2025Fradragsfakta, ægtefælle: Årsopgørelse2025Ægtefællefakta) -> årsopgørelse2025_personlig_indkomst_kroner(personlig) + årsopgørelse2025_nettokapitalindkomst_kroner(kapital) - årsopgørelse2025_samlede_ligningsfradrag_kroner(fradrag) - ægtefælle.overført_skattepligtigt_underskud_kroner
+| årsopgørelse2025_skattepligtig_indkomst_kroner(personlig: Årsopgørelse2025PersonligFakta, kapital: Årsopgørelse2025KapitalFakta, fradrag: Årsopgørelse2025Fradragsfakta, overført_underskud_kroner: Heltal) -> årsopgørelse2025_personlig_indkomst_kroner(personlig) + årsopgørelse2025_nettokapitalindkomst_kroner(kapital) - årsopgørelse2025_samlede_ligningsfradrag_kroner(fradrag) - overført_underskud_kroner
 
 | årsopgørelse2025_skat_øre(grundlag_kroner: Heltal, sats_basispoint: Heltal) -> grundlag_kroner * sats_basispoint / 100
 | årsopgørelse2025_ejendomsskat_øre(grundlag_kroner: Heltal, fakta: Årsopgørelse2025Ejendomsfakta) -> grundlag_kroner * fakta.sats_promille_tiendedele * fakta.ejerdage * fakta.ejerandel_procent / (10000 * fakta.årsdage)
 | årsopgørelse2025_bundskat_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_personlig_indkomst_kroner(årsopgørelse2025_personlig), årsopgørelse2025_nationale_parametre.bundskat_basispoint)
 | årsopgørelse2025_topskat_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_personlig_indkomst_kroner(årsopgørelse2025_personlig) - årsopgørelse2025_nationale_parametre.topskattegrænse_efter_am_kroner, årsopgørelse2025_nationale_parametre.topskat_basispoint)
-| årsopgørelse2025_kommuneskat_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_ægtefælle), årsopgørelse2025_kommunale_parametre.kommuneskat_basispoint)
+| årsopgørelse2025_kommuneskat_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_overført_underskud_kroner), årsopgørelse2025_kommunale_parametre.kommuneskat_basispoint)
 | årsopgørelse2025_aktieindkomstskat_øre() -> årsopgørelse2025_skat_øre(14967, årsopgørelse2025_nationale_parametre.aktieindkomst_lav_basispoint)
 | årsopgørelse2025_statsligt_personfradrag_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_personfradrag_kroner, årsopgørelse2025_nationale_parametre.bundskat_basispoint)
 | årsopgørelse2025_kommunalt_personfradrag_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_personfradrag_kroner, årsopgørelse2025_kommunale_parametre.kommuneskat_basispoint)
+| årsopgørelse2025_statsligt_ægtefællepersonfradrag_øre() -> årsopgørelse2025_skat_øre(personfradrag_beløb_for(2025, Fyldt18EllerGift), årsopgørelse2025_nationale_parametre.bundskat_basispoint)
+| årsopgørelse2025_kommunalt_ægtefællepersonfradrag_øre() -> årsopgørelse2025_skat_øre(personfradrag_beløb_for(2025, Fyldt18EllerGift), årsopgørelse2025_kommunale_parametre.kommuneskat_basispoint)
 | årsopgørelse2025_eget_negativt_kapitalnedslag_øre() -> årsopgørelse2025_skat_øre(0 - årsopgørelse2025_nettokapitalindkomst_kroner(årsopgørelse2025_kapital), negativ_kapital_nedslag_sats_basispoint(2025))
-| årsopgørelse2025_ægtefælles_negativt_kapitalnedslag_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_ægtefælle.negativ_nettokapitalindkomst_kroner, negativ_kapital_nedslag_sats_basispoint(2025))
+| årsopgørelse2025_ægtefælles_negativt_kapitalnedslag_øre() -> årsopgørelse2025_skat_øre(årsopgørelse2025_ægtefælle.renteudgifter_kroner, negativ_kapital_nedslag_sats_basispoint(2025))
 | årsopgørelse2025_ejendomsværdiskat_øre() -> årsopgørelse2025_ejendomsskat_øre(årsopgørelse2025_ejendom.ejendomsværdiskattegrundlag_kroner, årsopgørelse2025_ejendom)
 | årsopgørelse2025_grundskyld_øre() -> årsopgørelse2025_ejendomsskat_øre(årsopgørelse2025_ejendom.grundskyldgrundlag_kroner, årsopgørelse2025_ejendom)
-| årsopgørelse2025_beregnet_skat_øre() -> årsopgørelse2025_personlig.arbejdsmarkedsbidrag_kroner * 100 + årsopgørelse2025_bundskat_øre() + årsopgørelse2025_topskat_øre() + årsopgørelse2025_kommuneskat_øre() + årsopgørelse2025_aktieindkomstskat_øre() - 600 - 2 * årsopgørelse2025_statsligt_personfradrag_øre() - 2 * årsopgørelse2025_kommunalt_personfradrag_øre() - årsopgørelse2025_eget_negativt_kapitalnedslag_øre() - årsopgørelse2025_ægtefælles_negativt_kapitalnedslag_øre() + årsopgørelse2025_ejendomsværdiskat_øre() + årsopgørelse2025_grundskyld_øre()
+| årsopgørelse2025_beregnet_skat_øre() -> årsopgørelse2025_personlig.arbejdsmarkedsbidrag_kroner * 100 + årsopgørelse2025_bundskat_øre() + årsopgørelse2025_topskat_øre() + årsopgørelse2025_kommuneskat_øre() + årsopgørelse2025_aktieindkomstskat_øre() - 600 - årsopgørelse2025_statsligt_personfradrag_øre() - årsopgørelse2025_kommunalt_personfradrag_øre() - årsopgørelse2025_statsligt_ægtefællepersonfradrag_øre() - årsopgørelse2025_kommunalt_ægtefællepersonfradrag_øre() - årsopgørelse2025_eget_negativt_kapitalnedslag_øre() - årsopgørelse2025_ægtefælles_negativt_kapitalnedslag_øre() + årsopgørelse2025_ejendomsværdiskat_øre() + årsopgørelse2025_grundskyld_øre()
 | årsopgørelse2025_forudbetalt_skat_øre(fakta: Årsopgørelse2025Forudbetaling) -> fakta.a_skat_kroner * 100 + fakta.indeholdt_am_kroner * 100 + fakta.udbytteskat_øre
 | årsopgørelse2025_overskydende_skat_øre() -> årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) - årsopgørelse2025_beregnet_skat_øre()
 | årsopgørelse2025_udbetaling_nu_øre() -> årsopgørelse2025_overskydende_skat_øre() - årsopgørelse2025_forudbetaling.tidligere_udbetalt_overskydende_skat_øre + årsopgørelse2025_forudbetaling.afrunding_øre
@@ -132,12 +140,31 @@ Aktieindkomst: 14.967
     betaler_kirkeskat = Falskt
 )
 
+= årsopgørelse2025_ægtefælle_lønmodtagerinput = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = Frederiksberg,
+    bruttoløn_kroner = 0,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0 - årsopgørelse2025_ægtefælle.renteudgifter_kroner,
+    ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = LønmodtagerPensionsfradrag(
+        pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+        pbl18_fradragsberettiget_indbetaling_kroner = 0,
+        pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+        pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+        pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+    ),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
 = årsopgørelse2025_skatteforhold = LønmodtagerSkatteforhold(
     aktieindkomst_kroner = 14967,
     ægtefælle_aktieindkomst_kroner = 0,
-    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = Sandt,
-    ægtefælle_nettokapitalindkomst_kroner = 0 - årsopgørelse2025_ægtefælle.negativ_nettokapitalindkomst_kroner,
-    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = Sandt,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
+    ægtefælle_nettokapitalindkomst_kroner = årsopgørelse2025_ægtefælle_lønmodtagerinput.nettokapitalindkomst_kroner,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
     cfc_indkomst_kroner = 0,
     par8c_status = IkkePar8cOmfattet,
     personfradrag_skattepligt = FuldtSkattepligtigHerILandet,
@@ -145,10 +172,85 @@ Aktieindkomst: 14.967
     personfradrag_omvalg_dato_yyyymmdd = 0
 )
 
-= årsopgørelse2025_futuruna_kerne = beregn_lønmodtager_med_skatteforhold(
+= årsopgørelse2025_ægtefælle_skatteforhold = LønmodtagerSkatteforhold(
+    aktieindkomst_kroner = 0,
+    ægtefælle_aktieindkomst_kroner = årsopgørelse2025_skatteforhold.aktieindkomst_kroner,
+    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
+    ægtefælle_nettokapitalindkomst_kroner = årsopgørelse2025_lønmodtagerinput.nettokapitalindkomst_kroner,
+    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
+    cfc_indkomst_kroner = 0,
+    par8c_status = IkkePar8cOmfattet,
+    personfradrag_skattepligt = FuldtSkattepligtigHerILandet,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+)
+
+| årsopgørelse2025_par13_modregningsskatter(model: LønmodtagerBeregning) -> Par13ModregningsSkatter(
+    par6_skat_kroner = model.før_personfradrag.bundskat_kroner,
+    par7_skat_kroner = model.før_personfradrag.topskat_kroner,
+    par7a_skat_kroner = model.før_personfradrag.udligningsskat_kroner,
+    par8_skat_kroner = model.før_personfradrag.sundhedsbidrag_kroner,
+    par8a_stk2_skat_kroner = model.før_personfradrag.aktieindkomstskat_kroner
+)
+| årsopgørelse2025_par13_forhold(ægtefælles_foreløbige_skat: LønmodtagerBeregning) -> LønmodtagerPar13Forhold(
+    ægtefælle_skattepligtig_indkomst_kroner = ægtefælles_foreløbige_skat.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
+    ægtefælle_modregningsskatter = årsopgørelse2025_par13_modregningsskatter(ægtefælles_foreløbige_skat),
+    gift_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
+| årsopgørelse2025_kun_par13_fra(afsender: LønmodtagerBeregning) -> MedIndgåendeÆgtefælleoverførsler(
+    afsenders_par13_underskud = afsender.par13_underskud,
+    afsenders_statslige_personfradrag = lønmodtager_tom_statslig_personfradragsnedsættelse(),
+    afsenders_ikke_statslige_personfradrag = lønmodtager_tom_ikke_statslig_personfradragsnedsættelse(),
+    afsenders_par11_nedslag = lønmodtager_tom_par11_modregning(),
+    gift_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb
+)
+| årsopgørelse2025_alle_overførsler_fra(par13_kilde: LønmodtagerBeregning, kilde_efter_par13: LønmodtagerBeregning) -> MedIndgåendeÆgtefælleoverførsler(
+    afsenders_par13_underskud = par13_kilde.par13_underskud,
+    afsenders_statslige_personfradrag = kilde_efter_par13.statsligt_personfradrag,
+    afsenders_ikke_statslige_personfradrag = kilde_efter_par13.ikke_statsligt_personfradrag,
+    afsenders_par11_nedslag = kilde_efter_par13.par11_nedslag.modregning,
+    gift_samlevende_ved_årets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb
+)
+
+= årsopgørelse2025_futuruna_kerne_model = beregn_lønmodtager_model_med_skatteforhold(
     årsopgørelse2025_lønmodtagerinput,
     årsopgørelse2025_skatteforhold
 )
+= årsopgørelse2025_futuruna_kerne = lønmodtager_breakdown_fra_model(årsopgørelse2025_futuruna_kerne_model)
+= årsopgørelse2025_ægtefælle_foreløbig_model = beregn_lønmodtager_model_med_skatteforhold(
+    årsopgørelse2025_ægtefælle_lønmodtagerinput,
+    årsopgørelse2025_ægtefælle_skatteforhold
+)
+= årsopgørelse2025_hoved_par13_forhold = årsopgørelse2025_par13_forhold(årsopgørelse2025_ægtefælle_foreløbig_model)
+= årsopgørelse2025_ægtefælle_par13_forhold = årsopgørelse2025_par13_forhold(årsopgørelse2025_futuruna_kerne_model)
+= årsopgørelse2025_hoved_par13_kilde = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    årsopgørelse2025_lønmodtagerinput,
+    årsopgørelse2025_skatteforhold,
+    årsopgørelse2025_hoved_par13_forhold
+)
+= årsopgørelse2025_ægtefælle_par13_kilde = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
+    årsopgørelse2025_ægtefælle_lønmodtagerinput,
+    årsopgørelse2025_ægtefælle_skatteforhold,
+    årsopgørelse2025_ægtefælle_par13_forhold
+)
+= årsopgørelse2025_ægtefælle_efter_par13 = beregn_lønmodtager_model_med_ægtefælleoverførsler(
+    årsopgørelse2025_ægtefælle_lønmodtagerinput,
+    årsopgørelse2025_ægtefælle_skatteforhold,
+    årsopgørelse2025_ægtefælle_par13_forhold,
+    årsopgørelse2025_kun_par13_fra(årsopgørelse2025_hoved_par13_kilde)
+)
+= årsopgørelse2025_futuruna_med_ægtefælle_model = beregn_lønmodtager_model_med_ægtefælleoverførsler(
+    årsopgørelse2025_lønmodtagerinput,
+    årsopgørelse2025_skatteforhold,
+    årsopgørelse2025_hoved_par13_forhold,
+    årsopgørelse2025_alle_overførsler_fra(årsopgørelse2025_ægtefælle_par13_kilde, årsopgørelse2025_ægtefælle_efter_par13)
+)
+= årsopgørelse2025_futuruna_med_ægtefælle = lønmodtager_breakdown_fra_model(årsopgørelse2025_futuruna_med_ægtefælle_model)
+= årsopgørelse2025_overført_underskud_kroner = årsopgørelse2025_futuruna_med_ægtefælle_model.indgående_ægtefælle.par13_indkomstfradrag_kroner
+= årsopgørelse2025_overført_personfradragsværdi_kroner = årsopgørelse2025_futuruna_med_ægtefælle_model.indgående_ægtefælle.personfradrag.overført_skatteværdi_kroner
+= årsopgørelse2025_overført_par11_nedslag_kroner = årsopgørelse2025_futuruna_med_ægtefælle_model.indgående_ægtefælle.par11_nedslag.overført_nedslag_kroner
 = årsopgørelse2025_futuruna_endelig_aktieskat = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
     skatteår = 2025,
     aktieindkomst_kroner = 14967,
@@ -159,13 +261,19 @@ Aktieindkomst: 14.967
 | årsopgørelse2025_fradrag_matcher: årsopgørelse2025_futuruna_kerne -> årsopgørelse2025_futuruna_kerne.beskæftigelsesfradrag_kroner == 55600 && årsopgørelse2025_futuruna_kerne.jobfradrag_kroner == 2900 && årsopgørelse2025_futuruna_kerne.ekstra_pensionsfradrag_kroner == 495 && årsopgørelse2025_futuruna_kerne.samlede_ligningsmæssige_fradrag_kroner == 70656
 | årsopgørelse2025_egen_skattekerne_matcher: årsopgørelse2025_futuruna_kerne -> årsopgørelse2025_futuruna_kerne.almindelig_skattepligtig_indkomst_kroner == 642876 && årsopgørelse2025_futuruna_kerne.bundskat_før_personfradrag_kroner == 90067 && årsopgørelse2025_futuruna_kerne.topskat_før_personfradrag_kroner == 20720 && årsopgørelse2025_futuruna_kerne.aktieindkomstskat_før_personfradrag_kroner == 0 && årsopgørelse2025_futuruna_endelig_aktieskat.endelig_skat_kroner == 4041 && årsopgørelse2025_futuruna_kerne.kommuneskat_før_personfradrag_kroner == 157954
 | årsopgørelse2025_egne_nedslag_matcher: årsopgørelse2025_futuruna_kerne -> årsopgørelse2025_futuruna_kerne.statslig_personfradrag_skatteværdi_kroner == 6197 && årsopgørelse2025_futuruna_kerne.kommunal_personfradrag_skatteværdi_kroner == 12678 && årsopgørelse2025_futuruna_kerne.par11_nedslag_kroner == 2912 && årsopgørelse2025_futuruna_kerne.samlet_inkl_am_efter_personfradrag_kroner == 312321
-| årsopgørelse2025_ægtefælleoverførsel_forklarer_skattepligtig_indkomst: årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_ægtefælle) -> årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_ægtefælle) == 603259
+| årsopgørelse2025_ægtefælleoverførsler_udledes_fra_kilden: årsopgørelse2025_overført_underskud_kroner -> årsopgørelse2025_overført_underskud_kroner == 39617 && årsopgørelse2025_overført_personfradragsværdi_kroner == 18875 && årsopgørelse2025_overført_par11_nedslag_kroner == 3169
+| årsopgørelse2025_kommuneskat_genberegnes_med_eget_afrundingstrin: årsopgørelse2025_futuruna_med_ægtefælle.kommuneskat_før_personfradrag_kroner -> årsopgørelse2025_futuruna_med_ægtefælle.kommuneskat_før_personfradrag_kroner == 148220 && årsopgørelse2025_futuruna_kerne.kommuneskat_før_personfradrag_kroner - årsopgørelse2025_futuruna_med_ægtefælle.kommuneskat_før_personfradrag_kroner == 9734 && penge_beløb_gange_basispoint_kroner(årsopgørelse2025_overført_underskud_kroner, årsopgørelse2025_kommunale_parametre.kommuneskat_basispoint) == 9733
+| årsopgørelse2025_futuruna_kerne_med_ægtefælle_matcher: årsopgørelse2025_futuruna_med_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner -> årsopgørelse2025_futuruna_med_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner == 280543
+| årsopgørelse2025_ægtefælleoverførsel_forklarer_skattepligtig_indkomst: årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_overført_underskud_kroner) -> årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_overført_underskud_kroner) == 603259
 | årsopgørelse2025_øreberegning_matcher: årsopgørelse2025_beregnet_skat_øre() -> årsopgørelse2025_beregnet_skat_øre() == 29059034 && årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) == 32775714 && årsopgørelse2025_overskydende_skat_øre() == 3716680 && årsopgørelse2025_udbetaling_nu_øre() == 8200
 
 ? årsopgørelse2025_indkomstgrundlag_matcher
 ? årsopgørelse2025_fradrag_matcher
 ? årsopgørelse2025_egen_skattekerne_matcher
 ? årsopgørelse2025_egne_nedslag_matcher
+? årsopgørelse2025_ægtefælleoverførsler_udledes_fra_kilden
+? årsopgørelse2025_kommuneskat_genberegnes_med_eget_afrundingstrin
+? årsopgørelse2025_futuruna_kerne_med_ægtefælle_matcher
 ? årsopgørelse2025_ægtefælleoverførsel_forklarer_skattepligtig_indkomst
 ? årsopgørelse2025_øreberegning_matcher
 

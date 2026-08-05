@@ -4,7 +4,11 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-31
 TD epic: `td-56cf8d`
 Current implementation slice: `td-a89feb` (Virksomhedsskattelovens § 22 a, stk. 4-8, årsparametre og kanonisk erhvervskapital; in progress)
+Current fidelity slice: `td-3759c6` (indgående ægtefælleoverførsler fra kildefakta til kanonisk Personskat; pending independent review)
 Next source-backed slice: færdiggør `td-a89feb`, og fortsæt derefter den materielle beregningskø under `td-2d84ec`
+Planned structural audit: `td-ba70c7` (kanonisk rækkevidde, afledte input og flerpersons-/tværårsforløb)
+Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
+Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
@@ -112,36 +116,43 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er nu ført
-gennem både den kanoniske arbejdsbog og et fokuseret
-`personskat-2025-aarsopgoerelse.scenario.runa`. Ingen person-, adresse- eller
-ejendomsidentifikationer er bevaret i korpusset. Scenariet afstemmer den
-eksisterende lønmodtagerkerne med de oplyste indkomst- og fradragssummer og
-rammer årsopgørelsens 29.059.034 øre i beregnet skat, 3.716.680 øre i
-overskydende skat og 8.200 øre i resterende udbetaling præcist. Realitetstesten
-og den efterfølgende domænegennemgang fandt fire konkrete
-integrationsforbedringer: Frederiksberg og kommunens
-2025-sats manglede i årsparametrene, § 9 L-fradraget skulle afrundes til hele
-kroner i stedet for at blive afkortet, og den endelige lave aktieindkomstskat
-skulle både udstilles særskilt og medregnes i den samlede skat og
-årsopgørelsen. Desuden var virksomhedsordningens § 7-gren og den alternative
-kapitalafkastordning efter § 22 a fejlagtigt repræsenteret som to uafhængige
-valg i det kanoniske Personskat-input. De er nu én sumtype med præcis ét valg
-mellem ingen ordning, virksomhedsordningen og kapitalafkastordningen;
-rentekorrektion efter § 11 findes kun inde i virksomhedsordningsgrenen. Separate
-scenarier bevarer fuld grendækning uden at konstruere en retligt umulig
-kombination.
+Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
+gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
+eller ejendomsidentifikationer. Scenariet rammer 29.059.034 øre i beregnet skat,
+3.716.680 øre i overskydende skat og 8.200 øre i resterende udbetaling præcist.
+Årsopgørelsen viser ægtefælleoverførslernes virkning, men ikke ægtefællens
+underliggende poster. Scenariet markerer derfor sin minimale rekonstruktion som
+en antagelse: ingen anden indkomst og 39.617 kr. i renteudgifter. Fra disse
+kildefakta udleder reglerne selv 39.617 kr. efter § 13, 18.875 kr. i uudnyttet
+personfradragsværdi efter § 10 og 3.169 kr. efter § 11. Den afrundede
+lønmodtagerkerne falder fra 312.321 kr. til 280.543 kr.; den særskilte
+øreberegning tilføjer derefter aktie- og boligskatter og bevarer den præcise
+afstemning. Slutbeløbet genberegnes fra det reducerede skattegrundlag. Det kan
+afvige med en krone fra at trække flere allerede afrundede delvirkninger fra
+en allerede afrundet baseline, så afstemninger skal fastholde lovens enhed og
+afrundingstrin gennem hele beregningskæden.
 
-Den udfyldte kanoniske arbejdsbog accepterer alle de faktiske kildedata, som
-den nuværende `PersonskatInput` kan bære uden omklassifikation: år, kommune,
-løn, renter, civilstands- og ægtefællekapitalforhold, aktieindkomst og
-foreløbige skatter. Den beregner 318.644 kr. mod årsopgørelsens 290.590,34 kr.
-Forskellen på 28.053,66 kr. er et reproducerbart dækningssignal, ikke et skjult
-afrundingsproblem. Den består af endnu ikke kanonisk forbundne indgående
-ægtefælleoverførsler, boligskatter, investeringsselskabsposter,
-ligningsfradrag, virksomhedsunderskud og mindre personlige indkomstposter. De
-skal forbindes fra deres egne kildefakta; realitetstesten indfører ikke rå
-slutbeløbsfelter for at fremtvinge et match.
+Realitetstesten har nu fundet fem materielle integrationsfejl: Frederiksberg og
+kommunens 2025-sats manglede, § 9 L-fradraget blev afkortet i stedet for
+afrundet, den endelige lave aktieindkomstskat var ikke medregnet i slutskatten,
+virksomhedsordningen og kapitalafkastordningen kunne vælges samtidig, og
+indgående ægtefælleoverførsler fandtes kun som isolerede regler. Den første
+samlede ægtefællekørsel fandt desuden en sjette invariantfejl: negativ
+skattepligtig indkomst skabte negativ kommune- og kirkeskat og oppustede det
+overførte personfradrag. Begge skattegrundlag afgrænses nu ved nul med særskilte
+regressioner.
+
+Den kanoniske `PersonskatInput` modtager nu enten ingen ægtefælle eller en hel
+typet ægtefælleprofil og samlivsstatus. § 13-, § 10- og § 11-resultater kan ikke
+længere leveres som rå reduktionsbeløb. JSON- og XLSX-kontrakten udstiller de
+samme kildefakta med danske spørgsmål og med både LBK 1284/2021 og LOV
+1564/2023 i kildesporet. En fuld enkeltgrænseafstemning mod den private
+årsopgørelse kræver fortsat kanonisk samordning af boligskatter samt
+source-backed dækning af de resterende investerings-, ligningsfradrags-,
+virksomhedsunderskuds- og personlige indkomstposter. Den generelle opfølgning
+`td-ba70c7` skal derfor kontrollere alle offentlige beregningsgrænser for
+afledte input, utilgængelige regelgrene og manglende flerpersons- eller
+tværårsscenarier.
 
 `runa template` kan nu tage en valideret JSON- eller TOML-konvolut som
 `--input` og hydrere den genererede XLSX-kontrakt. Det bevarer menneskelige

@@ -83,6 +83,7 @@ tidligere kilometer udledes af forløbet og er ikke kildefakta.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_erhvervsbefordring_beregn(skatteår: Heltal, sager: List(PersonskatErhvervsbefordringFakta)) -> beregn_personskat(personskat_erhvervsbefordring_input(skatteår, sager))

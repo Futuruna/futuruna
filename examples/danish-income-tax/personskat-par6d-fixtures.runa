@@ -148,6 +148,7 @@
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_par6d_scenarie_input(skatteår: Heltal, skatteyder_identifikation: Tekst, ejendommens_afståelsesår: Heltal, årsforhold: List(EblPar6DÅrsforhold)) -> personskat_par6d_scenarie_input_med_ægtefælleidentifikation(skatteår, skatteyder_identifikation, Some(hvis skatteyder_identifikation == "Sælger" { "Ægtefælle" } ellers { "Sælger" }), ejendommens_afståelsesår, årsforhold)

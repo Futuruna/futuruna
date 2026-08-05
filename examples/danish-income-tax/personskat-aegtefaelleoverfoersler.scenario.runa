@@ -1,0 +1,100 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+-- Kanonisk scenarie for indgående ægtefælleoverførsler. Afsenderens
+-- underskud, uudnyttede personfradrag og uudnyttede kapitalindkomstnedslag
+-- udledes af samme kildefakta som en almindelig Personskat-beregning.
+
+| personskat_ægtefælle_scenarie_lønmodtager(bruttoløn_kroner: Heltal) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = Frederiksberg,
+    bruttoløn_kroner = bruttoløn_kroner,
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+| personskat_ægtefælle_scenarie_negativ_kapital(renteudgifter_kroner: Heltal) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = renteudgifter_kroner,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+
+= personskat_ægtefælle_scenarie_fakta = PersonskatPersonFakta(
+    lønmodtager = personskat_ægtefælle_scenarie_lønmodtager(0),
+    kapitalindkomst = personskat_ægtefælle_scenarie_negativ_kapital(39617),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold
+)
+
+| personskat_ægtefælle_scenarie_input(ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
+    lønmodtager = personskat_ægtefælle_scenarie_lønmodtager(600000),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = ægtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_uden_ægtefælleoverførsler = beregn_personskat(personskat_ægtefælle_scenarie_input(UdenÆgtefælle))
+= personskat_med_ægtefælleoverførsler = beregn_personskat(personskat_ægtefælle_scenarie_input(MedÆgtefælle(
+    fakta = personskat_ægtefælle_scenarie_fakta,
+    samlevende_ved_indkomstårets_udløb = Sandt
+)))
+= personskat_uden_samliv_ved_årets_udløb = beregn_personskat(personskat_ægtefælle_scenarie_input(MedÆgtefælle(
+    fakta = personskat_ægtefælle_scenarie_fakta,
+    samlevende_ved_indkomstårets_udløb = Falskt
+)))
+
+= personskat_ægtefælle_par13_indkomstfradrag_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.par13_indkomstfradrag_kroner
+= personskat_ægtefælle_par13_skattemodregning_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.par13_skattemodregning_kroner
+= personskat_ægtefælle_personfradragsværdi_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.personfradrag.overført_skatteværdi_kroner
+= personskat_ægtefælle_anvendt_personfradragsværdi_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.personfradrag.anvendt_skatteværdi_kroner
+= personskat_ægtefælle_par11_nedslag_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.par11_nedslag.overført_nedslag_kroner
+= personskat_ægtefælle_anvendt_par11_nedslag_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.par11_nedslag.anvendt_nedslag_kroner
+= personskat_ægtefælle_kilderesultat_er_bevaret = match personskat_med_ægtefælleoverførsler.ægtefælle {
+    | IngenÆgtefælleberegning -> Falskt
+    | BeregnetÆgtefælle(_, _, skat, _) -> skat.par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_indkomstfradrag_kroner == 39617 && skat.statsligt_personfradrag.ubrugt_skatteværdi_kroner > 0
+}
+= personskat_ægtefælle_skattenedsættelse_kroner = personskat_uden_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - personskat_med_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner
+= personskat_ægtefælleoverførsler_uden_samliv_kroner = personskat_uden_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - personskat_uden_samliv_ved_årets_udløb.samlet_skat_inkl_endelig_aktieindkomstskat_kroner
+
+| personskat_ægtefælle_par13_udledes_fra_kilden: personskat_ægtefælle_par13_indkomstfradrag_kroner -> personskat_ægtefælle_par13_indkomstfradrag_kroner == 39617 && personskat_ægtefælle_par13_skattemodregning_kroner == 0
+| personskat_ægtefælle_personfradrag_udledes_fra_kilden: personskat_ægtefælle_personfradragsværdi_kroner -> personskat_ægtefælle_personfradragsværdi_kroner == 18875 && personskat_ægtefælle_anvendt_personfradragsværdi_kroner == 18875
+| personskat_ægtefælle_par11_udledes_fra_kilden: personskat_ægtefælle_par11_nedslag_kroner -> personskat_ægtefælle_par11_nedslag_kroner == 3169 && personskat_ægtefælle_anvendt_par11_nedslag_kroner == 3169
+| personskat_ægtefælle_kilderesultat_bevares: personskat_ægtefælle_kilderesultat_er_bevaret -> personskat_ægtefælle_kilderesultat_er_bevaret
+| personskat_ægtefælleoverførsler_nedsætter_skatten: personskat_ægtefælle_skattenedsættelse_kroner -> personskat_ægtefælle_skattenedsættelse_kroner == 31777
+| personskat_ægtefælleoverførsler_giver_forventet_skat: personskat_med_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner -> personskat_med_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == 184895
+| personskat_ægtefælleoverførsler_kræver_samliv: personskat_ægtefælleoverførsler_uden_samliv_kroner -> personskat_ægtefælleoverførsler_uden_samliv_kroner == 0
+
+? personskat_ægtefælle_par13_udledes_fra_kilden
+? personskat_ægtefælle_personfradrag_udledes_fra_kilden
+? personskat_ægtefælle_par11_udledes_fra_kilden
+? personskat_ægtefælle_kilderesultat_bevares
+? personskat_ægtefælleoverførsler_nedsætter_skatten
+? personskat_ægtefælleoverførsler_giver_forventet_skat
+? personskat_ægtefælleoverførsler_kræver_samliv
+
+@ print("Personskat uden ægtefælleoverførsler: " + vis(personskat_uden_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner))
+@ print("Personskat med ægtefælleoverførsler: " + vis(personskat_med_ægtefælleoverførsler.samlet_skat_inkl_endelig_aktieindkomstskat_kroner))
+@ print("Overført personfradragsværdi: " + vis(personskat_med_ægtefælleoverførsler.indgående_ægtefælle.personfradrag.overført_skatteværdi_kroner))

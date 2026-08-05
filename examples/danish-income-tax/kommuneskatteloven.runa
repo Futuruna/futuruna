@@ -275,7 +275,7 @@ indkomstskatten til staten.
     )
 }
 
-| kommunal_indkomstskat_grundlag_kroner(input: KommunalIndkomstskatInput) -> input.skattepligtig_indkomst_kroner
+| kommunal_indkomstskat_grundlag_kroner(input: KommunalIndkomstskatInput) -> penge_positivt_beløb(input.skattepligtig_indkomst_kroner)
 | kommunal_indkomstskat_før_personfradrag_kroner(input: KommunalIndkomstskatInput) -> penge_beløb_gange_basispoint_kroner(kommunal_indkomstskat_grundlag_kroner(input), input.udskrivningsprocent_basispoint)
 | kommunal_par5_delår_sag(input: KommunalPar5DelårInput) -> KommunalPar5DelårSag(input)
 | kommunal_par5_delår_resultat(input: KommunalPar5DelårInput) -> kommunal_par5_delår_sag(input).resultat()
@@ -578,6 +578,11 @@ Stk. 2. Loven har virkning fra og med tilskudsåret 2026.
     skattepligtig_indkomst_kroner = 460000,
     udskrivningsprocent_basispoint = 2350
 ))
+= kommuneskattelov_negativ_indkomst_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = 0 - 39617,
+    udskrivningsprocent_basispoint = 2457
+))
 
 | kommunal_skattepligt_følger_statsskattepligt: kommuneskattelov_skattepligt_fixture -> kommuneskattelov_skattepligt_fixture == Sandt
 | kommunal_skat_beregnes_af_personskattepligtig_indkomst: kommuneskattelov_københavn_2025_fixture -> kommuneskattelov_københavn_2025_fixture == 108100
+| kommunal_negativ_indkomst_giver_ikke_negativ_skat: kommuneskattelov_negativ_indkomst_fixture -> kommuneskattelov_negativ_indkomst_fixture == 0

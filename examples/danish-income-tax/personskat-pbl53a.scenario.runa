@@ -42,6 +42,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 

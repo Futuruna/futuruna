@@ -35,14 +35,11 @@ kanoniske beregning af personlig indkomst.
     cfc = personskat_ingen_cfc(),
     skatteforhold = skatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_socialbidrag_begrænset_skatteforhold() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
     øvrig_aktieindkomst_kroner = 0,
-    ægtefælle_aktieindkomst_kroner = 0,
-    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
-    ægtefælle_nettokapitalindkomst_kroner = 0,
-    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
     par8c_status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
     personfradrag_skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
     personfradrag_valg_dato_yyyymmdd = 0,
@@ -50,10 +47,6 @@ kanoniske beregning af personlig indkomst.
 ))
 | personskat_socialbidrag_anden_personfradragsstatus() -> SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
     øvrig_aktieindkomst_kroner = 0,
-    ægtefælle_aktieindkomst_kroner = 0,
-    aktieindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
-    ægtefælle_nettokapitalindkomst_kroner = 0,
-    kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb = Falskt,
     par8c_status = IkkePar8cOmfattet,
     personfradrag_skattepligt = Kildeskattelov48Eller48FIndkomst,
     personfradrag_valg_dato_yyyymmdd = 0,

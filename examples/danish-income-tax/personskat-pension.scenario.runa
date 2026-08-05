@@ -89,6 +89,7 @@
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_ingen_kildeskattekreditter() -> KildeskatPar60Kreditter(
@@ -113,6 +114,7 @@
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 0,
         øvrig_pensionsbeskatningsafgift_kroner = 0,
@@ -127,6 +129,7 @@
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
     årsopgørelse = UdenÅrsopgørelse
 )
 

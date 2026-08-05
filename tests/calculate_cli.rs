@@ -1147,6 +1147,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skatteår",
             "Bopælskommune",
             "Årlig bruttoløn",
+            "Ægtefælle",
+            "Samlevende med ægtefællen ved årets udløb",
+            "Ægtefællens årlige bruttoløn",
+            "Ægtefællens renteudgifter",
             "Befordringsfradrag",
             "Afstand til folkepensionsalderen",
             "Selvstændigt overskud før VSL § 22 b",
@@ -1994,7 +1998,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skatteforhold.$variant",
             "skatteforhold.SærligeSkatteforhold.forhold.øvrig_aktieindkomst_kroner",
             "underskudsforhold.$variant",
-            "underskudsforhold.SærligeUnderskudsforhold.forhold.ægtefælle_skattepligtig_indkomst_kroner",
+            "underskudsforhold.MedUnderskudshistorik.egne_tidligere_underskud_kroner",
+            "underskudsforhold.MedUnderskudshistorik.aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat",
+            "ægtefælle.$variant",
+            "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
+            "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
+            "ægtefælle.MedÆgtefælle.samlevende_ved_indkomstårets_udløb",
             "årsopgørelse.$variant",
             "årsopgørelse.MedÅrsopgørelse.kreditter.a_skat_og_am_indeholdt_kroner",
         ] {
@@ -2024,6 +2033,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("fradragsforhold.personrolle")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("ægtefælle_skattepligtig_indkomst_kroner")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("overført_skatteværdi_kroner")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("overført_nedslag_kroner")));
         assert!(!canonical_input_paths.iter().any(|path| {
             path == "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.stk4_samordning.MedSamordningMedLigningslov15P.indkomstårets_dage"
         }));
@@ -2706,6 +2724,47 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing § 15 A accounting-period source {expected}"
             );
         }
+        let spouse_source_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("ægtefælle.$variant")
+            })
+            .expect("spouse source-boundary metadata");
+        let spouse_sources = spouse_source_row
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("spouse sources");
+        for expected in [
+            "personskatteloven_2021_1284",
+            "personskat_personfradrag_aendring_2023_1564",
+        ] {
+            assert!(
+                spouse_sources.contains(expected),
+                "missing spouse-transfer source {expected}"
+            );
+        }
+        let wage_source_row = metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("lønmodtager.bruttoløn_kroner")
+            })
+            .expect("wage source-boundary metadata");
+        assert!(
+            !wage_source_row
+                .get(sources_column)
+                .map(ToString::to_string)
+                .unwrap_or_default()
+                .contains("personskat_personfradrag_aendring_2023_1564"),
+            "person-fradrag amendment leaked onto unrelated wage metadata"
+        );
         let business_travel_row = metadata
             .rows()
             .skip(1)
@@ -2993,6 +3052,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("StandardUnderskudsforhold".to_string()),
                     ),
                     (
+                        "ægtefælle.$variant",
+                        Data::String("UdenÆgtefælle".to_string()),
+                    ),
+                    (
                         "årsopgørelse.$variant",
                         Data::String("UdenÅrsopgørelse".to_string()),
                     ),
@@ -3012,6 +3075,152 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 9, "personskat-erhvervsbefordring-2026");
         fill_wage_case(sheets, 10, "personskat-pbl53a-2026");
         fill_wage_case(sheets, 11, "personskat-pbl53a-overdrager-2026");
+        fill_wage_case(sheets, 12, "personskat-aegtefaelleoverfoersler-2025");
+        for (header, value) in [
+            ("lønmodtager.skatteår", Data::String("2025".to_string())),
+            (
+                "lønmodtager.kommune",
+                Data::String("Frederiksberg".to_string()),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.$variant",
+                Data::String("UdenOrdinærtAktieår".to_string()),
+            ),
+            (
+                "ægtefælle.$variant",
+                Data::String("MedÆgtefælle".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.skatteår",
+                Data::String("2025".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.kommune",
+                Data::String("Frederiksberg".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
+                Data::String("UdenBefordringsfradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pensionsalder_status",
+                Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.renteudgifter_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.kurstab_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.renteindtægter_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.udbytteindtægter_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.kursgevinster_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.udelukkede_afståelsesindkomster_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_livrentevalg.$variant",
+                Data::String("Pbl18FordeltFradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.aktiepensionsfradrag_valg.$variant",
+                Data::String("UdenAktiepensionsfradragIAktieindkomst".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personfradrag_alder_status",
+                Data::String("Fyldt18EllerGift".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.betaler_kirkeskat",
+                Data::Bool(false),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteindtægter_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
+                Data::String("39617".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.næringsstatus",
+                Data::String("IkkeNæring".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.ligningslov6.$variant",
+                Data::String("UdenLigningslov6Kurstab".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.ligningslov6a.$variant",
+                Data::String("UdenLigningslov6AFradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.virksomhedskapital.selvstændig_beskatningsordning.$variant",
+                Data::String("UdenVirksomhedsEllerKapitalafkastordning".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.virksomhedskapital.medarbejderaktier.$variant",
+                Data::String("UdenKapitalafkastEfterVirksomhedsskattelov22C".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.ejendomsdrift.$variant",
+                Data::String("UdenEjendomsdriftEfterPar4Nr6".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.ejendomsavance.$variant",
+                Data::String("UdenEjendomsavance".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.kursgevinst.$variant",
+                Data::String("UdenKursgevinst".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.fremleje.$variant",
+                Data::String("UdenFremlejeEfterLigningslov15Q".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.aktieavance.ordinært_aktieår.$variant",
+                Data::String("UdenOrdinærtAktieår".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.udenlandske_sociale_bidrag.$variant",
+                Data::String("UdenUdenlandskeSocialeBidragEfterLigningslov8M".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.skatteforhold.$variant",
+                Data::String("StandardSkatteforhold".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.underskudsforhold.$variant",
+                Data::String("StandardUnderskudsforhold".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.samlevende_ved_indkomstårets_udløb",
+                Data::Bool(true),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 12, header, value);
+        }
         let business_travel_sheet = workbook_collection_sheet_name_from_rows(
             sheets,
             "lønmodtager.erhvervsbefordring.sager",
@@ -5609,6 +5818,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "cfc": { "poster": [] },
         "skatteforhold": { "$variant": "StandardSkatteforhold" },
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
+        "ægtefælle": { "$variant": "UdenÆgtefælle" },
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
     });
     let mut interest_case = json_input["cases"][0].clone();
@@ -6843,6 +7053,98 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(unsupported_contract_change_case);
+    let mut spouse_case = json_input["cases"][0].clone();
+    spouse_case["case_id"] = Value::String("personskat-aegtefaelleoverfoersler-2025".into());
+    spouse_case["input"]["lønmodtager"]["skatteår"] = serde_json::json!(2025);
+    spouse_case["input"]["lønmodtager"]["kommune"] =
+        serde_json::json!({ "$variant": "Frederiksberg" });
+    spouse_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    spouse_case["input"]["ægtefælle"] = serde_json::json!({
+        "$variant": "MedÆgtefælle",
+        "fakta": {
+            "lønmodtager": {
+                "skatteår": 2025,
+                "kommune": { "$variant": "Frederiksberg" },
+                "bruttoløn_kroner": 0,
+                "erhvervsbefordring": { "sager": [] },
+                "ligningsfradrag": {
+                    "befordring": { "$variant": "UdenBefordringsfradrag" }
+                },
+                "pension": {
+                    "pensionsalder_status": {
+                        "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
+                    },
+                    "pbl18_indbetalinger": [],
+                    "pbl18_selvstændig_overskud": {
+                        "skattepligtigt_overskud_før_vsl22b_kroner": 0,
+                        "renteudgifter_kroner": 0,
+                        "kurstab_kroner": 0,
+                        "renteindtægter_kroner": 0,
+                        "udbytteindtægter_kroner": 0,
+                        "kursgevinster_kroner": 0,
+                        "udelukkede_afståelsesindkomster_kroner": 0
+                    },
+                    "pbl18_livrentevalg": { "$variant": "Pbl18FordeltFradrag" },
+                    "pbl15a_årsgrundlag": {
+                        "afståelser": [],
+                        "ordninger": [],
+                        "kvalifikationsår": [],
+                        "tidligere_indbetalinger": []
+                    },
+                    "pbl15b_årsgrundlag": {
+                        "indkomstposter": [],
+                        "ordninger": [],
+                        "tidligere_indbetalinger": [],
+                        "rateudbetalinger": []
+                    },
+                    "øvrige_pbl20_årsgrundlag": { "udbetalinger": [] },
+                    "aktiepensionsfradrag_valg": {
+                        "$variant": "UdenAktiepensionsfradragIAktieindkomst"
+                    }
+                },
+                "personfradrag_alder_status": { "$variant": "Fyldt18EllerGift" },
+                "betaler_kirkeskat": false
+            },
+            "kapitalindkomst": {
+                "renter": {
+                    "renteindtægter_kroner": 0,
+                    "renteudgifter_kroner": 39_617,
+                    "næringsstatus": { "$variant": "IkkeNæring" },
+                    "ligningslov6": { "$variant": "UdenLigningslov6Kurstab" },
+                    "ligningslov6a": { "$variant": "UdenLigningslov6AFradrag" }
+                },
+                "virksomhedskapital": {
+                    "selvstændig_beskatningsordning": {
+                        "$variant": "UdenVirksomhedsEllerKapitalafkastordning"
+                    },
+                    "medarbejderaktier": {
+                        "$variant": "UdenKapitalafkastEfterVirksomhedsskattelov22C"
+                    }
+                },
+                "pbl53a": { "ordninger": [] },
+                "ejendomsdrift": { "$variant": "UdenEjendomsdriftEfterPar4Nr6" },
+                "ejendomsavance": { "$variant": "UdenEjendomsavance" },
+                "kursgevinst": { "$variant": "UdenKursgevinst" },
+                "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
+                "omkostninger": []
+            },
+            "aktieavance": {
+                "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+                "særlige_aktiver": []
+            },
+            "udenlandske_sociale_bidrag": {
+                "$variant": "UdenUdenlandskeSocialeBidragEfterLigningslov8M"
+            },
+            "cfc": { "poster": [] },
+            "skatteforhold": { "$variant": "StandardSkatteforhold" },
+            "underskudsforhold": { "$variant": "StandardUnderskudsforhold" }
+        },
+        "samlevende_ved_indkomstårets_udløb": true
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(spouse_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -6881,6 +7183,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         String::from_utf8_lossy(&json_output.stdout)
     );
     let json_result = parse_stdout(&json_output);
+    let xlsx_spouse_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-aegtefaelleoverfoersler-2025")
+        .expect("XLSX spouse-transfer result");
+    let json_spouse_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-aegtefaelleoverfoersler-2025")
+        .expect("JSON spouse-transfer result");
+    assert_eq!(xlsx_spouse_result["result"], json_spouse_result["result"]);
+    assert_eq!(
+        xlsx_spouse_result["result"]["indgående_ægtefælle"]["par13_indkomstfradrag_kroner"],
+        39_617
+    );
+    assert_eq!(
+        xlsx_spouse_result["result"]["indgående_ægtefælle"]["personfradrag"]
+            ["overført_skatteværdi_kroner"],
+        18_875
+    );
+    assert_eq!(
+        xlsx_spouse_result["result"]["indgående_ægtefælle"]["par11_nedslag"]
+            ["overført_nedslag_kroner"],
+        3_169
+    );
+    assert_eq!(
+        xlsx_spouse_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"],
+        184_895
+    );
     assert_eq!(
         result["results"][1]["result"],
         json_result["results"][0]["result"]
@@ -8937,15 +9270,18 @@ fn set_workbook_cell_by_header(
     header: &str,
     value: Data,
 ) {
+    let metadata_column = calculation_workbook_column(sheets, sheet, header);
     let display_header = calculation_workbook_display_header(sheets, sheet, header)
         .unwrap_or_else(|| header.to_string());
     let rows = workbook_sheet_mut(sheets, sheet);
     let physical_row = row + 1;
-    let column = rows
-        .get(1)
-        .expect("header row")
-        .iter()
-        .position(|cell| cell.to_string() == display_header)
+    let column = metadata_column
+        .or_else(|| {
+            rows.get(1)
+                .expect("header row")
+                .iter()
+                .position(|cell| cell.to_string() == display_header)
+        })
         .unwrap_or_else(|| {
             panic!("missing column {header} (displayed as {display_header}) on sheet {sheet}")
         });
@@ -8958,11 +9294,11 @@ fn set_workbook_cell_by_header(
     rows[physical_row][column] = value;
 }
 
-fn calculation_workbook_display_header(
+fn calculation_workbook_column(
     sheets: &[(String, Vec<Vec<Data>>)],
     sheet: &str,
     path: &str,
-) -> Option<String> {
+) -> Option<usize> {
     let rows = &sheets.iter().find(|(name, _)| name == "_columns")?.1;
     let headers = rows.first()?;
     let column = |name: &str| headers.iter().position(|cell| cell.to_string() == name);
@@ -8974,19 +9310,32 @@ fn calculation_workbook_display_header(
         .skip(1)
         .filter(|row| row.get(sheet_column).map(ToString::to_string).as_deref() == Some(sheet))
         .collect::<Vec<_>>();
-    let field_column = sheet_rows.iter().position(|row| {
-        row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
-            || row
-                .get(input_path_column)
+    let field_column = sheet_rows
+        .iter()
+        .position(|row| {
+            row.get(input_path_column)
                 .map(ToString::to_string)
                 .as_deref()
                 == Some(path)
-    })?;
+        })
+        .or_else(|| {
+            sheet_rows.iter().position(|row| {
+                row.get(path_column).map(ToString::to_string).as_deref() == Some(path)
+            })
+        })?;
     let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.get(1)?;
     let technical_columns = visible_headers.len().checked_sub(sheet_rows.len())?;
-    visible_headers
-        .get(technical_columns + field_column)
-        .map(ToString::to_string)
+    Some(technical_columns + field_column)
+}
+
+fn calculation_workbook_display_header(
+    sheets: &[(String, Vec<Vec<Data>>)],
+    sheet: &str,
+    path: &str,
+) -> Option<String> {
+    let field_column = calculation_workbook_column(sheets, sheet, path)?;
+    let visible_headers = sheets.iter().find(|(name, _)| name == sheet)?.1.get(1)?;
+    visible_headers.get(field_column).map(ToString::to_string)
 }
 
 fn write_workbook_data(

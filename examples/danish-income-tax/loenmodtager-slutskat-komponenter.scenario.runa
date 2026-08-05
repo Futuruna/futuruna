@@ -1,0 +1,61 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+
+-- Syntetisk regressionsscenarie for sammenhængen mellem slutskattens
+-- komponenter og total. Det store indgående § 11-nedslag gør forskellen
+-- entydig uden at være afhængig af en privat årsopgørelse.
+
+= slutskat_komponenter_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = Frederiksberg,
+    bruttoløn_kroner = 600000,
+    øvrig_personlig_indkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+= slutskat_komponenter_uden_overførsel = beregn_lønmodtager_model(slutskat_komponenter_input)
+
+= slutskat_komponenter_par11_kilde = par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
+    nedslag_kroner = 500000,
+    skatter = Par11NedslagSkatter(
+        par6_skat_kroner = 0,
+        par7_skat_kroner = 0,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 0,
+        par8c_skat_kroner = 0,
+        kommuneskat_kroner = 0,
+        kirkeskat_kroner = 0
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+
+= slutskat_komponenter_med_overførsel = beregn_lønmodtager_model_med_ægtefælleoverførsler(
+    slutskat_komponenter_input,
+    lønmodtager_standard_skatteforhold(),
+    lønmodtager_par13_standard_forhold(),
+    MedIndgåendeÆgtefælleoverførsler(
+        afsenders_par13_underskud = slutskat_komponenter_uden_overførsel.par13_underskud,
+        afsenders_statslige_personfradrag = lønmodtager_tom_statslig_personfradragsnedsættelse(),
+        afsenders_ikke_statslige_personfradrag = lønmodtager_tom_ikke_statslig_personfradragsnedsættelse(),
+        afsenders_par11_nedslag = slutskat_komponenter_par11_kilde,
+        gift_samlevende_ved_årets_udløb = Sandt
+    )
+)
+
+| slutskat_komponenter_scenariet_har_kommuneskat_før_overførsel: slutskat_komponenter_uden_overførsel -> slutskat_komponenter_uden_overførsel.slutskat.kommunal_og_kirkelig_indkomstskat_kroner > 0
+| slutskat_komponenter_par11_kilden_overfører_hele_nedslaget: slutskat_komponenter_par11_kilde -> slutskat_komponenter_par11_kilde.overført_til_ægtefælle_kroner == 500000
+| slutskat_komponenter_indgående_par11_nulstiller_kommuneskatten: slutskat_komponenter_med_overførsel -> slutskat_komponenter_med_overførsel.indgående_ægtefælle.par11_nedslag.modregning.kommuneskat_efter_kroner == 0
+| slutskat_komponenter_kommuneskatten_er_efter_par11: slutskat_komponenter_med_overførsel -> slutskat_komponenter_med_overførsel.slutskat.kommunal_og_kirkelig_indkomstskat_kroner == slutskat_komponenter_med_overførsel.indgående_ægtefælle.par11_nedslag.modregning.kommuneskat_efter_kroner
+| slutskat_komponenter_totalen_er_summen_af_komponenterne: slutskat_komponenter_med_overførsel -> slutskat_komponenter_med_overførsel.slutskat.samlet_indkomstskat_kroner == slutskat_komponenter_med_overførsel.slutskat.statslig_indkomstskat_kroner + slutskat_komponenter_med_overførsel.slutskat.kommunal_og_kirkelig_indkomstskat_kroner
+
+? slutskat_komponenter_scenariet_har_kommuneskat_før_overførsel
+? slutskat_komponenter_par11_kilden_overfører_hele_nedslaget
+? slutskat_komponenter_indgående_par11_nulstiller_kommuneskatten
+? slutskat_komponenter_kommuneskatten_er_efter_par11
+? slutskat_komponenter_totalen_er_summen_af_komponenterne
