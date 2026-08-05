@@ -122,8 +122,7 @@
     ),
     fristforhold = EblPar10UdenFristforlængelse,
     erhvervserstatning_anvendt_til_ejerbolig_kroner = 0,
-    bygninger_afskrivningsberettigede = Falskt,
-    afskrivningslov_par24_anvendt = Falskt,
+    afskrivningsforhold = EblPar10IngenAfskrivningsberettigedeBygninger,
     regulering = EblGenanbragtFortjenesteregulering(
         tillæg_for_genanbragt_del_kroner = 0,
         nedslag_for_genanbragt_del_kroner = 0

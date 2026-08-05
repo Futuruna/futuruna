@@ -202,8 +202,15 @@ stabil identifikation og sin faktiske genopførelsesudgift. § 10, stk. 7 og 8
 fordeler både den overførte anskaffelsessum og overskydende
 genopførelsesudgifter efter ejendommens andel af de samlede udgifter. Den
 eksakte andel bevares, hele kronebeløb afstemmes uden rest, og kun den valgte
-ejendoms genanbragte fortjeneste følger med ind i en senere afståelse. § 11,
-stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
+ejendoms genanbragte fortjeneste følger med ind i en senere afståelse.
+Når en eller flere genopførte bygninger er afskrivningsberettigede, beregner
+EBL § 10 selv det typede resultat efter Afskrivningslovens § 24. Identificerede
+afskrivningsaktiver knyttes til de relevante genopførte ejendomme, og reglerne
+afstemmer år, placeringsgrund, beløbsgrænser og genopførelsesudgifter. Manglende,
+dobbelte eller modstridende forbindelser giver derfor ikke et resultat valgt med
+et ja/nej-felt, men et synligt ugyldigt beregningsgrundlag.
+
+§ 11, stk. 2 behandler nu også en tidligere genanbragt erhvervsfortjeneste ved
 ekspropriation af den nye ejendom. Den nye ejendoms egen fortjeneste forbliver
 skattefri efter stk. 1, mens den regulerede gamle fortjeneste beskattes
 særskilt, og det tilsvarende anskaffelsessumsnedslag bortfalder. Borgeren kan
@@ -232,7 +239,8 @@ giver derfor ikke længere et fail-closed nulresultat. Kilderne er
 [C.H.2.1.11.5](https://info.skat.dk/data.aspx?oid=1948714),
 [C.H.2.1.11.6](https://info.skat.dk/data.aspx?oid=1948715),
 [C.H.2.1.17.3](https://info.skat.dk/data.aspx?oid=1948737),
-[C.H.2.1.17.5](https://info.skat.dk/data.aspx?oid=1948739)
+[C.H.2.1.17.5](https://info.skat.dk/data.aspx?oid=1948739),
+[Afskrivningsloven, LBK nr. 1222/2025](https://www.retsinformation.dk/eli/lta/2025/1222)
 og
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 med de relevante senere ændringer bevaret ved de enkelte lovblokke.

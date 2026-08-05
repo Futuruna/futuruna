@@ -3,11 +3,11 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-30
 TD epic: `td-56cf8d`
-Current implementation slice: `td-30d94e` (typed EBL § 10 multi-property reconstruction and allocation; implementation and focused verification complete, pending independent review)
+Current implementation slice: `td-8cb07d` (typed Afskrivningsloven § 24 dependency for EBL § 10; implementation and verification complete, pending independent review)
 Next source-backed slice: select the next material calculation gap under `td-2d84ec` after independent review
 Current language support slice: none
 Deferred performance issue: `td-6659f1`
-Latest approved implementation slice: `td-f6c38f`
+Latest approved implementation slice: `td-30d94e`
 Latest approved language slice: `td-29d539`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -81,8 +81,26 @@ fortjeneste går gennem det fælles genanbringelsesresultat og videre til en
 senere ordinær, § 8- eller § 9-afståelse. Dubletidentifikationer, tomme lister,
 ikke-positive udgifter og en manglende valgt ejendom fejler lukket. En for sen
 meddelelse er gyldigt oplyst, men opfylder ikke betingelserne og skaber ingen
-fordeling. Elleve fokuserede invarianter og den relevante § 9-audit passerer i
-både interpreter og compiler.
+fordeling. De to løse ja/nej-felter for stk. 10 er erstattet af et typet
+afskrivningsforhold. Den ergonomiske variant uden afskrivningsberettigede
+bygninger kræver ingen yderligere data. Varianten med afskrivningsberettigede
+bygninger bærer derimod kildeinputtet til Afskrivningslovens § 24 og en
+eksplicit forbindelse fra hvert identificeret afskrivningsaktiv til den
+genopførte ejendom. EBL-reglerne beregner selv § 24-resultatet og afstemmer
+skadeår, endelig erstatningsfastsættelse, genopførelsesår, placeringshjemmel,
+at AL-erstatningen ikke overstiger EBL-beløbet, entydige
+aktividentifikationer og de afskrivningsrelevante
+genopførelsesudgifter pr. ejendom. Manglende eller dobbelte forbindelser,
+ukendte ejendomme, dobbelte aktividentifikationer og modstridende beløb eller
+kildefakta fejler lukket og bliver synlige som
+`afskrivningsforhold_afstemt = Falskt`. Afskrivningslovens gældende LBK nr.
+1222 af 13. oktober 2025 er samtidig knyttet til den ordrette § 10-blok som en
+typet `dependency_source`. Seksten fokuserede invarianter, de underliggende
+AL §§ 21-24-scenarier og den relevante § 9-audit passerer i både interpreter og
+compiler. De to resterende gensidige anvendelsesfelter i Afskrivningslovens
+selvstændige § 21- og § 24-API kan ikke alene skabe et gyldigt EBL-resultat,
+men deres fulde erstatning med en fælles kildefaktabaseret samordning er
+registreret som `td-2c1961`.
 
 Den kanoniske `beregn_personskat`-graf modtager nu nul
 eller flere identificerede pensions- og forsikringsordninger efter
