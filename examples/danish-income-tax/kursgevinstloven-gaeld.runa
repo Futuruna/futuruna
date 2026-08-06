@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./kalenderdato
 
 # KursgevinstlovGældKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -85,7 +86,6 @@ ligningslovens § 16 E.
 ----
 
 --@begin:kursgevinstloven_gæld_par19_par21--
-# KursgevinstlovGældDato(år: Heltal, måned: Heltal, dag: Heltal)
 # KursgevinstlovGældValuta = KglGældDanskeKroner | KglGældFremmedValuta | KglGældDanskeKronerValutareguleret | KglGældFremmedValutaKronereguleret
 # KursgevinstlovGældErhvervsforhold = KglGældUdenFinansieringsnæring | KglGældFinansieringsnæringUdenVirksomhedstilknytning | KglGældFinansieringsnæringMedVirksomhedstilknytning
 # KursgevinstlovGældFrigørelsesart = KglGældOrdinærIndfrielse | KglGældEftergivelse | KglGældForældelse | KglGældKonfusion | KglGældPræklusion
@@ -202,49 +202,40 @@ udlodningstidspunktet eller tidspunktet for udlevering.
 
 --@begin:kursgevinstloven_gæld_par22--
 # KursgevinstlovPar22Sikkerhed = KglPar22IngenKvalificerendeSikkerhed | KglPar22PantIFastEjendom | KglPar22PantISkib | KglPar22EuEøsOffentligHæftelseEllerGaranti
-# KursgevinstlovPar22Lånetilbud(dato: KursgevinstlovGældDato, obligationskurs_basispoint: Heltal)
-# KursgevinstlovPar22Realkreditgrundlag(långiver_driver_finansieringsnæring: Boolsk, sikkerhed: KursgevinstlovPar22Sikkerhed, lånet_baseret_på_obligationer: Boolsk, udbetalingsdato: KursgevinstlovGældDato, obligationskurs_ved_udbetaling_basispoint: Heltal, lånetilbud: Option(KursgevinstlovPar22Lånetilbud))
+# KursgevinstlovPar22Lånetilbud(dato: Dato, obligationskurs_basispoint: Heltal)
+# KursgevinstlovPar22Realkreditgrundlag(långiver_driver_finansieringsnæring: Boolsk, sikkerhed: KursgevinstlovPar22Sikkerhed, lånet_baseret_på_obligationer: Boolsk, udbetalingsdato: Dato, obligationskurs_ved_udbetaling_basispoint: Heltal, lånetilbud: Option(KursgevinstlovPar22Lånetilbud))
 # KursgevinstlovPar22Stiftelsesart = KglPar22NyGæld | KglPar22OvertagetGæld | KglPar22RefinansieretGæld
-# KursgevinstlovPar22Stk1Fakta(stiftelsesart: KursgevinstlovPar22Stiftelsesart, stiftelsesdato: KursgevinstlovGældDato, fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner: Heltal, aftalt_indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
-# KursgevinstlovPar22Stk2Fakta(frigørelsesdato: KursgevinstlovGældDato, nominelle_rentesatser_basispoint: List(Heltal), rente_varierer_månedsvis: Boolsk, lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer: Boolsk, realiseret_gevinst_ved_frigørelse_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
+# KursgevinstlovPar22Stk1Fakta(stiftelsesart: KursgevinstlovPar22Stiftelsesart, stiftelsesdato: Dato, fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner: Heltal, aftalt_indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
+# KursgevinstlovPar22Stk2Fakta(frigørelsesdato: Dato, nominelle_rentesatser_basispoint: List(Heltal), rente_varierer_månedsvis: Boolsk, lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer: Boolsk, realiseret_gevinst_ved_frigørelse_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag)
 # KursgevinstlovPar22Stk3Parter = KglPar22UafhængigeParter | KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse | KglPar22ÆgtefællerVedSeparationEllerSkilsmisse | KglPar22PersonTilKontrolleretSelskab
-# KursgevinstlovPar22Stk3Ejerskifte = KglPar22IntetEjerskifte | KglPar22SælgerIndfrier(overdragelsesdato: KursgevinstlovGældDato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22KøberIndfrier(overdragelsesdato: KursgevinstlovGældDato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22LængstlevendeÆgtefælleOvertager(overdragelsesdato: KursgevinstlovGældDato, afdøde_ejede_ejendommen: Boolsk) | KglPar22EfterladtSamleverOvertager(overdragelsesdato: KursgevinstlovGældDato, afdøde_ejede_ejendommen: Boolsk)
-# KursgevinstlovPar22Stk3Fakta(indfrielses_eller_opsigelsesdato: KursgevinstlovGældDato, ekstraordinær_indfrielse: Boolsk, kontantlån_i_danske_kroner: Boolsk, obligationsrestgæld_kroner: Heltal, indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag, indfrielse_efter_krav_fra_kreditor: Boolsk, ejerskifte: KursgevinstlovPar22Stk3Ejerskifte)
+# KursgevinstlovPar22Stk3Ejerskifte = KglPar22IntetEjerskifte | KglPar22SælgerIndfrier(overdragelsesdato: Dato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22KøberIndfrier(overdragelsesdato: Dato, tidligere_indfrielser_i_seksmånedersperioden: Heltal, parter: KursgevinstlovPar22Stk3Parter) | KglPar22LængstlevendeÆgtefælleOvertager(overdragelsesdato: Dato, afdøde_ejede_ejendommen: Boolsk) | KglPar22EfterladtSamleverOvertager(overdragelsesdato: Dato, afdøde_ejede_ejendommen: Boolsk)
+# KursgevinstlovPar22Stk3Fakta(indfrielses_eller_opsigelsesdato: Dato, ekstraordinær_indfrielse: Boolsk, kontantlån_i_danske_kroner: Boolsk, obligationsrestgæld_kroner: Heltal, indfrielsesbeløb_kroner: Heltal, realkreditgrundlag: KursgevinstlovPar22Realkreditgrundlag, indfrielse_efter_krav_fra_kreditor: Boolsk, ejerskifte: KursgevinstlovPar22Stk3Ejerskifte)
 
-| kgl_gæld_dato_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
-| kgl_gæld_dage_i_måned(år: Heltal, måned: Heltal) -> hvis måned < 1 || måned > 12 { 0 } ellers { hvis måned == 2 { hvis kgl_gæld_dato_skudår(år) { 29 } ellers { 28 } } ellers { hvis måned == 4 || måned == 6 || måned == 9 || måned == 11 { 30 } ellers { 31 } } }
-| kgl_gæld_dato_gyldig(dato: KursgevinstlovGældDato) -> dato.år > 0 && dato.måned >= 1 && dato.måned <= 12 && dato.dag >= 1 && dato.dag <= kgl_gæld_dage_i_måned(dato.år, dato.måned)
-| kgl_gæld_dato_nøgle(dato: KursgevinstlovGældDato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
-| kgl_gæld_dato_plus_måneder(dato: KursgevinstlovGældDato, måneder: Heltal) -> KursgevinstlovGældDato(
-    år = (dato.år * 12 + dato.måned - 1 + måneder) / 12,
-    måned = (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1,
-    dag = penge_mindste_beløb(dato.dag, kgl_gæld_dage_i_måned((dato.år * 12 + dato.måned - 1 + måneder) / 12, (dato.år * 12 + dato.måned - 1 + måneder) % 12 + 1))
-)
-| kgl_gæld_dato_inden_for_seks_måneder(venstre: KursgevinstlovGældDato, højre: KursgevinstlovGældDato) -> kgl_gæld_dato_gyldig(venstre) && kgl_gæld_dato_gyldig(højre) && hvis kgl_gæld_dato_nøgle(venstre) <= kgl_gæld_dato_nøgle(højre) { kgl_gæld_dato_nøgle(højre) <= kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(venstre, 6)) } ellers { kgl_gæld_dato_nøgle(venstre) <= kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(højre, 6)) }
-| kgl_gæld_lånetilbud_mindre_end_seks_måneder_før_udbetaling(tilbud: KursgevinstlovPar22Lånetilbud, udbetalingsdato: KursgevinstlovGældDato) -> kgl_gæld_dato_gyldig(tilbud.dato) && kgl_gæld_dato_gyldig(udbetalingsdato) && kgl_gæld_dato_nøgle(tilbud.dato) <= kgl_gæld_dato_nøgle(udbetalingsdato) && kgl_gæld_dato_nøgle(udbetalingsdato) < kgl_gæld_dato_nøgle(kgl_gæld_dato_plus_måneder(tilbud.dato, 6))
+| kgl_gæld_dato_inden_for_seks_måneder(venstre: Dato, højre: Dato) -> dato_gyldig(venstre) && dato_gyldig(højre) && hvis dato_før_eller_lig_med(venstre, højre) { dato_før_eller_lig_med(højre, dato_plus_måneder(venstre, 6)) } ellers { dato_før_eller_lig_med(venstre, dato_plus_måneder(højre, 6)) }
+| kgl_gæld_lånetilbud_mindre_end_seks_måneder_før_udbetaling(tilbud: KursgevinstlovPar22Lånetilbud, udbetalingsdato: Dato) -> dato_gyldig(tilbud.dato) && dato_gyldig(udbetalingsdato) && dato_før_eller_lig_med(tilbud.dato, udbetalingsdato) && dato_før(udbetalingsdato, dato_plus_måneder(tilbud.dato, 6))
 | kgl_gæld_par22_kvalificerende_sikkerhed(sikkerhed: KursgevinstlovPar22Sikkerhed) -> sikkerhed != KglPar22IngenKvalificerendeSikkerhed
-| kgl_gæld_par22_realkreditgrundlag_gyldigt(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> kgl_gæld_dato_gyldig(grundlag.udbetalingsdato) && grundlag.obligationskurs_ved_udbetaling_basispoint >= 0 && match grundlag.lånetilbud { | Some(tilbud) -> tilbud.obligationskurs_basispoint >= 0 && kgl_gæld_dato_gyldig(tilbud.dato) | None -> Sandt }
+| kgl_gæld_par22_realkreditgrundlag_gyldigt(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> dato_gyldig(grundlag.udbetalingsdato) && grundlag.obligationskurs_ved_udbetaling_basispoint >= 0 && match grundlag.lånetilbud { | Some(tilbud) -> tilbud.obligationskurs_basispoint >= 0 && dato_gyldig(tilbud.dato) | None -> Sandt }
 | kgl_gæld_par22_stk1_obligationsundtagelse(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> grundlag.långiver_driver_finansieringsnæring && kgl_gæld_par22_kvalificerende_sikkerhed(grundlag.sikkerhed) && grundlag.lånet_baseret_på_obligationer && (grundlag.obligationskurs_ved_udbetaling_basispoint <= 10000 || match grundlag.lånetilbud { | Some(tilbud) -> tilbud.obligationskurs_basispoint <= 10000 && kgl_gæld_lånetilbud_mindre_end_seks_måneder_før_udbetaling(tilbud, grundlag.udbetalingsdato) | None -> Falskt })
 | kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta: KursgevinstlovPar22Stk1Fakta) -> penge_positivt_beløb(fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner - fakta.aftalt_indfrielsesbeløb_kroner)
-| kgl_gæld_par22_stk1_input_gyldigt(fakta: KursgevinstlovPar22Stk1Fakta) -> kgl_gæld_dato_gyldig(fakta.stiftelsesdato) && fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner >= 0 && fakta.aftalt_indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
+| kgl_gæld_par22_stk1_input_gyldigt(fakta: KursgevinstlovPar22Stk1Fakta) -> dato_gyldig(fakta.stiftelsesdato) && fakta.fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner >= 0 && fakta.aftalt_indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
 | kgl_gæld_par22_stk1_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk1Fakta) -> hvis kgl_gæld_par22_stk1_input_gyldigt(fakta) && kgl_gæld_par22_stk1_obligationsundtagelse(fakta.realkreditgrundlag) == Falskt { kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta) } ellers { 0 }
 | kgl_gæld_par22_stk2_varierende_rente(fakta: KursgevinstlovPar22Stk2Fakta) -> length(fakta.nominelle_rentesatser_basispoint) >= 2 && length(distinct(fakta.nominelle_rentesatser_basispoint)) >= 2
 | kgl_gæld_par22_stk2_månedsundtagelse(fakta: KursgevinstlovPar22Stk2Fakta) -> fakta.rente_varierer_månedsvis && kgl_gæld_par22_kvalificerende_sikkerhed(fakta.realkreditgrundlag.sikkerhed) && fakta.lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer && fakta.realkreditgrundlag.långiver_driver_finansieringsnæring
-| kgl_gæld_par22_stk2_input_gyldigt(fakta: KursgevinstlovPar22Stk2Fakta) -> kgl_gæld_dato_gyldig(fakta.frigørelsesdato) && fakta.realiseret_gevinst_ved_frigørelse_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
+| kgl_gæld_par22_stk2_input_gyldigt(fakta: KursgevinstlovPar22Stk2Fakta) -> dato_gyldig(fakta.frigørelsesdato) && fakta.realiseret_gevinst_ved_frigørelse_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag)
 | kgl_gæld_par22_stk2_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk2Fakta) -> hvis kgl_gæld_par22_stk2_input_gyldigt(fakta) && kgl_gæld_par22_stk2_varierende_rente(fakta) && kgl_gæld_par22_stk2_månedsundtagelse(fakta) == Falskt { fakta.realiseret_gevinst_ved_frigørelse_kroner } ellers { 0 }
 | kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte) -> match ejerskifte {
     | KglPar22IntetEjerskifte -> Sandt
-    | KglPar22SælgerIndfrier(dato, tidligere, _) -> kgl_gæld_dato_gyldig(dato) && tidligere >= 0
-    | KglPar22KøberIndfrier(dato, tidligere, _) -> kgl_gæld_dato_gyldig(dato) && tidligere >= 0
-    | KglPar22LængstlevendeÆgtefælleOvertager(dato, _) -> kgl_gæld_dato_gyldig(dato)
-    | KglPar22EfterladtSamleverOvertager(dato, _) -> kgl_gæld_dato_gyldig(dato)
+    | KglPar22SælgerIndfrier(dato, tidligere, _) -> dato_gyldig(dato) && tidligere >= 0
+    | KglPar22KøberIndfrier(dato, tidligere, _) -> dato_gyldig(dato) && tidligere >= 0
+    | KglPar22LængstlevendeÆgtefælleOvertager(dato, _) -> dato_gyldig(dato)
+    | KglPar22EfterladtSamleverOvertager(dato, _) -> dato_gyldig(dato)
 }
-| kgl_gæld_par22_stk3_almindeligt_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: KursgevinstlovGældDato) -> match ejerskifte {
+| kgl_gæld_par22_stk3_almindeligt_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: Dato) -> match ejerskifte {
     | KglPar22SælgerIndfrier(overdragelsesdato, tidligere, parter) -> tidligere == 0 && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato) && parter != KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse && parter != KglPar22PersonTilKontrolleretSelskab
     | KglPar22KøberIndfrier(overdragelsesdato, tidligere, parter) -> tidligere == 0 && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato) && parter != KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse && parter != KglPar22PersonTilKontrolleretSelskab
     | _ -> Falskt
 }
-| kgl_gæld_par22_stk4_dødsbo_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: KursgevinstlovGældDato) -> match ejerskifte {
+| kgl_gæld_par22_stk4_dødsbo_ejerskifte_undtaget(ejerskifte: KursgevinstlovPar22Stk3Ejerskifte, indfrielsesdato: Dato) -> match ejerskifte {
     | KglPar22LængstlevendeÆgtefælleOvertager(overdragelsesdato, afdøde_ejede) -> afdøde_ejede && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato)
     | KglPar22EfterladtSamleverOvertager(overdragelsesdato, afdøde_ejede) -> afdøde_ejede && kgl_gæld_dato_inden_for_seks_måneder(overdragelsesdato, indfrielsesdato)
     | _ -> Falskt
@@ -252,7 +243,7 @@ udlodningstidspunktet eller tidspunktet for udlevering.
 | kgl_gæld_par22_stk3_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_par22_stk3_almindeligt_ejerskifte_undtaget(fakta.ejerskifte, fakta.indfrielses_eller_opsigelsesdato)
 | kgl_gæld_par22_stk4_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> fakta.indfrielse_efter_krav_fra_kreditor || kgl_gæld_par22_stk4_dødsbo_ejerskifte_undtaget(fakta.ejerskifte, fakta.indfrielses_eller_opsigelsesdato)
 | kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_par22_stk3_undtagelse(fakta) || kgl_gæld_par22_stk4_undtagelse(fakta)
-| kgl_gæld_par22_stk3_input_gyldigt(fakta: KursgevinstlovPar22Stk3Fakta) -> kgl_gæld_dato_gyldig(fakta.indfrielses_eller_opsigelsesdato) && fakta.obligationsrestgæld_kroner >= 0 && fakta.indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag) && kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(fakta.ejerskifte)
+| kgl_gæld_par22_stk3_input_gyldigt(fakta: KursgevinstlovPar22Stk3Fakta) -> dato_gyldig(fakta.indfrielses_eller_opsigelsesdato) && fakta.obligationsrestgæld_kroner >= 0 && fakta.indfrielsesbeløb_kroner >= 0 && kgl_gæld_par22_realkreditgrundlag_gyldigt(fakta.realkreditgrundlag) && kgl_gæld_par22_stk3_ejerskifte_input_gyldigt(fakta.ejerskifte)
 | kgl_gæld_par22_stk3_skattepligtig_gevinst_kroner(fakta: KursgevinstlovPar22Stk3Fakta) -> hvis kgl_gæld_par22_stk3_input_gyldigt(fakta) && fakta.ekstraordinær_indfrielse && fakta.kontantlån_i_danske_kroner && fakta.realkreditgrundlag.långiver_driver_finansieringsnæring && kgl_gæld_par22_kvalificerende_sikkerhed(fakta.realkreditgrundlag.sikkerhed) && kgl_gæld_par22_stk3_eller_stk4_undtagelse(fakta) == Falskt { penge_positivt_beløb(fakta.obligationsrestgæld_kroner - fakta.indfrielsesbeløb_kroner) } ellers { 0 }
 --@end:kursgevinstloven_gæld_par22--
 
@@ -299,7 +290,7 @@ overtagelsen sker den 1. januar 2016 eller senere.
 # KursgevinstlovPar22ABeskatningsvalg = KglPar22AÅrligFordeling | KglPar22Stk1BeskatningValgtEfterManglendeIndberetning
 # KursgevinstlovPar22AFakta(stiftelsesfakta: KursgevinstlovPar22Stk1Fakta, inkonverterbart_lån: Boolsk, direkte_baseret_på_obligationer_på_reguleret_marked: Boolsk, rente_ved_stiftelsen_basispoint: Heltal, lavest_mulige_rente_i_obligationernes_løbetid_basispoint: Heltal, obligationernes_udløbsår: Heltal, lånets_udløbsår: Heltal, frigørelsesår: Option(Heltal), renteindtægt_indberettet_efter_sil13_i_stiftelsesåret: Boolsk, årets_indberettede_renteindtægt_kroner: Heltal, beskatningsvalg: KursgevinstlovPar22ABeskatningsvalg)
 
-| kgl_gæld_par22a_virkningstid_opfyldt(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_dato_nøgle(fakta.stiftelsesfakta.stiftelsesdato) >= 20160101
+| kgl_gæld_par22a_virkningstid_opfyldt(fakta: KursgevinstlovPar22AFakta) -> dato_nøgle(fakta.stiftelsesfakta.stiftelsesdato) >= 20160101
 | kgl_gæld_par22a_kvalificeret(fakta: KursgevinstlovPar22AFakta) -> kgl_gæld_par22_stk1_input_gyldigt(fakta.stiftelsesfakta) && kgl_gæld_par22_stk1_overkursgevinst_kroner(fakta.stiftelsesfakta) > 0 && kgl_gæld_par22_stk1_obligationsundtagelse(fakta.stiftelsesfakta.realkreditgrundlag) == Falskt && fakta.stiftelsesfakta.realkreditgrundlag.långiver_driver_finansieringsnæring && (fakta.stiftelsesfakta.realkreditgrundlag.sikkerhed == KglPar22PantIFastEjendom || fakta.stiftelsesfakta.realkreditgrundlag.sikkerhed == KglPar22PantISkib) && fakta.inkonverterbart_lån && fakta.direkte_baseret_på_obligationer_på_reguleret_marked && fakta.rente_ved_stiftelsen_basispoint == 0 && fakta.lavest_mulige_rente_i_obligationernes_løbetid_basispoint >= 0 && kgl_gæld_par22a_virkningstid_opfyldt(fakta)
 | kgl_gæld_par22a_sidste_fordelingsår(fakta: KursgevinstlovPar22AFakta) -> penge_mindste_beløb(fakta.obligationernes_udløbsår, fakta.lånets_udløbsår)
 | kgl_gæld_par22a_frigjort_før_indkomstår(fakta: KursgevinstlovPar22AFakta, indkomstår: Heltal) -> match fakta.frigørelsesår { | Some(år) -> år < indkomstår | None -> Falskt }

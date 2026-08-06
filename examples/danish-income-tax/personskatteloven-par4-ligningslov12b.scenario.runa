@@ -43,7 +43,7 @@
 )
 
 | scenarie_ll12b_aftale_med_antal(
-    aftaledato: Ligningslov12BDato,
+    aftaledato: Dato,
     antal_overdragne_aktiver: Heltal,
     kun_aktier_abl8: Boolsk,
     kapitaliseret_værdi_kroner: Heltal,
@@ -62,14 +62,14 @@
     parter = parter,
     oplysninger = scenarie_ll12b_oplysninger
 )
-| scenarie_ll12b_aftale(aftaledato: Ligningslov12BDato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal) -> scenarie_ll12b_aftale_med_antal(
+| scenarie_ll12b_aftale(aftaledato: Dato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal) -> scenarie_ll12b_aftale_med_antal(
     aftaledato = aftaledato,
     antal_overdragne_aktiver = 1,
     kun_aktier_abl8 = kun_aktier_abl8,
     kapitaliseret_værdi_kroner = kapitaliseret_værdi_kroner,
     parter = scenarie_ll12b_parter
 )
-| scenarie_ll12b_aftale_med_parter(aftaledato: Ligningslov12BDato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal, parter: Ligningslov12BParter) -> scenarie_ll12b_aftale_med_antal(
+| scenarie_ll12b_aftale_med_parter(aftaledato: Dato, kun_aktier_abl8: Boolsk, kapitaliseret_værdi_kroner: Heltal, parter: Ligningslov12BParter) -> scenarie_ll12b_aftale_med_antal(
     aftaledato = aftaledato,
     antal_overdragne_aktiver = 1,
     kun_aktier_abl8 = kun_aktier_abl8,
@@ -77,18 +77,18 @@
     parter = parter
 )
 
-= scenarie_ll12b_regime_før_start = ll12b_regime(Ligningslov12BDato(år = 1999, måned = 6, dag = 30))
-= scenarie_ll12b_regime_historisk_start = ll12b_regime(Ligningslov12BDato(år = 1999, måned = 7, dag = 1))
-= scenarie_ll12b_regime_før_reform = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 3, dag = 18))
-= scenarie_ll12b_regime_reform = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 3, dag = 19))
-= scenarie_ll12b_regime_før_henstand = ll12b_regime(Ligningslov12BDato(år = 2025, måned = 12, dag = 31))
-= scenarie_ll12b_regime_henstand = ll12b_regime(Ligningslov12BDato(år = 2026, måned = 1, dag = 1))
+= scenarie_ll12b_regime_før_start = ll12b_regime(Dato(år = 1999, måned = 6, dag = 30))
+= scenarie_ll12b_regime_historisk_start = ll12b_regime(Dato(år = 1999, måned = 7, dag = 1))
+= scenarie_ll12b_regime_før_reform = ll12b_regime(Dato(år = 2025, måned = 3, dag = 18))
+= scenarie_ll12b_regime_reform = ll12b_regime(Dato(år = 2025, måned = 3, dag = 19))
+= scenarie_ll12b_regime_før_henstand = ll12b_regime(Dato(år = 2025, måned = 12, dag = 31))
+= scenarie_ll12b_regime_henstand = ll12b_regime(Dato(år = 2026, måned = 1, dag = 1))
 
 = scenarie_ll12b_historisk_modtager = ligningslov12b_resultat(Ligningslov12BInput(
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 18),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 18),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -109,7 +109,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 19),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -131,7 +131,7 @@
     indkomstår = 2026,
     rolle = Ll12BYder,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 18),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 18),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -152,7 +152,7 @@
     indkomstår = 2026,
     rolle = Ll12BYder,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 19),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -174,7 +174,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 19),
         kun_aktier_abl8 = Sandt,
         kapitaliseret_værdi_kroner = 0
     ),
@@ -190,7 +190,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale_med_parter(
-        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        aftaledato = Dato(år = 2026, måned = 1, dag = 1),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000,
         parter = scenarie_ll12b_parter_selvejende_institution
@@ -207,7 +207,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale_med_parter(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 3, dag = 19),
+        aftaledato = Dato(år = 2025, måned = 3, dag = 19),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000,
         parter = scenarie_ll12b_parter_senere_skattepligt
@@ -222,7 +222,7 @@
 ))
 
 = scenarie_ll12b_henstand_aftale_2026 = scenarie_ll12b_aftale(
-    aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+    aftaledato = Dato(år = 2026, måned = 1, dag = 1),
     kun_aktier_abl8 = Falskt,
     kapitaliseret_værdi_kroner = 500000
 )
@@ -246,7 +246,7 @@
 ))
 = scenarie_ll12b_henstand_før_2026 = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        aftaledato = Dato(år = 2025, måned = 12, dag = 31),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 500000
     ),
@@ -256,7 +256,7 @@
 ))
 = scenarie_ll12b_henstand_aktivfordeling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
     aftale = scenarie_ll12b_aftale_med_antal(
-        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        aftaledato = Dato(år = 2026, måned = 1, dag = 1),
         antal_overdragne_aktiver = 2,
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 500000,
@@ -284,7 +284,7 @@
 ))
 = scenarie_ll12b_henstand_selvejende_afskåret = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
     aftale = scenarie_ll12b_aftale_med_parter(
-        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        aftaledato = Dato(år = 2026, måned = 1, dag = 1),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 500000,
         parter = scenarie_ll12b_parter_selvejende_institution
@@ -302,7 +302,7 @@
     position = scenarie_ll12b_henstand_startposition,
     hændelse = Ll12BHenstandYdelseModtaget(
         afdragsidentifikation = "ydelse-1",
-        realisationsdato = Ligningslov12BDato(år = 2026, måned = 1, dag = 15),
+        realisationsdato = Dato(år = 2026, måned = 1, dag = 15),
         beløb_kroner = 100000
     )
 ))
@@ -310,7 +310,7 @@
     position = scenarie_ll12b_henstand_første_realisering.position_efter,
     hændelse = Ll12BHenstandAfdragBetalt(
         afdragsidentifikation = "ydelse-1",
-        betalingsdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 10),
+        betalingsdato = Dato(år = 2026, måned = 2, dag = 10),
         betalt_skatteafdrag_kroner = 51500,
         betalt_arbejdsmarkedsbidragsafdrag_kroner = 8000
     )
@@ -319,7 +319,7 @@
     position = scenarie_ll12b_henstand_startposition,
     hændelse = Ll12BHenstandRetAfstået(
         afdragsidentifikation = "retsafståelse-1",
-        realisationsdato = Ligningslov12BDato(år = 2026, måned = 4, dag = 15),
+        realisationsdato = Dato(år = 2026, måned = 4, dag = 15),
         kontantomregnet_vederlag_kroner = 50000
     )
 ))
@@ -327,21 +327,21 @@
 = scenarie_ll12b_henstand_første_forfaldne_afdrag = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
     position = scenarie_ll12b_henstand_første_realisering.position_efter,
     hændelse = Ll12BHenstandOpgørelse(
-        opgørelsesdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 11)
+        opgørelsesdato = Dato(år = 2026, måned = 2, dag = 11)
     )
 ))
 = scenarie_ll12b_henstand_erindringsskrivelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
     position = scenarie_ll12b_henstand_første_forfaldne_afdrag.position_efter,
     hændelse = Ll12BHenstandErindringsskrivelse(
         afdragsidentifikation = "ydelse-1",
-        erindringsdato = Ligningslov12BDato(år = 2026, måned = 2, dag = 12)
+        erindringsdato = Dato(år = 2026, måned = 2, dag = 12)
     )
 ))
 = scenarie_ll12b_henstand_anden_realisering_med_restance = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
     position = scenarie_ll12b_henstand_første_forfaldne_afdrag.position_efter,
     hændelse = Ll12BHenstandYdelseModtaget(
         afdragsidentifikation = "ydelse-2",
-        realisationsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 15),
+        realisationsdato = Dato(år = 2026, måned = 3, dag = 15),
         beløb_kroner = 50000
     )
 ))
@@ -349,7 +349,7 @@
     position = scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter,
     hændelse = Ll12BHenstandAfdragBetalt(
         afdragsidentifikation = "ydelse-1",
-        betalingsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 20),
+        betalingsdato = Dato(år = 2026, måned = 3, dag = 20),
         betalt_skatteafdrag_kroner = 25750,
         betalt_arbejdsmarkedsbidragsafdrag_kroner = 4000
     )
@@ -358,7 +358,7 @@
     position = scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter,
     hændelse = Ll12BHenstandGrovGentagenMisligholdelse(
         afdragsidentifikation = "påkrav-1",
-        påkravsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 20)
+        påkravsdato = Dato(år = 2026, måned = 3, dag = 20)
     )
 ))
 
@@ -366,20 +366,20 @@
     position = scenarie_ll12b_henstand_startposition,
     hændelse = Ll12BHenstandYdelseModtaget(
         afdragsidentifikation = "december-ydelse",
-        realisationsdato = Ligningslov12BDato(år = 2026, måned = 12, dag = 15),
+        realisationsdato = Dato(år = 2026, måned = 12, dag = 15),
         beløb_kroner = 100000
     )
 ))
 = scenarie_ll12b_henstand_2027_rentekilde_mangler = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
     position = scenarie_ll12b_henstand_decemberrealisering.position_efter,
     hændelse = Ll12BHenstandOpgørelse(
-        opgørelsesdato = Ligningslov12BDato(år = 2027, måned = 1, dag = 11)
+        opgørelsesdato = Dato(år = 2027, måned = 1, dag = 11)
     )
 ))
 
 = scenarie_ll12b_vso_vejledning_bevilling = ligningslov12b_henstand_bevilling(Ligningslov12BHenstandBegæring(
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2026, måned = 1, dag = 1),
+        aftaledato = Dato(år = 2026, måned = 1, dag = 1),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 900000
     ),
@@ -405,7 +405,7 @@
     position = scenarie_ll12b_vso_vejledning_startposition,
     hændelse = Ll12BHenstandYdelseModtaget(
         afdragsidentifikation = "vejledning-betalt-afdrag",
-        realisationsdato = Ligningslov12BDato(år = 2026, måned = 3, dag = 15),
+        realisationsdato = Dato(år = 2026, måned = 3, dag = 15),
         beløb_kroner = 375000
     )
 ))
@@ -413,7 +413,7 @@
     position = scenarie_ll12b_vso_vejledning_realisering.position_efter,
     hændelse = Ll12BHenstandAfdragBetalt(
         afdragsidentifikation = "vejledning-betalt-afdrag",
-        betalingsdato = Ligningslov12BDato(år = 2026, måned = 4, dag = 10),
+        betalingsdato = Dato(år = 2026, måned = 4, dag = 10),
         betalt_skatteafdrag_kroner = 82500,
         betalt_arbejdsmarkedsbidragsafdrag_kroner = 0
     )
@@ -422,7 +422,7 @@
     position = scenarie_ll12b_vso_vejledning_betaling.position_efter,
     hændelse = Ll12BHenstandYdelserEndeligtOphørt(
         frafaldsidentifikation = "vejledning-frafald",
-        ophørsdato = Ligningslov12BDato(år = 2026, måned = 6, dag = 30),
+        ophørsdato = Dato(år = 2026, måned = 6, dag = 30),
         saldo_efter_ophør_kroner = 525000,
         anvender_virksomhedsordningen = Sandt,
         opsparet_overskud_henført_til_ubetalt_henstand_kroner = 409500
@@ -431,7 +431,7 @@
 = scenarie_ll12b_vso_vejledning_senere_opgørelse = ligningslov12b_henstand_hændelsesresultat(Ligningslov12BHenstandHændelsesinput(
     position = scenarie_ll12b_vso_vejledning_ophør.position_efter,
     hændelse = Ll12BHenstandOpgørelse(
-        opgørelsesdato = Ligningslov12BDato(år = 2026, måned = 7, dag = 1)
+        opgørelsesdato = Dato(år = 2026, måned = 7, dag = 1)
     )
 ))
 
@@ -439,7 +439,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        aftaledato = Dato(år = 2025, måned = 12, dag = 31),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -459,7 +459,7 @@
     indkomstår = 2026,
     rolle = Ll12BModtager,
     aftale = scenarie_ll12b_aftale(
-        aftaledato = Ligningslov12BDato(år = 2025, måned = 12, dag = 31),
+        aftaledato = Dato(år = 2025, måned = 12, dag = 31),
         kun_aktier_abl8 = Falskt,
         kapitaliseret_værdi_kroner = 100000
     ),
@@ -527,7 +527,7 @@
 | scenarie_ll12b_restance_bæres_gennem_ny_realisering: scenarie_ll12b_henstand_anden_realisering_med_restance -> scenarie_ll12b_henstand_anden_realisering_med_restance.input_gyldigt && scenarie_ll12b_henstand_anden_realisering_med_restance.nyt_skatteafdrag_kroner == 25750 && scenarie_ll12b_henstand_anden_realisering_med_restance.nyt_arbejdsmarkedsbidragsafdrag_kroner == 4000 && scenarie_ll12b_henstand_anden_realisering_med_restance.forfaldent_skatteafdrag_efter_kroner == 51500 && scenarie_ll12b_henstand_anden_realisering_med_restance.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 8000 && scenarie_ll12b_henstand_anden_realisering_med_restance.afventer_forfald_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_anden_realisering_med_restance.afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && scenarie_ll12b_henstand_anden_realisering_med_restance.ny_ikke_fradragsberettiget_rente_kroner == 297 && length(scenarie_ll12b_henstand_anden_realisering_med_restance.position_efter.afdrag) == 2
 | scenarie_ll12b_delvis_restancebetaling_bevarer_begge_afdrag: scenarie_ll12b_henstand_delvis_restancebetaling -> scenarie_ll12b_henstand_delvis_restancebetaling.input_gyldigt && scenarie_ll12b_henstand_delvis_restancebetaling.betalt_skatteafdrag_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.betalt_arbejdsmarkedsbidragsafdrag_kroner == 4000 && scenarie_ll12b_henstand_delvis_restancebetaling.forfaldent_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && scenarie_ll12b_henstand_delvis_restancebetaling.afventer_forfald_skatteafdrag_efter_kroner == 25750 && scenarie_ll12b_henstand_delvis_restancebetaling.afventer_forfald_arbejdsmarkedsbidragsafdrag_efter_kroner == 4000 && length(scenarie_ll12b_henstand_delvis_restancebetaling.position_efter.afdrag) == 2
 | scenarie_ll12b_decemberrealisering_forfalder_i_januar: scenarie_ll12b_henstand_decemberrealisering -> scenarie_ll12b_henstand_decemberrealisering.input_gyldigt && scenarie_ll12b_henstand_decemberrealisering.rente_kilder_påkrævet == Falskt && scenarie_ll12b_betalingsfrist_er(scenarie_ll12b_henstand_decemberrealisering.ny_betalingsfrist, 2027, 1)
-| scenarie_ll12b_fremtidig_rentekilde_kræves_før_beregning: scenarie_ll12b_henstand_2027_rentekilde_mangler -> scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_påkrævet && scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_tilgængelige == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.input_gyldigt == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.position_efter.opgjort_pr == Ligningslov12BDato(år = 2026, måned = 12, dag = 15)
+| scenarie_ll12b_fremtidig_rentekilde_kræves_før_beregning: scenarie_ll12b_henstand_2027_rentekilde_mangler -> scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_påkrævet && scenarie_ll12b_henstand_2027_rentekilde_mangler.rente_kilder_tilgængelige == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.input_gyldigt == Falskt && scenarie_ll12b_henstand_2027_rentekilde_mangler.position_efter.opgjort_pr == Dato(år = 2026, måned = 12, dag = 15)
 | scenarie_ll12b_vso_vejledning_reducerer_opsparet_overskud: scenarie_ll12b_vso_vejledning_ophør -> scenarie_ll12b_vso_vejledning_bevilling.henstand_med_skat_kroner == 198000 && scenarie_ll12b_vso_vejledning_realisering.nyt_skatteafdrag_kroner == 82500 && scenarie_ll12b_vso_vejledning_betaling.input_gyldigt && scenarie_ll12b_vso_vejledning_ophør.input_gyldigt && scenarie_ll12b_vso_vejledning_ophør.frafaldet_henstandsbeløb_kroner == 115500 && scenarie_ll12b_vso_vejledning_ophør.konto_for_opsparet_overskud_reduktion_kroner == 409500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.konto_for_opsparet_overskud_kroner == 292500 && scenarie_ll12b_vso_vejledning_ophør.position_efter.status == Ll12BHenstandFrafaldet
 | scenarie_ll12b_frafald_er_terminalt: scenarie_ll12b_vso_vejledning_senere_opgørelse -> scenarie_ll12b_vso_vejledning_senere_opgørelse.input_gyldigt && scenarie_ll12b_vso_vejledning_senere_opgørelse.position_efter.status == Ll12BHenstandFrafaldet && scenarie_ll12b_vso_vejledning_senere_opgørelse.position_efter.konto_for_opsparet_overskud_kroner == 292500
 | scenarie_ll12b_grov_misligholdelse_forfalder_efter_påkrav: scenarie_ll12b_henstand_grov_misligholdelse -> scenarie_ll12b_henstand_grov_misligholdelse.input_gyldigt && scenarie_ll12b_henstand_grov_misligholdelse.resterende_henstandsbeløb_forfalder_efter_påkrav_kroner == 208250 && scenarie_ll12b_henstand_grov_misligholdelse.forfaldent_skatteafdrag_efter_kroner == 231750 && scenarie_ll12b_henstand_grov_misligholdelse.forfaldent_arbejdsmarkedsbidragsafdrag_efter_kroner == 36000 && scenarie_ll12b_henstand_grov_misligholdelse.position_efter.status == Ll12BHenstandMisligholdt && scenarie_ll12b_henstand_grov_misligholdelse.position_efter.aktiv_henstand_skat_kroner == 0 && scenarie_ll12b_henstand_grov_misligholdelse.frafaldet_henstandsbeløb_kroner == 0

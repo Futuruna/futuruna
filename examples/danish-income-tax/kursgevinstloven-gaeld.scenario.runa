@@ -517,7 +517,7 @@
     långiver_driver_finansieringsnæring = Falskt,
     sikkerhed = KglPar22IngenKvalificerendeSikkerhed,
     lånet_baseret_på_obligationer = Falskt,
-    udbetalingsdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    udbetalingsdato = Dato(år = 2026, måned = 1, dag = 15),
     obligationskurs_ved_udbetaling_basispoint = 10500,
     lånetilbud = None
 )
@@ -525,7 +525,7 @@
     långiver_driver_finansieringsnæring = Sandt,
     sikkerhed = KglPar22PantIFastEjendom,
     lånet_baseret_på_obligationer = Sandt,
-    udbetalingsdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    udbetalingsdato = Dato(år = 2026, måned = 1, dag = 15),
     obligationskurs_ved_udbetaling_basispoint = 9900,
     lånetilbud = None
 )
@@ -533,7 +533,7 @@
     långiver_driver_finansieringsnæring = Sandt,
     sikkerhed = KglPar22PantIFastEjendom,
     lånet_baseret_på_obligationer = Sandt,
-    udbetalingsdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    udbetalingsdato = Dato(år = 2026, måned = 1, dag = 15),
     obligationskurs_ved_udbetaling_basispoint = 10500,
     lånetilbud = None
 )
@@ -541,10 +541,10 @@
     långiver_driver_finansieringsnæring = Sandt,
     sikkerhed = KglPar22PantIFastEjendom,
     lånet_baseret_på_obligationer = Sandt,
-    udbetalingsdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    udbetalingsdato = Dato(år = 2026, måned = 1, dag = 15),
     obligationskurs_ved_udbetaling_basispoint = 10500,
     lånetilbud = Some(KursgevinstlovPar22Lånetilbud(
-        dato = KursgevinstlovGældDato(år = 2025, måned = 7, dag = 15),
+        dato = Dato(år = 2025, måned = 7, dag = 15),
         obligationskurs_basispoint = 9900
     ))
 )
@@ -552,37 +552,37 @@
     långiver_driver_finansieringsnæring = Sandt,
     sikkerhed = KglPar22PantIFastEjendom,
     lånet_baseret_på_obligationer = Sandt,
-    udbetalingsdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    udbetalingsdato = Dato(år = 2026, måned = 1, dag = 15),
     obligationskurs_ved_udbetaling_basispoint = 10500,
     lånetilbud = Some(KursgevinstlovPar22Lånetilbud(
-        dato = KursgevinstlovGældDato(år = 2025, måned = 7, dag = 16),
+        dato = Dato(år = 2025, måned = 7, dag = 16),
         obligationskurs_basispoint = 9900
     ))
 )
 = kgl_gæld_scenarie_par22_stiftelse = KursgevinstlovPar22Stk1Fakta(
     stiftelsesart = KglPar22NyGæld,
-    stiftelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    stiftelsesdato = Dato(år = 2026, måned = 1, dag = 15),
     fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner = 105000,
     aftalt_indfrielsesbeløb_kroner = 100000,
     realkreditgrundlag = kgl_gæld_scenarie_ukvalificeret_realkreditgrundlag
 )
 = kgl_gæld_scenarie_par22_stiftelse_undtaget = KursgevinstlovPar22Stk1Fakta(
     stiftelsesart = KglPar22NyGæld,
-    stiftelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    stiftelsesdato = Dato(år = 2026, måned = 1, dag = 15),
     fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner = 105000,
     aftalt_indfrielsesbeløb_kroner = 100000,
     realkreditgrundlag = kgl_gæld_scenarie_par22_undtagelsesgrundlag
 )
 = kgl_gæld_scenarie_par22a_stiftelse = KursgevinstlovPar22Stk1Fakta(
     stiftelsesart = KglPar22NyGæld,
-    stiftelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    stiftelsesdato = Dato(år = 2026, måned = 1, dag = 15),
     fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner = 110000,
     aftalt_indfrielsesbeløb_kroner = 100000,
     realkreditgrundlag = kgl_gæld_scenarie_par22a_realkreditgrundlag
 )
 | kgl_gæld_scenarie_par22_stiftelse_med_realkreditgrundlag(grundlag: KursgevinstlovPar22Realkreditgrundlag) -> KursgevinstlovPar22Stk1Fakta(
     stiftelsesart = KglPar22NyGæld,
-    stiftelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+    stiftelsesdato = Dato(år = 2026, måned = 1, dag = 15),
     fordringens_værdi_ved_stiftelse_overtagelse_eller_refinansiering_kroner = 105000,
     aftalt_indfrielsesbeløb_kroner = 100000,
     realkreditgrundlag = grundlag
@@ -704,7 +704,7 @@
         identifikation = "par22-stk2",
         beløb = kgl_gæld_scenarie_beløb(påtagelse_kroner = 100000, frigørelse_kroner = 96000, kreditorværdi_kroner = 96000),
         hændelse = KglPar22Stk2Frigørelse(fakta = KursgevinstlovPar22Stk2Fakta(
-            frigørelsesdato = KursgevinstlovGældDato(år = 2026, måned = 8, dag = 1),
+            frigørelsesdato = Dato(år = 2026, måned = 8, dag = 1),
             nominelle_rentesatser_basispoint = [100, 250],
             rente_varierer_månedsvis = Falskt,
             lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer = Falskt,
@@ -719,7 +719,7 @@
         identifikation = "par22-stk2-månedsundtaget",
         beløb = kgl_gæld_scenarie_beløb(påtagelse_kroner = 100000, frigørelse_kroner = 96000, kreditorværdi_kroner = 96000),
         hændelse = KglPar22Stk2Frigørelse(fakta = KursgevinstlovPar22Stk2Fakta(
-            frigørelsesdato = KursgevinstlovGældDato(år = 2026, måned = 8, dag = 1),
+            frigørelsesdato = Dato(år = 2026, måned = 8, dag = 1),
             nominelle_rentesatser_basispoint = [100, 250],
             rente_varierer_månedsvis = Sandt,
             lånet_baseret_på_fastforrentede_obligationer_eller_værdipapirer = Sandt,
@@ -731,7 +731,7 @@
 )
 
 | kgl_gæld_scenarie_par22_stk3_fakta_på_dato(
-    indfrielsesdato: KursgevinstlovGældDato,
+    indfrielsesdato: Dato,
     indfrielse_efter_krav_fra_kreditor: Boolsk,
     ejerskifte: KursgevinstlovPar22Stk3Ejerskifte
 ) -> KursgevinstlovPar22Stk3Fakta(
@@ -748,7 +748,7 @@
     indfrielse_efter_krav_fra_kreditor: Boolsk,
     ejerskifte: KursgevinstlovPar22Stk3Ejerskifte
 ) -> kgl_gæld_scenarie_par22_stk3_fakta_på_dato(
-    indfrielsesdato = KursgevinstlovGældDato(år = 2026, måned = 7, dag = 1),
+    indfrielsesdato = Dato(år = 2026, måned = 7, dag = 1),
     indfrielse_efter_krav_fra_kreditor = indfrielse_efter_krav_fra_kreditor,
     ejerskifte = ejerskifte
 )
@@ -773,7 +773,7 @@
     fakta = kgl_gæld_scenarie_par22_stk3_fakta(
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22SælgerIndfrier(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+            overdragelsesdato = Dato(år = 2026, måned = 1, dag = 15),
             tidligere_indfrielser_i_seksmånedersperioden = 0,
             parter = KglPar22UafhængigeParter
         )
@@ -782,10 +782,10 @@
 = kgl_gæld_scenarie_par22_stk3_sælger_præcis_seks_måneder = kgl_gæld_scenarie_par22_stk3_resultat(
     identifikation = "par22-stk3-sælger-præcis-seks-måneder",
     fakta = kgl_gæld_scenarie_par22_stk3_fakta_på_dato(
-        indfrielsesdato = KursgevinstlovGældDato(år = 2026, måned = 7, dag = 15),
+        indfrielsesdato = Dato(år = 2026, måned = 7, dag = 15),
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22SælgerIndfrier(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+            overdragelsesdato = Dato(år = 2026, måned = 1, dag = 15),
             tidligere_indfrielser_i_seksmånedersperioden = 0,
             parter = KglPar22UafhængigeParter
         )
@@ -794,10 +794,10 @@
 = kgl_gæld_scenarie_par22_stk3_sælger_efter_seks_måneder = kgl_gæld_scenarie_par22_stk3_resultat(
     identifikation = "par22-stk3-sælger-efter-seks-måneder",
     fakta = kgl_gæld_scenarie_par22_stk3_fakta_på_dato(
-        indfrielsesdato = KursgevinstlovGældDato(år = 2026, måned = 7, dag = 16),
+        indfrielsesdato = Dato(år = 2026, måned = 7, dag = 16),
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22SælgerIndfrier(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+            overdragelsesdato = Dato(år = 2026, måned = 1, dag = 15),
             tidligere_indfrielser_i_seksmånedersperioden = 0,
             parter = KglPar22UafhængigeParter
         )
@@ -808,7 +808,7 @@
     fakta = kgl_gæld_scenarie_par22_stk3_fakta(
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22SælgerIndfrier(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+            overdragelsesdato = Dato(år = 2026, måned = 1, dag = 15),
             tidligere_indfrielser_i_seksmånedersperioden = 0,
             parter = KglPar22ÆgtefællerUdenSeparationEllerSkilsmisse
         )
@@ -819,7 +819,7 @@
     fakta = kgl_gæld_scenarie_par22_stk3_fakta(
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22SælgerIndfrier(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 1, dag = 15),
+            overdragelsesdato = Dato(år = 2026, måned = 1, dag = 15),
             tidligere_indfrielser_i_seksmånedersperioden = 0,
             parter = KglPar22ÆgtefællerVedSeparationEllerSkilsmisse
         )
@@ -837,7 +837,7 @@
     fakta = kgl_gæld_scenarie_par22_stk3_fakta(
         indfrielse_efter_krav_fra_kreditor = Falskt,
         ejerskifte = KglPar22LængstlevendeÆgtefælleOvertager(
-            overdragelsesdato = KursgevinstlovGældDato(år = 2026, måned = 2, dag = 1),
+            overdragelsesdato = Dato(år = 2026, måned = 2, dag = 1),
             afdøde_ejede_ejendommen = Sandt
         )
     )

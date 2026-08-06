@@ -1,0 +1,79 @@
+@ sprog da
+
+@ importer ./kalenderdato
+
+= kalenderdato_ugyldig_måned_2024 = Dato(år = 2024, måned = 29, dag = 2)
+= kalenderdato_januar_2024 = Dato(år = 2024, måned = 1, dag = 31)
+= kalenderdato_januar_2025 = Dato(år = 2025, måned = 1, dag = 31)
+= kalenderdato_februar_28_2024 = Dato(år = 2024, måned = 2, dag = 28)
+= kalenderdato_marts_1_2024 = Dato(år = 2024, måned = 3, dag = 1)
+
+| kalenderdato_skudårsregler: dato_skudår(2000) -> dato_skudår(2000) && dato_skudår(2024) && dato_skudår(1900) == Falskt && dato_skudår(2025) == Falskt
+| kalenderdato_validerer_månedsgrænser: kalenderdato_ugyldig_måned_2024 -> dato_gyldig(Dato(år = 2024, måned = 2, dag = 29)) && dato_gyldig(Dato(år = 2025, måned = 2, dag = 29)) == Falskt && dato_gyldig(kalenderdato_ugyldig_måned_2024) == Falskt
+| kalenderdato_ordner_gregorianske_datoer: kalenderdato_februar_28_2024 -> dato_før(kalenderdato_februar_28_2024, kalenderdato_marts_1_2024) && dato_før_eller_lig_med(kalenderdato_februar_28_2024, kalenderdato_februar_28_2024) && dato_efter(kalenderdato_marts_1_2024, kalenderdato_februar_28_2024)
+| kalenderdato_forskydning_respekterer_månedslængde: kalenderdato_januar_2024 -> dato_plus_måneder(kalenderdato_januar_2024, 1) == Dato(år = 2024, måned = 2, dag = 29) && dato_plus_måneder(kalenderdato_januar_2025, 1) == Dato(år = 2025, måned = 2, dag = 28) && dato_plus_år(Dato(år = 2024, måned = 2, dag = 29), 1) == Dato(år = 2025, måned = 2, dag = 28)
+| kalenderdato_faktiske_dage_respekterer_skudår: kalenderdato_februar_28_2024 -> dato_dage_efter_til_og_med(kalenderdato_februar_28_2024, kalenderdato_marts_1_2024) == 2 && dato_dage_efter_til_og_med(Dato(år = 2023, måned = 2, dag = 28), Dato(år = 2023, måned = 3, dag = 1)) == 1
+
+= kalenderdato_faktisk_2024 = dagtælling_resultat(
+    fra_dato = Dato(år = 2024, måned = 1, dag = 1),
+    til_dato = Dato(år = 2024, måned = 12, dag = 31),
+    referenceår = 2024,
+    politik = Dagtællingspolitik(
+        kalenderdage = FaktiskeGregorianskeDage,
+        periodegrænser = FraOgMedBeggeDatoer,
+        årsdage = FaktiskeDageIReferenceåret
+    )
+)
+= kalenderdato_fast365_2024 = dagtælling_resultat(
+    fra_dato = Dato(år = 2024, måned = 1, dag = 1),
+    til_dato = Dato(år = 2024, måned = 12, dag = 31),
+    referenceår = 2024,
+    politik = Dagtællingspolitik(
+        kalenderdage = FaktiskeGregorianskeDage,
+        periodegrænser = FraOgMedBeggeDatoer,
+        årsdage = Fast365Dage
+    )
+)
+= kalenderdato_tredive360_2024 = dagtælling_resultat(
+    fra_dato = Dato(år = 2024, måned = 1, dag = 1),
+    til_dato = Dato(år = 2024, måned = 12, dag = 31),
+    referenceår = 2024,
+    politik = Dagtællingspolitik(
+        kalenderdage = TrediveDagesMåneder,
+        periodegrænser = FraOgMedBeggeDatoer,
+        årsdage = Fast360Dage
+    )
+)
+= kalenderdato_februar_til_marts_faktisk = dagtælling_resultat(
+    fra_dato = Dato(år = 2024, måned = 2, dag = 1),
+    til_dato = Dato(år = 2024, måned = 3, dag = 1),
+    referenceår = 2024,
+    politik = Dagtællingspolitik(
+        kalenderdage = FaktiskeGregorianskeDage,
+        periodegrænser = EfterStartTilOgMedSlut,
+        årsdage = FaktiskeDageIReferenceåret
+    )
+)
+= kalenderdato_februar_til_marts_tredive360 = dagtælling_resultat(
+    fra_dato = Dato(år = 2024, måned = 2, dag = 1),
+    til_dato = Dato(år = 2024, måned = 3, dag = 1),
+    referenceår = 2024,
+    politik = Dagtællingspolitik(
+        kalenderdage = TrediveDagesMåneder,
+        periodegrænser = EfterStartTilOgMedSlut,
+        årsdage = Fast360Dage
+    )
+)
+
+| kalenderdato_adskiller_faktisk_og_fast_årsgrundlag: kalenderdato_faktisk_2024 -> kalenderdato_faktisk_2024.input_gyldigt && kalenderdato_faktisk_2024.antal_dage == 366 && kalenderdato_faktisk_2024.årsgrundlag_dage == 366 && kalenderdato_fast365_2024.antal_dage == 366 && kalenderdato_fast365_2024.årsgrundlag_dage == 365
+| kalenderdato_tredive360_er_selvstændig_politik: kalenderdato_tredive360_2024 -> kalenderdato_tredive360_2024.input_gyldigt && kalenderdato_tredive360_2024.antal_dage == 360 && kalenderdato_tredive360_2024.årsgrundlag_dage == 360 && kalenderdato_februar_til_marts_faktisk.antal_dage == 29 && kalenderdato_februar_til_marts_tredive360.antal_dage == 30
+
+? kalenderdato_skudårsregler
+? kalenderdato_validerer_månedsgrænser
+? kalenderdato_ordner_gregorianske_datoer
+? kalenderdato_forskydning_respekterer_månedslængde
+? kalenderdato_faktiske_dage_respekterer_skudår
+? kalenderdato_adskiller_faktisk_og_fast_årsgrundlag
+? kalenderdato_tredive360_er_selvstændig_politik
+
+@ print("Kalenderdato: Gregorianske datoer og lovbestemte dagtællinger er adskilt")
