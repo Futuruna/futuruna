@@ -37,6 +37,14 @@ fn run(args: &[&str]) -> Output {
         .expect("run runa calculation command")
 }
 
+fn run_with_env(args: &[&str], environment: &[(&str, &str)]) -> Output {
+    Command::new(runa())
+        .args(args)
+        .envs(environment.iter().copied())
+        .output()
+        .expect("run runa calculation command with environment")
+}
+
 fn parse_stdout(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
@@ -118,6 +126,71 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
     assert!(field_metadata
         .iter()
         .any(|metadata| metadata["path"] == "children.age"));
+}
+
+#[test]
+fn calculation_contract_cache_hits_and_tracks_transitive_imports() {
+    let root = temp_path("calculation-cache");
+    std::fs::create_dir_all(&root).expect("create calculation cache fixture directory");
+    let cache = root.join("cache");
+    let source = root.join("model.calculate.runa");
+    let dependency = root.join("domain.runa");
+    std::fs::write(
+        &source,
+        "@ import ./domain\n\
+@ calculate(\"Cached calculation\")\n\
+| calculate_cached(input: CachedInput) -> CachedResult(total = input.amount)\n",
+    )
+    .expect("write cached calculation source");
+    std::fs::write(
+        &dependency,
+        "# CachedInput(amount: Int)\n# CachedResult(total: Int)\n",
+    )
+    .expect("write cached calculation dependency");
+
+    let source = source.to_str().expect("calculation source path");
+    let cache = cache.to_str().expect("calculation cache path");
+    let environment = [
+        ("FUTURUNA_CALCULATION_CACHE_DIR", cache),
+        ("FUTURUNA_CALCULATION_CACHE_TRACE", "1"),
+    ];
+    let first = run_with_env(&["schema", source], &environment);
+    assert!(
+        first.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    assert!(String::from_utf8_lossy(&first.stderr).contains("cache: miss"));
+    let first_schema = parse_stdout(&first);
+
+    let second = run_with_env(&["schema", source], &environment);
+    assert!(
+        second.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert!(String::from_utf8_lossy(&second.stderr).contains("cache: hit"));
+    assert_eq!(parse_stdout(&second), first_schema);
+
+    std::fs::write(
+        &dependency,
+        "# CachedInput(amount: Int, supplement: Int)\n# CachedResult(total: Int)\n",
+    )
+    .expect("change cached calculation dependency");
+    let invalidated = run_with_env(&["schema", source], &environment);
+    assert!(
+        invalidated.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&invalidated.stderr)
+    );
+    assert!(String::from_utf8_lossy(&invalidated.stderr).contains("cache: miss"));
+    let invalidated_schema = parse_stdout(&invalidated);
+    assert_ne!(
+        invalidated_schema["schema_hash"],
+        first_schema["schema_hash"]
+    );
+
+    std::fs::remove_dir_all(root).ok();
 }
 
 #[test]
@@ -1451,6 +1524,104 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human SØBL § 4 source-link label {expected} on {seafarer_source_links_sheet}"
+            );
+        }
+        let dis_income_path = "lønmodtager.personlig_indkomst.sømandsbeskatning.indkomster";
+        let dis_income_sheet = workbook_collection_sheet_name(&mut workbook, dis_income_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &dis_income_sheet),
+            "Dansk personskat - Lønindkomster fra arbejde om bord på skibe"
+        );
+        let dis_income_paths = workbook_column_paths(&mut workbook, &dis_income_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "person.skattepligt",
+            "person.statsborgerskab",
+            "person.relation.$variant",
+            "person.relation.SøblEjerPartrederEllerInteressent.sammenligning",
+            "person.relation.SøblBestemmendeIndflydelseEllerNærtstående.sammenligning",
+            "skib.registrering.$variant",
+            "skib.registrering.SøblUdenlandskSkibRegistreretIEUEØS.flag",
+            "skib.registrering.SøblSkibRegistreretUdenForEUEØS.flag",
+            "skib.bruttotonnage",
+            "skib.arbejdsgiverstatus",
+            "arbejde.anvendelse.$variant",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.$variant",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.søtransport_minutter",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.mobilisering_til_søs_minutter",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.andre_aktiviteter_minutter",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.ventetid_minutter",
+            "arbejde.arbejdsområde",
+            "arbejde.passagerrute",
+            "arbejde.arbejdsrolle.$variant",
+            "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.skib_i_almindelig_drift",
+            "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.del_af_sikkerheds_eller_driftsbesætning",
+            "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.kan_umiddelbart_udføres_af_landpersonale",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.varighed_dage",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.umiddelbart_før_omfattet",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.varighed_dage",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.skibet_opfylder_betingelser_efter_færdiggørelse",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.påmønstres_umiddelbart_efter_færdiggørelse",
+            "arbejde.arbejdsrolle.SøblKursusophold.varighed_dage_i_12_måneder",
+            "arbejde.arbejdsrolle.SøblKursusophold.umiddelbart_før_omfattet",
+            "arbejde.arbejdsrolle.SøblKursusophold.fortsat_ansat_af_rederiet",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.dage_i_12_måneder",
+            "arbejde.par8_valg",
+            "løn.indkomsttype",
+            "løn.løngrundlag",
+            "løn.beløb_kroner",
+        ] {
+            assert!(
+                dis_income_paths.iter().any(|path| path == expected),
+                "missing canonical SØBL §§ 5-8 source-fact path {expected} on {dis_income_sheet}"
+            );
+        }
+        let dis_income_headers = workbook_headers(&mut workbook, &dis_income_sheet);
+        for expected in [
+            "Sømandsindkomstens identifikation",
+            "Sømandsindkomstens indkomstår",
+            "Skattepligtsposition for sømandsindkomsten",
+            "Statsborgerskab ved passagersejlads",
+            "Relation til skibet eller rederiet",
+            "Aflønning som ejer, partreder eller interessent",
+            "Aflønning ved bestemmende indflydelse eller nærtstående relation",
+            "Skibets registrering",
+            "Flag for udenlandsk EU/EØS-skib",
+            "Flag for skib registreret uden for EU/EØS",
+            "Skibets bruttotonnage",
+            "Arbejdsgiverens status efter sømandsbeskatningsloven",
+            "Skibets anvendelsesforløb",
+            "Skibets udelukkende aktivitet",
+            "Søtransporttid ved bugsering og bjærgning",
+            "Mobiliseringstid til søs ved bugsering og bjærgning",
+            "Anden aktivitetstid ved bugsering og bjærgning",
+            "Ventetid ved bugsering og bjærgning",
+            "Arbejdsområde inden for eller uden for EU/EØS",
+            "Passagersejladsens rute",
+            "Arbejdsrolle om bord",
+            "Skibet i almindelig drift under vedligeholdelsen",
+            "Del af sikkerheds- eller driftsbesætningen",
+            "Arbejdet kunne umiddelbart udføres af landpersonale",
+            "Dage på midlertidigt ude af drift-skib",
+            "Omfattet umiddelbart før driftsophøret",
+            "Kun ansat til arbejde under driftsophøret",
+            "Dage med tilsyn ved nybygning",
+            "Nybygningen opfylder betingelserne efter færdiggørelse",
+            "Påmønstring umiddelbart efter færdiggørelse",
+            "Kursusdage inden for 12 måneder",
+            "Omfattet umiddelbart før kursusopholdet",
+            "Fortsat ansat af rederiet under kurset",
+            "Nødvendige rejsedage inden for 12 måneder",
+            "Valg for arbejde uden for EU/EØS efter § 8",
+            "Sømandsindkomstens retlige type",
+            "Sømandsindkomstens løngrundlag",
+            "Løn eller direkte tilknyttet ydelse",
+        ] {
+            assert!(
+                dis_income_headers.iter().any(|header| header == expected),
+                "missing human SØBL §§ 5-8 input label {expected} on {dis_income_sheet}"
             );
         }
         let union_dues_path = "lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter";
@@ -8993,6 +9164,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                "sømandsbeskatning": { "indkomster": [] },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
                     "virksomheder_uden_virksomhedsordning": [],
@@ -10455,6 +10627,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                    "sømandsbeskatning": { "indkomster": [] },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
                         "virksomheder_uden_virksomhedsordning": [],
@@ -10914,6 +11087,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
         },
+        "sømandsbeskatning": { "indkomster": [] },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
             "virksomheder_uden_virksomhedsordning": [],
@@ -11461,6 +11635,55 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(prior_deficit_result_case);
+    let mut dis_case = json_input["cases"][0].clone();
+    dis_case["case_id"] = Value::String("personskat-dis-2026".into());
+    dis_case["input"]["lønmodtager"]["bruttoløn_kroner"] = serde_json::json!(300_000);
+    dis_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"] = serde_json::json!({
+        "indkomster": [{
+            "identifikation": "dis-gods-2026",
+            "indkomstår": 2026,
+            "person": {
+                "skattepligt": { "$variant": "SøblFuldtSkattepligtigEfterKsl1" },
+                "statsborgerskab": { "$variant": "SøblStatsborgerIEUEØS" },
+                "relation": { "$variant": "SøblAlmindeligLønmodtager" }
+            },
+            "skib": {
+                "registrering": { "$variant": "SøblDanskSkibRegistreretIDIS" },
+                "bruttotonnage": 12_000,
+                "arbejdsgiverstatus": { "$variant": "SøblDanskArbejdsgiver" }
+            },
+            "arbejde": {
+                "anvendelse": {
+                    "$variant": "SøblUdelukkendeAnvendtTil",
+                    "aktivitet": {
+                        "$variant": "SøblTransportAfGodsMellemForskelligeDestinationer"
+                    }
+                },
+                "arbejdsområde": { "$variant": "SøblArbejdeUdenForEUEØS" },
+                "passagerrute": { "$variant": "SøblIngenPassagersejlads" },
+                "arbejdsrolle": { "$variant": "SøblNormalDriftsbesætning" },
+                "par8_valg": {
+                    "$variant": "SøblAnvendPar10RefusionEllerAlmindeligBeskatning"
+                }
+            },
+            "løn": {
+                "indkomsttype": { "$variant": "SøblLønVedArbejdeOmBord" },
+                "løngrundlag": {
+                    "$variant": "SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen"
+                },
+                "beløb_kroner": 500_000
+            }
+        }]
+    });
+    dis_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(dis_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -11515,11 +11738,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-underskud-årsresultat-2026")
         .expect("prior deficit result JSON case")
         .clone();
+    let dis_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-2026")
+        .expect("DIS JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         annual_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
+        dis_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -11616,6 +11847,62 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         hydrated_annual_claim_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         3_000
+    );
+    let json_dis_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-2026")
+        .expect("JSON DIS result");
+    let hydrated_dis_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-2026")
+        .expect("hydrated XLSX DIS result");
+    assert_eq!(hydrated_dis_result["result"], json_dis_result["result"]);
+    assert_eq!(
+        hydrated_dis_result["result"]["personlig_indkomst"]["sømandsbeskatning"]
+            ["samlet_dis_personlig_indkomst_kroner"],
+        500_000
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["skat"]["bruttoløn_kroner"],
+        300_000
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        24_000
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["skat"]["personlig_indkomst_efter_am_kroner"],
+        776_000
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["sømandsbeskatning"]["input_gyldigt"],
+        true
+    );
+    assert!(
+        hydrated_dis_result["result"]["sømandsbeskatning"]["samlet_lempelse_kroner"]
+            .as_i64()
+            .expect("DIS relief")
+            > 0
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["sømandsbeskatning"]["par13_stk5_lempelsesgrundlag"]
+            ["$variant"],
+        "SømandsbeskatningslovPar5"
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]
+            .as_i64()
+            .expect("final income tax"),
+        hydrated_dis_result["result"]["skat"]["samlet_inkl_am_efter_personfradrag_kroner"]
+            .as_i64()
+            .expect("ordinary final tax")
+            - hydrated_dis_result["result"]["sømandsbeskatning"]["samlet_lempelse_kroner"]
+                .as_i64()
+                .expect("DIS relief")
     );
     for (case_id, expected_opening_deficit) in [
         ("personskat-underskud-ekstern-2026", 40_000),

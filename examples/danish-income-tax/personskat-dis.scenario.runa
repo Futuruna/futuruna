@@ -1,0 +1,120 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_dis_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
+        DependencySource(value = søbl5_til8_bek940),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+        Practice(value = søbl5_til8_skm2020_75),
+    )
+)
+
+--@label:personskat_dis_scenarier::meta:personskat_dis_scenarier_metadata--
+----
+Scenarierne er ikke lovtekst. De fastholder den kanoniske sammensætning af
+sømandsbeskatningslovens §§ 5-8 med personlig indkomst, arbejdsmarkedsbidrag,
+ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
+----
+
+--@begin::personskat_dis_scenarier--
+| personskat_dis_personlig_indkomst(sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    sømandsbeskatning = sømandsbeskatning
+)
+| personskat_dis_lønmodtager(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_dis_personlig_indkomst(sømandsbeskatning),
+    erhvervsbefordring = PersonskatErhvervsbefordringInput(sager = []),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_dis_input(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatInput(
+    lønmodtager = personskat_dis_lønmodtager(bruttoløn_kroner, sømandsbeskatning),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_dis_fakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    person = Søbl5Til8Personfakta(
+        skattepligt = SøblFuldtSkattepligtigEfterKsl1,
+        statsborgerskab = SøblStatsborgerIEUEØS,
+        relation = SøblAlmindeligLønmodtager
+    ),
+    skib = Søbl5Til8Skibsfakta(
+        registrering = registrering,
+        bruttotonnage = 12000,
+        arbejdsgiverstatus = SøblDanskArbejdsgiver
+    ),
+    arbejde = Søbl5Til8Arbejdsfakta(
+        anvendelse = SøblUdelukkendeAnvendtTil(SøblTransportAfGodsMellemForskelligeDestinationer),
+        arbejdsområde = SøblArbejdeUdenForEUEØS,
+        passagerrute = SøblIngenPassagersejlads,
+        arbejdsrolle = SøblNormalDriftsbesætning,
+        par8_valg = SøblAnvendPar10RefusionEllerAlmindeligBeskatning
+    ),
+    løn = Søbl5Til8Lønfakta(
+        indkomsttype = SøblLønVedArbejdeOmBord,
+        løngrundlag = løngrundlag,
+        beløb_kroner = beløb_kroner
+    )
+)
+
+= personskat_dis_kanonisk_input = personskat_dis_input(
+    bruttoløn_kroner = 300000,
+    sømandsbeskatning = Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta(
+        identifikation = "kanonisk-dis",
+        registrering = SøblDanskSkibRegistreretIDIS,
+        løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+        beløb_kroner = 500000
+    )])
+)
+= personskat_dis_kanonisk_resultat = beregn_personskat(personskat_dis_kanonisk_input)
+= personskat_dis_ordinær_baseline = beregn_personskat(personskat_dis_input(
+    bruttoløn_kroner = 300000,
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+))
+
+| personskat_dis_kilde_føres_til_personlig_indkomst: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 500000 && personskat_dis_kanonisk_resultat.skat.bruttoløn_kroner == 300000 && personskat_dis_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 24000 && personskat_dis_kanonisk_resultat.skat.personlig_indkomst_efter_am_kroner == 776000
+| personskat_dis_lempelse_føres_til_slutskat: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.input_gyldigt && personskat_dis_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner > 0 && personskat_dis_kanonisk_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == personskat_dis_kanonisk_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner - personskat_dis_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner
+| personskat_dis_bevarer_progression: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.indkomstskat_efter_dis_lempelse_kroner > personskat_dis_ordinær_baseline.sømandsbeskatning.indkomstskat_efter_dis_lempelse_kroner
+| personskat_dis_afskærer_ligningslov9a: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 && personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.stk1_til_stk9_udelukket
+| personskat_dis_afleder_par13_stk5: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar5
+
+= personskat_das_kanonisk_resultat = beregn_personskat(personskat_dis_input(
+    bruttoløn_kroner = 0,
+    sømandsbeskatning = Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta(
+        identifikation = "kanonisk-das",
+        registrering = SøblDanskSkibRegistreretIDAS,
+        løngrundlag = SøblOrdinærBruttoløn,
+        beløb_kroner = 400000
+    )])
+))
+
+| personskat_das_føres_til_ordinær_am_løn: personskat_das_kanonisk_resultat -> personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.kan_anvende_par5_til8 == Falskt && personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.samlet_ordinær_bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 32000 && personskat_das_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner == 0
+
+? personskat_dis_kilde_føres_til_personlig_indkomst
+? personskat_dis_lempelse_føres_til_slutskat
+? personskat_dis_bevarer_progression
+? personskat_dis_afskærer_ligningslov9a
+? personskat_dis_afleder_par13_stk5
+? personskat_das_føres_til_ordinær_am_løn
+
+@ print("Personskat: DIS-lempelse og ordinær DAS-løn er sammensat i den kanoniske slutskat")
+--@end::personskat_dis_scenarier--

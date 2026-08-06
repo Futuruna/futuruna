@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
+Current implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
+Previous travel-expense slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
 Previous seafarer-coordination slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
 Previous seafarer-deduction slice: `td-302f8e` (sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er typede beskæftigelsesfakta med valg, betingelser, undtagelser, delårsfordeling og kanonisk samordning; godkendt)
 Previous implementation slice: `td-292327` (Personskattelovens § 13-fremførsel er et typet årsledger med kildeproveniens, sammenhængende indkomstår, afledt egen anvendelse, ægtefælleoverførsel og ultimo; implementeret og verificeret, afventer uafhængig gennemgang)
@@ -33,10 +34,12 @@ Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdie
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
-Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
+Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
+Previous compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
-Deferred performance issues: `td-6659f1`, `td-6b2cba`
+Planned calculation-runner performance: `td-783a9c` (genbrug en kompileret eller resident, initialiseret beregningsrunner på tværs af kald)
+Deferred performance issues: `td-6659f1`, `td-370d3f`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
 Latest approved implementation slice: `td-4e42fd`
@@ -3141,9 +3144,11 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 87-92% complete as an executable research corpus,
-  and roughly 75-83% complete as a production-grade calculator for
-  Personskatteloven plus its necessary dependencies.
+- Working estimate: about 90% complete as an executable research corpus, and
+  about 80% complete as a production-grade calculator for Personskatteloven
+  plus its necessary dependencies. These are deliberately separate measures:
+  represented legal structure is further ahead than exact amount-level support
+  for every special taxpayer, transition, cross-year history and dependency.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
   audits, including source-derived confiscatory restskat search expansion in
@@ -3762,6 +3767,26 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Sømandsbeskatningslovens §§ 5-8 og bekendtgørelse nr. 940 af 2022 er nu
+  modelleret som typede person-, skibs-, anvendelses-, arbejdsrolle- og
+  lønfakta. Reglerne afleder DIS frem for at modtage en juridisk konklusion,
+  skelner ordinær DAS-løn og uafklaret nettoløn, anvender 50 pct.-grænsen for
+  bugsering og bjærgning og håndterer personkredsene i §§ 7-8. DIS-løn indgår
+  i personlig indkomst og progression uden AM-bidrag; lempelsen fordeles på
+  skattekomponenterne før personfradrag og trækkes fra den kanoniske slutskat.
+  PSL § 13, stk. 5, og LL § 9 A-udelukkelsen afledes fra samme resultat.
+  Fortolkede og kompilerede fokusscenarier passerer, og den komplette
+  JSON/XLSX-rundtur bevarer en 500.000-kr.-DIS-post og giver samme resultat på
+  begge grænser.
+- Validerede `@ calculate`-kontrakter har nu en vedvarende,
+  indholdsadresseret cache. Nøglen omfatter compilerbinæren, prelude-valget,
+  rodfilen og alle transitive almindelige, kvalificerede og hash-baserede
+  importer. Fejl cachelagres ikke, korrupte poster ignoreres, og miljøvariable
+  kan deaktivere eller spore cachen. På den aktuelle Personskat-graf faldt
+  skemakontrollen fra 115,43 s koldt til 12,31 s varmt, en varm XLSX-skabelon
+  tog 16,45 s, og den komplette arbejdsbogstest faldt fra 1.251,35 s til
+  557,11 s og passerede. Den resterende hovedomkostning er initialisering og
+  fortolket udførelse, som er afgrænset i `td-783a9c`.
 - Personskattelovens § 13-fremførsel modtager ikke længere et råt beløb sammen
   med skatteyderens egen juridiske konklusion om, at underskuddet ikke kunne
   rummes tidligere. Åbningsgrundlaget er nu enten neutralt, det konsistente
@@ -4443,6 +4468,18 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
+- Færdiggør de afgrænsede SØBL-rester uden at svække den nye
+  kildefaktamodel: `td-00b484` erstatter 92/184-dages tilnærmelser med eksakte
+  kalendermåneder, `td-b874c0` samler § 6-driftstid pr. skib og indkomstår,
+  `td-a97df7` fordeler LL § 7 U-bundfradraget, og `td-44eb29` giver dødsboer,
+  begrænset skattepligtige og kulbrinteskattesager deres egne kanoniske
+  beløbsresultater.
+- Byg næste performance-lag efter den målte kontraktcache. `td-783a9c` skal
+  genbruge en kompileret eller resident beregningsrunner, så gentagne `call`
+  ikke initialiserer den fulde Personskat-graf igen. `td-370d3f` kan derefter
+  reducere en varm cachekontrol under den nuværende 12,31-sekunders baseline
+  ved at verificere et indholds-hashet importmanifest uden at genparse alle
+  uændrede moduler.
 - Bevar den nu afledte KGL-årsnetto-grænse fra `td-5beddd`. Den næste
   KGL-udvidelse skal komme fra kildefakta: `td-1e2380` adskiller kredit- og
   valutakomponenter efter §§ 14/25, og `td-aac8d3` udvider positionen med

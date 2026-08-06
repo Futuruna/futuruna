@@ -74,7 +74,8 @@ etableringskontoloven.runa og kapitel-01-indkomst.runa.
 )
 | personskat_etbl_personlig_indkomst(input: EtableringskontoIndskudInput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = MedEtableringskontoindskud(input = input),
-    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst()
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_etbl_lønmodtager(bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatLønmodtagerInput(
     skatteår = 2026,

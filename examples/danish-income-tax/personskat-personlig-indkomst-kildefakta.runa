@@ -6,6 +6,7 @@
 @ importer ./metadata
 @ importer ./pensionsbeskatningsloven - par49 - 49b
 @ importer ./personskat - etableringskonto - kildefakta
+@ importer ./soemandsbeskatningsloven - par5 - par8
 
 # PersonskatPersonligIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 
@@ -275,8 +276,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
 # PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
-# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput)
-# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
+# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, sømandsbeskatning: Søbl5Til8Årsinput)
+# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
 
 | personskat_ingen_ordinær_personlig_indkomst() -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = [],
@@ -285,7 +286,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 )
 | personskat_ingen_personlig_indkomst() -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
-    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst()
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_arbejdsgiverydelsesidentifikationer_entydige(fakta: List(PersonskatArbejdsgiverydelseFakta)) -> length(distinct(map(fakta, |post: PersonskatArbejdsgiverydelseFakta| post.identifikation))) == length(fakta)
 | personskat_virksomhedsidentifikationer_entydige(fakta: List(PersonskatOrdinærVirksomhedFakta)) -> length(distinct(map(fakta, |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation))) == length(fakta)
@@ -353,13 +355,15 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatPersonligIndkomstSag(input: PersonskatPersonligIndkomstInput, skatteår: Heltal) {
     | etableringskonto() -> personskat_etableringskonto_resultat(input.etableringskonto, skatteår)
     | ordinære_forhold() -> personskat_ordinær_personlig_indkomst_resultat(input.ordinære_forhold, skatteår)
+    | sømandsbeskatning() -> søbl5_til8_årsresultat(skatteår, input.sømandsbeskatning)
     | resultat() -> PersonskatPersonligIndkomstResultat(
         input = input,
         etableringskonto = etableringskonto(),
         ordinære_forhold = ordinære_forhold(),
-        alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige,
-        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
-        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner,
+        sømandsbeskatning = sømandsbeskatning(),
+        alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige && sømandsbeskatning().alle_input_gyldige && sømandsbeskatning().beregningsklar && sømandsbeskatning().kanonisk_fuld_skattepligt_understøttet,
+        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner,
+        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + sømandsbeskatning().samlet_dis_personlig_indkomst_kroner,
         fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()),
         ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto())
     )

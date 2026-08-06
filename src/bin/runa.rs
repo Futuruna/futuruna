@@ -5,7 +5,9 @@
 
 use futuruna::*;
 use quote::ToTokens;
+use serde::{Deserialize, Serialize};
 use serde_json;
+use sha2::{Digest as ShaDigest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::io::{self, BufRead, Read, Write as IoWrite};
@@ -714,6 +716,178 @@ fn main_inner() {
 const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
+const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 1;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CalculationContractCacheEntry {
+    cache_version: u32,
+    source_graph_hash: String,
+    contracts: Vec<calculate::CalculationContract>,
+}
+
+fn calculation_cache_env_enabled(name: &str) -> bool {
+    std::env::var(name).is_ok_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+fn trace_calculation_contract_cache(message: &str) {
+    if calculation_cache_env_enabled("FUTURUNA_CALCULATION_CACHE_TRACE") {
+        eprintln!("calculation contract cache: {message}");
+    }
+}
+
+fn calculation_contract_cache_dir() -> Option<PathBuf> {
+    if calculation_cache_env_enabled("FUTURUNA_DISABLE_CALCULATION_CACHE") {
+        return None;
+    }
+    if let Some(path) = std::env::var_os("FUTURUNA_CALCULATION_CACHE_DIR") {
+        return Some(PathBuf::from(path).join("contracts-v1"));
+    }
+    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
+        return Some(PathBuf::from(path).join("futuruna/calculation-contracts-v1"));
+    }
+    let home = std::env::var_os("HOME")?;
+    let root = if cfg!(target_os = "macos") {
+        PathBuf::from(home).join("Library/Caches/futuruna")
+    } else {
+        PathBuf::from(home).join(".cache/futuruna")
+    };
+    Some(root.join("calculation-contracts-v1"))
+}
+
+fn calculation_hash_segment(hasher: &mut Sha256, value: &[u8]) {
+    hasher.update((value.len() as u64).to_le_bytes());
+    hasher.update(value);
+}
+
+fn calculation_import_path(stmt: &Stmt) -> Option<&str> {
+    match stmt {
+        Stmt::Import(path) | Stmt::QualifiedImport(_, path) | Stmt::HashImport(_, path) => {
+            Some(path)
+        }
+        _ => None,
+    }
+}
+
+fn hash_calculation_source_module(
+    filename: &Path,
+    source: &str,
+    stmts: &[Stmt],
+    visited: &mut BTreeSet<PathBuf>,
+    hasher: &mut Sha256,
+) -> Option<()> {
+    let canonical = std::fs::canonicalize(filename).unwrap_or_else(|_| filename.to_path_buf());
+    if !visited.insert(canonical.clone()) {
+        return Some(());
+    }
+    calculation_hash_segment(hasher, canonical.to_string_lossy().as_bytes());
+    calculation_hash_segment(hasher, source.as_bytes());
+
+    let source_dir = canonical
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let source_dir = source_dir.to_string_lossy();
+    for import_path in stmts.iter().filter_map(calculation_import_path) {
+        let imported_filename =
+            Interpreter::resolve_import_path_for_source(import_path, source_dir.as_ref())?;
+        let imported_source = std::fs::read_to_string(&imported_filename).ok()?;
+        let mut lexer = Lexer::new(&imported_source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &imported_source);
+        let imported_stmts = parser.parse_program().ok()?;
+        hash_calculation_source_module(
+            Path::new(&imported_filename),
+            &imported_source,
+            &imported_stmts,
+            visited,
+            hasher,
+        )?;
+    }
+    Some(())
+}
+
+fn calculation_contract_cache_key(
+    filename: &str,
+    source: &str,
+    user_stmts: &[Stmt],
+    use_prelude: bool,
+) -> Option<String> {
+    calculation_contract_cache_dir()?;
+    let mut hasher = Sha256::new();
+    calculation_hash_segment(
+        &mut hasher,
+        &CALCULATION_CONTRACT_CACHE_VERSION.to_le_bytes(),
+    );
+    calculation_hash_segment(&mut hasher, env!("CARGO_PKG_VERSION").as_bytes());
+    calculation_hash_segment(&mut hasher, &[u8::from(use_prelude)]);
+
+    let executable = std::env::current_exe().ok()?;
+    let mut executable = std::fs::File::open(executable).ok()?;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = executable.read(&mut buffer).ok()?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+
+    hash_calculation_source_module(
+        Path::new(filename),
+        source,
+        user_stmts,
+        &mut BTreeSet::new(),
+        &mut hasher,
+    )?;
+    Some(format!("{:x}", hasher.finalize()))
+}
+
+fn calculation_contract_cache_path(key: &str) -> Option<PathBuf> {
+    Some(calculation_contract_cache_dir()?.join(format!("{key}.json")))
+}
+
+fn load_calculation_contract_cache(key: &str) -> Option<Vec<calculate::CalculationContract>> {
+    let path = calculation_contract_cache_path(key)?;
+    let bytes = std::fs::read(path).ok()?;
+    let entry: CalculationContractCacheEntry = serde_json::from_slice(&bytes).ok()?;
+    if entry.cache_version != CALCULATION_CONTRACT_CACHE_VERSION || entry.source_graph_hash != key {
+        return None;
+    }
+    Some(entry.contracts)
+}
+
+fn store_calculation_contract_cache(key: &str, contracts: &[calculate::CalculationContract]) {
+    let Some(path) = calculation_contract_cache_path(key) else {
+        return;
+    };
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if std::fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    let entry = CalculationContractCacheEntry {
+        cache_version: CALCULATION_CONTRACT_CACHE_VERSION,
+        source_graph_hash: key.to_string(),
+        contracts: contracts.to_vec(),
+    };
+    let Ok(bytes) = serde_json::to_vec(&entry) else {
+        return;
+    };
+    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temporary = path.with_extension(format!("{}.{}.tmp", std::process::id(), sequence));
+    if std::fs::write(&temporary, bytes).is_err() {
+        return;
+    }
+    if std::fs::rename(&temporary, &path).is_err() {
+        std::fs::remove_file(temporary).ok();
+    }
+}
 
 fn run_calculation_command(
     mode: &str,
@@ -735,13 +909,31 @@ fn run_calculation_command(
         display_error_in(&source, &error, filename);
         std::process::exit(1);
     });
+    let cache_key = calculation_contract_cache_key(filename, &source, &user_stmts, use_prelude);
     let stmts = if use_prelude {
         prepend_prelude(parse_prelude(), &user_stmts)
     } else {
         user_stmts
     };
-    let contracts = run_calculation_type_check(&stmts, &source, filename)
-        .unwrap_or_else(|| std::process::exit(1));
+    let contracts = if let Some(cached) = cache_key
+        .as_deref()
+        .and_then(load_calculation_contract_cache)
+    {
+        trace_calculation_contract_cache("hit");
+        cached
+    } else {
+        if cache_key.is_some() {
+            trace_calculation_contract_cache("miss");
+        } else {
+            trace_calculation_contract_cache("disabled");
+        }
+        let contracts = run_calculation_type_check(&stmts, &source, filename)
+            .unwrap_or_else(|| std::process::exit(1));
+        if let Some(key) = cache_key.as_deref() {
+            store_calculation_contract_cache(key, &contracts);
+        }
+        contracts
+    };
     let source_dir = source_dir_for(filename);
     let contract =
         select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {

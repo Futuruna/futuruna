@@ -19,6 +19,7 @@
 @ importer ./ligningsloven - par9a - rejser
 @ importer ./pensionsbeskatningsloven - par49 - 49b
 @ importer ./soemandsbeskatningsloven - par3 - par4
+@ importer ./soemandsbeskatningsloven - dis - lempelse
 @ importer ./personskat - ligningsfradrag - beregningsmeta
 @ importer ./personskat - rejsefradrag - beregningsmeta
 @ importer ./personskat - soemandsfradrag - beregningsmeta
@@ -186,7 +187,7 @@
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -204,9 +205,282 @@
 = personskat_felt_bruttoløn = Beregningsfelt(
     path = "lønmodtager.bruttoløn_kroner",
     label = "Årlig bruttoløn",
-    question = Some("Hvor meget modtager du i almindelig løn før skat i hele indkomståret, bortset fra rejse- og kørselsgodtgørelse oplyst særskilt efter §§ 9 A og 9 B?"),
-    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag. Medtag ikke godtgørelse, som oplyses i grenene for rejser eller erhvervsmæssig kørsel; Futuruna udleder selv en eventuel skattepligtig løndel."),
+    question = Some("Hvor meget modtager du i almindelig løn før skat i hele indkomståret, bortset fra beløb oplyst særskilt som sømandsindkomst, rejsegodtgørelse eller kørselsgodtgørelse?"),
+    help = Some("Angiv lønnen før arbejdsmarkedsbidrag, skat og personlige fradrag. Medtag ikke løn fra skibsarbejde i sømandsindkomsttabellen eller godtgørelse i grenene for §§ 9 A og 9 B; Futuruna udleder selv, hvilke særskilt oplyste beløb der skal føres tilbage til ordinær bruttoløn."),
     unit = Some("kr./år")
+)
+= personskat_felt_dis_indkomster = TypetBeregningsfelt(
+    path = refof(PersonskatInput::lønmodtager::personlig_indkomst::sømandsbeskatning::indkomster),
+    label = "Lønindkomster fra arbejde om bord på skibe",
+    question = Some("Har du haft løn eller en direkte tilknyttet ydelse fra arbejde om bord på et skib?"),
+    help = Some("Tilføj én række for hver periode med ens skib, anvendelse, arbejdsrolle og løngrundlag. Futuruna udleder selv, om indkomsten er DIS-indkomst, ordinær bruttoløn eller kræver yderligere dokumentation."),
+    unit = None
+)
+= personskat_felt_dis_identifikation = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::identifikation),
+    label = "Sømandsindkomstens identifikation",
+    question = Some("Hvilken entydig identifikation skal denne indkomstperiode have?"),
+    help = Some("Brug samme identifikation i dokumentation og efterfølgende auditspor."),
+    unit = None
+)
+= personskat_felt_dis_indkomstår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::indkomstår),
+    label = "Sømandsindkomstens indkomstår",
+    question = Some("I hvilket indkomstår blev lønnen eller ydelsen erhvervet?"),
+    help = Some("Indkomståret skal svare til skatteåret i den samlede beregning."),
+    unit = Some("år")
+)
+= personskat_felt_dis_skattepligt = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::person::skattepligt::$variant),
+    label = "Skattepligtsposition for sømandsindkomsten",
+    question = Some("Hvilken dansk skattepligtsposition havde personen for denne indkomst?"),
+    help = Some("§§ 5-8 skelner mellem fuld skattepligt, begrænset skattepligt, kulbrinteskattepligt og andre positioner."),
+    unit = None
+)
+= personskat_felt_dis_statsborgerskab = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::person::statsborgerskab::$variant),
+    label = "Statsborgerskab ved passagersejlads",
+    question = Some("Hvilken statsborgergruppe tilhørte personen i indkomstperioden?"),
+    help = Some("Statsborgerskabet er navnlig relevant for regelmæssig passagersejlads efter § 7."),
+    unit = None
+)
+= personskat_felt_dis_personrelation = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::person::relation::$variant),
+    label = "Relation til skibet eller rederiet",
+    question = Some("Var personen almindelig lønmodtager, medejer af skibet eller bestemmende eller nærtstående i rederiet?"),
+    help = Some("Ejere og personer med bestemmende indflydelse skal aflønnes som sammenlignelige ansatte for at anvende §§ 5, 6 og 8."),
+    unit = None
+)
+= personskat_felt_dis_ejeraflønning = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Personrelation::SøblEjerPartrederEllerInteressent::sammenligning::$variant),
+    label = "Aflønning som ejer, partreder eller interessent",
+    question = Some("Svarer aflønningen til den, som ansatte med samme anciennitet og funktion modtager?"),
+    help = Some("Feltet udfyldes kun, når personen ejer skibet eller en andel i det."),
+    unit = None
+)
+= personskat_felt_dis_kontrolaflønning = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Personrelation::SøblBestemmendeIndflydelseEllerNærtstående::sammenligning::$variant),
+    label = "Aflønning ved bestemmende indflydelse eller nærtstående relation",
+    question = Some("Svarer aflønningen til den, som ansatte med samme anciennitet og funktion modtager?"),
+    help = Some("Feltet udfyldes kun ved bestemmende indflydelse over rederiet eller en nærtstående relation."),
+    unit = None
+)
+= personskat_felt_dis_registrering = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::skib::registrering::$variant),
+    label = "Skibets registrering",
+    question = Some("Var skibet registreret i DIS, DAS, et andet EU/EØS-register eller uden for EU/EØS?"),
+    help = Some("Registreringen afgør, om § 5, § 5 b eller § 8 kan finde anvendelse, eller om lønnen beskattes ordinært."),
+    unit = None
+)
+= personskat_felt_dis_eu_eøs_flag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Registrering::SøblUdenlandskSkibRegistreretIEUEØS::flag::$variant),
+    label = "Flag for udenlandsk EU/EØS-skib",
+    question = Some("Fører det udenlandske EU/EØS-registrerede skib et EU/EØS-flag?"),
+    help = Some("Flaget er relevant for den særlige afgrænsning ved regelmæssig passagersejlads efter § 7."),
+    unit = None
+)
+= personskat_felt_dis_udenfor_eu_eøs_flag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Registrering::SøblSkibRegistreretUdenForEUEØS::flag::$variant),
+    label = "Flag for skib registreret uden for EU/EØS",
+    question = Some("Fører skibet et EU/EØS-flag, selv om det er registreret uden for EU/EØS?"),
+    help = Some("Oplysningen bevarer registrering og flag som særskilte kildefakta."),
+    unit = None
+)
+= personskat_felt_dis_bruttotonnage = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::skib::bruttotonnage),
+    label = "Skibets bruttotonnage",
+    question = Some("Hvad var skibets registrerede bruttotonnage?"),
+    help = Some("Skibet skal som udgangspunkt have en bruttotonnage på mindst 20 for at være omfattet."),
+    unit = Some("BT")
+)
+= personskat_felt_dis_arbejdsgiverstatus = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::skib::arbejdsgiverstatus::$variant),
+    label = "Arbejdsgiverens status efter sømandsbeskatningsloven",
+    question = Some("Var arbejdsgiveren dansk eller en udenlandsk arbejdsgiver med eller uden godkendelse efter § 11 a?"),
+    help = Some("En udenlandsk arbejdsgivers godkendelse indgår i betingelserne for § 5 b."),
+    unit = None
+)
+= personskat_felt_dis_anvendelsesforløb = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::arbejde::anvendelse::$variant),
+    label = "Skibets anvendelsesforløb",
+    question = Some("Blev skibet udelukkende anvendt til én oplyst aktivitet i perioden?"),
+    help = Some("Opdel perioden i flere rækker, hvis skibets anvendelse skifter; uoplyste blandede anvendelser kan ikke beregnes som DIS."),
+    unit = None
+)
+= personskat_felt_dis_aktivitet = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Anvendelsesforløb::SøblUdelukkendeAnvendtTil::aktivitet::$variant),
+    label = "Skibets udelukkende aktivitet",
+    question = Some("Hvilken aktivitet blev skibet udelukkende anvendt til i perioden?"),
+    help = Some("Aktiviteten prøves mod tonnageskattelovens område og særreglerne i §§ 6 og 8."),
+    unit = None
+)
+= personskat_felt_dis_bugsering_søtransport = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::søtransport_minutter),
+    label = "Søtransporttid ved bugsering og bjærgning",
+    question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på søtransport ved bugsering eller bjærgning?"),
+    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Søtransporttid indgår i 50-procentprøven efter § 6."),
+    unit = Some("minutter")
+)
+= personskat_felt_dis_bugsering_mobilisering = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::mobilisering_til_søs_minutter),
+    label = "Mobiliseringstid til søs ved bugsering og bjærgning",
+    question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på mobilisering til søs?"),
+    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Mobilisering til søs medregnes som søtransporttid i 50-procentprøven."),
+    unit = Some("minutter")
+)
+= personskat_felt_dis_bugsering_andre_aktiviteter = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::andre_aktiviteter_minutter),
+    label = "Anden aktivitetstid ved bugsering og bjærgning",
+    question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på andre aktiviteter end søtransport og mobilisering til søs?"),
+    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Andre aktive minutter indgår i nævneren for 50-procentprøven."),
+    unit = Some("minutter")
+)
+= personskat_felt_dis_bugsering_ventetid = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::ventetid_minutter),
+    label = "Ventetid ved bugsering og bjærgning",
+    question = Some("Hvor mange minutter i hele indkomståret var skibet i ventetid?"),
+    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Ventetiden fordeles forholdsmæssigt og ændrer derfor ikke den aktive 50-procentandel."),
+    unit = Some("minutter")
+)
+= personskat_felt_dis_arbejdsområde = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::arbejde::arbejdsområde::$variant),
+    label = "Arbejdsområde inden for eller uden for EU/EØS",
+    question = Some("Blev arbejdet udført inden for eller uden for EU/EØS?"),
+    help = Some("Arbejdsområdet adskiller navnlig § 6-forhold fra valget efter § 8."),
+    unit = None
+)
+= personskat_felt_dis_passagerrute = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::arbejde::passagerrute::$variant),
+    label = "Passagersejladsens rute",
+    question = Some("Hvilken type passagerrute sejlede skibet i perioden?"),
+    help = Some("Regelmæssig passagersejlads mellem EU/EØS-havne og danske havne har særlige betingelser efter §§ 5 b og 7."),
+    unit = None
+)
+= personskat_felt_dis_arbejdsrolle = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::arbejde::arbejdsrolle::$variant),
+    label = "Arbejdsrolle om bord",
+    question = Some("Hvilken rolle eller fraværsperiode beskriver arbejdet?"),
+    help = Some("Bekendtgørelsens §§ 4-7 udvider og afgrænser, hvornår arbejde, kursus og nødvendige rejsedage anses for arbejde om bord."),
+    unit = None
+)
+= personskat_felt_dis_vedligehold_drift = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblMidlertidigtVedligeholdEllerReparation::skib_i_almindelig_drift),
+    label = "Skibet i almindelig drift under vedligeholdelsen",
+    question = Some("Var skibet i almindelig drift under det midlertidige vedligeholdelses- eller reparationsarbejde?"),
+    help = Some("Feltet indgår i afgrænsningen efter bekendtgørelsens § 4."),
+    unit = None
+)
+= personskat_felt_dis_vedligehold_besætning = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblMidlertidigtVedligeholdEllerReparation::del_af_sikkerheds_eller_driftsbesætning),
+    label = "Del af sikkerheds- eller driftsbesætningen",
+    question = Some("Var personen en del af skibets sikkerheds- eller driftsbesætning under arbejdet?"),
+    help = Some("En ren landbaseret reparationsfunktion er ikke i sig selv arbejde om bord efter ordningen."),
+    unit = None
+)
+= personskat_felt_dis_vedligehold_landpersonale = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblMidlertidigtVedligeholdEllerReparation::kan_umiddelbart_udføres_af_landpersonale),
+    label = "Arbejdet kunne umiddelbart udføres af landpersonale",
+    question = Some("Kunne arbejdet umiddelbart være udført af landbaseret personale?"),
+    help = Some("Oplysningen indgår i den konkrete afgrænsning af besætningsarbejde efter bekendtgørelsens § 4."),
+    unit = None
+)
+= personskat_felt_dis_udafdrift_varighed = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::varighed_dage),
+    label = "Dage på midlertidigt ude af drift-skib",
+    question = Some("Hvor mange dage varede arbejdet, mens skibet midlertidigt var ude af drift?"),
+    help = Some("Varigheden prøves mod seksmånedersgrænsen i bekendtgørelsens § 5."),
+    unit = Some("dage")
+)
+= personskat_felt_dis_udafdrift_før = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::umiddelbart_før_omfattet),
+    label = "Omfattet umiddelbart før driftsophøret",
+    question = Some("Var personen omfattet af DIS-reglerne umiddelbart før skibet blev taget ud af drift?"),
+    help = Some("Den forudgående tilknytning er en betingelse efter bekendtgørelsens § 5."),
+    unit = None
+)
+= personskat_felt_dis_udafdrift_kun_ansat = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift),
+    label = "Kun ansat til arbejde under driftsophøret",
+    question = Some("Var personen alene ansat til arbejdet, mens skibet var ude af drift?"),
+    help = Some("En sådan særskilt ansættelse falder uden for udvidelsen i bekendtgørelsens § 5."),
+    unit = None
+)
+= personskat_felt_dis_nybygning_varighed = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::varighed_dage),
+    label = "Dage med tilsyn ved nybygning",
+    question = Some("Hvor mange dage varede tilsynet ved nybygningen?"),
+    help = Some("Varigheden prøves mod seksmånedersgrænsen i bekendtgørelsens § 6."),
+    unit = Some("dage")
+)
+= personskat_felt_dis_nybygning_betingelser = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::skibet_opfylder_betingelser_efter_færdiggørelse),
+    label = "Nybygningen opfylder betingelserne efter færdiggørelse",
+    question = Some("Opfyldte skibet betingelserne for DIS-behandling efter færdiggørelsen?"),
+    help = Some("Det færdige skibs status er en betingelse for at medregne tilsynsperioden."),
+    unit = None
+)
+= personskat_felt_dis_nybygning_påmønstring = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::påmønstres_umiddelbart_efter_færdiggørelse),
+    label = "Påmønstring umiddelbart efter færdiggørelse",
+    question = Some("Påmønstrede personen skibet umiddelbart efter færdiggørelsen?"),
+    help = Some("Påmønstringen forbinder tilsynet med efterfølgende arbejde om bord efter bekendtgørelsens § 6."),
+    unit = None
+)
+= personskat_felt_dis_kursus_varighed = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::varighed_dage_i_12_måneder),
+    label = "Kursusdage inden for 12 måneder",
+    question = Some("Hvor mange kursusdage havde personen inden for den relevante 12-månedersperiode?"),
+    help = Some("Kursusophold kan højst medregnes i tre måneder inden for 12 måneder efter bekendtgørelsens § 7."),
+    unit = Some("dage")
+)
+= personskat_felt_dis_kursus_før = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::umiddelbart_før_omfattet),
+    label = "Omfattet umiddelbart før kursusopholdet",
+    question = Some("Var personen omfattet af DIS-reglerne umiddelbart før kurset?"),
+    help = Some("Den forudgående tilknytning er en betingelse i bekendtgørelsens § 7."),
+    unit = None
+)
+= personskat_felt_dis_kursus_ansat = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::fortsat_ansat_af_rederiet),
+    label = "Fortsat ansat af rederiet under kurset",
+    question = Some("Var personen fortsat ansat af rederiet under kursusopholdet?"),
+    help = Some("Fortsat ansættelse er en betingelse for at behandle kurset som arbejde om bord."),
+    unit = None
+)
+= personskat_felt_dis_rejsedage = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::dage_i_12_måneder),
+    label = "Nødvendige rejsedage inden for 12 måneder",
+    question = Some("Hvor mange nødvendige rejsedage til eller fra skibet havde personen inden for 12 måneder?"),
+    help = Some("Nødvendige rejsedage registreres særskilt efter bekendtgørelsens § 7."),
+    unit = Some("dage")
+)
+= personskat_felt_dis_par8_valg = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::arbejde::par8_valg::$variant),
+    label = "Valg for arbejde uden for EU/EØS efter § 8",
+    question = Some("Skal § 8 anvendes, eller er der valgt refusion eller almindelig beskatning efter § 10?"),
+    help = Some("Valget er kun materielt for de skibe og aktiviteter uden for EU/EØS, som § 8 omfatter."),
+    unit = None
+)
+= personskat_felt_dis_indkomsttype = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::løn::indkomsttype::$variant),
+    label = "Sømandsindkomstens retlige type",
+    question = Some("Er beløbet løn for arbejde om bord, en § 7 U-ydelse med direkte tilknytning eller en anden indkomsttype?"),
+    help = Some("Kun løn og direkte tilknyttede ydelser er omfattet af fritagelsen efter § 5."),
+    unit = None
+)
+= personskat_felt_dis_løngrundlag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::løn::løngrundlag::$variant),
+    label = "Sømandsindkomstens løngrundlag",
+    question = Some("Er beløbet en skattefri nettoløn fastsat under hensyn til fritagelsen, en ordinær bruttoløn eller en udokumenteret nettoløn?"),
+    help = Some("Nettolønsbetingelsen er en materiel betingelse; Futuruna omregner ikke automatisk en udokumenteret nettoløn til bruttoløn."),
+    unit = None
+)
+= personskat_felt_dis_beløb = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::løn::beløb_kroner),
+    label = "Løn eller direkte tilknyttet ydelse",
+    question = Some("Hvor stort var beløbet for denne indkomstperiode?"),
+    help = Some("Angiv beløbet på det valgte løngrundlag. Kvalificerende DIS-indkomst indgår i progressionen, men ikke i AM-bidragsgrundlaget."),
+    unit = Some("kr.")
 )
 = personskat_felt_ægtefælle = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::$variant),
@@ -8021,6 +8295,60 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
     )
 )
+= personskat_meta_dis_indkomster = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_dis_indkomster,
+        personskat_felt_dis_identifikation,
+        personskat_felt_dis_indkomstår,
+        personskat_felt_dis_skattepligt,
+        personskat_felt_dis_statsborgerskab,
+        personskat_felt_dis_personrelation,
+        personskat_felt_dis_ejeraflønning,
+        personskat_felt_dis_kontrolaflønning,
+        personskat_felt_dis_registrering,
+        personskat_felt_dis_eu_eøs_flag,
+        personskat_felt_dis_udenfor_eu_eøs_flag,
+        personskat_felt_dis_bruttotonnage,
+        personskat_felt_dis_arbejdsgiverstatus,
+        personskat_felt_dis_anvendelsesforløb,
+        personskat_felt_dis_aktivitet,
+        personskat_felt_dis_bugsering_søtransport,
+        personskat_felt_dis_bugsering_mobilisering,
+        personskat_felt_dis_bugsering_andre_aktiviteter,
+        personskat_felt_dis_bugsering_ventetid,
+        personskat_felt_dis_arbejdsområde,
+        personskat_felt_dis_passagerrute,
+        personskat_felt_dis_arbejdsrolle,
+        personskat_felt_dis_vedligehold_drift,
+        personskat_felt_dis_vedligehold_besætning,
+        personskat_felt_dis_vedligehold_landpersonale,
+        personskat_felt_dis_udafdrift_varighed,
+        personskat_felt_dis_udafdrift_før,
+        personskat_felt_dis_udafdrift_kun_ansat,
+        personskat_felt_dis_nybygning_varighed,
+        personskat_felt_dis_nybygning_betingelser,
+        personskat_felt_dis_nybygning_påmønstring,
+        personskat_felt_dis_kursus_varighed,
+        personskat_felt_dis_kursus_før,
+        personskat_felt_dis_kursus_ansat,
+        personskat_felt_dis_rejsedage,
+        personskat_felt_dis_par8_valg,
+        personskat_felt_dis_indkomsttype,
+        personskat_felt_dis_løngrundlag,
+        personskat_felt_dis_beløb
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
+        DependencySource(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_tonnageskattelov),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+        Practice(value = søbl5_til8_skm2019_141),
+        Practice(value = søbl5_til8_skm2020_75),
+    )
+)
 = personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ægtefælle),
@@ -9385,6 +9713,7 @@
         personskat_metadata_skatteår,
         personskat_metadata_kommune,
         personskat_metadata_bruttoløn,
+        personskat_meta_dis_indkomster,
         personskat_metadata_ægtefællegrundlag,
         personskat_metadata_underskudsforhold,
         personskat_metadata_befordring,
@@ -9782,7 +10111,9 @@
 | personskat_ligningsfradrag_resultat(input: PersonskatLigningsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, personlig_indkomst: PersonskatPersonligIndkomstResultat, ligningslov12_indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> {
     = sømandsfradrag = sømandsbeskatningslov3_årsresultat(indkomstår = lønmodtager.skatteår, input = input.sømandsfradrag)
     = rejser_før_sømandsbeskatningslov4_stk2 = ligningslov9a_årsresultat(indkomstår = lønmodtager.skatteår, input = input.rejser, ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse)
-    = rejser_ekstern_udelukkelse = hvis sømandsfradrag.kan_foretage_fradrag_efter_par3 { Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 } ellers { Ll9AIngenEksternUdelukkelse }
+    = rejser_ekstern_udelukkelse = hvis personlig_indkomst.sømandsbeskatning.ligningslov9a_stk1_til9_afskåret { Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 } ellers {
+        hvis sømandsfradrag.kan_foretage_fradrag_efter_par3 { Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 } ellers { Ll9AIngenEksternUdelukkelse }
+    }
     = rejser = ligningslov9a_årsresultat(indkomstår = lønmodtager.skatteår, input = input.rejser, ekstern_udelukkelse = rejser_ekstern_udelukkelse)
     = erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner = erhvervsbefordring.samlet_skattefri_godtgørelse_kroner
     = erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner = personskat_søbl4_erhvervsbefordring_skattefri_godtgørelse_anvendt_kroner(erhvervsbefordring = erhvervsbefordring, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
@@ -11760,13 +12091,15 @@
     = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32))
     = parberegning = personskat_parberegning_med_par32(hovedgrundlag, input.ægtefælle, aktieavance_par.ægtefælle, personskat_kgl_par32_ægtefælle_kontekst(kursgevinst_par32))
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
+    = sømandsbeskatning = søbl5_lempelsesresultat(parberegning.hovedskat, hovedgrundlag.personlig_indkomst.sømandsbeskatning)
     = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(input.lønmodtager.skatteår, parberegning.hovedskatteforhold)
-    = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = skat.samlet_inkl_am_efter_personfradrag_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
+    = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
     = ejendomsskatteårskontekst = personskat_ejendomsskat_årskontekst(hovedgrundlag, parberegning, input.ejendomsskatter)
     = ejendomsskatter = ejendomsskattelov_person_årsresultat(ejendomsskatteårskontekst, input.ejendomsskatter.ejendomme)
     = samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner + ejendomsskatter.samlet_ejendomsskat_kroner
     PersonskatBeregningResultat(
         skat = skat,
+        sømandsbeskatning = sømandsbeskatning,
         indgående_ægtefælle = parberegning.hovedskat.indgående_ægtefælle,
         ægtefælle = parberegning.ægtefælle,
         underskudsår = personskat_underskudsparårsresultat(input, parberegning),
@@ -11801,7 +12134,8 @@
             samlevende_ved_indkomstårets_udløb
         )
         = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(grundlag.fakta.lønmodtager.skatteår, ægtefælles_skatteforhold)
-        skat.slutskat.samlet_inkl_am_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
+        = sømandsbeskatning = søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning)
+        sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
     }
 }
 | personskat_slutskat_parprojektion(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {

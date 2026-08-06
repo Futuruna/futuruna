@@ -1,0 +1,419 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./source - status
+@ importer ./kapitel - 03 - personfradrag
+@ importer ./soemandsbeskatningsloven - par3 - par4
+
+# Søbl5Til8KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= søbl5_til8_lbk1181 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1181",
+    identifier = "Sømandsbeskatningsloven §§ 1 og 5-8, LBK nr. 1181 af 21/09/2023",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende LOV nr. 333 af 09/04/2024 gennemgået; ændringen indsætter alene § 11 c og ændrer ikke §§ 1 eller 5-8"
+)
+= søbl5_til8_lov333 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/333",
+    identifier = "LOV nr. 333 af 09/04/2024 § 5",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Seneste efterfølgende ændring til sømandsbeskatningsloven kontrolleret"
+)
+= søbl5_til8_bek940 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2022/940",
+    identifier = "Bekendtgørelse om beskatning af søfolk §§ 1 og 4-7, BEK nr. 940 af 20/06/2022",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende bekendtgørelse kontrolleret 04/08/2026"
+)
+= søbl5_til8_tonnageskattelov = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/500",
+    identifier = "Tonnageskatteloven §§ 6, 8 og 8 a, LBK nr. 500 af 22/03/2021 med senere ændringer",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Aktivitetsafgrænsningen i §§ 6 og 8 a kontrolleret mod den gældende forskrift"
+)
+= søbl5_til8_juridisk_vejledning = Søbl5Til8KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976792",
+    identifier = "Den juridiske vejledning 2026-1, C.A.3.4.6.5: DIS-ordningen",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning om personkreds, nettoløn, AM-bidrag og exemption med progression kontrolleret"
+)
+= søbl5_til8_skm2019_141 = Søbl5Til8KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2285746",
+    identifier = "SKM2019.141.SR: forholdsmæssig DIS- og DAS-aflønning",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Praksis om opdeling efter faktiske arbejdsperioder kontrolleret"
+)
+= søbl5_til8_skm2020_75 = Søbl5Til8KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2294814",
+    identifier = "SKM2020.75.SR: DIS-indkomst, personlig indkomst og AM-bidrag",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Praksis om indkomstplacering og bidragsfritagelse kontrolleret"
+)
+
+= søbl5_til8_par1_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+    )
+)
+
+--@label:søbl5_til8_par1_stk3_stk4::meta:søbl5_til8_par1_metadata--
+----
+§ 1, stk. 3. Personer, som erhverver indkomst ved arbejde om bord på skib, som de ejer, eller i hvilket de som partredere eller interessenter ejer en andel, er omfattet af denne lov. Det er en betingelse for anvendelsen af §§ 5, 6 og 8, at ejerens, partrederens eller interessentens aflønning svarer til den, der ydes til ansatte med samme anciennitet m.v.
+
+Stk. 4. Stk. 3 finder tilsvarende anvendelse for personer, som udøver bestemmende indflydelse over det rederi, som ejer det skib, hvor den pågældende udfører arbejde, og dermed nærtstående personer. Ved bestemmende indflydelse forstås ejerskab eller rådighed over stemmerettigheder som nævnt i ligningslovens § 2, stk. 2. Ved nærtstående personer forstås personer som nævnt i ligningslovens § 16 H, stk. 2, 3. og 4. pkt.
+----
+
+--@begin::søbl5_til8_par1_stk3_stk4--
+# Søbl5Til8Aflønningssammenligning = SøblAflønningSvarerTilSammenligneligeAnsatte | SøblAflønningAfvigerFraSammenligneligeAnsatte
+# Søbl5Til8Personrelation = SøblAlmindeligLønmodtager | SøblEjerPartrederEllerInteressent(sammenligning: Søbl5Til8Aflønningssammenligning) | SøblBestemmendeIndflydelseEllerNærtstående(sammenligning: Søbl5Til8Aflønningssammenligning)
+
+| søbl5_til8_aflønningsbetingelse_opfyldt(relation: Søbl5Til8Personrelation) -> match relation {
+    | SøblAlmindeligLønmodtager -> Sandt
+    | SøblEjerPartrederEllerInteressent(sammenligning) -> sammenligning == SøblAflønningSvarerTilSammenligneligeAnsatte
+    | SøblBestemmendeIndflydelseEllerNærtstående(sammenligning) -> sammenligning == SøblAflønningSvarerTilSammenligneligeAnsatte
+}
+--@end::søbl5_til8_par1_stk3_stk4--
+
+= søbl5_til8_bek940_par1_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_lbk1181),
+    )
+)
+
+--@label:søbl5_til8_bek940_par1::meta:søbl5_til8_bek940_par1_metadata--
+----
+§ 1. Sømandsfradrag kan vælges i følgende tilfælde, når betingelserne i sømandsbeskatningslovens § 3 er opfyldt:
+1) Ved ansættelse til arbejde om bord, når den pågældende indgår i skibets normale driftsbesætning og udelukkende udfører opgaver, der vedrører skibets almindelige drift i bred forstand.
+2) Ved ansættelse af midlertidig karakter til særlige vedligeholdelses- eller reparationsarbejder om bord. Det er en forudsætning, at arbejdet udføres, mens skibet er i almindelig drift, at den pågældende indgår eller vil kunne indgå i skibets sikkerheds- eller driftsbesætning, og at arbejdet ikke umiddelbart vil kunne udføres af landbaseret personale.
+3) Ved påmønstring af skib med henblik på at udføre opgaver i forbindelse med skibets særlige tilrigning, last, arbejdsopgaver eller sejlads, når den pågældende indgår som en del af skibets driftsbesætning.
+4) Ved arbejde om bord på skibe, som er ude af drift på grund af reparationsarbejde, midlertidig oplægning og lignende af højst seks måneders varighed. Det er en betingelse, at den pågældende umiddelbart før reparationsarbejdet eller den midlertidige oplægning var omfattet af sømandsbeskatningsloven, og at ansættelsesforholdet ikke alene er indgået med henblik på arbejde om bord på skib ude af drift. Skibsværftsarbejdere, landbaserede reparatører m.v. er ikke omfattet.
+
+Stk. 2. Stk. 1 finder tilsvarende anvendelse i følgende tilfælde:
+1) Ved udførelse af tilsynsopgaver af indtil seks måneders varighed i forbindelse med nybygning af skib, når skibet efter færdiggørelsen opfylder betingelserne for anvendelse af sømandsbeskatningslovens § 3, og den pågældende umiddelbart efter færdiggørelsen påmønstres skibet, jf. stk. 1, nr. 1 og 3.
+2) Ved kursusophold m.v. af indtil tre måneders samlet varighed inden for en 12-månedersperiode, forudsat at den pågældende umiddelbart før kursusopholdet var omfattet af stk. 1, nr. 1, og at den pågældende under kursusopholdet fortsat er ansat af rederiet.
+
+Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring anses for arbejde udført om bord på skib. Omfanget kan højst udgøre 14 dage inden for en 12-månedersperiode.
+----
+
+--@begin::søbl5_til8_bek940_par1--
+# Søbl5Til8Arbejdsrolle = SøblNormalDriftsbesætning | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift: Boolsk, del_af_sikkerheds_eller_driftsbesætning: Boolsk, kan_umiddelbart_udføres_af_landpersonale: Boolsk) | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning | SøblArbejdePåMidlertidigtUdeAfDriftSkib(varighed_dage: Heltal, umiddelbart_før_omfattet: Boolsk, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift: Boolsk) | SøblNybygningstilsyn(varighed_dage: Heltal, skibet_opfylder_betingelser_efter_færdiggørelse: Boolsk, påmønstres_umiddelbart_efter_færdiggørelse: Boolsk) | SøblKursusophold(varighed_dage_i_12_måneder: Heltal, umiddelbart_før_omfattet: Boolsk, fortsat_ansat_af_rederiet: Boolsk) | SøblNødvendigeRejsedage(dage_i_12_måneder: Heltal) | SøblAndetArbejde
+
+| søbl5_til8_arbejdsrolle_omfattet(rolle: Søbl5Til8Arbejdsrolle) -> match rolle {
+    | SøblNormalDriftsbesætning -> Sandt
+    | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift, del_af_sikkerheds_eller_driftsbesætning, kan_umiddelbart_udføres_af_landpersonale) -> skib_i_almindelig_drift && del_af_sikkerheds_eller_driftsbesætning && kan_umiddelbart_udføres_af_landpersonale == Falskt
+    | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning -> Sandt
+    | SøblArbejdePåMidlertidigtUdeAfDriftSkib(varighed_dage, umiddelbart_før_omfattet, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift) -> varighed_dage >= 0 && varighed_dage <= 184 && umiddelbart_før_omfattet && kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift == Falskt
+    | SøblNybygningstilsyn(varighed_dage, skibet_opfylder_betingelser_efter_færdiggørelse, påmønstres_umiddelbart_efter_færdiggørelse) -> varighed_dage >= 0 && varighed_dage <= 184 && skibet_opfylder_betingelser_efter_færdiggørelse && påmønstres_umiddelbart_efter_færdiggørelse
+    | SøblKursusophold(varighed_dage_i_12_måneder, umiddelbart_før_omfattet, fortsat_ansat_af_rederiet) -> varighed_dage_i_12_måneder >= 0 && varighed_dage_i_12_måneder <= 92 && umiddelbart_før_omfattet && fortsat_ansat_af_rederiet
+    | SøblNødvendigeRejsedage(dage_i_12_måneder) -> dage_i_12_måneder >= 0 && dage_i_12_måneder <= 14
+    | SøblAndetArbejde -> Falskt
+}
+--@end::søbl5_til8_bek940_par1--
+
+= søbl5_til8_par5_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
+        DependencySource(value = søbl5_til8_tonnageskattelov),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+        Practice(value = søbl5_til8_skm2019_141),
+        Practice(value = søbl5_til8_skm2020_75),
+    )
+)
+
+--@label:søbl5_til8_par5::meta:søbl5_til8_par5_metadata--
+----
+§ 5. Har en person, der er skattepligtig efter kildeskattelovens § 1, erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål, som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst. 1. pkt. finder tilsvarende anvendelse på dødsboer omfattet af dødsboskattelovens § 1, stk. 2. Gratialer og fratrædelsesgodtgørelser m.v., jf. ligningslovens § 7 U, er omfattet af 1. pkt., når den pågældende ydelse har direkte tilknytning til arbejde udført om bord på skib som nævnt i 1. pkt.
+
+Stk. 2. Personer, som er skattepligtige efter kildeskattelovens § 2, stk. 2, svarer ikke skat af lønindkomst erhvervet ved arbejde om bord på et dansk skib, som er registreret i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål, som vil kunne omfattes af tonnageskatteloven. Stk. 1, 3. pkt., finder tilsvarende anvendelse.
+
+Stk. 3. Stk. 1 og 2 og § 3 gælder også ved arbejde om bord på et specialfartøj, når fartøjet er registreret i Dansk Internationalt Skibsregister og udelukkende udfører aktiviteter, der vil kunne omfattes af tonnageskattelovens § 6 eller § 8 a, nr. 1 eller 2 eller nr. 3, 1. pkt., hvor betingelsen i 2. pkt. ikke finder tilsvarende anvendelse, eller nr. 4-6.
+
+Stk. 4. Skattefritagelse efter stk. 1-3 er betinget af, at løn og godtgørelser m.v. er fastsat under hensyn til skattefritagelsen.
+
+Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens § 9 A, stk. 1-9.
+
+§ 5 a. (Ophævet)
+----
+
+--@begin::søbl5_til8_par5--
+# Søbl5Til8Skattepligt = SøblFuldtSkattepligtigEfterKsl1 | SøblBegrænsetSkattepligtigEfterKsl2Stk2 | SøblKulbrinteskattepligtigEfterPar21Stk2 | SøblAndenSkattepligtsposition
+# Søbl5Til8Statsborgerskab = SøblStatsborgerIEUEØS | SøblStatsborgerISchweiz | SøblBritiskStatsborgerOmfattetAfUdtrædelsesaftalen | SøblAndetStatsborgerskab
+# Søbl5Til8Flag = SøblEUEØSFlag | SøblFlagUdenForEUEØS
+# Søbl5Til8Registrering = SøblDanskSkibRegistreretIDIS | SøblDanskSkibRegistreretIDAS | SøblUdenlandskSkibRegistreretIEUEØS(flag: Søbl5Til8Flag) | SøblSkibRegistreretUdenForEUEØS(flag: Søbl5Til8Flag)
+# Søbl5Til8Arbejdsgiverstatus = SøblDanskArbejdsgiver | SøblUdenlandskArbejdsgiverGodkendtEfterPar11A | SøblUdenlandskArbejdsgiverIkkeGodkendtEfterPar11A
+# Søbl5Til8Skibsfakta(registrering: Søbl5Til8Registrering, bruttotonnage: Heltal, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus)
+# Søbl5Til8Arbejdsområde = SøblArbejdeIndenForEUEØS | SøblArbejdeUdenForEUEØS
+# Søbl5Til8Passagerrute = SøblIngenPassagersejlads | SøblIkkeRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemDanskeHavne | SøblPassagersejladsMellemDanskeHavneTilFraHavanlæg | SøblAndenPassagersejladsMellemDanskeHavne
+# Søbl6Driftstid(søtransport_minutter: Heltal, mobilisering_til_søs_minutter: Heltal, andre_aktiviteter_minutter: Heltal, ventetid_minutter: Heltal)
+# Søbl5Til8Aktivitet = SøblTransportAfGodsMellemForskelligeDestinationer | SøblTransportAfPassagererMellemForskelligeDestinationer | SøblVagttjeneste | SøblStøtteOgServicefunktion | SøblBygningReparationEllerNedtagningAfHavanlæg | SøblRørledningEllerKabelPåHavbunden | SøblIshåndtering | SøblHusningVedOffshorearbejde | SøblBugseringOgBjærgning(driftstid: Søbl6Driftstid) | SøblStenfiskeriEllerSandsugning | SøblAndenSkibsaktivitet
+# Søbl5Til8Anvendelsesforløb = SøblUdelukkendeAnvendtTil(aktivitet: Søbl5Til8Aktivitet) | SøblPeriodeMedFlereEllerUoplysteAnvendelser
+# Søbl5Til8Indkomsttype = SøblLønVedArbejdeOmBord | SøblLigningslov7UYdelseMedDirekteTilknytning | SøblLigningslov7UYdelseUdenDirekteTilknytning | SøblAndenIndkomsttype
+# Søbl5Til8Løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen | SøblOrdinærBruttoløn | SøblNettolønUdenDokumenteretFastsættelse
+# Søbl5Til8Lønfakta(indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal)
+# Søbl8Beskatningsvalg = SøblAnvendPar8DIS | SøblAnvendPar10RefusionEllerAlmindeligBeskatning
+# Søbl5Til8Personfakta(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab, relation: Søbl5Til8Personrelation)
+# Søbl5Til8Arbejdsfakta(anvendelse: Søbl5Til8Anvendelsesforløb, arbejdsområde: Søbl5Til8Arbejdsområde, passagerrute: Søbl5Til8Passagerrute, arbejdsrolle: Søbl5Til8Arbejdsrolle, par8_valg: Søbl8Beskatningsvalg)
+# Søbl5Til8Indkomstfakta(identifikation: Tekst, indkomstår: Heltal, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta)
+# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta))
+# Søbl5Til8Beskatningsvirkning = SøblIngenDISVirkning | SøblNedsættelseAfSamletIndkomstskat | SøblIngenDanskSkatEfterPar5Stk2 | SøblKulbrinteskattelov21Stk2Virkning
+# Søbl5Til8Retsgrundlag = SøblIntetRetsgrundlag | SøblPar5Stk1 | SøblPar5Stk2 | SøblPar5B | SøblPar6 | SøblPar7 | SøblPar8
+# Søbl5Til8Indkomstresultat(fakta: Søbl5Til8Indkomstfakta, input_gyldigt: Boolsk, arbejdsrolle_omfattet: Boolsk, aflønningsbetingelse_opfyldt: Boolsk, indkomsttype_omfattet: Boolsk, nettolønsbetingelse_opfyldt: Boolsk, tonnageskatteaktivitet_opfyldt: Boolsk, par5_opfyldt: Boolsk, par5b_opfyldt: Boolsk, par6_opfyldt: Boolsk, par7_opfyldt: Boolsk, par8_opfyldt: Boolsk, kan_anvende_par5_til8: Boolsk, retsgrundlag: Søbl5Til8Retsgrundlag, beskatningsvirkning: Søbl5Til8Beskatningsvirkning, dis_personlig_indkomst_kroner: Heltal, ordinær_bruttoløn_kroner: Heltal, uafklaret_nettoløn_kroner: Heltal, arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
+# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, indkomstresultater: List(Søbl5Til8Indkomstresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
+
+| søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [])
+| søbl5_til8_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| søbl5_til8_identifikationer_entydige(indkomster: List(Søbl5Til8Indkomstfakta)) -> length(distinct(map(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation))) == length(indkomster) && all(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation != "")
+| søbl5_til8_registrering_har_eu_eøs_hjemsted(registrering: Søbl5Til8Registrering) -> match registrering {
+    | SøblDanskSkibRegistreretIDIS -> Sandt
+    | SøblDanskSkibRegistreretIDAS -> Sandt
+    | SøblUdenlandskSkibRegistreretIEUEØS(_) -> Sandt
+    | _ -> Falskt
+}
+| søbl5_til8_registrering_har_eu_eøs_flag(registrering: Søbl5Til8Registrering) -> match registrering {
+    | SøblDanskSkibRegistreretIDIS -> Sandt
+    | SøblDanskSkibRegistreretIDAS -> Sandt
+    | SøblUdenlandskSkibRegistreretIEUEØS(flag) -> flag == SøblEUEØSFlag
+    | SøblSkibRegistreretUdenForEUEØS(flag) -> flag == SøblEUEØSFlag
+}
+| søbl5_til8_dansk_dis_skib(skib: Søbl5Til8Skibsfakta) -> skib.registrering == SøblDanskSkibRegistreretIDIS && skib.bruttotonnage >= 20
+| søbl5_til8_udenlandsk_eu_eøs_skib(skib: Søbl5Til8Skibsfakta) -> match skib.registrering {
+    | SøblUdenlandskSkibRegistreretIEUEØS(flag) -> skib.bruttotonnage >= 20 && flag == SøblEUEØSFlag
+    | _ -> Falskt
+}
+| søbl5_til8_indkomsttype_omfattet(indkomsttype: Søbl5Til8Indkomsttype) -> indkomsttype == SøblLønVedArbejdeOmBord || indkomsttype == SøblLigningslov7UYdelseMedDirekteTilknytning
+| søbl5_til8_nettolønsbetingelse_opfyldt(løngrundlag: Søbl5Til8Løngrundlag) -> løngrundlag == SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen
+| søbl5_til8_passagerrute_forenelig(aktivitet: Søbl5Til8Aktivitet, passagerrute: Søbl5Til8Passagerrute) -> hvis aktivitet == SøblTransportAfPassagererMellemForskelligeDestinationer { passagerrute != SøblIngenPassagersejlads } ellers { passagerrute == SøblIngenPassagersejlads }
+| søbl5_til8_driftstid_gyldig(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter >= 0 && driftstid.mobilisering_til_søs_minutter >= 0 && driftstid.andre_aktiviteter_minutter >= 0 && driftstid.ventetid_minutter >= 0 && driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter + driftstid.andre_aktiviteter_minutter > 0
+| søbl5_til8_fakta_gyldige(fakta: Søbl5Til8Indkomstfakta) -> fakta.identifikation != "" && fakta.indkomstår >= 1900 && fakta.skib.bruttotonnage >= 0 && fakta.løn.beløb_kroner >= 0 && match fakta.arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(driftstid)) -> søbl5_til8_driftstid_gyldig(driftstid) && søbl5_til8_passagerrute_forenelig(SøblBugseringOgBjærgning(driftstid), fakta.arbejde.passagerrute)
+    | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_passagerrute_forenelig(aktivitet, fakta.arbejde.passagerrute)
+    | SøblPeriodeMedFlereEllerUoplysteAnvendelser -> fakta.arbejde.passagerrute == SøblIngenPassagersejlads
+}
+| søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet: Søbl5Til8Aktivitet) -> match aktivitet {
+    | SøblTransportAfGodsMellemForskelligeDestinationer -> Sandt
+    | SøblTransportAfPassagererMellemForskelligeDestinationer -> Sandt
+    | SøblVagttjeneste -> Sandt
+    | SøblStøtteOgServicefunktion -> Sandt
+    | SøblBygningReparationEllerNedtagningAfHavanlæg -> Sandt
+    | SøblRørledningEllerKabelPåHavbunden -> Sandt
+    | SøblIshåndtering -> Sandt
+    | SøblHusningVedOffshorearbejde -> Sandt
+    | SøblBugseringOgBjærgning(driftstid) -> søbl6_søtransportandel_mindst_halvdelen(driftstid)
+    | _ -> Falskt
+}
+| søbl5_til8_tonnageskatteaktivitet_opfyldt(arbejde: Søbl5Til8Arbejdsfakta) -> match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet)
+    | SøblPeriodeMedFlereEllerUoplysteAnvendelser -> Falskt
+}
+| søbl5_til8_fuldt_eller_begrænset_skattepligtig(skattepligt: Søbl5Til8Skattepligt) -> skattepligt == SøblFuldtSkattepligtigEfterKsl1 || skattepligt == SøblBegrænsetSkattepligtigEfterKsl2Stk2
+--@end::søbl5_til8_par5--
+
+--@label:søbl5_til8_par5b::meta:søbl5_til8_par5_metadata--
+----
+§ 5 b. § 5 finder tilsvarende anvendelse for personer, der er skattepligtige efter kildeskattelovens § 1 eller § 2, stk. 2, eller kulbrinteskattelovens § 21, stk. 2, og som erhverver lønindkomst ved arbejde om bord på et udenlandsk skib, der er registreret med hjemsted i en EU- eller EØS-medlemsstat og sejler under et flag fra en EU- eller EØS-medlemsstat, såfremt skibet udelukkende anvendes til formål, der vil kunne omfattes af tonnageskattelovens § 6 eller § 8 a, nr. 1 eller 2 eller nr. 3, 1. pkt., hvor betingelsen i 2. pkt. ikke finder tilsvarende anvendelse, eller nr. 4-6.
+
+Stk. 2. Skattefritagelse efter stk. 1 er betinget af, at arbejdsgiveren er godkendt af told- og skatteforvaltningen efter § 11 a. Det er endvidere en betingelse, at skibet ikke anvendes til sejlads med passagerer mellem danske havne. 2. pkt. gælder dog ikke ved fart til og fra havanlæg.
+----
+
+--@begin::søbl5_til8_par5b--
+| søbl5b_skattepligt_opfyldt(skattepligt: Søbl5Til8Skattepligt) -> søbl5_til8_fuldt_eller_begrænset_skattepligtig(skattepligt) || skattepligt == SøblKulbrinteskattepligtigEfterPar21Stk2
+| søbl5b_passagerbetingelse_opfyldt(passagerrute: Søbl5Til8Passagerrute) -> passagerrute != SøblRegelmæssigPassagersejladsMellemDanskeHavne && passagerrute != SøblAndenPassagersejladsMellemDanskeHavne
+| søbl5b_skibs_og_arbejdsgiverbetingelser_opfyldt(skib: Søbl5Til8Skibsfakta, passagerrute: Søbl5Til8Passagerrute) -> søbl5_til8_udenlandsk_eu_eøs_skib(skib) && skib.arbejdsgiverstatus == SøblUdenlandskArbejdsgiverGodkendtEfterPar11A && søbl5b_passagerbetingelse_opfyldt(passagerrute)
+--@end::søbl5_til8_par5b--
+
+= søbl5_til8_par6_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_tonnageskattelov),
+    )
+)
+
+--@label:søbl5_til8_par6::meta:søbl5_til8_par6_metadata--
+----
+§ 6. Ved arbejde om bord på skib, som anvendes som bugser- og bjærgningsfartøj inden for EU/EØS, finder § 5 udelukkende anvendelse i tilfælde, hvor skibet udfører virksomhed med karakter af søtransport i mindst 50 pct. af den tid, skibet i løbet af et indkomstår er i drift. Det er en betingelse, at fartøjet har hjemsted i en EU- eller EØS-medlemsstat.
+
+Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den tid, der er medgået til bugser- og bjærgningsaktiviteter til søs, og den tid, der er anvendt til andre aktiviteter.
+----
+
+--@begin::søbl5_til8_par6--
+| søbl6_søtransportminutter_før_ventetid(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter
+| søbl6_aktive_minutter_før_ventetid(driftstid: Søbl6Driftstid) -> søbl6_søtransportminutter_før_ventetid(driftstid) + driftstid.andre_aktiviteter_minutter
+| søbl6_søtransportandel_mindst_halvdelen(driftstid: Søbl6Driftstid) -> søbl5_til8_driftstid_gyldig(driftstid) && søbl6_søtransportminutter_før_ventetid(driftstid) * 2 >= søbl6_aktive_minutter_før_ventetid(driftstid)
+| søbl6_finder_anvendelse(arbejde: Søbl5Til8Arbejdsfakta) -> arbejde.arbejdsområde == SøblArbejdeIndenForEUEØS && match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(_)) -> Sandt
+    | _ -> Falskt
+}
+| søbl6_betingelser_opfyldt(skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta) -> hvis søbl6_finder_anvendelse(arbejde) { søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(driftstid)) -> søbl6_søtransportandel_mindst_halvdelen(driftstid)
+    | _ -> Falskt
+} } ellers { Sandt }
+--@end::søbl5_til8_par6--
+
+= søbl5_til8_par7_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+    )
+)
+
+--@label:søbl5_til8_par7::meta:søbl5_til8_par7_metadata--
+----
+§ 7. Ved arbejde om bord på et skib, som sejler i regelmæssig passagersejlads mellem havne i EU- eller EØS-medlemsstater, finder § 5 kun anvendelse på personer, der er skattepligtige efter kildeskattelovens § 1 eller § 2, stk. 2, og som er statsborgere i en EU- eller EØS-medlemsstat eller i Schweiz. Med personer, som er statsborgere i en EU-medlemsstat, sidestilles personer, der er statsborgere i Det Forenede Kongerige, og som er omfattet af anden del, afsnit II, kapitel 2, i Aftale om Det Forenede Kongerige Storbritannien og Nordirlands udtræden af Den Europæiske Union og Det Europæiske Atomenergifællesskab (2019/C 384 I/01).
+
+Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret med hjemsted i en EU- eller EØS-medlemsstat og sejler under et flag fra en EU- eller EØS-medlemsstat.
+----
+
+--@begin::søbl5_til8_par7--
+| søbl7_regelmæssig_passagersejlads(passagerrute: Søbl5Til8Passagerrute) -> passagerrute == SøblRegelmæssigPassagersejladsMellemEUEØSHavne || passagerrute == SøblRegelmæssigPassagersejladsMellemDanskeHavne || passagerrute == SøblPassagersejladsMellemDanskeHavneTilFraHavanlæg
+| søbl7_statsborgerskab_opfyldt(statsborgerskab: Søbl5Til8Statsborgerskab) -> statsborgerskab == SøblStatsborgerIEUEØS || statsborgerskab == SøblStatsborgerISchweiz || statsborgerskab == SøblBritiskStatsborgerOmfattetAfUdtrædelsesaftalen
+| søbl7_betingelser_opfyldt(person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, passagerrute: Søbl5Til8Passagerrute) -> hvis søbl7_regelmæssig_passagersejlads(passagerrute) { søbl5_til8_fuldt_eller_begrænset_skattepligtig(person.skattepligt) && søbl7_statsborgerskab_opfyldt(person.statsborgerskab) && søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && søbl5_til8_registrering_har_eu_eøs_flag(skib.registrering) } ellers { Sandt }
+--@end::søbl5_til8_par7--
+
+= søbl5_til8_par8_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = søbl5_til8_bek940),
+        Guidance(value = søbl5_til8_juridisk_vejledning),
+    )
+)
+
+--@label:søbl5_til8_par8::meta:søbl5_til8_par8_metadata--
+----
+§ 8. § 5 finder uanset tonnageskattelovens bestemmelser tilsvarende anvendelse ved arbejde uden for EU/EØS om bord på stenfiskerfartøjer, herunder sandsugere, som nævnt i § 10, stk. 1.
+----
+
+--@begin::søbl5_til8_par8--
+| søbl8_skib_omfattet_af_par10_stk1(skib: Søbl5Til8Skibsfakta) -> skib.bruttotonnage >= 20 && match skib.registrering {
+    | SøblDanskSkibRegistreretIDIS -> Sandt
+    | SøblDanskSkibRegistreretIDAS -> Sandt
+    | SøblUdenlandskSkibRegistreretIEUEØS(flag) -> flag == SøblEUEØSFlag
+    | _ -> Falskt
+}
+| søbl8_betingelser_opfyldt(skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta) -> arbejde.arbejdsområde == SøblArbejdeUdenForEUEØS && arbejde.par8_valg == SøblAnvendPar8DIS && søbl8_skib_omfattet_af_par10_stk1(skib) && match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblStenfiskeriEllerSandsugning) -> Sandt
+    | _ -> Falskt
+}
+--@end::søbl5_til8_par8--
+
+= søbl5_til8_bek940_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_lbk1181),
+    )
+)
+
+--@label:søbl5_til8_bek940_par4_til7::meta:søbl5_til8_bek940_metadata--
+----
+§ 4. Lønindkomst kan beskattes efter sømandsbeskatningslovens §§ 5-8 i samme omfang som nævnt i § 1, når skibet er et dansk skib registreret i Dansk Internationalt Skibsregister eller et udenlandsk skib registreret i et skibsregister i en anden EU- eller EØS-medlemsstat, når skibet udelukkende anvendes til formål, der ville kunne omfattes af tonnageskattelovens § 6 eller § 8 a, nr. 1 eller 2 eller nr. 3, 1. pkt., hvor betingelsen i 2. pkt. ikke finder tilsvarende anvendelse, eller nr. 4-6. Ved tilsynsopgaver som omhandlet i § 1, stk. 2, nr. 1, er det en betingelse, at skibet efter færdiggørelsen opfylder betingelserne for anvendelse af sømandsbeskatningslovens §§ 5-8.
+
+Stk. 2. Når løn, godtgørelser og gratialer m.v. fastsættes under hensyn til skattenedsættelsen, jf. sømandsbeskatningslovens § 5, stk. 4, er det for godtgørelser og gratialer m.v. omfattet af ligningslovens § 7 U en betingelse, at der ved opgørelsen af såvel den skattefri nettoløn, der skal medregnes ved opgørelsen af den skattepligtige indkomst, som ved opgørelsen af den lempelsesberettigede skattefri nettoløn ses bort fra det bundfradrag på 8.000 kr., som er omhandlet i ligningslovens § 7 U. Det beløb, der ses bort fra, kan dog højst udgøre skattefri nettoløn efter ligningslovens § 7 U. Hvis en person for samme indkomstår har modtaget såvel skattefri nettoløn som anden indkomst omfattet af ligningslovens § 7 U, fordeles bundfradraget forholdsmæssigt mellem den skattefri nettoløn og den anden indkomst.
+
+Stk. 3. Arbejdsgiveren skal over for Skatteforvaltningen kunne godtgøre, hvordan løn, godtgørelser og gratialer m.v. omfattet af sømandsbeskatningslovens §§ 5-8 er beregnet.
+
+§ 5. Ved beregningen af søtransportens omfang for bugser- og bjærgningsfartøjer, jf. sømandsbeskatningslovens § 6, anses mobilisering til søs mellem opgaver – svarende til lastskibes sejlads i ballast – som søtransport.
+
+§ 6. Når et dansk eller udenlandsk skib, jf. sømandsbeskatningslovens § 2, stk. 1, nr. 1 og 2, periodevis anvendes til andre formål end angivet i sømandsbeskatningslovens §§ 2 eller 5, kan der i sådanne perioder ikke opnås sømandsfradrag efter sømandsbeskatningslovens § 3, stk. 1. Tilsvarende gælder, når et stenfiskerfartøj, herunder en sandsuger, anvendes til andre formål end stenfiskeri, sandsugning eller de formål, der er nævnt i sømandsbeskatningslovens § 2, stk. 1, nr. 1.
+
+§ 7. Ved anvendelsen af sømandsbeskatningsloven forstås ved EU eller EØS medlemsstaternes geografiske territorier, herunder medlemsstaternes territorialfarvand, samt de havområder, som i overensstemmelse med folkeretten til enhver tid betegnes som medlemsstaternes eksklusive økonomiske zoner, jf. kapitel 5 i De Forenede Nationers havretskonvention af 10. december 1982.
+
+Stk. 2. Når der uden for EU eller EØS udføres arbejde om bord på stenfiskerfartøjer, herunder sandsugere, som omhandlet i sømandsbeskatningslovens § 10, stk. 1, kan der vælges anvendt samme beskatningsregler som for personer omfattet af sømandsbeskatningslovens § 5, jf. § 8.
+
+Stk. 3. Når indkomst som omhandlet i stk. 2 vælges beskattet efter reglerne i sømandsbeskatningslovens § 5, indberettes indkomsten af arbejdsgiveren til Skatteforvaltningen som skattefri nettoløn.
+
+Stk. 4. § 4, stk. 2 og 3, finder tilsvarende anvendelse.
+
+Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusionsordningen for sandsugere i sømandsbeskatningslovens § 10 i stedet for DIS-ordningen i sømandsbeskatningslovens § 5, jf. § 8.
+----
+
+--@begin::søbl5_til8_bek940_par4_til7--
+# Søbl5Til8Indkomstsag(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) {
+    | input_gyldigt() -> fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta)
+    | arbejdsrolle_omfattet() -> søbl5_til8_arbejdsrolle_omfattet(fakta.arbejde.arbejdsrolle)
+    | aflønningsbetingelse_opfyldt() -> søbl5_til8_aflønningsbetingelse_opfyldt(fakta.person.relation)
+    | indkomsttype_omfattet() -> søbl5_til8_indkomsttype_omfattet(fakta.løn.indkomsttype)
+    | nettolønsbetingelse_opfyldt() -> søbl5_til8_nettolønsbetingelse_opfyldt(fakta.løn.løngrundlag)
+    | tonnageskatteaktivitet_opfyldt() -> søbl5_til8_tonnageskatteaktivitet_opfyldt(fakta.arbejde)
+    | par6_opfyldt() -> søbl6_finder_anvendelse(fakta.arbejde) && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde)
+    | par7_opfyldt() -> søbl7_regelmæssig_passagersejlads(fakta.arbejde.passagerrute) && søbl7_betingelser_opfyldt(fakta.person, fakta.skib, fakta.arbejde.passagerrute)
+    | par8_opfyldt() -> søbl8_betingelser_opfyldt(fakta.skib, fakta.arbejde)
+    | fælles_betingelser_opfyldt() -> input_gyldigt() && arbejdsrolle_omfattet() && aflønningsbetingelse_opfyldt() && indkomsttype_omfattet() && nettolønsbetingelse_opfyldt() && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde) && søbl7_betingelser_opfyldt(fakta.person, fakta.skib, fakta.arbejde.passagerrute)
+    | par5_opfyldt() -> fælles_betingelser_opfyldt() && søbl5_til8_fuldt_eller_begrænset_skattepligtig(fakta.person.skattepligt) && søbl5_til8_dansk_dis_skib(fakta.skib) && tonnageskatteaktivitet_opfyldt()
+    | par5b_opfyldt() -> fælles_betingelser_opfyldt() && søbl5b_skattepligt_opfyldt(fakta.person.skattepligt) && søbl5b_skibs_og_arbejdsgiverbetingelser_opfyldt(fakta.skib, fakta.arbejde.passagerrute) && tonnageskatteaktivitet_opfyldt()
+    | kan_anvende_par5_til8() -> par5_opfyldt() || par5b_opfyldt() || fælles_betingelser_opfyldt() && par8_opfyldt()
+    | retsgrundlag() -> SøblIntetRetsgrundlag
+    | exception søbl8_retsgrundlag retsgrundlag() -> SøblPar8 under kan_anvende_par5_til8() && par8_opfyldt()
+    | exception søbl7_retsgrundlag retsgrundlag() -> SøblPar7 under kan_anvende_par5_til8() && par7_opfyldt() && par8_opfyldt() == Falskt
+    | exception søbl6_retsgrundlag retsgrundlag() -> SøblPar6 under kan_anvende_par5_til8() && par6_opfyldt() && par7_opfyldt() == Falskt && par8_opfyldt() == Falskt
+    | exception søbl5b_retsgrundlag retsgrundlag() -> SøblPar5B under par5b_opfyldt() && par6_opfyldt() == Falskt && par7_opfyldt() == Falskt && par8_opfyldt() == Falskt
+    | exception søbl5_stk1_retsgrundlag retsgrundlag() -> SøblPar5Stk1 under par5_opfyldt() && fakta.person.skattepligt == SøblFuldtSkattepligtigEfterKsl1 && par6_opfyldt() == Falskt && par7_opfyldt() == Falskt && par8_opfyldt() == Falskt
+    | exception søbl5_stk2_retsgrundlag retsgrundlag() -> SøblPar5Stk2 under par5_opfyldt() && fakta.person.skattepligt == SøblBegrænsetSkattepligtigEfterKsl2Stk2 && par6_opfyldt() == Falskt && par7_opfyldt() == Falskt && par8_opfyldt() == Falskt
+    | beskatningsvirkning() -> SøblIngenDISVirkning
+    | exception søbl5_fuld_skattepligt_virkning beskatningsvirkning() -> SøblNedsættelseAfSamletIndkomstskat under kan_anvende_par5_til8() && fakta.person.skattepligt == SøblFuldtSkattepligtigEfterKsl1
+    | exception søbl5_begrænset_skattepligt_virkning beskatningsvirkning() -> SøblIngenDanskSkatEfterPar5Stk2 under kan_anvende_par5_til8() && fakta.person.skattepligt == SøblBegrænsetSkattepligtigEfterKsl2Stk2
+    | exception søbl5_kulbrinteskat_virkning beskatningsvirkning() -> SøblKulbrinteskattelov21Stk2Virkning under kan_anvende_par5_til8() && fakta.person.skattepligt == SøblKulbrinteskattepligtigEfterPar21Stk2
+    | dis_personlig_indkomst_kroner() -> hvis beskatningsvirkning() == SøblNedsættelseAfSamletIndkomstskat { fakta.løn.beløb_kroner } ellers { 0 }
+    | ordinær_bruttoløn_kroner() -> hvis fakta.løn.løngrundlag == SøblOrdinærBruttoløn { fakta.løn.beløb_kroner } ellers { 0 }
+    | uafklaret_nettoløn_kroner() -> hvis fakta.løn.løngrundlag != SøblOrdinærBruttoløn && kan_anvende_par5_til8() == Falskt { fakta.løn.beløb_kroner } ellers { 0 }
+    | resultat() -> Søbl5Til8Indkomstresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        arbejdsrolle_omfattet = arbejdsrolle_omfattet(),
+        aflønningsbetingelse_opfyldt = aflønningsbetingelse_opfyldt(),
+        indkomsttype_omfattet = indkomsttype_omfattet(),
+        nettolønsbetingelse_opfyldt = nettolønsbetingelse_opfyldt(),
+        tonnageskatteaktivitet_opfyldt = tonnageskatteaktivitet_opfyldt(),
+        par5_opfyldt = par5_opfyldt(),
+        par5b_opfyldt = par5b_opfyldt(),
+        par6_opfyldt = par6_opfyldt(),
+        par7_opfyldt = par7_opfyldt(),
+        par8_opfyldt = par8_opfyldt(),
+        kan_anvende_par5_til8 = kan_anvende_par5_til8(),
+        retsgrundlag = retsgrundlag(),
+        beskatningsvirkning = beskatningsvirkning(),
+        dis_personlig_indkomst_kroner = dis_personlig_indkomst_kroner(),
+        ordinær_bruttoløn_kroner = ordinær_bruttoløn_kroner(),
+        uafklaret_nettoløn_kroner = uafklaret_nettoløn_kroner(),
+        arbejdsmarkedsbidrag_af_dis_indkomst_kroner = 0,
+        ligningslov9a_stk1_til9_afskåret = kan_anvende_par5_til8()
+    )
+}
+
+| søbl5_til8_indkomstresultat(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) -> Søbl5Til8Indkomstsag(indkomstår = indkomstår, fakta = fakta).resultat()
+| søbl5_til8_sum(resultater: List(Søbl5Til8Indkomstresultat), udtræk: Søbl5Til8Indkomstresultat -> Heltal) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Søbl5Til8Indkomstresultat| sum_kroner + udtræk(resultat))
+| søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> IngenPar13Lempelse
+| exception søbl8_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar8 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar8)
+| exception søbl7_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar7 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar7)
+| exception søbl6_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar6 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar6)
+| exception søbl5_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar5 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8)
+| søbl5_til8_årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput) -> {
+    = indkomstresultater = map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl5_til8_indkomstresultat(indkomstår = indkomstår, fakta = fakta))
+    = skatteår_understøttet = length(input.indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = søbl5_til8_identifikationer_entydige(input.indkomster)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
+    = samlet_dis_personlig_indkomst_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.dis_personlig_indkomst_kroner)
+    = samlet_ordinær_bruttoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ordinær_bruttoløn_kroner)
+    = samlet_uafklaret_nettoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.uafklaret_nettoløn_kroner)
+    Søbl5Til8Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        indkomstresultater = indkomstresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        beregningsklar = alle_input_gyldige && samlet_uafklaret_nettoløn_kroner == 0,
+        kanonisk_fuld_skattepligt_understøttet = all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.beskatningsvirkning == SøblIngenDISVirkning || resultat.beskatningsvirkning == SøblNedsættelseAfSamletIndkomstskat),
+        kan_anvende_par5_til8 = any(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8),
+        samlet_dis_personlig_indkomst_kroner = samlet_dis_personlig_indkomst_kroner,
+        samlet_ordinær_bruttoløn_kroner = samlet_ordinær_bruttoløn_kroner,
+        samlet_uafklaret_nettoløn_kroner = samlet_uafklaret_nettoløn_kroner,
+        samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner = 0,
+        ligningslov9a_stk1_til9_afskåret = any(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ligningslov9a_stk1_til9_afskåret),
+        par13_stk5_lempelsesgrundlag = søbl5_til8_par13_lempelsesgrundlag(indkomstresultater)
+    )
+}
+--@end::søbl5_til8_bek940_par4_til7--

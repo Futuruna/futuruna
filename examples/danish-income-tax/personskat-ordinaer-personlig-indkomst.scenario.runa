@@ -159,7 +159,8 @@
 
 | personskat_ordinaer_scenario_personlig_indkomst(input: PersonskatOrdinærPersonligIndkomstInput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
-    ordinære_forhold = input
+    ordinære_forhold = input,
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_ordinaer_scenario_lønmodtager(input: PersonskatOrdinærPersonligIndkomstInput, ligningsfradrag: PersonskatLigningsfradragInput) -> PersonskatLønmodtagerInput(
     skatteår = 2025,

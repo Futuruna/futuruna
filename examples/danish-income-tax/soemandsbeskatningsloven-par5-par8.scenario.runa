@@ -1,0 +1,148 @@
+@ sprog da
+
+@ importer ./soemandsbeskatningsloven - dis - lempelse
+
+| søbl_scenarie_person(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab) -> Søbl5Til8Personfakta(
+    skattepligt = skattepligt,
+    statsborgerskab = statsborgerskab,
+    relation = SøblAlmindeligLønmodtager
+)
+| søbl_scenarie_skib(registrering: Søbl5Til8Registrering, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus) -> Søbl5Til8Skibsfakta(
+    registrering = registrering,
+    bruttotonnage = 12000,
+    arbejdsgiverstatus = arbejdsgiverstatus
+)
+| søbl_scenarie_arbejde(aktivitet: Søbl5Til8Aktivitet, arbejdsområde: Søbl5Til8Arbejdsområde, passagerrute: Søbl5Til8Passagerrute, par8_valg: Søbl8Beskatningsvalg) -> Søbl5Til8Arbejdsfakta(
+    anvendelse = SøblUdelukkendeAnvendtTil(aktivitet),
+    arbejdsområde = arbejdsområde,
+    passagerrute = passagerrute,
+    arbejdsrolle = SøblNormalDriftsbesætning,
+    par8_valg = par8_valg
+)
+| søbl_scenarie_løn(løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Lønfakta(
+    indkomsttype = SøblLønVedArbejdeOmBord,
+    løngrundlag = løngrundlag,
+    beløb_kroner = beløb_kroner
+)
+| søbl_scenarie_indkomst(identifikation: Tekst, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta) -> Søbl5Til8Indkomstfakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    person = person,
+    skib = skib,
+    arbejde = arbejde,
+    løn = løn
+)
+| søbl_scenarie_lønmodtagerinput(ordinær_bruttoløn_kroner: Heltal, årsresultat: Søbl5Til8Årsresultat) -> LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = ordinær_bruttoløn_kroner + årsresultat.samlet_ordinær_bruttoløn_kroner,
+    øvrig_personlig_indkomst_kroner = årsresultat.samlet_dis_personlig_indkomst_kroner,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+= søbl_scenarie_dansk_dis_fakta = søbl_scenarie_indkomst(
+    identifikation = "dansk-dis-gods",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 500000)
+)
+= søbl_scenarie_dansk_dis_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_dansk_dis_fakta]))
+= søbl_scenarie_dansk_dis_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl_scenarie_dansk_dis_år))
+= søbl_scenarie_dansk_dis_lempelse = søbl5_lempelsesresultat(søbl_scenarie_dansk_dis_model, søbl_scenarie_dansk_dis_år)
+= søbl_scenarie_kun_ordinær_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl5_til8_årsresultat(2025, søbl5_til8_intet_årsinput())))
+
+| søbl_scenarie_dansk_dis_klassificeres: søbl_scenarie_dansk_dis_år -> søbl_scenarie_dansk_dis_år.alle_input_gyldige && søbl_scenarie_dansk_dis_år.beregningsklar && søbl_scenarie_dansk_dis_år.samlet_dis_personlig_indkomst_kroner == 500000 && søbl_scenarie_dansk_dis_år.samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner == 0 && søbl_scenarie_dansk_dis_år.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar5
+| søbl_scenarie_dis_er_uden_am: søbl_scenarie_dansk_dis_model -> søbl_scenarie_dansk_dis_model.indkomstgrundlag.arbejdsmarkedsbidrag_kroner == 24000 && søbl_scenarie_dansk_dis_model.indkomstgrundlag.personlig_indkomst_efter_am_kroner == 776000
+| søbl_scenarie_lempelse_med_progression: søbl_scenarie_dansk_dis_lempelse -> søbl_scenarie_dansk_dis_lempelse.input_gyldigt && søbl_scenarie_dansk_dis_lempelse.samlet_lempelse_kroner > 0 && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner > søbl_scenarie_kun_ordinær_model.slutskat.samlet_indkomstskat_kroner && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner < søbl_scenarie_dansk_dis_model.slutskat.samlet_indkomstskat_kroner
+
+= søbl_scenarie_udenlandsk_ikke_godkendt_fakta = søbl_scenarie_indkomst(
+    identifikation = "udenlandsk-ikke-godkendt",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblUdenlandskSkibRegistreretIEUEØS(SøblEUEØSFlag), SøblUdenlandskArbejdsgiverIkkeGodkendtEfterPar11A),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblNettolønUdenDokumenteretFastsættelse, 400000)
+)
+= søbl_scenarie_udenlandsk_ikke_godkendt_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_udenlandsk_ikke_godkendt_fakta]))
+
+| søbl_scenarie_udenlandsk_ikke_godkendt_afvises: søbl_scenarie_udenlandsk_ikke_godkendt_år -> søbl_scenarie_udenlandsk_ikke_godkendt_år.alle_input_gyldige && søbl_scenarie_udenlandsk_ikke_godkendt_år.beregningsklar == Falskt && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_uafklaret_nettoløn_kroner == 400000
+
+= søbl_scenarie_das_fakta = søbl_scenarie_indkomst(
+    identifikation = "dansk-das-ordinær",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDAS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeIndenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblOrdinærBruttoløn, 400000)
+)
+= søbl_scenarie_das_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_das_fakta]))
+
+| søbl_scenarie_das_forbliver_ordinær_løn: søbl_scenarie_das_år -> søbl_scenarie_das_år.beregningsklar && søbl_scenarie_das_år.kan_anvende_par5_til8 == Falskt && søbl_scenarie_das_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_das_år.samlet_ordinær_bruttoløn_kroner == 400000
+
+= søbl_scenarie_bugser_49_fakta = søbl_scenarie_indkomst(
+    identifikation = "bugser-49-pct",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblBugseringOgBjærgning(Søbl6Driftstid(søtransport_minutter = 4900, mobilisering_til_søs_minutter = 0, andre_aktiviteter_minutter = 5100, ventetid_minutter = 2000)), SøblArbejdeIndenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
+)
+= søbl_scenarie_bugser_50_fakta = søbl_scenarie_indkomst(
+    identifikation = "bugser-50-pct",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblBugseringOgBjærgning(Søbl6Driftstid(søtransport_minutter = 4500, mobilisering_til_søs_minutter = 500, andre_aktiviteter_minutter = 5000, ventetid_minutter = 2000)), SøblArbejdeIndenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
+)
+= søbl_scenarie_bugser_49 = søbl5_til8_indkomstresultat(2025, søbl_scenarie_bugser_49_fakta)
+= søbl_scenarie_bugser_50 = søbl5_til8_indkomstresultat(2025, søbl_scenarie_bugser_50_fakta)
+
+| søbl_scenarie_bugser_halvdelsgrænse: søbl_scenarie_bugser_49 -> søbl_scenarie_bugser_49.kan_anvende_par5_til8 == Falskt && søbl_scenarie_bugser_50.kan_anvende_par5_til8 && søbl_scenarie_bugser_50.par6_opfyldt && søbl_scenarie_bugser_50.retsgrundlag == SøblPar6
+
+= søbl_scenarie_passager_tredjelandsborger_fakta = søbl_scenarie_indkomst(
+    identifikation = "eu-passager-tredjelandsborger",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblAndetStatsborgerskab),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfPassagererMellemForskelligeDestinationer, SøblArbejdeIndenForEUEØS, SøblRegelmæssigPassagersejladsMellemEUEØSHavne, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
+)
+= søbl_scenarie_passager_tredjelandsborger = søbl5_til8_indkomstresultat(2025, søbl_scenarie_passager_tredjelandsborger_fakta)
+
+| søbl_scenarie_par7_afgrænser_personkredsen: søbl_scenarie_passager_tredjelandsborger -> søbl_scenarie_passager_tredjelandsborger.par7_opfyldt == Falskt && søbl_scenarie_passager_tredjelandsborger.kan_anvende_par5_til8 == Falskt
+
+= søbl_scenarie_par8_fakta = søbl_scenarie_indkomst(
+    identifikation = "sandsuger-udenfor-eu",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDAS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblStenfiskeriEllerSandsugning, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar8DIS),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
+)
+= søbl_scenarie_par8 = søbl5_til8_indkomstresultat(2025, søbl_scenarie_par8_fakta)
+= søbl_scenarie_par8_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_par8_fakta]))
+= søbl_scenarie_par13_stk5 = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
+    skatteår = 2025,
+    ønsket_overførsel_kroner = 100000,
+    udenlandsk_beskattet_personlig_indkomst_kroner = 50000,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 0,
+    overførsel_efter_stk4 = Falskt,
+    lempelsesgrundlag = søbl_scenarie_par8_år.par13_stk5_lempelsesgrundlag
+))
+
+| søbl_scenarie_par8_uanset_tonnageskatteloven: søbl_scenarie_par8 -> søbl_scenarie_par8.tonnageskatteaktivitet_opfyldt == Falskt && søbl_scenarie_par8.par8_opfyldt && søbl_scenarie_par8.kan_anvende_par5_til8 && søbl_scenarie_par8.retsgrundlag == SøblPar8
+| søbl_scenarie_par13_stk5_afledes_fra_par8: søbl_scenarie_par13_stk5 -> søbl_scenarie_par8_år.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar8 && søbl_scenarie_par13_stk5.overførbart_underskud_kroner == 100000 && søbl_scenarie_par13_stk5.samlet_afskåret_kroner == 0
+
+? søbl_scenarie_dansk_dis_klassificeres
+? søbl_scenarie_dis_er_uden_am
+? søbl_scenarie_lempelse_med_progression
+? søbl_scenarie_udenlandsk_ikke_godkendt_afvises
+? søbl_scenarie_das_forbliver_ordinær_løn
+? søbl_scenarie_bugser_halvdelsgrænse
+? søbl_scenarie_par7_afgrænser_personkredsen
+? søbl_scenarie_par8_uanset_tonnageskatteloven
+? søbl_scenarie_par13_stk5_afledes_fra_par8
+
+@ print("SØBL §§ 5-8: DIS, DAS, udenlandsk register, §§ 6-8 og PSL § 13 kontrolleret")
