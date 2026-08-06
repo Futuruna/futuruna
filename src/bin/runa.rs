@@ -27813,6 +27813,7 @@ impl RustCodegen {
                 ));
             }
 
+            // Same-tier rules retain source order; the first applicable exception wins.
             for rule in rules {
                 if let Rule::Exception {
                     value, condition, ..
@@ -31737,7 +31738,8 @@ impl RustCodegen {
                 }
             }
 
-            // Pass 1: exceptions (highest priority)
+            // Pass 1: exceptions (highest priority). Within the tier, the first
+            // applicable rule in source order wins.
             for rule in rules {
                 if let Rule::Exception {
                     value, condition, ..
@@ -49227,6 +49229,25 @@ for x in [1, 2] {
             "RuleScope exception value must not use the later duplicate constructor parent: {}",
             rust
         );
+    }
+
+    #[test]
+    fn compiled_same_tier_rule_priority_is_top_down() {
+        let source = r#"
+| choose(value: Int) -> 0
+| exception high choose(value: Int) -> 2 under value > 10
+| exception positive choose(value: Int) -> 1 under value > 0
+
+# Decision(value: Int) {
+    | result() -> 0
+    | exception high result() -> 2 under value > 10
+    | exception positive result() -> 1 under value > 0
+}
+
+@ print(show(choose(20)) + ":" + show(Decision(20).result()))
+"#;
+
+        assert_eq!(compile_and_run_test_program(source).trim(), "2:2");
     }
 
     #[test]

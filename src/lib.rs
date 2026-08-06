@@ -14603,6 +14603,8 @@ impl Interpreter {
     /// 2. Conditional defaults (under clause, Catala-style)
     /// 3. Clauses with backtracking (Prolog-style: if body fails, try next clause)
     /// 4. Unconditional defaults (Catala-style fallback)
+    /// Within each priority tier, rules are tried in source order and the first
+    /// applicable rule wins.
     pub fn try_rule_call(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
         // Collect matching rules (clone to avoid borrow conflict with self.eval)
         let matching: Vec<Rule> = self
@@ -20433,6 +20435,43 @@ mod tests {
         assert_eq!(
             env.get("not_covered").map(ToString::to_string),
             Some("false".to_string())
+        );
+    }
+
+    #[test]
+    fn interpreted_same_tier_rule_priority_is_top_down() {
+        let source = r#"
+| choose(value: Int) -> 0
+| exception high choose(value: Int) -> 2 under value > 10
+| exception positive choose(value: Int) -> 1 under value > 0
+
+# Decision(value: Int) {
+    | result() -> 0
+    | exception high result() -> 2 under value > 10
+    | exception positive result() -> 1 under value > 0
+}
+
+= global_result = choose(20)
+= scoped_result = Decision(20).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse overlapping exception precedence regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("global_result").map(ToString::to_string),
+            Some("2".to_string())
+        );
+        assert_eq!(
+            env.get("scoped_result").map(ToString::to_string),
+            Some("2".to_string())
         );
     }
 

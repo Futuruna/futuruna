@@ -221,7 +221,13 @@ Declares rules, invariants, effect handlers, and scopes. The most versatile rune
 | exception heatwave advisory(w) -> "danger" under w.temp > 45.0
 ```
 
-Rules are evaluated top-down. `under` adds a guard condition. `exception <label>` overrides all other rules for the same head when its condition holds. The label (here `heatwave`) names the exception for readability and debugging — it does not affect evaluation.
+Rules are evaluated by priority tier: exceptions, guarded defaults, ordinary
+clauses, then an unguarded default. Within one tier, source order is
+authoritative and the first applicable rule wins. Put the more specific of two
+overlapping guards first. `under` adds a guard condition. `exception <label>`
+places the rule in the exception tier for the same head. The label (here
+`heatwave`) names the exception for readability and debugging; it does not
+affect priority.
 
 ### Named invariants (verification targets)
 ```runa

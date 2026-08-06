@@ -109,11 +109,12 @@ opgørelse af den skattepligtige indkomst.
 | kgl_årsnetto_fordring_erhvervet_udenfor_næring(næringsforhold: KglÅrsnettoNæringsforhold) -> næringsforhold == KglÅrsnettoDokumenteretErhvervetUdenForNæring
 | kgl_årsnetto_fordring_omfattet_af_par13(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_udøver_næring(kilde.næringsforhold) && kgl_årsnetto_fordring_erhvervet_udenfor_næring(kilde.næringsforhold) == Falskt
 | kgl_årsnetto_fordring_omfattet_af_par17(kilde: KglÅrsnettoFordringskilde) -> kilde.erhvervelsesgrundlag == KglÅrsnettoVederlagINæring || kilde.erhvervelsesgrundlag == KglÅrsnettoTilknyttetErhvervsdrift
-| kgl_årsnetto_fordring_tabstatus(kilde: KglÅrsnettoFordringskilde) -> KglFordringTabAlmindelig
-| exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabstatus(kilde: KglÅrsnettoFordringskilde) -> KglFordringTabReguleretMarkedUdenOplysning under kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
-| exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabstatus(kilde: KglÅrsnettoFordringskilde) -> KglFordringTabKontrolEllerNærtstående under kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
-| exception kgl_årsnetto_par17_erhvervsfordring kgl_årsnetto_fordring_tabstatus(kilde: KglÅrsnettoFordringskilde) -> KglFordringTabPar17Statsskattelov6A under kgl_årsnetto_fordring_omfattet_af_par17(kilde)
-| exception kgl_årsnetto_par18_dba kgl_årsnetto_fordring_tabstatus(kilde: KglÅrsnettoFordringskilde) -> KglFordringTabDbaAfskåret under kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
+| kgl_årsnetto_fordring_tabsgrundlag(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabEfterPar14
+| exception kgl_årsnetto_par17_erhvervsfordring kgl_årsnetto_fordring_tabsgrundlag(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabEfterPar17Statsskattelov6A under kgl_årsnetto_fordring_omfattet_af_par17(kilde)
+| kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabIkkeAfskåret
+| exception kgl_årsnetto_par18_dba kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabDbaAfskåret under kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
+| exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabKontrolEllerNærtstående under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
+| exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabReguleretMarkedUdenOplysning under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
 | kgl_årsnetto_lagerprincip_gyldigt(kilde: KglÅrsnettoFordringskilde) -> kilde.opgørelsesprincip == KglRealisationsprincip || kilde.fordringsart == KglÅrsnettoObligation && kgl_årsnetto_markedsnoteret(kilde.markedsfakta)
 | kgl_årsnetto_fordringskilde_gyldig(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_lagerprincip_gyldigt(kilde)
 | kgl_årsnetto_fordring_i_par14_bagatelgrundlag(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_par1_afgrænsning(kilde) == KglPar1Omfattet && kgl_årsnetto_fordring_omfattet_af_par13(kilde) == Falskt && kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt
@@ -276,7 +277,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
         aktiv = KglFordring,
         par1_afgrænsning = kgl_årsnetto_par1_afgrænsning(fakta.kilde),
         bagatelgrundlag = KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner = årets_samlede_netto_kroner),
-        fordring = KursgevinstlovFordringOpgørelse(tab_status = kgl_årsnetto_fordring_tabstatus(fakta.kilde), anskaffelsessum_kroner = forløb.opgørelsesgrundlag_kroner, afståelsessum_kroner = forløb.opgørelsesslutværdi_kroner),
+        fordring = KursgevinstlovFordringOpgørelse(tabsgrundlag = kgl_årsnetto_fordring_tabsgrundlag(fakta.kilde), tabsbegrænsning = kgl_årsnetto_fordring_tabsbegrænsning(fakta.kilde), anskaffelsessum_kroner = forløb.opgørelsesgrundlag_kroner, afståelsessum_kroner = forløb.opgørelsesslutværdi_kroner),
         gæld = kgl_tom_gæld(),
         kontrakt = kgl_tom_kontrakt(),
         udøver_fordrings_eller_kontraktnæring = kgl_årsnetto_udøver_næring(fakta.kilde.næringsforhold),

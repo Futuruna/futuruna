@@ -207,7 +207,7 @@ længstlevende ægtefælle med hensyntagen til sådanne ændringer.
 # KglSælgerpantebrevDispositionsresultat(tilstand_før: KglSælgerpantebrevTilstand, berørt_tranche_før: KglSælgerpantebrevTranche, disposition: KglSælgerpantebrevDisposition, disposition_gyldig: Boolsk, regelgrundlag_understøttet: Boolsk, realisering_sker: Boolsk, fordelt_anskaffelsessum_kroner: Heltal, frigivet_anskaffelsessum_kroner: Heltal, afståelses_eller_indfrielsessum_kroner: Heltal, rå_gevinst_kroner: Heltal, rå_tab_kroner: Heltal, rå_netto_kroner: Heltal, ændrede_trancher_efter: List(KglSælgerpantebrevTranche), tilstand_efter: KglSælgerpantebrevTilstand)
 # KglSælgerpantebrevForløbstilstand(tilstand: KglSælgerpantebrevTilstand, resultater: List(KglSælgerpantebrevDispositionsresultat), alle_dispositioner_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk)
 # KglSælgerpantebrevResultat(input: KglSælgerpantebrevInput, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, dispositionsresultater: List(KglSælgerpantebrevDispositionsresultat), samlet_rå_gevinst_kroner: Heltal, samlet_rå_tab_kroner: Heltal, samlet_rå_netto_kroner: Heltal, tilstand_ultimo: KglSælgerpantebrevTilstand)
-# KglSælgerpantebrevSkatteforhold(tab_status: KursgevinstlovFordringTabStatus, udøver_fordringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk)
+# KglSælgerpantebrevSkatteforhold(tabsgrundlag: KursgevinstlovFordringTabsgrundlag, tabsbegrænsning: KursgevinstlovFordringTabsbegrænsning, udøver_fordringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk)
 
 | kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Sandt
 | exception kgl_sælgerpantebrev_ukendt_disposition_afvises kgl_sælgerpantebrev_disposition_understøttet(art: KglSælgerpantebrevDispositionstype) -> Falskt under match art { | KglSælgerpantebrevIkkeUnderstøttet(_) -> Sandt | _ -> Falskt }
@@ -431,7 +431,8 @@ af ejendommen.
         årets_netto_fordringer_valutagæld_investbeviser_kroner = årets_samlede_netto_efter_par14_kroner
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = skatteforhold.tab_status,
+        tabsgrundlag = skatteforhold.tabsgrundlag,
+        tabsbegrænsning = skatteforhold.tabsbegrænsning,
         anskaffelsessum_kroner = disposition.frigivet_anskaffelsessum_kroner,
         afståelsessum_kroner = disposition.afståelses_eller_indfrielsessum_kroner
     ),

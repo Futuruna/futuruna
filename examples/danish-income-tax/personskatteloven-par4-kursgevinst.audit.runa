@@ -15,7 +15,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = 8000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabAlmindelig,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabIkkeAfskåret,
         anskaffelsessum_kroner = 10000,
         afståelsessum_kroner = 18000
     ),
@@ -34,7 +35,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -5000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabAlmindelig,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabIkkeAfskåret,
         anskaffelsessum_kroner = 15000,
         afståelsessum_kroner = 10000
     ),
@@ -53,7 +55,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -1500
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabAlmindelig,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabIkkeAfskåret,
         anskaffelsessum_kroner = 10000,
         afståelsessum_kroner = 8500
     ),
@@ -72,7 +75,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -8000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabKontrolEllerNærtstående,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabKontrolEllerNærtstående,
         anskaffelsessum_kroner = 15000,
         afståelsessum_kroner = 7000
     ),
@@ -91,7 +95,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -6000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabReguleretMarkedUdenOplysning,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabReguleretMarkedUdenOplysning,
         anskaffelsessum_kroner = 10000,
         afståelsessum_kroner = 4000
     ),
@@ -110,7 +115,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -7000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabDbaAfskåret,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabDbaAfskåret,
         anskaffelsessum_kroner = 12000,
         afståelsessum_kroner = 5000
     ),
@@ -129,7 +135,8 @@
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -8000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabPar17Statsskattelov6A,
+        tabsgrundlag = KglFordringstabEfterPar17Statsskattelov6A,
+        tabsbegrænsning = KglFordringstabIkkeAfskåret,
         anskaffelsessum_kroner = 20000,
         afståelsessum_kroner = 12000
     ),

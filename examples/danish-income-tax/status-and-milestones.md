@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-03
 TD epic: `td-56cf8d`
-Current implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
 Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
@@ -4080,10 +4080,25 @@ Review candidates to revisit deliberately, not as broad churn:
   tabsbegrænsningerne i §§ 14, 15 og 18, opgørelsen efter §§ 25-26 samt ABL
   § 22-status. Det rå, regelafledte bagatelgrundlag samordnes derefter med den
   eksisterende § 23-gæld og sælgerpantebrevene, før de endelige KGL- og
-  ABL-resultater beregnes. Seks fokuserede scenarier dækker gevinst, tab,
+  ABL-resultater beregnes. Otte fokuserede scenarier dækker gevinst, tab,
   præcis 2.000 kr., et blandet grundlag på 2.300 kr., gyldig videreførsel og
-  afvisning af en for gammel primo-position i både fortolkeren og genereret
-  Rust.
+  afvisning af en for gammel primo-position samt overlap mellem §§ 14/15/17
+  og mellem §§ 17/18 i både fortolkeren og genereret Rust.
+  Den uafhængige gennemgang fandt, at det første udkast samlede
+  tabsgrundlaget og tabsbegrænsningen i én eksklusiv status. Det kunne ikke
+  samtidig bevare, at et tab hørte under § 17, og at § 18 afskar fradraget.
+  `KursgevinstlovFordringOpgørelse` har derfor nu et selvstændigt
+  `tabsgrundlag` (§ 14 eller § 17) og en selvstændig `tabsbegrænsning`
+  (§ 14, stk. 2, § 15 eller § 18). Et § 17-tab på 3.000 kr. forbliver uden for
+  bagatelgrænsen og fradrages trods samtidige § 14/§ 15-fakta; med samme fakta
+  og en § 18-DBO-begrænsning bevares § 17-grundlaget, mens hele tabet afskæres
+  og ingen personlig omklassifikation udsendes.
+  Gennemgangen præciserede samtidig Futurunas sproglige kontrakt for
+  overlappende regler. Prioritetslagene er undtagelser, betingede standarder,
+  almindelige klausuler og til sidst en ubetinget standard. Inden for samme
+  lag vinder den første anvendelige regel i kildeorden. Reference og
+  sprogskitse siger nu det samme, og permanente interpreter-/Rust-tests dækker
+  både topniveau og RuleScope.
   Beregningsmetadataens nye KGL-stier bruger typede `pathof`-referencer gennem
   importerede lister og sumtyper. Den genererede arbejdsbog udstiller derfor
   menneskelige danske labels på fordrings-, positions- og hændelsesark uden at
@@ -4091,7 +4106,7 @@ Review candidates to revisit deliberately, not as broad churn:
   anskaffelse på 10.000 kr. og afståelse på 13.000 kr. giver samme fulde
   Personskat-resultat gennem direkte JSON og en genereret, udfyldt XLSX:
   3.000 kr. i afledt årsnetto og kapitalindkomst. Den fokuserede rundtur
-  passerer på 1.016,23 sekunder; målingen er ført på performanceopgaven
+  passerer på 1.035,80 sekunder; målingen er ført på performanceopgaven
   `td-6659f1`.
   Den nuværende position er bevidst smallere end en fuld KGL-ledger. Særskilt
   kredit- og valutakomponent efter §§ 14/25 er planlagt i `td-1e2380`, og

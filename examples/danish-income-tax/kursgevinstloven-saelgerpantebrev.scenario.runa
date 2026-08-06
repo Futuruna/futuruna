@@ -39,7 +39,8 @@
 | kgl_sælgerpantebrev_scenarie_input(dispositioner: List(KglSælgerpantebrevDisposition)) -> kgl_sælgerpantebrev_scenarie_input_med_beløb("Sælgerpantebrev 2025", 3750000, 3000000, dispositioner)
 
 | kgl_sælgerpantebrev_scenarie_almindelige_skatteforhold() -> KglSælgerpantebrevSkatteforhold(
-    tab_status = KglFordringTabAlmindelig,
+    tabsgrundlag = KglFordringstabEfterPar14,
+    tabsbegrænsning = KglFordringstabIkkeAfskåret,
     udøver_fordringsnæring = Falskt,
     fordring_erhvervet_udenfor_næring = Sandt
 )

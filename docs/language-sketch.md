@@ -264,7 +264,7 @@ within the `|` rune pathway.
 | resident(person) -> person.address.country == "DK"
 
 -- Catala-style default logic: what's the rate?
--- Rules are tried in order; later rules override earlier ones
+-- Exceptions outrank guarded rules; within one tier, first match wins
 | tax_rate(person) -> 0.20
 | tax_rate(person) -> 0.40 under person.income > 50000
 | exception tax_rate(person) -> 0.00 under person.income < 12000
@@ -293,8 +293,8 @@ within the `|` rune pathway.
     | rate(bracket: TaxBracket) -> 0.20
 
     -- Condition-guarded overrides
-    | bracket(person) -> Medium under person.income > 50000
     | bracket(person) -> High under person.income > 150000
+    | bracket(person) -> Medium under person.income > 50000
     | rate(High) -> 0.45
 
     -- Named exceptions (can be referenced from other scopes)
@@ -627,11 +627,12 @@ unchanged because these are new token *values* flowing through existing *transit
 4. **Performance:** The rune-dispatch model is efficient to parse but the
    logic-function interop needs careful compiler design.
 
-5. **Default logic semantics:** When `under` guards conflict, what is the
-   resolution order? Catala uses textual order (later overrides earlier) with
-   explicit `exception` labels. Should Futuruna use the same? Or specificity-based
-   (more specific conditions win)? The `exception` keyword creates a naming
-   mechanism — can exceptions reference each other across scopes?
+5. **Default logic semantics:** Futuruna resolves priority tiers in this order:
+   exceptions, guarded defaults, ordinary clauses, then an unguarded default.
+   Within one tier, the first applicable rule in source order wins. Exception
+   labels are descriptive and do not create an implicit specificity graph.
+   A future explicit priority relation would require a separate language
+   proposal rather than changing this ordering silently.
 
 6. **Legal verification:** Can `| scope` blocks be formally verified for
    completeness (every input has a defined output) and consistency (no

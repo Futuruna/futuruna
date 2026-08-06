@@ -43,18 +43,20 @@ og præmieobligationer.
 # KursgevinstlovAktiv = KglFordring | KglGæld | KglFinansielKontrakt
 # KursgevinstlovPersonrolle = KglPersonEfterKildeskatteloven | KglDødsboEfterDødsboskatteloven | KglUdenforPersonkapitlet
 # KursgevinstlovPar1Afgrænsning = KglPar1Omfattet | KglFastEjendomNæringUndtaget | KglKonvertibelEllerPræmieobligationUndtaget
-# KursgevinstlovFordringTabStatus = KglFordringTabAlmindelig | KglFordringTabKontrolEllerNærtstående | KglFordringTabReguleretMarkedUdenOplysning | KglFordringTabDbaAfskåret | KglFordringTabPar17Statsskattelov6A
+# KursgevinstlovFordringTabsgrundlag = KglFordringstabEfterPar14 | KglFordringstabEfterPar17Statsskattelov6A
+# KursgevinstlovFordringTabsbegrænsning = KglFordringstabIkkeAfskåret | KglFordringstabKontrolEllerNærtstående | KglFordringstabReguleretMarkedUdenOplysning | KglFordringstabDbaAfskåret
 # KursgevinstlovKontraktArt = KglIkkeFinansielKontrakt | KglKontraktOmfattetPar29 | KglKontraktUndtagetPar30 | KglKontraktUndtagetMenModgåendePar30Stk4 | KglKontraktUndtagetMenNæringPar30Stk5
 # KursgevinstlovOpgørelsesprincip = KglRealisationsprincip | KglLagerprincip
 # KursgevinstlovPersonligReklassifikation = KglIngenPersonligReklassifikation | KglFordringsEllerKontraktNæring | KglFinansieringsNæring | KglPar17Fordringstab
 # KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner: Heltal)
-# KursgevinstlovFordringOpgørelse(tab_status: KursgevinstlovFordringTabStatus, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal)
+# KursgevinstlovFordringOpgørelse(tabsgrundlag: KursgevinstlovFordringTabsgrundlag, tabsbegrænsning: KursgevinstlovFordringTabsbegrænsning, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal)
 # KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk)
 # KursgevinstlovInput(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, par1_afgrænsning: KursgevinstlovPar1Afgrænsning, bagatelgrundlag: KursgevinstlovBagatelOpgørelse, fordring: KursgevinstlovFordringOpgørelse, gæld: KursgevinstlovGældInput, kontrakt: KursgevinstlovKontraktOpgørelse, udøver_fordrings_eller_kontraktnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk, anvender_lagerprincip_efter_par25: Boolsk)
 # KursgevinstlovResultat(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, input_gyldigt: Boolsk, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kontrakttab_til_par32_årsopgørelse_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation, gældsresultat: KursgevinstlovGældResultat)
 
 | kgl_tom_fordring() -> KursgevinstlovFordringOpgørelse(
-    tab_status = KglFordringTabAlmindelig,
+    tabsgrundlag = KglFordringstabEfterPar14,
+    tabsbegrænsning = KglFordringstabIkkeAfskåret,
     anskaffelsessum_kroner = 0,
     afståelsessum_kroner = 0
 )
@@ -128,10 +130,7 @@ opgørelse af den skattepligtige indkomst.
 | exception kgl_person_efter_ksl kgl_person_eller_dødsbo_efter_par12(rolle: KursgevinstlovPersonrolle) -> Sandt under rolle == KglPersonEfterKildeskatteloven
 | exception kgl_dødsbo_efter_dbl kgl_person_eller_dødsbo_efter_par12(rolle: KursgevinstlovPersonrolle) -> Sandt under rolle == KglDødsboEfterDødsboskatteloven
 
-| kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Falskt
-| exception kgl_par14_stk2_kontrol_eller_nærtstående kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabKontrolEllerNærtstående
-| exception kgl_par15_manglende_oplysning kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabReguleretMarkedUdenOplysning
-| exception kgl_par18_dba_blokerer_tab kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabDbaAfskåret
+| kgl_fordringstab_afskåret_efter_par14_15_18(begrænsning: KursgevinstlovFordringTabsbegrænsning) -> begrænsning != KglFordringstabIkkeAfskåret
 
 ----
 § 25. Gevinst og tab på fordringer og gæld, der skal medregnes ved opgørelsen af
@@ -296,7 +295,7 @@ markedsværdien på afviklingsdagen.
     | exception kgl_par33_kontrakt_anskaffet_og_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret
     | exception kgl_par33_kontrakt_anskaffet kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.værdi_ultimo_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret == Falskt
     | exception kgl_par33_kontrakt_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.værdi_primo_kroner) under input.kontrakt.anskaffet_i_indkomståret == Falskt && input.kontrakt.realiseret_i_indkomståret
-    | fordring_bagatelgrænse_relevant() -> input.aktiv == KglFordring && fordringsnæring_efter_par13() == Falskt && input.fordring.tab_status != KglFordringTabPar17Statsskattelov6A
+    | fordring_bagatelgrænse_relevant() -> input.aktiv == KglFordring && fordringsnæring_efter_par13() == Falskt && input.fordring.tabsgrundlag != KglFordringstabEfterPar17Statsskattelov6A
     | bagatelgrænse_afskærer() -> (fordring_bagatelgrænse_relevant() && kgl_par14_23_bagatelgrænse_overskredet(input.bagatelgrundlag.årets_netto_fordringer_valutagæld_investbeviser_kroner) == Falskt) || (input.aktiv == KglGæld && gældsresultat().bagatelgrænse_afskærer)
     | aktiv_resultat_kroner() -> 0
     | exception kgl_fordring_resultat aktiv_resultat_kroner() -> fordring_resultat_kroner() under input.aktiv == KglFordring
@@ -307,20 +306,20 @@ markedsværdien på afviklingsdagen.
     | bruttotab_kroner() -> 0
     | exception kgl_bruttotab bruttotab_kroner() -> penge_positivt_beløb(0 - aktiv_resultat_kroner()) under grundlag_opfyldt() && bagatelgrænse_afskærer() == Falskt
     | fradragsberettiget_tab_kroner() -> bruttotab_kroner()
-    | exception kgl_fordring_tab_afskåret fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tab_status)
+    | exception kgl_fordring_tab_afskåret fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tabsbegrænsning)
     | exception kgl_kontrakttab_afventer_par32 fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
     | tab_afskåret_kroner() -> 0
-    | exception kgl_fordringstab_endeligt_afskåret tab_afskåret_kroner() -> bruttotab_kroner() under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tab_status)
+    | exception kgl_fordringstab_endeligt_afskåret tab_afskåret_kroner() -> bruttotab_kroner() under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tabsbegrænsning)
     | exception kgl_gældstab_ikke_fradragsberettiget tab_afskåret_kroner() -> gældsresultat().bruttotab_kroner - gældsresultat().fradragsberettiget_tab_kroner under input.aktiv == KglGæld && gældsresultat().input_gyldigt
     | kontrakttab_til_par32_årsopgørelse_kroner() -> 0
     | exception kgl_kontrakttab_sendes_til_par32 kontrakttab_til_par32_årsopgørelse_kroner() -> bruttotab_kroner() under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
     | skattepligtig_gevinst_kroner() -> bruttogevinst_kroner()
     | netto_efter_kursgevinstloven_kroner() -> skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner()
     | personlig_reklassifikation() -> KglIngenPersonligReklassifikation
-    | exception kgl_par4_stk3_fordringsnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under fordringsnæring_efter_par13() && input.fordring.tab_status != KglFordringTabPar17Statsskattelov6A
+    | exception kgl_par4_stk3_fordringsnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under fordringsnæring_efter_par13() && input.fordring.tabsgrundlag != KglFordringstabEfterPar17Statsskattelov6A
     | exception kgl_par4_stk3_kontraktnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under kontraktnæring_efter_par30_stk5()
     | exception kgl_par4_stk3_finansieringsnæring personlig_reklassifikation() -> KglFinansieringsNæring under finansieringsnæring_efter_par19()
-    | exception kgl_par4_stk3_par17_fordringstab personlig_reklassifikation() -> KglPar17Fordringstab under input.aktiv == KglFordring && input.fordring.tab_status == KglFordringTabPar17Statsskattelov6A && bruttotab_kroner() > 0
+    | exception kgl_par4_stk3_par17_fordringstab personlig_reklassifikation() -> KglPar17Fordringstab under input.aktiv == KglFordring && input.fordring.tabsgrundlag == KglFordringstabEfterPar17Statsskattelov6A && fradragsberettiget_tab_kroner() > 0
     | resultat() -> KursgevinstlovResultat(
         indkomstår = input.indkomstår,
         rolle = input.rolle,

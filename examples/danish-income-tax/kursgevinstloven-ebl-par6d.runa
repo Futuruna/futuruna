@@ -39,11 +39,13 @@ Det samme gælder ved en (ekstraordinær) indfrielse af sælgerpantebrevet.
 # KglEblPar6DDispositionsforløbstilstand(dispositioner: List(KglSælgerpantebrevDisposition), forventede_realiseringer: List(Boolsk), tranchefordeling_entydig: Boolsk)
 
 | kgl_ebl_par6d_par17_fordring(fakta: KglEblPar6DSkatteyderfakta) -> fakta.fordringen_erhvervet_som_vederlag_for_leverede_varer_eller_tjenesteydelser || fakta.fordringen_erhvervet_i_direkte_tilknytning_til_erhvervsmæssig_drift
-| kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabAlmindelig
-| exception kgl_ebl_par6d_kontrol_eller_nærtstående kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabKontrolEllerNærtstående under fakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2 && kgl_ebl_par6d_par17_fordring(fakta) == Falskt
-| exception kgl_ebl_par6d_par17_driftstilknytning kgl_ebl_par6d_tab_status(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringTabPar17Statsskattelov6A under kgl_ebl_par6d_par17_fordring(fakta)
+| kgl_ebl_par6d_tabsgrundlag(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringstabEfterPar14
+| exception kgl_ebl_par6d_par17_driftstilknytning kgl_ebl_par6d_tabsgrundlag(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringstabEfterPar17Statsskattelov6A under kgl_ebl_par6d_par17_fordring(fakta)
+| kgl_ebl_par6d_tabsbegrænsning(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringstabIkkeAfskåret
+| exception kgl_ebl_par6d_kontrol_eller_nærtstående kgl_ebl_par6d_tabsbegrænsning(fakta: KglEblPar6DSkatteyderfakta) -> KglFordringstabKontrolEllerNærtstående under fakta.debitor_omfattet_af_tabsbegrænsningen_i_kgl_par14_stk2 && kgl_ebl_par6d_par17_fordring(fakta) == Falskt
 | kgl_ebl_par6d_skatteforhold(fakta: KglEblPar6DSkatteyderfakta) -> KglSælgerpantebrevSkatteforhold(
-    tab_status = kgl_ebl_par6d_tab_status(fakta),
+    tabsgrundlag = kgl_ebl_par6d_tabsgrundlag(fakta),
+    tabsbegrænsning = kgl_ebl_par6d_tabsbegrænsning(fakta),
     udøver_fordringsnæring = fakta.udøver_næring_ved_køb_og_salg_af_fordringer,
     fordring_erhvervet_udenfor_næring = fakta.fordringen_erhvervet_uden_for_fordringsnæring
 )

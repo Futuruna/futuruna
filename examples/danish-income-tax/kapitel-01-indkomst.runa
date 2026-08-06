@@ -2089,7 +2089,8 @@ fra og med den 1. januar 2027.
         årets_netto_fordringer_valutagæld_investbeviser_kroner = -5000
     ),
     fordring = KursgevinstlovFordringOpgørelse(
-        tab_status = KglFordringTabAlmindelig,
+        tabsgrundlag = KglFordringstabEfterPar14,
+        tabsbegrænsning = KglFordringstabIkkeAfskåret,
         anskaffelsessum_kroner = 15000,
         afståelsessum_kroner = 10000
     ),
