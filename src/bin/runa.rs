@@ -21523,8 +21523,8 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
         | "random_float" | "json_number" => Some(FirTy::Float),
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" | "abs" | "round" | "floor" | "count" | "now"
-        | "time_diff" | "db_insert" => Some(FirTy::Int),
+        | "parse_int" | "abs" | "round" | "floor" | "count" | "sum_list" | "now" | "time_diff"
+        | "db_insert" => Some(FirTy::Int),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
         | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
         | "not" => Some(FirTy::Bool),
@@ -48793,6 +48793,7 @@ for x in [1, 2] {
             ("format_float", FirTy::String),
             ("parse_int", FirTy::Int),
             ("parse_float", FirTy::Float),
+            ("sum_list", FirTy::Int),
             ("map_contains", FirTy::Bool),
             ("map_len", FirTy::Int),
             ("set_contains", FirTy::Bool),
@@ -48887,6 +48888,21 @@ for x in [1, 2] {
             fir.ty,
             FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String)),
             "shadowed parse_int should infer from the user function, not the builtin contract"
+        );
+    }
+
+    #[test]
+    fn shadowed_sum_list_uses_user_function_signature() {
+        let fir = lower_with_registry(
+            "> sum_list(values: List(Int)) -> String { \"custom\" }\n= total = sum_list([1, 2])",
+            1,
+            BTreeMap::new(),
+        );
+
+        assert_eq!(
+            fir.ty,
+            FirTy::String,
+            "shadowed sum_list should infer from the user function, not the builtin contract"
         );
     }
 
@@ -54376,6 +54392,24 @@ routes <- "b"
 "#,
         );
         assert_eq!(output, "2\n");
+    }
+
+    #[test]
+    fn typed_rule_returning_sum_list_of_mapped_fields_is_numeric() {
+        let source = r#"
+# Entry(value: Int)
+
+| entry_total(entries: List(Entry)) -> sum_list(map(
+    entries,
+    |entry: Entry| entry.value
+))
+
+= answer = entry_total([Entry(value = 20), Entry(value = 22)])
+@ print(show(answer))
+"#;
+
+        assert_eq!(interpret_test_source(source, None).trim(), "42");
+        assert_eq!(compile_and_run_test_source(source, None).trim(), "42");
     }
 
     #[test]
