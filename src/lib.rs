@@ -19374,14 +19374,24 @@ impl TypeChecker {
                     && !self.constructors.contains_key(name)
                     && !name.contains("::")
                     && !name.contains(".")
-                    && !name.starts_with(|c: char| c.is_uppercase())
                     && name != "_"
                 // wildcard — always valid
                 {
-                    self.error_at_expr(expr, format!("undefined variable `{}`", name));
+                    let symbol_kind = if name.starts_with(|c: char| c.is_uppercase()) {
+                        "constructor"
+                    } else {
+                        "variable"
+                    };
+                    self.error_at_expr(expr, format!("undefined {} `{}`", symbol_kind, name));
                 }
             }
             ExprKind::App(func, args) => {
+                if matches!(&func.kind, ExprKind::Var(name) if name == "__typed") {
+                    if let Some(value) = args.first() {
+                        self.check_expr(value, _in_fn);
+                    }
+                    return;
+                }
                 if matches!(&func.kind, ExprKind::Var(name) if name == PATHOF_MARKER) {
                     self.check_pathof_expr(expr, args);
                     return;
@@ -19625,10 +19635,14 @@ impl TypeChecker {
                     } else if !self.var_defined(name)
                         && !name.contains("::")
                         && !name.contains(".")
-                        && !name.starts_with(|c: char| c.is_uppercase())
                         && name != "__typed"
                     {
-                        self.error_at_expr(func, format!("undefined function `{}`", name));
+                        let symbol_kind = if name.starts_with(|c: char| c.is_uppercase()) {
+                            "constructor"
+                        } else {
+                            "function"
+                        };
+                        self.error_at_expr(func, format!("undefined {} `{}`", symbol_kind, name));
                     }
                 } else {
                     self.check_expr(func, _in_fn);
@@ -22893,6 +22907,47 @@ mod tests {
             output.contains("Config(host: localhost, port: 8080, debug: true)"),
             "expected named-field runtime constructor, got: {}",
             output
+        );
+    }
+
+    #[test]
+    fn unknown_uppercase_values_are_rejected_as_undefined_constructors() {
+        let bare_source = r#"
+# TravelPurpose = Work | Study
+# TravelInput(purpose: TravelPurpose)
+
+= invalid = TravelInput(purpose = TypoPurpose)
+"#;
+        let bare_diagnostics = check_source_for_diagnostics(bare_source);
+        assert!(
+            bare_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("undefined constructor `TypoPurpose`")),
+            "unknown nullary constructor must fail before codegen: {bare_diagnostics:?}"
+        );
+
+        let called_source = "= invalid = TypoConstructor(1)";
+        let called_diagnostics = check_source_for_diagnostics(called_source);
+        assert!(
+            called_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("undefined constructor `TypoConstructor`")),
+            "unknown constructor call must fail before codegen: {called_diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn declared_uppercase_values_remain_valid() {
+        let source = r#"
+# TravelPurpose = Work | Study
+# TravelInput(purpose: TravelPurpose)
+
+= valid = TravelInput(purpose = Work)
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.is_empty(),
+            "declared constructors must remain valid: {diagnostics:?}"
         );
     }
 

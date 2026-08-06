@@ -1,0 +1,9 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: undefined constructor `TypoPurpose`
+-- expect-stderr-not: generated Rust did not compile
+
+# TravelPurpose = Work | Study
+# TravelInput(purpose: TravelPurpose)
+
+= invalid = TravelInput(purpose = TypoPurpose)

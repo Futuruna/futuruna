@@ -1300,6 +1300,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ægtefællens renteudgifter",
             "Valg af sømandsfradrag",
             "Befordringsfradrag",
+            "Personens rolle ved rejserne",
+            "Fradrag for dobbelt husførelse",
             "Skatteyderens status for faglige kontingenter",
             "Skattepligtsposition for A-kasse og lignende bidrag",
             "Afstand til folkepensionsalderen",
@@ -1707,6 +1709,57 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human § 9 B input label {expected} on {business_travel_sheet}"
+            );
+        }
+        let overnight_travel_path = "lønmodtager.ligningsfradrag.rejser.rejser";
+        let overnight_travel_sheet =
+            workbook_collection_sheet_name(&mut workbook, overnight_travel_path);
+        let overnight_travel_paths = workbook_column_paths(&mut workbook, &overnight_travel_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "rejseart",
+            "arbejdssted_identifikation",
+            "arbejdsstedskarakter.$variant",
+            "overnatningsforhold.$variant",
+            "standardperiode.startgrund.$variant",
+            "hverv",
+            "varighed_minutter",
+            "godtgørelse.kost_og_småfornødenheder_udbetalt_kroner",
+            "godtgørelse.logi_udbetalt_kroner",
+            "godtgørelse.kontrol",
+            "godtgørelse.lønomlægning",
+            "fradragsvalg",
+            "indkomstforhold.$variant",
+        ] {
+            assert!(
+                overnight_travel_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 9 A source-fact path {expected} on {overnight_travel_sheet}"
+            );
+        }
+        let overnight_travel_headers = workbook_headers(&mut workbook, &overnight_travel_sheet);
+        for expected in [
+            "Rejsens identifikation",
+            "Rejsens indkomstår",
+            "Rejsens art",
+            "Arbejdsstedets identifikation",
+            "Arbejdsstedets karakter",
+            "Mulighed for at overnatte hjemme",
+            "Startgrund for 12-månedersperioden",
+            "Hverv under rejsen",
+            "Rejsens samlede varighed",
+            "Udbetalt godtgørelse til kost og småfornødenheder",
+            "Udbetalt logigodtgørelse",
+            "Arbejdsgiverens kontrol af rejseafregningen",
+            "Godtgørelse og lønomlægning",
+            "Valg af rejsefradrag",
+            "Arbejdsindkomstens danske skatteforhold",
+        ] {
+            assert!(
+                overnight_travel_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 9 A input label {expected} on {overnight_travel_sheet}"
             );
         }
         let dividend_path = "aktieavance.udbytter";
@@ -4307,6 +4360,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenBefordringsfradrag".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.rejser.personrolle",
+                        Data::String("Ll9AAlmindeligLønmodtager".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.rejser.dobbelt_husførelse.$variant",
+                        Data::String("Ll9AIntetFradragForDobbeltHusførelse".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus",
                         Data::String("Ll13Lønmodtager".to_string()),
                     ),
@@ -5049,6 +5110,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
                 Data::String("UdenBefordringsfradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.rejser.personrolle",
+                Data::String("Ll9AAlmindeligLønmodtager".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.rejser.dobbelt_husførelse.$variant",
+                Data::String("Ll9AIntetFradragForDobbeltHusførelse".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus",
@@ -8938,6 +9007,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "sømandsbeskatningslov4": { "kildetilknytninger": [] },
                 "befordring": { "$variant": "UdenBefordringsfradrag" },
+                "rejser": {
+                    "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+                    "rejser": [],
+                    "dobbelt_husførelse": {
+                        "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
+                    }
+                },
                 "faglige_kontingenter": {
                     "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
                     "kontingenter": []
@@ -10393,6 +10469,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     },
                     "sømandsbeskatningslov4": { "kildetilknytninger": [] },
                     "befordring": { "$variant": "UdenBefordringsfradrag" },
+                    "rejser": {
+                        "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+                        "rejser": [],
+                        "dobbelt_husførelse": {
+                            "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
+                        }
+                    },
                     "faglige_kontingenter": {
                         "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
                         "kontingenter": []

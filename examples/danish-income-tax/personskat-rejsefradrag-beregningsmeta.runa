@@ -1,0 +1,312 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ligningsloven - par9a - rejser
+
+= personskat_ll9a_felt_personrolle = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::personrolle),
+    label = "Personens rolle ved rejserne",
+    question = Some("I hvilken rolle er rejserne foretaget?"),
+    help = Some("Rollen afgør, om personen kan modtage skattefri rejsegodtgørelse og vælge standard- eller udgiftsfradrag."),
+    unit = None
+)
+= personskat_ll9a_felt_rejser = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser),
+    label = "Arbejdsrejser med overnatning",
+    question = Some("Hvilke arbejdsrejser med overnatning skal indgå i årsopgørelsen?"),
+    help = Some("Opret én række pr. sammenhængende rejse til samme midlertidige arbejdssted."),
+    unit = None
+)
+= personskat_ll9a_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::identifikation),
+    label = "Rejsens identifikation",
+    question = Some("Hvilken entydig identifikation har rejsen?"),
+    help = Some("Brug en stabil reference fra rejseafregningen, så samme rejse ikke medregnes to gange."),
+    unit = None
+)
+= personskat_ll9a_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::indkomstår),
+    label = "Rejsens indkomstår",
+    question = Some("Hvilket indkomstår vedrører rejsen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9a_felt_rejseart = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::rejseart),
+    label = "Rejsens art",
+    question = Some("Er rejsen selvvalgt eller en tjenesterejse på arbejdsgiverens initiativ?"),
+    help = Some("En enkeltstående kortvarig rejse til samme sted kræver, at den er en tjenesterejse."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdssted_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::arbejdssted_identifikation),
+    label = "Arbejdsstedets identifikation",
+    question = Some("Hvilket arbejdssted vedrører rejsen?"),
+    help = Some("Brug samme stabile identifikation for gentagne rejser til samme arbejdssted."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdsstedskarakter = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::$variant),
+    label = "Arbejdsstedets karakter",
+    question = Some("Er arbejdsstedet mobilt, flyttende, et enkeltstående kortvarigt tjenestested eller et stedbundet arbejdssted?"),
+    help = Some("Arbejdsstedets faktiske karakter afgør både midlertidighed og 12-månedersbegrænsningen."),
+    unit = None
+)
+= personskat_ll9a_felt_flyttet_arbejdssted_kilometer = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::Ll9AFlyttendeArbejdssted::flyttet_ad_normal_transportvej_kilometer),
+    label = "Flyttet arbejdssted",
+    question = Some("Hvor langt har det flyttende arbejdssted flyttet sig ad normal transportvej?"),
+    help = Some("En flytning på mindst 8 km undtager stedet fra 12-månedersbegrænsningen."),
+    unit = Some("km")
+)
+= personskat_ll9a_felt_tidsbegrænsning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::arbejdsstedskarakter::Ll9AStedbundetArbejdssted::tidsbegrænsning),
+    label = "Det stedbundne arbejdssteds tidsbegrænsning",
+    question = Some("Hvorfor er det stedbundne arbejdssted tidsbegrænset?"),
+    help = Some("Et ubegrænset stedbundet arbejdssted opfylder ikke rejsebegrebets krav om et midlertidigt arbejdssted."),
+    unit = None
+)
+= personskat_ll9a_felt_overnatningsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::$variant),
+    label = "Mulighed for at overnatte hjemme",
+    question = Some("Var det på grund af afstanden umuligt at overnatte på den sædvanlige bopæl?"),
+    help = Some("Vurderingen skal bygge på den normale transportvej, transporttiden og arbejdsforholdene, ikke alene på et frit valg om at overnatte ude."),
+    unit = None
+)
+= personskat_ll9a_felt_bopælsafstand = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::Ll9AIngenMulighedForOvernatningPåSædvanligBopæl::afstand_ad_normal_transportvej_kilometer),
+    label = "Afstand mellem bopæl og arbejdssted",
+    question = Some("Hvor lang er afstanden ad normal transportvej mellem bopælen og arbejdsstedet?"),
+    help = None,
+    unit = Some("km")
+)
+= personskat_ll9a_felt_transporttid = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::overnatningsforhold::Ll9AIngenMulighedForOvernatningPåSædvanligBopæl::korteste_transporttid_hver_vej_minutter),
+    label = "Korteste transporttid hver vej",
+    question = Some("Hvor lang var den korteste realistiske transporttid hver vej?"),
+    help = None,
+    unit = Some("minutter")
+)
+= personskat_ll9a_felt_standardperiodestart = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::$variant),
+    label = "Startgrund for 12-månedersperioden",
+    question = Some("Hvorfor begynder en ny periode for koststandardsatsen?"),
+    help = Some("En ny periode begynder ved første arbejdsperiode, et nyt arbejdssted mindst 8 km væk eller tilbagevenden efter mindst 40 sammenhængende arbejdsdage på et andet sted."),
+    unit = None
+)
+= personskat_ll9a_felt_nyt_arbejdssted_afstand = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::Ll9ANytArbejdsstedFraTidligere::afstand_ad_normal_transportvej_kilometer),
+    label = "Afstand til det nye arbejdssted",
+    question = Some("Hvor langt ligger det nye arbejdssted fra det tidligere arbejdssted ad normal transportvej?"),
+    help = Some("Afstanden skal være mindst 8 km for at starte en ny 12-månedersperiode."),
+    unit = Some("km")
+)
+= personskat_ll9a_felt_andet_arbejdssted_dage = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::Ll9ATilbagevendenEfterAndetArbejdssted::sammenhængende_arbejdsdage),
+    label = "Arbejdsdage på et andet arbejdssted",
+    question = Some("Hvor mange sammenhængende arbejdsdage gik der på et andet arbejdssted før tilbagevenden?"),
+    help = Some("Mindst 40 sammenhængende arbejdsdage starter en ny 12-månedersperiode ved tilbagevenden."),
+    unit = Some("arbejdsdage")
+)
+= personskat_ll9a_felt_fulde_måneder = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::fulde_måneder_siden_periodestart),
+    label = "Fulde måneder siden periodestart",
+    question = Some("Hvor mange fulde måneder er gået siden den aktuelle standardperiodes start?"),
+    help = Some("Kost- og småfornødenhedssatsen ophører efter de første 12 måneder, medmindre arbejdsstedet er undtaget."),
+    unit = Some("måneder")
+)
+= personskat_ll9a_felt_hverv = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::hverv),
+    label = "Hverv under rejsen",
+    question = Some("Hvilket hverv blev udført under rejsen?"),
+    help = Some("Turistchauffører har særlige kostsatser, og visse transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen."),
+    unit = None
+)
+= personskat_ll9a_felt_varighed = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::varighed_minutter),
+    label = "Rejsens samlede varighed",
+    question = Some("Hvor mange minutter varede rejsen fra afrejse til hjemkomst?"),
+    help = Some("Rejsen skal vare mindst 24 timer; efter fulde døgn beregnes kostsatsen pr. påbegyndt time."),
+    unit = Some("minutter")
+)
+= personskat_ll9a_felt_kostgodtgørelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kost_og_småfornødenheder_udbetalt_kroner),
+    label = "Udbetalt godtgørelse til kost og småfornødenheder",
+    question = Some("Hvor meget udbetalte arbejdsgiveren som satsgodtgørelse til kost og småfornødenheder?"),
+    help = Some("Angiv kun satsgodtgørelsen; udgifter betalt efter regning oplyses særskilt."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_logigodtgørelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::logi_udbetalt_kroner),
+    label = "Udbetalt logigodtgørelse",
+    question = Some("Hvor meget udbetalte arbejdsgiveren som satsgodtgørelse til logi?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_kost_efter_regning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kostudgifter_afholdt_efter_regning_kroner),
+    label = "Kost betalt af arbejdsgiveren efter regning",
+    question = Some("Hvor mange kostudgifter afholdt arbejdsgiveren efter regning?"),
+    help = Some("Når arbejdsgiveren dækker kost efter regning, kan kun 25 pct.-satsen til småfornødenheder anvendes som standardsats."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_logi_efter_regning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::logiudgifter_afholdt_efter_regning_kroner),
+    label = "Logi betalt af arbejdsgiveren efter regning",
+    question = Some("Hvor mange logiudgifter afholdt arbejdsgiveren efter regning?"),
+    help = Some("Logisatsen kan ikke anvendes for logi, som arbejdsgiveren har betalt efter regning."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_fri_morgenmad = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_morgenmad_antal),
+    label = "Antal måltider med fri morgenmad",
+    question = Some("Hvor mange morgenmåltider blev stillet gratis til rådighed?"),
+    help = None,
+    unit = Some("måltider")
+)
+= personskat_ll9a_felt_fri_frokost = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_frokost_antal),
+    label = "Antal måltider med fri frokost",
+    question = Some("Hvor mange frokostmåltider blev stillet gratis til rådighed?"),
+    help = None,
+    unit = Some("måltider")
+)
+= personskat_ll9a_felt_fri_aftensmad = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_aftensmad_antal),
+    label = "Antal måltider med fri aftensmad",
+    question = Some("Hvor mange aftensmåltider blev stillet gratis til rådighed?"),
+    help = None,
+    unit = Some("måltider")
+)
+= personskat_ll9a_felt_kontrol = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kontrol),
+    label = "Arbejdsgiverens kontrol af rejseafregningen",
+    question = Some("Har arbejdsgiveren kontrolleret rejsens formål, mål, varighed, satser og beregning?"),
+    help = Some("Manglende arbejdsgiverkontrol gør den udbetalte godtgørelse skattepligtig."),
+    unit = None
+)
+= personskat_ll9a_felt_lønomlægning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::lønomlægning),
+    label = "Godtgørelse og lønomlægning",
+    question = Some("Er godtgørelsen finansieret ved en løbende nedgang i kontantlønnen?"),
+    help = Some("Godtgørelse mod løbende lønnedgang skal medregnes i indkomsten."),
+    unit = None
+)
+= personskat_ll9a_felt_egne_kostudgifter = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::dokumenterede_egne_kostudgifter_kroner),
+    label = "Dokumenterede egne kostudgifter",
+    question = Some("Hvor store dokumenterede kostudgifter betalte personen selv?"),
+    help = Some("Beløbet bruges kun ved valg af fradrag for faktiske udgifter."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_egne_logiudgifter = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::dokumenterede_egne_logiudgifter_kroner),
+    label = "Dokumenterede egne logiudgifter",
+    question = Some("Hvor store dokumenterede logiudgifter betalte personen selv?"),
+    help = Some("Beløbet bruges kun ved valg af fradrag for faktiske udgifter."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_fradragsvalg = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::fradragsvalg),
+    label = "Valg af rejsefradrag",
+    question = Some("Skal rejsen beregnes uden fradrag, med standardsatser eller med faktiske udgifter?"),
+    help = Some("Skattefri godtgørelse modregnes i fradraget, og samme udgift kan ikke fradrages efter begge metoder."),
+    unit = None
+)
+= personskat_ll9a_felt_indkomstforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::$variant),
+    label = "Arbejdsindkomstens danske skatteforhold",
+    question = Some("Er arbejdsindkomsten dansk skattepligtig, udenlandsk arbejde med dansk skattepligtig løn eller undtaget fra dansk skattepligt?"),
+    help = Some("Fradrag ved udenlandsk arbejde kan ikke overstige den udenlandske løn, som medregnes i Danmark, efter øvrige fradrag vedrørende samme indkomst."),
+    unit = None
+)
+= personskat_ll9a_felt_udlandsløn = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::lønindkomst_medregnet_i_danmark_kroner),
+    label = "Udenlandsk løn medregnet i Danmark",
+    question = Some("Hvor stor en løn fra det udenlandske arbejde medregnes i den danske indkomstopgørelse?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_udlandsøvrige_fradrag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::øvrige_fradrag_vedrørende_indkomsten_kroner),
+    label = "Øvrige fradrag vedrørende den udenlandske løn",
+    question = Some("Hvor store øvrige fradrag vedrører samme udenlandske lønindkomst?"),
+    help = Some("Beløbet reducerer det resterende indkomstloft for rejsefradraget."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_dobbelt_husførelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::dobbelt_husførelse::$variant),
+    label = "Fradrag for dobbelt husførelse",
+    question = Some("Indgår et særskilt opgjort fradrag for dobbelt husførelse i det fælles årsloft?"),
+    help = Some("Rejsefradrag og fradrag for dobbelt husførelse deler det regulerede årsloft."),
+    unit = None
+)
+= personskat_ll9a_felt_dobbelt_husførelse_kilde = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::dobbelt_husførelse::Ll9AOpgjortFradragForDobbeltHusførelse::kildeidentifikation),
+    label = "Kilde til fradrag for dobbelt husførelse",
+    question = Some("Hvilken opgørelse dokumenterer fradraget for dobbelt husførelse?"),
+    help = Some("Brug en stabil reference til den særskilte opgørelse."),
+    unit = None
+)
+= personskat_ll9a_felt_dobbelt_husførelse_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::dobbelt_husførelse::Ll9AOpgjortFradragForDobbeltHusførelse::fradrag_før_fælles_loft_kroner),
+    label = "Fradrag for dobbelt husførelse før fælles loft",
+    question = Some("Hvor stort er det særskilt opgjorte fradrag for dobbelt husførelse før årsloftet?"),
+    help = None,
+    unit = Some("kr./år")
+)
+
+= personskat_ll9a_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll9a_felt_personrolle,
+        personskat_ll9a_felt_rejser,
+        personskat_ll9a_felt_identifikation,
+        personskat_ll9a_felt_indkomstår,
+        personskat_ll9a_felt_rejseart,
+        personskat_ll9a_felt_arbejdssted_identifikation,
+        personskat_ll9a_felt_arbejdsstedskarakter,
+        personskat_ll9a_felt_flyttet_arbejdssted_kilometer,
+        personskat_ll9a_felt_tidsbegrænsning,
+        personskat_ll9a_felt_overnatningsforhold,
+        personskat_ll9a_felt_bopælsafstand,
+        personskat_ll9a_felt_transporttid,
+        personskat_ll9a_felt_standardperiodestart,
+        personskat_ll9a_felt_nyt_arbejdssted_afstand,
+        personskat_ll9a_felt_andet_arbejdssted_dage,
+        personskat_ll9a_felt_fulde_måneder,
+        personskat_ll9a_felt_hverv,
+        personskat_ll9a_felt_varighed,
+        personskat_ll9a_felt_kostgodtgørelse,
+        personskat_ll9a_felt_logigodtgørelse,
+        personskat_ll9a_felt_kost_efter_regning,
+        personskat_ll9a_felt_logi_efter_regning,
+        personskat_ll9a_felt_fri_morgenmad,
+        personskat_ll9a_felt_fri_frokost,
+        personskat_ll9a_felt_fri_aftensmad,
+        personskat_ll9a_felt_kontrol,
+        personskat_ll9a_felt_lønomlægning,
+        personskat_ll9a_felt_egne_kostudgifter,
+        personskat_ll9a_felt_egne_logiudgifter,
+        personskat_ll9a_felt_fradragsvalg,
+        personskat_ll9a_felt_indkomstforhold,
+        personskat_ll9a_felt_udlandsløn,
+        personskat_ll9a_felt_udlandsøvrige_fradrag,
+        personskat_ll9a_felt_dobbelt_husførelse,
+        personskat_ll9a_felt_dobbelt_husførelse_kilde,
+        personskat_ll9a_felt_dobbelt_husførelse_beløb
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9a),
+        DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+        RateSource(value = skatteforvaltningen_rejsesatser_2025),
+        RateSource(value = skatteforvaltningen_rejsesatser_2026),
+        Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
+        Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
+        Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+        Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+    )
+)
+
+--@label:Ligningslov9AÅrsinput::meta:personskat_ll9a_beregningsmeta--

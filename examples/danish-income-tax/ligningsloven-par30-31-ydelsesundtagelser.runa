@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./ligningsloven - par9a - rejser
 
 # Ligningslov30Og31KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -113,24 +114,6 @@ el.lign.
     identifier = "LOV nr. 1630 af 16/12/2025, § 2, nr. 1, og § 3, stk. 2",
     hentet_dato = "2026-08-04",
     ændringsstatus = "Gældende fra 01/07/2026"
-)
-= ligningsloven_lbk1500_par9a_stk2_og_stk3 = Ligningslov30Og31KildeInfo(
-    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 9 A, stk. 2-3, i LBK nr. 1500 af 24/11/2025",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte satser og reduktionsregler er uændrede"
-)
-= skatteforvaltningen_rejsesatser_2025 = Ligningslov30Og31KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2437004",
-    identifier = "SKM2024.643.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2025",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Historisk 2025-satsmeddelelse"
-)
-= skatteforvaltningen_rejsesatser_2026 = Ligningslov30Og31KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=2460063",
-    identifier = "SKM2025.725.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2026",
-    hentet_dato = "2026-08-04",
-    ændringsstatus = "Gældende 2026-satsmeddelelse"
 )
 = skatterådet_befordringssats_2026 = Ligningslov30Og31KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1333",
@@ -281,21 +264,10 @@ I § 31, stk. 3, indsættes som nr. 5:
 --@begin:ligningsloven_par31_uddannelsesydelser--
 # Ligningslov31Uddannelsesydelsesart = Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort: Boolsk, yder_har_lovpligt_til_at_betale_kørekortet: Boolsk) | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset: Boolsk) | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk) | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, påbegyndte_timer_efter_fulde_døgn: Heltal, opholdets_måned_nr: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) | Ll31BefordringIEgenBilEllerMotorcykel(kilometer_ad_normal_transportvej: Heltal, adgang_til_fri_befordring_for_strækningen: Boolsk, modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk, tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk) | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner: Heltal) | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026: Boolsk)
 # Ligningslov31Uddannelsesfakta(uddannelsen_eller_kurset_udelukkende_privat: Boolsk, ydelsesart: Ligningslov31Uddannelsesydelsesart)
-# Ligningslov31Satser(indkomstår: Heltal, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, befordring_øre_pr_kilometer: Heltal)
 
 | ligningslov30_og_31_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
-| ligningslov31_satser(indkomstår: Heltal) -> Ligningslov31Satser(
-    indkomstår = 2025,
-    kost_og_småfornødenheder_pr_døgn_kroner = 597,
-    logi_pr_døgn_kroner = 256,
-    befordring_øre_pr_kilometer = 223
-) under indkomstår == 2025
-| ligningslov31_satser(indkomstår: Heltal) -> Ligningslov31Satser(
-    indkomstår = 2026,
-    kost_og_småfornødenheder_pr_døgn_kroner = 625,
-    logi_pr_døgn_kroner = 268,
-    befordring_øre_pr_kilometer = 228
-) under indkomstår == 2026
+| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 223 under indkomstår == 2025
+| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 228 under indkomstår == 2026
 | ligningslov31_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31ArbejdsgivernesUddannelsesbidrag
 | ligningslov31_mulige_måltidsdage(fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> fulde_døgn + hvis påbegyndte_timer > 0 { 1 } ellers { 0 }
 | ligningslov31_ydelsesart_input_gyldig(art: Ligningslov31Uddannelsesydelsesart) -> match art {
@@ -309,8 +281,8 @@ I § 31, stk. 3, indsættes som nr. 5:
     | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner) -> dokumenterede_udgifter_kroner >= 0
     | Ll31AubTilskudEllerRefusion(_) -> Sandt
 }
-| ligningslov31_kost_grundsats_kroner(indkomstår: Heltal, fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> ligningslov31_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fulde_døgn * 24 + påbegyndte_timer) / 24
-| ligningslov31_kost_måltidsreduktion_kroner(indkomstår: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) -> ligningslov31_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fri_morgenmad_antal * 15 + fri_frokost_antal * 30 + fri_aftensmad_antal * 30) / 100
+| ligningslov31_kost_grundsats_kroner(indkomstår: Heltal, fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> ligningslov9a_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fulde_døgn * 24 + påbegyndte_timer) / 24
+| ligningslov31_kost_måltidsreduktion_kroner(indkomstår: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) -> ligningslov9a_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fri_morgenmad_antal * 15 + fri_frokost_antal * 30 + fri_aftensmad_antal * 30) / 100
 | ligningslov31_kost_maksimum_kroner(indkomstår: Heltal, fulde_døgn: Heltal, påbegyndte_timer: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) -> {
     = grundsats_kroner = ligningslov31_kost_grundsats_kroner(indkomstår, fulde_døgn, påbegyndte_timer)
     penge_største_beløb(grundsats_kroner - ligningslov31_kost_måltidsreduktion_kroner(indkomstår, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal), grundsats_kroner * 25 / 100)
@@ -320,9 +292,9 @@ I § 31, stk. 3, indsættes som nr. 5:
     | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset) -> relevante_for_uddannelsen_eller_kurset
     | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning, dokumenterede_udgifter_kroner) -> afstand_udelukker_overnatning && beløb_kroner <= dokumenterede_udgifter_kroner
     | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning, kosten_indtages_på_stedet, dokumenterede_udgifter_kroner) -> (afstand_udelukker_overnatning || kosten_indtages_på_stedet) && beløb_kroner <= dokumenterede_udgifter_kroner
-    | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning, fulde_døgn, udelukket_transportarbejde) -> afstand_udelukker_overnatning && udelukket_transportarbejde == Falskt && beløb_kroner <= fulde_døgn * ligningslov31_satser(indkomstår).logi_pr_døgn_kroner
+    | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning, fulde_døgn, udelukket_transportarbejde) -> afstand_udelukker_overnatning && udelukket_transportarbejde == Falskt && beløb_kroner <= fulde_døgn * ligningslov9a_satser(indkomstår).logi_pr_døgn_kroner
     | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning, fulde_døgn, påbegyndte_timer, opholdets_måned_nr, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal) -> afstand_udelukker_overnatning && opholdets_måned_nr <= 12 && beløb_kroner <= ligningslov31_kost_maksimum_kroner(indkomstår, fulde_døgn, påbegyndte_timer, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal)
-    | Ll31BefordringIEgenBilEllerMotorcykel(kilometer, adgang_til_fri_befordring, modtaget_par9b_for_samme_strækning, tidligere_valgt_par9b) -> adgang_til_fri_befordring == Falskt && modtaget_par9b_for_samme_strækning == Falskt && tidligere_valgt_par9b == Falskt && beløb_kroner * 100 <= kilometer * ligningslov31_satser(indkomstår).befordring_øre_pr_kilometer
+    | Ll31BefordringIEgenBilEllerMotorcykel(kilometer, adgang_til_fri_befordring, modtaget_par9b_for_samme_strækning, tidligere_valgt_par9b) -> adgang_til_fri_befordring == Falskt && modtaget_par9b_for_samme_strækning == Falskt && tidligere_valgt_par9b == Falskt && beløb_kroner * 100 <= kilometer * ligningslov31_befordring_øre_pr_kilometer(indkomstår)
     | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner) -> beløb_kroner <= dokumenterede_udgifter_kroner
     | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026) -> indkomstår > 2026 || (indkomstår == 2026 && modtaget_fra_og_med_1_juli_2026)
 }

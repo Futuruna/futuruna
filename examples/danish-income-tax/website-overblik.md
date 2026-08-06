@@ -67,6 +67,22 @@ læser kildedokumenterne og udfylder arbejdsbogen; Futuruna tager først over ve
 den typede validering og beregning. `@ importer` i en Futuruna-fil betyder alene,
 at filen bruger definitioner fra et andet Futuruna-modul.
 
+Arbejdsrejser viser nu hele kæden i et afgrænset domæne. AI'en oplyser
+arbejdssted, afstand og transporttid, rejsens varighed, arbejdsgiverens
+godtgørelse og kontrol, fri kost, egne udgifter og fradragsvalg. Futuruna
+afleder derefter rejsebetingelser, satser, måltidsreduktioner, skattefri og
+skattepligtig godtgørelse samt rejsefradraget efter
+[Ligningslovens § 9 A](https://www.retsinformation.dk/eli/lta/2025/1500).
+Den fokuserede beregningsgrænse kan generere en relationel XLSX-arbejdsbog med
+én række pr. rejse. En verificeret 2026-række med 800 kr. i godtgørelse giver
+800 kr. skattefrit og 986 kr. i resterende rejsefradrag. Hvis de samme fakta
+tilhører en person, der kan foretage sømandsfradrag, udleder den samlede
+Personskat-graf selv udelukkelsen efter Sømandsbeskatningslovens § 4, stk. 2:
+godtgørelsen bliver skattepligtig, og rejsefradraget bortfalder, også når
+personen har fravalgt selve sømandsfradraget. Satserne kommer fra
+[Skatteforvaltningens 2026-meddelelse](https://info.skat.dk/data.aspx?oid=2460063),
+ikke fra arbejdsbogen eller AI'en.
+
 Ordinære udbytter er nu et konkret eksempel på denne arbejdsdeling. AI'en
 oplyser en entydig kildepost med udlodder, modtagerstatus, aktivtype og beløb;
 den vælger ikke selv "aktieindkomst" som skattekategori. Futuruna afleder

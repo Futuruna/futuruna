@@ -1,0 +1,421 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ligningsloven_lbk1500_par9a = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; § 9 A er uændret"
+)
+= ligningsloven_lbk1500_par9_stk2_og_stk4 = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9, stk. 2 og 4, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte bestemmelser er uændrede"
+)
+= ligningsloven_lbk1500_par9a_stk2_og_stk3 = Ligningslov9AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 A, stk. 2-3, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte satser og reduktionsregler er uændrede"
+)
+= skatteforvaltningen_rejsesatser_2025 = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2437004",
+    identifier = "SKM2024.643.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Historisk 2025-satsmeddelelse"
+)
+= skatteforvaltningen_rejsesatser_2026 = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2460063",
+    identifier = "SKM2025.725.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2026",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende 2026-satsmeddelelse"
+)
+= skat_rejsefradrag_2026 = Ligningslov9AKildeInfo(
+    url = "https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/rejsefradrag-godtgoerelse-kost-og-logi/rejsefradrag",
+    identifier = "Skattestyrelsen: Arbejdsrelaterede rejsefradrag",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning og årslofter for 2025-2026 kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov9a_rejsebegreb = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976854",
+    identifier = "Den juridiske vejledning C.A.7.1.1: Hvad vil det sige at være på rejse?",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976857",
+    identifier = "Den juridiske vejledning C.A.7.1.4: Betingelse om midlertidigt arbejdssted",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov9a_fradrag = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976873",
+    identifier = "Den juridiske vejledning C.A.7.3.1: Generelt om fradrag for rejseudgifter",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning og årslofter for 2025-2026 kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov9a_kontrol = Ligningslov9AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976870",
+    identifier = "Den juridiske vejledning C.A.7.2.8: Betingelse om kontrol",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende vejledning, inklusive SKM2026.318.LSR, kontrolleret 04/08/2026"
+)
+
+= ligningsloven_par9a_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9a),
+        DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+        RateSource(value = skatteforvaltningen_rejsesatser_2025),
+        RateSource(value = skatteforvaltningen_rejsesatser_2026),
+        Guidance(value = skat_rejsefradrag_2026),
+        Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
+        Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
+        Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+        Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+    )
+)
+
+--@label:ligningsloven_par9a_rejser::meta:ligningsloven_par9a_metadata--
+----
+§ 9 A. Godtgørelser til dækning af rejseudgifter, der påføres lønmodtageren,
+fordi lønmodtageren på grund af afstanden mellem bopæl og et midlertidigt
+arbejdssted ikke har mulighed for at overnatte på sin sædvanlige bopæl,
+medregnes ikke ved indkomstopgørelsen, såfremt godtgørelsen ikke overstiger
+satser, der er fastsat i stk. 2.
+
+Stk. 2. Følgende satser kan anvendes til dækning af udgifter til logi, kost og
+småfornødenheder i stedet for de faktiske beløb:
+1) Ved rejse med overnatning i Danmark eller i udlandet et grundbeløb på 455
+kr. (2010-niveau) pr. døgn til kost og småfornødenheder. Skatterådet kan fra og
+med 1. januar 2001 forhøje satsen efter 1. pkt. med et grundbeløb på 142 kr.
+(2010-niveau) pr. døgn ved overnatning i lande, hvor leveomkostningerne er
+væsentligt højere end i Danmark.
+2) For turistchauffører med overnatning i udlandet 150 kr. pr. døgn.
+3) For turistchauffører med overnatning i Danmark 75 kr. pr. døgn.
+4) Ved rejser med overnatning i Danmark eller i udlandet et grundbeløb på 195
+kr. (2010-niveau) pr. døgn til logi, medmindre den ansatte i sit hverv
+medvirker til transport af varer eller personer, gør tjeneste om bord på skibe
+(herunder fiskerfartøjer), arbejder på luftfartøjer, i fartøjer og
+installationer, der anvendes i tilknytning til efterforskning og udnyttelse af
+naturforekomster. Der kan ikke foretages afskrivninger i den skattepligtige
+indkomst på driftsmidler mv., der anvendes i forbindelse med logiet, når der
+modtages godtgørelse med satsen til logi.
+
+Stk. 3. Satserne i stk. 2, nr. 1-3, udbetales pr. døgn, og derefter kan der
+udbetales 1/24 af satserne pr. påbegyndt time. Hvis der modtages fri kost,
+reduceres satsen efter stk. 2, nr. 1, med henholdsvis 15, 30 og 30 pct. for
+morgenmad, frokost og aftensmad. Uanset reduktionen i foregående punktum kan
+arbejdsgiveren dog altid til dækning af udgifter til småfornødenheder udbetale
+et beløb på indtil 25 pct. af satsen i stk. 2, nr. 1, beregnet for den samlede
+rejse.
+
+Stk. 4. Såfremt arbejdsgiveren afholder lønmodtagerens udgifter omfattet af
+stk. 1 efter regning, kan arbejdsgiveren til dækning af udgifter til
+småfornødenheder udbetale et skattefrit beløb på indtil 25 pct. af satsen i
+stk. 2, nr. 1, beregnet for den samlede rejse.
+
+Stk. 5. Stk. 1-4 finder kun anvendelse, når rejsen varer mindst 24 timer. Det
+enkelte arbejdssted, jf. stk. 1, kan ved anvendelsen af standardsatserne i stk.
+2, nr. 1-3, og stk. 4 højst anses for midlertidigt i de første 12 måneder. 2.
+pkt. finder ikke anvendelse, når arbejdsstedet er mobilt eller i takt med
+arbejdets udførelse eller færdiggørelse flytter sig over en strækning på mindst
+8 km. 2. pkt. finder endvidere ikke anvendelse i forhold til godtgørelser, der
+udbetales i forbindelse med enkeltstående kortvarige tjenesterejser til samme
+midlertidige arbejdssted.
+
+Stk. 6. En ny 12-måneders-periode påbegyndes, når lønmodtageren skifter til et
+nyt midlertidigt arbejdssted, der ligger mindst 8 km ad normal transportvej fra
+det tidligere arbejdssted, eller når lønmodtageren har arbejdet i en
+sammenhængende periode på mindst 40 arbejdsdage på et andet arbejdssted før
+tilbagevenden til det tidligere midlertidige arbejdssted.
+
+Stk. 7. Rejseudgifter, jf. stk. 1, kan fradrages ved indkomstopgørelsen enten
+med standardsatserne i stk. 2 og 3 eller med de faktiske udgifter. De faktiske
+udgifter til kost skal ikke reduceres med værdien af et sparet hjemmeforbrug.
+Såfremt arbejdsgiveren afholder lønmodtagerens udgifter omfattet af stk. 1
+efter regning, kan lønmodtageren ved indkomstopgørelsen fradrage udgifter til
+småfornødenheder med standardsatsen i stk. 4. Udgifter efter 1. og 3. pkt. kan
+dog ikke fradrages, i det omfang de er godtgjort efter stk. 1-4, eller
+overstiger et grundbeløb på 25.000 kr. (2010-niveau) i et indkomstår.
+Begrænsningen af fradraget efter 4. pkt. omfatter også fradrag for dobbelt
+husførelse efter statsskattelovens § 6, litra a, jf. § 9, stk. 1. Der kan ikke
+foretages afskrivninger i den skattepligtige indkomst på driftsmidler mv., der
+anvendes i forbindelse med logiet, når der foretages fradrag med satsen til
+logi.
+
+Stk. 8. Selvstændigt erhvervsdrivende, der på grund af afstanden mellem bopæl
+og et midlertidigt arbejdssted ikke har mulighed for at overnatte på deres
+sædvanlige bopæl, kan vælge at foretage fradrag med de i stk. 2 og 3 fastsatte
+satser i stedet for de faktiske udgifter. Fradrag med satserne i stk. 2 og 3
+kan dog ikke overstige et grundbeløb på 25.000 kr. (2010-niveau) i et
+indkomstår.
+
+Stk. 9. Stk. 1-6 finder tilsvarende anvendelse på rejsegodtgørelser, der
+udbetales til medlemmer af eller medhjælpere for bestyrelser, udvalg,
+kommissioner, råd og lign., hvad enten de er ulønnede eller aflønnes med et
+vederlag, der er A-indkomst, jf. kildeskattelovens § 43, stk. 2, litra a. Stk.
+7 finder tilsvarende anvendelse for medlemmer af eller medhjælpere for
+bestyrelser, udvalg, kommissioner, råd og lign., der modtager vederlag herfor,
+der er A-indkomst, jf. kildeskattelovens § 43, stk. 2, litra a.
+
+Stk. 10. Stk. 7 finder tilsvarende anvendelse for modtagere af
+tilskudsbevillinger til forskning, som er A-indkomst. Det er en betingelse, at
+den skattepligtige på grund af afstanden mellem bopæl og det sted, hvor den
+pågældende midlertidigt udfører et forskningsprojekt, ikke har mulighed for at
+overnatte på sin sædvanlige bopæl.
+
+Stk. 11. Personer, der modtager ydelser efter § 7, nr. 15, eller § 31, stk. 4,
+er ikke omfattet af stk. 1-9. Tilsvarende gælder for personer, der kan foretage
+fradrag efter § 3 i lov om beskatning af søfolk, jf. § 4, stk. 2, og for
+personer, der kan anvende §§ 5-8, i lov om beskatning af søfolk, jf. § 5, stk.
+5. Personer, der aftjener værnepligt, samt frivilligt personel i den periode,
+der er fastsat som uddannelsestid, kan ikke foretage fradrag med
+standardsatserne. Reglerne i stk. 1-8 finder ikke anvendelse for personer, der
+for et indkomstår har valgt fradrag efter § 9 G ved fangstture i det pågældende
+indkomstår.
+
+Stk. 12. Skattepligtige med sædvanlig bopæl på en ikkebrofast ø omfattet af §
+9 C, stk. 3, 3. pkt., som på grund af afstanden mellem bopæl og et fast
+arbejdssted ikke har mulighed for at overnatte på den sædvanlige bopæl, kan ved
+indkomstopgørelsen fradrage udgifter til logi med en standardsats efter stk. 2,
+nr. 4. Fradrag for logiudgifter efter 1. pkt. kan ikke overstige et grundbeløb
+på 25.000 kr. (2010-niveau) i et indkomstår og medregnes i begrænsningen af
+fradrag efter stk. 7, 4. og 5. pkt., og stk. 8, 2. pkt. Fradrag efter 1. pkt.
+kan ikke foretages af personer omfattet af stk. 11.
+
+Stk. 13. Grundbeløbene i stk. 2, 7, 8 og 12 reguleres årligt efter
+personskattelovens § 20. De regulerede beløb i stk. 2 afrundes opad til nærmeste
+kronebeløb.
+----
+
+--@begin:ligningsloven_par9a_rejser--
+# Ligningslov9APersonrolle = Ll9AAlmindeligLønmodtager | Ll9ABestyrelseshvervMedAIndkomst | Ll9ABestyrelseshvervUdenAIndkomst | Ll9AForskningstilskudMedAIndkomst | Ll9ASelvstændigtErhvervsdrivende | Ll9AModtagerYdelseEfterPar7Nr15 | Ll9AModtagerYdelseEfterPar31Stk4 | Ll9AVærnepligtigEllerFrivilligtPersonelIUddannelsestiden
+# Ligningslov9AEksternUdelukkelse = Ll9AIngenEksternUdelukkelse | Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 | Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 | Ll9AUdelukketEfterValgtFiskerfradragPar9G
+# Ligningslov9ARejseart = Ll9ASelvvalgtRejse | Ll9ATjenesterejse
+# Ligningslov9AOvernatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(afstand_ad_normal_transportvej_kilometer: Heltal, korteste_transporttid_hver_vej_minutter: Heltal) | Ll9AMulighedForOvernatningPåSædvanligBopæl
+# Ligningslov9ATidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode | Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse | Ll9ATidsbegrænsetPrøveperiode | Ll9AUbegrænsetArbejdssted
+# Ligningslov9AArbejdsstedskarakter = Ll9AMobiltArbejdssted | Ll9AFlyttendeArbejdssted(flyttet_ad_normal_transportvej_kilometer: Heltal) | Ll9AEnkeltståendeKortvarigTjenesterejse | Ll9AStedbundetArbejdssted(tidsbegrænsning: Ligningslov9ATidsbegrænsning)
+# Ligningslov9AStandardperiodestart = Ll9AFørstePeriodePåArbejdsstedet | Ll9ANytArbejdsstedFraTidligere(afstand_ad_normal_transportvej_kilometer: Heltal) | Ll9ATilbagevendenEfterAndetArbejdssted(sammenhængende_arbejdsdage: Heltal)
+# Ligningslov9AStandardperiodefakta(startgrund: Ligningslov9AStandardperiodestart, fulde_måneder_siden_periodestart: Heltal)
+# Ligningslov9AHverv = Ll9AAlmindeligtHverv | Ll9ATuristchaufførIDanmark | Ll9ATuristchaufførIUdlandet | Ll9ATransportAfVarerEllerPersoner | Ll9ATjenesteOmBordPåSkib | Ll9AArbejdePåLuftfartøj | Ll9ANaturforekomstfartøjEllerInstallation
+# Ligningslov9AGodtgørelseskontrol = Ll9AArbejdsgiverkontrolUdført | Ll9AArbejdsgiverkontrolIkkeUdført
+# Ligningslov9ALønomlægning = Ll9AGodtgørelseUdenLønomlægning | Ll9AGodtgørelseModLøbendeLønnedgang
+# Ligningslov9AGodtgørelsesfakta(kost_og_småfornødenheder_udbetalt_kroner: Heltal, logi_udbetalt_kroner: Heltal, kostudgifter_afholdt_efter_regning_kroner: Heltal, logiudgifter_afholdt_efter_regning_kroner: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol, lønomlægning: Ligningslov9ALønomlægning)
+# Ligningslov9AFradragsvalg = Ll9AIntetRejsefradrag | Ll9AFradragMedStandardsatser | Ll9AFradragMedFaktiskeUdgifter
+# Ligningslov9AIndkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst | Ll9AUdenlandskSkattepligtigArbejdsindkomst(lønindkomst_medregnet_i_danmark_kroner: Heltal, øvrige_fradrag_vedrørende_indkomsten_kroner: Heltal) | Ll9AArbejdsindkomstUndtagetFraDanskSkattepligt
+# Ligningslov9ARejsefakta(identifikation: Tekst, indkomstår: Heltal, rejseart: Ligningslov9ARejseart, arbejdssted_identifikation: Tekst, arbejdsstedskarakter: Ligningslov9AArbejdsstedskarakter, overnatningsforhold: Ligningslov9AOvernatningsforhold, standardperiode: Ligningslov9AStandardperiodefakta, hverv: Ligningslov9AHverv, varighed_minutter: Heltal, godtgørelse: Ligningslov9AGodtgørelsesfakta, dokumenterede_egne_kostudgifter_kroner: Heltal, dokumenterede_egne_logiudgifter_kroner: Heltal, fradragsvalg: Ligningslov9AFradragsvalg, indkomstforhold: Ligningslov9AIndkomstforhold)
+# Ligningslov9ADobbeltHusførelse = Ll9AIntetFradragForDobbeltHusførelse | Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation: Tekst, fradrag_før_fælles_loft_kroner: Heltal)
+# Ligningslov9AÅrsinput(personrolle: Ligningslov9APersonrolle, rejser: List(Ligningslov9ARejsefakta), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse)
+# Ligningslov9ASatser(indkomstår: Heltal, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal)
+# Ligningslov9ARejseresultat(fakta: Ligningslov9ARejsefakta, input_gyldigt: Boolsk, rejsebetingelser_opfyldt: Boolsk, standardperiode_aktiv_for_kost: Boolsk, standardsats_kost_før_dækning_kroner: Heltal, standardsats_kost_efter_dækning_kroner: Heltal, standardsats_logi_kroner: Heltal, udbetalt_godtgørelse_kroner: Heltal, skattefri_godtgørelse_kroner: Heltal, skattepligtig_godtgørelse_kroner: Heltal, fradrag_før_indkomstloft_kroner: Heltal, indkomstloft_kroner: Heltal, fradrag_før_årsloft_kroner: Heltal)
+# Ligningslov9AÅrsresultat(indkomstår: Heltal, input: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse, rejseresultater: List(Ligningslov9ARejseresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, stk1_til_stk9_udelukket: Boolsk, samlet_udbetalt_godtgørelse_kroner: Heltal, samlet_skattefri_godtgørelse_kroner: Heltal, samlet_skattepligtig_godtgørelse_kroner: Heltal, samlet_rejsefradrag_før_årsloft_kroner: Heltal, dobbelt_husførelse_før_fælles_loft_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal, samlet_rejsefradrag_efter_årsloft_kroner: Heltal)
+
+| ligningslov9a_intet_årsinput() -> Ligningslov9AÅrsinput(
+    personrolle = Ll9AAlmindeligLønmodtager,
+    rejser = [],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+)
+| ligningslov9a_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov9a_satser(indkomstår: Heltal) -> Ligningslov9ASatser(
+    indkomstår = 2025,
+    kost_og_småfornødenheder_pr_døgn_kroner = 597,
+    logi_pr_døgn_kroner = 256,
+    årligt_fælles_fradragsloft_kroner = 32800
+) under indkomstår == 2025
+| ligningslov9a_satser(indkomstår: Heltal) -> Ligningslov9ASatser(
+    indkomstår = 2026,
+    kost_og_småfornødenheder_pr_døgn_kroner = 625,
+    logi_pr_døgn_kroner = 268,
+    årligt_fælles_fradragsloft_kroner = 34400
+) under indkomstår == 2026
+| ligningslov9a_personrolle_helt_udelukket(personrolle: Ligningslov9APersonrolle) -> personrolle == Ll9AModtagerYdelseEfterPar7Nr15 || personrolle == Ll9AModtagerYdelseEfterPar31Stk4
+| ligningslov9a_stk1_til_stk9_udelukket(personrolle: Ligningslov9APersonrolle, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ligningslov9a_personrolle_helt_udelukket(personrolle) || ekstern_udelukkelse != Ll9AIngenEksternUdelukkelse
+| ligningslov9a_personrolle_kan_modtage_godtgørelse(personrolle: Ligningslov9APersonrolle) -> personrolle == Ll9AAlmindeligLønmodtager || personrolle == Ll9ABestyrelseshvervMedAIndkomst || personrolle == Ll9ABestyrelseshvervUdenAIndkomst || personrolle == Ll9AVærnepligtigEllerFrivilligtPersonelIUddannelsestiden
+| ligningslov9a_personrolle_kan_fradrage(personrolle: Ligningslov9APersonrolle) -> personrolle == Ll9AAlmindeligLønmodtager || personrolle == Ll9ABestyrelseshvervMedAIndkomst || personrolle == Ll9AForskningstilskudMedAIndkomst || personrolle == Ll9ASelvstændigtErhvervsdrivende || personrolle == Ll9AVærnepligtigEllerFrivilligtPersonelIUddannelsestiden
+| ligningslov9a_personrolle_kan_anvende_standardfradrag(personrolle: Ligningslov9APersonrolle) -> ligningslov9a_personrolle_kan_fradrage(personrolle) && personrolle != Ll9AVærnepligtigEllerFrivilligtPersonelIUddannelsestiden
+| ligningslov9a_personrolle_kan_anvende_faktiske_udgifter(personrolle: Ligningslov9APersonrolle) -> ligningslov9a_personrolle_kan_fradrage(personrolle) && personrolle != Ll9ASelvstændigtErhvervsdrivende
+| ligningslov9a_arbejdssted_grundfakta_gyldige(arbejdssted: Ligningslov9AArbejdsstedskarakter) -> match arbejdssted {
+    | Ll9AFlyttendeArbejdssted(kilometer) -> kilometer >= 0
+    | _ -> Sandt
+}
+| ligningslov9a_arbejdssted_midlertidigt(arbejdssted: Ligningslov9AArbejdsstedskarakter, rejseart: Ligningslov9ARejseart) -> match arbejdssted {
+    | Ll9AMobiltArbejdssted -> Sandt
+    | Ll9AFlyttendeArbejdssted(_) -> Sandt
+    | Ll9AEnkeltståendeKortvarigTjenesterejse -> rejseart == Ll9ATjenesterejse
+    | Ll9AStedbundetArbejdssted(tidsbegrænsning) -> tidsbegrænsning != Ll9AUbegrænsetArbejdssted
+}
+| ligningslov9a_overnatningsforhold_gyldigt(overnatningsforhold: Ligningslov9AOvernatningsforhold) -> match overnatningsforhold {
+    | Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(afstand_kilometer, transporttid_minutter) -> afstand_kilometer >= 0 && transporttid_minutter >= 0
+    | Ll9AMulighedForOvernatningPåSædvanligBopæl -> Sandt
+}
+| ligningslov9a_overnatning_umulig(overnatningsforhold: Ligningslov9AOvernatningsforhold) -> match overnatningsforhold {
+    | Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(_, _) -> Sandt
+    | Ll9AMulighedForOvernatningPåSædvanligBopæl -> Falskt
+}
+| ligningslov9a_standardperiodestart_gyldig(startgrund: Ligningslov9AStandardperiodestart) -> match startgrund {
+    | Ll9AFørstePeriodePåArbejdsstedet -> Sandt
+    | Ll9ANytArbejdsstedFraTidligere(afstand_kilometer) -> afstand_kilometer >= 8
+    | Ll9ATilbagevendenEfterAndetArbejdssted(arbejdsdage) -> arbejdsdage >= 40
+}
+| ligningslov9a_standardperiode_gyldig(standardperiode: Ligningslov9AStandardperiodefakta) -> standardperiode.fulde_måneder_siden_periodestart >= 0 && ligningslov9a_standardperiodestart_gyldig(standardperiode.startgrund)
+| ligningslov9a_tolv_måneders_begrænsning_undtaget(arbejdssted: Ligningslov9AArbejdsstedskarakter) -> match arbejdssted {
+    | Ll9AMobiltArbejdssted -> Sandt
+    | Ll9AFlyttendeArbejdssted(kilometer) -> kilometer >= 8
+    | Ll9AEnkeltståendeKortvarigTjenesterejse -> Sandt
+    | _ -> Falskt
+}
+| ligningslov9a_standardperiode_aktiv_for_kost(fakta: Ligningslov9ARejsefakta) -> ligningslov9a_tolv_måneders_begrænsning_undtaget(fakta.arbejdsstedskarakter) || (ligningslov9a_standardperiode_gyldig(fakta.standardperiode) && fakta.standardperiode.fulde_måneder_siden_periodestart < 12)
+| ligningslov9a_fulde_døgn(varighed_minutter: Heltal) -> hvis varighed_minutter > 0 { varighed_minutter / 1440 } ellers { 0 }
+| ligningslov9a_påbegyndte_timer_efter_fulde_døgn(varighed_minutter: Heltal) -> hvis varighed_minutter > 0 { ((varighed_minutter % 1440) + 59) / 60 } ellers { 0 }
+| ligningslov9a_satsgivende_timer(varighed_minutter: Heltal) -> ligningslov9a_fulde_døgn(varighed_minutter) * 24 + ligningslov9a_påbegyndte_timer_efter_fulde_døgn(varighed_minutter)
+| ligningslov9a_mulige_måltidsdage(varighed_minutter: Heltal) -> ligningslov9a_fulde_døgn(varighed_minutter) + hvis varighed_minutter % 1440 > 0 { 1 } ellers { 0 }
+| ligningslov9a_godtgørelsesfakta_gyldige(fakta: Ligningslov9ARejsefakta) -> {
+    = godtgørelse = fakta.godtgørelse
+    = mulige_måltidsdage = ligningslov9a_mulige_måltidsdage(fakta.varighed_minutter)
+    godtgørelse.kost_og_småfornødenheder_udbetalt_kroner >= 0 && godtgørelse.logi_udbetalt_kroner >= 0 && godtgørelse.kostudgifter_afholdt_efter_regning_kroner >= 0 && godtgørelse.logiudgifter_afholdt_efter_regning_kroner >= 0 && godtgørelse.fri_morgenmad_antal >= 0 && godtgørelse.fri_frokost_antal >= 0 && godtgørelse.fri_aftensmad_antal >= 0 && godtgørelse.fri_morgenmad_antal <= mulige_måltidsdage && godtgørelse.fri_frokost_antal <= mulige_måltidsdage && godtgørelse.fri_aftensmad_antal <= mulige_måltidsdage
+}
+| ligningslov9a_indkomstforhold_gyldigt(indkomstforhold: Ligningslov9AIndkomstforhold) -> match indkomstforhold {
+    | Ll9AUdenlandskSkattepligtigArbejdsindkomst(lønindkomst_kroner, øvrige_fradrag_kroner) -> lønindkomst_kroner >= 0 && øvrige_fradrag_kroner >= 0
+    | _ -> Sandt
+}
+| ligningslov9a_rejseinput_gyldigt(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> ligningslov9a_skatteår_understøttet(indkomstår) && fakta.identifikation != "" && fakta.arbejdssted_identifikation != "" && fakta.indkomstår == indkomstår && fakta.varighed_minutter >= 0 && ligningslov9a_arbejdssted_grundfakta_gyldige(fakta.arbejdsstedskarakter) && ligningslov9a_overnatningsforhold_gyldigt(fakta.overnatningsforhold) && ligningslov9a_standardperiode_gyldig(fakta.standardperiode) && ligningslov9a_godtgørelsesfakta_gyldige(fakta) && fakta.dokumenterede_egne_kostudgifter_kroner >= 0 && fakta.dokumenterede_egne_logiudgifter_kroner >= 0 && ligningslov9a_indkomstforhold_gyldigt(fakta.indkomstforhold)
+| ligningslov9a_rejsebetingelser_opfyldt(fakta: Ligningslov9ARejsefakta) -> ligningslov9a_arbejdssted_midlertidigt(fakta.arbejdsstedskarakter, fakta.rejseart) && ligningslov9a_overnatning_umulig(fakta.overnatningsforhold) && fakta.varighed_minutter >= 1440
+| ligningslov9a_kostsats_pr_døgn_kroner(indkomstår: Heltal, hverv: Ligningslov9AHverv) -> match hverv {
+    | Ll9ATuristchaufførIDanmark -> 75
+    | Ll9ATuristchaufførIUdlandet -> 150
+    | _ -> ligningslov9a_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner
+}
+| ligningslov9a_turistchauffør(hverv: Ligningslov9AHverv) -> hverv == Ll9ATuristchaufførIDanmark || hverv == Ll9ATuristchaufførIUdlandet
+| ligningslov9a_logisats_afskåret_af_hverv(hverv: Ligningslov9AHverv) -> hverv == Ll9ATransportAfVarerEllerPersoner || hverv == Ll9ATjenesteOmBordPåSkib || hverv == Ll9AArbejdePåLuftfartøj || hverv == Ll9ANaturforekomstfartøjEllerInstallation
+| ligningslov9a_kost_grundsats_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> ligningslov9a_kostsats_pr_døgn_kroner(indkomstår, fakta.hverv) * ligningslov9a_satsgivende_timer(fakta.varighed_minutter) / 24
+| ligningslov9a_kost_måltidsreduktion_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> hvis ligningslov9a_turistchauffør(fakta.hverv) { 0 } ellers { ligningslov9a_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fakta.godtgørelse.fri_morgenmad_antal * 15 + fakta.godtgørelse.fri_frokost_antal * 30 + fakta.godtgørelse.fri_aftensmad_antal * 30) / 100 }
+| ligningslov9a_kost_femogtyve_procent_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> hvis ligningslov9a_turistchauffør(fakta.hverv) { 0 } ellers { ligningslov9a_kost_grundsats_kroner(indkomstår, fakta) * 25 / 100 }
+| ligningslov9a_standardsats_kost_før_dækning_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> hvis ligningslov9a_standardperiode_aktiv_for_kost(fakta) {
+    = grundsats_kroner = ligningslov9a_kost_grundsats_kroner(indkomstår, fakta)
+    penge_største_beløb(grundsats_kroner - ligningslov9a_kost_måltidsreduktion_kroner(indkomstår, fakta), ligningslov9a_kost_femogtyve_procent_kroner(indkomstår, fakta))
+} ellers { 0 }
+| ligningslov9a_standardsats_kost_efter_dækning_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> hvis fakta.godtgørelse.kostudgifter_afholdt_efter_regning_kroner > 0 { ligningslov9a_kost_femogtyve_procent_kroner(indkomstår, fakta) } ellers { ligningslov9a_standardsats_kost_før_dækning_kroner(indkomstår, fakta) }
+| ligningslov9a_standardsats_logi_kroner(indkomstår: Heltal, fakta: Ligningslov9ARejsefakta) -> hvis ligningslov9a_logisats_afskåret_af_hverv(fakta.hverv) || fakta.godtgørelse.logiudgifter_afholdt_efter_regning_kroner > 0 { 0 } ellers { ligningslov9a_satser(indkomstår).logi_pr_døgn_kroner * ligningslov9a_fulde_døgn(fakta.varighed_minutter) }
+| ligningslov9a_kontrol_opfyldt(fakta: Ligningslov9ARejsefakta) -> fakta.godtgørelse.kontrol == Ll9AArbejdsgiverkontrolUdført && fakta.godtgørelse.lønomlægning == Ll9AGodtgørelseUdenLønomlægning
+| ligningslov9a_skattefri_kostgodtgørelse_kroner(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, stk1_til_stk9_udelukket: Boolsk) -> hvis stk1_til_stk9_udelukket == Falskt && ligningslov9a_personrolle_kan_modtage_godtgørelse(personrolle) && ligningslov9a_rejsebetingelser_opfyldt(fakta) && ligningslov9a_kontrol_opfyldt(fakta) && fakta.godtgørelse.kost_og_småfornødenheder_udbetalt_kroner <= ligningslov9a_standardsats_kost_efter_dækning_kroner(indkomstår, fakta) { fakta.godtgørelse.kost_og_småfornødenheder_udbetalt_kroner } ellers { 0 }
+| ligningslov9a_skattefri_logigodtgørelse_kroner(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, stk1_til_stk9_udelukket: Boolsk) -> hvis stk1_til_stk9_udelukket == Falskt && ligningslov9a_personrolle_kan_modtage_godtgørelse(personrolle) && ligningslov9a_rejsebetingelser_opfyldt(fakta) && ligningslov9a_kontrol_opfyldt(fakta) && fakta.godtgørelse.logi_udbetalt_kroner <= ligningslov9a_standardsats_logi_kroner(indkomstår, fakta) { fakta.godtgørelse.logi_udbetalt_kroner } ellers { 0 }
+| ligningslov9a_standardfradrag_kroner(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, skattefri_kostgodtgørelse_kroner: Heltal, skattefri_logigodtgørelse_kroner: Heltal) -> hvis ligningslov9a_personrolle_kan_anvende_standardfradrag(personrolle) { penge_positivt_beløb(ligningslov9a_standardsats_kost_efter_dækning_kroner(indkomstår, fakta) - skattefri_kostgodtgørelse_kroner) + penge_positivt_beløb(ligningslov9a_standardsats_logi_kroner(indkomstår, fakta) - skattefri_logigodtgørelse_kroner) } ellers { 0 }
+| ligningslov9a_faktiske_udgifter_fradrag_kroner(personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, skattefri_godtgørelse_kroner: Heltal) -> hvis ligningslov9a_personrolle_kan_anvende_faktiske_udgifter(personrolle) { penge_positivt_beløb(fakta.dokumenterede_egne_kostudgifter_kroner + fakta.dokumenterede_egne_logiudgifter_kroner - skattefri_godtgørelse_kroner) } ellers { 0 }
+| ligningslov9a_fradrag_før_indkomstloft_kroner(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, skattefri_kostgodtgørelse_kroner: Heltal, skattefri_logigodtgørelse_kroner: Heltal, stk1_til_stk9_udelukket: Boolsk) -> hvis stk1_til_stk9_udelukket || ligningslov9a_rejsebetingelser_opfyldt(fakta) == Falskt { 0 } ellers { match fakta.fradragsvalg {
+    | Ll9AIntetRejsefradrag -> 0
+    | Ll9AFradragMedStandardsatser -> ligningslov9a_standardfradrag_kroner(indkomstår, personrolle, fakta, skattefri_kostgodtgørelse_kroner, skattefri_logigodtgørelse_kroner)
+    | Ll9AFradragMedFaktiskeUdgifter -> ligningslov9a_faktiske_udgifter_fradrag_kroner(personrolle, fakta, skattefri_kostgodtgørelse_kroner + skattefri_logigodtgørelse_kroner)
+} }
+| ligningslov9a_indkomstloft_kroner(indkomstforhold: Ligningslov9AIndkomstforhold, fradrag_før_indkomstloft_kroner: Heltal) -> match indkomstforhold {
+    | Ll9ADanskSkattepligtigArbejdsindkomst -> fradrag_før_indkomstloft_kroner
+    | Ll9AUdenlandskSkattepligtigArbejdsindkomst(lønindkomst_kroner, øvrige_fradrag_kroner) -> penge_positivt_beløb(lønindkomst_kroner - øvrige_fradrag_kroner)
+    | Ll9AArbejdsindkomstUndtagetFraDanskSkattepligt -> 0
+}
+| ligningslov9a_rejseresultat(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, fakta: Ligningslov9ARejsefakta, stk1_til_stk9_udelukket: Boolsk) -> {
+    = input_gyldigt = ligningslov9a_rejseinput_gyldigt(indkomstår, fakta)
+    = skattefri_kostgodtgørelse_kroner = hvis input_gyldigt { ligningslov9a_skattefri_kostgodtgørelse_kroner(indkomstår, personrolle, fakta, stk1_til_stk9_udelukket) } ellers { 0 }
+    = skattefri_logigodtgørelse_kroner = hvis input_gyldigt { ligningslov9a_skattefri_logigodtgørelse_kroner(indkomstår, personrolle, fakta, stk1_til_stk9_udelukket) } ellers { 0 }
+    = skattefri_godtgørelse_kroner = skattefri_kostgodtgørelse_kroner + skattefri_logigodtgørelse_kroner
+    = udbetalt_godtgørelse_kroner = penge_positivt_beløb(fakta.godtgørelse.kost_og_småfornødenheder_udbetalt_kroner) + penge_positivt_beløb(fakta.godtgørelse.logi_udbetalt_kroner)
+    = fradrag_før_indkomstloft_kroner = hvis input_gyldigt { ligningslov9a_fradrag_før_indkomstloft_kroner(indkomstår, personrolle, fakta, skattefri_kostgodtgørelse_kroner, skattefri_logigodtgørelse_kroner, stk1_til_stk9_udelukket) } ellers { 0 }
+    = indkomstloft_kroner = ligningslov9a_indkomstloft_kroner(fakta.indkomstforhold, fradrag_før_indkomstloft_kroner)
+    Ligningslov9ARejseresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        rejsebetingelser_opfyldt = input_gyldigt && ligningslov9a_rejsebetingelser_opfyldt(fakta),
+        standardperiode_aktiv_for_kost = input_gyldigt && ligningslov9a_standardperiode_aktiv_for_kost(fakta),
+        standardsats_kost_før_dækning_kroner = hvis input_gyldigt { ligningslov9a_standardsats_kost_før_dækning_kroner(indkomstår, fakta) } ellers { 0 },
+        standardsats_kost_efter_dækning_kroner = hvis input_gyldigt { ligningslov9a_standardsats_kost_efter_dækning_kroner(indkomstår, fakta) } ellers { 0 },
+        standardsats_logi_kroner = hvis input_gyldigt { ligningslov9a_standardsats_logi_kroner(indkomstår, fakta) } ellers { 0 },
+        udbetalt_godtgørelse_kroner = udbetalt_godtgørelse_kroner,
+        skattefri_godtgørelse_kroner = skattefri_godtgørelse_kroner,
+        skattepligtig_godtgørelse_kroner = udbetalt_godtgørelse_kroner - skattefri_godtgørelse_kroner,
+        fradrag_før_indkomstloft_kroner = fradrag_før_indkomstloft_kroner,
+        indkomstloft_kroner = indkomstloft_kroner,
+        fradrag_før_årsloft_kroner = penge_mindste_beløb(fradrag_før_indkomstloft_kroner, indkomstloft_kroner)
+    )
+}
+| ligningslov9a_dobbelt_husførelse_input_gyldigt(input: Ligningslov9ADobbeltHusførelse) -> match input {
+    | Ll9AIntetFradragForDobbeltHusførelse -> Sandt
+    | Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation, fradrag_kroner) -> kildeidentifikation != "" && fradrag_kroner >= 0
+}
+| ligningslov9a_dobbelt_husførelse_før_fælles_loft_kroner(input: Ligningslov9ADobbeltHusførelse) -> match input {
+    | Ll9AIntetFradragForDobbeltHusførelse -> 0
+    | Ll9AOpgjortFradragForDobbeltHusførelse(_, fradrag_kroner) -> penge_positivt_beløb(fradrag_kroner)
+}
+| ligningslov9a_identifikationer_entydige(rejser: List(Ligningslov9ARejsefakta)) -> length(distinct(map(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation))) == length(rejser) && all(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation != "")
+| ligningslov9a_årsresultat(indkomstår: Heltal, input: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> {
+    = skatteår_understøttet = length(input.rejser) == 0 || ligningslov9a_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = ligningslov9a_identifikationer_entydige(input.rejser)
+    = stk1_til_stk9_udelukket = ligningslov9a_stk1_til_stk9_udelukket(input.personrolle, ekstern_udelukkelse)
+    = rejseresultater = map(input.rejser, |fakta: Ligningslov9ARejsefakta| ligningslov9a_rejseresultat(indkomstår, input.personrolle, fakta, stk1_til_stk9_udelukket))
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && ligningslov9a_dobbelt_husførelse_input_gyldigt(input.dobbelt_husførelse) && all(rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.input_gyldigt)
+    = samlet_udbetalt_godtgørelse_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.udbetalt_godtgørelse_kroner)
+    = samlet_skattefri_godtgørelse_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.skattefri_godtgørelse_kroner)
+    = samlet_rejsefradrag_før_årsloft_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.fradrag_før_årsloft_kroner)
+    = dobbelt_husførelse_før_fælles_loft_kroner = ligningslov9a_dobbelt_husførelse_før_fælles_loft_kroner(input.dobbelt_husførelse)
+    = årligt_fælles_fradragsloft_kroner = hvis ligningslov9a_skatteår_understøttet(indkomstår) { ligningslov9a_satser(indkomstår).årligt_fælles_fradragsloft_kroner } ellers { 0 }
+    = tilgængeligt_rejsefradragsloft_kroner = penge_positivt_beløb(årligt_fælles_fradragsloft_kroner - dobbelt_husførelse_før_fælles_loft_kroner)
+    Ligningslov9AÅrsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        ekstern_udelukkelse = ekstern_udelukkelse,
+        rejseresultater = rejseresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        stk1_til_stk9_udelukket = stk1_til_stk9_udelukket,
+        samlet_udbetalt_godtgørelse_kroner = samlet_udbetalt_godtgørelse_kroner,
+        samlet_skattefri_godtgørelse_kroner = samlet_skattefri_godtgørelse_kroner,
+        samlet_skattepligtig_godtgørelse_kroner = samlet_udbetalt_godtgørelse_kroner - samlet_skattefri_godtgørelse_kroner,
+        samlet_rejsefradrag_før_årsloft_kroner = samlet_rejsefradrag_før_årsloft_kroner,
+        dobbelt_husførelse_før_fælles_loft_kroner = dobbelt_husførelse_før_fælles_loft_kroner,
+        årligt_fælles_fradragsloft_kroner = årligt_fælles_fradragsloft_kroner,
+        samlet_rejsefradrag_efter_årsloft_kroner = hvis alle_input_gyldige { penge_mindste_beløb(samlet_rejsefradrag_før_årsloft_kroner, tilgængeligt_rejsefradragsloft_kroner) } ellers { 0 }
+    )
+}
+--@end:ligningsloven_par9a_rejser--
+
+= ligningsloven_par9_stk2_og_stk4_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+        Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+    )
+)
+
+--@label:ligningsloven_par9_stk2_og_stk4_rejser::meta:ligningsloven_par9_stk2_og_stk4_metadata--
+----
+§ 9, stk. 2. Begrænsningen af fradraget efter stk. 1 omfatter ikke udgifter,
+som lønmodtagere kan fradrage efter § 9 A, § 9 B, stk. 4, § 9 C, § 9 D og § 13
+i denne lov som fradrag for dobbelt husførelse efter statsskattelovens § 6,
+litra a, eller efter § 49, stk. 1, § 49 A, stk. 1, og § 49 B, stk. 1, i lov om
+beskatningen af pensionsordninger mv. Udgifter, der er fradragsberettiget efter
+stk. 1, § 9 A, § 9 B, stk. 4, og §§ 9 C og 9 D, i forbindelse med udførelse af
+indtægtsgivende arbejde i udlandet kan ikke fradrages ved opgørelsen af den
+skattepligtige indkomst for lønmodtagere, i det omfang de nævnte udgifter
+overstiger den udenlandske lønindkomst, der skal medregnes i den danske
+indkomstopgørelse. Udgifter som nævnt i 2. pkt., der vedrører udførelse af
+arbejde, hvorfra indtægten er undtaget fra skattepligt, kan ikke fradrages ved
+opgørelsen af den skattepligtige indkomst.
+
+Stk. 4. Godtgørelse, der udbetales af arbejdsgiveren for udgifter, som
+lønmodtageren påføres som følge af arbejdet, medregnes ved indkomstopgørelsen.
+Dette gælder dog ikke godtgørelse for rejseudgifter mv. omfattet af § 9 A eller
+§ 31, stk. 4, og befordringsudgifter omfattet af § 9 B eller § 31, stk. 5.
+Godtgørelsen skal dog medregnes ved indkomstopgørelsen, hvis lønmodtageren ved
+lønomlægning har kompenseret arbejdsgiveren m.v. for at få godtgørelsen.
+Skatteministeren kan fastsætte nærmere regler om kontrol og administrationen af
+godtgørelsesreglerne. 3. og 4. pkt. finder tilsvarende anvendelse på
+godtgørelser, jf. 2. pkt., der udbetales til medlemmer af eller medhjælpere for
+bestyrelser, udvalg, kommissioner, råd og lignende.
+----
+
+--@begin:ligningsloven_par9_stk2_og_stk4_rejser--
+| ligningslov9a_godtgørelse_uden_for_satser_eller_kontrol_skattepligtig(resultat: Ligningslov9ARejseresultat) -> resultat.udbetalt_godtgørelse_kroner - resultat.skattefri_godtgørelse_kroner
+| ligningslov9a_udlandsfradrag_efter_indkomstloft_kroner(resultat: Ligningslov9ARejseresultat) -> penge_mindste_beløb(resultat.fradrag_før_indkomstloft_kroner, resultat.indkomstloft_kroner)
+--@end:ligningsloven_par9_stk2_og_stk4_rejser--

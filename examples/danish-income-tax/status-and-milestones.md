@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
+Current implementation slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
+Previous seafarer-coordination slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
 Previous seafarer-deduction slice: `td-302f8e` (sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er typede beskæftigelsesfakta med valg, betingelser, undtagelser, delårsfordeling og kanonisk samordning; godkendt)
 Previous implementation slice: `td-292327` (Personskattelovens § 13-fremførsel er et typet årsledger med kildeproveniens, sammenhængende indkomstår, afledt egen anvendelse, ægtefælleoverførsel og ultimo; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous ordinary-benefit slice: `td-9e236a` (erstatninger og ydelser fra faglige foreninger samt udbetalinger fra arbejdsløshedsforsikring er typede kildefakta; Ligningslovens §§ 13, 30 og 31 samt Pensionsbeskatningslovens §§ 49, stk. 2, og 55 afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
@@ -320,9 +321,51 @@ fradragsvalget. Den kanoniske beregning afskærer LL §§ 9 B-9 D, LL § 13 og P
 skattefrie LL § 9 B-godtgørelse til skattepligtig indkomst og bevarer PBL §§ 49
 A-49 B samt øvrige fradragsgrene. § 4, stk. 2, afskærer LL § 9 A, stk. 1-9,
 allerede når personen kan foretage sømandsfradraget, også ved fravalg.
+
 Den almindelige rejsegodtgørelses- og fradragsgren efter LL § 9 A, stk. 1-9,
-er endnu ikke et kanonisk Personskat-input; implementeringen og den direkte
-samordning med dette § 4, stk. 2-resultat spores i `td-d17087`.
+er nu implementeret i `td-d17087`. Korpusset bevarer den fulde gældende ordlyd
+af § 9 A, stk. 1-13, samt § 9, stk. 2 og 4, og bruger de officielle satser for
+2025 og 2026. Et `Ligningslov9AÅrsinput` samler personrollen, identificerede
+rejser og et eventuelt særskilt opgjort fradrag for dobbelt husførelse. Hver
+rejse bærer arbejdsstedets faktiske karakter, overnatningsforhold,
+12-månedersperiodens startgrund, hverv, varighed, måltider, arbejdsgiverkontrol,
+lønomlægning, udbetalt godtgørelse, egne udgifter, fradragsvalg og
+indkomstforhold. Reglerne udleder rejsebetingelserne, standardsatserne,
+måltidsreduktionen, 25 pct.-satsen, skattefri og skattepligtig godtgørelse,
+faktisk eller standardiseret fradrag, udlandsindkomstloftet og det fælles
+årsloft. Ugyldige fakta fejler lukket, mens en udbetalt godtgørelse bevares som
+skattepligtig.
+
+Den kanoniske `beregn_personskat` bevarer både resultatet før og efter
+Sømandsbeskatningslovens § 4, stk. 2. Udelukkelsen afledes af
+`kan_foretage_fradrag_efter_par3`, ikke af valget om faktisk at foretage
+sømandsfradraget. En afskåret skattefri rejsegodtgørelse føres derfor til både
+løn- og AM-grundlaget samt § 9 C's aftrapningsindkomst, mens det anvendte
+rejsefradrag kun føres til de ligningsmæssige fradrag. Et kanonisk scenarie med
+800 kr. i godtgørelse og 986 kr. i muligt fradrag bevarer begge beløb for en
+almindelig lønmodtager; en sømandsberettiget person, der fravælger sit
+sømandsfradrag, får 0 kr. skattefrit, 800 kr. skattepligtigt og 0 kr. i
+rejsefradrag.
+
+Den særskilte ø-logigren i § 9 A, stk. 12, spores i `td-e53d8f`. Et fælles,
+identificeret indkomstgrundlag for flere rejser knyttet til samme udenlandske
+løn efter § 9, stk. 2, spores i `td-c61f53`, så samme indkomstloft ikke kan
+genbruges pr. rejserække. Fødevareprincippet for hele rejsen, skift mellem
+standard- og faktisk logifradrag pr. rejsedøgn samt delvis eller fri
+logidækning spores i `td-45f9fb`. Det særskilt opgjorte fradrag for dobbelt
+husførelse reducerer allerede det fælles loft, men selve fradragsretten og det
+kanonisk anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
+fiskerfradrag følges fortsat i henholdsvis `td-80c439` og `td-5759f5`.
+Den tidsmæssige 12-månedersperiode valideres aktuelt ud fra hver rejses typede
+startgrund og antal forløbne måneder; afledning fra dateret arbejdsstedshistorik
+og beskyttelse mod gentagne førstegangsperioder spores i `td-3515b8`.
+
+Den fokuserede grænse
+`@ calculate("Rejseopgørelse efter ligningslovens § 9 A")` genererer en
+relationel XLSX-arbejdsbog med danske etiketter, interviewspørgsmål, dropdowns,
+enheder og typede kildespor. En JSON-hydreret rejserække er læst tilbage fra
+XLSX og beregnet til 800 kr. skattefri godtgørelse, 0 kr. skattepligtig
+godtgørelse og 986 kr. rejsefradrag uden diagnostikker.
 
 Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
 LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;
@@ -1116,8 +1159,11 @@ etiketter og interviewspørgsmål for skatteår, kommune, bruttoløn, befordring
 pensionsindbetalinger, pensionsvalg, aldersstatus, kirkeskat, renter,
 årsopgørelse og de centrale
 ejendomsavancefakta samt ordinære aktiebeholdninger og boligret efter ABL § 15.
-Kontrakten har aktuelt 1.482 eksplicitte feltmetadata-poster. Heraf beskriver
-66 egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
+Kontrakten har aktuelt 1.518 eksplicitte feltmetadata-poster. Heraf beskriver
+36 personrollen, rejsetabellen, arbejdsstedet, overnatningsforholdene,
+12-månedersperioden, godtgørelsen, udgifterne, fradragsvalget og det fælles
+årsloft efter Ligningslovens § 9 A. Yderligere 66 beskriver
+egne og ægtefællens § 10-skadeforløb, genopførelsesejendomme,
 ejerboligfordeling, frister, regulering og afskrivningsforhold. Alle 98 nåbare
 § 15 A-stier for en virksomhedsafståelse har en dansk etiket og et
 interviewspørgsmål, herunder regnskabsperioder, ejerkæder og underliggende

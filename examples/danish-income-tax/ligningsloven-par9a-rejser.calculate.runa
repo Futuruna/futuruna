@@ -1,0 +1,45 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ligningsloven - par9a - rejser
+@ importer ./personskat - rejsefradrag - beregningsmeta
+
+# Ligningslov9ABeregningsinput(indkomstår: Heltal, årsinput: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse)
+
+= ligningslov9a_beregning_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov9ABeregningsinput::indkomstår),
+    label = "Indkomstår for rejseopgørelsen",
+    question = Some("Hvilket indkomstår skal rejsegodtgørelse og rejsefradrag beregnes for?"),
+    help = Some("Satserne og det fælles årsloft afhænger af indkomståret."),
+    unit = Some("år")
+)
+= ligningslov9a_beregning_felt_ekstern_udelukkelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9ABeregningsinput::ekstern_udelukkelse),
+    label = "Ekstern udelukkelse fra § 9 A",
+    question = Some("Er personen udelukket fra § 9 A efter sømands- eller fiskerreglerne?"),
+    help = Some("I den kanoniske personskatteberegning udledes sømandsudelukkelsen automatisk af beskæftigelsesfakta. Det selvstændige rejseark kræver den retlige status som et typet input."),
+    unit = None
+)
+= ligningslov9a_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        ligningslov9a_beregning_felt_indkomstår,
+        ligningslov9a_beregning_felt_ekstern_udelukkelse
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9a),
+        DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+        RateSource(value = skatteforvaltningen_rejsesatser_2025),
+        RateSource(value = skatteforvaltningen_rejsesatser_2026),
+    )
+)
+
+--@label:Ligningslov9ABeregningsinput::meta:ligningslov9a_beregningsmeta--
+
+@ calculate("Rejseopgørelse efter ligningslovens § 9 A")
+| beregn_ligningslov9a_rejser(input: Ligningslov9ABeregningsinput) -> ligningslov9a_årsresultat(
+    indkomstår = input.indkomstår,
+    input = input.årsinput,
+    ekstern_udelukkelse = input.ekstern_udelukkelse
+)

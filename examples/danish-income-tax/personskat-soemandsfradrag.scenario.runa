@@ -181,6 +181,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
     befordring = MedBefordringsfradrag(fakta = personskat_sømandsfradrag_befordringsfakta()),
+    rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
         kontingenter = [personskat_sømandsfradrag_kontingent()]
@@ -297,6 +298,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
         sømandsfradrag = fuldt_input.sømandsfradrag,
         sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
         befordring = fuldt_input.befordring,
+        rejser = fuldt_input.rejser,
         faglige_kontingenter = fuldt_input.faglige_kontingenter,
         arbejdsløshed_efterløn_og_fleksydelse = fuldt_input.arbejdsløshed_efterløn_og_fleksydelse,
         gaver = fuldt_input.gaver

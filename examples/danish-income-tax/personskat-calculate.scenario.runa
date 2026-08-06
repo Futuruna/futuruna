@@ -95,6 +95,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
         sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
         befordring = MedBefordringsfradrag(fakta = fakta),
+        rejser = ligningslov9a_intet_årsinput(),
         faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
         arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
         gaver = LigningslovGaveÅrsinput(gaver = [])
@@ -1169,6 +1170,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     befordring = UdenBefordringsfradrag,
+    rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
         kontingenter = [Ligningslov13KontingentFakta(
