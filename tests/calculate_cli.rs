@@ -1338,6 +1338,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årsopgørelse",
             "Ordinært aktieår",
             "Fremført tab på markedsaktier",
+            "Fremført underskud efter § 13",
+            "Årsopgørelsens reference for underskuddet",
+            "Skatteforvaltningens afgørelsesreference",
+            "Anden myndigheds afgørelsesreference",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -2511,8 +2515,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "cfc.poster.PersonskatCfcEfterLigningslov16IStk6Og7.fakta.fremført_negativt_merafkast_kroner",
             "skatteforhold.$variant",
             "underskudsforhold.$variant",
-            "underskudsforhold.MedUnderskudshistorik.egne_tidligere_underskud_kroner",
-            "underskudsforhold.MedUnderskudshistorik.aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat",
+            "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.indkomstår",
+            "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.åbningsgrundlag_gyldigt",
+            "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.fremført_underskud_ultimo_kroner",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.fra_indkomstår",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.underskud_kroner",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.$variant",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.SkatteforvaltningensÅrsopgørelse.dokumentreference",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.SkatteforvaltningensAfgørelse.dokumentreference",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.AndenMyndighedsafgørelse.myndighed",
+            "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.AndenMyndighedsafgørelse.dokumentreference",
             "ægtefælle.$variant",
             "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
             "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
@@ -2552,6 +2564,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("ægtefælle_skattepligtig_indkomst_kroner")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path
+                .contains("aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat")));
+        assert!(!canonical_input_paths
+            .iter()
+            .any(|path| path.contains("MedUnderskudshistorik")));
         assert!(!canonical_input_paths
             .iter()
             .any(|path| path.contains("overført_skatteværdi_kroner")));
@@ -4380,6 +4399,80 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 21, "personskat-kgl-par32-abl17-2026");
         fill_wage_case(sheets, 22, "personskat-par37-40-aegtefaelle-2026");
         fill_wage_case(sheets, 23, "personskat-par37-40-modstridende-kontekst-2026");
+        fill_wage_case(sheets, 24, "personskat-underskud-ekstern-2026");
+        for (header, value) in [
+            (
+                "underskudsforhold.$variant",
+                Data::String("EksterntFastsatFremførtUnderskud".to_string()),
+            ),
+            (
+                "underskudsforhold.EksterntFastsatFremførtUnderskud.fra_indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "underskudsforhold.EksterntFastsatFremførtUnderskud.underskud_kroner",
+                Data::Int(40_000),
+            ),
+            (
+                "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.$variant",
+                Data::String("SkatteforvaltningensÅrsopgørelse".to_string()),
+            ),
+            (
+                "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.SkatteforvaltningensÅrsopgørelse.dokumentreference",
+                Data::String("årsopgørelse-2025-version-1".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 24, header, value);
+        }
+        fill_wage_case(sheets, 25, "personskat-underskud-årsresultat-2026");
+        for (header, value) in [
+            (
+                "underskudsforhold.$variant",
+                Data::String("FremførtUnderskudFraForrigePersonskatÅr".to_string()),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.åbningsgrundlag_gyldigt",
+                Data::Bool(true),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.fremført_underskud_primo_kroner",
+                Data::Int(0),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.årets_skattepligtige_indkomst_før_fremførsel_kroner",
+                Data::Int(-30_000),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.fremført_underskud_anvendt_i_egen_indkomst_kroner",
+                Data::Int(0),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.årets_nye_underskud_kroner",
+                Data::Int(30_000),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.dækket_ved_egen_skattemodregning_kroner",
+                Data::Int(0),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.fradraget_i_ægtefælles_indkomst_kroner",
+                Data::Int(0),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.dækket_ved_ægtefælles_skattemodregning_kroner",
+                Data::Int(0),
+            ),
+            (
+                "underskudsforhold.FremførtUnderskudFraForrigePersonskatÅr.resultat.fremført_underskud_ultimo_kroner",
+                Data::Int(30_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 25, header, value);
+        }
         let fill_par32_case = |sheets: &mut [(String, Vec<Vec<Data>>)],
                                row: usize,
                                skatteyder_identifikation: &str| {
@@ -8681,7 +8774,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
-                    "virksomheder_uden_virksomhedsordning": []
+                    "virksomheder_uden_virksomhedsordning": [],
+                    "forenings_og_arbejdsløshedsydelser": []
                 }
             },
             "erhvervsbefordring": { "sager": [] },
@@ -10130,7 +10224,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
-                        "virksomheder_uden_virksomhedsordning": []
+                        "virksomheder_uden_virksomhedsordning": [],
+                        "forenings_og_arbejdsløshedsydelser": []
                     }
                 },
                 "erhvervsbefordring": { "sager": [] },
@@ -10576,7 +10671,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
-            "virksomheder_uden_virksomhedsordning": []
+            "virksomheder_uden_virksomhedsordning": [],
+            "forenings_og_arbejdsløshedsydelser": []
         }
     });
     json_input["cases"]
@@ -11071,6 +11167,55 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par32_abl17_case);
+
+    let mut external_deficit_case = json_input["cases"][0].clone();
+    external_deficit_case["case_id"] = Value::String("personskat-underskud-ekstern-2026".into());
+    external_deficit_case["input"]["underskudsforhold"] = serde_json::json!({
+        "$variant": "EksterntFastsatFremførtUnderskud",
+        "fra_indkomstår": 2025,
+        "underskud_kroner": 40_000,
+        "proveniens": {
+            "$variant": "SkatteforvaltningensÅrsopgørelse",
+            "dokumentreference": "årsopgørelse-2025-version-1"
+        }
+    });
+    external_deficit_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(external_deficit_case);
+
+    let mut prior_deficit_result_case = json_input["cases"][0].clone();
+    prior_deficit_result_case["case_id"] =
+        Value::String("personskat-underskud-årsresultat-2026".into());
+    prior_deficit_result_case["input"]["underskudsforhold"] = serde_json::json!({
+        "$variant": "FremførtUnderskudFraForrigePersonskatÅr",
+        "resultat": {
+            "indkomstår": 2025,
+            "åbningsgrundlag_gyldigt": true,
+            "fremført_underskud_primo_kroner": 0,
+            "årets_skattepligtige_indkomst_før_fremførsel_kroner": -30_000,
+            "fremført_underskud_anvendt_i_egen_indkomst_kroner": 0,
+            "årets_nye_underskud_kroner": 30_000,
+            "dækket_ved_egen_skattemodregning_kroner": 0,
+            "fradraget_i_ægtefælles_indkomst_kroner": 0,
+            "dækket_ved_ægtefælles_skattemodregning_kroner": 0,
+            "fremført_underskud_ultimo_kroner": 30_000
+        }
+    });
+    prior_deficit_result_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(prior_deficit_result_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -11111,7 +11256,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-kgl-aarsnetto-fordring-2026")
         .expect("annual KGL claim JSON case")
         .clone();
-    hydrated_json_input["cases"] = Value::Array(vec![mixed_case, annual_claim_case]);
+    let external_deficit_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-underskud-ekstern-2026")
+        .expect("external deficit JSON case")
+        .clone();
+    let prior_deficit_result_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-underskud-årsresultat-2026")
+        .expect("prior deficit result JSON case")
+        .clone();
+    hydrated_json_input["cases"] = Value::Array(vec![
+        mixed_case,
+        annual_claim_case,
+        external_deficit_case,
+        prior_deficit_result_case,
+    ]);
     std::fs::write(
         &hydrated_json_input_path,
         serde_json::to_vec_pretty(&hydrated_json_input)
@@ -11208,6 +11372,45 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ["nettokapitalindkomst_kroner"],
         3_000
     );
+    for (case_id, expected_opening_deficit) in [
+        ("personskat-underskud-ekstern-2026", 40_000),
+        ("personskat-underskud-årsresultat-2026", 30_000),
+    ] {
+        let xlsx_deficit_result = result["results"]
+            .as_array()
+            .expect("XLSX Personskat results")
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .unwrap_or_else(|| panic!("missing XLSX deficit result {case_id}"));
+        let json_deficit_result = json_result["results"]
+            .as_array()
+            .expect("JSON Personskat results")
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .unwrap_or_else(|| panic!("missing JSON deficit result {case_id}"));
+        let hydrated_deficit_result = hydrated_xlsx_result["results"]
+            .as_array()
+            .expect("hydrated XLSX Personskat results")
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .unwrap_or_else(|| panic!("missing hydrated XLSX deficit result {case_id}"));
+        assert_eq!(xlsx_deficit_result["result"], json_deficit_result["result"]);
+        assert_eq!(
+            hydrated_deficit_result["result"],
+            json_deficit_result["result"]
+        );
+        let annual_result = &xlsx_deficit_result["result"]["underskudsår"]["hovedperson"];
+        assert_eq!(annual_result["åbningsgrundlag_gyldigt"], true);
+        assert_eq!(
+            annual_result["fremført_underskud_primo_kroner"],
+            expected_opening_deficit
+        );
+        assert_eq!(
+            annual_result["fremført_underskud_anvendt_i_egen_indkomst_kroner"],
+            expected_opening_deficit
+        );
+        assert_eq!(annual_result["fremført_underskud_ultimo_kroner"], 0);
+    }
     let xlsx_par32_history_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")

@@ -208,6 +208,7 @@ selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
     par8a_stk2_skat_kroner = model.før_personfradrag.aktieindkomstskat_kroner
 )
 | årsopgørelse2025_par13_forhold(ægtefælles_foreløbige_skat: LønmodtagerBeregning) -> LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = ægtefælles_foreløbige_skat.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = årsopgørelse2025_par13_modregningsskatter(ægtefælles_foreløbige_skat),

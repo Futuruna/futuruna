@@ -20,10 +20,15 @@
 = n = count(items)
 @ print("  list length = " + show(n))
 
-? assert(a.name == "alpha")
-? assert(b.name == "beta")
-? assert(c.name == "gamma")
-? assert(n == 3)
+| list_clone_preserves_a: a.name -> a.name == "alpha"
+| list_clone_preserves_b: b.name -> b.name == "beta"
+| list_clone_preserves_c: c.name -> c.name == "gamma"
+| list_clone_preserves_length: n -> n == 3
+
+? list_clone_preserves_a
+? list_clone_preserves_b
+? list_clone_preserves_c
+? list_clone_preserves_length
 
 -- Reused string bindings should survive list construction too.
 = first = "delta"
@@ -41,10 +46,16 @@
 @ print("  bags = " + show(bags))
 @ print("  base = " + show(base))
 
-? assert(first == "delta")
-? assert(second == "omega")
-? assert(count(labels) == 2)
-? assert(count(base) == 2)
-? assert(count(bags) == 1)
+| list_clone_preserves_first: first -> first == "delta"
+| list_clone_preserves_second: second -> second == "omega"
+| list_clone_preserves_labels: labels -> count(labels) == 2
+| list_clone_preserves_base: base -> count(base) == 2
+| list_clone_preserves_bags: bags -> count(bags) == 1
+
+? list_clone_preserves_first
+? list_clone_preserves_second
+? list_clone_preserves_labels
+? list_clone_preserves_base
+? list_clone_preserves_bags
 
 @ print("PASS: list auto-clone works")

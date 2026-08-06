@@ -10329,6 +10329,14 @@ impl Interpreter {
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(name, body);
                 }
+                Stmt::Invariant {
+                    name,
+                    subject,
+                    predicate,
+                } => {
+                    self.invariants
+                        .insert(name.clone(), (subject.clone(), predicate.clone()));
+                }
                 _ => {}
             }
         }
@@ -10967,8 +10975,10 @@ impl Interpreter {
                     } else if let Some((s, p)) = self.invariants.get(name) {
                         vec![(name.clone(), s.clone(), p.clone())]
                     } else {
-                        eprintln!("? {}: no such invariant", name);
-                        vec![]
+                        panic!(
+                            "cannot prove unknown invariant `{}`; define it with `| {}: subject -> predicate`",
+                            name, name
+                        )
                     };
                     let mut all_passed = true;
                     let mut last_subject_val = Value::Unit;
@@ -11002,12 +11012,10 @@ impl Interpreter {
                                 }
                             }
                             other => {
-                                let msg = format!(
-                                    "  ? |{}| predicate returned non-bool: {}",
+                                panic!(
+                                    "invariant `{}` predicate must return Bool, got {}",
                                     inv_name, other
                                 );
-                                println!("{}", msg);
-                                self.output.push(msg);
                             }
                         }
                     }
@@ -12791,13 +12799,9 @@ impl Interpreter {
             },
             "assert" => match args.first() {
                 Some(Value::Bool(true)) => Value::Unit,
-                Some(Value::Bool(false)) => {
-                    let msg = "Assertion failed!";
-                    println!("FAIL: {}", msg);
-                    self.output.push(format!("FAIL: {}", msg));
-                    Value::Unit
-                }
-                _ => Value::Unit,
+                Some(Value::Bool(false)) => panic!("Assertion failed!"),
+                Some(other) => panic!("assert expects Bool, got {}", other),
+                None => panic!("assert expects one Bool argument"),
             },
             "string_length" => match args.first() {
                 Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
@@ -16233,6 +16237,8 @@ pub struct TypeChecker {
     pub user_functions: BTreeSet<String>,
     /// Declaration categories addressable through `refof(symbol)`.
     reference_symbols: BTreeMap<String, BTreeSet<ProgramSymbolKind>>,
+    /// Invariant names addressable through the `? name` proof rune.
+    invariant_names: BTreeSet<String>,
     /// source file directory (for resolving @ import paths)
     pub source_dir: Option<String>,
     /// already-imported file paths (prevents cycles)
@@ -16300,6 +16306,7 @@ impl TypeChecker {
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
             reference_symbols: BTreeMap::new(),
+            invariant_names: BTreeSet::new(),
             source_dir: None,
             imported: BTreeSet::new(),
             source_text: String::new(),
@@ -16386,6 +16393,7 @@ impl TypeChecker {
             ("db_insert", 2),
             ("db_close", 1),
             // Misc
+            ("assert", 1),
             ("shared", 1),
             ("range", 2),
             // Collection/Functional
@@ -18695,6 +18703,9 @@ impl TypeChecker {
                         }
                     }
                 }
+                Stmt::Invariant { name, .. } => {
+                    self.invariant_names.insert(name.clone());
+                }
                 Stmt::For(var, _, _) => {
                     self.define_var(var);
                 }
@@ -18844,7 +18855,6 @@ impl TypeChecker {
                 | Stmt::While(_, _)
                 | Stmt::Send(_, _)
                 | Stmt::StreamSub(_, _)
-                | Stmt::Invariant { .. }
                 | Stmt::Prove { .. }
                 | Stmt::Assert(_, _)
                 | Stmt::Retract(_, _)
@@ -19301,12 +19311,18 @@ impl TypeChecker {
                 self.pop_scope();
             }
             Stmt::Prove {
+                name,
                 proof_block: _,
                 capture,
                 pass_block,
                 else_block,
-                ..
             } => {
+                if name != "all" && !self.invariant_names.contains(name) {
+                    self.error(format!(
+                        "unknown invariant `{}`; define it with `| {}: subject -> predicate` and prove it with `? {}`",
+                        name, name, name
+                    ));
+                }
                 self.push_scope();
                 // ? name: val — the capture variable is in scope for blocks
                 if let Some(var_name) = capture {
@@ -22676,6 +22692,95 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse should succeed");
         TypeChecker::check_with_diagnostics(&stmts, None, source)
+    }
+
+    #[test]
+    fn prove_rejects_unknown_invariant_target() {
+        let source = "= condition = true\n? assert(condition)";
+        let diags = check_source_for_diagnostics(source);
+
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("unknown invariant `assert`")),
+            "an unresolved proof target must not become a successful no-op: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn prove_accepts_declared_invariant_and_all_target() {
+        let source = "= value = 1\n| value_is_one: value -> value == 1\n? value_is_one\n? all";
+        let diags = check_source_for_diagnostics(source);
+
+        assert!(
+            diags
+                .iter()
+                .all(|diag| !diag.message.contains("unknown invariant")),
+            "declared invariants and `? all` must remain valid: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot prove unknown invariant `missing`")]
+    fn interpreter_rejects_unknown_invariant_target() {
+        let source = "? missing";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+    }
+
+    #[test]
+    fn interpreter_accepts_invariant_declared_after_proof() {
+        let source = "? declared_later\n| declared_later: 1 -> 1 == 1";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let mut interpreter = Interpreter::new();
+        interpreter.suppress_output = true;
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert!(interpreter
+            .output
+            .iter()
+            .any(|line| line.contains("|declared_later| holds")));
+    }
+
+    #[test]
+    #[should_panic(expected = "invariant `non_boolean` predicate must return Bool")]
+    fn interpreter_rejects_non_boolean_invariant_predicate() {
+        let source = "| non_boolean: 1 -> 1\n? non_boolean";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+    }
+
+    #[test]
+    #[should_panic(expected = "Assertion failed!")]
+    fn interpreter_assert_false_is_a_hard_failure() {
+        let source = "assert(false)";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
     }
 
     // ── Trait checking tests ─────────────────────────────────────────

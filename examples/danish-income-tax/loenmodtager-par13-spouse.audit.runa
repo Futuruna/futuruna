@@ -47,6 +47,7 @@ I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
     betaler_kirkeskat = Falskt
 )
 = par13_stk2_lønmodtager_ægtefælle_skat_forhold = LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = Par13ModregningsSkatter(

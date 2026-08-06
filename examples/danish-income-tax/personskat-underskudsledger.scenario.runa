@@ -1,0 +1,193 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Regressionsscenarie for Personskattelovens § 13-ledger mellem indkomstår.
+
+Officiel kilde:
+https://www.retsinformation.dk/eli/lta/2021/1284
+
+Scenariet viser, at et års beregnede ultimoresultat kan bruges direkte som det
+næste års typede primoresultat. En ekstern fastsættelse kræver indkomstår og
+dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
+årsresultater afvises.
+----
+
+| underskudsledger_lønmodtager(skatteår: Heltal, bruttoløn_kroner: Heltal) -> PersonskatLønmodtagerInput(
+    skatteår = skatteår,
+    kommune = København,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+| underskudsledger_kapitalindkomst(renteudgifter_kroner: Heltal) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = renteudgifter_kroner,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+
+| underskudsledger_person(
+    skatteår: Heltal,
+    bruttoløn_kroner: Heltal,
+    renteudgifter_kroner: Heltal,
+    underskudsforhold: PersonskatUnderskudsforholdInput
+) -> PersonskatPersonFakta(
+    lønmodtager = underskudsledger_lønmodtager(skatteår, bruttoløn_kroner),
+    kapitalindkomst = underskudsledger_kapitalindkomst(renteudgifter_kroner),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = underskudsforhold
+)
+
+| underskudsledger_input(
+    skatteår: Heltal,
+    bruttoløn_kroner: Heltal,
+    renteudgifter_kroner: Heltal,
+    underskudsforhold: PersonskatUnderskudsforholdInput,
+    ægtefælle_bruttoløn_kroner: Heltal,
+    ægtefælle_renteudgifter_kroner: Heltal,
+    ægtefælle_underskudsforhold: PersonskatUnderskudsforholdInput
+) -> PersonskatInput(
+    lønmodtager = underskudsledger_lønmodtager(skatteår, bruttoløn_kroner),
+    kapitalindkomst = underskudsledger_kapitalindkomst(renteudgifter_kroner),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = underskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = underskudsledger_person(
+            skatteår,
+            ægtefælle_bruttoløn_kroner,
+            ægtefælle_renteudgifter_kroner,
+            ægtefælle_underskudsforhold
+        ),
+        samlevende_ved_indkomstårets_udløb = Sandt
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+| underskudsledger_ægtefælleårsresultat(resultat: PersonskatBeregningResultat) -> match resultat.underskudsår.ægtefælle {
+    | Some(årsresultat) -> årsresultat
+    | None -> PersonskatUnderskudsårsresultat(
+        indkomstår = resultat.skat.skatteår,
+        åbningsgrundlag_gyldigt = Falskt,
+        fremført_underskud_primo_kroner = 0,
+        årets_skattepligtige_indkomst_før_fremførsel_kroner = 0,
+        fremført_underskud_anvendt_i_egen_indkomst_kroner = 0,
+        årets_nye_underskud_kroner = 0,
+        dækket_ved_egen_skattemodregning_kroner = 0,
+        fradraget_i_ægtefælles_indkomst_kroner = 0,
+        dækket_ved_ægtefælles_skattemodregning_kroner = 0,
+        fremført_underskud_ultimo_kroner = 0
+    )
+}
+
+= underskudsledger_2025 = beregn_personskat(underskudsledger_input(
+    skatteår = 2025,
+    bruttoløn_kroner = 0,
+    renteudgifter_kroner = 160000,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle_bruttoløn_kroner = 100000,
+    ægtefælle_renteudgifter_kroner = 0,
+    ægtefælle_underskudsforhold = StandardUnderskudsforhold
+))
+
+= underskudsledger_2026 = beregn_personskat(underskudsledger_input(
+    skatteår = 2026,
+    bruttoløn_kroner = 60000,
+    renteudgifter_kroner = 0,
+    underskudsforhold = FremførtUnderskudFraForrigePersonskatÅr(
+        resultat = underskudsledger_2025.underskudsår.hovedperson
+    ),
+    ægtefælle_bruttoløn_kroner = 0,
+    ægtefælle_renteudgifter_kroner = 0,
+    ægtefælle_underskudsforhold = FremførtUnderskudFraForrigePersonskatÅr(
+        resultat = underskudsledger_ægtefælleårsresultat(underskudsledger_2025)
+    )
+))
+
+= underskudsledger_ekstern_2026 = EksterntFastsatFremførtUnderskud(
+    fra_indkomstår = 2025,
+    underskud_kroner = 30000,
+    proveniens = SkatteforvaltningensÅrsopgørelse(
+        dokumentreference = "årsopgørelse-2025-version-1"
+    )
+)
+
+= underskudsledger_sprunget_år = FremførtUnderskudFraForrigePersonskatÅr(
+    resultat = underskudsledger_2025.underskudsår.hovedperson
+)
+
+= underskudsledger_fremtidig_ekstern = EksterntFastsatFremførtUnderskud(
+    fra_indkomstår = 2027,
+    underskud_kroner = 30000,
+    proveniens = SkatteforvaltningensAfgørelse(
+        dokumentreference = "afgørelse-fremtidig"
+    )
+)
+
+= underskudsledger_uden_reference = EksterntFastsatFremførtUnderskud(
+    fra_indkomstår = 2025,
+    underskud_kroner = 30000,
+    proveniens = SkatteforvaltningensÅrsopgørelse(
+        dokumentreference = ""
+    )
+)
+
+= underskudsledger_ubalanceret_årsresultat = PersonskatUnderskudsårsresultat(
+    indkomstår = 2025,
+    åbningsgrundlag_gyldigt = Sandt,
+    fremført_underskud_primo_kroner = 0,
+    årets_skattepligtige_indkomst_før_fremførsel_kroner = -100000,
+    fremført_underskud_anvendt_i_egen_indkomst_kroner = 0,
+    årets_nye_underskud_kroner = 100000,
+    dækket_ved_egen_skattemodregning_kroner = 0,
+    fradraget_i_ægtefælles_indkomst_kroner = 0,
+    dækket_ved_ægtefælles_skattemodregning_kroner = 0,
+    fremført_underskud_ultimo_kroner = 90000
+)
+
+| underskudsledger_2025_overfører_og_fremfører: (underskudsledger_2025.underskudsår.hovedperson.fradraget_i_ægtefælles_indkomst_kroner, underskudsledger_2025.underskudsår.hovedperson.fremført_underskud_ultimo_kroner) -> underskudsledger_2025.underskudsår.alle_åbningsgrundlag_gyldige && underskudsledger_2025.underskudsår.hovedperson.fradraget_i_ægtefælles_indkomst_kroner == 79700 && underskudsledger_2025.underskudsår.hovedperson.fremført_underskud_ultimo_kroner == 33283 && personskat_underskudsårsresultat_konsistent(underskudsledger_2025.underskudsår.hovedperson)
+
+| underskudsledger_2026_bruger_forrige_resultat: (underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_primo_kroner, underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_anvendt_i_egen_indkomst_kroner, underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_ultimo_kroner) -> underskudsledger_2026.underskudsår.alle_åbningsgrundlag_gyldige && underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_primo_kroner == 33283 && underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_anvendt_i_egen_indkomst_kroner == 33283 && underskudsledger_2026.underskudsår.hovedperson.fremført_underskud_ultimo_kroner == 0 && personskat_underskudsårsresultat_konsistent(underskudsledger_2026.underskudsår.hovedperson)
+
+| underskudsledger_ekstern_proveniens_accepteres: personskat_egne_tidligere_underskud_kroner(underskudsledger_ekstern_2026, 2026) -> personskat_underskudsforhold_gyldigt(underskudsledger_ekstern_2026, 2026) && personskat_egne_tidligere_underskud_kroner(underskudsledger_ekstern_2026, 2026) == 30000
+
+| underskudsledger_sprunget_år_afvises: personskat_underskudsforhold_gyldigt(underskudsledger_sprunget_år, 2027) -> personskat_underskudsforhold_gyldigt(underskudsledger_sprunget_år, 2027) == Falskt && personskat_egne_tidligere_underskud_kroner(underskudsledger_sprunget_år, 2027) == 0
+
+| underskudsledger_fremtidigt_år_afvises: personskat_underskudsforhold_gyldigt(underskudsledger_fremtidig_ekstern, 2026) -> personskat_underskudsforhold_gyldigt(underskudsledger_fremtidig_ekstern, 2026) == Falskt && personskat_egne_tidligere_underskud_kroner(underskudsledger_fremtidig_ekstern, 2026) == 0
+
+| underskudsledger_tom_proveniens_afvises: personskat_underskudsforhold_gyldigt(underskudsledger_uden_reference, 2026) -> personskat_underskudsforhold_gyldigt(underskudsledger_uden_reference, 2026) == Falskt
+
+| underskudsledger_ubalanceret_resultat_afvises: personskat_underskudsårsresultat_konsistent(underskudsledger_ubalanceret_årsresultat) -> personskat_underskudsårsresultat_konsistent(underskudsledger_ubalanceret_årsresultat) == Falskt && personskat_underskudsforhold_gyldigt(FremførtUnderskudFraForrigePersonskatÅr(resultat = underskudsledger_ubalanceret_årsresultat), 2026) == Falskt
+
+? underskudsledger_2025_overfører_og_fremfører
+? underskudsledger_2026_bruger_forrige_resultat
+? underskudsledger_ekstern_proveniens_accepteres
+? underskudsledger_sprunget_år_afvises
+? underskudsledger_fremtidigt_år_afvises
+? underskudsledger_tom_proveniens_afvises
+? underskudsledger_ubalanceret_resultat_afvises
+
+@ print("§ 13-ledger: typet årsresultat, ekstern proveniens og sammenhængende årsrække valideret")

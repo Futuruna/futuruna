@@ -107,7 +107,9 @@
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
-# PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | MedUnderskudshistorik(egne_tidligere_underskud_kroner: Heltal, aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
+# PersonskatUnderskudsproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
+# PersonskatUnderskudsårsresultat(indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_underskud_primo_kroner: Heltal, årets_skattepligtige_indkomst_før_fremførsel_kroner: Heltal, fremført_underskud_anvendt_i_egen_indkomst_kroner: Heltal, årets_nye_underskud_kroner: Heltal, dækket_ved_egen_skattemodregning_kroner: Heltal, fradraget_i_ægtefælles_indkomst_kroner: Heltal, dækket_ved_ægtefælles_skattemodregning_kroner: Heltal, fremført_underskud_ultimo_kroner: Heltal)
+# PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatUnderskudsproveniens)
 # PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
@@ -176,7 +178,8 @@
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -245,6 +248,76 @@
     label = "Ægtefællens kirkeskat",
     question = Some("Betaler din ægtefælle kirkeskat?"),
     help = Some("Kirkeskat og den tilhørende personfradragsværdi beregnes kun, når dette felt er sandt."),
+    unit = None
+)
+= personskat_felt_underskudsforhold = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::$variant),
+    label = "Fremført underskud efter § 13",
+    question = Some("Har du et uudnyttet underskud fra det umiddelbart foregående indkomstår?"),
+    help = Some("Brug et tidligere Futuruna-årsresultat eller en dokumenteret ekstern fastsættelse. År med huller og fremtidige år afvises."),
+    unit = None
+)
+= personskat_felt_underskudsresultat_år = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::FremførtUnderskudFraForrigePersonskatÅr::resultat::indkomstår),
+    label = "Tidligere årsresultats indkomstår",
+    question = Some("Hvilket indkomstår dækker det tidligere Futuruna-årsresultat?"),
+    help = Some("Årsresultatet skal ligge umiddelbart før det år, der nu beregnes."),
+    unit = Some("år")
+)
+= personskat_felt_underskudsresultat_ultimo = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::FremførtUnderskudFraForrigePersonskatÅr::resultat::fremført_underskud_ultimo_kroner),
+    label = "Fremført underskud fra årsresultatet",
+    question = Some("Hvor stort et § 13-underskud blev fremført ved udgangen af det tidligere Futuruna-årsresultat?"),
+    help = Some("Beløbet og resultatets øvrige ledgerfelter valideres som en samlet, balanceret årsposition."),
+    unit = Some("kr.")
+)
+= personskat_felt_eksternt_underskudsår = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::fra_indkomstår),
+    label = "Indkomstår for eksternt underskud",
+    question = Some("Fra hvilket indkomstår er det fremførte underskud fastsat?"),
+    help = Some("Året skal ligge umiddelbart før beregningsåret."),
+    unit = Some("år")
+)
+= personskat_felt_eksternt_underskud = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::underskud_kroner),
+    label = "Eksternt fastsat fremført underskud",
+    question = Some("Hvor stort et uudnyttet § 13-underskud er fastsat for det foregående indkomstår?"),
+    help = Some("Angiv det resterende underskud efter årets egen indkomst, skatter og eventuelle ægtefælleoverførsler."),
+    unit = Some("kr.")
+)
+= personskat_felt_underskudsproveniens = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::proveniens::$variant),
+    label = "Dokumenttype for underskuddet",
+    question = Some("Hvilken myndighedskilde dokumenterer det fremførte underskud?"),
+    help = Some("Dokumenttypen og referencen bevarer proveniens gennem beregningen."),
+    unit = None
+)
+= personskat_felt_underskuds_dokumentreference = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::proveniens::SkatteforvaltningensÅrsopgørelse::dokumentreference),
+    label = "Årsopgørelsens reference for underskuddet",
+    question = Some("Hvilken entydig reference har årsopgørelsen?"),
+    help = Some("Brug dokumentets sags-, versions- eller journalreference. Feltet må ikke være tomt."),
+    unit = None
+)
+= personskat_felt_underskuds_afgørelsesreference = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::proveniens::SkatteforvaltningensAfgørelse::dokumentreference),
+    label = "Skatteforvaltningens afgørelsesreference",
+    question = Some("Hvilken entydig reference har Skatteforvaltningens afgørelse?"),
+    help = Some("Brug afgørelsens sags-, versions- eller journalreference. Feltet må ikke være tomt."),
+    unit = None
+)
+= personskat_felt_underskuds_anden_myndighed = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::proveniens::AndenMyndighedsafgørelse::myndighed),
+    label = "Anden fastsættende myndighed",
+    question = Some("Hvilken anden myndighed har fastsat underskuddet?"),
+    help = Some("Udfyldes kun, når proveniensen er en anden myndighedsafgørelse."),
+    unit = None
+)
+= personskat_felt_underskuds_anden_myndigheds_afgørelsesreference = Beregningsfelt(
+    path = pathof(PersonskatInput::underskudsforhold::EksterntFastsatFremførtUnderskud::proveniens::AndenMyndighedsafgørelse::dokumentreference),
+    label = "Anden myndigheds afgørelsesreference",
+    question = Some("Hvilken entydig reference har den anden myndigheds afgørelse?"),
+    help = Some("Brug afgørelsens sags-, versions- eller journalreference. Feltet må ikke være tomt."),
     unit = None
 )
 = personskat_felt_erhvervsbefordring = Beregningsfelt(
@@ -7957,6 +8030,21 @@
         DependencySource(value = folkekirkens_økonomilov_2023_424),
     )
 )
+= personskat_metadata_underskudsforhold = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_underskudsforhold),
+        Field(value = personskat_felt_underskudsresultat_år),
+        Field(value = personskat_felt_underskudsresultat_ultimo),
+        Field(value = personskat_felt_eksternt_underskudsår),
+        Field(value = personskat_felt_eksternt_underskud),
+        Field(value = personskat_felt_underskudsproveniens),
+        Field(value = personskat_felt_underskuds_dokumentreference),
+        Field(value = personskat_felt_underskuds_afgørelsesreference),
+        Field(value = personskat_felt_underskuds_anden_myndighed),
+        Field(value = personskat_felt_underskuds_anden_myndigheds_afgørelsesreference),
+        Source(value = personskatteloven_2021_1284),
+    )
+)
 = personskat_metadata_befordring = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_befordring),
@@ -9291,6 +9379,7 @@
         personskat_metadata_kommune,
         personskat_metadata_bruttoløn,
         personskat_metadata_ægtefællegrundlag,
+        personskat_metadata_underskudsforhold,
         personskat_metadata_befordring,
         personskat_metadata_alder,
         personskat_metadata_kirkeskat,
@@ -9396,14 +9485,26 @@
         | SærligeSkatteforhold(forhold) -> personskat_ligningslov8m_kildeskattepligt_forenelig_med_personfradrag(fakta.kildeskattepligt, forhold.personfradrag_skattepligt)
     }
 }
-| personskat_egne_tidligere_underskud_kroner(input: PersonskatUnderskudsforholdInput) -> match input {
-    | StandardUnderskudsforhold -> 0
-    | MedUnderskudshistorik(egne_tidligere_underskud_kroner, _) -> egne_tidligere_underskud_kroner
+| personskat_underskudsproveniens_gyldig(proveniens: PersonskatUnderskudsproveniens) -> match proveniens {
+    | SkatteforvaltningensÅrsopgørelse(dokumentreference) -> dokumentreference != ""
+    | SkatteforvaltningensAfgørelse(dokumentreference) -> dokumentreference != ""
+    | AndenMyndighedsafgørelse(myndighed, dokumentreference) -> myndighed != "" && dokumentreference != ""
 }
-| personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(input: PersonskatUnderskudsforholdInput) -> match input {
+| personskat_underskudsårsresultat_disponeret_kroner(resultat: PersonskatUnderskudsårsresultat) -> resultat.dækket_ved_egen_skattemodregning_kroner + resultat.fradraget_i_ægtefælles_indkomst_kroner + resultat.dækket_ved_ægtefælles_skattemodregning_kroner + resultat.fremført_underskud_ultimo_kroner
+| personskat_underskudsårsresultat_tilgængeligt_kroner(resultat: PersonskatUnderskudsårsresultat) -> resultat.fremført_underskud_primo_kroner - resultat.fremført_underskud_anvendt_i_egen_indkomst_kroner + resultat.årets_nye_underskud_kroner
+| personskat_underskudsårsresultat_konsistent(resultat: PersonskatUnderskudsårsresultat) -> resultat.åbningsgrundlag_gyldigt && resultat.indkomstår > 0 && resultat.fremført_underskud_primo_kroner >= 0 && resultat.fremført_underskud_anvendt_i_egen_indkomst_kroner == penge_mindste_beløb(resultat.fremført_underskud_primo_kroner, penge_positivt_beløb(resultat.årets_skattepligtige_indkomst_før_fremførsel_kroner)) && resultat.årets_nye_underskud_kroner == par13_absolut_underskud(resultat.årets_skattepligtige_indkomst_før_fremførsel_kroner) && resultat.dækket_ved_egen_skattemodregning_kroner >= 0 && resultat.fradraget_i_ægtefælles_indkomst_kroner >= 0 && resultat.dækket_ved_ægtefælles_skattemodregning_kroner >= 0 && resultat.fremført_underskud_ultimo_kroner >= 0 && personskat_underskudsårsresultat_disponeret_kroner(resultat) == personskat_underskudsårsresultat_tilgængeligt_kroner(resultat)
+| personskat_underskudsforhold_gyldigt(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> match input {
     | StandardUnderskudsforhold -> Sandt
-    | MedUnderskudshistorik(_, aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat) -> aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat
+    | FremførtUnderskudFraForrigePersonskatÅr(resultat) -> personskat_underskudsårsresultat_konsistent(resultat) && resultat.indkomstår + 1 == skatteår
+    | EksterntFastsatFremførtUnderskud(fra_indkomstår, underskud_kroner, proveniens) -> fra_indkomstår > 0 && fra_indkomstår + 1 == skatteår && underskud_kroner >= 0 && personskat_underskudsproveniens_gyldig(proveniens)
 }
+| personskat_angivet_tidligere_underskud_kroner(input: PersonskatUnderskudsforholdInput) -> match input {
+    | StandardUnderskudsforhold -> 0
+    | FremførtUnderskudFraForrigePersonskatÅr(resultat) -> resultat.fremført_underskud_ultimo_kroner
+    | EksterntFastsatFremførtUnderskud(_, underskud_kroner, _) -> underskud_kroner
+}
+| personskat_egne_tidligere_underskud_kroner(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> hvis personskat_underskudsforhold_gyldigt(input, skatteår) { personskat_angivet_tidligere_underskud_kroner(input) } ellers { 0 }
+| personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> personskat_underskudsforhold_gyldigt(input, skatteår)
 
 | personskat_ingen_erhvervsbefordring() -> PersonskatErhvervsbefordringInput(sager = [])
 | personskat_ll9b_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
@@ -11341,19 +11442,28 @@
     par8_skat_kroner = personskat_par13_par8_skat_kroner(model),
     par8a_stk2_skat_kroner = model.før_personfradrag.aktieindkomstskat_kroner
 )
-| personskat_par13_forhold_uden_ægtefælle(underskudsforhold: PersonskatUnderskudsforholdInput) -> LønmodtagerPar13Forhold(
+| personskat_par13_modregningsskatter_efter_eget_underskud(model: LønmodtagerBeregning) -> Par13ModregningsSkatter(
+    par6_skat_kroner = model.par13_underskud.modregning.par6_efter_kroner,
+    par7_skat_kroner = model.par13_underskud.modregning.par7_efter_kroner,
+    par7a_skat_kroner = model.par13_underskud.modregning.par7a_efter_kroner,
+    par8_skat_kroner = model.par13_underskud.modregning.par8_efter_kroner,
+    par8a_stk2_skat_kroner = model.par13_underskud.modregning.par8a_stk2_efter_kroner
+)
+| personskat_par13_forhold_uden_ægtefælle(underskudsforhold: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = personskat_egne_tidligere_underskud_kroner(underskudsforhold, skatteår),
     ægtefælle_skattepligtig_indkomst_kroner = 0,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Falskt,
-    ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(underskudsforhold)
+    ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(underskudsforhold, skatteår)
 )
-| personskat_par13_forhold_med_ægtefælle(egne_underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælles_underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælles_foreløbige_skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk) -> LønmodtagerPar13Forhold(
+| personskat_par13_forhold_med_ægtefælle(egne_underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælles_foreløbige_skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk, skatteår: Heltal) -> LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = personskat_egne_tidligere_underskud_kroner(egne_underskudsforhold, skatteår),
     ægtefælle_skattepligtig_indkomst_kroner = ægtefælles_foreløbige_skat.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
-    ægtefælles_egne_tidligere_underskud_kroner = personskat_egne_tidligere_underskud_kroner(ægtefælles_underskudsforhold),
-    ægtefælle_modregningsskatter = personskat_par13_modregningsskatter(ægtefælles_foreløbige_skat),
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
+    ægtefælle_modregningsskatter = personskat_par13_modregningsskatter_efter_eget_underskud(ægtefælles_foreløbige_skat),
     gift_samlevende_ved_årets_udløb = samlevende_ved_indkomstårets_udløb,
-    ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(egne_underskudsforhold)
+    ikke_rummet_i_tidligere_indkomst_eller_skat = personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(egne_underskudsforhold, skatteår)
 )
 | personskat_kun_par13_indgående_ægtefælle(afsenders_skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk) -> MedIndgåendeÆgtefælleoverførsler(
     afsenders_par13_underskud = afsenders_skat.par13_underskud,
@@ -11376,7 +11486,7 @@
 }
 | personskat_parberegning_med_par32(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælle_aktieavance: PersonskatÆgtefælleAktieavanceResultat, ægtefælle_par32: PersonskatKursgevinstPar32PersonKontekst) -> match ægtefælle_input {
     | UdenÆgtefælle -> {
-        = par13_forhold = personskat_par13_forhold_uden_ægtefælle(hovedgrundlag.fakta.underskudsforhold)
+        = par13_forhold = personskat_par13_forhold_uden_ægtefælle(hovedgrundlag.fakta.underskudsforhold, hovedgrundlag.fakta.lønmodtager.skatteår)
         = hovedskat = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
             hovedgrundlag.lønmodtager_input,
             hovedgrundlag.individuelle_skatteforhold,
@@ -11405,24 +11515,24 @@
         = hoved_foreløbig = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
             hovedgrundlag.lønmodtager_input,
             hovedskatteforhold,
-            personskat_par13_forhold_uden_ægtefælle(hovedgrundlag.fakta.underskudsforhold)
+            personskat_par13_forhold_uden_ægtefælle(hovedgrundlag.fakta.underskudsforhold, hovedgrundlag.fakta.lønmodtager.skatteår)
         )
         = ægtefælle_foreløbig = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
             ægtefællegrundlag.lønmodtager_input,
             ægtefælleskabsskatteforhold,
-            personskat_par13_forhold_uden_ægtefælle(ægtefællegrundlag.fakta.underskudsforhold)
+            personskat_par13_forhold_uden_ægtefælle(ægtefællegrundlag.fakta.underskudsforhold, ægtefællegrundlag.fakta.lønmodtager.skatteår)
         )
         = hoved_par13_forhold = personskat_par13_forhold_med_ægtefælle(
             hovedgrundlag.fakta.underskudsforhold,
-            ægtefællegrundlag.fakta.underskudsforhold,
             ægtefælle_foreløbig,
-            samlevende_ved_indkomstårets_udløb
+            samlevende_ved_indkomstårets_udløb,
+            hovedgrundlag.fakta.lønmodtager.skatteår
         )
         = ægtefælle_par13_forhold = personskat_par13_forhold_med_ægtefælle(
             ægtefællegrundlag.fakta.underskudsforhold,
-            hovedgrundlag.fakta.underskudsforhold,
             hoved_foreløbig,
-            samlevende_ved_indkomstårets_udløb
+            samlevende_ved_indkomstårets_udløb,
+            ægtefællegrundlag.fakta.lønmodtager.skatteår
         )
         = hoved_par13_kilde = beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(
             hovedgrundlag.lønmodtager_input,
@@ -11510,6 +11620,38 @@
     | IntetPar32Kontraktforløb -> før_par32
     | BeregnetPar32Kontraktforløb(_, aktuelt_årsresultat, _, _, _) -> aktuelt_årsresultat.aktieavance
 }
+| personskat_skattepligtig_indkomst_før_underskudsfremførsel_kroner(model: LønmodtagerBeregning, fremført_underskud_primo_kroner: Heltal) -> model.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner + fremført_underskud_primo_kroner + model.indgående_ægtefælle.par13_indkomstfradrag_kroner
+| personskat_underskudsårsresultat(underskudsforhold: PersonskatUnderskudsforholdInput, model: LønmodtagerBeregning) -> {
+    = indkomstår = model.input.skatteår
+    = åbningsgrundlag_gyldigt = personskat_underskudsforhold_gyldigt(underskudsforhold, indkomstår)
+    = fremført_underskud_primo_kroner = personskat_egne_tidligere_underskud_kroner(underskudsforhold, indkomstår)
+    = årets_skattepligtige_indkomst_før_fremførsel_kroner = personskat_skattepligtig_indkomst_før_underskudsfremførsel_kroner(model, fremført_underskud_primo_kroner)
+    PersonskatUnderskudsårsresultat(
+        indkomstår = indkomstår,
+        åbningsgrundlag_gyldigt = åbningsgrundlag_gyldigt,
+        fremført_underskud_primo_kroner = fremført_underskud_primo_kroner,
+        årets_skattepligtige_indkomst_før_fremførsel_kroner = årets_skattepligtige_indkomst_før_fremførsel_kroner,
+        fremført_underskud_anvendt_i_egen_indkomst_kroner = penge_mindste_beløb(fremført_underskud_primo_kroner, penge_positivt_beløb(årets_skattepligtige_indkomst_før_fremførsel_kroner)),
+        årets_nye_underskud_kroner = par13_absolut_underskud(årets_skattepligtige_indkomst_før_fremførsel_kroner),
+        dækket_ved_egen_skattemodregning_kroner = model.par13_underskud.stk1_fremførsel.dækket_underskud_ved_skattemodregning_kroner,
+        fradraget_i_ægtefælles_indkomst_kroner = model.par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_indkomstfradrag_kroner,
+        dækket_ved_ægtefælles_skattemodregning_kroner = model.par13_underskud.ægtefælle_egne_underskud_prioritet.overført_underskud_skattemodregning.dækket_underskud_ved_skattemodregning_kroner,
+        fremført_underskud_ultimo_kroner = model.par13_underskud.fremført_efter_ægtefælle_kroner
+    )
+}
+| personskat_ægtefælle_underskudsårsresultat(ægtefælle: PersonskatÆgtefælleBeregningResultat) -> match ægtefælle {
+    | IngenÆgtefælleberegning -> None
+    | BeregnetÆgtefælle(fakta, _, skat, _) -> Some(personskat_underskudsårsresultat(fakta.underskudsforhold, skat))
+}
+| personskat_ægtefælle_underskudsgrundlag_gyldigt(ægtefælle: PersonskatÆgtefælleBeregningResultat, hovedpersons_indkomstår: Heltal) -> match ægtefælle {
+    | IngenÆgtefælleberegning -> Sandt
+    | BeregnetÆgtefælle(fakta, _, _, _) -> fakta.lønmodtager.skatteår == hovedpersons_indkomstår && personskat_underskudsforhold_gyldigt(fakta.underskudsforhold, fakta.lønmodtager.skatteår)
+}
+| personskat_underskudsparårsresultat(input: PersonskatInput, parberegning: PersonskatParberegningResultat) -> PersonskatUnderskudsparårsresultat(
+    hovedperson = personskat_underskudsårsresultat(input.underskudsforhold, parberegning.hovedskat),
+    ægtefælle = personskat_ægtefælle_underskudsårsresultat(parberegning.ægtefælle),
+    alle_åbningsgrundlag_gyldige = personskat_underskudsforhold_gyldigt(input.underskudsforhold, input.lønmodtager.skatteår) && personskat_ægtefælle_underskudsgrundlag_gyldigt(parberegning.ægtefælle, input.lønmodtager.skatteår)
+)
 | personskat_beregning_resultat_fra_aktieavance_par(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
     = kursgevinst_par32 = personskat_kgl_par32_parresultat(input, aktieavance_før_par32)
     = aktieavance_par = personskat_kgl_par32_justeret_aktieavance(aktieavance_før_par32, kursgevinst_par32)
@@ -11525,6 +11667,7 @@
         skat = skat,
         indgående_ægtefælle = parberegning.hovedskat.indgående_ægtefælle,
         ægtefælle = parberegning.ægtefælle,
+        underskudsår = personskat_underskudsparårsresultat(input, parberegning),
         positiv_aktieindkomstskat = positiv_aktieindkomstskat,
         endelig_aktieindkomstskat_kroner = positiv_aktieindkomstskat.endelig_skat_kroner,
         samlet_skat_inkl_endelig_aktieindkomstskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,

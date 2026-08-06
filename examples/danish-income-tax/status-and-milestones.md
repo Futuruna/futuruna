@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-9e236a` (erstatninger og ydelser fra faglige foreninger samt udbetalinger fra arbejdsløshedsforsikring er typede kildefakta; Ligningslovens §§ 13, 30 og 31 samt Pensionsbeskatningslovens §§ 49, stk. 2, og 55 afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
+Current implementation slice: `td-292327` (Personskattelovens § 13-fremførsel er et typet årsledger med kildeproveniens, sammenhængende indkomstår, afledt egen anvendelse, ægtefælleoverførsel og ultimo; implementeret og verificeret, afventer uafhængig gennemgang)
+Previous ordinary-benefit slice: `td-9e236a` (erstatninger og ydelser fra faglige foreninger samt udbetalinger fra arbejdsløshedsforsikring er typede kildefakta; Ligningslovens §§ 13, 30 og 31 samt Pensionsbeskatningslovens §§ 49, stk. 2, og 55 afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous common-deduction slice: `td-a47465` (faglige kontingenter, A-kasse/arbejdsløshedsforsikring, efterløn, fleksydelse og gaver er typede kildefakta; Ligningslovens §§ 8 A, 8 H, 12 og 13 samt Pensionsbeskatningslovens §§ 49-49 B afledes i den kanoniske Personskat-graf; godkendt)
 Previous implementation slice: `td-1306f6` (ordinære arbejdsgiverydelser og virksomhedsresultater uden virksomhedsordningen er typede kildefakta; PSL § 3- og AM-virkninger afledes gennem reglerne; afventer uafhængig gennemgang)
 Earlier implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
@@ -3035,7 +3036,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-08-03, the corpus should be treated as a source-backed first-slice
+As of 2026-08-04, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -3046,7 +3047,8 @@ as a complete Personskatteloven calculator.
   scenarios exercise wage income, AM contribution, ordinary wage-earner
   deductions, municipal/church tax, state-tax components, personfradrag,
   selected § 13 deficit paths including spouse/current-year negative personal
-  income, carried-forward negative personal-income ordering through the
+  income, a typed annual ledger for externally assessed or prior-calculated
+  deficits, carried-forward negative-personal-income ordering through the
   reusable § 13 complex calculator, and § 13 a debt-settlement reduction
   ordering, § 14 annualisation/election cases, § 19 cases,
   withholding/card generation, and first final-settlement paths.
@@ -3675,6 +3677,26 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Personskattelovens § 13-fremførsel modtager ikke længere et råt beløb sammen
+  med skatteyderens egen juridiske konklusion om, at underskuddet ikke kunne
+  rummes tidligere. Åbningsgrundlaget er nu enten neutralt, det konsistente
+  årsresultat fra det umiddelbart foregående Personskat-år eller et eksternt
+  fastsat underskud med år og typet proveniens fra årsopgørelse,
+  Skatteforvaltningens afgørelse eller en anden navngiven myndighed. Reglerne
+  afviser fremtidige og oversprungne år, tom dokumentreference og ubalancerede
+  årsresultater. De anvender først fremførslen i egen skattepligtig indkomst,
+  derefter årets nye underskud efter § 13's egen skatte- og
+  ægtefællerækkefølge, og udleder selv ultimo til næste år. Et fortolket og
+  kompileret flerårsscenarie overfører 79.700 kr. til ægtefællen, fremfører
+  33.283 kr. fra 2025 og anvender hele beløbet i egen indkomst i 2026.
+  Kontraktens direkte XLSX, direkte JSON og JSON-hydrerede XLSX giver identiske
+  resultater for både et eksternt 40.000-kr.-grundlag og et tidligere
+  30.000-kr.-årsresultat. Arbejdet afdækkede samtidig, at den ugyldige form
+  `? assert(udtryk)` tidligere blev læst som et ukendt bevismål og tavst sprang
+  kontrollen over. Futuruna afviser nu ukendte `?`-mål under typekontrol og ved
+  ukontrolleret fortolkning, kræver boolske invariantprædikater og lader
+  `assert(Falskt)` fejle hårdt i både fortolket og kompileret kørsel;
+  scenarierne bruger sprogets egentlige navngivne `|`-invarianter.
 - Ligningslovens § 13 og Pensionsbeskatningslovens § 49, stk. 2, modtager nu
   identificerede udbetalingsfakta i den ordinære personlige indkomst. Hver post
   bevarer udbetalerens retlige art, indkomstår, beløb og den relevante

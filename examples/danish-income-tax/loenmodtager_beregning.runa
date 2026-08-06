@@ -33,7 +33,7 @@ omfang som nævnt i ligningslovens § 8 M,
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
 # LønmodtagerSkattekomponenter(bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, udligningsskat_kroner: Heltal, sundhedsbidrag_kroner: Heltal, aktieindkomstskat_kroner: Heltal, cfc_indkomstskat_kroner: Heltal, kommunal_lignende_statsskat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerPersonfradragResultat(personfradrag_kroner: Heltal, statslig_skatteværdi_kroner: Heltal, kommunal_skatteværdi_kroner: Heltal, kirkelig_skatteværdi_kroner: Heltal)
-# LønmodtagerPar13Forhold(ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
+# LønmodtagerPar13Forhold(egne_tidligere_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
 # LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, ægtefælle_egne_underskud_prioritet: Par13ÆgtefælleEgneUnderskudPrioritetResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, ægtefælle_skattemodregning: Par13ÆgtefælleSkatModregningResult, fremført_efter_ægtefælle_kroner: Heltal)
 # LønmodtagerPar11NedslagResultat(nedslag: Par11NegativKapitalNedslagResultat, modregning: Par11NedslagModregningResultat)
 # LønmodtagerIndgåendeÆgtefælleoverførsler = UdenIndgåendeÆgtefælleoverførsler | MedIndgåendeÆgtefælleoverførsler(afsenders_par13_underskud: LønmodtagerPar13UnderskudResult, afsenders_statslige_personfradrag: Par9StatsskatPersonfradragResultat, afsenders_ikke_statslige_personfradrag: Par9IkkeStatPersonfradragResultat, afsenders_par11_nedslag: Par11NedslagModregningResultat, gift_samlevende_ved_årets_udløb: Boolsk)
@@ -362,6 +362,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
 | lønmodtager_par13_standard_forhold() -> LønmodtagerPar13Forhold(
+    egne_tidligere_underskud_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 0,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
@@ -682,7 +683,7 @@ nedsat med de overskydende procenter.
         cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
     )
     | par1_almindelig_indkomst_resultat() -> par1_almindelig_skattepligtig_indkomst_resultat(par1_almindelig_indkomst_input())
-    | almindelig_skattepligtig_indkomst_før_ægtefælleoverførsel_kroner() -> par1_almindelig_indkomst_resultat().skattepligtig_indkomst_kroner
+    | almindelig_skattepligtig_indkomst_før_ægtefælleoverførsel_kroner() -> par1_almindelig_indkomst_resultat().skattepligtig_indkomst_kroner - penge_positivt_beløb(par13_forhold.egne_tidligere_underskud_kroner)
     | almindelig_skattepligtig_indkomst_kroner() -> almindelig_skattepligtig_indkomst_før_ægtefælleoverførsel_kroner() - indgående_par13_indkomstfradrag_kroner()
     | indkomstgrundlag() -> LønmodtagerIndkomstgrundlag(
         skatteår = input.skatteår,

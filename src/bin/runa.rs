@@ -15306,7 +15306,8 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("db_insert",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }" }),
         ("db_close",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "drop({0})" }),
 
-        // ---- Misc (not shadowable, pure) ----
+        // ---- Misc ----
+        ("assert",       BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "assert!({0}, \"Assertion failed!\")" }),
         ("shared",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "std::sync::Arc::new({0})" }),
         ("range",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0}..{1}).collect::<Vec<i64>>()" }),
 
@@ -24851,6 +24852,18 @@ impl RustCodegen {
         self.prescan_map_types(&all_stmts);
         self.prescan_hof_named_callback_param_types(&all_stmts);
         let stmts = &all_stmts;
+        self.codegen_invariants.clear();
+        for stmt in stmts {
+            if let Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } = stmt
+            {
+                self.codegen_invariants
+                    .insert(name.clone(), (subject.clone(), predicate.clone()));
+            }
+        }
         let mut out = String::new();
 
         // Header
@@ -33796,13 +33809,10 @@ impl RustCodegen {
                 } else if let Some((s, p)) = self.codegen_invariants.get(name) {
                     vec![(name.clone(), s.clone(), p.clone())]
                 } else {
-                    // Fallback: emit a compile-time warning comment
-                    out.push_str(&format!(
-                        "{}// ? {}: invariant not found\n",
-                        self.ind(),
+                    panic!(
+                        "cannot emit proof for unknown invariant `{}`; type checking must reject this program",
                         name
-                    ));
-                    return out;
+                    );
                 };
 
                 // For "? all" with blocks: check all invariants, run block once
@@ -47509,6 +47519,49 @@ for x in [1, 2] {
             "output should contain add function"
         );
         assert!(output.contains("fn main()"), "output should contain main");
+    }
+
+    #[test]
+    fn codegen_hoists_invariant_declared_after_proof() {
+        let source = "? declared_later\n| declared_later: 1 -> 1 == 1";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let mut codegen = RustCodegen::new();
+
+        let output = codegen.emit_program(&stmts);
+
+        assert!(output.contains("// ? declared_later\n"));
+        assert!(output.contains("|declared_later| holds"));
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot emit proof for unknown invariant `missing`")]
+    fn codegen_rejects_unknown_invariant_target() {
+        let source = "? missing";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let mut codegen = RustCodegen::new();
+
+        codegen.emit_program(&stmts);
+    }
+
+    #[test]
+    fn compiled_assert_true_continues_execution() {
+        let output = compile_and_run_test_program("assert(true)\n@ print(\"continued\")");
+
+        assert_eq!(output.trim(), "continued");
+    }
+
+    #[test]
+    fn compiled_assert_false_is_a_hard_failure() {
+        let output = compile_and_capture_test_source("assert(false)", None);
+
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Assertion failed!"));
     }
 
     #[test]
