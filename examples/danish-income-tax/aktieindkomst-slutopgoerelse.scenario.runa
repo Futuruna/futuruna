@@ -81,6 +81,28 @@
 )
 = scenarie1_par_negativ_aktie_slutopgørelse = aktieindkomst_negativ_par_slutopgørelse_resultat(scenarie1_par_negativ_aktie_slutopgørelse_case)
 
+= negativ_aktieskat_parfordeling = aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+    egen_negativ_skat_kroner = 300,
+    ægtefælles_negativ_skat_kroner = 50,
+    egen_slutskat_før_negativ_skat_kroner = 100,
+    ægtefælles_slutskat_før_negativ_skat_kroner = 200,
+    samlevende_ved_årets_udløb = Sandt
+))
+= negativ_aktieskat_parfordeling_ombyttet = aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+    egen_negativ_skat_kroner = 50,
+    ægtefælles_negativ_skat_kroner = 300,
+    egen_slutskat_før_negativ_skat_kroner = 200,
+    ægtefælles_slutskat_før_negativ_skat_kroner = 100,
+    samlevende_ved_årets_udløb = Sandt
+))
+= negativ_aktieskat_ikke_samlevende = aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+    egen_negativ_skat_kroner = 300,
+    ægtefælles_negativ_skat_kroner = 0,
+    egen_slutskat_før_negativ_skat_kroner = 100,
+    ægtefælles_slutskat_før_negativ_skat_kroner = 200,
+    samlevende_ved_årets_udløb = Falskt
+))
+
 | scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.effektivt_grundbeløb_kroner == 158800 && scenarie1_mand_aktie_slutopgørelse.aktieskat.højt_grundlag_kroner == 0
 | scenarie1_aktie_lav_skat_er_endelig: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.endelig_aktieskat_kroner == 40500 && scenarie1_mand_aktie_slutopgørelse.udbytteskat_modregningsberettiget_kroner == 0
 | scenarie1_aktie_lav_skat_indgår_ikke_i_slutskat_statsskat: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.slutskat_statsskat_før_personfradrag.aktieindkomstskat_kroner == 0 && scenarie1_mand_aktie_slutopgørelse.slutskat_statsskat_før_personfradrag.samlet_statsskat_kroner == scenarie1_mand.statslig_indkomstskat_før_personfradrag_kroner
@@ -99,6 +121,10 @@
 | scenarie1_par_negativ_aktie_modregner_ægtefælles_positive_før_skat: scenarie1_par_negativ_aktie_slutopgørelse -> scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_aktieindkomst_efter_modregning_kroner == 0 && scenarie1_par_negativ_aktie_slutopgørelse.egen_negativ.negativ_aktieindkomst.modregnet_i_ægtefælles_positive_aktieindkomst_kroner == 150000 && scenarie1_par_negativ_aktie_slutopgørelse.egen_negativ.negativ_aktieindkomst.resterende_negativ_aktieindkomst_kroner == 750000 && scenarie1_par_negativ_aktie_slutopgørelse.egen_negativ.negativ_skat_kroner == 291180
 | scenarie1_par_negativ_aktie_modregnes_i_begges_slutskat: scenarie1_par_negativ_aktie_slutopgørelse -> scenarie1_par_negativ_aktie_slutopgørelse.egen_negativ.negativ_skat_modregnet_i_egen_slutskat_kroner == 208726 && scenarie1_par_negativ_aktie_slutopgørelse.egen_negativ.negativ_skat_modregnet_i_ægtefælles_slutskat_kroner == 71005 && scenarie1_par_negativ_aktie_slutopgørelse.samlet_negativ_skat_fremført_kroner == 11449
 | scenarie1_par_negativ_aktie_ægtefælles_slutopgørelse: scenarie1_par_negativ_aktie_slutopgørelse -> scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_positiv_før_negativ_skat.slutskat_input.slutskat_kroner == 71005 && scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_positiv_før_negativ_skat.udbytteskat_modregningsberettiget_kroner == 40500 && scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_slutskat_input_efter_negativ_skat.kreditter.personskattelov_par8a_stk5_beløb_kroner == 71005 && scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_slutopgørelse_efter_negativ_skat.modregnede_foreløbige_skatter_kroner == 183361 && scenarie1_par_negativ_aktie_slutopgørelse.ægtefælle_slutopgørelse_efter_negativ_skat.overskydende_skat_kroner == 112356
+| negativ_aktieskat_parfordeling_prioriterer_egen_skat_og_begrænser_ægtefællen: negativ_aktieskat_parfordeling -> negativ_aktieskat_parfordeling.egen.modregnet_i_egen_slutskat_kroner == 100 && negativ_aktieskat_parfordeling.ægtefælle.modregnet_i_egen_slutskat_kroner == 50 && negativ_aktieskat_parfordeling.egen.modregnet_i_ægtefælles_slutskat_kroner == 150 && negativ_aktieskat_parfordeling.egen.fremført_kroner == 50 && negativ_aktieskat_parfordeling.ægtefælle.fremført_kroner == 0
+| negativ_aktieskat_parfordeling_bevarer_skat_og_fremførsel: negativ_aktieskat_parfordeling -> negativ_aktieskat_parfordeling.input_gyldigt && negativ_aktieskat_parfordeling.samlet_negativ_skat_kroner == 350 && negativ_aktieskat_parfordeling.samlet_negativ_skat_modregnet_kroner == 300 && negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner == 50 && negativ_aktieskat_parfordeling.samlet_slutskat_før_negativ_skat_kroner == 300 && negativ_aktieskat_parfordeling.samlet_slutskat_efter_negativ_skat_kroner == 0
+| negativ_aktieskat_parfordeling_er_symmetrisk_ved_rolleombytning: negativ_aktieskat_parfordeling_ombyttet -> negativ_aktieskat_parfordeling_ombyttet.egen == negativ_aktieskat_parfordeling.ægtefælle && negativ_aktieskat_parfordeling_ombyttet.ægtefælle == negativ_aktieskat_parfordeling.egen && negativ_aktieskat_parfordeling_ombyttet.samlet_negativ_skat_modregnet_kroner == negativ_aktieskat_parfordeling.samlet_negativ_skat_modregnet_kroner && negativ_aktieskat_parfordeling_ombyttet.samlet_negativ_skat_fremført_kroner == negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner && negativ_aktieskat_parfordeling_ombyttet.samlet_slutskat_efter_negativ_skat_kroner == negativ_aktieskat_parfordeling.samlet_slutskat_efter_negativ_skat_kroner
+| negativ_aktieskat_kræver_samliv_for_ægtefællemodregning: negativ_aktieskat_ikke_samlevende -> negativ_aktieskat_ikke_samlevende.egen.modregnet_i_egen_slutskat_kroner == 100 && negativ_aktieskat_ikke_samlevende.egen.modregnet_i_ægtefælles_slutskat_kroner == 0 && negativ_aktieskat_ikke_samlevende.egen.fremført_kroner == 200 && negativ_aktieskat_ikke_samlevende.ægtefælles_slutskat_efter_negativ_skat_kroner == 200
 
 ? scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat
 ? scenarie1_aktie_lav_skat_er_endelig
@@ -118,6 +144,10 @@
 ? scenarie1_par_negativ_aktie_modregner_ægtefælles_positive_før_skat
 ? scenarie1_par_negativ_aktie_modregnes_i_begges_slutskat
 ? scenarie1_par_negativ_aktie_ægtefælles_slutopgørelse
+? negativ_aktieskat_parfordeling_prioriterer_egen_skat_og_begrænser_ægtefællen
+? negativ_aktieskat_parfordeling_bevarer_skat_og_fremførsel
+? negativ_aktieskat_parfordeling_er_symmetrisk_ved_rolleombytning
+? negativ_aktieskat_kræver_samliv_for_ægtefællemodregning
 
 @ print("scenarie1 mand aktieindkomst med aegtefaelles ubrugt grundbeloeb: samlet skat inkl. endelig aktieskat " + vis(scenarie1_mand_aktie_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner))
 @ print("scenarie1 mand aktieindkomst med hoej aktieskat: restskat " + vis(scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.restskat_kroner))

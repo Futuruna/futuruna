@@ -170,7 +170,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     | BeregnetÆgtefælle(_, grundlag, _, _) -> fraflytter_slutskat_for_aktieavance(grundlag.aktieavance)
 }
 | fraflytter_slutskat_for_par(resultat: PersonskatBeregningResultat) -> fraflytter_slutskat_for_aktieavance(resultat.aktieavance) + fraflytter_slutskat_for_ægtefælle(resultat)
-| fraflytter_slutskat_parrets_samlede_skat(input: PersonskatInput, resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + personskat_ægtefælles_slutskat_kroner(input, resultat)
+| fraflytter_slutskat_parrets_samlede_skat(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner + personskat_ægtefælles_slutskat_kroner(resultat)
 
 = fraflytter_slutskat_blandet_aktier = [
     fraflytter_slutskat_aktiepost("ordinaer-gevinst", 1, 50000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
@@ -234,7 +234,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         [fraflytter_slutskat_gevinstkilde(anden_dato)]
     )
     = forskellige_datoer = beregn_personskat(forskellige_datoer_input)
-    = basis_skat_kroner = fraflytter_slutskat_parrets_samlede_skat(parbasis_input, parbasis)
+    = basis_skat_kroner = fraflytter_slutskat_parrets_samlede_skat(parbasis)
     = begge_positive_fraflytterskat_kroner = fraflytter_slutskat_for_par(begge_positive)
     = tab_og_gevinst_fraflytterskat_kroner = fraflytter_slutskat_for_par(tab_og_gevinst)
     = gevinst_og_tab_fraflytterskat_kroner = fraflytter_slutskat_for_par(gevinst_og_tab)
@@ -244,23 +244,29 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.aktieavance.alle_input_gyldige && grundlag.aktieavance.aktieindkomst_kroner == 100000
         | IngenÆgtefælleberegning -> Falskt
     }
-    @ print("ABL § 38 ægtefællekontrol: positive=" + vis(begge_positive_fraflytterskat_kroner) + ", tab/gevinst=" + vis(tab_og_gevinst_fraflytterskat_kroner) + ", omvendt=" + vis(gevinst_og_tab_fraflytterskat_kroner) + ", kun-en=" + vis(kun_en_skattepligtig_fraflytterskat_kroner) + ", forskellige-datoer=" + vis(forskellige_datoer_fraflytterskat_kroner) + ", deltas=" + vis(fraflytter_slutskat_parrets_samlede_skat(begge_positive_input, begge_positive) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst_input, tab_og_gevinst) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab_input, gevinst_og_tab) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig_input, kun_en_skattepligtig) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer_input, forskellige_datoer) - basis_skat_kroner) + ", spouse-valid=" + vis(ægtefælleresultater_gyldige))
+    @ print("ABL § 38 ægtefællekontrol: positive=" + vis(begge_positive_fraflytterskat_kroner) + ", tab/gevinst=" + vis(tab_og_gevinst_fraflytterskat_kroner) + ", omvendt=" + vis(gevinst_og_tab_fraflytterskat_kroner) + ", kun-en=" + vis(kun_en_skattepligtig_fraflytterskat_kroner) + ", forskellige-datoer=" + vis(forskellige_datoer_fraflytterskat_kroner) + ", deltas=" + vis(fraflytter_slutskat_parrets_samlede_skat(begge_positive) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer) - basis_skat_kroner) + ", spouse-valid=" + vis(ægtefælleresultater_gyldige))
     (begge_positive.aktieavance.alle_input_gyldige
         && begge_positive_fraflytterskat_kroner == 40500
-        && begge_positive_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(begge_positive_input, begge_positive) - basis_skat_kroner
+        && begge_positive_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(begge_positive) - basis_skat_kroner
         && tab_og_gevinst.aktieavance.alle_input_gyldige
         && tab_og_gevinst.aktieavance.aktieindkomst_kroner == -30000
+        && tab_og_gevinst.aktieindkomst_parår.input.egen_aktieindkomst_kroner == -30000
+        && tab_og_gevinst.aktieindkomst_parår.input.ægtefælles_aktieindkomst_kroner == 100000
+        && tab_og_gevinst.aktieindkomst_parår.egen_aktieindkomst_efter_ægtefællemodregning_kroner == 0
+        && tab_og_gevinst.aktieindkomst_parår.ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner == 70000
+        && tab_og_gevinst.negativ_aktieindkomstskat.samlet_negativ_skat_kroner == 0
+        && tab_og_gevinst.negativ_aktieindkomstskat.samlet_negativ_skat_fremført_kroner == 0
         && ægtefælleresultater_gyldige
         && length(head(tab_og_gevinst.aktieavance.særlige_resultater).kilderesultater) == 1
         && tab_og_gevinst_fraflytterskat_kroner == 18900
-        && tab_og_gevinst_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst_input, tab_og_gevinst) - basis_skat_kroner
+        && tab_og_gevinst_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst) - basis_skat_kroner
         && gevinst_og_tab_fraflytterskat_kroner == tab_og_gevinst_fraflytterskat_kroner
-        && gevinst_og_tab_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab_input, gevinst_og_tab) - basis_skat_kroner
+        && gevinst_og_tab_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab) - basis_skat_kroner
         && kun_en_skattepligtig_fraflytterskat_kroner == 27000
-        && kun_en_skattepligtig_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig_input, kun_en_skattepligtig) - basis_skat_kroner
+        && kun_en_skattepligtig_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig) - basis_skat_kroner
         && length(head(kun_en_skattepligtig.aktieavance.særlige_resultater).kilderesultater) == 0
         && forskellige_datoer_fraflytterskat_kroner == 27000
-        && forskellige_datoer_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer_input, forskellige_datoer) - basis_skat_kroner
+        && forskellige_datoer_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer) - basis_skat_kroner
         && length(head(forskellige_datoer.aktieavance.særlige_resultater).kilderesultater) == 0)
 }
 | fraflytter_slutskat_ægtefællemodregning_scenarier_består: Sandt -> fraflytter_slutskat_ægtefællemodregning_scenarier()

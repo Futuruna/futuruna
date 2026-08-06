@@ -17,6 +17,7 @@
 = water_score = usage_score(Word("water", "water"))
 
 = rebind_visible_to_free_function = water_score == 5 && ordered == "wind,fire,water"
-? rebind_visible_to_free_function
+| rebind_visible_to_free_function_holds: rebind_visible_to_free_function -> rebind_visible_to_free_function
+? rebind_visible_to_free_function_holds
 
 @ print("top-level rebind codegen passed")

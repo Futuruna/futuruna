@@ -8,6 +8,7 @@
 = count = coupling_count(no_couplings)
 
 = empty_list_context_ok = count == 0
-? empty_list_context_ok
+| empty_list_context_holds: empty_list_context_ok -> empty_list_context_ok
+? empty_list_context_holds
 
 @ print("empty list context codegen passed")

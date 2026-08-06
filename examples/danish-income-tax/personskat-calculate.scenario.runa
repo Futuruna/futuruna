@@ -1000,6 +1000,74 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
 
+= personskat_calculate_stort_ordinært_tab_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-STORT-ORDINÆRT-TAB",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    anskaffelsessum_kroner = 1500000
+)
+= personskat_calculate_stort_ordinært_tab_afståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    afståelsessum_kroner = 0,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+)
+= personskat_calculate_stort_ordinært_tabsår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [
+        AktieavanceOrdinærHændelsesforløbInput(
+            position_primo = personskat_calculate_stort_ordinært_tab_position,
+            hændelser = [personskat_calculate_stort_ordinært_tab_afståelse]
+        )
+    ],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= personskat_calculate_stort_ordinært_tabsinput = PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår),
+    særlige_aktiver = [],
+    udbytter = []
+)
+| personskat_calculate_personfakta_med_aktieavance(aktieavance: PersonskatAktieavanceInput) -> PersonskatPersonFakta(
+    lønmodtager = personskat_calculate_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = aktieavance,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold
+)
+| personskat_calculate_par_med_aktieavancer(egen_aktieavance: PersonskatAktieavanceInput, ægtefælles_aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(
+    lønmodtager = personskat_calculate_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = egen_aktieavance,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = personskat_calculate_personfakta_med_aktieavance(ægtefælles_aktieavance),
+        samlevende_ved_indkomstårets_udløb = Sandt
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = personskat_calculate_med_årsopgørelse_input.årsopgørelse
+)
+= personskat_calculate_stort_eget_aktietab_resultat = beregn_personskat(personskat_calculate_par_med_aktieavancer(
+    personskat_calculate_stort_ordinært_tabsinput,
+    personskat_ingen_aktieavance()
+))
+= personskat_calculate_stort_ægtefælleaktietab_resultat = beregn_personskat(personskat_calculate_par_med_aktieavancer(
+    personskat_ingen_aktieavance(),
+    personskat_calculate_stort_ordinært_tabsinput
+))
+
 = personskat_calculate_ejendomsskat_input = PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2025,
@@ -1076,6 +1144,37 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     )
 )
 = personskat_calculate_ejendomsskat_resultat = beregn_personskat(personskat_calculate_ejendomsskat_input)
+| personskat_calculate_input_med_aktieavance_fra(input: PersonskatInput, aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(
+    lønmodtager = input.lønmodtager,
+    kapitalindkomst = input.kapitalindkomst,
+    aktieavance = aktieavance,
+    udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag,
+    cfc = input.cfc,
+    skatteforhold = input.skatteforhold,
+    underskudsforhold = input.underskudsforhold,
+    ægtefælle = input.ægtefælle,
+    ejendomsskatter = input.ejendomsskatter,
+    årsopgørelse = input.årsopgørelse
+)
+= personskat_calculate_stort_ordinært_tabsår_2025 = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2025,
+    hændelsesforløb = [
+        AktieavanceOrdinærHændelsesforløbInput(
+            position_primo = personskat_calculate_stort_ordinært_tab_position,
+            hændelser = [personskat_calculate_stort_ordinært_tab_afståelse]
+        )
+    ],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= personskat_calculate_ejendomsskat_og_stort_aktietab_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance_fra(
+    personskat_calculate_ejendomsskat_input,
+    PersonskatAktieavanceInput(
+        ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår_2025),
+        særlige_aktiver = [],
+        udbytter = []
+    )
+))
 
 = personskat_calculate_par13a_tabsposition = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-PAR13A-TAB",
@@ -1317,7 +1416,18 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | BeregnetOrdinærtAktieår(årsresultat) -> any(årsresultat.hændelsesforløbsresultater, |forløb: AktieavanceOrdinærHændelsesforløbResultat| any(forløb.hændelsesresultater, |hændelse: AktieavanceOrdinærHændelsesresultat| hændelse.hændelse_gyldig && hændelse.bruttotab_kroner == 30000 && hændelse.tabsreduktion_efter_par5a_kroner == 12000 && hændelse.tab_efter_par5a_kroner == 18000 && hændelse.fradragsberettiget_tab_efter_par13_kroner == 18000))
     | _ -> Falskt
 }
-| personskat_calculate_par5a_reducerer_tab_før_personskattelov: personskat_calculate_par5a_resultat -> personskat_calculate_par5a_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par5a_resultat.aktieavance.aktieindkomst_kroner == -18000 && personskat_calculate_par5a_spor_er_reduceret(personskat_calculate_par5a_resultat.aktieavance.ordinært_aktieår)
+| personskat_calculate_par5a_reducerer_tab_før_personskattelov: personskat_calculate_par5a_resultat -> personskat_calculate_par5a_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par5a_resultat.aktieavance.aktieindkomst_kroner == -18000 && personskat_calculate_par5a_spor_er_reduceret(personskat_calculate_par5a_resultat.aktieavance.ordinært_aktieår) && personskat_calculate_par5a_resultat.aktieindkomst_parår.egen_skat_kroner == -4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == 4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == 0 && personskat_calculate_par5a_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == personskat_calculate_par5a_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - 4860
+| personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_kroner(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> 0
+    | BeregnetÅrsopgørelse(input, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_kroner
+}
+| personskat_calculate_stort_eget_aktietab_modregnes_og_fremføres: personskat_calculate_stort_eget_aktietab_resultat -> personskat_calculate_stort_eget_aktietab_resultat.aktieavance.aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.input.egen_aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.eget_effektive_grundbeløb_kroner == 158800 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.egen_skat_kroner == -606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_ægtefælles_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == 188728 && personskat_calculate_stort_eget_aktietab_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == 0 && personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_kroner(personskat_calculate_stort_eget_aktietab_resultat) == 208726
+| personskat_calculate_stort_ægtefælleaktietab_bevarer_kildesporet: personskat_calculate_stort_ægtefælleaktietab_resultat -> personskat_calculate_stort_ægtefælleaktietab_resultat.aktieindkomst_parår.input.ægtefælles_aktieindkomst_kroner == -1500000 && match personskat_calculate_stort_ægtefælleaktietab_resultat.ægtefælle {
+    | IngenÆgtefælleberegning -> Falskt
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.aktieavance.aktieindkomst_kroner == -1500000 && grundlag.aktieavance.alle_input_gyldige
+}
+| personskat_calculate_negativ_aktieskat_er_symmetrisk_ved_rolleombytning: personskat_calculate_stort_ægtefælleaktietab_resultat -> personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.ægtefælle == personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.egen == personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.ægtefælle && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.samlet_slutskat_før_negativ_skat_kroner == 417452 && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.samlet_negativ_skat_modregnet_kroner == 417452 && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.samlet_negativ_skat_fremført_kroner == 188728 && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.samlet_slutskat_efter_negativ_skat_kroner == 0 && personskat_calculate_stort_ægtefælleaktietab_resultat.negativ_aktieindkomstskat.samlet_slutskat_efter_negativ_skat_kroner == personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.samlet_slutskat_efter_negativ_skat_kroner && personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_kroner(personskat_calculate_stort_ægtefælleaktietab_resultat) == 208726
+| personskat_calculate_negativ_aktieskat_modregnes_i_hele_slutskatten: personskat_calculate_ejendomsskat_og_stort_aktietab_resultat -> personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.ejendomsskatter.samlet_ejendomsskat_kroner == 6012 && personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_kroner && personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + 6012 && personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner - personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_kroner && personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == 0 && personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner == 0 && personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_kroner(personskat_calculate_ejendomsskat_og_stort_aktietab_resultat) == personskat_calculate_ejendomsskat_og_stort_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_kroner
 | personskat_calculate_boligret_spor_er_skattefrit(resultat: PersonskatOrdinærtAktieårResultat) -> match resultat {
     | BeregnetOrdinærtAktieår(årsresultat) -> any(årsresultat.hændelsesforløbsresultater, |forløb: AktieavanceOrdinærHændelsesforløbResultat| any(forløb.hændelsesresultater, |hændelse: AktieavanceOrdinærHændelsesresultat| hændelse.bruttogevinst_kroner == 5000 && hændelse.skattefri_efter_par15 && hændelse.skattepligtig_gevinst_efter_par12_kroner == 0 && match hændelse.par15_resultat {
             | AblPar15Vurderet(klassifikation, ebl_resultat, afståelsesform_opfyldt, skattefri_efter_par15) -> klassifikation.input_gyldigt && klassifikation.udsteder_selvstændigt_skattesubjekt && klassifikation.værdipapir_omfattet_af_aktieavancebeskatningsloven && ebl_resultat.betingelser_for_skattefrihed_opfyldt && afståelsesform_opfyldt && skattefri_efter_par15
@@ -1409,6 +1519,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ll9d_forkert_år_afvises
 ? personskat_calculate_ordinær_aktieavance_afledes
 ? personskat_calculate_par5a_reducerer_tab_før_personskattelov
+? personskat_calculate_stort_eget_aktietab_modregnes_og_fremføres
+? personskat_calculate_stort_ægtefælleaktietab_bevarer_kildesporet
+? personskat_calculate_negativ_aktieskat_er_symmetrisk_ved_rolleombytning
+? personskat_calculate_negativ_aktieskat_modregnes_i_hele_slutskatten
 ? personskat_calculate_abl_par15_boligret_afledes
 ? personskat_calculate_19c_kapital_afledes
 ? personskat_calculate_19c_personlig_afledes_uden_am

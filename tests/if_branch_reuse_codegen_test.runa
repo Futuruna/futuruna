@@ -8,9 +8,11 @@
 }
 
 = short_ok = suffix_or_self("cat") == "cat:cat"
-? short_ok
+| short_holds: short_ok -> short_ok
+? short_holds
 
 = long_ok = suffix_or_self("futuruna") == "utu:futuruna"
-? long_ok
+| long_holds: long_ok -> long_ok
+? long_holds
 
 @ print("if branch reuse codegen passed")

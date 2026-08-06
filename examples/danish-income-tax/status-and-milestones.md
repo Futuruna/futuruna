@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
+Current implementation slice: `td-b95e35` (resterende negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, modregnes først i egen slutskat, derefter i en samlevende ægtefælles disponible slutskat, og resten fremføres eksplicit; den kanoniske Personskat-beregning bevarer både det signerede aktieindkomstspor og fordelingen gennem JSON/XLSX)
+Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
 Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
 Previous travel-expense slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
@@ -31,7 +32,9 @@ Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sa
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
-Planned residual share-tax completion: `td-b95e35` (bevar og anvend negativ aktieindkomstskat, som består efter fuld ægtefællemodregning, i den kanoniske slutskat og fremførsel)
+Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parberegning føres nu til egen modregning, ægtefællemodregning, Kildeskattelovens § 60-kredit og eksplicit fremførsel uden at ændre det rå ABL-kildespor)
+Planned negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi skal føre den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput)
+Planned spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder skal indgå i den komplette slutskat, som en § 8 a-overførsel kan modregnes i)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
@@ -39,7 +42,8 @@ Current language support slice: `td-d25733` (genbrugelige, typede beregningsfelt
 Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
 Latest compiler-artifact cache: `td-22e56f` (validerede `check`-resultater og native binære artefakter genbruges sikkert ud fra hele den transitive kildegraf; kanonisk Personskat-check falder fra cirka fire minutter koldt til 2,6 s varmt)
 Previous compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
-Planned interpreter performance slice: `td-38f074` (memoiser rene, uforanderlige globale værdier og nul-argumentsregler under én fortolket rodevaluering; det fulde Personskat-XLSX-scenarie bruger aktuelt cirka 18,7 minutter)
+Latest approved interpreter performance slice: `td-38f074` (uforanderlige runtimeværdier, RuleScope-bindinger og regel-AST'er deler struktur med copy-on-write, og globale samt scoped regler findes gennem kildeordnede navneindeks; det fokuserede LL § 9-scenarie faldt fra cirka 333 sekunder til 7-10 sekunder, mens den fulde Personskat-XLSX-regression faldt fra cirka 1.144 sekunder til cirka 387 sekunder i den målte referencekørsel)
+Planned interpreter dispatch slice: `td-a42ade` (forudberegn aritet, prioritet, head-bindinger og oprydningsplaner pr. regel uden effektrisikoen ved generel resultatmemoisering)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Planned calculation-runner performance: `td-783a9c` (genbrug en kompileret eller resident, initialiseret beregningsrunner på tværs af kald)
@@ -58,6 +62,23 @@ Current project priority: finish the source-backed Personskatteloven
 implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
+
+Den kanoniske aktieindkomstgren bevarer nu `AktieindkomstParÅrsskatResultat`
+som et signeret mellemresultat efter indkomstmodregning mellem ægtefæller.
+Kun en resterende negativ skat går videre til
+`AktieindkomstNegativSkatParSag`, som anvender § 8 a, stk. 5-6 i rækkefølgen
+egen slutskat, samlevende ægtefælles resterende slutskat og fremførsel. Begge
+ægtefællers modregning er begrænset af den disponible skat, og parresultatet
+udstiller bevarelsesstørrelser for skat før og efter modregning, anvendt negativ
+skat og uudnyttet fremførsel. For hovedpersonen omfatter den disponible slutskat
+også ejendomsværdiskat og grundskyld; indkomstskatten dækkes først, og kun den
+uudnyttede del går videre til ejendomsskatterne. Hovedpersonens anvendte beløb
+føres samtidig som en afledt kredit efter Kildeskattelovens § 60 i
+årsopgørelsen. Rå ordinære
+ABL-resultater og ABL §§ 37-40-kilder ændres ikke. Rolleombytning, manglende
+samliv, ABL § 5 A-tab, ejendomsskat og samtidig fraflytning er verificeret
+fortolket og kompileret; de ordinære ABL- og fraflytningskilder krydser desuden
+samme JSON/XLSX-beregningsgrænse.
 
 Futurunas metadataindeks bygger nu på sprogets almindelige typesystem. En kort
 `--@label:<label>::meta:<binding>--`-kommentar er kun forbindelsen mellem et

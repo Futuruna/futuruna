@@ -11876,6 +11876,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-par37-40-samtidige-aegtefaeller-2026")
         .expect("simultaneous-spouse §§ 37-40 JSON case")
         .clone();
+    let ordinary_share_loss_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-renter-befordring-2026")
+        .expect("ordinary ABL share-loss JSON case")
+        .clone();
     let annual_claim_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -11907,6 +11914,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case,
+        ordinary_share_loss_case,
         annual_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
@@ -11970,6 +11978,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
+    let json_ordinary_share_loss_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-renter-befordring-2026")
+        .expect("JSON ordinary ABL share-loss result");
+    let hydrated_ordinary_share_loss_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-renter-befordring-2026")
+        .expect("hydrated XLSX ordinary ABL share-loss result");
+    assert_eq!(
+        hydrated_ordinary_share_loss_result["result"],
+        json_ordinary_share_loss_result["result"]
+    );
+    let ordinary_share_loss_result = &json_ordinary_share_loss_result["result"];
+    assert_eq!(
+        ordinary_share_loss_result["aktieavance"]["aktieindkomst_kroner"],
+        -18_000
+    );
+    assert_eq!(
+        ordinary_share_loss_result["aktieindkomst_parår"]["egen_skat_kroner"],
+        -4_860
+    );
+    assert_eq!(
+        ordinary_share_loss_result["negativ_aktieindkomstskat"]["egen"]["negativ_skat_kroner"],
+        4_860
+    );
+    assert_eq!(
+        ordinary_share_loss_result["negativ_aktieindkomstskat"]["egen"]
+            ["modregnet_i_egen_slutskat_kroner"],
+        4_860
+    );
+    assert_eq!(
+        ordinary_share_loss_result["negativ_aktieindkomstskat"]["egen"]["fremført_kroner"],
+        0
+    );
+    assert_eq!(
+        ordinary_share_loss_result["samlet_skat_efter_negativ_aktieindkomstskat_kroner"],
+        ordinary_share_loss_result["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]
+            .as_i64()
+            .expect("gross tax before negative share-income tax")
+            - 4_860
+    );
     let json_annual_claim_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")
@@ -12408,6 +12461,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         xlsx_par37_result["result"]["positiv_aktieindkomstskat"]["samlet_skat_kroner"],
         30_090
     );
+    assert_eq!(
+        xlsx_par37_result["result"]["aktieindkomst_parår"]["egen_skat_kroner"],
+        30_090
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["negativ_aktieindkomstskat"]["samlet_negativ_skat_kroner"],
+        0
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["samlet_skat_efter_negativ_aktieindkomstskat_kroner"],
+        xlsx_par37_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]
+    );
     let par37_special_result = &xlsx_par37_result["result"]["aktieavance"]["særlige_resultater"][0];
     assert_eq!(par37_special_result["input_gyldigt"], true);
     assert_eq!(
@@ -12625,6 +12690,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         simultaneous_result["ægtefælle"]["grundlag"]["aktieavance"]["aktieindkomst_kroner"],
         100_000
+    );
+    assert_eq!(
+        simultaneous_result["aktieindkomst_parår"]["input"]["egen_aktieindkomst_kroner"],
+        -30_000
+    );
+    assert_eq!(
+        simultaneous_result["aktieindkomst_parår"]["input"]["ægtefælles_aktieindkomst_kroner"],
+        100_000
+    );
+    assert_eq!(
+        simultaneous_result["aktieindkomst_parår"]
+            ["egen_aktieindkomst_efter_ægtefællemodregning_kroner"],
+        0
+    );
+    assert_eq!(
+        simultaneous_result["aktieindkomst_parår"]
+            ["ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner"],
+        70_000
+    );
+    assert_eq!(
+        simultaneous_result["negativ_aktieindkomstskat"]["samlet_negativ_skat_kroner"],
+        0
+    );
+    assert_eq!(
+        simultaneous_result["negativ_aktieindkomstskat"]["samlet_negativ_skat_fremført_kroner"],
+        0
+    );
+    assert_eq!(
+        simultaneous_result["samlet_skat_efter_negativ_aktieindkomstskat_kroner"],
+        simultaneous_result["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]
     );
     assert_eq!(
         simultaneous_main_special["kilderesultater"][0]["resultat"]
@@ -13314,6 +13409,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["aktieindkomst_kroner"],
         -18_000
+    );
+    assert_eq!(
+        result["results"][2]["result"]["aktieindkomst_parår"]["egen_skat_kroner"],
+        -4_860
+    );
+    assert_eq!(
+        result["results"][2]["result"]["negativ_aktieindkomstskat"]["egen"]["negativ_skat_kroner"],
+        4_860
+    );
+    assert_eq!(
+        result["results"][2]["result"]["negativ_aktieindkomstskat"]["egen"]
+            ["modregnet_i_egen_slutskat_kroner"],
+        4_860
+    );
+    assert_eq!(
+        result["results"][2]["result"]["negativ_aktieindkomstskat"]["egen"]["fremført_kroner"],
+        0
     );
     assert_eq!(
         result["results"][2]["result"]["aktieavance"]["ordinært_aktieår"]["resultat"]

@@ -6,6 +6,7 @@
 }
 
 = keyword_identifier_ok = read_final() == 41 && try == 42
-? keyword_identifier_ok
+| keyword_identifier_holds: keyword_identifier_ok -> keyword_identifier_ok
+? keyword_identifier_holds
 
 @ print("rust keyword identifier codegen passed")

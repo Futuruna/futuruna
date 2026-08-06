@@ -10,6 +10,7 @@
 = n1 = map_get_or(graph, "n1", [])
 
 = map_list_value_ok = join(n0, ",") == "n1,n2" && join(n1, ",") == "n2,n3"
-? map_list_value_ok
+| map_list_value_holds: map_list_value_ok -> map_list_value_ok
+? map_list_value_holds
 
 @ print("map list value codegen passed")
