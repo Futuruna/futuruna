@@ -1284,6 +1284,103 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             })
             .count();
         assert_eq!(case_headers.len(), case_column_count + 1);
+        let employer_benefits_path =
+            "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser";
+        let employer_benefits_sheet =
+            workbook_collection_sheet_name(&mut workbook, employer_benefits_path);
+        let employer_benefit_paths = workbook_column_paths(&mut workbook, &employer_benefits_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "ydelse.$variant",
+            "ydelse.DirekteArbejdsgiverbetaltGruppeliv.præmie_før_arbejdsmarkedsbidrag_kroner",
+            "ydelse.GruppelivSomUadskiltDelAfPbl19Ordning.personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner",
+            "ydelse.NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2.art",
+            "ydelse.NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2.skattepligtig_værdi_kroner",
+            "ydelse.UklassificeretArbejdsgiverbetaltYdelse.beskrivelse",
+            "ydelse.UklassificeretArbejdsgiverbetaltYdelse.beløb_kroner",
+        ] {
+            assert!(
+                employer_benefit_paths.iter().any(|path| path == expected),
+                "missing canonical ordinary employer-benefit path {expected} on {employer_benefits_sheet}"
+            );
+        }
+        let employer_benefit_headers = workbook_headers(&mut workbook, &employer_benefits_sheet);
+        for expected in [
+            "Ydelsens identifikation",
+            "Ydelsens indkomstår",
+            "Arbejdsgiverbetalt ydelse",
+            "Direkte arbejdsgiverbetalt gruppeliv før AM-bidrag",
+            "Gruppeliv i PBL § 19-ordning efter AM-bidrag",
+            "Naturaliets art",
+            "Naturaliets skattepligtige værdi",
+            "Beskrivelse af uklassificeret ydelse",
+            "Uklassificeret arbejdsgiverydelse",
+        ] {
+            assert!(
+                employer_benefit_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ordinary employer-benefit label {expected} on {employer_benefits_sheet}"
+            );
+        }
+        let businesses_path =
+            "lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning";
+        let businesses_sheet = workbook_collection_sheet_name(&mut workbook, businesses_path);
+        for expected in ["identifikation", "indkomstår"] {
+            assert!(
+                workbook_column_paths(&mut workbook, &businesses_sheet)
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical ordinary-business path {expected} on {businesses_sheet}"
+            );
+        }
+        for expected in ["Virksomhedens identifikation", "Virksomhedens indkomstår"] {
+            assert!(
+                workbook_headers(&mut workbook, &businesses_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ordinary-business label {expected} on {businesses_sheet}"
+            );
+        }
+        let business_revenues_path = "lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning.indtægter";
+        let business_revenues_sheet =
+            workbook_collection_sheet_name(&mut workbook, business_revenues_path);
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &business_revenues_sheet),
+            ["identifikation", "art", "beløb_kroner"]
+        );
+        for expected in [
+            "Indtægtspostens identifikation",
+            "Indtægtspostens skattemæssige art",
+            "Virksomhedsindtægt",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &business_revenues_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ordinary-business revenue label {expected} on {business_revenues_sheet}"
+            );
+        }
+        let business_expenses_path = "lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning.udgifter";
+        let business_expenses_sheet =
+            workbook_collection_sheet_name(&mut workbook, business_expenses_path);
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &business_expenses_sheet),
+            ["identifikation", "afgrænsning", "beløb_kroner"]
+        );
+        for expected in [
+            "Udgiftspostens identifikation",
+            "Udgiftens afgrænsning efter PSL § 3, stk. 2, nr. 1",
+            "Virksomhedsudgift",
+        ] {
+            assert!(
+                workbook_headers(&mut workbook, &business_expenses_sheet)
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ordinary-business expense label {expected} on {business_expenses_sheet}"
+            );
+        }
         let business_travel_path = "lønmodtager.erhvervsbefordring.sager";
         let business_travel_sheet =
             workbook_collection_sheet_name(&mut workbook, business_travel_path);
@@ -8356,7 +8453,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kommune": { "$variant": "København" },
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
-                "etableringskonto": { "$variant": "UdenEtableringskontoindskud" }
+                "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                "ordinære_forhold": {
+                    "arbejdsgiverydelser": [],
+                    "virksomheder_uden_virksomhedsordning": []
+                }
             },
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
@@ -9792,7 +9893,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "kommune": { "$variant": "Frederiksberg" },
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
-                    "etableringskonto": { "$variant": "UdenEtableringskontoindskud" }
+                    "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                    "ordinære_forhold": {
+                        "arbejdsgiverydelser": [],
+                        "virksomheder_uden_virksomhedsordning": []
+                    }
                 },
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
@@ -10223,6 +10328,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_etableringskontoindskud_efter_par4_stk2_kroner": 0,
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
+        },
+        "ordinære_forhold": {
+            "arbejdsgiverydelser": [],
+            "virksomheder_uden_virksomhedsordning": []
         }
     });
     json_input["cases"]

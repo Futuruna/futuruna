@@ -61,7 +61,7 @@ synlig korpusmangel, ikke et frit beløbsfelt.
 
 # PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FradragsmodtagerBetalingOgGodkendelsesgrundlag | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta
 
-# PersonskatÅrsopgørelseKorpusgren = OrdinærePersonligeIndkomstjusteringer | VirksomhedsresultatIPersonligIndkomst | Fagforeningsfradrag | AkasseEfterlønOgFleksydelsesfradrag | Gavefradrag
+# PersonskatÅrsopgørelseKorpusgren = Fagforeningsfradrag | AkasseEfterlønOgFleksydelsesfradrag | Gavefradrag
 
 # PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | KorpusgrenMangler(gren: PersonskatÅrsopgørelseKorpusgren, kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
 
@@ -172,9 +172,8 @@ synlig korpusmangel, ikke et frit beløbsfelt.
     [RenteNæringsstatusOgSærregler]
 )
 
-| personskat_aarsopgoerelse_kortlaeg_gruppeliv_og_ydelser(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+| personskat_aarsopgoerelse_kortlaeg_gruppeliv_og_ydelser(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
     linje,
-    OrdinærePersonligeIndkomstjusteringer,
     EIndkomstEllerLønspecifikation,
     [YdelsensRetligeArtOgAmStatus]
 )
@@ -188,9 +187,8 @@ synlig korpusmangel, ikke et frit beløbsfelt.
     PensionsoversigtMedOrdningsvilkår,
     [PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger]
 )
-| personskat_aarsopgoerelse_kortlaeg_virksomhedsunderskud(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+| personskat_aarsopgoerelse_kortlaeg_virksomhedsunderskud(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
     linje,
-    VirksomhedsresultatIPersonligIndkomst,
     VirksomhedsregnskabOgSkatteordning,
     [VirksomhedsindkomstAktivitetOgUnderskudshistorik]
 )

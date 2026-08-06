@@ -1,0 +1,224 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| personskat_ordinaer_scenario_input(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
+    arbejdsgiverydelser = arbejdsgiverydelser,
+    virksomheder_uden_virksomhedsordning = virksomheder
+)
+| personskat_ordinaer_scenario_arbejdsgiverydelse(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse) -> PersonskatArbejdsgiverydelseFakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    ydelse = ydelse
+)
+| personskat_ordinaer_scenario_indtægt(identifikation: Tekst, art: PersonskatVirksomhedsindtægtsart, beløb_kroner: Heltal) -> PersonskatVirksomhedsindtægtFakta(
+    identifikation = identifikation,
+    art = art,
+    beløb_kroner = beløb_kroner
+)
+| personskat_ordinaer_scenario_udgift(identifikation: Tekst, afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal) -> PersonskatVirksomhedsudgiftFakta(
+    identifikation = identifikation,
+    afgrænsning = afgrænsning,
+    beløb_kroner = beløb_kroner
+)
+| personskat_ordinaer_scenario_virksomhed(identifikation: Tekst, indkomstår: Heltal, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    indtægter = indtægter,
+    udgifter = udgifter
+)
+
+= personskat_ordinaer_tomt_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ingen_ordinær_personlig_indkomst(), 2025)
+= personskat_ordinaer_gruppeliv_efter_am_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    ], []), 2025)
+= personskat_ordinaer_gruppeliv_direkte_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-direkte", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000))
+    ], []), 2025)
+= personskat_ordinaer_naturalie_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("fri-bil", 2025, NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(
+        art = AmFriBil,
+        skattepligtig_værdi_kroner = 12000
+    ))
+    ], []), 2025)
+= personskat_ordinaer_uklassificeret_ydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("uklassificeret", 2025, UklassificeretArbejdsgiverbetaltYdelse(
+        beskrivelse = "Årsopgørelsens samlelinje uden underliggende klassifikation",
+        beløb_kroner = 507
+    ))
+    ], []), 2025)
+= personskat_ordinaer_ikke_par2_naturalie_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("anden-naturalie", 2025, NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(
+        art = AmIkkePar2Stk2Naturalia,
+        skattepligtig_værdi_kroner = 12000
+    ))
+    ], []), 2025)
+= personskat_ordinaer_dubleret_ydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("samme-id", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000)),
+    personskat_ordinaer_scenario_arbejdsgiverydelse("samme-id", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    ], []), 2025)
+= personskat_ordinaer_negativ_ydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("negativ", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = -1))
+    ], []), 2025)
+= personskat_ordinaer_forkert_ydelsesaar_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("forkert-år", 2024, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000))
+    ], []), 2025)
+
+= personskat_ordinaer_virksomhedsoverskud = personskat_ordinaer_scenario_virksomhed(
+    "enkeltmandsvirksomhed-overskud",
+    2025,
+    [personskat_ordinaer_scenario_indtægt("omsætning", OrdinærDriftsindtægt, 100000)],
+    [personskat_ordinaer_scenario_udgift("driftsudgifter", SelvstændigErhvervsindkomstUdgift, 40000)]
+)
+= personskat_ordinaer_virksomhedsoverskud_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsoverskud]), 2025)
+= personskat_ordinaer_virksomhedsunderskud = personskat_ordinaer_scenario_virksomhed(
+    "enkeltmandsvirksomhed-underskud",
+    2025,
+    [personskat_ordinaer_scenario_indtægt("omsætning", OrdinærDriftsindtægt, 10000)],
+    [personskat_ordinaer_scenario_udgift("driftsudgifter", SelvstændigErhvervsindkomstUdgift, 30000)]
+)
+= personskat_ordinaer_virksomhedsunderskud_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsunderskud]), 2025)
+= personskat_ordinaer_virksomhed_kapitalindtægt_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [
+    personskat_ordinaer_scenario_virksomhed(
+        "kapitalindtægt",
+        2025,
+        [personskat_ordinaer_scenario_indtægt("renteindtægt", KapitalindkomstEfterPersonskattelovensPar4, 1000)],
+        []
+    )
+    ]), 2025)
+= personskat_ordinaer_virksomhed_afskaaret_udgift_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [
+    personskat_ordinaer_scenario_virksomhed(
+        "renteudgift",
+        2025,
+        [personskat_ordinaer_scenario_indtægt("omsætning", OrdinærDriftsindtægt, 10000)],
+        [personskat_ordinaer_scenario_udgift("renteudgift", Par4Stk1Nr1RenterOgLl6, 1000)]
+    )
+    ]), 2025)
+= personskat_ordinaer_virksomhed_dubleret_post_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [
+    personskat_ordinaer_scenario_virksomhed(
+        "dubleret-post",
+        2025,
+        [personskat_ordinaer_scenario_indtægt("samme-post", OrdinærDriftsindtægt, 10000)],
+        [personskat_ordinaer_scenario_udgift("samme-post", SelvstændigErhvervsindkomstUdgift, 1000)]
+    )
+    ]), 2025)
+= personskat_ordinaer_virksomhed_dubleret_id_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([], [
+    personskat_ordinaer_virksomhedsoverskud,
+    personskat_ordinaer_scenario_virksomhed(
+        "enkeltmandsvirksomhed-overskud",
+        2025,
+        [personskat_ordinaer_scenario_indtægt("anden-omsætning", OrdinærDriftsindtægt, 10000)],
+        []
+    )
+    ]), 2025)
+
+| personskat_ordinaer_scenario_personlig_indkomst(input: PersonskatOrdinærPersonligIndkomstInput) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = input
+)
+| personskat_ordinaer_scenario_lønmodtager(input: PersonskatOrdinærPersonligIndkomstInput, ligningsfradrag: PersonskatLigningsfradragInput) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ordinaer_scenario_personlig_indkomst(input),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = ligningsfradrag,
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_ordinaer_scenario_personskat(input: PersonskatOrdinærPersonligIndkomstInput, ligningsfradrag: PersonskatLigningsfradragInput) -> PersonskatInput(
+    lønmodtager = personskat_ordinaer_scenario_lønmodtager(input, ligningsfradrag),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_ordinaer_scenario_beregn(input: PersonskatOrdinærPersonligIndkomstInput) -> beregn_personskat(personskat_ordinaer_scenario_personskat(input, personskat_ingen_ligningsfradrag()))
+| personskat_ordinaer_scenario_befordringsfradrag() -> PersonskatLigningsfradragInput(
+    befordring = MedBefordringsfradrag(fakta = PersonskatBefordringsfradragFakta(
+        arbejdsdage = 200,
+        daglige_befordringskilometer = 50,
+        bopæl_i_yderkommune_eller_lille_ø = Falskt,
+        befordringsformål = IndtægtsgivendeArbejdsplads,
+        modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+        modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+        ligningslov9d = UdenLigningslov9D,
+        fradrag_udelukket_folketingshverv_m_v = Falskt,
+        arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+        broer = ll9c_ingen_bropassager(),
+        særlig_transport = ll9c_ingen_særlig_transport()
+    ))
+)
+| personskat_ordinaer_scenario_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> match resultat {
+    | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner
+    | _ -> 0
+}
+
+= personskat_ordinaer_canonical_gruppeliv_efter_am = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
+    ], []))
+= personskat_ordinaer_canonical_gruppeliv_direkte = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-direkte", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000))
+    ], []))
+= personskat_ordinaer_canonical_virksomhedsoverskud = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsoverskud]))
+= personskat_ordinaer_canonical_virksomhedsunderskud = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsunderskud]))
+= personskat_ordinaer_canonical_uklassificeret = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
+    personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-uklassificeret", 2025, UklassificeretArbejdsgiverbetaltYdelse(
+        beskrivelse = "Årsopgørelsens samlelinje",
+        beløb_kroner = 507
+    ))
+    ], []))
+= personskat_ordinaer_canonical_ll9c_virksomhedsoverskud = beregn_personskat(personskat_ordinaer_scenario_personskat(
+    personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsoverskud]),
+    personskat_ordinaer_scenario_befordringsfradrag()
+))
+
+| personskat_ordinaer_tomt_input_er_neutralt: personskat_ordinaer_tomt_resultat -> personskat_ordinaer_tomt_resultat.alle_input_gyldige && personskat_ordinaer_tomt_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_tomt_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
+| personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag: personskat_ordinaer_gruppeliv_efter_am_resultat -> personskat_ordinaer_gruppeliv_efter_am_resultat.alle_input_gyldige && personskat_ordinaer_gruppeliv_efter_am_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_gruppeliv_efter_am_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 507
+| personskat_ordinaer_direkte_gruppeliv_er_am_grundlag: personskat_ordinaer_gruppeliv_direkte_resultat -> personskat_ordinaer_gruppeliv_direkte_resultat.alle_input_gyldige && personskat_ordinaer_gruppeliv_direkte_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 1000 && personskat_ordinaer_gruppeliv_direkte_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
+| personskat_ordinaer_naturalie_bruger_par2_stk2: personskat_ordinaer_naturalie_resultat -> personskat_ordinaer_naturalie_resultat.alle_input_gyldige && personskat_ordinaer_naturalie_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 12000
+| personskat_ordinaer_uklassificeret_ydelse_er_ikke_understøttet: personskat_ordinaer_uklassificeret_ydelse_resultat -> personskat_ordinaer_uklassificeret_ydelse_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_uklassificeret_ydelse_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_anden_naturalie_er_ikke_par2_stk2: personskat_ordinaer_ikke_par2_naturalie_resultat -> personskat_ordinaer_ikke_par2_naturalie_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_ikke_par2_naturalie_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_dublerede_ydelsesidentifikationer_er_ugyldige: personskat_ordinaer_dubleret_ydelse_resultat -> personskat_ordinaer_dubleret_ydelse_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_dubleret_ydelse_resultat.arbejdsgiverydelsesidentifikationer_entydige == Falskt
+| personskat_ordinaer_negativ_ydelse_er_ugyldig: personskat_ordinaer_negativ_ydelse_resultat -> personskat_ordinaer_negativ_ydelse_resultat.alle_input_gyldige == Falskt
+| personskat_ordinaer_ydelsens_indkomstaar_skal_matche: personskat_ordinaer_forkert_ydelsesaar_resultat -> personskat_ordinaer_forkert_ydelsesaar_resultat.alle_input_gyldige == Falskt
+| personskat_ordinaer_virksomhedsoverskud_er_am_grundlag: personskat_ordinaer_virksomhedsoverskud_resultat -> personskat_ordinaer_virksomhedsoverskud_resultat.alle_input_gyldige && personskat_ordinaer_virksomhedsoverskud_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 60000 && personskat_ordinaer_virksomhedsoverskud_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
+| personskat_ordinaer_virksomhedsunderskud_reducerer_ikke_am_grundlag: personskat_ordinaer_virksomhedsunderskud_resultat -> personskat_ordinaer_virksomhedsunderskud_resultat.alle_input_gyldige && personskat_ordinaer_virksomhedsunderskud_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_virksomhedsunderskud_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == -20000
+| personskat_ordinaer_kapitalindtægt_skal_til_par4: personskat_ordinaer_virksomhed_kapitalindtægt_resultat -> personskat_ordinaer_virksomhed_kapitalindtægt_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_virksomhed_kapitalindtægt_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_afskaaret_udgift_skal_til_anden_regel: personskat_ordinaer_virksomhed_afskaaret_udgift_resultat -> personskat_ordinaer_virksomhed_afskaaret_udgift_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_virksomhed_afskaaret_udgift_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_virksomhedsposter_skal_have_entydige_ider: personskat_ordinaer_virksomhed_dubleret_post_resultat -> personskat_ordinaer_virksomhed_dubleret_post_resultat.alle_input_gyldige == Falskt
+| personskat_ordinaer_virksomheder_skal_have_entydige_ider: personskat_ordinaer_virksomhed_dubleret_id_resultat -> personskat_ordinaer_virksomhed_dubleret_id_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_virksomhed_dubleret_id_resultat.virksomhedsidentifikationer_entydige == Falskt
+| personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst: personskat_ordinaer_canonical_gruppeliv_efter_am -> personskat_ordinaer_canonical_gruppeliv_efter_am.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.øvrig_personlig_indkomst_kroner == 507 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_ordinaer_canonical_direkte_gruppeliv_får_am: personskat_ordinaer_canonical_gruppeliv_direkte -> personskat_ordinaer_canonical_gruppeliv_direkte.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_direkte.skat.bruttoløn_kroner == 601000 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.arbejdsmarkedsbidrag_kroner == 48080
+| personskat_ordinaer_canonical_virksomhedsoverskud_får_am: personskat_ordinaer_canonical_virksomhedsoverskud -> personskat_ordinaer_canonical_virksomhedsoverskud.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_virksomhedsoverskud.skat.bruttoløn_kroner == 660000 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.arbejdsmarkedsbidrag_kroner == 52800
+| personskat_ordinaer_canonical_virksomhedsunderskud_kan_ikke_modregne_løn_am: personskat_ordinaer_canonical_virksomhedsunderskud -> personskat_ordinaer_canonical_virksomhedsunderskud.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_virksomhedsunderskud.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.øvrig_personlig_indkomst_kroner == -20000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.personlig_indkomst_efter_am_kroner == 532000
+| personskat_ordinaer_canonical_uklassificeret_er_synligt_ugyldig_og_neutral: personskat_ordinaer_canonical_uklassificeret -> personskat_ordinaer_canonical_uklassificeret.personlig_indkomst.alle_input_gyldige == Falskt && personskat_ordinaer_canonical_uklassificeret.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_uklassificeret.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_uklassificeret.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_ordinaer_canonical_ll9c_aftrapning_medtager_am_par4: personskat_ordinaer_canonical_ll9c_virksomhedsoverskud -> personskat_ordinaer_scenario_aftrapningsindkomst_kroner(personskat_ordinaer_canonical_ll9c_virksomhedsoverskud.ligningsfradrag.befordring) == 660000
+
+? personskat_ordinaer_tomt_input_er_neutralt
+? personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag
+? personskat_ordinaer_direkte_gruppeliv_er_am_grundlag
+? personskat_ordinaer_naturalie_bruger_par2_stk2
+? personskat_ordinaer_uklassificeret_ydelse_er_ikke_understøttet
+? personskat_ordinaer_anden_naturalie_er_ikke_par2_stk2
+? personskat_ordinaer_dublerede_ydelsesidentifikationer_er_ugyldige
+? personskat_ordinaer_negativ_ydelse_er_ugyldig
+? personskat_ordinaer_ydelsens_indkomstaar_skal_matche
+? personskat_ordinaer_virksomhedsoverskud_er_am_grundlag
+? personskat_ordinaer_virksomhedsunderskud_reducerer_ikke_am_grundlag
+? personskat_ordinaer_kapitalindtægt_skal_til_par4
+? personskat_ordinaer_afskaaret_udgift_skal_til_anden_regel
+? personskat_ordinaer_virksomhedsposter_skal_have_entydige_ider
+? personskat_ordinaer_virksomheder_skal_have_entydige_ider
+? personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst
+? personskat_ordinaer_canonical_direkte_gruppeliv_får_am
+? personskat_ordinaer_canonical_virksomhedsoverskud_får_am
+? personskat_ordinaer_canonical_virksomhedsunderskud_kan_ikke_modregne_løn_am
+? personskat_ordinaer_canonical_uklassificeret_er_synligt_ugyldig_og_neutral
+? personskat_ordinaer_canonical_ll9c_aftrapning_medtager_am_par4

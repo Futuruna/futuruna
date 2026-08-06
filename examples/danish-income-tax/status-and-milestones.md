@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-03
 TD epic: `td-56cf8d`
-Current implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
+Current implementation slice: `td-1306f6` (ordinære arbejdsgiverydelser og virksomhedsresultater uden virksomhedsordningen er typede kildefakta; PSL § 3- og AM-virkninger afledes gennem reglerne; afventer uafhængig gennemgang)
+Previous implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
 Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste årsopgørelseslinjer bevarer dokumentproveniens og eksakte ørebeløb; kun retligt tilstrækkelige linjer peger på typede beregningsfelter)
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
@@ -14,7 +15,7 @@ Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, f
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
-Planned ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren)
+Current ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
 Planned common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne Ligningslovsregler)
 Planned exact-credit completion: `td-6fe980` (bevar ørepræcision i årsopgørelsens foreløbige skatter)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -177,6 +178,51 @@ den tilsvarende JSON-kontrakt giver samme fulde resultat for et indskud på
 30.000 kr. på iværksætterkonto: 522.000 kr. i personlig indkomst efter
 AM-bidrag og 455.600 kr. i almindelig skattepligtig indkomst.
 
+Latest ordinary personal-income integration: den kanoniske kontrakts
+`PersonskatPersonligIndkomstInput` indeholder nu en typet kildeliste for
+arbejdsgiverbetalte ydelser og ordinære virksomheder uden
+virksomhedsordningen. Direkte arbejdsgiverbetalt gruppeliv, gruppeliv som
+uadskilt del af en PBL § 19-ordning og naturalier efter
+arbejdsmarkedsbidragslovens § 2, stk. 2 er adskilte varianter. Reglerne udleder
+både PSL § 3-indkomstposten og den præcise AM-behandling. En uklassificeret
+årsopgørelseslinje bevares som et synligt ikke-understøttet resultat og får
+ingen skattevirkning; den bliver ikke et frit nettobeløb.
+
+Virksomhedsgrenen modtager identificerede bruttoindtægter og udgifter med
+`Par3Stk2Nr1Udgiftsafgrænsning`. Kun ordinær driftsindtægt og udgifter til at
+erhverve, sikre og vedligeholde selvstændig erhvervsindkomst gennemløber denne
+gren. Renter, kursresultater, aktieindkomst og uklassificerede poster afvises
+synligt, så de kan føres til deres egne lovregler. `par3_personlig_indkomst_resultat`
+udleder nettoresultatet. Et positivt resultat går gennem AM-lovens § 4 og ind i
+AM-grundlaget; et underskud forbliver signeret personlig indkomst og kan derfor
+ikke reducere AM-bidraget af løn.
+
+De samme afledte værdier bruges i pensionsfradragets indkomstkontekst,
+Ligningslovens § 9 C-aftrapningsindkomst, AM-beregningen og den endelige
+personlige indkomst. Fokuserede scenarier dækker gyldige, ugyldige og
+ikke-understøttede kilder samt den fulde `beregn_personskat`-vej. Et
+virksomhedsoverskud på 60.000 kr. oven i 600.000 kr. løn giver 660.000 kr. i
+AM-grundlag og 52.800 kr. i AM-bidrag, mens et virksomhedsunderskud på 20.000
+kr. lader lønnens AM-bidrag stå på 48.000 kr. og sænker personlig indkomst efter
+AM fra 552.000 kr. til 532.000 kr.
+
+Arbejdsbogsforløbet er verificeret fra ende til ende med den fulde kontrakt.
+En maskinelt udfyldt 2025-sag med 600.000 kr. i løn, København, ingen
+ægtefælle og neutrale valg i de øvrige grene blev hydreret til XLSX og læst
+tilbage af `runa call`. Resultatarket indeholder 48.000 kr. i AM-bidrag,
+55.600 kr. i beskæftigelsesfradrag, 2.900 kr. i jobfradrag og 211.944 kr. i
+samlet skat inklusive AM-bidrag; diagnostikarket indeholder ingen sager. En
+helt tom skabelon har med vilje skatteår 0 og er ikke en beregningssag. Et
+menneske eller en AI skal først udfylde de krævede fakta. Forældede
+kontrakthashes og manglende nye domænefelter afvises med præcise stier.
+
+Det fulde beregningsforløb afdækkede samtidig en generel sprogfejl:
+beregningsinitialisering kunne udføre et tidligt fladt importmodul, før en regel
+i et senere importmodul havde gjort modulets værdibinding nødvendig. Futuruna
+opgør nu den samlede runtime-efterspørgsel på tværs af hele importgrafen, før
+flade importer udføres. En sprogregression dækker en senere importeret regel,
+der afhænger af både en regel og en værdibinding fra et tidligere modul.
+
 Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
 eller ejendomsidentifikationer. Scenariet rammer 29.059.034 øre i beregnet skat,
@@ -216,14 +262,19 @@ det er ikke en alternativ beregningskontrakt. Der er fortsat intet PDF-, OCR-
 eller dokumentimporttrin: en AI eller et menneske læser kilden og udfylder de
 typede fakta, hvorefter Futuruna validerer og beregner.
 
-Trykprøven gør tre resterende korpusgab målbare. Ordinære personlige
-indkomstjusteringer og virksomhedsresultater mangler endnu en fuld kanonisk
-kildegren (`td-1306f6`). Fagforening, A-kasse mv. og gaver mangler deres egne
-Ligningslovsregler og arbejdsbogsfelter (`td-a47465`). Den modregningsberettigede
+Trykprøven skelner nu mellem manglende korpus og manglende dokumentation.
+Gruppeliv og øvrige arbejdsgiverydelser kræver eIndkomst, lønseddel eller
+pensionsoversigt for at fastlægge ydelsens retlige art og AM-status.
+Virksomhedens nettotal kræver regnskabets identificerede indtægter og udgifter
+samt skatteordningen. Begge kanoniske grene findes nu, så årsopgørelsesmappet
+rapporterer `KræverSupplerendeKilde` i stedet for `KorpusgrenMangler`.
+Fagforening, A-kasse mv. og gaver mangler fortsat deres egne Ligningslovsregler
+og arbejdsbogsfelter (`td-a47465`). Den modregningsberettigede
 udbytteskat på 4.353,14 kr. kan ikke føres tabsfrit ind i
 `KildeskatPar60Kreditter`, som aktuelt kun accepterer hele kroner; mappet afviser
 derfor værdien i stedet for at afkorte den (`td-6fe980`, koordineret med
-`td-24963d`). Tolv fokuserede invariants passerer både fortolket og kompileret.
+`td-24963d`). De fokuserede mappingscenarier passerer både fortolket og
+kompileret.
 
 Latest property-tax integration: Ejendomsskattelovens §§ 23-27 og §§ 35-45
 er nu forbundet med den kanoniske Personskat-beregning. Reglerne afleder

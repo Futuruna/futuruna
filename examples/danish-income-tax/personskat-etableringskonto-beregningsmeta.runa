@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
-@ importer ./personskat - etableringskonto - kildefakta
+@ importer ./personskat - personlig - indkomst - kildefakta
 
 = personskat_etableringskonto_felt_art = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::etableringskonto::$variant),

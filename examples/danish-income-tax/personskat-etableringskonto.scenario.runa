@@ -73,7 +73,8 @@ etableringskontoloven.runa og kapitel-01-indkomst.runa.
     iværksætterkontoindskud_kroner
 )
 | personskat_etbl_personlig_indkomst(input: EtableringskontoIndskudInput) -> PersonskatPersonligIndkomstInput(
-    etableringskonto = MedEtableringskontoindskud(input = input)
+    etableringskonto = MedEtableringskontoindskud(input = input),
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst()
 )
 | personskat_etbl_lønmodtager(bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatLønmodtagerInput(
     skatteår = 2026,

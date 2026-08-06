@@ -10525,6 +10525,58 @@ impl Interpreter {
         self.calculation_runtime_bindings.extend(required_bindings);
     }
 
+    fn collect_calculation_runtime_graph(
+        stmts: &[Stmt],
+        source_dir: Option<&str>,
+        visited: &mut BTreeSet<String>,
+        graph: &mut Vec<Stmt>,
+    ) {
+        graph.extend(
+            stmts
+                .iter()
+                .filter(|stmt| Self::is_runtime_import_statement(stmt))
+                .cloned(),
+        );
+
+        let Some(source_dir) = source_dir else {
+            return;
+        };
+        for stmt in stmts {
+            let import_path = match stmt {
+                Stmt::Import(path) | Stmt::QualifiedImport(_, path) | Stmt::HashImport(_, path) => {
+                    path
+                }
+                _ => continue,
+            };
+            let Some(file_path) = Self::resolve_import_path_for_source(import_path, source_dir)
+            else {
+                continue;
+            };
+            let canonical = std::fs::canonicalize(&file_path)
+                .map(|path| path.to_string_lossy().to_string())
+                .unwrap_or_else(|_| file_path.clone());
+            if !visited.insert(canonical) {
+                continue;
+            }
+            let Ok(source) = std::fs::read_to_string(&file_path) else {
+                continue;
+            };
+            let mut lexer = Lexer::new(&source);
+            let tokens = lexer.tokenize();
+            let mut parser = Parser::new(tokens, &source);
+            let Ok(import_stmts) = parser.parse_program() else {
+                continue;
+            };
+            let imported_source_dir = Self::imported_source_dir(&file_path);
+            Self::collect_calculation_runtime_graph(
+                &import_stmts,
+                Some(&imported_source_dir),
+                visited,
+                graph,
+            );
+        }
+    }
+
     pub fn initialize_calculation_program(
         &mut self,
         entry: &str,
@@ -10534,6 +10586,15 @@ impl Interpreter {
         self.calculation_runtime_symbols.clear();
         self.calculation_runtime_symbols.insert(entry.to_string());
         self.calculation_runtime_bindings.clear();
+        let mut runtime_graph = Vec::new();
+        let mut visited = BTreeSet::new();
+        Self::collect_calculation_runtime_graph(
+            stmts,
+            self.source_dir.as_deref(),
+            &mut visited,
+            &mut runtime_graph,
+        );
+        self.extend_calculation_runtime_demand(&runtime_graph);
         self.run_program_internal(stmts, env, true)
     }
 
@@ -20266,6 +20327,69 @@ mod tests {
             interpreter.eval(&call, &env).to_string(),
             "CalcOutput(total: 50)"
         );
+    }
+
+    #[test]
+    fn calculation_initialization_resolves_demand_before_flat_import_execution() {
+        let temp_name = format!(
+            "futuruna_calculation_flat_import_demand_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create calculation import directory");
+        std::fs::write(
+            temp_dir.join("rate.runa"),
+            "= rate = 5\n| apply_rate(amount: Int) -> amount + rate\n",
+        )
+        .expect("write rate dependency");
+        std::fs::write(
+            temp_dir.join("late.runa"),
+            "| adjusted(amount: Int) -> apply_rate(amount)\n",
+        )
+        .expect("write late dependency");
+        let source = r#"
+@ import ./rate
+@ import ./late
+
+# CalcInput(amount: Int)
+# CalcOutput(total: Int)
+
+@ calculate("Invoice")
+| calculate_invoice(input: CalcInput) -> CalcOutput(total = adjusted(input.amount))
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse calculation");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+
+        interpreter.initialize_calculation_program("calculate_invoice", &stmts, &mut env);
+
+        assert_eq!(env.get("rate").map(ToString::to_string), Some("5".into()));
+        env.set(
+            "input".to_string(),
+            Value::NamedConstructor(
+                "CalcInput".to_string(),
+                vec![("amount".to_string(), Value::Int(2))],
+            ),
+        );
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var("calculate_invoice".to_string()).into()),
+            vec![ExprKind::Var("input".to_string()).into()],
+        )
+        .into();
+        assert_eq!(
+            interpreter.eval(&call, &env).to_string(),
+            "CalcOutput(total: 7)"
+        );
+
+        std::fs::remove_dir_all(temp_dir).ok();
     }
 
     #[test]

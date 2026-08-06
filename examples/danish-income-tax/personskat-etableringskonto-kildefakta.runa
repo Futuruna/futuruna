@@ -14,13 +14,7 @@
 --@label:personskat_etableringskonto_kildefakta::meta:personskat_etableringskonto_kildefakta_metadata--
 --@begin:personskat_etableringskonto_kildefakta--
 # PersonskatEtableringskontoInput = UdenEtableringskontoindskud | MedEtableringskontoindskud(input: EtableringskontoIndskudInput)
-# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput)
 # PersonskatEtableringskontoResultat = IngenEtableringskontoindskud | UgyldigtEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | BeregnetEtableringskontoindskud(input: EtableringskontoIndskudInput, etableringskontolov_resultat: EtableringskontoIndskudResultat, par3_stk2_nr11_resultat: Par3Stk2Nr11Resultat)
-# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, alle_input_gyldige: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
-
-| personskat_ingen_personlig_indkomst() -> PersonskatPersonligIndkomstInput(
-    etableringskonto = UdenEtableringskontoindskud
-)
 
 # PersonskatEtableringskontoSag(input: EtableringskontoIndskudInput, skatteår: Heltal) {
     | skatteår_matcher() -> input.indkomstår == skatteår
@@ -79,17 +73,4 @@
     | BeregnetEtableringskontoindskud(_, _, par3_resultat) -> par3_resultat.etableringskonto_fradrag_uden_for_personlig_indkomst_kroner
     | _ -> 0
 }
-
-# PersonskatPersonligIndkomstSag(input: PersonskatPersonligIndkomstInput, skatteår: Heltal) {
-    | etableringskonto() -> personskat_etableringskonto_resultat(input.etableringskonto, skatteår)
-    | resultat() -> PersonskatPersonligIndkomstResultat(
-        input = input,
-        etableringskonto = etableringskonto(),
-        alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()),
-        fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()),
-        ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto())
-    )
-}
-
-| personskat_personlig_indkomst_resultat(input: PersonskatPersonligIndkomstInput, skatteår: Heltal) -> PersonskatPersonligIndkomstSag(input, skatteår).resultat()
 --@end:personskat_etableringskonto_kildefakta--
