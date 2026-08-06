@@ -4,8 +4,32 @@
 
 | personskat_ordinaer_scenario_input(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = arbejdsgiverydelser,
-    virksomheder_uden_virksomhedsordning = virksomheder
+    virksomheder_uden_virksomhedsordning = virksomheder,
+    forenings_og_arbejdsløshedsydelser = []
 )
+| personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser(ydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
+    arbejdsgiverydelser = [],
+    virksomheder_uden_virksomhedsordning = [],
+    forenings_og_arbejdsløshedsydelser = ydelser
+)
+| personskat_ordinaer_scenario_foreningsydelse(identifikation: Tekst, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> PersonskatForeningsydelseEfterLigningslov13(fakta = Ligningslov13ForeningsydelseFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    foreningsart = Ll13Fagforening,
+    beløb_kroner = beløb_kroner,
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+    modtager_hører_til_erhvervsgruppen = Sandt,
+    modtager_er_medlem = Sandt,
+    undtagelse = undtagelse
+))
+| personskat_ordinaer_scenario_arbejdsløshedsudbetaling(identifikation: Tekst, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta = Pbl49ArbejdsløshedsforsikringsudbetalingFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    beløb_kroner = beløb_kroner,
+    art = Pbl49UdbetalingFraArbejdsløshedskasse,
+    skatteyderrelation = Pbl49SkatteyderenErEjer,
+    undtagelse = undtagelse
+))
 | personskat_ordinaer_scenario_arbejdsgiverydelse(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse) -> PersonskatArbejdsgiverydelseFakta(
     identifikation = identifikation,
     indkomstår = indkomstår,
@@ -112,6 +136,27 @@
     )
     ]), 2025)
 
+= personskat_ordinaer_par31_bogundtagelse = Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset = Sandt)
+))
+= personskat_ordinaer_skattepligtig_foreningsydelse = personskat_ordinaer_scenario_foreningsydelse("foreningsydelse", 12000, Ll30Og31UdenUndtagelse)
+= personskat_ordinaer_skattefri_foreningsydelse = personskat_ordinaer_scenario_foreningsydelse("foreningsydelse-par31", 4500, personskat_ordinaer_par31_bogundtagelse)
+= personskat_ordinaer_skattepligtig_arbejdsløshedsudbetaling = personskat_ordinaer_scenario_arbejdsløshedsudbetaling("arbejdsløshedsudbetaling", 18000, Ll30Og31UdenUndtagelse)
+= personskat_ordinaer_skattefri_arbejdsløshedsudbetaling = personskat_ordinaer_scenario_arbejdsløshedsudbetaling("arbejdsløshedsudbetaling-par31", 4500, personskat_ordinaer_par31_bogundtagelse)
+= personskat_ordinaer_skattepligtige_forenings_og_arbejdsløshedsydelser_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser([
+    personskat_ordinaer_skattepligtig_foreningsydelse,
+    personskat_ordinaer_skattepligtig_arbejdsløshedsudbetaling,
+    ]), 2025)
+= personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser([
+    personskat_ordinaer_skattefri_foreningsydelse,
+    personskat_ordinaer_skattefri_arbejdsløshedsudbetaling,
+    ]), 2025)
+= personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser([
+    personskat_ordinaer_scenario_foreningsydelse("samme-ydelses-id", 12000, Ll30Og31UdenUndtagelse),
+    personskat_ordinaer_scenario_arbejdsløshedsudbetaling("samme-ydelses-id", 18000, Ll30Og31UdenUndtagelse),
+    ]), 2025)
+
 | personskat_ordinaer_scenario_personlig_indkomst(input: PersonskatOrdinærPersonligIndkomstInput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = input
@@ -181,6 +226,14 @@
     personskat_ordinaer_scenario_input([], [personskat_ordinaer_virksomhedsoverskud]),
     personskat_ordinaer_scenario_befordringsfradrag()
 ))
+= personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser([
+    personskat_ordinaer_skattepligtig_foreningsydelse,
+    personskat_ordinaer_skattepligtig_arbejdsløshedsudbetaling,
+]))
+= personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser([
+    personskat_ordinaer_skattefri_foreningsydelse,
+    personskat_ordinaer_skattefri_arbejdsløshedsudbetaling,
+]))
 
 | personskat_ordinaer_tomt_input_er_neutralt: personskat_ordinaer_tomt_resultat -> personskat_ordinaer_tomt_resultat.alle_input_gyldige && personskat_ordinaer_tomt_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_tomt_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
 | personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag: personskat_ordinaer_gruppeliv_efter_am_resultat -> personskat_ordinaer_gruppeliv_efter_am_resultat.alle_input_gyldige && personskat_ordinaer_gruppeliv_efter_am_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_gruppeliv_efter_am_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 507
@@ -197,12 +250,17 @@
 | personskat_ordinaer_afskaaret_udgift_skal_til_anden_regel: personskat_ordinaer_virksomhed_afskaaret_udgift_resultat -> personskat_ordinaer_virksomhed_afskaaret_udgift_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_virksomhed_afskaaret_udgift_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
 | personskat_ordinaer_virksomhedsposter_skal_have_entydige_ider: personskat_ordinaer_virksomhed_dubleret_post_resultat -> personskat_ordinaer_virksomhed_dubleret_post_resultat.alle_input_gyldige == Falskt
 | personskat_ordinaer_virksomheder_skal_have_entydige_ider: personskat_ordinaer_virksomhed_dubleret_id_resultat -> personskat_ordinaer_virksomhed_dubleret_id_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_virksomhed_dubleret_id_resultat.virksomhedsidentifikationer_entydige == Falskt
+| personskat_ordinaer_forenings_og_arbejdsløshedsydelser_er_personlig_indkomst_uden_nyt_am: personskat_ordinaer_skattepligtige_forenings_og_arbejdsløshedsydelser_resultat -> personskat_ordinaer_skattepligtige_forenings_og_arbejdsløshedsydelser_resultat.alle_input_gyldige && personskat_ordinaer_skattepligtige_forenings_og_arbejdsløshedsydelser_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_skattepligtige_forenings_og_arbejdsløshedsydelser_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 30000
+| personskat_ordinaer_par31_undtagelser_bliver_skattefri: personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat -> personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.alle_input_gyldige && personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
+| personskat_ordinaer_forenings_og_arbejdsløshedsydelser_kræver_entydige_ider: personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat -> personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.forenings_og_arbejdsløshedsydelsesidentifikationer_entydige == Falskt && personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
 | personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst: personskat_ordinaer_canonical_gruppeliv_efter_am -> personskat_ordinaer_canonical_gruppeliv_efter_am.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.øvrig_personlig_indkomst_kroner == 507 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_ordinaer_canonical_direkte_gruppeliv_får_am: personskat_ordinaer_canonical_gruppeliv_direkte -> personskat_ordinaer_canonical_gruppeliv_direkte.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_direkte.skat.bruttoløn_kroner == 601000 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.arbejdsmarkedsbidrag_kroner == 48080
 | personskat_ordinaer_canonical_virksomhedsoverskud_får_am: personskat_ordinaer_canonical_virksomhedsoverskud -> personskat_ordinaer_canonical_virksomhedsoverskud.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_virksomhedsoverskud.skat.bruttoløn_kroner == 660000 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.arbejdsmarkedsbidrag_kroner == 52800
 | personskat_ordinaer_canonical_virksomhedsunderskud_kan_ikke_modregne_løn_am: personskat_ordinaer_canonical_virksomhedsunderskud -> personskat_ordinaer_canonical_virksomhedsunderskud.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_virksomhedsunderskud.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.øvrig_personlig_indkomst_kroner == -20000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_ordinaer_canonical_virksomhedsunderskud.skat.personlig_indkomst_efter_am_kroner == 532000
 | personskat_ordinaer_canonical_uklassificeret_er_synligt_ugyldig_og_neutral: personskat_ordinaer_canonical_uklassificeret -> personskat_ordinaer_canonical_uklassificeret.personlig_indkomst.alle_input_gyldige == Falskt && personskat_ordinaer_canonical_uklassificeret.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_uklassificeret.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_uklassificeret.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_ordinaer_canonical_ll9c_aftrapning_medtager_am_par4: personskat_ordinaer_canonical_ll9c_virksomhedsoverskud -> personskat_ordinaer_scenario_aftrapningsindkomst_kroner(personskat_ordinaer_canonical_ll9c_virksomhedsoverskud.ligningsfradrag.befordring) == 660000
+| personskat_ordinaer_canonical_forenings_og_arbejdsløshedsydelser_medregnes_præcis_en_gang: personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser -> personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser.skat.øvrig_personlig_indkomst_kroner == 30000 && personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_ordinaer_canonical_skattepligtige_forenings_og_arbejdsløshedsydelser.skat.personlig_indkomst_efter_am_kroner == 582000
+| personskat_ordinaer_canonical_par31_undtagelser_er_neutrale: personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser -> personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.arbejdsmarkedsbidrag_kroner == 48000
 
 ? personskat_ordinaer_tomt_input_er_neutralt
 ? personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag
@@ -219,9 +277,14 @@
 ? personskat_ordinaer_afskaaret_udgift_skal_til_anden_regel
 ? personskat_ordinaer_virksomhedsposter_skal_have_entydige_ider
 ? personskat_ordinaer_virksomheder_skal_have_entydige_ider
+? personskat_ordinaer_forenings_og_arbejdsløshedsydelser_er_personlig_indkomst_uden_nyt_am
+? personskat_ordinaer_par31_undtagelser_bliver_skattefri
+? personskat_ordinaer_forenings_og_arbejdsløshedsydelser_kræver_entydige_ider
 ? personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst
 ? personskat_ordinaer_canonical_direkte_gruppeliv_får_am
 ? personskat_ordinaer_canonical_virksomhedsoverskud_får_am
 ? personskat_ordinaer_canonical_virksomhedsunderskud_kan_ikke_modregne_løn_am
 ? personskat_ordinaer_canonical_uklassificeret_er_synligt_ugyldig_og_neutral
 ? personskat_ordinaer_canonical_ll9c_aftrapning_medtager_am_par4
+? personskat_ordinaer_canonical_forenings_og_arbejdsløshedsydelser_medregnes_præcis_en_gang
+? personskat_ordinaer_canonical_par31_undtagelser_er_neutrale

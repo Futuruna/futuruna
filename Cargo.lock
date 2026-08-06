@@ -169,6 +169,7 @@ dependencies = [
  "sha2",
  "syn",
  "toml",
+ "zip 8.6.0",
 ]
 
 [[package]]

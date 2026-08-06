@@ -1,0 +1,100 @@
+@ sprog da
+
+@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
+
+| ll30_scenarie_misbrugsbehandling(lægeerklæring: Boolsk, medicindækning: Ligningslov30Medicindækning) -> Ll30Og31BehandlingsydelseEfterPar30(fakta = Ligningslov30Behandlingsfakta(
+    formål = Ll30Alkoholmisbrug,
+    ydelsesart = Ll30DirekteBehandlingsudgift,
+    medicindækning = medicindækning,
+    generel_ordning_for_personkredsen = Sandt,
+    skriftlig_lægeerklæring = lægeerklæring
+))
+| ll31_scenarie_bøger(privat: Boolsk) -> Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = privat,
+    ydelsesart = Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset = Sandt)
+))
+| ll31_scenarie_befordring(kilometer: Heltal) -> Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31BefordringIEgenBilEllerMotorcykel(
+        kilometer_ad_normal_transportvej = kilometer,
+        adgang_til_fri_befordring_for_strækningen = Falskt,
+        modtaget_par9b_godtgørelse_for_samme_strækning = Falskt,
+        tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus = Falskt
+    )
+))
+| ll31_scenarie_logisats(udelukket_transportarbejde: Boolsk) -> Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31SatsgodtgørelseLogi(
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl = Sandt,
+        fulde_døgn = 1,
+        udelukket_transportarbejde_efter_par9a_stk2_nr4 = udelukket_transportarbejde
+    )
+))
+
+= ll30_scenarie_uden_undtagelse = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 1000, Ll30Og31UdenUndtagelse)
+= ll30_scenarie_behandling_skattefri = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 1000, ll30_scenarie_misbrugsbehandling(Sandt, Ll30IngenMedicindækning))
+= ll30_scenarie_manglende_lægeerklæring = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 1000, ll30_scenarie_misbrugsbehandling(Falskt, Ll30IngenMedicindækning))
+= ll30_scenarie_sen_medicin = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 1000, ll30_scenarie_misbrugsbehandling(Sandt, Ll30MedicinEfterSeksMånederUdenIndlæggelse))
+= ll30_scenarie_rygeafvænning = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Arbejdsløshedskasse, 800, Ll30Og31BehandlingsydelseEfterPar30(fakta = Ligningslov30Behandlingsfakta(
+    formål = Ll30Rygeafvænning,
+    ydelsesart = Ll30ForsikringspræmieEllerRefusion(forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling = Sandt),
+    medicindækning = Ll30MedicinEfterSeksMånederUdenIndlæggelse,
+    generel_ordning_for_personkredsen = Sandt,
+    skriftlig_lægeerklæring = Falskt
+)))
+
+= ll31_scenarie_bøger_skattefri = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 2400, ll31_scenarie_bøger(Falskt))
+= ll31_scenarie_privat_kursus = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 2400, ll31_scenarie_bøger(Sandt))
+= ll31_scenarie_privat_forsikringsyder = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31AndenYder, 2400, ll31_scenarie_bøger(Falskt))
+= ll31_scenarie_befordring_på_sats = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Arbejdsløshedskasse, 228, ll31_scenarie_befordring(100))
+= ll31_scenarie_befordring_over_sats = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Arbejdsløshedskasse, 229, ll31_scenarie_befordring(100))
+= ll31_scenarie_kostsats = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 625, Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31SatsgodtgørelseKostOgSmåfornødenheder(
+        afstand_udelukker_overnatning_på_sædvanlig_bopæl = Sandt,
+        fulde_døgn = 1,
+        påbegyndte_timer_efter_fulde_døgn = 0,
+        opholdets_måned_nr = 12,
+        fri_morgenmad_antal = 0,
+        fri_frokost_antal = 0,
+        fri_aftensmad_antal = 0
+    )
+)))
+= ll31_scenarie_logisats = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 268, ll31_scenarie_logisats(Falskt))
+= ll31_scenarie_logisats_for_udelukket_transportarbejde = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31Fagforening, 268, ll31_scenarie_logisats(Sandt))
+= ll31_scenarie_aub_før_ikrafttræden = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31ArbejdsgivernesUddannelsesbidrag, 5000, Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026 = Falskt)
+)))
+= ll31_scenarie_aub_efter_ikrafttræden = ligningslov30_og_31_undtagelsesresultat(2026, Ll30Og31ArbejdsgivernesUddannelsesbidrag, 5000, Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026 = Sandt)
+)))
+
+| ll30_uden_undtagelse_er_skattepligtig: ll30_scenarie_uden_undtagelse -> ll30_scenarie_uden_undtagelse.input_gyldigt && ll30_scenarie_uden_undtagelse.skattepligtigt_beløb_kroner == 1000 && ll30_scenarie_uden_undtagelse.skattefri_beløb_kroner == 0
+| ll30_behandling_med_betingelser_er_skattefri: ll30_scenarie_behandling_skattefri -> ll30_scenarie_behandling_skattefri.anvendt_hjemmel == Ll30Og31UndtagelseEfterPar30 && ll30_scenarie_behandling_skattefri.skattefri_beløb_kroner == 1000
+| ll30_manglende_lægeerklæring_er_skattepligtig: ll30_scenarie_manglende_lægeerklæring -> ll30_scenarie_manglende_lægeerklæring.skattepligtigt_beløb_kroner == 1000
+| ll30_medicin_efter_seks_måneder_er_skattepligtig: ll30_scenarie_sen_medicin -> ll30_scenarie_sen_medicin.skattepligtigt_beløb_kroner == 1000
+| ll30_rygeafvænning_kræver_ikke_lægeerklæring_eller_seksmånedersgrænse: ll30_scenarie_rygeafvænning -> ll30_scenarie_rygeafvænning.skattefri_beløb_kroner == 800
+| ll31_relevante_bøger_er_skattefri: ll31_scenarie_bøger_skattefri -> ll31_scenarie_bøger_skattefri.anvendt_hjemmel == Ll30Og31UndtagelseEfterPar31 && ll31_scenarie_bøger_skattefri.skattefri_beløb_kroner == 2400
+| ll31_privat_kursus_er_skattepligtigt: ll31_scenarie_privat_kursus -> ll31_scenarie_privat_kursus.skattepligtigt_beløb_kroner == 2400
+| ll31_privatudbyder_er_ikke_i_personkredsen: ll31_scenarie_privat_forsikringsyder -> ll31_scenarie_privat_forsikringsyder.yderrelation_omfattet == Falskt && ll31_scenarie_privat_forsikringsyder.skattepligtigt_beløb_kroner == 2400
+| ll31_befordring_bruger_skatterådets_228_øre: ll31_scenarie_befordring_på_sats -> ll31_scenarie_befordring_på_sats.skattefri_beløb_kroner == 228
+| ll31_befordring_over_satsen_er_skattepligtig: ll31_scenarie_befordring_over_sats -> ll31_scenarie_befordring_over_sats.skattepligtigt_beløb_kroner == 229
+| ll31_kostsatsen_gælder_i_måned_12: ll31_scenarie_kostsats -> ll31_scenarie_kostsats.skattefri_beløb_kroner == 625
+| ll31_logisatsen_respekterer_par9a_transportundtagelsen: ll31_scenarie_logisats -> ll31_scenarie_logisats.skattefri_beløb_kroner == 268 && ll31_scenarie_logisats_for_udelukket_transportarbejde.skattepligtigt_beløb_kroner == 268
+| ll31_aub_ændringen_gælder_fra_1_juli_2026: ll31_scenarie_aub_efter_ikrafttræden -> ll31_scenarie_aub_før_ikrafttræden.skattepligtigt_beløb_kroner == 5000 && ll31_scenarie_aub_efter_ikrafttræden.skattefri_beløb_kroner == 5000
+
+? ll30_uden_undtagelse_er_skattepligtig
+? ll30_behandling_med_betingelser_er_skattefri
+? ll30_manglende_lægeerklæring_er_skattepligtig
+? ll30_medicin_efter_seks_måneder_er_skattepligtig
+? ll30_rygeafvænning_kræver_ikke_lægeerklæring_eller_seksmånedersgrænse
+? ll31_relevante_bøger_er_skattefri
+? ll31_privat_kursus_er_skattepligtigt
+? ll31_privatudbyder_er_ikke_i_personkredsen
+? ll31_befordring_bruger_skatterådets_228_øre
+? ll31_befordring_over_satsen_er_skattepligtig
+? ll31_kostsatsen_gælder_i_måned_12
+? ll31_logisatsen_respekterer_par9a_transportundtagelsen
+? ll31_aub_ændringen_gælder_fra_1_juli_2026

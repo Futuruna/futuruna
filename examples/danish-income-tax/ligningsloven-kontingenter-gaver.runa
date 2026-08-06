@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
 
 # LigningslovKontingentGaveKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -56,10 +57,35 @@ kontingentudgiften til told- og skatteforvaltningen.
 # Ligningslov13Årsinput(skatteyderstatus: Ligningslov13Skatteyderstatus, kontingenter: List(Ligningslov13KontingentFakta))
 # Ligningslov13KontingentResultat(fakta: Ligningslov13KontingentFakta, input_gyldigt: Boolsk, foreningens_opgjorte_andel_gyldig: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, indberetningsbetingelse_opfyldt: Boolsk, fradragsberettiget: Boolsk, fradragsberettiget_før_årsloft_kroner: Heltal)
 # Ligningslov13Årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput, kontingentresultater: List(Ligningslov13KontingentResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, fradrag_før_årsloft_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+# Ligningslov13ForeningsydelseFakta(identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, beløb_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, modtager_hører_til_erhvervsgruppen: Boolsk, modtager_er_medlem: Boolsk, undtagelse: Ligningslov30Og31Undtagelse)
+# Ligningslov13ForeningsydelseResultat(fakta: Ligningslov13ForeningsydelseFakta, input_gyldigt: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, modtager_er_medlem: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
 | ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
 | ligningslov13_foreningsart_omfattet(art: Ligningslov13Foreningsart) -> art == Ll13Arbejdsgiverforening || art == Ll13Fagforening || art == Ll13AndenFagligSammenslutning
 | ligningslov13_indberetningsbetingelse_opfyldt(status: Ligningslov13Indberetningsstatus) -> status == Ll13IkkeIndberetningspligtig || status == Ll13IndberettetEfterSkatteindberetningslov31
+| ligningslov13_foreningsydelse_yderrelation(art: Ligningslov13Foreningsart) -> match art {
+    | Ll13Fagforening -> Ll30Og31Fagforening
+    | Ll13AndenFagligSammenslutning -> Ll30Og31AndenFagligSammenslutning
+    | _ -> Ll30Og31AndenYder
+}
+| ligningslov13_foreningsydelse_resultat(fakta: Ligningslov13ForeningsydelseFakta) -> {
+    = foreningsart_omfattet = ligningslov13_foreningsart_omfattet(fakta.foreningsart)
+    = hovedformål_og_erhvervsgruppe_opfyldt = fakta.foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser && fakta.modtager_hører_til_erhvervsgruppen
+    = undtagelsesresultat = ligningslov30_og_31_undtagelsesresultat(fakta.indkomstår, ligningslov13_foreningsydelse_yderrelation(fakta.foreningsart), fakta.beløb_kroner, fakta.undtagelse)
+    = input_gyldigt = fakta.identifikation != "" && ligningslov13_skatteår_understøttet(fakta.indkomstår) && fakta.beløb_kroner >= 0 && undtagelsesresultat.input_gyldigt
+    = kan_sammensættes = input_gyldigt && foreningsart_omfattet && hovedformål_og_erhvervsgruppe_opfyldt && fakta.modtager_er_medlem
+    Ligningslov13ForeningsydelseResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        foreningsart_omfattet = foreningsart_omfattet,
+        hovedformål_og_erhvervsgruppe_opfyldt = hovedformål_og_erhvervsgruppe_opfyldt,
+        modtager_er_medlem = fakta.modtager_er_medlem,
+        undtagelsesresultat = undtagelsesresultat,
+        kan_sammensættes = kan_sammensættes,
+        skattefri_beløb_kroner = hvis kan_sammensættes { undtagelsesresultat.skattefri_beløb_kroner } ellers { 0 },
+        skattepligtigt_beløb_kroner = hvis kan_sammensættes { undtagelsesresultat.skattepligtigt_beløb_kroner } ellers { 0 }
+    )
+}
 
 # Ligningslov13KontingentSag(indkomstår: Heltal, fakta: Ligningslov13KontingentFakta) {
     | foreningens_opgjorte_andel_gyldig() -> fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner >= 0 && fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner <= fakta.betalt_kontingent_kroner

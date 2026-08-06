@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-a47465` (faglige kontingenter, A-kasse/arbejdsløshedsforsikring, efterløn, fleksydelse og gaver er typede kildefakta; Ligningslovens §§ 8 A, 8 H, 12 og 13 samt Pensionsbeskatningslovens §§ 49-49 B afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
+Current implementation slice: `td-9e236a` (erstatninger og ydelser fra faglige foreninger samt udbetalinger fra arbejdsløshedsforsikring er typede kildefakta; Ligningslovens §§ 13, 30 og 31 samt Pensionsbeskatningslovens §§ 49, stk. 2, og 55 afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
+Previous common-deduction slice: `td-a47465` (faglige kontingenter, A-kasse/arbejdsløshedsforsikring, efterløn, fleksydelse og gaver er typede kildefakta; Ligningslovens §§ 8 A, 8 H, 12 og 13 samt Pensionsbeskatningslovens §§ 49-49 B afledes i den kanoniske Personskat-graf; godkendt)
 Previous implementation slice: `td-1306f6` (ordinære arbejdsgiverydelser og virksomhedsresultater uden virksomhedsordningen er typede kildefakta; PSL § 3- og AM-virkninger afledes gennem reglerne; afventer uafhængig gennemgang)
 Earlier implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
 Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste årsopgørelseslinjer bevarer dokumentproveniens og eksakte ørebeløb; kun retligt tilstrækkelige linjer peger på typede beregningsfelter)
@@ -3674,6 +3675,21 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 13 og Pensionsbeskatningslovens § 49, stk. 2, modtager nu
+  identificerede udbetalingsfakta i den ordinære personlige indkomst. Hver post
+  bevarer udbetalerens retlige art, indkomstår, beløb og den relevante
+  medlems- eller skatteyderrelation efter PBL § 55. Ligningslovens §§ 30-31 er
+  en fælles typet undtagelseskaskade med eksplicitte betingelser for behandling,
+  lægeerklæring, medicinperiode, uddannelsesformål, udgiftstype, fri kost,
+  transport og AUB-ændringens virkning fra 1. juli 2026. Ordinære beløb går
+  præcis én gang til personlig indkomst uden et nyt AM-bidrag; gyldige
+  undtagelser bliver skattefri, og uidentificerede sammensatte produkter fejler
+  lukket. Beregningsmetadata udstiller udbetalingstabellen og 48 genbrugelige
+  feltdefinitioner med danske spørgsmål, enheder og sporbare lov-, ændrings-,
+  sats- og vejledningskilder. Fokus- og slutscenarier dækker skattepligtige og
+  skattefri grene, forkert yderkreds, PBL § 55 og dubletbeskyttelse. En
+  hydreret projektmappe med en skattepligtig foreningsydelse går tabsfrit
+  gennem JSON-XLSX-kaldet og giver samme kanoniske Personskat-resultat.
 - Personskattelovens § 4, stk. 2-3 modtager nu hver kapitalomkostning som et
   identificeret kildefaktum med anvendelsesår, lovbestemt anvendelse,
   omkostningsart efter Ligningslovens § 17 C, egen næringsstatus og beløb.

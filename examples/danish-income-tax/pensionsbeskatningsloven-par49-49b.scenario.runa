@@ -8,6 +8,14 @@
     betalt_beløb_kroner = beløb_kroner,
     art = art
 )
+| pbl49_scenario_udbetaling(identifikation: Tekst, beløb_kroner: Heltal, art: Pbl49Arbejdsløshedsforsikringsudbetalingsart, skatteyderrelation: Pbl49SkatteyderrelationEfterPar55, undtagelse: Ligningslov30Og31Undtagelse) -> Pbl49ArbejdsløshedsforsikringsudbetalingFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    beløb_kroner = beløb_kroner,
+    art = art,
+    skatteyderrelation = skatteyderrelation,
+    undtagelse = undtagelse
+)
 
 = pbl49_alle_bidrag = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
     skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
@@ -124,6 +132,48 @@
     bidrag = []
 ))
 
+= pbl49_ordinær_akasseudbetaling = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(pbl49_scenario_udbetaling(
+    "ordinær-akasseudbetaling",
+    18000,
+    Pbl49UdbetalingFraArbejdsløshedskasse,
+    Pbl49SkatteyderenErEjer,
+    Ll30Og31UdenUndtagelse
+))
+= pbl49_akasseudbetaling_til_relevante_bøger = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(pbl49_scenario_udbetaling(
+    "akasse-bøger",
+    4500,
+    Pbl49UdbetalingFraArbejdsløshedskasse,
+    Pbl49SkatteyderenErEjer,
+    Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+        uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+        ydelsesart = Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset = Sandt)
+    ))
+))
+= pbl49_privatudbetaling_med_uanvendelig_par31 = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(pbl49_scenario_udbetaling(
+    "privat-bøger",
+    4500,
+    Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring,
+    Pbl49SkatteyderenErEjer,
+    Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+        uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+        ydelsesart = Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset = Sandt)
+    ))
+))
+= pbl49_udbetaling_til_anden_skatteyder = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(pbl49_scenario_udbetaling(
+    "anden-skatteyder",
+    18000,
+    Pbl49UdbetalingFraArbejdsløshedskasse,
+    Pbl49EnAndenErSkattepligtigEfterPar55,
+    Ll30Og31UdenUndtagelse
+))
+= pbl49_sammensat_forsikring = pbl49_arbejdsløshedsforsikringsudbetaling_resultat(pbl49_scenario_udbetaling(
+    "sammensat-forsikring",
+    18000,
+    Pbl49UdbetalingFraAndenEllerSammensatForsikring,
+    Pbl49SkatteyderenErEjer,
+    Ll30Og31UdenUndtagelse
+))
+
 | pbl49_49a_49b_bidrag_er_uden_årsloft: pbl49_alle_bidrag -> pbl49_alle_bidrag.alle_input_gyldige && pbl49_alle_bidrag.akassemedlemskab_indbetalt_kroner == 5988 && pbl49_alle_bidrag.samlet_fradrag_kroner == 14388 && pbl49_alle_bidrag.ikke_fradraget_kroner == 900
 | pbl49_privat_forsikring_kræver_1300_i_akasse: pbl49_privat_uden_minimum -> pbl49_privat_uden_minimum.alle_input_gyldige && pbl49_privat_uden_minimum.samlet_fradrag_kroner == 1200 && pbl49_privat_uden_minimum.ikke_fradraget_kroner == 2400 && length(filter(pbl49_privat_uden_minimum.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| match resultat.fakta.art { | Pbl49PrivatArbejdsløshedsforsikring(_, _) -> resultat.fradragsberettiget == Falskt && resultat.privat_forsikrings_minimum_opfyldt == Falskt | _ -> Falskt })) == 1
 | pbl49_akassekontingent_kræver_skatteyderens_eget_medlemskab: pbl49_akassekontingent_uden_skatteydermedlemskab -> pbl49_akassekontingent_uden_skatteydermedlemskab.akassemedlemskab_indbetalt_kroner == 0 && pbl49_akassekontingent_uden_skatteydermedlemskab.samlet_fradrag_kroner == 0 && pbl49_akassekontingent_uden_skatteydermedlemskab.ikke_fradraget_kroner == 3700 && head(pbl49_akassekontingent_uden_skatteydermedlemskab.bidragsresultater).skatteyderrelation_opfyldt == Falskt && all(pbl49_akassekontingent_uden_skatteydermedlemskab.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.fradragsberettiget == Falskt)
@@ -135,6 +185,11 @@
 | pbl49a_49b_kræver_fuld_skattepligt_eller_grænsegængerstatus: pbl49_efterløn_for_almindeligt_begrænset_skattepligtig -> pbl49_efterløn_for_almindeligt_begrænset_skattepligtig.samlet_fradrag_kroner == 0 && head(pbl49_efterløn_for_almindeligt_begrænset_skattepligtig.bidragsresultater).skattepligtsbetingelse_opfyldt == Falskt && pbl49_grænsegænger_med_efterløn_og_fleksydelse.samlet_fradrag_kroner == 5400 && all(pbl49_grænsegænger_med_efterløn_og_fleksydelse.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.skattepligtsbetingelse_opfyldt)
 | pbl49_dublet_fejler_lukket: pbl49_dublet -> pbl49_dublet.identifikationer_entydige == Falskt && pbl49_dublet.alle_input_gyldige == Falskt && pbl49_dublet.samlet_fradrag_kroner == 0
 | pbl49_tomt_input_er_neutralt_uden_for_satsårene: pbl49_tomt_historisk_neutralresultat -> pbl49_tomt_historisk_neutralresultat.skatteår_understøttet && pbl49_tomt_historisk_neutralresultat.alle_input_gyldige && pbl49_tomt_historisk_neutralresultat.samlet_fradrag_kroner == 0
+| pbl49_ordinær_akasseudbetaling_er_skattepligtig: pbl49_ordinær_akasseudbetaling -> pbl49_ordinær_akasseudbetaling.kan_sammensættes && pbl49_ordinær_akasseudbetaling.skattefri_beløb_kroner == 0 && pbl49_ordinær_akasseudbetaling.skattepligtigt_beløb_kroner == 18000
+| pbl49_akasseudbetaling_kan_være_skattefri_efter_par31: pbl49_akasseudbetaling_til_relevante_bøger -> pbl49_akasseudbetaling_til_relevante_bøger.kan_sammensættes && pbl49_akasseudbetaling_til_relevante_bøger.undtagelsesresultat.anvendt_hjemmel == Ll30Og31UndtagelseEfterPar31 && pbl49_akasseudbetaling_til_relevante_bøger.skattefri_beløb_kroner == 4500 && pbl49_akasseudbetaling_til_relevante_bøger.skattepligtigt_beløb_kroner == 0
+| pbl49_privatudbetaling_er_ikke_omfattet_af_par31_yderkredsen: pbl49_privatudbetaling_med_uanvendelig_par31 -> pbl49_privatudbetaling_med_uanvendelig_par31.kan_sammensættes && pbl49_privatudbetaling_med_uanvendelig_par31.undtagelsesresultat.yderrelation_omfattet == Falskt && pbl49_privatudbetaling_med_uanvendelig_par31.skattepligtigt_beløb_kroner == 4500
+| pbl49_par55_placerer_indkomsten_hos_den_rette_skatteyder: pbl49_udbetaling_til_anden_skatteyder -> pbl49_udbetaling_til_anden_skatteyder.kan_sammensættes && pbl49_udbetaling_til_anden_skatteyder.skatteyderen_er_skattepligtig_efter_par55 == Falskt && pbl49_udbetaling_til_anden_skatteyder.skattefri_beløb_kroner == 0 && pbl49_udbetaling_til_anden_skatteyder.skattepligtigt_beløb_kroner == 0
+| pbl49_sammensat_forsikring_fejler_lukket: pbl49_sammensat_forsikring -> pbl49_sammensat_forsikring.input_gyldigt && pbl49_sammensat_forsikring.udbetalingsart_omfattet == Falskt && pbl49_sammensat_forsikring.kan_sammensættes == Falskt && pbl49_sammensat_forsikring.skattepligtigt_beløb_kroner == 0
 
 ? pbl49_49a_49b_bidrag_er_uden_årsloft
 ? pbl49_privat_forsikring_kræver_1300_i_akasse
@@ -147,3 +202,8 @@
 ? pbl49a_49b_kræver_fuld_skattepligt_eller_grænsegængerstatus
 ? pbl49_dublet_fejler_lukket
 ? pbl49_tomt_input_er_neutralt_uden_for_satsårene
+? pbl49_ordinær_akasseudbetaling_er_skattepligtig
+? pbl49_akasseudbetaling_kan_være_skattefri_efter_par31
+? pbl49_privatudbetaling_er_ikke_omfattet_af_par31_yderkredsen
+? pbl49_par55_placerer_indkomsten_hos_den_rette_skatteyder
+? pbl49_sammensat_forsikring_fejler_lukket

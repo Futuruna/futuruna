@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./ligningsloven - par30 - 31 - ydelsesundtagelser
 
 # Pbl49KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -90,6 +91,44 @@ lov om arbejdsløshedsforsikring m.v.
 | pbl49_akassemedlemskab_indbetalt_kroner(bidrag: List(Pbl49Til49BBidragsfakta), indkomstår: Heltal) -> foldl(bidrag, 0, |sum_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta| sum_kroner + hvis fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner > 0 && pbl49_bidrag_er_stk3_akassemedlemskab(fakta) { fakta.betalt_beløb_kroner } ellers { 0 })
 --@end::pensionsbeskatningsloven_par49_fradrag--
 
+= pensionsbeskatningsloven_lbk1243_par49_stk2 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 49, stk. 2, i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte indkomstregel er uændret"
+)
+= juridisk_vejledning_pbl49_udbetaling = Pbl49KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048444",
+    identifier = "Den juridiske vejledning C.A.10.4.1.1: Arbejdsløshedsforsikring og seniormedlemskabskontingent",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= pensionsbeskatningsloven_par49_stk2_metadata = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+        DependencySource(value = ligningsloven_lbk1500_par30),
+        DependencySource(value = ligningsloven_lbk1500_par31),
+        Guidance(value = juridisk_vejledning_pbl49_udbetaling),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par49_stk2_udbetaling::meta:pensionsbeskatningsloven_par49_stk2_metadata--
+----
+§ 49, stk. 2. Ved opgørelsen af den skattepligtige indkomst medregnes
+udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31.
+----
+
+--@begin:pensionsbeskatningsloven_par49_stk2_udbetaling--
+# Pbl49Arbejdsløshedsforsikringsudbetalingsart = Pbl49UdbetalingFraArbejdsløshedskasse | Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring | Pbl49UdbetalingFraAndenEllerSammensatForsikring
+# Pbl49SkatteyderrelationEfterPar55 = Pbl49SkatteyderenErEjer | Pbl49SkatteyderenErBerettigetEfterEjersDød | Pbl49EnAndenErSkattepligtigEfterPar55
+# Pbl49ArbejdsløshedsforsikringsudbetalingFakta(identifikation: Tekst, indkomstår: Heltal, beløb_kroner: Heltal, art: Pbl49Arbejdsløshedsforsikringsudbetalingsart, skatteyderrelation: Pbl49SkatteyderrelationEfterPar55, undtagelse: Ligningslov30Og31Undtagelse)
+# Pbl49ArbejdsløshedsforsikringsudbetalingResultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta, input_gyldigt: Boolsk, udbetalingsart_omfattet: Boolsk, skatteyderen_er_skattepligtig_efter_par55: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
+
+| pbl49_udbetalingsart_omfattet(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> art == Pbl49UdbetalingFraArbejdsløshedskasse || art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring
+| pbl49_udbetaling_yderrelation(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> hvis art == Pbl49UdbetalingFraArbejdsløshedskasse { Ll30Og31Arbejdsløshedskasse } ellers { Ll30Og31AndenYder }
+| pbl49_skatteyderen_er_skattepligtig_efter_par55(relation: Pbl49SkatteyderrelationEfterPar55) -> relation == Pbl49SkatteyderenErEjer || relation == Pbl49SkatteyderenErBerettigetEfterEjersDød
+--@end:pensionsbeskatningsloven_par49_stk2_udbetaling--
+
 = pensionsbeskatningsloven_lbk1243_par49a = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 49 A, stk. 1, i LBK nr. 1243 af 26/11/2024",
@@ -165,6 +204,54 @@ fuldt skattepligtig her i landet.
     | _ -> Sandt
 }
 --@end::pensionsbeskatningsloven_par54_ejer_af_forsikringen--
+
+= pensionsbeskatningsloven_lbk1243_par55 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 55 i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte skattepligtsregel er uændret"
+)
+= pensionsbeskatningsloven_par55_metadata = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par55),
+        Guidance(value = juridisk_vejledning_pbl49_udbetaling),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par55_udbetalingsmodtager::meta:pensionsbeskatningsloven_par55_metadata--
+----
+§ 55. Indkomstskattepligten i henhold til § 20, § 46, stk. 1, § 49, stk. 2,
+§ 53, § 53 A, stk. 2, 3 og 5, og § 53 B, stk. 6, påhviler ejeren, den
+pensionsberettigede, den, der efter ejerens eller den pensionsberettigedes død
+i henhold til bestemmelserne i policen m.v. er berettiget til de pågældende
+udbetalinger, den pågældende direktør eller den eller dem, der efter direktørens
+død er berettiget til udbetalinger af eller fra ordningen. Indkomstskattepligten
+i henhold til § 20, stk. 1, nr. 4, og § 46, stk. 1, påhviler dog ejerens, eller
+den pensionsberettigedes fraskilte eller fraseparerede ægtefælle, når ydelserne
+tilfalder ægtefællen i kraft af udlodning ved skifte af fællesbo eller den, der
+efter ægtefællens død i henhold til policen m.v. er berettiget til pension, jf.
+§ 30, stk. 2.
+----
+
+--@begin:pensionsbeskatningsloven_par55_udbetalingsmodtager--
+| pbl49_arbejdsløshedsforsikringsudbetaling_resultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta) -> {
+    = udbetalingsart_omfattet = pbl49_udbetalingsart_omfattet(fakta.art)
+    = skatteyderen_er_skattepligtig_efter_par55 = pbl49_skatteyderen_er_skattepligtig_efter_par55(fakta.skatteyderrelation)
+    = undtagelsesresultat = ligningslov30_og_31_undtagelsesresultat(fakta.indkomstår, pbl49_udbetaling_yderrelation(fakta.art), fakta.beløb_kroner, fakta.undtagelse)
+    = input_gyldigt = fakta.identifikation != "" && pbl49_skatteår_understøttet(fakta.indkomstår) && fakta.beløb_kroner >= 0 && undtagelsesresultat.input_gyldigt
+    = kan_sammensættes = input_gyldigt && udbetalingsart_omfattet
+    Pbl49ArbejdsløshedsforsikringsudbetalingResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        udbetalingsart_omfattet = udbetalingsart_omfattet,
+        skatteyderen_er_skattepligtig_efter_par55 = skatteyderen_er_skattepligtig_efter_par55,
+        undtagelsesresultat = undtagelsesresultat,
+        kan_sammensættes = kan_sammensættes,
+        skattefri_beløb_kroner = hvis kan_sammensættes && skatteyderen_er_skattepligtig_efter_par55 { undtagelsesresultat.skattefri_beløb_kroner } ellers { 0 },
+        skattepligtigt_beløb_kroner = hvis kan_sammensættes && skatteyderen_er_skattepligtig_efter_par55 { undtagelsesresultat.skattepligtigt_beløb_kroner } ellers { 0 }
+    )
+}
+--@end:pensionsbeskatningsloven_par55_udbetalingsmodtager--
 
 = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/460",

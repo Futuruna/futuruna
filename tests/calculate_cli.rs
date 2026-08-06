@@ -1,5 +1,7 @@
 use calamine::{open_workbook_auto, Data, Reader, SheetVisible};
 use serde_json::Value;
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -43,6 +45,24 @@ fn parse_stdout(output: &Output) -> Value {
             String::from_utf8_lossy(&output.stderr)
         )
     })
+}
+
+fn worksheet_xml_parts(path: &Path) -> Vec<(String, String)> {
+    let file = File::open(path).expect("open XLSX package");
+    let mut archive = zip::ZipArchive::new(file).expect("read XLSX package");
+    let mut worksheets = Vec::new();
+    for index in 0..archive.len() {
+        let mut part = archive.by_index(index).expect("read XLSX package part");
+        let name = part.name().to_string();
+        if !name.starts_with("xl/worksheets/sheet") || !name.ends_with(".xml") {
+            continue;
+        }
+        let mut xml = String::new();
+        part.read_to_string(&mut xml)
+            .expect("read worksheet XML as UTF-8");
+        worksheets.push((name, xml));
+    }
+    worksheets
 }
 
 #[test]
@@ -1214,6 +1234,17 @@ fn xlsx_long_choice_sets_use_hidden_validation_ranges() {
         .map(ToString::to_string)
         .collect();
     assert_eq!(choice_cells, choices);
+
+    let worksheets = worksheet_xml_parts(&input_path);
+    let (_, validation_sheet) = worksheets
+        .iter()
+        .find(|(_, xml)| xml.contains("FuturunaChoices1"))
+        .expect("worksheet with generated choice validation");
+    assert!(
+        validation_sheet.contains(r#"sqref="B3:B1001""#),
+        "choice validation must start below the row-2 header"
+    );
+    assert!(!validation_sheet.contains(r#"sqref="B2:B1000""#));
 
     std::fs::remove_file(&source_path).ok();
     std::fs::remove_file(&input_path).ok();

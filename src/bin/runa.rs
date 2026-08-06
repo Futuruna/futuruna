@@ -1523,7 +1523,7 @@ fn add_calculation_xlsx_column_validation(
         .expect("choice columns have generated validation ranges");
     let validation =
         rust_xlsxwriter::DataValidation::new().allow_list_formula(range.as_str().into());
-    worksheet.add_data_validation(1, excel_column, 999, excel_column, &validation)?;
+    worksheet.add_data_validation(2, excel_column, 1000, excel_column, &validation)?;
     Ok(())
 }
 

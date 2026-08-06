@@ -1,0 +1,373 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Ligningslov30Og31KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ligningsloven_lbk1500_par30 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 30, stk. 1-6, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 30 er uændret"
+)
+= juridisk_vejledning_ligningslov30_personkreds = Ligningslov30Og31KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1947988",
+    identifier = "Den juridiske vejledning C.A.5.15.3.2: Hvornår er der skattefrihed og for hvem?",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov30_betingelser = Ligningslov30Og31KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1947989",
+    identifier = "Den juridiske vejledning C.A.5.15.3.3: Ydelserne og betingelser for skattefrihed",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= ligningsloven_par30_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par30),
+        Guidance(value = juridisk_vejledning_ligningslov30_personkreds),
+        Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
+    )
+)
+
+--@label:ligningsloven_par30_behandlingsydelser::meta:ligningsloven_par30_metadata--
+----
+§ 30. Ved opgørelsen af den skattepligtige indkomst medregnes ikke ydelser,
+som afholdes af arbejdsgiveren til behandling af medarbejderens misbrug af
+medicin, alkohol eller andre rusmidler eller til rygeafvænning. Ved opgørelsen
+af den skattepligtige indkomst medregnes heller ikke den rentefordel, som
+medarbejderen opnår, ved at arbejdsgiveren yder denne et lån til dækning af
+udgifterne ved behandling for misbrug af medicin, alkohol eller andre rusmidler
+eller ved rygeafvænning. Såfremt arbejdsgiveren har valgt at tegne en forsikring
+til dækning af udgifter i forbindelse med de nævnte behandlinger, eller såfremt
+medarbejderen har tegnet en sådan forsikring og arbejdsgiveren dækker
+medarbejderens udgifter hertil, medregnes tilsvarende ikke forsikringspræmien
+eller det fra arbejdsgiveren modtagne beløb ved opgørelsen af medarbejderens
+skattepligtige indkomst.
+
+Stk. 2. Skattefriheden for ydelser til dækning af medicinudgifter, som afholdes
+af arbejdsgiveren i forbindelse med medarbejderens behandling for misbrug af
+medicin, alkohol eller andre rusmidler, er begrænset til udgifter afholdt i en
+periode på højst 6 måneder fra første behandlingsdag bortset fra udgifter
+afholdt under indlæggelse på hospital, klinik el.lign. Tilsvarende gælder for
+skattefriheden for rentefordelen ved et lån, forsikringspræmier eller beløb til
+dækning heraf, jf. stk. 1, i det omfang medicinudgifter dækkes af lånet eller
+forsikringen ud over den nævnte periode.
+
+Stk. 3. Det er en betingelse for skattefriheden efter stk. 1, at udgiften
+afholdes som led i arbejdsgiverens generelle personalepolitik for alle
+virksomhedens medarbejdere, herunder at en forsikring tegnet af arbejdsgiveren
+tilbydes samtlige virksomhedens medarbejdere. Tilbuddet kan dog begrænses efter
+generelle kriterier om anciennitet og antal arbejdstimer.
+
+Stk. 4. Det er endvidere en betingelse for skattefriheden for ydelser, som
+afholdes af arbejdsgiveren efter stk. 1 til medarbejderens behandling for
+misbrug af medicin, alkohol eller andre rusmidler, at der foreligger en
+skriftlig lægeerklæring om, at medarbejderen har behov for behandlingen.
+
+Stk. 5. Det er en betingelse for skattefriheden for forsikringspræmier efter
+stk. 1, 3. pkt., at det af forsikringsbetingelserne fremgår, at forsikringen
+kun dækker behandling efter stk. 1, der opfylder kravene i stk. 4.
+
+Stk. 6. Stk. 1-5 gælder tilsvarende for ydelser til behandling for misbrug af
+medicin, alkohol eller andre rusmidler eller til rygeafvænning, der gives til
+personer som led i en aftale om ydelse af personligt arbejde i tilfælde, hvor
+virksomhedens medarbejdere omfattes af en ordning som nævnt i stk. 1. Stk. 1-5
+gælder også tilsvarende for ydelser til behandling for misbrug af medicin,
+alkohol eller andre rusmidler eller til rygeafvænning, der gives til personer,
+som er valgt til medlem af eller medhjælp for bestyrelser, udvalg, kommissioner,
+råd, nævn eller andre kollektive organer, herunder Folketinget, regionsråd og
+kommunalbestyrelser. Stk. 1-5 gælder endvidere tilsvarende for ydelser til
+behandling for misbrug af medicin, alkohol eller andre rusmidler eller til
+rygeafvænning, der gives til medlemmer af en fagforening, pensionskasse
+el.lign.
+----
+
+--@begin:ligningsloven_par30_behandlingsydelser--
+# Ligningslov30Og31Yderrelation = Ll30Og31Arbejdsgiver | Ll30Og31AftaleOmPersonligtArbejde | Ll30Og31KollektivtOrgan | Ll30Og31Fagforening | Ll30Og31Arbejdsløshedskasse | Ll30Og31PensionskasseEllerLignende | Ll30Og31AndenFagligSammenslutning | Ll30Og31ArbejdsgivernesUddannelsesbidrag | Ll30Og31AndenYder
+# Ligningslov30Behandlingsformål = Ll30MisbrugAfMedicin | Ll30Alkoholmisbrug | Ll30MisbrugAfAndreRusmidler | Ll30Rygeafvænning
+# Ligningslov30Medicindækning = Ll30IngenMedicindækning | Ll30MedicinIndenForSeksMåneder | Ll30MedicinEfterSeksMånederUnderIndlæggelse | Ll30MedicinEfterSeksMånederUdenIndlæggelse
+# Ligningslov30Ydelsesart = Ll30DirekteBehandlingsudgift | Ll30RentefordelVedBehandlingslån(lånet_begrænset_til_omfattet_behandling: Boolsk) | Ll30ForsikringspræmieEllerRefusion(forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling: Boolsk)
+# Ligningslov30Behandlingsfakta(formål: Ligningslov30Behandlingsformål, ydelsesart: Ligningslov30Ydelsesart, medicindækning: Ligningslov30Medicindækning, generel_ordning_for_personkredsen: Boolsk, skriftlig_lægeerklæring: Boolsk)
+
+| ligningslov30_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31AndenFagligSammenslutning
+| ligningslov30_lægeerklæring_opfyldt(fakta: Ligningslov30Behandlingsfakta) -> fakta.formål == Ll30Rygeafvænning || fakta.skriftlig_lægeerklæring
+| ligningslov30_medicinperiode_opfyldt(fakta: Ligningslov30Behandlingsfakta) -> fakta.formål == Ll30Rygeafvænning || fakta.medicindækning != Ll30MedicinEfterSeksMånederUdenIndlæggelse
+| ligningslov30_ydelsesart_opfyldt(art: Ligningslov30Ydelsesart) -> match art {
+    | Ll30DirekteBehandlingsudgift -> Sandt
+    | Ll30RentefordelVedBehandlingslån(lånet_begrænset_til_omfattet_behandling) -> lånet_begrænset_til_omfattet_behandling
+    | Ll30ForsikringspræmieEllerRefusion(forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling) -> forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling
+}
+| ligningslov30_betingelser_opfyldt(relation: Ligningslov30Og31Yderrelation, fakta: Ligningslov30Behandlingsfakta) -> ligningslov30_yderrelation_omfattet(relation) && fakta.generel_ordning_for_personkredsen && ligningslov30_lægeerklæring_opfyldt(fakta) && ligningslov30_medicinperiode_opfyldt(fakta) && ligningslov30_ydelsesart_opfyldt(fakta.ydelsesart)
+--@end:ligningsloven_par30_behandlingsydelser--
+
+= ligningsloven_lbk1500_par31 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 31 i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Konsolideret tekst suppleret med LOV nr. 1630 af 16/12/2025, § 2, nr. 1, med virkning fra 01/07/2026"
+)
+= ligningsloven_lov1630_par2_og_par3 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1630",
+    identifier = "LOV nr. 1630 af 16/12/2025, § 2, nr. 1, og § 3, stk. 2",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende fra 01/07/2026"
+)
+= ligningsloven_lbk1500_par9a_stk2_og_stk3 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 A, stk. 2-3, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte satser og reduktionsregler er uændrede"
+)
+= skatteforvaltningen_rejsesatser_2025 = Ligningslov30Og31KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2437004",
+    identifier = "SKM2024.643.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Historisk 2025-satsmeddelelse"
+)
+= skatteforvaltningen_rejsesatser_2026 = Ligningslov30Og31KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2460063",
+    identifier = "SKM2025.725.SKTST: Skattefri godtgørelse til dækning af rejseudgifter mv. gældende for 2026",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende 2026-satsmeddelelse"
+)
+= skatterådet_befordringssats_2026 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1333",
+    identifier = "BEK nr. 1333 af 20/11/2025, § 1: Skatterådets befordringssats for 2026",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende for indkomståret 2026"
+)
+= juridisk_vejledning_ligningslov31 = Ligningslov30Og31KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1920475",
+    identifier = "Den juridiske vejledning C.A.5.4: Undervisning",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026, inklusive ændringen fra 01/07/2026"
+)
+= ligningsloven_par31_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par31),
+        DependencySource(value = ligningsloven_lbk1500_par9a_stk2_og_stk3),
+        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+        RateSource(value = skatteforvaltningen_rejsesatser_2025),
+        RateSource(value = skatteforvaltningen_rejsesatser_2026),
+        RateSource(value = skatterådet_befordringssats_2026),
+        Guidance(value = juridisk_vejledning_ligningslov31),
+    )
+)
+
+--@label:ligningsloven_par31_uddannelsesydelser::meta:ligningsloven_par31_metadata--
+----
+§ 9 A, stk. 2. Følgende satser kan anvendes til dækning af udgifter til logi,
+kost og småfornødenheder i stedet for de faktiske beløb:
+
+1) Ved rejse med overnatning i Danmark eller i udlandet et grundbeløb på 455
+kr. (2010-niveau) pr. døgn til kost og småfornødenheder. Skatterådet kan fra og
+med 1. januar 2001 forhøje satsen efter 1. pkt. med et grundbeløb på 142 kr.
+(2010-niveau) pr. døgn ved overnatning i lande, hvor leveomkostningerne er
+væsentligt højere end i Danmark.
+
+2) For turistchauffører med overnatning i udlandet 150 kr. pr. døgn.
+
+3) For turistchauffører med overnatning i Danmark 75 kr. pr. døgn.
+
+4) Ved rejser med overnatning i Danmark eller i udlandet et grundbeløb på 195
+kr. (2010-niveau) pr. døgn til logi, medmindre den ansatte i sit hverv medvirker
+til transport af varer eller personer, gør tjeneste om bord på skibe (herunder
+fiskerfartøjer), arbejder på luftfartøjer, i fartøjer og installationer, der
+anvendes i tilknytning til efterforskning og udnyttelse af naturforekomster. Der
+kan ikke foretages afskrivninger i den skattepligtige indkomst på driftsmidler
+mv., der anvendes i forbindelse med logiet, når der modtages godtgørelse med
+satsen til logi.
+
+Stk. 3. Satserne i stk. 2, nr. 1-3, udbetales pr. døgn, og derefter kan der
+udbetales 1/24 af satserne pr. påbegyndt time. Hvis der modtages fri kost,
+reduceres satsen efter stk. 2, nr. 1, med henholdsvis 15, 30 og 30 pct. for
+morgenmad, frokost og aftensmad. Uanset reduktionen i foregående punktum kan
+arbejdsgiveren dog altid til dækning af udgifter til småfornødenheder udbetale
+et beløb på indtil 25 pct. af satsen i stk. 2, nr. 1, beregnet for den samlede
+rejse.
+
+§ 31. Ved opgørelsen af den skattepligtige indkomst medregnes ikke ydelser til
+dækning af udgifter i forbindelse med uddannelser og kurser, når ydelserne
+modtages fra en arbejdsgiver som led i et ansættelsesforhold eller som led i en
+aftale om ydelse af personligt arbejde i øvrigt og ydelserne er omfattet af
+stk. 3. Ydelser omfattet af stk. 3 til dækning af udgifter i forbindelse med
+uddannelser og kurser medregnes ligeledes ikke, når de modtages ved ophør af et
+ansættelsesforhold. 1. pkt. gælder ligeledes for ydelser omfattet af stk. 3, som
+gives til personer, der er valgt til medlem af eller medhjælp for bestyrelser,
+udvalg, kommissioner, råd, nævn eller andre kollegiale organer, herunder
+Folketinget, regionsråd og kommunalbestyrelser, gives til medlemmer af en
+fagforening, arbejdsløshedskasse eller pensionskasse samt gives til
+arbejdstagere som led i selvvalgt kompetenceudvikling i henhold til kollektiv
+overenskomst. Tilsvarende gælder for ydelser omfattet af stk. 3, som personer
+modtager fra jobcenteret, eller som elever modtager fra Arbejdsgivernes
+Uddannelsesbidrag. Tilsvarende gælder for ydelser omfattet af stk. 3, der ydes
+af et uddannelsessted eller i medfør af § 48, for så vidt angår
+fleksjobvisiterede, som modtager ledighedsydelse, i lov om en aktiv
+beskæftigelsesindsats til personer, der deltager i uddannelse efter lov om
+arbejdsmarkedsuddannelser m.v. Tilsvarende gælder for tildeling af friplads
+efter lov om universiteter (universitetsloven) eller lov om stipendier til visse
+udenlandske studerende ved korte og mellemlange videregående uddannelser.
+Tilsvarende gælder for tilskud til deltagerbetaling, som ydes efter lov om
+statens voksenuddannelsesstøtte, samt for tilskud til deltagerbetaling, som ydes
+efter lov om støtte til voksenuddannelse (VUS), herunder støtte, der ydes efter
+§ 23, stk. 3 og 4, jf. stk. 2, i lov om statens voksenuddannelsesstøtte.
+Tilsvarende gælder for tilskud til deltagerbetaling, som ydes efter § 48, for så
+vidt angår fleksjobvisiterede, som modtager ledighedsydelse, i lov om en aktiv
+beskæftigelsesindsats til personer, der deltager i uddannelse, som er omfattet
+af lov om statens voksenuddannelsesstøtte eller lov om godtgørelse og tilskud
+til befordring ved deltagelse i erhvervsrettet voksen- og efteruddannelse.
+
+Stk. 2. Stk. 1 finder ikke anvendelse, når uddannelsen eller kurset udelukkende
+har privat karakter for modtageren.
+
+Stk. 3. Følgende ydelser medregnes efter stk. 1 ikke til den skattepligtige
+indkomst:
+1) Skole- eller deltagerbetaling. Ydelser til dækning af udgifter til
+erhvervelse af kørekort til almindelig bil kan dog ikke ydes skattefrit,
+medmindre arbejdsgiveren mv., jf. stk. 1, har pligt til at afholde ydelsen i
+henhold til gældende lovgivning.
+2) Ydelser til dækning af bog- og materialeudgifter, som er relevante for
+uddannelsen eller kurset.
+3) Godtgørelser til dækning af udgifter til logi, kost og småfornødenheder, jf.
+stk. 4.
+4) Befordringsgodtgørelser, såfremt godtgørelsen ikke overstiger satsen i
+stk. 5.
+
+Stk. 4. Udgifter til logi, kost og småfornødenheder kan dækkes skattefrit af
+arbejdsgiveren mv., jf. stk. 1, når modtageren af ydelsen på grund af afstanden
+mellem bopæl og uddannelsesstedet eller kursusstedet ikke har mulighed for at
+overnatte på sin sædvanlige bopæl. Når opholdet på uddannelses- eller
+kursusstedet varer mindst 24 timer, kan satserne i § 9 A, stk. 2, nr. 1 og 4,
+jf. § 9 A, stk. 3, for sædvanlige udgifter til logi, kost og
+småfornødenheder på uddannelses- eller kursusstedet anvendes i stedet for de
+faktiske udgifter. Satsen i 2. pkt. til kost og småfornødenheder kan kun
+benyttes i de første 12 måneder af opholdet på uddannelses- eller kursusstedet.
+Uanset 1. pkt. kan arbejdsgiveren mv., jf. stk. 1, skattefrit dække de faktiske
+udgifter til kost, når kosten indtages på uddannelses- eller kursusstedet.
+
+Stk. 5. Der kan for befordringen frem og tilbage mellem sædvanlig bopæl og
+uddannelsesstedet eller kursusstedet eller mellem arbejdsstedet og
+uddannelsesstedet eller kursusstedet i egen bil eller motorcykel ad den normale
+transportvej udbetales en befordringsgodtgørelse beregnet på grundlag af
+satsen, som Skatterådet fastsætter efter § 9 C, stk. 1. Tilsvarende gælder for
+befordringen mellem uddannelses- eller kursussteder eller inden for samme
+uddannelses- eller kursussted. Arbejdsgiveren mv., jf. stk. 1, kan skattefrit
+dække de faktiske udgifter til anden befordring. Har den uddannelsessøgende
+eller kursisten adgang til en af arbejdsgiveren mv., jf. stk. 1, betalt
+befordring med offentlige eller private transportmidler, medregnes udbetalt
+godtgørelse efter 1. og 2. pkt. til den skattepligtige indkomst for den del af
+strækningen, hvor der er adgang til fri befordring. Har den uddannelsessøgende
+eller kursisten modtaget befordringsgodtgørelse efter § 9 B for den samme
+strækning, medregnes udbetalt godtgørelse efter 1. og 2. pkt. til den
+skattepligtige indkomst. Har den uddannelsessøgende eller kursisten modtaget
+befordringsgodtgørelse efter § 9 B til befordring i forbindelse med en
+uddannelse eller et kursus, kan der ikke senere overgås til godtgørelse efter
+1. og 2. pkt. til befordring i forbindelse med samme uddannelse eller kursus.
+
+Stk. 6. Udgifter omfattet af stk. 3, der ikke dækkes af en arbejdsgiver m.v.,
+jf. stk. 1, kan ikke fradrages ved indkomstopgørelsen, medmindre dette følger
+af skattelovgivningens almindelige regler.
+
+LOV nr. 1630 af 16/12/2025, § 2, nr. 1:
+I § 31, stk. 3, indsættes som nr. 5:
+»5) Tilskud og refusion modtaget fra Arbejdsgivernes Uddannelsesbidrag efter
+§§ 8 a og 8 b i lov om Arbejdsgivernes Uddannelsesbidrag.«
+
+§ 3, stk. 2. § 1, nr. 5-8 og 11, og § 2 træder i kraft den 1. juli 2026.
+----
+
+--@begin:ligningsloven_par31_uddannelsesydelser--
+# Ligningslov31Uddannelsesydelsesart = Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort: Boolsk, yder_har_lovpligt_til_at_betale_kørekortet: Boolsk) | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset: Boolsk) | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk) | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, påbegyndte_timer_efter_fulde_døgn: Heltal, opholdets_måned_nr: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) | Ll31BefordringIEgenBilEllerMotorcykel(kilometer_ad_normal_transportvej: Heltal, adgang_til_fri_befordring_for_strækningen: Boolsk, modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk, tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk) | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner: Heltal) | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026: Boolsk)
+# Ligningslov31Uddannelsesfakta(uddannelsen_eller_kurset_udelukkende_privat: Boolsk, ydelsesart: Ligningslov31Uddannelsesydelsesart)
+# Ligningslov31Satser(indkomstår: Heltal, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, befordring_øre_pr_kilometer: Heltal)
+
+| ligningslov30_og_31_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov31_satser(indkomstår: Heltal) -> Ligningslov31Satser(
+    indkomstår = 2025,
+    kost_og_småfornødenheder_pr_døgn_kroner = 597,
+    logi_pr_døgn_kroner = 256,
+    befordring_øre_pr_kilometer = 223
+) under indkomstår == 2025
+| ligningslov31_satser(indkomstår: Heltal) -> Ligningslov31Satser(
+    indkomstår = 2026,
+    kost_og_småfornødenheder_pr_døgn_kroner = 625,
+    logi_pr_døgn_kroner = 268,
+    befordring_øre_pr_kilometer = 228
+) under indkomstår == 2026
+| ligningslov31_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31ArbejdsgivernesUddannelsesbidrag
+| ligningslov31_mulige_måltidsdage(fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> fulde_døgn + hvis påbegyndte_timer > 0 { 1 } ellers { 0 }
+| ligningslov31_ydelsesart_input_gyldig(art: Ligningslov31Uddannelsesydelsesart) -> match art {
+    | Ll31SkoleEllerDeltagerbetaling(_, _) -> Sandt
+    | Ll31BøgerOgMaterialer(_) -> Sandt
+    | Ll31FaktiskeLogiudgifter(_, dokumenterede_udgifter_kroner) -> dokumenterede_udgifter_kroner >= 0
+    | Ll31FaktiskeKostudgifter(_, _, dokumenterede_udgifter_kroner) -> dokumenterede_udgifter_kroner >= 0
+    | Ll31SatsgodtgørelseLogi(_, fulde_døgn, _) -> fulde_døgn >= 1
+    | Ll31SatsgodtgørelseKostOgSmåfornødenheder(_, fulde_døgn, påbegyndte_timer, opholdets_måned_nr, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal) -> fulde_døgn >= 1 && påbegyndte_timer >= 0 && påbegyndte_timer <= 23 && opholdets_måned_nr >= 1 && fri_morgenmad_antal >= 0 && fri_frokost_antal >= 0 && fri_aftensmad_antal >= 0 && fri_morgenmad_antal <= ligningslov31_mulige_måltidsdage(fulde_døgn, påbegyndte_timer) && fri_frokost_antal <= ligningslov31_mulige_måltidsdage(fulde_døgn, påbegyndte_timer) && fri_aftensmad_antal <= ligningslov31_mulige_måltidsdage(fulde_døgn, påbegyndte_timer)
+    | Ll31BefordringIEgenBilEllerMotorcykel(kilometer, _, _, _) -> kilometer >= 0
+    | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner) -> dokumenterede_udgifter_kroner >= 0
+    | Ll31AubTilskudEllerRefusion(_) -> Sandt
+}
+| ligningslov31_kost_grundsats_kroner(indkomstår: Heltal, fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> ligningslov31_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fulde_døgn * 24 + påbegyndte_timer) / 24
+| ligningslov31_kost_måltidsreduktion_kroner(indkomstår: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) -> ligningslov31_satser(indkomstår).kost_og_småfornødenheder_pr_døgn_kroner * (fri_morgenmad_antal * 15 + fri_frokost_antal * 30 + fri_aftensmad_antal * 30) / 100
+| ligningslov31_kost_maksimum_kroner(indkomstår: Heltal, fulde_døgn: Heltal, påbegyndte_timer: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) -> {
+    = grundsats_kroner = ligningslov31_kost_grundsats_kroner(indkomstår, fulde_døgn, påbegyndte_timer)
+    penge_største_beløb(grundsats_kroner - ligningslov31_kost_måltidsreduktion_kroner(indkomstår, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal), grundsats_kroner * 25 / 100)
+}
+| ligningslov31_ydelsesart_betingelser_opfyldt(indkomstår: Heltal, beløb_kroner: Heltal, art: Ligningslov31Uddannelsesydelsesart) -> match art {
+    | Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort, yder_har_lovpligt_til_at_betale_kørekortet) -> almindeligt_kørekort == Falskt || yder_har_lovpligt_til_at_betale_kørekortet
+    | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset) -> relevante_for_uddannelsen_eller_kurset
+    | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning, dokumenterede_udgifter_kroner) -> afstand_udelukker_overnatning && beløb_kroner <= dokumenterede_udgifter_kroner
+    | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning, kosten_indtages_på_stedet, dokumenterede_udgifter_kroner) -> (afstand_udelukker_overnatning || kosten_indtages_på_stedet) && beløb_kroner <= dokumenterede_udgifter_kroner
+    | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning, fulde_døgn, udelukket_transportarbejde) -> afstand_udelukker_overnatning && udelukket_transportarbejde == Falskt && beløb_kroner <= fulde_døgn * ligningslov31_satser(indkomstår).logi_pr_døgn_kroner
+    | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning, fulde_døgn, påbegyndte_timer, opholdets_måned_nr, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal) -> afstand_udelukker_overnatning && opholdets_måned_nr <= 12 && beløb_kroner <= ligningslov31_kost_maksimum_kroner(indkomstår, fulde_døgn, påbegyndte_timer, fri_morgenmad_antal, fri_frokost_antal, fri_aftensmad_antal)
+    | Ll31BefordringIEgenBilEllerMotorcykel(kilometer, adgang_til_fri_befordring, modtaget_par9b_for_samme_strækning, tidligere_valgt_par9b) -> adgang_til_fri_befordring == Falskt && modtaget_par9b_for_samme_strækning == Falskt && tidligere_valgt_par9b == Falskt && beløb_kroner * 100 <= kilometer * ligningslov31_satser(indkomstår).befordring_øre_pr_kilometer
+    | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner) -> beløb_kroner <= dokumenterede_udgifter_kroner
+    | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026) -> indkomstår > 2026 || (indkomstår == 2026 && modtaget_fra_og_med_1_juli_2026)
+}
+| ligningslov31_betingelser_opfyldt(indkomstår: Heltal, relation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, fakta: Ligningslov31Uddannelsesfakta) -> ligningslov30_og_31_skatteår_understøttet(indkomstår) && ligningslov31_yderrelation_omfattet(relation) && fakta.uddannelsen_eller_kurset_udelukkende_privat == Falskt && ligningslov31_ydelsesart_input_gyldig(fakta.ydelsesart) && ligningslov31_ydelsesart_betingelser_opfyldt(indkomstår, beløb_kroner, fakta.ydelsesart)
+
+# Ligningslov30Og31Undtagelse = Ll30Og31UdenUndtagelse | Ll30Og31BehandlingsydelseEfterPar30(fakta: Ligningslov30Behandlingsfakta) | Ll30Og31UddannelsesydelseEfterPar31(fakta: Ligningslov31Uddannelsesfakta)
+# Ligningslov30Og31Undtagelseshjemmel = Ll30Og31IngenAnvendtUndtagelse | Ll30Og31UndtagelseEfterPar30 | Ll30Og31UndtagelseEfterPar31
+# Ligningslov30Og31Undtagelsesresultat(indkomstår: Heltal, yderrelation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse, input_gyldigt: Boolsk, yderrelation_omfattet: Boolsk, undtagelsesbetingelser_opfyldt: Boolsk, anvendt_hjemmel: Ligningslov30Og31Undtagelseshjemmel, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
+
+| ligningslov30_og_31_undtagelse_input_gyldig(undtagelse: Ligningslov30Og31Undtagelse) -> match undtagelse {
+    | Ll30Og31UdenUndtagelse -> Sandt
+    | Ll30Og31BehandlingsydelseEfterPar30(_) -> Sandt
+    | Ll30Og31UddannelsesydelseEfterPar31(fakta) -> ligningslov31_ydelsesart_input_gyldig(fakta.ydelsesart)
+}
+| ligningslov30_og_31_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation, undtagelse: Ligningslov30Og31Undtagelse) -> match undtagelse {
+    | Ll30Og31UdenUndtagelse -> Sandt
+    | Ll30Og31BehandlingsydelseEfterPar30(_) -> ligningslov30_yderrelation_omfattet(relation)
+    | Ll30Og31UddannelsesydelseEfterPar31(_) -> ligningslov31_yderrelation_omfattet(relation)
+}
+| ligningslov30_og_31_betingelser_opfyldt(indkomstår: Heltal, relation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> match undtagelse {
+    | Ll30Og31UdenUndtagelse -> Falskt
+    | Ll30Og31BehandlingsydelseEfterPar30(fakta) -> ligningslov30_betingelser_opfyldt(relation, fakta)
+    | Ll30Og31UddannelsesydelseEfterPar31(fakta) -> ligningslov31_betingelser_opfyldt(indkomstår, relation, beløb_kroner, fakta)
+}
+| ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31IngenAnvendtUndtagelse
+| exception ligningslov30_undtager_behandlingsydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31UndtagelseEfterPar30 under betingelser_opfyldt && match undtagelse { | Ll30Og31BehandlingsydelseEfterPar30(_) -> Sandt | _ -> Falskt }
+| exception ligningslov31_undtager_uddannelsesydelse ligningslov30_og_31_anvendt_hjemmel(undtagelse: Ligningslov30Og31Undtagelse, betingelser_opfyldt: Boolsk) -> Ll30Og31UndtagelseEfterPar31 under betingelser_opfyldt && match undtagelse { | Ll30Og31UddannelsesydelseEfterPar31(_) -> Sandt | _ -> Falskt }
+| ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner: Heltal, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk) -> 0
+| exception ligningslov30_eller_31_gør_ydelsen_skattefri ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner: Heltal, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk) -> beløb_kroner under input_gyldigt && betingelser_opfyldt
+| ligningslov30_og_31_undtagelsesresultat(indkomstår: Heltal, relation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> {
+    = input_gyldigt = ligningslov30_og_31_skatteår_understøttet(indkomstår) && beløb_kroner >= 0 && ligningslov30_og_31_undtagelse_input_gyldig(undtagelse)
+    = yderrelation_omfattet = ligningslov30_og_31_yderrelation_omfattet(relation, undtagelse)
+    = betingelser_opfyldt = input_gyldigt && ligningslov30_og_31_betingelser_opfyldt(indkomstår, relation, beløb_kroner, undtagelse)
+    = skattefri_beløb_kroner = ligningslov30_og_31_skattefri_beløb_kroner(beløb_kroner, input_gyldigt, betingelser_opfyldt)
+    Ligningslov30Og31Undtagelsesresultat(
+        indkomstår = indkomstår,
+        yderrelation = relation,
+        beløb_kroner = beløb_kroner,
+        undtagelse = undtagelse,
+        input_gyldigt = input_gyldigt,
+        yderrelation_omfattet = yderrelation_omfattet,
+        undtagelsesbetingelser_opfyldt = betingelser_opfyldt,
+        anvendt_hjemmel = ligningslov30_og_31_anvendt_hjemmel(undtagelse, betingelser_opfyldt),
+        skattefri_beløb_kroner = skattefri_beløb_kroner,
+        skattepligtigt_beløb_kroner = hvis input_gyldigt { beløb_kroner - skattefri_beløb_kroner } ellers { 0 }
+    )
+}
+--@end:ligningsloven_par31_uddannelsesydelser--

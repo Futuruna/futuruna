@@ -182,6 +182,23 @@
     positiv_nettokapitalindkomst_kroner = 20000
 ))
 
+| ll13_scenario_foreningsydelse(identifikation: Tekst, modtager_er_medlem: Boolsk, undtagelse: Ligningslov30Og31Undtagelse) -> Ligningslov13ForeningsydelseFakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    foreningsart = Ll13Fagforening,
+    beløb_kroner = 12000,
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+    modtager_hører_til_erhvervsgruppen = Sandt,
+    modtager_er_medlem = modtager_er_medlem,
+    undtagelse = undtagelse
+)
+= ll13_scenario_foreningsydelse_skattepligtig = ligningslov13_foreningsydelse_resultat(ll13_scenario_foreningsydelse("konfliktunderstøttelse", Sandt, Ll30Og31UdenUndtagelse))
+= ll13_scenario_foreningsydelse_uddannelse = ligningslov13_foreningsydelse_resultat(ll13_scenario_foreningsydelse("kursusbøger", Sandt, Ll30Og31UddannelsesydelseEfterPar31(fakta = Ligningslov31Uddannelsesfakta(
+    uddannelsen_eller_kurset_udelukkende_privat = Falskt,
+    ydelsesart = Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset = Sandt)
+))))
+= ll13_scenario_foreningsydelse_ikke_medlem = ligningslov13_foreningsydelse_resultat(ll13_scenario_foreningsydelse("ikke-medlem", Falskt, Ll30Og31UdenUndtagelse))
+
 | ll13_lønmodtagerens_fradrag_begrænses_til_7000: ll13_lønmodtager_loft -> ll13_lønmodtager_loft.alle_input_gyldige && ll13_lønmodtager_loft.fradrag_før_årsloft_kroner == 8000 && ll13_lønmodtager_loft.årsloft_kroner == 7000 && ll13_lønmodtager_loft.samlet_fradrag_kroner == 7000 && ll13_lønmodtager_loft.ikke_fradraget_kroner == 1000
 | ll13_selvstændig_er_undtaget_fra_loftet: ll13_selvstændig_uden_loft -> ll13_selvstændig_uden_loft.alle_input_gyldige && ll13_selvstændig_uden_loft.årsloft_kroner == 0 && ll13_selvstændig_uden_loft.samlet_fradrag_kroner == 8000
 | ll13_manglende_indberetning_afskærer_fradraget: ll13_ikke_indberettet -> ll13_ikke_indberettet.alle_input_gyldige && ll13_ikke_indberettet.samlet_fradrag_kroner == 0 && ll13_ikke_indberettet.ikke_fradraget_kroner == 4200 && head(ll13_ikke_indberettet.kontingentresultater).fradragsberettiget == Falskt
@@ -198,6 +215,9 @@
 | ll12_generisk_almennyttigt_formål_er_ikke_tilstrækkeligt: ll12_generisk_almennyttigt_formål_afvises -> ll12_generisk_almennyttigt_formål_afvises.alle_input_gyldige && head(ll12_generisk_almennyttigt_formål_afvises.gaveresultater).modtagerformål_opfyldt == Falskt && ll12_generisk_almennyttigt_formål_afvises.samlet_fradrag_kroner == 0 && ll12_generisk_almennyttigt_formål_afvises.ikke_fradraget_kroner == 15000
 | ll12_livstid_eller_mindst_ti_år: ll12_livsvarig_aftale -> ligningslov12_aftalebetingelser_opfyldt(ll12_livsvarig_aftale) && ligningslov12_aftalebetingelser_opfyldt(ll12_niårig_aftale) == Falskt
 | ll12_indkomstgrundlaget_er_den_samlede_personlige_og_positive_kapitalindkomst: ll12_negativ_personlig_indkomst_modregner_positiv_kapital -> ll12_negativ_personlig_indkomst_modregner_positiv_kapital == 10000
+| ll13_foreningsydelse_medregnes_i_skattepligtig_indkomst: ll13_scenario_foreningsydelse_skattepligtig -> ll13_scenario_foreningsydelse_skattepligtig.kan_sammensættes && ll13_scenario_foreningsydelse_skattepligtig.skattepligtigt_beløb_kroner == 12000
+| ll13_uddannelsesydelse_undtages_efter_par31: ll13_scenario_foreningsydelse_uddannelse -> ll13_scenario_foreningsydelse_uddannelse.kan_sammensættes && ll13_scenario_foreningsydelse_uddannelse.skattefri_beløb_kroner == 12000 && ll13_scenario_foreningsydelse_uddannelse.skattepligtigt_beløb_kroner == 0
+| ll13_udbetaling_til_ikke_medlem_kan_ikke_sammensættes_efter_par13: ll13_scenario_foreningsydelse_ikke_medlem -> ll13_scenario_foreningsydelse_ikke_medlem.kan_sammensættes == Falskt && ll13_scenario_foreningsydelse_ikke_medlem.skattepligtigt_beløb_kroner == 0
 
 ? ll13_lønmodtagerens_fradrag_begrænses_til_7000
 ? ll13_selvstændig_er_undtaget_fra_loftet
@@ -215,3 +235,6 @@
 ? ll12_generisk_almennyttigt_formål_er_ikke_tilstrækkeligt
 ? ll12_livstid_eller_mindst_ti_år
 ? ll12_indkomstgrundlaget_er_den_samlede_personlige_og_positive_kapitalindkomst
+? ll13_foreningsydelse_medregnes_i_skattepligtig_indkomst
+? ll13_uddannelsesydelse_undtages_efter_par31
+? ll13_udbetaling_til_ikke_medlem_kan_ikke_sammensættes_efter_par13

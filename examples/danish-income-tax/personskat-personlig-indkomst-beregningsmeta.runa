@@ -156,3 +156,520 @@
 )
 
 --@label:PersonskatPersonligIndkomstInput::meta:personskat_personlig_indkomst_beregningsmeta--
+
+= personskat_ydelsesudbetaling_felt_samling = TypetBeregningsfelt(
+    path = refof(PersonskatOrdinærPersonligIndkomstInput::forenings_og_arbejdsløshedsydelser),
+    label = "Ydelser fra faglige foreninger og arbejdsløshedsforsikring",
+    question = Some("Hvilke erstatninger eller ydelser har personen modtaget fra en faglig forening, A-kasse eller privat arbejdsløshedsforsikring?"),
+    help = Some("Opret én række for hver særskilt udbetaling og for hver retligt identificerbar del af en sammensat udbetaling."),
+    unit = None
+)
+= personskat_ydelsesudbetaling_felt_hjemmel = TypetBeregningsfelt(
+    path = refof(PersonskatForeningsOgArbejdsløshedsydelseFakta::$variant),
+    label = "Udbetalingens lovgren",
+    question = Some("Er udbetalingen en medlemsydelse fra en faglig forening efter LL § 13 eller en arbejdsløshedsforsikringsudbetaling efter PBL § 49?"),
+    help = Some("Vælg efter den udbetalende ordning og dokumentationen, ikke efter årsopgørelsens samlelinje."),
+    unit = None
+)
+
+= personskat_foreningsydelse_felt_id = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::identifikation),
+    label = "Foreningsydelsens identifikation",
+    question = Some("Hvilken entydig identifikation har foreningsydelsen?"),
+    help = Some("Brug en stabil reference fra udbetalingsbilaget, så samme ydelse ikke medregnes to gange."),
+    unit = None
+)
+= personskat_foreningsydelse_felt_år = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::indkomstår),
+    label = "Foreningsydelsens indkomstår",
+    question = Some("Hvilket indkomstår vedrører foreningsydelsen?"),
+    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
+    unit = Some("år")
+)
+= personskat_foreningsydelse_felt_art = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::foreningsart),
+    label = "Den udbetalende forenings art",
+    question = Some("Er udbetaleren en arbejdsgiverforening, fagforening, anden faglig sammenslutning eller anden forening?"),
+    help = Some("Klassifikationen skal følge foreningens vedtægter og faktiske hovedformål."),
+    unit = None
+)
+= personskat_foreningsydelse_felt_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::beløb_kroner),
+    label = "Modtaget foreningsydelse",
+    question = Some("Hvor stort et beløb er modtaget fra foreningen?"),
+    help = Some("Angiv bruttobeløbet for denne særskilte ydelse eller identificerede del."),
+    unit = Some("kr./år")
+)
+= personskat_foreningsydelse_felt_hovedformål = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser),
+    label = "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
+    question = Some("Har foreningen som hovedformål at varetage erhvervsgruppens økonomiske interesser?"),
+    help = Some("Brug vedtægter eller anden dokumentation for foreningens hovedformål."),
+    unit = None
+)
+= personskat_foreningsydelse_felt_erhvervsgruppe = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::modtager_hører_til_erhvervsgruppen),
+    label = "Modtageren tilhører erhvervsgruppen",
+    question = Some("Tilhører modtageren den erhvervsgruppe, hvis økonomiske interesser foreningen varetager?"),
+    help = None,
+    unit = None
+)
+= personskat_foreningsydelse_felt_medlem = TypetBeregningsfelt(
+    path = refof(Ligningslov13ForeningsydelseFakta::modtager_er_medlem),
+    label = "Modtageren er medlem af foreningen",
+    question = Some("Var modtageren medlem af foreningen, da ydelsen blev udbetalt?"),
+    help = Some("LL § 13's indkomstregel gælder erstatninger og ydelser, som udbetales til medlemmerne."),
+    unit = None
+)
+
+= personskat_arbejdsløshedsudbetaling_felt_id = TypetBeregningsfelt(
+    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::identifikation),
+    label = "Arbejdsløshedsudbetalingens identifikation",
+    question = Some("Hvilken entydig identifikation har arbejdsløshedsforsikringsudbetalingen?"),
+    help = Some("Brug en stabil reference fra A-kassen eller forsikringen, så samme udbetaling ikke medregnes to gange."),
+    unit = None
+)
+= personskat_arbejdsløshedsudbetaling_felt_år = TypetBeregningsfelt(
+    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::indkomstår),
+    label = "Arbejdsløshedsudbetalingens indkomstår",
+    question = Some("Hvilket indkomstår vedrører arbejdsløshedsforsikringsudbetalingen?"),
+    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
+    unit = Some("år")
+)
+= personskat_arbejdsløshedsudbetaling_felt_beløb = TypetBeregningsfelt(
+    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::beløb_kroner),
+    label = "Modtaget arbejdsløshedsforsikringsudbetaling",
+    question = Some("Hvor stort et beløb er udbetalt fra arbejdsløshedsforsikringen?"),
+    help = Some("Angiv bruttobeløbet, også når forsikringen betaler direkte til en kreditor og dermed frigør personen for en betalingsforpligtelse."),
+    unit = Some("kr./år")
+)
+= personskat_arbejdsløshedsudbetaling_felt_art = TypetBeregningsfelt(
+    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::art),
+    label = "Arbejdsløshedsforsikringens art",
+    question = Some("Kommer udbetalingen fra en A-kasse, en privat arbejdsløshedsforsikring eller en anden eller sammensat forsikring?"),
+    help = Some("En anden eller sammensat forsikring kræver en dokumenteret retlig klassifikation. Opdel ikke et samlet forsikringsprodukt alene ud fra en regnskabsmæssig fordeling."),
+    unit = None
+)
+= personskat_arbejdsløshedsudbetaling_felt_skatteyderrelation = TypetBeregningsfelt(
+    path = refof(Pbl49ArbejdsløshedsforsikringsudbetalingFakta::skatteyderrelation),
+    label = "Skatteyderrelation efter PBL § 55",
+    question = Some("Er personen forsikringens ejer, berettiget efter ejerens død, eller er en anden person skattepligtig af udbetalingen?"),
+    help = Some("PBL § 55 placerer indkomstskattepligten hos den retligt berettigede person, ikke nødvendigvis den praktiske betalingsmodtager."),
+    unit = None
+)
+
+= personskat_ydelsesundtagelse_felt_hjemmel = TypetBeregningsfelt(
+    path = refof(Ligningslov30Og31Undtagelse::$variant),
+    label = "Påberåbt skattefri undtagelse",
+    question = Some("Er ydelsen ordinært skattepligtig, eller påberåbes skattefrihed for behandling efter LL § 30 eller uddannelse efter LL § 31?"),
+    help = Some("Vælg kun en undtagelse, når udbetalingsbilaget identificerer den dækkede udgift. En sammensat betaling skal opdeles i særskilte rækker."),
+    unit = None
+)
+= personskat_ll30_felt_formål = TypetBeregningsfelt(
+    path = refof(Ligningslov30Behandlingsfakta::formål),
+    label = "Behandlingens formål efter LL § 30",
+    question = Some("Vedrører behandlingen misbrug af medicin, alkohol, andre rusmidler eller rygeafvænning?"),
+    help = None,
+    unit = None
+)
+= personskat_ll30_felt_ydelsesart = TypetBeregningsfelt(
+    path = refof(Ligningslov30Behandlingsfakta::ydelsesart::$variant),
+    label = "Behandlingsydelsens art",
+    question = Some("Dækker ydelsen en direkte behandlingsudgift, en rentefordel ved behandlingslån eller en forsikringspræmie eller refusion?"),
+    help = None,
+    unit = None
+)
+= personskat_ll30_felt_medicindækning = TypetBeregningsfelt(
+    path = refof(Ligningslov30Behandlingsfakta::medicindækning),
+    label = "Medicindækningens periode",
+    question = Some("Dækker ydelsen medicin, og ligger udgiften inden for seks måneder eller senere under eller uden indlæggelse?"),
+    help = Some("Seks-månedersbegrænsningen gælder medicinudgifter, men ikke rygeafvænning; medicin under indlæggelse er undtaget fra tidsgrænsen."),
+    unit = None
+)
+= personskat_ll30_felt_generel_ordning = TypetBeregningsfelt(
+    path = refof(Ligningslov30Behandlingsfakta::generel_ordning_for_personkredsen),
+    label = "Behandlingen indgår i en generel ordning",
+    question = Some("Tilbydes behandlingsordningen generelt til den relevante personkreds efter objektive kriterier?"),
+    help = Some("En individuel særordning opfylder ikke LL § 30, stk. 3."),
+    unit = None
+)
+= personskat_ll30_felt_lægeerklæring = TypetBeregningsfelt(
+    path = refof(Ligningslov30Behandlingsfakta::skriftlig_lægeerklæring),
+    label = "Skriftlig lægeerklæring foreligger",
+    question = Some("Foreligger der en skriftlig lægeerklæring om behovet for behandlingen?"),
+    help = Some("Kravet gælder behandling af medicin-, alkohol- og andet rusmiddelmisbrug, men ikke rygeafvænning."),
+    unit = None
+)
+= personskat_ll30_felt_lån_begrænset = TypetBeregningsfelt(
+    path = refof(Ligningslov30Ydelsesart::Ll30RentefordelVedBehandlingslån::lånet_begrænset_til_omfattet_behandling),
+    label = "Behandlingslånet er begrænset til omfattet behandling",
+    question = Some("Må lånet kun anvendes til behandling, som opfylder LL § 30?"),
+    help = None,
+    unit = None
+)
+= personskat_ll30_felt_forsikring_begrænset = TypetBeregningsfelt(
+    path = refof(Ligningslov30Ydelsesart::Ll30ForsikringspræmieEllerRefusion::forsikringsvilkårene_begrænser_dækningen_til_omfattet_behandling),
+    label = "Forsikringen er begrænset til omfattet behandling",
+    question = Some("Fremgår det af forsikringsvilkårene, at forsikringen kun dækker behandling, som opfylder LL § 30?"),
+    help = None,
+    unit = None
+)
+
+= personskat_ll31_felt_privat = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesfakta::uddannelsen_eller_kurset_udelukkende_privat),
+    label = "Uddannelsen eller kurset har udelukkende privat formål",
+    question = Some("Har uddannelsen eller kurset udelukkende privat karakter for modtageren?"),
+    help = Some("Ydelser til uddannelser og kurser med udelukkende privat formål er ikke skattefri efter LL § 31."),
+    unit = None
+)
+= personskat_ll31_felt_ydelsesart = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesfakta::ydelsesart::$variant),
+    label = "Uddannelsesydelsens art",
+    question = Some("Dækker ydelsen skolebetaling, bøger, logi, kost, transport eller AUB-tilskud eller refusion?"),
+    help = Some("Vælg den konkrete udgiftstype. En betaling med flere typer skal opdeles i særskilte identificerede rækker."),
+    unit = None
+)
+= personskat_ll31_felt_kørekort_almindeligt = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SkoleEllerDeltagerbetaling::almindeligt_kørekort),
+    label = "Betalingen vedrører almindeligt kørekort",
+    question = Some("Vedrører skole- eller deltagerbetalingen et almindeligt kørekort?"),
+    help = None,
+    unit = None
+)
+= personskat_ll31_felt_kørekort_lovpligt = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SkoleEllerDeltagerbetaling::yder_har_lovpligt_til_at_betale_kørekortet),
+    label = "Yderen har lovpligt til at betale kørekortet",
+    question = Some("Har yderen efter gældende lov pligt til at afholde udgiften til kørekortet?"),
+    help = Some("Et almindeligt kørekort omfattes kun, når yderen har en lovbestemt betalingspligt."),
+    unit = None
+)
+= personskat_ll31_felt_bøger_relevante = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BøgerOgMaterialer::relevante_for_uddannelsen_eller_kurset),
+    label = "Bøger og materialer er relevante for uddannelsen",
+    question = Some("Er bøgerne eller materialerne fagligt relevante for den konkrete uddannelse eller det konkrete kursus?"),
+    help = None,
+    unit = None
+)
+= personskat_ll31_felt_faktisk_logi_afstand = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeLogiudgifter::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
+    label = "Afstanden udelukker overnatning på sædvanlig bopæl",
+    question = Some("Udelukker afstanden mellem bopæl og uddannelses- eller kursussted, at modtageren kan overnatte på sin sædvanlige bopæl?"),
+    help = None,
+    unit = None
+)
+= personskat_ll31_felt_faktisk_logi_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeLogiudgifter::dokumenterede_udgifter_kroner),
+    label = "Dokumenterede faktiske logiudgifter",
+    question = Some("Hvor store dokumenterede logiudgifter er dækket?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll31_felt_faktisk_kost_afstand = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
+    label = "Afstanden udelukker overnatning ved faktisk kostdækning",
+    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
+    help = Some("Afstandskravet gælder ikke, når kosten indtages på uddannelses- eller kursusstedet."),
+    unit = None
+)
+= personskat_ll31_felt_faktisk_kost_på_stedet = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::kosten_indtages_på_uddannelses_eller_kursusstedet),
+    label = "Kosten indtages på uddannelses- eller kursusstedet",
+    question = Some("Indtages den dækkede kost på uddannelses- eller kursusstedet?"),
+    help = Some("Faktiske kostudgifter på stedet kan dækkes uanset afstandskravet."),
+    unit = None
+)
+= personskat_ll31_felt_faktisk_kost_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeKostudgifter::dokumenterede_udgifter_kroner),
+    label = "Dokumenterede faktiske kostudgifter",
+    question = Some("Hvor store dokumenterede kostudgifter er dækket?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll31_felt_logisats_afstand = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
+    label = "Afstanden udelukker hjemlig overnatning ved logisats",
+    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
+    help = None,
+    unit = None
+)
+= personskat_ll31_felt_logisats_døgn = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::fulde_døgn),
+    label = "Fulde døgn med logigodtgørelse",
+    question = Some("Hvor mange fulde døgn varer opholdet?"),
+    help = Some("Satsgodtgørelse kræver et ophold på mindst 24 timer."),
+    unit = Some("døgn")
+)
+= personskat_ll31_felt_logisats_transportarbejde = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseLogi::udelukket_transportarbejde_efter_par9a_stk2_nr4),
+    label = "Transportarbejde er udelukket fra logisatsen",
+    question = Some("Medvirker personen i sit hverv til transport af varer eller personer, gør tjeneste om bord på skib, arbejder på luftfartøj eller på fartøj eller installation ved efterforskning og udnyttelse af naturforekomster?"),
+    help = Some("Disse arbejdsformer er udtrykkeligt udelukket fra logisatsen i LL § 9 A, stk. 2, nr. 4."),
+    unit = None
+)
+= personskat_ll31_felt_kostsats_afstand = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::afstand_udelukker_overnatning_på_sædvanlig_bopæl),
+    label = "Afstanden udelukker hjemlig overnatning ved kostsats",
+    question = Some("Udelukker afstanden, at modtageren kan overnatte på sin sædvanlige bopæl?"),
+    help = None,
+    unit = None
+)
+= personskat_ll31_felt_kostsats_døgn = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fulde_døgn),
+    label = "Fulde døgn med kostgodtgørelse",
+    question = Some("Hvor mange fulde døgn varer opholdet?"),
+    help = Some("Satsgodtgørelse kræver et ophold på mindst 24 timer."),
+    unit = Some("døgn")
+)
+= personskat_ll31_felt_kostsats_timer = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::påbegyndte_timer_efter_fulde_døgn),
+    label = "Påbegyndte timer efter de fulde døgn",
+    question = Some("Hvor mange påbegyndte timer varer opholdet ud over de fulde døgn?"),
+    help = None,
+    unit = Some("timer")
+)
+= personskat_ll31_felt_kostsats_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::opholdets_måned_nr),
+    label = "Opholdets måned nummer",
+    question = Some("Hvilken fortløbende måned af opholdet vedrører godtgørelsen?"),
+    help = Some("Kost- og småfornødenhedssatsen kan kun anvendes i de første 12 måneder."),
+    unit = Some("måned")
+)
+= personskat_ll31_felt_fri_morgenmad = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_morgenmad_antal),
+    label = "Antal fri morgenmad",
+    question = Some("Hvor mange gratis morgenmåltider er modtaget i perioden?"),
+    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
+    unit = Some("måltider")
+)
+= personskat_ll31_felt_fri_frokost = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_frokost_antal),
+    label = "Antal fri frokost",
+    question = Some("Hvor mange gratis frokostmåltider er modtaget i perioden?"),
+    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
+    unit = Some("måltider")
+)
+= personskat_ll31_felt_fri_aftensmad = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31SatsgodtgørelseKostOgSmåfornødenheder::fri_aftensmad_antal),
+    label = "Antal fri aftensmad",
+    question = Some("Hvor mange gratis aftensmåltider er modtaget i perioden?"),
+    help = Some("Fri kost reducerer satsgodtgørelsen efter de gældende rejseregler."),
+    unit = Some("måltider")
+)
+= personskat_ll31_felt_befordring_kilometer = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::kilometer_ad_normal_transportvej),
+    label = "Kilometer ad normal transportvej",
+    question = Some("Hvor mange kilometer er kørt i egen bil eller motorcykel ad den normale transportvej?"),
+    help = Some("LL § 31 anvender Skatterådets særlige sats for denne uddannelsesbefordring."),
+    unit = Some("km")
+)
+= personskat_ll31_felt_befordring_fri = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::adgang_til_fri_befordring_for_strækningen),
+    label = "Adgang til fri befordring på strækningen",
+    question = Some("Har modtageren adgang til arbejdsgiverbetalt eller anden fri befordring på strækningen?"),
+    help = Some("Godtgørelse for en strækning med fri befordring er skattepligtig."),
+    unit = None
+)
+= personskat_ll31_felt_befordring_par9b = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::modtaget_par9b_godtgørelse_for_samme_strækning),
+    label = "Modtaget § 9 B-godtgørelse for samme strækning",
+    question = Some("Er der modtaget skattefri befordringsgodtgørelse efter LL § 9 B for samme strækning?"),
+    help = Some("Den samme strækning kan ikke godtgøres skattefrit efter begge bestemmelser."),
+    unit = None
+)
+= personskat_ll31_felt_befordring_tidligere_par9b = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31BefordringIEgenBilEllerMotorcykel::tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus),
+    label = "Tidligere valgt § 9 B for samme uddannelse eller kursus",
+    question = Some("Er der tidligere anvendt LL § 9 B-godtgørelse for befordring ved samme uddannelse eller kursus?"),
+    help = Some("Efter et valg af § 9 B kan der ikke senere skiftes til § 31 for samme uddannelse eller kursus."),
+    unit = None
+)
+= personskat_ll31_felt_anden_befordring_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31FaktiskeUdgifterTilAndenBefordring::dokumenterede_udgifter_kroner),
+    label = "Dokumenterede udgifter til anden befordring",
+    question = Some("Hvor store dokumenterede udgifter til anden befordring er dækket?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll31_felt_aub_ikrafttræden = TypetBeregningsfelt(
+    path = refof(Ligningslov31Uddannelsesydelsesart::Ll31AubTilskudEllerRefusion::modtaget_fra_og_med_1_juli_2026),
+    label = "AUB-beløbet er modtaget fra og med 1. juli 2026",
+    question = Some("Er tilskuddet eller refusionen fra Arbejdsgivernes Uddannelsesbidrag modtaget den 1. juli 2026 eller senere?"),
+    help = Some("Denne del af LL § 31 trådte i kraft den 1. juli 2026."),
+    unit = None
+)
+
+= personskat_ydelsesudbetaling_samlingsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ydelsesudbetaling_felt_samling
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par13),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+    )
+)
+
+--@label:PersonskatOrdinærPersonligIndkomstInput::meta:personskat_ydelsesudbetaling_samlingsmeta--
+
+= personskat_ydelsesudbetaling_hjemmelsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ydelsesudbetaling_felt_hjemmel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par13),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+    )
+)
+
+--@label:PersonskatForeningsOgArbejdsløshedsydelseFakta::meta:personskat_ydelsesudbetaling_hjemmelsmeta--
+
+= personskat_foreningsydelse_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_foreningsydelse_felt_id,
+        personskat_foreningsydelse_felt_år,
+        personskat_foreningsydelse_felt_art,
+        personskat_foreningsydelse_felt_beløb,
+        personskat_foreningsydelse_felt_hovedformål,
+        personskat_foreningsydelse_felt_erhvervsgruppe,
+        personskat_foreningsydelse_felt_medlem
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par13),
+        DependencySource(value = ligningsloven_lbk1500_par30),
+        DependencySource(value = ligningsloven_lbk1500_par31),
+        Guidance(value = juridisk_vejledning_ligningslov13),
+    )
+)
+
+--@label:Ligningslov13ForeningsydelseFakta::meta:personskat_foreningsydelse_beregningsmeta--
+
+= personskat_arbejdsløshedsudbetaling_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_arbejdsløshedsudbetaling_felt_id,
+        personskat_arbejdsløshedsudbetaling_felt_år,
+        personskat_arbejdsløshedsudbetaling_felt_beløb,
+        personskat_arbejdsløshedsudbetaling_felt_art,
+        personskat_arbejdsløshedsudbetaling_felt_skatteyderrelation
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par55),
+        Guidance(value = juridisk_vejledning_pbl49_udbetaling),
+    )
+)
+
+--@label:Pbl49ArbejdsløshedsforsikringsudbetalingFakta::meta:personskat_arbejdsløshedsudbetaling_beregningsmeta--
+
+= personskat_ydelsesundtagelse_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ydelsesundtagelse_felt_hjemmel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par30),
+        Source(value = ligningsloven_lbk1500_par31),
+        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+    )
+)
+
+--@label:Ligningslov30Og31Undtagelse::meta:personskat_ydelsesundtagelse_beregningsmeta--
+
+= personskat_ll30_behandlingsfakta_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll30_felt_formål,
+        personskat_ll30_felt_ydelsesart,
+        personskat_ll30_felt_medicindækning,
+        personskat_ll30_felt_generel_ordning,
+        personskat_ll30_felt_lægeerklæring
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par30),
+        Guidance(value = juridisk_vejledning_ligningslov30_personkreds),
+        Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
+    )
+)
+
+--@label:Ligningslov30Behandlingsfakta::meta:personskat_ll30_behandlingsfakta_beregningsmeta--
+
+= personskat_ll30_ydelsesart_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll30_felt_lån_begrænset,
+        personskat_ll30_felt_forsikring_begrænset
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par30),
+        Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
+    )
+)
+
+--@label:Ligningslov30Ydelsesart::meta:personskat_ll30_ydelsesart_beregningsmeta--
+
+= personskat_ll31_uddannelsesfakta_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll31_felt_privat,
+        personskat_ll31_felt_ydelsesart
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par31),
+        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+        Guidance(value = juridisk_vejledning_ligningslov31),
+    )
+)
+
+--@label:Ligningslov31Uddannelsesfakta::meta:personskat_ll31_uddannelsesfakta_beregningsmeta--
+
+= personskat_ll31_ydelsesart_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll31_felt_kørekort_almindeligt,
+        personskat_ll31_felt_kørekort_lovpligt,
+        personskat_ll31_felt_bøger_relevante,
+        personskat_ll31_felt_faktisk_logi_afstand,
+        personskat_ll31_felt_faktisk_logi_beløb,
+        personskat_ll31_felt_faktisk_kost_afstand,
+        personskat_ll31_felt_faktisk_kost_på_stedet,
+        personskat_ll31_felt_faktisk_kost_beløb,
+        personskat_ll31_felt_logisats_afstand,
+        personskat_ll31_felt_logisats_døgn,
+        personskat_ll31_felt_logisats_transportarbejde,
+        personskat_ll31_felt_kostsats_afstand,
+        personskat_ll31_felt_kostsats_døgn,
+        personskat_ll31_felt_kostsats_timer,
+        personskat_ll31_felt_kostsats_måned,
+        personskat_ll31_felt_fri_morgenmad,
+        personskat_ll31_felt_fri_frokost,
+        personskat_ll31_felt_fri_aftensmad,
+        personskat_ll31_felt_befordring_kilometer,
+        personskat_ll31_felt_befordring_fri,
+        personskat_ll31_felt_befordring_par9b,
+        personskat_ll31_felt_befordring_tidligere_par9b,
+        personskat_ll31_felt_anden_befordring_beløb,
+        personskat_ll31_felt_aub_ikrafttræden
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par31),
+        DependencySource(value = ligningsloven_lbk1500_par9a_stk2_og_stk3),
+        AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+        RateSource(value = skatteforvaltningen_rejsesatser_2025),
+        RateSource(value = skatteforvaltningen_rejsesatser_2026),
+        RateSource(value = skatterådet_befordringssats_2026),
+        Guidance(value = juridisk_vejledning_ligningslov31),
+    )
+)
+
+--@label:Ligningslov31Uddannelsesydelsesart::meta:personskat_ll31_ydelsesart_beregningsmeta--
