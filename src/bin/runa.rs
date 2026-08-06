@@ -16743,6 +16743,39 @@ enum ImportedStmtExpansion {
     IgnoredScriptFlow,
 }
 
+/// Save only keys covered by a temporary inference overlay. Large programs can
+/// have thousands of unrelated signatures, so cloning the full map is quadratic.
+fn snapshot_btree_map_entries<K, V>(
+    map: &BTreeMap<K, V>,
+    keys: impl IntoIterator<Item = K>,
+) -> Vec<(K, Option<V>)>
+where
+    K: Ord + Clone,
+    V: Clone,
+{
+    keys.into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(|key| {
+            let value = map.get(&key).cloned();
+            (key, value)
+        })
+        .collect()
+}
+
+fn restore_btree_map_entries<K, V>(map: &mut BTreeMap<K, V>, entries: Vec<(K, Option<V>)>)
+where
+    K: Ord,
+{
+    for (key, value) in entries {
+        if let Some(value) = value {
+            map.insert(key, value);
+        } else {
+            map.remove(&key);
+        }
+    }
+}
+
 /// Per-function ownership analysis results.
 /// Computed once per function body, consumed during Rust emission to decide
 /// clone/move/borrow for each variable.
@@ -27064,7 +27097,8 @@ impl RustCodegen {
     fn register_value_returning_rule_signatures<'a>(
         &mut self,
         rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
-    ) {
+    ) -> bool {
+        let mut any_changed = false;
         for _ in 0..rule_groups.len().max(1) {
             let mut changed = false;
             for (fn_name, rules) in rule_groups {
@@ -27087,6 +27121,7 @@ impl RustCodegen {
                 if self.types.fn_types.get(fn_name.as_str()) != Some(&fn_ty) {
                     self.types.fn_types.insert(fn_name.clone(), fn_ty.clone());
                     changed = true;
+                    any_changed = true;
                 }
                 self.types
                     .fn_types_by_arity
@@ -27095,6 +27130,7 @@ impl RustCodegen {
                     self.fn_return_types
                         .insert(fn_name.clone(), ret_type.clone());
                     changed = true;
+                    any_changed = true;
                 }
                 if ret_type == "String" {
                     self.string_returning_fns.insert(fn_name.clone());
@@ -27104,6 +27140,7 @@ impl RustCodegen {
                 break;
             }
         }
+        any_changed
     }
 
     fn register_rule_scope_member_signature_entry(
@@ -27112,13 +27149,20 @@ impl RustCodegen {
         rust_name: &str,
         method: &str,
         fn_ty: FirTy,
-    ) {
+    ) -> bool {
+        let scope_key = (scope_name.to_string(), method.to_string());
+        let rust_key = (rust_name.to_string(), method.to_string());
+        let mut changed = self.types.rule_scope_member_fn_types.get(&scope_key) != Some(&fn_ty);
         self.types
             .rule_scope_member_fn_types
-            .insert((scope_name.to_string(), method.to_string()), fn_ty.clone());
+            .insert(scope_key, fn_ty.clone());
+        if self.types.rule_scope_member_fn_types.get(&rust_key) != Some(&fn_ty) {
+            changed = true;
+        }
         self.types
             .rule_scope_member_fn_types
-            .insert((rust_name.to_string(), method.to_string()), fn_ty);
+            .insert(rust_key, fn_ty);
+        changed
     }
 
     fn register_rule_scope_member_signatures_for(
@@ -27126,18 +27170,19 @@ impl RustCodegen {
         scope_name: &str,
         params: &[Param],
         body: &[Stmt],
-    ) {
+    ) -> bool {
         let rust_name = self.rust_type_name(scope_name);
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
         let (_method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(scope_name, &rust_name, params, &rule_groups);
+        let mut changed = false;
 
         for (method, param_tys) in &method_param_tys {
             let ret_ty = method_return_tys
                 .get(method)
                 .cloned()
                 .unwrap_or(FirTy::Bool);
-            self.register_rule_scope_member_signature_entry(
+            changed |= self.register_rule_scope_member_signature_entry(
                 scope_name,
                 &rust_name,
                 method,
@@ -27149,7 +27194,7 @@ impl RustCodegen {
             if let Some((method_name, fn_ty)) =
                 self.infer_rule_scope_value_method_fn_type(&rust_name, params, method)
             {
-                self.register_rule_scope_member_signature_entry(
+                changed |= self.register_rule_scope_member_signature_entry(
                     scope_name,
                     &rust_name,
                     &method_name,
@@ -27157,26 +27202,30 @@ impl RustCodegen {
                 );
             }
         }
+        changed
     }
 
-    fn register_rule_scope_member_signatures(&mut self, stmts: &[Stmt]) {
+    fn register_rule_scope_member_signatures(&mut self, stmts: &[Stmt]) -> bool {
+        let mut changed = false;
         for stmt in stmts {
             match stmt {
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
-                    self.register_rule_scope_member_signatures_for(name, params, body);
+                    changed |= self.register_rule_scope_member_signatures_for(name, params, body);
                 }
                 Stmt::Defn(Defn::Module { body, .. }) => {
                     for inner_stmt in body {
                         if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) =
                             inner_stmt
                         {
-                            self.register_rule_scope_member_signatures_for(name, params, body);
+                            changed |=
+                                self.register_rule_scope_member_signatures_for(name, params, body);
                         }
                     }
                 }
                 _ => {}
             }
         }
+        changed
     }
 
     fn prescan_value_rule_and_rule_scope_signatures<'a>(
@@ -27185,17 +27234,9 @@ impl RustCodegen {
         rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
     ) {
         for _ in 0..stmts.len().max(1) {
-            let before_fn_types = self.types.fn_types.clone();
-            let before_member_fn_types = self.types.rule_scope_member_fn_types.clone();
-            let before_return_types = self.fn_return_types.clone();
-
-            self.register_rule_scope_member_signatures(stmts);
-            self.register_value_returning_rule_signatures(rule_groups);
-
-            if self.types.fn_types == before_fn_types
-                && self.types.rule_scope_member_fn_types == before_member_fn_types
-                && self.fn_return_types == before_return_types
-            {
+            let scope_changed = self.register_rule_scope_member_signatures(stmts);
+            let rule_changed = self.register_value_returning_rule_signatures(rule_groups);
+            if !scope_changed && !rule_changed {
                 break;
             }
         }
@@ -28143,13 +28184,24 @@ impl RustCodegen {
             method_return_tys.insert(method.clone(), FirTy::Unknown);
         }
 
-        let saved_fn_types = self.types.fn_types.clone();
-        let saved_fn_types_by_arity = self.types.fn_types_by_arity.clone();
-        let saved_rule_scope_member_fn_types = self.types.rule_scope_member_fn_types.clone();
+        let saved_fn_types =
+            snapshot_btree_map_entries(&self.types.fn_types, method_param_tys.keys().cloned());
+        let saved_fn_types_by_arity = snapshot_btree_map_entries(
+            &self.types.fn_types_by_arity,
+            method_param_tys
+                .iter()
+                .map(|(method, param_tys)| (method.clone(), param_tys.len())),
+        );
+        let saved_rule_scope_member_fn_types = snapshot_btree_map_entries(
+            &self.types.rule_scope_member_fn_types,
+            method_param_tys.keys().flat_map(|method| {
+                [
+                    (scope_name.to_string(), method.clone()),
+                    (rust_name.to_string(), method.clone()),
+                ]
+            }),
+        );
         for _ in 0..rule_groups.len().max(1) {
-            self.types.fn_types = saved_fn_types.clone();
-            self.types.fn_types_by_arity = saved_fn_types_by_arity.clone();
-            self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types.clone();
             for (method, param_tys) in &method_param_tys {
                 let ret_ty = method_return_tys
                     .get(method)
@@ -28208,9 +28260,12 @@ impl RustCodegen {
                 break;
             }
         }
-        self.types.fn_types = saved_fn_types;
-        self.types.fn_types_by_arity = saved_fn_types_by_arity;
-        self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types;
+        restore_btree_map_entries(&mut self.types.fn_types, saved_fn_types);
+        restore_btree_map_entries(&mut self.types.fn_types_by_arity, saved_fn_types_by_arity);
+        restore_btree_map_entries(
+            &mut self.types.rule_scope_member_fn_types,
+            saved_rule_scope_member_fn_types,
+        );
 
         for ret_ty in method_return_tys.values_mut() {
             if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
@@ -36160,6 +36215,116 @@ impl RustCodegen {
         }
     }
 
+    fn fir_ty_is_fully_resolved(ty: &FirTy) -> bool {
+        match ty {
+            FirTy::Unknown | FirTy::Var(_) => false,
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                Self::fir_ty_is_fully_resolved(inner)
+            }
+            FirTy::Result(ok, err) | FirTy::Map(ok, err) | FirTy::Arrow(ok, err) => {
+                Self::fir_ty_is_fully_resolved(ok) && Self::fir_ty_is_fully_resolved(err)
+            }
+            FirTy::Tuple(items) => items.iter().all(Self::fir_ty_is_fully_resolved),
+            FirTy::Int
+            | FirTy::Float
+            | FirTy::Bool
+            | FirTy::Char
+            | FirTy::String
+            | FirTy::Unit
+            | FirTy::Named(_) => true,
+        }
+    }
+
+    /// Resolve common source-fact shapes without cloning the complete local type
+    /// environment. Ambiguous and polymorphic expressions use full FIR inference.
+    fn fast_known_expr_fir_ty(&self, expr: &Expr) -> Option<FirTy> {
+        let ty = match &expr.kind {
+            ExprKind::Lit(Literal::Int(_)) => FirTy::Int,
+            ExprKind::Lit(Literal::Float(_)) => FirTy::Float,
+            ExprKind::Lit(Literal::Str(_)) => FirTy::String,
+            ExprKind::Lit(Literal::Char(_)) => FirTy::Char,
+            ExprKind::Lit(Literal::Bool(_)) => FirTy::Bool,
+            ExprKind::Unit => FirTy::Unit,
+            ExprKind::Var(name) => self
+                .lookup_var_fir_ty(name)
+                .or_else(|| {
+                    self.binary_global_binding_types
+                        .get(name)
+                        .map(|ty| Self::rust_type_to_fir(ty))
+                })
+                .or_else(|| {
+                    self.types
+                        .comptime_types
+                        .get(name)
+                        .filter(|ty| !ty.is_empty())
+                        .map(|ty| Self::rust_type_to_fir(ty))
+                })
+                .or_else(|| {
+                    self.types
+                        .unambiguous_parent_for_variant(name)
+                        .map(FirTy::Named)
+                })?,
+            ExprKind::App(func, args) => {
+                let ExprKind::Var(name) = &func.as_ref().kind else {
+                    return None;
+                };
+                if name == "Some" && args.len() == 1 {
+                    FirTy::Option(Box::new(self.fast_known_expr_fir_ty(&args[0])?))
+                } else if let Some(parent) = self.types.unambiguous_parent_for_variant(name) {
+                    FirTy::Named(parent)
+                } else if let Some(ty) =
+                    builtin_fixed_return_fir_ty_for_call(name, &self.types.user_functions)
+                {
+                    ty
+                } else {
+                    let fn_ty = self
+                        .types
+                        .fn_types_by_arity
+                        .get(&(name.clone(), args.len()))
+                        .or_else(|| self.types.fn_types.get(name))?;
+                    LoweringCtx::apply_fn_ty(fn_ty, args.len())
+                }
+            }
+            ExprKind::List(items) => {
+                let first = self.fast_known_expr_fir_ty(items.first()?)?;
+                if items
+                    .iter()
+                    .skip(1)
+                    .all(|item| self.fast_known_expr_fir_ty(item).as_ref() == Some(&first))
+                {
+                    FirTy::List(Box::new(first))
+                } else {
+                    return None;
+                }
+            }
+            ExprKind::Tuple(items) => FirTy::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.fast_known_expr_fir_ty(item))
+                    .collect::<Option<Vec<_>>>()?,
+            ),
+            ExprKind::If(_, then_expr, else_expr) => {
+                let then_ty = self.fast_known_expr_fir_ty(then_expr)?;
+                (self.fast_known_expr_fir_ty(else_expr).as_ref() == Some(&then_ty))
+                    .then_some(then_ty)?
+            }
+            ExprKind::Lambda(_, _)
+            | ExprKind::BinOp(_, _, _)
+            | ExprKind::UnOp(_, _)
+            | ExprKind::Match(_, _)
+            | ExprKind::Block(_)
+            | ExprKind::Field(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::Handle { .. }
+            | ExprKind::Effect(_, _)
+            | ExprKind::Pipe(_, _)
+            | ExprKind::Try(_)
+            | ExprKind::Conjunction(_)
+            | ExprKind::Disjunction(_) => return None,
+        };
+        Self::fir_ty_is_fully_resolved(&ty).then_some(ty)
+    }
+
     fn remember_binding_type(&mut self, pat: &Pat, value: &Expr) {
         if let Some(rust_ty) = self.empty_list_binding_rust_type(pat, value) {
             if let Pat::Var(name) = pat {
@@ -36167,7 +36332,9 @@ impl RustCodegen {
                 return;
             }
         }
-        let ty = self.infer_expr_fir_ty(value);
+        let ty = self
+            .fast_known_expr_fir_ty(value)
+            .unwrap_or_else(|| self.infer_expr_fir_ty(value));
         self.remember_pat_type(pat, &ty);
     }
 
@@ -48742,6 +48909,33 @@ for x in [1, 2] {
         let mut cg = RustCodegen::new();
         cg.scan_declarations(&stmts);
         (cg, stmts)
+    }
+
+    #[test]
+    fn fast_known_binding_types_match_general_fir_inference() {
+        let source = r#"
+# Item(value: Int)
+> make_item(value: Int) -> Item { Item(value = value) }
+= literal = 41
+= constructed = Item(value = 42)
+= called = make_item(43)
+= items = [Item(value = 44), Item(value = 45)]
+= optional = Some(Item(value = 46))
+= tupled = (47, Item(value = 48))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+
+        for stmt in &stmts {
+            let Stmt::Bind(pat, _, expr) = stmt else {
+                continue;
+            };
+            let fast = cg
+                .fast_known_expr_fir_ty(expr)
+                .expect("fixture should use the no-environment-clone path");
+            let general = cg.infer_expr_fir_ty(expr);
+            assert_eq!(fast, general, "fast type drifted for {expr:?}");
+            cg.remember_pat_type(pat, &fast);
+        }
     }
 
     fn compile_and_capture_test_source(
