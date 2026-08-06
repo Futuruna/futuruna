@@ -197,11 +197,14 @@ machine-dependent.
 ## Reuse Validated Contracts
 
 `schema`, `template`, and `call` persist successful contract validation in a
-content-addressed local cache. The key includes the root source, every
-transitive plain, qualified, and content-hash import, prelude mode, cache format,
-and the exact compiler executable. An edit anywhere in that graph or a compiler
-rebuild therefore causes a miss. Parse or type errors are never cached, and a
-corrupt entry is ignored and rebuilt.
+dependency-validated local cache. Its source-graph snapshot includes the root
+source, every transitive plain, qualified, and content-hash import, manifest
+resolution contexts, resolved import edges, prelude mode, cache format, and the
+exact compiler executable. Warm validation hashes the recorded files directly
+and rechecks each import target instead of reparsing the graph. An edit anywhere
+in that graph, a manifest change, a newly shadowing module, or a compiler rebuild
+therefore causes a miss. Parse or type errors are never cached, and a corrupt
+entry is ignored and rebuilt.
 
 The default cache is under the operating system's user cache directory. Set
 `FUTURUNA_CALCULATION_CACHE_DIR` to choose another root, set

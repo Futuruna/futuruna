@@ -84,7 +84,8 @@ For Futuruna modules, use `@ import`.
 
 | Command | What it does |
 |---------|-------------|
-| `runa run file.runa` | Interpret directly (no Rust compilation) |
+| `runa file.runa` | Interpret directly (no Rust compilation) |
+| `runa run file.runa` | Compile to a native binary and execute it |
 | `runa emit file.runa` | Print the generated Rust source |
 | `runa build file.runa` | Transpile to Rust and compile to native binary |
 | `runa lib file.runa` | Emit as a Rust library (no `fn main`, exported names get `pub`) |
@@ -94,7 +95,22 @@ For Futuruna modules, use `@ import`.
 
 ### Build output
 
-Compiled output goes to `.runa-build/` (a Cargo project). Incremental compilation caches binaries in `runa-cache/` and skips unchanged files.
+Native `run` and `build` artifacts use a dependency-complete compiler cache.
+The cache records the root source, every transitive plain, qualified, and hash
+import, its resolved import edges and manifest-resolution contexts, prelude mode,
+and exact Futuruna compiler. An unchanged graph reuses the validated binary
+before type checking or Rust code generation. Any source, import-resolution,
+manifest, prelude-mode, or compiler change causes a miss. Programs with Cargo
+dependencies also retain their generated Cargo project under `.runa-build/` for
+Cargo's own incremental compilation.
+
+`runa check` uses the same graph validation and caches only successful checks.
+Its Rust metadata lane additionally fingerprints `rustc` and retains a
+persistent rustc incremental workspace for changed graphs. Set
+`FUTURUNA_COMPILER_CACHE_DIR` to choose a cache root,
+`FUTURUNA_DISABLE_COMPILER_CACHE=1` to bypass it, or
+`FUTURUNA_COMPILER_CACHE_TRACE=1` to report cache hits and misses on standard
+error.
 
 For the precise compatibility boundary around emitted Rust, native build
 artifacts, `runa lib`, and WASM package output, see

@@ -13,9 +13,12 @@ use std::env;
 use std::io::{self, BufRead, Read, Write as IoWrite};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 
 const FEATURE_STAGE_METADATA_JSON: &str = include_str!("../../docs/feature-stages.json");
 static TEMP_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
+static COMPILER_EXECUTABLE_HASH: OnceLock<Option<String>> = OnceLock::new();
+static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 
 fn unique_temp_workspace(prefix: &str) -> PathBuf {
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -354,6 +357,24 @@ fn main_inner() {
                 eprintln!("  --output PATH      Write a contract, template, or result");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
+                eprintln!();
+                eprintln!("Cache environment:");
+                eprintln!(
+                    "  FUTURUNA_COMPILER_CACHE_DIR       Override check/build/run cache root"
+                );
+                eprintln!("  FUTURUNA_DISABLE_COMPILER_CACHE   Disable check/build/run caches");
+                eprintln!(
+                    "  FUTURUNA_COMPILER_CACHE_TRACE     Report compiler cache hits and misses"
+                );
+                eprintln!(
+                    "  FUTURUNA_CALCULATION_CACHE_DIR    Override calculation-contract cache root"
+                );
+                eprintln!(
+                    "  FUTURUNA_DISABLE_CALCULATION_CACHE  Disable calculation-contract cache"
+                );
+                eprintln!(
+                    "  FUTURUNA_CALCULATION_CACHE_TRACE  Report contract cache hits and misses"
+                );
                 eprintln!();
                 eprintln!("Feature stages:");
                 eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
@@ -716,16 +737,74 @@ fn main_inner() {
 const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
-const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 1;
+const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
+const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
+const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
+const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SourceGraphFile {
+    path: String,
+    content_hash: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SourceGraphResolutionContext {
+    source_dir: String,
+    manifest_path: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SourceGraphImportResolution {
+    source_dir: String,
+    import_path: String,
+    resolved_path: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct SourceGraphSnapshot {
+    snapshot_version: u32,
+    compiler_hash: String,
+    use_prelude: bool,
+    root_path: String,
+    files: Vec<SourceGraphFile>,
+    resolution_contexts: Vec<SourceGraphResolutionContext>,
+    import_resolutions: Vec<SourceGraphImportResolution>,
+    graph_hash: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CalculationContractCacheEntry {
     cache_version: u32,
-    source_graph_hash: String,
+    source_graph: SourceGraphSnapshot,
     contracts: Vec<calculate::CalculationContract>,
 }
 
-fn calculation_cache_env_enabled(name: &str) -> bool {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CheckArtifactSummary {
+    statement_count: usize,
+    function_count: usize,
+    type_count: usize,
+    cargo_dependency_count: usize,
+    rust_line_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CheckArtifactCacheEntry {
+    cache_version: u32,
+    rustc_fingerprint: String,
+    source_graph: SourceGraphSnapshot,
+    summary: CheckArtifactSummary,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NativeArtifactCacheEntry {
+    cache_version: u32,
+    source_graph: SourceGraphSnapshot,
+    binary_hash: String,
+}
+
+fn cache_env_enabled(name: &str) -> bool {
     std::env::var(name).is_ok_and(|value| {
         matches!(
             value.trim().to_ascii_lowercase().as_str(),
@@ -735,20 +814,26 @@ fn calculation_cache_env_enabled(name: &str) -> bool {
 }
 
 fn trace_calculation_contract_cache(message: &str) {
-    if calculation_cache_env_enabled("FUTURUNA_CALCULATION_CACHE_TRACE") {
+    if cache_env_enabled("FUTURUNA_CALCULATION_CACHE_TRACE") {
         eprintln!("calculation contract cache: {message}");
     }
 }
 
+fn trace_compiler_artifact_cache(message: &str) {
+    if cache_env_enabled("FUTURUNA_COMPILER_CACHE_TRACE") {
+        eprintln!("compiler artifact cache: {message}");
+    }
+}
+
 fn calculation_contract_cache_dir() -> Option<PathBuf> {
-    if calculation_cache_env_enabled("FUTURUNA_DISABLE_CALCULATION_CACHE") {
+    if cache_env_enabled("FUTURUNA_DISABLE_CALCULATION_CACHE") {
         return None;
     }
     if let Some(path) = std::env::var_os("FUTURUNA_CALCULATION_CACHE_DIR") {
-        return Some(PathBuf::from(path).join("contracts-v1"));
+        return Some(PathBuf::from(path).join("contracts-v2"));
     }
     if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(path).join("futuruna/calculation-contracts-v1"));
+        return Some(PathBuf::from(path).join("futuruna/calculation-contracts-v2"));
     }
     let home = std::env::var_os("HOME")?;
     let root = if cfg!(target_os = "macos") {
@@ -756,15 +841,63 @@ fn calculation_contract_cache_dir() -> Option<PathBuf> {
     } else {
         PathBuf::from(home).join(".cache/futuruna")
     };
-    Some(root.join("calculation-contracts-v1"))
+    Some(root.join("calculation-contracts-v2"))
 }
 
-fn calculation_hash_segment(hasher: &mut Sha256, value: &[u8]) {
+fn compiler_artifact_cache_dir() -> Option<PathBuf> {
+    if cache_env_enabled("FUTURUNA_DISABLE_COMPILER_CACHE") {
+        return None;
+    }
+    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
+        return Some(PathBuf::from(path).join("compiler-artifacts-v1"));
+    }
+    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
+        return Some(PathBuf::from(path).join("futuruna/compiler-artifacts-v1"));
+    }
+    let home = std::env::var_os("HOME")?;
+    let root = if cfg!(target_os = "macos") {
+        PathBuf::from(home).join("Library/Caches/futuruna")
+    } else {
+        PathBuf::from(home).join(".cache/futuruna")
+    };
+    Some(root.join("compiler-artifacts-v1"))
+}
+
+fn cache_hash_segment(hasher: &mut Sha256, value: &[u8]) {
     hasher.update((value.len() as u64).to_le_bytes());
     hasher.update(value);
 }
 
-fn calculation_import_path(stmt: &Stmt) -> Option<&str> {
+fn sha256_hex(value: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(value);
+    format!("{:x}", hasher.finalize())
+}
+
+fn sha256_file(path: &Path) -> Option<String> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).ok()?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Some(format!("{:x}", hasher.finalize()))
+}
+
+fn compiler_executable_hash() -> Option<String> {
+    COMPILER_EXECUTABLE_HASH
+        .get_or_init(|| {
+            let executable = std::env::current_exe().ok()?;
+            sha256_file(&executable)
+        })
+        .clone()
+}
+
+fn source_graph_import_path(stmt: &Stmt) -> Option<&str> {
     match stmt {
         Stmt::Import(path) | Stmt::QualifiedImport(_, path) | Stmt::HashImport(_, path) => {
             Some(path)
@@ -773,120 +906,260 @@ fn calculation_import_path(stmt: &Stmt) -> Option<&str> {
     }
 }
 
-fn hash_calculation_source_module(
+fn canonical_cache_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn record_source_graph_file(path: &Path, contents: &[u8], files: &mut BTreeMap<PathBuf, String>) {
+    files
+        .entry(canonical_cache_path(path))
+        .or_insert_with(|| sha256_hex(contents));
+}
+
+fn collect_source_graph_module(
     filename: &Path,
     source: &str,
     stmts: &[Stmt],
-    visited: &mut BTreeSet<PathBuf>,
-    hasher: &mut Sha256,
+    visited_modules: &mut BTreeSet<PathBuf>,
+    files: &mut BTreeMap<PathBuf, String>,
+    resolution_contexts: &mut BTreeMap<PathBuf, Option<PathBuf>>,
+    import_resolutions: &mut BTreeMap<(PathBuf, String), PathBuf>,
 ) -> Option<()> {
-    let canonical = std::fs::canonicalize(filename).unwrap_or_else(|_| filename.to_path_buf());
-    if !visited.insert(canonical.clone()) {
+    let canonical = canonical_cache_path(filename);
+    if !visited_modules.insert(canonical.clone()) {
         return Some(());
     }
-    calculation_hash_segment(hasher, canonical.to_string_lossy().as_bytes());
-    calculation_hash_segment(hasher, source.as_bytes());
+    record_source_graph_file(&canonical, source.as_bytes(), files);
 
     let source_dir = canonical
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let source_dir = source_dir.to_string_lossy();
-    for import_path in stmts.iter().filter_map(calculation_import_path) {
+    let source_dir = canonical_cache_path(source_dir);
+    let source_dir_text = source_dir.to_string_lossy();
+    let manifest_path =
+        find_runa_toml(source_dir_text.as_ref()).map(|path| canonical_cache_path(Path::new(&path)));
+    if let Some(manifest_path) = manifest_path.as_ref() {
+        let manifest_source = std::fs::read(manifest_path).ok()?;
+        record_source_graph_file(manifest_path, &manifest_source, files);
+    }
+    resolution_contexts.insert(source_dir.clone(), manifest_path);
+
+    for import_path in stmts.iter().filter_map(source_graph_import_path) {
         let imported_filename =
-            Interpreter::resolve_import_path_for_source(import_path, source_dir.as_ref())?;
+            Interpreter::resolve_import_path_for_source(import_path, source_dir_text.as_ref())?;
+        let resolved_path = canonical_cache_path(Path::new(&imported_filename));
+        import_resolutions.insert(
+            (source_dir.clone(), import_path.to_string()),
+            resolved_path.clone(),
+        );
         let imported_source = std::fs::read_to_string(&imported_filename).ok()?;
         let mut lexer = Lexer::new(&imported_source);
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, &imported_source);
         let imported_stmts = parser.parse_program().ok()?;
-        hash_calculation_source_module(
+        collect_source_graph_module(
             Path::new(&imported_filename),
             &imported_source,
             &imported_stmts,
-            visited,
-            hasher,
+            visited_modules,
+            files,
+            resolution_contexts,
+            import_resolutions,
         )?;
     }
     Some(())
 }
 
-fn calculation_contract_cache_key(
+fn source_graph_hash(snapshot: &SourceGraphSnapshot) -> String {
+    let mut hasher = Sha256::new();
+    cache_hash_segment(&mut hasher, &snapshot.snapshot_version.to_le_bytes());
+    cache_hash_segment(&mut hasher, snapshot.compiler_hash.as_bytes());
+    cache_hash_segment(&mut hasher, &[u8::from(snapshot.use_prelude)]);
+    cache_hash_segment(&mut hasher, snapshot.root_path.as_bytes());
+    for file in &snapshot.files {
+        cache_hash_segment(&mut hasher, file.path.as_bytes());
+        cache_hash_segment(&mut hasher, file.content_hash.as_bytes());
+    }
+    for context in &snapshot.resolution_contexts {
+        cache_hash_segment(&mut hasher, context.source_dir.as_bytes());
+        cache_hash_segment(
+            &mut hasher,
+            context.manifest_path.as_deref().unwrap_or("").as_bytes(),
+        );
+    }
+    for resolution in &snapshot.import_resolutions {
+        cache_hash_segment(&mut hasher, resolution.source_dir.as_bytes());
+        cache_hash_segment(&mut hasher, resolution.import_path.as_bytes());
+        cache_hash_segment(&mut hasher, resolution.resolved_path.as_bytes());
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn build_source_graph_snapshot(
     filename: &str,
     source: &str,
     user_stmts: &[Stmt],
     use_prelude: bool,
-) -> Option<String> {
-    calculation_contract_cache_dir()?;
-    let mut hasher = Sha256::new();
-    calculation_hash_segment(
-        &mut hasher,
-        &CALCULATION_CONTRACT_CACHE_VERSION.to_le_bytes(),
-    );
-    calculation_hash_segment(&mut hasher, env!("CARGO_PKG_VERSION").as_bytes());
-    calculation_hash_segment(&mut hasher, &[u8::from(use_prelude)]);
-
-    let executable = std::env::current_exe().ok()?;
-    let mut executable = std::fs::File::open(executable).ok()?;
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let read = executable.read(&mut buffer).ok()?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-    }
-
-    hash_calculation_source_module(
+) -> Option<SourceGraphSnapshot> {
+    let root_path = canonical_cache_path(Path::new(filename));
+    let mut files = BTreeMap::new();
+    let mut resolution_contexts = BTreeMap::new();
+    let mut import_resolutions = BTreeMap::new();
+    collect_source_graph_module(
         Path::new(filename),
         source,
         user_stmts,
         &mut BTreeSet::new(),
-        &mut hasher,
+        &mut files,
+        &mut resolution_contexts,
+        &mut import_resolutions,
     )?;
+    let mut snapshot = SourceGraphSnapshot {
+        snapshot_version: SOURCE_GRAPH_SNAPSHOT_VERSION,
+        compiler_hash: compiler_executable_hash()?,
+        use_prelude,
+        root_path: root_path.to_string_lossy().to_string(),
+        files: files
+            .into_iter()
+            .map(|(path, content_hash)| SourceGraphFile {
+                path: path.to_string_lossy().to_string(),
+                content_hash,
+            })
+            .collect(),
+        resolution_contexts: resolution_contexts
+            .into_iter()
+            .map(|(source_dir, manifest_path)| SourceGraphResolutionContext {
+                source_dir: source_dir.to_string_lossy().to_string(),
+                manifest_path: manifest_path.map(|path| path.to_string_lossy().to_string()),
+            })
+            .collect(),
+        import_resolutions: import_resolutions
+            .into_iter()
+            .map(
+                |((source_dir, import_path), resolved_path)| SourceGraphImportResolution {
+                    source_dir: source_dir.to_string_lossy().to_string(),
+                    import_path,
+                    resolved_path: resolved_path.to_string_lossy().to_string(),
+                },
+            )
+            .collect(),
+        graph_hash: String::new(),
+    };
+    snapshot.graph_hash = source_graph_hash(&snapshot);
+    Some(snapshot)
+}
+
+fn source_graph_snapshot_is_current(
+    snapshot: &SourceGraphSnapshot,
+    filename: &str,
+    source: &str,
+    use_prelude: bool,
+) -> bool {
+    if snapshot.snapshot_version != SOURCE_GRAPH_SNAPSHOT_VERSION
+        || snapshot.use_prelude != use_prelude
+        || compiler_executable_hash().as_deref() != Some(snapshot.compiler_hash.as_str())
+        || canonical_cache_path(Path::new(filename)).to_string_lossy() != snapshot.root_path
+        || source_graph_hash(snapshot) != snapshot.graph_hash
+    {
+        return false;
+    }
+
+    for file in &snapshot.files {
+        let current_hash = if file.path == snapshot.root_path {
+            Some(sha256_hex(source.as_bytes()))
+        } else {
+            sha256_file(Path::new(&file.path))
+        };
+        if current_hash.as_deref() != Some(file.content_hash.as_str()) {
+            return false;
+        }
+    }
+
+    for context in &snapshot.resolution_contexts {
+        let current_manifest = find_runa_toml(&context.source_dir).map(|path| {
+            canonical_cache_path(Path::new(&path))
+                .to_string_lossy()
+                .to_string()
+        });
+        if current_manifest != context.manifest_path {
+            return false;
+        }
+    }
+    for resolution in &snapshot.import_resolutions {
+        let Some(current_path) = Interpreter::resolve_import_path_for_source(
+            &resolution.import_path,
+            &resolution.source_dir,
+        ) else {
+            return false;
+        };
+        if canonical_cache_path(Path::new(&current_path)).to_string_lossy()
+            != resolution.resolved_path
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn cache_identity(filename: &str, use_prelude: bool) -> Option<String> {
+    let canonical = canonical_cache_path(Path::new(filename));
+    let mut hasher = Sha256::new();
+    cache_hash_segment(&mut hasher, canonical.to_string_lossy().as_bytes());
+    cache_hash_segment(&mut hasher, &[u8::from(use_prelude)]);
     Some(format!("{:x}", hasher.finalize()))
 }
 
-fn calculation_contract_cache_path(key: &str) -> Option<PathBuf> {
-    Some(calculation_contract_cache_dir()?.join(format!("{key}.json")))
+fn write_json_atomically<T: Serialize>(path: &Path, value: &T) -> Option<()> {
+    let parent = path.parent()?;
+    std::fs::create_dir_all(parent).ok()?;
+    let bytes = serde_json::to_vec(value).ok()?;
+    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temporary = path.with_extension(format!("{}.{}.tmp", std::process::id(), sequence));
+    std::fs::write(&temporary, bytes).ok()?;
+    if std::fs::rename(&temporary, path).is_err() {
+        std::fs::remove_file(temporary).ok();
+        return None;
+    }
+    Some(())
 }
 
-fn load_calculation_contract_cache(key: &str) -> Option<Vec<calculate::CalculationContract>> {
-    let path = calculation_contract_cache_path(key)?;
+fn calculation_contract_cache_path(filename: &str, use_prelude: bool) -> Option<PathBuf> {
+    let identity = cache_identity(filename, use_prelude)?;
+    Some(calculation_contract_cache_dir()?.join(format!("{identity}.json")))
+}
+
+fn load_calculation_contract_cache(
+    filename: &str,
+    source: &str,
+    use_prelude: bool,
+) -> Option<Vec<calculate::CalculationContract>> {
+    let path = calculation_contract_cache_path(filename, use_prelude)?;
     let bytes = std::fs::read(path).ok()?;
     let entry: CalculationContractCacheEntry = serde_json::from_slice(&bytes).ok()?;
-    if entry.cache_version != CALCULATION_CONTRACT_CACHE_VERSION || entry.source_graph_hash != key {
+    if entry.cache_version != CALCULATION_CONTRACT_CACHE_VERSION
+        || !source_graph_snapshot_is_current(&entry.source_graph, filename, source, use_prelude)
+    {
         return None;
     }
     Some(entry.contracts)
 }
 
-fn store_calculation_contract_cache(key: &str, contracts: &[calculate::CalculationContract]) {
-    let Some(path) = calculation_contract_cache_path(key) else {
+fn store_calculation_contract_cache(
+    filename: &str,
+    use_prelude: bool,
+    source_graph: SourceGraphSnapshot,
+    contracts: &[calculate::CalculationContract],
+) {
+    let Some(path) = calculation_contract_cache_path(filename, use_prelude) else {
         return;
     };
-    let Some(parent) = path.parent() else {
-        return;
-    };
-    if std::fs::create_dir_all(parent).is_err() {
-        return;
-    }
     let entry = CalculationContractCacheEntry {
         cache_version: CALCULATION_CONTRACT_CACHE_VERSION,
-        source_graph_hash: key.to_string(),
+        source_graph,
         contracts: contracts.to_vec(),
     };
-    let Ok(bytes) = serde_json::to_vec(&entry) else {
-        return;
-    };
-    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let temporary = path.with_extension(format!("{}.{}.tmp", std::process::id(), sequence));
-    if std::fs::write(&temporary, bytes).is_err() {
-        return;
-    }
-    if std::fs::rename(&temporary, &path).is_err() {
-        std::fs::remove_file(temporary).ok();
-    }
+    write_json_atomically(&path, &entry);
 }
 
 fn run_calculation_command(
@@ -902,35 +1175,44 @@ fn run_calculation_command(
         eprintln!("error: cannot read {}: {}", filename, error);
         std::process::exit(1);
     });
-    let mut lexer = Lexer::new(&source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(tokens, &source);
-    let user_stmts = parser.parse_program().unwrap_or_else(|error| {
-        display_error_in(&source, &error, filename);
-        std::process::exit(1);
+    let cached_contracts = load_calculation_contract_cache(filename, &source, use_prelude);
+    let needs_statements = cached_contracts.is_none() || mode == "call";
+    let user_stmts = needs_statements.then(|| {
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        parser.parse_program().unwrap_or_else(|error| {
+            display_error_in(&source, &error, filename);
+            std::process::exit(1);
+        })
     });
-    let cache_key = calculation_contract_cache_key(filename, &source, &user_stmts, use_prelude);
-    let stmts = if use_prelude {
-        prepend_prelude(parse_prelude(), &user_stmts)
-    } else {
-        user_stmts
-    };
-    let contracts = if let Some(cached) = cache_key
-        .as_deref()
-        .and_then(load_calculation_contract_cache)
-    {
+    let stmts = user_stmts.as_ref().map(|user_stmts| {
+        if use_prelude {
+            prepend_prelude(parse_prelude(), user_stmts)
+        } else {
+            user_stmts.clone()
+        }
+    });
+    let contracts = if let Some(cached) = cached_contracts {
         trace_calculation_contract_cache("hit");
         cached
     } else {
-        if cache_key.is_some() {
+        if calculation_contract_cache_dir().is_some() {
             trace_calculation_contract_cache("miss");
         } else {
             trace_calculation_contract_cache("disabled");
         }
-        let contracts = run_calculation_type_check(&stmts, &source, filename)
-            .unwrap_or_else(|| std::process::exit(1));
-        if let Some(key) = cache_key.as_deref() {
-            store_calculation_contract_cache(key, &contracts);
+        let user_stmts = user_stmts.as_ref().expect("cache miss parses source");
+        let source_graph = calculation_contract_cache_dir()
+            .and_then(|_| build_source_graph_snapshot(filename, &source, user_stmts, use_prelude));
+        let contracts = run_calculation_type_check(
+            stmts.as_ref().expect("cache miss prepares statements"),
+            &source,
+            filename,
+        )
+        .unwrap_or_else(|| std::process::exit(1));
+        if let Some(source_graph) = source_graph {
+            store_calculation_contract_cache(filename, use_prelude, source_graph, &contracts);
         }
         contracts
     };
@@ -1011,8 +1293,12 @@ fn run_calculation_command(
                 }),
                 _ => calculation_unknown_format(&input_format),
             };
-            let mut result =
-                calculate::invoke_calculation_cases(contract, &stmts, source_dir, &envelope);
+            let mut result = calculate::invoke_calculation_cases(
+                contract,
+                stmts.as_ref().expect("calculation calls parse source"),
+                source_dir,
+                &envelope,
+            );
             adapter_diagnostics.append(&mut result.diagnostics);
             result.diagnostics = adapter_diagnostics;
 
@@ -4018,21 +4304,207 @@ fn rust_artifact_stem_for_source(filename: &str, fallback: &str) -> String {
     sanitized_rust_artifact_name(&file_stem_for_source(filename, fallback))
 }
 
+fn rustc_fingerprint() -> Option<String> {
+    RUSTC_FINGERPRINT
+        .get_or_init(|| {
+            let rustc = find_rust_tool("rustc");
+            let output = std::process::Command::new(rustc).arg("-vV").output().ok()?;
+            output.status.success().then(|| sha256_hex(&output.stdout))
+        })
+        .clone()
+}
+
+fn check_artifact_cache_path(filename: &str, use_prelude: bool) -> Option<PathBuf> {
+    let identity = cache_identity(filename, use_prelude)?;
+    Some(
+        compiler_artifact_cache_dir()?
+            .join("checks-v1")
+            .join(format!("{identity}.json")),
+    )
+}
+
+fn load_check_artifact_cache(
+    filename: &str,
+    source: &str,
+    use_prelude: bool,
+) -> Option<CheckArtifactSummary> {
+    let path = check_artifact_cache_path(filename, use_prelude)?;
+    let bytes = std::fs::read(path).ok()?;
+    let entry: CheckArtifactCacheEntry = serde_json::from_slice(&bytes).ok()?;
+    if entry.cache_version != CHECK_ARTIFACT_CACHE_VERSION
+        || rustc_fingerprint().as_deref() != Some(entry.rustc_fingerprint.as_str())
+        || !source_graph_snapshot_is_current(&entry.source_graph, filename, source, use_prelude)
+    {
+        return None;
+    }
+    Some(entry.summary)
+}
+
+fn store_check_artifact_cache(
+    filename: &str,
+    use_prelude: bool,
+    source_graph: SourceGraphSnapshot,
+    summary: CheckArtifactSummary,
+) {
+    let Some(path) = check_artifact_cache_path(filename, use_prelude) else {
+        return;
+    };
+    let Some(rustc_fingerprint) = rustc_fingerprint() else {
+        return;
+    };
+    let entry = CheckArtifactCacheEntry {
+        cache_version: CHECK_ARTIFACT_CACHE_VERSION,
+        rustc_fingerprint,
+        source_graph,
+        summary,
+    };
+    write_json_atomically(&path, &entry);
+}
+
+fn rustc_incremental_check_workspace(filename: &str, use_prelude: bool) -> Option<PathBuf> {
+    let mut hasher = Sha256::new();
+    cache_hash_segment(
+        &mut hasher,
+        cache_identity(filename, use_prelude)?.as_bytes(),
+    );
+    cache_hash_segment(&mut hasher, compiler_executable_hash()?.as_bytes());
+    cache_hash_segment(&mut hasher, rustc_fingerprint()?.as_bytes());
+    let identity = format!("{:x}", hasher.finalize());
+    Some(
+        compiler_artifact_cache_dir()?
+            .join("rustc-check-v1")
+            .join(identity),
+    )
+}
+
+fn native_artifact_cache_entry_path(filename: &str, use_prelude: bool) -> Option<PathBuf> {
+    let identity = cache_identity(filename, use_prelude)?;
+    Some(
+        compiler_artifact_cache_dir()?
+            .join("native-index-v1")
+            .join(format!("{identity}.json")),
+    )
+}
+
+fn native_artifact_binary_path(graph_hash: &str) -> Option<PathBuf> {
+    Some(
+        compiler_artifact_cache_dir()?
+            .join("native-v1")
+            .join(graph_hash)
+            .join("program"),
+    )
+}
+
+fn load_native_artifact_cache(
+    filename: &str,
+    source: &str,
+    use_prelude: bool,
+) -> Option<(PathBuf, String)> {
+    let entry_path = native_artifact_cache_entry_path(filename, use_prelude)?;
+    let bytes = std::fs::read(entry_path).ok()?;
+    let entry: NativeArtifactCacheEntry = serde_json::from_slice(&bytes).ok()?;
+    if entry.cache_version != NATIVE_ARTIFACT_CACHE_VERSION
+        || !source_graph_snapshot_is_current(&entry.source_graph, filename, source, use_prelude)
+    {
+        return None;
+    }
+    let binary = native_artifact_binary_path(&entry.source_graph.graph_hash)?;
+    (sha256_file(&binary).as_deref() == Some(entry.binary_hash.as_str()))
+        .then(|| (binary, entry.source_graph.graph_hash))
+}
+
+fn store_native_artifact_cache(
+    filename: &str,
+    use_prelude: bool,
+    source_graph: SourceGraphSnapshot,
+    built_binary: &Path,
+) {
+    let Some(entry_path) = native_artifact_cache_entry_path(filename, use_prelude) else {
+        return;
+    };
+    let Some(cached_binary) = native_artifact_binary_path(&source_graph.graph_hash) else {
+        return;
+    };
+    let Some(parent) = cached_binary.parent() else {
+        return;
+    };
+    if std::fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    if cached_binary != built_binary {
+        let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let temporary =
+            cached_binary.with_extension(format!("{}.{}.tmp", std::process::id(), sequence));
+        if std::fs::copy(built_binary, &temporary).is_err() {
+            return;
+        }
+        if std::fs::rename(&temporary, &cached_binary).is_err() {
+            std::fs::remove_file(temporary).ok();
+            return;
+        }
+    }
+    let entry = NativeArtifactCacheEntry {
+        cache_version: NATIVE_ARTIFACT_CACHE_VERSION,
+        source_graph,
+        binary_hash: match sha256_file(&cached_binary) {
+            Some(binary_hash) => binary_hash,
+            None => return,
+        },
+    };
+    write_json_atomically(&entry_path, &entry);
+}
+
+fn use_cached_native_artifact(
+    filename: &str,
+    source: &str,
+    execute: bool,
+    use_prelude: bool,
+) -> bool {
+    let Some((cached_binary, graph_hash)) =
+        load_native_artifact_cache(filename, source, use_prelude)
+    else {
+        if compiler_artifact_cache_dir().is_some() {
+            trace_compiler_artifact_cache("native miss");
+        } else {
+            trace_compiler_artifact_cache("native disabled");
+        }
+        return false;
+    };
+
+    trace_compiler_artifact_cache("native hit");
+    eprintln!(
+        "runa: {} source graph unchanged (hash #{}), using cached binary",
+        filename,
+        &graph_hash[..8]
+    );
+    if execute {
+        let status = std::process::Command::new(&cached_binary)
+            .status()
+            .unwrap_or_else(|error| {
+                eprintln!("Error running {}: {}", cached_binary.display(), error);
+                std::process::exit(1);
+            });
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let output_path = file_stem_for_source(filename, "tau_out");
+    std::fs::copy(&cached_binary, &output_path).unwrap_or_else(|error| {
+        eprintln!("Error copying cached binary: {}", error);
+        std::process::exit(1);
+    });
+    eprintln!("runa: {} -> {} (cached)", filename, output_path);
+    true
+}
+
 fn compiler_validation_diagnostics(
     stmts: &[Stmt],
     source_dir: Option<String>,
     source_name: Option<String>,
 ) -> Vec<Diagnostic> {
     let mut cg = RustCodegen::new();
-    cg.source_dir = source_dir.clone();
-    cg.source_name = source_name.clone();
-    let mut diags = cg.collect_scope_lifetime_issues(stmts);
-
-    let mut cg = RustCodegen::new();
     cg.source_dir = source_dir;
     cg.source_name = source_name;
-    diags.extend(cg.collect_named_argument_issues(stmts));
-    diags
+    cg.collect_compiler_validation_issues(stmts)
 }
 
 /// Run type checking and display any errors as structured diagnostics.
@@ -4101,11 +4573,18 @@ fn print_type_check_diagnostics(diagnostics: &[Diagnostic], source: &str, filena
 fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) {
     use std::process::Command;
 
+    if use_cached_native_artifact(filename, source, execute, use_prelude) {
+        return;
+    }
+
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
+            let source_graph = compiler_artifact_cache_dir().and_then(|_| {
+                build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
+            });
             let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
@@ -4151,6 +4630,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 };
 
                 if cached_hash.trim() == code_hash && std::path::Path::new(&cached_bin).exists() {
+                    if let Some(source_graph) = source_graph.clone() {
+                        store_native_artifact_cache(
+                            filename,
+                            use_prelude,
+                            source_graph,
+                            Path::new(&cached_bin),
+                        );
+                    }
                     eprintln!(
                         "runa: {} unchanged (hash #{}), using cached binary",
                         filename,
@@ -4197,6 +4684,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         }
                         // Save hash for incremental compilation
                         std::fs::write(&hash_path, &code_hash).ok();
+                        if let Some(source_graph) = source_graph {
+                            store_native_artifact_cache(
+                                filename,
+                                use_prelude,
+                                source_graph,
+                                Path::new(&cached_bin),
+                            );
+                        }
                         if execute {
                             let status = Command::new(&cached_bin).status().unwrap_or_else(|e| {
                                 eprintln!("Error running {}: {}", cached_bin, e);
@@ -4285,6 +4780,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                             std::process::exit(1);
                         }
                         let cargo_bin = format!("{}/target/release/{}", build_dir, artifact_stem);
+                        if let Some(source_graph) = source_graph {
+                            store_native_artifact_cache(
+                                filename,
+                                use_prelude,
+                                source_graph,
+                                Path::new(&cargo_bin),
+                            );
+                        }
                         if execute {
                             let status = Command::new(&cargo_bin).status().unwrap_or_else(|e| {
                                 eprintln!("Error running {}: {}", cargo_bin, e);
@@ -11642,11 +12145,39 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
     use std::time::Instant;
 
     let start = Instant::now();
+    if let Some(summary) = load_check_artifact_cache(filename, source, use_prelude) {
+        trace_compiler_artifact_cache("check hit");
+        let dependency_text = if summary.cargo_dependency_count == 0 {
+            String::new()
+        } else {
+            format!(", {} deps", summary.cargo_dependency_count)
+        };
+        eprintln!(
+            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types{}, {} lines of Rust, cached) \x1b[2m[{:.1}s]\x1b[0m",
+            filename,
+            summary.statement_count,
+            summary.function_count,
+            summary.type_count,
+            dependency_text,
+            summary.rust_line_count,
+            start.elapsed().as_secs_f64()
+        );
+        return;
+    }
+    if compiler_artifact_cache_dir().is_some() {
+        trace_compiler_artifact_cache("check miss");
+    } else {
+        trace_compiler_artifact_cache("check disabled");
+    }
+
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
+            let source_graph = compiler_artifact_cache_dir().and_then(|_| {
+                build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
+            });
             let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
@@ -11675,33 +12206,58 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 .file_stem()
                 .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
+            let summary = CheckArtifactSummary {
+                statement_count: stmt_count,
+                function_count: fn_count,
+                type_count,
+                cargo_dependency_count: cg.cargo_deps.len(),
+                rust_line_count: code.lines().count(),
+            };
 
             if cg.cargo_deps.is_empty() {
-                // No deps — type-check with rustc directly
-                let check_workspace = unique_temp_workspace("runa-check");
+                // No deps — type-check with rustc directly and retain its incremental state.
+                let persistent_workspace = rustc_incremental_check_workspace(filename, use_prelude);
+                let check_workspace = persistent_workspace
+                    .clone()
+                    .unwrap_or_else(|| unique_temp_workspace("runa-check"));
                 std::fs::create_dir_all(&check_workspace).ok();
                 let rs_path = check_workspace.join("check.rs");
                 std::fs::write(&rs_path, &code).ok();
                 let rustc_bin = find_rust_tool("rustc");
                 let meta_out = check_workspace.join("check-out");
-                let output = Command::new(&rustc_bin)
-                    .args(&[
-                        &*rs_path.to_string_lossy(),
+                let incremental_dir = check_workspace.join("incremental");
+                std::fs::create_dir_all(&incremental_dir).ok();
+                let mut rustc = Command::new(&rustc_bin);
+                rustc
+                    .arg(&rs_path)
+                    .args([
                         "--edition",
                         "2021",
                         "--crate-type",
                         "bin",
                         "--emit=metadata",
                         "-o",
-                        &*meta_out.to_string_lossy(),
                     ])
-                    .output();
-                let _ = std::fs::remove_dir_all(&check_workspace);
+                    .arg(&meta_out)
+                    .arg("-C")
+                    .arg(format!("incremental={}", incremental_dir.display()));
+                let output = rustc.output();
+                if persistent_workspace.is_none() {
+                    let _ = std::fs::remove_dir_all(&check_workspace);
+                }
                 let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
+                        if let Some(source_graph) = source_graph {
+                            store_check_artifact_cache(
+                                filename,
+                                use_prelude,
+                                source_graph,
+                                summary.clone(),
+                            );
+                        }
                         eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, code.lines().count(), elapsed.as_secs_f64());
+                            filename, stmt_count, fn_count, type_count, summary.rust_line_count, elapsed.as_secs_f64());
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -11763,8 +12319,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
+                        if let Some(source_graph) = source_graph {
+                            store_check_artifact_cache(
+                                filename,
+                                use_prelude,
+                                source_graph,
+                                summary.clone(),
+                            );
+                        }
                         eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, cg.cargo_deps.len(), code.lines().count(), elapsed.as_secs_f64());
+                            filename, stmt_count, fn_count, type_count, cg.cargo_deps.len(), summary.rust_line_count, elapsed.as_secs_f64());
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -29544,17 +30108,11 @@ impl RustCodegen {
         issues
     }
 
-    fn collect_scope_lifetime_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
+    fn collect_compiler_validation_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
         let all_stmts = self.scan_declarations(input_stmts);
         self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
         let mut diags = Vec::new();
         self.collect_scope_lifetime_stmt_list(&all_stmts, None, false, &mut diags);
-        diags
-    }
-
-    fn collect_named_argument_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
-        let all_stmts = self.scan_declarations(input_stmts);
-        let mut diags = Vec::new();
         for stmt in &all_stmts {
             walk_ast_stmt(stmt, &mut |child| {
                 if let AstChild::Expr(expr) = child {
