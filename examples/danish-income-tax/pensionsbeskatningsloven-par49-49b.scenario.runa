@@ -1,0 +1,149 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par49 - 49b
+
+| pbl49_scenario_bidrag(identifikation: Tekst, beløb_kroner: Heltal, art: Pbl49Til49BBidragsart) -> Pbl49Til49BBidragsfakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    betalt_beløb_kroner = beløb_kroner,
+    art = art
+)
+
+= pbl49_alle_bidrag = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("akasse", 5988, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("privat-forsikring", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Sandt, skatteyderen_er_forsikret = Sandt)),
+        pbl49_scenario_bidrag("senior", 600, Pbl49Seniormedlemskontingent(arbejdsløshedskasse = Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32, seniormedlem = Sandt)),
+        pbl49_scenario_bidrag("efterløn", 3600, Pbl49AEfterlønsbidrag(
+            arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+            medlem_af_arbejdsløshedskasse = Sandt,
+            bidrag_efter_arbejdsløshedsforsikringslov77_stk4 = Sandt
+        )),
+        pbl49_scenario_bidrag("fleksydelse", 1800, Pbl49BFleksydelsesbidrag(
+            tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4 = Sandt,
+            bidrag_efter_fleksydelseslov7 = Sandt
+        )),
+        pbl49_scenario_bidrag("ukendt", 900, Pbl49AndetBidrag),
+    ]
+))
+
+= pbl49_privat_uden_minimum = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("akasse-under-minimum", 1200, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("privat-under-minimum", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Sandt, skatteyderen_er_forsikret = Sandt)),
+    ]
+))
+
+= pbl49_akassekontingent_uden_skatteydermedlemskab = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("akasse-uden-skatteydermedlemskab", 1300, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Falskt)),
+        pbl49_scenario_bidrag("privat-uden-kvalificerende-medlemskab", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Sandt, skatteyderen_er_forsikret = Sandt)),
+    ]
+))
+
+= pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("eu-eøs-akasse-uden-stk3-anerkendelse", 1300, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49EUEØSArbejdsløshedskasseIkkeAnerkendtEfterArbejdsløshedsforsikringslov32, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("privat-med-ikke-anerkendt-akasse", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Sandt, skatteyderen_er_forsikret = Sandt)),
+    ]
+))
+
+= pbl49_privataftale_med_akasse_uden_for_eu_eøs = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("akasse-uden-for-eu-eøs", 1300, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49ArbejdsløshedskasseUdenForEUEØS, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("privat-med-akasse-uden-for-eu-eøs", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Sandt, skatteyderen_er_forsikret = Sandt)),
+    ]
+))
+
+= pbl49_udlandsk_fradragsret_afskåret = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49BegrænsetSkattepligtig(
+        indkomstgrundlag = Pbl49Kildeskattelov2Stk1Nr1Eller4,
+        udgiften_kan_fradrages_i_udlandet = Sandt
+    ),
+    bidrag = [pbl49_scenario_bidrag("akasse-udland", 5000, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt))]
+))
+
+= pbl49_privat_forsikring_uden_ejeridentitet = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("akasse-for-ejerprøve", 1300, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("privat-uden-ejeridentitet", 2400, Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer = Falskt, skatteyderen_er_forsikret = Sandt)),
+    ]
+))
+
+= pbl49_efterløn_uden_medlemskab = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [pbl49_scenario_bidrag("efterløn-uden-medlemskab", 3600, Pbl49AEfterlønsbidrag(
+        arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+        medlem_af_arbejdsløshedskasse = Falskt,
+        bidrag_efter_arbejdsløshedsforsikringslov77_stk4 = Sandt
+    ))]
+))
+
+= pbl49_efterløn_for_almindeligt_begrænset_skattepligtig = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49BegrænsetSkattepligtig(
+        indkomstgrundlag = Pbl49Kildeskattelov2Stk1Nr1Eller4,
+        udgiften_kan_fradrages_i_udlandet = Falskt
+    ),
+    bidrag = [pbl49_scenario_bidrag("efterløn-begrænset", 3600, Pbl49AEfterlønsbidrag(
+        arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+        medlem_af_arbejdsløshedskasse = Sandt,
+        bidrag_efter_arbejdsløshedsforsikringslov77_stk4 = Sandt
+    ))]
+))
+
+= pbl49_grænsegænger_med_efterløn_og_fleksydelse = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D,
+    bidrag = [
+        pbl49_scenario_bidrag("efterløn-grænsegænger", 3600, Pbl49AEfterlønsbidrag(
+            arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+            medlem_af_arbejdsløshedskasse = Sandt,
+            bidrag_efter_arbejdsløshedsforsikringslov77_stk4 = Sandt
+        )),
+        pbl49_scenario_bidrag("fleksydelse-grænsegænger", 1800, Pbl49BFleksydelsesbidrag(
+            tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4 = Sandt,
+            bidrag_efter_fleksydelseslov7 = Sandt
+        )),
+    ]
+))
+
+= pbl49_dublet = pbl49_til49b_årsresultat(2025, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = [
+        pbl49_scenario_bidrag("dublet", 1000, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt)),
+        pbl49_scenario_bidrag("dublet", 2000, Pbl49Akassekontingent(arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret = Sandt)),
+    ]
+))
+= pbl49_tomt_historisk_neutralresultat = pbl49_til49b_årsresultat(2024, Pbl49Til49BÅrsinput(
+    skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+    bidrag = []
+))
+
+| pbl49_49a_49b_bidrag_er_uden_årsloft: pbl49_alle_bidrag -> pbl49_alle_bidrag.alle_input_gyldige && pbl49_alle_bidrag.akassemedlemskab_indbetalt_kroner == 5988 && pbl49_alle_bidrag.samlet_fradrag_kroner == 14388 && pbl49_alle_bidrag.ikke_fradraget_kroner == 900
+| pbl49_privat_forsikring_kræver_1300_i_akasse: pbl49_privat_uden_minimum -> pbl49_privat_uden_minimum.alle_input_gyldige && pbl49_privat_uden_minimum.samlet_fradrag_kroner == 1200 && pbl49_privat_uden_minimum.ikke_fradraget_kroner == 2400 && length(filter(pbl49_privat_uden_minimum.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| match resultat.fakta.art { | Pbl49PrivatArbejdsløshedsforsikring(_, _) -> resultat.fradragsberettiget == Falskt && resultat.privat_forsikrings_minimum_opfyldt == Falskt | _ -> Falskt })) == 1
+| pbl49_akassekontingent_kræver_skatteyderens_eget_medlemskab: pbl49_akassekontingent_uden_skatteydermedlemskab -> pbl49_akassekontingent_uden_skatteydermedlemskab.akassemedlemskab_indbetalt_kroner == 0 && pbl49_akassekontingent_uden_skatteydermedlemskab.samlet_fradrag_kroner == 0 && pbl49_akassekontingent_uden_skatteydermedlemskab.ikke_fradraget_kroner == 3700 && head(pbl49_akassekontingent_uden_skatteydermedlemskab.bidragsresultater).skatteyderrelation_opfyldt == Falskt && all(pbl49_akassekontingent_uden_skatteydermedlemskab.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.fradragsberettiget == Falskt)
+| pbl49_eu_eøs_akasse_uden_stk3_anerkendelse_opfylder_ikke_privataftalens_minimum: pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse -> pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse.akassemedlemskab_indbetalt_kroner == 0 && pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse.samlet_fradrag_kroner == 1300 && pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse.ikke_fradraget_kroner == 2400 && head(pbl49_privataftale_med_eu_eøs_akasse_uden_stk3_anerkendelse.bidragsresultater).fradragsberettiget
+| pbl49_stk3_stiller_kun_særlig_anerkendelsesbetingelse_for_eu_eøs: pbl49_privataftale_med_akasse_uden_for_eu_eøs -> pbl49_privataftale_med_akasse_uden_for_eu_eøs.akassemedlemskab_indbetalt_kroner == 1300 && pbl49_privataftale_med_akasse_uden_for_eu_eøs.samlet_fradrag_kroner == 3700 && pbl49_privataftale_med_akasse_uden_for_eu_eøs.ikke_fradraget_kroner == 0 && all(pbl49_privataftale_med_akasse_uden_for_eu_eøs.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.fradragsberettiget)
+| pbl49_udenlandsk_fradrag_afskærer_dansk_fradrag: pbl49_udlandsk_fradragsret_afskåret -> pbl49_udlandsk_fradragsret_afskåret.alle_input_gyldige && pbl49_udlandsk_fradragsret_afskåret.samlet_fradrag_kroner == 0 && head(pbl49_udlandsk_fradragsret_afskåret.bidragsresultater).skattepligtsbetingelse_opfyldt == Falskt
+| pbl49_privat_forsikring_kræver_samme_ejer_og_forsikrede: pbl49_privat_forsikring_uden_ejeridentitet -> pbl49_privat_forsikring_uden_ejeridentitet.alle_input_gyldige && pbl49_privat_forsikring_uden_ejeridentitet.samlet_fradrag_kroner == 1300 && pbl49_privat_forsikring_uden_ejeridentitet.ikke_fradraget_kroner == 2400 && any(pbl49_privat_forsikring_uden_ejeridentitet.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.skatteyderrelation_opfyldt == Falskt && resultat.fradragsberettiget == Falskt)
+| pbl49a_kræver_medlemskab_og_lovbestemt_bidrag: pbl49_efterløn_uden_medlemskab -> pbl49_efterløn_uden_medlemskab.alle_input_gyldige && pbl49_efterløn_uden_medlemskab.samlet_fradrag_kroner == 0 && head(pbl49_efterløn_uden_medlemskab.bidragsresultater).ordningsbetingelser_opfyldt == Falskt
+| pbl49a_49b_kræver_fuld_skattepligt_eller_grænsegængerstatus: pbl49_efterløn_for_almindeligt_begrænset_skattepligtig -> pbl49_efterløn_for_almindeligt_begrænset_skattepligtig.samlet_fradrag_kroner == 0 && head(pbl49_efterløn_for_almindeligt_begrænset_skattepligtig.bidragsresultater).skattepligtsbetingelse_opfyldt == Falskt && pbl49_grænsegænger_med_efterløn_og_fleksydelse.samlet_fradrag_kroner == 5400 && all(pbl49_grænsegænger_med_efterløn_og_fleksydelse.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.skattepligtsbetingelse_opfyldt)
+| pbl49_dublet_fejler_lukket: pbl49_dublet -> pbl49_dublet.identifikationer_entydige == Falskt && pbl49_dublet.alle_input_gyldige == Falskt && pbl49_dublet.samlet_fradrag_kroner == 0
+| pbl49_tomt_input_er_neutralt_uden_for_satsårene: pbl49_tomt_historisk_neutralresultat -> pbl49_tomt_historisk_neutralresultat.skatteår_understøttet && pbl49_tomt_historisk_neutralresultat.alle_input_gyldige && pbl49_tomt_historisk_neutralresultat.samlet_fradrag_kroner == 0
+
+? pbl49_49a_49b_bidrag_er_uden_årsloft
+? pbl49_privat_forsikring_kræver_1300_i_akasse
+? pbl49_akassekontingent_kræver_skatteyderens_eget_medlemskab
+? pbl49_eu_eøs_akasse_uden_stk3_anerkendelse_opfylder_ikke_privataftalens_minimum
+? pbl49_stk3_stiller_kun_særlig_anerkendelsesbetingelse_for_eu_eøs
+? pbl49_udenlandsk_fradrag_afskærer_dansk_fradrag
+? pbl49_privat_forsikring_kræver_samme_ejer_og_forsikrede
+? pbl49a_kræver_medlemskab_og_lovbestemt_bidrag
+? pbl49a_49b_kræver_fuld_skattepligt_eller_grænsegængerstatus
+? pbl49_dublet_fejler_lukket
+? pbl49_tomt_input_er_neutralt_uden_for_satsårene

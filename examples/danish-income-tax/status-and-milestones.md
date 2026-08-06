@@ -1,10 +1,11 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-1306f6` (ordinære arbejdsgiverydelser og virksomhedsresultater uden virksomhedsordningen er typede kildefakta; PSL § 3- og AM-virkninger afledes gennem reglerne; afventer uafhængig gennemgang)
-Previous implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
+Current implementation slice: `td-a47465` (faglige kontingenter, A-kasse/arbejdsløshedsforsikring, efterløn, fleksydelse og gaver er typede kildefakta; Ligningslovens §§ 8 A, 8 H, 12 og 13 samt Pensionsbeskatningslovens §§ 49-49 B afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
+Previous implementation slice: `td-1306f6` (ordinære arbejdsgiverydelser og virksomhedsresultater uden virksomhedsordningen er typede kildefakta; PSL § 3- og AM-virkninger afledes gennem reglerne; afventer uafhængig gennemgang)
+Earlier implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
 Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste årsopgørelseslinjer bevarer dokumentproveniens og eksakte ørebeløb; kun retligt tilstrækkelige linjer peger på typede beregningsfelter)
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
@@ -15,8 +16,8 @@ Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, f
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
-Current ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
-Planned common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne Ligningslovsregler)
+Previous ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
+Current common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne kildefakta, lovregler, beregningsmetadata og kanonisk samordning)
 Planned exact-credit completion: `td-6fe980` (bevar ørepræcision i årsopgørelsens foreløbige skatter)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
@@ -268,12 +269,56 @@ pensionsoversigt for at fastlægge ydelsens retlige art og AM-status.
 Virksomhedens nettotal kræver regnskabets identificerede indtægter og udgifter
 samt skatteordningen. Begge kanoniske grene findes nu, så årsopgørelsesmappet
 rapporterer `KræverSupplerendeKilde` i stedet for `KorpusgrenMangler`.
-Fagforening, A-kasse mv. og gaver mangler fortsat deres egne Ligningslovsregler
-og arbejdsbogsfelter (`td-a47465`). Den modregningsberettigede
-udbytteskat på 4.353,14 kr. kan ikke føres tabsfrit ind i
-`KildeskatPar60Kreditter`, som aktuelt kun accepterer hele kroner; mappet afviser
-derfor værdien i stedet for at afkorte den (`td-6fe980`, koordineret med
-`td-24963d`). De fokuserede mappingscenarier passerer både fortolket og
+Det samme gælder nu fagforening, A-kasse mv. og gaver: årsopgørelsens afrundede
+fradragslinjer er kun proveniens og kontrol. Kontingent- eller bidragsopgørelsen
+skal levere betaling, retlig art, foreningsformål, medlemskab, skatteposition,
+ordningsvilkår, modtagergodkendelse og indberetning til de typede grene.
+
+`td-a47465` gengiver Ligningslovens § 13, §§ 8 A og 8 H samt § 12, stk. 1-4,
+og Pensionsbeskatningslovens § 49, stk. 1 og 3, § 49 A, stk. 1, § 49 B,
+stk. 1, og § 54, stk. 1-2, umiddelbart over reglerne. Lønmodtagerens
+fagforeningsloft er 7.000 kr.;
+A-kasse-, efterløns- og fleksydelsesbidrag har intet fælles årsloft. En privat
+arbejdsløshedsforsikring kræver mindst 1.300 kr. til et anerkendt
+A-kassemedlemskab samt identitet mellem skatteyder, forsikringsejer og
+forsikrede. Almindelige gaver begrænses til 19.000 kr. i 2025 og 20.000 kr. i
+2026, forskningsgaver efter § 8 H er uden dette loft, og bindende løbende
+ydelser efter § 12 kræver en skriftlig, ensidig og ikke umiddelbart ophævelig
+aftale med fast beløb eller indkomstandel i mindst ti år eller resten af yderens
+liv. § 12-fradraget begrænses efter personlig indkomst med tillæg af positiv
+kapitalindkomst; negativ personlig indkomst modregnes før grundlaget beskæres
+ved nul. Personskat beregner først AM-bidrag, udenlandske sociale bidrag og
+pensionsvirkninger og afleder derefter § 12-grundlaget uden et råt
+indkomstinput eller en regelcyklus. De tre komponenter samles præcis én gang i
+`PersonskatLigningsfradragResultat`, og både loftsreduktioner og afviste
+betalinger bevares i resultaternes `ikke_fradraget_kroner`.
+
+Syvoghalvtreds typede beregningsfelter ved de tre domænetyper giver arbejdsbogen
+danske etiketter, interviewspørgsmål, hjælp, enheder og kildespor for både
+lister, sumtypevalg og variantdata. En AI eller et menneske kan dermed udfylde
+de underliggende fakta; årsopgørelsens nettolinje kan ikke overstyre resultatet.
+Metadatareferencer til en sumtypes `$variant` projiceres samtidig til den
+kanoniske skalare enumkolonne, når summen kun har varianter uden data. Summer
+med variantdata bevarer deres særskilte `$variant`-kolonne. Dermed forbliver
+`refof(...)`-referencer typetjekkede, mens arbejdsbogens faktiske kolonneform
+bruges konsekvent.
+
+Den fulde Personskat-grænsetest passerer med direkte XLSX-input, direkte
+JSON-input og JSON-hydreret XLSX samt eksakt resultatsammenligning på 2.365,91
+sekunder. Den fortsatte forbedring af denne interaktive svartid spores i
+`td-6659f1`.
+
+Samordningen med sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er
+afgrænset i `td-302f8e`; den skal aflede bortfald af LL § 13, PBL § 49, stk. 1,
+og de berørte befordringsfradrag fra typede sømandsfakta, men bevare PBL § 49 A.
+Den tilsvarende, beskæftigelsesknyttede samordning med fiskerfradraget efter LL
+§ 9 G er afgrænset i `td-5759f5`. Ingen af delene indføres som et løst flag i de
+almindelige kontingent- eller bidragsdomæner.
+
+Den modregningsberettigede udbytteskat på 4.353,14 kr. kan ikke føres tabsfrit
+ind i `KildeskatPar60Kreditter`, som aktuelt kun accepterer hele kroner; mappet
+afviser derfor værdien i stedet for at afkorte den (`td-6fe980`, koordineret
+med `td-24963d`). De fokuserede mappingscenarier passerer både fortolket og
 kompileret.
 
 Latest property-tax integration: Ejendomsskattelovens §§ 23-27 og §§ 35-45

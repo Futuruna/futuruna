@@ -92,7 +92,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     personlig_indkomst = personskat_ingen_personlig_indkomst(),
     erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
     ligningsfradrag = PersonskatLigningsfradragInput(
-        befordring = MedBefordringsfradrag(fakta = fakta)
+        befordring = MedBefordringsfradrag(fakta = fakta),
+        faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
+        arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
+        gaver = LigningslovGaveÅrsinput(gaver = [])
     ),
     pension = personskat_ingen_pension(),
     personfradrag_alder_status = Fyldt18EllerGift,
@@ -1145,6 +1148,90 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par13a_ægtefælleoverførsel_resultat = beregn_personskat(personskat_calculate_par13a_parinput(Sandt))
 = personskat_calculate_par13a_uden_samliv_resultat = beregn_personskat(personskat_calculate_par13a_parinput(Falskt))
 
+| personskat_calculate_gavemodtager_2025(identifikation: Tekst, formål: LigningslovGavemodtagerFormål, godkendelse: LigningslovGavemodtagerGodkendelse) -> LigningslovGavemodtagerFakta(
+    identifikation = identifikation,
+    hjemsted = LlGaveDanmark,
+    formål = formål,
+    godkendelse = godkendelse,
+    likvidationsprovenu_til_anden_velgørende_forening = Sandt
+)
+| personskat_calculate_gave_2025(identifikation: Tekst, beløb_kroner: Heltal, modtager: LigningslovGavemodtagerFakta, art: LigningslovGaveart) -> LigningslovGaveFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    betalt_beløb_kroner = beløb_kroner,
+    modtager = modtager,
+    indberettet_efter_skatteindberetningslov26 = Sandt,
+    art = art
+)
+= personskat_calculate_ligningsfradrag_2025 = PersonskatLigningsfradragInput(
+    befordring = UdenBefordringsfradrag,
+    faglige_kontingenter = Ligningslov13Årsinput(
+        skatteyderstatus = Ll13Lønmodtager,
+        kontingenter = [Ligningslov13KontingentFakta(
+            identifikation = "fagforening-2025",
+            indkomstår = 2025,
+            foreningsart = Ll13Fagforening,
+            betalt_kontingent_kroner = 8000,
+            foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = 8000,
+            foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+            skatteyder_hører_til_erhvervsgruppen = Sandt,
+            indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
+        )]
+    ),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = [Pbl49Til49BBidragsfakta(
+            identifikation = "a-kasse-2025",
+            indkomstår = 2025,
+            betalt_beløb_kroner = 5988,
+            art = Pbl49Akassekontingent(
+                arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+                skatteyderen_er_medlem_og_forsikret = Sandt
+            )
+        )]
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [
+        personskat_calculate_gave_2025(
+            "almindelig-gave-2025",
+            25000,
+            personskat_calculate_gavemodtager_2025("modtager-par8a", LlGaveAlmennyttigtTilStørreKreds, LlGaveGodkendtEfterPar8A(godkendelsesår = 2025)),
+            Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+        ),
+        personskat_calculate_gave_2025(
+            "forskningsgave-2025",
+            30000,
+            personskat_calculate_gavemodtager_2025("modtager-par8h", LlGaveAlmennyttigForskning, LlGaveGodkendtEfterPar8H(godkendelsesår = 2025, forskningsfondsudtalelse_indhentet = Sandt)),
+            Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2 = Falskt)
+        ),
+        personskat_calculate_gave_2025(
+            "bindende-gave-2025",
+            100000,
+            personskat_calculate_gavemodtager_2025("modtager-par12", LlGaveAlmenvelgørendeØkonomiskTrængte, LlGaveGodkendtEfterPar12(godkendelsesår = 2025)),
+            Ll12BindendeLøbendeYdelse(
+                ydelsesfastsættelse = Ll12FastÅrligtBeløb,
+                forfalden_årlig_ydelse_efter_aftalen_kroner = 100000,
+                aftale_skriftlig = Sandt,
+                ingen_modydelse = Sandt,
+                aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år = 10),
+                aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+                navn_og_cpr_på_aftalen = Sandt
+            )
+        ),
+    ])
+)
+= personskat_calculate_lønmodtager_med_ligningsfradrag_2025 = PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_calculate_ligningsfradrag_2025,
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= personskat_calculate_ligningsfradrag_2025_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_ligningsfradrag_2025))
+
 | personskat_calculate_par13a_hovedresultat(resultat: PersonskatBeregningResultat, forventet_overført_kroner: Heltal, forventet_fremført_kroner: Heltal) -> match resultat.aktieavance.ordinært_aktieår {
     | BeregnetOrdinærtAktieår(årsresultat) -> årsresultat.årsresultat.årets_tab_efter_par13a_kroner == 50000 && årsresultat.årsresultat.tab_overført_til_ægtefælle_kroner == forventet_overført_kroner && årsresultat.årsresultat.tab_fremført_til_følgende_indkomstår_kroner == forventet_fremført_kroner
     | _ -> Falskt
@@ -1160,6 +1247,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_am_bidrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_personfradrag: personskat_calculate_resultat -> personskat_calculate_resultat.skat.personfradrag_kroner == 54100
 | personskat_calculate_samlet_skat: personskat_calculate_resultat -> personskat_calculate_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
+| personskat_calculate_kontingenter_bidrag_og_gaver_afledes_en_gang: personskat_calculate_ligningsfradrag_2025_resultat -> personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 7000 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.arbejdsløshed_efterløn_og_fleksydelse.samlet_fradrag_kroner == 5988 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.gaver.par8a_fradrag_kroner == 19000 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.gaver.par8h_fradrag_kroner == 30000 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.gaver.par12_årsloft_kroner == 82800 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.gaver.par12_fradrag_kroner == 82800 && personskat_calculate_ligningsfradrag_2025_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 144788 && personskat_calculate_ligningsfradrag_2025_resultat.skat.personlig_indkomst_efter_am_kroner == 552000 && personskat_calculate_ligningsfradrag_2025_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 144788
 | personskat_calculate_renter_og_ll_fradrag_afledes: personskat_calculate_rente_resultat -> personskat_calculate_rente_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6_resultat.fradrag_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.ligningslov6a_resultat.fradrag_kroner == 1000 && personskat_calculate_rente_resultat.kapitalindkomst.rente_resultat.kapitalindkomst_kroner == 12000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.fradragsberettigede_omkostninger_kroner == 2000 && personskat_calculate_rente_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.nettokapitalindkomst_kroner == 10000 && personskat_calculate_rente_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_finansieringsnæring_reklassificeres: personskat_calculate_finansieringsnæring_resultat -> personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificerede_personlige_omkostninger_kroner == 3000 && personskat_calculate_finansieringsnæring_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.øvrig_personlig_indkomst_kroner == 12000 && personskat_calculate_finansieringsnæring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_depotgebyr_afskæres_efter_ll17c: personskat_calculate_depotgebyr_resultat -> personskat_calculate_depotgebyr_resultat.kapitalindkomst.alle_input_gyldige && head(personskat_calculate_depotgebyr_resultat.kapitalindkomst.omkostningsresultater).par4_resultat.fradrag_afskåret_efter_ligningslov17c && personskat_calculate_depotgebyr_resultat.kapitalindkomst.kapitalindkomst_resultat.fradragsberettigede_omkostninger_kroner == 0 && personskat_calculate_depotgebyr_resultat.kapitalindkomst.kapitalindkomst_resultat.afskårne_omkostninger_kroner == 2000 && personskat_calculate_depotgebyr_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 15000
@@ -1290,6 +1378,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_am_bidrag
 ? personskat_calculate_personfradrag
 ? personskat_calculate_samlet_skat
+? personskat_calculate_kontingenter_bidrag_og_gaver_afledes_en_gang
 ? personskat_calculate_renter_og_ll_fradrag_afledes
 ? personskat_calculate_finansieringsnæring_reklassificeres
 ? personskat_calculate_depotgebyr_afskæres_efter_ll17c

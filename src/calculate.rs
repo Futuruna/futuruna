@@ -1839,7 +1839,7 @@ fn calculation_field_paths_from_value(
         .into_iter()
         .flat_map(|paths| paths.iter())
         .map(|prefix| joined_column_path(&prefix, &relative_path))
-        .filter(|path| valid_paths.contains(path))
+        .filter_map(|path| canonical_calculation_field_path(&path, valid_paths))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
@@ -1917,7 +1917,15 @@ fn normalize_calculation_field_path(
     }
     candidates
         .into_iter()
-        .find(|path| valid_paths.contains(*path))
+        .find_map(|path| canonical_calculation_field_path(path, valid_paths))
+}
+
+fn canonical_calculation_field_path(path: &str, valid_paths: &BTreeSet<String>) -> Option<String> {
+    if valid_paths.contains(path) {
+        return Some(path.to_string());
+    }
+    path.strip_suffix(".$variant")
+        .filter(|enum_path| valid_paths.contains(*enum_path))
         .map(str::to_string)
 }
 

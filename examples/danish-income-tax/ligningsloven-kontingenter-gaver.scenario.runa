@@ -1,0 +1,217 @@
+@ sprog da
+
+@ importer ./ligningsloven - kontingenter - gaver
+
+| ll_scenario_kontingent(identifikation: Tekst, beløb_kroner: Heltal, indberetningsstatus: Ligningslov13Indberetningsstatus) -> Ligningslov13KontingentFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    foreningsart = Ll13Fagforening,
+    betalt_kontingent_kroner = beløb_kroner,
+    foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = beløb_kroner,
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+    skatteyder_hører_til_erhvervsgruppen = Sandt,
+    indberetningsstatus = indberetningsstatus
+)
+
+| ll_scenario_blandet_kontingent(identifikation: Tekst, beløb_kroner: Heltal, faglig_økonomisk_andel_kroner: Heltal) -> Ligningslov13KontingentFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    foreningsart = Ll13AndenFagligSammenslutning,
+    betalt_kontingent_kroner = beløb_kroner,
+    foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = faglig_økonomisk_andel_kroner,
+    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+    skatteyder_hører_til_erhvervsgruppen = Sandt,
+    indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
+)
+
+= ll13_lønmodtager_loft = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [
+        ll_scenario_kontingent("fagforening-a", 4800, Ll13IndberettetEfterSkatteindberetningslov31),
+        ll_scenario_kontingent("fagforening-b", 3200, Ll13IkkeIndberetningspligtig),
+    ]
+))
+= ll13_selvstændig_uden_loft = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13SelvstændigtErhvervsdrivende,
+    kontingenter = [ll_scenario_kontingent("selvstændig-fagforening", 8000, Ll13IndberettetEfterSkatteindberetningslov31)]
+))
+= ll13_ikke_indberettet = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [ll_scenario_kontingent("ikke-indberettet", 4200, Ll13IkkeIndberettetEfterSkatteindberetningslov31)]
+))
+= ll13_blandet_forening_fordeler_kontingentet = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [ll_scenario_blandet_kontingent("blandet-forening", 6000, 4000)]
+))
+= ll13_foreningsandel_over_betaling = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [ll_scenario_blandet_kontingent("ugyldig-foreningsandel", 6000, 6001)]
+))
+= ll13_dublet = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [
+        ll_scenario_kontingent("dublet", 1000, Ll13IndberettetEfterSkatteindberetningslov31),
+        ll_scenario_kontingent("dublet", 2000, Ll13IndberettetEfterSkatteindberetningslov31),
+    ]
+))
+= ll13_tomt_historisk_neutralresultat = ligningslov13_årsresultat(2024, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = []
+))
+
+| ll_scenario_modtager(godkendelse: LigningslovGavemodtagerGodkendelse, formål: LigningslovGavemodtagerFormål) -> LigningslovGavemodtagerFakta(
+    identifikation = "godkendt-modtager",
+    hjemsted = LlGaveDanmark,
+    formål = formål,
+    godkendelse = godkendelse,
+    likvidationsprovenu_til_anden_velgørende_forening = Sandt
+)
+| ll_scenario_gave(identifikation: Tekst, beløb_kroner: Heltal, modtager: LigningslovGavemodtagerFakta, indberettet: Boolsk, art: LigningslovGaveart) -> LigningslovGaveFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    betalt_beløb_kroner = beløb_kroner,
+    modtager = modtager,
+    indberettet_efter_skatteindberetningslov26 = indberettet,
+    art = art
+)
+
+= ll_gaver_2025 = ligningslov_gave_årsresultat(2025, LigningslovGaveÅrsinput(gaver = [
+    ll_scenario_gave(
+        "almindelig-gave",
+        25000,
+        ll_scenario_modtager(LlGaveGodkendtEfterPar8A(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds),
+        Sandt,
+        Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+    ),
+    ll_scenario_gave(
+        "forskningsgave",
+        30000,
+        ll_scenario_modtager(LlGaveGodkendtEfterPar8H(godkendelsesår = 2025, forskningsfondsudtalelse_indhentet = Sandt), LlGaveAlmennyttigForskning),
+        Sandt,
+        Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2 = Falskt)
+    ),
+    ll_scenario_gave(
+        "bindende-gave",
+        22000,
+        ll_scenario_modtager(LlGaveGodkendtEfterPar12(godkendelsesår = 2025), LlGaveAlmenvelgørendeØkonomiskTrængte),
+        Sandt,
+        Ll12BindendeLøbendeYdelse(
+            ydelsesfastsættelse = Ll12FastÅrligtBeløb,
+            forfalden_årlig_ydelse_efter_aftalen_kroner = 20000,
+            aftale_skriftlig = Sandt,
+            ingen_modydelse = Sandt,
+            aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år = 10),
+            aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+            navn_og_cpr_på_aftalen = Sandt
+        )
+    ),
+    ll_scenario_gave(
+        "ikke-indberettet-gave",
+        5000,
+        ll_scenario_modtager(LlGaveGodkendtEfterPar8A(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds),
+        Falskt,
+        Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+    ),
+    ll_scenario_gave(
+        "interesseforbundet-forskning",
+        7000,
+        ll_scenario_modtager(LlGaveGodkendtEfterPar8H(godkendelsesår = 2025, forskningsfondsudtalelse_indhentet = Sandt), LlGaveAlmennyttigForskning),
+        Sandt,
+        Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2 = Sandt)
+    ),
+    ]), MedLigningslov12Indkomstgrundlag(
+        personlig_indkomst_kroner = 100000,
+        positiv_nettokapitalindkomst_kroner = 0
+))
+
+= ll_gaver_2026_loft = ligningslov_gave_årsresultat(2026, LigningslovGaveÅrsinput(gaver = [LigningslovGaveFakta(
+    identifikation = "almindelig-2026",
+    indkomstår = 2026,
+    betalt_beløb_kroner = 25000,
+    modtager = LigningslovGavemodtagerFakta(
+        identifikation = "modtager-2026",
+        hjemsted = LlGaveAndetEUEØSLand,
+        formål = LlGaveAlmennyttigtTilStørreKreds,
+        godkendelse = LlGaveGodkendtEfterPar8A(godkendelsesår = 2026),
+        likvidationsprovenu_til_anden_velgørende_forening = Sandt
+    ),
+    indberettet_efter_skatteindberetningslov26 = Sandt,
+    art = Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+    )]), UdenLigningslov12Indkomstgrundlag)
+
+= ll_gaver_dublet = ligningslov_gave_årsresultat(2025, LigningslovGaveÅrsinput(gaver = [
+    ll_scenario_gave("gave-dublet", 1000, ll_scenario_modtager(LlGaveGodkendtEfterPar8A(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds), Sandt, Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)),
+    ll_scenario_gave("gave-dublet", 2000, ll_scenario_modtager(LlGaveGodkendtEfterPar8A(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds), Sandt, Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)),
+    ]), UdenLigningslov12Indkomstgrundlag)
+= ll_gaver_tomt_historisk_neutralresultat = ligningslov_gave_årsresultat(2024, LigningslovGaveÅrsinput(gaver = []), UdenLigningslov12Indkomstgrundlag)
+= ll12_generisk_almennyttigt_formål_afvises = ligningslov_gave_årsresultat(2025, LigningslovGaveÅrsinput(gaver = [ll_scenario_gave(
+    "bindende-gave-uden-tilladt-formål",
+    15000,
+    ll_scenario_modtager(LlGaveGodkendtEfterPar12(godkendelsesår = 2025), LlGaveAlmennyttigtTilStørreKreds),
+    Sandt,
+    Ll12BindendeLøbendeYdelse(
+        ydelsesfastsættelse = Ll12FastÅrligtBeløb,
+        forfalden_årlig_ydelse_efter_aftalen_kroner = 15000,
+        aftale_skriftlig = Sandt,
+        ingen_modydelse = Sandt,
+        aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år = 10),
+        aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+        navn_og_cpr_på_aftalen = Sandt
+    )
+    )]), MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner = 200000, positiv_nettokapitalindkomst_kroner = 0))
+= ll12_livsvarig_aftale = Ll12BindendeLøbendeYdelse(
+    ydelsesfastsættelse = Ll12ProcentdelAfIndkomst,
+    forfalden_årlig_ydelse_efter_aftalen_kroner = 12000,
+    aftale_skriftlig = Sandt,
+    ingen_modydelse = Sandt,
+    aftalevarighed = Ll12SåLængeYderenLever,
+    aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+    navn_og_cpr_på_aftalen = Sandt
+)
+= ll12_niårig_aftale = Ll12BindendeLøbendeYdelse(
+    ydelsesfastsættelse = Ll12FastÅrligtBeløb,
+    forfalden_årlig_ydelse_efter_aftalen_kroner = 12000,
+    aftale_skriftlig = Sandt,
+    ingen_modydelse = Sandt,
+    aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år = 9),
+    aftalen_kan_ikke_uden_videre_ophæves = Sandt,
+    navn_og_cpr_på_aftalen = Sandt
+)
+= ll12_negativ_personlig_indkomst_modregner_positiv_kapital = ligningslov12_indkomstgrundlag_kroner(MedLigningslov12Indkomstgrundlag(
+    personlig_indkomst_kroner = -10000,
+    positiv_nettokapitalindkomst_kroner = 20000
+))
+
+| ll13_lønmodtagerens_fradrag_begrænses_til_7000: ll13_lønmodtager_loft -> ll13_lønmodtager_loft.alle_input_gyldige && ll13_lønmodtager_loft.fradrag_før_årsloft_kroner == 8000 && ll13_lønmodtager_loft.årsloft_kroner == 7000 && ll13_lønmodtager_loft.samlet_fradrag_kroner == 7000 && ll13_lønmodtager_loft.ikke_fradraget_kroner == 1000
+| ll13_selvstændig_er_undtaget_fra_loftet: ll13_selvstændig_uden_loft -> ll13_selvstændig_uden_loft.alle_input_gyldige && ll13_selvstændig_uden_loft.årsloft_kroner == 0 && ll13_selvstændig_uden_loft.samlet_fradrag_kroner == 8000
+| ll13_manglende_indberetning_afskærer_fradraget: ll13_ikke_indberettet -> ll13_ikke_indberettet.alle_input_gyldige && ll13_ikke_indberettet.samlet_fradrag_kroner == 0 && ll13_ikke_indberettet.ikke_fradraget_kroner == 4200 && head(ll13_ikke_indberettet.kontingentresultater).fradragsberettiget == Falskt
+| ll13_blandet_forening_fradrager_kun_foreningens_faglige_økonomiske_andel: ll13_blandet_forening_fordeler_kontingentet -> ll13_blandet_forening_fordeler_kontingentet.alle_input_gyldige && ll13_blandet_forening_fordeler_kontingentet.fradrag_før_årsloft_kroner == 4000 && ll13_blandet_forening_fordeler_kontingentet.samlet_fradrag_kroner == 4000 && ll13_blandet_forening_fordeler_kontingentet.ikke_fradraget_kroner == 2000
+| ll13_foreningens_andel_skal_ligge_mellem_nul_og_betalingen: ll13_foreningsandel_over_betaling -> ll13_foreningsandel_over_betaling.alle_input_gyldige == Falskt && ll13_foreningsandel_over_betaling.samlet_fradrag_kroner == 0 && head(ll13_foreningsandel_over_betaling.kontingentresultater).foreningens_opgjorte_andel_gyldig == Falskt
+| ll13_dublet_fejler_lukket: ll13_dublet -> ll13_dublet.identifikationer_entydige == Falskt && ll13_dublet.alle_input_gyldige == Falskt && ll13_dublet.samlet_fradrag_kroner == 0
+| ll13_tomt_input_er_neutralt_uden_for_satsårene: ll13_tomt_historisk_neutralresultat -> ll13_tomt_historisk_neutralresultat.skatteår_understøttet && ll13_tomt_historisk_neutralresultat.alle_input_gyldige && ll13_tomt_historisk_neutralresultat.samlet_fradrag_kroner == 0
+| ll8a_2025_loft_og_ll8h_undtagelse_anvendes: ll_gaver_2025 -> ll_gaver_2025.alle_input_gyldige && ll_gaver_2025.par8a_fradrag_før_loft_kroner == 25000 && ll_gaver_2025.par8a_årsloft_kroner == 19000 && ll_gaver_2025.par8a_fradrag_kroner == 19000 && ll_gaver_2025.par8h_fradrag_kroner == 30000
+| ll12_bindende_gave_bruger_indkomstloftet_og_aftalebeløbet: ll_gaver_2025 -> ll_gaver_2025.par12_fradrag_før_loft_kroner == 20000 && ll_gaver_2025.par12_årsloft_kroner == 15000 && ll_gaver_2025.par12_fradrag_kroner == 15000 && ll_gaver_2025.samlet_fradrag_kroner == 64000 && ll_gaver_2025.ikke_fradraget_kroner == 25000
+| ll_gaver_afviser_manglende_indberetning_og_interesseforbindelse: ll_gaver_2025 -> length(filter(ll_gaver_2025.gaveresultater, |resultat: LigningslovGaveResultat| resultat.fradragsberettiget == Falskt)) == 2
+| ll8a_2026_loft_er_20000: ll_gaver_2026_loft -> ll_gaver_2026_loft.alle_input_gyldige && ll_gaver_2026_loft.par8a_årsloft_kroner == 20000 && ll_gaver_2026_loft.samlet_fradrag_kroner == 20000
+| ll_gavedublet_fejler_lukket: ll_gaver_dublet -> ll_gaver_dublet.identifikationer_entydige == Falskt && ll_gaver_dublet.alle_input_gyldige == Falskt && ll_gaver_dublet.samlet_fradrag_kroner == 0
+| ll_gaver_tomt_input_er_neutralt_uden_for_satsårene: ll_gaver_tomt_historisk_neutralresultat -> ll_gaver_tomt_historisk_neutralresultat.skatteår_understøttet && ll_gaver_tomt_historisk_neutralresultat.alle_input_gyldige && ll_gaver_tomt_historisk_neutralresultat.samlet_fradrag_kroner == 0
+| ll12_generisk_almennyttigt_formål_er_ikke_tilstrækkeligt: ll12_generisk_almennyttigt_formål_afvises -> ll12_generisk_almennyttigt_formål_afvises.alle_input_gyldige && head(ll12_generisk_almennyttigt_formål_afvises.gaveresultater).modtagerformål_opfyldt == Falskt && ll12_generisk_almennyttigt_formål_afvises.samlet_fradrag_kroner == 0 && ll12_generisk_almennyttigt_formål_afvises.ikke_fradraget_kroner == 15000
+| ll12_livstid_eller_mindst_ti_år: ll12_livsvarig_aftale -> ligningslov12_aftalebetingelser_opfyldt(ll12_livsvarig_aftale) && ligningslov12_aftalebetingelser_opfyldt(ll12_niårig_aftale) == Falskt
+| ll12_indkomstgrundlaget_er_den_samlede_personlige_og_positive_kapitalindkomst: ll12_negativ_personlig_indkomst_modregner_positiv_kapital -> ll12_negativ_personlig_indkomst_modregner_positiv_kapital == 10000
+
+? ll13_lønmodtagerens_fradrag_begrænses_til_7000
+? ll13_selvstændig_er_undtaget_fra_loftet
+? ll13_manglende_indberetning_afskærer_fradraget
+? ll13_blandet_forening_fradrager_kun_foreningens_faglige_økonomiske_andel
+? ll13_foreningens_andel_skal_ligge_mellem_nul_og_betalingen
+? ll13_dublet_fejler_lukket
+? ll13_tomt_input_er_neutralt_uden_for_satsårene
+? ll8a_2025_loft_og_ll8h_undtagelse_anvendes
+? ll12_bindende_gave_bruger_indkomstloftet_og_aftalebeløbet
+? ll_gaver_afviser_manglende_indberetning_og_interesseforbindelse
+? ll8a_2026_loft_er_20000
+? ll_gavedublet_fejler_lukket
+? ll_gaver_tomt_input_er_neutralt_uden_for_satsårene
+? ll12_generisk_almennyttigt_formål_er_ikke_tilstrækkeligt
+? ll12_livstid_eller_mindst_ti_år
+? ll12_indkomstgrundlaget_er_den_samlede_personlige_og_positive_kapitalindkomst

@@ -153,7 +153,10 @@
         arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
         broer = ll9c_ingen_bropassager(),
         særlig_transport = ll9c_ingen_særlig_transport()
-    ))
+    )),
+    faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
+    gaver = LigningslovGaveÅrsinput(gaver = [])
 )
 | personskat_ordinaer_scenario_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> match resultat {
     | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner

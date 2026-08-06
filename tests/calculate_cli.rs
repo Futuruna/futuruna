@@ -306,6 +306,54 @@ fn schema_projects_typed_relative_field_metadata_and_prefers_exact_overrides() {
 }
 
 #[test]
+fn schema_projects_enum_discriminator_metadata_to_scalar_enum_columns() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "# Mode = Fixed | Percentage\n\
+# GiftArt = Binding(mode: Mode) | Other\n\
+# Gift(art: GiftArt)\n\
+# GiftInput(gifts: List(Gift))\n\
+# Input(gift_input: GiftInput, direct_mode: Mode)\n\
+# Result(value: Int)\n\
+# RelativeField(path: ProgramReference, label: String)\n\
+# RelativeMeta(fields: List(RelativeField))\n\
+# ExactField(path: String, label: String)\n\
+# ExactMeta(fields: List(ExactField))\n\
+# impl Meta for RelativeMeta {}\n\
+# impl Meta for ExactMeta {}\n\
+= gift_meta = RelativeMeta(fields = [\n\
+    RelativeField(path = refof(GiftInput::gifts::art::Binding::mode::$variant), label = \"Payment mode\")\n\
+])\n\
+--@label:GiftInput::meta:gift_meta--\n\
+= exact_meta = ExactMeta(fields = [\n\
+    ExactField(path = pathof(Input::direct_mode::$variant), label = \"Direct mode\")\n\
+])\n\
+--@label:calculate::meta:exact_meta--\n\
+@ calculate\n\
+| calculate(input: Input) -> Result(value = 0)\n",
+    )
+    .expect("write nested enum metadata source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let fields = schema["field_metadata"].as_array().expect("field metadata");
+    assert_eq!(fields.len(), 2);
+    assert!(fields
+        .iter()
+        .any(|field| { field["path"] == "direct_mode" && field["label"] == "Direct mode" }));
+    assert!(fields.iter().any(|field| {
+        field["path"] == "gift_input.gifts.art.Binding.mode" && field["label"] == "Payment mode"
+    }));
+}
+
+#[test]
 fn schema_exact_field_metadata_supersedes_multiple_relative_candidates() {
     let path = temp_path("runa");
     std::fs::write(
@@ -1220,6 +1268,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ægtefællens årlige bruttoløn",
             "Ægtefællens renteudgifter",
             "Befordringsfradrag",
+            "Skatteyderens status for faglige kontingenter",
+            "Skattepligtsposition for A-kasse og lignende bidrag",
             "Afstand til folkepensionsalderen",
             "Selvstændigt overskud før VSL § 22 b",
             "Renteudgifter i virksomhedsoverskuddet",
@@ -1284,6 +1334,130 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             })
             .count();
         assert_eq!(case_headers.len(), case_column_count + 1);
+        let union_dues_path = "lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter";
+        let union_dues_sheet = workbook_collection_sheet_name(&mut workbook, union_dues_path);
+        let union_dues_paths = workbook_column_paths(&mut workbook, &union_dues_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "foreningsart",
+            "betalt_kontingent_kroner",
+            "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner",
+            "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser",
+            "skatteyder_hører_til_erhvervsgruppen",
+            "indberetningsstatus",
+        ] {
+            assert!(
+                union_dues_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 13 source-fact path {expected} on {union_dues_sheet}"
+            );
+        }
+        let union_dues_headers = workbook_headers(&mut workbook, &union_dues_sheet);
+        for expected in [
+            "Kontingentets identifikation",
+            "Kontingentets indkomstår",
+            "Foreningens art",
+            "Betalt fagligt kontingent",
+            "Foreningens faglige økonomiske andel",
+            "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
+            "Skatteyderen tilhører erhvervsgruppen",
+            "Indberetning af fagligt kontingent",
+        ] {
+            assert!(
+                union_dues_headers.iter().any(|header| header == expected),
+                "missing human LL § 13 input label {expected} on {union_dues_sheet}"
+            );
+        }
+        let unemployment_contributions_path =
+            "lønmodtager.ligningsfradrag.arbejdsløshed_efterløn_og_fleksydelse.bidrag";
+        let unemployment_contributions_sheet =
+            workbook_collection_sheet_name(&mut workbook, unemployment_contributions_path);
+        let unemployment_contribution_paths =
+            workbook_column_paths(&mut workbook, &unemployment_contributions_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "betalt_beløb_kroner",
+            "art.$variant",
+            "art.Pbl49Akassekontingent.arbejdsløshedskasse",
+            "art.Pbl49Akassekontingent.skatteyderen_er_medlem_og_forsikret",
+            "art.Pbl49PrivatArbejdsløshedsforsikring.skatteyderen_er_forsikringsejer",
+            "art.Pbl49PrivatArbejdsløshedsforsikring.skatteyderen_er_forsikret",
+            "art.Pbl49AEfterlønsbidrag.medlem_af_arbejdsløshedskasse",
+            "art.Pbl49BFleksydelsesbidrag.tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4",
+        ] {
+            assert!(
+                unemployment_contribution_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical PBL §§ 49-49 B source-fact path {expected} on {unemployment_contributions_sheet}"
+            );
+        }
+        let unemployment_contribution_headers =
+            workbook_headers(&mut workbook, &unemployment_contributions_sheet);
+        for expected in [
+            "Bidragets identifikation",
+            "Bidragets indkomstår",
+            "Betalt bidrag",
+            "Bidragets retlige art",
+            "A-kassens hjemsted og anerkendelsesstatus",
+            "Skatteyderen er medlem og forsikret i A-kassen",
+            "Skatteyderen ejer den private arbejdsløshedsforsikring",
+            "Skatteyderen er forsikret af den private arbejdsløshedsforsikring",
+            "Medlem af A-kassen ved efterlønsbidrag",
+            "Tilmeldt fleksydelsesordningen",
+        ] {
+            assert!(
+                unemployment_contribution_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human PBL §§ 49-49 B input label {expected} on {unemployment_contributions_sheet}"
+            );
+        }
+        let gifts_path = "lønmodtager.ligningsfradrag.gaver.gaver";
+        let gifts_sheet = workbook_collection_sheet_name(&mut workbook, gifts_path);
+        let gift_paths = workbook_column_paths(&mut workbook, &gifts_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "betalt_beløb_kroner",
+            "modtager.identifikation",
+            "modtager.formål.$variant",
+            "modtager.godkendelse.$variant",
+            "indberettet_efter_skatteindberetningslov26",
+            "art.$variant",
+            "art.Ll12BindendeLøbendeYdelse.ydelsesfastsættelse",
+            "art.Ll12BindendeLøbendeYdelse.forfalden_årlig_ydelse_efter_aftalen_kroner",
+            "art.Ll12BindendeLøbendeYdelse.aftalevarighed.$variant",
+            "art.Ll12BindendeLøbendeYdelse.aftalevarighed.Ll12BestemtAftaleperiode.aftaleperiode_år",
+            "art.Ll12BindendeLøbendeYdelse.aftalen_kan_ikke_uden_videre_ophæves",
+        ] {
+            assert!(
+                gift_paths.iter().any(|path| path == expected),
+                "missing canonical LL §§ 8 A, 8 H and 12 source-fact path {expected} on {gifts_sheet}"
+            );
+        }
+        let gift_headers = workbook_headers(&mut workbook, &gifts_sheet);
+        for expected in [
+            "Gavens identifikation",
+            "Gavens indkomstår",
+            "Betalt gave eller løbende ydelse",
+            "Gavemodtagerens identifikation",
+            "Gavemodtagerens formål",
+            "Gavemodtagerens skattemæssige godkendelse",
+            "Gaven er indberettet",
+            "Gavens retlige art",
+            "Den løbende ydelses fastsættelse",
+            "Forfalden årlig ydelse efter aftalen",
+            "Den bindende aftales varighed",
+            "Den tidsbegrænsede aftales løbetid",
+            "Aftalen kan ikke uden videre ophæves",
+        ] {
+            assert!(
+                gift_headers.iter().any(|header| header == expected),
+                "missing human LL §§ 8 A, 8 H and 12 input label {expected} on {gifts_sheet}"
+            );
+        }
         let employer_benefits_path =
             "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser";
         let employer_benefits_sheet =
@@ -3997,6 +4171,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenBefordringsfradrag".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus",
+                        Data::String("Ll13Lønmodtager".to_string()),
+                    ),
+                    (
+                        "lønmodtager.ligningsfradrag.arbejdsløshed_efterløn_og_fleksydelse.skattepligtsposition.$variant",
+                        Data::String(
+                            "Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark".to_string(),
+                        ),
+                    ),
+                    (
                         "lønmodtager.pension.pensionsalder_status",
                         Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
                     ),
@@ -4643,6 +4827,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
                 Data::String("UdenBefordringsfradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.faglige_kontingenter.skatteyderstatus",
+                Data::String("Ll13Lønmodtager".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.arbejdsløshed_efterløn_og_fleksydelse.skattepligtsposition.$variant",
+                Data::String(
+                    "Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark".to_string(),
+                ),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pensionsalder_status",
@@ -8461,7 +8655,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
-                "befordring": { "$variant": "UdenBefordringsfradrag" }
+                "befordring": { "$variant": "UdenBefordringsfradrag" },
+                "faglige_kontingenter": {
+                    "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
+                    "kontingenter": []
+                },
+                "arbejdsløshed_efterløn_og_fleksydelse": {
+                    "skattepligtsposition": {
+                        "$variant": "Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark"
+                    },
+                    "bidrag": []
+                },
+                "gaver": { "gaver": [] }
             },
             "pension": {
                 "pensionsalder_status": {
@@ -8890,32 +9095,30 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "særlige_aktiver": [],
         "udbytter": []
     });
-    interest_case["input"]["lønmodtager"]["ligningsfradrag"] = serde_json::json!({
-        "befordring": {
-            "$variant": "MedBefordringsfradrag",
-            "fakta": {
-                "arbejdsdage": 203,
-                "daglige_befordringskilometer": 60,
-                "bopæl_i_yderkommune_eller_lille_ø": false,
-                "befordringsformål": { "$variant": "IndtægtsgivendeArbejdsplads" },
-                "modtaget_skattefri_befordringsgodtgørelse_for_strækning": false,
-                "modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning": false,
-                "ligningslov9d": { "$variant": "UdenLigningslov9D" },
-                "fradrag_udelukket_folketingshverv_m_v": false,
-                "arbejdsgiverbetalt_befordring": {
-                    "$variant": "UdenArbejdsgiverbetaltBefordring"
-                },
-                "broer": {
-                    "storebælt_bil_motorcykel_passager": 0,
-                    "storebælt_kollektiv_passager": 0,
-                    "øresund_bil_motorcykel_passager": 0,
-                    "øresund_kollektiv_passager": 0,
-                    "dokumenteret_og_afholdt_af_skattepligtige": false
-                },
-                "særlig_transport": {
-                    "faktisk_dokumenteret_udgift_kroner": 0,
-                    "geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten": false
-                }
+    interest_case["input"]["lønmodtager"]["ligningsfradrag"]["befordring"] = serde_json::json!({
+        "$variant": "MedBefordringsfradrag",
+        "fakta": {
+            "arbejdsdage": 203,
+            "daglige_befordringskilometer": 60,
+            "bopæl_i_yderkommune_eller_lille_ø": false,
+            "befordringsformål": { "$variant": "IndtægtsgivendeArbejdsplads" },
+            "modtaget_skattefri_befordringsgodtgørelse_for_strækning": false,
+            "modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning": false,
+            "ligningslov9d": { "$variant": "UdenLigningslov9D" },
+            "fradrag_udelukket_folketingshverv_m_v": false,
+            "arbejdsgiverbetalt_befordring": {
+                "$variant": "UdenArbejdsgiverbetaltBefordring"
+            },
+            "broer": {
+                "storebælt_bil_motorcykel_passager": 0,
+                "storebælt_kollektiv_passager": 0,
+                "øresund_bil_motorcykel_passager": 0,
+                "øresund_kollektiv_passager": 0,
+                "dokumenteret_og_afholdt_af_skattepligtige": false
+            },
+            "særlig_transport": {
+                "faktisk_dokumenteret_udgift_kroner": 0,
+                "geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten": false
             }
         }
     });
@@ -9901,7 +10104,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
-                    "befordring": { "$variant": "UdenBefordringsfradrag" }
+                    "befordring": { "$variant": "UdenBefordringsfradrag" },
+                    "faglige_kontingenter": {
+                        "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
+                        "kontingenter": []
+                    },
+                    "arbejdsløshed_efterløn_og_fleksydelse": {
+                        "skattepligtsposition": {
+                            "$variant": "Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark"
+                        },
+                        "bidrag": []
+                    },
+                    "gaver": { "gaver": [] }
                 },
                 "pension": {
                     "pensionsalder_status": {

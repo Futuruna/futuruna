@@ -1,0 +1,515 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ligningsloven - kontingenter - gaver
+@ importer ./pensionsbeskatningsloven - par49 - 49b
+
+= personskat_ll13_felt_skatteyderstatus = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::skatteyderstatus),
+    label = "Skatteyderens status for faglige kontingenter",
+    question = Some("Er skatteyderen lønmodtager, selvstændigt erhvervsdrivende eller en juridisk person?"),
+    help = Some("Årsloftet på 7.000 kr. gælder ikke for selvstændigt erhvervsdrivende og juridiske personer."),
+    unit = None
+)
+= personskat_ll13_felt_kontingenter = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter),
+    label = "Faglige kontingenter",
+    question = Some("Hvilke kontingenter til arbejdsgiverforeninger, fagforeninger eller andre faglige sammenslutninger er betalt i indkomståret?"),
+    help = Some("Opret én række pr. betaling eller årsopgørelse fra foreningen."),
+    unit = None
+)
+= personskat_ll13_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::identifikation),
+    label = "Kontingentets identifikation",
+    question = Some("Hvilken entydig identifikation har kontingentbetalingen?"),
+    help = Some("Brug en stabil reference fra kontingentopgørelsen, så samme betaling ikke medregnes to gange."),
+    unit = None
+)
+= personskat_ll13_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::indkomstår),
+    label = "Kontingentets indkomstår",
+    question = Some("Hvilket indkomstår vedrører kontingentet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll13_felt_foreningsart = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::foreningsart),
+    label = "Foreningens art",
+    question = Some("Er modtageren en arbejdsgiverforening, fagforening, anden faglig sammenslutning eller en anden forening?"),
+    help = Some("Klassifikationen skal følge foreningens vedtægter og faktiske hovedformål."),
+    unit = None
+)
+= personskat_ll13_felt_betalt = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::betalt_kontingent_kroner),
+    label = "Betalt fagligt kontingent",
+    question = Some("Hvor meget kontingent er betalt i indkomståret?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_ll13_felt_foreningsandel = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner),
+    label = "Foreningens faglige økonomiske andel",
+    question = Some("Hvor stor en del af kontingentet har foreningen opgjort som anvendt til faglige økonomiske interesser?"),
+    help = Some("Brug foreningens fordeling. Ved et uopdelt rent fagligt kontingent er beløbet det samme som det betalte kontingent; en anden andel kan høre under andre regler end LL § 13."),
+    unit = Some("kr./år")
+)
+= personskat_ll13_felt_hovedformål = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser),
+    label = "Foreningens hovedformål er erhvervsgruppens økonomiske interesser",
+    question = Some("Har foreningen som hovedformål at varetage erhvervsgruppens økonomiske interesser?"),
+    help = Some("Brug vedtægter eller anden dokumentation for foreningens hovedformål."),
+    unit = None
+)
+= personskat_ll13_felt_erhvervsgruppe = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::skatteyder_hører_til_erhvervsgruppen),
+    label = "Skatteyderen tilhører erhvervsgruppen",
+    question = Some("Tilhører skatteyderen den erhvervsgruppe, hvis økonomiske interesser foreningen varetager?"),
+    help = None,
+    unit = None
+)
+= personskat_ll13_felt_indberetning = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::indberetningsstatus),
+    label = "Indberetning af fagligt kontingent",
+    question = Some("Var foreningen ikke indberetningspligtig, eller blev kontingentet indberettet efter skatteindberetningslovens § 31?"),
+    help = Some("En indberetningspligtig forenings manglende indberetning afskærer fradraget."),
+    unit = None
+)
+
+= personskat_ll13_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll13_felt_skatteyderstatus,
+        personskat_ll13_felt_kontingenter,
+        personskat_ll13_felt_identifikation,
+        personskat_ll13_felt_indkomstår,
+        personskat_ll13_felt_foreningsart,
+        personskat_ll13_felt_betalt,
+        personskat_ll13_felt_foreningsandel,
+        personskat_ll13_felt_hovedformål,
+        personskat_ll13_felt_erhvervsgruppe,
+        personskat_ll13_felt_indberetning
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par13),
+        Guidance(value = skat_fagforening_akasse_vejledning),
+        Guidance(value = juridisk_vejledning_ligningslov13),
+    )
+)
+
+--@label:Ligningslov13Årsinput::meta:personskat_ll13_beregningsmeta--
+
+= personskat_pbl49_felt_skattepligtsposition = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::$variant),
+    label = "Skattepligtsposition for A-kasse og lignende bidrag",
+    question = Some("Er personen fuldt skattepligtig og hjemmehørende i Danmark, grænsegænger efter kildeskattelovens §§ 5 A-5 D, begrænset skattepligtig eller hjemmehørende i udlandet efter en dobbeltbeskatningsoverenskomst?"),
+    help = Some("Udenlandske skattepositioner kræver også oplysninger om det danske indkomstgrundlag og en eventuel udenlandsk fradragsret. Efterløns- og fleksydelsesbidrag kræver dansk fuld skattepligt eller et valg af grænsegængerreglerne."),
+    unit = None
+)
+= personskat_pbl49_felt_begrænset_indkomstgrundlag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::Pbl49BegrænsetSkattepligtig::indkomstgrundlag),
+    label = "Dansk indkomstgrundlag ved begrænset skattepligt",
+    question = Some("Hvilken dansk indkomst efter kildeskattelovens § 2 vedrører bidraget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_begrænset_udlandsfradrag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::Pbl49BegrænsetSkattepligtig::udgiften_kan_fradrages_i_udlandet),
+    label = "Udgiften kan fradrages i udlandet",
+    question = Some("Kan udgiften fradrages ved beskatning i udlandet?"),
+    help = Some("Dansk fradrag efter § 49 er afskåret, hvis udgiften kan fradrages efter udenlandske regler."),
+    unit = None
+)
+= personskat_pbl49_felt_dbo_indkomstgrundlag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet::indkomstgrundlag),
+    label = "Dansk indkomstgrundlag ved udenlandsk DBO-hjemsted",
+    question = Some("Hvilken dansk indkomst efter kildeskattelovens § 2 vedrører bidraget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_dbo_udlandsfradrag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::skattepligtsposition::Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet::udgiften_kan_fradrages_i_udlandet),
+    label = "Udgiften kan fradrages i DBO-hjemstedslandet",
+    question = Some("Kan udgiften fradrages ved beskatning i det land, hvor personen er hjemmehørende efter dobbeltbeskatningsoverenskomsten?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_bidrag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag),
+    label = "A-kasse-, arbejdsløsheds-, efterløns- og fleksydelsesbidrag",
+    question = Some("Hvilke bidrag er betalt i indkomståret?"),
+    help = Some("Opret én række for hver særskilt betalingstype eller ordning."),
+    unit = None
+)
+= personskat_pbl49_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::identifikation),
+    label = "Bidragets identifikation",
+    question = Some("Hvilken entydig identifikation har bidraget?"),
+    help = Some("Brug en stabil reference fra A-kassen, forsikringen eller ydelsesordningen."),
+    unit = None
+)
+= personskat_pbl49_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::indkomstår),
+    label = "Bidragets indkomstår",
+    question = Some("Hvilket indkomstår vedrører bidraget?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_pbl49_felt_beløb = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::betalt_beløb_kroner),
+    label = "Betalt bidrag",
+    question = Some("Hvor meget er betalt til ordningen i indkomståret?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_pbl49_felt_art = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::$variant),
+    label = "Bidragets retlige art",
+    question = Some("Er betalingen A-kassekontingent, privat arbejdsløshedsforsikring, seniormedlemskab, efterlønsbidrag, fleksydelsesbidrag eller et andet bidrag?"),
+    help = Some("Årsopgørelsens samlelinje er ikke tilstrækkelig; brug bidragsopgørelsen til at vælge den retlige type."),
+    unit = None
+)
+= personskat_pbl49_felt_akasse = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49Akassekontingent::arbejdsløshedskasse),
+    label = "A-kassens hjemsted og anerkendelsesstatus",
+    question = Some("Er A-kassen dansk, anerkendt i et andet EU/EØS-land efter arbejdsløshedsforsikringslovens § 32, ikke § 32-anerkendt i EU/EØS, beliggende uden for EU/EØS eller slet ikke en A-kasse?"),
+    help = Some("§ 32-anerkendelsen er en særskilt betingelse, når et EU/EØS-medlemskab skal opfylde 1.300-kronerskravet for en privat arbejdsløshedsforsikring."),
+    unit = None
+)
+= personskat_pbl49_felt_akasse_skatteydermedlemskab = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49Akassekontingent::skatteyderen_er_medlem_og_forsikret),
+    label = "Skatteyderen er medlem og forsikret i A-kassen",
+    question = Some("Er kontingentet betalt for skatteyderens eget medlemskab og arbejdsløshedsforsikring?"),
+    help = Some("En betaling for en anden person er ikke skatteyderens fradragsberettigede arbejdsløshedsforsikring og tæller ikke med til 1.300-kronerskravet."),
+    unit = None
+)
+= personskat_pbl49_felt_privat_forsikringsejer = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49PrivatArbejdsløshedsforsikring::skatteyderen_er_forsikringsejer),
+    label = "Skatteyderen ejer den private arbejdsløshedsforsikring",
+    question = Some("Er skatteyderen ejer og forsikringstager for den private arbejdsløshedsforsikring?"),
+    help = Some("Fradragsretten tilkommer forsikringens ejer, uanset hvem der har betalt præmien."),
+    unit = None
+)
+= personskat_pbl49_felt_privat_forsikrede = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49PrivatArbejdsløshedsforsikring::skatteyderen_er_forsikret),
+    label = "Skatteyderen er forsikret af den private arbejdsløshedsforsikring",
+    question = Some("Er skatteyderen den person, som arbejdsløshedsforsikringen dækker?"),
+    help = Some("PBL § 49 og § 54 forudsætter identitet mellem ejer og forsikrede."),
+    unit = None
+)
+= personskat_pbl49_felt_senior_akasse = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49Seniormedlemskontingent::arbejdsløshedskasse),
+    label = "A-kasse for seniormedlemskab",
+    question = Some("Hvilken anerkendelsesstatus har A-kassen for seniormedlemskabet?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_seniormedlem = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49Seniormedlemskontingent::seniormedlem),
+    label = "Registreret seniormedlem",
+    question = Some("Var personen seniormedlem af A-kassen, da kontingentet blev betalt?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_efterløn_akasse = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49AEfterlønsbidrag::arbejdsløshedskasse),
+    label = "A-kasse for efterlønsbidrag",
+    question = Some("Hvilken anerkendelsesstatus har A-kassen, som modtog efterlønsbidraget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_efterløn_medlem = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49AEfterlønsbidrag::medlem_af_arbejdsløshedskasse),
+    label = "Medlem af A-kassen ved efterlønsbidrag",
+    question = Some("Var personen medlem af en arbejdsløshedskasse ved betalingen af efterlønsbidraget?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_efterløn_lovgrundlag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49AEfterlønsbidrag::bidrag_efter_arbejdsløshedsforsikringslov77_stk4),
+    label = "Efterlønsbidrag efter arbejdsløshedsforsikringslovens § 77, stk. 4",
+    question = Some("Er bidraget opkrævet efter arbejdsløshedsforsikringslovens § 77, stk. 4?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_fleks_tilmeldt = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49BFleksydelsesbidrag::tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4),
+    label = "Tilmeldt fleksydelsesordningen",
+    question = Some("Var personen tilmeldt fleksydelsesordningen efter fleksydelseslovens § 4?"),
+    help = None,
+    unit = None
+)
+= personskat_pbl49_felt_fleks_lovgrundlag = TypetBeregningsfelt(
+    path = refof(Pbl49Til49BÅrsinput::bidrag::art::Pbl49BFleksydelsesbidrag::bidrag_efter_fleksydelseslov7),
+    label = "Fleksydelsesbidrag efter fleksydelseslovens § 7",
+    question = Some("Er bidraget indbetalt efter fleksydelseslovens § 7?"),
+    help = None,
+    unit = None
+)
+
+= personskat_pbl49_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_pbl49_felt_skattepligtsposition,
+        personskat_pbl49_felt_begrænset_indkomstgrundlag,
+        personskat_pbl49_felt_begrænset_udlandsfradrag,
+        personskat_pbl49_felt_dbo_indkomstgrundlag,
+        personskat_pbl49_felt_dbo_udlandsfradrag,
+        personskat_pbl49_felt_bidrag,
+        personskat_pbl49_felt_identifikation,
+        personskat_pbl49_felt_indkomstår,
+        personskat_pbl49_felt_beløb,
+        personskat_pbl49_felt_art,
+        personskat_pbl49_felt_akasse,
+        personskat_pbl49_felt_akasse_skatteydermedlemskab,
+        personskat_pbl49_felt_privat_forsikringsejer,
+        personskat_pbl49_felt_privat_forsikrede,
+        personskat_pbl49_felt_senior_akasse,
+        personskat_pbl49_felt_seniormedlem,
+        personskat_pbl49_felt_efterløn_akasse,
+        personskat_pbl49_felt_efterløn_medlem,
+        personskat_pbl49_felt_efterløn_lovgrundlag,
+        personskat_pbl49_felt_fleks_tilmeldt,
+        personskat_pbl49_felt_fleks_lovgrundlag
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par49),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49a),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49b),
+        Source(value = pensionsbeskatningsloven_lbk1243_par54_stk2),
+        Source(value = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b),
+        Guidance(value = skat_pbl49_bidrag_vejledning),
+        Guidance(value = juridisk_vejledning_pbl49_bidrag),
+        Guidance(value = juridisk_vejledning_pbl49a_efterløn),
+        Guidance(value = juridisk_vejledning_pbl49b_fleksydelse),
+    )
+)
+
+--@label:Pbl49Til49BÅrsinput::meta:personskat_pbl49_beregningsmeta--
+
+= personskat_gave_felt_gaver = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver),
+    label = "Gaver og bindende løbende ydelser",
+    question = Some("Hvilke gaver eller bindende løbende ydelser er betalt i indkomståret?"),
+    help = Some("Opret én række pr. gave og bevar modtagerens godkendelses- og indberetningsfakta."),
+    unit = None
+)
+= personskat_gave_felt_identifikation = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::identifikation),
+    label = "Gavens identifikation",
+    question = Some("Hvilken entydig identifikation har gaven eller ydelsen?"),
+    help = Some("Brug en stabil reference fra kvitteringen eller indberetningen."),
+    unit = None
+)
+= personskat_gave_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::indkomstår),
+    label = "Gavens indkomstår",
+    question = Some("Hvilket indkomstår vedrører betalingen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_gave_felt_beløb = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::betalt_beløb_kroner),
+    label = "Betalt gave eller løbende ydelse",
+    question = Some("Hvor meget blev betalt til modtageren i indkomståret?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_gave_felt_modtager_id = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::identifikation),
+    label = "Gavemodtagerens identifikation",
+    question = Some("Hvilken entydig identifikation har gavemodtageren?"),
+    help = Some("Brug navn og eventuelt CVR-nummer eller den identifikation, som fremgår af godkendelsen."),
+    unit = None
+)
+= personskat_gave_felt_hjemsted = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::hjemsted),
+    label = "Gavemodtagerens hjemsted",
+    question = Some("Har modtageren hjemsted i Danmark, et andet EU/EØS-land eller uden for EU/EØS?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_formål = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::formål::$variant),
+    label = "Gavemodtagerens formål",
+    question = Some("Hvilket almenvelgørende, almennyttigt, forskningsmæssigt, naturbeskyttende eller religiøst formål har modtageren?"),
+    help = Some("Formålet skal dokumenteres ud fra modtagerens vedtægter og godkendelsesgrundlag."),
+    unit = None
+)
+= personskat_gave_felt_religiøs_anerkendelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::formål::LlGaveReligiøstSamfund::anerkendelse),
+    label = "Det religiøse samfunds anerkendelse",
+    question = Some("Er trossamfundet registreret som anerkendt efter trossamfundsloven, er menigheden omfattet af en anerkendelse, er der tale om en anerkendt valgmenighed, eller mangler relevant anerkendelse?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_godkendelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::godkendelse::$variant),
+    label = "Gavemodtagerens skattemæssige godkendelse",
+    question = Some("Er modtageren godkendt efter ligningslovens § 8 A, § 8 H eller § 12, eller er modtageren ikke godkendt?"),
+    help = Some("Vælg den godkendelse, der gælder for den konkrete betalingstype og det konkrete indkomstår."),
+    unit = None
+)
+= personskat_gave_felt_par8a_år = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::godkendelse::LlGaveGodkendtEfterPar8A::godkendelsesår),
+    label = "Godkendelsesår efter ligningslovens § 8 A",
+    question = Some("For hvilket år er modtageren godkendt efter § 8 A?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_gave_felt_par8h_år = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::godkendelse::LlGaveGodkendtEfterPar8H::godkendelsesår),
+    label = "Godkendelsesår efter ligningslovens § 8 H",
+    question = Some("For hvilket år er modtageren godkendt til forskningsgaver efter § 8 H?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_gave_felt_forskningsfondsudtalelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::godkendelse::LlGaveGodkendtEfterPar8H::forskningsfondsudtalelse_indhentet),
+    label = "Udtalelse fra Danmarks Frie Forskningsfond",
+    question = Some("Er den krævede udtalelse fra Danmarks Frie Forskningsfond indhentet for forskningsgodkendelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_par12_år = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::godkendelse::LlGaveGodkendtEfterPar12::godkendelsesår),
+    label = "Godkendelsesår efter ligningslovens § 12",
+    question = Some("For hvilket år er modtageren godkendt til bindende løbende ydelser efter § 12?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_gave_felt_likvidation = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::modtager::likvidationsprovenu_til_anden_velgørende_forening),
+    label = "Likvidationsprovenu går til et andet velgørende formål",
+    question = Some("Bestemmer vedtægterne, at et likvidationsprovenu tilfalder en anden almenvelgørende eller almennyttig forening?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_indberettet = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::indberettet_efter_skatteindberetningslov26),
+    label = "Gaven er indberettet",
+    question = Some("Er gaven indberettet efter skatteindberetningslovens § 26?"),
+    help = Some("Den lovpligtige indberetning er en betingelse for fradraget."),
+    unit = None
+)
+= personskat_gave_felt_art = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::$variant),
+    label = "Gavens retlige art",
+    question = Some("Er betalingen en almindelig § 8 A-gave, en forskningsgave efter § 8 H, en bindende løbende ydelse efter § 12 eller kontingent/varekøb?"),
+    help = Some("Betalingstypen bestemmer både modtagerkrav og årsloft."),
+    unit = None
+)
+= personskat_gave_felt_par8s = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll8AAlmindeligGave::fradraget_efter_par8s),
+    label = "Gaven er allerede fradraget efter ligningslovens § 8 S",
+    question = Some("Er betalingen allerede fradraget efter ligningslovens § 8 S?"),
+    help = Some("Samme betaling kan ikke også fradrages efter § 8 A."),
+    unit = None
+)
+= personskat_gave_felt_interesseforbundet = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll8HForskningsgave::giver_og_modtager_interesseforbundne_efter_par2),
+    label = "Giver og forskningsmodtager er interesseforbundne",
+    question = Some("Er giver og modtager interesseforbundne efter ligningslovens § 2?"),
+    help = Some("Interesseforbundne forskningsgaver er ikke omfattet af § 8 H-fradraget."),
+    unit = None
+)
+= personskat_gave_felt_ydelsesfastsættelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::ydelsesfastsættelse::$variant),
+    label = "Den løbende ydelses fastsættelse",
+    question = Some("Er den løbende ydelse aftalt som et fast årligt beløb eller som en procentdel af giverens indkomst?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_forfalden_ydelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::forfalden_årlig_ydelse_efter_aftalen_kroner),
+    label = "Forfalden årlig ydelse efter aftalen",
+    question = Some("Hvilket beløb er forfaldet efter den bindende aftale for indkomståret?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_gave_felt_skriftlig = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::aftale_skriftlig),
+    label = "Aftalen er skriftlig",
+    question = Some("Foreligger den bindende aftale skriftligt?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_ingen_modydelse = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::ingen_modydelse),
+    label = "Ingen modydelse for den løbende ydelse",
+    question = Some("Er den løbende ydelse ensidig og uden modydelse?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_aftalevarighed = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::aftalevarighed::$variant),
+    label = "Den bindende aftales varighed",
+    question = Some("Løber aftalen i en bestemt årrække eller så længe giveren lever?"),
+    help = Some("Skattestyrelsens praksis kræver mindst 10 år eller resten af giverens levetid."),
+    unit = None
+)
+= personskat_gave_felt_aftaleperiode = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::aftalevarighed::Ll12BestemtAftaleperiode::aftaleperiode_år),
+    label = "Den tidsbegrænsede aftales løbetid",
+    question = Some("Hvor mange år løber den tidsbegrænsede aftale?"),
+    help = Some("En tidsbegrænset aftale skal løbe i mindst 10 år."),
+    unit = Some("år")
+)
+= personskat_gave_felt_uopsigelig = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::aftalen_kan_ikke_uden_videre_ophæves),
+    label = "Aftalen kan ikke uden videre ophæves",
+    question = Some("Er aftalen bindende, så ingen af parterne uden videre kan ophæve den?"),
+    help = None,
+    unit = None
+)
+= personskat_gave_felt_navn_cpr = TypetBeregningsfelt(
+    path = refof(LigningslovGaveÅrsinput::gaver::art::Ll12BindendeLøbendeYdelse::navn_og_cpr_på_aftalen),
+    label = "Navn og CPR-nummer fremgår af aftalen",
+    question = Some("Fremgår giverens navn og CPR-nummer af den bindende aftale?"),
+    help = None,
+    unit = None
+)
+
+= personskat_gave_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_gave_felt_gaver,
+        personskat_gave_felt_identifikation,
+        personskat_gave_felt_indkomstår,
+        personskat_gave_felt_beløb,
+        personskat_gave_felt_modtager_id,
+        personskat_gave_felt_hjemsted,
+        personskat_gave_felt_formål,
+        personskat_gave_felt_religiøs_anerkendelse,
+        personskat_gave_felt_godkendelse,
+        personskat_gave_felt_par8a_år,
+        personskat_gave_felt_par8h_år,
+        personskat_gave_felt_forskningsfondsudtalelse,
+        personskat_gave_felt_par12_år,
+        personskat_gave_felt_likvidation,
+        personskat_gave_felt_indberettet,
+        personskat_gave_felt_art,
+        personskat_gave_felt_par8s,
+        personskat_gave_felt_interesseforbundet,
+        personskat_gave_felt_ydelsesfastsættelse,
+        personskat_gave_felt_forfalden_ydelse,
+        personskat_gave_felt_skriftlig,
+        personskat_gave_felt_ingen_modydelse,
+        personskat_gave_felt_aftalevarighed,
+        personskat_gave_felt_aftaleperiode,
+        personskat_gave_felt_uopsigelig,
+        personskat_gave_felt_navn_cpr
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par8a),
+        Source(value = ligningsloven_lbk1500_par8h),
+        Source(value = ligningsloven_lbk1500_par12_stk1_til4),
+        Guidance(value = skat_gavefradrag_vejledning),
+        Guidance(value = juridisk_vejledning_ligningslov12),
+        Guidance(value = skat_ligningslov12_indberetningsvejledning),
+    )
+)
+
+--@label:LigningslovGaveÅrsinput::meta:personskat_gave_beregningsmeta--

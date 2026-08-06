@@ -1,0 +1,459 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# LigningslovKontingentGaveKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ligningsloven_lbk1500_par13 = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 13 i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 13 er uændret"
+)
+= skat_fagforening_akasse_vejledning = LigningslovKontingentGaveKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-fagforening-a-kasse-efterloen-og-fleksydelse",
+    identifier = "Skattestyrelsen: Fradrag for fagforening, A-kasse, efterløn og fleksydelse",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov13 = LigningslovKontingentGaveKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061770",
+    identifier = "Den juridiske vejledning C.A.4.3.1.3: Fagforeningskontingent og arbejdsløshedsforsikring",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= ligningsloven_par13_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par13),
+        Guidance(value = skat_fagforening_akasse_vejledning),
+        Guidance(value = juridisk_vejledning_ligningslov13),
+    )
+)
+
+--@label:ligningsloven_par13_kontingentfradrag::meta:ligningsloven_par13_metadata--
+----
+§ 13. Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter til
+kontingenter til arbejdsgiverforeninger, fagforeninger og andre faglige
+sammenslutninger, der har til hovedformål at varetage de økonomiske interesser
+for den erhvervsgruppe, hvortil den skattepligtige hører. Det årlige fradrag
+efter 1. pkt. kan ikke overstige et beløb på 7.000 kr. 2. pkt. finder dog ikke
+anvendelse for selvstændigt erhvervsdrivende og selskaber m.v. (juridiske
+personer). Erstatninger eller ydelser, der udbetales til medlemmerne af
+sammenslutninger som nævnt i 1. pkt., medregnes til modtagerens skattepligtige
+indkomst, jf. dog §§ 30 og 31.
+
+Stk. 2. Fradrag efter stk. 1 er betinget af, at den faglige forening, hvis den
+er indberetningspligtig efter skatteindberetningslovens § 31, har indberettet
+kontingentudgiften til told- og skatteforvaltningen.
+----
+
+--@begin::ligningsloven_par13_kontingentfradrag--
+# Ligningslov13Skatteyderstatus = Ll13Lønmodtager | Ll13SelvstændigtErhvervsdrivende | Ll13JuridiskPerson
+# Ligningslov13Foreningsart = Ll13Arbejdsgiverforening | Ll13Fagforening | Ll13AndenFagligSammenslutning | Ll13AndenForening
+# Ligningslov13Indberetningsstatus = Ll13IkkeIndberetningspligtig | Ll13IndberettetEfterSkatteindberetningslov31 | Ll13IkkeIndberettetEfterSkatteindberetningslov31
+# Ligningslov13KontingentFakta(identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, betalt_kontingent_kroner: Heltal, foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, skatteyder_hører_til_erhvervsgruppen: Boolsk, indberetningsstatus: Ligningslov13Indberetningsstatus)
+# Ligningslov13Årsinput(skatteyderstatus: Ligningslov13Skatteyderstatus, kontingenter: List(Ligningslov13KontingentFakta))
+# Ligningslov13KontingentResultat(fakta: Ligningslov13KontingentFakta, input_gyldigt: Boolsk, foreningens_opgjorte_andel_gyldig: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, indberetningsbetingelse_opfyldt: Boolsk, fradragsberettiget: Boolsk, fradragsberettiget_før_årsloft_kroner: Heltal)
+# Ligningslov13Årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput, kontingentresultater: List(Ligningslov13KontingentResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, fradrag_før_årsloft_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+
+| ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov13_foreningsart_omfattet(art: Ligningslov13Foreningsart) -> art == Ll13Arbejdsgiverforening || art == Ll13Fagforening || art == Ll13AndenFagligSammenslutning
+| ligningslov13_indberetningsbetingelse_opfyldt(status: Ligningslov13Indberetningsstatus) -> status == Ll13IkkeIndberetningspligtig || status == Ll13IndberettetEfterSkatteindberetningslov31
+
+# Ligningslov13KontingentSag(indkomstår: Heltal, fakta: Ligningslov13KontingentFakta) {
+    | foreningens_opgjorte_andel_gyldig() -> fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner >= 0 && fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner <= fakta.betalt_kontingent_kroner
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_kontingent_kroner >= 0 && foreningens_opgjorte_andel_gyldig()
+    | foreningsart_omfattet() -> ligningslov13_foreningsart_omfattet(fakta.foreningsart)
+    | hovedformål_og_erhvervsgruppe_opfyldt() -> fakta.foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser && fakta.skatteyder_hører_til_erhvervsgruppen
+    | indberetningsbetingelse_opfyldt() -> ligningslov13_indberetningsbetingelse_opfyldt(fakta.indberetningsstatus)
+    | fradragsberettiget() -> input_gyldigt() && foreningsart_omfattet() && hovedformål_og_erhvervsgruppe_opfyldt() && indberetningsbetingelse_opfyldt()
+    | fradragsberettiget_før_årsloft_kroner() -> hvis fradragsberettiget() { fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner } ellers { 0 }
+    | resultat() -> Ligningslov13KontingentResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        foreningens_opgjorte_andel_gyldig = foreningens_opgjorte_andel_gyldig(),
+        foreningsart_omfattet = foreningsart_omfattet(),
+        hovedformål_og_erhvervsgruppe_opfyldt = hovedformål_og_erhvervsgruppe_opfyldt(),
+        indberetningsbetingelse_opfyldt = indberetningsbetingelse_opfyldt(),
+        fradragsberettiget = fradragsberettiget(),
+        fradragsberettiget_før_årsloft_kroner = fradragsberettiget_før_årsloft_kroner()
+    )
+}
+
+| ligningslov13_kontingent_resultat(indkomstår: Heltal, fakta: Ligningslov13KontingentFakta) -> Ligningslov13KontingentSag(indkomstår, fakta).resultat()
+| ligningslov13_identifikationer_entydige(kontingenter: List(Ligningslov13KontingentFakta)) -> length(distinct(map(kontingenter, |fakta: Ligningslov13KontingentFakta| fakta.identifikation))) == length(kontingenter) && all(kontingenter, |fakta: Ligningslov13KontingentFakta| fakta.identifikation != "")
+| ligningslov13_fradrag_før_årsloft_kroner(resultater: List(Ligningslov13KontingentResultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Ligningslov13KontingentResultat| sum_kroner + resultat.fradragsberettiget_før_årsloft_kroner)
+| ligningslov13_betalt_kontingent_kroner(kontingenter: List(Ligningslov13KontingentFakta)) -> foldl(kontingenter, 0, |sum_kroner: Heltal, fakta: Ligningslov13KontingentFakta| sum_kroner + penge_positivt_beløb(fakta.betalt_kontingent_kroner))
+| ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 7000
+| exception ligningslov13_selvstændig_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
+| exception ligningslov13_juridisk_person_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13JuridiskPerson
+| ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> penge_mindste_beløb(fradrag_før_årsloft_kroner, 7000)
+| exception ligningslov13_selvstændig_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
+| exception ligningslov13_juridisk_person_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13JuridiskPerson
+| ligningslov13_årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput) -> {
+    = kontingentresultater = map(input.kontingenter, |fakta: Ligningslov13KontingentFakta| ligningslov13_kontingent_resultat(indkomstår, fakta))
+    = skatteår_understøttet = length(input.kontingenter) == 0 || ligningslov13_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = ligningslov13_identifikationer_entydige(input.kontingenter)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(kontingentresultater, |resultat: Ligningslov13KontingentResultat| resultat.input_gyldigt)
+    = fradrag_før_årsloft_kroner = ligningslov13_fradrag_før_årsloft_kroner(kontingentresultater)
+    = samlet_fradrag_kroner = hvis alle_input_gyldige { ligningslov13_fradrag_efter_årsloft_kroner(input.skatteyderstatus, fradrag_før_årsloft_kroner) } ellers { 0 }
+    Ligningslov13Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        kontingentresultater = kontingentresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        fradrag_før_årsloft_kroner = fradrag_før_årsloft_kroner,
+        årsloft_kroner = ligningslov13_årsloft_kroner(indkomstår, input.skatteyderstatus),
+        samlet_fradrag_kroner = samlet_fradrag_kroner,
+        ikke_fradraget_kroner = ligningslov13_betalt_kontingent_kroner(input.kontingenter) - samlet_fradrag_kroner
+    )
+}
+--@end::ligningsloven_par13_kontingentfradrag--
+
+= ligningsloven_lbk1500_par8a = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 8 A er uændret"
+)
+= skat_gavefradrag_vejledning = LigningslovKontingentGaveKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-gaver-og-bidrag-til-velgoerende-foreninger",
+    identifier = "Skattestyrelsen: Fradrag for gaver og bidrag til velgørende foreninger",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_ligningslov12 = LigningslovKontingentGaveKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061727",
+    identifier = "Den juridiske vejledning C.A.4.3.5.2: Løbende ydelser til godkendte foreninger mv. og religiøse samfund",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= skat_ligningslov12_indberetningsvejledning = LigningslovKontingentGaveKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2459581",
+    identifier = "Skatteforvaltningen: Løbende ydelser efter ligningslovens § 12, stk. 1-3",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= ligningsloven_par8a_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par8a),
+        Guidance(value = skat_gavefradrag_vejledning),
+    )
+)
+
+--@label:ligningsloven_par8a_gavefradrag::meta:ligningsloven_par8a_metadata--
+----
+§ 8 A. Ved opgørelsen af den skattepligtige indkomst kan fradrages gaver, som
+det godtgøres, at giveren har ydet til foreninger, stiftelser, institutioner
+mv., hvis midler anvendes i almenvelgørende eller på anden måde almennyttigt
+øjemed til fordel for en større kreds af personer. Fradraget kan ikke udgøre
+mere end et grundbeløb på 14.500 kr. (2010-niveau), som reguleres efter
+personskattelovens § 20. Endelig er fradrag betinget af, at foreningen m.v. har
+indberettet indbetalingen til told- og skatteforvaltningen efter
+skatteindberetningslovens § 26.
+
+Stk. 2. Fradragsretten efter stk. 1 er betinget af, at foreningen eller det
+religiøse samfund m.v. er godkendt her i landet eller i et andet EU/EØS-land,
+hvor det er hjemmehørende, for det kalenderår, hvori donationen gives, jf. stk.
+3. Det skal af vedtægter, fundats el.lign. fremgå, at formålet er
+almenvelgørende, dvs. at midlerne alene kan anvendes til støtte for en videre
+kreds af personer, som er i økonomisk trang eller har vanskelige økonomiske
+forhold, eller til et formål, som ud fra en i befolkningen almindeligt herskende
+opfattelse kan karakteriseres som nyttigt, og som kommer en vis større kreds
+til gode, eller at der er tale om et religiøst samfund. Det skal tilsvarende
+fremgå, at et likvidationsprovenu eller overskud ved opløsning skal tilfalde en
+anden velgørende forening m.v. For trossamfund, som søger om godkendelse, jf.
+stk. 3, på baggrund af det religiøse virke, er det endvidere en betingelse, at
+de er registreret som anerkendt trossamfund efter lov om trossamfund uden for
+folkekirken eller tilsvarende regler i et andet EU- eller EØS-land. For
+menigheder, forsamlinger og kredse m.v., som søger om godkendelse, jf. stk. 3,
+på baggrund af det religiøse virke, er det en betingelse, at de er anerkendt
+som en del af et trossamfunds anerkendelse efter lov om trossamfund uden for
+folkekirken eller tilsvarende regler i et andet EU- eller EØS-land. 5. pkt.
+gælder dog ikke for valgmenigheder, som er anerkendt efter lov om
+valgmenigheder.
+
+Stk. 3. Told- og skatteforvaltningen fastsætter nærmere regler om godkendelse
+af foreninger m.v., organisatoriske forhold og indsendelse af oplysninger om
+formue, indtægter, bidragydere, midlernes anvendelse m.v. Told- og
+skatteforvaltningen fastsætter for patientforeninger, som repræsenterer sjældne
+sygdomme, særlige regler om godkendelse, der fraviger de almindelige
+betingelser om antal kontingentbetalende medlemmer, antal årlige gavegivere,
+gavestørrelse og årlig bruttoindtægt eller formue. Told- og
+skatteforvaltningen offentliggør hvert år en liste over de organisationer, som
+opfylder betingelserne for at kunne modtage fradragsberettigede ydelser. For at
+være berettiget hertil og blive optaget på listen, skal en organisations
+ansøgning m.v. herom for det pågældende og følgende kalenderår være modtaget
+hos told- og skatteforvaltningen senest den 1. oktober. Told- og
+skatteforvaltningen kan videregive oplysninger om afslag på en ansøgning om
+godkendelse efter stk. 2 eller tilbagekaldelse af en godkendelse efter stk. 2
+til andre offentlige myndigheder, hvis oplysningerne er af betydning for
+myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
+
+Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
+2.
+----
+
+--@begin::ligningsloven_par8a_gavefradrag--
+# LigningslovGavemodtagerHjemsted = LlGaveDanmark | LlGaveAndetEUEØSLand | LlGaveUdenForEUEØS
+# LigningslovReligiøsAnerkendelse = LlGaveAnerkendtTrossamfund | LlGaveAnerkendtMenighedForsamlingEllerKreds | LlGaveAnerkendtValgmenighed | LlGaveIkkeAnerkendtReligiøstSamfund
+# LigningslovGavemodtagerFormål = LlGaveAlmenvelgørendeØkonomiskTrængte | LlGaveAlmennyttigtTilStørreKreds | LlGaveAlmennyttigForskning | LlGaveBeskyttelseAfNaturmiljøet | LlGaveReligiøstSamfund(anerkendelse: LigningslovReligiøsAnerkendelse) | LlGaveAndetFormål
+# LigningslovGavemodtagerGodkendelse = LlGaveIkkeGodkendt | LlGaveGodkendtEfterPar8A(godkendelsesår: Heltal) | LlGaveGodkendtEfterPar8H(godkendelsesår: Heltal, forskningsfondsudtalelse_indhentet: Boolsk) | LlGaveGodkendtEfterPar12(godkendelsesår: Heltal)
+# LigningslovGavemodtagerFakta(identifikation: Tekst, hjemsted: LigningslovGavemodtagerHjemsted, formål: LigningslovGavemodtagerFormål, godkendelse: LigningslovGavemodtagerGodkendelse, likvidationsprovenu_til_anden_velgørende_forening: Boolsk)
+# Ligningslov12Ydelsesfastsættelse = Ll12FastÅrligtBeløb | Ll12ProcentdelAfIndkomst
+# Ligningslov12Aftalevarighed = Ll12BestemtAftaleperiode(aftaleperiode_år: Heltal) | Ll12SåLængeYderenLever
+# LigningslovGaveart = Ll8AAlmindeligGave(fradraget_efter_par8s: Boolsk) | Ll8HForskningsgave(giver_og_modtager_interesseforbundne_efter_par2: Boolsk) | Ll12BindendeLøbendeYdelse(ydelsesfastsættelse: Ligningslov12Ydelsesfastsættelse, forfalden_årlig_ydelse_efter_aftalen_kroner: Heltal, aftale_skriftlig: Boolsk, ingen_modydelse: Boolsk, aftalevarighed: Ligningslov12Aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves: Boolsk, navn_og_cpr_på_aftalen: Boolsk) | LlGaveKontingentEllerVarekøb
+# LigningslovGaveFakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, modtager: LigningslovGavemodtagerFakta, indberettet_efter_skatteindberetningslov26: Boolsk, art: LigningslovGaveart)
+# LigningslovGaveÅrsinput(gaver: List(LigningslovGaveFakta))
+# Ligningslov12Indkomstgrundlag = UdenLigningslov12Indkomstgrundlag | MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal)
+# LigningslovGavehjemmel = LlIngenGavehjemmel | LlPar8AGavefradrag | LlPar8HForskningsgavefradrag | LlPar12LøbendeYdelsesfradrag
+# LigningslovGaveResultat(fakta: LigningslovGaveFakta, input_gyldigt: Boolsk, modtagerhjemsted_opfyldt: Boolsk, modtagerformål_opfyldt: Boolsk, godkendelse_opfyldt: Boolsk, indberetning_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: LigningslovGavehjemmel, fradragsgrundlag_før_årsloft_kroner: Heltal)
+# LigningslovGaveÅrsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag, gaveresultater: List(LigningslovGaveResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, par12_indkomstgrundlag_tilgængeligt: Boolsk, alle_input_gyldige: Boolsk, par8a_fradrag_før_loft_kroner: Heltal, par8a_årsloft_kroner: Heltal, par8a_fradrag_kroner: Heltal, par8h_fradrag_kroner: Heltal, par12_fradrag_før_loft_kroner: Heltal, par12_årsloft_kroner: Heltal, par12_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+
+| ligningslov_gave_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov_gavemodtager_hjemsted_opfyldt(hjemsted: LigningslovGavemodtagerHjemsted) -> hjemsted == LlGaveDanmark || hjemsted == LlGaveAndetEUEØSLand
+| ligningslov_religiøs_anerkendelse_opfyldt(anerkendelse: LigningslovReligiøsAnerkendelse) -> anerkendelse == LlGaveAnerkendtTrossamfund || anerkendelse == LlGaveAnerkendtMenighedForsamlingEllerKreds || anerkendelse == LlGaveAnerkendtValgmenighed
+| ligningslov_gave_formål_almenvelgørende_eller_almennyttigt(formål: LigningslovGavemodtagerFormål) -> match formål {
+    | LlGaveAlmenvelgørendeØkonomiskTrængte -> Sandt
+    | LlGaveAlmennyttigtTilStørreKreds -> Sandt
+    | LlGaveAlmennyttigForskning -> Sandt
+    | LlGaveBeskyttelseAfNaturmiljøet -> Sandt
+    | LlGaveReligiøstSamfund(anerkendelse) -> ligningslov_religiøs_anerkendelse_opfyldt(anerkendelse)
+    | LlGaveAndetFormål -> Falskt
+}
+| ligningslov_gave_godkendt_efter_par8a(godkendelse: LigningslovGavemodtagerGodkendelse, indkomstår: Heltal) -> match godkendelse {
+    | LlGaveGodkendtEfterPar8A(godkendelsesår) -> godkendelsesår == indkomstår
+    | _ -> Falskt
+}
+| ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 0
+| exception ligningslov8a_2025_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 19000 under indkomstår == 2025
+| exception ligningslov8a_2026_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 20000 under indkomstår == 2026
+--@end::ligningsloven_par8a_gavefradrag--
+
+= ligningsloven_lbk1500_par8h = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 H i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 8 H er uændret"
+)
+= ligningsloven_par8h_metadata = Metadata(
+    attachments = Source(value = ligningsloven_lbk1500_par8h)
+)
+
+--@label:ligningsloven_par8h_forskningsgaver::meta:ligningsloven_par8h_metadata--
+----
+§ 8 H. Ved opgørelsen af den skattepligtige indkomst kan fradrages gaver, som
+giveren har ydet til almenvelgørende eller på anden måde almennyttige
+foreninger, stiftelser, institutioner m.v., der anvender deres midler til
+forskning. Foreningerne, stiftelserne, institutionerne m.v. skal være
+hjemmehørende her i landet eller i et andet EU/EØS-land. Fradraget er betinget
+af, at foreningen, stiftelserne, institutionerne m.v., har indberettet gaven
+til told- og skatteforvaltningen efter skatteindberetningslovens § 26.
+
+Stk. 2. Fradrag efter stk. 1 er betinget af, at told- og
+skatteforvaltningen for det kalenderår, hvori gaven ydes, har godkendt den
+pågældende forening, stiftelse, institution m.v. som berettiget til at modtage
+gaver med den virkning, at gavebeløbet kan fradrages ved opgørelsen af den
+skattepligtige indkomst. Told- og skatteforvaltningen skal forinden
+godkendelsen indhente en udtalelse fra Danmarks Frie Forskningsfond om, hvorvidt
+foreningen, stiftelsen, institutionen m.v. anvender sine midler til forskning.
+
+Stk. 3. Stk. 1 finder ikke anvendelse, såfremt gavegiver og gavemodtager er
+interesseforbundne, jf. § 2.
+
+Stk. 4. I tilfælde, der er omfattet af stk. 1, finder § 8 A ikke anvendelse.
+----
+
+--@begin::ligningsloven_par8h_forskningsgaver--
+| ligningslov_gave_godkendt_efter_par8h(godkendelse: LigningslovGavemodtagerGodkendelse, indkomstår: Heltal) -> match godkendelse {
+    | LlGaveGodkendtEfterPar8H(godkendelsesår, forskningsfondsudtalelse_indhentet) -> godkendelsesår == indkomstår && forskningsfondsudtalelse_indhentet
+    | _ -> Falskt
+}
+--@end::ligningsloven_par8h_forskningsgaver--
+
+= ligningsloven_lbk1500_par12_stk1_til4 = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 12, stk. 1-4, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 12 er uændret"
+)
+= ligningsloven_par12_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par12_stk1_til4),
+        Guidance(value = skat_gavefradrag_vejledning),
+        Guidance(value = juridisk_vejledning_ligningslov12),
+        Guidance(value = skat_ligningslov12_indberetningsvejledning),
+    )
+)
+
+--@label:ligningsloven_par12_bindende_gaver::meta:ligningsloven_par12_metadata--
+----
+§ 12. Udgifter til løbende ydelser, som den skattepligtige ensidigt har
+forpligtet sig til at udrede, kan fradrages ved opgørelsen af den
+skattepligtige indkomst efter reglerne i stk. 2-7.
+
+Stk. 2. Udgifter til ensidigt påtagne forpligtelser som nævnt i stk. 1 kan
+fradrages, hvis ydelsen tilfalder foreninger, stiftelser, institutioner mv. eller
+religiøse samfund som godkendt efter stk. 3. Fradrag indrømmes kun for årlige
+ydelser, der ikke overstiger 15 pct. af yderens personlige indkomst med tillæg
+af positiv kapitalindkomst. For selskaber og andre skattepligtige institutioner
+indrømmes fradrag kun for årlige ydelser, der ikke overstiger 15 pct. af
+yderens skattepligtige indkomst. Årlige ydelser, der ikke overstiger 15.000 kr.,
+kan dog fradrages fuldt ud uanset begrænsningen i 2. og 3. pkt. Fradraget er
+betinget af, at foreningen m.v. har indberettet indbetalingen til told- og
+skatteforvaltningen efter skatteindberetningslovens § 26.
+
+Stk. 3. Fradragsretten efter stk. 2 er betinget af, at foreningen eller det
+religiøse samfund m.v. er godkendt her i landet eller i et andet EU/EØS-land,
+hvor det er hjemmehørende. Det skal af vedtægter, fundats el.lign. fremgå, at
+formålet er almenvelgørende eller almennyttigt, eller at der er tale om et
+religiøst samfund, jf. § 8 A, stk. 2. Det skal tilsvarende fremgå, at et
+likvidationsprovenu eller overskud ved opløsning skal tilfalde en anden
+velgørende forening m.v. Endvidere må midlerne kun anvendes til humanitære
+formål, til forskning, til beskyttelse af naturmiljøet eller til et religiøst
+samfund. For trossamfund, som søger om godkendelse, jf. stk. 4, på baggrund af
+det religiøse virke, er det endvidere en betingelse, at de er registreret som
+anerkendt trossamfund efter lov om trossamfund uden for folkekirken eller
+tilsvarende regler i et andet EU- eller EØS-land. For menigheder, forsamlinger
+og kredse m.v., som søger om godkendelse, jf. stk. 4, på baggrund af det
+religiøse virke, er det en betingelse, at de er anerkendt som en del af et
+trossamfunds anerkendelse efter lov om trossamfund uden for folkekirken eller
+tilsvarende regler i et andet EU- eller EØS-land. 6. pkt. gælder dog ikke for
+valgmenigheder, som er anerkendt efter lov om valgmenigheder.
+
+Stk. 4. Told- og skatteforvaltningen fastsætter nærmere regler om godkendelse
+af foreninger m.v., organisatoriske forhold og indsendelse af oplysninger om
+formue, indtægter, bidragydere, midlernes anvendelse m.v. Told- og
+skatteforvaltningen offentliggør hvert år en liste over de organisationer, som
+opfylder betingelserne for at kunne modtage fradragsberettigede ydelser. For at
+være berettiget hertil og blive optaget på listen, skal en organisations
+ansøgning m.v. herom for det pågældende og følgende kalenderår være modtaget
+hos told- og skatteforvaltningen senest den 1. oktober. Told- og
+skatteforvaltningen kan videregive oplysninger om afslag på en ansøgning om
+godkendelse efter stk. 3 eller tilbagekaldelse af en godkendelse efter stk. 3
+til andre offentlige myndigheder, hvis oplysningerne er af betydning for
+myndighedens virksomhed eller for en afgørelse, som myndigheden skal træffe.
+----
+
+--@begin::ligningsloven_par12_bindende_gaver--
+| ligningslov12_tilladt_modtagerformål(formål: LigningslovGavemodtagerFormål) -> match formål {
+    | LlGaveAlmenvelgørendeØkonomiskTrængte -> Sandt
+    | LlGaveAlmennyttigForskning -> Sandt
+    | LlGaveBeskyttelseAfNaturmiljøet -> Sandt
+    | LlGaveReligiøstSamfund(anerkendelse) -> ligningslov_religiøs_anerkendelse_opfyldt(anerkendelse)
+    | _ -> Falskt
+}
+| ligningslov_gave_godkendt_efter_par12(godkendelse: LigningslovGavemodtagerGodkendelse, indkomstår: Heltal) -> match godkendelse {
+    | LlGaveGodkendtEfterPar12(godkendelsesår) -> godkendelsesår == indkomstår
+    | _ -> Falskt
+}
+| ligningslov12_aftalevarighed_opfyldt(aftalevarighed: Ligningslov12Aftalevarighed) -> match aftalevarighed {
+    | Ll12BestemtAftaleperiode(aftaleperiode_år) -> aftaleperiode_år >= 10
+    | Ll12SåLængeYderenLever -> Sandt
+}
+| ligningslov12_aftalebetingelser_opfyldt(art: LigningslovGaveart) -> match art {
+    | Ll12BindendeLøbendeYdelse(_, forfalden_årlig_ydelse_efter_aftalen_kroner, aftale_skriftlig, ingen_modydelse, aftalevarighed, aftalen_kan_ikke_uden_videre_ophæves, navn_og_cpr_på_aftalen) -> forfalden_årlig_ydelse_efter_aftalen_kroner >= 0 && aftale_skriftlig && ingen_modydelse && ligningslov12_aftalevarighed_opfyldt(aftalevarighed) && aftalen_kan_ikke_uden_videre_ophæves && navn_og_cpr_på_aftalen
+    | _ -> Falskt
+}
+| ligningslov12_forfalden_årlig_ydelse_kroner(art: LigningslovGaveart) -> match art {
+    | Ll12BindendeLøbendeYdelse(_, forfalden_årlig_ydelse_efter_aftalen_kroner, _, _, _, _, _) -> penge_positivt_beløb(forfalden_årlig_ydelse_efter_aftalen_kroner)
+    | _ -> 0
+}
+| ligningslov12_indkomstgrundlag_tilgængeligt(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> match indkomstgrundlag {
+    | UdenLigningslov12Indkomstgrundlag -> Falskt
+    | MedLigningslov12Indkomstgrundlag(_, _) -> Sandt
+}
+| ligningslov12_indkomstgrundlag_kroner(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> match indkomstgrundlag {
+    | UdenLigningslov12Indkomstgrundlag -> 0
+    | MedLigningslov12Indkomstgrundlag(personlig_indkomst_kroner, positiv_nettokapitalindkomst_kroner) -> penge_positivt_beløb(personlig_indkomst_kroner + penge_positivt_beløb(positiv_nettokapitalindkomst_kroner))
+}
+| ligningslov12_årsloft_kroner(indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> penge_største_beløb(penge_beløb_gange_basispoint_kroner(ligningslov12_indkomstgrundlag_kroner(indkomstgrundlag), 1500), 15000)
+--@end::ligningsloven_par12_bindende_gaver--
+
+--@begin::ligningsloven_gavefradrag_samordning--
+# LigningslovGaveSag(indkomstår: Heltal, fakta: LigningslovGaveFakta) {
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0 && fakta.modtager.identifikation != ""
+    | modtagerhjemsted_opfyldt() -> ligningslov_gavemodtager_hjemsted_opfyldt(fakta.modtager.hjemsted)
+    | er_par8a() -> match fakta.art { | Ll8AAlmindeligGave(_) -> Sandt | _ -> Falskt }
+    | er_par8h() -> match fakta.art { | Ll8HForskningsgave(_) -> Sandt | _ -> Falskt }
+    | er_par12() -> match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _) -> Sandt | _ -> Falskt }
+    | fradraget_efter_par8s() -> match fakta.art { | Ll8AAlmindeligGave(fradraget) -> fradraget | _ -> Falskt }
+    | interesseforbundet_efter_par2() -> match fakta.art { | Ll8HForskningsgave(interesseforbundet) -> interesseforbundet | _ -> Falskt }
+    | modtagerformål_opfyldt() -> Falskt
+    | exception ligningslov8a_almenvelgørende_eller_almennyttigt_formål modtagerformål_opfyldt() -> ligningslov_gave_formål_almenvelgørende_eller_almennyttigt(fakta.modtager.formål) under er_par8a()
+    | exception ligningslov8h_forskningsformål modtagerformål_opfyldt() -> Sandt under er_par8h() && fakta.modtager.formål == LlGaveAlmennyttigForskning
+    | exception ligningslov12_tilladt_formål modtagerformål_opfyldt() -> ligningslov12_tilladt_modtagerformål(fakta.modtager.formål) under er_par12()
+    | godkendelse_opfyldt() -> Falskt
+    | exception ligningslov8a_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par8a(fakta.modtager.godkendelse, indkomstår) under er_par8a()
+    | exception ligningslov8h_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par8h(fakta.modtager.godkendelse, indkomstår) under er_par8h()
+    | exception ligningslov12_godkendelse godkendelse_opfyldt() -> ligningslov_gave_godkendt_efter_par12(fakta.modtager.godkendelse, indkomstår) under er_par12()
+    | likvidationsbetingelse_opfyldt() -> er_par8h() || fakta.modtager.likvidationsprovenu_til_anden_velgørende_forening
+    | særlige_artbetingelser_opfyldt() -> Falskt
+    | exception ligningslov8a_ikke_par8s særlige_artbetingelser_opfyldt() -> fradraget_efter_par8s() == Falskt under er_par8a()
+    | exception ligningslov8h_ikke_interesseforbundet særlige_artbetingelser_opfyldt() -> interesseforbundet_efter_par2() == Falskt under er_par8h()
+    | exception ligningslov12_bindende_aftale særlige_artbetingelser_opfyldt() -> ligningslov12_aftalebetingelser_opfyldt(fakta.art) under er_par12()
+    | fradragsberettiget() -> input_gyldigt() && modtagerhjemsted_opfyldt() && modtagerformål_opfyldt() && godkendelse_opfyldt() && fakta.indberettet_efter_skatteindberetningslov26 && likvidationsbetingelse_opfyldt() && særlige_artbetingelser_opfyldt()
+    | hjemmel() -> LlIngenGavehjemmel
+    | exception ligningslov8a_hjemmel hjemmel() -> LlPar8AGavefradrag under fradragsberettiget() && er_par8a()
+    | exception ligningslov8h_hjemmel hjemmel() -> LlPar8HForskningsgavefradrag under fradragsberettiget() && er_par8h()
+    | exception ligningslov12_hjemmel hjemmel() -> LlPar12LøbendeYdelsesfradrag under fradragsberettiget() && er_par12()
+    | fradragsgrundlag_før_årsloft_kroner() -> 0
+    | exception ligningslov8a_og_8h_betalt_beløb fradragsgrundlag_før_årsloft_kroner() -> fakta.betalt_beløb_kroner under fradragsberettiget() && (er_par8a() || er_par8h())
+    | exception ligningslov12_højst_betalt_og_forfaldent fradragsgrundlag_før_årsloft_kroner() -> penge_mindste_beløb(fakta.betalt_beløb_kroner, ligningslov12_forfalden_årlig_ydelse_kroner(fakta.art)) under fradragsberettiget() && er_par12()
+    | resultat() -> LigningslovGaveResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        modtagerhjemsted_opfyldt = modtagerhjemsted_opfyldt(),
+        modtagerformål_opfyldt = modtagerformål_opfyldt(),
+        godkendelse_opfyldt = godkendelse_opfyldt(),
+        indberetning_opfyldt = fakta.indberettet_efter_skatteindberetningslov26,
+        fradragsberettiget = fradragsberettiget(),
+        hjemmel = hjemmel(),
+        fradragsgrundlag_før_årsloft_kroner = fradragsgrundlag_før_årsloft_kroner()
+    )
+}
+
+| ligningslov_gave_resultat(indkomstår: Heltal, fakta: LigningslovGaveFakta) -> LigningslovGaveSag(indkomstår, fakta).resultat()
+| ligningslov_gave_identifikationer_entydige(gaver: List(LigningslovGaveFakta)) -> length(distinct(map(gaver, |fakta: LigningslovGaveFakta| fakta.identifikation))) == length(gaver) && all(gaver, |fakta: LigningslovGaveFakta| fakta.identifikation != "")
+| ligningslov_gave_har_par12(gaver: List(LigningslovGaveFakta)) -> any(gaver, |fakta: LigningslovGaveFakta| match fakta.art { | Ll12BindendeLøbendeYdelse(_, _, _, _, _, _, _) -> Sandt | _ -> Falskt })
+| ligningslov_gave_par12_indkomstgrundlag_tilgængeligt(gaver: List(LigningslovGaveFakta), indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> ligningslov_gave_har_par12(gaver) == Falskt || ligningslov12_indkomstgrundlag_tilgængeligt(indkomstgrundlag)
+| ligningslov_gave_fradrag_for_hjemmel_kroner(resultater: List(LigningslovGaveResultat), hjemmel: LigningslovGavehjemmel) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: LigningslovGaveResultat| sum_kroner + hvis resultat.hjemmel == hjemmel { resultat.fradragsgrundlag_før_årsloft_kroner } ellers { 0 })
+| ligningslov_gave_betalt_kroner(gaver: List(LigningslovGaveFakta)) -> foldl(gaver, 0, |sum_kroner: Heltal, fakta: LigningslovGaveFakta| sum_kroner + penge_positivt_beløb(fakta.betalt_beløb_kroner))
+| ligningslov_gave_årsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> {
+    = gaveresultater = map(input.gaver, |fakta: LigningslovGaveFakta| ligningslov_gave_resultat(indkomstår, fakta))
+    = skatteår_understøttet = length(input.gaver) == 0 || ligningslov_gave_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = ligningslov_gave_identifikationer_entydige(input.gaver)
+    = par12_indkomstgrundlag_tilgængeligt = ligningslov_gave_par12_indkomstgrundlag_tilgængeligt(input.gaver, indkomstgrundlag)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && par12_indkomstgrundlag_tilgængeligt && all(gaveresultater, |resultat: LigningslovGaveResultat| resultat.input_gyldigt)
+    = par8a_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar8AGavefradrag)
+    = par8h_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar8HForskningsgavefradrag)
+    = par12_fradrag_før_loft_kroner = ligningslov_gave_fradrag_for_hjemmel_kroner(gaveresultater, LlPar12LøbendeYdelsesfradrag)
+    = par8a_fradrag_kroner = hvis alle_input_gyldige { penge_mindste_beløb(par8a_fradrag_før_loft_kroner, ligningslov8a_årsloft_kroner(indkomstår)) } ellers { 0 }
+    = par8h_fradrag_kroner = hvis alle_input_gyldige { par8h_fradrag_før_loft_kroner } ellers { 0 }
+    = par12_årsloft_kroner = hvis par12_indkomstgrundlag_tilgængeligt { ligningslov12_årsloft_kroner(indkomstgrundlag) } ellers { 0 }
+    = par12_fradrag_kroner = hvis alle_input_gyldige { penge_mindste_beløb(par12_fradrag_før_loft_kroner, par12_årsloft_kroner) } ellers { 0 }
+    = samlet_fradrag_kroner = par8a_fradrag_kroner + par8h_fradrag_kroner + par12_fradrag_kroner
+    LigningslovGaveÅrsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        indkomstgrundlag = indkomstgrundlag,
+        gaveresultater = gaveresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        par12_indkomstgrundlag_tilgængeligt = par12_indkomstgrundlag_tilgængeligt,
+        alle_input_gyldige = alle_input_gyldige,
+        par8a_fradrag_før_loft_kroner = par8a_fradrag_før_loft_kroner,
+        par8a_årsloft_kroner = ligningslov8a_årsloft_kroner(indkomstår),
+        par8a_fradrag_kroner = par8a_fradrag_kroner,
+        par8h_fradrag_kroner = par8h_fradrag_kroner,
+        par12_fradrag_før_loft_kroner = par12_fradrag_før_loft_kroner,
+        par12_årsloft_kroner = par12_årsloft_kroner,
+        par12_fradrag_kroner = par12_fradrag_kroner,
+        samlet_fradrag_kroner = samlet_fradrag_kroner,
+        ikke_fradraget_kroner = ligningslov_gave_betalt_kroner(input.gaver) - samlet_fradrag_kroner
+    )
+}
+--@end::ligningsloven_gavefradrag_samordning--

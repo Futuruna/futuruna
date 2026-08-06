@@ -1,0 +1,292 @@
+@ sprog da
+
+@ importer ./metadata
+
+# Pbl49KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par49 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 49, stk. 1 og 3, i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; de anvendte fradragsregler er uændrede"
+)
+= skat_pbl49_bidrag_vejledning = Pbl49KildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-fagforening-a-kasse-efterloen-og-fleksydelse",
+    identifier = "Skattestyrelsen: Fradrag for fagforening, A-kasse, efterløn og fleksydelse",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_pbl49_bidrag = Pbl49KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061770",
+    identifier = "Den juridiske vejledning C.A.4.3.1.3: Fagforeningskontingent og arbejdsløshedsforsikring",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_pbl49a_efterløn = Pbl49KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048450",
+    identifier = "Den juridiske vejledning C.A.10.4.1.2.1: Fradrag for efterlønsbidrag",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_pbl49b_fleksydelse = Pbl49KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2048446",
+    identifier = "Den juridiske vejledning C.A.10.4.1.3: Fleksydelsesordning",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning kontrolleret 04/08/2026"
+)
+= pensionsbeskatningsloven_par49_metadata = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par49),
+        Guidance(value = skat_pbl49_bidrag_vejledning),
+        Guidance(value = juridisk_vejledning_pbl49_bidrag),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par49_fradrag::meta:pensionsbeskatningsloven_par49_metadata--
+----
+§ 49. Ved opgørelsen af den skattepligtige indkomst for den forsikrede kan
+fradrages udgifter til arbejdsløshedsforsikring, og for seniormedlemmer af en
+arbejdsløshedskasse kan fradrages udgifter til seniormedlemskabskontingent.
+Personer, som er skattepligtige efter kildeskattelovens § 2, jf. dog
+kildeskattelovens §§ 5 A-5 D, kan kun opnå fradrag efter 1. pkt. i indkomst
+omfattet af kildeskattelovens § 2, stk. 1, nr. 1 eller 4, eller i
+arbejdsløshedsdagpenge, sygedagpenge og barselsdagpenge omfattet af
+kildeskattelovens § 2, stk. 1, nr. 12, og kun i det omfang udgiften efter
+udenlandske regler ikke kan fradrages ved beskatning i udlandet. 2. pkt. finder
+tilsvarende anvendelse for personer, som er omfattet af kildeskattelovens § 1,
+og som anses for hjemmehørende i en fremmed stat, i Grønland eller på Færøerne
+efter bestemmelserne i en dobbeltbeskatningsoverenskomst.
+
+Stk. 3. Fradragsretten for udgifter til private arbejdsløshedsforsikringer efter
+stk. 1, 1. pkt., er betinget af, at der i indkomståret er indbetalt mindst
+1.300 kr. til et medlemskab af en arbejdsløshedskasse. Arbejdsløshedskasser med
+hjemsted i et andet land inden for EU/EØS end Danmark skal opfylde betingelserne
+for anerkendelse af en arbejdsløshedskasse i § 32, stk. 1, nr. 1, og stk. 2, i
+lov om arbejdsløshedsforsikring m.v.
+----
+
+--@begin::pensionsbeskatningsloven_par49_fradrag--
+# Pbl49ArbejdsløshedskasseStatus = Pbl49DanskAnerkendtArbejdsløshedskasse | Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49EUEØSArbejdsløshedskasseIkkeAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49ArbejdsløshedskasseUdenForEUEØS | Pbl49IkkeArbejdsløshedskasse
+# Pbl49DanskIndkomstgrundlag = Pbl49Kildeskattelov2Stk1Nr1Eller4 | Pbl49Kildeskattelov2Stk1Nr12Dagpenge | Pbl49AndetIndkomstgrundlag
+# Pbl49Skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark | Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D | Pbl49BegrænsetSkattepligtig(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk) | Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk)
+# Pbl49Til49BBidragsart = Pbl49Akassekontingent(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, skatteyderen_er_medlem_og_forsikret: Boolsk) | Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer: Boolsk, skatteyderen_er_forsikret: Boolsk) | Pbl49Seniormedlemskontingent(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, seniormedlem: Boolsk) | Pbl49AEfterlønsbidrag(arbejdsløshedskasse: Pbl49ArbejdsløshedskasseStatus, medlem_af_arbejdsløshedskasse: Boolsk, bidrag_efter_arbejdsløshedsforsikringslov77_stk4: Boolsk) | Pbl49BFleksydelsesbidrag(tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4: Boolsk, bidrag_efter_fleksydelseslov7: Boolsk) | Pbl49AndetBidrag
+# Pbl49Til49BBidragsfakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, art: Pbl49Til49BBidragsart)
+# Pbl49Til49BÅrsinput(skattepligtsposition: Pbl49Skattepligtsposition, bidrag: List(Pbl49Til49BBidragsfakta))
+# Pbl49Til49BHjemmel = Pbl49IngenFradragshjemmel | Pbl49Arbejdsløshedsforsikringsfradrag | Pbl49AEfterlønsfradrag | Pbl49BFleksydelsesfradrag
+# Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
+# Pbl49Til49BÅrsresultat(indkomstår: Heltal, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+
+| pbl49_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| pbl49_arbejdsløshedskasse_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status != Pbl49IkkeArbejdsløshedskasse
+| pbl49_stk3_akassemedlemskab_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status == Pbl49DanskAnerkendtArbejdsløshedskasse || status == Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 || status == Pbl49ArbejdsløshedskasseUdenForEUEØS
+| pbl49_relevant_dansk_indkomst(indkomstgrundlag: Pbl49DanskIndkomstgrundlag) -> indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr1Eller4 || indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr12Dagpenge
+| pbl49_skattepligtsbetingelse_opfyldt(position: Pbl49Skattepligtsposition) -> match position {
+    | Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark -> Sandt
+    | Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D -> Sandt
+    | Pbl49BegrænsetSkattepligtig(indkomstgrundlag, udgiften_kan_fradrages_i_udlandet) -> pbl49_relevant_dansk_indkomst(indkomstgrundlag) && udgiften_kan_fradrages_i_udlandet == Falskt
+    | Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet(indkomstgrundlag, udgiften_kan_fradrages_i_udlandet) -> pbl49_relevant_dansk_indkomst(indkomstgrundlag) && udgiften_kan_fradrages_i_udlandet == Falskt
+}
+| pbl49_bidrag_er_stk3_akassemedlemskab(fakta: Pbl49Til49BBidragsfakta) -> match fakta.art { | Pbl49Akassekontingent(arbejdsløshedskasse, skatteyderen_er_medlem_og_forsikret) -> skatteyderen_er_medlem_og_forsikret && pbl49_stk3_akassemedlemskab_opfyldt(arbejdsløshedskasse) | _ -> Falskt }
+| pbl49_akassemedlemskab_indbetalt_kroner(bidrag: List(Pbl49Til49BBidragsfakta), indkomstår: Heltal) -> foldl(bidrag, 0, |sum_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta| sum_kroner + hvis fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner > 0 && pbl49_bidrag_er_stk3_akassemedlemskab(fakta) { fakta.betalt_beløb_kroner } ellers { 0 })
+--@end::pensionsbeskatningsloven_par49_fradrag--
+
+= pensionsbeskatningsloven_lbk1243_par49a = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 49 A, stk. 1, i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte fradragsregel er uændret"
+)
+= pensionsbeskatningsloven_par49a_metadata = Metadata(
+    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par49a)
+)
+
+--@label:pensionsbeskatningsloven_par49a_efterloensfradrag::meta:pensionsbeskatningsloven_par49a_metadata--
+----
+§ 49 A. Ved opgørelsen af den skattepligtige indkomst for et medlem af en
+arbejdsløshedskasse kan der fradrages udgifter til bidrag til
+efterlønsordningen, jf. lov om arbejdsløshedsforsikring m.v. § 77, stk. 4.
+----
+
+--@begin::pensionsbeskatningsloven_par49a_efterloensfradrag--
+| pbl49a_ordningsbetingelser_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
+    | Pbl49AEfterlønsbidrag(arbejdsløshedskasse, medlem_af_arbejdsløshedskasse, bidrag_efter_arbejdsløshedsforsikringslov77_stk4) -> pbl49_arbejdsløshedskasse_opfyldt(arbejdsløshedskasse) && medlem_af_arbejdsløshedskasse && bidrag_efter_arbejdsløshedsforsikringslov77_stk4
+    | _ -> Falskt
+}
+--@end::pensionsbeskatningsloven_par49a_efterloensfradrag--
+
+= pensionsbeskatningsloven_lbk1243_par49b = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 49 B, stk. 1, i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte fradragsregel er uændret"
+)
+= pensionsbeskatningsloven_par49b_metadata = Metadata(
+    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par49b)
+)
+
+--@label:pensionsbeskatningsloven_par49b_fleksydelsesfradrag::meta:pensionsbeskatningsloven_par49b_metadata--
+----
+§ 49 B. Ved opgørelsen af den skattepligtige indkomst kan en person, der er
+tilmeldt fleksydelsesordningen, jf. lov om fleksydelse § 4, fradrage udgifter til
+bidrag til fleksydelsesordningen, jf. lov om fleksydelse § 7.
+----
+
+--@begin::pensionsbeskatningsloven_par49b_fleksydelsesfradrag--
+| pbl49b_ordningsbetingelser_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
+    | Pbl49BFleksydelsesbidrag(tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4, bidrag_efter_fleksydelseslov7) -> tilmeldt_fleksydelsesordningen_efter_fleksydelseslov4 && bidrag_efter_fleksydelseslov7
+    | _ -> Falskt
+}
+--@end::pensionsbeskatningsloven_par49b_fleksydelsesfradrag--
+
+= pensionsbeskatningsloven_lbk1243_par54_stk2 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 54, stk. 2, i LBK nr. 1243 af 26/11/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte ejerregel er uændret"
+)
+= pensionsbeskatningsloven_par54_stk2_metadata = Metadata(
+    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par54_stk2)
+)
+
+--@label:pensionsbeskatningsloven_par54_ejer_af_forsikringen::meta:pensionsbeskatningsloven_par54_stk2_metadata--
+----
+§ 54. § 18 om fradragsret for forsikringspræmier m.v. gælder kun for personer,
+der er fuldt skattepligtige her i landet.
+
+Stk. 2. Fradragsretten efter § 18 og § 49, stk. 1, tilkommer ejeren af den
+pågældende forsikring m.v., uanset hvem der har foretaget indbetalingen, og er
+begrænset til forfaldne eller indbetalte forsikringspræmier m.v., mens ejeren er
+fuldt skattepligtig her i landet.
+----
+
+--@begin::pensionsbeskatningsloven_par54_ejer_af_forsikringen--
+| pbl54_ejer_og_forsikrede_opfyldt(art: Pbl49Til49BBidragsart) -> match art {
+    | Pbl49PrivatArbejdsløshedsforsikring(skatteyderen_er_forsikringsejer, skatteyderen_er_forsikret) -> skatteyderen_er_forsikringsejer && skatteyderen_er_forsikret
+    | _ -> Sandt
+}
+--@end::pensionsbeskatningsloven_par54_ejer_af_forsikringen--
+
+= kildeskatteloven_lbk460_par2_stk9_og_par5a_5b = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven § 2, stk. 9, og §§ 5 A-5 B i LBK nr. 460 af 03/05/2024",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; de anvendte regler er uændrede"
+)
+= pensionsbeskatningsloven_par49_til49b_samordning_metadata = Metadata(
+    attachments = (
+        Source(value = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b),
+        Guidance(value = juridisk_vejledning_pbl49_bidrag),
+        Guidance(value = juridisk_vejledning_pbl49a_efterløn),
+        Guidance(value = juridisk_vejledning_pbl49b_fleksydelse),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par49_til49b_samordning::meta:pensionsbeskatningsloven_par49_til49b_samordning_metadata--
+----
+Kildeskatteloven § 2, stk. 9:
+
+Stk. 9. Skattepligten i medfør af stk. 1, nr. 1, 2, 5, 7 og 9-27, og stk. 2
+omfatter alene de dér nævnte indtægter. Udgifter kan kun fratrækkes, i det
+omfang de vedrører disse indtægter, jf. dog stk. 2, 4. og 5. pkt., afsnit I A og
+pensionsbeskatningslovens § 49.
+
+Kildeskatteloven § 5 A, stk. 1:
+
+§ 5 A. Dette afsnit finder anvendelse på personer, som er skattepligtige efter
+kildeskattelovens § 2 eller kulbrinteskatteloven, eller som efter en indgået
+dobbeltbeskatningsoverenskomst er hjemmehørende i en anden stat, i Grønland eller
+på Færøerne. Hvis indkomst hidrørende fra personligt arbejde og fra selvstændig
+erhvervsvirksomhed, der kan beskattes her i landet - herunder efter en
+dobbeltbeskatningsoverenskomst - med tillæg af renteudgifter og kurstab på gæld,
+der er fradraget i denne indkomst, i et indkomstår udgør mindst 75 pct. af de
+efter dansk skattelovgivning opgjorte samlede indtægter med fradrag af samtlige
+udgifter afholdt for at erhverve indkomsten opgjort efter statsskattelovens § 6,
+litra a, kan den skattepligtige vælge at blive beskattet efter §§ 5 A-D.
+Tilsvarende gælder i et indkomstår, hvor både den danske indkomst og den samlede
+indkomst er negativ, hvis den skattepligtige i det seneste indkomstår med dansk
+positiv indkomst er blevet beskattet efter dette afsnit.
+
+Kildeskatteloven § 5 B, stk. 1, indledning og nr. 3:
+
+§ 5 B. Ved opgørelsen af den skattepligtige indkomst gives fradrag efter
+skattelovgivningens almindelige regler for skattepligtige efter § 1, stk. 1, for
+følgende udgifter, der vedrører den skattepligtiges familiemæssige og personlige
+forhold:
+
+3) Indbetalinger til pensionsordninger og A-kasse-indbetalinger, der er
+fradragsberettigede efter pensionsbeskatningsloven.
+----
+
+--@begin::pensionsbeskatningsloven_par49_til49b_samordning--
+| pbl49a_49b_skattepligtsbetingelse_opfyldt(position: Pbl49Skattepligtsposition) -> position == Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark || position == Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D
+
+# Pbl49Til49BBidragSag(indkomstår: Heltal, skattepligtsposition: Pbl49Skattepligtsposition, akassemedlemskab_indbetalt_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta) {
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0
+    | er_akassekontingent() -> match fakta.art { | Pbl49Akassekontingent(_, _) -> Sandt | _ -> Falskt }
+    | er_privat_arbejdsløshedsforsikring() -> match fakta.art { | Pbl49PrivatArbejdsløshedsforsikring(_, _) -> Sandt | _ -> Falskt }
+    | er_seniormedlemskontingent() -> match fakta.art { | Pbl49Seniormedlemskontingent(_, _) -> Sandt | _ -> Falskt }
+    | er_efterlønsbidrag() -> match fakta.art { | Pbl49AEfterlønsbidrag(_, _, _) -> Sandt | _ -> Falskt }
+    | er_fleksydelsesbidrag() -> match fakta.art { | Pbl49BFleksydelsesbidrag(_, _) -> Sandt | _ -> Falskt }
+    | arbejdsløshedskasse_opfyldt() -> match fakta.art {
+        | Pbl49Akassekontingent(arbejdsløshedskasse, _) -> pbl49_arbejdsløshedskasse_opfyldt(arbejdsløshedskasse)
+        | Pbl49Seniormedlemskontingent(arbejdsløshedskasse, _) -> pbl49_arbejdsløshedskasse_opfyldt(arbejdsløshedskasse)
+        | Pbl49AEfterlønsbidrag(arbejdsløshedskasse, _, _) -> pbl49_arbejdsløshedskasse_opfyldt(arbejdsløshedskasse)
+        | _ -> Sandt
+    }
+    | skattepligtsbetingelse_opfyldt() -> hvis er_efterlønsbidrag() || er_fleksydelsesbidrag() { pbl49a_49b_skattepligtsbetingelse_opfyldt(skattepligtsposition) } ellers { pbl49_skattepligtsbetingelse_opfyldt(skattepligtsposition) }
+    | privat_forsikrings_minimum_opfyldt() -> er_privat_arbejdsløshedsforsikring() == Falskt || akassemedlemskab_indbetalt_kroner >= 1300
+    | skatteyderrelation_opfyldt() -> match fakta.art {
+        | Pbl49Akassekontingent(_, skatteyderen_er_medlem_og_forsikret) -> skatteyderen_er_medlem_og_forsikret
+        | _ -> pbl54_ejer_og_forsikrede_opfyldt(fakta.art)
+    }
+    | ordningsbetingelser_opfyldt() -> Falskt
+    | exception pbl49_akasse_ordning_opfyldt ordningsbetingelser_opfyldt() -> arbejdsløshedskasse_opfyldt() && skatteyderrelation_opfyldt() under er_akassekontingent()
+    | exception pbl49_privat_forsikring_ordning_opfyldt ordningsbetingelser_opfyldt() -> privat_forsikrings_minimum_opfyldt() && skatteyderrelation_opfyldt() under er_privat_arbejdsløshedsforsikring()
+    | exception pbl49_seniormedlemskab_opfyldt ordningsbetingelser_opfyldt() -> match fakta.art { | Pbl49Seniormedlemskontingent(_, seniormedlem) -> arbejdsløshedskasse_opfyldt() && seniormedlem | _ -> Falskt } under er_seniormedlemskontingent()
+    | exception pbl49a_efterlønsordning_opfyldt ordningsbetingelser_opfyldt() -> pbl49a_ordningsbetingelser_opfyldt(fakta.art) under er_efterlønsbidrag()
+    | exception pbl49b_fleksydelsesordning_opfyldt ordningsbetingelser_opfyldt() -> pbl49b_ordningsbetingelser_opfyldt(fakta.art) under er_fleksydelsesbidrag()
+    | fradragsberettiget() -> input_gyldigt() && skattepligtsbetingelse_opfyldt() && privat_forsikrings_minimum_opfyldt() && skatteyderrelation_opfyldt() && ordningsbetingelser_opfyldt()
+    | hjemmel() -> Pbl49IngenFradragshjemmel
+    | exception pbl49_arbejdsløshedsforsikring_hjemmel hjemmel() -> Pbl49Arbejdsløshedsforsikringsfradrag under fradragsberettiget() && (er_akassekontingent() || er_privat_arbejdsløshedsforsikring() || er_seniormedlemskontingent())
+    | exception pbl49a_efterløn_hjemmel hjemmel() -> Pbl49AEfterlønsfradrag under fradragsberettiget() && er_efterlønsbidrag()
+    | exception pbl49b_fleksydelse_hjemmel hjemmel() -> Pbl49BFleksydelsesfradrag under fradragsberettiget() && er_fleksydelsesbidrag()
+    | fradrag_kroner() -> hvis fradragsberettiget() { fakta.betalt_beløb_kroner } ellers { 0 }
+    | resultat() -> Pbl49Til49BBidragsresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        arbejdsløshedskasse_opfyldt = arbejdsløshedskasse_opfyldt(),
+        skattepligtsbetingelse_opfyldt = skattepligtsbetingelse_opfyldt(),
+        privat_forsikrings_minimum_opfyldt = privat_forsikrings_minimum_opfyldt(),
+        skatteyderrelation_opfyldt = skatteyderrelation_opfyldt(),
+        ordningsbetingelser_opfyldt = ordningsbetingelser_opfyldt(),
+        fradragsberettiget = fradragsberettiget(),
+        hjemmel = hjemmel(),
+        fradrag_kroner = fradrag_kroner()
+    )
+}
+
+| pbl49_til49b_bidrag_resultat(indkomstår: Heltal, skattepligtsposition: Pbl49Skattepligtsposition, akassemedlemskab_indbetalt_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta) -> Pbl49Til49BBidragSag(indkomstår, skattepligtsposition, akassemedlemskab_indbetalt_kroner, fakta).resultat()
+| pbl49_til49b_identifikationer_entydige(bidrag: List(Pbl49Til49BBidragsfakta)) -> length(distinct(map(bidrag, |fakta: Pbl49Til49BBidragsfakta| fakta.identifikation))) == length(bidrag) && all(bidrag, |fakta: Pbl49Til49BBidragsfakta| fakta.identifikation != "")
+| pbl49_til49b_fradrag_kroner(resultater: List(Pbl49Til49BBidragsresultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Pbl49Til49BBidragsresultat| sum_kroner + resultat.fradrag_kroner)
+| pbl49_til49b_betalt_kroner(bidrag: List(Pbl49Til49BBidragsfakta)) -> foldl(bidrag, 0, |sum_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta| sum_kroner + hvis fakta.betalt_beløb_kroner > 0 { fakta.betalt_beløb_kroner } ellers { 0 })
+| pbl49_til49b_årsresultat(indkomstår: Heltal, input: Pbl49Til49BÅrsinput) -> {
+    = akassemedlemskab_indbetalt_kroner = pbl49_akassemedlemskab_indbetalt_kroner(input.bidrag, indkomstår)
+    = bidragsresultater = map(input.bidrag, |fakta: Pbl49Til49BBidragsfakta| pbl49_til49b_bidrag_resultat(indkomstår, input.skattepligtsposition, akassemedlemskab_indbetalt_kroner, fakta))
+    = skatteår_understøttet = length(input.bidrag) == 0 || pbl49_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = pbl49_til49b_identifikationer_entydige(input.bidrag)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.input_gyldigt)
+    = fradrag_før_validering_kroner = pbl49_til49b_fradrag_kroner(bidragsresultater)
+    = samlet_fradrag_kroner = hvis alle_input_gyldige { fradrag_før_validering_kroner } ellers { 0 }
+    Pbl49Til49BÅrsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        bidragsresultater = bidragsresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        akassemedlemskab_indbetalt_kroner = akassemedlemskab_indbetalt_kroner,
+        samlet_fradrag_kroner = samlet_fradrag_kroner,
+        ikke_fradraget_kroner = pbl49_til49b_betalt_kroner(input.bidrag) - samlet_fradrag_kroner
+    )
+}
+--@end::pensionsbeskatningsloven_par49_til49b_samordning--

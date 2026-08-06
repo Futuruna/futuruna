@@ -97,7 +97,16 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
     }
     | _ -> Falskt
 }
-| aarsopgoerelse_2025_resterende_korpusmangler_er_eksplicitte: aarsopgoerelse_2025_fagforening_mapping -> personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_fagforening_mapping) == KorpusmangelMapping && personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_akasse_mapping) == KorpusmangelMapping && personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_gaver_mapping) == KorpusmangelMapping
+| aarsopgoerelse_2025_fradragslinjer_kræver_typed_kildefakta: aarsopgoerelse_2025_fagforening_mapping -> match aarsopgoerelse_2025_fagforening_mapping.anvendelse {
+    | KræverSupplerendeKilde(BidragsEllerKontingentopgørelse, fagforeningskrav) -> fagforeningskrav == [FagforeningsbetalingForeningsformålOgIndberetning] && match aarsopgoerelse_2025_akasse_mapping.anvendelse {
+        | KræverSupplerendeKilde(BidragsEllerKontingentopgørelse, bidragskrav) -> bidragskrav == [BidragsartMedlemskabUdlandsfradragOgOrdning] && match aarsopgoerelse_2025_gaver_mapping.anvendelse {
+            | KræverSupplerendeKilde(BidragsEllerKontingentopgørelse, gavekrav) -> gavekrav == [GavebetalingModtagergodkendelseIndberetningOgAftale]
+            | _ -> Falskt
+        }
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
 | aarsopgoerelse_2025_beregnede_linjebeløb_er_kun_kontrol: aarsopgoerelse_2025_beregnet_am_mapping -> personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_beregnet_am_mapping) == KontrolMapping && personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_beskæftigelsesfradrag_mapping) == KontrolMapping && personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_jobfradrag_mapping) == KontrolMapping && personskat_aarsopgoerelse_mappingkategori(aarsopgoerelse_2025_ekstra_pensionsfradrag_mapping) == KontrolMapping
 | aarsopgoerelse_2025_ægtefælleaggregat_er_ikke_kildefakta: aarsopgoerelse_2025_ægtefælleunderskud_mapping -> match aarsopgoerelse_2025_ægtefælleunderskud_mapping.anvendelse {
     | KræverSupplerendeKilde(ÆgtefællensEgneKildedokumenter, faktakrav) -> faktakrav == [ÆgtefællensSamledeIndkomstOgFradragsfakta]
@@ -122,7 +131,7 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
 ? aarsopgoerelse_2025_samme_kildelinje_tælles_ikke_to_gange
 ? aarsopgoerelse_2025_pension_kræver_underliggende_fakta
 ? aarsopgoerelse_2025_investering_kræver_instrumentforløb
-? aarsopgoerelse_2025_korpusmangler_er_eksplicitte
+? aarsopgoerelse_2025_fradragslinjer_kræver_typed_kildefakta
 ? aarsopgoerelse_2025_beregnede_linjebeløb_er_kun_kontrol
 ? aarsopgoerelse_2025_ægtefælleaggregat_er_ikke_kildefakta
 ? aarsopgoerelse_2025_forudbetalinger_kortlægges_uden_resultatoverstyring
