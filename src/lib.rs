@@ -9476,6 +9476,12 @@ struct RuntimeConstructorSignature {
     fields: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuleMissFallback {
+    PredicateFalse,
+    EmptyValue,
+}
+
 impl RuntimeConstructorSignature {
     fn arity(&self) -> usize {
         self.fields.len()
@@ -9507,6 +9513,8 @@ pub struct Interpreter {
     rules: Vec<(String, Rc<Rule>)>,
     /// Source-order indexes into `rules`, avoiding corpus-wide scans per call.
     rules_by_name: HashMap<String, Vec<usize>>,
+    /// The result used when a known rule family has no applicable clause.
+    rule_miss_fallbacks: HashMap<String, RuleMissFallback>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -9567,6 +9575,7 @@ impl Interpreter {
         Interpreter {
             rules: Vec::new(),
             rules_by_name: HashMap::new(),
+            rule_miss_fallbacks: HashMap::new(),
             constructors: {
                 let mut c = BTreeMap::new();
                 c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
@@ -9621,6 +9630,30 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
+        let fallback = match &rule {
+            Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
+            Rule::Clause {
+                body: Some(body_expr),
+                ..
+            } if matches!(
+                &body_expr.kind,
+                ExprKind::Lit(Literal::Str(_))
+                    | ExprKind::Lit(Literal::Int(_))
+                    | ExprKind::Lit(Literal::Float(_))
+            ) =>
+            {
+                RuleMissFallback::EmptyValue
+            }
+            _ => RuleMissFallback::PredicateFalse,
+        };
+        self.rule_miss_fallbacks
+            .entry(name.clone())
+            .and_modify(|existing| {
+                if fallback == RuleMissFallback::EmptyValue {
+                    *existing = fallback;
+                }
+            })
+            .or_insert(fallback);
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
         self.rules_by_name.entry(name).or_default().push(index);
@@ -11832,34 +11865,12 @@ impl Interpreter {
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
                         return result;
                     }
-                    // If rules exist for this name but none matched:
-                    // Value-returning rules → Str("") as default, boolean rules → false
-                    if self.rules.iter().any(|(n, _)| n == fn_name) {
-                        let is_value_returning = self.rules.iter().any(|(n, r)| {
-                            if n != fn_name {
-                                return false;
-                            }
-                            match r.as_ref() {
-                                Rule::Default { .. } | Rule::Exception { .. } => true,
-                                Rule::Clause {
-                                    body: Some(body_expr),
-                                    ..
-                                } => {
-                                    // Body is a non-boolean literal → value-returning fact
-                                    matches!(
-                                        &body_expr.kind,
-                                        ExprKind::Lit(Literal::Str(_))
-                                            | ExprKind::Lit(Literal::Int(_))
-                                            | ExprKind::Lit(Literal::Float(_))
-                                    )
-                                }
-                                _ => false,
-                            }
-                        });
-                        return if is_value_returning {
-                            Value::Str(String::new())
-                        } else {
-                            Value::Bool(false)
+                    // A known family with no applicable clause uses the fallback
+                    // classified once at registration instead of rescanning every rule.
+                    if let Some(fallback) = self.rule_miss_fallbacks.get(fn_name) {
+                        return match fallback {
+                            RuleMissFallback::EmptyValue => Value::Str(String::new()),
+                            RuleMissFallback::PredicateFalse => Value::Bool(false),
                         };
                     }
                 }
@@ -20840,6 +20851,42 @@ mod tests {
         assert_eq!(
             env.get("ledger_answer").map(ToString::to_string),
             Some("1".into())
+        );
+    }
+
+    #[test]
+    fn interpreted_rule_misses_use_registered_family_fallbacks() {
+        let source = r#"
+| known_predicate(1)
+| known_value(1) -> "one"
+
+= predicate_miss = known_predicate(2)
+= value_miss = known_value(2)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse rule miss regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            interpreter.rule_miss_fallbacks.get("known_predicate"),
+            Some(&RuleMissFallback::PredicateFalse)
+        );
+        assert_eq!(
+            interpreter.rule_miss_fallbacks.get("known_value"),
+            Some(&RuleMissFallback::EmptyValue)
+        );
+        assert_eq!(
+            env.get("predicate_miss").map(ToString::to_string),
+            Some("false".to_string())
+        );
+        assert_eq!(
+            env.get("value_miss").map(ToString::to_string),
+            Some(String::new())
         );
     }
 
