@@ -54,6 +54,16 @@
     hændelsesposter = poster,
     tilflytning = tilflytning
 ))
+| abl37_til40_scenarie_forløb_med_skattekontekst(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: AktieavancePar37Til40Fraflytningsfakta, skattekontekst: AktieavancePar37Til40Skattekontekst) -> aktieavance_par37_til40_forløbsresultat_med_skattekontekst(
+    AktieavancePar37Til40Forløbsinput(
+        identifikation = identifikation,
+        opgørelsesår = opgørelsesår,
+        fraflytning = fraflytning,
+        hændelsesposter = [],
+        tilflytning = IngenTilflytningEfterPar39B
+    ),
+    skattekontekst
+)
 
 = abl37_til40_officiel_2026_fraflytning = abl37_til40_scenarie_fraflytning(
     indkomstår = 2026,
@@ -66,6 +76,17 @@
     fraflytning = abl37_til40_officiel_2026_fraflytning,
     poster = [],
     tilflytning = IngenTilflytningEfterPar39B
+)
+= abl37_til40_afledt_slutskat_2026 = abl37_til40_scenarie_forløb_med_skattekontekst(
+    identifikation = "afledt-slutskat-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_officiel_2026_fraflytning,
+    skattekontekst = AblPar37Til40AfledtSlutskat(kontekst = AktieavancePar37Til40Slutskattekontekst(
+        skat_uden_fraflytterindkomst_kroner = 200000,
+        skat_før_henstandsvalgt_fraflytterindkomst_kroner = 200000,
+        skat_med_hele_fraflytterindkomsten_kroner = 230000,
+        input_gyldigt = Sandt
+    ))
 )
 
 = abl37_til40_uden_sikkerhed_fraflytning = AktieavancePar37Til40Fraflytningsfakta(
@@ -274,6 +295,7 @@
 )
 
 | scenarie_abl37_til40_officiel_marginalskat_afledes: abl37_til40_officiel_2026 -> abl37_til40_officiel_2026.input_gyldigt && abl37_til40_officiel_2026.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == 16470 && abl37_til40_officiel_2026.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 55710 && abl37_til40_officiel_2026.årets_beregnede_fraflytterskat_kroner == 39240 && abl37_til40_officiel_2026.årets_nye_henstand_kroner == 39240 && abl37_til40_officiel_2026.tilstand_ultimo.henstandssaldo_kroner == 39240
+| scenarie_abl37_til40_afledt_slutskat_styrer_skat_og_henstand: abl37_til40_afledt_slutskat_2026 -> abl37_til40_afledt_slutskat_2026.input_gyldigt && abl37_til40_afledt_slutskat_2026.fraflytningsresultat.fraflytterskatteberegning_understøttet && abl37_til40_afledt_slutskat_2026.årets_beregnede_fraflytterskat_kroner == 30000 && abl37_til40_afledt_slutskat_2026.årets_nye_henstand_kroner == 30000 && abl37_til40_afledt_slutskat_2026.årets_skat_til_betaling_ved_fraflytning_kroner == 0
 | scenarie_abl37_til40_uden_sikkerhed_forfalder_skatten: abl37_til40_uden_sikkerhed -> abl37_til40_uden_sikkerhed.input_gyldigt && abl37_til40_uden_sikkerhed.fraflytningsresultat.par39_resultat.henstand_afvist_på_grund_af_sikkerhed && abl37_til40_uden_sikkerhed.årets_nye_henstand_kroner == 0 && abl37_til40_uden_sikkerhed.årets_skat_til_betaling_ved_fraflytning_kroner == 39240 && length(abl37_til40_uden_sikkerhed.tilstand_ultimo.beholdning) == 0
 | scenarie_abl37_til40_ægtefælles_ubenyttede_grundbeløb_afledes: abl37_til40_ægtefælle_2026 -> abl37_til40_ægtefælle_2026.input_gyldigt && abl37_til40_ægtefælle_2026.fraflytningsresultat.effektivt_aktiegrundbeløb_kroner == 158800 && abl37_til40_ægtefælle_2026.årets_beregnede_fraflytterskat_kroner == 27330
 | scenarie_abl37_til40_negativ_basis_bevares_fra_kilden: abl37_til40_negativ_basis_2026 -> abl37_til40_negativ_basis_2026.input_gyldigt && abl37_til40_negativ_basis_2026.fraflytningsresultat.par38_resultat.særlig_beholdning_efter_stk2 && abl37_til40_negativ_basis_2026.fraflytningsresultat.par38_resultat.nettogevinst_til_skatteberegning_efter_stk5_kroner == 60000 && head(abl37_til40_negativ_basis_2026.tilstand_ultimo.beholdning).resterende_anskaffelsessum_efter_par38_kroner == -10000
@@ -284,6 +306,7 @@
 | scenarie_abl37_til40_død_realiserer_resterende_beholdning: abl37_til40_død_2026 -> abl37_til40_død_2026.input_gyldigt && abl37_til40_død_2026.årets_nye_forfald_kroner > 0 && length(abl37_til40_død_2026.tilstand_ultimo.beholdning) == 0
 
 ? scenarie_abl37_til40_officiel_marginalskat_afledes
+? scenarie_abl37_til40_afledt_slutskat_styrer_skat_og_henstand
 ? scenarie_abl37_til40_uden_sikkerhed_forfalder_skatten
 ? scenarie_abl37_til40_ægtefælles_ubenyttede_grundbeløb_afledes
 ? scenarie_abl37_til40_negativ_basis_bevares_fra_kilden
@@ -293,4 +316,4 @@
 ? scenarie_abl37_til40_tilflytning_afleder_ny_basis_og_bortfald
 ? scenarie_abl37_til40_død_realiserer_resterende_beholdning
 
-@ print("Aktieavancebeskatningsloven §§ 37-40: 9 kildefaktabaserede fraflytnings-, henstands- og tilflytningsscenarier kontrolleret")
+@ print("Aktieavancebeskatningsloven §§ 37-40: 10 kildefaktabaserede fraflytnings-, henstands- og tilflytningsscenarier kontrolleret")

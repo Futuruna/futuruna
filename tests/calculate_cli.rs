@@ -10200,6 +10200,102 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         },
         "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" }
     }]);
+    let mut par37_mixed_case = par37_case.clone();
+    par37_mixed_case["case_id"] = Value::String("personskat-par37-40-blandet-slutskat-2026".into());
+    par37_mixed_case["input"]["aktieavance"]["særlige_aktiver"][0]["identifikation"] =
+        Value::String("personskat-fraflytning-blandet-2026".into());
+    par37_mixed_case["input"]["aktieavance"]["særlige_aktiver"][0]["kilde"]["fakta"]
+        ["identifikation"] = Value::String("personskat-fraflytning-blandet-2026".into());
+    let mut mixed_ordinary = par37_case["input"]["aktieavance"]["særlige_aktiver"][0]["kilde"]
+        ["fakta"]["fraflytning"]["aktier"][0]
+        .clone();
+    mixed_ordinary["identifikation"] = Value::String("blandet-ordinaer".into());
+    mixed_ordinary["selskabsidentifikation"] = Value::String("DK-BLANDET-ORDINAER".into());
+    mixed_ordinary["handelsværdi_ved_ophør_kroner"] = serde_json::json!(150_000);
+    let mut mixed_trading = mixed_ordinary.clone();
+    mixed_trading["identifikation"] = Value::String("blandet-naering".into());
+    mixed_trading["selskabsidentifikation"] = Value::String("DK-BLANDET-NAERING".into());
+    mixed_trading["erhvervelsesrækkefølge"] = serde_json::json!(2);
+    mixed_trading["handelsværdi_ved_ophør_kroner"] = serde_json::json!(130_000);
+    mixed_trading["aktivgrundlag"] = serde_json::json!({
+        "$variant": "AblPar38SærligtAktiv",
+        "fakta": {
+            "klassifikation": {
+                "indkomstår": 2026,
+                "aktiv": { "$variant": "AblNæringsaktiePar17" },
+                "par17_modprøve": {
+                    "næringsstatus": {
+                        "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
+                    },
+                    "erhvervelsesstatus": {
+                        "$variant": "AblPar17ErhvervetSomLedINæringsvej"
+                    }
+                },
+                "investeringsklassifikation": {
+                    "$variant": "AblIngenInvesteringsklassifikation"
+                }
+            },
+            "koncernintern_konvertibel_eller_tegningsret": false,
+            "andelsforening_stiftet_før_22_maj_1987": false,
+            "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
+            "årets_netto_med_kgl_par14_23_kroner": 0
+        }
+    });
+    let mut mixed_par19c = mixed_ordinary.clone();
+    mixed_par19c["identifikation"] = Value::String("blandet-par19c".into());
+    mixed_par19c["selskabsidentifikation"] = Value::String("DK-BLANDET-PAR19C".into());
+    mixed_par19c["erhvervelsesrækkefølge"] = serde_json::json!(3);
+    mixed_par19c["handelsværdi_ved_ophør_kroner"] = serde_json::json!(120_000);
+    mixed_par19c["aktivgrundlag"] = serde_json::json!({
+        "$variant": "AblPar38SærligtAktiv",
+        "fakta": {
+            "klassifikation": {
+                "indkomstår": 2026,
+                "aktiv": { "$variant": "AblInvesteringsselskabPar19TilKlassifikation" },
+                "par17_modprøve": {
+                    "næringsstatus": {
+                        "$variant": "AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier"
+                    },
+                    "erhvervelsesstatus": {
+                        "$variant": "AblPar17IkkeErhvervetSomLedINæringsvej"
+                    }
+                },
+                "investeringsklassifikation": {
+                    "$variant": "AblPar19BPar19CKlassifikation",
+                    "input": {
+                        "indkomstår": 2026,
+                        "meddelelse": { "$variant": "AblIngenPar19BMeddelelse" },
+                        "aktivmasse": {
+                            "indkomstår": 2026,
+                            "direkte_aktiver": [
+                                {
+                                    "$variant": "AblDirekteInvesteringsaktiv",
+                                    "art": { "$variant": "AblKvalificerendeAktieaktiv" },
+                                    "gennemsnitlig_værdi_kroner": 20_000
+                                },
+                                {
+                                    "$variant": "AblDirekteInvesteringsaktiv",
+                                    "art": { "$variant": "AblAndetVærdipapir" },
+                                    "gennemsnitlig_værdi_kroner": 80_000
+                                }
+                            ],
+                            "ejerposter": []
+                        },
+                        "oplysninger": { "$variant": "AblPar19BOplysningerIkkeIndsendt" }
+                    }
+                }
+            },
+            "koncernintern_konvertibel_eller_tegningsret": false,
+            "andelsforening_stiftet_før_22_maj_1987": false,
+            "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
+            "årets_netto_med_kgl_par14_23_kroner": 0
+        }
+    });
+    mixed_par19c["princip"] = serde_json::json!({ "$variant": "AblPar23Lagerprincip" });
+    mixed_par19c["henstandsvalg"] =
+        serde_json::json!({ "$variant": "AblPar37Til40SkatBetalesStraks" });
+    par37_mixed_case["input"]["aktieavance"]["særlige_aktiver"][0]["kilde"]["fakta"]
+        ["fraflytning"]["aktier"] = Value::Array(vec![mixed_ordinary, mixed_trading, mixed_par19c]);
     let mut par37_spouse_case = par37_case.clone();
     par37_spouse_case["case_id"] = Value::String("personskat-par37-40-aegtefaelle-2026".into());
     par37_spouse_case["input"]["aktieavance"]["særlige_aktiver"][0]["identifikation"] =
@@ -10257,6 +10353,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par37_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par37_mixed_case);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -10463,20 +10563,74 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
     )
     .expect("write Personskat JSON input");
+    let hydrated_json_input_path = temp_path("json");
+    let mut hydrated_json_input = json_input.clone();
+    let mixed_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-blandet-slutskat-2026")
+        .expect("mixed §§ 37-40 JSON case")
+        .clone();
+    hydrated_json_input["cases"] = Value::Array(vec![mixed_case]);
+    std::fs::write(
+        &hydrated_json_input_path,
+        serde_json::to_vec_pretty(&hydrated_json_input)
+            .expect("encode mixed Personskat JSON input"),
+    )
+    .expect("write mixed Personskat JSON input");
     let json_output = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
         "--input",
         json_input_path.to_str().expect("JSON input path"),
     ]);
+    let hydrated_xlsx_path = temp_path("xlsx");
+    let hydrate_xlsx = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        hydrated_json_input_path
+            .to_str()
+            .expect("mixed JSON input path"),
+        "--format",
+        "xlsx",
+        "--output",
+        hydrated_xlsx_path
+            .to_str()
+            .expect("hydrated XLSX input path"),
+    ]);
+    assert!(
+        hydrate_xlsx.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrate_xlsx.stderr),
+        String::from_utf8_lossy(&hydrate_xlsx.stdout)
+    );
+    let hydrated_xlsx_output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        hydrated_xlsx_path
+            .to_str()
+            .expect("hydrated XLSX input path"),
+    ]);
     std::fs::remove_file(&json_input_path).ok();
+    std::fs::remove_file(&hydrated_json_input_path).ok();
+    std::fs::remove_file(&hydrated_xlsx_path).ok();
     assert!(
         json_output.status.success(),
         "stderr:\n{}\nstdout:\n{}",
         String::from_utf8_lossy(&json_output.stderr),
         String::from_utf8_lossy(&json_output.stdout)
     );
+    assert!(
+        hydrated_xlsx_output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrated_xlsx_output.stderr),
+        String::from_utf8_lossy(&hydrated_xlsx_output.stdout)
+    );
     let json_result = parse_stdout(&json_output);
+    let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
     let xlsx_par32_history_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")
@@ -10814,6 +10968,89 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("§§ 37-40 closing departure holdings")
             .len(),
         1
+    );
+    let json_par37_mixed_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-blandet-slutskat-2026")
+        .expect("JSON mixed §§ 37-40 final-tax result");
+    let hydrated_par37_mixed_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-blandet-slutskat-2026")
+        .expect("hydrated XLSX mixed §§ 37-40 final-tax result");
+    assert_eq!(
+        hydrated_par37_mixed_result["result"],
+        json_par37_mixed_result["result"]
+    );
+    let mixed_result = &json_par37_mixed_result["result"];
+    assert_eq!(mixed_result["aktieavance"]["aktieindkomst_kroner"], 50_000);
+    assert_eq!(
+        mixed_result["aktieavance"]["personlig_indkomst_kroner"],
+        30_000
+    );
+    assert_eq!(
+        mixed_result["aktieavance"]["kapitalindkomst_kroner"],
+        20_000
+    );
+    let mixed_special_result = &mixed_result["aktieavance"]["særlige_resultater"][0];
+    assert_eq!(mixed_special_result["input_gyldigt"], true);
+    assert_eq!(
+        mixed_special_result["resultater"]
+            .as_array()
+            .expect("mixed §§ 37-40 annual results")
+            .len(),
+        3
+    );
+    assert_eq!(
+        mixed_special_result["resultat"]["medregnes_i_skattepligtig_indkomst"],
+        false
+    );
+    let mixed_trace = &mixed_special_result["par37_til40_forløbsresultat"];
+    let mixed_departure = &mixed_trace["fraflytningsresultat"];
+    assert_eq!(
+        mixed_departure["skattekontekst"]["$variant"],
+        "AblPar37Til40AfledtSlutskat"
+    );
+    assert_eq!(
+        mixed_departure["umiddelbare_aktieavancebeskatningslov_resultater"]
+            .as_array()
+            .expect("immediate mixed §§ 37-40 annual results")
+            .len(),
+        1
+    );
+    assert_eq!(
+        mixed_departure["henstandsvalgte_aktieavancebeskatningslov_resultater"]
+            .as_array()
+            .expect("deferred mixed §§ 37-40 annual results")
+            .len(),
+        2
+    );
+    let mixed_tax_context = &mixed_departure["skattekontekst"]["kontekst"];
+    let mixed_tax_without = mixed_tax_context["skat_uden_fraflytterindkomst_kroner"]
+        .as_i64()
+        .expect("tax without mixed departure income");
+    let mixed_tax_immediate = mixed_tax_context
+        ["skat_før_henstandsvalgt_fraflytterindkomst_kroner"]
+        .as_i64()
+        .expect("tax before deferred mixed departure income");
+    let mixed_tax_full = mixed_tax_context["skat_med_hele_fraflytterindkomsten_kroner"]
+        .as_i64()
+        .expect("tax with all mixed departure income");
+    assert_eq!(
+        mixed_trace["årets_beregnede_fraflytterskat_kroner"],
+        mixed_tax_full - mixed_tax_without
+    );
+    assert_eq!(mixed_trace["årets_beregnede_fraflytterskat_kroner"], 31_200);
+    assert_eq!(
+        mixed_trace["årets_nye_henstand_kroner"],
+        mixed_tax_full - mixed_tax_immediate
+    );
+    assert_eq!(
+        mixed_trace["årets_skat_til_betaling_ved_fraflytning_kroner"],
+        mixed_tax_immediate - mixed_tax_without
     );
     let xlsx_par37_spouse_result = result["results"]
         .as_array()

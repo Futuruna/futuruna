@@ -11,7 +11,7 @@
 = aktieavancebeskatningsloven_lbk1098_par38 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
     identifier = "Aktieavancebeskatningsloven § 38",
-    hentet_dato = "2026-07-18"
+    hentet_dato = "2026-08-02"
 )
 = aktieavancebeskatningsloven_lbk1098_par39 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
@@ -41,7 +41,7 @@
 = aktieavancebeskatningsloven_juridisk_vejledning_par39 = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946400",
     identifier = "Den juridiske vejledning C.B.2.14.2.8.1: henstand med betaling af skatten",
-    hentet_dato = "2026-07-18"
+    hentet_dato = "2026-08-02"
 )
 
 = aktieavancebeskatningsloven_par37_metadata = Metadata(

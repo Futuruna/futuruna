@@ -1,0 +1,169 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
+§ 38. Scenarierne er ikke lovtekst.
+----
+
+| fraflytter_slutskat_ordinaert_aktivgrundlag() -> AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Falskt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+))
+| fraflytter_slutskat_saerligt_aktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput) -> AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
+    klassifikation = klassifikation,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+))
+
+= fraflytter_slutskat_naeringsaktiv = fraflytter_slutskat_saerligt_aktivgrundlag(AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblNæringsaktiePar17,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblIngenInvesteringsklassifikation
+))
+= fraflytter_slutskat_investeringsselskab19c = fraflytter_slutskat_saerligt_aktivgrundlag(AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19c_klassifikationsresultat.input)
+))
+
+| fraflytter_slutskat_aktiepost(identifikation: Tekst, raekkefoelge: Heltal, gevinst_kroner: Heltal, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip, henstandsvalg: AktieavancePar37Til40Henstandsvalg) -> AktieavancePar37Til40AktiepostFakta(
+    identifikation = identifikation,
+    selskabsidentifikation = "DK-" + identifikation,
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 1, dag = 1),
+    erhvervelsesrækkefølge = raekkefoelge,
+    antal = 100,
+    handelsværdi_ved_ophør_kroner = 100000 + gevinst_kroner,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
+    aktivgrundlag = aktivgrundlag,
+    princip = princip,
+    henstandsvalg = henstandsvalg
+)
+
+| fraflytter_slutskat_kilde(identifikation: Tekst, aktier: List(AktieavancePar37Til40AktiepostFakta)) -> PersonskatSærligtAktieaktivFakta(
+    identifikation = identifikation,
+    kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = PersonskatPar37Til40Forløbsfakta(
+        identifikation = identifikation,
+        opgørelsesår = 2026,
+        fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+            fraflytningsår = 2026,
+            ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+            tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+            aktier = aktier,
+            kontekstgrundlag = AfledPar37Til40KontekstFraPersonskat,
+            indberetning = AktieavancePar39Indberetning(
+                oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+                beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+            ),
+            bopæl = AktieavancePar39Bopæl(
+                oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                frigivelse_af_sikkerhed_anmodet = Falskt
+            ),
+            sikkerhed = AblPar39IngenSikkerhedStillet
+        ),
+        hændelsesposter = [],
+        tilflytning = IngenTilflytningEfterPar39B
+    )),
+    markedsstatus = AblIkkeOptagetTilHandel
+)
+
+= fraflytter_slutskat_loenmodtager = PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| fraflytter_slutskat_input(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatInput(
+    lønmodtager = fraflytter_slutskat_loenmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = særlige_aktiver, udbytter = []),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= fraflytter_slutskat_blandet_aktier = [
+    fraflytter_slutskat_aktiepost("ordinaer-gevinst", 1, 50000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+    fraflytter_slutskat_aktiepost("naering-gevinst", 2, 30000, fraflytter_slutskat_naeringsaktiv, AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+    fraflytter_slutskat_aktiepost("par19c-gevinst", 3, 20000, fraflytter_slutskat_investeringsselskab19c, AblPar23Lagerprincip, AblPar37Til40SkatBetalesStraks),
+]
+= fraflytter_slutskat_blandet_kilde = fraflytter_slutskat_kilde("blandet-slutskat", fraflytter_slutskat_blandet_aktier)
+= fraflytter_slutskat_basis = beregn_personskat(fraflytter_slutskat_input([]))
+= fraflytter_slutskat_blandet = beregn_personskat(fraflytter_slutskat_input([fraflytter_slutskat_blandet_kilde]))
+
+= fraflytter_slutskat_ikke_positiv_kilde = fraflytter_slutskat_kilde("ikke-positiv-slutskat", [
+    fraflytter_slutskat_aktiepost("ikke-positiv-ordinaer", 1, 50000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+    fraflytter_slutskat_aktiepost("ikke-positiv-par19c", 2, -60000, fraflytter_slutskat_investeringsselskab19c, AblPar23Lagerprincip, AblPar37Til40SkatBetalesStraks),
+])
+= fraflytter_slutskat_ikke_positiv = beregn_personskat(fraflytter_slutskat_input([fraflytter_slutskat_ikke_positiv_kilde]))
+
+= fraflytter_slutskat_foerste_kilde = fraflytter_slutskat_kilde("foerste-slutskat", [
+    fraflytter_slutskat_aktiepost("foerste-aktie", 1, 20000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+])
+= fraflytter_slutskat_anden_kilde = fraflytter_slutskat_kilde("anden-slutskat", [
+    fraflytter_slutskat_aktiepost("anden-aktie", 1, 80000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+])
+= fraflytter_slutskat_flere = beregn_personskat(fraflytter_slutskat_input([fraflytter_slutskat_foerste_kilde, fraflytter_slutskat_anden_kilde]))
+
+| fraflytter_slutskat_blandet_kategorier_foedes_til_aarsberegningen: fraflytter_slutskat_blandet -> fraflytter_slutskat_blandet.aktieavance.alle_input_gyldige && fraflytter_slutskat_blandet.aktieavance.aktieindkomst_kroner == 50000 && fraflytter_slutskat_blandet.aktieavance.personlig_indkomst_kroner == 30000 && fraflytter_slutskat_blandet.aktieavance.kapitalindkomst_kroner == 20000
+| fraflytter_slutskat_blandet_bruger_kanonisk_marginaldelta: fraflytter_slutskat_blandet -> match head(fraflytter_slutskat_blandet.aktieavance.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> match forløb.fraflytningsresultat.skattekontekst {
+        | AblPar37Til40AfledtSlutskat(kontekst) -> forløb.input_gyldigt && kontekst.input_gyldigt && kontekst.skat_uden_fraflytterindkomst_kroner == fraflytter_slutskat_basis.samlet_skat_inkl_endelig_aktieindkomstskat_kroner && kontekst.skat_med_hele_fraflytterindkomsten_kroner == fraflytter_slutskat_blandet.samlet_skat_inkl_endelig_aktieindkomstskat_kroner && forløb.årets_beregnede_fraflytterskat_kroner == kontekst.skat_med_hele_fraflytterindkomsten_kroner - kontekst.skat_uden_fraflytterindkomst_kroner
+        | AblPar37Til40LokalAktieindkomstskat -> Falskt
+    }
+    | None -> Falskt
+}
+| fraflytter_slutskat_kun_realisationsposter_giver_henstand: fraflytter_slutskat_blandet -> match head(fraflytter_slutskat_blandet.aktieavance.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> match forløb.fraflytningsresultat.skattekontekst {
+        | AblPar37Til40AfledtSlutskat(kontekst) -> length(forløb.fraflytningsresultat.umiddelbare_aktieavancebeskatningslov_resultater) == 1 && length(forløb.fraflytningsresultat.henstandsvalgte_aktieavancebeskatningslov_resultater) == 2 && forløb.årets_nye_henstand_kroner == kontekst.skat_med_hele_fraflytterindkomsten_kroner - kontekst.skat_før_henstandsvalgt_fraflytterindkomst_kroner && forløb.årets_skat_til_betaling_ved_fraflytning_kroner == forløb.årets_beregnede_fraflytterskat_kroner - forløb.årets_nye_henstand_kroner
+        | AblPar37Til40LokalAktieindkomstskat -> Falskt
+    }
+    | None -> Falskt
+}
+| fraflytter_slutskat_ikke_positiv_netto_giver_ingen_skat: fraflytter_slutskat_ikke_positiv -> match head(fraflytter_slutskat_ikke_positiv.aktieavance.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.input_gyldigt && forløb.fraflytningsresultat.par38_resultat.samlet_nettogevinst_før_gulv_kroner == -10000 && length(forløb.aktieavancebeskatningslov_resultater) == 0 && forløb.årets_beregnede_fraflytterskat_kroner == 0 && forløb.årets_nye_henstand_kroner == 0 && fraflytter_slutskat_ikke_positiv.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == fraflytter_slutskat_basis.samlet_skat_inkl_endelig_aktieindkomstskat_kroner
+    | None -> Falskt
+}
+| fraflytter_slutskat_flere_kilder_teleskoperer_i_kildelisteorden: fraflytter_slutskat_flere -> match head(fraflytter_slutskat_flere.aktieavance.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(foerste) -> match head(tail(fraflytter_slutskat_flere.aktieavance.særlige_resultater)).par37_til40_forløbsresultat {
+        | Some(anden) -> foerste.input_gyldigt && anden.input_gyldigt && foerste.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == anden.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner && foerste.årets_beregnede_fraflytterskat_kroner + anden.årets_beregnede_fraflytterskat_kroner == fraflytter_slutskat_flere.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - fraflytter_slutskat_basis.samlet_skat_inkl_endelig_aktieindkomstskat_kroner
+        | None -> Falskt
+    }
+    | None -> Falskt
+}
+
+? fraflytter_slutskat_blandet_kategorier_foedes_til_aarsberegningen
+? fraflytter_slutskat_blandet_bruger_kanonisk_marginaldelta
+? fraflytter_slutskat_kun_realisationsposter_giver_henstand
+? fraflytter_slutskat_ikke_positiv_netto_giver_ingen_skat
+? fraflytter_slutskat_flere_kilder_teleskoperer_i_kildelisteorden
+
+@ print("ABL § 38 kanonisk blandet fraflytterskat: " + vis(fraflytter_slutskat_blandet.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - fraflytter_slutskat_basis.samlet_skat_inkl_endelig_aktieindkomstskat_kroner))

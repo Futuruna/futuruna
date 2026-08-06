@@ -3,12 +3,13 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-7469fc` (ABL § 38's aktiver og tab klassificeres nu fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; fortolket, kompileret og ved JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes nu som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; direkte, kanonisk og gennem JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
+Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; afventer uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
 Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
-Next exit-tax refinements: `td-8e8561` (beregn blandede § 38-porteføljer som forskellen mellem fuld slutskat med og uden fraflytterindkomsten) og `td-4e42fd` (bevar hvert aktivs eget markeds- og indberetningsgrundlag til ABL § 13 A og KGL § 32)
+Next exit-tax refinement: `td-4e42fd` (bevar hvert aktivs eget markeds- og indberetningsgrundlag til ABL § 13 A og KGL § 32)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -4005,11 +4006,31 @@ Review candidates to revisit deliberately, not as broad churn:
   tabsfradrag. Genbrugelig typeankret metadata giver de nye felter danske
   etiketter og interviewspørgsmål i hele Personskat-grafen. Den lokale
   livscyklusberegning anvender fortsat kun § 8 a, når alle udgående resultater
-  faktisk er aktieindkomst. En blandet portefølje bevarer sine korrekte
-  årsindkomstposter, men markerer selve fraflytterskatten som ikke understøttet
-  og returnerer ikke en opdigtet § 8 a-skat. Den fulde slutskatteforskel og
-  henstandsfordeling er afgrænset som `td-8e8561`; per-aktiv markedsproveniens
-  til § 13 A/KGL § 32 er afgrænset som `td-4e42fd`.
+  faktisk er aktieindkomst. En blandet portefølje returnerer derfor aldrig en
+  opdigtet § 8 a-skat uden for den kanoniske Personskat-graf. Per-aktiv
+  markedsproveniens til § 13 A/KGL § 32 er afgrænset som `td-4e42fd`.
+- Under `td-8e8561` kan den kanoniske Personskat-graf nu beregne den blandede
+  § 38-portefølje, som den lokale § 8 a-gren med vilje afviser. For hver aktuel
+  fraflytningskilde afledes tre fulde slutskatteprojektioner: uden kildens
+  fraflytterindkomst, med de lagerbeskattede eller straksbetalte poster og med
+  samtlige poster. Fraflytterskatten er den positive forskel mellem den fulde
+  og den første projektion. Henstanden er den positive forskel mellem den fulde
+  og den umiddelbare projektion, begrænset til den samlede fraflytterskat. Hele
+  beregningen er fortsat betinget af § 38's positive samlede nettogevinst; en
+  samlet gevinst på 50.000 kr. og et fradragsberettiget tab på 60.000 kr. giver
+  derfor hverken fraflytterskat eller henstand, selv om de to poster tilhører
+  forskellige Personskattelov-kategorier.
+  En portefølje med 50.000 kr. almindelig aktiegevinst, 30.000 kr.
+  næringsgevinst og 20.000 kr. § 19 C-lagergevinst giver 31.200 kr. i
+  fraflytterskat oven på 600.000 kr. i løn. Kun de to realisationsposter indgår
+  i § 39-henstanden; lagerpostens marginalskat forfalder straks. Det fulde
+  flerresultat fødes til årsberegningen, mens det ældre entalsresultat er tomt,
+  så en blandet portefølje ikke kan fremstå som almindelig aktieindkomst.
+  Flere fraflytningskilder behandles i den typede kildelistes rækkefølge, og
+  deres deltas teleskoperer til forskellen mellem årets slutskat med alle og
+  ingen af kilderne. En direkte livscyklustest, fem kanoniske scenarier og en
+  præcis JSON/XLSX-rundtur passerer; sidstnævnte gendanner også de indlejrede
+  § 19 B/§ 19 C-aktivmassefakta og giver bit-for-bit samme fulde resultat.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -4063,12 +4084,13 @@ Review candidates to revisit deliberately, not as broad churn:
 - Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
   lifecycle design. Own/spouse share-income context is derived under
   `td-aea204`, and § 38's annual categories and ordinary loss eligibility are
-  source-derived under `td-7469fc`. Next, `td-8e8561` must derive mixed-category
-  exit tax from the complete annual Personskat delta, `td-4e42fd` must preserve
-  per-holding market provenance through § 13 A and KGL § 32, and `td-3f2ee9`
-  makes a missing annual § 39 A report detectable rather than requiring an
-  explicit late-reporting event. These are bounded fidelity follow-ups, not a
-  reason to replace the derived ledger with caller-supplied conclusions.
+  source-derived under `td-7469fc`. The mixed-category annual final-tax delta
+  and realization-only henstand are derived under `td-8e8561`. Next,
+  `td-4e42fd` must preserve per-holding market provenance through § 13 A and
+  KGL § 32, and `td-3f2ee9` makes a missing annual § 39 A report detectable
+  rather than requiring an explicit late-reporting event. These are bounded
+  fidelity follow-ups, not a reason to replace the derived ledger with
+  caller-supplied conclusions.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

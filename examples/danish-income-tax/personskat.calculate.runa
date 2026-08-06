@@ -142,6 +142,11 @@
 # PersonskatPar37Til40Forløbsfakta(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: PersonskatPar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), tilflytning: AktieavancePar37Til40Tilflytning)
 # PersonskatPar37Til40Årskontekst(egen_aktieindkomst_kroner: Heltal, ægtefælles_aktieindkomst_kroner: Heltal, samlevende_ved_indkomstårets_udløb: Boolsk, afledning_tilladt: Boolsk)
 # PersonskatPar37Til40Kontekstafledning(kontekst: AktieavancePar37Til40Aktieindkomstkontekst, input_gyldigt: Boolsk)
+# PersonskatPar37Til40Skatteprojektion = UdenAktuelFraflytterindkomst | MedAktuelUmiddelbarFraflytterindkomst | MedAktuelFuldFraflytterindkomst
+# PersonskatPar37Til40Skatteperson = Par37Til40Hovedperson | Par37Til40Ægtefælle
+# PersonskatPar37Til40Slutskatspost(aktieaktiv_identifikation: Tekst, skattekontekst: AktieavancePar37Til40Skattekontekst)
+# PersonskatPar37Til40Skatteafledningstilstand(inkluderede_aktieaktiv_identifikationer: List(Tekst), slutskatsposter: List(PersonskatPar37Til40Slutskatspost), input_gyldigt: Boolsk)
+# PersonskatSlutskatParprojektion(hovedperson_kroner: Heltal, ægtefælle_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput) | PersonskatFraflytteraktierEfterPar37Til40(fakta: PersonskatPar37Til40Forløbsfakta)
 # PersonskatSærligtAktieaktivFakta(identifikation: Tekst, kilde: PersonskatSærligtAktieaktivKilde, markedsstatus: AktieavanceOrdinærMarkedsstatus)
 # PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, resultater: List(AktieavancebeskatningslovResultat), par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
@@ -9981,6 +9986,27 @@
 | personskat_særligt_aktieaktiv_identifikation_unik(aktiver: List(PersonskatSærligtAktieaktivFakta), fakta: PersonskatSærligtAktieaktivFakta) -> fakta.identifikation != "" && length(filter(aktiver, |andet: PersonskatSærligtAktieaktivFakta| andet.identifikation == fakta.identifikation)) == 1
 | personskat_særligt_aktieaktiv_resultat_gyldigt(aktiver: List(PersonskatSærligtAktieaktivFakta), resultat: PersonskatSærligtAktieaktivResultat) -> resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(aktiver, resultat.fakta)
 | personskat_særligt_aktieaktiv_er_par37_til40(fakta: PersonskatSærligtAktieaktivFakta) -> match fakta.kilde { | PersonskatFraflytteraktierEfterPar37Til40(_) -> Sandt | _ -> Falskt }
+| personskat_særligt_aktieaktiv_med_resultater(resultat: PersonskatSærligtAktieaktivResultat, resultater: List(AktieavancebeskatningslovResultat)) -> PersonskatSærligtAktieaktivResultat(
+    fakta = resultat.fakta,
+    resultat = resultat.resultat,
+    resultater = resultater,
+    par17_resultat = resultat.par17_resultat,
+    par35_forløbsresultat = resultat.par35_forløbsresultat,
+    par37_til40_forløbsresultat = resultat.par37_til40_forløbsresultat,
+    kgl_par32_kontraktrelation = resultat.kgl_par32_kontraktrelation,
+    årets_forfaldne_overdragerskat_kroner = resultat.årets_forfaldne_overdragerskat_kroner,
+    årets_betalte_overdragerskat_kroner = resultat.årets_betalte_overdragerskat_kroner,
+    årets_saldobortfald_kroner = resultat.årets_saldobortfald_kroner,
+    årets_nye_henstand_med_fraflytterskat_kroner = resultat.årets_nye_henstand_med_fraflytterskat_kroner,
+    årets_forfaldne_fraflytterskat_kroner = resultat.årets_forfaldne_fraflytterskat_kroner,
+    årets_betalte_fraflytterskat_kroner = resultat.årets_betalte_fraflytterskat_kroner,
+    årets_fraflytterskat_saldobortfald_kroner = resultat.årets_fraflytterskat_saldobortfald_kroner,
+    input_gyldigt = resultat.input_gyldigt
+)
+| personskat_særligt_aktieaktiv_med_umiddelbare_par37_til40_resultater(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
+    | Some(forløb) -> personskat_særligt_aktieaktiv_med_resultater(resultat, forløb.fraflytningsresultat.umiddelbare_aktieavancebeskatningslov_resultater)
+    | None -> resultat
+}
 | personskat_aktieavance_uden_par37_til40(input: PersonskatAktieavanceInput) -> PersonskatAktieavanceInput(
     ordinært_aktieår = input.ordinært_aktieår,
     særlige_aktiver = filter(input.særlige_aktiver, |fakta: PersonskatSærligtAktieaktivFakta| personskat_særligt_aktieaktiv_er_par37_til40(fakta) == Falskt),
@@ -9999,6 +10025,17 @@
     | _ -> Falskt
 }
 | personskat_par37_til40_har_aktuel_afledning_i_input(input: PersonskatAktieavanceInput, skatteår: Heltal) -> length(filter(input.særlige_aktiver, |fakta: PersonskatSærligtAktieaktivFakta| personskat_par37_til40_har_aktuel_afledning(fakta, skatteår))) > 0
+| personskat_par37_til40_resultat_har_aktuel_afledning(resultat: PersonskatSærligtAktieaktivResultat, skatteår: Heltal) -> personskat_par37_til40_har_aktuel_afledning(resultat.fakta, skatteår)
+| personskat_par37_til40_resultat_inkluderet(resultat: PersonskatSærligtAktieaktivResultat, skatteår: Heltal, inkluderede_identifikationer: List(Tekst), aktuel_identifikation: Tekst, projektion: PersonskatPar37Til40Skatteprojektion) -> hvis personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) == Falskt {
+    Sandt
+} ellers {
+    contains(inkluderede_identifikationer, resultat.fakta.identifikation) || (resultat.fakta.identifikation == aktuel_identifikation && projektion != UdenAktuelFraflytterindkomst)
+}
+| personskat_par37_til40_resultat_til_projektion(resultat: PersonskatSærligtAktieaktivResultat, aktuel_identifikation: Tekst, projektion: PersonskatPar37Til40Skatteprojektion) -> hvis resultat.fakta.identifikation == aktuel_identifikation && projektion == MedAktuelUmiddelbarFraflytterindkomst { personskat_særligt_aktieaktiv_med_umiddelbare_par37_til40_resultater(resultat) } ellers { resultat }
+| personskat_par37_til40_særlige_resultater_til_projektion(resultater: List(PersonskatSærligtAktieaktivResultat), skatteår: Heltal, inkluderede_identifikationer: List(Tekst), aktuel_identifikation: Tekst, projektion: PersonskatPar37Til40Skatteprojektion) -> map(
+    filter(resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_inkluderet(resultat, skatteår, inkluderede_identifikationer, aktuel_identifikation, projektion)),
+    |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_til_projektion(resultat, aktuel_identifikation, projektion)
+)
 | personskat_særligt_aktieaktiv_par37_til40_tillæg_kroner(resultat: PersonskatSærligtAktieaktivResultat) -> hvis personskat_særligt_aktieaktiv_er_par37_til40(resultat.fakta) && resultat.input_gyldigt { foldl(resultat.resultater, 0, |sum: Heltal, abl_resultat: AktieavancebeskatningslovResultat| sum + hvis abl_resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a { abl_resultat.netto_efter_aktieavancebeskatningsloven_kroner } ellers { 0 }) } ellers { 0 }
 | personskat_særligt_aktieaktiv_afledningstrin(tilstand: PersonskatSærligtAktieaktivAfledningstilstand, fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal) -> {
     = resultat = personskat_særligt_aktieaktiv_resultat_med_par37_kontekst(fakta, skatteår, tilstand.årskontekst)
@@ -10085,6 +10122,10 @@
 }
 
 | personskat_aktieavance_resultat_fra_forberedelse(forberedelse: PersonskatAktieavanceForberedelse, ordinært_aktieår: PersonskatOrdinærtAktieårResultat) -> PersonskatAktieavanceSag(forberedelse, ordinært_aktieår).resultat()
+| personskat_aktieavance_resultat_med_særlige_resultater(resultat: PersonskatAktieavanceResultat, skatteår: Heltal, særlige_resultater: List(PersonskatSærligtAktieaktivResultat)) -> personskat_aktieavance_resultat_fra_forberedelse(
+    personskat_aktieavance_forberedelse_fra_resultater(resultat.input, skatteår, særlige_resultater, resultat.udbytter),
+    resultat.ordinært_aktieår
+)
 | personskat_aktieavance_resultat(input: PersonskatAktieavanceInput, skatteår: Heltal) -> {
     = basisinput = personskat_aktieavance_uden_par37_til40(input)
     = basisforberedelse = personskat_aktieavance_forberedelse_direkte(basisinput, skatteår)
@@ -10159,6 +10200,35 @@
 | personskat_aktieavance_parresultat(hovedpersons_input: PersonskatAktieavanceInput, hovedpersons_skatteår: Heltal, ægtefælle_input: PersonskatÆgtefælleInput) -> match ægtefælle_input {
     | UdenÆgtefælle -> PersonskatAktieavanceParResultat(par_gyldigt = Sandt, hovedperson = personskat_aktieavance_resultat(hovedpersons_input, hovedpersons_skatteår), ægtefælle = IngenÆgtefælleAktieavance)
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb) -> personskat_aktieavance_parresultat_fra_personer(hovedpersons_input, hovedpersons_skatteår, ægtefælle_fakta.aktieavance, ægtefælle_fakta.lønmodtager.skatteår, samlevende_ved_indkomstårets_udløb)
+}
+| personskat_ægtefælle_skatteår(input: PersonskatÆgtefælleInput, hovedpersons_skatteår: Heltal) -> match input { | UdenÆgtefælle -> hovedpersons_skatteår | MedÆgtefælle(fakta, _) -> fakta.lønmodtager.skatteår }
+| personskat_ægtefælle_særlige_resultater(parresultat: PersonskatAktieavanceParResultat) -> match parresultat.ægtefælle { | IngenÆgtefælleAktieavance -> [] | BeregnetÆgtefælleAktieavance(resultat) -> resultat.særlige_resultater }
+| personskat_aktieavance_parresultat_med_særlige_resultater(parresultat: PersonskatAktieavanceParResultat, hovedpersons_skatteår: Heltal, ægtefælles_skatteår: Heltal, hovedpersons_særlige_resultater: List(PersonskatSærligtAktieaktivResultat), ægtefælles_særlige_resultater: List(PersonskatSærligtAktieaktivResultat)) -> {
+    = hovedperson = personskat_aktieavance_resultat_med_særlige_resultater(parresultat.hovedperson, hovedpersons_skatteår, hovedpersons_særlige_resultater)
+    match parresultat.ægtefælle {
+        | IngenÆgtefælleAktieavance -> PersonskatAktieavanceParResultat(
+            par_gyldigt = parresultat.par_gyldigt && hovedperson.alle_input_gyldige,
+            hovedperson = hovedperson,
+            ægtefælle = IngenÆgtefælleAktieavance
+        )
+        | BeregnetÆgtefælleAktieavance(resultat) -> {
+            = ægtefælle = personskat_aktieavance_resultat_med_særlige_resultater(resultat, ægtefælles_skatteår, ægtefælles_særlige_resultater)
+            PersonskatAktieavanceParResultat(
+                par_gyldigt = parresultat.par_gyldigt && hovedperson.alle_input_gyldige && ægtefælle.alle_input_gyldige,
+                hovedperson = hovedperson,
+                ægtefælle = BeregnetÆgtefælleAktieavance(resultat = ægtefælle)
+            )
+        }
+    }
+}
+| personskat_par37_til40_aktieavance_parprojektion(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, person: PersonskatPar37Til40Skatteperson, inkluderede_identifikationer: List(Tekst), aktuel_identifikation: Tekst, projektion: PersonskatPar37Til40Skatteprojektion) -> {
+    = hovedpersons_skatteår = input.lønmodtager.skatteår
+    = ægtefælles_skatteår = personskat_ægtefælle_skatteår(input.ægtefælle, hovedpersons_skatteår)
+    = hovedpersons_basis = personskat_par37_til40_særlige_resultater_til_projektion(parresultat.hovedperson.særlige_resultater, hovedpersons_skatteår, [], "", UdenAktuelFraflytterindkomst)
+    = ægtefælles_basis = personskat_par37_til40_særlige_resultater_til_projektion(personskat_ægtefælle_særlige_resultater(parresultat), ægtefælles_skatteår, [], "", UdenAktuelFraflytterindkomst)
+    = hovedpersons_resultater = hvis person == Par37Til40Hovedperson { personskat_par37_til40_særlige_resultater_til_projektion(parresultat.hovedperson.særlige_resultater, hovedpersons_skatteår, inkluderede_identifikationer, aktuel_identifikation, projektion) } ellers { hovedpersons_basis }
+    = ægtefælles_resultater = hvis person == Par37Til40Ægtefælle { personskat_par37_til40_særlige_resultater_til_projektion(personskat_ægtefælle_særlige_resultater(parresultat), ægtefælles_skatteår, inkluderede_identifikationer, aktuel_identifikation, projektion) } ellers { ægtefælles_basis }
+    personskat_aktieavance_parresultat_med_særlige_resultater(parresultat, hovedpersons_skatteår, ægtefælles_skatteår, hovedpersons_resultater, ægtefælles_resultater)
 }
 | personskat_ingen_aktieavance() -> PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [], udbytter = [])
 
@@ -11116,8 +11186,7 @@
     | IntetPar32Kontraktforløb -> før_par32
     | BeregnetPar32Kontraktforløb(_, aktuelt_årsresultat, _, _, _) -> aktuelt_årsresultat.aktieavance
 }
-| personskat_beregning_resultat(input: PersonskatInput) -> {
-    = aktieavance_før_par32 = personskat_aktieavance_parresultat(input.aktieavance, input.lønmodtager.skatteår, input.ægtefælle)
+| personskat_beregning_resultat_fra_aktieavance_par(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
     = kursgevinst_par32 = personskat_kgl_par32_parresultat(input, aktieavance_før_par32)
     = aktieavance_par = personskat_kgl_par32_justeret_aktieavance(aktieavance_før_par32, kursgevinst_par32)
     = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32))
@@ -11148,6 +11217,119 @@
         cfc = hovedgrundlag.cfc,
         årsopgørelse = personskat_årsopgørelse(input.årsopgørelse, samlet_skat_inkl_ejendomsskatter_kroner, hovedgrundlag.pension)
     )
+}
+| personskat_kgl_par32_parresultat_gyldigt(resultat: PersonskatKursgevinstPar32ParResultat) -> match resultat { | IntetPar32Kontraktforløb -> Sandt | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt }
+| personskat_ægtefælle_aktieavance_gyldig(resultat: PersonskatÆgtefælleAktieavanceResultat) -> match resultat { | IngenÆgtefælleAktieavance -> Sandt | BeregnetÆgtefælleAktieavance(aktieavance) -> aktieavance.alle_input_gyldige }
+| personskat_hovedpersons_individuelle_skatteforhold(input: PersonskatInput, resultat: PersonskatBeregningResultat) -> personskat_skatteforhold(input.skatteforhold, resultat.aktieavance, resultat.cfc)
+| personskat_ægtefælles_slutskat_kroner(input: PersonskatInput, resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | IngenÆgtefælleberegning -> 0
+    | BeregnetÆgtefælle(_, grundlag, skat, samlevende_ved_indkomstårets_udløb) -> {
+        = hovedpersons_individuelle_skatteforhold = personskat_hovedpersons_individuelle_skatteforhold(input, resultat)
+        = ægtefælles_skatteforhold = personskat_skatteforhold_med_ægtefælle(
+            grundlag.individuelle_skatteforhold,
+            hovedpersons_individuelle_skatteforhold.aktieindkomst_kroner,
+            resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
+            samlevende_ved_indkomstårets_udløb
+        )
+        = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(grundlag.fakta.lønmodtager.skatteår, ægtefælles_skatteforhold)
+        skat.slutskat.samlet_inkl_am_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
+    }
+}
+| personskat_slutskat_parprojektion(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
+    = resultat = personskat_beregning_resultat_fra_aktieavance_par(input, aktieavance_før_par32)
+    PersonskatSlutskatParprojektion(
+        hovedperson_kroner = resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
+        ægtefælle_kroner = personskat_ægtefælles_slutskat_kroner(input, resultat),
+        input_gyldigt = aktieavance_før_par32.par_gyldigt && resultat.aktieavance.alle_input_gyldige && personskat_ægtefælle_aktieavance_gyldig(aktieavance_før_par32.ægtefælle) && personskat_kgl_par32_parresultat_gyldigt(resultat.kursgevinst_par32)
+    )
+}
+| personskat_slutskat_for_person(projektion: PersonskatSlutskatParprojektion, person: PersonskatPar37Til40Skatteperson) -> hvis person == Par37Til40Hovedperson { projektion.hovedperson_kroner } ellers { projektion.ægtefælle_kroner }
+| personskat_par37_til40_aktuelle_resultater_for_person(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, person: PersonskatPar37Til40Skatteperson) -> hvis person == Par37Til40Hovedperson {
+    filter(parresultat.hovedperson.særlige_resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_har_aktuel_afledning(resultat, input.lønmodtager.skatteår))
+} ellers {
+    = ægtefælles_skatteår = personskat_ægtefælle_skatteår(input.ægtefælle, input.lønmodtager.skatteår)
+    filter(personskat_ægtefælle_særlige_resultater(parresultat), |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_har_aktuel_afledning(resultat, ægtefælles_skatteår))
+}
+| personskat_par37_til40_skatteafledningstrin(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, person: PersonskatPar37Til40Skatteperson, tilstand: PersonskatPar37Til40Skatteafledningstilstand, resultat: PersonskatSærligtAktieaktivResultat) -> {
+    = identifikation = resultat.fakta.identifikation
+    = uden_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, person, tilstand.inkluderede_aktieaktiv_identifikationer, identifikation, UdenAktuelFraflytterindkomst)
+    = umiddelbar_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, person, tilstand.inkluderede_aktieaktiv_identifikationer, identifikation, MedAktuelUmiddelbarFraflytterindkomst)
+    = fuld_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, person, tilstand.inkluderede_aktieaktiv_identifikationer, identifikation, MedAktuelFuldFraflytterindkomst)
+    = uden = personskat_slutskat_parprojektion(input, uden_par)
+    = umiddelbar = personskat_slutskat_parprojektion(input, umiddelbar_par)
+    = fuld = personskat_slutskat_parprojektion(input, fuld_par)
+    = kontekst_gyldig = tilstand.input_gyldigt && resultat.input_gyldigt && uden.input_gyldigt && umiddelbar.input_gyldigt && fuld.input_gyldigt
+    = skattekontekst = AblPar37Til40AfledtSlutskat(kontekst = AktieavancePar37Til40Slutskattekontekst(
+        skat_uden_fraflytterindkomst_kroner = personskat_slutskat_for_person(uden, person),
+        skat_før_henstandsvalgt_fraflytterindkomst_kroner = personskat_slutskat_for_person(umiddelbar, person),
+        skat_med_hele_fraflytterindkomsten_kroner = personskat_slutskat_for_person(fuld, person),
+        input_gyldigt = kontekst_gyldig
+    ))
+    PersonskatPar37Til40Skatteafledningstilstand(
+        inkluderede_aktieaktiv_identifikationer = concat(tilstand.inkluderede_aktieaktiv_identifikationer, [identifikation]),
+        slutskatsposter = concat(tilstand.slutskatsposter, [PersonskatPar37Til40Slutskatspost(aktieaktiv_identifikation = identifikation, skattekontekst = skattekontekst)]),
+        input_gyldigt = kontekst_gyldig
+    )
+}
+| personskat_par37_til40_skattekontekster_for_person(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, person: PersonskatPar37Til40Skatteperson) -> foldl(
+    personskat_par37_til40_aktuelle_resultater_for_person(input, parresultat, person),
+    PersonskatPar37Til40Skatteafledningstilstand(inkluderede_aktieaktiv_identifikationer = [], slutskatsposter = [], input_gyldigt = Sandt),
+    |tilstand: PersonskatPar37Til40Skatteafledningstilstand, resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_skatteafledningstrin(input, parresultat, person, tilstand, resultat)
+)
+| personskat_par37_til40_skattekontekst_for_resultat(resultat: PersonskatSærligtAktieaktivResultat, slutskatsposter: List(PersonskatPar37Til40Slutskatspost)) -> {
+    = matchende = filter(slutskatsposter, |post: PersonskatPar37Til40Slutskatspost| post.aktieaktiv_identifikation == resultat.fakta.identifikation)
+    hvis length(matchende) == 1 { head(matchende).skattekontekst } ellers { aktieavance_par37_til40_lokal_skattekontekst() }
+}
+| personskat_særligt_aktieaktiv_med_par37_til40_skattekontekst(resultat: PersonskatSærligtAktieaktivResultat, skatteår: Heltal, slutskatsposter: List(PersonskatPar37Til40Slutskatspost)) -> hvis personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) {
+    match resultat.par37_til40_forløbsresultat {
+        | None -> resultat
+        | Some(forløb) -> {
+            = nyt_forløb = aktieavance_par37_til40_forløbsresultat_med_skattekontekst(forløb.input, personskat_par37_til40_skattekontekst_for_resultat(resultat, slutskatsposter))
+            PersonskatSærligtAktieaktivResultat(
+                fakta = resultat.fakta,
+                resultat = nyt_forløb.aktieavancebeskatningslov_resultat,
+                resultater = nyt_forløb.aktieavancebeskatningslov_resultater,
+                par17_resultat = resultat.par17_resultat,
+                par35_forløbsresultat = resultat.par35_forløbsresultat,
+                par37_til40_forløbsresultat = Some(nyt_forløb),
+                kgl_par32_kontraktrelation = resultat.kgl_par32_kontraktrelation,
+                årets_forfaldne_overdragerskat_kroner = resultat.årets_forfaldne_overdragerskat_kroner,
+                årets_betalte_overdragerskat_kroner = resultat.årets_betalte_overdragerskat_kroner,
+                årets_saldobortfald_kroner = resultat.årets_saldobortfald_kroner,
+                årets_nye_henstand_med_fraflytterskat_kroner = nyt_forløb.årets_nye_henstand_kroner,
+                årets_forfaldne_fraflytterskat_kroner = nyt_forløb.årets_skat_til_betaling_ved_fraflytning_kroner + nyt_forløb.årets_nye_forfald_kroner,
+                årets_betalte_fraflytterskat_kroner = nyt_forløb.årets_betalte_fraflytterskat_kroner,
+                årets_fraflytterskat_saldobortfald_kroner = nyt_forløb.årets_saldobortfald_kroner,
+                input_gyldigt = resultat.input_gyldigt && nyt_forløb.input_gyldigt
+            )
+        }
+    }
+} ellers {
+    resultat
+}
+| personskat_aktieavance_resultat_med_par37_til40_skattekontekster(resultat: PersonskatAktieavanceResultat, skatteår: Heltal, slutskatsposter: List(PersonskatPar37Til40Slutskatspost)) -> personskat_aktieavance_resultat_med_særlige_resultater(
+    resultat,
+    skatteår,
+    map(resultat.særlige_resultater, |særligt_resultat: PersonskatSærligtAktieaktivResultat| personskat_særligt_aktieaktiv_med_par37_til40_skattekontekst(særligt_resultat, skatteår, slutskatsposter))
+)
+| personskat_aktieavance_parresultat_med_par37_til40_skattekontekster(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, hovedpersons_slutskatsposter: List(PersonskatPar37Til40Slutskatspost), ægtefælles_slutskatsposter: List(PersonskatPar37Til40Slutskatspost)) -> {
+    = hovedpersons_skatteår = input.lønmodtager.skatteår
+    = ægtefælles_skatteår = personskat_ægtefælle_skatteår(input.ægtefælle, hovedpersons_skatteår)
+    = hovedperson = personskat_aktieavance_resultat_med_par37_til40_skattekontekster(parresultat.hovedperson, hovedpersons_skatteår, hovedpersons_slutskatsposter)
+    match parresultat.ægtefælle {
+        | IngenÆgtefælleAktieavance -> PersonskatAktieavanceParResultat(par_gyldigt = parresultat.par_gyldigt && hovedperson.alle_input_gyldige, hovedperson = hovedperson, ægtefælle = IngenÆgtefælleAktieavance)
+        | BeregnetÆgtefælleAktieavance(resultat) -> {
+            = ægtefælle = personskat_aktieavance_resultat_med_par37_til40_skattekontekster(resultat, ægtefælles_skatteår, ægtefælles_slutskatsposter)
+            PersonskatAktieavanceParResultat(par_gyldigt = parresultat.par_gyldigt && hovedperson.alle_input_gyldige && ægtefælle.alle_input_gyldige, hovedperson = hovedperson, ægtefælle = BeregnetÆgtefælleAktieavance(resultat = ægtefælle))
+        }
+    }
+}
+| personskat_beregning_resultat(input: PersonskatInput) -> {
+    = rå_aktieavance = personskat_aktieavance_parresultat(input.aktieavance, input.lønmodtager.skatteår, input.ægtefælle)
+    = hovedpersons_skattekontekster = personskat_par37_til40_skattekontekster_for_person(input, rå_aktieavance, Par37Til40Hovedperson)
+    = ægtefælles_skattekontekster = personskat_par37_til40_skattekontekster_for_person(input, rå_aktieavance, Par37Til40Ægtefælle)
+    = aktieavance = personskat_aktieavance_parresultat_med_par37_til40_skattekontekster(input, rå_aktieavance, hovedpersons_skattekontekster.slutskatsposter, ægtefælles_skattekontekster.slutskatsposter)
+    personskat_beregning_resultat_fra_aktieavance_par(input, aktieavance)
 }
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
 
