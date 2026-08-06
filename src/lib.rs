@@ -25,6 +25,7 @@
 
 use serde_json;
 use sha2::{Digest as ShaDigest, Sha256};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fmt;
@@ -9556,6 +9557,9 @@ pub struct Interpreter {
     calculation_runtime_bindings: BTreeSet<String>,
     /// Callable families registered while loading the active source/import graph.
     runtime_callable_declarations: BTreeMap<String, RuntimeCallableDeclaration>,
+    /// Parsed type annotations used by typed rule heads. A large rule corpus can
+    /// match the same annotation thousands of times during one calculation.
+    runtime_type_annotations: RefCell<HashMap<String, Option<Ty>>>,
 }
 
 impl Interpreter {
@@ -9612,6 +9616,7 @@ impl Interpreter {
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
             runtime_callable_declarations: BTreeMap::new(),
+            runtime_type_annotations: RefCell::new(HashMap::new()),
         }
     }
 
@@ -15256,9 +15261,25 @@ impl Interpreter {
     }
 
     fn value_matches_type(&self, value: &Value, type_name: &str) -> bool {
-        parse_type_annotation(type_name)
-            .map(|ty| self.value_matches_ty(value, &ty))
-            .unwrap_or_else(|_| self.value_matches_named_type(value, type_name))
+        let cached = self
+            .runtime_type_annotations
+            .borrow()
+            .get(type_name)
+            .cloned();
+        let parsed = match cached {
+            Some(cached) => cached,
+            None => {
+                let parsed = parse_type_annotation(type_name).ok();
+                self.runtime_type_annotations
+                    .borrow_mut()
+                    .insert(type_name.to_string(), parsed.clone());
+                parsed
+            }
+        };
+        parsed
+            .as_ref()
+            .map(|ty| self.value_matches_ty(value, ty))
+            .unwrap_or_else(|| self.value_matches_named_type(value, type_name))
     }
 
     fn rule_constructor_pattern_args(
@@ -20804,11 +20825,17 @@ mod tests {
             vec![("amount".into(), Value::Int(42))].into(),
         )]);
         assert!(interpreter.value_matches_type(&entries, type_name));
+        assert_eq!(interpreter.runtime_type_annotations.borrow().len(), 1);
 
         let mut env = interpreter.default_env();
         let result = interpreter.run_program(&stmts, &mut env);
         let actual_entries = env.get("ledger_entries").expect("ledger entries").clone();
         assert!(interpreter.value_matches_type(&actual_entries, type_name));
+        assert_eq!(
+            interpreter.runtime_type_annotations.borrow().len(),
+            1,
+            "the same typed rule annotation must not be reparsed"
+        );
         assert_eq!(result.to_string(), "1");
         assert_eq!(
             env.get("ledger_answer").map(ToString::to_string),
