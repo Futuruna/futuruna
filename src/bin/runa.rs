@@ -11616,7 +11616,10 @@ fn emit_via_fir(
                 let mut type_env = BTreeMap::new();
                 for p in params {
                     if let Some(ty) = &p.ty {
-                        type_env.insert(p.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        type_env.insert(
+                            p.name.clone(),
+                            LoweringCtx::ty_to_fir_with_registry(ty, types),
+                        );
                     }
                 }
                 // Compute per-function ownership
@@ -15669,7 +15672,7 @@ impl TypeRegistry {
                     .get(constructor)
                     .and_then(|types| types.get(field))
             })
-            .map(LoweringCtx::ty_to_fir)
+            .map(|ty| LoweringCtx::ty_to_fir_with_registry(ty, self))
             .unwrap_or(FirTy::Unknown)
     }
 
@@ -15740,6 +15743,13 @@ impl TypeRegistry {
         self.variant_boxed_args_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
             .or_else(|| self.variant_boxed_args.get(constructor))
+    }
+
+    fn pair_uses_rust_tuple_representation(&self) -> bool {
+        self.struct_types.contains("Pair")
+            && self.variant_fields_for_parent("Pair", "Pair").is_some_and(
+                |fields| matches!(fields.as_slice(), [fst, snd] if fst == "fst" && snd == "snd"),
+            )
     }
 
     fn named_type_candidates_for_expected(&self, expected_ty: &FirTy) -> Vec<String> {
@@ -16898,7 +16908,23 @@ struct LoweringCtx<'a> {
 
 impl<'a> LoweringCtx<'a> {
     /// Convert a Futuruna Ty to a FirTy.
+    #[cfg(test)]
     fn ty_to_fir(ty: &Ty) -> FirTy {
+        Self::ty_to_fir_with_pair_representation(ty, true)
+    }
+
+    /// Convert a source type using the representation selected by declaration
+    /// scanning. A user ADT named `Pair` must remain a named value type; only
+    /// the canonical prelude Pair is represented by a Rust tuple.
+    fn ty_to_fir_with_registry(ty: &Ty, types: &TypeRegistry) -> FirTy {
+        Self::ty_to_fir_with_pair_representation(ty, types.pair_uses_rust_tuple_representation())
+    }
+
+    fn source_ty_to_fir(&self, ty: &Ty) -> FirTy {
+        Self::ty_to_fir_with_registry(ty, self.types)
+    }
+
+    fn ty_to_fir_with_pair_representation(ty: &Ty, pair_is_tuple: bool) -> FirTy {
         match ty {
             Ty::Name(n) => match n.as_str() {
                 "Int" => FirTy::Int,
@@ -16913,34 +16939,52 @@ impl<'a> LoweringCtx<'a> {
             Ty::App(base, args) => {
                 if let Ty::Name(n) = base.as_ref() {
                     match n.as_str() {
-                        "List" if args.len() == 1 => {
-                            FirTy::List(Box::new(Self::ty_to_fir(&args[0])))
-                        }
-                        "Option" if args.len() == 1 => {
-                            FirTy::Option(Box::new(Self::ty_to_fir(&args[0])))
-                        }
+                        "List" if args.len() == 1 => FirTy::List(Box::new(
+                            Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
+                        )),
+                        "Option" if args.len() == 1 => FirTy::Option(Box::new(
+                            Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
+                        )),
                         "Result" if args.len() == 2 => FirTy::Result(
-                            Box::new(Self::ty_to_fir(&args[0])),
-                            Box::new(Self::ty_to_fir(&args[1])),
+                            Box::new(Self::ty_to_fir_with_pair_representation(
+                                &args[0],
+                                pair_is_tuple,
+                            )),
+                            Box::new(Self::ty_to_fir_with_pair_representation(
+                                &args[1],
+                                pair_is_tuple,
+                            )),
                         ),
                         "Map" if args.len() == 2 => FirTy::Map(
-                            Box::new(Self::ty_to_fir(&args[0])),
-                            Box::new(Self::ty_to_fir(&args[1])),
+                            Box::new(Self::ty_to_fir_with_pair_representation(
+                                &args[0],
+                                pair_is_tuple,
+                            )),
+                            Box::new(Self::ty_to_fir_with_pair_representation(
+                                &args[1],
+                                pair_is_tuple,
+                            )),
                         ),
-                        "Pair" if args.len() == 2 => {
-                            FirTy::Tuple(vec![Self::ty_to_fir(&args[0]), Self::ty_to_fir(&args[1])])
-                        }
-                        "Set" if args.len() == 1 => FirTy::Set(Box::new(Self::ty_to_fir(&args[0]))),
+                        "Pair" if pair_is_tuple && args.len() == 2 => FirTy::Tuple(vec![
+                            Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
+                            Self::ty_to_fir_with_pair_representation(&args[1], pair_is_tuple),
+                        ]),
+                        "Set" if args.len() == 1 => FirTy::Set(Box::new(
+                            Self::ty_to_fir_with_pair_representation(&args[0], pair_is_tuple),
+                        )),
                         _ => FirTy::Named(n.clone()),
                     }
                 } else {
                     FirTy::Unknown
                 }
             }
-            Ty::Arrow(a, b) => {
-                FirTy::Arrow(Box::new(Self::ty_to_fir(a)), Box::new(Self::ty_to_fir(b)))
-            }
-            Ty::Optional(inner) => FirTy::Option(Box::new(Self::ty_to_fir(inner))),
+            Ty::Arrow(a, b) => FirTy::Arrow(
+                Box::new(Self::ty_to_fir_with_pair_representation(a, pair_is_tuple)),
+                Box::new(Self::ty_to_fir_with_pair_representation(b, pair_is_tuple)),
+            ),
+            Ty::Optional(inner) => FirTy::Option(Box::new(
+                Self::ty_to_fir_with_pair_representation(inner, pair_is_tuple),
+            )),
             Ty::Unit => FirTy::Unit,
             _ => FirTy::Unknown,
         }
@@ -17119,7 +17163,7 @@ impl<'a> LoweringCtx<'a> {
         for candidate in &candidate_types {
             if let Some(fields) = self.types.variant_field_types.get(candidate) {
                 if let Some(ty) = fields.get(field) {
-                    return Self::ty_to_fir(ty);
+                    return self.source_ty_to_fir(ty);
                 }
             }
         }
@@ -17139,7 +17183,7 @@ impl<'a> LoweringCtx<'a> {
                 if parent == candidate {
                     if let Some(fields) = self.types.variant_field_types.get(variant.as_str()) {
                         if let Some(ty) = fields.get(field) {
-                            return Self::ty_to_fir(ty);
+                            return self.source_ty_to_fir(ty);
                         }
                     }
                 }
@@ -17204,7 +17248,7 @@ impl<'a> LoweringCtx<'a> {
         // Create type vars for unannotated params, concrete types for annotated ones
         for p in params {
             let ty = match &p.ty {
-                Some(ty) => Self::ty_to_fir(ty),
+                Some(ty) => self.source_ty_to_fir(ty),
                 None => inf.fresh(),
             };
             self.type_env.insert(p.name.clone(), ty);
@@ -17216,7 +17260,7 @@ impl<'a> LoweringCtx<'a> {
 
         // If return type is declared, unify body type with it
         if let Some(rt) = ret_ty {
-            let declared_ret = Self::ty_to_fir(rt);
+            let declared_ret = self.source_ty_to_fir(rt);
             if let Some(ref mut inf) = self.inference {
                 let _ = inf.unify(&fir_body.ty, &declared_ret);
             }
@@ -17853,7 +17897,7 @@ impl<'a> LoweringCtx<'a> {
                 let mut param_tys = Vec::new();
                 for p in params {
                     let ty = match &p.ty {
-                        Some(ty) => Self::ty_to_fir(ty),
+                        Some(ty) => self.source_ty_to_fir(ty),
                         None => {
                             if let Some(ref mut inf) = self.inference {
                                 inf.fresh()
@@ -18169,7 +18213,7 @@ impl<'a> LoweringCtx<'a> {
                 let fir_expr = self.lower_expr(expr);
                 let bind_ty = ty
                     .as_ref()
-                    .map(Self::ty_to_fir)
+                    .map(|ty| self.source_ty_to_fir(ty))
                     .unwrap_or_else(|| fir_expr.ty.clone());
                 if let Some(ref mut inf) = self.inference {
                     let _ = inf.unify(&fir_expr.ty, &bind_ty);
@@ -18179,14 +18223,14 @@ impl<'a> LoweringCtx<'a> {
             }
             Stmt::MonadicBind(pat, ty, expr) => {
                 let fir_expr = self.lower_expr(expr);
-                let bind_ty =
-                    ty.as_ref()
-                        .map(Self::ty_to_fir)
-                        .unwrap_or_else(|| match &fir_expr.ty {
-                            FirTy::Option(inner) => *inner.clone(),
-                            FirTy::Result(ok, _) => *ok.clone(),
-                            other => other.clone(),
-                        });
+                let bind_ty = ty
+                    .as_ref()
+                    .map(|ty| self.source_ty_to_fir(ty))
+                    .unwrap_or_else(|| match &fir_expr.ty {
+                        FirTy::Option(inner) => *inner.clone(),
+                        FirTy::Result(ok, _) => *ok.clone(),
+                        other => other.clone(),
+                    });
                 self.bind_pat_ty(pat, &bind_ty);
                 FirStmt::MonadicBind(pat.clone(), ty.clone(), fir_expr)
             }
@@ -23054,7 +23098,27 @@ impl RustCodegen {
                 }
             }
 
-            fn collect_fn_types(stmts: &[Stmt], out: &mut BTreeMap<String, FirTy>) {
+            fn source_pair_uses_tuple_representation(stmts: &[Stmt]) -> bool {
+                stmts
+                    .iter()
+                    .find_map(|stmt| match stmt {
+                        Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) if name == "Pair" => {
+                            Some(matches!(variants.as_slice(), [variant]
+                                    if variant.name == "Pair"
+                                        && !variant.positional
+                                        && matches!(variant.fields.as_slice(), [fst, snd]
+                                            if fst.name == "fst" && snd.name == "snd")))
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or(true)
+            }
+
+            fn collect_fn_types(
+                stmts: &[Stmt],
+                out: &mut BTreeMap<String, FirTy>,
+                pair_is_tuple: bool,
+            ) {
                 for stmt in stmts {
                     match stmt {
                         Stmt::Defn(Defn::Fn {
@@ -23065,13 +23129,23 @@ impl RustCodegen {
                         }) => {
                             let mut fn_ty = ret_ty
                                 .as_ref()
-                                .map(LoweringCtx::ty_to_fir)
+                                .map(|ty| {
+                                    LoweringCtx::ty_to_fir_with_pair_representation(
+                                        ty,
+                                        pair_is_tuple,
+                                    )
+                                })
                                 .unwrap_or(FirTy::Unknown);
                             for param in params.iter().rev() {
                                 let param_ty = param
                                     .ty
                                     .as_ref()
-                                    .map(LoweringCtx::ty_to_fir)
+                                    .map(|ty| {
+                                        LoweringCtx::ty_to_fir_with_pair_representation(
+                                            ty,
+                                            pair_is_tuple,
+                                        )
+                                    })
                                     .unwrap_or(FirTy::Unknown);
                                 fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                             }
@@ -23079,7 +23153,7 @@ impl RustCodegen {
                         }
                         Stmt::Defn(Defn::Module { body, .. })
                         | Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
-                            collect_fn_types(body, out)
+                            collect_fn_types(body, out, pair_is_tuple)
                         }
                         _ => {}
                     }
@@ -23087,7 +23161,11 @@ impl RustCodegen {
             }
 
             let mut pre_fn_types = BTreeMap::new();
-            collect_fn_types(stmts, &mut pre_fn_types);
+            collect_fn_types(
+                stmts,
+                &mut pre_fn_types,
+                source_pair_uses_tuple_representation(stmts),
+            );
             infer_subject_types(stmts, &pre_fn_types, &mut self.subject_elem_type);
         }
 
@@ -23186,7 +23264,7 @@ impl RustCodegen {
                     let param_ty = param
                         .ty
                         .as_ref()
-                        .map(LoweringCtx::ty_to_fir)
+                        .map(|ty| self.source_ty_to_fir(ty))
                         .unwrap_or(FirTy::Unknown);
                     fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                 }
@@ -23293,7 +23371,7 @@ impl RustCodegen {
                             let param_ty = param
                                 .ty
                                 .as_ref()
-                                .map(LoweringCtx::ty_to_fir)
+                                .map(|ty| self.source_ty_to_fir(ty))
                                 .unwrap_or(FirTy::Unknown);
                             fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                         }
@@ -23318,13 +23396,13 @@ impl RustCodegen {
                 );
                 let mut fn_ty = ret_ty
                     .as_ref()
-                    .map(LoweringCtx::ty_to_fir)
+                    .map(|ty| self.source_ty_to_fir(ty))
                     .unwrap_or(FirTy::Unknown);
                 for param in params.iter().rev() {
                     let param_ty = param
                         .ty
                         .as_ref()
-                        .map(LoweringCtx::ty_to_fir)
+                        .map(|ty| self.source_ty_to_fir(ty))
                         .unwrap_or(FirTy::Unknown);
                     fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                 }
@@ -23822,7 +23900,7 @@ impl RustCodegen {
                     );
                     let inferred = ty_ann
                         .as_ref()
-                        .map(LoweringCtx::ty_to_fir)
+                        .map(|ty| self.source_ty_to_fir(ty))
                         .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
                     self.bind_pat_into_type_env(pat, &inferred, type_env);
                 }
@@ -23834,7 +23912,7 @@ impl RustCodegen {
                     );
                     let inferred = ty_ann
                         .as_ref()
-                        .map(LoweringCtx::ty_to_fir)
+                        .map(|ty| self.source_ty_to_fir(ty))
                         .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
                     self.bind_pat_into_type_env(pat, &inferred, type_env);
                 }
@@ -23887,8 +23965,11 @@ impl RustCodegen {
                 }) => {
                     let mut fn_env = type_env.clone();
                     for (idx, param) in params.iter().enumerate() {
-                        if let Some(ty) =
-                            param.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
+                        if let Some(ty) = param
+                            .ty
+                            .as_ref()
+                            .map(|ty| self.source_ty_to_fir(ty))
+                            .or_else(|| {
                                 self.function_param_fir_ty(name, idx)
                                     .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
                             })
@@ -23908,7 +23989,7 @@ impl RustCodegen {
                     ..
                 }) => {
                     let mut actor_env = type_env.clone();
-                    if let Some(ty) = state_param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                    if let Some(ty) = state_param.ty.as_ref().map(|ty| self.source_ty_to_fir(ty)) {
                         actor_env.insert(state_param.name.clone(), ty);
                     }
                     for handler in handlers {
@@ -23943,8 +24024,11 @@ impl RustCodegen {
                         {
                             let mut method_env = type_env.clone();
                             for (idx, param) in params.iter().enumerate() {
-                                if let Some(ty) =
-                                    param.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
+                                if let Some(ty) = param
+                                    .ty
+                                    .as_ref()
+                                    .map(|ty| self.source_ty_to_fir(ty))
+                                    .or_else(|| {
                                         self.function_param_fir_ty(name, idx).filter(|ty| {
                                             !matches!(ty, FirTy::Unknown | FirTy::Var(_))
                                         })
@@ -23964,7 +24048,7 @@ impl RustCodegen {
                 Stmt::TypeDecl(TypeDecl::RuleScope { params, body, .. }) => {
                     let mut scope_env = type_env.clone();
                     for param in params {
-                        if let Some(ty) = param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                        if let Some(ty) = param.ty.as_ref().map(|ty| self.source_ty_to_fir(ty)) {
                             scope_env.insert(param.name.clone(), ty);
                         }
                     }
@@ -24176,7 +24260,7 @@ impl RustCodegen {
             ExprKind::Lambda(params, body) => {
                 let mut lambda_env = type_env.clone();
                 for param in params {
-                    if let Some(ty) = param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                    if let Some(ty) = param.ty.as_ref().map(|ty| self.source_ty_to_fir(ty)) {
                         lambda_env.insert(param.name.clone(), ty);
                     }
                 }
@@ -27032,7 +27116,7 @@ impl RustCodegen {
             .iter()
             .map(|p| {
                 p.ty.as_ref()
-                    .map(LoweringCtx::ty_to_fir)
+                    .map(|ty| self.source_ty_to_fir(ty))
                     .unwrap_or(FirTy::Unknown)
             })
             .collect();
@@ -27128,7 +27212,7 @@ impl RustCodegen {
                 param
                     .ty
                     .as_ref()
-                    .map(LoweringCtx::ty_to_fir)
+                    .map(|ty| self.source_ty_to_fir(ty))
                     .unwrap_or(FirTy::Unknown)
             })
             .collect();
@@ -27143,7 +27227,7 @@ impl RustCodegen {
 
         let ret_ty = ret_ty
             .as_ref()
-            .map(LoweringCtx::ty_to_fir)
+            .map(|ty| self.source_ty_to_fir(ty))
             .unwrap_or_else(|| {
                 self.with_temporary_named_types(&all_names, &all_tys, |cg| {
                     cg.infer_expr_fir_ty(body)
@@ -27909,7 +27993,7 @@ impl RustCodegen {
             let ty = param
                 .ty
                 .as_ref()
-                .map(LoweringCtx::ty_to_fir)
+                .map(|ty| self.source_ty_to_fir(ty))
                 .unwrap_or(FirTy::Unknown);
             let rust_ty = param
                 .ty
@@ -27927,7 +28011,7 @@ impl RustCodegen {
             .as_ref()
             .map(|ty| format!(" -> {}", self.emit_type(ty)))
             .unwrap_or_default();
-        let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+        let expected_ret_fir_ty = ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
         let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
         let mut all_names = scope_names.clone();
         all_names.extend(method_param_names.clone());
@@ -28430,7 +28514,8 @@ impl RustCodegen {
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
-                            let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+                            let expected_ret_fir_ty =
+                                ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
                             out.push_str(&format!(
                                 "fn {}({}){} {{\n",
                                 sanitize_name(mname),
@@ -28529,7 +28614,7 @@ impl RustCodegen {
                         .as_ref()
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
-                    let expected_ret_fir_ty = m.ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+                    let expected_ret_fir_ty = m.ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
                     if let Some(body) = &m.default_body {
                         out.push_str(&format!(
                             "    fn {}({}){} {{\n",
@@ -28638,7 +28723,8 @@ impl RustCodegen {
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
-                            let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+                            let expected_ret_fir_ty =
+                                ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
                             out.push_str(&format!(
                                 "    fn {}({}){} {{\n",
                                 mname,
@@ -28734,7 +28820,8 @@ impl RustCodegen {
                             .as_ref()
                             .map(|t| format!(" -> {}", self.emit_type(t)))
                             .unwrap_or_default();
-                        let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+                        let expected_ret_fir_ty =
+                            ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
                         out.push_str(&format!(
                             "fn {}({}){} {{\n",
                             sanitize_name(mname),
@@ -28809,12 +28896,7 @@ impl RustCodegen {
                 let args_str: Vec<String> = args.iter().map(|a| self.emit_type(a)).collect();
                 if con_str == "Pair"
                     && args_str.len() == 2
-                    && self.types.struct_types.contains("Pair")
-                    && self
-                        .types
-                        .variant_fields
-                        .get("Pair")
-                        .is_some_and(|fields| fields == &vec!["fst".to_string(), "snd".to_string()])
+                    && self.types.pair_uses_rust_tuple_representation()
                 {
                     return format!("({}, {})", args_str[0], args_str[1]);
                 }
@@ -30098,9 +30180,9 @@ impl RustCodegen {
             .collect()
     }
 
-    fn rule_type_name_to_fir(type_name: &str) -> Option<FirTy> {
+    fn rule_type_name_to_fir(&self, type_name: &str) -> Option<FirTy> {
         let ty = parse_type_annotation(type_name).ok()?;
-        Some(LoweringCtx::ty_to_fir(&ty))
+        Some(self.source_ty_to_fir(&ty))
     }
 
     fn typed_rule_arg_rust_type(&self, arg: &Expr) -> Option<String> {
@@ -30109,12 +30191,13 @@ impl RustCodegen {
         Some(self.emit_type(&ty))
     }
 
-    fn typed_rule_arg_fir_ty(arg: &Expr) -> Option<FirTy> {
+    fn typed_rule_arg_fir_ty(&self, arg: &Expr) -> Option<FirTy> {
         Self::typed_rule_arg_parts(arg)
-            .and_then(|(_, type_name)| Self::rule_type_name_to_fir(type_name))
+            .and_then(|(_, type_name)| self.rule_type_name_to_fir(type_name))
     }
 
     fn prolog_head_var_type_bindings(
+        &self,
         head_args: &[Expr],
         param_tys: &[FirTy],
     ) -> (Vec<String>, Vec<FirTy>) {
@@ -30125,7 +30208,7 @@ impl RustCodegen {
                 Self::rule_head_var_name(a).map(|name| {
                     (
                         name,
-                        Self::typed_rule_arg_fir_ty(a)
+                        self.typed_rule_arg_fir_ty(a)
                             .or_else(|| param_tys.get(i).cloned())
                             .unwrap_or(FirTy::Unknown),
                     )
@@ -30147,7 +30230,7 @@ impl RustCodegen {
             {
                 let (names, tys) = match &head.kind {
                     ExprKind::App(_, head_args) => {
-                        Self::prolog_head_var_type_bindings(head_args, param_tys)
+                        self.prolog_head_var_type_bindings(head_args, param_tys)
                     }
                     _ => (Vec::new(), Vec::new()),
                 };
@@ -30357,7 +30440,7 @@ impl RustCodegen {
                     // Map head variable names to parameter positions
                     let head_vars = Self::rule_head_param_vars(head_args);
                     let (head_var_type_names, head_var_type_tys) =
-                        Self::prolog_head_var_type_bindings(head_args, &param_fir_tys);
+                        self.prolog_head_var_type_bindings(head_args, &param_fir_tys);
 
                     if let ExprKind::Conjunction(goals) = &body.kind {
                         // Find existential variables (in goals but not in head)
@@ -31491,7 +31574,7 @@ impl RustCodegen {
                     let head_vars = Self::rule_head_param_vars(head_args);
 
                     let (head_var_names, head_var_tys) =
-                        Self::prolog_head_var_type_bindings(head_args, param_fir_tys);
+                        self.prolog_head_var_type_bindings(head_args, param_fir_tys);
                     let mut body_str =
                         self.with_temporary_named_types(&head_var_names, &head_var_tys, |cg| {
                             cg.emit_expr(body)
@@ -31912,7 +31995,7 @@ impl RustCodegen {
                     .as_ref()
                     .map(|t| format!(" -> {}", self.emit_type(t)))
                     .unwrap_or_default();
-                let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
+                let expected_ret_fir_ty = ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
 
                 // Collect generic type variables from all param types + return type
                 let mut type_vars = Vec::new();
@@ -31971,10 +32054,14 @@ impl RustCodegen {
                 }
                 // Track Copy-type parameters and register all param types
                 for (idx, p) in params.iter().enumerate() {
-                    if let Some(ty) = p.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
-                        self.function_param_fir_ty(name, idx)
-                            .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
-                    }) {
+                    if let Some(ty) =
+                        p.ty.as_ref()
+                            .map(|ty| LoweringCtx::ty_to_fir_with_registry(ty, &self.types))
+                            .or_else(|| {
+                                self.function_param_fir_ty(name, idx)
+                                    .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
+                            })
+                    {
                         if Self::fir_ty_is_copy(&ty) {
                             self.copy_vars.insert(p.name.clone());
                         }
@@ -32370,6 +32457,12 @@ impl RustCodegen {
                                 .get(name)
                                 .cloned()
                                 .unwrap_or_default();
+                            if let Pat::Var(binding_name) = pat {
+                                self.remember_var_type(
+                                    binding_name,
+                                    &Self::rust_type_to_fir(&rust_ty),
+                                );
+                            }
                             // Use const for Copy types, let for heap types
                             if matches!(
                                 rust_ty.as_str(),
@@ -34127,19 +34220,34 @@ impl RustCodegen {
         }
     }
 
-    /// Find ALL variants that have a given field name (for multi-variant field access)
-    fn find_all_variant_fields(&self, field: &str) -> Vec<(String, String)> {
-        let mut results = Vec::new();
-        for (variant_name, fields) in &self.types.variant_fields {
-            if fields.contains(&field.to_string()) {
-                if let Some(parent) = self.types.variant_parent.get(variant_name) {
-                    if !self.types.struct_types.contains(parent) {
-                        results.push((variant_name.clone(), parent.clone()));
-                    }
-                }
-            }
-        }
-        results
+    /// Find enum variants with a named field, constrained by the receiver type
+    /// whenever type inference has one. Parent-qualified metadata is required
+    /// because constructors and field names may be shared across ADTs.
+    fn find_enum_variant_fields(
+        &self,
+        field: &str,
+        receiver_type: Option<&str>,
+    ) -> Vec<(String, String)> {
+        let expected_parents = receiver_type.map(|type_name| {
+            self.types
+                .named_type_candidates_for_expected(&FirTy::Named(type_name.to_string()))
+                .into_iter()
+                .collect::<BTreeSet<_>>()
+        });
+
+        self.types
+            .variant_fields_by_parent
+            .iter()
+            .filter_map(|((parent, variant), fields)| {
+                let parent_matches = expected_parents
+                    .as_ref()
+                    .map_or(true, |expected| expected.contains(parent));
+                (parent_matches
+                    && !self.types.struct_types.contains(parent)
+                    && fields.iter().any(|candidate| candidate == field))
+                .then(|| (variant.clone(), parent.clone()))
+            })
+            .collect()
     }
 
     /// Check if a named field in a variant is boxed (recursive)
@@ -34618,7 +34726,7 @@ impl RustCodegen {
 
         for p in params {
             let ty = match &p.ty {
-                Some(ty) => LoweringCtx::ty_to_fir(ty),
+                Some(ty) => LoweringCtx::ty_to_fir_with_registry(ty, &self.types),
                 None => seeded_param_tys.get(&p.name).cloned().unwrap_or_else(|| {
                     ctx.inference
                         .as_mut()
@@ -34866,6 +34974,10 @@ impl RustCodegen {
             | FirTy::Set(_)
             | FirTy::Arrow(_, _) => false,
         }
+    }
+
+    fn source_ty_to_fir(&self, ty: &Ty) -> FirTy {
+        LoweringCtx::ty_to_fir_with_registry(ty, &self.types)
     }
 
     fn tuple_field_index(field: &str) -> Option<usize> {
@@ -35176,13 +35288,13 @@ impl RustCodegen {
     }
 
     fn remember_monadic_binding_type(&mut self, pat: &Pat, ty: Option<&Ty>, value: &Expr) {
-        let bind_ty =
-            ty.map(LoweringCtx::ty_to_fir)
-                .unwrap_or_else(|| match self.infer_expr_fir_ty(value) {
-                    FirTy::Option(inner) => *inner,
-                    FirTy::Result(ok, _) => *ok,
-                    other => other,
-                });
+        let bind_ty = ty.map(|ty| self.source_ty_to_fir(ty)).unwrap_or_else(|| {
+            match self.infer_expr_fir_ty(value) {
+                FirTy::Option(inner) => *inner,
+                FirTy::Result(ok, _) => *ok,
+                other => other,
+            }
+        });
         self.remember_pat_type(pat, &bind_ty);
     }
 
@@ -35204,7 +35316,7 @@ impl RustCodegen {
             if let ExprKind::App(_, args) = &head.kind {
                 for arg in args {
                     if Self::rule_head_var_name(arg).as_deref() == Some(param) {
-                        if let Some(ty) = Self::typed_rule_arg_fir_ty(arg) {
+                        if let Some(ty) = self.typed_rule_arg_fir_ty(arg) {
                             return ty;
                         }
                     }
@@ -36761,7 +36873,7 @@ impl RustCodegen {
             })
             .or_else(|| self.types.variant_field_types.get(constructor))?;
         let field_ty = field_types.get(field)?;
-        Some(LoweringCtx::ty_to_fir(field_ty))
+        Some(self.source_ty_to_fir(field_ty))
     }
 
     fn expected_arg_ty_for_emit(
@@ -38369,19 +38481,17 @@ impl RustCodegen {
                     };
                     return format!("{}.{}{}", obj_str, idx, clone_suffix);
                 }
+                let obj_type_name = match self.infer_expr_fir_ty(obj) {
+                    FirTy::Named(name) => Some(name),
+                    FirTy::String => Some("String".to_string()),
+                    _ => match &obj.as_ref().kind {
+                        ExprKind::Var(var_name) => self.lookup_var_rust_type(var_name),
+                        _ => None,
+                    },
+                };
                 // Struct direct field access: check if the OBJECT's type is a struct
                 // by looking up the variable's type from params or bindings.
                 {
-                    // Try to determine the object's type
-                    let obj_type_name = match self.infer_expr_fir_ty(obj) {
-                        FirTy::Named(name) => Some(name),
-                        FirTy::String => Some("String".to_string()),
-                        _ => match &obj.as_ref().kind {
-                            ExprKind::Var(var_name) => self.lookup_var_rust_type(var_name),
-                            _ => None,
-                        },
-                    };
-
                     // If we know the type and it's a struct, use direct field access
                     if let Some(ref type_name) = obj_type_name {
                         if self.types.struct_types.contains(type_name.as_str()) {
@@ -38413,52 +38523,27 @@ impl RustCodegen {
                             }
                         }
                     }
-
-                    // Fallback: check all variants with this field name
-                    let matches = self.find_all_variant_fields(field);
-                    if matches.len() == 1 {
-                        // Single type has this field — safe to check struct
-                        let (variant_name, parent_name) = &matches[0];
-                        if self.types.struct_types.contains(parent_name.as_str()) {
-                            let obj_str = self.emit_expr(obj);
-                            let is_boxed = self.is_field_boxed(variant_name, field);
-                            let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
-                                self.current_borrow_params.contains(var_name.as_str())
-                                    || self
-                                        .var_consuming_counts
-                                        .get(var_name)
-                                        .copied()
-                                        .unwrap_or(0)
-                                        > 1
-                            } else {
-                                true
-                            };
-                            let clone_suffix = if needs_clone && !self.copy_vars.contains(field) {
-                                ".clone()"
-                            } else {
-                                ""
-                            };
-                            if is_boxed {
-                                return format!("(*{}.{}){}", obj_str, field, clone_suffix);
-                            } else {
-                                return format!("{}.{}{}", obj_str, field, clone_suffix);
-                            }
-                        }
-                    }
                 }
                 // Enum variant field access: emit a match expression
-                // Find ALL variants that have this field
+                // Find variants on the receiver ADT that have this field.
                 {
-                    let matches = self.find_all_variant_fields(field);
+                    let matches = self.find_enum_variant_fields(field, obj_type_name.as_deref());
                     if !matches.is_empty() {
                         let obj_str = self.emit_expr(obj);
                         // Build match arms for all variants that have this field
                         let mut arms = Vec::new();
                         for (variant_name, parent_name) in &matches {
-                            if self.types.variant_positional.get(variant_name.as_str())
-                                == Some(&false)
+                            if !self
+                                .types
+                                .variant_positional_for_parent(parent_name, variant_name)
                             {
-                                let is_boxed = self.is_field_boxed(variant_name, field);
+                                let is_boxed = self
+                                    .boxed_named_field_index_for_parent(
+                                        parent_name,
+                                        variant_name,
+                                        field,
+                                    )
+                                    .is_some();
                                 let clone_expr = if is_boxed {
                                     "(**__f).clone()"
                                 } else {
@@ -40343,8 +40428,10 @@ impl RustCodegen {
                         if let Some(actor_name) = Self::spawn_actor_name(expr) {
                             actor_handles.insert(name.clone(), actor_name);
                         }
-                        let inferred =
-                            ty.as_ref().map(LoweringCtx::ty_to_fir).unwrap_or_else(|| {
+                        let inferred = ty
+                            .as_ref()
+                            .map(|ty| self.source_ty_to_fir(ty))
+                            .unwrap_or_else(|| {
                                 self.infer_expr_fir_ty_with_env(expr, local_tys.clone())
                             });
                         local_tys.insert(name.clone(), inferred);
@@ -40358,7 +40445,7 @@ impl RustCodegen {
                     let mut fn_tys = BTreeMap::new();
                     for param in params {
                         if let Some(ty) = &param.ty {
-                            fn_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                            fn_tys.insert(param.name.clone(), self.source_ty_to_fir(ty));
                         }
                     }
                     self.scan_actor_message_site_expr(body, &mut fn_handles, &mut fn_tys);
@@ -40372,8 +40459,7 @@ impl RustCodegen {
                     for handler in handlers {
                         let mut handler_tys = BTreeMap::new();
                         if let Some(ty) = &state_param.ty {
-                            handler_tys
-                                .insert(state_param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                            handler_tys.insert(state_param.name.clone(), self.source_ty_to_fir(ty));
                         }
                         self.scan_actor_message_site_expr(
                             &handler.body,
@@ -40421,7 +40507,7 @@ impl RustCodegen {
                     let mut scope_tys = local_tys.clone();
                     for param in params {
                         if let Some(ty) = &param.ty {
-                            scope_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                            scope_tys.insert(param.name.clone(), self.source_ty_to_fir(ty));
                         }
                     }
                     self.scan_actor_message_site_stmts(body, &mut scope_handles, &mut scope_tys);
@@ -40600,7 +40686,7 @@ impl RustCodegen {
                 let mut lambda_tys = local_tys.clone();
                 for param in params {
                     if let Some(ty) = &param.ty {
-                        lambda_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        lambda_tys.insert(param.name.clone(), self.source_ty_to_fir(ty));
                     }
                 }
                 self.scan_actor_message_site_expr(body, &mut lambda_handles, &mut lambda_tys);
@@ -40833,7 +40919,7 @@ impl RustCodegen {
         let state_ty = state_param
             .ty
             .as_ref()
-            .map(LoweringCtx::ty_to_fir)
+            .map(|ty| self.source_ty_to_fir(ty))
             .unwrap_or(FirTy::Unknown);
         let mut inferred = BTreeMap::new();
 
@@ -45504,7 +45590,10 @@ match stmt {
                 let mut type_env = BTreeMap::new();
                 for p in params {
                     if let Some(ty) = &p.ty {
-                        type_env.insert(p.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        type_env.insert(
+                            p.name.clone(),
+                            LoweringCtx::ty_to_fir_with_registry(ty, types),
+                        );
                     }
                 }
                 let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
@@ -50004,6 +50093,83 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_auto_comptime_product_binding_preserves_type_for_field_projection() {
+        let source = r#"
+# Greeting(name: String, message: String)
+> greet(name: String) -> Greeting { Greeting(name, "Welcome to Futuruna!") }
+= greeting = greet("World")
+@ print(greeting.name + ": " + greeting.message)
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "World: Welcome to Futuruna!");
+    }
+
+    #[test]
+    fn compiled_enum_field_projection_is_constrained_by_receiver_type() {
+        let source = r#"
+# Animal = Dog(name: String, age: Int) | Cat(name: String, lives: Int)
+# Document = Article(name: String, pages: Int) | Memo(name: String)
+
+> animal_name(animal: Animal) -> String { animal.name }
+
+= dog = Dog("Rex", 5)
+@ print(animal_name(dog))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "Rex");
+    }
+
+    #[test]
+    fn compiled_user_pair_adt_is_not_treated_as_copy_tuple() {
+        let source = r#"
+# Pair(a, b) = MkPair(a, b)
+
+> pair_first_value(pair: Pair(Int, Int)) -> Int {
+    match pair { | MkPair(value, _) -> value }
+}
+
+> pair_second_value(pair: Pair(Int, Int)) -> Int {
+    match pair { | MkPair(_, value) -> value }
+}
+
+> pair_total(pair: Pair(Int, Int)) -> Int {
+    pair_first_value(pair) + pair_second_value(pair)
+}
+
+@ print(show(pair_total(MkPair(3, 7))))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "10");
+    }
+
+    #[test]
+    fn compiled_rulescope_user_pair_input_is_not_treated_as_copy_tuple() {
+        let source = r#"
+# Pair(a, b) = MkPair(a, b)
+
+> pair_first_value(pair: Pair(Int, Int)) -> Int {
+    match pair { | MkPair(value, _) -> value }
+}
+
+> pair_second_value(pair: Pair(Int, Int)) -> Int {
+    match pair { | MkPair(_, value) -> value }
+}
+
+# PairCase(pair: Pair(Int, Int)) {
+    | total() -> pair_first_value(pair) + pair_second_value(pair)
+}
+
+@ print(show(PairCase(MkPair(3, 7)).total()))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "10");
+    }
+
+    #[test]
     fn compiled_function_local_binding_shadows_auto_comptime_top_level_binding() {
         let source = r#"
 # AlphaWorkRow(work: Float)
@@ -52749,9 +52915,10 @@ routes <- "b"
                 _ => None,
             })
             .expect("typed rule head argument");
+        let codegen = RustCodegen::new();
 
         assert_eq!(
-            RustCodegen::typed_rule_arg_fir_ty(head_arg),
+            codegen.typed_rule_arg_fir_ty(head_arg),
             Some(FirTy::List(Box::new(FirTy::Named("ImportedEntry".into()))))
         );
     }
@@ -52774,9 +52941,10 @@ routes <- "b"
                 _ => None,
             })
             .expect("typed rule head arguments");
+        let codegen = RustCodegen::new();
 
         assert_eq!(
-            RustCodegen::typed_rule_arg_fir_ty(&head_args[1]),
+            codegen.typed_rule_arg_fir_ty(&head_args[1]),
             Some(FirTy::Arrow(
                 Box::new(FirTy::Named("Entry".into())),
                 Box::new(FirTy::Bool)

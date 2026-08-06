@@ -2669,7 +2669,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 ----
 
 --@begin::personskatteloven_par4a--
-# Aktiepost = Ligningslov16AUdbytte | VirksomhedsomdannelsePar4Stk4TredjePunktum | AktieInvesteringsselskabUdbytte | AktieFortjenesteTab | InvesteringsformidlerAktieBeløb
+# Aktiepost = Ligningslov16AUdbytte | VirksomhedsomdannelsePar4Stk4TredjePunktum | AktieInvesteringsselskabUdbytte | AktieFortjenesteTab | InvesteringsformidlerAktieBeløb | KursgevinstlovPar32Kontrakttabsmodregning
 # AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAktie
 # AktiepostStk1Og2Afgrænsning = AktiepostOmfattetAfStk1 | AktiepostUdenforStk1 | AktiepostUndtagetAktieavance19C | AktiepostUndtagetLigningslov16AStk5 | AktiepostUndtagetMedarbejderinvesteringsselskab
 # AktieTilPersonligUndtagelse = IngenAktieTilPersonligUndtagelse | Aktieavance19BHvis17 | Aktieavance21Efter17

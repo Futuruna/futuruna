@@ -3,9 +3,10 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-3681f7` (ABL §§ 37-40's fraflytterskat, henstand, årlige hændelser og tilbageflytning er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Previous implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
+Previous implementation slice: `td-3681f7` (ABL §§ 37-40's fraflytterskat, henstand, årlige hændelser og tilbageflytning er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
+Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Next canonical refinement: `td-aea204` (afled fraflytterskattens øvrige aktieindkomstkontekst fra den omgivende Personskat i stedet for at gentage samme års fakta)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
@@ -13,7 +14,7 @@ Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sa
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
-Planned canonical KGL § 32 composition: `td-86bd9a` (typede kontrakt- og historikfakta med ABL-afledt relation gennem Personskat)
+Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
@@ -751,6 +752,28 @@ Et pantebrev til kurs 80 giver derfor i vejledningens eksempel 300.000 kr. i
 375.000 kr. Broen sammenligner nu EBL's forventede realisation med KGL's
 faktiske realisation for hver dannet disposition, så de to love ikke kan være
 uenige uden at hele inputkæden bliver ugyldig.
+
+Latest integration: Den kanoniske `beregn_personskat`-graf modtager nu
+identificerede finansielle kontrakter og tidligere indkomstår som observerbare
+kildefakta efter Kursgevinstlovens §§ 29-33. Kontraktens anskaffelses- og
+afståelsesværdier, kronologi, underliggende aktiv og dokumenterede relation
+afleder selv årets KGL-resultat, § 32-klasse og eventuelle ABL-reference. ABL
+§ 17-relationen findes via samme stabile aktividentifikation; borgeren leverer
+hverken et fradrag eller en retsklassifikation.
+
+Historiske år genberegnes i rækkefølge, så tidligere gevinster, fremførte tab,
+ægtefælleoverførsler og aktiemodregning kun føres én gang. Arbejdsbogen har
+særskilte relationelle ark for aktuelle kontrakter, historiske år og deres
+kontrakter med menneskelige danske etiketter og typede kildespor. Den fulde
+XLSX/JSON-rundtur afstemmer identiske resultater: Et tab på 10.000 kr. fra 2025
+modregnes i 6.000 kr. gevinst i 2026 og efterlader 4.000 kr. til fremførsel; et
+ABL § 17-aktiv med 5.000 kr. gevinst og et identificeret kontrakttab på 9.000
+kr. giver -4.000 kr. i samlet personlig omklassifikation. Blandede ABL § 19
+B-/§ 19 C-/§ 22-grundlag afvises foreløbigt frem for at blive fordelt uden en
+kildebelagt allokeringsregel. KGL § 33-kildeadapteren understøtter i denne
+version kun ikke-negative primo-, ultimo- og afregningsværdier; kontrakter med
+negativ dagsværdi kræver den særskilte, kildebelagte udvidelse `td-89a28a` og
+afvises indtil da.
 
 Kildeskattelovens §§ 26 B-27 kan nu lade en dansk ægtefælle fortsætte med samme
 anskaffelsessum og -tidspunkt. Dødsboskattelovens § 20 kan lade boet fortsætte,
@@ -3497,6 +3520,15 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Kursgevinstlovens § 32 er nu ført ind i den kanoniske Personskat-beregning
+  som kildedata frem for færdigklassificerede skattebeløb. Identificerede
+  kontrakter, ABL-aktiver og ordnet årshistorik afleder årets gevinst, tab,
+  aktiemodregning, ægtefællevirkning og fremførsel præcis én gang. De samme
+  kildedata og fulde resultater afstemmes mellem den relationelle XLSX-kontrakt
+  og JSON-kontrakten. Blandede ABL-klasser kræver fortsat en særskilt,
+  kildebelagt allokeringsregel og fejler derfor lukket. Det samme gælder KGL
+  § 33-kontrakter med negative dagsværdier, indtil `td-89a28a` har erstattet
+  den nuværende ikke-negative kildeadapters afgrænsning.
 - Ejendomsavancebeskatningslovens § 10, stk. 5-9 bruger nu identificerede
   genopførelsesejendomme frem for et løst antal. Reglerne validerer grund,
   meddelelse, entydige identifikationer og positive udgifter, fordeler

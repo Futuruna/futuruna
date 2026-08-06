@@ -596,7 +596,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     investeringsklassifikation = input.investeringsklassifikation,
     årets_netto_med_kgl_par14_23_kroner = input.årets_netto_med_kgl_par14_23_kroner
 )
-| personskat_calculate_øvrigt_særligt_aktiv_fra_abl(input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatSærligtAktieaktivFakta(
+| personskat_calculate_øvrigt_særligt_aktiv_fra_abl(identifikation: Tekst, input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatSærligtAktieaktivFakta(
+    identifikation = identifikation,
     kilde = PersonskatØvrigtAktieaktiv(
         input = personskat_calculate_øvrigt_særligt_aktiv_input_fra_abl(input),
         par17_modprøvekilde = MedPar17Modprøvekilde(fakta = personskat_calculate_par17_kildefakta_fra_abl_input(input, instrument))
@@ -606,12 +607,12 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 
 = personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(abl19c_kapital_input, AblPar17UndtagetEfterPar19C)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-kapital", abl19c_kapital_input, AblPar17UndtagetEfterPar19C)],
     udbytter = []
 )))
 = personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(abl19c_hvis17_input, AblPar17UndtagetEfterPar19C)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-personlig", abl19c_hvis17_input, AblPar17UndtagetEfterPar19C)],
     udbytter = []
 )))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
@@ -631,7 +632,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
-    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl(personskat_calculate_ugyldig_22_input, AblPar17InvesteringsbevisIMinimumsinstitut)],
+    særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl22-ugyldig", personskat_calculate_ugyldig_22_input, AblPar17InvesteringsbevisIMinimumsinstitut)],
     udbytter = []
 )))
 | personskat_calculate_par17_kildefakta(skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> PersonskatPar17Kildefakta(
@@ -646,6 +647,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_resultat_med_par17_kildefakta(fakta: PersonskatPar17Kildefakta) -> beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+        identifikation = "abl17-næringsaktiv",
         kilde = PersonskatAktieaktivEfterPar17(fakta = fakta),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
@@ -732,6 +734,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par35_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+        identifikation = "abl35-medarbejderejeordning",
         kilde = PersonskatMedarbejderejeordningEfterPar35G(fakta = personskat_calculate_par35_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
@@ -789,6 +792,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par37_til40_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+        identifikation = "abl37-fraflytterforløb",
         kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = personskat_calculate_par37_til40_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],

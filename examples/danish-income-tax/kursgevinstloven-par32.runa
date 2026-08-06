@@ -113,7 +113,8 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Kontraktmodregningsresultat(almindelige_tab_modregnet_kroner: Heltal, aktiebaserede_tab_modregnet_kroner: Heltal, sælgertab_modregnet_kroner: Heltal, købertab_modregnet_kroner: Heltal, resterende_tab: KursgevinstPar32Tabsaldo, resterende_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, resterende_gevinster: KursgevinstPar32Gevinstsaldo)
 # KursgevinstPar32Aktiegevinstklasse = KglPar32Abl12OrdinæreAktierOgRettigheder | KglPar32Abl19BInvesteringsselskab | KglPar32Abl19CInvesteringsselskab | KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis | KglPar32Abl21AktiebaseretMinimumsbevis | KglPar32Abl22ObligationsbaseretMinimumsbevis | KglPar32AndenIkkeKvalificeretAktieklasse
 # KursgevinstPar32Aktiemarkedsgrundlag = KglPar32AktiePåReguleretMarked | KglPar32AktiePåMultilateralHandelsfacilitet | KglPar32AktieUdenKvalificeretMarked
-# KursgevinstPar32SupplerendeAktieårsresultat = KglPar32AblLagerÅrsresultat(resultat: AktieavancePar23LagerÅrsresultat) | KglPar32AblResultat(resultat: AktieavancebeskatningslovResultat)
+# KursgevinstPar32AblKilderesultat(resultat: AktieavancebeskatningslovResultat, markedsstatus: AktieavanceOrdinærMarkedsstatus, input_gyldigt: Boolsk)
+# KursgevinstPar32SupplerendeAktieårsresultat = KglPar32AblLagerÅrsresultat(resultat: AktieavancePar23LagerÅrsresultat) | KglPar32AblResultat(resultat: AktieavancebeskatningslovResultat) | KglPar32AblKilderesultat(kilde: KursgevinstPar32AblKilderesultat)
 # KursgevinstPar32Aktieårsgrundlag(par13a_årsresultat: AktieavanceOrdinærÅrsresultat, supplerende_årsresultater: List(KursgevinstPar32SupplerendeAktieårsresultat))
 # KursgevinstPar32KlassificeretSupplerendeAktieårsresultat(kilde: KursgevinstPar32SupplerendeAktieårsresultat, klasse: KursgevinstPar32Aktiegevinstklasse, markedsgrundlag: KursgevinstPar32Aktiemarkedsgrundlag, anset_optaget_efter_abl3: Boolsk, strukturelt_gyldigt: Boolsk, kvalificerer_til_par32_stk3: Boolsk, nettogevinst_efter_abl_kroner: Heltal, medregnet_nettoaktiegevinst_kroner: Heltal, udeladt_ikke_kvalificeret_netto_kroner: Heltal, afvist_ugyldigt_netto_kroner: Heltal)
 # KursgevinstPar32Aktiegevinstgrundlagsresultat(grundlag: KursgevinstPar32Aktieårsgrundlag, indkomstår: Heltal, input_gyldigt: Boolsk, klasser: List(KursgevinstPar32Aktiegevinstklasse), klassificerede_supplerende_resultater: List(KursgevinstPar32KlassificeretSupplerendeAktieårsresultat), par13a_gevinster_på_reguleret_marked_kroner: Heltal, par13a_gevinster_på_multilateral_handelsfacilitet_kroner: Heltal, årets_par13a_tab_kroner: Heltal, supplerende_medregnet_nettoaktiegevinst_kroner: Heltal, supplerende_udeladt_ikke_kvalificeret_netto_kroner: Heltal, supplerende_afvist_ugyldigt_netto_kroner: Heltal, samlet_nettoaktiegevinst_før_nulgrænse_kroner: Heltal, aktiegevinstkapacitet_kroner: Heltal)
@@ -124,6 +125,108 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32EgenÅrsopgørelsesresultat(input: KursgevinstPar32PersonÅrsinput, kontraktinput_gyldigt: Boolsk, fremførsel_gyldig: Boolsk, afvist_kontraktbeløb_kroner: Heltal, afvist_fremført_tab_kroner: Heltal, direkte_fradragsberettigede_kontrakttab_kroner: Heltal, årets_tab: KursgevinstPar32Tabsaldo, årets_fast_ejendomstab: KursgevinstPar32FastEjendomstabsaldo, gyldigt_fremført_tab: KursgevinstPar32Tabsaldo, årets_gevinster_før_direkte_tab: KursgevinstPar32Gevinstsaldo, årets_gevinster_efter_direkte_tab: KursgevinstPar32Gevinstsaldo, modregning_i_indkomstårets_gevinster: KursgevinstPar32Kontraktmodregningsresultat, modregning_i_tidligere_gevinster: KursgevinstPar32Kontraktmodregningsresultat)
 # KursgevinstPar32Aktiemodregningsforberedelse(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, aktiegevinstgrundlag: KursgevinstPar32Aktiegevinstgrundlagsresultat, ægtefælles_par13a_tab_modtaget_kroner: Heltal, aktiegevinstkapacitet_efter_ægtefælles_par13a_tab_kroner: Heltal, tab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32Tabsaldo, fast_ejendomstab_efter_ægtefælles_kontraktgevinster: KursgevinstPar32FastEjendomstabsaldo, valgt_aktiemodregningsloft_kroner: Heltal, tab_modregnet_i_egne_aktiegevinster_kroner: Heltal, aktiebaseret_tab_efter_egne_aktiegevinster_kroner: Heltal, valgt_loft_efter_egne_aktiegevinster_kroner: Heltal, resterende_egen_aktiegevinstkapacitet_kroner: Heltal)
 # KursgevinstPar32ÆgtefælleparResultat(venstre: KursgevinstPar32PersonÅrsresultat, højre: KursgevinstPar32PersonÅrsresultat, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
+# KursgevinstPar32FastEjendomsrolle = KglPar32KildeSælgerAfFastEjendom | KglPar32KildeKøberAfFastEjendom
+# KursgevinstPar32Kontraktrelationsfakta = KglPar32KildeUdenSærligRelation | KglPar32KildeDokumenteretErhvervstilknytning | KglPar32KildeFastEjendom(rolle: KursgevinstPar32FastEjendomsrolle) | KglPar32KildeTilknyttetAblAktiv(aktieaktiv_identifikation: Tekst)
+# KursgevinstPar32Underliggendefakta = KglPar32KildeIkkeAktiebaseret | KglPar32KildeEnkeltaktie(markedsstatus: AktieavanceOrdinærMarkedsstatus) | KglPar32KildeAktieindeks(markedsstatus: AktieavanceOrdinærMarkedsstatus) | KglPar32KildeEnkeltaktieFraAblReference
+# KursgevinstPar32AblKontraktreference(aktieaktiv_identifikation: Tekst, relation: KursgevinstPar32Kontraktrelation, markedsstatus: AktieavanceOrdinærMarkedsstatus, input_gyldigt: Boolsk)
+# KursgevinstPar32KildekontraktFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, kontrakt: KursgevinstlovKontraktKildeFakta, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, underliggende: KursgevinstPar32Underliggendefakta)
+# KursgevinstPar32KildekontraktResultat(fakta: KursgevinstPar32KildekontraktFakta, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag, abl_reference_entydig: Boolsk, relation_gyldig: Boolsk, underliggende_gyldigt: Boolsk, input_gyldigt: Boolsk, kontraktpost: KursgevinstPar32Kontraktpost)
+# KursgevinstPar32Kildeårsvalg(tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
+# KursgevinstPar32PersonKildeårsfakta(indkomstår: Heltal, kontrakter: List(KursgevinstPar32KildekontraktFakta), valg: KursgevinstPar32Kildeårsvalg)
+# KursgevinstPar32PersonKildeårsafledning(skatteyder_identifikation: Tekst, fakta: KursgevinstPar32PersonKildeårsfakta, kontraktresultater: List(KursgevinstPar32KildekontraktResultat), årsinput: KursgevinstPar32PersonÅrsinput, input_gyldigt: Boolsk)
+
+| kgl_par32_abl_reference_matcher(identifikation: Tekst, reference: KursgevinstPar32AblKontraktreference) -> identifikation != "" && reference.aktieaktiv_identifikation == identifikation
+| kgl_par32_matchende_abl_referencer(identifikation: Tekst, referencer: List(KursgevinstPar32AblKontraktreference)) -> filter(referencer, |reference: KursgevinstPar32AblKontraktreference| kgl_par32_abl_reference_matcher(identifikation, reference))
+| kgl_par32_relation_abl_identifikation(relationsfakta: KursgevinstPar32Kontraktrelationsfakta) -> match relationsfakta {
+    | KglPar32KildeTilknyttetAblAktiv(identifikation) -> identifikation
+    | _ -> ""
+}
+| kgl_par32_relation_fra_kildefakta(relationsfakta: KursgevinstPar32Kontraktrelationsfakta, referencer: List(KursgevinstPar32AblKontraktreference)) -> match relationsfakta {
+    | KglPar32KildeUdenSærligRelation -> KglPar32AlmindeligKontrakt
+    | KglPar32KildeDokumenteretErhvervstilknytning -> KglPar32ErhvervstilknyttetKontrakt
+    | KglPar32KildeFastEjendom(KglPar32KildeSælgerAfFastEjendom) -> KglPar32FastEjendomSælger
+    | KglPar32KildeFastEjendom(KglPar32KildeKøberAfFastEjendom) -> KglPar32FastEjendomKøber
+    | KglPar32KildeTilknyttetAblAktiv(identifikation) -> {
+        = matchende = kgl_par32_matchende_abl_referencer(identifikation, referencer)
+        hvis length(matchende) == 1 { head(matchende).relation } ellers { KglPar32AlmindeligKontrakt }
+    }
+}
+| kgl_par32_relation_abl_reference_entydig(relationsfakta: KursgevinstPar32Kontraktrelationsfakta, referencer: List(KursgevinstPar32AblKontraktreference)) -> match relationsfakta {
+    | KglPar32KildeTilknyttetAblAktiv(identifikation) -> {
+        = matchende = kgl_par32_matchende_abl_referencer(identifikation, referencer)
+        length(matchende) == 1 && head(matchende).input_gyldigt
+    }
+    | _ -> Sandt
+}
+| kgl_par32_relation_fast_ejendom_matcher_aftale(relationsfakta: KursgevinstPar32Kontraktrelationsfakta, aftaleart: KursgevinstlovPar30Aftaleart) -> match relationsfakta {
+    | KglPar32KildeFastEjendom(_) -> match aftaleart { | KglPar30FastEjendomsaftale(_) -> Sandt | _ -> Falskt }
+    | _ -> Sandt
+}
+| kgl_par32_relation_gyldig(relationsfakta: KursgevinstPar32Kontraktrelationsfakta, aftaleart: KursgevinstlovPar30Aftaleart, referencer: List(KursgevinstPar32AblKontraktreference)) -> kgl_par32_relation_abl_reference_entydig(relationsfakta, referencer) && kgl_par32_relation_fast_ejendom_matcher_aftale(relationsfakta, aftaleart)
+| kgl_par32_aktiegrundlag_fra_markedsstatus(markedsstatus: AktieavanceOrdinærMarkedsstatus, er_indeks: Boolsk) -> match markedsstatus {
+    | AblOptagetTilHandelPåReguleretMarked -> hvis er_indeks { KglPar32AktieindekskontraktPåReguleretMarked } ellers { KglPar32AktiekontraktPåReguleretMarked }
+    | AblOptagetTilHandelPåMultilateralHandelsfacilitet -> hvis er_indeks { KglPar32AktieindekskontraktPåMultilateralHandelsfacilitet } ellers { KglPar32AktiekontraktPåMultilateralHandelsfacilitet }
+    | AblIkkeOptagetTilHandel -> hvis er_indeks { KglPar32AktieindekskontraktUdenKvalificeretMarked } ellers { KglPar32AktiekontraktUdenKvalificeretMarked }
+}
+| kgl_par32_abl_reference_markedsstatus(relationsfakta: KursgevinstPar32Kontraktrelationsfakta, referencer: List(KursgevinstPar32AblKontraktreference)) -> {
+    = matchende = kgl_par32_matchende_abl_referencer(kgl_par32_relation_abl_identifikation(relationsfakta), referencer)
+    hvis length(matchende) == 1 { head(matchende).markedsstatus } ellers { AblIkkeOptagetTilHandel }
+}
+| kgl_par32_aktiegrundlag_fra_kildefakta(underliggende: KursgevinstPar32Underliggendefakta, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, referencer: List(KursgevinstPar32AblKontraktreference)) -> match underliggende {
+    | KglPar32KildeIkkeAktiebaseret -> KglPar32IkkeAktiebaseret
+    | KglPar32KildeEnkeltaktie(markedsstatus) -> kgl_par32_aktiegrundlag_fra_markedsstatus(markedsstatus, Falskt)
+    | KglPar32KildeAktieindeks(markedsstatus) -> kgl_par32_aktiegrundlag_fra_markedsstatus(markedsstatus, Sandt)
+    | KglPar32KildeEnkeltaktieFraAblReference -> kgl_par32_aktiegrundlag_fra_markedsstatus(kgl_par32_abl_reference_markedsstatus(relationsfakta, referencer), Falskt)
+}
+| kgl_par32_underliggende_gyldigt(underliggende: KursgevinstPar32Underliggendefakta, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, referencer: List(KursgevinstPar32AblKontraktreference)) -> match underliggende {
+    | KglPar32KildeEnkeltaktieFraAblReference -> match relationsfakta { | KglPar32KildeTilknyttetAblAktiv(_) -> kgl_par32_relation_abl_reference_entydig(relationsfakta, referencer) | _ -> Falskt }
+    | _ -> Sandt
+}
+| kgl_par32_kildekontrakt_resultat(fakta: KursgevinstPar32KildekontraktFakta, indkomstår: Heltal, referencer: List(KursgevinstPar32AblKontraktreference)) -> {
+    = kgl_input = kursgevinstlov_personinput_fra_kontrakt_kildefakta(indkomstår, fakta.kontrakt)
+    = kgl_resultat = kursgevinstlov_resultat(kgl_input)
+    = relation = kgl_par32_relation_fra_kildefakta(fakta.relationsfakta, referencer)
+    = aktiegrundlag = kgl_par32_aktiegrundlag_fra_kildefakta(fakta.underliggende, fakta.relationsfakta, referencer)
+    = reference_entydig = kgl_par32_relation_abl_reference_entydig(fakta.relationsfakta, referencer)
+    = relation_gyldig = kgl_par32_relation_gyldig(fakta.relationsfakta, fakta.kontrakt.aftaleart, referencer)
+    = underliggende_gyldigt = kgl_par32_underliggende_gyldigt(fakta.underliggende, fakta.relationsfakta, referencer)
+    = input_gyldigt = fakta.identifikation != "" && fakta.rækkefølge_i_indkomståret > 0 && fakta.rækkefølge_i_indkomståret < 1000000 && kursgevinstlov_kontrakt_kildefakta_gyldige(fakta.kontrakt) && relation_gyldig && underliggende_gyldigt && kgl_resultat.input_gyldigt && kgl_resultat.omfattet_af_par1 && kgl_resultat.person_eller_dødsbo_efter_par12
+    KursgevinstPar32KildekontraktResultat(
+        fakta = fakta,
+        kursgevinstlov_input = kgl_input,
+        kursgevinstlov_resultat = kgl_resultat,
+        relation = relation,
+        aktiegrundlag = aktiegrundlag,
+        abl_reference_entydig = reference_entydig,
+        relation_gyldig = relation_gyldig,
+        underliggende_gyldigt = underliggende_gyldigt,
+        input_gyldigt = input_gyldigt,
+        kontraktpost = KursgevinstPar32Kontraktpost(resultat = kgl_resultat, relation = relation, aktiegrundlag = aktiegrundlag)
+    )
+}
+| kgl_par32_kildekontrakt_identifikation_unik(kontrakter: List(KursgevinstPar32KildekontraktFakta), fakta: KursgevinstPar32KildekontraktFakta) -> length(filter(kontrakter, |anden: KursgevinstPar32KildekontraktFakta| anden.identifikation == fakta.identifikation)) == 1
+| kgl_par32_kildekontrakter_sorteret_fra(kontrakter: List(KursgevinstPar32KildekontraktFakta), forrige_rækkefølge: Heltal) -> hvis length(kontrakter) == 0 { Sandt } ellers { head(kontrakter).rækkefølge_i_indkomståret > forrige_rækkefølge && kgl_par32_kildekontrakter_sorteret_fra(tail(kontrakter), head(kontrakter).rækkefølge_i_indkomståret) }
+| kgl_par32_person_kildeårsafledning(skatteyder_identifikation: Tekst, fakta: KursgevinstPar32PersonKildeårsfakta, referencer: List(KursgevinstPar32AblKontraktreference), aktieårsgrundlag: KursgevinstPar32Aktieårsgrundlag, fremførsel: KursgevinstPar32Fremførsel) -> {
+    = kontraktresultater = map(fakta.kontrakter, |kontrakt: KursgevinstPar32KildekontraktFakta| kgl_par32_kildekontrakt_resultat(kontrakt, fakta.indkomstår, referencer))
+    = kontrakter_gyldige = kgl_par32_kildekontrakter_sorteret_fra(fakta.kontrakter, 0) && all(fakta.kontrakter, |kontrakt: KursgevinstPar32KildekontraktFakta| kgl_par32_kildekontrakt_identifikation_unik(fakta.kontrakter, kontrakt)) && all(kontraktresultater, |resultat: KursgevinstPar32KildekontraktResultat| resultat.input_gyldigt)
+    = årsinput = KursgevinstPar32PersonÅrsinput(
+        identifikation = skatteyder_identifikation,
+        indkomstår = fakta.indkomstår,
+        kontrakter = map(kontraktresultater, |resultat: KursgevinstPar32KildekontraktResultat| resultat.kontraktpost),
+        aktieårsgrundlag = aktieårsgrundlag,
+        fremførsel = fremførsel,
+        tabsprioritet = fakta.valg.tabsprioritet,
+        fast_ejendomstabsprioritet = fakta.valg.fast_ejendomstabsprioritet,
+        aktiemodregningsvalg = fakta.valg.aktiemodregningsvalg
+    )
+    KursgevinstPar32PersonKildeårsafledning(
+        skatteyder_identifikation = skatteyder_identifikation,
+        fakta = fakta,
+        kontraktresultater = kontraktresultater,
+        årsinput = årsinput,
+        input_gyldigt = skatteyder_identifikation != "" && fakta.indkomstår > 0 && kontrakter_gyldige
+    )
+}
 
 | kgl_par32_tom_tabsaldo() -> KursgevinstPar32Tabsaldo(almindelige_tab_kroner = 0, aktiebaserede_tab_kroner = 0)
 | kgl_par32_tom_fast_ejendomstabsaldo() -> KursgevinstPar32FastEjendomstabsaldo(sælgertab_kroner = 0, købertab_kroner = 0)
@@ -323,10 +426,17 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
         | _ -> KglPar32AndenIkkeKvalificeretAktieklasse
     }
     | KglPar32AblResultat(resultat) -> hvis resultat.effektiv_aktiv == AblMinimumsbevis22 { KglPar32Abl22ObligationsbaseretMinimumsbevis } ellers { KglPar32AndenIkkeKvalificeretAktieklasse }
+    | KglPar32AblKilderesultat(kilderesultat) -> match kilderesultat.resultat.effektiv_aktiv {
+        | AblInvesteringsselskab19B -> KglPar32Abl19BInvesteringsselskab
+        | AblInvesteringsselskab19C -> KglPar32Abl19CInvesteringsselskab
+        | AblMinimumsbevis22 -> KglPar32Abl22ObligationsbaseretMinimumsbevis
+        | _ -> KglPar32AndenIkkeKvalificeretAktieklasse
+    }
 }
 | kgl_par32_supplerende_anset_optaget_efter_abl3(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
     | KglPar32AblLagerÅrsresultat(resultat) -> aktieavance_par23_investeringsselskab_papirart(resultat.input.princip_resultat.input.aktiv) == AblOmsætteligtInvesteringsbevis
     | KglPar32AblResultat(resultat) -> resultat.effektiv_aktiv == AblMinimumsbevis22
+    | KglPar32AblKilderesultat(kilderesultat) -> kilderesultat.resultat.effektiv_aktiv == AblMinimumsbevis22
 }
 | kgl_par32_markedsgrundlag_fra_markedsstatus(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> match markedsstatus {
     | AblOptagetTilHandelPåReguleretMarked -> KglPar32AktiePåReguleretMarked
@@ -336,15 +446,18 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | kgl_par32_supplerende_markedsgrundlag(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> hvis kgl_par32_supplerende_anset_optaget_efter_abl3(kilde) { KglPar32AktiePåReguleretMarked } ellers { match kilde {
     | KglPar32AblLagerÅrsresultat(resultat) -> kgl_par32_markedsgrundlag_fra_markedsstatus(aktieavance_par23_aktiv_markedsstatus(resultat.input.princip_resultat.input.aktiv))
     | KglPar32AblResultat(_) -> KglPar32AktieUdenKvalificeretMarked
+    | KglPar32AblKilderesultat(kilderesultat) -> kgl_par32_markedsgrundlag_fra_markedsstatus(kilderesultat.markedsstatus)
 } }
 | kgl_par32_abl_resultat_strukturelt_gyldigt(resultat: AktieavancebeskatningslovResultat, indkomstår: Heltal) -> resultat.indkomstår == indkomstår && resultat.bruttogevinst_kroner >= 0 && resultat.bruttotab_kroner >= 0 && resultat.tab_afskåret_kroner >= 0 && resultat.skattepligtig_gevinst_kroner >= 0 && resultat.fradragsberettiget_tab_kroner >= 0 && resultat.netto_efter_aktieavancebeskatningsloven_kroner == resultat.skattepligtig_gevinst_kroner - resultat.fradragsberettiget_tab_kroner
 | kgl_par32_supplerende_strukturelt_gyldigt(kilde: KursgevinstPar32SupplerendeAktieårsresultat, indkomstår: Heltal) -> match kilde {
     | KglPar32AblLagerÅrsresultat(resultat) -> aktieavance_par23_lager_årsresultat_gyldigt(resultat) && resultat.opgørelse_gyldig && resultat.input.princip_resultat.input.indkomstår == indkomstår && resultat.input.princip_resultat.input.skattepligtsresultat.omfattet_af_par7 && kgl_par32_abl_resultat_strukturelt_gyldigt(resultat.aktieavancebeskatningslov_resultat, indkomstår)
     | KglPar32AblResultat(resultat) -> kgl_par32_abl_resultat_strukturelt_gyldigt(resultat, indkomstår)
+    | KglPar32AblKilderesultat(kilderesultat) -> kilderesultat.input_gyldigt && kgl_par32_abl_resultat_strukturelt_gyldigt(kilderesultat.resultat, indkomstår)
 }
 | kgl_par32_supplerende_netto_efter_abl_kroner(kilde: KursgevinstPar32SupplerendeAktieårsresultat) -> match kilde {
     | KglPar32AblLagerÅrsresultat(resultat) -> resultat.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner
     | KglPar32AblResultat(resultat) -> resultat.netto_efter_aktieavancebeskatningsloven_kroner
+    | KglPar32AblKilderesultat(kilderesultat) -> kilderesultat.resultat.netto_efter_aktieavancebeskatningsloven_kroner
 }
 | kgl_par32_aktiemarkedsgrundlag_kvalificerer(markedsgrundlag: KursgevinstPar32Aktiemarkedsgrundlag, indkomstår: Heltal) -> match markedsgrundlag {
     | KglPar32AktiePåReguleretMarked -> Sandt

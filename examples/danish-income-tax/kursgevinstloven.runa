@@ -215,6 +215,64 @@ eller passiv for erhvervet henholdsvis afstået på afviklingsdagen og til
 markedsværdien på afviklingsdagen.
 ----
 
+# KursgevinstlovPar30FastEjendomFakta(løbetid_kan_overskride_12_måneder: Boolsk, parterne_er_nærtstående_efter_boafgiftslovens_par22: Boolsk)
+# KursgevinstlovPar30Aftaleart = KglPar30IngenUndtagelsesaftale | KglPar30FastEjendomsaftale(fakta: KursgevinstlovPar30FastEjendomFakta) | KglPar30TegningsretTilAktier | KglPar30KurssikringVedLånMedSærligSikkerhed | KglPar30KonverteringsretKnyttetTilFordring | KglPar30AftaleOmKøbEllerSalgAfAktier | KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling | KglPar30SædvanligLeveringsaftale(optaget_til_handel_på_reguleret_marked: Boolsk) | KglPar30AftaleOmVirksomhedsafståelse
+# KursgevinstlovKontraktKildeFakta(aftaleart: KursgevinstlovPar30Aftaleart, har_modgående_kontrakt_eller_forretning: Boolsk, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter: Boolsk)
+
+| kursgevinstlov_par30_fast_ejendom_undtaget(fakta: KursgevinstlovPar30FastEjendomFakta) -> (fakta.løbetid_kan_overskride_12_måneder && fakta.parterne_er_nærtstående_efter_boafgiftslovens_par22) == Falskt
+| kursgevinstlov_par30_aftale_undtaget(aftaleart: KursgevinstlovPar30Aftaleart) -> match aftaleart {
+    | KglPar30IngenUndtagelsesaftale -> Falskt
+    | KglPar30FastEjendomsaftale(fakta) -> kursgevinstlov_par30_fast_ejendom_undtaget(fakta)
+    | KglPar30SædvanligLeveringsaftale(optaget_til_handel) -> optaget_til_handel == Falskt
+    | _ -> Sandt
+}
+| kursgevinstlov_par30_stk4_kan_genindtræde(aftaleart: KursgevinstlovPar30Aftaleart) -> match aftaleart {
+    | KglPar30AftaleOmKøbEllerSalgAfAktier -> Sandt
+    | KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling -> Sandt
+    | KglPar30SædvanligLeveringsaftale(_) -> Sandt
+    | _ -> Falskt
+}
+| kursgevinstlov_par30_stk5_kan_genindtræde(aftaleart: KursgevinstlovPar30Aftaleart) -> match aftaleart {
+    | KglPar30SædvanligLeveringsaftale(_) -> Sandt
+    | _ -> Falskt
+}
+| kursgevinstlov_kontrakt_art_fra_kildefakta(fakta: KursgevinstlovKontraktKildeFakta) -> hvis kursgevinstlov_par30_aftale_undtaget(fakta.aftaleart) == Falskt {
+    KglKontraktOmfattetPar29
+} ellers {
+    hvis kursgevinstlov_par30_stk4_kan_genindtræde(fakta.aftaleart) && fakta.har_modgående_kontrakt_eller_forretning {
+        KglKontraktUndtagetMenModgåendePar30Stk4
+    } ellers {
+        hvis kursgevinstlov_par30_stk5_kan_genindtræde(fakta.aftaleart) && fakta.udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter {
+            KglKontraktUndtagetMenNæringPar30Stk5
+        } ellers {
+            KglKontraktUndtagetPar30
+        }
+    }
+}
+| kursgevinstlov_kontrakt_kildefakta_gyldige(fakta: KursgevinstlovKontraktKildeFakta) -> fakta.værdi_primo_kroner >= 0 && fakta.værdi_ultimo_kroner >= 0 && fakta.anskaffelsessum_kroner >= 0 && fakta.afståelsesværdi_kroner >= 0 && (fakta.anskaffet_i_indkomståret == Falskt || fakta.værdi_primo_kroner == 0) && (fakta.anskaffet_i_indkomståret || fakta.anskaffelsessum_kroner == 0) && (fakta.realiseret_i_indkomståret == Falskt || fakta.værdi_ultimo_kroner == 0) && (fakta.realiseret_i_indkomståret || fakta.afståelsesværdi_kroner == 0)
+| kursgevinstlov_kontraktopgørelse_fra_kildefakta(fakta: KursgevinstlovKontraktKildeFakta) -> KursgevinstlovKontraktOpgørelse(
+    kontrakt_art = kursgevinstlov_kontrakt_art_fra_kildefakta(fakta),
+    værdi_primo_kroner = fakta.værdi_primo_kroner,
+    værdi_ultimo_kroner = fakta.værdi_ultimo_kroner,
+    anskaffelsessum_kroner = fakta.anskaffelsessum_kroner,
+    afståelsesværdi_kroner = fakta.afståelsesværdi_kroner,
+    anskaffet_i_indkomståret = fakta.anskaffet_i_indkomståret,
+    realiseret_i_indkomståret = fakta.realiseret_i_indkomståret
+)
+| kursgevinstlov_personinput_fra_kontrakt_kildefakta(indkomstår: Heltal, fakta: KursgevinstlovKontraktKildeFakta) -> KursgevinstlovInput(
+    indkomstår = indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kursgevinstlov_kontraktopgørelse_fra_kildefakta(fakta),
+    udøver_fordrings_eller_kontraktnæring = fakta.udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+
 | kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Falskt
 | exception kgl_kontrakt_ordinært_omfattet kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktOmfattetPar29
 | exception kgl_kontrakt_modgående kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktUndtagetMenModgåendePar30Stk4

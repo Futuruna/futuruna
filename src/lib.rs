@@ -85,19 +85,29 @@ pub enum TokenKind {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
+    /// Canonical spelling used for keyword dispatch and language semantics.
     pub text: String,
+    /// Exact source spelling used when a keyword-like token is an identifier.
+    pub source_text: String,
     pub line: usize,
     pub col: usize,
 }
 
 impl Token {
     pub fn new(kind: TokenKind, text: impl Into<String>, line: usize, col: usize) -> Self {
+        let text = text.into();
         Token {
             kind,
-            text: text.into(),
+            source_text: text.clone(),
+            text,
             line,
             col,
         }
+    }
+
+    pub fn with_source_text(mut self, source_text: impl Into<String>) -> Self {
+        self.source_text = source_text.into();
+        self
     }
 }
 
@@ -1134,7 +1144,7 @@ impl Lexer {
                 } else {
                     (word.clone(), TokenKind::Ident)
                 };
-                tokens.push(Token::new(kind, text, line, col));
+                tokens.push(Token::new(kind, text, line, col).with_source_text(word));
                 continue;
             }
 
@@ -5519,7 +5529,7 @@ impl Parser {
     /// Create a Span from a token's position to the end of its text.
     pub fn token_span(&self, tok: &Token) -> Span {
         let start = self.char_offset(tok.line, tok.col);
-        let end = start + tok.text.chars().count();
+        let end = start + tok.source_text.chars().count();
         Span::new(start, end)
     }
 
@@ -5531,7 +5541,7 @@ impl Parser {
         } else {
             start_tok
         };
-        let end = self.char_offset(prev.line, prev.col) + prev.text.chars().count();
+        let end = self.char_offset(prev.line, prev.col) + prev.source_text.chars().count();
         Span::new(start, end)
     }
 
@@ -5625,7 +5635,7 @@ impl Parser {
             TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
             _ => Err(format!(
                 "{}:{}: expected an identifier, got `{}`",
-                tok.line, tok.col, tok.text
+                tok.line, tok.col, tok.source_text
             )),
         }
     }
@@ -5633,11 +5643,13 @@ impl Parser {
     pub fn expect_field_name(&mut self) -> Result<String, String> {
         let tok = self.advance();
         match tok.kind {
-            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => {
+                Ok(tok.source_text)
+            }
             TokenKind::Int_ => Ok(tok.text),
             _ => Err(format!(
                 "{}:{}: expected a field name or tuple index, got `{}`",
-                tok.line, tok.col, tok.text
+                tok.line, tok.col, tok.source_text
             )),
         }
     }
@@ -6857,7 +6869,8 @@ impl Parser {
         }
 
         let params = if self.peek_kind() == TokenKind::LParen {
-            self.parse_type_params()?
+            let preserve_typed_field_names = self.type_decl_params_form_product();
+            self.parse_type_params(preserve_typed_field_names)?
         } else {
             Vec::new()
         };
@@ -6964,7 +6977,7 @@ impl Parser {
     pub fn parse_trait_decl(&mut self) -> Result<Stmt, String> {
         let name = self.expect_ident()?;
         let params = if self.peek_kind() == TokenKind::LParen {
-            self.parse_type_params()?
+            self.parse_type_params(false)?
         } else {
             Vec::new()
         };
@@ -7053,15 +7066,56 @@ impl Parser {
         }))
     }
 
-    pub fn parse_type_params(&mut self) -> Result<Vec<Param>, String> {
+    fn type_decl_params_form_product(&self) -> bool {
+        let mut depth = 0usize;
+        for (index, token) in self.tokens.iter().enumerate().skip(self.pos) {
+            match token.kind {
+                TokenKind::LParen => depth += 1,
+                TokenKind::RParen => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        let next = self.tokens.get(index + 1);
+                        return !matches!(
+                            next.map(|candidate| candidate.kind),
+                            Some(TokenKind::LBrace | TokenKind::Eq)
+                        ) && !next.is_some_and(|candidate| {
+                            candidate.kind == TokenKind::Op && candidate.text == "="
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    pub fn parse_type_params(
+        &mut self,
+        preserve_typed_field_names: bool,
+    ) -> Result<Vec<Param>, String> {
         self.expect(TokenKind::LParen)?;
         let mut params = Vec::new();
         while self.peek_kind() != TokenKind::RParen {
             if !params.is_empty() {
                 self.expect(TokenKind::Comma)?;
             }
-            let name = self.expect_ident()?;
-            let ty = if self.peek_kind() == TokenKind::Colon {
+            let token = self.advance();
+            if !matches!(
+                token.kind,
+                TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW
+            ) {
+                return Err(format!(
+                    "{}:{}: expected a type parameter or field name, got `{}`",
+                    token.line, token.col, token.source_text
+                ));
+            }
+            let has_type = self.peek_kind() == TokenKind::Colon;
+            let name = if preserve_typed_field_names && has_type {
+                token.source_text
+            } else {
+                token.text
+            };
+            let ty = if has_type {
                 self.advance();
                 Some(self.parse_type()?)
             } else {
@@ -7200,7 +7254,7 @@ impl Parser {
                 idx += 1;
             } else {
                 let tok = self.peek().clone();
-                let field_name = self.expect_ident()?;
+                let field_name = self.expect_field_name()?;
                 if self.peek_kind() != TokenKind::Colon {
                     return Err(format!(
                         "{}:{}: constructor fields must be named — write `{}: Type` instead of just a type",
@@ -7819,7 +7873,7 @@ impl Parser {
                             if !named_args.is_empty() {
                                 self.expect(TokenKind::Comma)?;
                             }
-                            let field_name = self.expect_ident()?;
+                            let field_name = self.expect_field_name()?;
                             self.expect(TokenKind::Colon)?;
                             let pat = self.parse_pattern()?;
                             named_args.push((field_name, pat));
@@ -8120,7 +8174,7 @@ impl Parser {
                 ));
             }
             arguments.push(Expr::new(
-                ExprKind::Lit(Literal::Str(segment.text.clone())),
+                ExprKind::Lit(Literal::Str(segment.source_text.clone())),
                 self.token_span(&segment),
             ));
         }
@@ -8145,7 +8199,7 @@ impl Parser {
 
         let root = self.advance();
         let mode = match root.kind {
-            TokenKind::Ident => "symbol",
+            TokenKind::Ident | TokenKind::KW => "symbol",
             TokenKind::Type => "type",
             _ => {
                 return Err(format!(
@@ -8204,7 +8258,7 @@ impl Parser {
                 ));
             }
             arguments.push(Expr::new(
-                ExprKind::Lit(Literal::Str(segment.text.clone())),
+                ExprKind::Lit(Literal::Str(segment.source_text.clone())),
                 self.token_span(&segment),
             ));
         }
@@ -8496,7 +8550,7 @@ impl Parser {
                 tok.kind == TokenKind::Eq || (tok.kind == TokenKind::Op && tok.text == "=")
             }) {
                 let start_tok = self.peek().clone();
-                let field_name = self.advance().text;
+                let field_name = self.advance().source_text;
                 if self.peek_kind() == TokenKind::Eq {
                     self.advance();
                 } else if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
@@ -19990,6 +20044,63 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn localized_fields_preserve_spelling_without_disabling_identifier_aliases() {
+        let source = r#"
+@ sprog da
+
+# AfregningsResultat(omfang: Heltal)
+# Aliasfelt(fold: Heltal)
+# LokalRegel(fold: Heltal) {
+    | resultat() -> fold + 1
+}
+
+= resultat = AfregningsResultat(
+    omfang = fold([1, 2], 0, |fold: Heltal, værdi: Heltal| fold + værdi)
+)
+= aliasfelt = Aliasfelt(fold = 4)
+@ print(show_int(resultat.omfang))
+@ print(show_int(aliasfelt.fold))
+@ print(show_int(LokalRegel(2).resultat()))
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let localized_scope = tokens
+            .iter()
+            .find(|token| token.source_text == "omfang")
+            .expect("localized keyword token");
+        assert_eq!(localized_scope.kind, TokenKind::KW);
+        assert_eq!(localized_scope.text, "scope");
+        let localized_fold = tokens
+            .iter()
+            .find(|token| token.source_text == "fold")
+            .expect("localized builtin token");
+        assert_eq!(localized_fold.kind, TokenKind::Ident);
+        assert_eq!(localized_fold.text, "foldl");
+
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("parse localized field");
+        let field_name = statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. })
+                    if name == "AfregningsResultat" =>
+                {
+                    variants
+                        .first()
+                        .and_then(|variant| variant.fields.first())
+                        .map(|field| field.name.as_str())
+                }
+                _ => None,
+            })
+            .expect("localized product field");
+        assert_eq!(field_name, "omfang");
+        assert_eq!(
+            eval_source_with_prelude(source, false).expect("evaluate localized field"),
+            "3\n4\n3"
+        );
+    }
 
     #[test]
     fn type_check_artifacts_extract_calculation_contract_once() {

@@ -1,0 +1,235 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Regressionsscenarier for det kanoniske samspil mellem kursgevinstlovens § 32,
+aktieavancebeskatningsloven og Personskatteloven.
+
+Scenarierne er ikke lovtekst. De fastholder, at kontraktresultater udledes af
+kildefakta, at fremførsel genberegnes fra tidligere indkomstår, og at kun det
+færdige § 32-årsresultat føres videre til Personskatteloven.
+----
+
+| personskat_par32_scenarie_kontrakt(identifikation: Tekst, rækkefølge: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, udøver_næring: Boolsk, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, underliggende: KursgevinstPar32Underliggendefakta) -> KursgevinstPar32KildekontraktFakta(
+    identifikation = identifikation,
+    rækkefølge_i_indkomståret = rækkefølge,
+    kontrakt = KursgevinstlovKontraktKildeFakta(
+        aftaleart = KglPar30IngenUndtagelsesaftale,
+        har_modgående_kontrakt_eller_forretning = Falskt,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = anskaffelsessum_kroner,
+        afståelsesværdi_kroner = afståelsesværdi_kroner,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt,
+        udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter = udøver_næring
+    ),
+    relationsfakta = relationsfakta,
+    underliggende = underliggende
+)
+| personskat_par32_scenarie_valg(aktiemodregning: KursgevinstPar32Aktiemodregningsomfang) -> KursgevinstPar32Kildeårsvalg(
+    tabsprioritet = KglPar32AlmindeligeTabFørst,
+    fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
+    aktiemodregningsvalg = KursgevinstPar32Aktiemodregningsvalg(
+        omfang = aktiemodregning,
+        beløb = KglPar32MaksimalAktiemodregning
+    )
+)
+| personskat_par32_scenarie_kildeår(indkomstår: Heltal, kontrakter: List(KursgevinstPar32KildekontraktFakta), aktiemodregning: KursgevinstPar32Aktiemodregningsomfang) -> KursgevinstPar32PersonKildeårsfakta(
+    indkomstår = indkomstår,
+    kontrakter = kontrakter,
+    valg = personskat_par32_scenarie_valg(aktiemodregning)
+)
+| personskat_par32_scenarie_kursgevinst(tidligere_år: List(PersonskatKursgevinstPar32Historikår), aktuelt_år: KursgevinstPar32PersonKildeårsfakta) -> MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+    skatteyder_identifikation = "person-par32",
+    ægtefælles_skatteyder_identifikation = None,
+    sælgerpantebreve = [],
+    gældsposter = [],
+    øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+    par32_kontraktforløb = MedPar32Kontraktforløb(tidligere_år = tidligere_år, aktuelt_år = aktuelt_år)
+))
+| personskat_par32_scenarie_kapitalindkomst(kursgevinst: PersonskatKursgevinstInput) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = kursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+| personskat_par32_scenarie_input(kursgevinst: PersonskatKursgevinstInput, aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_par32_scenarie_kapitalindkomst(kursgevinst),
+    aktieavance = aktieavance,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_par32_scenarie_aktieposition = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-PAR32-AKTIE",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsessum_kroner = 10000
+)
+= personskat_par32_scenarie_aktiesalg = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    afståelsessum_kroner = 30000,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+        har_tidligere_været_optaget_til_handel = Sandt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 30000,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+)
+= personskat_par32_scenarie_aktieår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = personskat_par32_scenarie_aktieposition,
+        hændelser = [personskat_par32_scenarie_aktiesalg]
+    )],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= personskat_par32_scenarie_aktiemodregning_resultat = beregn_personskat(personskat_par32_scenarie_input(
+    kursgevinst = personskat_par32_scenarie_kursgevinst(
+        tidligere_år = [],
+        aktuelt_år = personskat_par32_scenarie_kildeår(
+            indkomstår = 2026,
+            kontrakter = [personskat_par32_scenarie_kontrakt(
+                identifikation = "aktiebaseret-tab",
+                rækkefølge = 1,
+                anskaffelsessum_kroner = 18000,
+                afståelsesværdi_kroner = 10000,
+                udøver_næring = Falskt,
+                relationsfakta = KglPar32KildeUdenSærligRelation,
+                underliggende = KglPar32KildeEnkeltaktie(markedsstatus = AblOptagetTilHandelPåReguleretMarked)
+            )],
+            aktiemodregning = KglPar32KunEgneAktiegevinster
+        )
+    ),
+    aktieavance = PersonskatAktieavanceInput(
+        ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par32_scenarie_aktieår),
+        særlige_aktiver = [],
+        udbytter = []
+    )
+))
+
+= personskat_par32_scenarie_fremførsel_resultat = beregn_personskat(personskat_par32_scenarie_input(
+    kursgevinst = personskat_par32_scenarie_kursgevinst(
+        tidligere_år = [PersonskatKursgevinstPar32Historikår(
+            fakta = personskat_par32_scenarie_kildeår(
+                indkomstår = 2025,
+                kontrakter = [personskat_par32_scenarie_kontrakt("tab-2025", 1, 20000, 10000, Falskt, KglPar32KildeUdenSærligRelation, KglPar32KildeIkkeAktiebaseret)],
+                aktiemodregning = KglPar32IngenAktiemodregning
+            ),
+            aktieavance = personskat_ingen_aktieavance(),
+            gift_og_samlevende_ved_indkomstårets_udgang = Falskt
+        )],
+        aktuelt_år = personskat_par32_scenarie_kildeår(
+            indkomstår = 2026,
+            kontrakter = [personskat_par32_scenarie_kontrakt("gevinst-2026", 1, 10000, 14000, Falskt, KglPar32KildeUdenSærligRelation, KglPar32KildeIkkeAktiebaseret)],
+            aktiemodregning = KglPar32IngenAktiemodregning
+        )
+    ),
+    aktieavance = personskat_ingen_aktieavance()
+))
+
+= personskat_par32_scenarie_par17_fakta = PersonskatPar17Kildefakta(
+    indkomstår = 2026,
+    skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+    instrument = AblPar17AlmindeligAktie,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej,
+    afståelsessum_kroner = 15000,
+    anskaffelsessum_kroner = 10000
+)
+= personskat_par32_scenarie_par17_resultat = beregn_personskat(personskat_par32_scenarie_input(
+    kursgevinst = personskat_par32_scenarie_kursgevinst(
+        tidligere_år = [],
+        aktuelt_år = personskat_par32_scenarie_kildeår(
+            indkomstår = 2026,
+            kontrakter = [personskat_par32_scenarie_kontrakt(
+                identifikation = "abl17-kontrakt",
+                rækkefølge = 1,
+                anskaffelsessum_kroner = 19000,
+                afståelsesværdi_kroner = 10000,
+                udøver_næring = Sandt,
+                relationsfakta = KglPar32KildeTilknyttetAblAktiv(aktieaktiv_identifikation = "abl17-aktiv"),
+                underliggende = KglPar32KildeEnkeltaktieFraAblReference
+            )],
+            aktiemodregning = KglPar32IngenAktiemodregning
+        )
+    ),
+    aktieavance = PersonskatAktieavanceInput(
+        ordinært_aktieår = UdenOrdinærtAktieår,
+        særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+            identifikation = "abl17-aktiv",
+            kilde = PersonskatAktieaktivEfterPar17(fakta = personskat_par32_scenarie_par17_fakta),
+            markedsstatus = AblOptagetTilHandelPåReguleretMarked
+        )],
+        udbytter = []
+    )
+))
+
+= personskat_par32_scenarie_aktiemodregning_kontrol = match personskat_par32_scenarie_aktiemodregning_resultat.kapitalindkomst.kursgevinst_resultat.par32 {
+    | MedPar32Årsresultat(afledning, årsresultat, _, forløb_gyldigt) -> forløb_gyldigt && afledning.input_gyldigt && length(afledning.kontraktresultater) == 1 && årsresultat.tab_modregnet_i_egne_aktiegevinster_kroner == 8000 && årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 0 && personskat_par32_scenarie_aktiemodregning_resultat.aktieavance.aktieindkomst_kroner == 12000 && length(personskat_par32_scenarie_aktiemodregning_resultat.aktieavance.aktieposter) == 2 && head(tail(personskat_par32_scenarie_aktiemodregning_resultat.aktieavance.aktieposter)).art == KursgevinstlovPar32Kontrakttabsmodregning && head(tail(personskat_par32_scenarie_aktiemodregning_resultat.aktieavance.aktieposter)).beløb_kroner == -8000 && length(personskat_par32_scenarie_aktiemodregning_resultat.kapitalindkomst.kursgevinst_resultat.kursgevinstlov_resultater) == 0
+    | UdenPar32Årsresultat -> Falskt
+}
+| personskat_par32_scenarie_aktiemodregning_rutes_en_gang: personskat_par32_scenarie_aktiemodregning_kontrol -> personskat_par32_scenarie_aktiemodregning_kontrol
+
+= personskat_par32_scenarie_fremførsel_kontrol = match personskat_par32_scenarie_fremførsel_resultat.kursgevinst_par32 {
+    | BeregnetPar32Kontraktforløb(historiske_årsresultater, aktuelt_årsresultat, _, _, input_gyldigt) -> input_gyldigt && length(historiske_årsresultater) == 1 && head(historiske_årsresultater).kursgevinst.venstre.tab_fremført_til_følgende_indkomstår_kroner == 10000 && aktuelt_årsresultat.kursgevinst.venstre.gyldigt_fremførte_almindelige_tab_kroner == 10000 && aktuelt_årsresultat.kursgevinst.venstre.tab_modregnet_i_egne_indkomstårsgevinster_kroner == 4000 && aktuelt_årsresultat.kursgevinst.venstre.almindelige_tab_fremført_til_følgende_indkomstår_kroner == 6000 && personskat_par32_scenarie_fremførsel_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+    | IntetPar32Kontraktforløb -> Falskt
+}
+| personskat_par32_scenarie_fremførsel_genberegnes_fra_historik: personskat_par32_scenarie_fremførsel_kontrol -> personskat_par32_scenarie_fremførsel_kontrol
+
+= personskat_par32_scenarie_abl17_kontrol = match personskat_par32_scenarie_par17_resultat.kapitalindkomst.kursgevinst_resultat.par32 {
+    | MedPar32Årsresultat(afledning, årsresultat, personskattelov_resultat, forløb_gyldigt) -> forløb_gyldigt && afledning.input_gyldigt && head(afledning.kontraktresultater).relation == KglPar32AktiekontraktEfterAbl17 && head(afledning.kontraktresultater).abl_reference_entydig && årsresultat.direkte_fradragsberettigede_kontrakttab_kroner == 9000 && årsresultat.netto_kontraktindkomst_efter_par32_kroner == -9000 && personskattelov_resultat.klassificeret_personlig_indkomst_kroner == -9000 && personskat_par32_scenarie_par17_resultat.aktieavance.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 5000 && personskat_par32_scenarie_par17_resultat.aktieavance.personlig_indkomst_kroner == 5000 && personskat_par32_scenarie_par17_resultat.kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == -4000
+    | UdenPar32Årsresultat -> Falskt
+}
+| personskat_par32_scenarie_abl17_reference_afleder_direkte_fradrag: personskat_par32_scenarie_abl17_kontrol -> personskat_par32_scenarie_abl17_kontrol
+
+= personskat_par32_scenarie_uden_forløb = MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+    skatteyder_identifikation = "person-par32",
+    ægtefælles_skatteyder_identifikation = None,
+    sælgerpantebreve = [],
+    gældsposter = [],
+    øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+    par32_kontraktforløb = UdenPar32Kontraktforløb
+))
+= personskat_par32_scenarie_frakoblet_kontekst_afvist = personskat_kgl_par32_kontekst_matcher_input(
+    personskat_par32_scenarie_uden_forløb,
+    personskat_par32_scenarie_aktiemodregning_resultat.kapitalindkomst.kursgevinst_resultat.par32
+) == Falskt
+| personskat_par32_scenarie_uden_forløb_afviser_frakoblet_kontekst: personskat_par32_scenarie_frakoblet_kontekst_afvist -> personskat_par32_scenarie_frakoblet_kontekst_afvist
+
+? personskat_par32_scenarie_aktiemodregning_rutes_en_gang
+? personskat_par32_scenarie_fremførsel_genberegnes_fra_historik
+? personskat_par32_scenarie_abl17_reference_afleder_direkte_fradrag
+? personskat_par32_scenarie_uden_forløb_afviser_frakoblet_kontekst

@@ -72,7 +72,8 @@ indkomstklassifikation og skatteberegning deterministisk.
             ægtefælles_skatteyder_identifikation = None,
             sælgerpantebreve = [],
             gældsposter = gældsposter,
-            øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0
+            øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+            par32_kontraktforløb = UdenPar32Kontraktforløb
         )),
         fremleje = UdenFremlejeEfterLigningslov15Q,
         omkostninger = []

@@ -101,6 +101,51 @@ fn schema_exposes_reachable_types_metadata_and_fingerprint() {
 }
 
 #[test]
+fn schema_preserves_localized_keyword_field_spelling() {
+    let path = temp_path("runa");
+    std::fs::write(
+        &path,
+        "@ sprog da\n\
+# Input(omfang: Heltal)\n\
+# Resultat(værdi: Heltal)\n\
+# Beregningsfelt(path: ProgramReference, label: Tekst)\n\
+# Metarolle(a) = Field(value: a)\n\
+# Beregningsmeta(a) = Beregningsmeta(attachments: a)\n\
+# impl MetaRole for Metarolle {}\n\
+# impl Meta for Beregningsmeta {}\n\
+= felt = Beregningsfelt(path = refof(Input::omfang), label = \"Beregningens omfang\")\n\
+= metadata = Beregningsmeta(attachments = (Field(value = felt),))\n\
+--@label:beregn::meta:metadata--\n\
+@ calculate\n\
+| beregn(input: Input) -> Resultat(værdi = input.omfang)\n",
+    )
+    .expect("write localized keyword calculation source");
+
+    let output = run(&["schema", path.to_str().expect("source path")]);
+    std::fs::remove_file(&path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let schema = parse_stdout(&output);
+    let input = schema["definitions"]
+        .as_array()
+        .expect("definitions")
+        .iter()
+        .find(|definition| definition["name"] == "Input")
+        .expect("Input definition");
+    assert_eq!(input["variants"][0]["fields"][0]["name"], "omfang");
+    let field = schema["field_metadata"]
+        .as_array()
+        .expect("field metadata")
+        .iter()
+        .find(|field| field["path"] == "omfang")
+        .expect("localized field metadata");
+    assert_eq!(field["label"], "Beregningens omfang");
+}
+
+#[test]
 fn schema_expands_typed_aggregate_meta_into_field_metadata() {
     let path = temp_path("runa");
     std::fs::write(
@@ -2695,9 +2740,98 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human post-EBL KGL disposition label {expected} on {kgl_disposition_sheet}"
             );
         }
+        let kgl_par32_current_contracts_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.kontrakter";
+        let kgl_par32_current_contracts_sheet =
+            workbook_collection_sheet_name(&mut workbook, kgl_par32_current_contracts_path);
+        let kgl_par32_current_contract_paths =
+            workbook_column_paths(&mut workbook, &kgl_par32_current_contracts_sheet);
+        for expected in [
+            "identifikation",
+            "rækkefølge_i_indkomståret",
+            "kontrakt.aftaleart.$variant",
+            "kontrakt.har_modgående_kontrakt_eller_forretning",
+            "kontrakt.værdi_primo_kroner",
+            "kontrakt.værdi_ultimo_kroner",
+            "kontrakt.anskaffelsessum_kroner",
+            "kontrakt.afståelsesværdi_kroner",
+            "kontrakt.anskaffet_i_indkomståret",
+            "kontrakt.realiseret_i_indkomståret",
+            "kontrakt.udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter",
+            "relationsfakta.$variant",
+            "relationsfakta.KglPar32KildeTilknyttetAblAktiv.aktieaktiv_identifikation",
+            "underliggende.$variant",
+        ] {
+            assert!(
+                kgl_par32_current_contract_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing KGL §32 source path {expected} on {kgl_par32_current_contracts_sheet}"
+            );
+        }
+        for forbidden in [
+            "kursgevinstlov_resultat",
+            "relation",
+            "aktiegrundlag",
+            "fremførsel",
+        ] {
+            assert!(
+                !kgl_par32_current_contract_paths
+                    .iter()
+                    .any(|path| path == forbidden),
+                "derived KGL §32 field {forbidden} leaked into {kgl_par32_current_contracts_sheet}"
+            );
+        }
+        let kgl_par32_current_contract_headers =
+            workbook_headers(&mut workbook, &kgl_par32_current_contracts_sheet);
+        for expected in [
+            "Kontraktens identifikation",
+            "Kontraktens rækkefølge i indkomståret",
+            "Kontraktens dokumenterede aftaleart",
+            "Modgående kontrakt eller forretning",
+            "Kontraktens anskaffelsessum",
+            "Kontraktens afståelsesværdi",
+            "Kontraktens dokumenterede tilknytning",
+            "Tilknyttet ABL-aktiv",
+            "Kontraktens underliggende aktiv",
+        ] {
+            assert!(
+                kgl_par32_current_contract_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human KGL §32 label {expected} on {kgl_par32_current_contracts_sheet}"
+            );
+        }
+        let kgl_par32_history_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.tidligere_år";
+        let kgl_par32_history_sheet =
+            workbook_collection_sheet_name(&mut workbook, kgl_par32_history_path);
+        let kgl_par32_history_paths =
+            workbook_column_paths(&mut workbook, &kgl_par32_history_sheet);
+        for expected in [
+            "fakta.indkomstår",
+            "fakta.valg.tabsprioritet",
+            "fakta.valg.fast_ejendomstabsprioritet",
+            "fakta.valg.aktiemodregningsvalg.omfang",
+            "fakta.valg.aktiemodregningsvalg.beløb.$variant",
+            "gift_og_samlevende_ved_indkomstårets_udgang",
+        ] {
+            assert!(
+                kgl_par32_history_paths.iter().any(|path| path == expected),
+                "missing historical KGL §32 source path {expected} on {kgl_par32_history_sheet}"
+            );
+        }
+        let kgl_par32_history_contracts_path = format!("{kgl_par32_history_path}.fakta.kontrakter");
+        let kgl_par32_history_contracts_sheet =
+            workbook_collection_sheet_name(&mut workbook, &kgl_par32_history_contracts_path);
+        let kgl_par32_history_contract_paths =
+            workbook_column_paths(&mut workbook, &kgl_par32_history_contracts_sheet);
+        assert_eq!(
+            kgl_par32_history_contract_paths, kgl_par32_current_contract_paths,
+            "current and historical KGL §32 contracts must expose the same source-fact columns"
+        );
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
+            "identifikation",
             "kilde.$variant",
             "kilde.PersonskatAktieaktivEfterPar17.fakta.skattepligtsgrundlag",
             "kilde.PersonskatAktieaktivEfterPar17.fakta.instrument",
@@ -2738,6 +2872,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         let special_asset_headers = workbook_headers(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
+            "Det særlige aktivs identifikation",
             "Det særlige aktivs retsgrundlag",
             "§ 17-kildens indkomstår",
             "Skattepligtsgrundlag efter ABL §§ 6-7",
@@ -3505,6 +3640,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .iter()
             .position(|cell| cell.to_string() == "sources")
             .expect("table sources metadata column");
+        let kgl_par32_source_row = table_metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(table_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some(kgl_par32_current_contracts_path)
+            })
+            .expect("KGL §32 source metadata");
+        let kgl_par32_sources = kgl_par32_source_row
+            .get(table_sources_column)
+            .map(ToString::to_string)
+            .expect("KGL §32 sources");
+        for expected in [
+            "kursgevinstloven_lbk1176_par32",
+            "kursgevinstloven_juridisk_vejledning_par32",
+            "kursgevinstloven_lov1563_par4_par8",
+            "aktieavancebeskatningsloven_lbk1098_par17_til_par22",
+        ] {
+            assert!(
+                kgl_par32_sources.contains(expected),
+                "missing KGL §32 source {expected}"
+            );
+        }
         let par37_to_40_source_row = table_metadata
             .rows()
             .skip(1)
@@ -3796,6 +3956,284 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 17, "personskat-etableringskonto-2026");
         fill_wage_case(sheets, 18, "personskat-par35-medarbejdereje-2026");
         fill_wage_case(sheets, 19, "personskat-par37-40-fraflytning-2026");
+        fill_wage_case(sheets, 20, "personskat-kgl-par32-historik-2026");
+        fill_wage_case(sheets, 21, "personskat-kgl-par32-abl17-2026");
+        let fill_par32_case = |sheets: &mut [(String, Vec<Vec<Data>>)],
+                               row: usize,
+                               skatteyder_identifikation: &str| {
+            for (header, value) in [
+                (
+                    "kapitalindkomst.kursgevinst.$variant",
+                    Data::String("MedKursgevinst".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
+                    Data::String(skatteyder_identifikation.to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
+                    Data::Int(0),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
+                    Data::String("MedPar32Kontraktforløb".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.indkomstår",
+                    Data::Int(2026),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.tabsprioritet",
+                    Data::String("KglPar32AlmindeligeTabFørst".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.fast_ejendomstabsprioritet",
+                    Data::String("KglPar32SælgertabFørst".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsvalg.omfang",
+                    Data::String("KglPar32IngenAktiemodregning".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsvalg.beløb.$variant",
+                    Data::String("KglPar32MaksimalAktiemodregning".to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, "cases", row, header, value);
+            }
+        };
+        fill_par32_case(sheets, 20, "par32-historik-person");
+        fill_par32_case(sheets, 21, "par32-abl17-person");
+
+        let par32_current_contracts_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.kontrakter";
+        let par32_current_contracts_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par32_current_contracts_path);
+        let fill_par32_contract = |sheets: &mut [(String, Vec<Vec<Data>>)],
+                                   sheet: &str,
+                                   row: usize,
+                                   case_id: &str,
+                                   parent_id: Option<&str>,
+                                   contract_id: &str,
+                                   position: i64,
+                                   anskaffelsessum_kroner: i64,
+                                   afståelsesværdi_kroner: i64,
+                                   udøver_næring: bool,
+                                   relationsvariant: &str,
+                                   abl_reference: Option<&str>,
+                                   underliggende_variant: &str| {
+            for (header, value) in [
+                ("case_id", Data::String(case_id.to_string())),
+                ("item_id", Data::String(contract_id.to_string())),
+                ("position", Data::Int(position)),
+                ("identifikation", Data::String(contract_id.to_string())),
+                ("rækkefølge_i_indkomståret", Data::Int(position)),
+                (
+                    "kontrakt.aftaleart.$variant",
+                    Data::String("KglPar30IngenUndtagelsesaftale".to_string()),
+                ),
+                (
+                    "kontrakt.har_modgående_kontrakt_eller_forretning",
+                    Data::Bool(false),
+                ),
+                ("kontrakt.værdi_primo_kroner", Data::Int(0)),
+                ("kontrakt.værdi_ultimo_kroner", Data::Int(0)),
+                (
+                    "kontrakt.anskaffelsessum_kroner",
+                    Data::Int(anskaffelsessum_kroner),
+                ),
+                (
+                    "kontrakt.afståelsesværdi_kroner",
+                    Data::Int(afståelsesværdi_kroner),
+                ),
+                ("kontrakt.anskaffet_i_indkomståret", Data::Bool(true)),
+                ("kontrakt.realiseret_i_indkomståret", Data::Bool(true)),
+                (
+                    "kontrakt.udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter",
+                    Data::Bool(udøver_næring),
+                ),
+                (
+                    "relationsfakta.$variant",
+                    Data::String(relationsvariant.to_string()),
+                ),
+                (
+                    "underliggende.$variant",
+                    Data::String(underliggende_variant.to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, sheet, row, header, value);
+            }
+            if let Some(parent_id) = parent_id {
+                set_workbook_cell_by_header(
+                    sheets,
+                    sheet,
+                    row,
+                    "parent_id",
+                    Data::String(parent_id.to_string()),
+                );
+            }
+            if let Some(abl_reference) = abl_reference {
+                set_workbook_cell_by_header(
+                    sheets,
+                    sheet,
+                    row,
+                    "relationsfakta.KglPar32KildeTilknyttetAblAktiv.aktieaktiv_identifikation",
+                    Data::String(abl_reference.to_string()),
+                );
+            }
+        };
+        fill_par32_contract(
+            sheets,
+            &par32_current_contracts_sheet,
+            1,
+            "personskat-kgl-par32-historik-2026",
+            None,
+            "par32-gevinst-a-2026",
+            1,
+            10_000,
+            14_000,
+            false,
+            "KglPar32KildeUdenSærligRelation",
+            None,
+            "KglPar32KildeIkkeAktiebaseret",
+        );
+        fill_par32_contract(
+            sheets,
+            &par32_current_contracts_sheet,
+            2,
+            "personskat-kgl-par32-historik-2026",
+            None,
+            "par32-gevinst-b-2026",
+            2,
+            5_000,
+            7_000,
+            false,
+            "KglPar32KildeUdenSærligRelation",
+            None,
+            "KglPar32KildeIkkeAktiebaseret",
+        );
+        fill_par32_contract(
+            sheets,
+            &par32_current_contracts_sheet,
+            3,
+            "personskat-kgl-par32-abl17-2026",
+            None,
+            "par32-abl17-tab-2026",
+            1,
+            20_000,
+            11_000,
+            true,
+            "KglPar32KildeTilknyttetAblAktiv",
+            Some("par32-abl17-aktiv"),
+            "KglPar32KildeEnkeltaktieFraAblReference",
+        );
+
+        let par32_history_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.tidligere_år";
+        let par32_history_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par32_history_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-par32-historik-2026".to_string()),
+            ),
+            ("item_id", Data::String("par32-historik-2025".to_string())),
+            ("position", Data::Int(1)),
+            ("fakta.indkomstår", Data::Int(2025)),
+            (
+                "fakta.valg.tabsprioritet",
+                Data::String("KglPar32AlmindeligeTabFørst".to_string()),
+            ),
+            (
+                "fakta.valg.fast_ejendomstabsprioritet",
+                Data::String("KglPar32SælgertabFørst".to_string()),
+            ),
+            (
+                "fakta.valg.aktiemodregningsvalg.omfang",
+                Data::String("KglPar32IngenAktiemodregning".to_string()),
+            ),
+            (
+                "fakta.valg.aktiemodregningsvalg.beløb.$variant",
+                Data::String("KglPar32MaksimalAktiemodregning".to_string()),
+            ),
+            (
+                "aktieavance.ordinært_aktieår.$variant",
+                Data::String("UdenOrdinærtAktieår".to_string()),
+            ),
+            (
+                "gift_og_samlevende_ved_indkomstårets_udgang",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &par32_history_sheet, 1, header, value);
+        }
+        let par32_history_contracts_path = format!("{par32_history_path}.fakta.kontrakter");
+        let par32_history_contracts_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &par32_history_contracts_path);
+        fill_par32_contract(
+            sheets,
+            &par32_history_contracts_sheet,
+            1,
+            "personskat-kgl-par32-historik-2026",
+            Some("par32-historik-2025"),
+            "par32-tab-2025",
+            1,
+            20_000,
+            10_000,
+            false,
+            "KglPar32KildeUdenSærligRelation",
+            None,
+            "KglPar32KildeIkkeAktiebaseret",
+        );
+
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-par32-abl17-2026".to_string()),
+            ),
+            ("item_id", Data::String("par32-abl17-aktiv".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("par32-abl17-aktiv".to_string()),
+            ),
+            (
+                "kilde.$variant",
+                Data::String("PersonskatAktieaktivEfterPar17".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.skattepligtsgrundlag",
+                Data::String("AblPar7PersonEfterKildeskatteloven".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.næringsstatus",
+                Data::String("AblPar17UdøverNæringVedKøbOgSalgAfAktier".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.instrument",
+                Data::String("AblPar17AlmindeligAktie".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.erhvervelsesstatus",
+                Data::String("AblPar17ErhvervetSomLedINæringsvej".to_string()),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.afståelsessum_kroner",
+                Data::Int(35_000),
+            ),
+            (
+                "kilde.PersonskatAktieaktivEfterPar17.fakta.anskaffelsessum_kroner",
+                Data::Int(30_000),
+            ),
+            (
+                "markedsstatus",
+                Data::String("AblOptagetTilHandelPåReguleretMarked".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 4, header, value);
+        }
         for (header, value) in [
             (
                 "lønmodtager.personlig_indkomst.etableringskonto.$variant",
@@ -3956,6 +4394,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 (
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
                     Data::Int(0),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
+                    Data::String("UdenPar32Kontraktforløb".to_string()),
                 ),
             ] {
                 set_workbook_cell_by_header(sheets, "cases", row, header, value);
@@ -5828,6 +6270,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
                 Data::Int(0),
             ),
+            (
+                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
+                Data::String("UdenPar32Kontraktforløb".to_string()),
+            ),
         ] {
             set_workbook_cell_by_header(sheets, "cases", 5, header, value);
         }
@@ -7040,6 +7486,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("abl-par17-1".to_string())),
             ("position", Data::Int(1)),
+            ("identifikation", Data::String("abl-par17-1".to_string())),
             (
                 "kilde.$variant",
                 Data::String("PersonskatAktieaktivEfterPar17".to_string()),
@@ -7086,6 +7533,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("par35-forloeb-1".to_string())),
             ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("personskat-par35-2026".to_string()),
+            ),
             (
                 "kilde.$variant",
                 Data::String("PersonskatMedarbejderejeordningEfterPar35G".to_string()),
@@ -7254,6 +7705,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("par37-40-forloeb-1".to_string())),
             ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("personskat-fraflytning-2026".to_string()),
+            ),
             (
                 "kilde.$variant",
                 Data::String("PersonskatFraflytteraktierEfterPar37Til40".to_string()),
@@ -7464,6 +7919,106 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
     });
 
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("populated Personskat workbook");
+        let current_contracts_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.kontrakter";
+        let current_contracts_sheet =
+            workbook_collection_sheet_name(&mut workbook, current_contracts_path);
+        let current_contracts = workbook
+            .worksheet_range(&current_contracts_sheet)
+            .expect("current KGL §32 contracts");
+        let current_rows: Vec<_> = current_contracts.rows().skip(2).collect();
+        assert_eq!(current_rows.len(), 3);
+        for (row, case_id, item_id, position) in [
+            (
+                current_rows[0],
+                "personskat-kgl-par32-historik-2026",
+                "par32-gevinst-a-2026",
+                "1",
+            ),
+            (
+                current_rows[1],
+                "personskat-kgl-par32-historik-2026",
+                "par32-gevinst-b-2026",
+                "2",
+            ),
+            (
+                current_rows[2],
+                "personskat-kgl-par32-abl17-2026",
+                "par32-abl17-tab-2026",
+                "1",
+            ),
+        ] {
+            assert_eq!(row[0].to_string(), case_id);
+            assert_eq!(row[1].to_string(), item_id);
+            assert_eq!(row[2].to_string(), position);
+        }
+        let linked_asset_column = current_contracts
+            .rows()
+            .nth(1)
+            .expect("KGL §32 contract headers")
+            .iter()
+            .position(|cell| cell.to_string() == "Tilknyttet ABL-aktiv")
+            .expect("linked ABL asset column");
+        assert_eq!(
+            current_rows[2][linked_asset_column].to_string(),
+            "par32-abl17-aktiv"
+        );
+
+        let history_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.tidligere_år";
+        let history_sheet = workbook_collection_sheet_name(&mut workbook, history_path);
+        let history = workbook
+            .worksheet_range(&history_sheet)
+            .expect("KGL §32 history");
+        assert_eq!(
+            history.get((2, 0)).map(ToString::to_string).as_deref(),
+            Some("personskat-kgl-par32-historik-2026")
+        );
+        assert_eq!(
+            history.get((2, 1)).map(ToString::to_string).as_deref(),
+            Some("par32-historik-2025")
+        );
+        assert_eq!(
+            history.get((2, 2)).map(ToString::to_string).as_deref(),
+            Some("1")
+        );
+
+        let history_contracts_path = format!("{history_path}.fakta.kontrakter");
+        let history_contracts_sheet =
+            workbook_collection_sheet_name(&mut workbook, &history_contracts_path);
+        let history_contracts = workbook
+            .worksheet_range(&history_contracts_sheet)
+            .expect("historical KGL §32 contracts");
+        assert_eq!(
+            history_contracts
+                .get((2, 0))
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("personskat-kgl-par32-historik-2026")
+        );
+        assert_eq!(
+            history_contracts
+                .get((2, 1))
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("par32-historik-2025")
+        );
+        assert_eq!(
+            history_contracts
+                .get((2, 2))
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("par32-tab-2025")
+        );
+        assert_eq!(
+            history_contracts
+                .get((2, 3))
+                .map(ToString::to_string)
+                .as_deref(),
+            Some("1")
+        );
+    }
+
     let output = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
@@ -7571,6 +8126,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "aktieavance": {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
             "særlige_aktiver": [{
+                "identifikation": "abl-par17-1",
                 "kilde": {
                     "$variant": "PersonskatAktieaktivEfterPar17",
                     "fakta": {
@@ -8237,7 +8793,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "dispositioner_efter_ebl_forløbet": []
                 }],
                 "gældsposter": [],
-                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
+                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+                "par32_kontraktforløb": {
+                    "$variant": "UdenPar32Kontraktforløb"
+                }
             }
         },
         "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
@@ -9122,7 +9681,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "vedrører_ikke_indbetalt_selskabskapital": false,
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
-            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
+            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+            "par32_kontraktforløb": {
+                "$variant": "UdenPar32Kontraktforløb"
+            }
         }
     });
     debt_case["input"]["aktieavance"] = serde_json::json!({
@@ -9228,7 +9790,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "vedrører_ikke_indbetalt_selskabskapital": false,
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
-            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0
+            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+            "par32_kontraktforløb": {
+                "$variant": "UdenPar32Kontraktforløb"
+            }
         }
     });
     voluntary_arrangement_case["input"]["aktieavance"] = serde_json::json!({
@@ -9307,6 +9872,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let mut par35_case = json_input["cases"][0].clone();
     par35_case["case_id"] = Value::String("personskat-par35-medarbejdereje-2026".into());
     par35_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([{
+        "identifikation": "personskat-par35-2026",
         "kilde": {
             "$variant": "PersonskatMedarbejderejeordningEfterPar35G",
             "fakta": {
@@ -9366,6 +9932,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     let mut par37_case = json_input["cases"][0].clone();
     par37_case["case_id"] = Value::String("personskat-par37-40-fraflytning-2026".into());
     par37_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([{
+        "identifikation": "personskat-fraflytning-2026",
         "kilde": {
             "$variant": "PersonskatFraflytteraktierEfterPar37Til40",
             "fakta": {
@@ -9441,6 +10008,180 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par37_case);
+    let par32_choices = || {
+        serde_json::json!({
+            "tabsprioritet": { "$variant": "KglPar32AlmindeligeTabFørst" },
+            "fast_ejendomstabsprioritet": {
+                "$variant": "KglPar32SælgertabFørst"
+            },
+            "aktiemodregningsvalg": {
+                "omfang": { "$variant": "KglPar32IngenAktiemodregning" },
+                "beløb": { "$variant": "KglPar32MaksimalAktiemodregning" }
+            }
+        })
+    };
+    let par32_contract = |identifikation: &str,
+                          rækkefølge_i_indkomståret: i64,
+                          anskaffelsessum_kroner: i64,
+                          afståelsesværdi_kroner: i64,
+                          udøver_næring: bool,
+                          relationsfakta: Value,
+                          underliggende: Value| {
+        serde_json::json!({
+            "identifikation": identifikation,
+            "rækkefølge_i_indkomståret": rækkefølge_i_indkomståret,
+            "kontrakt": {
+                "aftaleart": {
+                    "$variant": "KglPar30IngenUndtagelsesaftale"
+                },
+                "har_modgående_kontrakt_eller_forretning": false,
+                "værdi_primo_kroner": 0,
+                "værdi_ultimo_kroner": 0,
+                "anskaffelsessum_kroner": anskaffelsessum_kroner,
+                "afståelsesværdi_kroner": afståelsesværdi_kroner,
+                "anskaffet_i_indkomståret": true,
+                "realiseret_i_indkomståret": true,
+                "udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter":
+                    udøver_næring
+            },
+            "relationsfakta": relationsfakta,
+            "underliggende": underliggende
+        })
+    };
+    let par32_kursgevinst = |skatteyder_identifikation: &str,
+                             tidligere_år: Vec<Value>,
+                             aktuelle_kontrakter: Vec<Value>| {
+        serde_json::json!({
+            "$variant": "MedKursgevinst",
+            "fakta": {
+                "skatteyder_identifikation": skatteyder_identifikation,
+                "ægtefælles_skatteyder_identifikation": null,
+                "sælgerpantebreve": [],
+                "gældsposter": [],
+                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+                "par32_kontraktforløb": {
+                    "$variant": "MedPar32Kontraktforløb",
+                    "tidligere_år": tidligere_år,
+                    "aktuelt_år": {
+                        "indkomstår": 2026,
+                        "kontrakter": aktuelle_kontrakter,
+                        "valg": par32_choices()
+                    }
+                }
+            }
+        })
+    };
+
+    let historisk_par32_tab = par32_contract(
+        "par32-tab-2025",
+        1,
+        20_000,
+        10_000,
+        false,
+        serde_json::json!({ "$variant": "KglPar32KildeUdenSærligRelation" }),
+        serde_json::json!({ "$variant": "KglPar32KildeIkkeAktiebaseret" }),
+    );
+    let par32_historikår = serde_json::json!({
+        "fakta": {
+            "indkomstår": 2025,
+            "kontrakter": [historisk_par32_tab],
+            "valg": par32_choices()
+        },
+        "aktieavance": {
+            "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+            "særlige_aktiver": [],
+            "udbytter": []
+        },
+        "gift_og_samlevende_ved_indkomstårets_udgang": false
+    });
+    let mut par32_history_case = json_input["cases"][0].clone();
+    par32_history_case["case_id"] = Value::String("personskat-kgl-par32-historik-2026".into());
+    par32_history_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    par32_history_case["input"]["kapitalindkomst"]["kursgevinst"] = par32_kursgevinst(
+        "par32-historik-person",
+        vec![par32_historikår],
+        vec![
+            par32_contract(
+                "par32-gevinst-a-2026",
+                1,
+                10_000,
+                14_000,
+                false,
+                serde_json::json!({ "$variant": "KglPar32KildeUdenSærligRelation" }),
+                serde_json::json!({ "$variant": "KglPar32KildeIkkeAktiebaseret" }),
+            ),
+            par32_contract(
+                "par32-gevinst-b-2026",
+                2,
+                5_000,
+                7_000,
+                false,
+                serde_json::json!({ "$variant": "KglPar32KildeUdenSærligRelation" }),
+                serde_json::json!({ "$variant": "KglPar32KildeIkkeAktiebaseret" }),
+            ),
+        ],
+    );
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par32_history_case);
+
+    let mut par32_abl17_case = json_input["cases"][0].clone();
+    par32_abl17_case["case_id"] = Value::String("personskat-kgl-par32-abl17-2026".into());
+    par32_abl17_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [{
+            "identifikation": "par32-abl17-aktiv",
+            "kilde": {
+                "$variant": "PersonskatAktieaktivEfterPar17",
+                "fakta": {
+                    "indkomstår": 2026,
+                    "skattepligtsgrundlag": {
+                        "$variant": "AblPar7PersonEfterKildeskatteloven"
+                    },
+                    "næringsstatus": {
+                        "$variant": "AblPar17UdøverNæringVedKøbOgSalgAfAktier"
+                    },
+                    "instrument": { "$variant": "AblPar17AlmindeligAktie" },
+                    "erhvervelsesstatus": {
+                        "$variant": "AblPar17ErhvervetSomLedINæringsvej"
+                    },
+                    "afståelsessum_kroner": 35_000,
+                    "anskaffelsessum_kroner": 30_000
+                }
+            },
+            "markedsstatus": {
+                "$variant": "AblOptagetTilHandelPåReguleretMarked"
+            }
+        }],
+        "udbytter": []
+    });
+    par32_abl17_case["input"]["kapitalindkomst"]["kursgevinst"] = par32_kursgevinst(
+        "par32-abl17-person",
+        vec![],
+        vec![par32_contract(
+            "par32-abl17-tab-2026",
+            1,
+            20_000,
+            11_000,
+            true,
+            serde_json::json!({
+                "$variant": "KglPar32KildeTilknyttetAblAktiv",
+                "aktieaktiv_identifikation": "par32-abl17-aktiv"
+            }),
+            serde_json::json!({
+                "$variant": "KglPar32KildeEnkeltaktieFraAblReference"
+            }),
+        )],
+    );
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par32_abl17_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -9479,6 +10220,107 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         String::from_utf8_lossy(&json_output.stdout)
     );
     let json_result = parse_stdout(&json_output);
+    let xlsx_par32_history_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-historik-2026")
+        .expect("XLSX KGL §32 history result");
+    let json_par32_history_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-historik-2026")
+        .expect("JSON KGL §32 history result");
+    assert_eq!(
+        xlsx_par32_history_result["result"],
+        json_par32_history_result["result"]
+    );
+    let par32_history_trace = &xlsx_par32_history_result["result"]["kursgevinst_par32"];
+    assert_eq!(
+        par32_history_trace["$variant"],
+        "BeregnetPar32Kontraktforløb"
+    );
+    assert_eq!(par32_history_trace["input_gyldigt"], true);
+    assert_eq!(
+        par32_history_trace["historiske_årsresultater"]
+            .as_array()
+            .expect("historical KGL §32 annual results")
+            .len(),
+        1
+    );
+    let par32_history_current =
+        &par32_history_trace["aktuelt_årsresultat"]["kursgevinst"]["venstre"];
+    assert_eq!(
+        par32_history_current["gyldigt_fremførte_almindelige_tab_kroner"],
+        10_000
+    );
+    assert_eq!(
+        par32_history_current["tab_modregnet_i_egne_indkomstårsgevinster_kroner"],
+        6_000
+    );
+    assert_eq!(
+        par32_history_current["almindelige_tab_fremført_til_følgende_indkomstår_kroner"],
+        4_000
+    );
+    assert_eq!(
+        par32_history_current["netto_kontraktindkomst_efter_par32_kroner"],
+        0
+    );
+    assert_eq!(
+        xlsx_par32_history_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        0
+    );
+
+    let xlsx_par32_abl17_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-abl17-2026")
+        .expect("XLSX KGL §32 ABL §17 result");
+    let json_par32_abl17_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-abl17-2026")
+        .expect("JSON KGL §32 ABL §17 result");
+    assert_eq!(
+        xlsx_par32_abl17_result["result"],
+        json_par32_abl17_result["result"]
+    );
+    let par32_abl17_trace = &xlsx_par32_abl17_result["result"]["kursgevinst_par32"];
+    assert_eq!(par32_abl17_trace["$variant"], "BeregnetPar32Kontraktforløb");
+    assert_eq!(par32_abl17_trace["input_gyldigt"], true);
+    let par32_abl17_current = &par32_abl17_trace["aktuelt_årsresultat"]["kursgevinst"]["venstre"];
+    assert_eq!(
+        par32_abl17_current["direkte_fradragsberettigede_kontrakttab_kroner"],
+        9_000
+    );
+    assert_eq!(
+        par32_abl17_current["netto_kontraktindkomst_efter_par32_kroner"],
+        -9_000
+    );
+    let par32_abl17_contract =
+        &par32_abl17_trace["aktuelt_årsresultat"]["venstre_afledning"]["kontraktresultater"][0];
+    assert_eq!(
+        par32_abl17_contract["fakta"]["identifikation"],
+        "par32-abl17-tab-2026"
+    );
+    assert_eq!(
+        par32_abl17_contract["relation"]["$variant"],
+        "KglPar32AktiekontraktEfterAbl17"
+    );
+    assert_eq!(par32_abl17_contract["abl_reference_entydig"], true);
+    assert_eq!(
+        xlsx_par32_abl17_result["result"]["aktieavance"]["personlig_indkomst_kroner"],
+        5_000
+    );
+    assert_eq!(
+        xlsx_par32_abl17_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["omklassificeret_personlig_indkomst_kroner"],
+        -4_000
+    );
     let xlsx_spouse_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")
