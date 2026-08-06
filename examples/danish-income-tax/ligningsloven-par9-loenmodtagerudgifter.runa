@@ -1,0 +1,155 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Ligningslov9KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par9_stk1 = Ligningslov9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9, stk. 1, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04"
+)
+
+= skatteministeriet_ligningsloven_beloebsgraenser_2025_2026 = Ligningslov9KildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven",
+    identifier = "Skatteministeriets satser og beløbsgrænser for ligningsloven, § 9, stk. 1",
+    hentet_dato = "2026-08-04"
+)
+
+= juridisk_vejledning_ligningslov9_stk1 = Ligningslov9KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061768",
+    identifier = "Den juridiske vejledning 2026-2, C.A.4.3.1.1, fradrag for lønmodtagere",
+    hentet_dato = "2026-08-04"
+)
+
+= skat_arbejdstoej_faglitteratur_og_kurser = Ligningslov9KildeInfo(
+    url = "https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/arbejdstoej-faglitteratur-og-kurser-med-mere",
+    identifier = "Skattestyrelsens vejledning om arbejdstøj, faglitteratur, kurser m.v.",
+    hentet_dato = "2026-08-04"
+)
+
+= ligningsloven_par9_stk1_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9_stk1),
+        RateSource(value = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026),
+        Guidance(value = juridisk_vejledning_ligningslov9_stk1),
+        Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
+    )
+)
+
+--@label:ligningsloven_par9_stk1_loenmodtagerudgifter::meta:ligningsloven_par9_stk1_metadata--
+----
+§ 9. Ved opgørelsen af den skattepligtige indkomst for lønmodtagere fradrages
+udgifter i forbindelse med udførelsen af det indtægtsgivende arbejde i det
+omfang, de samlede fradragsberettigede udgifter overstiger et grundbeløb på
+5.500 kr. (2010-niveau). Grundbeløbet reguleres efter personskattelovens § 20.
+Befordringsudgifter omfattet af § 9 B eller statsskattelovens § 6, litra a, kan
+dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
+----
+
+--@begin:ligningsloven_par9_stk1_loenmodtagerudgifter--
+# Ligningslov9Stk1Skatteyderstatus = Ll9Stk1Lønmodtager | Ll9Stk1IkkeLønmodtager
+# Ligningslov9Stk1Dokumentation = Ll9Stk1DokumenteretMedBilag | Ll9Stk1DokumenteretPåAndenKontrollerbarMåde | Ll9Stk1UdenTilstrækkeligDokumentation
+# Ligningslov9Stk1Kursusformål = Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse | Ll9Stk1GrundEllerVidereuddannelse | Ll9Stk1AndetKursusformål
+# Ligningslov9Stk1Litteraturart = Ll9Stk1FagligtTidsskrift | Ll9Stk1VidenskabeligtVærk | Ll9Stk1PopulærvidenskabeligtVærk | Ll9Stk1AndenLitteratur
+# Ligningslov9Stk1Arbejdsforbindelse = Ll9Stk1DirekteUdførelseAfIndtægtsgivendeArbejde | Ll9Stk1EfterfølgendeSikringAfAlleredeErhvervetIndkomst | Ll9Stk1PrivatEllerUtilstrækkeligtArbejdsrelateret
+# Ligningslov9Stk1Udgiftsart = Ll9Stk1Kursus(formål: Ligningslov9Stk1Kursusformål) | Ll9Stk1Faglitteratur(art: Ligningslov9Stk1Litteraturart, nødvendig_for_at_varetage_arbejdet_i_året: Boolsk) | Ll9Stk1SærligtArbejdstøj(særligt_til_arbejdet: Boolsk, kan_anvendes_som_almindeligt_tøj: Boolsk) | Ll9Stk1ErhvervsmæssigeTelefonsamtaler | Ll9Stk1Arbejdsværelse(arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum: Boolsk) | Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint: Heltal) | Ll9Stk1Repræsentation(aflønningsform_giver_mulighed_for_at_påvirke_indtægten: Boolsk) | Ll9Stk1AndenUdgift(beskrivelse: Tekst, forbindelse: Ligningslov9Stk1Arbejdsforbindelse) | Ll9Stk1BefordringOmfattetAfPar9B | Ll9Stk1BefordringEfterStatsskattelov6LitraA
+# Ligningslov9Stk1Udgiftsfakta(identifikation: Tekst, indkomstår: Heltal, arbejdsforhold_identifikation: Tekst, udgiftsart: Ligningslov9Stk1Udgiftsart, afholdt_eller_beregnet_beløb_kroner: Heltal, arbejdsgiver_refunderet_efter_regning_kroner: Heltal, dokumentation: Ligningslov9Stk1Dokumentation)
+# Ligningslov9Stk1Udgiftsresultat(fakta: Ligningslov9Stk1Udgiftsfakta, input_gyldigt: Boolsk, lønmodtager: Boolsk, dokumenteret: Boolsk, udgiftsart_omfattet: Boolsk, egen_udgift_kroner: Heltal, fradragsandel_basispoint: Heltal, fradragsgrundlag_før_bundgrænse_kroner: Heltal)
+# Ligningslov9Stk1Årsinput(skatteyderstatus: Ligningslov9Stk1Skatteyderstatus, udgifter: List(Ligningslov9Stk1Udgiftsfakta))
+# Ligningslov9Stk1Årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput, udgiftsresultater: List(Ligningslov9Stk1Udgiftsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, grundbeløb_kroner: Heltal, samlet_fradragsgrundlag_før_bundgrænse_kroner: Heltal, samlet_fradrag_kroner: Heltal)
+
+| ligningslov9_stk1_intet_årsinput() -> Ligningslov9Stk1Årsinput(
+    skatteyderstatus = Ll9Stk1Lønmodtager,
+    udgifter = []
+)
+| ligningslov9_stk1_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 0
+| exception ligningslov9_stk1_grundbeløb_2025 ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 7300 under indkomstår == 2025
+| exception ligningslov9_stk1_grundbeløb_2026 ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 7600 under indkomstår == 2026
+| ligningslov9_stk1_dokumenteret(dokumentation: Ligningslov9Stk1Dokumentation) -> dokumentation == Ll9Stk1DokumenteretMedBilag || dokumentation == Ll9Stk1DokumenteretPåAndenKontrollerbarMåde
+| ligningslov9_stk1_kursus_omfattet(formål: Ligningslov9Stk1Kursusformål) -> formål == Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse
+| ligningslov9_stk1_faglitteratur_omfattet(art: Ligningslov9Stk1Litteraturart, nødvendig_for_at_varetage_arbejdet_i_året: Boolsk) -> nødvendig_for_at_varetage_arbejdet_i_året && (art == Ll9Stk1FagligtTidsskrift || art == Ll9Stk1VidenskabeligtVærk)
+| ligningslov9_stk1_udgiftsart_omfattet(udgiftsart: Ligningslov9Stk1Udgiftsart) -> match udgiftsart {
+    | Ll9Stk1Kursus(formål) -> ligningslov9_stk1_kursus_omfattet(formål = formål)
+    | Ll9Stk1Faglitteratur(art, nødvendig) -> ligningslov9_stk1_faglitteratur_omfattet(art = art, nødvendig_for_at_varetage_arbejdet_i_året = nødvendig)
+    | Ll9Stk1SærligtArbejdstøj(særligt_til_arbejdet, kan_anvendes_som_almindeligt_tøj) -> særligt_til_arbejdet && kan_anvendes_som_almindeligt_tøj == Falskt
+    | Ll9Stk1ErhvervsmæssigeTelefonsamtaler -> Sandt
+    | Ll9Stk1Arbejdsværelse(uegnet_som_almindeligt_opholdsrum) -> uegnet_som_almindeligt_opholdsrum
+    | Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint) -> erhvervsmæssig_andel_basispoint > 0 && erhvervsmæssig_andel_basispoint <= 10000
+    | Ll9Stk1Repræsentation(kan_påvirke_indtægten) -> kan_påvirke_indtægten
+    | Ll9Stk1AndenUdgift(beskrivelse, forbindelse) -> beskrivelse != "" && forbindelse == Ll9Stk1DirekteUdførelseAfIndtægtsgivendeArbejde
+    | Ll9Stk1BefordringOmfattetAfPar9B -> Falskt
+    | Ll9Stk1BefordringEfterStatsskattelov6LitraA -> Falskt
+}
+| ligningslov9_stk1_fradragsandel_basispoint(udgiftsart: Ligningslov9Stk1Udgiftsart) -> match udgiftsart {
+    | Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint) -> penge_mindste_beløb(penge_positivt_beløb(erhvervsmæssig_andel_basispoint), 10000)
+    | Ll9Stk1Repræsentation(_) -> ligningslov9_stk3_repraesentationsandel_basispoint()
+    | _ -> 10000
+}
+| ligningslov9_stk1_input_gyldigt(fakta: Ligningslov9Stk1Udgiftsfakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.arbejdsforhold_identifikation != "" && fakta.afholdt_eller_beregnet_beløb_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner >= 0 && fakta.arbejdsgiver_refunderet_efter_regning_kroner <= fakta.afholdt_eller_beregnet_beløb_kroner
+| ligningslov9_stk1_identifikationer_entydige(udgifter: List(Ligningslov9Stk1Udgiftsfakta)) -> length(distinct(map(udgifter, |fakta: Ligningslov9Stk1Udgiftsfakta| fakta.identifikation))) == length(udgifter)
+| ligningslov9_stk1_egen_udgift_kroner(fakta: Ligningslov9Stk1Udgiftsfakta) -> penge_positivt_beløb(fakta.afholdt_eller_beregnet_beløb_kroner - fakta.arbejdsgiver_refunderet_efter_regning_kroner)
+| ligningslov9_stk1_udgiftsresultat(indkomstår: Heltal, skatteyderstatus: Ligningslov9Stk1Skatteyderstatus, fakta: Ligningslov9Stk1Udgiftsfakta) -> {
+    = input_gyldigt = ligningslov9_stk1_input_gyldigt(fakta = fakta) && fakta.indkomstår == indkomstår
+    = lønmodtager = skatteyderstatus == Ll9Stk1Lønmodtager
+    = dokumenteret = ligningslov9_stk1_dokumenteret(dokumentation = fakta.dokumentation)
+    = udgiftsart_omfattet = ligningslov9_stk1_udgiftsart_omfattet(udgiftsart = fakta.udgiftsart)
+    = egen_udgift_kroner = ligningslov9_stk1_egen_udgift_kroner(fakta = fakta)
+    = fradragsandel_basispoint = ligningslov9_stk1_fradragsandel_basispoint(udgiftsart = fakta.udgiftsart)
+    Ligningslov9Stk1Udgiftsresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        lønmodtager = lønmodtager,
+        dokumenteret = dokumenteret,
+        udgiftsart_omfattet = udgiftsart_omfattet,
+        egen_udgift_kroner = egen_udgift_kroner,
+        fradragsandel_basispoint = fradragsandel_basispoint,
+        fradragsgrundlag_før_bundgrænse_kroner = hvis input_gyldigt && lønmodtager && dokumenteret && udgiftsart_omfattet { penge_beløb_gange_basispoint_kroner(egen_udgift_kroner, fradragsandel_basispoint) } ellers { 0 }
+    )
+}
+| ligningslov9_stk1_årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput) -> {
+    = udgiftsresultater = map(input.udgifter, |fakta: Ligningslov9Stk1Udgiftsfakta| ligningslov9_stk1_udgiftsresultat(indkomstår = indkomstår, skatteyderstatus = input.skatteyderstatus, fakta = fakta))
+    = skatteår_understøttet = ligningslov9_stk1_skatteår_understøttet(indkomstår = indkomstår)
+    = identifikationer_entydige = ligningslov9_stk1_identifikationer_entydige(udgifter = input.udgifter)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(udgiftsresultater, |resultat: Ligningslov9Stk1Udgiftsresultat| resultat.input_gyldigt)
+    = grundbeløb_kroner = ligningslov9_stk1_grundbeløb_kroner(indkomstår = indkomstår)
+    = samlet_fradragsgrundlag_før_bundgrænse_kroner = hvis alle_input_gyldige { foldl(udgiftsresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9Stk1Udgiftsresultat| sum_kroner + resultat.fradragsgrundlag_før_bundgrænse_kroner) } ellers { 0 }
+    Ligningslov9Stk1Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        udgiftsresultater = udgiftsresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        grundbeløb_kroner = grundbeløb_kroner,
+        samlet_fradragsgrundlag_før_bundgrænse_kroner = samlet_fradragsgrundlag_før_bundgrænse_kroner,
+        samlet_fradrag_kroner = hvis alle_input_gyldige { penge_positivt_beløb(samlet_fradragsgrundlag_før_bundgrænse_kroner - grundbeløb_kroner) } ellers { 0 }
+    )
+}
+--@end:ligningsloven_par9_stk1_loenmodtagerudgifter--
+
+= ligningsloven_lbk1500_par9_stk3 = Ligningslov9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9, stk. 3, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-04"
+)
+
+= ligningsloven_par9_stk3_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9_stk3),
+        Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
+    )
+)
+
+--@label:ligningsloven_par9_stk3_repraesentation::meta:ligningsloven_par9_stk3_metadata--
+----
+Stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages udgifter til
+repræsentation dog kun med et beløb svarende til 25 pct. af de afholdte
+udgifter.
+----
+
+--@begin:ligningsloven_par9_stk3_repraesentation--
+| ligningslov9_stk3_repraesentationsandel_basispoint() -> 2500
+--@end:ligningsloven_par9_stk3_repraesentation--

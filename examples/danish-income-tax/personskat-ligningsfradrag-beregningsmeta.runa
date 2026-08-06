@@ -1,8 +1,178 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./ligningsloven - par9 - loenmodtagerudgifter
 @ importer ./ligningsloven - kontingenter - gaver
 @ importer ./pensionsbeskatningsloven - par49 - 49b
+
+= personskat_ll9_stk1_felt_skatteyderstatus = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::skatteyderstatus::$variant),
+    label = "Status for øvrige lønmodtagerudgifter",
+    question = Some("Er personen lønmodtager for de oplyste udgifter?"),
+    help = Some("Fradraget efter ligningslovens § 9, stk. 1, vedrører lønmodtagerens udgifter til det indtægtsgivende arbejde."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_udgifter = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter),
+    label = "Øvrige lønmodtagerudgifter",
+    question = Some("Hvilke dokumenterede udgifter havde personen i forbindelse med udførelsen af det indtægtsgivende arbejde?"),
+    help = Some("Opret én række pr. udgift og pr. arbejdsforhold. Befordring efter § 9 B eller statsskattelovens § 6, litra a, skal ikke oplyses her."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::identifikation),
+    label = "Lønmodtagerudgiftens identifikation",
+    question = Some("Hvilken entydig identifikation har udgiften?"),
+    help = Some("Brug en stabil bilags- eller postreference, så udgiften kan knyttes til det rette arbejdsforhold og ikke medregnes to gange."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::indkomstår),
+    label = "Lønmodtagerudgiftens indkomstår",
+    question = Some("Hvilket indkomstår vedrører udgiften?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9_stk1_felt_arbejdsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::arbejdsforhold_identifikation),
+    label = "Arbejdsforhold for lønmodtagerudgiften",
+    question = Some("Hvilket arbejdsforhold vedrører udgiften?"),
+    help = Some("Brug samme stabile reference som for arbejdsperioden. Del udgiften op, hvis den vedrører flere arbejdsforhold."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::$variant),
+    label = "Lønmodtagerudgiftens art",
+    question = Some("Er udgiften et kursus, faglitteratur, særligt arbejdstøj, erhvervstelefoni, arbejdsværelse, driftsmiddel, repræsentation eller en anden arbejdsudgift?"),
+    help = Some("Transportudgifter omfattet af § 9 B eller statsskattelovens § 6, litra a, er udtrykkeligt undtaget fra denne fradragsregel."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_kursusformål = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1Kursus::formål::$variant),
+    label = "Kursets faglige formål",
+    question = Some("Vedligeholder eller ajourfører kurset en eksisterende faglig uddannelse, er det grund- eller videreuddannelse, eller har det et andet formål?"),
+    help = Some("Grund- og videreuddannelse giver ikke fradrag som en almindelig lønmodtagerudgift."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_litteraturart = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1Faglitteratur::art::$variant),
+    label = "Faglitteraturens art",
+    question = Some("Er materialet et fagligt tidsskrift, et videnskabeligt værk, et populærvidenskabeligt værk eller anden litteratur?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_litteratur_nødvendig = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1Faglitteratur::nødvendig_for_at_varetage_arbejdet_i_året),
+    label = "Faglitteraturen var nødvendig for arbejdet",
+    question = Some("Var litteraturen nødvendig for at varetage det konkrete arbejde i indkomståret?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_arbejdstøj_særligt = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1SærligtArbejdstøj::særligt_til_arbejdet),
+    label = "Tøjet er særligt til arbejdet",
+    question = Some("Er tøjet særligt fremstillet eller nødvendigt til det konkrete arbejde?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_arbejdstøj_almindelig_brug = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1SærligtArbejdstøj::kan_anvendes_som_almindeligt_tøj),
+    label = "Tøjet kan anvendes som almindeligt tøj",
+    question = Some("Kan tøjet også anvendes som almindeligt privat tøj?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_arbejdsværelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1Arbejdsværelse::arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum),
+    label = "Arbejdsværelset er uegnet som almindeligt opholdsrum",
+    question = Some("Gør arbejdets art eller omfang rummet uegnet som almindeligt opholdsrum?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_driftsmiddel_erhvervsandel = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1DriftsmiddelAfskrivning::erhvervsmæssig_andel_basispoint),
+    label = "Driftsmidlets erhvervsmæssige andel",
+    question = Some("Hvor stor en andel af driftsmidlets beregnede afskrivning vedrører arbejdet?"),
+    help = Some("Angiv basispoint: 100,00 % skrives som 10000, og 60,00 % som 6000."),
+    unit = Some("basispoint")
+)
+= personskat_ll9_stk1_felt_repræsentation_indtægtspåvirkning = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1Repræsentation::aflønningsform_giver_mulighed_for_at_påvirke_indtægten),
+    label = "Aflønningsformen kan påvirkes af repræsentationen",
+    question = Some("Giver aflønningsformen personen en direkte mulighed for at påvirke sin indtægt gennem repræsentationen?"),
+    help = Some("En omfattet repræsentationsudgift medregnes kun med 25 procent før den fælles bundgrænse."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_anden_beskrivelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1AndenUdgift::beskrivelse),
+    label = "Beskrivelse af anden lønmodtagerudgift",
+    question = Some("Hvad består den anden udgift af?"),
+    help = Some("Beskrivelsen skal være konkret nok til at efterprøve forbindelsen til arbejdet."),
+    unit = None
+)
+= personskat_ll9_stk1_felt_anden_forbindelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::udgiftsart::Ll9Stk1AndenUdgift::forbindelse::$variant),
+    label = "Den anden udgifts forbindelse til arbejdet",
+    question = Some("Vedrører udgiften direkte udførelse af det indtægtsgivende arbejde, efterfølgende sikring af allerede erhvervet indkomst eller private forhold?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9_stk1_felt_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::afholdt_eller_beregnet_beløb_kroner),
+    label = "Afholdt eller beregnet lønmodtagerudgift",
+    question = Some("Hvor stort er det afholdte udgiftsbeløb eller den beregnede afskrivning?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_ll9_stk1_felt_refusion = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::arbejdsgiver_refunderet_efter_regning_kroner),
+    label = "Arbejdsgiverens refusion efter regning",
+    question = Some("Hvor meget har arbejdsgiveren refunderet efter regning?"),
+    help = Some("Kun personens egen udgift efter refusion kan indgå i fradragsgrundlaget."),
+    unit = Some("kr./år")
+)
+= personskat_ll9_stk1_felt_dokumentation = TypetBeregningsfelt(
+    path = refof(Ligningslov9Stk1Årsinput::udgifter::dokumentation::$variant),
+    label = "Dokumentation for lønmodtagerudgiften",
+    question = Some("Er udgiften dokumenteret med bilag, på anden kontrollerbar måde eller ikke tilstrækkeligt dokumenteret?"),
+    help = None,
+    unit = None
+)
+
+= personskat_ll9_stk1_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ll9_stk1_felt_skatteyderstatus,
+        personskat_ll9_stk1_felt_udgifter,
+        personskat_ll9_stk1_felt_identifikation,
+        personskat_ll9_stk1_felt_indkomstår,
+        personskat_ll9_stk1_felt_arbejdsforhold,
+        personskat_ll9_stk1_felt_udgiftsart,
+        personskat_ll9_stk1_felt_kursusformål,
+        personskat_ll9_stk1_felt_litteraturart,
+        personskat_ll9_stk1_felt_litteratur_nødvendig,
+        personskat_ll9_stk1_felt_arbejdstøj_særligt,
+        personskat_ll9_stk1_felt_arbejdstøj_almindelig_brug,
+        personskat_ll9_stk1_felt_arbejdsværelse,
+        personskat_ll9_stk1_felt_driftsmiddel_erhvervsandel,
+        personskat_ll9_stk1_felt_repræsentation_indtægtspåvirkning,
+        personskat_ll9_stk1_felt_anden_beskrivelse,
+        personskat_ll9_stk1_felt_anden_forbindelse,
+        personskat_ll9_stk1_felt_beløb,
+        personskat_ll9_stk1_felt_refusion,
+        personskat_ll9_stk1_felt_dokumentation
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9_stk1),
+        Source(value = ligningsloven_lbk1500_par9_stk3),
+        RateSource(value = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026),
+        Guidance(value = juridisk_vejledning_ligningslov9_stk1),
+        Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
+    )
+)
+
+--@label:Ligningslov9Stk1Årsinput::meta:personskat_ll9_stk1_beregningsmeta--
 
 = personskat_ll13_felt_skatteyderstatus = TypetBeregningsfelt(
     path = refof(Ligningslov13Årsinput::skatteyderstatus),

@@ -1,0 +1,184 @@
+@ sprog da
+
+@ importer ./ligningsloven - par9 - loenmodtagerudgifter
+
+| ll9_stk1_scenarie_udgift(
+    identifikation: Tekst,
+    indkomstår: Heltal,
+    udgiftsart: Ligningslov9Stk1Udgiftsart,
+    beløb_kroner: Heltal,
+    refunderet_kroner: Heltal,
+    dokumentation: Ligningslov9Stk1Dokumentation
+) -> Ligningslov9Stk1Udgiftsfakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    arbejdsforhold_identifikation = "arbejdsforhold-a",
+    udgiftsart = udgiftsart,
+    afholdt_eller_beregnet_beløb_kroner = beløb_kroner,
+    arbejdsgiver_refunderet_efter_regning_kroner = refunderet_kroner,
+    dokumentation = dokumentation
+)
+
+| ll9_stk1_scenarie_årsresultat(indkomstår: Heltal, udgifter: List(Ligningslov9Stk1Udgiftsfakta)) -> ligningslov9_stk1_årsresultat(
+    indkomstår = indkomstår,
+    input = Ligningslov9Stk1Årsinput(
+        skatteyderstatus = Ll9Stk1Lønmodtager,
+        udgifter = udgifter
+    )
+)
+
+= ll9_stk1_scenarie_kursus = ll9_stk1_scenarie_udgift(
+    identifikation = "kursus",
+    indkomstår = 2025,
+    udgiftsart = Ll9Stk1Kursus(formål = Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse),
+    beløb_kroner = 8000,
+    refunderet_kroner = 0,
+    dokumentation = Ll9Stk1DokumenteretMedBilag
+)
+
+= ll9_stk1_scenarie_faglitteratur = ll9_stk1_scenarie_udgift(
+    identifikation = "faglitteratur",
+    indkomstår = 2025,
+    udgiftsart = Ll9Stk1Faglitteratur(
+        art = Ll9Stk1VidenskabeligtVærk,
+        nødvendig_for_at_varetage_arbejdet_i_året = Sandt
+    ),
+    beløb_kroner = 2300,
+    refunderet_kroner = 0,
+    dokumentation = Ll9Stk1DokumenteretPåAndenKontrollerbarMåde
+)
+
+= ll9_stk1_scenarie_2025_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2025,
+    udgifter = [ll9_stk1_scenarie_kursus, ll9_stk1_scenarie_faglitteratur]
+)
+
+= ll9_stk1_scenarie_præcis_bundgrænse_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2026,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "præcis-bundgrænse",
+        indkomstår = 2026,
+        udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+        beløb_kroner = 7600,
+        refunderet_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+= ll9_stk1_scenarie_repræsentation_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2026,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "repræsentation",
+        indkomstår = 2026,
+        udgiftsart = Ll9Stk1Repræsentation(aflønningsform_giver_mulighed_for_at_påvirke_indtægten = Sandt),
+        beløb_kroner = 40000,
+        refunderet_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+= ll9_stk1_scenarie_delvis_erhverv_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2026,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "driftsmiddel",
+        indkomstår = 2026,
+        udgiftsart = Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint = 6000),
+        beløb_kroner = 20000,
+        refunderet_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+= ll9_stk1_scenarie_refusion_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2025,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "arbejdstøj",
+        indkomstår = 2025,
+        udgiftsart = Ll9Stk1SærligtArbejdstøj(
+            særligt_til_arbejdet = Sandt,
+            kan_anvendes_som_almindeligt_tøj = Falskt
+        ),
+        beløb_kroner = 12000,
+        refunderet_kroner = 4000,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+= ll9_stk1_scenarie_udelukkede_udgifter_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2026,
+    udgifter = [
+        ll9_stk1_scenarie_udgift(
+            identifikation = "videreuddannelse",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1Kursus(formål = Ll9Stk1GrundEllerVidereuddannelse),
+            beløb_kroner = 20000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        ),
+        ll9_stk1_scenarie_udgift(
+            identifikation = "privat-litteratur",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1Faglitteratur(
+                art = Ll9Stk1PopulærvidenskabeligtVærk,
+                nødvendig_for_at_varetage_arbejdet_i_året = Falskt
+            ),
+            beløb_kroner = 10000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        ),
+        ll9_stk1_scenarie_udgift(
+            identifikation = "befordring-9b",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1BefordringOmfattetAfPar9B,
+            beløb_kroner = 30000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        ),
+        ll9_stk1_scenarie_udgift(
+            identifikation = "udokumenteret",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+            beløb_kroner = 10000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1UdenTilstrækkeligDokumentation
+        )
+    ]
+)
+
+= ll9_stk1_scenarie_ugyldig_resultat = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2026,
+    udgifter = [
+        ll9_stk1_scenarie_udgift(
+            identifikation = "dublet",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+            beløb_kroner = 10000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        ),
+        ll9_stk1_scenarie_udgift(
+            identifikation = "dublet",
+            indkomstår = 2026,
+            udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+            beløb_kroner = 10000,
+            refunderet_kroner = 11000,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        )
+    ]
+)
+
+| ll9_stk1_scenarie_bundgrænse_anvendes_på_samlede_udgifter: ll9_stk1_scenarie_2025_resultat -> ll9_stk1_scenarie_2025_resultat.alle_input_gyldige && ll9_stk1_scenarie_2025_resultat.grundbeløb_kroner == 7300 && ll9_stk1_scenarie_2025_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10300 && ll9_stk1_scenarie_2025_resultat.samlet_fradrag_kroner == 3000
+| ll9_stk1_scenarie_intet_fradrag_ved_bundgrænsen: ll9_stk1_scenarie_præcis_bundgrænse_resultat -> ll9_stk1_scenarie_præcis_bundgrænse_resultat.grundbeløb_kroner == 7600 && ll9_stk1_scenarie_præcis_bundgrænse_resultat.samlet_fradrag_kroner == 0
+| ll9_stk1_scenarie_repræsentation_begrænses_før_bundgrænsen: ll9_stk1_scenarie_repræsentation_resultat -> head(ll9_stk1_scenarie_repræsentation_resultat.udgiftsresultater).fradragsandel_basispoint == 2500 && ll9_stk1_scenarie_repræsentation_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10000 && ll9_stk1_scenarie_repræsentation_resultat.samlet_fradrag_kroner == 2400
+| ll9_stk1_scenarie_erhvervsandel_anvendes_før_bundgrænsen: ll9_stk1_scenarie_delvis_erhverv_resultat -> ll9_stk1_scenarie_delvis_erhverv_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 12000 && ll9_stk1_scenarie_delvis_erhverv_resultat.samlet_fradrag_kroner == 4400
+| ll9_stk1_scenarie_refusion_reducerer_egen_udgift: ll9_stk1_scenarie_refusion_resultat -> head(ll9_stk1_scenarie_refusion_resultat.udgiftsresultater).egen_udgift_kroner == 8000 && ll9_stk1_scenarie_refusion_resultat.samlet_fradrag_kroner == 700
+| ll9_stk1_scenarie_udelukkede_udgifter_giver_intet_fradrag: ll9_stk1_scenarie_udelukkede_udgifter_resultat -> ll9_stk1_scenarie_udelukkede_udgifter_resultat.alle_input_gyldige && ll9_stk1_scenarie_udelukkede_udgifter_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && ll9_stk1_scenarie_udelukkede_udgifter_resultat.samlet_fradrag_kroner == 0
+| ll9_stk1_scenarie_ugyldigt_input_fejler_lukket: ll9_stk1_scenarie_ugyldig_resultat -> ll9_stk1_scenarie_ugyldig_resultat.identifikationer_entydige == Falskt && ll9_stk1_scenarie_ugyldig_resultat.alle_input_gyldige == Falskt && ll9_stk1_scenarie_ugyldig_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && ll9_stk1_scenarie_ugyldig_resultat.samlet_fradrag_kroner == 0
+
+? ll9_stk1_scenarie_bundgrænse_anvendes_på_samlede_udgifter
+? ll9_stk1_scenarie_intet_fradrag_ved_bundgrænsen
+? ll9_stk1_scenarie_repræsentation_begrænses_før_bundgrænsen
+? ll9_stk1_scenarie_erhvervsandel_anvendes_før_bundgrænsen
+? ll9_stk1_scenarie_refusion_reducerer_egen_udgift
+? ll9_stk1_scenarie_udelukkede_udgifter_giver_intet_fradrag
+? ll9_stk1_scenarie_ugyldigt_input_fejler_lukket

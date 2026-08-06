@@ -189,6 +189,7 @@
 | personskat_ordinaer_scenario_befordringsfradrag() -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = MedBefordringsfradrag(fakta = PersonskatBefordringsfradragFakta(
         arbejdsdage = 200,
         daglige_befordringskilometer = 50,

@@ -180,6 +180,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 | personskat_sømandsfradrag_fælles_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput) -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = MedBefordringsfradrag(fakta = personskat_sømandsfradrag_befordringsfakta()),
     rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
@@ -297,6 +298,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     PersonskatLigningsfradragInput(
         sømandsfradrag = fuldt_input.sømandsfradrag,
         sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
+        øvrige_lønmodtagerudgifter = fuldt_input.øvrige_lønmodtagerudgifter,
         befordring = fuldt_input.befordring,
         rejser = fuldt_input.rejser,
         faglige_kontingenter = fuldt_input.faglige_kontingenter,
@@ -403,7 +405,6 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     personlig_indkomst = personskat_sømandsfradrag_blandet_resultat.personlig_indkomst,
     ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag
 )
-
 | personskat_sømandsfradrag_almindeligt_helår: personskat_sømandsfradrag_helår_almindeligt_resultat -> personskat_sømandsfradrag_helår_almindeligt_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_almindeligt_resultat.samlet_fradrag_kroner == 56900
 | personskat_sømandsfradrag_forhøjet_helår: personskat_sømandsfradrag_helår_forhøjet_resultat -> personskat_sømandsfradrag_helår_forhøjet_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_forhøjet_resultat.samlet_fradrag_kroner == 105000
 | personskat_sømandsfradrag_forhøjet_halvår: personskat_sømandsfradrag_halvår_forhøjet_resultat -> personskat_sømandsfradrag_halvår_forhøjet_resultat.samlet_fradrag_kroner == 52500 && personskat_sømandsfradrag_halvår_forhøjet_resultat.almindelige_fradragsdage_hundrededele == 18250 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling, resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 5000 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a"), resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 10000 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "fragtskib-halvår"), resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 0 && sømandsbeskatningslov4_arbejdstilknytning_gyldig(kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "kørsel-a"), arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling, resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == Falskt

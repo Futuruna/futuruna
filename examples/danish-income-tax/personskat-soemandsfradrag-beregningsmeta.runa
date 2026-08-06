@@ -149,8 +149,15 @@
 = personskat_søbl4_felt_kilde = TypetBeregningsfelt(
     path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::$variant),
     label = "Fradragskilde omfattet af § 4",
-    question = Some("Er kilden en § 9 B-kørsel, det samlede §§ 9 C-9 D-befordringsfradrag, årets § 13-kontingentfradrag eller et § 49, stk. 1-bidrag?"),
+    question = Some("Er kilden en § 9, stk. 1-lønmodtagerudgift, en § 9 B-kørsel, det samlede §§ 9 C-9 D-befordringsfradrag, årets § 13-kontingentfradrag eller et § 49, stk. 1-bidrag?"),
     help = Some("Kildetypen bruges kun til at forbinde allerede oplyste kildefakta med det arbejdsforhold, de vedrører."),
+    unit = None
+)
+= personskat_søbl4_felt_ll9_stk1_kildeidentifikation = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Ligningslov9Stk1Lønmodtagerudgift::kildeidentifikation),
+    label = "Identifikation for § 9, stk. 1-lønmodtagerudgiften",
+    question = Some("Hvilken oplyst lønmodtagerudgift vedrører denne arbejdsperiode?"),
+    help = Some("Identifikationen skal svare præcist til udgiftens identifikation. Opret en særskilt udgift for hvert arbejdsforhold."),
     unit = None
 )
 = personskat_søbl4_felt_ll9b_kildeidentifikation = TypetBeregningsfelt(
@@ -193,6 +200,7 @@
     felter = [
         personskat_søbl4_felt_kildetilknytninger,
         personskat_søbl4_felt_kilde,
+        personskat_søbl4_felt_ll9_stk1_kildeidentifikation,
         personskat_søbl4_felt_ll9b_kildeidentifikation,
         personskat_søbl4_felt_pbl49_kildeidentifikation,
         personskat_søbl4_felt_arbejdstilknytning,

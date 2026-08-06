@@ -1372,6 +1372,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ægtefællens årlige bruttoløn",
             "Ægtefællens renteudgifter",
             "Valg af sømandsfradrag",
+            "Status for øvrige lønmodtagerudgifter",
             "Befordringsfradrag",
             "Personens rolle ved rejserne",
             "Fradrag for dobbelt husførelse",
@@ -1496,6 +1497,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             workbook_column_paths(&mut workbook, &seafarer_source_links_sheet);
         for expected in [
             "kilde.$variant",
+            "kilde.Søbl4Ligningslov9Stk1Lønmodtagerudgift.kildeidentifikation",
             "kilde.Søbl4Ligningslov9BErhvervsbefordring.kildeidentifikation",
             "kilde.Søbl4Pensionsbeskatningslov49Stk1Bidrag.kildeidentifikation",
             "arbejdstilknytning.$variant",
@@ -1513,6 +1515,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             workbook_headers(&mut workbook, &seafarer_source_links_sheet);
         for expected in [
             "Fradragskilde omfattet af § 4",
+            "Identifikation for § 9, stk. 1-lønmodtagerudgiften",
             "Identifikation for § 9 B-kørselssagen",
             "Identifikation for § 49, stk. 1-bidraget",
             "Arbejdsperiodens faktiske tilknytning",
@@ -1524,6 +1527,66 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human SØBL § 4 source-link label {expected} on {seafarer_source_links_sheet}"
+            );
+        }
+        let employee_expenses_path =
+            "lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter.udgifter";
+        let employee_expenses_sheet =
+            workbook_collection_sheet_name(&mut workbook, employee_expenses_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &employee_expenses_sheet),
+            "Dansk personskat - Øvrige lønmodtagerudgifter"
+        );
+        let employee_expense_paths = workbook_column_paths(&mut workbook, &employee_expenses_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "arbejdsforhold_identifikation",
+            "udgiftsart.$variant",
+            "udgiftsart.Ll9Stk1Kursus.formål",
+            "udgiftsart.Ll9Stk1Faglitteratur.art",
+            "udgiftsart.Ll9Stk1Faglitteratur.nødvendig_for_at_varetage_arbejdet_i_året",
+            "udgiftsart.Ll9Stk1SærligtArbejdstøj.særligt_til_arbejdet",
+            "udgiftsart.Ll9Stk1SærligtArbejdstøj.kan_anvendes_som_almindeligt_tøj",
+            "udgiftsart.Ll9Stk1Arbejdsværelse.arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum",
+            "udgiftsart.Ll9Stk1DriftsmiddelAfskrivning.erhvervsmæssig_andel_basispoint",
+            "udgiftsart.Ll9Stk1Repræsentation.aflønningsform_giver_mulighed_for_at_påvirke_indtægten",
+            "udgiftsart.Ll9Stk1AndenUdgift.beskrivelse",
+            "udgiftsart.Ll9Stk1AndenUdgift.forbindelse",
+            "afholdt_eller_beregnet_beløb_kroner",
+            "arbejdsgiver_refunderet_efter_regning_kroner",
+            "dokumentation",
+        ] {
+            assert!(
+                employee_expense_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 9, stk. 1 source-fact path {expected} on {employee_expenses_sheet}"
+            );
+        }
+        let employee_expense_headers = workbook_headers(&mut workbook, &employee_expenses_sheet);
+        for expected in [
+            "Lønmodtagerudgiftens identifikation",
+            "Lønmodtagerudgiftens indkomstår",
+            "Arbejdsforhold for lønmodtagerudgiften",
+            "Lønmodtagerudgiftens art",
+            "Kursets faglige formål",
+            "Faglitteraturens art",
+            "Faglitteraturen var nødvendig for arbejdet",
+            "Tøjet er særligt til arbejdet",
+            "Tøjet kan anvendes som almindeligt tøj",
+            "Arbejdsværelset er uegnet som almindeligt opholdsrum",
+            "Driftsmidlets erhvervsmæssige andel",
+            "Aflønningsformen kan påvirkes af repræsentationen",
+            "Beskrivelse af anden lønmodtagerudgift",
+            "Den anden udgifts forbindelse til arbejdet",
+            "Afholdt eller beregnet lønmodtagerudgift",
+            "Arbejdsgiverens refusion efter regning",
+            "Dokumentation for lønmodtagerudgiften",
+        ] {
+            assert!(
+                employee_expense_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 9, stk. 1 input label {expected} on {employee_expenses_sheet}"
             );
         }
         let dis_income_path = "lønmodtager.personlig_indkomst.sømandsbeskatning.indkomster";
@@ -4527,6 +4590,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("FravælgSømandsfradrag".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter.skatteyderstatus",
+                        Data::String("Ll9Stk1Lønmodtager".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.befordring.$variant",
                         Data::String("UdenBefordringsfradrag".to_string()),
                     ),
@@ -5277,6 +5344,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.sømandsfradrag.valg",
                 Data::String("FravælgSømandsfradrag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.øvrige_lønmodtagerudgifter.skatteyderstatus",
+                Data::String("Ll9Stk1Lønmodtager".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
@@ -9178,6 +9249,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "beskæftigelser": []
                 },
                 "sømandsbeskatningslov4": { "kildetilknytninger": [] },
+                "øvrige_lønmodtagerudgifter": {
+                    "skatteyderstatus": { "$variant": "Ll9Stk1Lønmodtager" },
+                    "udgifter": []
+                },
                 "befordring": { "$variant": "UdenBefordringsfradrag" },
                 "rejser": {
                     "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
@@ -10641,6 +10716,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "beskæftigelser": []
                     },
                     "sømandsbeskatningslov4": { "kildetilknytninger": [] },
+                    "øvrige_lønmodtagerudgifter": {
+                        "skatteyderstatus": { "$variant": "Ll9Stk1Lønmodtager" },
+                        "udgifter": []
+                    },
                     "befordring": { "$variant": "UdenBefordringsfradrag" },
                     "rejser": {
                         "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },

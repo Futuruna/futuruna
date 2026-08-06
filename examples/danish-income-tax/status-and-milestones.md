@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
+Current implementation slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
+Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
 Previous travel-expense slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
 Previous seafarer-coordination slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
 Previous seafarer-deduction slice: `td-302f8e` (sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er typede beskæftigelsesfakta med valg, betingelser, undtagelser, delårsfordeling og kanonisk samordning; godkendt)
@@ -35,6 +36,7 @@ Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutako
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
+Latest compiler-artifact cache: `td-22e56f` (validerede `check`-resultater og native binære artefakter genbruges sikkert ud fra hele den transitive kildegraf; kanonisk Personskat-check falder fra cirka fire minutter koldt til 2,6 s varmt)
 Previous compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
@@ -3767,6 +3769,19 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 9, stk. 1, er nu et typet årsdomæne for dokumenterede
+  lønmodtagerudgifter. Hver udgift har stabil identitet, arbejdsforhold,
+  indkomstår, egenbetaling og en kildefaktabåret art; reglerne klassificerer
+  kursus, faglitteratur, særligt arbejdstøj, erhvervstelefoni, arbejdsværelse,
+  driftsmiddel, repræsentation og andre arbejdsudgifter uden et råt
+  fradragsberettigelsesfelt. Den officielle 7.300-kr.-grænse for 2025 og
+  7.600-kr.-grænse for 2026 anvendes én gang på årets samlede grundlag, mens
+  § 9, stk. 3, begrænser repræsentation til 25 pct. før grænsen.
+  Den kanoniske Personskat-graf samordner hver identificeret udgift med
+  Sømandsbeskatningslovens § 4 før årsgrænsen og afviser manglende eller
+  modstridende arbejdstilknytninger. Fokusscenarierne passerer i både
+  interpreter og compiler, og beregningsskemaet udstiller de relaterede
+  udgiftsrækker med danske spørgsmål og feltnavne.
 - Sømandsbeskatningslovens §§ 5-8 og bekendtgørelse nr. 940 af 2022 er nu
   modelleret som typede person-, skibs-, anvendelses-, arbejdsrolle- og
   lønfakta. Reglerne afleder DIS frem for at modtage en juridisk konklusion,
@@ -3787,6 +3802,14 @@ Review candidates to revisit deliberately, not as broad churn:
   tog 16,45 s, og den komplette arbejdsbogstest faldt fra 1.251,35 s til
   557,11 s og passerede. Den resterende hovedomkostning er initialisering og
   fortolket udførelse, som er afgrænset i `td-783a9c`.
+- `check`, native `run` og native `build` har nu en særskilt,
+  afhængighedskomplet artefaktcache over rodfilen, alle transitive importer,
+  importopløsning, manifest, compiler og Rust-værktøjskæde. På den kanoniske
+  Personskat-graf tog en kold kontrol 248,6 s efter en grafændring, mens den
+  uændrede kontrol tog 2,6 s; et uændret kompileret LL § 9-scenarie tog 2,89 s.
+  Næste målte trin er modulvis frontendcache for ændrede grafer i `td-60a9d6`
+  og sikker memoisering af rene globale værdier i interpreterens rodevaluering
+  i `td-38f074`.
 - Personskattelovens § 13-fremførsel modtager ikke længere et råt beløb sammen
   med skatteyderens egen juridiske konklusion om, at underskuddet ikke kunne
   rummes tidligere. Åbningsgrundlaget er nu enten neutralt, det konsistente
@@ -4474,12 +4497,15 @@ Review candidates to revisit deliberately, not as broad churn:
   `td-a97df7` fordeler LL § 7 U-bundfradraget, og `td-44eb29` giver dødsboer,
   begrænset skattepligtige og kulbrinteskattesager deres egne kanoniske
   beløbsresultater.
-- Byg næste performance-lag efter den målte kontraktcache. `td-783a9c` skal
-  genbruge en kompileret eller resident beregningsrunner, så gentagne `call`
-  ikke initialiserer den fulde Personskat-graf igen. `td-370d3f` kan derefter
-  reducere en varm cachekontrol under den nuværende 12,31-sekunders baseline
-  ved at verificere et indholds-hashet importmanifest uden at genparse alle
-  uændrede moduler.
+- Byg næste performance-lag efter de målte kontrakt- og artefaktcacher.
+  `td-60a9d6` skal genbruge parsede og typede moduler på tværs af ændrede
+  kildegrafversioner, så en enkelt lovfil ikke udløser cirka fire minutters
+  frontendarbejde. `td-38f074` skal memoisere rene, uforanderlige globale
+  værdier under én fortolket rodevaluering; et realistisk LL § 9-scenarie tog
+  cirka 316 s fortolket mod 2,89 s som varm native artefakt. `td-783a9c` ejer
+  derefter genbrug af en kompileret eller resident beregningsrunner på tværs af
+  gentagne `call`-kald. Ingen af optimeringerne må kræve cacheannotationer i
+  lovkoden eller ændre effekter og reaktiv semantik.
 - Bevar den nu afledte KGL-årsnetto-grænse fra `td-5beddd`. Den næste
   KGL-udvidelse skal komme fra kildefakta: `td-1e2380` adskiller kredit- og
   valutakomponenter efter §§ 14/25, og `td-aac8d3` udvider positionen med

@@ -91,6 +91,7 @@ personens valg om faktisk at anvende fradraget.
 | personskat_rejsefradrag_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = personskat_rejsefradrag_nul_befordringsfradrag(),
     rejser = personskat_rejsefradrag_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
